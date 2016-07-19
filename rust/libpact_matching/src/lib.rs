@@ -1,5 +1,5 @@
 //! The `libpact_matching` crate provides the core logic to performing matching on HTTP requests
-//! and responses. It implements the V2 Pact specification (https://github.com/pact-foundation/pact-specification/tree/version-2).
+//! and responses. It implements the V3 Pact specification (https://github.com/pact-foundation/pact-specification/tree/version-3).
 //!
 //! ## To use it
 //!
@@ -22,7 +22,7 @@
 //! V2 specification matching is supported for both JSON and XML bodies, headers, query strings and request paths.
 //!
 //! To understand the basic rules of matching, see [Matching Gotchas](https://github.com/realestate-com-au/pact/wiki/Matching-gotchas).
-//! For example test cases for matching, see the [Pact Specification Project, version 2](https://github.com/bethesque/pact-specification/tree/version-2).
+//! For example test cases for matching, see the [Pact Specification Project, version 3](https://github.com/bethesque/pact-specification/tree/version-3).
 //!
 //! By default, Pact will use string equality matching following Postel's Law. This means
 //! that for an actual value to match an expected one, they both must consist of the same
@@ -244,7 +244,7 @@
 //!         "id": 101
 //!       },
 //!       {
-//!         "id": 102 // <---- $.body.item1.level[2].id
+//!         "id": 102 // <---- $.item1.level[2].id
 //!       },
 //!       {
 //!         "id": 103
@@ -254,7 +254,7 @@
 //! }
 //! ```
 //!
-//! while `$.body.*.level[*].id` will match all the ids of all the levels for all items.
+//! while `$.*.level[*].id` will match all the ids of all the levels for all items.
 //!
 //! ### Matcher selection algorithm
 //!
@@ -297,20 +297,18 @@
 //! | expression | weighting calculation | weighting |
 //! |------------|-----------------------|-----------|
 //! | $ | $(2) | 2 |
-//! | $.body | $(2).body(2) | 4 |
-//! | $.body.item1 | $(2).body(2).item1(2) | 8 |
-//! | $.body.item2 | $(2).body(2).item2(0) | 0 |
-//! | $.header.item1 | $(2).header(0).item1(2) | 0 |
-//! | $.body.item1.level | $(2).body(2).item1(2).level(2) | 16 |
-//! | $.body.item1.level[1] | $(2).body(2).item1(2).level(2)[1(2)] | 32 |
-//! | $.body.item1.level[1].id | $(2).body(2).item1(2).level(2)[1(2)].id(2) | 64 |
-//! | $.body.item1.level[1].name | $(2).body(2).item1(2).level(2)[1(2)].name(0) | 0 |
-//! | $.body.item1.level[2] | $(2).body(2).item1(2).level(2)[2(0)] | 0 |
-//! | $.body.item1.level[2].id | $(2).body(2).item1(2).level(2)[2(0)].id(2) | 0 |
-//! | $.body.item1.level[*].id | $(2).body(2).item1(2).level(2)[*(1)].id(2) | 32 |
-//! | $.body.\*.level[\*].id | $(2).body(2).*(1).level(2)[*(1)].id(2) | 8 |
+//! | $.item1 | $(2).item1(2) | 4 |
+//! | $.item2 | $(2).item2(0) | 0 |
+//! | $.item1.level | $(2).item1(2).level(2) | 8 |
+//! | $.item1.level[1] | $(2).item1(2).level(2)[1(2)] | 16 |
+//! | $.item1.level[1].id | $(2).item1(2).level(2)[1(2)].id(2) | 32 |
+//! | $.item1.level[1].name | $(2).item1(2).level(2)[1(2)].name(0) | 0 |
+//! | $.item1.level[2] | $(2).item1(2).level(2)[2(0)] | 0 |
+//! | $.item1.level[2].id | $(2).item1(2).level(2)[2(0)].id(2) | 0 |
+//! | $.item1.level[*].id | $(2).item1(2).level(2)[*(1)].id(2) | 16 |
+//! | $.\*.level[\*].id | $(2).*(1).level(2)[*(1)].id(2) | 8 |
 //!
-//! So for the item with id 102, the matcher with path `$.body.item1.level[1].id` and weighting 64 will be selected.
+//! So for the item with id 102, the matcher with path `$.item1.level[1].id` and weighting 32 will be selected.
 //!
 //! ## Supported matchers
 //!

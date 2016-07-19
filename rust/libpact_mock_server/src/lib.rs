@@ -1,6 +1,6 @@
 //! The `libpact_mock_server` crate provides the in-process mock server for mocking HTTP requests
-//! and generating responses based on a pact file. It implements the V2 Pact specification
-//! (https://github.com/pact-foundation/pact-specification/tree/version-2).
+//! and generating responses based on a pact file. It implements the V3 Pact specification
+//! (https://github.com/pact-foundation/pact-specification/tree/version-3).
 //!
 //! There are a number of exported functions using C bindings for controlling the mock server. These can be used in any
 //! language that supports C bindings.
