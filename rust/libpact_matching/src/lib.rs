@@ -803,34 +803,39 @@ fn compare_bodies(mimetype: String, expected: &String, actual: &String, config: 
     }
 }
 
+fn match_body_content(mimetype: String, expected: &models::OptionalBody, actual: &models::OptionalBody,
+    config: DiffConfig, mismatches: &mut Vec<Mismatch>, matchers: &Option<Matchers>) {
+    match (expected, actual) {
+        (&models::OptionalBody::Missing, _) => (),
+        (&models::OptionalBody::Null, &models::OptionalBody::Present(ref b)) => {
+            mismatches.push(Mismatch::BodyMismatch { expected: None, actual: Some(b.clone()),
+                mismatch: format!("Expected empty body but received '{}'", b.clone()),
+                path: s!("/")});
+        },
+        (&models::OptionalBody::Empty, &models::OptionalBody::Present(ref b)) => {
+            mismatches.push(Mismatch::BodyMismatch { expected: None, actual: Some(b.clone()),
+                mismatch: format!("Expected empty body but received '{}'", b.clone()),
+                path: s!("/")});
+        },
+        (&models::OptionalBody::Null, _) => (),
+        (&models::OptionalBody::Empty, _) => (),
+        (e, &models::OptionalBody::Missing) => {
+            mismatches.push(Mismatch::BodyMismatch { expected: Some(e.value()), actual: None,
+                mismatch: format!("Expected body '{}' but was missing", e.value()),
+                path: s!("/")});
+        },
+        (_, _) => {
+            compare_bodies(mimetype, &expected.value(), &actual.value(),
+                config, mismatches, matchers);
+        }
+    }
+}
+
 /// Matches the actual body to the expected one. This takes into account the content type of each.
 pub fn match_body(expected: &models::HttpPart, actual: &models::HttpPart, config: DiffConfig,
     mismatches: &mut Vec<Mismatch>, matchers: &Option<Matchers>) {
     if expected.mimetype() == actual.mimetype() {
-        match (expected.body(), actual.body()) {
-            (&models::OptionalBody::Missing, _) => (),
-            (&models::OptionalBody::Null, &models::OptionalBody::Present(ref b)) => {
-                mismatches.push(Mismatch::BodyMismatch { expected: None, actual: Some(b.clone()),
-                    mismatch: format!("Expected empty body but received '{}'", b.clone()),
-                    path: s!("/")});
-            },
-            (&models::OptionalBody::Empty, &models::OptionalBody::Present(ref b)) => {
-                mismatches.push(Mismatch::BodyMismatch { expected: None, actual: Some(b.clone()),
-                    mismatch: format!("Expected empty body but received '{}'", b.clone()),
-                    path: s!("/")});
-            },
-            (&models::OptionalBody::Null, _) => (),
-            (&models::OptionalBody::Empty, _) => (),
-            (e, &models::OptionalBody::Missing) => {
-                mismatches.push(Mismatch::BodyMismatch { expected: Some(e.value()), actual: None,
-                    mismatch: format!("Expected body '{}' but was missing", e.value()),
-                    path: s!("/")});
-            },
-            (_, _) => {
-                compare_bodies(expected.mimetype(), &expected.body().value(), &actual.body().value(),
-                    config, mismatches, matchers);
-            }
-        }
+        match_body_content(expected.mimetype(), expected.body(), actual.body(), config, mismatches, matchers)
     } else if expected.body().is_present() {
         mismatches.push(Mismatch::BodyTypeMismatch { expected: expected.mimetype(),
             actual: actual.mimetype() });
@@ -866,6 +871,27 @@ pub fn match_response(expected: models::Response, actual: models::Response) -> V
     match_body(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &expected.matching_rules);
     match_status(expected.status, actual.status, &mut mismatches);
     match_headers(expected.headers, actual.headers, &mut mismatches, &expected.matching_rules);
+
+    mismatches
+}
+
+/// Matches the actual message contents to the expected one. This takes into account the content type of each.
+pub fn match_message_contents(expected: &models::message::Message, actual: &models::message::Message, config: DiffConfig,
+    mismatches: &mut Vec<Mismatch>, matchers: &Option<Matchers>) {
+    if expected.mimetype() == actual.mimetype() {
+        match_body_content(expected.mimetype(), &expected.contents, &actual.contents, config, mismatches, matchers)
+    } else if expected.contents.is_present() {
+        mismatches.push(Mismatch::BodyTypeMismatch { expected: expected.mimetype(),
+            actual: actual.mimetype() });
+    }
+}
+
+/// Matches the actual and expected messages.
+pub fn match_message(expected: models::message::Message, actual: models::message::Message) -> Vec<Mismatch> {
+    let mut mismatches = vec![];
+
+    info!("comparing to expected message: {:?}", expected);
+    match_message_contents(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &expected.matching_rules);
 
     mismatches
 }

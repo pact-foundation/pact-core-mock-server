@@ -1114,7 +1114,7 @@ fn matchers_from_json_handles_missing_matchers() {
           "headers": {}
       }
     "#).unwrap();
-    let matchers = matchers_from_json(&json, s!("deprecatedName"));
+    let matchers = matchers_from_json(&json, &Some(s!("deprecatedName")));
     expect!(matchers).to(be_none());
 }
 
@@ -1128,7 +1128,7 @@ fn matchers_from_json_handles_empty_matchers() {
           "matchingRules": {}
       }
     "#).unwrap();
-    let matchers = matchers_from_json(&json, s!("deprecatedName"));
+    let matchers = matchers_from_json(&json, &Some(s!("deprecatedName")));
     expect!(matchers).to(be_none());
 }
 
@@ -1144,7 +1144,7 @@ fn matchers_from_json_handles_matcher_with_no_matching_rules() {
           }
       }
     "#).unwrap();
-    let matchers = matchers_from_json(&json, s!("deprecatedName"));
+    let matchers = matchers_from_json(&json, &Some(s!("deprecatedName")));
     expect!(matchers).to(be_some().value(hashmap!{
         s!("*.path") => hashmap!{}
     }));
@@ -1165,7 +1165,7 @@ fn matchers_from_json_loads_matchers_correctly() {
           }
       }
     "#).unwrap();
-    let matchers = matchers_from_json(&json, s!("deprecatedName"));
+    let matchers = matchers_from_json(&json, &Some(s!("deprecatedName")));
     expect!(matchers).to(be_some().value(hashmap!{
         s!("*.path") => hashmap!{
             s!("match") => s!("regex"),
@@ -1189,7 +1189,7 @@ fn matchers_from_json_loads_matchers_from_deprecated_name() {
           }
       }
     "#).unwrap();
-    let matchers = matchers_from_json(&json, s!("deprecatedName"));
+    let matchers = matchers_from_json(&json, &Some(s!("deprecatedName")));
     expect!(matchers).to(be_some().value(hashmap!{
         s!("*.path") => hashmap!{
             s!("match") => s!("regex"),

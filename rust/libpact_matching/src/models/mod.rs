@@ -30,7 +30,9 @@ pub enum PactSpecification {
     /// Second version of the pact specification (https://github.com/pact-foundation/pact-specification/tree/version-1.1)
     V1_1,
     /// Version two of the pact specification (https://github.com/pact-foundation/pact-specification/tree/version-2)
-    V2
+    V2,
+    /// Version three of the pact specification (https://github.com/pact-foundation/pact-specification/tree/version-3)
+    V3
 }
 
 impl PactSpecification {
@@ -40,6 +42,7 @@ impl PactSpecification {
             PactSpecification::V1 => s!("1.0.0"),
             PactSpecification::V1_1 => s!("1.1.0"),
             PactSpecification::V2 => s!("2.0.0"),
+            PactSpecification::V3 => s!("3.0.0"),
             _ => s!("unknown")
         }
     }
@@ -50,6 +53,7 @@ impl PactSpecification {
             PactSpecification::V1 => s!("V1"),
             PactSpecification::V1_1 => s!("V1.1"),
             PactSpecification::V2 => s!("V2"),
+            PactSpecification::V3 => s!("V3"),
             _ => s!("unknown")
         }
     }
@@ -142,6 +146,16 @@ impl OptionalBody {
 
 }
 
+impl<'a> PartialEq<&'a str> for OptionalBody {
+    fn eq(&self, other: &&'a str) -> bool {
+        match self {
+            &OptionalBody::Present(ref s) => s == other,
+            &OptionalBody::Empty => other.is_empty(),
+            _ => false
+        }
+    }
+}
+
 lazy_static! {
     static ref XMLREGEXP: Regex = Regex::new(r"^\s*<\?xml\s*version.*").unwrap();
     static ref HTMLREGEXP: Regex = Regex::new(r"^\s*(<!DOCTYPE)|(<HTML>).*").unwrap();
@@ -213,7 +227,7 @@ pub struct Request {
     pub headers: Option<HashMap<String, String>>,
     /// Request body
     pub body: OptionalBody,
-    /// Request matching rules (currently not used)
+    /// Request matching rules
     pub matching_rules: Option<Matchers>
 }
 
@@ -282,8 +296,8 @@ fn headers_to_json(headers: &HashMap<String, String>) -> Json {
     }))
 }
 
-fn body_from_json(request: &Json) -> OptionalBody {
-    match request.find("body") {
+fn body_from_json(request: &Json, fieldname: &str) -> OptionalBody {
+    match request.find(fieldname) {
         Some(v) => match *v {
             Json::String(ref s) => {
                 if s.is_empty() {
@@ -311,8 +325,8 @@ fn build_query_string(query: HashMap<String, Vec<String>>) -> String {
         .join("&")
 }
 
-fn matchers_from_json(json: &Json, deprecated_name: String) -> Option<Matchers> {
-    let matchers_json = match (json.find("matchingRules"), json.find(&deprecated_name)) {
+fn matchers_from_json(json: &Json, deprecated_name: &Option<String>) -> Option<Matchers> {
+    let matchers_json = match (json.find("matchingRules"), deprecated_name.clone().and_then(|name| json.find(&name))) {
         (Some(v), _) => Some(v),
         (None, Some(v)) => Some(v),
         (None, None) => None
@@ -386,8 +400,8 @@ impl Request {
             path: path_val,
             query: query_val,
             headers: headers_from_json(request),
-            body: body_from_json(request),
-            matching_rules: matchers_from_json(request, s!("requestMatchingRules"))
+            body: body_from_json(request, "body"),
+            matching_rules: matchers_from_json(request, &Some(s!("requestMatchingRules")))
         }
     }
 
@@ -449,7 +463,7 @@ pub struct Response {
     pub headers: Option<HashMap<String, String>>,
     /// Response body
     pub body: OptionalBody,
-    /// Response matching rules (not currently used)
+    /// Response matching rules
     pub matching_rules: Option<Matchers>
 }
 
@@ -464,8 +478,8 @@ impl Response {
         Response {
             status: status_val,
             headers: headers_from_json(response),
-            body: body_from_json(response),
-            matching_rules:  matchers_from_json(response, s!("responseMatchingRules"))
+            body: body_from_json(response, "body"),
+            matching_rules:  matchers_from_json(response, &Some(s!("responseMatchingRules")))
         }
     }
 
@@ -597,7 +611,7 @@ impl Interaction {
              provider_state: provider_state,
              request: request,
              response: response
-         }
+        }
     }
 
     /// Converts this interaction to a `Json` struct.
@@ -623,6 +637,8 @@ impl Interaction {
     }
 
 }
+
+pub mod message;
 
 /// Struct that represents a pact between the consumer and provider of a service.
 #[derive(Debug, Clone)]
