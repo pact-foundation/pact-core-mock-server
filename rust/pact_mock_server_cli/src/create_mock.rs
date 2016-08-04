@@ -17,7 +17,7 @@ pub fn create_mock_server(host: &str, port: u16, matches: &ArgMatches) -> Result
             let client = Client::new();
             let url = Url::parse(format!("http://{}:{}/", host, port).as_str()).unwrap();
             let res = client.post(url.clone())
-                .body(&pact.to_json().to_string())
+                .body(&pact.to_json(pact.spec_version()).to_string())
                 .header(ContentType(Mime(TopLevel::Application, SubLevel::Json,
                              vec![(Attr::Charset, Value::Utf8)])))
                 .send();

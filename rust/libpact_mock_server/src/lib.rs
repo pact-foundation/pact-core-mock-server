@@ -64,7 +64,7 @@ use std::ffi::CStr;
 use std::ffi::CString;
 use std::str;
 use std::panic::catch_unwind;
-use pact_matching::models::{Pact, Interaction, Request, OptionalBody};
+use pact_matching::models::{Pact, Interaction, Request, OptionalBody, PactSpecification};
 use pact_matching::models::parse_query_string;
 use pact_matching::Mismatch;
 use rustc_serialize::json::{self, Json, ToJson};
@@ -123,13 +123,13 @@ impl MatchResult {
                 s!("type") => s!("request-not-found").to_json(),
                 s!("method") => req.method.to_json(),
                 s!("path") => req.path.to_json(),
-                s!("request") => req.to_json()
+                s!("request") => req.to_json(&PactSpecification::V3)
             }),
             &MatchResult::MissingRequest(ref interaction) => Json::Object(btreemap!{
                 s!("type") => s!("missing-request").to_json(),
                 s!("method") => interaction.request.method.to_json(),
                 s!("path") => interaction.request.path.to_json(),
-                s!("request") => interaction.request.to_json()
+                s!("request") => interaction.request.to_json(&PactSpecification::V3)
             })
         }
     }
@@ -224,7 +224,7 @@ impl MockServer {
             None => PathBuf::from(pact_file_name)
         };
         info!("Writing pact out to '{}'", filename.display());
-        match self.pact.write_pact(filename.as_path()) {
+        match self.pact.write_pact(filename.as_path(), PactSpecification::V3) {
             Ok(_) => Ok(()),
             Err(err) => {
                 warn!("Failed to write pact to file - {}", err);
