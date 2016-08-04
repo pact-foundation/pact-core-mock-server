@@ -52,7 +52,6 @@ fn different_order() {
 }
 
 #[test]
-#[ignore]
 fn different_params() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
@@ -133,6 +132,7 @@ fn matches_with_equals_in_the_query_value() {
 }
 
 #[test]
+#[ignore]
 fn matches_with_regex() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
@@ -225,7 +225,6 @@ fn matches() {
 }
 
 #[test]
-#[ignore]
 fn missing_params() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
@@ -267,7 +266,6 @@ fn missing_params() {
 }
 
 #[test]
-#[ignore]
 fn same_parameter_different_values() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
@@ -306,7 +304,6 @@ fn same_parameter_different_values() {
 }
 
 #[test]
-#[ignore]
 fn same_parameter_multiple_times_in_different_order() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
@@ -385,7 +382,6 @@ fn same_parameter_multiple_times() {
 }
 
 #[test]
-#[ignore]
 fn unexpected_param() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
