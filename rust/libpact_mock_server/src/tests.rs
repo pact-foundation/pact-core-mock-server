@@ -9,7 +9,7 @@ fn match_request_returns_a_match_for_identical_requests() {
     let request = Request { method: s!("GET"), path: s!("/"), query: None,
         headers: None, body: OptionalBody::Missing, matching_rules: None };
     let response = Response { status: 200, headers: None, body: OptionalBody::Missing, matching_rules: None };
-    let interaction = Interaction { description: s!("test"), provider_state: None,
+    let interaction = Interaction { description: s!("test"), provider_states: vec![],
         request: request.clone(), response: response.clone() };
     let interactions = vec![interaction.clone()];
     let result = match_request(&request, &interactions);
@@ -30,10 +30,10 @@ fn match_request_returns_a_match_for_multiple_identical_requests() {
     let request = Request { method: s!("GET"), path: s!("/"), query: None,
         headers: None, body: OptionalBody::Missing, matching_rules: None };
     let response = Response { status: 200, headers: None, body: OptionalBody::Missing, matching_rules: None };
-    let interaction = Interaction { description: s!("test"), provider_state: None,
+    let interaction = Interaction { description: s!("test"), provider_states: vec![],
         request: request.clone(), response: response.clone() };
     let interactions = vec![interaction.clone(),
-        Interaction { description: s!("test2"), provider_state: None,
+        Interaction { description: s!("test2"), provider_states: vec![],
             request: request.clone(), response: response.clone() }];
     let result = match_request(&request, &interactions);
     expect!(result).to(be_equal_to(MatchResult::RequestMatch(interaction)));
@@ -46,10 +46,10 @@ fn match_request_returns_a_match_for_multiple_requests() {
     let request2 = Request { method: s!("POST"), path: s!("/post"), query: None,
         headers: None, body: OptionalBody::Missing, matching_rules: None };
     let response = Response { status: 200, headers: None, body: OptionalBody::Missing, matching_rules: None };
-    let interaction = Interaction { description: s!("test"), provider_state: None,
+    let interaction = Interaction { description: s!("test"), provider_states: vec![],
         request: request.clone(), response: response.clone() };
     let interactions = vec![interaction.clone(),
-        Interaction { description: s!("test2"), provider_state: None,
+        Interaction { description: s!("test2"), provider_states: vec![],
             request: request2.clone(), response: response.clone() }];
     let result = match_request(&request, &interactions);
     expect!(result).to(be_equal_to(MatchResult::RequestMatch(interaction)));
@@ -63,7 +63,7 @@ fn match_request_returns_a_mismatch_for_incorrect_request() {
     let expected_request = Request { method: s!("GET"), path: s!("/"), query: Some(hashmap!{
         s!("QueryA") => vec![s!("Value A")]
         }), headers: None, body: OptionalBody::Missing, matching_rules: None };
-    let interactions = vec![Interaction { description: s!("test"), provider_state: None,
+    let interactions = vec![Interaction { description: s!("test"), provider_states: vec![],
         request: expected_request, response: response.clone() }];
     let result = match_request(&request, &interactions);
     expect!(result.match_key()).to(be_equal_to(s!("Request-Mismatch")));
@@ -76,7 +76,7 @@ fn match_request_returns_request_not_found_if_method_or_path_do_not_match() {
     let response = Response { status: 200, headers: None, body: OptionalBody::Missing, matching_rules: None };
     let expected_request = Request { method: s!("POST"), path: s!("/otherpath"), query: None,
         headers: None, body: OptionalBody::Missing, matching_rules: None };
-    let interactions = vec![Interaction { description: s!("test"), provider_state: None,
+    let interactions = vec![Interaction { description: s!("test"), provider_states: vec![],
         request: expected_request, response: response.clone() }];
     let result = match_request(&request, &interactions);
     expect!(result).to(be_equal_to(MatchResult::RequestNotFound(request)));
@@ -93,9 +93,9 @@ fn match_request_returns_the_most_appropriate_mismatch_for_multiple_requests() {
         s!("QueryA") => vec![s!("Value A")]
         }), headers: None, body: OptionalBody::Missing, matching_rules: None };
     let response = Response { status: 200, headers: None, body: OptionalBody::Missing, matching_rules: None };
-    let interaction = Interaction { description: s!("test"), provider_state: None,
+    let interaction = Interaction { description: s!("test"), provider_states: vec![],
         request: request.clone(), response: response.clone() };
-    let interaction2 = Interaction { description: s!("test2"), provider_state: None,
+    let interaction2 = Interaction { description: s!("test2"), provider_states: vec![],
             request: request2.clone(), response: response.clone() };
     let interactions = vec![interaction.clone(), interaction2.clone()];
     let result = match_request(&request3, &interactions);
@@ -128,7 +128,7 @@ fn match_request_supports_v2_matchers() {
         ), matching_rules: Some(hashmap!{
             s!("$.body.*") => hashmap!{ s!("match") => s!("type") }
         }) };
-    let interaction = Interaction { description: s!("test"), provider_state: None,
+    let interaction = Interaction { description: s!("test"), provider_states: vec![],
         request: expected_request, response: response.clone() };
     let result = match_request(&request, &vec![interaction.clone()]);
     expect!(result).to(be_equal_to(MatchResult::RequestMatch(interaction)));
@@ -152,7 +152,7 @@ fn match_request_supports_v2_matchers_with_xml() {
         ), matching_rules: Some(hashmap!{
             s!("$.body.foo['#text']") => hashmap!{ s!("match") => s!("regex"), s!("regex") => s!("[a-z]+") }
         }) };
-    let interaction = Interaction { description: s!("test"), provider_state: None,
+    let interaction = Interaction { description: s!("test"), provider_states: vec![],
         request: expected_request, response: response.clone() };
     let result = match_request(&request, &vec![interaction.clone()]);
     expect!(result).to(be_equal_to(MatchResult::RequestMatch(interaction)));

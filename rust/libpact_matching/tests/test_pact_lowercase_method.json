@@ -6,7 +6,9 @@
     "name" : "test_consumer"
   },
   "interactions" : [ {
-    "providerState" : "test state",
+    "providerStates" : [
+      {"name": "test state"}
+    ],
     "description" : "test interaction",
     "request" : {
       "method" : "get",

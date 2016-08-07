@@ -603,14 +603,16 @@ impl Hash for Response {
     }
 }
 
+pub mod provider_states;
+
 /// Struct that defines an interaction (request and response pair)
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Interaction {
     /// Description of this interaction. This needs to be unique in the pact file.
     pub description: String,
-    /// Optional provider state for the interaction.
+    /// Optional provider states for the interaction.
     /// See http://docs.pact.io/documentation/provider_states.html for more info on provider states.
-    pub provider_state: Option<String>,
+    pub provider_states: Vec<provider_states::ProviderState>,
     /// Request of the interaction
     pub request: Request,
     /// Response of the interaction
@@ -627,18 +629,7 @@ impl Interaction {
             },
             None => format!("Interaction {}", index)
         };
-        let provider_state = match pact_json.find("providerState") {
-            Some(v) => match *v {
-                Json::String(ref s) => if s.is_empty() {
-                    None
-                } else {
-                    Some(s.clone())
-                },
-                Json::Null => None,
-                _ => Some(v.to_string())
-            },
-            None => None
-        };
+        let provider_states = provider_states::ProviderState::from_json(pact_json);
         let request = match pact_json.find("request") {
             Some(v) => Request::from_json(v, spec_version),
             None => Request::default_request()
@@ -649,7 +640,7 @@ impl Interaction {
         };
         Interaction {
              description: description,
-             provider_state: provider_state,
+             provider_states: provider_states,
              request: request,
              response: response
         }
@@ -662,8 +653,13 @@ impl Interaction {
             s!("request") => self.request.to_json(spec_version),
             s!("response") => self.response.to_json(spec_version)
         };
-        if self.provider_state.is_some() {
-            map.insert(s!("providerState"), Json::String(self.provider_state.clone().unwrap()));
+        if !self.provider_states.is_empty() {
+            match spec_version {
+                &PactSpecification::V3 => map.insert(s!("providerStates"),
+                    Json::Array(self.provider_states.iter().map(|p| p.to_json()).collect())),
+                _ => map.insert(s!("providerState"), Json::String(
+                    self.provider_states.first().unwrap().name.clone()))
+            };
         }
         Json::Object(map)
     }
@@ -673,7 +669,7 @@ impl Interaction {
     /// Two interactions conflict if they have the same description and provider state, but they request and
     /// responses are not equal
     pub fn conflicts_with(&self, other: &Interaction) -> bool {
-        self.description == other.description && self.provider_state == other.provider_state &&
+        self.description == other.description && self.provider_states == other.provider_states &&
             (self.request != other.request || self.response != other.response)
     }
 
@@ -838,7 +834,8 @@ impl Pact {
                         .chain(pact.interactions.iter())
                         .cloned()
                         .sorted_by(|a, b| {
-                            let cmp = Ord::cmp(&a.provider_state, &b.provider_state);
+                            let cmp = Ord::cmp(&a.provider_states.iter().map(|p| p.name.clone()).collect::<Vec<String>>(),
+                                &b.provider_states.iter().map(|p| p.name.clone()).collect::<Vec<String>>());
                             if cmp == Ordering::Equal {
                                 Ord::cmp(&a.description, &b.description)
                             } else {
