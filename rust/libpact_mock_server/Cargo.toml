@@ -28,7 +28,7 @@ version = "^0.9.7"
 default-features = false
 
 [lib]
-crate-type = ["cdylib", "staticlib"]
+crate-type = ["cdylib", "staticlib", "rlib"]
 
 [dev-dependencies]
 quickcheck = "^0.2"
