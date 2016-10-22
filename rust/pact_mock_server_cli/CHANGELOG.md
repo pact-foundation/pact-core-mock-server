@@ -1,5 +1,29 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.2.1 - Changes required for verifying V2 pacts
+
+* e3eebbd -  update projects to use the published pact mock server library (Ronald Holshausen, Sun Oct 9 16:36:25 2016 +1100)
+* 770010a - update projects to use the published pact matching lib (Ronald Holshausen, Sun Oct 9 16:25:15 2016 +1100)
+* a21973a - Get the build passing after merge from V1.1 branch (Ronald Holshausen, Sun Oct 9 13:47:09 2016 +1100)
+* 341607c - Merge branch 'v1.1-spec' into v2-spec (Ronald Holshausen, Sun Oct 9 12:10:12 2016 +1100)
+* 91d1216 - bump version to 0.1.2 (Ronald Holshausen, Sat Oct 8 17:49:20 2016 +1100)
+* 0d324a8 - bump version to 0.2.1 (Ronald Holshausen, Wed Jul 13 14:26:40 2016 +1000)
+* 377b372 - update changelog for release 0.2.0 (Ronald Holshausen, Wed Jul 13 14:22:15 2016 +1000)
+* 7ed156e - updated project for the V2 spec release (Ronald Holshausen, Wed Jul 13 14:19:12 2016 +1000)
+* 22b0bb9 - fix for failing build (Ronald Holshausen, Tue Jul 12 16:59:56 2016 +1000)
+* 534e7a1 - updated readmes and bump versions for the V2 implementation (Ronald Holshausen, Wed Jun 29 10:38:32 2016 +1000)
+
+# 0.1.1 - Changes required for verifying V1.1 pacts
+
+* 28928ef - correct the displayed help for the pact_mock_server_cli (Ronald Holshausen, Sat Oct 8 17:29:19 2016 +1100)
+* 3ca2df8 - update dependencies (Ronald Holshausen, Sat Oct 8 17:22:48 2016 +1100)
+* a46dabb - update all references to V1 spec after merge (Ronald Holshausen, Sat Oct 8 16:20:51 2016 +1100)
+* 1d6d4f8 - Merge branch 'v1-spec' into v1.1-spec (Ronald Holshausen, Sat Oct 8 15:44:25 2016 +1100)
+* 04d9e5f - update the docs for the pact consumer library (Ronald Holshausen, Mon Sep 26 23:06:19 2016 +1000)
+* 40c9e02 - exclude IntelliJ files from publishing (Ronald Holshausen, Mon Sep 26 21:22:35 2016 +1000)
+* efe036c - bump version to 0.1.1 (Ronald Holshausen, Tue Jun 28 21:54:59 2016 +1000)
+* c1d97a0 - correct the repository paths in the cargo manifests (Ronald Holshausen, Tue Jun 28 14:52:46 2016 +1000)
+
 # 0.2.0 - V2 Specification Implementation
 
 * 7ed156e - updated project for the V2 spec release (Ronald Holshausen, Wed Jul 13 14:19:12 2016 +1000)
