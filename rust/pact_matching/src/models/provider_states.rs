@@ -52,7 +52,7 @@ impl ProviderState {
                 Json::Array(ref a) => a.iter().map(|i| ProviderState::from_json_v3(i)).collect(),
                 _ => vec![]
             },
-            None => match pact_json.find("providerState") {
+            None => match pact_json.find("providerState").or(pact_json.find("provider_state")) {
                 Some(v) => match *v {
                     Json::String(ref s) => if s.is_empty() {
                         vec![]
