@@ -249,7 +249,7 @@ fn deeply_nested_objects() {
       		"headers": {},
       		"body": {
       			"object1": {
-      				"object2": {
+      				"object2": { 
       					"object4": {
       						"object5": {
       							"name": "Mary",
@@ -267,7 +267,7 @@ fn deeply_nested_objects() {
       		"headers": {},
       		"body": {
       			"object1":{
-      				"object2": {
+      				"object2": { 
       					"object4":{
       						"object5": {
       							"name": "Mary",
@@ -1258,69 +1258,8 @@ fn different_value_found_at_index() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
       {
-        "match": true,
-        "comment": "Empty body",
-        "expected" : {
-          "headers": {"Content-Type": "application/json"},
-          "body": ""
-        },
-        "actual": {
-          "headers": {"Content-Type": "application/json"},
-          "body": ""
-        }
-      }
-    "#).unwrap();
-
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
-    let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
-       expect!(result).to(be_empty());
-    } else {
-       expect!(result).to_not(be_empty());
-    }
-}
-
-#[test]
-fn null_body_no_content_type() {
-    env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
-      {
-        "match": true,
-        "comment": "NULL body, no content-type",
-        "expected" : {
-          "body": null
-        },
-        "actual": {
-          "headers": {"Content-Type": "application/json"},
-          "body": null
-        }
-      }
-    "#).unwrap();
-
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
-    let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
-       expect!(result).to(be_empty());
-    } else {
-       expect!(result).to_not(be_empty());
-    }
-}
-
-#[test]
-fn null_body() {
-    env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
-      {
-        "match": true,
-        "comment": "NULL body",
+        "match": false,
+        "comment": "Incorrect favourite colour",
         "expected" : {
           "headers": {},
           "body": {

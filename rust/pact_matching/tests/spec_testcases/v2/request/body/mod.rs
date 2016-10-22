@@ -1287,54 +1287,6 @@ fn matches_xml() {
 }
 
 #[test]
-fn matches() {
-    env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
-      {
-        "match": true,
-        "comment": "Requests match",
-        "expected" : {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {"Content-Type": "application/json"},
-          "body": {
-            "alligator":{
-              "name": "Mary",
-              "feet": 4,
-              "favouriteColours": ["red","blue"]
-            }
-          }
-        },
-        "actual": {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {"Content-Type": "application/json"},
-          "body": {
-            "alligator":{
-              "feet": 4,
-              "name": "Mary",
-              "favouriteColours": ["red","blue"]
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.find("expected").unwrap(), &PactSpecification::V2);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.find("actual").unwrap(), &PactSpecification::V2);
-    println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
-    if pact_match.as_boolean().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
-    } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
-    }
-}
-
-#[test]
 fn missing_body_found_when_empty_expected() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
@@ -1406,17 +1358,24 @@ fn missing_body_no_content_type() {
 }
 
 #[test]
-fn missing_body() {
+fn matches() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
       {
         "match": true,
-        "comment": "Missing body",
+        "comment": "Requests match",
         "expected" : {
           "method": "POST",
           "path": "/",
           "query": "",
-          "headers": {"Content-Type": "application/json"}
+          "headers": {"Content-Type": "application/json"},
+          "body": {
+            "alligator":{
+              "name": "Mary",
+              "feet": 4,
+              "favouriteColours": ["red","blue"]
+            }
+          }
         },
         "actual": {
           "method": "POST",
@@ -1424,8 +1383,10 @@ fn missing_body() {
           "query": "",
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator": {
-              "age": 3
+            "alligator":{
+              "feet": 4,
+              "name": "Mary",
+              "favouriteColours": ["red","blue"]
             }
           }
         }
@@ -1525,25 +1486,28 @@ fn missing_index() {
 }
 
 #[test]
-fn missing_key_xml() {
+fn missing_body() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
       {
-        "match": false,
-        "comment": "XML Missing key alligator name",
+        "match": true,
+        "comment": "Missing body",
         "expected" : {
           "method": "POST",
           "path": "/",
           "query": "",
-          "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\" age=\"3\"></alligator>"
+          "headers": {"Content-Type": "application/json"}
         },
         "actual": {
           "method": "POST",
           "path": "/",
           "query": "",
-          "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator age=\"3\"></alligator>"
+          "headers": {"Content-Type": "application/json"},
+          "body": {
+            "alligator": {
+              "age": 3
+            }
+          }
         }
       }
     "#).unwrap();
@@ -1640,44 +1604,6 @@ fn no_body_no_content_type_xml() {
 }
 
 #[test]
-fn no_body_no_content_type() {
-    env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
-      {
-        "match": true,
-        "comment": "No body, no content-type",
-        "expected" : {
-          "method": "POST",
-          "path": "/",
-          "query": ""
-        },
-        "actual": {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {"Content-Type": "application/json"},
-          "body": {
-            "alligator": {
-              "age": 3
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.find("expected").unwrap(), &PactSpecification::V2);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.find("actual").unwrap(), &PactSpecification::V2);
-    println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
-    if pact_match.as_boolean().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
-    } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
-    }
-}
-
-#[test]
 fn no_body_xml() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
@@ -1696,45 +1622,6 @@ fn no_body_xml() {
           "query": "",
           "headers": {"Content-Type": "application/xml"},
           "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\"/>"
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.find("expected").unwrap(), &PactSpecification::V2);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.find("actual").unwrap(), &PactSpecification::V2);
-    println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
-    if pact_match.as_boolean().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
-    } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
-    }
-}
-
-#[test]
-fn no_body() {
-    env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
-      {
-        "match": true,
-        "comment": "Missing body",
-        "expected" : {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {"Content-Type": "application/json"}
-        },
-        "actual": {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {"Content-Type": "application/json"},
-          "body": {
-            "alligator": {
-              "age": 3
-            }
-          }
         }
       }
     "#).unwrap();
@@ -1987,25 +1874,25 @@ fn null_body_no_content_type() {
 }
 
 #[test]
-fn null_body() {
+fn missing_key_xml() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
       {
-        "match": true,
-        "comment": "NULL body",
+        "match": false,
+        "comment": "XML Missing key alligator name",
         "expected" : {
           "method": "POST",
           "path": "/",
           "query": "",
-          "headers": {"Content-Type": "application/json"},
-          "body": null
+          "headers": {"Content-Type": "application/xml"},
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\" age=\"3\"></alligator>"
         },
         "actual": {
           "method": "POST",
           "path": "/",
           "query": "",
-          "headers": {"Content-Type": "application/json"},
-          "body": null
+          "headers": {"Content-Type": "application/xml"},
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator age=\"3\"></alligator>"
         }
       }
     "#).unwrap();
@@ -2111,33 +1998,25 @@ fn null_found_in_array_when_not_null_expected() {
 }
 
 #[test]
-fn number_found_at_key_when_string_expected() {
+fn null_body() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
       {
-        "match": false,
-        "comment": "Number of feet expected to be string but was number",
+        "match": true,
+        "comment": "NULL body",
         "expected" : {
           "method": "POST",
           "path": "/",
           "query": "",
           "headers": {"Content-Type": "application/json"},
-          "body": {
-            "alligator":{
-              "feet": "4"
-            }
-          }
+          "body": null
         },
         "actual": {
           "method": "POST",
           "path": "/",
           "query": "",
           "headers": {"Content-Type": "application/json"},
-          "body": {
-            "alligator":{
-              "feet": 4
-            }
-          }
+          "body": null
         }
       }
     "#).unwrap();
@@ -2199,25 +2078,28 @@ fn number_found_in_array_when_string_expected() {
 }
 
 #[test]
-fn plain_text_that_does_not_match() {
+fn no_body() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
       {
-        "match": false,
-        "comment": "Plain text that does not match",
+        "match": true,
+        "comment": "Missing body",
         "expected" : {
           "method": "POST",
           "path": "/",
           "query": "",
-          "headers": { "Content-Type": "text/plain" },
-          "body": "alligator named mary"
+          "headers": {"Content-Type": "application/json"}
         },
         "actual": {
           "method": "POST",
           "path": "/",
           "query": "",
-          "headers": { "Content-Type": "text/plain" },
-          "body": "alligator named fred"
+          "headers": {"Content-Type": "application/json"},
+          "body": {
+            "alligator": {
+              "age": 3
+            }
+          }
         }
       }
     "#).unwrap();
@@ -2271,12 +2153,12 @@ fn plain_text_that_matches() {
 }
 
 #[test]
-fn string_found_at_key_when_number_expected() {
+fn number_found_at_key_when_string_expected() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
       {
         "match": false,
-        "comment": "Number of feet expected to be number but was string",
+        "comment": "Number of feet expected to be string but was number",
         "expected" : {
           "method": "POST",
           "path": "/",
@@ -2284,7 +2166,7 @@ fn string_found_at_key_when_number_expected() {
           "headers": {"Content-Type": "application/json"},
           "body": {
             "alligator":{
-              "feet": 4
+              "feet": "4"
             }
           }
         },
@@ -2295,7 +2177,7 @@ fn string_found_at_key_when_number_expected() {
           "headers": {"Content-Type": "application/json"},
           "body": {
             "alligator":{
-              "feet": "4"
+              "feet": 4
             }
           }
         }
@@ -2359,25 +2241,25 @@ fn string_found_in_array_when_number_expected() {
 }
 
 #[test]
-fn unexpected_index_with_missing_value_xml() {
+fn plain_text_that_does_not_match() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
       {
         "match": false,
-        "comment": "XML Unexpected favourite colour with empty value",
+        "comment": "Plain text that does not match",
         "expected" : {
           "method": "POST",
           "path": "/",
           "query": "",
-          "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><favouriteColour>red</favouriteColour><favouriteColour>blue</favouriteColour></favouriteColours></alligator>"
+          "headers": { "Content-Type": "text/plain" },
+          "body": "alligator named mary"
         },
         "actual": {
           "method": "POST",
           "path": "/",
           "query": "",
-          "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><favouriteColour>red</favouriteColour><favouriteColour>blue</favouriteColour><favouriteColour></favouriteColour></favouriteColours></alligator>"
+          "headers": { "Content-Type": "text/plain" },
+          "body": "alligator named fred"
         }
       }
     "#).unwrap();
@@ -2431,12 +2313,12 @@ fn unexpected_index_with_non_empty_value_xml() {
 }
 
 #[test]
-fn unexpected_index_with_not_null_value() {
+fn string_found_at_key_when_number_expected() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
       {
         "match": false,
-        "comment": "Unexpected favourite colour",
+        "comment": "Number of feet expected to be number but was string",
         "expected" : {
           "method": "POST",
           "path": "/",
@@ -2444,7 +2326,7 @@ fn unexpected_index_with_not_null_value() {
           "headers": {"Content-Type": "application/json"},
           "body": {
             "alligator":{
-              "favouriteColours": ["red","blue"]
+              "feet": 4
             }
           }
         },
@@ -2455,7 +2337,7 @@ fn unexpected_index_with_not_null_value() {
           "headers": {"Content-Type": "application/json"},
           "body": {
             "alligator":{
-              "favouriteColours": ["red","blue","taupe"]
+              "feet": "4"
             }
           }
         }
@@ -2519,25 +2401,25 @@ fn unexpected_index_with_null_value() {
 }
 
 #[test]
-fn unexpected_key_with_empty_value_xml() {
+fn unexpected_index_with_missing_value_xml() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
       {
         "match": false,
-        "comment": "XML Unexpected phone number with empty value",
+        "comment": "XML Unexpected favourite colour with empty value",
         "expected" : {
           "method": "POST",
           "path": "/",
           "query": "",
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\"/>"
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><favouriteColour>red</favouriteColour><favouriteColour>blue</favouriteColour></favouriteColours></alligator>"
         },
         "actual": {
           "method": "POST",
           "path": "/",
           "query": "",
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\" phoneNumber=\"\"/>"
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><favouriteColour>red</favouriteColour><favouriteColour>blue</favouriteColour><favouriteColour></favouriteColour></favouriteColours></alligator>"
         }
       }
     "#).unwrap();
@@ -2591,22 +2473,52 @@ fn unexpected_key_with_non_empty_value_xml() {
 }
 
 #[test]
-fn unexpected_key_with_not_null_value() {
+fn unexpected_key_with_empty_value_xml() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
       {
         "match": false,
-        "comment": "Unexpected phone number",
+        "comment": "XML Unexpected phone number with empty value",
         "expected" : {
           "method": "POST",
           "path": "/",
           "query": "",
-          "headers": {"Content-Type": "application/json"},
-          "body": {
-            "alligator":{
-              "name": "Mary"
-            }
-          }
+          "headers": {"Content-Type": "application/xml"},
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\"/>"
+        },
+        "actual": {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {"Content-Type": "application/xml"},
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\" phoneNumber=\"\"/>"
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.find("expected").unwrap(), &PactSpecification::V2);
+    println!("{:?}", expected);
+    let actual = Request::from_json(&pact.find("actual").unwrap(), &PactSpecification::V2);
+    println!("{:?}", actual);
+    let pact_match = pact.find("match").unwrap();
+    if pact_match.as_boolean().unwrap() {
+       expect!(match_request(expected, actual)).to(be_empty());
+    } else {
+       expect!(match_request(expected, actual)).to_not(be_empty());
+    }
+}
+
+#[test]
+fn no_body_no_content_type() {
+    env_logger::init().unwrap_or(());
+    let pact = Json::from_str(r#"
+      {
+        "match": true,
+        "comment": "No body, no content-type",
+        "expected" : {
+          "method": "POST",
+          "path": "/",
+          "query": ""
         },
         "actual": {
           "method": "POST",
@@ -2614,11 +2526,46 @@ fn unexpected_key_with_not_null_value() {
           "query": "",
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "name": "Mary",
-              "phoneNumber": "12345678"
+            "alligator": {
+              "age": 3
             }
           }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.find("expected").unwrap(), &PactSpecification::V2);
+    println!("{:?}", expected);
+    let actual = Request::from_json(&pact.find("actual").unwrap(), &PactSpecification::V2);
+    println!("{:?}", actual);
+    let pact_match = pact.find("match").unwrap();
+    if pact_match.as_boolean().unwrap() {
+       expect!(match_request(expected, actual)).to(be_empty());
+    } else {
+       expect!(match_request(expected, actual)).to_not(be_empty());
+    }
+}
+
+#[test]
+fn value_found_in_array_when_empty_expected_xml() {
+    env_logger::init().unwrap_or(());
+    let pact = Json::from_str(r#"
+      {
+        "match": false,
+        "comment": "XML Favourite numbers expected to be strings found an empty value",
+        "expected" : {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {"Content-Type": "application/xml"},
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteNumbers><favouriteNumber>1</favouriteNumber><favouriteNumber>2</favouriteNumber><favouriteNumber>3</favouriteNumber></favouriteNumbers></alligator>"
+        },
+        "actual": {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {"Content-Type": "application/xml"},
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteNumbers><favouriteNumber>1</favouriteNumber><favouriteNumber></favouriteNumber><favouriteNumber>3</favouriteNumber></favouriteNumbers></alligator>"
         }
       }
     "#).unwrap();
@@ -2681,25 +2628,78 @@ fn unexpected_key_with_null_value() {
 }
 
 #[test]
-fn value_found_in_array_when_empty_expected_xml() {
+fn unexpected_key_with_not_null_value() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
       {
         "match": false,
-        "comment": "XML Favourite numbers expected to be strings found an empty value",
+        "comment": "Unexpected phone number",
         "expected" : {
           "method": "POST",
           "path": "/",
           "query": "",
-          "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteNumbers><favouriteNumber>1</favouriteNumber><favouriteNumber>2</favouriteNumber><favouriteNumber>3</favouriteNumber></favouriteNumbers></alligator>"
+          "headers": {"Content-Type": "application/json"},
+          "body": {
+            "alligator":{
+              "name": "Mary"
+            }
+          }
         },
         "actual": {
           "method": "POST",
           "path": "/",
           "query": "",
-          "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteNumbers><favouriteNumber>1</favouriteNumber><favouriteNumber></favouriteNumber><favouriteNumber>3</favouriteNumber></favouriteNumbers></alligator>"
+          "headers": {"Content-Type": "application/json"},
+          "body": {
+            "alligator":{
+              "name": "Mary",
+              "phoneNumber": "12345678"
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.find("expected").unwrap(), &PactSpecification::V2);
+    println!("{:?}", expected);
+    let actual = Request::from_json(&pact.find("actual").unwrap(), &PactSpecification::V2);
+    println!("{:?}", actual);
+    let pact_match = pact.find("match").unwrap();
+    if pact_match.as_boolean().unwrap() {
+       expect!(match_request(expected, actual)).to(be_empty());
+    } else {
+       expect!(match_request(expected, actual)).to_not(be_empty());
+    }
+}
+
+#[test]
+fn unexpected_index_with_not_null_value() {
+    env_logger::init().unwrap_or(());
+    let pact = Json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Unexpected favourite colour",
+        "expected" : {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {"Content-Type": "application/json"},
+          "body": {
+            "alligator":{
+              "favouriteColours": ["red","blue"]
+            }
+          }
+        },
+        "actual": {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {"Content-Type": "application/json"},
+          "body": {
+            "alligator":{
+              "favouriteColours": ["red","blue","taupe"]
+            }
+          }
         }
       }
     "#).unwrap();

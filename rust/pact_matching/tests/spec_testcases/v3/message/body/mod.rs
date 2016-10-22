@@ -171,7 +171,6 @@ fn array_size_less_than_required() {
 }
 
 #[test]
-#[ignore]
 fn array_with_at_least_one_element_matching_by_example() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
@@ -394,7 +393,6 @@ fn array_with_nested_array_that_does_not_match() {
 }
 
 #[test]
-#[ignore]
 fn array_with_nested_array_that_matches() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
@@ -491,7 +489,6 @@ fn array_with_nested_array_that_matches() {
 }
 
 #[test]
-#[ignore]
 fn array_with_regular_expression_in_element() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
@@ -730,7 +727,6 @@ fn different_value_found_at_key() {
 }
 
 #[test]
-#[ignore]
 fn matches_with_regex_with_bracket_notation() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
@@ -786,7 +782,6 @@ fn matches_with_regex_with_bracket_notation() {
 }
 
 #[test]
-#[ignore]
 fn matches_with_regex() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
@@ -862,7 +857,6 @@ fn matches_with_regex() {
 }
 
 #[test]
-#[ignore]
 fn matches_with_type() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"

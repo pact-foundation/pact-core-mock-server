@@ -476,7 +476,7 @@ impl Request {
             },
             None => "/".to_string()
         };
-        let query_val = match request.find("query") {
+        let query_val = match request_json.find("query") {
             Some(v) => match spec_version {
                 &PactSpecification::V3 => v3_query_from_json(v, spec_version),
                 _ => query_from_json(v, spec_version)
@@ -787,7 +787,7 @@ impl Interaction {
     pub fn default() -> Interaction {
         Interaction {
              description: s!("Default Interaction"),
-             provider_states: None,
+             provider_states: vec![],
              request: Request::default_request(),
              response: Response::default_response()
         }
@@ -887,7 +887,7 @@ impl Pact {
 
     /// Returns the specification version of this pact
     pub fn spec_version(&self) -> PactSpecification {
-        determin_spec_version(&self.metadata)
+        determin_spec_version(&s!("<Pact>"), &self.metadata)
     }
 
     /// Creates a `Pact` from a `Json` struct.

@@ -68,7 +68,7 @@ impl Message {
                 Ok(Message {
                      description: description,
                      provider_state: provider_state,
-                     contents: body_from_json(json, "contents"),
+                     contents: body_from_json(json, "contents", &None),
                      matching_rules: matchers_from_json(json, &None),
                      metadata: metadata
                 })

@@ -499,7 +499,7 @@ fn load_v3_pact() {
       }
     }
     "#;
-    let pact = Pact::from_json(&Json::from_str(pact_json).unwrap());
+    let pact = Pact::from_json(&s!(""), &Json::from_str(pact_json).unwrap());
     expect!(&pact.provider.name).to(be_equal_to("test_provider"));
     expect!(&pact.consumer.name).to(be_equal_to("test_consumer"));
     expect!(pact.metadata.iter()).to(have_count(2));
@@ -1410,7 +1410,7 @@ fn body_from_json_returns_missing_if_there_is_no_body() {
           }
       }
     "#).unwrap();
-    let body = body_from_json(&json, &None);
+    let body = body_from_json(&json, "body", &None);
     expect!(body).to(be_equal_to(OptionalBody::Missing));
 }
 
@@ -1424,7 +1424,7 @@ fn body_from_json_returns_null_if_the_body_is_null() {
           "body": null
       }
     "#).unwrap();
-    let body = body_from_json(&json, &None);
+    let body = body_from_json(&json, "body", &None);
     expect!(body).to(be_equal_to(OptionalBody::Null));
 }
 
@@ -1440,7 +1440,7 @@ fn body_from_json_returns_json_string_if_the_body_is_json_but_not_a_string() {
           }
       }
     "#).unwrap();
-    let body = body_from_json(&json, &None);
+    let body = body_from_json(&json, "body", &None);
     expect!(body).to(be_equal_to(OptionalBody::Present(s!("{\"test\":true}"))));
 }
 
@@ -1454,7 +1454,7 @@ fn body_from_json_returns_empty_if_the_body_is_an_empty_string() {
           "body": ""
       }
     "#).unwrap();
-    let body = body_from_json(&json, &None);
+    let body = body_from_json(&json, "body", &None);
     expect!(body).to(be_equal_to(OptionalBody::Empty));
 }
 
@@ -1468,7 +1468,7 @@ fn body_from_json_returns_the_body_if_the_body_is_a_string() {
           "body": "<?xml version=\"1.0\"?> <body></body>"
       }
     "#).unwrap();
-    let body = body_from_json(&json, &None);
+    let body = body_from_json(&json, "body", &None);
     expect!(body).to(be_equal_to(OptionalBody::Present(s!("<?xml version=\"1.0\"?> <body></body>"))));
 }
 
@@ -1483,7 +1483,7 @@ fn body_from_json_returns_the_a_json_formatted_body_if_the_body_is_a_string_and_
       }
     "#).unwrap();
     let headers = headers_from_json(&json);
-    let body = body_from_json(&json, &headers);
+    let body = body_from_json(&json, "body", &headers);
     expect!(body).to(be_equal_to(OptionalBody::Present(s!("\"This is actually a JSON string\""))));
 }
 
@@ -1498,7 +1498,7 @@ fn body_from_json_returns_the_body_if_the_content_type_is_json() {
       }
     "#).unwrap();
     let headers = headers_from_json(&json);
-    let body = body_from_json(&json, &headers);
+    let body = body_from_json(&json, "body", &headers);
     expect!(body).to(be_equal_to(OptionalBody::Present(s!("{\"test\":true}"))));
 }
 

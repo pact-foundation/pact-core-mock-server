@@ -114,7 +114,6 @@ fn incorrect_path() {
 }
 
 #[test]
-#[ignore]
 fn matches_with_regex() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
