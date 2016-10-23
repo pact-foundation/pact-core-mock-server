@@ -123,21 +123,32 @@ fn execute_state_change(provider_state: &ProviderState, provider: &ProviderInfo,
         Some(_) => {
             let mut state_change_request = Request { method: s!("POST"), .. Request::default_request() };
             if provider.state_change_body {
-              let json_body = Json::Object(btreemap!{
+              let mut body_map = btreemap! {
                   s!("state") => Json::String(provider_state.name.clone()),
                   s!("action") => Json::String(if setup {
                     s!("setup")
                   } else {
                     s!("teardown")
                   })
-              });
+              };
+              for (k, v) in provider_state.params.clone() {
+                body_map.insert(k, v);
+              }
+              let json_body = Json::Object(body_map);
               state_change_request.body = OptionalBody::Present(json_body.to_string());
+              state_change_request.headers = Some(hashmap!{ s!("Content-Type") => s!("application/json") });
             } else {
               let mut query = hashmap!{ s!("state") => vec![provider_state.name.clone()] };
               if setup {
                 query.insert(s!("action"), vec![s!("setup")]);
               } else {
                 query.insert(s!("action"), vec![s!("teardown")]);
+              }
+              for (k, v) in provider_state.params.clone() {
+                query.insert(k, vec![match v {
+                  Json::String(ref s) => s.clone(),
+                  _ => v.to_string()
+                }]);
               }
               state_change_request.query = Some(query);
             }
@@ -468,10 +479,13 @@ pub fn verify_provider(provider_info: &ProviderInfo, source: Vec<PactSource>, fi
 
 #[cfg(test)]
 mod tests {
-    use expectest::prelude::*;
-    use super::{FilterInfo, filter_interaction, filter_consumers};
-    use pact_matching::models::*;
-    use pact_matching::models::provider_states::*;
+  use expectest::prelude::*;
+  use super::{FilterInfo, filter_interaction, filter_consumers, execute_state_change, ProviderInfo};
+  use pact_matching::models::*;
+  use pact_matching::models::provider_states::*;
+  use pact_consumer::*;
+  use env_logger::*;
+  use rustc_serialize::json::Json;
 
     #[test]
     fn if_no_interaction_filter_is_defined_returns_true() {
@@ -578,4 +592,70 @@ mod tests {
         let result = Ok(Pact { consumer: Consumer { name: s!("bob") }, .. Pact::default() });
         expect!(filter_consumers(&consumers, &result)).to(be_true());
     }
+
+  #[test]
+  fn test_state_change_with_parameters() {
+    init().unwrap_or(());
+
+    let body = OptionalBody::Present(s!("{\"A\":\"1\",\"B\":\"2\",\"action\":\"setup\",\"state\":\"TestState\"}"));
+    let pact_runner = ConsumerPactBuilder::consumer(s!("RustPactVerifier"))
+      .has_pact_with(s!("SomeRunningProvider"))
+      .upon_receiving(s!("a state change request"))
+        .method(s!("POST"))
+        .path(s!("/"))
+        .headers(hashmap!{ s!("Content-Type") => s!("application/json") })
+        .body(body)
+      .will_respond_with()
+        .status(200)
+      .build();
+    let provider_state = ProviderState {
+      name: s!("TestState"),
+      params: hashmap!{
+        s!("A") => Json::String(s!("1")),
+        s!("B") => Json::String(s!("2"))
+      }
+    };
+    let result = pact_runner.run(&|url| {
+      let provider = ProviderInfo { state_change_url: Some(url), .. ProviderInfo::default() };
+      let result = execute_state_change(&provider_state, &provider, true);
+      expect!(result.clone()).to(be_ok());
+      Ok(())
+    });
+    expect!(result).to(be_equal_to(VerificationResult::PactVerified));
+  }
+
+  #[test]
+  fn test_state_change_with_parameters_in_query() {
+    init().unwrap_or(());
+
+    let pact_runner = ConsumerPactBuilder::consumer(s!("RustPactVerifier"))
+      .has_pact_with(s!("SomeRunningProvider"))
+      .upon_receiving(s!("a state change request with params in the query string"))
+        .method(s!("POST"))
+        .path(s!("/"))
+        .query(hashmap!{
+          s!("state") => vec![s!("TestState")],
+          s!("action") => vec![s!("setup")],
+          s!("A") => vec![s!("1")],
+          s!("B") => vec![s!("2")]
+        })
+      .will_respond_with()
+        .status(200)
+      .build();
+    let provider_state = ProviderState {
+      name: s!("TestState"),
+      params: hashmap!{
+        s!("A") => Json::String(s!("1")),
+        s!("B") => Json::String(s!("2"))
+      }
+    };
+    let result = pact_runner.run(&|url| {
+      let provider = ProviderInfo { state_change_url: Some(url), state_change_body: false,
+        .. ProviderInfo::default() };
+      let result = execute_state_change(&provider_state, &provider, true);
+      expect!(result.clone()).to(be_ok());
+      Ok(())
+    });
+    expect!(result).to(be_equal_to(VerificationResult::PactVerified));
+  }
 }
