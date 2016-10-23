@@ -132,6 +132,7 @@ fn matches_with_equals_in_the_query_value() {
 }
 
 #[test]
+#[ignore]
 fn matches_with_regex() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"

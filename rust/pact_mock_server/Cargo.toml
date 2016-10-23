@@ -24,7 +24,7 @@ log = "0.3.5"
 maplit = "0.1.3"
 lazy_static = "0.1.15"
 uuid = { version = "0.2.2", features = ["v4"] }
-itertools = "0.4.15"
+itertools = "0.5.4"
 
 [dependencies.hyper]
 version = "0.9.7"

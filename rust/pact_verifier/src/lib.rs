@@ -31,6 +31,7 @@ use std::io;
 use std::fs;
 use pact_matching::*;
 use pact_matching::models::*;
+use pact_matching::models::provider_states::*;
 use ansi_term::*;
 use ansi_term::Colour::*;
 use std::collections::HashMap;
@@ -114,16 +115,16 @@ fn verify_response_from_provider(provider: &ProviderInfo, interaction: &Interact
     }
 }
 
-fn execute_state_change(provider_state: &String, provider: &ProviderInfo, setup: bool) -> Result<(), MismatchResult> {
+fn execute_state_change(provider_state: &ProviderState, provider: &ProviderInfo, setup: bool) -> Result<(), MismatchResult> {
     if setup {
-        println!("  Given {}", Style::new().bold().paint(provider_state.clone()));
+        println!("  Given {}", Style::new().bold().paint(provider_state.name.clone()));
     }
     let result = match provider.state_change_url {
         Some(_) => {
             let mut state_change_request = Request { method: s!("POST"), .. Request::default_request() };
             if provider.state_change_body {
               let json_body = Json::Object(btreemap!{
-                  s!("state") => Json::String(provider_state.clone()),
+                  s!("state") => Json::String(provider_state.name.clone()),
                   s!("action") => Json::String(if setup {
                     s!("setup")
                   } else {
@@ -132,7 +133,7 @@ fn execute_state_change(provider_state: &String, provider: &ProviderInfo, setup:
               });
               state_change_request.body = OptionalBody::Present(json_body.to_string());
             } else {
-              let mut query = hashmap!{ s!("state") => vec![provider_state.clone()] };
+              let mut query = hashmap!{ s!("state") => vec![provider_state.name.clone()] };
               if setup {
                 query.insert(s!("action"), vec![s!("setup")]);
               } else {
@@ -153,22 +154,20 @@ fn execute_state_change(provider_state: &String, provider: &ProviderInfo, setup:
         }
     };
 
-    debug!("State Change: \"{}\" -> {:?}", provider_state, result);
+    debug!("State Change: \"{:?}\" -> {:?}", provider_state, result);
     result
 }
 
 fn verify_interaction(provider: &ProviderInfo, interaction: &Interaction) -> Result<(), MismatchResult> {
-    match interaction.provider_state {
-        Some(ref state) => try!(execute_state_change(state, provider, true)),
-        None => ()
+    for state in interaction.provider_states.clone() {
+        try!(execute_state_change(&state, provider, true))
     }
 
     let result = verify_response_from_provider(provider, interaction);
 
     if provider.state_change_teardown {
-        match interaction.provider_state {
-            Some(ref state) => try!(execute_state_change(state, provider, false)),
-            None => ()
+        for state in interaction.provider_states.clone() {
+            try!(execute_state_change(&state, provider, false))
         }
     }
 
@@ -273,16 +272,15 @@ impl FilterInfo {
     /// # Panics
     /// If the state filter value can't be parsed as a regular expression
     pub fn match_state(&self, interaction: &Interaction) -> bool {
-        match interaction.provider_state.clone() {
-            Some(state) => {
-                if self.state().is_empty() {
-                    false
-                } else {
-                    let re = Regex::new(&self.state()).unwrap();
-                    re.is_match(&state)
-                }
-            },
-            None => self.has_state() && self.state().is_empty()
+        if !interaction.provider_states.is_empty() {
+            if self.state().is_empty() {
+                false
+            } else {
+                let re = Regex::new(&self.state()).unwrap();
+                interaction.provider_states.iter().any(|state| re.is_match(&state.name))
+            }
+        } else {
+            self.has_state() && self.state().is_empty()
         }
     }
 
@@ -366,9 +364,11 @@ pub fn verify_provider(provider_info: &ProviderInfo, source: Vec<PactSource>, fi
                     for (interaction, result) in results.clone() {
                         let mut description = format!("Verifying a pact between {} and {}",
                             pact.consumer.name.clone(), pact.provider.name.clone());
-                        if interaction.provider_state.is_some() {
-                            description.push_str(&format!(" Given {}",
-                                interaction.provider_state.clone().unwrap()));
+                        if let Some((first, elements)) = interaction.provider_states.split_first() {
+                            description.push_str(&format!(" Given {}", first.name));
+                            for state in elements {
+                                description.push_str(&format!(" And {}", state.name));
+                            }
                         }
                         description.push_str(" - ");
                         description.push_str(&interaction.description);
@@ -471,6 +471,7 @@ mod tests {
     use expectest::prelude::*;
     use super::{FilterInfo, filter_interaction, filter_consumers};
     use pact_matching::models::*;
+    use pact_matching::models::provider_states::*;
 
     #[test]
     fn if_no_interaction_filter_is_defined_returns_true() {
@@ -498,55 +499,55 @@ mod tests {
 
     #[test]
     fn if_an_interaction_state_filter_is_defined_returns_false_if_the_state_does_not_match() {
-        let interaction = Interaction { provider_state: Some(s!("bob")), .. Interaction::default() };
+        let interaction = Interaction { provider_states: vec![ ProviderState::default(&s!("bob")) ], .. Interaction::default() };
         expect!(filter_interaction(&interaction, &FilterInfo::State(s!("fred")))).to(be_false());
     }
 
     #[test]
     fn if_an_interaction_state_filter_is_defined_returns_true_if_the_state_does_match() {
-        let interaction = Interaction { provider_state: Some(s!("bob")), .. Interaction::default() };
+        let interaction = Interaction { provider_states: vec![ ProviderState::default(&s!("bob")) ], .. Interaction::default() };
         expect!(filter_interaction(&interaction, &FilterInfo::State(s!("bob")))).to(be_true());
     }
 
     #[test]
     fn uses_regexs_to_match_the_state() {
-        let interaction = Interaction { provider_state: Some(s!("bobby")), .. Interaction::default() };
+        let interaction = Interaction { provider_states: vec![ ProviderState::default(&s!("bobby")) ], .. Interaction::default() };
         expect!(filter_interaction(&interaction, &FilterInfo::State(s!("bob.*")))).to(be_true());
     }
 
     #[test]
     fn if_the_state_filter_is_empty_returns_false_if_the_interaction_state_is_defined() {
-        let interaction = Interaction { provider_state: Some(s!("bobby")), .. Interaction::default() };
+        let interaction = Interaction { provider_states: vec![ ProviderState::default(&s!("bobby")) ], .. Interaction::default() };
         expect!(filter_interaction(&interaction, &FilterInfo::State(s!("")))).to(be_false());
     }
 
     #[test]
     fn if_the_state_filter_is_empty_returns_true_if_the_interaction_state_is_not_defined() {
-        let interaction = Interaction { provider_state: None, .. Interaction::default() };
+        let interaction = Interaction { provider_states: vec![], .. Interaction::default() };
         expect!(filter_interaction(&interaction, &FilterInfo::State(s!("")))).to(be_true());
     }
 
     #[test]
     fn if_the_state_filter_and_interaction_filter_is_defined_must_match_both() {
-        let interaction = Interaction { description: s!("freddy"), provider_state: Some(s!("bobby")), .. Interaction::default() };
+        let interaction = Interaction { description: s!("freddy"), provider_states: vec![ ProviderState::default(&s!("bobby")) ], .. Interaction::default() };
         expect!(filter_interaction(&interaction, &FilterInfo::DescriptionAndState(s!(".*ddy"), s!("bob.*")))).to(be_true());
     }
 
     #[test]
     fn if_the_state_filter_and_interaction_filter_is_defined_is_false_if_the_provider_state_does_not_match() {
-        let interaction = Interaction { description: s!("freddy"), provider_state: Some(s!("boddy")), .. Interaction::default() };
+        let interaction = Interaction { description: s!("freddy"), provider_states: vec![ ProviderState::default(&s!("boddy")) ], .. Interaction::default() };
         expect!(filter_interaction(&interaction, &FilterInfo::DescriptionAndState(s!(".*ddy"), s!("bob.*")))).to(be_false());
     }
 
     #[test]
     fn if_the_state_filter_and_interaction_filter_is_defined_is_false_if_the_description_does_not_match() {
-        let interaction = Interaction { description: s!("frebby"), provider_state: Some(s!("bobby")), .. Interaction::default() };
+        let interaction = Interaction { description: s!("frebby"), provider_states: vec![ ProviderState::default(&s!("bobby")) ], .. Interaction::default() };
         expect!(filter_interaction(&interaction, &FilterInfo::DescriptionAndState(s!(".*ddy"), s!("bob.*")))).to(be_false());
     }
 
     #[test]
     fn if_the_state_filter_and_interaction_filter_is_defined_is_false_if_both_do_not_match() {
-        let interaction = Interaction { description: s!("joe"), provider_state: Some(s!("authur")), .. Interaction::default() };
+        let interaction = Interaction { description: s!("joe"), provider_states: vec![ ProviderState::default(&s!("author")) ], .. Interaction::default() };
         expect!(filter_interaction(&interaction, &FilterInfo::DescriptionAndState(s!(".*ddy"), s!("bob.*")))).to(be_false());
     }
 

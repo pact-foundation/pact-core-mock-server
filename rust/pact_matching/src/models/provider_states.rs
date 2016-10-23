@@ -17,6 +17,14 @@ pub struct ProviderState {
 
 impl ProviderState {
 
+    /// Creates a default state with the given name
+    pub fn default(name: &String) -> ProviderState {
+        ProviderState {
+            name: name.clone(),
+            params: hashmap!{}
+        }
+    }
+
     /// Constructs a provider state from the `Json` struct
     pub fn from_json_v3(pact_json: &Json) -> ProviderState {
         let state = match pact_json.find("name") {

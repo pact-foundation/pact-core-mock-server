@@ -288,7 +288,7 @@ mod tests {
     use super::{content_type, json_content_type};
     use pact_consumer::*;
     use env_logger::*;
-    use pact_matching::models::{Pact, OptionalBody, Consumer, Provider, Interaction};
+    use pact_matching::models::{Pact, OptionalBody, Consumer, Provider, Interaction, PactSpecification};
     use hyper::Url;
     use hyper::client::response::Response;
     use std::io::{self, Write, Read};
@@ -728,12 +728,12 @@ mod tests {
         let pact = Pact { consumer: Consumer { name: s!("Consumer") },
             provider: Provider { name: s!("happy_provider") },
             .. Pact::default() }
-            .to_json().to_string();
+            .to_json(PactSpecification::V3).to_string();
         let pact2 = Pact { consumer: Consumer { name: s!("Consumer2") },
             provider: Provider { name: s!("happy_provider") },
             interactions: vec![ Interaction { description: s!("a request friends"), .. Interaction::default() } ],
             .. Pact::default() }
-            .to_json().to_string();
+            .to_json(PactSpecification::V3).to_string();
         let pact_runner = ConsumerPactBuilder::consumer(s!("RustPactVerifier"))
             .has_pact_with(s!("PactBroker"))
             .upon_receiving(s!("a request to the pact broker root"))

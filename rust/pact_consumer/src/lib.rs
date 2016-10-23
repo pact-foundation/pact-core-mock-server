@@ -1,6 +1,6 @@
 //! The `pact_consumer` crate provides the test DSL for writing consumer pact tests.
-//! It implements the V2 Pact specification
-//! (https://github.com/pact-foundation/pact-specification/tree/version-2).
+//! It implements the V3 Pact specification
+//! (https://github.com/pact-foundation/pact-specification/tree/version-3).
 //!
 //! ## To use it
 //!
@@ -8,7 +8,7 @@
 //!
 //! ```ignore
 //! [dev-dependencies]
-//! pact_consumer = "0.2.0"
+//! pact_consumer = "0.3.0"
 //! ```
 //!
 //! Then in your main module
@@ -72,6 +72,7 @@ extern crate pact_mock_server;
 extern crate uuid;
 
 use pact_matching::models::*;
+use pact_matching::models::provider_states::*;
 use pact_mock_server::*;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -211,7 +212,7 @@ impl ConsumerPactBuilder {
             _ => self.pact.interactions.push(self.interaction.clone())
         }
         self.interaction = Interaction {
-            provider_state: Some(provider_state.clone()),
+            provider_states: vec![ProviderState { name: provider_state.clone(), params: hashmap!{} }],
             .. Interaction::default()
         };
         self.state = BuilderState::BuildingRequest;
