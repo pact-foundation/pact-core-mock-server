@@ -237,7 +237,6 @@ fn matches_content_type_with_parameters_in_different_order() {
 }
 
 #[test]
-#[ignore]
 fn matches_with_regex() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"

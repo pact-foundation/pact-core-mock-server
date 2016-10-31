@@ -178,8 +178,7 @@ pub enum DetectedContentType {
     Text
 }
 
-/// Data structure for representing a collection of matchers
-pub type Matchers = HashMap<String, HashMap<String, String>>;
+#[macro_use] pub mod matchingrules;
 
 /// Trait to specify an HTTP part of a message. It encapsulates the shared parts of a request and
 /// response.
@@ -189,7 +188,7 @@ pub trait HttpPart {
     /// Returns the body of the HTTP part.
     fn body(&self) -> &OptionalBody;
     /// Returns the matching rules of the HTTP part.
-    fn matching_rules(&self) -> &Option<Matchers>;
+    fn matching_rules(&self) -> &matchingrules::MatchingRules;
 
     /// Determins the content type of the HTTP part. If a `Content-Type` header is present, the
     /// value of that header will be returned. Otherwise, the body will be inspected.
@@ -206,7 +205,7 @@ pub trait HttpPart {
         }
     }
 
-    /// Tries to detect the content type of the body by matching some regular exptressions against
+    /// Tries to detect the content type of the body by matching some regular expressions against
     /// the first 32 characters. Default to `text/plain` if no match is found.
     fn detect_content_type(&self) -> String {
         match *self.body() {
@@ -256,7 +255,7 @@ pub struct Request {
     /// Request body
     pub body: OptionalBody,
     /// Request matching rules
-    pub matching_rules: Option<Matchers>
+    pub matching_rules: matchingrules::MatchingRules
 }
 
 impl HttpPart for Request {
@@ -268,7 +267,7 @@ impl HttpPart for Request {
         &self.body
     }
 
-    fn matching_rules(&self) -> &Option<Matchers> {
+    fn matching_rules(&self) -> &matchingrules::MatchingRules {
         &self.matching_rules
     }
 }
@@ -290,15 +289,7 @@ impl Hash for Request {
             }
         }
         self.body.hash(state);
-        if self.matching_rules.is_some() {
-            for (k, map) in self.matching_rules.clone().unwrap() {
-                k.hash(state);
-                for (k2, v) in map.clone() {
-                    k2.hash(state);
-                    v.hash(state);
-                }
-            }
-        }
+        self.matching_rules.hash(state);
     }
 }
 
@@ -371,48 +362,6 @@ pub fn build_query_string(query: HashMap<String, Vec<String>>) -> String {
                 .collect_vec()
         })
         .join("&")
-}
-
-fn matchers_from_json(json: &Json, deprecated_name: &Option<String>) -> Option<Matchers> {
-    let matchers_json = match (json.find("matchingRules"), deprecated_name.clone().and_then(|name| json.find(&name))) {
-        (Some(v), _) => Some(v),
-        (None, Some(v)) => Some(v),
-        (None, None) => None
-    };
-    let matchers = matchers_json.map(|v| {
-        match *v {
-            Json::Object(ref m) => m.iter().map(|(k, val)| {
-                (k.clone(), match *val {
-                    Json::Object(ref m2) => m2.iter().map(|(k2, v2)| {
-                        (k2.clone(), match v2 {
-                            &Json::String(ref s) => s.clone(),
-                            _ => v2.to_string()
-                        })
-                    }).collect(),
-                    _ => hashmap!{}
-                })
-            }).collect(),
-            _ => hashmap!{}
-        }
-    });
-    match matchers {
-        Some(m) => if m.is_empty() {
-            None
-        } else {
-            Some(m)
-        },
-        None => None
-    }
-}
-
-fn matchers_to_json(matchers: &Matchers) -> Json {
-    Json::Object(matchers.iter().fold(BTreeMap::new(), |mut map, kv| {
-        map.insert(kv.0.clone(), Json::Object(kv.1.clone().iter().fold(BTreeMap::new(), |mut map, kv| {
-            map.insert(kv.0.clone(), Json::String(kv.1.clone()));
-            map
-        })));
-        map
-    }))
 }
 
 fn query_from_json(query_json: &Json, spec_version: &PactSpecification) -> Option<HashMap<String, Vec<String>>> {
@@ -490,7 +439,7 @@ impl Request {
             query: query_val,
             headers: headers.clone(),
             body: body_from_json(request_json, "body", &headers),
-            matching_rules: matchers_from_json(request_json, &Some(s!("requestMatchingRules")))
+            matching_rules: matchingrules::matchers_from_json(request_json, &Some(s!("requestMatchingRules")))
         }
     }
 
@@ -524,8 +473,8 @@ impl Request {
             OptionalBody::Missing => (),
             OptionalBody::Null => { json.insert(s!("body"), Json::Null); }
         }
-        if self.matching_rules.is_some() {
-            json.insert(s!("matchingRules"), matchers_to_json(&self.matching_rules.clone().unwrap()));
+        if self.matching_rules.is_not_empty() {
+            json.insert(s!("matchingRules"), matchingrules::matchers_to_json(&self.matching_rules.clone()));
         }
         Json::Object(json)
     }
@@ -538,7 +487,7 @@ impl Request {
             query: None,
             headers: None,
             body: OptionalBody::Missing,
-            matching_rules: None
+            matching_rules: matchingrules::MatchingRules::default()
         }
     }
 
@@ -577,7 +526,7 @@ pub struct Response {
     /// Response body
     pub body: OptionalBody,
     /// Response matching rules
-    pub matching_rules: Option<Matchers>
+    pub matching_rules: matchingrules::MatchingRules
 }
 
 impl Response {
@@ -593,7 +542,7 @@ impl Response {
             status: status_val,
             headers: headers.clone(),
             body: body_from_json(response, "body", &headers),
-            matching_rules:  matchers_from_json(response, &Some(s!("responseMatchingRules")))
+            matching_rules:  matchingrules::matchers_from_json(response, &Some(s!("responseMatchingRules")))
         }
     }
 
@@ -603,7 +552,7 @@ impl Response {
             status: 200,
             headers: None,
             body: OptionalBody::Missing,
-            matching_rules: None
+            matching_rules: matchingrules::MatchingRules::default()
         }
     }
 
@@ -634,8 +583,8 @@ impl Response {
             OptionalBody::Missing => (),
             OptionalBody::Null => { json.insert(s!("body"), Json::Null); }
         }
-        if self.matching_rules.is_some() {
-            json.insert(s!("matchingRules"), matchers_to_json(&self.matching_rules.clone().unwrap()));
+        if self.matching_rules.is_not_empty() {
+            json.insert(s!("matchingRules"), matchingrules::matchers_to_json(&self.matching_rules.clone()));
         }
         Json::Object(json)
     }
@@ -668,7 +617,7 @@ impl HttpPart for Response {
         &self.body
     }
 
-    fn matching_rules(&self) -> &Option<Matchers> {
+    fn matching_rules(&self) -> &matchingrules::MatchingRules {
         &self.matching_rules
     }
 }
@@ -683,15 +632,7 @@ impl Hash for Response {
             }
         }
         self.body.hash(state);
-        if self.matching_rules.is_some() {
-            for (k, map) in self.matching_rules.clone().unwrap() {
-                k.hash(state);
-                for (k2, v) in map.clone() {
-                    k2.hash(state);
-                    v.hash(state);
-                }
-            }
-        }
+        self.matching_rules.hash(state);
     }
 }
 

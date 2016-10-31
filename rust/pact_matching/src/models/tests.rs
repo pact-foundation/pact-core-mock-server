@@ -1,5 +1,5 @@
 use super::*;
-use super::{matchers_from_json, body_from_json, headers_from_json};
+use super::{body_from_json, headers_from_json};
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io;
@@ -10,6 +10,7 @@ use expectest::prelude::*;
 use rand;
 use std::hash::{Hash, Hasher, SipHasher};
 use super::provider_states::*;
+#[macro_use] use super::matchingrules::*;
 
 #[test]
 fn request_from_json_defaults_to_get() {
@@ -138,7 +139,7 @@ fn quickcheck_parse_query_string() {
 #[test]
 fn request_mimetype_is_based_on_the_content_type_header() {
     let request = Request { method: s!("GET"), path: s!("/"), query: None, headers: None,
-        body: OptionalBody::Missing, matching_rules: None };
+        body: OptionalBody::Missing, matching_rules: matchingrules!{} };
     expect!(request.content_type()).to(be_equal_to("text/plain"));
     expect!(Request {
         headers: Some(hashmap!{ s!("Content-Type") => s!("text/html") }), .. request.clone() }.content_type())
@@ -184,7 +185,7 @@ fn request_mimetype_is_based_on_the_content_type_header() {
 #[test]
 fn content_type_enum_test() {
     let request = Request { method: s!("GET"), path: s!("/"), query: None, headers: None,
-        body: OptionalBody::Missing, matching_rules: None };
+        body: OptionalBody::Missing, matching_rules: matchingrules!{} };
     expect!(request.content_type_enum()).to(be_equal_to(DetectedContentType::Text));
     expect!(Request {
         headers: Some(hashmap!{ s!("Content-Type") => s!("text/html") }), .. request.clone() }.content_type_enum())
@@ -369,13 +370,13 @@ fn load_basic_pact() {
         query: Some(hashmap!{ s!("name") => vec![s!("ron")], s!("status") => vec![s!("good")] }),
         headers: None,
         body: OptionalBody::Missing,
-        matching_rules: None
+        matching_rules: matchingrules!{}
     }));
     expect!(interaction.response).to(be_equal_to(Response {
         status: 200,
         headers: Some(hashmap!{ s!("Content-Type") => s!("text/html") }),
         body: OptionalBody::Present(s!("\"That is some good Mallory.\"")),
-        matching_rules: None
+        matching_rules: matchingrules!{}
     }));
     expect!(pact.specification_version).to(be_equal_to(PactSpecification::V3));
     expect!(pact.metadata.iter()).to(have_count(0));
@@ -442,13 +443,13 @@ fn load_pact() {
         query: Some(hashmap!{ s!("q") => vec![s!("p"), s!("p2")], s!("r") => vec![s!("s")] }),
         headers: Some(hashmap!{ s!("testreqheader") => s!("testreqheadervalue") }),
         body: OptionalBody::Present(s!("{\"test\":true}")),
-        matching_rules: None
+        matching_rules: matchingrules!{}
     }));
     expect!(interaction.response).to(be_equal_to(Response {
         status: 200,
         headers: Some(hashmap!{ s!("testreqheader") => s!("testreqheaderval") }),
         body: OptionalBody::Present(s!("{\"responsetest\":true}")),
-        matching_rules: None
+        matching_rules: matchingrules!{}
     }));
 }
 
@@ -516,13 +517,13 @@ fn load_v3_pact() {
         query: Some(hashmap!{ s!("q") => vec![s!("p"), s!("p2")], s!("r") => vec![s!("s")] }),
         headers: Some(hashmap!{ s!("testreqheader") => s!("testreqheadervalue") }),
         body: OptionalBody::Present(s!("{\"test\":true}")),
-        matching_rules: None
+        matching_rules: matchingrules!{}
     }));
     expect!(interaction.response).to(be_equal_to(Response {
         status: 200,
         headers: Some(hashmap!{ s!("testreqheader") => s!("testreqheaderval") }),
         body: OptionalBody::Present(s!("{\"responsetest\":true}")),
-        matching_rules: None
+        matching_rules: matchingrules!{}
     }));
 }
 
@@ -580,7 +581,7 @@ fn load_pact_encoded_query_string() {
             s!("description") => vec![s!("hello world!")] }),
         headers: Some(hashmap!{ s!("testreqheader") => s!("testreqheadervalue") }),
         body: OptionalBody::Present(s!("{\"test\":true}")),
-        matching_rules: None
+        matching_rules: matchingrules!{}
     }));
 }
 
@@ -609,7 +610,7 @@ fn load_pact_converts_methods_to_uppercase() {
         query: None,
         headers: None,
         body: OptionalBody::Missing,
-        matching_rules: None
+        matching_rules: matchingrules!{}
     }));
 }
 
@@ -1250,7 +1251,7 @@ fn matchers_from_json_handles_missing_matchers() {
       }
     "#).unwrap();
     let matchers = matchers_from_json(&json, &Some(s!("deprecatedName")));
-    expect!(matchers).to(be_none());
+    expect!(matchers).to(be_empty());
 }
 
 #[test]
@@ -1264,7 +1265,7 @@ fn matchers_from_json_handles_empty_matchers() {
       }
     "#).unwrap();
     let matchers = matchers_from_json(&json, &Some(s!("deprecatedName")));
-    expect!(matchers).to(be_none());
+    expect!(matchers).to(be_empty());
 }
 
 #[test]
@@ -1275,13 +1276,17 @@ fn matchers_from_json_handles_matcher_with_no_matching_rules() {
           "query": "",
           "headers": {},
           "matchingRules": {
-            "*.path": {}
+            "body": {
+                "$.*.path": []
+            }
           }
       }
     "#).unwrap();
     let matchers = matchers_from_json(&json, &Some(s!("deprecatedName")));
-    expect!(matchers).to(be_some().value(hashmap!{
-        s!("*.path") => hashmap!{}
+    expect!(matchers).to(be_equal_to(matchingrules!{
+        "body" => {
+            "$.*.path" => [ ]
+        }
     }));
 }
 
@@ -1293,18 +1298,19 @@ fn matchers_from_json_loads_matchers_correctly() {
           "query": "",
           "headers": {},
           "matchingRules": {
-            "*.path": {
-                "match": "regex",
-                "regex": "\\d+"
+            "body": {
+                "$.*.path": [{
+                    "match": "regex",
+                    "regex": "\\d+"
+                }]
             }
           }
       }
     "#).unwrap();
     let matchers = matchers_from_json(&json, &Some(s!("deprecatedName")));
-    expect!(matchers).to(be_some().value(hashmap!{
-        s!("*.path") => hashmap!{
-            s!("match") => s!("regex"),
-            s!("regex") => s!(r#"\d+"#)
+    expect!(matchers).to(be_equal_to(matchingrules!{
+        "body" => {
+            "$.*.path" => [ matchregex!("\\d+") ]
         }
     }));
 }
@@ -1317,18 +1323,19 @@ fn matchers_from_json_loads_matchers_from_deprecated_name() {
           "query": "",
           "headers": {},
           "deprecatedName": {
-            "*.path": {
-                "match": "regex",
-                "regex": "\\d+"
+              "body": {
+                "$.*.path": [{
+                    "match": "regex",
+                    "regex": "\\d+"
+                }]
             }
           }
       }
     "#).unwrap();
     let matchers = matchers_from_json(&json, &Some(s!("deprecatedName")));
-    expect!(matchers).to(be_some().value(hashmap!{
-        s!("*.path") => hashmap!{
-            s!("match") => s!("regex"),
-            s!("regex") => s!(r#"\d+"#)
+    expect!(matchers).to(be_equal_to(matchingrules!{
+        "body" => {
+            "$.*.path" => [ matchregex!(r#"\d+"#) ]
         }
     }));
 }
@@ -1342,9 +1349,11 @@ fn write_pact_test_with_matchers() {
                 description: s!("Test Interaction"),
                 provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
                 request: Request {
-                    matching_rules: Some(hashmap!{
-                        s!("*.body") => hashmap!{ s!("match") => s!("type") }
-                    }),
+                    matching_rules: matchingrules!{
+                        "body" => {
+                            "$" => [ matchtype!() ]
+                        }
+                    },
                     .. Request::default_request()
                 },
                 response: Response::default_response()

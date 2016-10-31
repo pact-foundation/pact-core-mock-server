@@ -4,11 +4,11 @@ use sxd_document::*;
 use sxd_document::dom::*;
 use std::collections::btree_map::BTreeMap;
 use itertools::Itertools;
-use models::Matchers;
+use models::matchingrules::*;
 use matchers::*;
 
 pub fn match_xml(expected: &String, actual: &String, config: DiffConfig,
-    mismatches: &mut Vec<super::Mismatch>, matchers: &Option<Matchers>) {
+    mismatches: &mut Vec<super::Mismatch>, matchers: &MatchingRules) {
     let expected_result = parser::parse(expected);
     let actual_result = parser::parse(actual);
 
@@ -92,9 +92,9 @@ fn path_to_string(path: &Vec<String>) -> String {
 }
 
 fn compare_element(path: &Vec<String>, expected: &Element, actual: &Element, config: DiffConfig,
-    mismatches: &mut Vec<super::Mismatch>, matchers: &Option<Matchers>) {
-    let matcher_result = if matcher_is_defined(&path, matchers) {
-        match_values(path, matchers.clone().unwrap(), expected, actual)
+    mismatches: &mut Vec<super::Mismatch>, matchers: &MatchingRules) {
+    let matcher_result = if matchers.matcher_is_defined("body", &path) {
+        match_values(path, matchers.clone(), expected, actual)
     } else {
         expected.matches(actual, &Matcher::EqualityMatcher)
     };
@@ -115,7 +115,7 @@ fn compare_element(path: &Vec<String>, expected: &Element, actual: &Element, con
 }
 
 fn compare_attributes(path: &Vec<String>, expected: &Element, actual: &Element, config: DiffConfig,
-    mismatches: &mut Vec<super::Mismatch>, matchers: &Option<Matchers>) {
+    mismatches: &mut Vec<super::Mismatch>, matchers: &MatchingRules) {
     let expected_attributes: BTreeMap<String, String> = expected.attributes()
         .iter().map(|attr| (s!(attr.name().local_part()), s!(attr.value()))).collect();
     let actual_attributes: BTreeMap<String, String> = actual.attributes()
@@ -168,10 +168,10 @@ fn desc_children<'a>(children: &Vec<ChildOfElement<'a>>) -> String {
 }
 
 fn compare_children(path: &Vec<String>, expected: &Element, actual: &Element, config: DiffConfig,
-    mismatches: &mut Vec<super::Mismatch>, matchers: &Option<Matchers>) {
+    mismatches: &mut Vec<super::Mismatch>, matchers: &MatchingRules) {
     let mut expected_children = children(expected);
     let actual_children = children(actual);
-    if matcher_is_defined(&path, matchers) {
+    if matchers.matcher_is_defined("body", &path) {
         if !expected_children.is_empty() {
             let expected_example = expected_children[0].clone();
             expected_children.resize(actual_children.len(), expected_example);
@@ -210,7 +210,7 @@ fn compare_children(path: &Vec<String>, expected: &Element, actual: &Element, co
 }
 
 fn compare_text(path: &Vec<String>, expected: &Element, actual: &Element,
-    mismatches: &mut Vec<super::Mismatch>, matchers: &Option<Matchers>) {
+    mismatches: &mut Vec<super::Mismatch>, matchers: &MatchingRules) {
     let expected_text = s!(expected.children().iter().cloned()
         .filter(|child| child.text().is_some())
         .map(|child| child.text().unwrap().text())
@@ -221,8 +221,8 @@ fn compare_text(path: &Vec<String>, expected: &Element, actual: &Element,
         .collect::<String>().trim());
     let mut p = path.to_vec();
     p.push(s!("#text"));
-    let matcher_result = if matcher_is_defined(&p, matchers) {
-        match_values(&p, matchers.clone().unwrap(), &expected_text, &actual_text)
+    let matcher_result = if matchers.matcher_is_defined("body", &p) {
+        match_values(&p, matchers.clone(), &expected_text, &actual_text)
     } else {
         expected_text.matches(&actual_text, &Matcher::EqualityMatcher)
     };
@@ -238,9 +238,9 @@ fn compare_text(path: &Vec<String>, expected: &Element, actual: &Element,
 }
 
 fn compare_value(path: &Vec<String>, expected: &String, actual: &String,
-    mismatches: &mut Vec<super::Mismatch>, matchers: &Option<Matchers>) {
-    let matcher_result = if matcher_is_defined(&path, matchers) {
-        match_values(path, matchers.clone().unwrap(), expected, actual)
+    mismatches: &mut Vec<super::Mismatch>, matchers: &MatchingRules) {
+    let matcher_result = if matchers.matcher_is_defined("body", &path) {
+        match_values(path, matchers.clone(), expected, actual)
     } else {
         expected.matches(actual, &Matcher::EqualityMatcher)
     };
@@ -261,13 +261,14 @@ mod tests {
     use Mismatch;
     use DiffConfig;
     use env_logger;
+    use models::matchingrules::*;
 
     #[test]
     fn match_xml_handles_empty_strings() {
         let mut mismatches = vec![];
         let expected = s!("");
         let actual = s!("");
-        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &None);
+        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(2));
         let mismatch = mismatches[0].clone();
         expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body"), expected: Some(expected),
@@ -279,7 +280,7 @@ mod tests {
         let mut mismatches = vec![];
         let expected = s!(r#"<xml-is-bad"#);
         let actual = s!(r#"<?xml version="1.0" encoding="UTF-8"?> <blah/>"#);
-        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &None);
+        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
         expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body"), expected: Some(expected),
@@ -291,7 +292,7 @@ mod tests {
         let mut mismatches = vec![];
         let expected = s!(r#"<?xml version="1.0" encoding="UTF-8"?> <blah/>"#);
         let actual = s!(r#"{json: "is bad"}"#);
-        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &None);
+        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
         expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body"), expected: Some(expected),
@@ -310,7 +311,7 @@ mod tests {
         let mut mismatches = vec![];
         let expected = s!(r#"<?xml version="1.0" encoding="UTF-8"?> <blah/>"#);
         let actual = s!(r#"<?xml version="1.0" encoding="UTF-8"?> <blah/>"#);
-        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &None);
+        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches).to(be_empty());
     }
 
@@ -325,7 +326,7 @@ mod tests {
         let actual = s!(r#"<?xml version="1.0" encoding="UTF-8"?>
         <foo><bar></bar></foo>
         "#);
-        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &None);
+        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches).to(be_empty());
     }
 
@@ -338,7 +339,7 @@ mod tests {
         let actual = s!(r#"<?xml version="1.0" encoding="UTF-8"?>
         <bar/>
         "#);
-        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &None);
+        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
         expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body"), expected: Some(s!("foo")),
@@ -355,7 +356,7 @@ mod tests {
         let actual = s!(r#"<?xml version="1.0" encoding="UTF-8"?>
         <blah a="b" c="d"/>
         "#);
-        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &None);
+        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches).to(be_empty());
     }
 
@@ -368,7 +369,7 @@ mod tests {
         let actual = s!(r#"<?xml version="1.0" encoding="UTF-8"?>
         <blah a="b"/>
         "#);
-        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &None);
+        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(3));
         let mismatch = mismatches[0].clone();
         expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body.blah"),
@@ -394,7 +395,7 @@ mod tests {
         let actual = s!(r#"<?xml version="1.0" encoding="UTF-8"?>
         <blah a="b" c="d"/>
         "#);
-        match_xml(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &None);
+        match_xml(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
         expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body.blah"), expected: Some(s!("{}")),
@@ -411,7 +412,7 @@ mod tests {
         let actual = s!(r#"<?xml version="1.0" encoding="UTF-8"?>
         <blah a="b" c="d"/>
         "#);
-        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &None);
+        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches).to(be_empty());
     }
 
@@ -424,7 +425,7 @@ mod tests {
         let actual = s!(r#"<?xml version="1.0" encoding="UTF-8"?>
         <foo something="100" somethingElse="101"/>
         "#);
-        match_xml(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &None);
+        match_xml(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
         expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body.foo"), expected: Some(s!("{\"something\": \"100\"}")),
@@ -441,7 +442,7 @@ mod tests {
         let actual = s!(r#"<?xml version="1.0" encoding="UTF-8"?>
         <foo something="100" somethingDifferent="100"/>
         "#);
-        match_xml(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &None);
+        match_xml(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
         expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body.foo"), expected: Some(s!("{\"something\": \"100\", \"somethingElse\": \"100\"}")),
@@ -458,7 +459,7 @@ mod tests {
         let actual = s!(r#"<?xml version="1.0" encoding="UTF-8"?>
         <foo something="100" somethingElse="101"/>
         "#);
-        match_xml(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &None);
+        match_xml(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
         expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body.foo.@somethingElse"), expected: Some(s!("100")),
@@ -466,9 +467,11 @@ mod tests {
         expect!(mismatch_message(&mismatch)).to(be_equal_to(s!("Expected \'100\' to be equal to \'101\'")));
 
         mismatches.clear();
-        match_xml(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &Some(hashmap!{
-            s!("$.body.foo.*") => hashmap!{ s!("match") => s!("type") }
-        }));
+        match_xml(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &matchingrules!{
+            "body" => {
+                "$.foo.*" => [ matchtype!() ]
+            }
+        });
         expect!(mismatches).to(be_empty());
     }
 
@@ -481,7 +484,7 @@ mod tests {
         let actual = s!(r#"<?xml version="1.0" encoding="UTF-8"?>
         <foo><bar></bar></foo>
         "#);
-        match_xml(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &None);
+        match_xml(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
         expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body.foo"), expected: Some(s!("")),
@@ -498,7 +501,7 @@ mod tests {
         let actual = s!(r#"<?xml version="1.0" encoding="UTF-8"?>
         <foo><bar></bar></foo>
         "#);
-        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &None);
+        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches).to(be_empty());
     }
 
@@ -511,7 +514,7 @@ mod tests {
         let actual = s!(r#"<?xml version="1.0" encoding="UTF-8"?>
         <foo><item1/><item2/></foo>
         "#);
-        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &None);
+        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches).to(be_empty());
     }
 
@@ -524,7 +527,7 @@ mod tests {
         let actual = s!(r#"<?xml version="1.0" encoding="UTF-8"?>
         <foo/>
         "#);
-        match_xml(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &None);
+        match_xml(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
         expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body.foo"), expected: Some(s!("bar")),
@@ -541,7 +544,7 @@ mod tests {
         let actual = s!(r#"<?xml version="1.0" encoding="UTF-8"?>
         <foo><one/><two/><three/></foo>
         "#);
-        match_xml(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &None);
+        match_xml(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
         expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body.foo"),
@@ -559,7 +562,7 @@ mod tests {
         let actual = s!(r#"<?xml version="1.0" encoding="UTF-8"?>
         <foo><one/><two/><four/></foo>
         "#);
-        match_xml(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &None);
+        match_xml(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
         expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body.foo.2"),
@@ -568,9 +571,11 @@ mod tests {
         expect!(mismatch_message(&mismatch)).to(be_equal_to(s!("Expected 'three' to be equal to 'four'")));
 
         mismatches.clear();
-        match_xml(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &Some(hashmap!{
-            s!("$.body.foo") => hashmap!{ s!("match") => s!("type") }
-        }));
+        match_xml(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &matchingrules!{
+            "body" => {
+                "$.foo" => [ matchtype!() ]
+            }
+        });
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
         expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body.foo.2"),
@@ -588,7 +593,7 @@ mod tests {
         let actual = s!(r#"<?xml version="1.0" encoding="UTF-8"?>
         <foo><two/><one/></foo>
         "#);
-        match_xml(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &None);
+        match_xml(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(2));
         let mismatch = mismatches[0].clone();
         expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body.foo.0"),
@@ -611,7 +616,7 @@ mod tests {
         let actual = s!(r#"<?xml version="1.0" encoding="UTF-8"?>
         <foo>hello world</foo>
         "#);
-        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &None);
+        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches).to(be_empty());
     }
 
@@ -624,7 +629,7 @@ mod tests {
         let actual = s!(r#"<?xml version="1.0" encoding="UTF-8"?>
         <foo>hello<bar/>world</foo>
         "#);
-        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &None);
+        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches).to(be_empty());
     }
 
@@ -638,7 +643,7 @@ mod tests {
         let actual = s!(r#"<?xml version="1.0" encoding="UTF-8"?>
         <foo>hello mars</foo>
         "#);
-        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &None);
+        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
         expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body.foo.#text"),
@@ -647,9 +652,11 @@ mod tests {
         expect!(mismatch_message(&mismatch)).to(be_equal_to(s!("Expected 'hello world' to be equal to 'hello mars'")));
 
         mismatches.clear();
-        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &Some(hashmap!{
-            s!("$.body.foo['#text']") => hashmap!{ s!("match") => s!("regex"), s!("regex") => s!("[a-z ]+") }
-        }));
+        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &matchingrules!{
+            "body" => {
+                "$.foo['#text']" => [ matchregex!("[a-z]+") ]
+            }
+        });
         expect!(mismatches).to(be_empty());
     }
 
@@ -662,7 +669,7 @@ mod tests {
         let actual = s!(r#"<?xml version="1.0" encoding="UTF-8"?>
         <foo>hello<bar/>mars </foo>
         "#);
-        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &None);
+        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
         expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body.foo.#text"),
@@ -671,9 +678,11 @@ mod tests {
         expect!(mismatch_message(&mismatch)).to(be_equal_to(s!("Expected 'helloworld' to be equal to 'hellomars'")));
 
         mismatches.clear();
-        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &Some(hashmap!{
-            s!("$.body.foo['#text']") => hashmap!{ s!("match") => s!("regex"), s!("regex") => s!("[a-z]+") }
-        }));
+        match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &matchingrules!{
+            "body" => {
+                "$.foo['#text']" => [ matchregex!("[a-z]+") ]
+            }
+        });
         expect!(mismatches).to(be_empty());
     }
 
@@ -687,10 +696,12 @@ mod tests {
         let actual = s!(r#"<?xml version="1.0" encoding="UTF-8"?>
         <foo><one/><one/><one/></foo>
         "#);
-        match_xml(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &Some(hashmap!{
-            s!("$.body.foo") => hashmap!{ s!("match") => s!("type") },
-            // s!("$.body.foo[*]") => hashmap!{ s!("match") => s!("type") }
-        }));
+        match_xml(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &matchingrules!{
+            "body" => {
+                "$.foo" => [ matchtype!() ]
+                // "$.foo[*]" => [ matchtype!() ]
+            }
+        });
         expect!(mismatches).to(be_empty());
     }
 

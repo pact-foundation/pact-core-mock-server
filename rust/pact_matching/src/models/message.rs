@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use rustc_serialize::json::Json;
 use super::*;
-use super::{matchers_from_json, body_from_json};
+use super::body_from_json;
 
 /// Struct that defines a message.
 #[derive(PartialEq, Debug, Clone, Eq)]
@@ -18,7 +18,7 @@ pub struct Message {
     /// Metadata associated with this message.
     pub metadata: HashMap<String, String>,
     /// Matching rules
-    pub matching_rules: Option<Matchers>
+    pub matching_rules: matchingrules::MatchingRules
 }
 
 impl Message {
@@ -29,7 +29,7 @@ impl Message {
             provider_state: None,
             contents: OptionalBody::Missing,
             metadata: hashmap!{},
-            matching_rules: None
+            matching_rules: matchingrules::MatchingRules::default()
         }
     }
 
@@ -69,7 +69,7 @@ impl Message {
                      description: description,
                      provider_state: provider_state,
                      contents: body_from_json(json, "contents", &None),
-                     matching_rules: matchers_from_json(json, &None),
+                     matching_rules: matchingrules::matchers_from_json(json, &None),
                      metadata: metadata
                 })
             },
@@ -103,7 +103,7 @@ mod tests {
         let message = Message::from_json(0, &Json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
         expect!(message.description).to(be_equal_to("String"));
         expect!(message.provider_state).to(be_some().value("provider state"));
-        expect!(message.matching_rules).to(be_none());
+        expect!(message.matching_rules).to(be_empty());
     }
 
     #[test]
@@ -121,7 +121,7 @@ mod tests {
         }"#;
         let message = Message::from_json(0, &Json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
         expect!(message.provider_state).to(be_none());
-        expect!(message.matching_rules).to(be_none());
+        expect!(message.matching_rules).to(be_empty());
     }
 
     #[test]
