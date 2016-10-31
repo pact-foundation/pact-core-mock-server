@@ -266,22 +266,20 @@ impl MatchingRules {
     }
 
     fn load_from_v2_map(&mut self, map: &BTreeMap<String, Json>) {
-        // let matchers = matchers_json.map(|v| {
-        //   match *v {
-        //     Json::Object(ref m) => m.iter().map(|(k, val)| {
-        //       (k.clone(), match *val {
-        //         Json::Object(ref m2) => m2.iter().map(|(k2, v2)| {
-        //           (k2.clone(), match v2 {
-        //             &Json::String(ref s) => s.clone(),
-        //             _ => v2.to_string()
-        //           })
-        //         }).collect(),
-        //         _ => hashmap!{}
-        //       })
-        //     }).collect(),
-        //     _ => hashmap!{}
-        //   }
-        // });
+      for (key, v) in map {
+        let path = key.split('.').map(|p| s!(p)).collect::<Vec<String>>();
+        if key.starts_with("$.body") {
+          if key == "$.body" {
+            self.add_v2_rule(s!("body"), s!("$"), v);
+          } else {
+            self.add_v2_rule(s!("body"), format!("${}", s!(key[6..])), v);
+          }
+        } else if key.starts_with("$.headers") {
+          self.add_v2_rule(s!("header"), path[2].clone(), v);
+        } else {
+          self.add_v2_rule(path[1].clone(), if path.len() > 2 { path[2].clone() } else { s!("") }, v);
+        }
+      }
     }
 
     fn load_from_v3_map(&mut self, map: &BTreeMap<String, Json>) {
@@ -337,6 +335,11 @@ impl MatchingRules {
         }
       }
     }
+
+  fn add_v2_rule(&mut self, category_name: String, sub_category: String, rule: &Json) {
+    let mut category = self.add_category(&category_name);
+    category.add_rule(&sub_category, rule, &RuleLogic::And);
+  }
 }
 
 impl Hash for MatchingRules {
@@ -461,34 +464,45 @@ mod tests {
         expect!(matchers_from_json(&Json::Null, &None)).to(be_empty());
     }
 
-  //   def 'loads V2 matching rules'() {
-  //   given:
-  //   def matchingRulesMap = [
-  //     '$.path': ['match': 'regex', 'regex': '\\w+'],
-  //     '$.query.Q1': ['match': 'regex', 'regex': '\\d+'],
-  //     '$.header.HEADERY': ['match': 'include', 'value': 'ValueA'],
-  //     '$.body.animals': ['min': 1, 'match': 'type'],
-  //     '$.body.animals[*].*': ['match': 'type'],
-  //     '$.body.animals[*].children': ['min': 1],
-  //     '$.body.animals[*].children[*].*': ['match': 'type']
-  //   ]
-  //
-  //   when:
-  //   def matchingRules = MatchingRules.fromMap(matchingRulesMap)
-  //
-  //   then:
-  //   !matchingRules.empty
-  //   matchingRules.categories == ['path', 'query', 'header', 'body'] as Set
-  //   matchingRules.rulesForCategory('path') == new Category('path', ['': [ new RegexMatcher('\\w+') ] ])
-  //   matchingRules.rulesForCategory('query') == new Category('query', [Q1: [ new RegexMatcher('\\d+') ] ])
-  //   matchingRules.rulesForCategory('header') == new Category('header', [HEADERY: [ new IncludeMatcher('ValueA') ] ])
-  //   matchingRules.rulesForCategory('body') == new Category('body', [
-  //     '$.animals': [ new MinTypeMatcher(1) ],
-  //     '$.animals[*].*': [ new TypeMatcher() ],
-  //     '$.animals[*].children': [ new MinTypeMatcher(1) ],
-  //     '$.animals[*].children[*].*': [ new TypeMatcher() ]
-  //   ])
-  // }
+  #[test]
+  fn loads_v2_matching_rules() {
+    let matching_rules_json = Json::from_str(r#"{"matchingRules": {
+      "$.path": { "match": "regex", "regex": "\\w+" },
+      "$.query.Q1": { "match": "regex", "regex": "\\d+" },
+      "$.header.HEADERY": {"match": "include", "value": "ValueA"},
+      "$.body.animals": {"min": 1, "match": "type"},
+      "$.body.animals[*].*": {"match": "type"},
+      "$.body.animals[*].children": {"min": 1},
+      "$.body.animals[*].children[*].*": {"match": "type"}
+    }}"#).unwrap();
+
+    let matching_rules = matchers_from_json(&matching_rules_json, &None);
+
+    expect!(&matching_rules).to_not(be_empty());
+    expect!(matching_rules.categories()).to(be_equal_to(hashset!{ s!("path"), s!("query"), s!("header"), s!("body") }));
+    expect!(matching_rules.rules_for_category(&s!("path"))).to(be_some().value(Category {
+      name: s!("path"),
+      rules: hashmap! { s!("") => RuleList { rules: vec![ MatchingRule::Regex(s!("\\w+")) ], rule_logic: RuleLogic::And } }
+    }));
+    expect!(matching_rules.rules_for_category(&s!("query"))).to(be_some().value(Category {
+      name: s!("query"),
+      rules: hashmap!{ s!("Q1") => RuleList { rules: vec![ MatchingRule::Regex(s!("\\d+")) ], rule_logic: RuleLogic::And } }
+    }));
+    expect!(matching_rules.rules_for_category(&s!("header"))).to(be_some().value(Category {
+      name: s!("header"),
+      rules: hashmap!{ s!("HEADERY") => RuleList { rules: vec![
+        MatchingRule::Include(s!("ValueA")) ], rule_logic: RuleLogic::And } }
+    }));
+    expect!(matching_rules.rules_for_category(&s!("body"))).to(be_some().value(Category {
+      name: s!("body"),
+      rules: hashmap!{
+        s!("$.animals") => RuleList { rules: vec![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
+        s!("$.animals[*].*") => RuleList { rules: vec![ MatchingRule::Type ], rule_logic: RuleLogic::And },
+        s!("$.animals[*].children") => RuleList { rules: vec![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
+        s!("$.animals[*].children[*].*") => RuleList { rules: vec![ MatchingRule::Type ], rule_logic: RuleLogic::And }
+      }
+    }));
+  }
 
   #[test]
   fn loads_v3_matching_rules() {
@@ -532,7 +546,6 @@ mod tests {
 
     let matching_rules = matchers_from_json(&matching_rules_json, &None);
 
-    println!("{:?}", matching_rules);
     expect!(&matching_rules).to_not(be_empty());
     expect!(matching_rules.categories()).to(be_equal_to(hashset!{ s!("path"), s!("query"), s!("header"), s!("body") }));
     expect!(matching_rules.rules_for_category(&s!("path"))).to(be_some().value(Category {
