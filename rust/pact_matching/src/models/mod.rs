@@ -474,7 +474,8 @@ impl Request {
             OptionalBody::Null => { json.insert(s!("body"), Json::Null); }
         }
         if self.matching_rules.is_not_empty() {
-            json.insert(s!("matchingRules"), matchingrules::matchers_to_json(&self.matching_rules.clone()));
+            json.insert(s!("matchingRules"), matchingrules::matchers_to_json(
+                &self.matching_rules.clone(), spec_version));
         }
         Json::Object(json)
     }
@@ -584,7 +585,8 @@ impl Response {
             OptionalBody::Null => { json.insert(s!("body"), Json::Null); }
         }
         if self.matching_rules.is_not_empty() {
-            json.insert(s!("matchingRules"), matchingrules::matchers_to_json(&self.matching_rules.clone()));
+            json.insert(s!("matchingRules"), matchingrules::matchers_to_json(
+              &self.matching_rules.clone(), spec_version));
         }
         Json::Object(json)
     }
@@ -962,18 +964,18 @@ impl Pact {
     pub fn write_pact(&self, path: &Path, pact_spec: PactSpecification) -> io::Result<()> {
         try!(fs::create_dir_all(path.parent().unwrap()));
         if path.exists() {
-            let existing_pact = try!(Pact::read_pact(path));
+            let existing_pact = Pact::read_pact(path)?;
             match existing_pact.merge(self) {
                 Ok(ref merged_pact) => {
-                    let mut file = try!(File::create(path));
-                    try!(file.write_all(format!("{}", merged_pact.to_json(pact_spec).pretty()).as_bytes()));
+                    let mut file = File::create(path)?;
+                    file.write_all(format!("{}", merged_pact.to_json(pact_spec).pretty()).as_bytes())?;
                     Ok(())
                 },
                 Err(ref message) => Err(Error::new(ErrorKind::Other, message.clone()))
             }
         } else {
-            let mut file = try!{ File::create(path) };
-            try!{ file.write_all(format!("{}", self.to_json(pact_spec).pretty()).as_bytes()) };
+            let mut file = File::create(path)?;
+            file.write_all(format!("{}", self.to_json(pact_spec).pretty()).as_bytes())?;
             Ok(())
         }
     }

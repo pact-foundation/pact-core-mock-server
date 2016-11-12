@@ -5,6 +5,7 @@ use std::collections::{HashMap, BTreeMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 use path_exp::*;
+use super::PactSpecification;
 
 fn json_to_string(json: &Json) -> String {
   match json {
@@ -175,6 +176,32 @@ impl MatchingRule {
     }
   }
 
+  pub fn to_json(&self) -> Json {
+    Json::Object(match self {
+      &MatchingRule::Equality => btreemap!{ s!("match") => Json::String(s!("equality")) },
+      &MatchingRule::Regex(ref r) => btreemap!{ s!("match") => Json::String(s!("regex")),
+        s!("regex") => Json::String(r.clone()) },
+      &MatchingRule::Type => btreemap!{ s!("match") => Json::String(s!("type")) },
+      &MatchingRule::MinType(min) => btreemap!{ s!("match") => Json::String(s!("type")),
+        s!("min") => Json::U64(min as u64) },
+      &MatchingRule::MaxType(max) => btreemap!{ s!("match") => Json::String(s!("type")),
+        s!("max") => Json::U64(max as u64) },
+      &MatchingRule::MinMaxType(min, max) => btreemap!{ s!("match") => Json::String(s!("type")),
+        s!("min") => Json::U64(min as u64), s!("max") => Json::U64(max as u64) },
+      &MatchingRule::Timestamp(ref t) => btreemap!{ s!("match") => Json::String(s!("timestamp")),
+        s!("timestamp") => Json::String(t.clone()) },
+      &MatchingRule::Time(ref t) => btreemap!{ s!("match") => Json::String(s!("time")),
+        s!("time") => Json::String(t.clone()) },
+      &MatchingRule::Date(ref d) => btreemap!{ s!("match") => Json::String(s!("date")),
+        s!("date") => Json::String(d.clone()) },
+      &MatchingRule::Include(ref s) => btreemap!{ s!("match") => Json::String(s!("include")),
+        s!("value") => Json::String(s.clone()) },
+      &MatchingRule::Number => btreemap!{ s!("match") => Json::String(s!("number")) },
+      &MatchingRule::Integer => btreemap!{ s!("match") => Json::String(s!("integer")) },
+      &MatchingRule::Decimal => btreemap!{ s!("match") => Json::String(s!("decimal")) }
+    })
+  }
+
 }
 
 /// Enumeration to define how to combine rules
@@ -184,6 +211,17 @@ pub enum RuleLogic {
   And,
   /// At least one rule must match
   Or
+}
+
+impl RuleLogic {
+
+  fn to_json(&self) -> Json {
+    Json::String(match self {
+      &RuleLogic::And => s!("AND"),
+      &RuleLogic::Or => s!("OR")
+    })
+  }
+
 }
 
 /// Data structure for representing a list of rules and the logic needed to combine them
@@ -202,6 +240,20 @@ impl RuleList {
     RuleList {
       rules: Vec::new(),
       rule_logic: rule_logic.clone()
+    }
+  }
+
+  fn to_v3_json(&self) -> Json {
+    Json::Object(btreemap!{
+      s!("combine") => self.rule_logic.to_json(),
+      s!("matchers") => Json::Array(self.rules.iter().map(|matcher| matcher.to_json()).collect())
+    })
+  }
+
+  fn to_v2_json(&self) -> Json {
+    match self.rules.iter().next() {
+      Some(rule) => rule.to_json(),
+      None => Json::Object(btreemap!{})
     }
   }
 
@@ -261,6 +313,29 @@ impl Category {
       rules: self.rules.iter().filter(predicate)
         .map(|(path, rules)| (path.clone(), rules.clone())).collect()
     }
+  }
+
+  fn to_v3_json(&self) -> Json {
+    Json::Object(self.rules.iter().fold(BTreeMap::new(), |mut map, (category, rulelist)| {
+      map.insert(category.clone(), rulelist.to_v3_json());
+      map
+    }))
+  }
+
+  fn to_v2_json(&self) -> HashMap<String, Json> {
+    let mut map = hashmap!{};
+
+    if self.name == "body" {
+      for (k, v) in self.rules.clone() {
+        map.insert(k.replace("$", "$.body"), v.to_v2_json());
+      }
+    } else {
+      for (k, v) in self.rules.clone() {
+        map.insert(format!("$.{}.{}", self.name, k), v.to_v2_json());
+      }
+    }
+
+    map
   }
 
 }
@@ -329,12 +404,6 @@ impl MatchingRules {
 
     /// If there is a wildcard matcher defined for the category and path
     pub fn wildcard_matcher_is_defined(&self, category: &str, path: &Vec<String>) -> bool {
-      //   match *matchers {
-      //     Some(ref m) => m.iter().map(|(k, _)| k.clone())
-      //       .filter(|k| calc_path_weight(k.clone(), path) > 0 && path_length(k.clone()) == path.len())
-      //       .any(|k| k.ends_with(".*")),
-      //     None => false
-      //   }
       match self.resolve_wildcard_matchers(category, path) {
         Some(ref category) => !category.filter(|&(val, _)| val.ends_with(".*")).is_empty(),
         None => false
@@ -444,6 +513,22 @@ impl MatchingRules {
     let mut category = self.add_category(&category_name);
     category.rule_from_json(&sub_category, rule, &RuleLogic::And);
   }
+
+  fn to_v3_json(&self) -> Json {
+    Json::Object(self.rules.iter().fold(BTreeMap::new(), |mut map, (name, category)| {
+      map.insert(name.clone(), category.to_v3_json());
+      map
+    }))
+  }
+
+  fn to_v2_json(&self) -> Json {
+    Json::Object(self.rules.iter().fold(BTreeMap::new(), |mut map, (name, category)| {
+      for (key, value) in category.to_v2_json() {
+        map.insert(key.clone(), value);
+      }
+      map
+    }))
+  }
 }
 
 impl Hash for MatchingRules {
@@ -481,20 +566,12 @@ pub fn matchers_from_json(json: &Json, deprecated_name: &Option<String>) -> Matc
 }
 
 /// Generates a JSON structure for the provided matching rules
-pub fn matchers_to_json(matchers: &MatchingRules) -> Json {
-  // Json::Object(matchers.iter().fold(BTreeMap::new(), |mut map, kv| {
-  //   map.insert(kv.0.clone(), Json::Object(kv.1.clone().iter().fold(BTreeMap::new(), |mut map, kv| {
-  //     map.insert(kv.0.clone(), Json::String(kv.1.clone()));
-  //     map
-  //   })));
-  //   map
-  // }))
-  Json::Null
+pub fn matchers_to_json(matchers: &MatchingRules, spec_version: &PactSpecification) -> Json {
+   match spec_version {
+     &PactSpecification::V3 => matchers.to_v3_json(),
+     _ => matchers.to_v2_json()
+   }
 }
-
-// "body" => {
-//  "$.a.*" => [ matchtype!() ]
-//}
 
 #[macro_export]
 macro_rules! matchingrules {

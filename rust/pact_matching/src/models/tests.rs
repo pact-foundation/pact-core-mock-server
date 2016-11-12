@@ -1277,7 +1277,7 @@ fn matchers_from_json_handles_matcher_with_no_matching_rules() {
           "headers": {},
           "matchingRules": {
             "body": {
-                "$.*.path": []
+                "$.*.path": {}
             }
           }
       }
@@ -1299,10 +1299,12 @@ fn matchers_from_json_loads_matchers_correctly() {
           "headers": {},
           "matchingRules": {
             "body": {
-                "$.*.path": [{
-                    "match": "regex",
-                    "regex": "\\d+"
-                }]
+                "$.*.path": {
+                    "matchers": [{
+                        "match": "regex",
+                        "regex": "\\d+"
+                    }]
+                }
             }
           }
       }
@@ -1324,11 +1326,13 @@ fn matchers_from_json_loads_matchers_from_deprecated_name() {
           "headers": {},
           "deprecatedName": {
               "body": {
-                "$.*.path": [{
-                    "match": "regex",
-                    "regex": "\\d+"
-                }]
-            }
+                "$.*.path": {
+                    "matchers": [{
+                        "match": "regex",
+                        "regex": "\\d+"
+                    }]
+                }
+              }
           }
       }
     "#).unwrap();
@@ -1381,7 +1385,7 @@ fn write_pact_test_with_matchers() {
       "providerState": "Good state to be in",
       "request": {{
         "matchingRules": {{
-          "*.body": {{
+          "$.body": {{
             "match": "type"
           }}
         }},
@@ -1403,6 +1407,102 @@ fn write_pact_test_with_matchers() {
   }},
   "provider": {{
     "name": "write_pact_test_provider"
+  }}
+}}"#, super::VERSION.unwrap())));
+}
+
+#[test]
+fn write_pact_v3_test_with_matchers() {
+    let pact = Pact { consumer: Consumer { name: s!("write_pact_test_consumer_v3") },
+        provider: Provider { name: s!("write_pact_test_provider_v3") },
+        interactions: vec![
+        Interaction {
+            description: s!("Test Interaction"),
+            provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
+            request: Request {
+                matching_rules: matchingrules!{
+                        "body" => {
+                            "$" => [ MatchingRule::Type ]
+                        },
+                        "header" => {
+                          "HEADER_A" => [ MatchingRule::Include(s!("ValA")), MatchingRule::Include(s!("ValB")) ]
+                        }
+                    },
+                .. Request::default_request()
+            },
+            response: Response::default_response()
+        }
+        ],
+        .. Pact::default() };
+    let mut dir = env::temp_dir();
+    let x = rand::random::<u16>();
+    dir.push(format!("pact_test_{}", x));
+    dir.push(pact.default_file_name());
+
+    let result = pact.write_pact(dir.as_path(), PactSpecification::V3);
+
+    let pact_file = read_pact_file(dir.as_path().to_str().unwrap()).unwrap_or(s!(""));
+    fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());
+
+    expect!(result).to(be_ok());
+    expect!(pact_file).to(be_equal_to(format!(r#"{{
+  "consumer": {{
+    "name": "write_pact_test_consumer_v3"
+  }},
+  "interactions": [
+    {{
+      "description": "Test Interaction",
+      "providerStates": [
+        {{
+          "name": "Good state to be in"
+        }}
+      ],
+      "request": {{
+        "matchingRules": {{
+          "body": {{
+            "$": {{
+              "combine": "AND",
+              "matchers": [
+                {{
+                  "match": "type"
+                }}
+              ]
+            }}
+          }},
+          "header": {{
+            "HEADER_A": {{
+              "combine": "AND",
+              "matchers": [
+                {{
+                  "match": "include",
+                  "value": "ValA"
+                }},
+                {{
+                  "match": "include",
+                  "value": "ValB"
+                }}
+              ]
+            }}
+          }}
+        }},
+        "method": "GET",
+        "path": "/"
+      }},
+      "response": {{
+        "status": 200
+      }}
+    }}
+  ],
+  "metadata": {{
+    "pact-rust": {{
+      "version": "{}"
+    }},
+    "pact-specification": {{
+      "version": "3.0.0"
+    }}
+  }},
+  "provider": {{
+    "name": "write_pact_test_provider_v3"
   }}
 }}"#, super::VERSION.unwrap())));
 }
