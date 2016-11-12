@@ -3,6 +3,7 @@ use super::{match_header_value, strip_whitespace};
 use std::collections::HashMap;
 use expectest::prelude::*;
 use models::{Request, OptionalBody};
+use models::matchingrules::*;
 
 #[test]
 fn match_method_returns_nothing_if_the_method_matches() {
@@ -480,7 +481,7 @@ fn match_path_returns_a_mismatch_if_the_path_does_not_match() {
 fn match_path_returns_nothing_if_the_path_matches_with_a_matcher() {
     let mut mismatches = vec![];
     match_path(s!("/path/1234"), s!("/path/5678"), &mut mismatches, &matchingrules!{
-        "path" => { "" => [ matchregex!("/path/\\d+") ] }
+        "path" => { "" => [ MatchingRule::Regex(s!("/path/\\d+")) ] }
     });
     expect!(mismatches).to(be_empty());
 }
@@ -489,7 +490,7 @@ fn match_path_returns_nothing_if_the_path_matches_with_a_matcher() {
 fn match_path_returns_a_mismatch_if_the_path_does_not_match_with_a_matcher() {
     let mut mismatches = vec![];
     match_path(s!("/path/1234"), s!("/path/abc"), &mut mismatches, &matchingrules!{
-        "path" => { "" => [ matchregex!("/path/\\d+") ] }
+        "path" => { "" => [ MatchingRule::Regex(s!("/path/\\d+")) ] }
     });
     expect!(mismatches.clone()).to_not(be_empty());
     expect!(mismatches[0].clone()).to(be_equal_to(Mismatch::PathMismatch { expected: s!("/path/1234"),
@@ -507,7 +508,7 @@ fn match_query_returns_no_mismatch_if_the_values_are_not_the_same_but_match_by_a
     let actual = Some(query_map);
     match_query(expected, actual, &mut mismatches, &matchingrules!{
         "query" => {
-            "a" => [ matchregex!("\\W+") ]
+            "a" => [ MatchingRule::Regex(s!("\\W+")) ]
         }
     });
     expect!(mismatches).to(be_empty());
@@ -524,7 +525,7 @@ fn match_query_returns_a_mismatch_if_the_values_do_not_match_by_a_matcher() {
     let actual = Some(query_map);
     match_query(expected, actual, &mut mismatches, &matchingrules!{
         "query" => {
-            "a" => [ matchregex!("\\d+") ]
+            "a" => [ MatchingRule::Regex(s!("\\d+")) ]
         }
     });
     expect!(mismatches.clone()).to_not(be_empty());
@@ -539,7 +540,7 @@ fn matching_headers_be_true_when_headers_match_by_matcher() {
     match_header_value(&"HEADER".to_string(), &"HEADERX".to_string(), &"HEADERY".to_string(),
         &mut mismatches, &matchingrules!{
             "header" => {
-                "HEADER" => [ matchregex!("\\W+") ]
+                "HEADER" => [ MatchingRule::Regex(s!("\\W+")) ]
             }
         });
     expect!(mismatches).to(be_empty());
@@ -551,7 +552,7 @@ fn matching_headers_be_false_when_headers_do_not_match_by_matcher() {
     match_header_value(&"HEADER".to_string(), &"HEADER".to_string(), &"HEADER".to_string(),
         &mut mismatches, &matchingrules!{
             "header" => {
-                "HEADER" => [ matchregex!("\\d+") ]
+                "HEADER" => [ MatchingRule::Regex(s!("\\d+")) ]
             }
         });
     expect!(mismatches.clone()).to_not(be_empty());

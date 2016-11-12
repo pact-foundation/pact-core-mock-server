@@ -560,13 +560,13 @@ mod tests {
 
         match_json(&val2, &val4, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &matchingrules!{
             "body" => {
-                "$" => [ matchtype!() ]
+                "$" => [ MatchingRule::Type ]
             }
         });
         expect!(mismatches.clone()).to(be_empty());
         match_json(&val4, &val2, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &matchingrules!{
             "body" => {
-                "$" => [ matchtype!() ]
+                "$" => [ MatchingRule::Type ]
             }
         });
         expect!(mismatches.clone()).to(be_empty());
@@ -656,7 +656,7 @@ mod tests {
 
         match_json(&val3, &val2, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &matchingrules!{
             "body" => {
-                "$.*" => [ matchtype!() ]
+                "$.*" => [ MatchingRule::Type ]
             }
         });
         expect!(mismatches.clone()).to(be_empty());
@@ -753,8 +753,8 @@ mod tests {
 
         match_json(&val1, &val2, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &matchingrules!{
             "body" => {
-                "$.articles[*].variants.*" => [ matchtype!() ],
-                "$.articles[*].variants.*.bundles.*" => [ matchtype!() ]
+                "$.articles[*].variants.*" => [ MatchingRule::Type ],
+                "$.articles[*].variants.*.bundles.*" => [ MatchingRule::Type ]
             }
         });
         expect!(mismatches.clone()).to(be_empty());

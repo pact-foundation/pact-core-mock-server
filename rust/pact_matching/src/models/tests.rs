@@ -1310,7 +1310,7 @@ fn matchers_from_json_loads_matchers_correctly() {
     let matchers = matchers_from_json(&json, &Some(s!("deprecatedName")));
     expect!(matchers).to(be_equal_to(matchingrules!{
         "body" => {
-            "$.*.path" => [ matchregex!("\\d+") ]
+            "$.*.path" => [ MatchingRule::Regex(s!("\\d+")) ]
         }
     }));
 }
@@ -1335,7 +1335,7 @@ fn matchers_from_json_loads_matchers_from_deprecated_name() {
     let matchers = matchers_from_json(&json, &Some(s!("deprecatedName")));
     expect!(matchers).to(be_equal_to(matchingrules!{
         "body" => {
-            "$.*.path" => [ matchregex!(r#"\d+"#) ]
+            "$.*.path" => [ MatchingRule::Regex(s!(r#"\d+"#)) ]
         }
     }));
 }
@@ -1351,7 +1351,7 @@ fn write_pact_test_with_matchers() {
                 request: Request {
                     matching_rules: matchingrules!{
                         "body" => {
-                            "$" => [ matchtype!() ]
+                            "$" => [ MatchingRule::Type ]
                         }
                     },
                     .. Request::default_request()

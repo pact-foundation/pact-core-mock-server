@@ -469,7 +469,7 @@ mod tests {
         mismatches.clear();
         match_xml(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &matchingrules!{
             "body" => {
-                "$.foo.*" => [ matchtype!() ]
+                "$.foo.*" => [ MatchingRule::Type ]
             }
         });
         expect!(mismatches).to(be_empty());
@@ -573,7 +573,7 @@ mod tests {
         mismatches.clear();
         match_xml(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &matchingrules!{
             "body" => {
-                "$.foo" => [ matchtype!() ]
+                "$.foo" => [ MatchingRule::Type ]
             }
         });
         expect!(mismatches.iter()).to(have_count(1));
@@ -654,7 +654,7 @@ mod tests {
         mismatches.clear();
         match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &matchingrules!{
             "body" => {
-                "$.foo['#text']" => [ matchregex!("[a-z]+") ]
+                "$.foo['#text']" => [ MatchingRule::Regex(s!("[a-z]+")) ]
             }
         });
         expect!(mismatches).to(be_empty());
@@ -680,7 +680,7 @@ mod tests {
         mismatches.clear();
         match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &matchingrules!{
             "body" => {
-                "$.foo['#text']" => [ matchregex!("[a-z]+") ]
+                "$.foo['#text']" => [ MatchingRule::Regex(s!("[a-z]+")) ]
             }
         });
         expect!(mismatches).to(be_empty());
@@ -698,7 +698,7 @@ mod tests {
         "#);
         match_xml(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &matchingrules!{
             "body" => {
-                "$.foo" => [ matchtype!() ]
+                "$.foo" => [ MatchingRule::Type ]
                 // "$.foo[*]" => [ matchtype!() ]
             }
         });

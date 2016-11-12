@@ -3,53 +3,6 @@ use path_exp::*;
 use itertools::Itertools;
 use regex::Regex;
 
-fn matches_token(path_fragment: &String, path_token: &PathToken) -> u32 {
-    match *path_token {
-        PathToken::Root if path_fragment == "$" => 2,
-        PathToken::Field(ref name) if *path_fragment == name.clone() => 2,
-        PathToken::Index(ref index) => match path_fragment.parse() {
-            Ok(ref i) if index == i => 2,
-            _ => 0
-        },
-        PathToken::StarIndex => match path_fragment.parse::<usize>() {
-            Ok(_) => 1,
-            _ => 0
-        },
-        PathToken::Star => 1,
-        _ => 0
-    }
-}
-
-fn calc_path_weight(path_exp: String, path: &Vec<String>) -> u32 {
-    let weight = match parse_path_exp(path_exp.clone()) {
-        Ok(path_tokens) => {
-            debug!("Calculatint weight for path tokens '{:?}' and path '{:?}'", path_tokens, path);
-            if path.len() >= path_tokens.len() {
-                path_tokens.iter().zip(path.iter())
-                    .fold(1, |acc, (token, fragment)| acc * matches_token(fragment, token))
-            } else {
-                0
-            }
-        },
-        Err(err) => {
-            warn!("Failed to parse path expression - {}", err);
-            0
-        }
-    };
-    debug!("Calculated weight {} for path '{}' and '{:?}'", weight, path_exp, path);
-    weight
-}
-
-fn path_length(path_exp: String) -> usize {
-    match parse_path_exp(path_exp.clone()) {
-        Ok(path_tokens) => path_tokens.len(),
-        Err(err) => {
-            warn!("Failed to parse path expression - {}", err);
-            0
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum Matcher {
     EqualityMatcher,
@@ -304,186 +257,29 @@ pub fn match_values<E, A>(path: &Vec<String>, matchers: MatchingRules, expected:
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::{calc_path_weight, matches_token, select_best_matcher};
+    use super::select_best_matcher;
     use expectest::prelude::*;
-    use path_exp::*;
     use regex::Regex;
-
-    #[test]
-    fn matcher_is_defined_returns_false_when_there_are_no_matchers() {
-        let matchers = matchingrules!{};
-        expect!(matchers.matcher_is_defined("body", &vec![s!("$"), s!("a"), s!("b")])).to(be_false());
-    }
-
-    #[test]
-    fn matcher_is_defined_returns_false_when_the_path_does_not_have_a_matcher_entry() {
-        let matchers = matchingrules!{
-            "body" => {
-            }
-        };
-        expect!(matchers.matcher_is_defined("body", &vec![s!("$"), s!("a"), s!("b")])).to(be_false());
-    }
-
-    #[test]
-    fn matcher_is_defined_returns_true_when_the_path_does_have_a_matcher_entry() {
-        let matchers = matchingrules!{
-            "body" => {
-                "$.a.b" => [ matchtype!() ]
-            }
-        };
-        expect!(matchers.matcher_is_defined("body", &vec![s!("$"), s!("a"), s!("b")])).to(be_true());
-    }
-
-    #[test]
-    fn matcher_is_defined_returns_true_when_the_parent_of_the_path_does_have_a_matcher_entry() {
-        let matchers = matchingrules!{
-            "body" => {
-                "$.a.b" => [ matchtype!() ]
-            }
-        };
-        expect!(matchers.matcher_is_defined("body", &vec![s!("$"), s!("a"), s!("b"), s!("c")])).to(be_true());
-    }
-
-    #[test]
-    fn wildcard_matcher_is_defined_returns_false_when_there_are_no_matchers() {
-        let matchers = matchingrules!{};
-        expect!(matchers.wildcard_matcher_is_defined("body", &vec![s!("$"), s!("a"), s!("b")])).to(be_false());
-    }
-
-    #[test]
-    fn wildcard_matcher_is_defined_returns_false_when_the_path_does_not_have_a_matcher_entry() {
-        let matchers = matchingrules!{
-            "body" => {
-
-            }
-        };
-        expect!(matchers.wildcard_matcher_is_defined("body", &vec![s!("$"), s!("a"), s!("b")])).to(be_false());
-    }
-
-    #[test]
-    fn wildcard_matcher_is_defined_returns_false_when_the_path_does_have_a_matcher_entry_and_it_is_not_a_wildcard() {
-        let matchers = matchingrules!{
-            "body" => {
-                "$.a.b" => [ matchtype!() ],
-                "$.*" => [ matchtype!() ]
-            }
-        };
-        expect!(matchers.wildcard_matcher_is_defined("body", &vec![s!("$"), s!("a"), s!("b")])).to(be_false());
-    }
-
-    #[test]
-    fn wildcard_matcher_is_defined_returns_true_when_the_path_does_have_a_matcher_entry_and_it_is_a_widcard() {
-        let matchers = matchingrules!{
-            "body" => {
-                "$.a.*" => [ matchtype!() ]
-            }
-        };
-        expect!(matchers.wildcard_matcher_is_defined("body", &vec![s!("$"), s!("a"), s!("b")])).to(be_true());
-    }
-
-    #[test]
-    fn wildcard_matcher_is_defined_returns_false_when_the_parent_of_the_path_does_have_a_matcher_entry() {
-        let matchers = matchingrules!{
-            "body" => {
-                "$.a.*" => [ matchtype!() ]
-            }
-        };
-        expect!(matchers.wildcard_matcher_is_defined("body", &vec![s!("$"), s!("a"), s!("b"), s!("c")])).to(be_false());
-    }
-
-    #[test]
-    fn matches_token_test_with_root() {
-        expect!(matches_token(&s!("$"), &PathToken::Root)).to(be_equal_to(2));
-        expect!(matches_token(&s!("path"), &PathToken::Root)).to(be_equal_to(0));
-        expect!(matches_token(&s!("*"), &PathToken::Root)).to(be_equal_to(0));
-    }
-
-    #[test]
-    fn matches_token_test_with_field() {
-        expect!(matches_token(&s!("$"), &PathToken::Field(s!("path")))).to(be_equal_to(0));
-        expect!(matches_token(&s!("path"), &PathToken::Field(s!("path")))).to(be_equal_to(2));
-    }
-
-    #[test]
-    fn matches_token_test_with_index() {
-        expect!(matches_token(&s!("$"), &PathToken::Index(2))).to(be_equal_to(0));
-        expect!(matches_token(&s!("path"), &PathToken::Index(2))).to(be_equal_to(0));
-        expect!(matches_token(&s!("*"), &PathToken::Index(2))).to(be_equal_to(0));
-        expect!(matches_token(&s!("1"), &PathToken::Index(2))).to(be_equal_to(0));
-        expect!(matches_token(&s!("2"), &PathToken::Index(2))).to(be_equal_to(2));
-    }
-
-    #[test]
-    fn matches_token_test_with_index_wildcard() {
-        expect!(matches_token(&s!("$"), &PathToken::StarIndex)).to(be_equal_to(0));
-        expect!(matches_token(&s!("path"), &PathToken::StarIndex)).to(be_equal_to(0));
-        expect!(matches_token(&s!("*"), &PathToken::StarIndex)).to(be_equal_to(0));
-        expect!(matches_token(&s!("1"), &PathToken::StarIndex)).to(be_equal_to(1));
-    }
-
-    #[test]
-    fn matches_token_test_with_wildcard() {
-        expect!(matches_token(&s!("$"), &PathToken::Star)).to(be_equal_to(1));
-        expect!(matches_token(&s!("path"), &PathToken::Star)).to(be_equal_to(1));
-        expect!(matches_token(&s!("*"), &PathToken::Star)).to(be_equal_to(1));
-        expect!(matches_token(&s!("1"), &PathToken::Star)).to(be_equal_to(1));
-    }
-
-    #[test]
-    fn matches_path_matches_root_path_element() {
-        expect!(calc_path_weight(s!("$"), &vec![s!("$")]) > 0).to(be_true());
-        expect!(calc_path_weight(s!("$"), &vec![]) > 0).to(be_false());
-    }
-
-    #[test]
-    fn matches_path_matches_field_name() {
-        expect!(calc_path_weight(s!("$.name"), &vec![s!("$"), s!("name")]) > 0).to(be_true());
-        expect!(calc_path_weight(s!("$['name']"), &vec![s!("$"), s!("name")]) > 0).to(be_true());
-        expect!(calc_path_weight(s!("$.name.other"), &vec![s!("$"), s!("name"), s!("other")]) > 0).to(be_true());
-        expect!(calc_path_weight(s!("$['name'].other"), &vec![s!("$"), s!("name"), s!("other")]) > 0).to(be_true());
-        expect!(calc_path_weight(s!("$.name"), &vec![s!("$"), s!("other")]) > 0).to(be_false());
-        expect!(calc_path_weight(s!("$.name"), &vec![s!("$"), s!("name"), s!("other")]) > 0).to(be_true());
-        expect!(calc_path_weight(s!("$.other"), &vec![s!("$"), s!("name"), s!("other")]) > 0).to(be_false());
-        expect!(calc_path_weight(s!("$.name.other"), &vec![s!("$"), s!("name")]) > 0).to(be_false());
-    }
-
-    #[test]
-    fn matches_path_matches_array_indices() {
-        expect!(calc_path_weight(s!("$[0]"), &vec![s!("$"), s!("0")]) > 0).to(be_true());
-        expect!(calc_path_weight(s!("$.name[1]"), &vec![s!("$"), s!("name"), s!("1")]) > 0).to(be_true());
-        expect!(calc_path_weight(s!("$.name"), &vec![s!("$"), s!("0")]) > 0).to(be_false());
-        expect!(calc_path_weight(s!("$.name[1]"), &vec![s!("$"), s!("name"), s!("0")]) > 0).to(be_false());
-        expect!(calc_path_weight(s!("$[1].name"), &vec![s!("$"), s!("name"), s!("1")]) > 0).to(be_false());
-    }
-
-    #[test]
-    fn matches_path_matches_with_wildcard() {
-        expect!(calc_path_weight(s!("$[*]"), &vec![s!("$"), s!("0")]) > 0).to(be_true());
-        expect!(calc_path_weight(s!("$.*"), &vec![s!("$"), s!("name")]) > 0).to(be_true());
-        expect!(calc_path_weight(s!("$.*.name"), &vec![s!("$"), s!("some"), s!("name")]) > 0).to(be_true());
-        expect!(calc_path_weight(s!("$.name[*]"), &vec![s!("$"), s!("name"), s!("0")]) > 0).to(be_true());
-        expect!(calc_path_weight(s!("$.name[*].name"), &vec![s!("$"), s!("name"), s!("1"), s!("name")]) > 0).to(be_true());
-        expect!(calc_path_weight(s!("$[*]"), &vec![s!("$"), s!("name")]) > 0).to(be_false());
-    }
+    use models::matchingrules::*;
 
     #[test]
     fn select_best_matcher_selects_most_appropriate_by_weight() {
         let matchers = matchingrules!{
             "body" => {
-                "$" => [ matchregex!("1") ],
-                "$.item1" => [ matchregex!("3") ],
-                "$.item2" => [ matchregex!("4") ],
-                "$.item1.level" => [ matchregex!("6") ],
-                "$.item1.level[1]" => [ matchregex!("7") ],
-                "$.item1.level[1].id" => [ matchregex!("8") ],
-                "$.item1.level[1].name" => [ matchregex!("9") ],
-                "$.item1.level[2]" => [ matchregex!("10") ],
-                "$.item1.level[2].id" => [ matchregex!("11") ],
-                "$.item1.level[*].id" => [ matchregex!("12") ],
-                "$.*.level[*].id" => [ matchregex!("13") ]
+                "$" => [ MatchingRule::Regex(s!("1")) ],
+                "$.item1" => [ MatchingRule::Regex(s!("3")) ],
+                "$.item2" => [ MatchingRule::Regex(s!("4")) ],
+                "$.item1.level" => [ MatchingRule::Regex(s!("6")) ],
+                "$.item1.level[1]" => [ MatchingRule::Regex(s!("7")) ],
+                "$.item1.level[1].id" => [ MatchingRule::Regex(s!("8")) ],
+                "$.item1.level[1].name" => [ MatchingRule::Regex(s!("9")) ],
+                "$.item1.level[2]" => [ MatchingRule::Regex(s!("10")) ],
+                "$.item1.level[2].id" => [ MatchingRule::Regex(s!("11")) ],
+                "$.item1.level[*].id" => [ MatchingRule::Regex(s!("12")) ],
+                "$.*.level[*].id" => [ MatchingRule::Regex(s!("13")) ]
             },
             "header" => {
-                "item1" => [ matchregex!("5") ]
+                "item1" => [ MatchingRule::Regex(s!("5")) ]
             }
         };
 
@@ -513,9 +309,9 @@ mod tests {
     fn select_best_matcher_selects_handles_missing_type_attribute() {
         let matchers = matchingrules!{
             "body" => {
-                "$.item1" => [ matchregex!("3") ],
-                "$.item2" => [ matchmin!("4") ],
-                "$.item3" => [ matchmax!("4") ],
+                "$.item1" => [ MatchingRule::Regex(s!("3")) ],
+                "$.item2" => [ MatchingRule::MinType(4) ],
+                "$.item3" => [ MatchingRule::MaxType(4) ],
                 "$.item4" => [ ]
             }
         };

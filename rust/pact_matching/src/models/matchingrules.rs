@@ -4,6 +4,7 @@ use rustc_serialize::json::Json;
 use std::collections::{HashMap, BTreeMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
+use path_exp::*;
 
 fn json_to_string(json: &Json) -> String {
   match json {
@@ -26,8 +27,55 @@ fn json_to_num(json: Option<Json>) -> Option<usize> {
   }
 }
 
+fn matches_token(path_fragment: &String, path_token: &PathToken) -> usize {
+  match *path_token {
+    PathToken::Root if path_fragment == "$" => 2,
+    PathToken::Field(ref name) if *path_fragment == name.clone() => 2,
+    PathToken::Index(ref index) => match path_fragment.parse() {
+      Ok(ref i) if index == i => 2,
+      _ => 0
+    },
+    PathToken::StarIndex => match path_fragment.parse::<usize>() {
+      Ok(_) => 1,
+      _ => 0
+    },
+    PathToken::Star => 1,
+    _ => 0
+  }
+}
+
+fn calc_path_weight(path_exp: String, path: &Vec<String>) -> usize {
+  let weight = match parse_path_exp(path_exp.clone()) {
+    Ok(path_tokens) => {
+      debug!("Calculating weight for path tokens '{:?}' and path '{:?}'", path_tokens, path);
+      if path.len() >= path_tokens.len() {
+        path_tokens.iter().zip(path.iter())
+          .fold(1, |acc, (token, fragment)| acc * matches_token(fragment, token))
+      } else {
+        0
+      }
+    },
+    Err(err) => {
+      warn!("Failed to parse path expression - {}", err);
+      0
+    }
+  };
+  debug!("Calculated weight {} for path '{}' and '{:?}'", weight, path_exp, path);
+  weight
+}
+
+fn path_length(path_exp: String) -> usize {
+  match parse_path_exp(path_exp.clone()) {
+    Ok(path_tokens) => path_tokens.len(),
+    Err(err) => {
+      warn!("Failed to parse path expression - {}", err);
+      0
+    }
+  }
+}
+
 /// Set of all matching rules
-#[derive(PartialEq, Debug, Clone, Eq)]
+#[derive(PartialEq, Debug, Clone, Eq, Hash)]
 pub enum MatchingRule {
   /// Matcher using equals
   Equality,
@@ -130,7 +178,7 @@ impl MatchingRule {
 }
 
 /// Enumeration to define how to combine rules
-#[derive(PartialEq, Debug, Clone, Eq)]
+#[derive(PartialEq, Debug, Clone, Eq, Hash)]
 pub enum RuleLogic {
   /// All rules must match
   And,
@@ -139,7 +187,7 @@ pub enum RuleLogic {
 }
 
 /// Data structure for representing a list of rules and the logic needed to combine them
-#[derive(PartialEq, Debug, Clone, Eq)]
+#[derive(PartialEq, Debug, Clone, Eq, Hash)]
 pub struct RuleList {
   /// List of rules to apply
   rules: Vec<MatchingRule>,
@@ -189,7 +237,7 @@ impl Category {
   }
 
   /// Adds a rule from the JSON representation
-  pub fn add_rule(&mut self, key: &String, matcher_json: &Json, rule_logic: &RuleLogic) {
+  pub fn rule_from_json(&mut self, key: &String, matcher_json: &Json, rule_logic: &RuleLogic) {
     match MatchingRule::from_json(matcher_json) {
       Some(matching_rule) => {
         let mut rules = self.rules.entry(key.clone()).or_insert(RuleList::new(rule_logic));
@@ -199,6 +247,32 @@ impl Category {
     }
   }
 
+  /// Adds a rule to this category
+  pub fn add_rule(&mut self, key: &String, matcher: MatchingRule, rule_logic: &RuleLogic) {
+    let mut rules = self.rules.entry(key.clone()).or_insert(RuleList::new(rule_logic));
+    rules.rules.push(matcher);
+  }
+
+  /// Filters the matchers in the category by the predicate, and returns a new category
+  pub fn filter<F>(&self, predicate: F) -> Category
+    where F : Fn(&(&String, &RuleList)) -> bool {
+    Category {
+      name: self.name.clone(),
+      rules: self.rules.iter().filter(predicate)
+        .map(|(path, rules)| (path.clone(), rules.clone())).collect()
+    }
+  }
+
+}
+
+impl Hash for Category {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    self.name.hash(state);
+    for (k, v) in self.rules.clone() {
+      k.hash(state);
+      v.hash(state);
+    }
+  }
 }
 
 /// Data structure for representing a collection of matchers
@@ -247,22 +321,52 @@ impl MatchingRules {
 
     /// If there is a matcher defined for the category and path
     pub fn matcher_is_defined(&self, category: &str, path: &Vec<String>) -> bool {
-    //   match *matchers {
-    //     Some(ref m) => !resolve_matchers(path, m).is_empty(),
-    //     None => false
-    //   }
-    false
+      match self.resolve_matchers(category, path) {
+        Some(ref category) => !category.is_empty(),
+        None => false
+      }
     }
 
     /// If there is a wildcard matcher defined for the category and path
     pub fn wildcard_matcher_is_defined(&self, category: &str, path: &Vec<String>) -> bool {
-    //   match *matchers {
-    //     Some(ref m) => m.iter().map(|(k, _)| k.clone())
-    //       .filter(|k| calc_path_weight(k.clone(), path) > 0 && path_length(k.clone()) == path.len())
-    //       .any(|k| k.ends_with(".*")),
-    //     None => false
-    //   }
-    false
+      //   match *matchers {
+      //     Some(ref m) => m.iter().map(|(k, _)| k.clone())
+      //       .filter(|k| calc_path_weight(k.clone(), path) > 0 && path_length(k.clone()) == path.len())
+      //       .any(|k| k.ends_with(".*")),
+      //     None => false
+      //   }
+      match self.resolve_wildcard_matchers(category, path) {
+        Some(ref category) => !category.filter(|&(val, _)| val.ends_with(".*")).is_empty(),
+        None => false
+      }
+    }
+
+    fn resolve_matchers(&self, category: &str, path: &Vec<String>) -> Option<Category> {
+      if category == "body" {
+        self.rules_for_category(&s!(category)).map(|category| category.filter(|&(val, _)| {
+          calc_path_weight(val.clone(), path) > 0
+        }))
+      } else if category == "header" || category == "query" {
+        self.rules_for_category(&s!(category)).map(|category| category.filter(|&(val, _)| {
+          path.len() == 1 && path[0] == *val
+        }))
+      } else {
+        self.rules_for_category(&s!(category))
+      }
+    }
+
+    fn resolve_wildcard_matchers(&self, category: &str, path: &Vec<String>) -> Option<Category> {
+      if category == "body" {
+        self.rules_for_category(&s!(category)).map(|category| category.filter(|&(val, _)| {
+          calc_path_weight(val.clone(), path) > 0 && path_length(val.clone()) == path.len()
+        }))
+      } else if category == "header" || category == "query" {
+        self.rules_for_category(&s!(category)).map(|category| category.filter(|&(val, _)| {
+          path.len() == 1 && path[0] == *val
+        }))
+      } else {
+        self.rules_for_category(&s!(category))
+      }
     }
 
     fn load_from_v2_map(&mut self, map: &BTreeMap<String, Json>) {
@@ -302,7 +406,7 @@ impl MatchingRules {
         match rules.find("matchers") {
           Some(matchers) => match matchers {
             &Json::Array(ref array) => for matcher in array {
-              category.add_rule(&s!(""), &matcher, &rule_logic)
+              category.rule_from_json(&s!(""), &matcher, &rule_logic)
             },
             _ => ()
           },
@@ -323,7 +427,7 @@ impl MatchingRules {
               match v.find("matchers") {
                 Some(matchers) => match matchers {
                   &Json::Array(ref array) => for matcher in array {
-                    category.add_rule(k, &matcher, &rule_logic)
+                    category.rule_from_json(k, &matcher, &rule_logic)
                   },
                   _ => ()
                 },
@@ -338,14 +442,17 @@ impl MatchingRules {
 
   fn add_v2_rule(&mut self, category_name: String, sub_category: String, rule: &Json) {
     let mut category = self.add_category(&category_name);
-    category.add_rule(&sub_category, rule, &RuleLogic::And);
+    category.rule_from_json(&sub_category, rule, &RuleLogic::And);
   }
 }
 
 impl Hash for MatchingRules {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    for (k, v) in self.rules.clone() {
+      k.hash(state);
+      v.hash(state);
     }
+  }
 }
 
 /// Parses the matching rules from the Json structure
@@ -385,32 +492,36 @@ pub fn matchers_to_json(matchers: &MatchingRules) -> Json {
   Json::Null
 }
 
-// fn resolve_matchers(path: &Vec<String>, matchers: &MatchingRules) -> Matchers {
-//   matchers.iter().map(|(k, v)| (k.clone(), v.clone()))
-//     .filter(|kv| calc_path_weight(kv.0.clone(), path) > 0).collect()
-// }
-
+// "body" => {
+//  "$.a.*" => [ matchtype!() ]
+//}
 
 #[macro_export]
 macro_rules! matchingrules {
     ( $( $name:expr => {
         $( $subname:expr => [ $( $matcher:expr ), * ] ),*
     }), * ) => {{
-        let mut rules = $crate::models::matchingrules::MatchingRules::default();
+        let mut _rules = $crate::models::matchingrules::MatchingRules::default();
         $({
-            let mut category = rules.add_category(&$name.to_string());
+            let mut _category = _rules.add_category(&$name.to_string());
+            $({
+              $({
+                _category.add_rule(&$subname.to_string(), $matcher, &RuleLogic::And);
+              })*
+            })*
         })*
-        rules
+        _rules
     }};
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::{json_to_string, json_to_num};
+    use super::{json_to_string, json_to_num, calc_path_weight, matches_token};
     use expectest::prelude::*;
     use expectest::traits::IsEmpty;
     use rustc_serialize::json::Json;
+    use path_exp::*;
 
     impl IsEmpty for MatchingRules {
       fn is_empty(&self) -> bool {
@@ -670,5 +781,162 @@ mod tests {
     expect!(MatchingRule::from_json(&Json::from_str("{\"match\": \"date\", \"date\": \"A\"}").unwrap())).to(
       be_some().value(MatchingRule::Date(s!("A"))));
     expect!(MatchingRule::from_json(&Json::from_str("{\"match\": \"date\"}").unwrap())).to(be_none());
+  }
+
+  #[test]
+  fn matcher_is_defined_returns_false_when_there_are_no_matchers() {
+    let matchers = matchingrules!{};
+    expect!(matchers.matcher_is_defined("body", &vec![s!("$"), s!("a"), s!("b")])).to(be_false());
+  }
+
+  #[test]
+  fn matcher_is_defined_returns_false_when_the_path_does_not_have_a_matcher_entry() {
+    let matchers = matchingrules!{
+            "body" => {
+            }
+        };
+    expect!(matchers.matcher_is_defined("body", &vec![s!("$"), s!("a"), s!("b")])).to(be_false());
+  }
+
+  #[test]
+  fn matcher_is_defined_returns_true_when_the_path_does_have_a_matcher_entry() {
+    let matchers = matchingrules!{
+            "body" => {
+                "$.a.b" => [ MatchingRule::Type ]
+            }
+        };
+    expect!(matchers.matcher_is_defined("body", &vec![s!("$"), s!("a"), s!("b")])).to(be_true());
+  }
+
+  #[test]
+  fn matcher_is_defined_returns_true_when_the_parent_of_the_path_does_have_a_matcher_entry() {
+    let matchers = matchingrules!{
+            "body" => {
+                "$.a.b" => [ MatchingRule::Type ]
+            }
+        };
+    expect!(matchers.matcher_is_defined("body", &vec![s!("$"), s!("a"), s!("b"), s!("c")])).to(be_true());
+  }
+
+  #[test]
+  fn wildcard_matcher_is_defined_returns_false_when_there_are_no_matchers() {
+    let matchers = matchingrules!{};
+    expect!(matchers.wildcard_matcher_is_defined("body", &vec![s!("$"), s!("a"), s!("b")])).to(be_false());
+  }
+
+  #[test]
+  fn wildcard_matcher_is_defined_returns_false_when_the_path_does_not_have_a_matcher_entry() {
+    let matchers = matchingrules!{
+            "body" => {
+
+            }
+        };
+    expect!(matchers.wildcard_matcher_is_defined("body", &vec![s!("$"), s!("a"), s!("b")])).to(be_false());
+  }
+
+  #[test]
+  fn wildcard_matcher_is_defined_returns_false_when_the_path_does_have_a_matcher_entry_and_it_is_not_a_wildcard() {
+    let matchers = matchingrules!{
+            "body" => {
+                "$.a.b" => [ MatchingRule::Type ],
+                "$.*" => [ MatchingRule::Type ]
+            }
+        };
+    expect!(matchers.wildcard_matcher_is_defined("body", &vec![s!("$"), s!("a"), s!("b")])).to(be_false());
+  }
+
+  #[test]
+  fn wildcard_matcher_is_defined_returns_true_when_the_path_does_have_a_matcher_entry_and_it_is_a_widcard() {
+    let matchers = matchingrules!{
+            "body" => {
+                "$.a.*" => [ MatchingRule::Type ]
+            }
+        };
+    expect!(matchers.wildcard_matcher_is_defined("body", &vec![s!("$"), s!("a"), s!("b")])).to(be_true());
+  }
+
+  #[test]
+  fn wildcard_matcher_is_defined_returns_false_when_the_parent_of_the_path_does_have_a_matcher_entry() {
+    let matchers = matchingrules!{
+            "body" => {
+                "$.a.*" => [ MatchingRule::Type ]
+            }
+        };
+    expect!(matchers.wildcard_matcher_is_defined("body", &vec![s!("$"), s!("a"), s!("b"), s!("c")])).to(be_false());
+  }
+
+  #[test]
+  fn matches_token_test_with_root() {
+    expect!(matches_token(&s!("$"), &PathToken::Root)).to(be_equal_to(2));
+    expect!(matches_token(&s!("path"), &PathToken::Root)).to(be_equal_to(0));
+    expect!(matches_token(&s!("*"), &PathToken::Root)).to(be_equal_to(0));
+  }
+
+  #[test]
+  fn matches_token_test_with_field() {
+    expect!(matches_token(&s!("$"), &PathToken::Field(s!("path")))).to(be_equal_to(0));
+    expect!(matches_token(&s!("path"), &PathToken::Field(s!("path")))).to(be_equal_to(2));
+  }
+
+  #[test]
+  fn matches_token_test_with_index() {
+    expect!(matches_token(&s!("$"), &PathToken::Index(2))).to(be_equal_to(0));
+    expect!(matches_token(&s!("path"), &PathToken::Index(2))).to(be_equal_to(0));
+    expect!(matches_token(&s!("*"), &PathToken::Index(2))).to(be_equal_to(0));
+    expect!(matches_token(&s!("1"), &PathToken::Index(2))).to(be_equal_to(0));
+    expect!(matches_token(&s!("2"), &PathToken::Index(2))).to(be_equal_to(2));
+  }
+
+  #[test]
+  fn matches_token_test_with_index_wildcard() {
+    expect!(matches_token(&s!("$"), &PathToken::StarIndex)).to(be_equal_to(0));
+    expect!(matches_token(&s!("path"), &PathToken::StarIndex)).to(be_equal_to(0));
+    expect!(matches_token(&s!("*"), &PathToken::StarIndex)).to(be_equal_to(0));
+    expect!(matches_token(&s!("1"), &PathToken::StarIndex)).to(be_equal_to(1));
+  }
+
+  #[test]
+  fn matches_token_test_with_wildcard() {
+    expect!(matches_token(&s!("$"), &PathToken::Star)).to(be_equal_to(1));
+    expect!(matches_token(&s!("path"), &PathToken::Star)).to(be_equal_to(1));
+    expect!(matches_token(&s!("*"), &PathToken::Star)).to(be_equal_to(1));
+    expect!(matches_token(&s!("1"), &PathToken::Star)).to(be_equal_to(1));
+  }
+
+  #[test]
+  fn matches_path_matches_root_path_element() {
+    expect!(calc_path_weight(s!("$"), &vec![s!("$")]) > 0).to(be_true());
+    expect!(calc_path_weight(s!("$"), &vec![]) > 0).to(be_false());
+  }
+
+  #[test]
+  fn matches_path_matches_field_name() {
+    expect!(calc_path_weight(s!("$.name"), &vec![s!("$"), s!("name")]) > 0).to(be_true());
+    expect!(calc_path_weight(s!("$['name']"), &vec![s!("$"), s!("name")]) > 0).to(be_true());
+    expect!(calc_path_weight(s!("$.name.other"), &vec![s!("$"), s!("name"), s!("other")]) > 0).to(be_true());
+    expect!(calc_path_weight(s!("$['name'].other"), &vec![s!("$"), s!("name"), s!("other")]) > 0).to(be_true());
+    expect!(calc_path_weight(s!("$.name"), &vec![s!("$"), s!("other")]) > 0).to(be_false());
+    expect!(calc_path_weight(s!("$.name"), &vec![s!("$"), s!("name"), s!("other")]) > 0).to(be_true());
+    expect!(calc_path_weight(s!("$.other"), &vec![s!("$"), s!("name"), s!("other")]) > 0).to(be_false());
+    expect!(calc_path_weight(s!("$.name.other"), &vec![s!("$"), s!("name")]) > 0).to(be_false());
+  }
+
+  #[test]
+  fn matches_path_matches_array_indices() {
+    expect!(calc_path_weight(s!("$[0]"), &vec![s!("$"), s!("0")]) > 0).to(be_true());
+    expect!(calc_path_weight(s!("$.name[1]"), &vec![s!("$"), s!("name"), s!("1")]) > 0).to(be_true());
+    expect!(calc_path_weight(s!("$.name"), &vec![s!("$"), s!("0")]) > 0).to(be_false());
+    expect!(calc_path_weight(s!("$.name[1]"), &vec![s!("$"), s!("name"), s!("0")]) > 0).to(be_false());
+    expect!(calc_path_weight(s!("$[1].name"), &vec![s!("$"), s!("name"), s!("1")]) > 0).to(be_false());
+  }
+
+  #[test]
+  fn matches_path_matches_with_wildcard() {
+    expect!(calc_path_weight(s!("$[*]"), &vec![s!("$"), s!("0")]) > 0).to(be_true());
+    expect!(calc_path_weight(s!("$.*"), &vec![s!("$"), s!("name")]) > 0).to(be_true());
+    expect!(calc_path_weight(s!("$.*.name"), &vec![s!("$"), s!("some"), s!("name")]) > 0).to(be_true());
+    expect!(calc_path_weight(s!("$.name[*]"), &vec![s!("$"), s!("name"), s!("0")]) > 0).to(be_true());
+    expect!(calc_path_weight(s!("$.name[*].name"), &vec![s!("$"), s!("name"), s!("1"), s!("name")]) > 0).to(be_true());
+    expect!(calc_path_weight(s!("$[*]"), &vec![s!("$"), s!("name")]) > 0).to(be_false());
   }
 }
