@@ -228,18 +228,26 @@ impl RuleLogic {
 #[derive(PartialEq, Debug, Clone, Eq, Hash)]
 pub struct RuleList {
   /// List of rules to apply
-  rules: Vec<MatchingRule>,
+  pub rules: Vec<MatchingRule>,
   /// Rule logic to use to evaluate multiple rules
-  rule_logic: RuleLogic
+  pub rule_logic: RuleLogic
 }
 
 impl RuleList {
 
-  /// Creates a new rule list
-  pub fn new(rule_logic: &RuleLogic) -> RuleList {
+  /// Creates a new empty rule list
+  pub fn default(rule_logic: &RuleLogic) -> RuleList {
     RuleList {
       rules: Vec::new(),
       rule_logic: rule_logic.clone()
+    }
+  }
+
+  /// Creates a new rule list with the single matching rule
+  pub fn new(rule: MatchingRule) -> RuleList {
+    RuleList {
+      rules: vec![ rule ],
+      rule_logic: RuleLogic::And
     }
   }
 
@@ -263,9 +271,9 @@ impl RuleList {
 #[derive(PartialEq, Debug, Clone, Eq)]
 pub struct Category {
     /// Name of the category
-    name: String,
+    pub name: String,
     /// Matching rules for this category
-    rules: HashMap<String, RuleList>
+    pub rules: HashMap<String, RuleList>
 }
 
 impl Category {
@@ -292,7 +300,7 @@ impl Category {
   pub fn rule_from_json(&mut self, key: &String, matcher_json: &Json, rule_logic: &RuleLogic) {
     match MatchingRule::from_json(matcher_json) {
       Some(matching_rule) => {
-        let mut rules = self.rules.entry(key.clone()).or_insert(RuleList::new(rule_logic));
+        let mut rules = self.rules.entry(key.clone()).or_insert(RuleList::default(rule_logic));
         rules.rules.push(matching_rule);
       },
       None => warn!("Could not parse matcher {:?}", matcher_json)
@@ -301,7 +309,7 @@ impl Category {
 
   /// Adds a rule to this category
   pub fn add_rule(&mut self, key: &String, matcher: MatchingRule, rule_logic: &RuleLogic) {
-    let mut rules = self.rules.entry(key.clone()).or_insert(RuleList::new(rule_logic));
+    let mut rules = self.rules.entry(key.clone()).or_insert(RuleList::default(rule_logic));
     rules.rules.push(matcher);
   }
 
@@ -313,6 +321,13 @@ impl Category {
       rules: self.rules.iter().filter(predicate)
         .map(|(path, rules)| (path.clone(), rules.clone())).collect()
     }
+  }
+
+  fn max_by_path(&self, path: &Vec<String>) -> Option<RuleList> {
+    self.rules.iter().map(|(k, v)| (k, v, calc_path_weight(k.clone(), path)))
+      .filter(|&(_, _, w)| w > 0)
+      .max_by_key(|&(_, _, w)| w)
+      .map(|(_, v, _)| v.clone())
   }
 
   fn to_v3_json(&self) -> Json {
@@ -410,7 +425,7 @@ impl MatchingRules {
       }
     }
 
-    fn resolve_matchers(&self, category: &str, path: &Vec<String>) -> Option<Category> {
+    pub fn resolve_matchers(&self, category: &str, path: &Vec<String>) -> Option<Category> {
       if category == "body" {
         self.rules_for_category(&s!(category)).map(|category| category.filter(|&(val, _)| {
           calc_path_weight(val.clone(), path) > 0
@@ -421,6 +436,13 @@ impl MatchingRules {
         }))
       } else {
         self.rules_for_category(&s!(category))
+      }
+    }
+
+    pub fn resolve_body_matchers_by_path(&self, path: &Vec<String>) -> Option<RuleList> {
+      match self.rules_for_category(&s!("body")) {
+        Some(category) => category.max_by_path(path),
+        None => None
       }
     }
 
@@ -522,7 +544,7 @@ impl MatchingRules {
   }
 
   fn to_v2_json(&self) -> Json {
-    Json::Object(self.rules.iter().fold(BTreeMap::new(), |mut map, (name, category)| {
+    Json::Object(self.rules.iter().fold(BTreeMap::new(), |mut map, (_, category)| {
       for (key, value) in category.to_v2_json() {
         map.insert(key.clone(), value);
       }

@@ -10,6 +10,7 @@ use ansi_term::Colour::*;
 use std::str::FromStr;
 use models::matchingrules::*;
 use matchers::*;
+use regex::Regex;
 
 fn type_of(json: &Json) -> String {
     match json {
@@ -27,20 +28,25 @@ fn value_of(json: &Json) -> String {
 }
 
 impl Matches<Json> for Json {
-    fn matches(&self, actual: &Json, matcher: &Matcher) -> Result<(), String> {
+    fn matches(&self, actual: &Json, matcher: &MatchingRule) -> Result<(), String> {
         let result = match *matcher {
-           Matcher::RegexMatcher(ref regex) => {
-               let actual_str = match actual {
-                   &Json::String(ref s) => s.clone(),
-                   _ => actual.to_string()
-               };
-               if regex.is_match(&actual_str) {
-                   Ok(())
-               } else {
-                   Err(format!("Expected '{}' to match '{}'", value_of(actual), regex))
-               }
-           },
-           Matcher::TypeMatcher => {
+          MatchingRule::Regex(ref regex) => {
+            match Regex::new(regex) {
+              Ok(re) => {
+                let actual_str = match actual {
+                  &Json::String(ref s) => s.clone(),
+                  _ => actual.to_string()
+                };
+                if re.is_match(&actual_str) {
+                  Ok(())
+                } else {
+                  Err(format!("Expected '{}' to match '{}'", value_of(actual), regex))
+                }
+              },
+              Err(err) => Err(format!("'{}' is not a valid regular expression - {}", regex, err))
+            }
+          },
+          MatchingRule::Type => {
                match (self, actual) {
                    (&Json::Array(_), &Json::Array(_)) => Ok(()),
                    (&Json::Boolean(_), &Json::Boolean(_)) => Ok(()),
@@ -52,8 +58,8 @@ impl Matches<Json> for Json {
                    (&Json::U64(_), &Json::U64(_)) => Ok(()),
                    (_, _) => Err(format!("Expected '{}' to be the same type as '{}'", value_of(self), value_of(actual))),
                }
-           },
-           Matcher::MinTypeMatcher(min) => {
+          },
+          MatchingRule::MinType(min) => {
                match (self, actual) {
                    (&Json::Array(_), &Json::Array(ref actual_array)) => if actual_array.len() < min {
                        Err(format!("Expected '{}' to have at least {} item(s)", value_of(actual), min))
@@ -69,8 +75,8 @@ impl Matches<Json> for Json {
                    (&Json::U64(_), &Json::U64(_)) => Ok(()),
                    (_, _) => Err(format!("Expected '{}' to be the same type as '{}'", value_of(self), value_of(actual))),
                }
-           },
-           Matcher::MaxTypeMatcher(max) => {
+          },
+          MatchingRule::MaxType(max) => {
                match (self, actual) {
                    (&Json::Array(_), &Json::Array(ref actual_array)) => if actual_array.len() > max {
                        Err(format!("Expected '{}' to have at most {} item(s)", value_of(actual), max))
@@ -86,14 +92,34 @@ impl Matches<Json> for Json {
                    (&Json::U64(_), &Json::U64(_)) => Ok(()),
                    (_, _) => Err(format!("Expected '{}' to be the same type as '{}'", value_of(self), value_of(actual))),
                }
-           },
-           Matcher::EqualityMatcher => {
+          },
+          MatchingRule::MinMaxType(min, max) => {
+            match (self, actual) {
+              (&Json::Array(_), &Json::Array(ref actual_array)) => if actual_array.len() < min {
+                Err(format!("Expected '{}' to have at least {} item(s)", value_of(actual), min))
+              } else if actual_array.len() > max {
+                Err(format!("Expected '{}' to have at most {} item(s)", value_of(actual), max))
+              } else {
+                Ok(())
+              },
+              (&Json::Boolean(_), &Json::Boolean(_)) => Ok(()),
+              (&Json::F64(_), &Json::F64(_)) => Ok(()),
+              (&Json::I64(_), &Json::I64(_)) => Ok(()),
+              (&Json::Null, &Json::Null) => Ok(()),
+              (&Json::Object(_), &Json::Object(_)) => Ok(()),
+              (&Json::String(_), &Json::String(_)) => Ok(()),
+              (&Json::U64(_), &Json::U64(_)) => Ok(()),
+              (_, _) => Err(format!("Expected '{}' to be the same type as '{}'", value_of(self), value_of(actual))),
+            }
+          },
+          MatchingRule::Equality => {
                if self == actual {
                    Ok(())
                } else {
                    Err(format!("Expected '{}' to be equal to '{}'", value_of(self), value_of(actual)))
                }
-           }
+          },
+          _ => Err(format!("Unable to match '{}' using {:?}", self, matcher))
        };
        debug!("Comparing '{}' to '{}' using {:?} -> {:?}", self, actual, matcher, result);
        result
@@ -101,38 +127,53 @@ impl Matches<Json> for Json {
 }
 
 impl Matches<Vec<Json>> for Vec<Json> {
-    fn matches(&self, actual: &Vec<Json>, matcher: &Matcher) -> Result<(), String> {
+    fn matches(&self, actual: &Vec<Json>, matcher: &MatchingRule) -> Result<(), String> {
         let result = match *matcher {
-           Matcher::RegexMatcher(ref regex) => {
-               if regex.is_match(&Json::Array(actual.clone()).to_string()) {
-                   Ok(())
-               } else {
-                   Err(format!("Expected '{:?}' to match '{}'", value_of(&Json::Array(actual.clone())), regex))
-               }
-           },
-           Matcher::TypeMatcher => Ok(()),
-           Matcher::MinTypeMatcher(min) => {
+          MatchingRule::Regex(ref regex) => {
+            match Regex::new(regex) {
+              Ok(re) => {
+                if re.is_match(&Json::Array(actual.clone()).to_string()) {
+                  Ok(())
+                } else {
+                  Err(format!("Expected '{:?}' to match '{}'", value_of(&Json::Array(actual.clone())), regex))
+                }
+              },
+              Err(err) => Err(format!("'{}' is not a valid regular expression - {}", regex, err))
+            }
+          },
+          MatchingRule::Type => Ok(()),
+          MatchingRule::MinType(min) => {
                if actual.len() < min {
                    Err(format!("Expected '{}' to have a minimum length of {}", value_of(&Json::Array(actual.clone())), min))
                } else {
                    Ok(())
                }
-           },
-           Matcher::MaxTypeMatcher(max) => {
+          },
+          MatchingRule::MaxType(max) => {
                if actual.len() > max {
                    Err(format!("Expected '{}' to have a maximum length of {}", value_of(&Json::Array(actual.clone())), max))
                } else {
                    Ok(())
                }
-           },
-           Matcher::EqualityMatcher => {
+          },
+          MatchingRule::MinMaxType(min, max) => {
+            if actual.len() < min {
+              Err(format!("Expected '{}' to have a minimum length of {}", value_of(&Json::Array(actual.clone())), min))
+            } else if actual.len() > max {
+              Err(format!("Expected '{}' to have a maximum length of {}", value_of(&Json::Array(actual.clone())), max))
+            } else {
+              Ok(())
+            }
+          },
+          MatchingRule::Equality => {
                if self == actual {
                    Ok(())
                } else {
                    Err(format!("Expected '{}' to be equal to '{}'", value_of(&Json::Array(self.clone())),
                     value_of(&&Json::Array(actual.clone()))))
                }
-           }
+          },
+          _ => Err(format!("Unable to match {:?} using {:?}", self, matcher))
        };
        debug!("Comparing '{:?}' to '{:?}' using {:?} -> {:?}", self, actual, matcher, result);
        result
@@ -148,7 +189,7 @@ pub fn match_json(expected: &String, actual: &String, config: DiffConfig,
     if expected_json.is_err() || actual_json.is_err() {
         match expected_json {
             Err(e) => {
-                mismatches.push(Mismatch::BodyMismatch { path: s!("$.body"), expected: Some(expected.clone()),
+                mismatches.push(Mismatch::BodyMismatch { path: s!("$"), expected: Some(expected.clone()),
                     actual: Some(actual.clone()),
                     mismatch: format!("Failed to parse the expected body: '{}'", e)});
             },
@@ -156,14 +197,14 @@ pub fn match_json(expected: &String, actual: &String, config: DiffConfig,
         }
         match actual_json {
             Err(e) => {
-                mismatches.push(Mismatch::BodyMismatch { path: s!("$.body"), expected: Some(expected.clone()),
+                mismatches.push(Mismatch::BodyMismatch { path: s!("$"), expected: Some(expected.clone()),
                     actual: Some(actual.clone()),
                     mismatch: format!("Failed to parse the actual body: '{}'", e)});
             },
             _ => ()
         }
     } else {
-        compare(&vec![s!("$"), s!("body")], &expected_json.unwrap(), &actual_json.unwrap(), &config,
+        compare(&vec![s!("$")], &expected_json.unwrap(), &actual_json.unwrap(), &config,
             mismatches, matchers);
     }
 }
@@ -293,11 +334,17 @@ fn compare_lists(path: &Vec<String>, expected: &Vec<Json>, actual: &Vec<Json>, c
         debug!("compare_lists: matcher defined for path '{}'", spath);
         let expected_json = Json::Array(expected.clone());
         let actual_json = Json::Array(actual.clone());
-        match match_values(path, matchers.clone(), &expected_json, &actual_json) {
-            Err(message) => mismatches.push(Mismatch::BodyMismatch { path: path.join("."),
-                expected: Some(expected_json.to_string()),
-                actual: Some(actual_json.to_string()),
-                mismatch: message.clone() }),
+        match match_values("body", path, matchers.clone(), &expected_json, &actual_json) {
+            Err(messages) => {
+              for message in messages {
+                mismatches.push(Mismatch::BodyMismatch {
+                  path: path.join("."),
+                  expected: Some(expected_json.to_string()),
+                  actual: Some(actual_json.to_string()),
+                  mismatch: message.clone()
+                })
+              }
+            },
             Ok(_) => ()
         }
         let expected_example = expected.first().unwrap().clone();
@@ -344,16 +391,22 @@ fn compare_list_content(path: &Vec<String>, expected: &Vec<Json>, actual: &Vec<J
 fn compare_values(path: &Vec<String>, expected: &Json, actual: &Json, mismatches: &mut Vec<super::Mismatch>,
     matchers: &MatchingRules) {
     let matcher_result = if matchers.matcher_is_defined("body", &path) {
-        match_values(path, matchers.clone(), expected, actual)
+        match_values("body", path, matchers.clone(), expected, actual)
     } else {
-        expected.matches(actual, &Matcher::EqualityMatcher)
+        expected.matches(actual, &MatchingRule::Equality).map_err(|err| vec![err])
     };
     debug!("Comparing '{:?}' to '{:?}' at path '{}' -> {:?}", expected, actual, path.join("."), matcher_result);
     match matcher_result {
-        Err(message) => mismatches.push(Mismatch::BodyMismatch { path: path.join("."),
-            expected: Some(format!("{}", expected)),
-            actual: Some(format!("{}", actual)),
-            mismatch: message.clone() }),
+        Err(messages) => {
+          for message in messages {
+            mismatches.push(Mismatch::BodyMismatch {
+              path: path.join("."),
+              expected: Some(format!("{}", expected)),
+              actual: Some(format!("{}", actual)),
+              mismatch: message.clone()
+            })
+          }
+        },
         Ok(_) => ()
     }
 }
@@ -366,7 +419,6 @@ mod tests {
     use DiffConfig;
     use matchers::*;
     use rustc_serialize::json::Json;
-    use regex::Regex;
     use models::matchingrules::*;
 
     #[test]
@@ -377,7 +429,7 @@ mod tests {
         match_json(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
-        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body"), expected: Some(expected),
+        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$"), expected: Some(expected),
             actual: Some(actual), mismatch: s!("")}));
     }
 
@@ -389,7 +441,7 @@ mod tests {
         match_json(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
-        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body"), expected: Some(expected),
+        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$"), expected: Some(expected),
             actual: Some(actual), mismatch: s!("")}));
     }
 
@@ -408,7 +460,7 @@ mod tests {
         match_json(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
-        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body"), expected: Some(expected),
+        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$"), expected: Some(expected),
             actual: Some(actual), mismatch: s!("")}));
         expect!(mismatch_message(&mismatch)).to(be_equal_to(s!("Type mismatch: Expected Map {} but received List []")));
     }
@@ -421,7 +473,7 @@ mod tests {
         match_json(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
-        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body"), expected: Some(expected),
+        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$"), expected: Some(expected),
             actual: Some(actual), mismatch: s!("")}));
         expect!(mismatch_message(&mismatch)).to(be_equal_to(s!("Type mismatch: Expected List [{}] but received Map {}")));
     }
@@ -436,7 +488,7 @@ mod tests {
         match_json(&val1, &val2, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
-        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body"), expected: Some(val1),
+        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$"), expected: Some(val1),
             actual: Some(val2), mismatch: s!("")}));
         expect!(mismatch_message(&mismatch)).to(be_equal_to(s!("Expected 'string value' to be equal to 'other value'")));
     }
@@ -451,7 +503,7 @@ mod tests {
         match_json(&val1, &val2, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
-        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body"), expected: Some(val1),
+        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$"), expected: Some(val1),
             actual: Some(val2), mismatch: s!("")}));
         expect!(mismatch_message(&mismatch)).to(be_equal_to(s!("Expected '100' to be equal to '200'")));
     }
@@ -466,7 +518,7 @@ mod tests {
         match_json(&val1, &val2, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
-        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body"), expected: Some(val1),
+        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$"), expected: Some(val1),
             actual: Some(val2), mismatch: s!("")}));
         expect!(mismatch_message(&mismatch)).to(be_equal_to(s!("Expected '100.01' to be equal to '100.02'")));
     }
@@ -481,7 +533,7 @@ mod tests {
         match_json(&val1, &val2, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
-        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body"), expected: Some(val1),
+        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$"), expected: Some(val1),
             actual: Some(val2), mismatch: s!("")}));
         expect!(mismatch_message(&mismatch)).to(be_equal_to(s!("Expected 'true' to be equal to 'false'")));
     }
@@ -496,7 +548,7 @@ mod tests {
         match_json(&val1, &val2, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
-        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body"), expected: Some(val1),
+        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$"), expected: Some(val1),
             actual: Some(val2), mismatch: s!("")}));
         expect!(mismatch_message(&mismatch)).to(be_equal_to(s!("Expected 'null' to be equal to '33'")));
     }
@@ -530,7 +582,7 @@ mod tests {
         match_json(&val2, &val3, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
-        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body.1"),
+        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.1"),
             expected: Some(s!("22")), actual: Some(s!("44")), mismatch: s!("")}));
         expect!(mismatch_message(&mismatch)).to(be_equal_to(s!("Expected '22' to be equal to '44'")));
         mismatches.clear();
@@ -538,7 +590,7 @@ mod tests {
         match_json(&val3, &val4, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
-        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body"),
+        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$"),
             expected: Some(s!("[11,44,33]")),
             actual: Some(s!("[11,44,33,66]")), mismatch: s!("")}));
         expect!(mismatch_message(&mismatch)).to(be_equal_to(s!("Expected a List with 3 elements but received 4 elements")));
@@ -547,12 +599,12 @@ mod tests {
         match_json(&val2, &val4, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(2));
         let mismatch = mismatches[0].clone();
-        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body.1"),
+        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.1"),
             expected: Some(s!("22")),
             actual: Some(s!("44")), mismatch: s!("")}));
         expect!(mismatch_message(&mismatch)).to(be_equal_to(s!("Expected '22' to be equal to '44'")));
         let mismatch = mismatches[1].clone();
-        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body"),
+        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$"),
             expected: Some(s!("[11,22,33]")),
             actual: Some(s!("[11,44,33,66]")), mismatch: s!("")}));
         expect!(mismatch_message(&mismatch)).to(be_equal_to(s!("Expected a List with 3 elements but received 4 elements")));
@@ -601,7 +653,7 @@ mod tests {
         match_json(&val2, &val3, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
-        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body.b"),
+        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.b"),
             expected: Some(s!("2")), actual: Some(s!("3")), mismatch: s!("")}));
         expect!(mismatch_message(&mismatch)).to(be_equal_to(s!("Expected '2' to be equal to '3'")));
         mismatches.clear();
@@ -611,7 +663,7 @@ mod tests {
         match_json(&val2, &val4, DiffConfig::NoUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
-        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body"),
+        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$"),
             expected: Some(s!("{\"a\":1,\"b\":2}")),
             actual: Some(s!("{\"a\":1,\"b\":2,\"c\":3}")), mismatch: s!("")}));
         expect!(mismatch_message(&mismatch)).to(be_equal_to(s!("Expected a Map with 2 elements but received 3 elements")));
@@ -620,7 +672,7 @@ mod tests {
         match_json(&val3, &val4, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
-        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body.b"),
+        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.b"),
             expected: Some(s!("3")),
             actual: Some(s!("2")), mismatch: s!("")}));
         expect!(mismatch_message(&mismatch)).to(be_equal_to(s!("Expected '3' to be equal to '2'")));
@@ -629,12 +681,12 @@ mod tests {
         match_json(&val3, &val4, DiffConfig::NoUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(2));
         let mismatch = mismatches[0].clone();
-        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body"),
+        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$"),
             expected: Some(s!("{\"a\":1,\"b\":3}")),
             actual: Some(s!("{\"a\":1,\"b\":2,\"c\":3}")), mismatch: s!("")}));
         expect!(mismatch_message(&mismatch)).to(be_equal_to(s!("Expected a Map with 2 elements but received 3 elements")));
         let mismatch = mismatches[1].clone();
-        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body.b"),
+        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.b"),
             expected: Some(s!("3")),
             actual: Some(s!("2")), mismatch: s!("")}));
         expect!(mismatch_message(&mismatch)).to(be_equal_to(s!("Expected '3' to be equal to '2'")));
@@ -643,12 +695,12 @@ mod tests {
         match_json(&val4, &val2, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(2));
         let mismatch = mismatches[0].clone();
-        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body"),
+        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$"),
             expected: Some(s!("{\"a\":1,\"b\":2,\"c\":3}")),
             actual: Some(s!("{\"a\":1,\"b\":2}")), mismatch: s!("")}));
         expect!(mismatch_message(&mismatch)).to(be_equal_to(s!("Expected a Map with at least 3 elements but received 2 elements")));
         let mismatch = mismatches[1].clone();
-        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.body"),
+        expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$"),
             expected: Some(s!("{\"a\":1,\"b\":2,\"c\":3}")),
             actual: Some(s!("{\"a\":1,\"b\":2}")), mismatch: s!("")}));
         expect!(mismatch_message(&mismatch)).to(be_equal_to(s!("Expected entry c=3 but was missing")));
@@ -664,7 +716,7 @@ mod tests {
 
     #[test]
     fn equality_matcher_test() {
-        let matcher = Matcher::EqualityMatcher;
+        let matcher = MatchingRule::Equality;
         expect!(Json::String(s!("100")).matches(&Json::String(s!("100")), &matcher)).to(be_ok());
         expect!(Json::String(s!("100")).matches(&Json::String(s!("101")), &matcher)).to(be_err());
         expect!(Json::String(s!("100")).matches(&Json::U64(100), &matcher)).to(be_err());
@@ -672,7 +724,7 @@ mod tests {
 
     #[test]
     fn regex_matcher_test() {
-        let matcher = Matcher::RegexMatcher(Regex::new("^\\d+$").unwrap());
+        let matcher = MatchingRule::Regex(s!("^\\d+$"));
         expect!(Json::String(s!("100")).matches(&Json::String(s!("100")), &matcher)).to(be_ok());
         expect!(Json::String(s!("100")).matches(&Json::String(s!("101")), &matcher)).to(be_ok());
         expect!(Json::String(s!("100")).matches(&Json::String(s!("10a")), &matcher)).to(be_err());
@@ -682,7 +734,7 @@ mod tests {
 
     #[test]
     fn type_matcher_test() {
-        let matcher = Matcher::TypeMatcher;
+        let matcher = MatchingRule::Type;
         expect!(Json::String(s!("100")).matches(&Json::String(s!("100")), &matcher)).to(be_ok());
         expect!(Json::String(s!("100")).matches(&Json::String(s!("101")), &matcher)).to(be_ok());
         expect!(Json::String(s!("100")).matches(&Json::String(s!("10a")), &matcher)).to(be_ok());
@@ -692,7 +744,7 @@ mod tests {
 
     #[test]
     fn min_type_matcher_test() {
-        let matcher = Matcher::MinTypeMatcher(2);
+        let matcher = MatchingRule::MinType(2);
         expect!(Json::Array(vec![]).matches(&Json::Array(vec![Json::U64(100), Json::U64(100)]), &matcher)).to(be_ok());
         expect!(Json::Array(vec![]).matches(&Json::Array(vec![Json::U64(100)]), &matcher)).to(be_err());
         expect!(Json::String(s!("100")).matches(&Json::String(s!("101")), &matcher)).to(be_ok());
@@ -700,10 +752,23 @@ mod tests {
 
     #[test]
     fn max_type_matcher_test() {
-        let matcher = Matcher::MaxTypeMatcher(1);
+        let matcher = MatchingRule::MaxType(1);
         expect!(Json::Array(vec![]).matches(&Json::Array(vec![Json::U64(100), Json::U64(100)]), &matcher)).to(be_err());
         expect!(Json::Array(vec![]).matches(&Json::Array(vec![Json::U64(100)]), &matcher)).to(be_ok());
         expect!(Json::String(s!("100")).matches(&Json::String(s!("101")), &matcher)).to(be_ok());
+    }
+
+    #[test]
+    fn min_max_type_matcher_test() {
+      let matcher = MatchingRule::MinMaxType(2, 3);
+      expect!(Json::Array(vec![]).matches(&Json::Array(vec![Json::U64(100), Json::U64(100)]),
+        &matcher)).to(be_ok());
+      expect!(Json::Array(vec![]).matches(&Json::Array(vec![Json::U64(100), Json::U64(100),
+        Json::U64(100)]), &matcher)).to(be_ok());
+      expect!(Json::Array(vec![]).matches(&Json::Array(vec![Json::U64(100), Json::U64(100),
+        Json::U64(100), Json::U64(100)]), &matcher)).to(be_err());
+      expect!(Json::Array(vec![]).matches(&Json::Array(vec![Json::U64(100)]), &matcher)).to(be_err());
+      expect!(Json::String(s!("100")).matches(&Json::String(s!("101")), &matcher)).to(be_ok());
     }
 
     #[test]

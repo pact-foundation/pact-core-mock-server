@@ -508,7 +508,7 @@ fn match_query_returns_no_mismatch_if_the_values_are_not_the_same_but_match_by_a
     let actual = Some(query_map);
     match_query(expected, actual, &mut mismatches, &matchingrules!{
         "query" => {
-            "a" => [ MatchingRule::Regex(s!("\\W+")) ]
+            "a" => [ MatchingRule::Regex(s!("\\w+")) ]
         }
     });
     expect!(mismatches).to(be_empty());
@@ -540,7 +540,7 @@ fn matching_headers_be_true_when_headers_match_by_matcher() {
     match_header_value(&"HEADER".to_string(), &"HEADERX".to_string(), &"HEADERY".to_string(),
         &mut mismatches, &matchingrules!{
             "header" => {
-                "HEADER" => [ MatchingRule::Regex(s!("\\W+")) ]
+                "HEADER" => [ MatchingRule::Regex(s!("\\w+")) ]
             }
         });
     expect!(mismatches).to(be_empty());

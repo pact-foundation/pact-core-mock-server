@@ -640,13 +640,19 @@ pub fn match_path(expected: String, actual: String, mismatches: &mut Vec<Mismatc
     matchers: &MatchingRules) {
     let path = vec![];
     let matcher_result = if matchers.matcher_is_defined("path", &path) {
-        matchers::match_values(&path, matchers.clone(), &expected, &actual)
+      matchers::match_values("path", &path, matchers.clone(), &expected, &actual)
     } else {
-        expected.matches(&actual, &Matcher::EqualityMatcher)
+      expected.matches(&actual, &MatchingRule::Equality).map_err(|err| vec![err])
     };
     match matcher_result {
-        Err(message) => mismatches.push(Mismatch::PathMismatch { expected: expected.clone(),
-            actual: actual.clone(), mismatch: message.clone() }),
+        Err(messages) => {
+          for message in messages {
+            mismatches.push(Mismatch::PathMismatch {
+              expected: expected.clone(),
+              actual: actual.clone(), mismatch: message.clone()
+            })
+          }
+        },
         Ok(_) => ()
     }
 }
@@ -655,16 +661,21 @@ fn compare_query_parameter_value(key: &String, expected: &String, actual: &Strin
     mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
     let path = vec![key.clone()];
     let matcher_result = if matchers.matcher_is_defined("query", &path) {
-        matchers::match_values(&path, matchers.clone(), expected, actual)
+      matchers::match_values("query", &path, matchers.clone(), expected, actual)
     } else {
-        expected.matches(actual, &Matcher::EqualityMatcher)
+      expected.matches(actual, &MatchingRule::Equality).map_err(|err| vec![err])
     };
     match matcher_result {
-        Err(message) => mismatches.push(Mismatch::QueryMismatch { parameter: key.clone(),
-            expected: expected.clone(),
-            actual: actual.clone(),
-            mismatch: message
-        }),
+        Err(messages) => {
+          for message in messages {
+            mismatches.push(Mismatch::QueryMismatch {
+              parameter: key.clone(),
+              expected: expected.clone(),
+              actual: actual.clone(),
+              mismatch: message
+            })
+          }
+        },
         Ok(_) => ()
     }
 }
@@ -789,18 +800,24 @@ fn match_header_value(key: &String, expected: &String, actual: &String, mismatch
     let expected = strip_whitespace::<String>(expected, ",");
     let actual = strip_whitespace::<String>(actual, ",");
     let matcher_result = if matchers.matcher_is_defined("header", &path) {
-        matchers::match_values(&path, matchers.clone(), &expected, &actual)
+      matchers::match_values("header", &path, matchers.clone(), &expected, &actual)
     } else if key.to_lowercase() == "content-type" {
-        match_content_type(&expected, &actual, mismatches);
-        Ok(())
+      match_content_type(&expected, &actual, mismatches);
+      Ok(())
     } else {
-        expected.matches(&actual, &Matcher::EqualityMatcher)
+      expected.matches(&actual, &MatchingRule::Equality).map_err(|err| vec![err])
     };
     match matcher_result {
-        Err(message) => mismatches.push(Mismatch::HeaderMismatch { key: key.clone(),
-                expected: expected.clone(),
-                actual: actual.clone(),
-                mismatch: message }),
+        Err(messages) => {
+          for message in messages {
+            mismatches.push(Mismatch::HeaderMismatch {
+              key: key.clone(),
+              expected: expected.clone(),
+              actual: actual.clone(),
+              mismatch: message
+            })
+          }
+        },
         Ok(_) => ()
     }
 }
