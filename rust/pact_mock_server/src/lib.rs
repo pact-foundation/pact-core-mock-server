@@ -66,6 +66,7 @@ use std::str;
 use std::panic::catch_unwind;
 use pact_matching::models::{Pact, Interaction, Request, OptionalBody, PactSpecification};
 use pact_matching::models::parse_query_string;
+use pact_matching::models::matchingrules::*;
 use pact_matching::Mismatch;
 use rustc_serialize::json::{self, Json, ToJson};
 use std::collections::{BTreeMap, HashMap};
@@ -337,7 +338,7 @@ fn hyper_request_to_pact_request(req: &mut hyper::server::Request) -> Request {
         query: extract_query_string(&req.uri),
         headers: extract_headers(&req.headers),
         body: extract_body(req),
-        matching_rules: None
+        matching_rules: MatchingRules::default()
     }
 }
 
