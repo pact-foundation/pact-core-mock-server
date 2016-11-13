@@ -114,51 +114,6 @@ fn incorrect_path() {
 }
 
 #[test]
-#[ignore]
-fn matches_with_regex() {
-    env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
-      {
-        "match": true,
-        "comment": "Paths match with regex",
-        "expected" : {
-          "method": "POST",
-          "path": "/path/to/1234",
-          "query": {},
-          "headers": {},
-          "matchingRules": {
-            "path": {
-              "matchers": [
-                {
-                  "match": "regex",
-                  "regex": "\\/path\\/to\\/\\d{4}"
-                }
-              ]
-            }
-          }
-        },
-        "actual": {
-          "method": "POST",
-          "path": "/path/to/5678",
-          "query": {},
-          "headers": {}
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
-    if pact_match.as_boolean().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
-    } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
-    }
-}
-
-#[test]
 fn matches() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
@@ -242,6 +197,50 @@ fn unexpected_trailing_slash_in_path() {
         "actual": {
           "method": "POST",
           "path": "/path/to/something/",
+          "query": {},
+          "headers": {}
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    println!("{:?}", expected);
+    let actual = Request::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    println!("{:?}", actual);
+    let pact_match = pact.find("match").unwrap();
+    if pact_match.as_boolean().unwrap() {
+       expect!(match_request(expected, actual)).to(be_empty());
+    } else {
+       expect!(match_request(expected, actual)).to_not(be_empty());
+    }
+}
+
+#[test]
+fn matches_with_regex() {
+    env_logger::init().unwrap_or(());
+    let pact = Json::from_str(r#"
+      {
+        "match": true,
+        "comment": "Paths match with regex",
+        "expected" : {
+          "method": "POST",
+          "path": "/path/to/1234",
+          "query": {},
+          "headers": {},
+          "matchingRules": {
+            "path": {
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "/path/to/\\d{4}"
+                }
+              ]
+            }
+          }
+        },
+        "actual": {
+          "method": "POST",
+          "path": "/path/to/5678",
           "query": {},
           "headers": {}
         }

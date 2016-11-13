@@ -12,61 +12,6 @@ use rustc_serialize::json::Json;
 use expectest::prelude::*;
 
 #[test]
-#[ignore]
-fn additional_property_with_type_matcher() {
-    env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
-      {
-        "match": true,
-        "comment": "additional property with type matcher wildcards",
-        "expected": {
-          "headers": {},
-          "body" : {
-            "myPerson": {
-              "name": "Any name",
-              "age": 10
-            }
-          },
-          "matchingRules" : {
-            "body": {
-              "$.myPerson.*": {
-                "matchers": [
-                  {
-                    "match": "type"
-                  }
-                ]
-              }
-            }
-          }
-        },
-        "actual": {
-          "headers": {},
-          "body": {
-            "myPerson": {
-              "name": "Jon Peterson",
-              "age": 39,
-              "nationality": "Australian"
-            }
-          }    
-        }
-      }
-    "#).unwrap();
-
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
-    let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
-       expect!(result).to(be_empty());
-    } else {
-       expect!(result).to_not(be_empty());
-    }
-}
-
-#[test]
-#[ignore]
 fn array_at_top_level_with_matchers_xml() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
@@ -132,7 +77,6 @@ fn array_at_top_level_with_matchers_xml() {
 }
 
 #[test]
-#[ignore]
 fn array_at_top_level_with_matchers() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
@@ -409,7 +353,6 @@ fn array_in_different_order() {
 }
 
 #[test]
-#[ignore]
 fn array_with_regex_matcher_xml() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
@@ -460,7 +403,6 @@ fn array_with_regex_matcher_xml() {
 }
 
 #[test]
-#[ignore]
 fn array_with_regex_matcher() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
@@ -521,7 +463,6 @@ fn array_with_regex_matcher() {
 }
 
 #[test]
-#[ignore]
 fn array_with_type_matcher_mismatch_xml() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
@@ -564,7 +505,6 @@ fn array_with_type_matcher_mismatch_xml() {
 }
 
 #[test]
-#[ignore]
 fn array_with_type_matcher_mismatch() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
@@ -617,7 +557,6 @@ fn array_with_type_matcher_mismatch() {
 }
 
 #[test]
-#[ignore]
 fn array_with_type_matcher_xml() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
@@ -667,7 +606,6 @@ fn array_with_type_matcher_xml() {
 }
 
 #[test]
-#[ignore]
 fn array_with_type_matcher() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
@@ -1088,7 +1026,6 @@ fn keys_out_of_order_match() {
 }
 
 #[test]
-#[ignore]
 fn matches_with_regex_xml() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
@@ -1132,7 +1069,6 @@ fn matches_with_regex_xml() {
 }
 
 #[test]
-#[ignore]
 fn matches_with_regex() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
@@ -1188,7 +1124,6 @@ fn matches_with_regex() {
 }
 
 #[test]
-#[ignore]
 fn matches_with_type() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
@@ -2204,7 +2139,6 @@ fn objects_in_array_second_matches() {
 }
 
 #[test]
-#[ignore]
 fn objects_in_array_type_matching_xml() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
@@ -2243,73 +2177,6 @@ fn objects_in_array_type_matching_xml() {
         "actual": {
           "headers": {},
           "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person name=\"Peter Peterson\" age=\"22\" gender=\"Male\"/><person name=\"John Johnston\" age=\"64\"/></people>"
-        }
-      }
-    "#).unwrap();
-
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
-    let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
-       expect!(result).to(be_empty());
-    } else {
-       expect!(result).to_not(be_empty());
-    }
-}
-
-#[test]
-#[ignore]
-fn objects_in_array_type_matching() {
-    env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
-      {
-        "match": true,
-        "comment": "objects in array type matching",
-        "expected": {
-          "headers": {},
-          "body": [{
-            "name": "John Smith",
-            "age": 50
-          }],
-          "matchingRules": {
-            "body": {
-              "$": {
-                "matchers": [
-                  {
-                    "match": "type"
-                  }
-                ]
-              },
-              "$[*]": {
-                "matchers": [
-                  {
-                    "match": "type"
-                  }
-                ]
-              },
-              "$[*].*": {
-                "matchers": [
-                  {
-                    "match": "type"
-                  }
-                ]
-              }
-            }
-          }
-        },
-        "actual": {
-          "headers": {},
-          "body": [{
-            "name": "Peter Peterson",
-            "age": 22,
-            "gender": "Male"
-          }, {
-            "name": "John Johnston",
-            "age": 64
-          }]
         }
       }
     "#).unwrap();
@@ -2938,6 +2805,163 @@ fn value_found_in_array_when_empty_expected_xml() {
         "actual": {
           "headers": {"Content-Type": "application/xml"},
           "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteNumbers><favouriteNumber>1</favouriteNumber><favouriteNumber>2</favouriteNumber><favouriteNumber>3</favouriteNumber></favouriteNumbers></alligator>"
+        }
+      }
+    "#).unwrap();
+
+    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    println!("{:?}", expected);
+    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    println!("{:?}", actual);
+    let pact_match = pact.find("match").unwrap();
+    let result = match_response(expected, actual);
+    if pact_match.as_boolean().unwrap() {
+       expect!(result).to(be_empty());
+    } else {
+       expect!(result).to_not(be_empty());
+    }
+}
+
+#[test]
+fn objects_in_array_type_matching() {
+    env_logger::init().unwrap_or(());
+    let pact = Json::from_str(r#"
+      {
+        "match": true,
+        "comment": "objects in array type matching",
+        "expected": {
+          "headers": {},
+          "body": [{
+            "name": "John Smith",
+            "age": 50
+          }],
+          "matchingRules": {
+            "body": {
+              "$": {
+                "matchers": [
+                  {
+                    "match": "type"
+                  }
+                ]
+              },
+              "$[*]": {
+                "matchers": [
+                  {
+                    "match": "type"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "actual": {
+          "headers": {},
+          "body": [{
+            "name": "Peter Peterson",
+            "age": 22,
+            "gender": "Male"
+          }, {
+            "name": "John Johnston",
+            "age": 64
+          }]
+        }
+      }
+    "#).unwrap();
+
+    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    println!("{:?}", expected);
+    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    println!("{:?}", actual);
+    let pact_match = pact.find("match").unwrap();
+    let result = match_response(expected, actual);
+    if pact_match.as_boolean().unwrap() {
+       expect!(result).to(be_empty());
+    } else {
+       expect!(result).to_not(be_empty());
+    }
+}
+
+#[test]
+fn additional_property_with_type_matcher_that_does_not_match() {
+    env_logger::init().unwrap_or(());
+    let pact = Json::from_str(r#"
+      {
+        "match": false,
+        "comment": "additional property with type matcher wildcards that don't match",
+        "expected": {
+          "headers": {},
+          "body" : {
+            "myPerson": {
+              "name": "Any name"
+            }
+          },
+          "matchingRules" : {
+            "$.body.myPerson.*" : {
+              "match": "type"
+            }
+          }
+        },
+        "actual": {
+          "headers": {},
+          "body": {
+            "myPerson": {
+              "name": "Jon Peterson",
+              "age": 39,
+              "nationality": "Australian"
+            }
+          }    
+        }
+      }
+    "#).unwrap();
+
+    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    println!("{:?}", expected);
+    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    println!("{:?}", actual);
+    let pact_match = pact.find("match").unwrap();
+    let result = match_response(expected, actual);
+    if pact_match.as_boolean().unwrap() {
+       expect!(result).to(be_empty());
+    } else {
+       expect!(result).to_not(be_empty());
+    }
+}
+
+#[test]
+fn additional_property_with_type_matcher() {
+    env_logger::init().unwrap_or(());
+    let pact = Json::from_str(r#"
+      {
+        "match": true,
+        "comment": "additional property with type matcher wildcards",
+        "expected": {
+          "headers": {},
+          "body" : {
+            "myPerson": {
+              "name": "Any name"
+            }
+          },
+          "matchingRules" : {
+            "body": {
+              "$.myPerson.*": {
+                "matchers": [
+                  {
+                    "match": "type"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "actual": {
+          "headers": {},
+          "body": {
+            "myPerson": {
+              "name": "Jon Peterson",
+              "age": "39",
+              "nationality": "Australian"
+            }
+          }
         }
       }
     "#).unwrap();

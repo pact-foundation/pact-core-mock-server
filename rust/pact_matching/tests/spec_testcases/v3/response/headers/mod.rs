@@ -206,54 +206,6 @@ fn matches_content_type_with_parameters_in_different_order() {
 }
 
 #[test]
-#[ignore]
-fn matches_with_regex() {
-    env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
-      {
-        "match": true,
-        "comment": "Headers match with regex",
-        "expected" : {
-          "headers": {
-            "Accept": "alligators",
-            "Content-Type": "hippos"
-          },
-          "matchingRules": {
-            "headers": {
-              "Accept": {
-                "matchers": [
-                  {
-                    "match": "regex",
-                    "regex": "\\w+"
-                  }
-                ]
-              }
-            }
-          }
-        },
-        "actual": {
-          "headers": {
-            "Content-Type": "hippos",
-            "Accept": "godzilla"
-          }
-        }
-      }
-    "#).unwrap();
-
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
-    let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
-       expect!(result).to(be_empty());
-    } else {
-       expect!(result).to_not(be_empty());
-    }
-}
-
-#[test]
 fn matches() {
     env_logger::init().unwrap_or(());
     let pact = Json::from_str(r#"
@@ -367,6 +319,53 @@ fn whitespace_after_comma_different() {
         "actual": {
           "headers": {
             "Accept": "alligators, hippos"
+          }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    println!("{:?}", expected);
+    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    println!("{:?}", actual);
+    let pact_match = pact.find("match").unwrap();
+    let result = match_response(expected, actual);
+    if pact_match.as_boolean().unwrap() {
+       expect!(result).to(be_empty());
+    } else {
+       expect!(result).to_not(be_empty());
+    }
+}
+
+#[test]
+fn matches_with_regex() {
+    env_logger::init().unwrap_or(());
+    let pact = Json::from_str(r#"
+      {
+        "match": true,
+        "comment": "Headers match with regex",
+        "expected" : {
+          "headers": {
+            "Accept": "alligators",
+            "Content-Type": "hippos"
+          },
+          "matchingRules": {
+            "header": {
+              "Accept": {
+                "matchers": [
+                  {
+                    "match": "regex",
+                    "regex": "\\w+"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "actual": {
+          "headers": {
+            "Content-Type": "hippos",
+            "Accept": "godzilla"
           }
         }
       }
