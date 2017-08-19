@@ -33,7 +33,9 @@ pub enum PactSpecification {
     /// Version two of the pact specification (https://github.com/pact-foundation/pact-specification/tree/version-2)
     V2,
     /// Version three of the pact specification (https://github.com/pact-foundation/pact-specification/tree/version-3)
-    V3
+    V3,
+    /// Version four of the pact specification (https://github.com/pact-foundation/pact-specification/tree/version-4)
+    V4
 }
 
 impl PactSpecification {
@@ -44,6 +46,7 @@ impl PactSpecification {
             PactSpecification::V1_1 => s!("1.1.0"),
             PactSpecification::V2 => s!("2.0.0"),
             PactSpecification::V3 => s!("3.0.0"),
+            PactSpecification::V4 => s!("4.0.0"),
             _ => s!("unknown")
         }
     }
@@ -55,6 +58,7 @@ impl PactSpecification {
             PactSpecification::V1_1 => s!("V1.1"),
             PactSpecification::V2 => s!("V2"),
             PactSpecification::V3 => s!("V3"),
+            PactSpecification::V4 => s!("V4"),
             _ => s!("unknown")
         }
     }
