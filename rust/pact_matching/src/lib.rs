@@ -324,12 +324,13 @@
 //!
 
 #![warn(missing_docs)]
-
-extern crate rustc_serialize;
+#[macro_use] extern crate serde_json;
+#[macro_use] extern crate serde_derive;
 #[macro_use] extern crate log;
 #[macro_use] extern crate p_macro;
 #[macro_use] extern crate maplit;
 #[macro_use] extern crate lazy_static;
+extern crate hex;
 extern crate regex;
 extern crate semver;
 #[macro_use] extern crate itertools;
@@ -348,7 +349,6 @@ macro_rules! s {
 
 use std::collections::HashMap;
 use std::iter::FromIterator;
-use rustc_serialize::json::{Json, ToJson};
 use regex::Regex;
 use ansi_term::*;
 use ansi_term::Colour::*;
@@ -374,6 +374,8 @@ lazy_static! {
         (Regex::new("application/.*xml").unwrap(), xml::match_xml)
     ];
 }
+
+static PARAMETERISED_HEADER_TYPES: [&'static str; 2] = ["accept", "content-type"];
 
 /// Enum that defines the different types of mismatches that can occur.
 #[derive(Debug, Clone)]
@@ -444,77 +446,70 @@ pub enum Mismatch {
 }
 
 impl Mismatch {
-    /// Converts the mismatch to a `Json` struct.
-    pub fn to_json(&self) -> Json {
+    /// Converts the mismatch to a `Value` struct.
+    pub fn to_json(&self) -> serde_json::Value {
         match self {
             &Mismatch::MethodMismatch { expected: ref e, actual: ref a } => {
-                let map = btreemap!{
-                    s!("type") => s!("MethodMismatch").to_json(),
-                    s!("expected") => e.to_json(),
-                    s!("actual") => a.to_json()
-                };
-                Json::Object(map)
+                json!({
+                    s!("type") : json!("MethodMismatch"),
+                    s!("expected") : json!(e),
+                    s!("actual") : json!(a)
+                })
             },
             &Mismatch::PathMismatch { expected: ref e, actual: ref a, mismatch: ref m } => {
-                let map = btreemap!{
-                    s!("type") => s!("PathMismatch").to_json(),
-                    s!("expected") => e.to_json(),
-                    s!("actual") => a.to_json(),
-                    s!("mismatch") => m.to_json()
-                };
-                Json::Object(map)
+                json!({
+                    s!("type") : json!("PathMismatch"),
+                    s!("expected") : json!(e),
+                    s!("actual") : json!(a),
+                    s!("mismatch") : json!(m)
+                })
             },
             &Mismatch::StatusMismatch { expected: ref e, actual: ref a } => {
-                let map = btreemap!{
-                    s!("type") => s!("StatusMismatch").to_json(),
-                    s!("expected") => e.to_json(),
-                    s!("actual") => a.to_json()
-                };
-                Json::Object(map)
+                json!({
+                    s!("type") : json!("StatusMismatch"),
+                    s!("expected") : json!(e),
+                    s!("actual") : json!(a)
+                })
             },
             &Mismatch::QueryMismatch { parameter: ref p, expected: ref e, actual: ref a, mismatch: ref m } => {
-                let map = btreemap!{
-                    s!("type") => s!("QueryMismatch").to_json(),
-                    s!("parameter") => p.to_json(),
-                    s!("expected") => e.to_json(),
-                    s!("actual") => a.to_json(),
-                    s!("mismatch") => m.to_json()
-                };
-                Json::Object(map)
+                json!({
+                    s!("type") : json!("QueryMismatch"),
+                    s!("parameter") : json!(p),
+                    s!("expected") : json!(e),
+                    s!("actual") : json!(a),
+                    s!("mismatch") : json!(m)
+                })
             },
             &Mismatch::HeaderMismatch { key: ref k, expected: ref e, actual: ref a, mismatch: ref m } => {
-                let map = btreemap!{
-                    s!("type") => s!("HeaderMismatch").to_json(),
-                    s!("key") => k.to_json(),
-                    s!("expected") => e.to_json(),
-                    s!("actual") => a.to_json(),
-                    s!("mismatch") => m.to_json()
-                };
-                Json::Object(map)
+                json!({
+                    s!("type") : json!("HeaderMismatch"),
+                    s!("key") : json!(k),
+                    s!("expected") : json!(e),
+                    s!("actual") : json!(a),
+                    s!("mismatch") : json!(m)
+                })
             },
             &Mismatch::BodyTypeMismatch { expected: ref e, actual: ref a } => {
-                let map = btreemap!{
-                    s!("type") => s!("BodyTypeMismatch").to_json(),
-                    s!("expected") => e.to_json(),
-                    s!("actual") => a.to_json()
-                };
-                Json::Object(map)
+                json!({
+                    s!("type") : json!("BodyTypeMismatch"),
+                    s!("expected") : json!(e),
+                    s!("actual") : json!(a)
+                })
             },
             &Mismatch::BodyMismatch { path: ref p, expected: ref e, actual: ref a, mismatch: ref m } => {
-                let map = btreemap!{
-                    s!("type") => s!("BodyMismatch").to_json(),
-                    s!("path") => p.to_json(),
-                    s!("expected") => match e {
-                        &Some(ref v) => v.to_json(),
-                        &None => Json::Null
+                 json!({
+                    s!("type") : json!("BodyMismatch"),
+                    s!("path") : json!(p),
+                    s!("expected") : match e {
+                        &Some(ref v) => json!(v),
+                        &None => serde_json::Value::Null
                     },
-                    s!("actual") => match a {
-                        &Some(ref v) => v.to_json(),
-                        &None => Json::Null
+                    s!("actual") : match a {
+                        &Some(ref v) => json!(v),
+                        &None => serde_json::Value::Null
                     },
-                    s!("mismatch") => m.to_json()
-                };
-                Json::Object(map)
+                    s!("mismatch") : json!(m)
+                })
             }
         }
     }
@@ -766,16 +761,16 @@ fn parse_charset_parameters(parameters: &[&str]) -> HashMap<String, String> {
         })
 }
 
-fn match_content_type(expected: &String, actual: &String, mismatches: &mut Vec<Mismatch>) {
+fn match_parameter_header(expected: &String, actual: &String, mismatches: &mut Vec<Mismatch>, header: &String) {
     let expected_values: Vec<&str> = strip_whitespace(expected, ";");
     let actual_values: Vec<&str> = strip_whitespace(actual, ";");
     let expected_parameters = expected_values.as_slice().split_first().unwrap();
     let actual_parameters = actual_values.as_slice().split_first().unwrap();
-    let header_mismatch = Mismatch::HeaderMismatch { key: "Content-Type".to_string(),
+    let header_mismatch = Mismatch::HeaderMismatch { key: header.clone(),
         expected: format!("{}", expected),
         actual: format!("{}", actual),
-        mismatch: format!("Expected header 'Content-Type' to have value '{}' but was '{}'",
-            expected, actual) };
+        mismatch: format!("Expected header '{}' to have value '{}' but was '{}'",
+            header, expected, actual) };
 
     if expected_parameters.0 == actual_parameters.0 {
         let expected_parameter_map = parse_charset_parameters(expected_parameters.1);
@@ -799,11 +794,11 @@ fn match_header_value(key: &String, expected: &String, actual: &String, mismatch
     let path = vec![key.clone()];
     let expected = strip_whitespace::<String>(expected, ",");
     let actual = strip_whitespace::<String>(actual, ",");
-    let matcher_result = if matchers.matcher_is_defined("header", &path) {
-      matchers::match_values("header", &path, matchers.clone(), &expected, &actual)
-    } else if key.to_lowercase() == "content-type" {
-      match_content_type(&expected, &actual, mismatches);
-      Ok(())
+    let matcher_result = if matchers.matcher_is_defined("header",&path) {
+        matchers::match_values("header",&path, matchers.clone(), &expected, &actual)
+    } else if PARAMETERISED_HEADER_TYPES.contains(&key.to_lowercase() .as_str()) {
+        match_parameter_header(&expected, &actual, mismatches, &key);
+        Ok(())
     } else {
       expected.matches(&actual, &MatchingRule::Equality).map_err(|err| vec![err])
     };

@@ -8,10 +8,10 @@ extern crate ansi_term;
 #[macro_use] extern crate log;
 extern crate hyper;
 #[macro_use] extern crate maplit;
-extern crate rustc_serialize;
 extern crate itertools;
 extern crate regex;
 extern crate difference;
+#[macro_use] extern crate serde_json;
 
 #[cfg(test)]
 #[macro_use(expect)]
@@ -36,7 +36,6 @@ use ansi_term::*;
 use ansi_term::Colour::*;
 use std::collections::HashMap;
 use provider_client::{make_provider_request, make_state_change_request};
-use rustc_serialize::json::Json;
 use regex::Regex;
 
 /// Source for loading pacts
@@ -123,18 +122,17 @@ fn execute_state_change(provider_state: &ProviderState, provider: &ProviderInfo,
         Some(_) => {
             let mut state_change_request = Request { method: s!("POST"), .. Request::default_request() };
             if provider.state_change_body {
-              let mut body_map = btreemap! {
-                  s!("state") => Json::String(provider_state.name.clone()),
-                  s!("action") => Json::String(if setup {
+              let json_body = json!({
+                  s!("state") : json!(provider_state.name.clone()),
+                  s!("action") : json!(if setup {
                     s!("setup")
                   } else {
                     s!("teardown")
                   })
               };
               for (k, v) in provider_state.params.clone() {
-                body_map.insert(k, v);
+                json_body.insert(k, v);
               }
-              let json_body = Json::Object(body_map);
               state_change_request.body = OptionalBody::Present(json_body.to_string());
               state_change_request.headers = Some(hashmap!{ s!("Content-Type") => s!("application/json") });
             } else {
