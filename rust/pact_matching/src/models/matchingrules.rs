@@ -109,11 +109,12 @@ pub enum MatchingRule {
 
 impl MatchingRule {
 
+  /// Builds a `MatchingRule` from a `Value` struct
   pub fn from_json(value: &Value) -> Option<MatchingRule> {
     match value {
       &Value::Object(ref m) => match m.get("match") {
-        Some(Value) => {
-          let val = json_to_string(Value);
+        Some(value) => {
+          let val = json_to_string(value);
           match val.as_str() {
             "regex" => match m.get(&val) {
               Some(s) => Some(MatchingRule::Regex(json_to_string(s))),
@@ -177,6 +178,7 @@ impl MatchingRule {
     }
   }
 
+  /// Converts this `MatchingRule` to a `Value` struct
   pub fn to_json(&self) -> Value {
     match self {
       &MatchingRule::Equality => json!({ "match": Value::String(s!("equality")) }),
@@ -426,6 +428,7 @@ impl MatchingRules {
       }
     }
 
+    /// Returns a `Category` filtered with all rules that match the given path.
     pub fn resolve_matchers(&self, category: &str, path: &Vec<String>) -> Option<Category> {
       if category == "body" {
         self.rules_for_category(&s!(category)).map(|category| category.filter(|&(val, _)| {
@@ -440,6 +443,7 @@ impl MatchingRules {
       }
     }
 
+    /// Returns a list of rules from the body category that match the given path
     pub fn resolve_body_matchers_by_path(&self, path: &Vec<String>) -> Option<RuleList> {
       match self.rules_for_category(&s!("body")) {
         Some(category) => category.max_by_path(path),
@@ -621,7 +625,6 @@ mod tests {
     use expectest::prelude::*;
     use expectest::traits::IsEmpty;
     use serde_json::Value;
-    use path_exp::*;
 
     impl IsEmpty for MatchingRules {
       fn is_empty(&self) -> bool {

@@ -89,9 +89,8 @@ impl Message {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::super::*;
     use expectest::prelude::*;
-    use serde_json::{self, Value};
+    use serde_json;
 
     #[test]
     fn loading_message_from_json() {

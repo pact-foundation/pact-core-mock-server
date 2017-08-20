@@ -337,7 +337,7 @@ extern crate semver;
 extern crate rand;
 extern crate sxd_document;
 
-#[macro_use] extern crate hyper;
+extern crate hyper;
 extern crate ansi_term;
 extern crate difference;
 

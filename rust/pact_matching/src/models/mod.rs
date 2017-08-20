@@ -448,7 +448,7 @@ impl Request {
         }
     }
 
-    /// Converts this `Request` to a `Json` struct.
+    /// Converts this `Request` to a `Value` struct.
     pub fn to_json(&self, spec_version: &PactSpecification) -> Value {
       let mut json = json!({
           s!("method"): Value::String(self.method.to_uppercase()),

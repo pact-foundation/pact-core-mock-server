@@ -1,15 +1,16 @@
 use super::*;
 use super::{body_from_json, headers_from_json};
 use std::collections::HashMap;
+use std::collections::hash_map::DefaultHasher;
 use std::fs::{self, File};
 use std::io;
 use std::io::prelude::*;
 use std::env;
 use expectest::prelude::*;
 use rand;
-use std::hash::{Hash, Hasher, SipHasher};
+use std::hash::{Hash, Hasher};
 use super::provider_states::*;
-#[macro_use] use super::matchingrules::*;
+use super::matchingrules::*;
 
 #[test]
 fn request_from_json_defaults_to_get() {
@@ -1203,7 +1204,7 @@ fn interactions_conflict_if_they_have_different_responses() {
 }
 
 fn hash<T: Hash>(t: &T) -> u64 {
-    let mut s = SipHasher::new();
+    let mut s = DefaultHasher::new();
     t.hash(&mut s);
     s.finish()
 }
