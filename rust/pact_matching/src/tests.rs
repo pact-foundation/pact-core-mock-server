@@ -191,11 +191,11 @@ fn matching_headers_be_false_when_headers_are_not_equal() {
 fn mismatch_message_generated_when_headers_are_not_equal() {
     let mut mismatches = vec![];
     match_header_value(&s!("HEADER"), &s!("HEADER_VALUE"), &s!("HEADER2"),
-                       &mut mismatches, &None);
+                       &mut mismatches, &matchingrules!{});
 
     match mismatches[0]  {
         Mismatch::HeaderMismatch {ref mismatch, ..} =>
-            assert_eq!(mismatch, "Expected header 'HEADER' to have value 'HEADER_VALUE' but was 'HEADER2'"),
+            assert_eq!(mismatch, "Mismatch with header 'HEADER': Expected 'HEADER_VALUE' to be equal to 'HEADER2'"),
         _ => panic!("Unexpected mismatch response")
     }
 }
@@ -276,7 +276,7 @@ fn content_type_header_does_match_when_charsets_is_missing_from_expected_header(
 fn mismatched_header_description_reports_content_type_mismatches_correctly() {
     let mut mismatches = vec![];
     match_header_value(&s!("CONTENT-TYPE"), &s!("CONTENT-TYPE-VALUE"), &s!("HEADER2"),
-                       &mut mismatches, &None);
+                       &mut mismatches, &matchingrules!{});
 
     match mismatches[0] {
         Mismatch::HeaderMismatch {ref mismatch, ..} =>
@@ -289,7 +289,7 @@ fn mismatched_header_description_reports_content_type_mismatches_correctly() {
 fn accept_header_matches_when_headers_are_equal() {
     let mut mismatches = vec![];
     match_header_value(&s!("ACCEPT"), &s!("application/hal+json;charset=utf-8"),
-                       &s!("application/hal+json;charset=utf-8"), &mut mismatches, &None);
+                       &s!("application/hal+json;charset=utf-8"), &mut mismatches, &matchingrules!{});
     expect!(mismatches).to(be_empty());
 }
 
@@ -297,7 +297,7 @@ fn accept_header_matches_when_headers_are_equal() {
 fn accept_header_does_not_match_when_actual_is_empty() {
     let mut mismatches = vec![];
     match_header_value(&s!("ACCEPT"), &s!("application/hal+json"),
-                       &s!(""), &mut mismatches, &None);
+                       &s!(""), &mut mismatches, &matchingrules!{});
     expect!(mismatches).to_not(be_empty());
 }
 
@@ -305,7 +305,7 @@ fn accept_header_does_not_match_when_actual_is_empty() {
 fn accept_header_does_match_when_charset_is_missing_from_expected_header() {
     let mut mismatches = vec![];
     match_header_value(&s!("ACCEPT"), &s!("application/hal+json"),
-        &s!("application/hal+json;charset=utf-8"), &mut mismatches, &None);
+        &s!("application/hal+json;charset=utf-8"), &mut mismatches, &matchingrules!{});
     expect!(mismatches).to(be_empty());
 }
 
@@ -313,7 +313,7 @@ fn accept_header_does_match_when_charset_is_missing_from_expected_header() {
 fn accept_header_does_not_match_when_charsets_are_not_equal() {
     let mut mismatches = vec![];
     match_header_value(&s!("ACCEPT"), &s!("application/hal+json;charset=utf-8"),
-        &s!("application/hal+json;charset=utf-16"), &mut mismatches, &None);
+        &s!("application/hal+json;charset=utf-16"), &mut mismatches, &matchingrules!{});
     expect!(mismatches).to_not(be_empty());
 }
 
@@ -321,7 +321,7 @@ fn accept_header_does_not_match_when_charsets_are_not_equal() {
 fn mismatched_header_description_reports_accept_header_mismatches_correctly() {
     let mut mismatches = vec![];
     match_header_value(&s!("ACCEPT"), &s!("ACCEPT-VALUE"), &s!("HEADER2"),
-                       &mut mismatches, &None);
+                       &mut mismatches, &matchingrules!{});
     match mismatches[0] {
         Mismatch::HeaderMismatch {ref mismatch, ..} =>
             assert_eq!(mismatch, "Expected header 'ACCEPT' to have value 'ACCEPT-VALUE' but was 'HEADER2'"),

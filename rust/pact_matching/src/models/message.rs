@@ -91,7 +91,7 @@ mod tests {
     use super::*;
     use super::super::*;
     use expectest::prelude::*;
-    use rustc_serialize::json::Json;
+    use serde_json::{self, Value};
 
     #[test]
     fn loading_message_from_json() {
@@ -100,7 +100,7 @@ mod tests {
             "providerState": "provider state",
             "matchingRules": {}
         }"#;
-        let message = Message::from_json(0, &Json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
+        let message = Message::from_json(0, &serde_json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
         expect!(message.description).to(be_equal_to("String"));
         expect!(message.provider_state).to(be_some().value("provider state"));
         expect!(message.matching_rules).to(be_empty());
@@ -111,7 +111,7 @@ mod tests {
         let message_json = r#"{
             "providerState": "provider state"
         }"#;
-        let message = Message::from_json(0, &Json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
+        let message = Message::from_json(0, &serde_json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
         expect!(message.description).to(be_equal_to("Message 0"));
     }
 
@@ -119,7 +119,7 @@ mod tests {
     fn defaults_to_none_if_no_provider_state() {
         let message_json = r#"{
         }"#;
-        let message = Message::from_json(0, &Json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
+        let message = Message::from_json(0, &serde_json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
         expect!(message.provider_state).to(be_none());
         expect!(message.matching_rules).to(be_empty());
     }
@@ -129,7 +129,7 @@ mod tests {
         let message_json = r#"{
             "providerState": null
         }"#;
-        let message = Message::from_json(0, &Json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
+        let message = Message::from_json(0, &serde_json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
         expect!(message.provider_state).to(be_none());
     }
 
@@ -139,7 +139,7 @@ mod tests {
             "description": "String",
             "providerState": "provider state"
         }"#;
-        let result = Message::from_json(0, &Json::from_str(message_json).unwrap(), &PactSpecification::V1);
+        let result = Message::from_json(0, &serde_json::from_str(message_json).unwrap(), &PactSpecification::V1);
         expect!(result).to(be_err());
     }
 
@@ -153,7 +153,7 @@ mod tests {
                 "contentType": "application/json"
             }
         }"#;
-        let message = Message::from_json(0, &Json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
+        let message = Message::from_json(0, &serde_json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
         expect!(message.contents).to(be_equal_to("{\"hello\":\"world\"}"));
     }
 
@@ -165,7 +165,7 @@ mod tests {
                 "contentType": "text/plain"
             }
         }"#;
-        let message = Message::from_json(0, &Json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
+        let message = Message::from_json(0, &serde_json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
         expect!(message.contents).to(be_equal_to("hello world"));
     }
 
@@ -177,7 +177,7 @@ mod tests {
                 "contentType": "text/plain"
             }
         }"#;
-        let message = Message::from_json(0, &Json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
+        let message = Message::from_json(0, &serde_json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
         expect!(message.contents).to(be_equal_to(""));
     }
 
@@ -185,7 +185,7 @@ mod tests {
     fn message_with_missing_body() {
         let message_json = r#"{
         }"#;
-        let message = Message::from_json(0, &Json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
+        let message = Message::from_json(0, &serde_json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
         expect!(message.contents).to(be_equal_to(OptionalBody::Missing));
     }
 
@@ -197,7 +197,7 @@ mod tests {
                 "contentType": "text/plain"
             }
         }"#;
-        let message = Message::from_json(0, &Json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
+        let message = Message::from_json(0, &serde_json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
         expect!(message.contents).to(be_equal_to(OptionalBody::Null));
     }
 

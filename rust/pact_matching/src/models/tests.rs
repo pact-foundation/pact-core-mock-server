@@ -499,7 +499,7 @@ fn load_v3_pact() {
       }
     }
     "#;
-    let pact = Pact::from_json(&s!(""), &Json::from_str(pact_json).unwrap());
+    let pact = Pact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
     expect!(&pact.provider.name).to(be_equal_to("test_provider"));
     expect!(&pact.consumer.name).to(be_equal_to("test_consumer"));
     expect!(pact.metadata.iter()).to(have_count(2));

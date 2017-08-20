@@ -749,13 +749,13 @@ mod tests {
     #[test]
     fn min_max_type_matcher_test() {
       let matcher = MatchingRule::MinMaxType(2, 3);
-      expect!(Value::Array(vec![]).matches(&Array::Array(vec![json!(100), json!(100)]),
+      expect!(Value::Array(vec![]).matches(&Value::Array(vec![json!(100), json!(100)]),
         &matcher)).to(be_ok());
-      expect!(Value::Array(vec![]).matches(&Array::Array(vec![json!(100), json!(100),
-        Json::U64(100)]), &matcher)).to(be_ok());
-      expect!(Value::Array(vec![]).matches(&Array::Array(vec![json!(100), json!(100),
-        Json::U64(100), Json::U64(100)]), &matcher)).to(be_err());
-      expect!(Value::Array(vec![]).matches(&Array::Array(vec![json!(100)]), &matcher)).to(be_err());
+      expect!(Value::Array(vec![]).matches(&Value::Array(vec![json!(100), json!(100),
+        json!(100)]), &matcher)).to(be_ok());
+      expect!(Value::Array(vec![]).matches(&Value::Array(vec![json!(100), json!(100),
+        json!(100), json!(100)]), &matcher)).to(be_err());
+      expect!(Value::Array(vec![]).matches(&Value::Array(vec![json!(100)]), &matcher)).to(be_err());
       expect!(Value::String(s!("100")).matches(&Value::String(s!("101")), &matcher)).to(be_ok());
     }
 

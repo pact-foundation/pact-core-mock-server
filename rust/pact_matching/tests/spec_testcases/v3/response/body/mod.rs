@@ -7,14 +7,112 @@ use pact_matching::models::Response;
 #[allow(unused_imports)]
 use pact_matching::match_response;
 #[allow(unused_imports)]
-use rustc_serialize::json::Json;
-#[allow(unused_imports)]
 use expectest::prelude::*;
+#[allow(unused_imports)]
+use serde_json;
+
+#[test]
+fn additional_property_with_type_matcher_that_does_not_match() {
+    env_logger::init().unwrap_or(());
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "additional property with type matcher wildcards that don't match",
+        "expected": {
+          "headers": {},
+          "body" : {
+            "myPerson": {
+              "name": "Any name"
+            }
+          },
+          "matchingRules" : {
+            "$.body.myPerson.*" : {
+              "match": "type"
+            }
+          }
+        },
+        "actual": {
+          "headers": {},
+          "body": {
+            "myPerson": {
+              "name": "Jon Peterson",
+              "age": 39,
+              "nationality": "Australian"
+            }
+          }    
+        }
+      }
+    "#).unwrap();
+
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
+    println!("{:?}", expected);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
+    println!("{:?}", actual);
+    let pact_match = pact.get("match").unwrap();
+    let result = match_response(expected, actual);
+    if pact_match.as_bool().unwrap() {
+       expect!(result).to(be_empty());
+    } else {
+       expect!(result).to_not(be_empty());
+    }
+}
+
+#[test]
+fn additional_property_with_type_matcher() {
+    env_logger::init().unwrap_or(());
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": true,
+        "comment": "additional property with type matcher wildcards",
+        "expected": {
+          "headers": {},
+          "body" : {
+            "myPerson": {
+              "name": "Any name"
+            }
+          },
+          "matchingRules" : {
+            "body": {
+              "$.myPerson.*": {
+                "matchers": [
+                  {
+                    "match": "type"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "actual": {
+          "headers": {},
+          "body": {
+            "myPerson": {
+              "name": "Jon Peterson",
+              "age": "39",
+              "nationality": "Australian"
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
+    println!("{:?}", expected);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
+    println!("{:?}", actual);
+    let pact_match = pact.get("match").unwrap();
+    let result = match_response(expected, actual);
+    if pact_match.as_bool().unwrap() {
+       expect!(result).to(be_empty());
+    } else {
+       expect!(result).to_not(be_empty());
+    }
+}
 
 #[test]
 fn array_at_top_level_with_matchers_xml() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "XML top level array matches",
@@ -63,13 +161,13 @@ fn array_at_top_level_with_matchers_xml() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -79,7 +177,7 @@ fn array_at_top_level_with_matchers_xml() {
 #[test]
 fn array_at_top_level_with_matchers() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "top level array matches",
@@ -181,13 +279,13 @@ fn array_at_top_level_with_matchers() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -197,7 +295,7 @@ fn array_at_top_level_with_matchers() {
 #[test]
 fn array_at_top_level_xml() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "XML top level array matches",
@@ -212,13 +310,13 @@ fn array_at_top_level_xml() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -228,7 +326,7 @@ fn array_at_top_level_xml() {
 #[test]
 fn array_at_top_level() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "top level array matches",
@@ -269,13 +367,13 @@ fn array_at_top_level() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -285,7 +383,7 @@ fn array_at_top_level() {
 #[test]
 fn array_in_different_order_xml() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "XML Favourite colours in wrong order",
@@ -300,13 +398,13 @@ fn array_in_different_order_xml() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -316,7 +414,7 @@ fn array_in_different_order_xml() {
 #[test]
 fn array_in_different_order() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Favourite colours in wrong order",
@@ -339,13 +437,13 @@ fn array_in_different_order() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -355,7 +453,7 @@ fn array_in_different_order() {
 #[test]
 fn array_with_regex_matcher_xml() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "XML array with regex matcher",
@@ -389,13 +487,13 @@ fn array_with_regex_matcher_xml() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -405,7 +503,7 @@ fn array_with_regex_matcher_xml() {
 #[test]
 fn array_with_regex_matcher() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "array with regex matcher",
@@ -449,13 +547,13 @@ fn array_with_regex_matcher() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -465,7 +563,7 @@ fn array_with_regex_matcher() {
 #[test]
 fn array_with_type_matcher_mismatch_xml() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "XML array with type matcher mismatch",
@@ -491,13 +589,13 @@ fn array_with_type_matcher_mismatch_xml() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -507,7 +605,7 @@ fn array_with_type_matcher_mismatch_xml() {
 #[test]
 fn array_with_type_matcher_mismatch() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "array with type matcher mismatch",
@@ -543,13 +641,13 @@ fn array_with_type_matcher_mismatch() {
       }   
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -559,7 +657,7 @@ fn array_with_type_matcher_mismatch() {
 #[test]
 fn array_with_type_matcher_xml() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "array with type matcher",
@@ -592,13 +690,13 @@ fn array_with_type_matcher_xml() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -608,7 +706,7 @@ fn array_with_type_matcher_xml() {
 #[test]
 fn array_with_type_matcher() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "array with type matcher",
@@ -651,13 +749,13 @@ fn array_with_type_matcher() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -667,7 +765,7 @@ fn array_with_type_matcher() {
 #[test]
 fn deeply_nested_objects_xml() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
       	"match": true,
       	"comment": "XML Comparisons should work even on nested objects",
@@ -682,13 +780,13 @@ fn deeply_nested_objects_xml() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -698,7 +796,7 @@ fn deeply_nested_objects_xml() {
 #[test]
 fn deeply_nested_objects() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
       	"match": true,
       	"comment": "Comparisons should work even on nested objects",
@@ -743,13 +841,13 @@ fn deeply_nested_objects() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -759,7 +857,7 @@ fn deeply_nested_objects() {
 #[test]
 fn different_value_found_at_index_xml() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "XML Incorrect favourite colour",
@@ -774,13 +872,13 @@ fn different_value_found_at_index_xml() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -790,7 +888,7 @@ fn different_value_found_at_index_xml() {
 #[test]
 fn different_value_found_at_index() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Incorrect favourite colour",
@@ -813,13 +911,13 @@ fn different_value_found_at_index() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -829,7 +927,7 @@ fn different_value_found_at_index() {
 #[test]
 fn different_value_found_at_key_xml() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "XML Incorrect value at alligator name",
@@ -844,13 +942,13 @@ fn different_value_found_at_key_xml() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -860,7 +958,7 @@ fn different_value_found_at_key_xml() {
 #[test]
 fn different_value_found_at_key() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Incorrect value at alligator name",
@@ -883,13 +981,13 @@ fn different_value_found_at_key() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -899,7 +997,7 @@ fn different_value_found_at_key() {
 #[test]
 fn empty_body_no_content_type() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Empty body, no content-type",
@@ -913,13 +1011,13 @@ fn empty_body_no_content_type() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -929,7 +1027,7 @@ fn empty_body_no_content_type() {
 #[test]
 fn empty_body() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Empty body",
@@ -944,13 +1042,13 @@ fn empty_body() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -960,7 +1058,7 @@ fn empty_body() {
 #[test]
 fn keys_out_of_order_match_xml() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "XML Favourite number and favourite colours out of order",
@@ -975,13 +1073,13 @@ fn keys_out_of_order_match_xml() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -991,7 +1089,7 @@ fn keys_out_of_order_match_xml() {
 #[test]
 fn keys_out_of_order_match() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Favourite number and favourite colours out of order",
@@ -1012,13 +1110,13 @@ fn keys_out_of_order_match() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -1028,7 +1126,7 @@ fn keys_out_of_order_match() {
 #[test]
 fn matches_with_regex_xml() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "XML Requests match with regex",
@@ -1055,13 +1153,13 @@ fn matches_with_regex_xml() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -1071,7 +1169,7 @@ fn matches_with_regex_xml() {
 #[test]
 fn matches_with_regex() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Requests match with regex",
@@ -1110,13 +1208,13 @@ fn matches_with_regex() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -1126,7 +1224,7 @@ fn matches_with_regex() {
 #[test]
 fn matches_with_type() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Response match with same type",
@@ -1171,13 +1269,13 @@ fn matches_with_type() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -1187,7 +1285,7 @@ fn matches_with_type() {
 #[test]
 fn matches_xml() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Responses match",
@@ -1202,13 +1300,13 @@ fn matches_xml() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -1218,7 +1316,7 @@ fn matches_xml() {
 #[test]
 fn matches() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Responses match",
@@ -1245,13 +1343,13 @@ fn matches() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -1261,7 +1359,7 @@ fn matches() {
 #[test]
 fn missing_body_found_when_empty_expected() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Missing body found, when an empty body was expected",
@@ -1273,13 +1371,13 @@ fn missing_body_found_when_empty_expected() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -1289,7 +1387,7 @@ fn missing_body_found_when_empty_expected() {
 #[test]
 fn missing_body_no_content_type() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Missing body, no content-type",
@@ -1308,13 +1406,13 @@ fn missing_body_no_content_type() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -1324,7 +1422,7 @@ fn missing_body_no_content_type() {
 #[test]
 fn missing_body_xml() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "XML Missing body",
@@ -1338,13 +1436,13 @@ fn missing_body_xml() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -1354,7 +1452,7 @@ fn missing_body_xml() {
 #[test]
 fn missing_body() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Missing body",
@@ -1374,13 +1472,13 @@ fn missing_body() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -1390,7 +1488,7 @@ fn missing_body() {
 #[test]
 fn missing_index_xml() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Missing favorite colour",
@@ -1405,13 +1503,13 @@ fn missing_index_xml() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -1421,7 +1519,7 @@ fn missing_index_xml() {
 #[test]
 fn missing_index() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Missing favorite colour",
@@ -1444,13 +1542,13 @@ fn missing_index() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -1460,7 +1558,7 @@ fn missing_index() {
 #[test]
 fn missing_key_xml() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "XML Missing key alligator name",
@@ -1475,13 +1573,13 @@ fn missing_key_xml() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -1491,7 +1589,7 @@ fn missing_key_xml() {
 #[test]
 fn missing_key() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Missing key alligator name",
@@ -1515,13 +1613,13 @@ fn missing_key() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -1531,7 +1629,7 @@ fn missing_key() {
 #[test]
 fn no_body_no_content_type_xml() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "XML No body, no content-type",
@@ -1544,13 +1642,13 @@ fn no_body_no_content_type_xml() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -1560,7 +1658,7 @@ fn no_body_no_content_type_xml() {
 #[test]
 fn no_body_no_content_type() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "No body, no content-type",
@@ -1579,13 +1677,13 @@ fn no_body_no_content_type() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -1595,7 +1693,7 @@ fn no_body_no_content_type() {
 #[test]
 fn non_empty_body_found_when_empty_expected() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Non empty body found, when an empty body was expected",
@@ -1616,13 +1714,13 @@ fn non_empty_body_found_when_empty_expected() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -1632,7 +1730,7 @@ fn non_empty_body_found_when_empty_expected() {
 #[test]
 fn not_null_found_at_key_when_null_expected() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Name should be null",
@@ -1655,13 +1753,13 @@ fn not_null_found_at_key_when_null_expected() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -1671,7 +1769,7 @@ fn not_null_found_at_key_when_null_expected() {
 #[test]
 fn not_null_found_in_array_when_null_expected() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Favourite numbers expected to contain null, but not null found",
@@ -1694,13 +1792,13 @@ fn not_null_found_in_array_when_null_expected() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -1710,7 +1808,7 @@ fn not_null_found_in_array_when_null_expected() {
 #[test]
 fn null_body_no_content_type() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "NULL body, no content-type",
@@ -1724,13 +1822,13 @@ fn null_body_no_content_type() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -1740,7 +1838,7 @@ fn null_body_no_content_type() {
 #[test]
 fn null_body() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "NULL body",
@@ -1755,13 +1853,13 @@ fn null_body() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -1771,7 +1869,7 @@ fn null_body() {
 #[test]
 fn null_found_at_key_where_not_null_expected() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Name should not be null",
@@ -1794,13 +1892,13 @@ fn null_found_at_key_where_not_null_expected() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -1810,7 +1908,7 @@ fn null_found_at_key_where_not_null_expected() {
 #[test]
 fn null_found_in_array_when_not_null_expected() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Favourite numbers expected to be strings found a null",
@@ -1833,13 +1931,13 @@ fn null_found_in_array_when_not_null_expected() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -1849,7 +1947,7 @@ fn null_found_in_array_when_not_null_expected() {
 #[test]
 fn number_found_at_key_when_string_expected() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Number of feet expected to be string but was number",
@@ -1872,13 +1970,13 @@ fn number_found_at_key_when_string_expected() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -1888,7 +1986,7 @@ fn number_found_at_key_when_string_expected() {
 #[test]
 fn number_found_in_array_when_string_expected() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Favourite numbers expected to be strings found a number",
@@ -1911,13 +2009,13 @@ fn number_found_in_array_when_string_expected() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -1927,7 +2025,7 @@ fn number_found_in_array_when_string_expected() {
 #[test]
 fn objects_in_array_first_matches_xml() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "XML Properties match but unexpected element received",
@@ -1942,13 +2040,13 @@ fn objects_in_array_first_matches_xml() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -1958,7 +2056,7 @@ fn objects_in_array_first_matches_xml() {
 #[test]
 fn objects_in_array_first_matches() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Properties match but unexpected element received",
@@ -1986,13 +2084,13 @@ fn objects_in_array_first_matches() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -2002,7 +2100,7 @@ fn objects_in_array_first_matches() {
 #[test]
 fn objects_in_array_no_matches_xml() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "XML Array of objects, properties match on incorrect objects",
@@ -2017,13 +2115,13 @@ fn objects_in_array_no_matches_xml() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -2033,7 +2131,7 @@ fn objects_in_array_no_matches_xml() {
 #[test]
 fn objects_in_array_no_matches() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Array of objects, properties match on incorrect objects",
@@ -2056,13 +2154,13 @@ fn objects_in_array_no_matches() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -2072,7 +2170,7 @@ fn objects_in_array_no_matches() {
 #[test]
 fn objects_in_array_second_matches_xml() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "XML Property of second object matches, but unexpected element received",
@@ -2087,13 +2185,13 @@ fn objects_in_array_second_matches_xml() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -2103,7 +2201,7 @@ fn objects_in_array_second_matches_xml() {
 #[test]
 fn objects_in_array_second_matches() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Property of second object matches, but unexpected element recieved",
@@ -2125,13 +2223,13 @@ fn objects_in_array_second_matches() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -2141,7 +2239,7 @@ fn objects_in_array_second_matches() {
 #[test]
 fn objects_in_array_type_matching_xml() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "XML objects in array type matching",
@@ -2181,641 +2279,13 @@ fn objects_in_array_type_matching_xml() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
-       expect!(result).to(be_empty());
-    } else {
-       expect!(result).to_not(be_empty());
-    }
-}
-
-#[test]
-fn objects_in_array_with_type_mismatching_xml() {
-    env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
-      {
-        "match": false,
-        "comment": "XML objects in array with type mismatching",
-        "expected": {
-          "headers": {},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person name=\"John Smith\" age=\"50\"/></people>",
-          "matchingRules": {
-            "body": {
-              "$[*]": {
-                "matchers": [
-                  {
-                    "match": "type"
-                  }
-                ]
-              },
-              "$[*].*": {
-                "matchers": [
-                  {
-                    "match": "type"
-                  }
-                ]
-              }
-            }
-          }
-        },
-        "actual": {
-          "headers": {},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person name=\"Peter Peterson\" age=\"22\" gender=\"Male\"/><person/></people>"
-        }
-      }
-    "#).unwrap();
-
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
-    let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
-       expect!(result).to(be_empty());
-    } else {
-       expect!(result).to_not(be_empty());
-    }
-}
-
-#[test]
-fn objects_in_array_with_type_mismatching() {
-    env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
-      {
-        "match": false,
-        "comment": "objects in array with type mismatching",
-        "expected": {
-          "headers": {},
-          "body": [{
-            "Name": "John Smith",
-            "Age": 50
-          }],
-          "matchingRules": {
-            "body": {
-              "$[*]": {
-                "matchers": [
-                  {
-                    "match": "type"
-                  }
-                ]
-              },
-              "$[*].*": {
-                "matchers": [
-                  {
-                    "match": "type"
-                  }
-                ]
-              }
-            }
-          }
-        },
-        "actual": {
-          "headers": {},
-          "body": [{
-            "name": "Peter Peterson",
-            "age": 22,
-            "gender": "Male"
-          }, {}]
-        }
-      }
-    "#).unwrap();
-
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
-    let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
-       expect!(result).to(be_empty());
-    } else {
-       expect!(result).to_not(be_empty());
-    }
-}
-
-#[test]
-fn plain_text_that_does_not_match() {
-    env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Plain text that does not match",
-        "expected" : {
-          "headers": { "Content-Type": "text/plain" },
-          "body": "alligator named mary"
-        },
-        "actual": {
-          "headers": { "Content-Type": "text/plain" },
-          "body": "alligator named fred"
-        }
-      }
-    "#).unwrap();
-
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
-    let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
-       expect!(result).to(be_empty());
-    } else {
-       expect!(result).to_not(be_empty());
-    }
-}
-
-#[test]
-fn plain_text_that_matches() {
-    env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
-      {
-        "match": true,
-        "comment": "Plain text that matches",
-        "expected" : {
-          "headers": { "Content-Type": "text/plain" },
-          "body": "alligator named mary"
-        },
-        "actual": {
-          "headers": { "Content-Type": "text/plain" },
-          "body": "alligator named mary"
-        }
-      }
-    "#).unwrap();
-
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
-    let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
-       expect!(result).to(be_empty());
-    } else {
-       expect!(result).to_not(be_empty());
-    }
-}
-
-#[test]
-fn property_name_is_different_case_xml() {
-    env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
-      {
-        "match": false,
-        "comment": "XML Property names on objects are case sensitive",
-        "expected" : {
-          "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator FavouriteColour=\"red\"/>"
-        },
-        "actual": {
-          "headers": {"Content-Type": "application/json"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator favouritecolour=\"red\"/>"
-        }
-      }
-    "#).unwrap();
-
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
-    let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
-       expect!(result).to(be_empty());
-    } else {
-       expect!(result).to_not(be_empty());
-    }
-}
-
-#[test]
-fn property_name_is_different_case() {
-    env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Property names on objects are case sensitive",
-        "expected" : {
-          "headers": {"Content-Type": "application/json"},
-          "body": {
-            "alligator":{
-              "FavouriteColour": "red"
-            }
-          }
-        },
-        "actual": {
-          "headers": {"Content-Type": "application/json"},
-          "body": {
-            "alligator":{
-              "favouritecolour": "red"
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
-    let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
-       expect!(result).to(be_empty());
-    } else {
-       expect!(result).to_not(be_empty());
-    }
-}
-
-#[test]
-fn string_found_at_key_when_number_expected() {
-    env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Number of feet expected to be number but was string",
-        "expected" : {
-          "headers": {"Content-Type": "application/json"},
-          "body": {
-            "alligator":{
-              "feet": 4
-            }
-          }
-        },
-        "actual": {
-          "headers": {"Content-Type": "application/json"},
-          "body": {
-            "alligator":{
-              "feet": "4"
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
-    let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
-       expect!(result).to(be_empty());
-    } else {
-       expect!(result).to_not(be_empty());
-    }
-}
-
-#[test]
-fn string_found_in_array_when_number_expected() {
-    env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Favourite Numbers expected to be numbers, but 2 is a string",
-        "expected" : {
-          "headers": {"Content-Type": "application/json"},
-          "body": {
-            "alligator":{
-              "favouriteNumbers": [1,2,3]
-            }
-          }
-        },
-        "actual": {
-          "headers": {"Content-Type": "application/json"},
-          "body": {
-            "alligator":{
-              "favouriteNumbers": [1,"2",3]
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
-    let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
-       expect!(result).to(be_empty());
-    } else {
-       expect!(result).to_not(be_empty());
-    }
-}
-
-#[test]
-fn unexpected_index_with_missing_value_xml() {
-    env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
-      {
-        "match": true,
-        "comment": "XML Unexpected favourite colour with missing value",
-        "expected" : {
-          "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><favouriteColour>red</favouriteColour><favouriteColour>blue</favouriteColour></favouriteColours></alligator>"
-        },
-        "actual": {
-          "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><favouriteColour>red</favouriteColour><favouriteColour>blue</favouriteColour><favouriteColour></favouriteColour></favouriteColours></alligator>"
-        }
-      }
-    "#).unwrap();
-
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
-    let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
-       expect!(result).to(be_empty());
-    } else {
-       expect!(result).to_not(be_empty());
-    }
-}
-
-#[test]
-fn unexpected_index_with_non_empty_value_xml() {
-    env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
-      {
-        "match": true,
-        "comment": "XML Unexpected favourite colour",
-        "expected" : {
-          "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><favouriteColour>red</favouriteColour><favouriteColour>blue</favouriteColour></favouriteColours></alligator>"
-        },
-        "actual": {
-          "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><favouriteColour>red</favouriteColour><favouriteColour>blue</favouriteColour><favouriteColour>taupe</favouriteColour></favouriteColours></alligator>"
-        }
-      }
-    "#).unwrap();
-
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
-    let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
-       expect!(result).to(be_empty());
-    } else {
-       expect!(result).to_not(be_empty());
-    }
-}
-
-#[test]
-fn unexpected_index_with_not_null_value() {
-    env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Unexpected favourite colour",
-        "expected" : {
-          "headers": {"Content-Type": "application/json"},
-          "body": {
-            "alligator":{
-              "favouriteColours": ["red","blue"]
-            }
-          }
-        },
-        "actual": {
-          "headers": {"Content-Type": "application/json"},
-          "body": {
-            "alligator":{
-              "favouriteColours": ["red","blue","taupe"]
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
-    let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
-       expect!(result).to(be_empty());
-    } else {
-       expect!(result).to_not(be_empty());
-    }
-}
-
-#[test]
-fn unexpected_index_with_null_value() {
-    env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Unexpected favourite colour with null value",
-        "expected" : {
-          "headers": {"Content-Type": "application/json"},
-          "body": {
-            "alligator":{
-              "favouriteColours": ["red","blue"]
-            }
-          }
-        },
-        "actual": {
-          "headers": {"Content-Type": "application/json"},
-          "body": {
-            "alligator":{
-              "favouriteColours": ["red","blue", null]
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
-    let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
-       expect!(result).to(be_empty());
-    } else {
-       expect!(result).to_not(be_empty());
-    }
-}
-
-#[test]
-fn unexpected_key_with_empty_value_xml() {
-    env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
-      {
-        "match": true,
-        "comment": "XML Unexpected phone number with empty value",
-        "expected" : {
-          "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\"/>"
-        },
-        "actual": {
-          "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\" phoneNumber=\"\"/>"
-        }
-      }
-    "#).unwrap();
-
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
-    let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
-       expect!(result).to(be_empty());
-    } else {
-       expect!(result).to_not(be_empty());
-    }
-}
-
-#[test]
-fn unexpected_key_with_non_empty_value_xml() {
-    env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
-      {
-        "match": true,
-        "comment": "XML Unexpected phone number",
-        "expected" : {
-          "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\"/>"
-        },
-        "actual": {
-          "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\" phoneNumber=\"12345678\"/>"
-        }
-      }
-    "#).unwrap();
-
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
-    let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
-       expect!(result).to(be_empty());
-    } else {
-       expect!(result).to_not(be_empty());
-    }
-}
-
-#[test]
-fn unexpected_key_with_not_null_value() {
-    env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
-      {
-        "match": true,
-        "comment": "Unexpected phone number",
-        "expected" : {
-          "headers": {"Content-Type": "application/json"},
-          "body": {
-            "alligator":{
-              "name": "Mary"
-            }
-          }
-        },
-        "actual": {
-          "headers": {"Content-Type": "application/json"},
-          "body": {
-            "alligator":{
-              "name": "Mary",
-              "phoneNumber": "12345678"
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
-    let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
-       expect!(result).to(be_empty());
-    } else {
-       expect!(result).to_not(be_empty());
-    }
-}
-
-#[test]
-fn unexpected_key_with_null_value() {
-    env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
-      {
-        "match": true,
-        "comment": "Unexpected phone number with null value",
-        "expected" : {
-          "headers": {"Content-Type": "application/json"},
-          "body": {
-            "alligator":{
-              "name": "Mary"
-            }
-          }
-        },
-        "actual": {
-          "headers": {"Content-Type": "application/json"},
-          "body": {
-            "alligator":{
-              "name": "Mary",
-              "phoneNumber": null
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
-    let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
-       expect!(result).to(be_empty());
-    } else {
-       expect!(result).to_not(be_empty());
-    }
-}
-
-#[test]
-fn value_found_in_array_when_empty_expected_xml() {
-    env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
-      {
-        "match": false,
-        "comment": "XML Favourite numbers expected to contain empty, but non-empty found",
-        "expected" : {
-          "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteNumbers><favouriteNumber>1</favouriteNumber><favouriteNumber></favouriteNumber><favouriteNumber>3</favouriteNumber></favouriteNumbers></alligator>"
-        },
-        "actual": {
-          "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteNumbers><favouriteNumber>1</favouriteNumber><favouriteNumber>2</favouriteNumber><favouriteNumber>3</favouriteNumber></favouriteNumbers></alligator>"
-        }
-      }
-    "#).unwrap();
-
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
-    let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -2825,7 +2295,7 @@ fn value_found_in_array_when_empty_expected_xml() {
 #[test]
 fn objects_in_array_type_matching() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "objects in array type matching",
@@ -2868,13 +2338,13 @@ fn objects_in_array_type_matching() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());
@@ -2882,68 +2352,25 @@ fn objects_in_array_type_matching() {
 }
 
 #[test]
-fn additional_property_with_type_matcher_that_does_not_match() {
+fn objects_in_array_with_type_mismatching_xml() {
     env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
+    let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
-        "comment": "additional property with type matcher wildcards that don't match",
+        "comment": "XML objects in array with type mismatching",
         "expected": {
           "headers": {},
-          "body" : {
-            "myPerson": {
-              "name": "Any name"
-            }
-          },
-          "matchingRules" : {
-            "$.body.myPerson.*" : {
-              "match": "type"
-            }
-          }
-        },
-        "actual": {
-          "headers": {},
-          "body": {
-            "myPerson": {
-              "name": "Jon Peterson",
-              "age": 39,
-              "nationality": "Australian"
-            }
-          }    
-        }
-      }
-    "#).unwrap();
-
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
-    let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
-       expect!(result).to(be_empty());
-    } else {
-       expect!(result).to_not(be_empty());
-    }
-}
-
-#[test]
-fn additional_property_with_type_matcher() {
-    env_logger::init().unwrap_or(());
-    let pact = Json::from_str(r#"
-      {
-        "match": true,
-        "comment": "additional property with type matcher wildcards",
-        "expected": {
-          "headers": {},
-          "body" : {
-            "myPerson": {
-              "name": "Any name"
-            }
-          },
-          "matchingRules" : {
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person name=\"John Smith\" age=\"50\"/></people>",
+          "matchingRules": {
             "body": {
-              "$.myPerson.*": {
+              "$[*]": {
+                "matchers": [
+                  {
+                    "match": "type"
+                  }
+                ]
+              },
+              "$[*].*": {
                 "matchers": [
                   {
                     "match": "type"
@@ -2955,24 +2382,597 @@ fn additional_property_with_type_matcher() {
         },
         "actual": {
           "headers": {},
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person name=\"Peter Peterson\" age=\"22\" gender=\"Male\"/><person/></people>"
+        }
+      }
+    "#).unwrap();
+
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
+    println!("{:?}", expected);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
+    println!("{:?}", actual);
+    let pact_match = pact.get("match").unwrap();
+    let result = match_response(expected, actual);
+    if pact_match.as_bool().unwrap() {
+       expect!(result).to(be_empty());
+    } else {
+       expect!(result).to_not(be_empty());
+    }
+}
+
+#[test]
+fn objects_in_array_with_type_mismatching() {
+    env_logger::init().unwrap_or(());
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "objects in array with type mismatching",
+        "expected": {
+          "headers": {},
+          "body": [{
+            "Name": "John Smith",
+            "Age": 50
+          }],
+          "matchingRules": {
+            "body": {
+              "$[*]": {
+                "matchers": [
+                  {
+                    "match": "type"
+                  }
+                ]
+              },
+              "$[*].*": {
+                "matchers": [
+                  {
+                    "match": "type"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "actual": {
+          "headers": {},
+          "body": [{
+            "name": "Peter Peterson",
+            "age": 22,
+            "gender": "Male"
+          }, {}]
+        }
+      }
+    "#).unwrap();
+
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
+    println!("{:?}", expected);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
+    println!("{:?}", actual);
+    let pact_match = pact.get("match").unwrap();
+    let result = match_response(expected, actual);
+    if pact_match.as_bool().unwrap() {
+       expect!(result).to(be_empty());
+    } else {
+       expect!(result).to_not(be_empty());
+    }
+}
+
+#[test]
+fn plain_text_that_does_not_match() {
+    env_logger::init().unwrap_or(());
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Plain text that does not match",
+        "expected" : {
+          "headers": { "Content-Type": "text/plain" },
+          "body": "alligator named mary"
+        },
+        "actual": {
+          "headers": { "Content-Type": "text/plain" },
+          "body": "alligator named fred"
+        }
+      }
+    "#).unwrap();
+
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
+    println!("{:?}", expected);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
+    println!("{:?}", actual);
+    let pact_match = pact.get("match").unwrap();
+    let result = match_response(expected, actual);
+    if pact_match.as_bool().unwrap() {
+       expect!(result).to(be_empty());
+    } else {
+       expect!(result).to_not(be_empty());
+    }
+}
+
+#[test]
+fn plain_text_that_matches() {
+    env_logger::init().unwrap_or(());
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": true,
+        "comment": "Plain text that matches",
+        "expected" : {
+          "headers": { "Content-Type": "text/plain" },
+          "body": "alligator named mary"
+        },
+        "actual": {
+          "headers": { "Content-Type": "text/plain" },
+          "body": "alligator named mary"
+        }
+      }
+    "#).unwrap();
+
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
+    println!("{:?}", expected);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
+    println!("{:?}", actual);
+    let pact_match = pact.get("match").unwrap();
+    let result = match_response(expected, actual);
+    if pact_match.as_bool().unwrap() {
+       expect!(result).to(be_empty());
+    } else {
+       expect!(result).to_not(be_empty());
+    }
+}
+
+#[test]
+fn property_name_is_different_case_xml() {
+    env_logger::init().unwrap_or(());
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "XML Property names on objects are case sensitive",
+        "expected" : {
+          "headers": {"Content-Type": "application/xml"},
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator FavouriteColour=\"red\"/>"
+        },
+        "actual": {
+          "headers": {"Content-Type": "application/json"},
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator favouritecolour=\"red\"/>"
+        }
+      }
+    "#).unwrap();
+
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
+    println!("{:?}", expected);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
+    println!("{:?}", actual);
+    let pact_match = pact.get("match").unwrap();
+    let result = match_response(expected, actual);
+    if pact_match.as_bool().unwrap() {
+       expect!(result).to(be_empty());
+    } else {
+       expect!(result).to_not(be_empty());
+    }
+}
+
+#[test]
+fn property_name_is_different_case() {
+    env_logger::init().unwrap_or(());
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Property names on objects are case sensitive",
+        "expected" : {
+          "headers": {"Content-Type": "application/json"},
           "body": {
-            "myPerson": {
-              "name": "Jon Peterson",
-              "age": "39",
-              "nationality": "Australian"
+            "alligator":{
+              "FavouriteColour": "red"
+            }
+          }
+        },
+        "actual": {
+          "headers": {"Content-Type": "application/json"},
+          "body": {
+            "alligator":{
+              "favouritecolour": "red"
             }
           }
         }
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.find("expected").unwrap(), &PactSpecification::V3);
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
     println!("{:?}", expected);
-    let actual = Response::from_json(&pact.find("actual").unwrap(), &PactSpecification::V3);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
-    let pact_match = pact.find("match").unwrap();
+    let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
-    if pact_match.as_boolean().unwrap() {
+    if pact_match.as_bool().unwrap() {
+       expect!(result).to(be_empty());
+    } else {
+       expect!(result).to_not(be_empty());
+    }
+}
+
+#[test]
+fn string_found_at_key_when_number_expected() {
+    env_logger::init().unwrap_or(());
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Number of feet expected to be number but was string",
+        "expected" : {
+          "headers": {"Content-Type": "application/json"},
+          "body": {
+            "alligator":{
+              "feet": 4
+            }
+          }
+        },
+        "actual": {
+          "headers": {"Content-Type": "application/json"},
+          "body": {
+            "alligator":{
+              "feet": "4"
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
+    println!("{:?}", expected);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
+    println!("{:?}", actual);
+    let pact_match = pact.get("match").unwrap();
+    let result = match_response(expected, actual);
+    if pact_match.as_bool().unwrap() {
+       expect!(result).to(be_empty());
+    } else {
+       expect!(result).to_not(be_empty());
+    }
+}
+
+#[test]
+fn string_found_in_array_when_number_expected() {
+    env_logger::init().unwrap_or(());
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Favourite Numbers expected to be numbers, but 2 is a string",
+        "expected" : {
+          "headers": {"Content-Type": "application/json"},
+          "body": {
+            "alligator":{
+              "favouriteNumbers": [1,2,3]
+            }
+          }
+        },
+        "actual": {
+          "headers": {"Content-Type": "application/json"},
+          "body": {
+            "alligator":{
+              "favouriteNumbers": [1,"2",3]
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
+    println!("{:?}", expected);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
+    println!("{:?}", actual);
+    let pact_match = pact.get("match").unwrap();
+    let result = match_response(expected, actual);
+    if pact_match.as_bool().unwrap() {
+       expect!(result).to(be_empty());
+    } else {
+       expect!(result).to_not(be_empty());
+    }
+}
+
+#[test]
+fn unexpected_index_with_missing_value_xml() {
+    env_logger::init().unwrap_or(());
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": true,
+        "comment": "XML Unexpected favourite colour with missing value",
+        "expected" : {
+          "headers": {"Content-Type": "application/xml"},
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><favouriteColour>red</favouriteColour><favouriteColour>blue</favouriteColour></favouriteColours></alligator>"
+        },
+        "actual": {
+          "headers": {"Content-Type": "application/xml"},
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><favouriteColour>red</favouriteColour><favouriteColour>blue</favouriteColour><favouriteColour></favouriteColour></favouriteColours></alligator>"
+        }
+      }
+    "#).unwrap();
+
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
+    println!("{:?}", expected);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
+    println!("{:?}", actual);
+    let pact_match = pact.get("match").unwrap();
+    let result = match_response(expected, actual);
+    if pact_match.as_bool().unwrap() {
+       expect!(result).to(be_empty());
+    } else {
+       expect!(result).to_not(be_empty());
+    }
+}
+
+#[test]
+fn unexpected_index_with_non_empty_value_xml() {
+    env_logger::init().unwrap_or(());
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": true,
+        "comment": "XML Unexpected favourite colour",
+        "expected" : {
+          "headers": {"Content-Type": "application/xml"},
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><favouriteColour>red</favouriteColour><favouriteColour>blue</favouriteColour></favouriteColours></alligator>"
+        },
+        "actual": {
+          "headers": {"Content-Type": "application/xml"},
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><favouriteColour>red</favouriteColour><favouriteColour>blue</favouriteColour><favouriteColour>taupe</favouriteColour></favouriteColours></alligator>"
+        }
+      }
+    "#).unwrap();
+
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
+    println!("{:?}", expected);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
+    println!("{:?}", actual);
+    let pact_match = pact.get("match").unwrap();
+    let result = match_response(expected, actual);
+    if pact_match.as_bool().unwrap() {
+       expect!(result).to(be_empty());
+    } else {
+       expect!(result).to_not(be_empty());
+    }
+}
+
+#[test]
+fn unexpected_index_with_not_null_value() {
+    env_logger::init().unwrap_or(());
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Unexpected favourite colour",
+        "expected" : {
+          "headers": {"Content-Type": "application/json"},
+          "body": {
+            "alligator":{
+              "favouriteColours": ["red","blue"]
+            }
+          }
+        },
+        "actual": {
+          "headers": {"Content-Type": "application/json"},
+          "body": {
+            "alligator":{
+              "favouriteColours": ["red","blue","taupe"]
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
+    println!("{:?}", expected);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
+    println!("{:?}", actual);
+    let pact_match = pact.get("match").unwrap();
+    let result = match_response(expected, actual);
+    if pact_match.as_bool().unwrap() {
+       expect!(result).to(be_empty());
+    } else {
+       expect!(result).to_not(be_empty());
+    }
+}
+
+#[test]
+fn unexpected_index_with_null_value() {
+    env_logger::init().unwrap_or(());
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Unexpected favourite colour with null value",
+        "expected" : {
+          "headers": {"Content-Type": "application/json"},
+          "body": {
+            "alligator":{
+              "favouriteColours": ["red","blue"]
+            }
+          }
+        },
+        "actual": {
+          "headers": {"Content-Type": "application/json"},
+          "body": {
+            "alligator":{
+              "favouriteColours": ["red","blue", null]
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
+    println!("{:?}", expected);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
+    println!("{:?}", actual);
+    let pact_match = pact.get("match").unwrap();
+    let result = match_response(expected, actual);
+    if pact_match.as_bool().unwrap() {
+       expect!(result).to(be_empty());
+    } else {
+       expect!(result).to_not(be_empty());
+    }
+}
+
+#[test]
+fn unexpected_key_with_empty_value_xml() {
+    env_logger::init().unwrap_or(());
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": true,
+        "comment": "XML Unexpected phone number with empty value",
+        "expected" : {
+          "headers": {"Content-Type": "application/xml"},
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\"/>"
+        },
+        "actual": {
+          "headers": {"Content-Type": "application/xml"},
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\" phoneNumber=\"\"/>"
+        }
+      }
+    "#).unwrap();
+
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
+    println!("{:?}", expected);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
+    println!("{:?}", actual);
+    let pact_match = pact.get("match").unwrap();
+    let result = match_response(expected, actual);
+    if pact_match.as_bool().unwrap() {
+       expect!(result).to(be_empty());
+    } else {
+       expect!(result).to_not(be_empty());
+    }
+}
+
+#[test]
+fn unexpected_key_with_non_empty_value_xml() {
+    env_logger::init().unwrap_or(());
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": true,
+        "comment": "XML Unexpected phone number",
+        "expected" : {
+          "headers": {"Content-Type": "application/xml"},
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\"/>"
+        },
+        "actual": {
+          "headers": {"Content-Type": "application/xml"},
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\" phoneNumber=\"12345678\"/>"
+        }
+      }
+    "#).unwrap();
+
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
+    println!("{:?}", expected);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
+    println!("{:?}", actual);
+    let pact_match = pact.get("match").unwrap();
+    let result = match_response(expected, actual);
+    if pact_match.as_bool().unwrap() {
+       expect!(result).to(be_empty());
+    } else {
+       expect!(result).to_not(be_empty());
+    }
+}
+
+#[test]
+fn unexpected_key_with_not_null_value() {
+    env_logger::init().unwrap_or(());
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": true,
+        "comment": "Unexpected phone number",
+        "expected" : {
+          "headers": {"Content-Type": "application/json"},
+          "body": {
+            "alligator":{
+              "name": "Mary"
+            }
+          }
+        },
+        "actual": {
+          "headers": {"Content-Type": "application/json"},
+          "body": {
+            "alligator":{
+              "name": "Mary",
+              "phoneNumber": "12345678"
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
+    println!("{:?}", expected);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
+    println!("{:?}", actual);
+    let pact_match = pact.get("match").unwrap();
+    let result = match_response(expected, actual);
+    if pact_match.as_bool().unwrap() {
+       expect!(result).to(be_empty());
+    } else {
+       expect!(result).to_not(be_empty());
+    }
+}
+
+#[test]
+fn unexpected_key_with_null_value() {
+    env_logger::init().unwrap_or(());
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": true,
+        "comment": "Unexpected phone number with null value",
+        "expected" : {
+          "headers": {"Content-Type": "application/json"},
+          "body": {
+            "alligator":{
+              "name": "Mary"
+            }
+          }
+        },
+        "actual": {
+          "headers": {"Content-Type": "application/json"},
+          "body": {
+            "alligator":{
+              "name": "Mary",
+              "phoneNumber": null
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
+    println!("{:?}", expected);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
+    println!("{:?}", actual);
+    let pact_match = pact.get("match").unwrap();
+    let result = match_response(expected, actual);
+    if pact_match.as_bool().unwrap() {
+       expect!(result).to(be_empty());
+    } else {
+       expect!(result).to_not(be_empty());
+    }
+}
+
+#[test]
+fn value_found_in_array_when_empty_expected_xml() {
+    env_logger::init().unwrap_or(());
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "XML Favourite numbers expected to contain empty, but non-empty found",
+        "expected" : {
+          "headers": {"Content-Type": "application/xml"},
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteNumbers><favouriteNumber>1</favouriteNumber><favouriteNumber></favouriteNumber><favouriteNumber>3</favouriteNumber></favouriteNumbers></alligator>"
+        },
+        "actual": {
+          "headers": {"Content-Type": "application/xml"},
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteNumbers><favouriteNumber>1</favouriteNumber><favouriteNumber>2</favouriteNumber><favouriteNumber>3</favouriteNumber></favouriteNumbers></alligator>"
+        }
+      }
+    "#).unwrap();
+
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
+    println!("{:?}", expected);
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
+    println!("{:?}", actual);
+    let pact_match = pact.get("match").unwrap();
+    let result = match_response(expected, actual);
+    if pact_match.as_bool().unwrap() {
        expect!(result).to(be_empty());
     } else {
        expect!(result).to_not(be_empty());

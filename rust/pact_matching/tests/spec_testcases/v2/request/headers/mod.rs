@@ -12,63 +12,24 @@ use expectest::prelude::*;
 use serde_json;
 
 #[test]
-fn whitespace_after_comma_different() {
+fn empty_headers() {
     env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
-        "comment": "Whitespace between comma separated headers does not matter",
-        "expected" : {
-          "method": "POST",
-          "path": "/path",
-          "query": "",
-          "headers": {
-            "Accept": "alligators,hippos"
-          }
-        },
-        "actual": {
-          "method": "POST",
-          "path": "/path",
-          "query": "",
-          "headers": {
-            "Accept": "alligators, hippos"
-          }
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
-    println!("{:?}", actual);
-    let pact_match = pact.get("match").unwrap();
-    if pact_match.as_bool().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
-    } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
-    }
-}
-
-#[test]
-fn unexpected_header_found() {
-    env_logger::init().unwrap_or(());
-    let pact : serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": true,
-        "comment": "Extra headers allowed",
+        "comment": "Empty headers match",
         "expected" : {
           "method": "POST",
           "path": "/path",
           "query": "",
           "headers": {}
+      
         },
         "actual": {
           "method": "POST",
           "path": "/path",
           "query": "",
-          "headers": {
-            "Accept": "alligators"
-          }
+          "headers": {}
         }
       }
     "#).unwrap();
@@ -86,57 +47,18 @@ fn unexpected_header_found() {
 }
 
 #[test]
-fn order_of_comma_separated_header_values_different() {
-    env_logger::init().unwrap_or(());
-    let pact : serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Comma separated headers out of order, order can matter http://tools.ietf.org/html/rfc2616",
-        "expected" : {
-          "method": "POST",
-          "path": "/path",
-          "query": "",
-          "headers": {
-            "Accept": "alligators, hippos"
-          }
-        },
-        "actual": {
-          "method": "POST",
-          "path": "/path",
-          "query": "",
-          "headers": {
-            "Accept": "hippos, alligators"
-          }
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
-    println!("{:?}", actual);
-    let pact_match = pact.get("match").unwrap();
-    if pact_match.as_bool().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
-    } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
-    }
-}
-
-#[test]
-fn matches() {
+fn header_name_is_different_case() {
     env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
-        "comment": "Headers match",
+        "comment": "Header name is case insensitive",
         "expected" : {
           "method": "POST",
           "path": "/path",
           "query": "",
           "headers": {
-            "Accept": "alligators",
-            "Content-Type": "hippos"
+            "Accept": "alligators"
           }
         },
         "actual": {
@@ -144,8 +66,45 @@ fn matches() {
           "path": "/path",
           "query": "",
           "headers": {
-            "Content-Type": "hippos",
+            "ACCEPT": "alligators"
+          }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
+    println!("{:?}", expected);
+    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
+    println!("{:?}", actual);
+    let pact_match = pact.get("match").unwrap();
+    if pact_match.as_bool().unwrap() {
+       expect!(match_request(expected, actual)).to(be_empty());
+    } else {
+       expect!(match_request(expected, actual)).to_not(be_empty());
+    }
+}
+
+#[test]
+fn header_value_is_different_case() {
+    env_logger::init().unwrap_or(());
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Headers values are case sensitive",
+        "expected" : {
+          "method": "POST",
+          "path": "/path",
+          "query": "",
+          "headers": {
             "Accept": "alligators"
+          }
+        },
+        "actual": {
+          "method": "POST",
+          "path": "/path",
+          "query": "",
+          "headers": {
+            "Accept": "Alligators"
           }
         }
       }
@@ -205,18 +164,58 @@ fn matches_with_regex() {
 }
 
 #[test]
-fn header_value_is_different_case() {
+fn matches() {
+    env_logger::init().unwrap_or(());
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": true,
+        "comment": "Headers match",
+        "expected" : {
+          "method": "POST",
+          "path": "/path",
+          "query": "",
+          "headers": {
+            "Accept": "alligators",
+            "Content-Type": "hippos"
+          }
+        },
+        "actual": {
+          "method": "POST",
+          "path": "/path",
+          "query": "",
+          "headers": {
+            "Content-Type": "hippos",
+            "Accept": "alligators"
+          }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
+    println!("{:?}", expected);
+    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
+    println!("{:?}", actual);
+    let pact_match = pact.get("match").unwrap();
+    if pact_match.as_bool().unwrap() {
+       expect!(match_request(expected, actual)).to(be_empty());
+    } else {
+       expect!(match_request(expected, actual)).to_not(be_empty());
+    }
+}
+
+#[test]
+fn order_of_comma_separated_header_values_different() {
     env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
-        "comment": "Headers values are case sensitive",
+        "comment": "Comma separated headers out of order, order can matter http://tools.ietf.org/html/rfc2616",
         "expected" : {
           "method": "POST",
           "path": "/path",
           "query": "",
           "headers": {
-            "Accept": "alligators"
+            "Accept": "alligators, hippos"
           }
         },
         "actual": {
@@ -224,7 +223,7 @@ fn header_value_is_different_case() {
           "path": "/path",
           "query": "",
           "headers": {
-            "Accept": "Alligators"
+            "Accept": "hippos, alligators"
           }
         }
       }
@@ -243,26 +242,24 @@ fn header_value_is_different_case() {
 }
 
 #[test]
-fn header_name_is_different_case() {
+fn unexpected_header_found() {
     env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
-        "comment": "Header name is case insensitive",
+        "comment": "Extra headers allowed",
         "expected" : {
           "method": "POST",
           "path": "/path",
           "query": "",
-          "headers": {
-            "Accept": "alligators"
-          }
+          "headers": {}
         },
         "actual": {
           "method": "POST",
           "path": "/path",
           "query": "",
           "headers": {
-            "ACCEPT": "alligators"
+            "Accept": "alligators"
           }
         }
       }
@@ -281,24 +278,27 @@ fn header_name_is_different_case() {
 }
 
 #[test]
-fn empty_headers() {
+fn whitespace_after_comma_different() {
     env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
-        "comment": "Empty headers match",
+        "comment": "Whitespace between comma separated headers does not matter",
         "expected" : {
           "method": "POST",
           "path": "/path",
           "query": "",
-          "headers": {}
-      
+          "headers": {
+            "Accept": "alligators,hippos"
+          }
         },
         "actual": {
           "method": "POST",
           "path": "/path",
           "query": "",
-          "headers": {}
+          "headers": {
+            "Accept": "alligators, hippos"
+          }
         }
       }
     "#).unwrap();

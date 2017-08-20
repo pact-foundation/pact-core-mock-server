@@ -12,18 +12,18 @@ use expectest::prelude::*;
 use serde_json;
 
 #[test]
-fn matches() {
+fn different_status() {
     env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
-      	"match": true,
-      	"comment": "Status matches",
-      	"expected" : {
-      		"status" : 202
-      	},
-      	"actual" : {
-      		"status" : 202
-      	}
+        "match": false,
+        "comment": "Status is incorrect",
+        "expected": {
+          "status": 202
+        },
+        "actual": {
+          "status": 400
+        }
       }
     "#).unwrap();
 
@@ -41,18 +41,18 @@ fn matches() {
 }
 
 #[test]
-fn different_status() {
+fn matches() {
     env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
-        "match": false,
-        "comment": "Status is incorrect",
-        "expected": {
-          "status": 202
-        },
-        "actual": {
-          "status": 400
-        }
+      	"match": true,
+      	"comment": "Status matches",
+      	"expected" : {
+      		"status" : 202
+      	},
+      	"actual" : {
+      		"status" : 202
+      	}
       }
     "#).unwrap();
 

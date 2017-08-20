@@ -1,7 +1,7 @@
 //! `matchingrules` module includes all the classes to deal with V3 format matchers
 
-use serde_json::Value;
-use std::collections::{HashMap, BTreeMap, HashSet};
+use serde_json::{self, Value};
+use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 use path_exp::*;
@@ -620,7 +620,7 @@ mod tests {
     use super::{json_to_string, json_to_num, calc_path_weight, matches_token};
     use expectest::prelude::*;
     use expectest::traits::IsEmpty;
-    use rustc_serialize::Value::Value;
+    use serde_json::Value;
     use path_exp::*;
 
     impl IsEmpty for MatchingRules {

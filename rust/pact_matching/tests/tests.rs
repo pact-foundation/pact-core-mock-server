@@ -131,7 +131,7 @@ fn test_load_test_pact_lowercase_method() {
                 expect!(pact_request.get("headers")).to(be_equal_to(file_request.get("headers")));
                 expect!(pact_request.get("body")).to(be_equal_to(file_request.get("body")));
                 expect!(pact_request.get("matchers")).to(be_equal_to(file_request.get("matchers")));
-                expect!(pact_request.get("query")).to(be_equal_to(file_request.find("query")));
+                expect!(pact_request.get("query")).to(be_equal_to(file_request.get("query")));
             }
 
             expect!(pact.metadata.get("pact-specification").unwrap().get("version")).to(be_some().value("3.0.0"));

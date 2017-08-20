@@ -809,7 +809,7 @@ fn match_header_value(key: &String, expected: &String, actual: &String, mismatch
               key: key.clone(),
               expected: expected.clone(),
               actual: actual.clone(),
-              mismatch: message
+              mismatch: format!("Mismatch with header '{}': {}", key.clone(), message)
             })
           }
         },
