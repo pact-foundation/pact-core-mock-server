@@ -450,10 +450,10 @@ impl Request {
 
     /// Converts this `Request` to a `Json` struct.
     pub fn to_json(&self, spec_version: &PactSpecification) -> Value {
-        let mut json = json!{
-            s!("method") => Value::String(self.method.to_uppercase()),
-            s!("path") => Value::String(self.path.clone())
-        };
+      let mut json = json!({
+          s!("method"): Value::String(self.method.to_uppercase()),
+          s!("path"): Value::String(self.path.clone())
+      });
       {
         let mut map = json.as_object_mut().unwrap();
         if self.query.is_some() {
@@ -685,7 +685,7 @@ impl Interaction {
             None => format!("Interaction {}", index)
         };
         let provider_states = provider_states::ProviderState::from_json(pact_json);
-        let request = match pact_json.find("request") {
+        let request = match pact_json.get("request") {
             Some(v) => Request::from_json(v, spec_version),
             None => Request::default_request()
         };
@@ -703,11 +703,11 @@ impl Interaction {
 
     /// Converts this interaction to a `Value` struct.
     pub fn to_json(&self, spec_version: &PactSpecification) -> Value {
-        let mut map = json!{
-            s!("description") => Value::String(self.description.clone()),
-            s!("request") => self.request.to_json(spec_version),
-            s!("response") => self.response.to_json(spec_version)
-        };
+        let mut value = json!({
+            s!("description"): Value::String(self.description.clone()),
+            s!("request"): self.request.to_json(spec_version),
+            s!("response"): self.response.to_json(spec_version)
+        });
         if !self.provider_states.is_empty() {
             let mut map = value.as_object_mut().unwrap();
             match spec_version {

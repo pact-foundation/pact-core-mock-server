@@ -88,20 +88,18 @@ impl Matches<Value> for Value {
           },
           MatchingRule::MinMaxType(min, max) => {
             match (self, actual) {
-              (&Json::Array(_), &Json::Array(ref actual_array)) => if actual_array.len() < min {
+              (&Value::Array(_), &Value::Array(ref actual_array)) => if actual_array.len() < min {
                 Err(format!("Expected '{}' to have at least {} item(s)", value_of(actual), min))
               } else if actual_array.len() > max {
                 Err(format!("Expected '{}' to have at most {} item(s)", value_of(actual), max))
               } else {
                 Ok(())
               },
-              (&Json::Boolean(_), &Json::Boolean(_)) => Ok(()),
-              (&Json::F64(_), &Json::F64(_)) => Ok(()),
-              (&Json::I64(_), &Json::I64(_)) => Ok(()),
-              (&Json::Null, &Json::Null) => Ok(()),
-              (&Json::Object(_), &Json::Object(_)) => Ok(()),
-              (&Json::String(_), &Json::String(_)) => Ok(()),
-              (&Json::U64(_), &Json::U64(_)) => Ok(()),
+              (&Value::Bool(_), &Value::Bool(_)) => Ok(()),
+              (&Value::Number(_), &Value::Number(_)) => Ok(()),
+              (&Value::Null, &Value::Null) => Ok(()),
+              (&Value::Object(_), &Value::Object(_)) => Ok(()),
+              (&Value::String(_), &Value::String(_)) => Ok(()),
               (_, _) => Err(format!("Expected '{}' to be the same type as '{}'", value_of(self), value_of(actual))),
             }
           },
@@ -151,9 +149,9 @@ impl Matches<Vec<Value>> for Vec<Value> {
           },
           MatchingRule::MinMaxType(min, max) => {
             if actual.len() < min {
-              Err(format!("Expected '{}' to have a minimum length of {}", value_of(&Json::Array(actual.clone())), min))
+              Err(format!("Expected '{}' to have a minimum length of {}", value_of(&Value::Array(actual.clone())), min))
             } else if actual.len() > max {
-              Err(format!("Expected '{}' to have a maximum length of {}", value_of(&Json::Array(actual.clone())), max))
+              Err(format!("Expected '{}' to have a maximum length of {}", value_of(&Value::Array(actual.clone())), max))
             } else {
               Ok(())
             }

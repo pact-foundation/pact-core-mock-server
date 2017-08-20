@@ -2,82 +2,82 @@ use models::matchingrules::*;
 use itertools::Itertools;
 use regex::Regex;
 
-fn matches_token(path_fragment: &String, path_token: &PathToken) -> u32 {
-    match *path_token {
-        PathToken::Root if path_fragment == "$" => 2,
-        PathToken::Field(ref name) if *path_fragment == name.clone() => 2,
-        PathToken::Index(ref index) => match path_fragment.parse::<usize>() {
-            Ok(ref i) if index == i => 2,
-            _ => 0
-        },
-        PathToken::StarIndex => match path_fragment.parse::<usize>() {
-            Ok(_) => 1,
-            _ => 0
-        },
-        PathToken::Star => 1,
-        _ => 0
-    }
-}
-
-fn calc_path_weight(path_exp: String, path: &Vec<String>) -> u32 {
-    let weight = match parse_path_exp(path_exp.clone()) {
-        Ok(path_tokens) => {
-            debug!("Calculatint weight for path tokens '{:?}' and path '{:?}'", path_tokens, path);
-            if path.len() >= path_tokens.len() {
-                path_tokens.iter().zip(path.iter())
-                    .fold(1, |acc, (token, fragment)| acc * matches_token(fragment, token))
-            } else {
-                0
-            }
-        },
-        Err(err) => {
-            warn!("Failed to parse path expression - {}", err);
-            0
-        }
-    };
-    debug!("Calculated weight {} for path '{}' and '{:?}'", weight, path_exp, path);
-    weight
-}
-
-fn path_length(path_exp: String) -> usize {
-    match parse_path_exp(path_exp.clone()) {
-        Ok(path_tokens) => path_tokens.len(),
-        Err(err) => {
-            warn!("Failed to parse path expression - {}", err);
-            0
-        }
-    }
-}
-
-fn resolve_matchers(path: &Vec<String>, matchers: &Matchers) -> Matchers {
-    matchers.iter().map(|(k, v)| (k.clone(), v.clone()))
-        .filter(|kv| calc_path_weight(kv.0.clone(), path) > 0).collect()
-}
-
-pub fn matcher_is_defined(path: &Vec<String>, matchers: &Option<Matchers>) -> bool {
-    match *matchers {
-        Some(ref m) => !resolve_matchers(path, m).is_empty(),
-        None => false
-    }
-}
-
-pub fn wildcard_matcher_is_defined(path: &Vec<String>, matchers: &Option<Matchers>) -> bool {
-    match *matchers {
-        Some(ref m) => m.iter().map(|(k, _)| k.clone())
-            .filter(|k| calc_path_weight(k.clone(), path) > 0 && path_length(k.clone()) == path.len())
-            .any(|k| k.ends_with(".*")),
-        None => false
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Matcher {
-    EqualityMatcher,
-    RegexMatcher(Regex),
-    TypeMatcher,
-    MinTypeMatcher(usize),
-    MaxTypeMatcher(usize)
-}
+//fn matches_token(path_fragment: &String, path_token: &PathToken) -> u32 {
+//    match *path_token {
+//        PathToken::Root if path_fragment == "$" => 2,
+//        PathToken::Field(ref name) if *path_fragment == name.clone() => 2,
+//        PathToken::Index(ref index) => match path_fragment.parse::<usize>() {
+//            Ok(ref i) if index == i => 2,
+//            _ => 0
+//        },
+//        PathToken::StarIndex => match path_fragment.parse::<usize>() {
+//            Ok(_) => 1,
+//            _ => 0
+//        },
+//        PathToken::Star => 1,
+//        _ => 0
+//    }
+//}
+//
+//fn calc_path_weight(path_exp: String, path: &Vec<String>) -> u32 {
+//    let weight = match parse_path_exp(path_exp.clone()) {
+//        Ok(path_tokens) => {
+//            debug!("Calculatint weight for path tokens '{:?}' and path '{:?}'", path_tokens, path);
+//            if path.len() >= path_tokens.len() {
+//                path_tokens.iter().zip(path.iter())
+//                    .fold(1, |acc, (token, fragment)| acc * matches_token(fragment, token))
+//            } else {
+//                0
+//            }
+//        },
+//        Err(err) => {
+//            warn!("Failed to parse path expression - {}", err);
+//            0
+//        }
+//    };
+//    debug!("Calculated weight {} for path '{}' and '{:?}'", weight, path_exp, path);
+//    weight
+//}
+//
+//fn path_length(path_exp: String) -> usize {
+//    match parse_path_exp(path_exp.clone()) {
+//        Ok(path_tokens) => path_tokens.len(),
+//        Err(err) => {
+//            warn!("Failed to parse path expression - {}", err);
+//            0
+//        }
+//    }
+//}
+//
+//fn resolve_matchers(path: &Vec<String>, matchers: &Matchers) -> Matchers {
+//    matchers.iter().map(|(k, v)| (k.clone(), v.clone()))
+//        .filter(|kv| calc_path_weight(kv.0.clone(), path) > 0).collect()
+//}
+//
+//pub fn matcher_is_defined(path: &Vec<String>, matchers: &Option<Matchers>) -> bool {
+//    match *matchers {
+//        Some(ref m) => !resolve_matchers(path, m).is_empty(),
+//        None => false
+//    }
+//}
+//
+//pub fn wildcard_matcher_is_defined(path: &Vec<String>, matchers: &Option<Matchers>) -> bool {
+//    match *matchers {
+//        Some(ref m) => m.iter().map(|(k, _)| k.clone())
+//            .filter(|k| calc_path_weight(k.clone(), path) > 0 && path_length(k.clone()) == path.len())
+//            .any(|k| k.ends_with(".*")),
+//        None => false
+//    }
+//}
+//
+//#[derive(Debug, Clone, PartialEq)]
+//pub enum Matcher {
+//    EqualityMatcher,
+//    RegexMatcher(Regex),
+//    TypeMatcher,
+//    MinTypeMatcher(usize),
+//    MaxTypeMatcher(usize)
+//}
 
 pub trait Matches<A> {
     fn matches(&self, actual: &A, matcher: &MatchingRule) -> Result<(), String>;

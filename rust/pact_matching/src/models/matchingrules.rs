@@ -1,26 +1,27 @@
 //! `matchingrules` module includes all the classes to deal with V3 format matchers
 
-use rustc_serialize::json::Json;
+use serde_json::Value;
 use std::collections::{HashMap, BTreeMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 use path_exp::*;
 use super::PactSpecification;
 
-fn json_to_string(json: &Json) -> String {
-  match json {
-    &Json::String(ref s) => s.clone(),
-    _ => json.to_string()
+fn json_to_string(value: &Value) -> String {
+  match value {
+    &Value::String(ref s) => s.clone(),
+    _ => value.to_string()
   }
 }
 
-fn json_to_num(json: Option<Json>) -> Option<usize> {
-  if let Some(json) = json {
-    match json {
-      Json::I64(i) => if i > 0 { Some(i as usize) } else { None },
-      Json::F64(f) => Some(f as usize),
-      Json::U64(u) => Some(u as usize),
-      Json::String(ref s) => usize::from_str(&s.clone()).ok(),
+fn json_to_num(value: Option<Value>) -> Option<usize> {
+  if let Some(value) = value {
+    match value {
+      Value::Number(n) => if n.is_i64() && n.as_i64().unwrap() > 0 { Some(n.as_i64().unwrap() as usize) }
+        else if n.is_f64() { Some(n.as_f64().unwrap() as usize) }
+        else if n.is_u64() { Some(n.as_u64().unwrap() as usize) }
+        else { None },
+      Value::String(ref s) => usize::from_str(&s.clone()).ok(),
       _ => None
     }
   } else {
@@ -32,7 +33,7 @@ fn matches_token(path_fragment: &String, path_token: &PathToken) -> usize {
   match *path_token {
     PathToken::Root if path_fragment == "$" => 2,
     PathToken::Field(ref name) if *path_fragment == name.clone() => 2,
-    PathToken::Index(ref index) => match path_fragment.parse() {
+    PathToken::Index(ref index) => match path_fragment.parse::<usize>() {
       Ok(ref i) if index == i => 2,
       _ => 0
     },
@@ -76,7 +77,7 @@ fn path_length(path_exp: String) -> usize {
 }
 
 /// Set of all matching rules
-#[derive(PartialEq, Debug, Clone, Eq, Hash)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash)]
 pub enum MatchingRule {
   /// Matcher using equals
   Equality,
@@ -108,11 +109,11 @@ pub enum MatchingRule {
 
 impl MatchingRule {
 
-  pub fn from_json(json: &Json) -> Option<MatchingRule> {
-    match json {
-      &Json::Object(ref m) => match m.get("match") {
-        Some(json) => {
-          let val = json_to_string(json);
+  pub fn from_json(value: &Value) -> Option<MatchingRule> {
+    match value {
+      &Value::Object(ref m) => match m.get("match") {
+        Some(Value) => {
+          let val = json_to_string(Value);
           match val.as_str() {
             "regex" => match m.get(&val) {
               Some(s) => Some(MatchingRule::Regex(json_to_string(s))),
@@ -176,36 +177,36 @@ impl MatchingRule {
     }
   }
 
-  pub fn to_json(&self) -> Json {
-    Json::Object(match self {
-      &MatchingRule::Equality => btreemap!{ s!("match") => Json::String(s!("equality")) },
-      &MatchingRule::Regex(ref r) => btreemap!{ s!("match") => Json::String(s!("regex")),
-        s!("regex") => Json::String(r.clone()) },
-      &MatchingRule::Type => btreemap!{ s!("match") => Json::String(s!("type")) },
-      &MatchingRule::MinType(min) => btreemap!{ s!("match") => Json::String(s!("type")),
-        s!("min") => Json::U64(min as u64) },
-      &MatchingRule::MaxType(max) => btreemap!{ s!("match") => Json::String(s!("type")),
-        s!("max") => Json::U64(max as u64) },
-      &MatchingRule::MinMaxType(min, max) => btreemap!{ s!("match") => Json::String(s!("type")),
-        s!("min") => Json::U64(min as u64), s!("max") => Json::U64(max as u64) },
-      &MatchingRule::Timestamp(ref t) => btreemap!{ s!("match") => Json::String(s!("timestamp")),
-        s!("timestamp") => Json::String(t.clone()) },
-      &MatchingRule::Time(ref t) => btreemap!{ s!("match") => Json::String(s!("time")),
-        s!("time") => Json::String(t.clone()) },
-      &MatchingRule::Date(ref d) => btreemap!{ s!("match") => Json::String(s!("date")),
-        s!("date") => Json::String(d.clone()) },
-      &MatchingRule::Include(ref s) => btreemap!{ s!("match") => Json::String(s!("include")),
-        s!("value") => Json::String(s.clone()) },
-      &MatchingRule::Number => btreemap!{ s!("match") => Json::String(s!("number")) },
-      &MatchingRule::Integer => btreemap!{ s!("match") => Json::String(s!("integer")) },
-      &MatchingRule::Decimal => btreemap!{ s!("match") => Json::String(s!("decimal")) }
-    })
+  pub fn to_json(&self) -> Value {
+    match self {
+      &MatchingRule::Equality => json!({ "match": Value::String(s!("equality")) }),
+      &MatchingRule::Regex(ref r) => json!({ "match": Value::String(s!("regex")),
+        "regex": Value::String(r.clone()) }),
+      &MatchingRule::Type => json!({ "match": Value::String(s!("type")) }),
+      &MatchingRule::MinType(min) => json!({ "match": Value::String(s!("type")),
+        "min": json!(min as u64) }),
+      &MatchingRule::MaxType(max) => json!({ "match": Value::String(s!("type")),
+        "max": json!(max as u64) }),
+      &MatchingRule::MinMaxType(min, max) => json!({ "match": Value::String(s!("type")),
+        "min": json!(min as u64), "max": json!(max as u64) }),
+      &MatchingRule::Timestamp(ref t) => json!({ "match": Value::String(s!("timestamp")),
+        "timestamp": Value::String(t.clone()) }),
+      &MatchingRule::Time(ref t) => json!({ s!("match"): Value::String(s!("time")),
+        s!("time"): Value::String(t.clone()) }),
+      &MatchingRule::Date(ref d) => json!({ s!("match"): Value::String(s!("date")),
+        s!("date"): Value::String(d.clone()) }),
+      &MatchingRule::Include(ref s) => json!({ "match": Value::String(s!("include")),
+        "value": Value::String(s.clone()) }),
+      &MatchingRule::Number => json!({ "match": Value::String(s!("number")) }),
+      &MatchingRule::Integer => json!({ "match": Value::String(s!("integer")) }),
+      &MatchingRule::Decimal => json!({ "match": Value::String(s!("decimal")) })
+    }
   }
 
 }
 
 /// Enumeration to define how to combine rules
-#[derive(PartialEq, Debug, Clone, Eq, Hash)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash)]
 pub enum RuleLogic {
   /// All rules must match
   And,
@@ -215,8 +216,8 @@ pub enum RuleLogic {
 
 impl RuleLogic {
 
-  fn to_json(&self) -> Json {
-    Json::String(match self {
+  fn to_json(&self) -> Value {
+    Value::String(match self {
       &RuleLogic::And => s!("AND"),
       &RuleLogic::Or => s!("OR")
     })
@@ -225,7 +226,7 @@ impl RuleLogic {
 }
 
 /// Data structure for representing a list of rules and the logic needed to combine them
-#[derive(PartialEq, Debug, Clone, Eq, Hash)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash)]
 pub struct RuleList {
   /// List of rules to apply
   pub rules: Vec<MatchingRule>,
@@ -251,24 +252,24 @@ impl RuleList {
     }
   }
 
-  fn to_v3_json(&self) -> Json {
-    Json::Object(btreemap!{
-      s!("combine") => self.rule_logic.to_json(),
-      s!("matchers") => Json::Array(self.rules.iter().map(|matcher| matcher.to_json()).collect())
+  fn to_v3_json(&self) -> Value {
+    json!({
+      s!("combine"): self.rule_logic.to_json(),
+      s!("matchers"): Value::Array(self.rules.iter().map(|matcher| matcher.to_json()).collect())
     })
   }
 
-  fn to_v2_json(&self) -> Json {
+  fn to_v2_json(&self) -> Value {
     match self.rules.iter().next() {
       Some(rule) => rule.to_json(),
-      None => Json::Object(btreemap!{})
+      None => json!({})
     }
   }
 
 }
 
 /// Data structure for representing a category of matching rules
-#[derive(PartialEq, Debug, Clone, Eq)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq)]
 pub struct Category {
     /// Name of the category
     pub name: String,
@@ -296,8 +297,8 @@ impl Category {
     !self.rules.is_empty()
   }
 
-  /// Adds a rule from the JSON representation
-  pub fn rule_from_json(&mut self, key: &String, matcher_json: &Json, rule_logic: &RuleLogic) {
+  /// Adds a rule from the Value representation
+  pub fn rule_from_json(&mut self, key: &String, matcher_json: &Value, rule_logic: &RuleLogic) {
     match MatchingRule::from_json(matcher_json) {
       Some(matching_rule) => {
         let mut rules = self.rules.entry(key.clone()).or_insert(RuleList::default(rule_logic));
@@ -330,14 +331,14 @@ impl Category {
       .map(|(_, v, _)| v.clone())
   }
 
-  fn to_v3_json(&self) -> Json {
-    Json::Object(self.rules.iter().fold(BTreeMap::new(), |mut map, (category, rulelist)| {
+  fn to_v3_json(&self) -> Value {
+    Value::Object(self.rules.iter().fold(serde_json::Map::new(), |mut map, (category, rulelist)| {
       map.insert(category.clone(), rulelist.to_v3_json());
       map
     }))
   }
 
-  fn to_v2_json(&self) -> HashMap<String, Json> {
+  fn to_v2_json(&self) -> HashMap<String, Value> {
     let mut map = hashmap!{};
 
     if self.name == "body" {
@@ -366,7 +367,7 @@ impl Hash for Category {
 }
 
 /// Data structure for representing a collection of matchers
-#[derive(PartialEq, Debug, Clone, Eq)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq)]
 pub struct MatchingRules {
     /// Categories of matching rules
     pub rules: HashMap<String, Category>
@@ -460,7 +461,7 @@ impl MatchingRules {
       }
     }
 
-    fn load_from_v2_map(&mut self, map: &BTreeMap<String, Json>) {
+    fn load_from_v2_map(&mut self, map: &serde_json::Map<String, Value>) {
       for (key, v) in map {
         let path = key.split('.').map(|p| s!(p)).collect::<Vec<String>>();
         if key.starts_with("$.body") {
@@ -477,16 +478,16 @@ impl MatchingRules {
       }
     }
 
-    fn load_from_v3_map(&mut self, map: &BTreeMap<String, Json>) {
+    fn load_from_v3_map(&mut self, map: &serde_json::Map<String, Value>) {
       for (k, v) in map {
         self.add_rules(k, v);
       }
     }
 
-    fn add_rules(&mut self, category_name: &String, rules: &Json) {
+    fn add_rules(&mut self, category_name: &String, rules: &Value) {
       let mut category = self.add_category(category_name);
       if category_name == "path" {
-        let rule_logic = match rules.find("combine") {
+        let rule_logic = match rules.get("combine") {
           Some(val) => if json_to_string(val).to_uppercase() == "OR" {
               RuleLogic::Or
             } else {
@@ -494,9 +495,9 @@ impl MatchingRules {
             },
           None => RuleLogic::And
         };
-        match rules.find("matchers") {
+        match rules.get("matchers") {
           Some(matchers) => match matchers {
-            &Json::Array(ref array) => for matcher in array {
+            &Value::Array(ref array) => for matcher in array {
               category.rule_from_json(&s!(""), &matcher, &rule_logic)
             },
             _ => ()
@@ -505,9 +506,9 @@ impl MatchingRules {
         }
       } else {
         match rules {
-          &Json::Object(ref m) => {
+          &Value::Object(ref m) => {
             for (k, v) in m {
-              let rule_logic = match v.find("combine") {
+              let rule_logic = match v.get("combine") {
                 Some(val) => if json_to_string(val).to_uppercase() == "OR" {
                   RuleLogic::Or
                 } else {
@@ -515,9 +516,9 @@ impl MatchingRules {
                 },
                 None => RuleLogic::And
               };
-              match v.find("matchers") {
+              match v.get("matchers") {
                 Some(matchers) => match matchers {
-                  &Json::Array(ref array) => for matcher in array {
+                  &Value::Array(ref array) => for matcher in array {
                     category.rule_from_json(k, &matcher, &rule_logic)
                   },
                   _ => ()
@@ -531,20 +532,20 @@ impl MatchingRules {
       }
     }
 
-  fn add_v2_rule(&mut self, category_name: String, sub_category: String, rule: &Json) {
+  fn add_v2_rule(&mut self, category_name: String, sub_category: String, rule: &Value) {
     let mut category = self.add_category(&category_name);
     category.rule_from_json(&sub_category, rule, &RuleLogic::And);
   }
 
-  fn to_v3_json(&self) -> Json {
-    Json::Object(self.rules.iter().fold(BTreeMap::new(), |mut map, (name, category)| {
+  fn to_v3_json(&self) -> Value {
+    Value::Object(self.rules.iter().fold(serde_json::Map::new(), |mut map, (name, category)| {
       map.insert(name.clone(), category.to_v3_json());
       map
     }))
   }
 
-  fn to_v2_json(&self) -> Json {
-    Json::Object(self.rules.iter().fold(BTreeMap::new(), |mut map, (_, category)| {
+  fn to_v2_json(&self) -> Value {
+    Value::Object(self.rules.iter().fold(serde_json::Map::new(), |mut map, (_, category)| {
       for (key, value) in category.to_v2_json() {
         map.insert(key.clone(), value);
       }
@@ -562,9 +563,9 @@ impl Hash for MatchingRules {
   }
 }
 
-/// Parses the matching rules from the Json structure
-pub fn matchers_from_json(json: &Json, deprecated_name: &Option<String>) -> MatchingRules {
-  let matchers_json = match (json.find("matchingRules"), deprecated_name.clone().and_then(|name| json.find(&name))) {
+/// Parses the matching rules from the Value structure
+pub fn matchers_from_json(value: &Value, deprecated_name: &Option<String>) -> MatchingRules {
+  let matchers_json = match (value.get("matchingRules"), deprecated_name.clone().and_then(|name| value.get(&name))) {
     (Some(v), _) => Some(v),
     (None, Some(v)) => Some(v),
     (None, None) => None
@@ -572,8 +573,8 @@ pub fn matchers_from_json(json: &Json, deprecated_name: &Option<String>) -> Matc
 
   let mut matching_rules = MatchingRules::default();
   match matchers_json {
-      Some(json) => match json {
-        &Json::Object(ref m) => {
+      Some(value) => match value {
+        &Value::Object(ref m) => {
             if m.keys().next().unwrap_or(&s!("")).starts_with("$") {
                 matching_rules.load_from_v2_map(m)
             } else {
@@ -587,8 +588,8 @@ pub fn matchers_from_json(json: &Json, deprecated_name: &Option<String>) -> Matc
   matching_rules
 }
 
-/// Generates a JSON structure for the provided matching rules
-pub fn matchers_to_json(matchers: &MatchingRules, spec_version: &PactSpecification) -> Json {
+/// Generates a Value structure for the provided matching rules
+pub fn matchers_to_json(matchers: &MatchingRules, spec_version: &PactSpecification) -> Value {
    match spec_version {
      &PactSpecification::V3 => matchers.to_v3_json(),
      _ => matchers.to_v2_json()
@@ -619,7 +620,7 @@ mod tests {
     use super::{json_to_string, json_to_num, calc_path_weight, matches_token};
     use expectest::prelude::*;
     use expectest::traits::IsEmpty;
-    use rustc_serialize::json::Json;
+    use rustc_serialize::Value::Value;
     use path_exp::*;
 
     impl IsEmpty for MatchingRules {
@@ -671,12 +672,12 @@ mod tests {
 
     #[test]
     fn matchers_from_json_test() {
-        expect!(matchers_from_json(&Json::Null, &None)).to(be_empty());
+        expect!(matchers_from_json(&Value::Null, &None)).to(be_empty());
     }
 
   #[test]
   fn loads_v2_matching_rules() {
-    let matching_rules_json = Json::from_str(r#"{"matchingRules": {
+    let matching_rules_json = Value::from_str(r#"{"matchingRules": {
       "$.path": { "match": "regex", "regex": "\\w+" },
       "$.query.Q1": { "match": "regex", "regex": "\\d+" },
       "$.header.HEADERY": {"match": "include", "value": "ValueA"},
@@ -716,7 +717,7 @@ mod tests {
 
   #[test]
   fn loads_v3_matching_rules() {
-    let matching_rules_json = Json::from_str(r#"{"matchingRules": {
+    let matching_rules_json = Value::from_str(r#"{"matchingRules": {
       "path": {
         "matchers": [
           { "match": "regex", "regex": "\\w+" }
@@ -785,101 +786,101 @@ mod tests {
 
   #[test]
   fn json_to_string_test() {
-    expect!(json_to_string(&Json::from_str("\"test string\"").unwrap())).to(be_equal_to(s!("test string")));
-    expect!(json_to_string(&Json::from_str("null").unwrap())).to(be_equal_to(s!("null")));
-    expect!(json_to_string(&Json::from_str("100").unwrap())).to(be_equal_to(s!("100")));
-    expect!(json_to_string(&Json::from_str("100.10").unwrap())).to(be_equal_to(s!("100.1")));
-    expect!(json_to_string(&Json::from_str("{}").unwrap())).to(be_equal_to(s!("{}")));
-    expect!(json_to_string(&Json::from_str("[]").unwrap())).to(be_equal_to(s!("[]")));
-    expect!(json_to_string(&Json::from_str("true").unwrap())).to(be_equal_to(s!("true")));
-    expect!(json_to_string(&Json::from_str("false").unwrap())).to(be_equal_to(s!("false")));
+    expect!(json_to_string(&Value::from_str("\"test string\"").unwrap())).to(be_equal_to(s!("test string")));
+    expect!(json_to_string(&Value::from_str("null").unwrap())).to(be_equal_to(s!("null")));
+    expect!(json_to_string(&Value::from_str("100").unwrap())).to(be_equal_to(s!("100")));
+    expect!(json_to_string(&Value::from_str("100.10").unwrap())).to(be_equal_to(s!("100.1")));
+    expect!(json_to_string(&Value::from_str("{}").unwrap())).to(be_equal_to(s!("{}")));
+    expect!(json_to_string(&Value::from_str("[]").unwrap())).to(be_equal_to(s!("[]")));
+    expect!(json_to_string(&Value::from_str("true").unwrap())).to(be_equal_to(s!("true")));
+    expect!(json_to_string(&Value::from_str("false").unwrap())).to(be_equal_to(s!("false")));
   }
 
   #[test]
   fn json_to_num_test() {
-    expect!(json_to_num(Json::from_str("\"test string\"").ok())).to(be_none());
-    expect!(json_to_num(Json::from_str("null").ok())).to(be_none());
-    expect!(json_to_num(Json::from_str("{}").ok())).to(be_none());
-    expect!(json_to_num(Json::from_str("[]").ok())).to(be_none());
-    expect!(json_to_num(Json::from_str("true").ok())).to(be_none());
-    expect!(json_to_num(Json::from_str("false").ok())).to(be_none());
-    expect!(json_to_num(Json::from_str("100").ok())).to(be_some().value(100));
-    expect!(json_to_num(Json::from_str("-100").ok())).to(be_none());
-    expect!(json_to_num(Json::from_str("100.10").ok())).to(be_some().value(100));
+    expect!(json_to_num(Value::from_str("\"test string\"").ok())).to(be_none());
+    expect!(json_to_num(Value::from_str("null").ok())).to(be_none());
+    expect!(json_to_num(Value::from_str("{}").ok())).to(be_none());
+    expect!(json_to_num(Value::from_str("[]").ok())).to(be_none());
+    expect!(json_to_num(Value::from_str("true").ok())).to(be_none());
+    expect!(json_to_num(Value::from_str("false").ok())).to(be_none());
+    expect!(json_to_num(Value::from_str("100").ok())).to(be_some().value(100));
+    expect!(json_to_num(Value::from_str("-100").ok())).to(be_none());
+    expect!(json_to_num(Value::from_str("100.10").ok())).to(be_some().value(100));
   }
 
   #[test]
   fn matching_rule_from_json_test() {
-    expect!(MatchingRule::from_json(&Json::from_str("\"test string\"").unwrap())).to(be_none());
-    expect!(MatchingRule::from_json(&Json::from_str("null").unwrap())).to(be_none());
-    expect!(MatchingRule::from_json(&Json::from_str("{}").unwrap())).to(be_none());
-    expect!(MatchingRule::from_json(&Json::from_str("[]").unwrap())).to(be_none());
-    expect!(MatchingRule::from_json(&Json::from_str("true").unwrap())).to(be_none());
-    expect!(MatchingRule::from_json(&Json::from_str("false").unwrap())).to(be_none());
-    expect!(MatchingRule::from_json(&Json::from_str("100").unwrap())).to(be_none());
-    expect!(MatchingRule::from_json(&Json::from_str("100.10").unwrap())).to(be_none());
-    expect!(MatchingRule::from_json(&Json::from_str("{\"stuff\": 100}").unwrap())).to(be_none());
-    expect!(MatchingRule::from_json(&Json::from_str("{\"match\": \"stuff\"}").unwrap())).to(be_none());
+    expect!(MatchingRule::from_json(&Value::from_str("\"test string\"").unwrap())).to(be_none());
+    expect!(MatchingRule::from_json(&Value::from_str("null").unwrap())).to(be_none());
+    expect!(MatchingRule::from_json(&Value::from_str("{}").unwrap())).to(be_none());
+    expect!(MatchingRule::from_json(&Value::from_str("[]").unwrap())).to(be_none());
+    expect!(MatchingRule::from_json(&Value::from_str("true").unwrap())).to(be_none());
+    expect!(MatchingRule::from_json(&Value::from_str("false").unwrap())).to(be_none());
+    expect!(MatchingRule::from_json(&Value::from_str("100").unwrap())).to(be_none());
+    expect!(MatchingRule::from_json(&Value::from_str("100.10").unwrap())).to(be_none());
+    expect!(MatchingRule::from_json(&Value::from_str("{\"stuff\": 100}").unwrap())).to(be_none());
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"stuff\"}").unwrap())).to(be_none());
 
-    expect!(MatchingRule::from_json(&Json::from_str("{\"regex\": \"[0-9]\"}").unwrap())).to(
+    expect!(MatchingRule::from_json(&Value::from_str("{\"regex\": \"[0-9]\"}").unwrap())).to(
       be_some().value(MatchingRule::Regex(s!("[0-9]"))));
-    expect!(MatchingRule::from_json(&Json::from_str("{\"min\": 100}").unwrap())).to(
+    expect!(MatchingRule::from_json(&Value::from_str("{\"min\": 100}").unwrap())).to(
       be_some().value(MatchingRule::MinType(100)));
-    expect!(MatchingRule::from_json(&Json::from_str("{\"max\": 100}").unwrap())).to(
+    expect!(MatchingRule::from_json(&Value::from_str("{\"max\": 100}").unwrap())).to(
       be_some().value(MatchingRule::MaxType(100)));
-    expect!(MatchingRule::from_json(&Json::from_str("{\"timestamp\": \"yyyy\"}").unwrap())).to(
+    expect!(MatchingRule::from_json(&Value::from_str("{\"timestamp\": \"yyyy\"}").unwrap())).to(
       be_some().value(MatchingRule::Timestamp(s!("yyyy"))));
-    expect!(MatchingRule::from_json(&Json::from_str("{\"date\": \"yyyy\"}").unwrap())).to(
+    expect!(MatchingRule::from_json(&Value::from_str("{\"date\": \"yyyy\"}").unwrap())).to(
       be_some().value(MatchingRule::Date(s!("yyyy"))));
-    expect!(MatchingRule::from_json(&Json::from_str("{\"time\": \"hh:mm\"}").unwrap())).to(
+    expect!(MatchingRule::from_json(&Value::from_str("{\"time\": \"hh:mm\"}").unwrap())).to(
       be_some().value(MatchingRule::Time(s!("hh:mm"))));
 
-    expect!(MatchingRule::from_json(&Json::from_str("{\"match\": \"regex\", \"regex\": \"[0-9]\"}").unwrap())).to(
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"regex\", \"regex\": \"[0-9]\"}").unwrap())).to(
       be_some().value(MatchingRule::Regex(s!("[0-9]"))));
-    expect!(MatchingRule::from_json(&Json::from_str("{\"match\": \"regex\"}").unwrap())).to(be_none());
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"regex\"}").unwrap())).to(be_none());
 
-    expect!(MatchingRule::from_json(&Json::from_str("{\"match\": \"equality\"}").unwrap())).to(
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"equality\"}").unwrap())).to(
       be_some().value(MatchingRule::Equality));
 
-    expect!(MatchingRule::from_json(&Json::from_str("{\"match\": \"include\", \"value\": \"A\"}").unwrap())).to(
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"include\", \"value\": \"A\"}").unwrap())).to(
       be_some().value(MatchingRule::Include(s!("A"))));
-    expect!(MatchingRule::from_json(&Json::from_str("{\"match\": \"include\"}").unwrap())).to(be_none());
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"include\"}").unwrap())).to(be_none());
 
-    expect!(MatchingRule::from_json(&Json::from_str("{\"match\": \"type\", \"min\": 1}").unwrap())).to(
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"type\", \"min\": 1}").unwrap())).to(
       be_some().value(MatchingRule::MinType(1)));
-    expect!(MatchingRule::from_json(&Json::from_str("{\"match\": \"type\", \"max\": \"1\"}").unwrap())).to(
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"type\", \"max\": \"1\"}").unwrap())).to(
       be_some().value(MatchingRule::MaxType(1)));
-    expect!(MatchingRule::from_json(&Json::from_str("{\"match\": \"type\", \"min\": 1, \"max\": \"1\"}").unwrap())).to(
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"type\", \"min\": 1, \"max\": \"1\"}").unwrap())).to(
       be_some().value(MatchingRule::MinMaxType(1, 1)));
-    expect!(MatchingRule::from_json(&Json::from_str("{\"match\": \"type\"}").unwrap())).to(
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"type\"}").unwrap())).to(
       be_some().value(MatchingRule::Type));
-    expect!(MatchingRule::from_json(&Json::from_str("{\"match\": \"type\", \"value\": 100}").unwrap())).to(
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"type\", \"value\": 100}").unwrap())).to(
       be_some().value(MatchingRule::Type));
-    expect!(MatchingRule::from_json(&Json::from_str("{\"match\": \"min\", \"min\": 1}").unwrap())).to(
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"min\", \"min\": 1}").unwrap())).to(
       be_some().value(MatchingRule::MinType(1)));
-    expect!(MatchingRule::from_json(&Json::from_str("{\"match\": \"max\", \"max\": \"1\"}").unwrap())).to(
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"max\", \"max\": \"1\"}").unwrap())).to(
       be_some().value(MatchingRule::MaxType(1)));
-    expect!(MatchingRule::from_json(&Json::from_str("{\"match\": \"min\"}").unwrap())).to(be_none());
-    expect!(MatchingRule::from_json(&Json::from_str("{\"match\": \"max\"}").unwrap())).to(be_none());
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"min\"}").unwrap())).to(be_none());
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"max\"}").unwrap())).to(be_none());
 
-    expect!(MatchingRule::from_json(&Json::from_str("{\"match\": \"number\"}").unwrap())).to(
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"number\"}").unwrap())).to(
       be_some().value(MatchingRule::Number));
-    expect!(MatchingRule::from_json(&Json::from_str("{\"match\": \"integer\"}").unwrap())).to(
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"integer\"}").unwrap())).to(
       be_some().value(MatchingRule::Integer));
-    expect!(MatchingRule::from_json(&Json::from_str("{\"match\": \"decimal\"}").unwrap())).to(
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"decimal\"}").unwrap())).to(
       be_some().value(MatchingRule::Decimal));
-    expect!(MatchingRule::from_json(&Json::from_str("{\"match\": \"real\"}").unwrap())).to(
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"real\"}").unwrap())).to(
       be_some().value(MatchingRule::Decimal));
 
-    expect!(MatchingRule::from_json(&Json::from_str("{\"match\": \"timestamp\", \"timestamp\": \"A\"}").unwrap())).to(
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"timestamp\", \"timestamp\": \"A\"}").unwrap())).to(
       be_some().value(MatchingRule::Timestamp(s!("A"))));
-    expect!(MatchingRule::from_json(&Json::from_str("{\"match\": \"timestamp\"}").unwrap())).to(be_none());
-    expect!(MatchingRule::from_json(&Json::from_str("{\"match\": \"time\", \"time\": \"A\"}").unwrap())).to(
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"timestamp\"}").unwrap())).to(be_none());
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"time\", \"time\": \"A\"}").unwrap())).to(
       be_some().value(MatchingRule::Time(s!("A"))));
-    expect!(MatchingRule::from_json(&Json::from_str("{\"match\": \"time\"}").unwrap())).to(be_none());
-    expect!(MatchingRule::from_json(&Json::from_str("{\"match\": \"date\", \"date\": \"A\"}").unwrap())).to(
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"time\"}").unwrap())).to(be_none());
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"date\", \"date\": \"A\"}").unwrap())).to(
       be_some().value(MatchingRule::Date(s!("A"))));
-    expect!(MatchingRule::from_json(&Json::from_str("{\"match\": \"date\"}").unwrap())).to(be_none());
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"date\"}").unwrap())).to(be_none());
   }
 
   #[test]

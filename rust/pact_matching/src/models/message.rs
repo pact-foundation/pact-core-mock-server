@@ -1,12 +1,12 @@
 //! The `message` module provides all functionality to deal with messages.
 
 use std::collections::HashMap;
-use rustc_serialize::json::Json;
+use serde_json::Value;
 use super::*;
 use super::body_from_json;
 
 /// Struct that defines a message.
-#[derive(PartialEq, Debug, Clone, Eq)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq)]
 pub struct Message {
     /// Description of this message interaction. This needs to be unique in the pact file.
     pub description: String,
@@ -34,32 +34,32 @@ impl Message {
     }
 
     /// Constructs a `Message` from the `Json` struct.
-    pub fn from_json(index: usize, json: &Json, spec_version: &PactSpecification) -> Result<Message, String> {
+    pub fn from_json(index: usize, json: &Value, spec_version: &PactSpecification) -> Result<Message, String> {
         match spec_version {
             &PactSpecification::V3 => {
-                let description = match json.find("description") {
+                let description = match json.get("description") {
                     Some(v) => match *v {
-                        Json::String(ref s) => s.clone(),
+                        Value::String(ref s) => s.clone(),
                         _ => v.to_string()
                     },
                     None => format!("Message {}", index)
                 };
-                let provider_state = match json.find("providerState") {
+                let provider_state = match json.get("providerState") {
                     Some(v) => match *v {
-                        Json::String(ref s) => if s.is_empty() {
+                        Value::String(ref s) => if s.is_empty() {
                             None
                         } else {
                             Some(s.clone())
                         },
-                        Json::Null => None,
+                        Value::Null => None,
                         _ => Some(v.to_string())
                     },
                     None => None
                 };
-                let metadata = match json.find("metadata") {
-                    Some(&Json::Object(ref v)) => v.iter().map(|(k, v)| {
+                let metadata = match json.get("metadata") {
+                    Some(&Value::Object(ref v)) => v.iter().map(|(k, v)| {
                         (k.clone(), match v {
-                            &Json::String(ref s) => s.clone(),
+                            &Value::String(ref s) => s.clone(),
                             _ => v.to_string()
                         })
                     }).collect(),
