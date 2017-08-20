@@ -623,24 +623,11 @@ mod tests {
     use super::*;
     use super::{json_to_string, json_to_num, calc_path_weight, matches_token};
     use expectest::prelude::*;
-    use expectest::traits::IsEmpty;
     use serde_json::Value;
-
-    impl IsEmpty for MatchingRules {
-      fn is_empty(&self) -> bool {
-        self.is_empty()
-      }
-    }
-
-    impl<'a> IsEmpty for &'a MatchingRules {
-      fn is_empty(&self) -> bool {
-        (*self).is_empty()
-      }
-    }
 
     #[test]
     fn rules_are_empty_when_there_are_no_categories() {
-        expect!(MatchingRules::default()).to(be_empty());
+        expect!(MatchingRules::default().is_empty()).to(be_true());
     }
 
     #[test]
@@ -651,7 +638,7 @@ mod tests {
                 s!("header") => Category::default(s!("header")),
                 s!("query") => Category::default(s!("query")),
             }
-        }).to(be_empty());
+        }.is_empty()).to(be_true());
     }
 
     #[test]
@@ -670,12 +657,12 @@ mod tests {
                     }
                 },
             }
-        }).to_not(be_empty());
+        }.is_empty()).to(be_false());
     }
 
     #[test]
     fn matchers_from_json_test() {
-        expect!(matchers_from_json(&Value::Null, &None)).to(be_empty());
+        expect!(matchers_from_json(&Value::Null, &None).rules.iter()).to(be_empty());
     }
 
   #[test]
@@ -692,7 +679,7 @@ mod tests {
 
     let matching_rules = matchers_from_json(&matching_rules_json, &None);
 
-    expect!(&matching_rules).to_not(be_empty());
+    expect!(matching_rules.rules.iter()).to_not(be_empty());
     expect!(matching_rules.categories()).to(be_equal_to(hashset!{ s!("path"), s!("query"), s!("header"), s!("body") }));
     expect!(matching_rules.rules_for_category(&s!("path"))).to(be_some().value(Category {
       name: s!("path"),
@@ -760,7 +747,7 @@ mod tests {
 
     let matching_rules = matchers_from_json(&matching_rules_json, &None);
 
-    expect!(&matching_rules).to_not(be_empty());
+    expect!(matching_rules.rules.iter()).to_not(be_empty());
     expect!(matching_rules.categories()).to(be_equal_to(hashset!{ s!("path"), s!("query"), s!("header"), s!("body") }));
     expect!(matching_rules.rules_for_category(&s!("path"))).to(be_some().value(Category {
       name: s!("path"),

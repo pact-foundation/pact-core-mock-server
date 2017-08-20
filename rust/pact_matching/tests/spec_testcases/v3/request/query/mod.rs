@@ -44,10 +44,11 @@ fn different_order() {
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
     let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -84,10 +85,11 @@ fn different_params() {
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
     let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -124,10 +126,11 @@ fn matches_with_equals_in_the_query_value() {
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
     let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -176,10 +179,11 @@ fn matches_with_regex() {
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
     let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -216,10 +220,11 @@ fn matches() {
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
     let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -257,10 +262,11 @@ fn missing_params() {
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
     let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -295,10 +301,11 @@ fn same_parameter_different_values() {
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
     let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -333,10 +340,11 @@ fn same_parameter_multiple_times_in_different_order() {
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
     let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -373,10 +381,11 @@ fn same_parameter_multiple_times() {
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
     let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -414,9 +423,10 @@ fn unexpected_param() {
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
     let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }

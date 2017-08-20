@@ -227,9 +227,9 @@ pub fn display_diff(expected: &String, actual: &String, path: &String) -> String
         Some(json) => format!("{:?}", serde_json::to_string_pretty(&json)),
         None => s!("")
     };
-    let (_dist, changeset) = diff(&expected_fragment, &actual_fragment, "\n");
+    let changeset = Changeset::new(&expected_fragment, &actual_fragment, "\n");
     let mut output = String::new();
-    for change in changeset {
+    for change in changeset.diffs {
         match change {
             Difference::Same(ref x) => output.push_str(&format!(" {}\n", x)),
             Difference::Add(ref x) => output.push_str(&Green.paint(format!("+{}\n", x)).to_string()),
@@ -408,8 +408,6 @@ mod tests {
     use expectest::prelude::*;
     use Mismatch;
     use DiffConfig;
-    use matchers::*;
-    use models::matchingrules::*;
 
     #[test]
     fn match_json_handles_invalid_expected_json() {
@@ -474,7 +472,7 @@ mod tests {
         let val1 = s!(r#""string value""#);
         let val2 = s!(r#""other value""#);
         match_json(&val1, &val1, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
-        expect!(mismatches.clone()).to(be_empty());
+        expect!(mismatches.iter()).to(be_empty());
         match_json(&val1, &val2, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
@@ -489,7 +487,7 @@ mod tests {
         let val1 = s!(r#"100"#);
         let val2 = s!(r#"200"#);
         match_json(&val1, &val1, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
-        expect!(mismatches.clone()).to(be_empty());
+        expect!(mismatches.iter()).to(be_empty());
         match_json(&val1, &val2, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
@@ -504,7 +502,7 @@ mod tests {
         let val1 = s!(r#"100.01"#);
         let val2 = s!(r#"100.02"#);
         match_json(&val1, &val1, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
-        expect!(mismatches.clone()).to(be_empty());
+        expect!(mismatches.iter()).to(be_empty());
         match_json(&val1, &val2, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
@@ -519,7 +517,7 @@ mod tests {
         let val1 = s!(r#"true"#);
         let val2 = s!(r#"false"#);
         match_json(&val1, &val1, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
-        expect!(mismatches.clone()).to(be_empty());
+        expect!(mismatches.iter()).to(be_empty());
         match_json(&val1, &val2, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
@@ -534,7 +532,7 @@ mod tests {
         let val1 = s!(r#"null"#);
         let val2 = s!(r#"33"#);
         match_json(&val1, &val1, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
-        expect!(mismatches.clone()).to(be_empty());
+        expect!(mismatches.iter()).to(be_empty());
         match_json(&val1, &val2, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
@@ -552,15 +550,15 @@ mod tests {
         let val4 = s!(r#"[11,44,33, 66]"#);
 
         match_json(&val1, &val1, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
-        expect!(mismatches.clone()).to(be_empty());
+        expect!(mismatches.iter()).to(be_empty());
         mismatches.clear();
 
         match_json(&val2, &val2, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
-        expect!(mismatches.clone()).to(be_empty());
+        expect!(mismatches.iter()).to(be_empty());
         mismatches.clear();
 
         match_json(&val3, &val3, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
-        expect!(mismatches.clone()).to(be_empty());
+        expect!(mismatches.iter()).to(be_empty());
         mismatches.clear();
 
         match_json(&val1, &val2, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
@@ -605,13 +603,13 @@ mod tests {
                 "$" => [ MatchingRule::Type ]
             }
         });
-        expect!(mismatches.clone()).to(be_empty());
+        expect!(mismatches.iter()).to(be_empty());
         match_json(&val4, &val2, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &matchingrules!{
             "body" => {
                 "$" => [ MatchingRule::Type ]
             }
         });
-        expect!(mismatches.clone()).to(be_empty());
+        expect!(mismatches.iter()).to(be_empty());
     }
 
     #[test]
@@ -623,15 +621,15 @@ mod tests {
         let val4 = s!(r#"{"a": 1, "b": 2, "c": 3}"#);
 
         match_json(&val1, &val1, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
-        expect!(mismatches.clone()).to(be_empty());
+        expect!(mismatches.iter()).to(be_empty());
         mismatches.clear();
 
         match_json(&val2, &val2, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
-        expect!(mismatches.clone()).to(be_empty());
+        expect!(mismatches.iter()).to(be_empty());
         mismatches.clear();
 
         match_json(&val4, &val4, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
-        expect!(mismatches.clone()).to(be_empty());
+        expect!(mismatches.iter()).to(be_empty());
         mismatches.clear();
 
         match_json(&val1, &val2, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
@@ -701,7 +699,7 @@ mod tests {
                 "$.*" => [ MatchingRule::Type ]
             }
         });
-        expect!(mismatches.clone()).to(be_empty());
+        expect!(mismatches.iter()).to(be_empty());
     }
 
     #[test]
@@ -810,7 +808,7 @@ mod tests {
                 "$.articles[*].variants.*.bundles.*" => [ MatchingRule::Type ]
             }
         });
-        expect!(mismatches.clone()).to(be_empty());
+        expect!(mismatches.iter()).to(be_empty());
         mismatches.clear();
     }
 

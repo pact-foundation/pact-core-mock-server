@@ -16,7 +16,9 @@ use std::fs::File;
 use std::path::Path;
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
-use hyper::client::Client;
+use futures::{Future, Stream};
+use hyper::Client;
+use tokio_core::reactor::Core;
 
 /// Version of the library
 pub const VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
@@ -949,7 +951,7 @@ impl Pact {
 
     /// Reads the pact file and parses the resulting JSON into a `Pact` struct
     pub fn read_pact(file: &Path) -> io::Result<Pact> {
-        let mut f = try!(File::open(file));
+        let mut f = File::open(file)?;
         let pact_json = serde_json::from_reader(&mut f);
         match pact_json {
             Ok(ref json) => Ok(Pact::from_json(&format!("{:?}", file), json)),
@@ -958,27 +960,31 @@ impl Pact {
     }
 
     /// Reads the pact file from a URL and parses the resulting JSON into a `Pact` struct
-    pub fn from_url(url: &String) -> Result<Pact, String> {
-        let client = Client::new();
-        match client.get(url).send() {
-            Ok(mut res) => if res.status.is_success() {
-                    let pact_json = serde_json::de::from_reader(&mut res);
-                    match pact_json {
-                        Ok(ref json) => Ok(Pact::from_json(url, json)),
-                        Err(err) => Err(format!("Failed to parse Pact JSON - {}", err))
-                    }
-                } else {
-                    Err(format!("Request failed with status - {}", res.status))
-                },
-            Err(err) => Err(format!("Request failed - {}", err))
-        }
+    pub fn from_url(url: &String) -> io::Result<Pact> {
+      let mut core = Core::new()?;
+      let client = Client::new(&core.handle());
+      let uri = url.parse().map_err(|err| Error::new(ErrorKind::Other, format!("{}", err)))?;
+      let work = client.get(uri).map_err(|err| Error::new(ErrorKind::Other, format!("{}", err))).and_then(|res| {
+        let status = res.status();
+        res.body().concat2().map_err(|err| Error::new(ErrorKind::Other, format!("{}", err))).and_then(move |body| {
+          if status.is_success() {
+            let json: serde_json::Value = serde_json::from_slice(&body)
+              .map_err(|err| Error::new(ErrorKind::Other, format!("Failed to parse JSON - {}", err)))?;
+            Ok(Pact::from_json(url, &json))
+          } else {
+            let err_message = format!("Request failed with status - {}", status);
+            Err(Error::new(ErrorKind::Other, err_message))
+          }
+        })
+      });
+      core.run(work)
     }
 
     /// Writes this pact out to the provided file path. All directories in the path will
     /// automatically created. If an existing pact is found at the path, this pact will be
     /// merged into the pact file.
     pub fn write_pact(&self, path: &Path, pact_spec: PactSpecification) -> io::Result<()> {
-        try!(fs::create_dir_all(path.parent().unwrap()));
+        fs::create_dir_all(path.parent().unwrap())?;
         if path.exists() {
             let existing_pact = Pact::read_pact(path)?;
             match existing_pact.merge(self) {

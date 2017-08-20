@@ -38,10 +38,11 @@ fn empty_path_found_when_forward_slash_expected() {
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
     let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -72,10 +73,11 @@ fn forward_slash_found_when_empty_path_expected() {
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
     let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -106,10 +108,11 @@ fn incorrect_path() {
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
     let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -150,10 +153,11 @@ fn matches_with_regex() {
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
     let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -184,10 +188,11 @@ fn matches() {
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
     let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -218,10 +223,11 @@ fn missing_trailing_slash_in_path() {
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
     let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -252,9 +258,10 @@ fn unexpected_trailing_slash_in_path() {
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
     println!("{:?}", actual);
     let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }

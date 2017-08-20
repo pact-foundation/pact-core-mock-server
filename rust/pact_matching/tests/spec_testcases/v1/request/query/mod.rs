@@ -40,10 +40,11 @@ fn trailing_amperand() {
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1);
     println!("{:?}", actual);
     let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -76,10 +77,11 @@ fn matches() {
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1);
     println!("{:?}", actual);
     let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -112,10 +114,11 @@ fn different_param_values() {
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1);
     println!("{:?}", actual);
     let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -148,9 +151,10 @@ fn different_param_order() {
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1);
     println!("{:?}", actual);
     let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }

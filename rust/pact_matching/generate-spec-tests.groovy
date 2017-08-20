@@ -68,10 +68,11 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
         |    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::$specVersion);
         |    println!("{:?}", actual);
         |    let pact_match = pact.get("match").unwrap();
+        |    let result = match_request(expected, actual);
         |    if pact_match.as_bool().unwrap() {
-        |       expect!(match_request(expected, actual)).to(be_empty());
+        |       expect!(result.iter()).to(be_empty());
         |    } else {
-        |       expect!(match_request(expected, actual)).to_not(be_empty());
+        |       expect!(result.iter()).to_not(be_empty());
         |    }
         """
       } else if (requestResponsePath == 'response') {
@@ -83,9 +84,9 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
         |    let pact_match = pact.get("match").unwrap();
         |    let result = match_response(expected, actual);
         |    if pact_match.as_bool().unwrap() {
-        |       expect!(result).to(be_empty());
+        |       expect!(result.iter()).to(be_empty());
         |    } else {
-        |       expect!(result).to_not(be_empty());
+        |       expect!(result.iter()).to_not(be_empty());
         |    }
         """
       } else if (requestResponsePath == 'message') {
@@ -97,9 +98,9 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
         |    let pact_match = pact.get("match").unwrap();
         |    let result = match_message(expected, actual);
         |    if pact_match.as_bool().unwrap() {
-        |       expect!(result).to(be_empty());
+        |       expect!(result.iter()).to(be_empty());
         |    } else {
-        |       expect!(result).to_not(be_empty());
+        |       expect!(result.iter()).to_not(be_empty());
         |    }
         """
       }

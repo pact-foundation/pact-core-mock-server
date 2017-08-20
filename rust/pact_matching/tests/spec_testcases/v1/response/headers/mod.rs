@@ -38,9 +38,9 @@ fn whitespace_after_comma_different() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -69,9 +69,9 @@ fn unexpected_header_found() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -102,9 +102,9 @@ fn order_of_comma_separated_header_values_different() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -137,9 +137,9 @@ fn matches() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -170,9 +170,9 @@ fn header_value_is_different_case() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -203,9 +203,9 @@ fn header_name_is_different_case() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -233,8 +233,8 @@ fn empty_headers() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }

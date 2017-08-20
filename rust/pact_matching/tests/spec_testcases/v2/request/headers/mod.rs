@@ -39,10 +39,11 @@ fn empty_headers() {
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
     println!("{:?}", actual);
     let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -77,10 +78,11 @@ fn header_name_is_different_case() {
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
     println!("{:?}", actual);
     let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -115,10 +117,11 @@ fn header_value_is_different_case() {
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
     println!("{:?}", actual);
     let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -156,10 +159,11 @@ fn matches_with_regex() {
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
     println!("{:?}", actual);
     let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -196,10 +200,11 @@ fn matches() {
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
     println!("{:?}", actual);
     let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -234,10 +239,11 @@ fn order_of_comma_separated_header_values_different() {
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
     println!("{:?}", actual);
     let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -270,10 +276,11 @@ fn unexpected_header_found() {
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
     println!("{:?}", actual);
     let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -308,9 +315,10 @@ fn whitespace_after_comma_different() {
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
     println!("{:?}", actual);
     let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(match_request(expected, actual)).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(match_request(expected, actual)).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }

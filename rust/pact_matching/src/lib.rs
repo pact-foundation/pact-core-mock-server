@@ -338,6 +338,8 @@ extern crate rand;
 extern crate sxd_document;
 
 extern crate hyper;
+extern crate tokio_core;
+extern crate futures;
 extern crate ansi_term;
 extern crate difference;
 

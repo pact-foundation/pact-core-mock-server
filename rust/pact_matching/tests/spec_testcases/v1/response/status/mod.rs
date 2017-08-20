@@ -34,9 +34,9 @@ fn matches() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -63,8 +63,8 @@ fn different_status() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }

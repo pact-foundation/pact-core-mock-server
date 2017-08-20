@@ -294,7 +294,6 @@ mod tests {
     use Mismatch;
     use DiffConfig;
     use env_logger;
-    use models::matchingrules::*;
 
     #[test]
     fn match_xml_handles_empty_strings() {
@@ -345,7 +344,7 @@ mod tests {
         let expected = s!(r#"<?xml version="1.0" encoding="UTF-8"?> <blah/>"#);
         let actual = s!(r#"<?xml version="1.0" encoding="UTF-8"?> <blah/>"#);
         match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
-        expect!(mismatches).to(be_empty());
+        expect!(mismatches.iter()).to(be_empty());
     }
 
     #[test]
@@ -360,7 +359,7 @@ mod tests {
         <foo><bar></bar></foo>
         "#);
         match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
-        expect!(mismatches).to(be_empty());
+        expect!(mismatches.iter()).to(be_empty());
     }
 
     #[test]
@@ -390,7 +389,7 @@ mod tests {
         <blah a="b" c="d"/>
         "#);
         match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
-        expect!(mismatches).to(be_empty());
+        expect!(mismatches.iter()).to(be_empty());
     }
 
     #[test]
@@ -446,7 +445,7 @@ mod tests {
         <blah a="b" c="d"/>
         "#);
         match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
-        expect!(mismatches).to(be_empty());
+        expect!(mismatches.iter()).to(be_empty());
     }
 
     #[test]
@@ -505,7 +504,7 @@ mod tests {
                 "$.foo.*" => [ MatchingRule::Type ]
             }
         });
-        expect!(mismatches).to(be_empty());
+        expect!(mismatches.iter()).to(be_empty());
     }
 
     #[test]
@@ -535,7 +534,7 @@ mod tests {
         <foo><bar></bar></foo>
         "#);
         match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
-        expect!(mismatches).to(be_empty());
+        expect!(mismatches.iter()).to(be_empty());
     }
 
     #[test]
@@ -548,7 +547,7 @@ mod tests {
         <foo><item1/><item2/></foo>
         "#);
         match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
-        expect!(mismatches).to(be_empty());
+        expect!(mismatches.iter()).to(be_empty());
     }
 
     #[test]
@@ -652,7 +651,7 @@ mod tests {
         <foo>hello world</foo>
         "#);
         match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
-        expect!(mismatches).to(be_empty());
+        expect!(mismatches.iter()).to(be_empty());
     }
 
     #[test]
@@ -665,7 +664,7 @@ mod tests {
         <foo>hello<bar/>world</foo>
         "#);
         match_xml(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &MatchingRules::default());
-        expect!(mismatches).to(be_empty());
+        expect!(mismatches.iter()).to(be_empty());
     }
 
     #[test]
@@ -692,7 +691,7 @@ mod tests {
                 "$.foo['#text']" => [ MatchingRule::Regex(s!("[a-z]+")) ]
             }
         });
-        expect!(mismatches).to(be_empty());
+        expect!(mismatches.iter()).to(be_empty());
     }
 
     #[test]
@@ -718,7 +717,7 @@ mod tests {
                 "$.foo['#text']" => [ MatchingRule::Regex(s!("[a-z]+")) ]
             }
         });
-        expect!(mismatches).to(be_empty());
+        expect!(mismatches.iter()).to(be_empty());
     }
 
     #[test]
@@ -735,7 +734,7 @@ mod tests {
                 "$.foo" => [ MatchingRule::Type ]
             }
         });
-        expect!(mismatches).to(be_empty());
+        expect!(mismatches.iter()).to(be_empty());
     }
 
 }

@@ -169,7 +169,7 @@ mod tests {
             "description" : "test interaction"
         }"#;
         let provider_states = ProviderState::from_json(&serde_json::from_str(json).unwrap());
-        expect!(provider_states).to(be_empty());
+        expect!(provider_states.iter()).to(be_empty());
     }
 
 }

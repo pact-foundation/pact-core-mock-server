@@ -51,9 +51,9 @@ fn additional_property_with_type_matcher_that_does_not_match() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -103,9 +103,9 @@ fn additional_property_with_type_matcher() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -168,9 +168,9 @@ fn array_at_top_level_with_matchers_xml() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -286,9 +286,9 @@ fn array_at_top_level_with_matchers() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -317,9 +317,9 @@ fn array_at_top_level_xml() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -374,9 +374,9 @@ fn array_at_top_level() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -405,9 +405,9 @@ fn array_in_different_order_xml() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -444,9 +444,9 @@ fn array_in_different_order() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -494,9 +494,9 @@ fn array_with_regex_matcher_xml() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -554,9 +554,9 @@ fn array_with_regex_matcher() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -596,9 +596,9 @@ fn array_with_type_matcher_mismatch_xml() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -648,9 +648,9 @@ fn array_with_type_matcher_mismatch() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -697,9 +697,9 @@ fn array_with_type_matcher_xml() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -756,9 +756,9 @@ fn array_with_type_matcher() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -787,9 +787,9 @@ fn deeply_nested_objects_xml() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -848,9 +848,9 @@ fn deeply_nested_objects() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -879,9 +879,9 @@ fn different_value_found_at_index_xml() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -918,9 +918,9 @@ fn different_value_found_at_index() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -949,9 +949,9 @@ fn different_value_found_at_key_xml() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -988,9 +988,9 @@ fn different_value_found_at_key() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -1018,9 +1018,9 @@ fn empty_body_no_content_type() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -1049,9 +1049,9 @@ fn empty_body() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -1080,9 +1080,9 @@ fn keys_out_of_order_match_xml() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -1117,9 +1117,9 @@ fn keys_out_of_order_match() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -1160,9 +1160,9 @@ fn matches_with_regex_xml() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -1215,9 +1215,9 @@ fn matches_with_regex() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -1276,9 +1276,9 @@ fn matches_with_type() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -1307,9 +1307,9 @@ fn matches_xml() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -1350,9 +1350,9 @@ fn matches() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -1378,9 +1378,9 @@ fn missing_body_found_when_empty_expected() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -1413,9 +1413,9 @@ fn missing_body_no_content_type() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -1443,9 +1443,9 @@ fn missing_body_xml() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -1479,9 +1479,9 @@ fn missing_body() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -1510,9 +1510,9 @@ fn missing_index_xml() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -1549,9 +1549,9 @@ fn missing_index() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -1580,9 +1580,9 @@ fn missing_key_xml() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -1620,9 +1620,9 @@ fn missing_key() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -1649,9 +1649,9 @@ fn no_body_no_content_type_xml() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -1684,9 +1684,9 @@ fn no_body_no_content_type() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -1721,9 +1721,9 @@ fn non_empty_body_found_when_empty_expected() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -1760,9 +1760,9 @@ fn not_null_found_at_key_when_null_expected() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -1799,9 +1799,9 @@ fn not_null_found_in_array_when_null_expected() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -1829,9 +1829,9 @@ fn null_body_no_content_type() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -1860,9 +1860,9 @@ fn null_body() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -1899,9 +1899,9 @@ fn null_found_at_key_where_not_null_expected() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -1938,9 +1938,9 @@ fn null_found_in_array_when_not_null_expected() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -1977,9 +1977,9 @@ fn number_found_at_key_when_string_expected() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -2016,9 +2016,9 @@ fn number_found_in_array_when_string_expected() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -2047,9 +2047,9 @@ fn objects_in_array_first_matches_xml() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -2091,9 +2091,9 @@ fn objects_in_array_first_matches() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -2122,9 +2122,9 @@ fn objects_in_array_no_matches_xml() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -2161,9 +2161,9 @@ fn objects_in_array_no_matches() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -2192,9 +2192,9 @@ fn objects_in_array_second_matches_xml() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -2230,9 +2230,9 @@ fn objects_in_array_second_matches() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -2286,9 +2286,9 @@ fn objects_in_array_type_matching_xml() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -2345,9 +2345,9 @@ fn objects_in_array_type_matching() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -2394,9 +2394,9 @@ fn objects_in_array_with_type_mismatching_xml() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -2450,9 +2450,9 @@ fn objects_in_array_with_type_mismatching() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -2481,9 +2481,9 @@ fn plain_text_that_does_not_match() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -2512,9 +2512,9 @@ fn plain_text_that_matches() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -2543,9 +2543,9 @@ fn property_name_is_different_case_xml() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -2582,9 +2582,9 @@ fn property_name_is_different_case() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -2621,9 +2621,9 @@ fn string_found_at_key_when_number_expected() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -2660,9 +2660,9 @@ fn string_found_in_array_when_number_expected() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -2691,9 +2691,9 @@ fn unexpected_index_with_missing_value_xml() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -2722,9 +2722,9 @@ fn unexpected_index_with_non_empty_value_xml() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -2761,9 +2761,9 @@ fn unexpected_index_with_not_null_value() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -2800,9 +2800,9 @@ fn unexpected_index_with_null_value() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -2831,9 +2831,9 @@ fn unexpected_key_with_empty_value_xml() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -2862,9 +2862,9 @@ fn unexpected_key_with_non_empty_value_xml() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -2902,9 +2902,9 @@ fn unexpected_key_with_not_null_value() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -2942,9 +2942,9 @@ fn unexpected_key_with_null_value() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }
 
@@ -2973,8 +2973,8 @@ fn value_found_in_array_when_empty_expected_xml() {
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
     if pact_match.as_bool().unwrap() {
-       expect!(result).to(be_empty());
+       expect!(result.iter()).to(be_empty());
     } else {
-       expect!(result).to_not(be_empty());
+       expect!(result.iter()).to_not(be_empty());
     }
 }

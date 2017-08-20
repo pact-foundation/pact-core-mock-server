@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
 use std::fs::{self, File};
 use std::io;
-use std::io::prelude::*;
 use std::env;
 use expectest::prelude::*;
 use rand;
@@ -235,7 +234,7 @@ fn defaults_to_empty_if_no_provider_state() {
     let interaction_json = r#"{
     }"#;
     let interaction = Interaction::from_json(0, &serde_json::from_str({interaction_json}).unwrap(), &PactSpecification::V1);
-    expect!(interaction.provider_states).to(be_empty());
+    expect!(interaction.provider_states.iter()).to(be_empty());
 }
 
 #[test]
@@ -244,7 +243,7 @@ fn defaults_to_none_if_provider_state_null() {
         "providerState": null
     }"#;
     let interaction = Interaction::from_json(0, &serde_json::from_str({interaction_json}).unwrap(), &PactSpecification::V1);
-    expect!(interaction.provider_states).to(be_empty());
+    expect!(interaction.provider_states.iter()).to(be_empty());
 }
 
 #[test]
@@ -363,7 +362,7 @@ fn load_basic_pact() {
     expect!(pact.interactions.iter()).to(have_count(1));
     let interaction = pact.interactions[0].clone();
     expect!(interaction.description).to(be_equal_to("a retrieve Mallory request"));
-    expect!(interaction.provider_states).to(be_empty());
+    expect!(interaction.provider_states.iter()).to(be_empty());
     expect!(interaction.request).to(be_equal_to(Request {
         method: s!("GET"),
         path: s!("/mallory"),
@@ -1132,7 +1131,7 @@ fn interactions_do_not_conflict_if_they_have_different_descriptions() {
         request: Request::default_request(),
         response: Response::default_response()
     };
-    expect!(interaction1.conflicts_with(&interaction2)).to(be_empty());
+    expect!(interaction1.conflicts_with(&interaction2).iter()).to(be_empty());
 }
 
 #[test]
@@ -1149,7 +1148,7 @@ fn interactions_do_not_conflict_if_they_have_different_provider_states() {
         request: Request::default_request(),
         response: Response::default_response()
     };
-    expect!(interaction1.conflicts_with(&interaction2)).to(be_empty());
+    expect!(interaction1.conflicts_with(&interaction2).iter()).to(be_empty());
 }
 
 #[test]
@@ -1166,7 +1165,7 @@ fn interactions_do_not_conflict_if_they_have_the_same_requests_and_responses() {
         request: Request::default_request(),
         response: Response::default_response()
     };
-    expect!(interaction1.conflicts_with(&interaction2)).to(be_empty());
+    expect!(interaction1.conflicts_with(&interaction2).iter()).to(be_empty());
 }
 
 #[test]
@@ -1183,7 +1182,7 @@ fn interactions_conflict_if_they_have_different_requests() {
         request: Request { method: s!("POST"), .. Request::default_request() },
         response: Response::default_response()
     };
-    expect!(interaction1.conflicts_with(&interaction2)).to_not(be_empty());
+    expect!(interaction1.conflicts_with(&interaction2).iter()).to_not(be_empty());
 }
 
 #[test]
@@ -1200,7 +1199,7 @@ fn interactions_conflict_if_they_have_different_responses() {
         request: Request::default_request(),
         response: Response { status: 400, .. Response::default_response() }
     };
-    expect!(interaction1.conflicts_with(&interaction2)).to_not(be_empty());
+    expect!(interaction1.conflicts_with(&interaction2).iter()).to_not(be_empty());
 }
 
 fn hash<T: Hash>(t: &T) -> u64 {
@@ -1251,7 +1250,7 @@ fn matchers_from_json_handles_missing_matchers() {
       }
      "#).unwrap();
     let matchers = matchers_from_json(&json, &Some(s!("deprecatedName")));
-    expect!(matchers).to(be_empty());
+    expect!(matchers.rules.iter()).to(be_empty());
 }
 
 #[test]
@@ -1265,7 +1264,7 @@ fn matchers_from_json_handles_empty_matchers() {
       }
      "#).unwrap();
     let matchers = matchers_from_json(&json, &Some(s!("deprecatedName")));
-    expect!(matchers).to(be_empty());
+    expect!(matchers.rules.iter()).to(be_empty());
 }
 
 #[test]
