@@ -3,7 +3,6 @@ use super::*;
 use super::match_request;
 use pact_matching::models::{Interaction, Request, Response, OptionalBody};
 use pact_matching::Mismatch;
-use pact_matching::models::matchingrules::*;
 
 #[test]
 fn match_request_returns_a_match_for_identical_requests() {

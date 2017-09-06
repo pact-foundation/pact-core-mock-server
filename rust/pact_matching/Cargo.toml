@@ -31,10 +31,7 @@ ansi_term = "0.9.0"
 difference = "1.0.0"
 tokio-core = "0.1.9"
 futures = "0.1.14"
-
-[dependencies.hyper]
-version = "0.11.2"
-default-features = false
+hyper = "0.11.2"
 
 [dev-dependencies]
 quickcheck = "0.4.1"
