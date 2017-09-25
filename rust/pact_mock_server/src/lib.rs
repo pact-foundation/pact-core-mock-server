@@ -64,6 +64,7 @@ use std::ffi::CStr;
 use std::ffi::CString;
 use std::str;
 use std::panic::catch_unwind;
+use std::fmt;
 use pact_matching::models::{Pact, Interaction, Request, OptionalBody};
 use pact_matching::models::parse_query_string;
 use pact_matching::models::matchingrules::*;
@@ -82,6 +83,21 @@ use hyper::mime::{Mime, TopLevel, SubLevel, Attr, Value};
 use hyper::uri::RequestUri;
 use uuid::Uuid;
 use itertools::Itertools;
+
+/// Enum to define a server status
+#[derive(Debug, Clone, PartialEq)]
+pub enum ServerStatus {
+    /// The server working correctly
+    OK,
+    /// Error at mock server
+    Error
+}
+
+impl fmt::Display for ServerStatus {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", format!("{:?}", self).to_lowercase())
+    }
+}
 
 /// Enum to define a match result
 #[derive(Debug, Clone, PartialEq)]
@@ -159,14 +175,16 @@ pub struct MockServer {
     /// List of resources that need to be cleaned up when the mock server completes
     pub resources: Vec<CString>,
     /// Pact that this mock server is based on
-    pub pact: Pact
+    pub pact: Pact,
+    /// Server status
+    pub status : ServerStatus
 }
 
 impl MockServer {
     /// Creates a new mock server with the given ID and pact
     pub fn new(id: String, pact: &Pact) -> MockServer {
         MockServer { id: id.clone(), port: -1, server: 0, matches: vec![], resources: vec![],
-            pact : pact.clone() }
+            pact : pact.clone(),  status : ServerStatus::OK}
     }
 
     /// Sets the port that the mock server is listening on
@@ -186,12 +204,7 @@ impl MockServer {
             s!("id") : json!(self.id.clone()),
             s!("port") : json!(self.port as u64),
             s!("provider") : json!(self.pact.provider.name.clone()),
-            s!("status") : json!(if self.mismatches().is_empty() {
-                    s!("ok")
-                } else {
-                    s!("error")
-                }
-            )
+            s!("status") : json!(format!("{}", self.status))
         })
     }
 
@@ -249,6 +262,7 @@ impl PartialEq for MockServer {
 
 lazy_static! {
     static ref MOCK_SERVERS: Mutex<BTreeMap<String, Box<MockServer>>> = Mutex::new(BTreeMap::new());
+    static ref FIRST_PORT : Mutex<Option<i32>> = Mutex::new(None);
 }
 
 fn match_request(req: &Request, interactions: &Vec<Interaction>) -> MatchResult {
@@ -546,6 +560,23 @@ pub fn shutdown_mock_server_by_port(port: i32) -> bool {
         None => false
     }
 }
+
+/// Set the first port if needed
+pub fn set_first_port(port : i32) {
+    let mut value  = FIRST_PORT.lock().unwrap();
+    *value = Some(port);
+}
+
+/// Get the next port if first one was available, otherwise return 0
+pub fn get_next_port() -> i32 {
+    if let Some(value)  = *(FIRST_PORT.lock().unwrap()) {
+        value + MOCK_SERVERS.lock().unwrap().len() as i32
+    }
+    else{
+        0
+    }
+}
+
 
 /// External interface to create a mock server. A pointer to the pact JSON as a C string is passed in,
 /// as well as the port for the mock server to run on. A value of 0 for the port will result in a

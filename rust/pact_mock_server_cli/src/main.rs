@@ -187,13 +187,20 @@ fn handle_command_args() -> Result<(), i32> {
           .help("Do not log to an output file"))
         .subcommand(SubCommand::with_name("start")
                 .about("Starts the master mock server")
-                .setting(AppSettings::ColoredHelp)
                 .arg(Arg::with_name("output")
                       .short("o")
                       .long("output")
                       .takes_value(true)
                       .use_delimiter(false)
-                      .help("the directory where to write files to (defaults to current directory)")))
+                      .help("the directory where to write files to (defaults to current directory)"))
+                .arg(Arg::with_name("first-port")
+                    .long("first-port")
+                    .takes_value(true)
+                    .use_delimiter(false)
+                    .required(false)
+                    .help("the port that ports will start allocation from it")
+                    .validator(integer_value))
+                .setting(AppSettings::ColoredHelp))
         .subcommand(SubCommand::with_name("list")
                 .about("Lists all the running mock servers")
                 .setting(AppSettings::ColoredHelp))
@@ -265,9 +272,7 @@ fn handle_command_args() -> Result<(), i32> {
             match port.parse::<u16>() {
                 Ok(p) => {
                     match matches.subcommand() {
-                        ("start", Some(sub_matches)) => {
-                            server::start_server(p, sub_matches.value_of("output").map(|s| s.to_owned()))
-                        },
+                        ("start", Some(sub_matches)) => server::start_server(p, sub_matches),
                         ("list", Some(sub_matches)) => list::list_mock_servers(host, p, sub_matches),
                         ("create", Some(sub_matches)) => create_mock::create_mock_server(host, p, sub_matches),
                         ("verify", Some(sub_matches)) => verify::verify_mock_server(host, p, sub_matches),
