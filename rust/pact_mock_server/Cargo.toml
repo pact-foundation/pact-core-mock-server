@@ -14,10 +14,9 @@ exclude = [
 ]
 
 [dependencies]
-libc = "0.2.29"
-serde_json = "1.0.2"
-# pact_matching = "0.3.0"
-pact_matching = { path = "../pact_matching" }
+libc = "0.2.9"
+serde_json = "1.0"
+pact_matching = { version =  "0.3.0", path = "../pact_matching" }
 p-macro = "0.2.0"
 env_logger = "0.4.3"
 log = "0.3.8"
