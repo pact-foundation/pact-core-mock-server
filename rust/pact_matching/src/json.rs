@@ -430,7 +430,7 @@ mod tests {
         expect!(mismatches.iter()).to(have_count(1));
         let mismatch = mismatches[0].clone();
         expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$"), expected: Some(expected),
-            actual: Some(actual), mismatch: s!("")}));
+            actual: Some(actual), mismatch: s!("Type mismatch: Expected List [{}] but received Map {}")}));
     }
 
     fn mismatch_message(mismatch: &Mismatch) -> String {

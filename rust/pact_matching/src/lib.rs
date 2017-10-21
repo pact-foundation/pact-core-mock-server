@@ -327,7 +327,6 @@
 #[macro_use] extern crate serde_json;
 #[macro_use] extern crate serde_derive;
 #[macro_use] extern crate log;
-#[macro_use] extern crate p_macro;
 #[macro_use] extern crate maplit;
 #[macro_use] extern crate lazy_static;
 extern crate hex;
@@ -796,9 +795,10 @@ fn match_header_value(key: &String, expected: &String, actual: &String, mismatch
     let path = vec![key.clone()];
     let expected = strip_whitespace::<String>(expected, ",");
     let actual = strip_whitespace::<String>(actual, ",");
+
     let matcher_result = if matchers.matcher_is_defined("header",&path) {
         matchers::match_values("header",&path, matchers.clone(), &expected, &actual)
-    } else if PARAMETERISED_HEADER_TYPES.contains(&key.to_lowercase() .as_str()) {
+    } else if PARAMETERISED_HEADER_TYPES.contains(&key.to_lowercase().as_str()) {
         match_parameter_header(&expected, &actual, mismatches, &key);
         Ok(())
     } else {
@@ -960,6 +960,27 @@ pub fn match_message(expected: models::message::Message, actual: models::message
     mismatches
 }
 
+/// Matches the actual message contents to the expected one. This takes into account the content type of each.
+pub fn match_message_contents(expected: &models::message::Message, actual: &models::message::Message, config: DiffConfig,
+    mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
+    if expected.mimetype() == actual.mimetype() {
+        match_body_content(expected.mimetype(), &expected.contents, &actual.contents, config, mismatches, matchers)
+    } else if expected.contents.is_present() {
+        mismatches.push(Mismatch::BodyTypeMismatch { expected: expected.mimetype(),
+            actual: actual.mimetype() });
+    }
+}
+
+/// Matches the actual and expected messages.
+pub fn match_message(expected: models::message::Message, actual: models::message::Message) -> Vec<Mismatch> {
+    let mut mismatches = vec![];
+
+    info!("comparing to expected message: {:?}", expected);
+    match_message_contents(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &expected.matching_rules);
+
+    mismatches
+}
+
 #[cfg(test)]
 #[macro_use(expect)]
 extern crate expectest;
@@ -967,6 +988,7 @@ extern crate expectest;
 extern crate quickcheck;
 #[cfg(test)]
 extern crate env_logger;
+#[macro_use] #[cfg(test)] extern crate p_macro;
 
 #[cfg(test)]
 mod tests;

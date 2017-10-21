@@ -98,13 +98,13 @@ ask('Publish library to crates.io?: [Y]') {
   executeOnShell 'cargo publish'
 }
 
-executeOnShell "tar cvfz libpact_matching-docs-${releaseVer}.tgz *", new File("./target/doc")
-
 def nextVer = Version.valueOf(releaseVer).incrementPatchVersion()
 ask("Bump version to $nextVer?: [Y]") {
   executeOnShell "sed -i -e 's/version = \"${releaseVer}\"/version = \"${nextVer}\"/' Cargo.toml"
   executeOnShell "sed -i -e 's/documentation = \"https:\\/\\/docs\\.rs\\/pact_matching\\/${releaseVer}\\/pact_matching\\/\"/documentation = \"https:\\/\\/docs\\.rs\\/pact_matching\\/${nextVer}\\/pact_matching\\/\"/' Cargo.toml"
+  executeOnShell("cargo update")
   executeOnShell("git add Cargo.toml")
+  executeOnShell("git add ../Cargo.lock")
   executeOnShell("git diff --cached")
   ask("Commit and push this change?: [Y]") {
     executeOnShell("git commit -m 'bump version to $nextVer'")

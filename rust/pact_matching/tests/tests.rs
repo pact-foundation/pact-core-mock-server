@@ -8,7 +8,7 @@ mod spec_testcases;
 
 use pact_matching::models::*;
 use std::env;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use expectest::prelude::*;
 use std::fs::File;
 
@@ -144,7 +144,7 @@ fn test_load_test_pact_lowercase_method() {
                 expect!(pact_request.get("query")).to(be_equal_to(file_request.get("query")));
             }
 
-            expect!(pact.metadata.get("pact-specification").unwrap().get("version")).to(be_some().value("3.0.0"));
+            expect!(pact.metadata.get("pact-specification").unwrap().get("version")).to(be_some().value("2.0.0"));
             let metadata = pact_json.get("metadata").unwrap().as_object().unwrap();
             let expected_keys : Vec<String> = vec![s!("pact-jvm"), s!("pact-rust"), s!("pact-specification")];
             expect!(metadata.keys().cloned().collect::<Vec<String>>()).to(be_equal_to(expected_keys));
@@ -456,7 +456,3 @@ fn test_load_test_pact_matchers_old_format() {
         Err(err) => panic!("Failed to load pact from '{:?}' - {}", pact_file, err)
     }
 }
-
-// v3-message-pact.json
-// v3-pact.json
-// test_pact_v3.json

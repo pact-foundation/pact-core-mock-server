@@ -54,7 +54,7 @@ extern crate env_logger;
 extern crate hyper;
 extern crate futures;
 extern crate uuid;
-#[macro_use] extern crate itertools;
+extern crate itertools;
 
 use libc::{c_char, int32_t};
 use std::ffi::CStr;
