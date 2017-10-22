@@ -72,8 +72,7 @@ fn validate_port(id: u16) -> Result<MockServer, String> {
             server: ms.server,
             matches: ms.matches.clone(),
             resources: vec![],
-            pact: ms.pact.clone(),
-            status: ms.status.clone()
+            pact: ms.pact.clone()
         }
     }).ok_or(format!("No mock server running with port '{}'", id))
 }
@@ -86,8 +85,7 @@ fn validate_uuid(id: &String) -> Result<MockServer, String> {
             server: ms.server,
             matches: ms.matches.clone(),
             resources: vec![],
-            pact: ms.pact.clone(),
-            status: ms.status.clone()
+            pact: ms.pact.clone()
         }
     }).ok_or(format!("No mock server running with id '{}'", id))
 }
@@ -105,7 +103,6 @@ fn display_verification_errors(id: &str, port: u64, json: &serde_json::Value) {
     println!("Mock server {}/{} failed verification with {} errors\n", id, port, mismatches.len());
 
     for (i, mismatch) in mismatches.iter().enumerate() {
-//        mismatch.get("type").unwrap().to_string().fpp();
         match mismatch.get("type").unwrap().to_string().as_ref() {
             "missing-request" => {
                 let request = mismatch.get("request").unwrap();
