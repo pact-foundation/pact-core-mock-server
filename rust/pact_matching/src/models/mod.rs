@@ -17,6 +17,8 @@ use std::path::Path;
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use hyper::client::Client;
+use std::str;
+use base64::{encode, decode};
 
 /// Version of the library
 pub const VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
@@ -125,7 +127,7 @@ pub enum OptionalBody {
     /// from null values. It is treated as `Empty`.
     Null,
     /// A non-empty body that is present in the pact file.
-    Present(String)
+    Present(Vec<u8>)
 }
 
 impl OptionalBody {
@@ -138,24 +140,21 @@ impl OptionalBody {
         }
     }
 
-    /// Returns the body if present, otherwise returns the empty string.
-    pub fn value(&self) -> String {
+    /// Returns the body if present, otherwise returns the empty Vec.
+    pub fn value(&self) -> Vec<u8> {
         match *self {
             OptionalBody::Present(ref s) => s.clone(),
-            _ => s!("")
+            _ => vec![]
         }
     }
 
-}
-
-impl<'a> PartialEq<&'a str> for OptionalBody {
-    fn eq(&self, other: &&'a str) -> bool {
-        match self {
-            &OptionalBody::Present(ref s) => s == other,
-            &OptionalBody::Empty => other.is_empty(),
-            _ => false
-        }
+  /// Returns the body if present as a string, otherwise returns the empty string.
+  pub fn str_value(&self) -> &str {
+    match *self {
+      OptionalBody::Present(ref s) => str::from_utf8(s).unwrap_or(""),
+      _ => ""
     }
+  }
 }
 
 lazy_static! {
@@ -230,7 +229,10 @@ pub trait HttpPart {
     fn detect_content_type(&self) -> String {
         match *self.body() {
             OptionalBody::Present(ref body) => {
-                let s: String = body.chars().take(32).collect();
+                let s: String = match str::from_utf8(body) {
+                  Ok(s) => s.to_string(),
+                  Err(_) => String::new()
+                };
                 debug!("Detecting content type from contents: '{}'", s);
                 if XMLREGEXP.is_match(s.as_str()) {
                     s!("application/xml")
@@ -355,17 +357,19 @@ fn body_from_json(request: &Value, fieldname: &str, headers: &Option<HashMap<Str
                 if s.is_empty() {
                     OptionalBody::Empty
                 } else if content_type.unwrap_or(s!("")) == "application/json" {
-                    // fuck, that's all I have to say about this
                     match serde_json::from_str::<HashMap<String, Value>>(&s) {
-                        Ok(_) => OptionalBody::Present(s.clone()),
-                        Err(_) => OptionalBody::Present(format!("\"{}\"", s))
+                        Ok(_) => OptionalBody::Present(s.clone().into()),
+                        Err(_) => OptionalBody::Present(format!("\"{}\"", s).into())
                     }
                 } else {
-                    OptionalBody::Present(s.clone())
+                  match decode(s) {
+                    Ok(bytes) => OptionalBody::Present(bytes.clone()),
+                    Err(_) => OptionalBody::Present(s.clone().into())
+                  }
                 }
             },
             Value::Null => OptionalBody::Null,
-            _ => OptionalBody::Present(v.to_string())
+            _ => OptionalBody::Present(v.to_string().into())
         },
         None => OptionalBody::Missing
     }
@@ -440,15 +444,18 @@ impl Request {
             match self.body {
                 OptionalBody::Present(ref body) => {
                     if self.content_type() == "application/json" {
-                        match serde_json::from_str(body) {
+                        match serde_json::from_slice(body) {
                             Ok(json_body) => { map.insert(s!("body"), json_body); },
                             Err(err) => {
                                 warn!("Failed to parse json body: {}", err);
-                                map.insert(s!("body"), Value::String(body.clone()));
+                                map.insert(s!("body"), Value::String(encode(body)));
                             }
                         }
                     } else {
-                        map.insert(s!("body"), Value::String(body.clone()));
+                      match str::from_utf8(body) {
+                        Ok(s) => map.insert(s!("body"), Value::String(s.to_string())),
+                        Err(_) => map.insert(s!("body"), Value::String(encode(body)))
+                      };
                     }
                 },
                 OptionalBody::Empty => { map.insert(s!("body"), Value::String(s!(""))); },
@@ -553,15 +560,18 @@ impl Response {
             match self.body {
                 OptionalBody::Present(ref body) => {
                     if self.content_type() == "application/json" {
-                        match serde_json::from_str(body) {
+                        match serde_json::from_slice(body) {
                             Ok(json_body) => { map.insert(s!("body"), json_body); },
                             Err(err) => {
                                 warn!("Failed to parse json body: {}", err);
-                                map.insert(s!("body"), Value::String(body.clone()));
+                                map.insert(s!("body"), Value::String(encode(body)));
                             }
                         }
                     } else {
-                        map.insert(s!("body"), Value::String(body.clone()));
+                      match str::from_utf8(body) {
+                        Ok(s) => map.insert(s!("body"), Value::String(s.to_string())),
+                        Err(_) => map.insert(s!("body"), Value::String(encode(body)))
+                      };
                     }
                 },
                 OptionalBody::Empty => { map.insert(s!("body"), Value::String(s!(""))); },

@@ -46,7 +46,7 @@ fn make_request(base_url: &String, request: &Request, client: &Client) -> Result
             let hyper_request = client.request(method, &url)
                 .headers(setup_headers(&request.headers.clone()));
             match request.body {
-                OptionalBody::Present(ref s) => hyper_request.body(s.as_str()),
+                OptionalBody::Present(ref s) => hyper_request.body(s.as_slice()),
                 OptionalBody::Null => {
                     if request.content_type() == "application/json" {
                         hyper_request.body("null")
@@ -70,8 +70,8 @@ fn extract_headers(headers: &Headers) -> Option<HashMap<String, String>> {
 }
 
 pub fn extract_body(response: &mut HyperResponse) -> OptionalBody {
-    let mut buffer = String::new();
-    match response.read_to_string(&mut buffer) {
+    let mut buffer = Vec::new();
+    match response.read_to_end(&mut buffer) {
         Ok(size) => if size > 0 {
                 OptionalBody::Present(buffer)
             } else {

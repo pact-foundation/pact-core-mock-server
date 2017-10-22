@@ -152,31 +152,31 @@ fn request_mimetype_is_based_on_the_content_type_header() {
         headers: Some(hashmap!{ s!("CONTENT-TYPE") => s!("application/json ; charset=UTF-8") }), .. request.clone() }.content_type())
         .to(be_equal_to("application/json"));
     expect!(Request {
-        body: OptionalBody::Present(s!("{\"json\": true}")), .. request.clone() }.content_type())
+        body: OptionalBody::Present("{\"json\": true}".into()), .. request.clone() }.content_type())
         .to(be_equal_to("application/json"));
     expect!(Request {
-        body: OptionalBody::Present(s!("{}")), .. request.clone() }.content_type())
+        body: OptionalBody::Present("{}".into()), .. request.clone() }.content_type())
         .to(be_equal_to("application/json"));
     expect!(Request {
-        body: OptionalBody::Present(s!("[]")), .. request.clone() }.content_type())
+        body: OptionalBody::Present("[]".into()), .. request.clone() }.content_type())
         .to(be_equal_to("application/json"));
     expect!(Request {
-        body: OptionalBody::Present(s!("[1,2,3]")), .. request.clone() }.content_type())
+        body: OptionalBody::Present("[1,2,3]".into()), .. request.clone() }.content_type())
         .to(be_equal_to("application/json"));
     expect!(Request {
-        body: OptionalBody::Present(s!("\"string\"")), .. request.clone() }.content_type())
+        body: OptionalBody::Present("\"string\"".into()), .. request.clone() }.content_type())
         .to(be_equal_to("application/json"));
     expect!(Request {
-        body: OptionalBody::Present(s!("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<json>false</json>")), .. request.clone() }.content_type())
+        body: OptionalBody::Present("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<json>false</json>".into()), .. request.clone() }.content_type())
         .to(be_equal_to("application/xml"));
     expect!(Request {
-        body: OptionalBody::Present(s!("<json>false</json>")), .. request.clone() }.content_type())
+        body: OptionalBody::Present("<json>false</json>".into()), .. request.clone() }.content_type())
         .to(be_equal_to("application/xml"));
     expect!(Request {
-        body: OptionalBody::Present(s!("this is not json")), .. request.clone() }.content_type())
+        body: OptionalBody::Present("this is not json".into()), .. request.clone() }.content_type())
         .to(be_equal_to("text/plain"));
     expect!(Request {
-        body: OptionalBody::Present(s!("<html><body>this is also not json</body></html>")), .. request.clone() }.content_type())
+        body: OptionalBody::Present("<html><body>this is also not json</body></html>".into()), .. request.clone() }.content_type())
         .to(be_equal_to("text/html"));
 }
 
@@ -371,7 +371,7 @@ fn load_basic_pact() {
     expect!(interaction.response).to(be_equal_to(Response {
         status: 200,
         headers: Some(hashmap!{ s!("Content-Type") => s!("text/html") }),
-        body: OptionalBody::Present(s!("\"That is some good Mallory.\"")),
+        body: OptionalBody::Present("\"That is some good Mallory.\"".into()),
         matching_rules: matchingrules!{}
     }));
     expect!(pact.specification_version).to(be_equal_to(PactSpecification::V2));
@@ -437,13 +437,13 @@ fn load_pact() {
         path: s!("/"),
         query: Some(hashmap!{ s!("q") => vec![s!("p"), s!("p2")], s!("r") => vec![s!("s")] }),
         headers: Some(hashmap!{ s!("testreqheader") => s!("testreqheadervalue") }),
-        body: OptionalBody::Present(s!("{\"test\":true}")),
+        body: OptionalBody::Present("{\"test\":true}".into()),
         matching_rules: matchingrules!{}
     }));
     expect!(interaction.response).to(be_equal_to(Response {
         status: 200,
         headers: Some(hashmap!{ s!("testreqheader") => s!("testreqheaderval") }),
-        body: OptionalBody::Present(s!("{\"responsetest\":true}")),
+        body: OptionalBody::Present("{\"responsetest\":true}".into()),
         matching_rules: matchingrules!{}
     }));
 }
@@ -501,7 +501,7 @@ fn load_pact_encoded_query_string() {
         query: Some(hashmap!{ s!("datetime") => vec![s!("2011-12-03T10:15:30+01:00")],
             s!("description") => vec![s!("hello world!")] }),
         headers: Some(hashmap!{ s!("testreqheader") => s!("testreqheadervalue") }),
-        body: OptionalBody::Present(s!("{\"test\":true}")),
+        body: OptionalBody::Present("{\"test\":true}".into()),
         matching_rules: matchingrules!{}
     }));
 }
@@ -593,7 +593,7 @@ fn request_to_json_with_headers() {
 fn request_to_json_with_json_body() {
     let request = Request { headers: Some(hashmap!{
         s!("Content-Type") => s!("application/json")
-    }), body: OptionalBody::Present(s!(r#"{"key": "value"}"#)), .. Request::default_request() };
+    }), body: OptionalBody::Present(r#"{"key": "value"}"#.into()), .. Request::default_request() };
     expect!(request.to_json().to_string()).to(
         be_equal_to(r#"{"body":{"key":"value"},"headers":{"Content-Type":"application/json"},"method":"GET","path":"/"}"#)
     );
@@ -603,7 +603,7 @@ fn request_to_json_with_json_body() {
 #[test]
 fn request_to_json_with_non_json_body() {
     let request = Request { headers: Some(hashmap!{ s!("Content-Type") => s!("text/plain") }),
-        body: OptionalBody::Present(s!("This is some text")), .. Request::default_request() };
+        body: OptionalBody::Present("This is some text".into()), .. Request::default_request() };
     expect!(request.to_json().to_string()).to(
         be_equal_to(r#"{"body":"This is some text","headers":{"Content-Type":"text/plain"},"method":"GET","path":"/"}"#)
     );
@@ -646,7 +646,7 @@ fn response_to_json_with_headers() {
 fn response_to_json_with_json_body() {
     let response = Response { headers: Some(hashmap!{
         s!("Content-Type") => s!("application/json")
-    }), body: OptionalBody::Present(s!(r#"{"key": "value"}"#)), .. Response::default_response() };
+    }), body: OptionalBody::Present(r#"{"key": "value"}"#.into()), .. Response::default_response() };
     expect!(response.to_json().to_string()).to(
         be_equal_to(r#"{"body":{"key":"value"},"headers":{"Content-Type":"application/json"},"status":200}"#)
     );
@@ -655,7 +655,7 @@ fn response_to_json_with_json_body() {
 #[test]
 fn response_to_json_with_non_json_body() {
     let response = Response { headers: Some(hashmap!{ s!("Content-Type") => s!("text/plain") }),
-        body: OptionalBody::Present(s!("This is some text")), .. Response::default_response() };
+        body: OptionalBody::Present("This is some text".into()), .. Response::default_response() };
     expect!(response.to_json().to_string()).to(
         be_equal_to(r#"{"body":"This is some text","headers":{"Content-Type":"text/plain"},"status":200}"#)
     );
@@ -1333,7 +1333,7 @@ fn body_from_json_returns_json_string_if_the_body_is_json_but_not_a_string() {
       }
      "#).unwrap();
     let body = body_from_json(&json, "body", &None);
-    expect!(body).to(be_equal_to(OptionalBody::Present(s!("{\"test\":true}"))));
+    expect!(body).to(be_equal_to(OptionalBody::Present("{\"test\":true}".into())));
 }
 
 #[test]
@@ -1361,7 +1361,7 @@ fn body_from_json_returns_the_body_if_the_body_is_a_string() {
       }
      "#).unwrap();
     let body = body_from_json(&json, "body", &None);
-    expect!(body).to(be_equal_to(OptionalBody::Present(s!("<?xml version=\"1.0\"?> <body></body>"))));
+    expect!(body).to(be_equal_to(OptionalBody::Present("<?xml version=\"1.0\"?> <body></body>".into())));
 }
 
 #[test]
@@ -1376,7 +1376,7 @@ fn body_from_json_returns_the_a_json_formatted_body_if_the_body_is_a_string_and_
      "#).unwrap();
     let headers = headers_from_json(&json);
     let body = body_from_json(&json, "body", &headers);
-    expect!(body).to(be_equal_to(OptionalBody::Present(s!("\"This is actually a JSON string\""))));
+    expect!(body).to(be_equal_to(OptionalBody::Present("\"This is actually a JSON string\"".into())));
 }
 
 #[test]
@@ -1391,5 +1391,5 @@ fn body_from_json_returns_the_body_if_the_content_type_is_json() {
      "#).unwrap();
     let headers = headers_from_json(&json);
     let body = body_from_json(&json, "body", &headers);
-    expect!(body).to(be_equal_to(OptionalBody::Present(s!("{\"test\":true}"))));
+    expect!(body).to(be_equal_to(OptionalBody::Present("{\"test\":true}".into())));
 }

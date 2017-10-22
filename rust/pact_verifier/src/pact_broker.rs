@@ -182,7 +182,7 @@ impl HALClient {
                 if response.status.is_success() {
                     if json_content_type(&response) {
                         match extract_body(&mut response) {
-                            OptionalBody::Present(body) => serde_json::from_str(&body)
+                            OptionalBody::Present(body) => serde_json::from_slice(&body)
                                     .map_err(|err| PactBrokerError::ContentError(format!("Did not get a valid HAL response body from pact broker path '{}' - {}: {}. URL: '{}'",
                                                                                          path, err.description(), err, self.url))),
                             _ => Err(PactBrokerError::ContentError(format!("Did not get a valid HAL response body from pact broker path '{}'. URL: '{}'",

@@ -337,10 +337,10 @@ extern crate semver;
 #[macro_use] extern crate itertools;
 extern crate rand;
 extern crate sxd_document;
-
 extern crate hyper;
 extern crate ansi_term;
 extern crate difference;
+extern crate base64;
 
 /// Simple macro to convert a string slice to a `String` struct.
 #[macro_export]
@@ -368,7 +368,7 @@ fn strip_whitespace<'a, T: FromIterator<&'a str>>(val: &'a String, split_by: &'a
 }
 
 lazy_static! {
-    static ref BODY_MATCHERS: [(Regex, fn(expected: &String, actual: &String, config: DiffConfig,
+    static ref BODY_MATCHERS: [(Regex, fn(expected: &Vec<u8>, actual: &Vec<u8>, config: DiffConfig,
             mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules)); 3] = [
         (Regex::new("application/.*json").unwrap(), json::match_json),
         (Regex::new("application/json.*").unwrap(), json::match_json),
@@ -438,9 +438,9 @@ pub enum Mismatch {
         /// path expression to where the mismatch occured
         path: String,
         /// expected value
-        expected: Option<String>,
+        expected: Option<Vec<u8>>,
         /// actual value
-        actual: Option<String>,
+        actual: Option<Vec<u8>>,
         /// description of the mismatch
         mismatch: String
     }
@@ -616,11 +616,11 @@ pub enum DiffConfig {
 }
 
 /// Matches the actual text body to the expected one.
-pub fn match_text(expected: &String, actual: &String, mismatches: &mut Vec<Mismatch>) {
+pub fn match_text(expected: &Vec<u8>, actual: &Vec<u8>, mismatches: &mut Vec<Mismatch>) {
     if expected != actual {
         mismatches.push(Mismatch::BodyMismatch { path: s!("/"), expected: Some(expected.clone()),
             actual: Some(actual.clone()),
-            mismatch: format!("Expected text '{}' but received '{}'", expected, actual) });
+            mismatch: format!("Expected text '{:?}' but received '{:?}'", expected, actual) });
     }
 }
 
@@ -856,7 +856,7 @@ pub fn match_headers(expected: Option<HashMap<String, String>>,
     };
 }
 
-fn compare_bodies(mimetype: String, expected: &String, actual: &String, config: DiffConfig,
+fn compare_bodies(mimetype: String, expected: &Vec<u8>, actual: &Vec<u8>, config: DiffConfig,
     mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
     match BODY_MATCHERS.iter().find(|mt| mt.0.is_match(&mimetype)) {
         Some(ref match_fn) => match_fn.1(expected, actual, config, mismatches, matchers),
@@ -870,19 +870,19 @@ fn match_body_content(content_type: String, expected: &models::OptionalBody, act
         (&models::OptionalBody::Missing, _) => (),
         (&models::OptionalBody::Null, &models::OptionalBody::Present(ref b)) => {
             mismatches.push(Mismatch::BodyMismatch { expected: None, actual: Some(b.clone()),
-                mismatch: format!("Expected empty body but received '{}'", b.clone()),
+                mismatch: format!("Expected empty body but received '{:?}'", b.clone()),
                 path: s!("/")});
         },
         (&models::OptionalBody::Empty, &models::OptionalBody::Present(ref b)) => {
             mismatches.push(Mismatch::BodyMismatch { expected: None, actual: Some(b.clone()),
-                mismatch: format!("Expected empty body but received '{}'", b.clone()),
+                mismatch: format!("Expected empty body but received '{:?}'", b.clone()),
                 path: s!("/")});
         },
         (&models::OptionalBody::Null, _) => (),
         (&models::OptionalBody::Empty, _) => (),
         (e, &models::OptionalBody::Missing) => {
             mismatches.push(Mismatch::BodyMismatch { expected: Some(e.value()), actual: None,
-                mismatch: format!("Expected body '{}' but was missing", e.value()),
+                mismatch: format!("Expected body '{:?}' but was missing", e.value()),
                 path: s!("/")});
         },
         (_, _) => {

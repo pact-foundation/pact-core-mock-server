@@ -153,7 +153,7 @@ mod tests {
             }
         }"#;
         let message = Message::from_json(0, &serde_json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
-        expect!(message.contents).to(be_equal_to("{\"hello\":\"world\"}"));
+        expect!(message.contents.str_value()).to(be_equal_to("{\"hello\":\"world\"}"));
     }
 
     #[test]
@@ -165,7 +165,7 @@ mod tests {
             }
         }"#;
         let message = Message::from_json(0, &serde_json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
-        expect!(message.contents).to(be_equal_to("hello world"));
+        expect!(message.contents.str_value()).to(be_equal_to("hello world"));
     }
 
     #[test]
@@ -177,7 +177,7 @@ mod tests {
             }
         }"#;
         let message = Message::from_json(0, &serde_json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
-        expect!(message.contents).to(be_equal_to(""));
+        expect!(message.contents.str_value()).to(be_equal_to(""));
     }
 
     #[test]

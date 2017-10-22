@@ -313,8 +313,8 @@ fn extract_headers(headers: &Headers) -> Option<HashMap<String, String>> {
 }
 
 fn extract_body(req: &mut hyper::server::Request) -> OptionalBody {
-    let mut buffer = String::new();
-    match req.read_to_string(&mut buffer) {
+    let mut buffer = Vec::new();
+    match req.read_to_end(&mut buffer) {
         Ok(size) => if size > 0 {
                 OptionalBody::Present(buffer)
             } else {
@@ -414,7 +414,7 @@ pub fn start_mock_server(id: String, pact: Pact, port: i32) -> Result<i32, Strin
                             }
                             match interaction.response.body {
                                 OptionalBody::Present(ref body) => {
-                                    res.send(body.as_bytes()).unwrap();
+                                    res.send(body).unwrap();
                                 },
                                 _ => ()
                             }
