@@ -5,8 +5,6 @@ use pact_mock_server::{
     iterate_mock_servers,
     lookup_mock_server,
     shutdown_mock_server,
-    set_first_port,
-    get_next_port,
     MockServer
 };
 use uuid::Uuid;
@@ -19,20 +17,41 @@ use webmachine_rust::*;
 use webmachine_rust::context::*;
 use webmachine_rust::headers::*;
 use clap::ArgMatches;
+use std::net::TcpListener;
 
 fn json_error(error: String) -> String {
     let json_response = json!({ s!("error") : json!(error) });
     json_response.to_string()
 }
 
-fn start_provider(context: &mut WebmachineContext) -> Result<bool, u16> {
+fn get_next_port(base_port: Option<u16>) -> u16 {
+  match base_port {
+    None => 0,
+    Some(p) => if p > 0 {
+      let mut port = p;
+      let mut listener = TcpListener::bind(("127.0.0.1", port));
+      while listener.is_err() && port < p + 1000 {
+        port += 1;
+        listener = TcpListener::bind(("127.0.0.1", port));
+      }
+      match listener {
+        Ok(listener) => listener.local_addr().unwrap().port(),
+        Err(_) => 0
+      }
+    } else {
+      0
+    }
+  }
+}
+
+fn start_provider(context: &mut WebmachineContext, base_port: Option<u16>) -> Result<bool, u16> {
     match context.request.body {
         Some(ref body) if !body.is_empty() => {
             match serde_json::from_str(body) {
                 Ok(ref json) => {
                     let pact = Pact::from_json(&context.request.request_path, json);
                     let mock_server_id = Uuid::new_v4().simple().to_string();
-                    match start_mock_server(mock_server_id.clone(), pact, get_next_port()) {
+                    match start_mock_server(mock_server_id.clone(), pact, get_next_port(base_port) as i32) {
                         Ok(mock_server) => {
                             let mock_server_json = json!({
                                 s!("id") : json!(mock_server_id.clone()),
@@ -92,7 +111,7 @@ pub fn verify_mock_server_request(context: &mut WebmachineContext, output_path: 
     }
 }
 
-fn main_resource() -> WebmachineResource {
+fn main_resource(base_port: Arc<Option<u16>>) -> WebmachineResource {
     WebmachineResource {
         allowed_methods: vec![s!("OPTIONS"), s!("GET"), s!("HEAD"), s!("POST")],
         resource_exists: Box::new(|context| context.request.request_path == "/"),
@@ -105,7 +124,7 @@ fn main_resource() -> WebmachineResource {
             let json_response = json!({ s!("mockServers") : json!(mock_servers) });
             Some(json_response.to_string())
         }),
-        process_post: Box::new(|context| start_provider(context)),
+        process_post: Box::new(move |context| start_provider(context, base_port.deref().clone())),
         .. WebmachineResource::default()
     }
 }
@@ -172,13 +191,15 @@ fn mock_server_resource(output_path: Arc<Option<String>>) -> WebmachineResource 
 }
 
 struct ServerHandler {
-    output_path: Arc<Option<String>>
+    output_path: Arc<Option<String>>,
+    base_port: Arc<Option<u16>>
 }
 
 impl ServerHandler {
-    fn new(output_path: Option<String>) -> ServerHandler {
+    fn new(output_path: Option<String>, base_port: Option<u16>) -> ServerHandler {
         ServerHandler {
-            output_path: Arc::new(output_path)
+            output_path: Arc::new(output_path),
+            base_port: Arc::new(base_port)
         }
     }
 }
@@ -188,7 +209,7 @@ impl Handler for ServerHandler {
     fn handle(&self, req: Request, res: Response) {
         let dispatcher = WebmachineDispatcher::new(
             btreemap!{
-                s!("/") => Arc::new(main_resource()),
+                s!("/") => Arc::new(main_resource(self.base_port.clone())),
                 s!("/mockserver") => Arc::new(mock_server_resource(self.output_path.clone()))
             }
         );
@@ -201,13 +222,11 @@ impl Handler for ServerHandler {
 
 pub fn start_server(port: u16, matches: &ArgMatches) -> Result<(), i32> {
     let output_path = matches.value_of("output").map(|s| s.to_owned());
-    if let Some(v) = matches.value_of("first-port") {
-        set_first_port(v.parse().unwrap())
-    }
+    let base_port = matches.value_of("base-port").map(|s| s.parse::<u16>().unwrap_or(0));
     match Server::http(format!("0.0.0.0:{}", port).as_str()) {
         Ok(mut server) => {
             server.keep_alive(None);
-            match server.handle(ServerHandler::new(output_path)) {
+            match server.handle(ServerHandler::new(output_path, base_port)) {
                 Ok(listener) => {
                     info!("Server started on port {}", listener.socket.port());
                     Ok(())
