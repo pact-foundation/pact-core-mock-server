@@ -3,8 +3,6 @@
 use pact_matching::models::matchingrules::{MatchingRule, Category, RuleLogic};
 use regex::Regex;
 use serde_json;
-#[cfg(test)]
-use std::collections::HashMap;
 use std::iter::repeat;
 use std::marker::PhantomData;
 

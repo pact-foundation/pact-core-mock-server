@@ -45,7 +45,6 @@
 
 #[macro_use] extern crate log;
 #[macro_use] extern crate p_macro;
-#[macro_use] extern crate maplit;
 #[macro_use] extern crate lazy_static;
 extern crate libc;
 #[macro_use] extern crate pact_matching;
@@ -54,6 +53,10 @@ extern crate env_logger;
 extern crate hyper;
 extern crate uuid;
 extern crate itertools;
+
+#[cfg(test)]
+#[macro_use]
+extern crate maplit;
 
 use libc::{c_char, int32_t};
 use std::ffi::CStr;

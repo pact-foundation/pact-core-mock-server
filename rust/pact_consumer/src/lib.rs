@@ -214,6 +214,7 @@
 extern crate env_logger;
 #[macro_use]
 extern crate lazy_static;
+#[cfg(test)]
 #[macro_use]
 extern crate maplit;
 #[macro_use]
@@ -227,9 +228,6 @@ extern crate serde_derive;
 extern crate serde_json;
 extern crate url;
 extern crate uuid;
-#[cfg(test)]
-#[macro_use]
-extern crate p_macro;
 
 // Child modules which define macros (must be first because macros are resolved)
 // in source inclusion order).

@@ -15,11 +15,11 @@
 //! ## Reading and writing Pact files
 //!
 //! The [`Pact`](models/struct.Pact.html) struct in the [`models`)(models/index.html) module has methods to read and write pact JSON files. It supports all the specification
-//! versions up to V2, but will converted a V1 and V1.1 spec file to a V2 format.
+//! versions up to V3, but will converted a V1 and V1.1 spec file to a V2 format.
 //!
 //! ## Matching request and response parts
 //!
-//! V2 specification matching is supported for both JSON and XML bodies, headers, query strings and request paths.
+//! V3 specification matching is supported for both JSON and XML bodies, headers, query strings and request paths.
 //!
 //! To understand the basic rules of matching, see [Matching Gotchas](https://github.com/realestate-com-au/pact/wiki/Matching-gotchas).
 //! For example test cases for matching, see the [Pact Specification Project, version 3](https://github.com/bethesque/pact-specification/tree/version-3).
@@ -41,7 +41,7 @@
 //! #### JSON body matching rules
 //!
 //! Bodies consist of Objects (Maps of Key-Value pairs), Arrays (Lists) and values (Strings, Numbers, true, false, null).
-//! Body matching rules are prefixed with `$.body`.
+//! Body matching rules are prefixed with `$`.
 //!
 //! The following method is used to determine if two bodies match:
 //!
@@ -96,7 +96,7 @@
 //! #### XML body matching rules
 //!
 //! Bodies consist of a root element, Elements (Lists with children), Attributes (Maps) and values (Strings).
-//! Body matching rules are prefixed with `$.body`.
+//! Body matching rules are prefixed with `$`.
 //!
 //! The following method is used to determine if two bodies match:
 //!
@@ -170,7 +170,7 @@
 //!
 //! Paths are matched by the following:
 //!
-//! 1. If there is a matcher defined for `$.path`, default to that matcher.
+//! 1. If there is a matcher defined for `path`, default to that matcher.
 //! 2. Otherwise paths are compared as Strings
 //!
 //! ### Matching Queries
@@ -195,7 +195,7 @@
 //!
 //! For matching header values:
 //!
-//! 1. If there is a matcher defined for `$.header.<HEADER_KEY>`, default to that matcher
+//! 1. If there is a matcher defined for `header.<HEADER_KEY>`, default to that matcher
 //! 2. Otherwise strip all whitespace after commas and compare the resulting strings.
 //!
 //! #### Matching Request Headers
@@ -227,11 +227,10 @@
 //!
 //! 1. All paths start with a dollar (`$`), representing the root.
 //! 2. All path elements are separated by periods (`.`), except array indices which use square brackets (`[]`).
-//! 3. The second element of the path is the http type that the matcher is applied to (e.g., `$.body` or `$.header`).
-//! 4. Path elements represent keys.
-//! 5. A star (`*`) can be used to match all keys of a map or all items of an array (one level only).
+//! 3. Path elements represent keys.
+//! 4. A star (`*`) can be used to match all keys of a map or all items of an array (one level only).
 //!
-//! So the expression `$.body.item1.level[2].id` will match the highlighted item in the following body:
+//! So the expression `$.item1.level[2].id` will match the highlighted item in the following body:
 //!
 //! ```js,ignore
 //! {
@@ -321,6 +320,7 @@
 //! | Type | `{ "match": "type" }` | This executes a type based match against the values, that is, they are equal if they are the same type. |
 //! | MinType | `{ "match": "type", "min": 2 }` | This executes a type based match against the values, that is, they are equal if they are the same type. In addition, if the values represent a collection, the length of the actual value is compared against the minimum. |
 //! | MaxType | `{ "match": "type", "max": 10 }` | This executes a type based match against the values, that is, they are equal if they are the same type. In addition, if the values represent a collection, the length of the actual value is compared against the maximum. |
+//! | MinMaxType | `{ "match": "type", "min": 1, "max": 10 }` | This executes a type based match against the values, that is, they are equal if they are the same type. In addition, if the values represent a collection, the length of the actual value is compared against the minimum and maximum. |
 //!
 
 #![warn(missing_docs)]

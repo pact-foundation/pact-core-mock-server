@@ -48,7 +48,6 @@ impl Pattern for StringPattern {
 fn string_pattern_is_pattern() {
     use env_logger;
     use regex::Regex;
-    use std::collections::HashMap;
 
     use super::special_rules::Term;
 
