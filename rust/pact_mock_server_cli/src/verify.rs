@@ -65,11 +65,10 @@ pub fn verify_mock_server(host: &str, port: u16, matches: &ArgMatches) -> Result
 }
 
 fn validate_port(id: u16) -> Result<MockServer, String> {
-    lookup_mock_server_by_port(id as i32, &|ref ms| {
+    lookup_mock_server_by_port(id, &|ref ms| {
         MockServer {
             id: ms.id.clone(),
             port: ms.port,
-            server: ms.server,
             matches: ms.matches.clone(),
             resources: vec![],
             pact: ms.pact.clone()
@@ -82,7 +81,6 @@ fn validate_uuid(id: &String) -> Result<MockServer, String> {
         MockServer {
             id: ms.id.clone(),
             port: ms.port,
-            server: ms.server,
             matches: ms.matches.clone(),
             resources: vec![],
             pact: ms.pact.clone()

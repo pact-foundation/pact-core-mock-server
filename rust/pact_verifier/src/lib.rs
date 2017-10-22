@@ -37,6 +37,7 @@ use ansi_term::Colour::*;
 use std::collections::HashMap;
 use provider_client::{make_provider_request, make_state_change_request};
 use regex::Regex;
+use serde_json::Value;
 
 /// Source for loading pacts
 #[derive(Debug, Clone)]
@@ -122,16 +123,19 @@ fn execute_state_change(provider_state: &ProviderState, provider: &ProviderInfo,
         Some(_) => {
             let mut state_change_request = Request { method: s!("POST"), .. Request::default_request() };
             if provider.state_change_body {
-              let json_body = json!({
+              let mut json_body = json!({
                   s!("state") : json!(provider_state.name.clone()),
                   s!("action") : json!(if setup {
                     s!("setup")
                   } else {
                     s!("teardown")
                   })
-              };
-              for (k, v) in provider_state.params.clone() {
-                json_body.insert(k, v);
+              });
+              {
+                let json_body_mut = json_body.as_object_mut().unwrap();
+                for (k, v) in provider_state.params.clone() {
+                  json_body_mut.insert(k, v);
+                }
               }
               state_change_request.body = OptionalBody::Present(json_body.to_string());
               state_change_request.headers = Some(hashmap!{ s!("Content-Type") => s!("application/json") });
@@ -144,7 +148,7 @@ fn execute_state_change(provider_state: &ProviderState, provider: &ProviderInfo,
               }
               for (k, v) in provider_state.params.clone() {
                 query.insert(k, vec![match v {
-                  Json::String(ref s) => s.clone(),
+                  Value::String(ref s) => s.clone(),
                   _ => v.to_string()
                 }]);
               }
@@ -481,9 +485,8 @@ mod tests {
   use super::{FilterInfo, filter_interaction, filter_consumers, execute_state_change, ProviderInfo};
   use pact_matching::models::*;
   use pact_matching::models::provider_states::*;
-  use pact_consumer::*;
+  use pact_consumer::prelude::*;
   use env_logger::*;
-  use rustc_serialize::json::Json;
 
     #[test]
     fn if_no_interaction_filter_is_defined_returns_true() {
@@ -595,65 +598,56 @@ mod tests {
   fn test_state_change_with_parameters() {
     init().unwrap_or(());
 
-    let body = OptionalBody::Present(s!("{\"A\":\"1\",\"B\":\"2\",\"action\":\"setup\",\"state\":\"TestState\"}"));
-    let pact_runner = ConsumerPactBuilder::consumer(s!("RustPactVerifier"))
-      .has_pact_with(s!("SomeRunningProvider"))
-      .upon_receiving(s!("a state change request"))
-        .method(s!("POST"))
-        .path(s!("/"))
-        .headers(hashmap!{ s!("Content-Type") => s!("application/json") })
-        .body(body)
-      .will_respond_with()
-        .status(200)
-      .build();
+    let server = PactBuilder::new("RustPactVerifier", "SomeRunningProvider")
+      .interaction("a state change request", |i| {
+        i.request.method("POST");
+        i.request.path("/");
+        i.request.header("Content-Type", "application/json");
+        i.request.body("{\"A\":\"1\",\"B\":\"2\",\"action\":\"setup\",\"state\":\"TestState\"}");
+        i.response.status(200);
+      })
+      .start_mock_server();
+
     let provider_state = ProviderState {
       name: s!("TestState"),
       params: hashmap!{
-        s!("A") => Json::String(s!("1")),
-        s!("B") => Json::String(s!("2"))
+        s!("A") => json!("1"),
+        s!("B") => json!("2")
       }
     };
-    let result = pact_runner.run(&|url| {
-      let provider = ProviderInfo { state_change_url: Some(url), .. ProviderInfo::default() };
-      let result = execute_state_change(&provider_state, &provider, true);
-      expect!(result.clone()).to(be_ok());
-      Ok(())
-    });
-    expect!(result).to(be_equal_to(VerificationResult::PactVerified));
+
+    let provider = ProviderInfo { state_change_url: Some(server.url().to_string()), .. ProviderInfo::default() };
+    let result = execute_state_change(&provider_state, &provider, true);
+    expect!(result.clone()).to(be_ok());
   }
 
   #[test]
   fn test_state_change_with_parameters_in_query() {
     init().unwrap_or(());
 
-    let pact_runner = ConsumerPactBuilder::consumer(s!("RustPactVerifier"))
-      .has_pact_with(s!("SomeRunningProvider"))
-      .upon_receiving(s!("a state change request with params in the query string"))
-        .method(s!("POST"))
-        .path(s!("/"))
-        .query(hashmap!{
-          s!("state") => vec![s!("TestState")],
-          s!("action") => vec![s!("setup")],
-          s!("A") => vec![s!("1")],
-          s!("B") => vec![s!("2")]
-        })
-      .will_respond_with()
-        .status(200)
-      .build();
+    let server = PactBuilder::new("RustPactVerifier", "SomeRunningProvider")
+      .interaction("a state change request with params in the query string", |i| {
+        i.request.method("POST");
+        i.request.path("/");
+        i.request.query_param("state", "TestState");
+        i.request.query_param("action", "setup");
+        i.request.query_param("A", "1");
+        i.request.query_param("B", "2");
+        i.response.status(200);
+      })
+      .start_mock_server();
+
     let provider_state = ProviderState {
       name: s!("TestState"),
       params: hashmap!{
-        s!("A") => Json::String(s!("1")),
-        s!("B") => Json::String(s!("2"))
+        s!("A") => json!("1"),
+        s!("B") => json!("2")
       }
     };
-    let result = pact_runner.run(&|url| {
-      let provider = ProviderInfo { state_change_url: Some(url), state_change_body: false,
-        .. ProviderInfo::default() };
-      let result = execute_state_change(&provider_state, &provider, true);
-      expect!(result.clone()).to(be_ok());
-      Ok(())
-    });
-    expect!(result).to(be_equal_to(VerificationResult::PactVerified));
+
+    let provider = ProviderInfo { state_change_url: Some(server.url().to_string()),
+      state_change_body: false, .. ProviderInfo::default() };
+    let result = execute_state_change(&provider_state, &provider, true);
+    expect!(result.clone()).to(be_ok());
   }
 }

@@ -34,5 +34,5 @@ fn basic_builder_example() {
     assert_eq!(pact.interactions.len(), 1);
     let interaction = &pact.interactions[0];
     assert_eq!(&interaction.description, "GET /greeting/hello");
-    assert_eq!(interaction.provider_state.as_ref().unwrap(), "a greeting named hello");
+    assert_eq!(interaction.provider_states[0].name, "a greeting named hello");
 }

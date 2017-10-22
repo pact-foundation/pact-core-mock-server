@@ -335,14 +335,16 @@ impl Category {
       .map(|(_, v, _)| v.clone())
   }
 
-  fn to_v3_json(&self) -> Value {
+  /// Returns a JSON Value representation in V3 format
+  pub fn to_v3_json(&self) -> Value {
     Value::Object(self.rules.iter().fold(serde_json::Map::new(), |mut map, (category, rulelist)| {
       map.insert(category.clone(), rulelist.to_v3_json());
       map
     }))
   }
 
-  fn to_v2_json(&self) -> HashMap<String, Value> {
+  /// Returns a JSON Value representation in V2 format
+  pub fn to_v2_json(&self) -> HashMap<String, Value> {
     let mut map = hashmap!{};
 
     if self.name == "body" {
@@ -494,7 +496,7 @@ impl MatchingRules {
     }
 
     fn add_rules(&mut self, category_name: &String, rules: &Value) {
-      let mut category = self.add_category(category_name);
+      let mut category = self.add_category(category_name.clone());
       if category_name == "path" {
         let rule_logic = match rules.get("combine") {
           Some(val) => if json_to_string(val).to_uppercase() == "OR" {
@@ -542,7 +544,7 @@ impl MatchingRules {
     }
 
   fn add_v2_rule(&mut self, category_name: String, sub_category: String, rule: &Value) {
-    let mut category = self.add_category(&category_name);
+    let mut category = self.add_category(category_name);
     category.rule_from_json(&sub_category, rule, &RuleLogic::And);
   }
 
@@ -612,7 +614,7 @@ macro_rules! matchingrules {
     }), * ) => {{
         let mut _rules = $crate::models::matchingrules::MatchingRules::default();
         $({
-            let mut _category = _rules.add_category(&$name.to_string());
+            let mut _category = _rules.add_category($name);
             $({
               $({
                 _category.add_rule(&$subname.to_string(), $matcher, &RuleLogic::And);

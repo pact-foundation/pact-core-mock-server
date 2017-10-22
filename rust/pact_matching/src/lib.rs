@@ -960,27 +960,6 @@ pub fn match_message(expected: models::message::Message, actual: models::message
     mismatches
 }
 
-/// Matches the actual message contents to the expected one. This takes into account the content type of each.
-pub fn match_message_contents(expected: &models::message::Message, actual: &models::message::Message, config: DiffConfig,
-    mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
-    if expected.mimetype() == actual.mimetype() {
-        match_body_content(expected.mimetype(), &expected.contents, &actual.contents, config, mismatches, matchers)
-    } else if expected.contents.is_present() {
-        mismatches.push(Mismatch::BodyTypeMismatch { expected: expected.mimetype(),
-            actual: actual.mimetype() });
-    }
-}
-
-/// Matches the actual and expected messages.
-pub fn match_message(expected: models::message::Message, actual: models::message::Message) -> Vec<Mismatch> {
-    let mut mismatches = vec![];
-
-    info!("comparing to expected message: {:?}", expected);
-    match_message_contents(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &expected.matching_rules);
-
-    mismatches
-}
-
 #[cfg(test)]
 #[macro_use(expect)]
 extern crate expectest;
