@@ -29,9 +29,10 @@ rand = "0.3.16"
 sxd-document = "0.2.4"
 ansi_term = "0.9.0"
 difference = "1.0.0"
-tokio-core = "0.1.9"
-futures = "0.1.14"
-hyper = "0.11.2"
+
+[dependencies.hyper]
+version = "0.9.7"
+default-features = false
 
 [dev-dependencies]
 quickcheck = "0.4.1"

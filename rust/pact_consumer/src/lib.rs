@@ -31,43 +31,43 @@
 //!
 //! ```toml
 //! [dev-dependencies]
-//! pact_consumer = "0.3.0"
+//! pact_consumer = "0.4.0"
 //! ```
 //!
-//! Then in your main module
+//! Then add the following to your top-level `lib.rs` or `main.rs` file:
 //!
-//! ```rust,ignore
+//! ```
 //! #[cfg(test)]
 //! #[macro_use]
 //! extern crate pact_consumer;
 //! ```
 //!
-//! You can now write a pact test using the consumer DSL.
+//! Once this is done, you can then write the following inside a function marked
+//! with `#[test]`:
 //!
-//! ```rust
-//! use pact_consumer::*;
-//! # fn main() { }
+//! ```
+//! # #[macro_use] extern crate pact_consumer;
+//! # fn main() {
+//! use pact_consumer::prelude::*;
 //!
-//! #[test]
-//! fn a_service_consumer_side_of_a_pact_goes_a_little_something_like_this() {
-//!
-//!     // Define the Pact for the test (you can setup multiple interactions by chaining the given or upon_receiving calls)
-//!     // Define the service consumer by name
-//!     let pact_runner = ConsumerPactBuilder::consumer(s!("Consumer"))
-//!         // Define the service provider that it has a pact with
-//!         .has_pact_with(s!("Alice Service"))
-//!         // defines a provider state. It is optional.
-//!         .given("there is some good mallory".to_string())
-//!         // upon_receiving starts a new interaction
-//!         .upon_receiving("a retrieve Mallory request".to_string())
-//!             // define the request, a GET (default) request to '/mallory'
-//!             .path(s!("/mallory"))
-//!         // define the response we want returned
-//!         .will_respond_with()
-//!             .status(200)
-//!             .headers(hashmap!{ s!("Content-Type") => s!("text/html") })
-//!             .body(OptionalBody::Present(s!("That is some good Mallory.")))
+//! // Define the Pact for the test, specify the names of the consuming
+//! // application and the provider application.
+//! let pact = PactBuilder::new("Consumer", "Alice Service")
+//!     // Start a new interaction. We can add as many interactions as we want.
+//!     .interaction("a retrieve Mallory request", |i| {
+//!         // Defines a provider state. It is optional.
+//!         i.given("there is some good mallory");
+//!         // Define the request, a GET (default) request to '/mallory'.
+//!         i.request.path("/mallory");
+//!         // Define the response we want returned. We assume a 200 OK
+//!         // response by default.
+//!         i.response
+//!             .content_type("text/plain")
+//!             .body("That is some good Mallory.");
+//!     })
 //!         .build();
+//! # }
+//! ```
 //!
 //! You can than use an HTTP client like `reqwest` to make requests against your
 //! server.

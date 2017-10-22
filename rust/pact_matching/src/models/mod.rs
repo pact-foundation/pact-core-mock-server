@@ -16,9 +16,7 @@ use std::fs::File;
 use std::path::Path;
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
-use futures::{Future, Stream};
-use hyper::Client;
-use tokio_core::reactor::Core;
+use hyper::client::Client;
 
 /// Version of the library
 pub const VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
@@ -986,24 +984,20 @@ impl Pact {
     }
 
     /// Reads the pact file from a URL and parses the resulting JSON into a `Pact` struct
-    pub fn from_url(url: &String) -> io::Result<Pact> {
-      let mut core = Core::new()?;
-      let client = Client::new(&core.handle());
-      let uri = url.parse().map_err(|err| Error::new(ErrorKind::Other, format!("{}", err)))?;
-      let work = client.get(uri).map_err(|err| Error::new(ErrorKind::Other, format!("{}", err))).and_then(|res| {
-        let status = res.status();
-        res.body().concat2().map_err(|err| Error::new(ErrorKind::Other, format!("{}", err))).and_then(move |body| {
-          if status.is_success() {
-            let json: serde_json::Value = serde_json::from_slice(&body)
-              .map_err(|err| Error::new(ErrorKind::Other, format!("Failed to parse JSON - {}", err)))?;
-            Ok(Pact::from_json(url, &json))
+    pub fn from_url(url: &String) -> Result<Pact, String> {
+        let client = Client::new();
+        match client.get(url).send() {
+            Ok(mut res) => if res.status.is_success() {
+                    let pact_json = serde_json::de::from_reader(&mut res);
+                    match pact_json {
+                        Ok(ref json) => Ok(Pact::from_json(url, json)),
+                        Err(err) => Err(format!("Failed to parse Pact JSON - {}", err))
+                    }
           } else {
-            let err_message = format!("Request failed with status - {}", status);
-            Err(Error::new(ErrorKind::Other, err_message))
+                    Err(format!("Request failed with status - {}", res.status))
+                },
+            Err(err) => Err(format!("Request failed - {}", err))
           }
-        })
-      });
-      core.run(work)
     }
 
     /// Writes this pact out to the provided file path. All directories in the path will

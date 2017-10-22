@@ -52,7 +52,6 @@ extern crate libc;
 #[macro_use] extern crate serde_json;
 extern crate env_logger;
 extern crate hyper;
-extern crate futures;
 extern crate uuid;
 extern crate itertools;
 
@@ -69,15 +68,15 @@ use std::collections::{BTreeMap, HashMap};
 use std::thread;
 use std::sync::Mutex;
 use std::sync::mpsc::channel;
-use std::io;
+use std::io::{self, Read, Write};
 use std::path::PathBuf;
-use hyper::StatusCode;
-use hyper::server::{Http, Service};
-use hyper::header::{Headers, ContentType, AccessControlAllowOrigin};
+use hyper::server::{Server, Listening};
+use hyper::status::StatusCode;
+use hyper::header::{Headers, ContentType, AccessControlAllowOrigin, ContentLength};
+use hyper::mime::{Mime, TopLevel, SubLevel, Attr, Value};
+use hyper::uri::RequestUri;
 use uuid::Uuid;
 use itertools::Itertools;
-use futures::future::Future;
-use futures::{Poll, Async, Stream};
 
 /// Enum to define a match result
 #[derive(Debug, Clone, PartialEq)]
@@ -147,7 +146,9 @@ pub struct MockServer {
     /// Mock server unique ID
     pub id: String,
     /// Port the mock server is running on
-    pub port: u16,
+    pub port: i32,
+    /// Address of the server implementing the `Listening` trait
+    pub server: u64,
     /// List of all match results for requests this mock server has received
     pub matches: Vec<MatchResult>,
     /// List of resources that need to be cleaned up when the mock server completes
@@ -159,13 +160,19 @@ pub struct MockServer {
 impl MockServer {
     /// Creates a new mock server with the given ID and pact
     pub fn new(id: String, pact: &Pact) -> MockServer {
-        MockServer { id: id.clone(), port: 0, matches: vec![], resources: vec![],
+        MockServer { id: id.clone(), port: -1, server: 0, matches: vec![], resources: vec![],
             pact : pact.clone() }
     }
 
     /// Sets the port that the mock server is listening on
-    pub fn port(&mut self, port: u16) {
+    pub fn port(&mut self, port: i32) {
         self.port = port;
+    }
+
+    /// Sets the address of the server implementing the `Listening` trait
+    pub fn server(&mut self, server: &Listening) {
+        let p = server as *const Listening;
+        self.server = p as u64;
     }
 
     /// Converts this mock server to a `Value` struct
@@ -235,84 +242,6 @@ impl PartialEq for MockServer {
     }
 }
 
-#[derive(Debug, Clone)]
-struct MockServerService {
-  /// Mock server unique ID
-  pub id: String,
-  /// Pact for the mock server
-  pub pact: Pact
-}
-
-impl Service for MockServerService {
-  type Request = hyper::server::Request;
-  type Response = hyper::server::Response;
-  type Error = hyper::Error;
-  type Future = futures::future::FutureResult<Self::Response, Self::Error>;
-
-  fn call(&self, hyper_req: Self::Request) -> Self::Future {
-    debug!("--> Hyper request to mock server {}", self.id);
-
-    match lookup_mock_server(self.id.clone(), &|_| ()) {
-      None => {
-        warn!("Mock server {} has been shutdown", self.id);
-        let mut res_headers = Headers::new();
-        res_headers.set_raw("X-Pact", "Mock server has been shut down");
-        futures::future::ok(
-          Self::Response::new()
-            .with_headers(res_headers)
-            .with_status(StatusCode::NotImplemented)
-        )
-      },
-      Some(_) => {
-        debug!("Creating pact request from hyper request");
-        let req = hyper_request_to_pact_request(hyper_req);
-        info!("Received request {:?}", req);
-        let match_result = match_request(&req, &self.pact.interactions);
-        record_result(&self.id, &match_result);
-        match match_result {
-          MatchResult::RequestMatch(ref interaction) => {
-            info!("Request matched, sending response {:?}", interaction.response);
-
-            let mut res_headers = Headers::new();
-            res_headers.set(AccessControlAllowOrigin::Any);
-            match interaction.response.headers {
-              Some(ref headers) => {
-                for (k, v) in headers.clone() {
-                  res_headers.set_raw(k, v);
-                }
-              },
-              None => ()
-            }
-
-            let mut response = Self::Response::new()
-              .with_headers(res_headers)
-              .with_status(StatusCode::try_from(interaction.response.status)
-                .unwrap_or(StatusCode::InternalServerError));
-            response = match interaction.response.body {
-              OptionalBody::Present(ref body) => response.with_body(body.clone()),
-              _ => response
-            };
-            futures::future::ok(response)
-          },
-          _ => {
-            let mut res_headers = Headers::new();
-            res_headers.set(AccessControlAllowOrigin::Any);
-            res_headers.set(ContentType::json());
-            res_headers.set_raw("X-Pact", match_result.match_key());
-            let body = error_body(&req, &match_result.match_key());
-            futures::future::ok(
-              Self::Response::new()
-                .with_headers(res_headers)
-                .with_status(StatusCode::InternalServerError)
-                .with_body(body)
-            )
-          }
-        }
-      }
-    }
-  }
-}
-
 lazy_static! {
     static ref MOCK_SERVERS: Mutex<BTreeMap<String, Box<MockServer>>> = Mutex::new(BTreeMap::new());
 }
@@ -347,9 +276,30 @@ fn method_or_path_mismatch(mismatches: &Vec<Mismatch>) -> bool {
     mismatch_types.contains(&s!("MethodMismatch")) || mismatch_types.contains(&s!("PathMismatch"))
 }
 
-fn extract_query_string(query: Option<&str>) -> Option<HashMap<String, Vec<String>>> {
-    match query {
-      Some(ref s) => parse_query_string(&s!(s)),
+fn extract_path(uri: &RequestUri) -> String {
+    match uri {
+        &RequestUri::AbsolutePath(ref s) => s!(s.splitn(2, "?").next().unwrap_or("/")),
+        &RequestUri::AbsoluteUri(ref url) => s!(url.path()),
+        _ => uri.to_string()
+    }
+}
+
+fn extract_query_string(uri: &RequestUri) -> Option<HashMap<String, Vec<String>>> {
+    match uri {
+        &RequestUri::AbsolutePath(ref s) => {
+            if s.contains("?") {
+                match s.splitn(2, "?").last() {
+                    Some(q) => parse_query_string(&s!(q)),
+                    None => None
+                }
+            } else {
+                None
+            }
+        },
+        &RequestUri::AbsoluteUri(ref url) => match url.query() {
+            Some(q) => parse_query_string(&s!(q)),
+            None => None
+        },
       _ => None
     }
 }
@@ -362,12 +312,13 @@ fn extract_headers(headers: &Headers) -> Option<HashMap<String, String>> {
     }
 }
 
-fn extract_body(req: hyper::server::Request) -> OptionalBody {
-    match req.body().concat2().wait() {
-      Ok(chunk) => if chunk.is_empty() {
+fn extract_body(req: &mut hyper::server::Request) -> OptionalBody {
+    let mut buffer = String::new();
+    match req.read_to_string(&mut buffer) {
+        Ok(size) => if size > 0 {
+                OptionalBody::Present(buffer)
+            } else {
         OptionalBody::Empty
-      } else {
-        OptionalBody::Present(chunk.iter().join(""))
       },
       Err(err) => {
       warn!("Failed to read request body: {}", err);
@@ -376,12 +327,12 @@ fn extract_body(req: hyper::server::Request) -> OptionalBody {
     }
 }
 
-fn hyper_request_to_pact_request(req: hyper::server::Request) -> Request {
+fn hyper_request_to_pact_request(req: &mut hyper::server::Request) -> Request {
     Request {
-        method: format!("{}", req.method()),
-        path: s!(req.path()),
-        query: extract_query_string(req.query()),
-        headers: extract_headers(&req.headers()),
+        method: req.method.to_string(),
+        path: extract_path(&req.uri),
+        query: extract_query_string(&req.uri),
+        headers: extract_headers(&req.headers),
         body: extract_body(req),
         matching_rules: MatchingRules::default()
     }
@@ -403,7 +354,7 @@ fn update_mock_server<R>(id: &String, f: &Fn(&mut MockServer) -> R) -> Option<R>
     }
 }
 
-fn update_mock_server_by_port<R>(port: u16, f: &Fn(&mut MockServer) -> R) -> Option<R> {
+fn update_mock_server_by_port<R>(port: i32, f: &Fn(&mut MockServer) -> R) -> Option<R> {
     let mut map = MOCK_SERVERS.lock().unwrap();
     match map.iter_mut().find(|ms| ms.1.port == port ) {
         Some(mock_server) => Some(f(mock_server.1)),
@@ -417,24 +368,6 @@ fn record_result(id: &String, match_result: &MatchResult) {
     });
 }
 
-#[derive(Debug, Clone)]
-struct CheckIfMockServerDone {
-  /// Mock server unique ID
-  pub id: String
-}
-
-impl Future for CheckIfMockServerDone {
-  type Item = ();
-  type Error = ();
-
-  fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-    match lookup_mock_server(self.id.clone(), &|_| ()) {
-      None => Ok(Async::Ready(())),
-      Some(_) => Ok(Async::NotReady)
-    }
-  }
-}
-
 /// Starts a mock server with the given ID, pact and port number. The ID needs to be unique. A port
 /// number of 0 will result in an auto-allocated port by the operating system. Returns the port
 /// that the mock server is running on wrapped in a `Result`.
@@ -444,56 +377,81 @@ impl Future for CheckIfMockServerDone {
 /// An error with a message will be returned in the following conditions:
 ///
 /// - If a mock server is not able to be started
-pub fn start_mock_server(id: String, pact: Pact, port: u16) -> Result<u16, String> {
+pub fn start_mock_server(id: String, pact: Pact, port: i32) -> Result<i32, String> {
     insert_new_mock_server(&id, &pact);
     let (out_tx, out_rx) = channel();
     let (in_tx, in_rx) = channel();
     in_tx.send((id.clone(), pact, port)).unwrap();
     thread::spawn(move || {
         let (mock_server_id, pact, port) = in_rx.recv().unwrap();
-        match format!("0.0.0.0:{}", port).parse() {
-          Ok(ref addr) => {
-            let mock_server_id_2 = mock_server_id.clone();
-            match Http::new().bind(addr, move || Ok(MockServerService{
-                id: mock_server_id_2.clone(),
-                pact: pact.clone()
-              })) {
-              Ok(server) => {
-                let server_addr = server.local_addr();
-                let server_result = server.run_until(CheckIfMockServerDone { id: mock_server_id.clone() });
-                match server_result {
-                  Ok(_) => {
-                    match server_addr {
-                      Ok(addr) => {
-                        info!("Mock Provider Server started on port {}", addr.port());
-                        update_mock_server(&id, &|mock_server| {
-                          mock_server.port(addr.port());
-                        });
-                        out_tx.send(Ok(addr.port())).unwrap();
-                      },
-                      Err(e) => {
-                        error!("Could not get the bound port of the server: {}", e);
-                        out_tx.send(Err(format!("Could not get the bound port of the server: {}", e))).unwrap();
-                      }
+        let server = Server::http(format!("0.0.0.0:{}", port).as_str()).unwrap();
+        let server_result = server.handle(move |mut req: hyper::server::Request, mut res: hyper::server::Response| {
+            debug!("--> Hyper request to mock server {}", mock_server_id);
+            match lookup_mock_server(mock_server_id.clone(), &|_| ()) {
+                None => {
+                    warn!("Mock server {} has been shutdown", mock_server_id);
+                    *res.status_mut() = StatusCode::NotImplemented;
+                    res.headers_mut().set_raw("X-Pact", vec!["Mock server has been shut down".as_bytes().to_vec()]);
+                },
+                Some(_) => {
+                    debug!("Creating pact request from hyper request");
+                    let req = hyper_request_to_pact_request(&mut req);
+                    info!("Received request {:?}", req);
+                    let match_result = match_request(&req, &pact.interactions);
+                    record_result(&mock_server_id, &match_result);
+                    match match_result {
+                        MatchResult::RequestMatch(ref interaction) => {
+                            info!("Request matched, sending response {:?}", interaction.response);
+                            *res.status_mut() = StatusCode::from_u16(interaction.response.status);
+                            res.headers_mut().set(AccessControlAllowOrigin::Any);
+                            match interaction.response.headers {
+                                Some(ref headers) => {
+                                    for (k, v) in headers.clone() {
+                                        res.headers_mut().set_raw(k, vec![v.into_bytes()]);
+                                    }
+                                },
+                                None => ()
+                            }
+                            match interaction.response.body {
+                                OptionalBody::Present(ref body) => {
+                                    res.send(body.as_bytes()).unwrap();
+                                },
+                                _ => ()
+                            }
+                        },
+                        _ => {
+                            *res.status_mut() = StatusCode::InternalServerError;
+                            res.headers_mut().set(
+                                ContentType(Mime(TopLevel::Application, SubLevel::Json,
+                                                 vec![(Attr::Charset, Value::Utf8)]))
+                            );
+                            res.headers_mut().set(AccessControlAllowOrigin::Any);
+                            res.headers_mut().set_raw("X-Pact", vec![match_result.match_key().as_bytes().to_vec()]);
+                            let body = error_body(&req, &match_result.match_key());
+                            res.headers_mut().set(ContentLength(body.as_bytes().len() as u64));
+                            let mut res = res.start().unwrap();
+                            res.write_all(body.as_bytes()).unwrap();
+                        }
                     }
+                }
+            }
+        });
+
+                match server_result {
+            Ok(ref server) => {
+                let port = server.socket.port() as i32;
+                info!("Mock Provider Server started on port {}", port);
+                        update_mock_server(&id, &|mock_server| {
+                    mock_server.port(port);
+                    mock_server.server(server);
+                        });
+                out_tx.send(Ok(port)).unwrap();
                   },
                   Err(e) => {
                     error!("Could not start server: {}", e);
                     out_tx.send(Err(format!("Could not start server: {}", e))).unwrap();
                   }
                 }
-              },
-              Err(err) => {
-                error!("Could not start server: {}", err);
-                out_tx.send(Err(format!("Could not start server: {}", err))).unwrap();
-              }
-            }
-          },
-          Err(err) => {
-            error!("Could not start server as the binding address is invalid: {}", err);
-            out_tx.send(Err(format!("Could not start server as the binding address is invalid: {}", err))).unwrap();
-          }
-        }
     });
 
     out_rx.recv().unwrap()
@@ -520,7 +478,7 @@ pub fn lookup_mock_server<R>(id: String, f: &Fn(&MockServer) -> R) -> Option<R> 
 /// Looks up the mock server by port number, and passes it into the given closure. The result of the
 /// closure is returned wrapped in an `Option`. If no mock server is found with that port number, `None`
 /// is returned.
-pub fn lookup_mock_server_by_port<R>(mock_server_port: u16, f: &Fn(&MockServer) -> R) -> Option<R> {
+pub fn lookup_mock_server_by_port<R>(mock_server_port: i32, f: &Fn(&MockServer) -> R) -> Option<R> {
     let map = MOCK_SERVERS.lock().unwrap();
     match map.iter().find(|ms| ms.1.port == mock_server_port ) {
         Some(mock_server) => Some(f(mock_server.1)),
@@ -538,11 +496,20 @@ pub fn iterate_mock_servers(f: &mut FnMut(&String, &MockServer)) {
 
 fn cleanup_mock_server_impl(mock_server: &mut MockServer) -> String {
     mock_server.resources.clear();
+    if mock_server.server > 0 {
+        let server_raw = mock_server.server as *mut Listening;
+        let mut server_ref = unsafe { &mut *server_raw };
+        server_ref.close().unwrap();
+    }
     mock_server.id.clone()
 }
 
 /// Shuts and cleans up the mock server with the given id. Returns true if a mock server was
 /// found, false otherwise.
+///
+/// **NOTE:** Although `close()` on the listerner for the mock server is called, this does not
+/// currently work and the listerner will continue handling requests. In this
+/// case, it will always return a 404 once the mock server has been cleaned up.
 pub fn shutdown_mock_server(id: &String) -> bool {
     debug!("Shutting down mock server with ID {}", id);
     let id_result = update_mock_server(id, &cleanup_mock_server_impl);
@@ -558,7 +525,11 @@ pub fn shutdown_mock_server(id: &String) -> bool {
 
 /// Shuts and cleans up the mock server with the given port. Returns true if a mock server was
 /// found, false otherwise.
-pub fn shutdown_mock_server_by_port(port: u16) -> bool {
+///
+/// **NOTE:** Although `close()` on the listerner for the mock server is called, this does not
+/// currently work and the listerner will continue handling requests. In this
+/// case, it will always return a 404 once the mock server has been cleaned up.
+pub fn shutdown_mock_server_by_port(port: i32) -> bool {
     debug!("Shutting down mock server with port {}", port);
     let id_result = update_mock_server_by_port(port, &cleanup_mock_server_impl);
 
@@ -604,7 +575,7 @@ pub extern fn create_mock_server(pact_str: *const c_char, port: int32_t) -> int3
         match result {
             Ok(pact_json) => {
                 let pact = Pact::from_json(&s!("<create_mock_server>"), &pact_json);
-                match start_mock_server(Uuid::new_v4().simple().to_string(), pact, port as u16) {
+                match start_mock_server(Uuid::new_v4().simple().to_string(), pact, port) {
                     Ok(mock_server) => mock_server as i32,
                     Err(msg) => {
                         error!("Could not start mock server: {}", msg);
@@ -635,7 +606,7 @@ pub extern fn create_mock_server(pact_str: *const c_char, port: int32_t) -> int3
 #[no_mangle]
 pub extern fn mock_server_matched(mock_server_port: int32_t) -> bool {
     let result = catch_unwind(|| {
-        lookup_mock_server_by_port(mock_server_port as u16, &|mock_server| {
+        lookup_mock_server_by_port(mock_server_port, &|mock_server| {
             mock_server.mismatches().is_empty()
         }).unwrap_or(false)
     });
@@ -665,7 +636,7 @@ pub extern fn mock_server_matched(mock_server_port: int32_t) -> bool {
 #[no_mangle]
 pub extern fn mock_server_mismatches(mock_server_port: int32_t) -> *mut c_char {
     let result = catch_unwind(|| {
-        let result = update_mock_server_by_port(mock_server_port as u16, &|ref mut mock_server| {
+        let result = update_mock_server_by_port(mock_server_port, &|ref mut mock_server| {
             let mismatches = mock_server.mismatches().iter()
                 .map(|mismatch| mismatch.to_json() )
                 .collect::<Vec<serde_json::Value>>();
@@ -700,7 +671,7 @@ pub extern fn mock_server_mismatches(mock_server_port: int32_t) -> *mut c_char {
 #[no_mangle]
 pub extern fn cleanup_mock_server(mock_server_port: int32_t) -> bool {
     let result = catch_unwind(|| {
-        shutdown_mock_server_by_port(mock_server_port as u16)
+        shutdown_mock_server_by_port(mock_server_port)
     });
 
     match result {
@@ -746,7 +717,7 @@ pub extern fn write_pact_file(mock_server_port: int32_t, directory: *const c_cha
             }
         };
 
-        lookup_mock_server_by_port(mock_server_port as u16, &|mock_server| {
+        lookup_mock_server_by_port(mock_server_port, &|mock_server| {
             match mock_server.write_pact(&dir) {
                 Ok(_) => 0,
                 Err(err) => {

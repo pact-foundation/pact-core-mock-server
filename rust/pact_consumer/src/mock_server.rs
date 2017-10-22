@@ -31,7 +31,7 @@ pub struct ValidatingMockServer {
     // A description of our mock server, for use in error messages.
     description: String,
     // The ID of our mock server.
-    port: u16,
+    port: i32,
     // The URL of our mock server.
     url: Url,
 }

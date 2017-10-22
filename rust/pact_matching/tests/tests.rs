@@ -144,7 +144,7 @@ fn test_load_test_pact_lowercase_method() {
                 expect!(pact_request.get("query")).to(be_equal_to(file_request.get("query")));
             }
 
-            expect!(pact.metadata.get("pact-specification").unwrap().get("version")).to(be_some().value("2.0.0"));
+            expect!(pact.metadata.get("pact-specification").unwrap().get("version")).to(be_some().value("3.0.0"));
             let metadata = pact_json.get("metadata").unwrap().as_object().unwrap();
             let expected_keys : Vec<String> = vec![s!("pact-jvm"), s!("pact-rust"), s!("pact-specification")];
             expect!(metadata.keys().cloned().collect::<Vec<String>>()).to(be_equal_to(expected_keys));
