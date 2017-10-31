@@ -5,38 +5,38 @@
 //! There are a number of exported functions using C bindings for controlling the mock server. These can be used in any
 //! language that supports C bindings.
 //!
-//! ## [create_mock_server](fn.create_mock_server.html)
+//! ## [create_mock_server_ffi](fn.create_mock_server_ffi.html)
 //!
 //! External interface to create a mock server. A pointer to the pact JSON as a C string is passed in,
 //! as well as the port for the mock server to run on. A value of 0 for the port will result in a
 //! port being allocated by the operating system. The port of the mock server is returned.
 //!
-//! ## [mock_server_matched](fn.mock_server_matched.html)
+//! ## [mock_server_matched_ffi](fn.mock_server_matched_ffi.html)
 //!
 //! Simple function that returns a boolean value given the port number of the mock service. This value will be true if all
 //! the expectations of the pact that the mock server was created with have been met. It will return false if any request did
 //! not match, an un-recognised request was received or an expected request was not received.
 //!
-//! ## [mock_server_mismatches](fn.mock_server_mismatches.html)
+//! ## [mock_server_mismatches_ffi](fn.mock_server_mismatches_ffi.html)
 //!
 //! This returns all the mismatches, un-expected requests and missing requests in JSON format, given the port number of the
 //! mock server.
 //!
 //! **IMPORTANT NOTE:** The JSON string for the result is allocated on the rust heap, and will have to be freed once the
-//! code using the mock server is complete. The [`cleanup_mock_server`](fn.cleanup_mock_server.html) function is provided for this purpose. If the mock
+//! code using the mock server is complete. The [`cleanup_mock_server_ffi`](fn.cleanup_mock_server_ffi.html) function is provided for this purpose. If the mock
 //! server is not cleaned up properly, this will result in memory leaks as the rust heap will not be reclaimed.
 //!
-//! ## [cleanup_mock_server](fn.cleanup_mock_server.html)
+//! ## [cleanup_mock_server_ffi](fn.cleanup_mock_server_ffi.html)
 //!
 //! This function will try terminate the mock server with the given port number and cleanup any memory allocated for it by
-//! the [`mock_server_mismatches`](fn.mock_server_mismatches.html) function. Returns `true`, unless a mock server with the given port number does not exist,
+//! the [`mock_server_mismatches_ffi`](fn.mock_server_mismatches_ffi.html) function. Returns `true`, unless a mock server with the given port number does not exist,
 //! or the function fails in some way.
 //!
 //! **NOTE:** Although `close()` on the listerner for the mock server is called, this does not currently work and the
 //! listerner will continue handling requests. In this case, it will always return a 501 once the mock server has been
 //! cleaned up.
 //!
-//! ## [write_pact_file](fn.write_pact_file.html)
+//! ## [write_pact_file_ffi](fn.write_pact_file_ffi.html)
 //!
 //! External interface to trigger a mock server to write out its pact file. This function should
 //! be called if all the consumer tests have passed. The directory to write the file to is passed
@@ -542,6 +542,34 @@ pub fn shutdown_mock_server_by_port(port: i32) -> bool {
     }
 }
 
+/// Mock server errors
+pub enum MockServerError {
+  /// Invalid Pact Json
+  InvalidPactJson,
+  /// Failed to start the mock server
+  MockServerFailedToStart
+}
+
+/// Creates a mock server. Requires the pact JSON as a string as well as the port for the mock
+/// server to run on. A value of 0 for the port will result in a
+/// port being allocated by the operating system. The port of the mock server is returned.
+pub fn create_mock_server(pact_json: &str, port: i32) -> Result<i32, MockServerError> {
+  match serde_json::from_str(pact_json) {
+    Ok(pact_json) => {
+      let pact = Pact::from_json(&s!("<create_mock_server>"), &pact_json);
+      start_mock_server(Uuid::new_v4().simple().to_string(), pact, port)
+        .map_err(|err| {
+          error!("Could not start mock server: {}", err);
+          MockServerError::MockServerFailedToStart
+        })
+    },
+    Err(err) => {
+      error!("Could not parse pact json: {}", err);
+      Err(MockServerError::InvalidPactJson)
+    }
+  }
+}
+
 /// External interface to create a mock server. A pointer to the pact JSON as a C string is passed in,
 /// as well as the port for the mock server to run on. A value of 0 for the port will result in a
 /// port being allocated by the operating system. The port of the mock server is returned.
@@ -555,10 +583,10 @@ pub fn shutdown_mock_server_by_port(port: i32) -> bool {
 /// | -1 | A null pointer was received |
 /// | -2 | The pact JSON could not be parsed |
 /// | -3 | The mock server could not be started |
-/// | -4 | The method paniced |
+/// | -4 | The method panicked |
 ///
 #[no_mangle]
-pub extern fn create_mock_server(pact_str: *const c_char, port: int32_t) -> int32_t {
+pub extern fn create_mock_server_ffi(pact_str: *const c_char, port: int32_t) -> int32_t {
     env_logger::init().unwrap_or(());
 
     let result = catch_unwind(|| {
@@ -570,23 +598,12 @@ pub extern fn create_mock_server(pact_str: *const c_char, port: int32_t) -> int3
             CStr::from_ptr(pact_str)
         };
 
-        let pact_json = str::from_utf8(c_str.to_bytes()).unwrap();
-        let result = serde_json::from_str(pact_json);
-        match result {
-            Ok(pact_json) => {
-                let pact = Pact::from_json(&s!("<create_mock_server>"), &pact_json);
-                match start_mock_server(Uuid::new_v4().simple().to_string(), pact, port) {
-                    Ok(mock_server) => mock_server as i32,
-                    Err(msg) => {
-                        error!("Could not start mock server: {}", msg);
-                        -3
-                    }
-                }
-            },
-            Err(err) => {
-                error!("Could not parse pact json: {}", err);
-                -2
-            }
+        match create_mock_server(str::from_utf8(c_str.to_bytes()).unwrap(), port) {
+          Ok(ms_port) => ms_port,
+          Err(err) => match err {
+            MockServerError::InvalidPactJson => -2,
+            MockServerError::MockServerFailedToStart => -3
+          }
         }
     });
 
