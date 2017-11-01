@@ -553,7 +553,7 @@ pub enum MockServerError {
 /// Creates a mock server. Requires the pact JSON as a string as well as the port for the mock
 /// server to run on. A value of 0 for the port will result in a
 /// port being allocated by the operating system. The port of the mock server is returned.
-pub fn create_mock_server(pact_json: &str, port: i32) -> Result<i32, MockServerError> {
+pub extern fn create_mock_server(pact_json: &str, port: i32) -> Result<i32, MockServerError> {
   match serde_json::from_str(pact_json) {
     Ok(pact_json) => {
       let pact = Pact::from_json(&s!("<create_mock_server>"), &pact_json);
@@ -616,16 +616,23 @@ pub extern fn create_mock_server_ffi(pact_str: *const c_char, port: int32_t) -> 
     }
 }
 
+/// Function to check if a mock server has matched all its requests. The port number is
+/// passed in, and if all requests have been matched, true is returned. False is returned if there
+/// is no mock server on the given port, or if any request has not been successfully matched.
+pub extern fn mock_server_matched(mock_server_port: i32) -> bool {
+  lookup_mock_server_by_port(mock_server_port, &|mock_server| {
+      mock_server.mismatches().is_empty()
+    }).unwrap_or(false)
+}
+
 /// External interface to check if a mock server has matched all its requests. The port number is
 /// passed in, and if all requests have been matched, true is returned. False is returned if there
 /// is no mock server on the given port, or if any request has not been successfully matched, or
 /// the method panics.
 #[no_mangle]
-pub extern fn mock_server_matched(mock_server_port: int32_t) -> bool {
+pub extern fn mock_server_matched_ffi(mock_server_port: int32_t) -> bool {
     let result = catch_unwind(|| {
-        lookup_mock_server_by_port(mock_server_port, &|mock_server| {
-            mock_server.mismatches().is_empty()
-        }).unwrap_or(false)
+      mock_server_matched(mock_server_port)
     });
 
     match result {
@@ -635,6 +642,20 @@ pub extern fn mock_server_matched(mock_server_port: int32_t) -> bool {
             false
         }
     }
+}
+
+/// Gets all the mismatches from a mock server. The port number of the mock
+/// server is passed in, and the results are returned in JSON format.
+///
+/// If there is no mock server with the provided port number, `None` is returned.
+///
+pub extern fn mock_server_mismatches(mock_server_port: i32) -> Option<serde_json::Value> {
+  lookup_mock_server_by_port(mock_server_port, &|mock_server| {
+    let mismatches = mock_server.mismatches().iter()
+      .map(|mismatch| mismatch.to_json() )
+      .collect::<Vec<serde_json::Value>>();
+    json!(mismatches)
+  })
 }
 
 /// External interface to get all the mismatches from a mock server. The port number of the mock
@@ -651,7 +672,7 @@ pub extern fn mock_server_matched(mock_server_port: int32_t) -> bool {
 /// pointer will be returned. Don't try to dereference it, it will not end well for you.
 ///
 #[no_mangle]
-pub extern fn mock_server_mismatches(mock_server_port: int32_t) -> *mut c_char {
+pub extern fn mock_server_mismatches_ffi(mock_server_port: int32_t) -> *mut c_char {
     let result = catch_unwind(|| {
         let result = update_mock_server_by_port(mock_server_port, &|ref mut mock_server| {
             let mismatches = mock_server.mismatches().iter()
@@ -686,7 +707,7 @@ pub extern fn mock_server_mismatches(mock_server_port: int32_t) -> *mut c_char {
 /// currently work and the listerner will continue handling requests. In this
 /// case, it will always return a 404 once the mock server has been cleaned up.
 #[no_mangle]
-pub extern fn cleanup_mock_server(mock_server_port: int32_t) -> bool {
+pub extern fn cleanup_mock_server_ffi(mock_server_port: int32_t) -> bool {
     let result = catch_unwind(|| {
         shutdown_mock_server_by_port(mock_server_port)
     });
@@ -697,6 +718,37 @@ pub extern fn cleanup_mock_server(mock_server_port: int32_t) -> bool {
             error!("Caught a general panic: {:?}", cause);
             false
         }
+    }
+}
+
+/// Write Pact File Errors
+pub enum WritePactFileErr {
+  /// IO Error occured
+  IOError,
+  /// No mock server was running on the port
+  NoMockServer
+}
+
+/// Trigger a mock server to write out its pact file. This function should
+/// be called if all the consumer tests have passed. The directory to write the file to is passed
+/// as the second parameter. If `None` is passed in, the current working directory is used.
+///
+/// Returns `Ok` if the pact file was successfully written. Returns an `Err` if the file can
+/// not be written, or there is no mock server running on that port.
+pub extern fn write_pact_file(mock_server_port: i32, directory: Option<String>) -> Result<(), WritePactFileErr> {
+    match lookup_mock_server_by_port(mock_server_port, &|mock_server| {
+        mock_server.write_pact(&directory)
+          .map(|_| ())
+          .map_err(|err| {
+            error!("Failed to write pact to file - {}", err);
+            WritePactFileErr::IOError
+          })
+    }) {
+      Some(result) => result,
+      None => {
+        error!("No mock server running on port {}", mock_server_port);
+        Err(WritePactFileErr::NoMockServer)
+      }
     }
 }
 
@@ -717,41 +769,39 @@ pub extern fn cleanup_mock_server(mock_server_port: int32_t) -> bool {
 /// | 2 | The pact file was not able to be written |
 /// | 3 | A mock server with the provided port was not found |
 #[no_mangle]
-pub extern fn write_pact_file(mock_server_port: int32_t, directory: *const c_char) -> int32_t {
-    let result = catch_unwind(|| {
-        let dir = unsafe {
-            if directory.is_null() {
-                warn!("Directory to write to is NULL, defaulting to the current working directory");
-                None
-            } else {
-                let c_str = CStr::from_ptr(directory);
-                let dir_str = str::from_utf8(c_str.to_bytes()).unwrap();
-                if dir_str.is_empty() {
-                    None
-                } else {
-                    Some(s!(dir_str))
-                }
-            }
-        };
-
-        lookup_mock_server_by_port(mock_server_port, &|mock_server| {
-            match mock_server.write_pact(&dir) {
-                Ok(_) => 0,
-                Err(err) => {
-                    error!("Failed to write pact to file - {}", err);
-                    2
-                }
-            }
-        }).unwrap_or(3)
-    });
-
-    match result {
-        Ok(val) => val,
-        Err(cause) => {
-            error!("Caught a general panic: {:?}", cause);
-            1
+pub extern fn write_pact_file_ffi(mock_server_port: int32_t, directory: *const c_char) -> int32_t {
+  let result = catch_unwind(|| {
+    let dir = unsafe {
+      if directory.is_null() {
+        warn!("Directory to write to is NULL, defaulting to the current working directory");
+        None
+      } else {
+        let c_str = CStr::from_ptr(directory);
+        let dir_str = str::from_utf8(c_str.to_bytes()).unwrap();
+        if dir_str.is_empty() {
+          None
+        } else {
+          Some(s!(dir_str))
         }
+      }
+    };
+
+    write_pact_file(mock_server_port, dir)
+  });
+
+  match result {
+    Ok(val) => match val {
+      Ok(_) => 0,
+      Err(err) => match err {
+        WritePactFileErr::IOError => 2,
+        WritePactFileErr::NoMockServer => 3
+      }
+    },
+    Err(cause) => {
+      error!("Caught a general panic: {:?}", cause);
+      1
     }
+  }
 }
 
 #[cfg(test)]
