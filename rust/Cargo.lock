@@ -617,7 +617,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "pact_consumer"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "env_logger 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "expectest 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -723,7 +723,7 @@ dependencies = [
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "maplit 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "p-macro 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pact_consumer 0.3.1",
+ "pact_consumer 0.3.2",
  "pact_matching 0.3.2",
  "quickcheck 0.2.27 (registry+https://github.com/rust-lang/crates.io-index)",
  "regex 0.1.80 (registry+https://github.com/rust-lang/crates.io-index)",
