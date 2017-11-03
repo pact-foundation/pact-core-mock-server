@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.3.1 - Bugfixes plus changes for running with docker
+
+* cdf01f3 - Add a docker file for the pact mock server cli (Ronald Holshausen, Fri Nov 3 11:51:01 2017 +1100)
+* a56b6a6 - Change the column heading to verification state in the mock server list output #24 (Ronald Holshausen, Sun Oct 22 15:15:30 2017 +1100)
+* 814fe12 - Modify AssafKatz3's implementation to scan for next available port from a base port number #15 (Ronald Holshausen, Sun Oct 22 14:40:13 2017 +1100)
+* 37abe19 - Pulled in changes from https://github.com/AssafKatz3/pact-reference.git #14 (Assaf Katz, Mon Sep 25 12:28:17 2017 +0300)
+* 9cda328 - bump version to 0.3.1 (Ronald Holshausen, Fri Oct 20 11:01:04 2017 +1100)
+
 # 0.3.0 - Backported the matching rules from the V3 branch
 
 * c8595cc - Correct the paths in the release scripts for pact_mock_server_cli (Ronald Holshausen, Fri Oct 20 10:48:03 2017 +1100)
