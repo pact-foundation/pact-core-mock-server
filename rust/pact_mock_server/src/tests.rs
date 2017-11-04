@@ -90,11 +90,11 @@ fn match_request_returns_request_not_found_if_method_or_path_do_not_match() {
 #[test]
 fn match_request_returns_the_most_appropriate_mismatch_for_multiple_requests() {
     let request = Request { method: s!("GET"), path: s!("/"), query: None,
-        headers: None, body: OptionalBody::Present(s!("This is a body")),
+        headers: None, body: OptionalBody::Present("This is a body".into()),
       matching_rules: MatchingRules::default() };
     let request2 = Request { method: s!("GET"), path: s!("/"), query: Some(hashmap!{
         s!("QueryA") => vec![s!("Value A")]
-        }), headers: None, body: OptionalBody::Present(s!("This is a body")),
+        }), headers: None, body: OptionalBody::Present("This is a body".into()),
       matching_rules: MatchingRules::default() };
     let request3 = Request { method: s!("GET"), path: s!("/"), query: Some(hashmap!{
         s!("QueryA") => vec![s!("Value A")]
@@ -108,7 +108,7 @@ fn match_request_returns_the_most_appropriate_mismatch_for_multiple_requests() {
     let interactions = vec![interaction.clone(), interaction2.clone()];
     let result = match_request(&request3, &interactions);
     expect!(result).to(be_equal_to(MatchResult::RequestMismatch(interaction2,
-        vec![Mismatch::BodyMismatch { path: s!("/"), expected: Some(s!("This is a body")), actual: None,
+        vec![Mismatch::BodyMismatch { path: s!("/"), expected: Some("This is a body".into()), actual: None,
         mismatch: s!("Expected body \'This is a body\' but was missing") }])));
 }
 
@@ -116,24 +116,24 @@ fn match_request_returns_the_most_appropriate_mismatch_for_multiple_requests() {
 fn match_request_supports_v2_matchers() {
     let request = Request { method: s!("GET"), path: s!("/"), query: None,
         headers: Some(hashmap!{ s!("Content-Type") => s!("application/json") }), body: OptionalBody::Present(
-            s!(r#"
+            r#"
             {
                 "a": 100,
                 "b": "one hundred"
             }
-            "#)
+            "#.into()
         ), matching_rules: MatchingRules::default() };
     let response = Response { status: 200, headers: None, body: OptionalBody::Missing,
       matching_rules: MatchingRules::default() };
     let expected_request = Request { method: s!("GET"), path: s!("/"), query: None,
         headers: Some(hashmap!{ s!("Content-Type") => s!("application/json") }),
         body: OptionalBody::Present(
-            s!(r#"
+            r#"
             {
                 "a": 1000,
                 "b": "One Thousand"
             }
-            "#)
+            "#.into()
         ), matching_rules: matchingrules!{
           "body" => {
             "$.*" => [ MatchingRule::Type ]
@@ -150,18 +150,18 @@ fn match_request_supports_v2_matchers() {
 fn match_request_supports_v2_matchers_with_xml() {
     let request = Request { method: s!("GET"), path: s!("/"), query: None,
         headers: Some(hashmap!{ s!("Content-Type") => s!("application/xml") }), body: OptionalBody::Present(
-            s!(r#"<?xml version="1.0" encoding="UTF-8"?>
+            r#"<?xml version="1.0" encoding="UTF-8"?>
             <foo>hello<bar/>world</foo>
-            "#)
+            "#.into()
         ), matching_rules: MatchingRules::default() };
     let response = Response { status: 200, headers: None, body: OptionalBody::Missing,
       matching_rules: MatchingRules::default() };
     let expected_request = Request { method: s!("GET"), path: s!("/"), query: None,
         headers: Some(hashmap!{ s!("Content-Type") => s!("application/xml") }),
         body: OptionalBody::Present(
-            s!(r#"<?xml version="1.0" encoding="UTF-8"?>
+            r#"<?xml version="1.0" encoding="UTF-8"?>
             <foo>hello<bar/>mars </foo>
-            "#)
+            "#.into()
         ), matching_rules: matchingrules!{
           "body" => {
             "$.foo['#text']" => [ MatchingRule::Regex(s!("[a-z]+")) ]

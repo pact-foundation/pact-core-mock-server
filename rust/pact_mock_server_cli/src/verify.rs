@@ -103,7 +103,6 @@ fn display_verification_errors(id: &str, port: u64, json: &serde_json::Value) {
     println!("Mock server {}/{} failed verification with {} errors\n", id, port, mismatches.len());
 
     for (i, mismatch) in mismatches.iter().enumerate() {
-//        mismatch.get("type").unwrap().to_string().fpp();
         match mismatch.get("type").unwrap().to_string().as_ref() {
             "missing-request" => {
                 let request = mismatch.get("request").unwrap();

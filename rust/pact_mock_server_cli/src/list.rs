@@ -2,7 +2,17 @@ use clap::ArgMatches;
 use hyper::Client;
 use hyper::Url;
 use std::io::prelude::*;
-use serde_json;
+use serde_json::{self, Value};
+
+fn json2string(json: Option<&Value>) -> String {
+  match json {
+    Some(v) => match v {
+      &Value::String(ref s) => s.clone(),
+      _ => v.to_string()
+    },
+    None => String::new()
+  }
+}
 
 pub fn list_mock_servers(host: &str, port: u16, matches: &ArgMatches) -> Result<(), i32> {
     let client = Client::new();
@@ -29,13 +39,13 @@ pub fn list_mock_servers(host: &str, port: u16, matches: &ArgMatches) -> Result<
                         });
 
                         println!("{0:32}  {1:5}  {2:3$}  {4}", "Mock Server Id", "Port",
-                            "Provider", provider_len, "Status");
+                            "Provider", provider_len, "Verification State");
                         for ms in mock_servers {
-                            let id = ms.get("id").unwrap().to_string();
-                            let port = ms.get("port").unwrap();
-                            let provider = ms.get("provider").unwrap().to_string();
-                            let status = ms.get("status").unwrap().to_string();
-                            println!("{0}  {1}  {2:3$}  {4}", id, port, provider, provider_len, status);
+                            let id = json2string(ms.get("id"));
+                            let port = json2string(ms.get("port"));
+                            let provider = json2string(ms.get("provider"));
+                            let status = json2string(ms.get("status"));
+                            println!("{0}  {1}   {2:3$}  {4}", id, port, provider, provider_len, status);
                         };
                         Ok(())
                     },

@@ -137,7 +137,7 @@ fn execute_state_change(provider_state: &ProviderState, provider: &ProviderInfo,
                   json_body_mut.insert(k, v);
                 }
               }
-              state_change_request.body = OptionalBody::Present(json_body.to_string());
+              state_change_request.body = OptionalBody::Present(json_body.to_string().into());
               state_change_request.headers = Some(hashmap!{ s!("Content-Type") => s!("application/json") });
             } else {
               let mut query = hashmap!{ s!("state") => vec![provider_state.name.clone()] };
@@ -223,8 +223,8 @@ fn walkdir(dir: &Path) -> io::Result<Vec<io::Result<Pact>>> {
 
 fn display_body_mismatch(expected: &Response, actual: &Response, path: &String) {
     match expected.content_type_enum() {
-        DetectedContentType::Json => println!("{}", pact_matching::json::display_diff(&expected.body.value(),
-            &actual.body.value(), path)),
+        DetectedContentType::Json => println!("{}", pact_matching::json::display_diff(&expected.body.str_value().to_string(),
+            &actual.body.str_value().to_string(), path)),
         _ => ()
     }
 }

@@ -102,7 +102,7 @@ pub trait HttpPartBuilder {
         let body = body.into();
         {
             let (body_ref, _) = self.body_and_matching_rules_mut();
-            *body_ref = OptionalBody::Present(body);
+            *body_ref = OptionalBody::Present(body.into());
         }
         self
     }
@@ -127,7 +127,7 @@ pub trait HttpPartBuilder {
         let body = body.into();
         {
             let (body_ref, rules) = self.body_and_matching_rules_mut();
-            *body_ref = OptionalBody::Present(body.to_example().to_string());
+            *body_ref = OptionalBody::Present(body.to_example().to_string().into());
             body.extract_matching_rules("$", rules.add_category("body"));
         }
         self
