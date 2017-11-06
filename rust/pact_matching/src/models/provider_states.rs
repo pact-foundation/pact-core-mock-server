@@ -81,7 +81,7 @@ impl ProviderState {
             "name": Value::String(self.name.clone())
         });
         if !self.params.is_empty() {
-            let mut map = value.as_object_mut().unwrap();
+            let map = value.as_object_mut().unwrap();
             map.insert(s!("params"), Value::Object(
                 self.params.iter().map(|(k, v)| (k.clone(), v.clone())).collect()));
         }

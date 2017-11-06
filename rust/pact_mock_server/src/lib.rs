@@ -70,6 +70,7 @@ use std::panic::catch_unwind;
 use pact_matching::models::{Pact, Interaction, Request, OptionalBody, PactSpecification};
 use pact_matching::models::parse_query_string;
 use pact_matching::models::matchingrules::*;
+use pact_matching::models::generators::*;
 use pact_matching::Mismatch;
 use std::collections::{BTreeMap, HashMap};
 use std::thread;
@@ -336,7 +337,8 @@ fn hyper_request_to_pact_request(req: &mut hyper::server::Request) -> Request {
         query: extract_query_string(&req.uri),
         headers: extract_headers(&req.headers),
         body: extract_body(req),
-        matching_rules: MatchingRules::default()
+        matching_rules: MatchingRules::default(),
+        generators: Generators::default()
     }
 }
 
@@ -403,10 +405,11 @@ pub fn start_mock_server(id: String, pact: Pact, port: i32) -> Result<i32, Strin
                     record_result(&mock_server_id, &match_result);
                     match match_result {
                         MatchResult::RequestMatch(ref interaction) => {
-                            info!("Request matched, sending response {:?}", interaction.response);
-                            *res.status_mut() = StatusCode::from_u16(interaction.response.status);
+                            let response = pact_matching::generate_response(interaction.response.clone());
+                            info!("Request matched, sending response {:?}", response);
+                            *res.status_mut() = StatusCode::from_u16(response.status);
                             res.headers_mut().set(AccessControlAllowOrigin::Any);
-                            match interaction.response.headers {
+                            match response.headers {
                                 Some(ref headers) => {
                                     for (k, v) in headers.clone() {
                                         res.headers_mut().set_raw(k, vec![v.into_bytes()]);
@@ -414,7 +417,7 @@ pub fn start_mock_server(id: String, pact: Pact, port: i32) -> Result<i32, Strin
                                 },
                                 None => ()
                             }
-                            match interaction.response.body {
+                            match response.body {
                                 OptionalBody::Present(ref body) => {
                                     res.send(body).unwrap();
                                 },

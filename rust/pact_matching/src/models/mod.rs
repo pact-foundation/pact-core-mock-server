@@ -222,6 +222,7 @@ pub enum DifferenceType {
 }
 
 #[macro_use] pub mod matchingrules;
+#[macro_use] pub mod generators;
 
 /// Trait to specify an HTTP part of a message. It encapsulates the shared parts of a request and
 /// response.
@@ -232,8 +233,10 @@ pub trait HttpPart {
     fn body(&self) -> &OptionalBody;
     /// Returns the matching rules of the HTTP part.
     fn matching_rules(&self) -> &matchingrules::MatchingRules;
+    /// Returns the generators of the HTTP part.
+    fn generators(&self) -> &generators::Generators;
 
-    /// Determins the content type of the HTTP part. If a `Content-Type` header is present, the
+    /// Determine the content type of the HTTP part. If a `Content-Type` header is present, the
     /// value of that header will be returned. Otherwise, the body will be inspected.
     fn content_type(&self) -> String {
         match *self.headers() {
@@ -301,7 +304,9 @@ pub struct Request {
     /// Request body
     pub body: OptionalBody,
     /// Request matching rules
-    pub matching_rules: matchingrules::MatchingRules
+    pub matching_rules: matchingrules::MatchingRules,
+    /// Request generators
+    pub generators: generators::Generators
 }
 
 impl HttpPart for Request {
@@ -315,6 +320,10 @@ impl HttpPart for Request {
 
     fn matching_rules(&self) -> &matchingrules::MatchingRules {
         &self.matching_rules
+    }
+
+    fn generators(&self) -> &generators::Generators {
+      &self.generators
     }
 }
 
@@ -336,6 +345,7 @@ impl Hash for Request {
         }
         self.body.hash(state);
         self.matching_rules.hash(state);
+        self.generators.hash(state);
     }
 }
 
@@ -487,7 +497,8 @@ impl Request {
             query: query_val,
             headers: headers.clone(),
             body: body_from_json(request_json, "body", &headers),
-            matching_rules: matchingrules::matchers_from_json(request_json, &Some(s!("requestMatchingRules")))
+            matching_rules: matchingrules::matchers_from_json(request_json, &Some(s!("requestMatchingRules"))),
+            generators: generators::generators_from_json(request_json)
         }
     }
 
@@ -498,7 +509,7 @@ impl Request {
             s!("path") : Value::String(self.path.clone())
         });
         {
-            let mut map = json.as_object_mut().unwrap();
+            let map = json.as_object_mut().unwrap();
             if self.query.is_some() {
                 map.insert(s!("query"), query_to_json(self.query.clone().unwrap(), spec_version));
             }
@@ -530,6 +541,10 @@ impl Request {
                 map.insert(s!("matchingRules"), matchingrules::matchers_to_json(
                 &self.matching_rules.clone(), spec_version));
             }
+            if self.generators.is_not_empty() {
+              map.insert(s!("generators"), generators::generators_to_json(
+                &self.generators.clone(), spec_version));
+            }
         }
         json
     }
@@ -542,7 +557,8 @@ impl Request {
             query: None,
             headers: None,
             body: OptionalBody::Missing,
-            matching_rules: matchingrules::MatchingRules::default()
+            matching_rules: matchingrules::MatchingRules::default(),
+            generators: generators::Generators::default()
         }
     }
 
@@ -581,7 +597,9 @@ pub struct Response {
     /// Response body
     pub body: OptionalBody,
     /// Response matching rules
-    pub matching_rules: matchingrules::MatchingRules
+    pub matching_rules: matchingrules::MatchingRules,
+    /// Response generators
+    pub generators: generators::Generators
 }
 
 impl Response {
@@ -597,7 +615,8 @@ impl Response {
             status: status_val,
             headers: headers.clone(),
             body: body_from_json(response, "body", &headers),
-            matching_rules:  matchingrules::matchers_from_json(response, &Some(s!("responseMatchingRules")))
+            matching_rules:  matchingrules::matchers_from_json(response, &Some(s!("responseMatchingRules"))),
+            generators:  generators::generators_from_json(response)
         }
     }
 
@@ -607,7 +626,8 @@ impl Response {
             status: 200,
             headers: None,
             body: OptionalBody::Missing,
-            matching_rules: matchingrules::MatchingRules::default()
+            matching_rules: matchingrules::MatchingRules::default(),
+            generators: generators::Generators::default()
         }
     }
 
@@ -618,7 +638,7 @@ impl Response {
             s!("status") : json!(self.status)
         });
         {
-            let mut map = json.as_object_mut().unwrap();
+            let map = json.as_object_mut().unwrap();
             if self.headers.is_some() {
                 map.insert(s!("headers"), headers_to_json(&self.headers.clone().unwrap()));
             }
@@ -646,6 +666,10 @@ impl Response {
             if self.matching_rules.is_not_empty() {
                 map.insert(s!("matchingRules"), matchingrules::matchers_to_json(
               &self.matching_rules.clone(), spec_version));
+            }
+            if self.generators.is_not_empty() {
+              map.insert(s!("generators"), generators::generators_to_json(
+                &self.generators.clone(), spec_version));
             }
         }
         json
@@ -682,6 +706,10 @@ impl HttpPart for Response {
     fn matching_rules(&self) -> &matchingrules::MatchingRules {
         &self.matching_rules
     }
+
+    fn generators(&self) -> &generators::Generators {
+      &self.generators
+    }
 }
 
 impl Hash for Response {
@@ -695,6 +723,7 @@ impl Hash for Response {
         }
         self.body.hash(state);
         self.matching_rules.hash(state);
+        self.generators.hash(state);
     }
 }
 
@@ -758,7 +787,7 @@ impl Interaction {
             s!("response"): self.response.to_json(spec_version)
         });
         if !self.provider_states.is_empty() {
-            let mut map = value.as_object_mut().unwrap();
+            let map = value.as_object_mut().unwrap();
             match spec_version {
                 &PactSpecification::V3 => map.insert(s!("providerStates"),
                                                      Value::Array(self.provider_states.iter().map(|p| p.to_json()).collect())),
@@ -1120,7 +1149,7 @@ fn encode_query(query: &str) -> String {
             '0'...'9' => ch.to_string(),
             _ => ch.escape_unicode()
                 .filter(|u| u.is_digit(16))
-                .batching(|mut it| {
+                .batching(|it| {
                     match it.next() {
                         None => None,
                         Some(x) => Some((x, it.next().unwrap()))

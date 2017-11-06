@@ -11,6 +11,8 @@ use rand;
 use std::hash::{Hash, Hasher};
 use super::provider_states::*;
 use super::matchingrules::*;
+use super::generators::{Generators, Generator, generators_from_json};
+use std::str::FromStr;
 
 #[test]
 fn request_from_json_defaults_to_get() {
@@ -139,7 +141,7 @@ fn quickcheck_parse_query_string() {
 #[test]
 fn request_mimetype_is_based_on_the_content_type_header() {
     let request = Request { method: s!("GET"), path: s!("/"), query: None, headers: None,
-        body: OptionalBody::Missing, matching_rules: matchingrules!{} };
+        body: OptionalBody::Missing, .. Request::default_request() };
     expect!(request.content_type()).to(be_equal_to("text/plain"));
     expect!(Request {
         headers: Some(hashmap!{ s!("Content-Type") => s!("text/html") }), .. request.clone() }.content_type())
@@ -185,7 +187,7 @@ fn request_mimetype_is_based_on_the_content_type_header() {
 #[test]
 fn content_type_enum_test() {
     let request = Request { method: s!("GET"), path: s!("/"), query: None, headers: None,
-        body: OptionalBody::Missing, matching_rules: matchingrules!{} };
+        body: OptionalBody::Missing, .. Request::default_request() };
     expect!(request.content_type_enum()).to(be_equal_to(DetectedContentType::Text));
     expect!(Request {
         headers: Some(hashmap!{ s!("Content-Type") => s!("text/html") }), .. request.clone() }.content_type_enum())
@@ -370,13 +372,13 @@ fn load_basic_pact() {
         query: Some(hashmap!{ s!("name") => vec![s!("ron")], s!("status") => vec![s!("good")] }),
         headers: None,
         body: OptionalBody::Missing,
-        matching_rules: matchingrules!{}
+      .. Request::default_request()
     }));
     expect!(interaction.response).to(be_equal_to(Response {
         status: 200,
         headers: Some(hashmap!{ s!("Content-Type") => s!("text/html") }),
         body: OptionalBody::Present("\"That is some good Mallory.\"".into()),
-        matching_rules: matchingrules!{}
+      .. Response::default_response()
     }));
     expect!(pact.specification_version).to(be_equal_to(PactSpecification::V3));
     expect!(pact.metadata.iter()).to(have_count(0));
@@ -443,13 +445,13 @@ fn load_pact() {
         query: Some(hashmap!{ s!("q") => vec![s!("p"), s!("p2")], s!("r") => vec![s!("s")] }),
         headers: Some(hashmap!{ s!("testreqheader") => s!("testreqheadervalue") }),
         body: "{\"test\":true}".into(),
-        matching_rules: matchingrules!{}
+      .. Request::default_request()
     }));
     expect!(interaction.response).to(be_equal_to(Response {
         status: 200,
         headers: Some(hashmap!{ s!("testreqheader") => s!("testreqheaderval") }),
         body: "{\"responsetest\":true}".into(),
-        matching_rules: matchingrules!{}
+        .. Response::default_response()
     }));
 }
 
@@ -517,13 +519,13 @@ fn load_v3_pact() {
         query: Some(hashmap!{ s!("q") => vec![s!("p"), s!("p2")], s!("r") => vec![s!("s")] }),
         headers: Some(hashmap!{ s!("testreqheader") => s!("testreqheadervalue") }),
         body: OptionalBody::Present("{\"test\":true}".into()),
-        matching_rules: matchingrules!{}
+      .. Request::default_request()
     }));
     expect!(interaction.response).to(be_equal_to(Response {
         status: 200,
         headers: Some(hashmap!{ s!("testreqheader") => s!("testreqheaderval") }),
         body: OptionalBody::Present("{\"responsetest\":true}".into()),
-        matching_rules: matchingrules!{}
+        .. Response::default_response()
     }));
 }
 
@@ -581,7 +583,7 @@ fn load_pact_encoded_query_string() {
             s!("description") => vec![s!("hello world!")] }),
         headers: Some(hashmap!{ s!("testreqheader") => s!("testreqheadervalue") }),
         body: OptionalBody::Present("{\"test\":true}".into()),
-        matching_rules: matchingrules!{}
+      .. Request::default_request()
     }));
 }
 
@@ -610,7 +612,7 @@ fn load_pact_converts_methods_to_uppercase() {
         query: None,
         headers: None,
         body: OptionalBody::Missing,
-        matching_rules: matchingrules!{}
+      .. Request::default_request()
     }));
 }
 
@@ -1667,6 +1669,146 @@ fn write_v3_pact_test() {
             "bob"
           ]
         }}
+      }},
+      "response": {{
+        "status": 200
+      }}
+    }}
+  ],
+  "metadata": {{
+    "pact-rust": {{
+      "version": "{}"
+    }},
+    "pact-specification": {{
+      "version": "3.0.0"
+    }}
+  }},
+  "provider": {{
+    "name": "write_pact_test_provider"
+  }}
+}}"#, super::VERSION.unwrap())));
+}
+
+#[test]
+fn generators_from_json_handles_missing_generators() {
+    let json : serde_json::Value = serde_json::from_str(r#"
+      {
+          "path": "/",
+          "query": "",
+          "headers": {}
+      }
+     "#).unwrap();
+    let generators = generators_from_json(&json);
+    expect!(generators.categories.iter()).to(be_empty());
+}
+
+#[test]
+fn generators_from_json_handles_empty_generators() {
+    let json : serde_json::Value = serde_json::from_str(r#"
+      {
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "generators": {}
+      }
+     "#).unwrap();
+    let generators = generators_from_json(&json);
+    expect!(generators.categories.iter()).to(be_empty());
+}
+
+#[test]
+fn generators_from_json_handles_generator_with_no_rules() {
+    let json : serde_json::Value = serde_json::from_str(r#"
+      {
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "generators": {
+            "body": {
+                "$.*.path": {}
+            }
+          }
+      }
+     "#).unwrap();
+    let generators = generators_from_json(&json);
+    expect!(generators).to(be_equal_to(Generators::default()));
+}
+
+#[test]
+fn generators_from_json_loads_generators_correctly() {
+    let json : serde_json::Value = serde_json::from_str(r#"
+      {
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "generators": {
+            "body": {
+                "$.*.path": {
+                    "type": "RandomInt",
+                    "min": 1,
+                    "max": 10
+                }
+            }
+          }
+      }
+     "#).unwrap();
+    let generators = generators_from_json(&json);
+    expect!(generators).to(be_equal_to(generators!{
+        "BODY" => {
+            "$.*.path" => Generator::RandomInt(1, 10)
+        }
+    }));
+}
+
+#[test]
+fn write_pact_test_with_generators() {
+    let pact = Pact { consumer: Consumer { name: s!("write_pact_test_consumer") },
+        provider: Provider { name: s!("write_pact_test_provider") },
+        interactions: vec![
+            Interaction {
+                description: s!("Test Interaction with generators"),
+                provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
+                request: Request {
+                    generators: generators!{
+                        "BODY" => {
+                            "$" => Generator::RandomInt(1, 10)
+                        }
+                    },
+                    .. Request::default_request()
+                },
+                response: Response::default_response()
+            }
+        ],
+        .. Pact::default() };
+    let mut dir = env::temp_dir();
+    let x = rand::random::<u16>();
+    dir.push(format!("pact_test_{}", x));
+    dir.push(pact.default_file_name());
+
+    let result = pact.write_pact(dir.as_path(), PactSpecification::V3);
+
+    let pact_file = read_pact_file(dir.as_path().to_str().unwrap()).unwrap_or(s!(""));
+    fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());
+
+    expect!(result).to(be_ok());
+    expect!(pact_file).to(be_equal_to(format!(r#"{{
+  "consumer": {{
+    "name": "write_pact_test_consumer"
+  }},
+  "interactions": [
+    {{
+      "description": "Test Interaction",
+      "providerState": "Good state to be in",
+      "request": {{
+        "generators": {{
+          "$.body": {{
+            "type": "RandomInt",
+            "min": 1,
+            "max": 10
+          }}
+        }},
+        "method": "GET",
+        "path": "/"
       }},
       "response": {{
         "status": 200

@@ -305,7 +305,7 @@ impl Category {
   pub fn rule_from_json(&mut self, key: &String, matcher_json: &Value, rule_logic: &RuleLogic) {
     match MatchingRule::from_json(matcher_json) {
       Some(matching_rule) => {
-        let mut rules = self.rules.entry(key.clone()).or_insert(RuleList::default(rule_logic));
+        let rules = self.rules.entry(key.clone()).or_insert(RuleList::default(rule_logic));
         rules.rules.push(matching_rule);
       },
       None => warn!("Could not parse matcher {:?}", matcher_json)
@@ -314,7 +314,7 @@ impl Category {
 
   /// Adds a rule to this category
   pub fn add_rule(&mut self, key: &String, matcher: MatchingRule, rule_logic: &RuleLogic) {
-    let mut rules = self.rules.entry(key.clone()).or_insert(RuleList::default(rule_logic));
+    let rules = self.rules.entry(key.clone()).or_insert(RuleList::default(rule_logic));
     rules.rules.push(matcher);
   }
 
@@ -496,7 +496,7 @@ impl MatchingRules {
     }
 
     fn add_rules(&mut self, category_name: &String, rules: &Value) {
-      let mut category = self.add_category(category_name.clone());
+      let category = self.add_category(category_name.clone());
       if category_name == "path" {
         let rule_logic = match rules.get("combine") {
           Some(val) => if json_to_string(val).to_uppercase() == "OR" {
@@ -544,7 +544,7 @@ impl MatchingRules {
     }
 
   fn add_v2_rule(&mut self, category_name: String, sub_category: String, rule: &Value) {
-    let mut category = self.add_category(category_name);
+    let category = self.add_category(category_name);
     category.rule_from_json(&sub_category, rule, &RuleLogic::And);
   }
 
@@ -567,7 +567,7 @@ impl MatchingRules {
 
 impl Hash for MatchingRules {
   fn hash<H: Hasher>(&self, state: &mut H) {
-    for (k, v) in self.rules.clone() {
+    for (k, v) in self.rules.iter() {
       k.hash(state);
       v.hash(state);
     }

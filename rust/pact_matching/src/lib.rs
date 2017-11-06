@@ -339,6 +339,7 @@ extern crate hyper;
 extern crate ansi_term;
 extern crate difference;
 extern crate base64;
+extern crate uuid;
 
 /// Simple macro to convert a string slice to a `String` struct.
 #[macro_export]
@@ -359,6 +360,7 @@ pub mod json;
 mod xml;
 
 use models::matchingrules::*;
+use models::generators::*;
 use matchers::*;
 
 fn strip_whitespace<'a, T: FromIterator<&'a str>>(val: &'a String, split_by: &'a str) -> T {
@@ -958,6 +960,31 @@ pub fn match_message(expected: models::message::Message, actual: models::message
     mismatches
 }
 
+/// Generates the response by applying any defined generators
+pub fn generate_response(response: models::Response) -> models::Response {
+  let generators = response.generators.clone();
+  let mut response = response.clone();
+  generators.apply_generator(GeneratorCategory::STATUS, |key, generator| {
+    match generator.generate_value(&response.status) {
+      Some(v) => response.status = v,
+      None => ()
+    }
+  });
+  generators.apply_generator(GeneratorCategory::HEADER, |key, generator| {
+    match response.headers {
+      Some(ref mut headers) => if headers.contains_key(key) {
+        match generator.generate_value(&headers.get(key).unwrap().clone()) {
+          Some(v) => headers.insert(key.clone(), v),
+          None => None
+        };
+      },
+      None => ()
+    }
+  });
+//  r.body = generators.applyBodyGenerators(r.body, new ContentType(mimeType()))
+  response
+}
+
 #[cfg(test)]
 #[macro_use(expect)]
 extern crate expectest;
@@ -969,3 +996,5 @@ extern crate env_logger;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod generator_tests;
