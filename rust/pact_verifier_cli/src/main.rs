@@ -431,7 +431,7 @@ fn handle_command_args() -> Result<(), i32> {
                 },
                 ErrorKind::VersionDisplayed => {
                     print_version();
-                    println!("");
+                    println!();
                     Ok(())
                 },
                 _ => {

@@ -124,9 +124,9 @@ impl HALClient {
 
     fn navigate(&mut self, link: &str, template_values: &HashMap<String, String>) -> Result<serde_json::Value, PactBrokerError> {
         if self.path_info.is_none() {
-            self.path_info = Some(try!(self.fetch("/")));
+            self.path_info = Some(self.fetch("/")?);
         }
-        self.path_info = Some(try!(self.fetch_link(link, template_values)));
+        self.path_info = Some(self.fetch_link(link, template_values)?);
         Ok(self.path_info.clone().unwrap())
     }
 
@@ -138,7 +138,7 @@ impl HALClient {
                 Some(json) => match json.get(link) {
                     Some(link_data) => link_data.as_object()
                         .map(|link_data| Link::from_json(&s!(link), &link_data))
-                        .ok_or(PactBrokerError::LinkError(format!("Link is malformed, expcted an object but got {}. URL: '{}', LINK: '{}'",
+                        .ok_or(PactBrokerError::LinkError(format!("Link is malformed, expected an object but got {}. URL: '{}', LINK: '{}'",
                             link_data, self.url, link))),
                     None => Err(PactBrokerError::LinkError(format!("Link '{}' was not found in the response, only the following links where found: {:?}. URL: '{}', LINK: '{}'",
                         link, json.as_object().unwrap_or(&json!({}).as_object().unwrap()).keys().join(", "), self.url, link)))
@@ -150,21 +150,21 @@ impl HALClient {
     }
 
     fn fetch_link(&self, link: &str, template_values: &HashMap<String, String>) -> Result<serde_json::Value, PactBrokerError> {
-        let link_data = try!(self.find_link(link));
+        let link_data = self.find_link(link)?;
         self.fetch_url(&link_data, template_values)
     }
 
     fn fetch_url(&self, link: &Link, template_values: &HashMap<String, String>) -> Result<serde_json::Value, PactBrokerError> {
-        let link_url = try!(if link.templated {
+        let link_url = if link.templated {
             debug!("Link URL is templated");
             self.parse_link_url(&link, template_values)
         } else {
             link.href.clone().ok_or(
                 PactBrokerError::LinkError(format!("Link is malformed, there is no href. URL: '{}', LINK: '{}'",
-                    self.url, link.name)))
-        });
-        let base = try!(Url::parse(&self.url).map_err(|err| PactBrokerError::UrlError(format!("{}", err.description()))));
-        let url = try!(base.join(&link_url).map_err(|err| PactBrokerError::UrlError(format!("{}", err.description()))));
+                                                   self.url, link.name)))
+        }?;
+        let base = Url::parse(&self.url).map_err(|err| PactBrokerError::UrlError(format!("{}", err.description())))?;
+        let url = base.join(&link_url).map_err(|err| PactBrokerError::UrlError(format!("{}", err.description())))?;
         self.fetch(&url.path())
     }
 
@@ -262,7 +262,7 @@ pub fn fetch_pacts_from_broker(broker_url: &String, provider_name: &String) -> R
     let template_values = hashmap!{ s!("provider") => provider_name.clone() };
     match client.navigate("pb:latest-provider-pacts", &template_values) {
         Ok(_) => {
-            let pact_links = try!(client.iter_links(s!("pacts")));
+            let pact_links = client.iter_links(s!("pacts"))?;
             debug!("Pact links = {:?}", pact_links);
             let pacts = pact_links.iter().map(|link| match link.clone().href {
                 Some(_) => client.fetch_url(&link, &template_values).map(|pact_json| Pact::from_json(&link.href.clone().unwrap(), &pact_json)),
