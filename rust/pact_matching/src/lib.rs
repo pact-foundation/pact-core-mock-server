@@ -964,13 +964,13 @@ pub fn match_message(expected: models::message::Message, actual: models::message
 pub fn generate_response(response: models::Response) -> models::Response {
   let generators = response.generators.clone();
   let mut response = response.clone();
-  generators.apply_generator(GeneratorCategory::STATUS, |key, generator| {
+  generators.apply_generator(&GeneratorCategory::STATUS, |key, generator| {
     match generator.generate_value(&response.status) {
       Some(v) => response.status = v,
       None => ()
     }
   });
-  generators.apply_generator(GeneratorCategory::HEADER, |key, generator| {
+  generators.apply_generator(&GeneratorCategory::HEADER, |key, generator| {
     match response.headers {
       Some(ref mut headers) => if headers.contains_key(key) {
         match generator.generate_value(&headers.get(key).unwrap().clone()) {

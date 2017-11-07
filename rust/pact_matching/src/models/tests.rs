@@ -13,6 +13,7 @@ use super::provider_states::*;
 use super::matchingrules::*;
 use super::generators::{Generators, Generator, generators_from_json};
 use std::str::FromStr;
+use env_logger;
 
 #[test]
 fn request_from_json_defaults_to_get() {
@@ -1735,7 +1736,7 @@ fn generators_from_json_handles_generator_with_no_rules() {
 }
 
 #[test]
-fn generators_from_json_loads_generators_correctly() {
+fn generators_from_json_ignores_invalid_generators() {
     let json : serde_json::Value = serde_json::from_str(r#"
       {
           "path": "/",
@@ -1744,19 +1745,51 @@ fn generators_from_json_loads_generators_correctly() {
           "generators": {
             "body": {
                 "$.*.path": {
-                    "type": "RandomInt",
-                    "min": 1,
-                    "max": 10
-                }
-            }
+                  "type": "invalid"
+                },
+                "$.invalid": {
+                  "type": 100
+                },
+                "$.other": null
+            },
+            "invalid": {
+                "path": "path"
+            },
+            "more_invalid": 100
           }
+      }
+     "#).unwrap();
+    let generators = generators_from_json(&json);
+    expect!(generators).to(be_equal_to(Generators::default()));
+}
+
+#[test]
+fn generators_from_json_loads_generators_correctly() {
+    let json : serde_json::Value = serde_json::from_str(r#"
+      {
+        "path": "/",
+        "query": "",
+        "headers": {},
+        "generators": {
+          "body": {
+              "$.*.path": {
+                  "type": "RandomInt",
+                  "min": 1,
+                  "max": 10
+              }
+          },
+          "path": {
+            "type": "RandomString"
+          }
+        }
       }
      "#).unwrap();
     let generators = generators_from_json(&json);
     expect!(generators).to(be_equal_to(generators!{
         "BODY" => {
             "$.*.path" => Generator::RandomInt(1, 10)
-        }
+        },
+        "PATH" => { "" => Generator::RandomString(10) }
     }));
 }
 

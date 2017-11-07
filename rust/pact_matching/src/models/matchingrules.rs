@@ -6,28 +6,7 @@ use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 use path_exp::*;
 use super::PactSpecification;
-
-fn json_to_string(value: &Value) -> String {
-  match value {
-    &Value::String(ref s) => s.clone(),
-    _ => value.to_string()
-  }
-}
-
-fn json_to_num(value: Option<Value>) -> Option<usize> {
-  if let Some(value) = value {
-    match value {
-      Value::Number(n) => if n.is_i64() && n.as_i64().unwrap() > 0 { Some(n.as_i64().unwrap() as usize) }
-        else if n.is_f64() { Some(n.as_f64().unwrap() as usize) }
-        else if n.is_u64() { Some(n.as_u64().unwrap() as usize) }
-        else { None },
-      Value::String(ref s) => usize::from_str(&s.clone()).ok(),
-      _ => None
-    }
-  } else {
-    None
-  }
-}
+use models::json_utils::{json_to_string, json_to_num};
 
 fn matches_token(path_fragment: &String, path_token: &PathToken) -> usize {
   match *path_token {
@@ -667,10 +646,10 @@ mod tests {
         }.is_empty()).to(be_false());
     }
 
-    #[test]
-    fn matchers_from_json_test() {
-        expect!(matchers_from_json(&Value::Null, &None).rules.iter()).to(be_empty());
-    }
+  #[test]
+  fn matchers_from_json_test() {
+      expect!(matchers_from_json(&Value::Null, &None).rules.iter()).to(be_empty());
+  }
 
   #[test]
   fn loads_v2_matching_rules() {
@@ -779,31 +758,6 @@ mod tests {
         s!("$.animals[*].children[*].*") => RuleList { rules: vec![ MatchingRule::Type ], rule_logic: RuleLogic::And }
       }
     }));
-  }
-
-  #[test]
-  fn json_to_string_test() {
-    expect!(json_to_string(&Value::from_str("\"test string\"").unwrap())).to(be_equal_to(s!("test string")));
-    expect!(json_to_string(&Value::from_str("null").unwrap())).to(be_equal_to(s!("null")));
-    expect!(json_to_string(&Value::from_str("100").unwrap())).to(be_equal_to(s!("100")));
-    expect!(json_to_string(&Value::from_str("100.10").unwrap())).to(be_equal_to(s!("100.1")));
-    expect!(json_to_string(&Value::from_str("{}").unwrap())).to(be_equal_to(s!("{}")));
-    expect!(json_to_string(&Value::from_str("[]").unwrap())).to(be_equal_to(s!("[]")));
-    expect!(json_to_string(&Value::from_str("true").unwrap())).to(be_equal_to(s!("true")));
-    expect!(json_to_string(&Value::from_str("false").unwrap())).to(be_equal_to(s!("false")));
-  }
-
-  #[test]
-  fn json_to_num_test() {
-    expect!(json_to_num(Value::from_str("\"test string\"").ok())).to(be_none());
-    expect!(json_to_num(Value::from_str("null").ok())).to(be_none());
-    expect!(json_to_num(Value::from_str("{}").ok())).to(be_none());
-    expect!(json_to_num(Value::from_str("[]").ok())).to(be_none());
-    expect!(json_to_num(Value::from_str("true").ok())).to(be_none());
-    expect!(json_to_num(Value::from_str("false").ok())).to(be_none());
-    expect!(json_to_num(Value::from_str("100").ok())).to(be_some().value(100));
-    expect!(json_to_num(Value::from_str("-100").ok())).to(be_none());
-    expect!(json_to_num(Value::from_str("100.10").ok())).to(be_some().value(100));
   }
 
   #[test]

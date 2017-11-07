@@ -221,6 +221,7 @@ pub enum DifferenceType {
   Status
 }
 
+pub mod json_utils;
 #[macro_use] pub mod matchingrules;
 #[macro_use] pub mod generators;
 
