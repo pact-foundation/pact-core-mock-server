@@ -960,8 +960,33 @@ pub fn match_message(expected: models::message::Message, actual: models::message
     mismatches
 }
 
+/// Generates the request by applying any defined generators
+pub fn generate_request(request: &models::Request) -> models::Request {
+    let generators = request.generators.clone();
+    let mut request = request.clone();
+    generators.apply_generator(&GeneratorCategory::PATH, |key, generator| {
+        match generator.generate_value(&request.path) {
+            Some(v) => request.path = v,
+            None => ()
+        }
+    });
+    generators.apply_generator(&GeneratorCategory::HEADER, |key, generator| {
+        match request.headers {
+            Some(ref mut headers) => if headers.contains_key(key) {
+                match generator.generate_value(&headers.get(key).unwrap().clone()) {
+                    Some(v) => headers.insert(key.clone(), v),
+                    None => None
+                };
+            },
+            None => ()
+        }
+    });
+    //  r.body = generators.applyBodyGenerators(r.body, new ContentType(mimeType()))
+    request
+}
+
 /// Generates the response by applying any defined generators
-pub fn generate_response(response: models::Response) -> models::Response {
+pub fn generate_response(response: &models::Response) -> models::Response {
   let generators = response.generators.clone();
   let mut response = response.clone();
   generators.apply_generator(&GeneratorCategory::STATUS, |key, generator| {

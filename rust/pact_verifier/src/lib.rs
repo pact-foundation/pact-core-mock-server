@@ -94,25 +94,25 @@ impl ProviderInfo {
 pub enum MismatchResult {
     /// Response mismatches
     Mismatches(Vec<Mismatch>, Response, Response),
-    /// Error occured
+    /// Error occurred
     Error(String)
 }
 
 fn verify_response_from_provider(provider: &ProviderInfo, interaction: &Interaction) -> Result<(), MismatchResult> {
-    let ref expected_response = interaction.response;
-    match make_provider_request(provider, &interaction.request) {
-        Ok(ref actual_response) => {
-            let mismatches = match_response(expected_response.clone(), actual_response.clone());
-            if mismatches.is_empty() {
-                Ok(())
-            } else {
-                Err(MismatchResult::Mismatches(mismatches, expected_response.clone(), actual_response.clone()))
-            }
-        },
-        Err(err) => {
-            Err(MismatchResult::Error(s!(err.description())))
-        }
-    }
+  let ref expected_response = interaction.response;
+  match make_provider_request(provider, &pact_matching::generate_request(&interaction.request)) {
+      Ok(ref actual_response) => {
+          let mismatches = match_response(expected_response.clone(), actual_response.clone());
+          if mismatches.is_empty() {
+              Ok(())
+          } else {
+              Err(MismatchResult::Mismatches(mismatches, expected_response.clone(), actual_response.clone()))
+          }
+      },
+      Err(err) => {
+          Err(MismatchResult::Error(s!(err.description())))
+      }
+  }
 }
 
 fn execute_state_change(provider_state: &ProviderState, provider: &ProviderInfo, setup: bool) -> Result<(), MismatchResult> {
@@ -173,15 +173,15 @@ fn execute_state_change(provider_state: &ProviderState, provider: &ProviderInfo,
 
 fn verify_interaction(provider: &ProviderInfo, interaction: &Interaction) -> Result<(), MismatchResult> {
     for state in interaction.provider_states.clone() {
-        try!(execute_state_change(&state, provider, true))
+      execute_state_change(&state, provider, true)?
     }
 
     let result = verify_response_from_provider(provider, interaction);
 
     if provider.state_change_teardown {
-        for state in interaction.provider_states.clone() {
-            try!(execute_state_change(&state, provider, false))
-        }
+      for state in interaction.provider_states.clone() {
+        execute_state_change(&state, provider, false)?
+      }
     }
 
     result
