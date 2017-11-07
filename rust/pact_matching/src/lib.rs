@@ -981,6 +981,24 @@ pub fn generate_request(request: &models::Request) -> models::Request {
             None => ()
         }
     });
+    generators.apply_generator(&GeneratorCategory::QUERY, |key, generator| {
+      match request.query {
+        Some(ref mut parameters) => match parameters.get_mut(key) {
+          Some(mut parameter) => {
+            let mut generated = parameter.clone();
+            for (index, val) in parameter.iter().enumerate() {
+              match generator.generate_value(val) {
+                Some(v) => generated[index] = v,
+                None => ()
+              };
+            }
+            *parameter = generated;
+          },
+          None => ()
+        },
+        None => ()
+      }
+    });
     //  r.body = generators.applyBodyGenerators(r.body, new ContentType(mimeType()))
     request
 }

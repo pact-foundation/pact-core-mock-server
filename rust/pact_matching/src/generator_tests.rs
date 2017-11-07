@@ -61,3 +61,19 @@ fn applies_header_generator_for_headers_to_the_copy_of_the_request() {
   let headers = generate_request(&request).headers.unwrap().clone();
   expect!(headers.get("A").unwrap()).to_not(be_equal_to("a"));
 }
+
+#[test]
+fn applies_query_generator_for_query_parameters_to_the_copy_of_the_request() {
+  let request = Request { query: Some(hashmap!{
+      s!("A") => vec![ s!("a") ],
+      s!("B") => vec![ s!("b") ]
+    }), generators: generators! {
+      "QUERY" => {
+        "A" => Generator::Uuid
+      }
+    }, .. Request::default_request()
+  };
+  let query = generate_request(&request).query.unwrap().clone();
+  let query_val = &query.get("A").unwrap()[0];
+  expect!(query_val).to_not(be_equal_to("a"));
+}
