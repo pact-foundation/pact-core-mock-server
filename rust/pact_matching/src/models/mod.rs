@@ -885,7 +885,7 @@ fn parse_interactions(pact_json: &Value, spec_version: PactSpecification) -> Vec
     }
 }
 
-fn determin_spec_version(file: &String, metadata: &BTreeMap<String, BTreeMap<String, String>>) -> PactSpecification {
+fn determine_spec_version(file: &String, metadata: &BTreeMap<String, BTreeMap<String, String>>) -> PactSpecification {
     let specification = if metadata.get("pact-specification").is_none()
         { metadata.get("pactSpecification") } else { metadata.get("pact-specification") };
     match specification {
@@ -930,13 +930,13 @@ impl Pact {
 
     /// Returns the specification version of this pact
     pub fn spec_version(&self) -> PactSpecification {
-        determin_spec_version(&s!("<Pact>"), &self.metadata)
+        determine_spec_version(&s!("<Pact>"), &self.metadata)
     }
 
     /// Creates a `Pact` from a `Value` struct.
     pub fn from_json(file: &String, pact_json: &Value) -> Pact {
         let metadata = parse_meta_data(pact_json);
-        let spec_version = determin_spec_version(file, &metadata);
+        let spec_version = determine_spec_version(file, &metadata);
 
         let consumer = match pact_json.get("consumer") {
             Some(v) => Consumer::from_json(v),

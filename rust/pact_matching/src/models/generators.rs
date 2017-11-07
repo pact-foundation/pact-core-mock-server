@@ -35,8 +35,30 @@ pub enum Generator {
 }
 
 impl Generator {
-  //  /// Convert this generator to a JSON struct
-  //  fn toJson(pactSpecVersion: PactSpecVersion): Map<String, Any>
+  /// Convert this generator to a JSON struct
+  pub fn to_json(&self) -> Value {
+    match self {
+      &Generator::RandomInt(min, max) => json!({ "type": "RandomInt", "min": min, "max": max }),
+      &Generator::Uuid => json!({ "type": "Uuid" }),
+      &Generator::RandomDecimal(digits) => json!({ "type": "RandomDecimal", "digits": digits }),
+      &Generator::RandomHexadecimal(digits) => json!({ "type": "RandomHexadecimal", "digits": digits }),
+      &Generator::RandomString(size) => json!({ "type": "RandomString", "size": size }),
+      &Generator::Regex(ref regex) => json!({ "type": "Regex", "regex": regex }),
+      &Generator::Date(ref format) => match format {
+        &Some(ref format) => json!({ "type": "Date", "format": format }),
+        &None => json!({ "type": "Date" })
+      },
+      &Generator::Time(ref format) => match format {
+        &Some(ref format) => json!({ "type": "Time", "format": format }),
+        &None => json!({ "type": "Time" })
+      },
+      &Generator::Timestamp(ref format) => match format {
+        &Some(ref format) => json!({ "type": "Timestamp", "format": format }),
+        &None => json!({ "type": "Timestamp" })
+      },
+      &Generator::RandomBoolean => json!({ "type": "RandomBoolean" })
+    }
+  }
 
   pub fn from_map(gen_type: &String, map: &serde_json::Map<String, Value>) -> Option<Generator> {
     match gen_type.as_str() {
@@ -106,15 +128,35 @@ impl FromStr for GeneratorCategory {
   type Err = String;
 
   fn from_str(s: &str) -> Result<Self, Self::Err> {
-    match s {
-      "METHOD" => Ok(GeneratorCategory::METHOD),
-      "PATH" => Ok(GeneratorCategory::PATH),
-      "HEADER" => Ok(GeneratorCategory::HEADER),
-      "QUERY" => Ok(GeneratorCategory::QUERY),
-      "BODY" => Ok(GeneratorCategory::BODY),
-      "STATUS" => Ok(GeneratorCategory::STATUS),
+    match s.to_lowercase().as_str() {
+      "method" => Ok(GeneratorCategory::METHOD),
+      "path" => Ok(GeneratorCategory::PATH),
+      "header" => Ok(GeneratorCategory::HEADER),
+      "query" => Ok(GeneratorCategory::QUERY),
+      "body" => Ok(GeneratorCategory::BODY),
+      "status" => Ok(GeneratorCategory::STATUS),
       _ => Err(format!("'{}' is not a valid GeneratorCategory", s))
     }
+  }
+}
+
+impl <'a> Into<&'a str> for GeneratorCategory {
+  fn into(self) -> &'a str {
+    match self {
+      GeneratorCategory::METHOD => "method",
+      GeneratorCategory::PATH => "path",
+      GeneratorCategory::HEADER => "header",
+      GeneratorCategory::QUERY => "query",
+      GeneratorCategory::BODY => "body",
+      GeneratorCategory::STATUS => "status"
+    }
+  }
+}
+
+impl Into<String> for GeneratorCategory {
+  fn into(self) -> String {
+    let s: &str = self.into();
+    s.to_string()
   }
 }
 
@@ -146,7 +188,7 @@ impl Generators {
   pub fn load_from_map(&mut self, map: &serde_json::Map<String, Value>) {
     for (k, v) in map {
       match v {
-        &Value::Object(ref map) =>  match GeneratorCategory::from_str(&k.to_uppercase()) {
+        &Value::Object(ref map) =>  match GeneratorCategory::from_str(k) {
           Ok(ref category) => match category {
             &GeneratorCategory::PATH | &GeneratorCategory::METHOD | &GeneratorCategory::STATUS => {
               self.parse_generator_from_map(category, map, None);
@@ -183,8 +225,23 @@ impl Generators {
   }
 
   fn to_json(&self) -> Value {
-    Value::Object(self.categories.iter().fold(serde_json::Map::new(), |map, (name, category)| {
-//      map.insert(name.clone(), category.to_v3_json());
+    Value::Object(self.categories.iter().fold(serde_json::Map::new(), |mut map, (name, category)| {
+      let cat: String = name.clone().into();
+      match name {
+        &GeneratorCategory::PATH | &GeneratorCategory::METHOD | &GeneratorCategory::STATUS => {
+          match category.get("") {
+            Some(generator) => {
+              map.insert(cat.clone(), category.get("").unwrap().to_json());
+            },
+            None => ()
+          }
+        },
+        _ => {
+          for (key, val) in category {
+            map.insert(cat.clone(), json!({ key.as_str(): val.to_json() }));
+          }
+        }
+      }
       map
     }))
   }
@@ -405,5 +462,58 @@ mod tests {
     expect!(Generator::from_map(&s!("Timestamp"), &json!({ "min": 5 }).as_object().unwrap())).to(be_some().value(Generator::Timestamp(None)));
     expect!(Generator::from_map(&s!("Timestamp"), &json!({ "format": "yyyy-MM-dd" }).as_object().unwrap())).to(be_some().value(Generator::Timestamp(Some(s!("yyyy-MM-dd")))));
     expect!(Generator::from_map(&s!("Timestamp"), &json!({ "format": 5 }).as_object().unwrap())).to(be_some().value(Generator::Timestamp(Some(s!("5")))));
+  }
+
+  #[test]
+  fn generator_to_json_test() {
+    expect!(Generator::RandomInt(5, 15).to_json()).to(be_equal_to(json!({
+      "type": "RandomInt",
+      "min": 5,
+      "max": 15
+    })));
+    expect!(Generator::Uuid.to_json()).to(be_equal_to(json!({
+      "type": "Uuid"
+    })));
+    expect!(Generator::RandomDecimal(5).to_json()).to(be_equal_to(json!({
+      "type": "RandomDecimal",
+      "digits": 5
+    })));
+    expect!(Generator::RandomHexadecimal(5).to_json()).to(be_equal_to(json!({
+      "type": "RandomHexadecimal",
+      "digits": 5
+    })));
+    expect!(Generator::RandomString(5).to_json()).to(be_equal_to(json!({
+      "type": "RandomString",
+      "size": 5
+    })));
+    expect!(Generator::Regex(s!("\\d+")).to_json()).to(be_equal_to(json!({
+      "type": "Regex",
+      "regex": "\\d+"
+    })));
+    expect!(Generator::RandomBoolean.to_json()).to(be_equal_to(json!({
+      "type": "RandomBoolean"
+    })));
+
+    expect!(Generator::Date(Some(s!("yyyyMMdd"))).to_json()).to(be_equal_to(json!({
+      "type": "Date",
+      "format": "yyyyMMdd"
+    })));
+    expect!(Generator::Date(None).to_json()).to(be_equal_to(json!({
+      "type": "Date"
+    })));
+    expect!(Generator::Time(Some(s!("yyyyMMdd"))).to_json()).to(be_equal_to(json!({
+      "type": "Time",
+      "format": "yyyyMMdd"
+    })));
+    expect!(Generator::Time(None).to_json()).to(be_equal_to(json!({
+      "type": "Time"
+    })));
+    expect!(Generator::Timestamp(Some(s!("yyyyMMdd"))).to_json()).to(be_equal_to(json!({
+      "type": "Timestamp",
+      "format": "yyyyMMdd"
+    })));
+    expect!(Generator::Timestamp(None).to_json()).to(be_equal_to(json!({
+      "type": "Timestamp"
+    })));
   }
 }

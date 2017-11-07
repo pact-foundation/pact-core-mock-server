@@ -1804,7 +1804,10 @@ fn write_pact_test_with_generators() {
                 request: Request {
                     generators: generators!{
                         "BODY" => {
-                            "$" => Generator::RandomInt(1, 10)
+                          "$" => Generator::RandomInt(1, 10)
+                        },
+                        "HEADER" => {
+                          "A" => Generator::RandomString(20)
                         }
                     },
                     .. Request::default_request()
@@ -1830,14 +1833,26 @@ fn write_pact_test_with_generators() {
   }},
   "interactions": [
     {{
-      "description": "Test Interaction",
-      "providerState": "Good state to be in",
+      "description": "Test Interaction with generators",
+      "providerStates": [
+        {{
+          "name": "Good state to be in"
+        }}
+      ],
       "request": {{
         "generators": {{
-          "$.body": {{
-            "type": "RandomInt",
-            "min": 1,
-            "max": 10
+          "body": {{
+            "$": {{
+              "max": 10,
+              "min": 1,
+              "type": "RandomInt"
+            }}
+          }},
+          "header": {{
+            "A": {{
+              "size": 20,
+              "type": "RandomString"
+            }}
           }}
         }},
         "method": "GET",
