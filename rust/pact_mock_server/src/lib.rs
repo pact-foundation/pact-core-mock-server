@@ -402,6 +402,7 @@ pub fn start_mock_server(id: String, pact: Pact, port: i32) -> Result<i32, Strin
                     match match_result {
                         MatchResult::RequestMatch(ref interaction) => {
                             info!("Request matched, sending response {:?}", interaction.response);
+                            info!("     body: '{}'\n\n", interaction.response.body.str_value());
                             *res.status_mut() = StatusCode::from_u16(interaction.response.status);
                             res.headers_mut().set(AccessControlAllowOrigin::Any);
                             match interaction.response.headers {

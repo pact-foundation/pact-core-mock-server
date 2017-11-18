@@ -331,6 +331,7 @@
 #[macro_use] extern crate log;
 #[macro_use] extern crate maplit;
 #[macro_use] extern crate lazy_static;
+#[macro_use] extern crate p_macro;
 extern crate hex;
 extern crate regex;
 extern crate semver;
@@ -967,7 +968,6 @@ extern crate expectest;
 extern crate quickcheck;
 #[cfg(test)]
 extern crate env_logger;
-#[macro_use] #[cfg(test)] extern crate p_macro;
 
 #[cfg(test)]
 mod tests;
