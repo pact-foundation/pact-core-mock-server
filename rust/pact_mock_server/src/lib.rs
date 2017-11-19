@@ -48,8 +48,7 @@
 #![warn(missing_docs)]
 
 #[macro_use] extern crate log;
-#[macro_use] extern crate p_macro;
-#[macro_use] extern crate maplit;
+#[allow(unused_imports)] #[macro_use] extern crate p_macro;
 #[macro_use] extern crate lazy_static;
 extern crate libc;
 #[macro_use] extern crate pact_matching;
@@ -499,7 +498,7 @@ fn cleanup_mock_server_impl(mock_server: &mut MockServer) -> String {
     mock_server.resources.clear();
     if mock_server.server > 0 {
         let server_raw = mock_server.server as *mut Listening;
-        let mut server_ref = unsafe { &mut *server_raw };
+        let server_ref = unsafe { &mut *server_raw };
         server_ref.close().unwrap();
     }
     mock_server.id.clone()
@@ -811,6 +810,9 @@ extern crate expectest;
 
 #[cfg(test)]
 extern crate quickcheck;
+
+#[cfg(test)]
+#[macro_use] extern crate maplit;
 
 #[cfg(test)]
 mod tests;

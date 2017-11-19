@@ -274,7 +274,7 @@ impl Category {
   pub fn rule_from_json(&mut self, key: &String, matcher_json: &Value) {
     match MatchingRule::from_json(matcher_json) {
       Some(matching_rule) => {
-        let mut rules = self.rules.entry(key.clone()).or_insert(RuleList::default());
+        let rules = self.rules.entry(key.clone()).or_insert(RuleList::default());
         rules.rules.push(matching_rule);
       },
       None => warn!("Could not parse matcher {:?}", matcher_json)
@@ -283,7 +283,7 @@ impl Category {
 
   /// Adds a rule to this category
   pub fn add_rule(&mut self, key: &String, matcher: MatchingRule) {
-    let mut rules = self.rules.entry(key.clone()).or_insert(RuleList::default());
+    let rules = self.rules.entry(key.clone()).or_insert(RuleList::default());
     rules.rules.push(matcher);
   }
 
@@ -454,40 +454,8 @@ impl MatchingRules {
       }
     }
 
-    fn add_rules(&mut self, category_name: &String, rules: &Value) {
-      let mut category = self.add_category(category_name.clone());
-      if category_name == "path" {
-        match rules.get("matchers") {
-          Some(matchers) => match matchers {
-            &Value::Array(ref array) => for matcher in array {
-              category.rule_from_json(&s!(""), &matcher)
-            },
-            _ => ()
-          },
-          None => ()
-        }
-      } else {
-        match rules {
-          &Value::Object(ref m) => {
-            for (k, v) in m {
-              match v.get("matchers") {
-                Some(matchers) => match matchers {
-                  &Value::Array(ref array) => for matcher in array {
-                    category.rule_from_json(k, &matcher)
-                  },
-                  _ => ()
-                },
-                None => ()
-              }
-            }
-          },
-          _ => ()
-        }
-      }
-    }
-
   fn add_v2_rule(&mut self, category_name: String, sub_category: String, rule: &Value) {
-    let mut category = self.add_category(category_name);
+    let category = self.add_category(category_name);
     category.rule_from_json(&sub_category, rule);
   }
 

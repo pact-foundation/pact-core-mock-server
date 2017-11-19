@@ -98,7 +98,6 @@ impl Pattern for JsonPattern {
 #[test]
 fn json_pattern_is_pattern() {
     use env_logger;
-    use std::collections::HashMap;
 
     use super::special_rules::Like;
 

@@ -1,13 +1,13 @@
 use pact_matching::models::*;
-use pact_matching::models::matchingrules::{MatchingRules, Category};
+use pact_matching::models::matchingrules::MatchingRules;
 #[cfg(test)]
 use regex::Regex;
 use std::collections::HashMap;
 
 use prelude::*;
-use util::obj_key_for_path;
 
 #[cfg(test)]
+#[allow(unused_imports)]
 use env_logger;
 
 /// Various methods shared between `RequestBuilder` and `ResponseBuilder`.

@@ -439,7 +439,7 @@ impl Request {
             s!("path") : Value::String(self.path.clone())
         });
         {
-            let mut map = json.as_object_mut().unwrap();
+            let map = json.as_object_mut().unwrap();
             if self.query.is_some() {
                 map.insert(s!("query"), Value::String(build_query_string(self.query.clone().unwrap())));
             }
@@ -558,7 +558,7 @@ impl Response {
             s!("status") : json!(self.status)
         });
         {
-            let mut map = json.as_object_mut().unwrap();
+            let map = json.as_object_mut().unwrap();
             if self.headers.is_some() {
                 map.insert(s!("headers"), headers_to_json(&self.headers.clone().unwrap()));
             }
@@ -707,7 +707,7 @@ impl Interaction {
             s!("response") : self.response.to_json()
         });
         if self.provider_state.is_some() {
-            let mut map = value.as_object_mut().unwrap();
+            let map = value.as_object_mut().unwrap();
             map.insert(s!("providerState"), json!(self.provider_state.clone().unwrap()));
         }
         value
@@ -1057,7 +1057,7 @@ fn encode_query(query: &str) -> String {
             '0'...'9' => ch.to_string(),
             _ => ch.escape_unicode()
                 .filter(|u| u.is_digit(16))
-                .batching(|mut it| {
+                .batching(|it| {
                     match it.next() {
                         None => None,
                         Some(x) => Some((x, it.next().unwrap()))

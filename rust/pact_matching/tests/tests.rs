@@ -1,6 +1,6 @@
 #[macro_use] extern crate pact_matching;
 #[macro_use(expect)] extern crate expectest;
-#[macro_use] extern crate p_macro;
+#[allow(unused_imports)] #[macro_use] extern crate p_macro;
 extern crate env_logger;
 extern crate serde_json;
 

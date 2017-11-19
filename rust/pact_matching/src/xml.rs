@@ -10,7 +10,7 @@ use regex::Regex;
 use std::str;
 
 fn parse_bytes(bytes: &Vec<u8>) -> Result<Package, String> {
-  let string = str::from_utf8(bytes).map_err(|e| format!("{:?}", bytes))?;
+  let string = str::from_utf8(bytes).map_err(|e| format!("{:?}", e))?;
   parser::parse(string).map_err(|e| format!("{:?}", e))
 }
 

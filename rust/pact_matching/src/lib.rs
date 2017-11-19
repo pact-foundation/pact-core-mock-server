@@ -331,7 +331,7 @@
 #[macro_use] extern crate log;
 #[macro_use] extern crate maplit;
 #[macro_use] extern crate lazy_static;
-#[macro_use] extern crate p_macro;
+#[allow(unused_imports)] #[macro_use] extern crate p_macro;
 extern crate hex;
 extern crate regex;
 extern crate semver;

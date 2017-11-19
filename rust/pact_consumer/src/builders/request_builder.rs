@@ -1,14 +1,15 @@
 use pact_matching::models::*;
-use pact_matching::models::matchingrules::{MatchingRules, Category};
+use pact_matching::models::matchingrules::MatchingRules;
 #[cfg(test)]
 use regex::Regex;
 use std::collections::HashMap;
 
 #[cfg(test)]
+#[allow(unused_imports)]
 use env_logger;
 
 use prelude::*;
-use util::{GetDefaulting, obj_key_for_path};
+use util::GetDefaulting;
 
 /// Builder for `Request` objects. Normally created via `PactBuilder`.
 pub struct RequestBuilder {
@@ -111,8 +112,7 @@ impl RequestBuilder {
 
     /// Build the specified `Request` object.
     pub fn build(&self) -> Request {
-        let mut result = self.request.clone();
-        result
+        self.request.clone()
     }
 }
 

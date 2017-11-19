@@ -1,5 +1,5 @@
 use pact_matching::models::*;
-use pact_matching::models::matchingrules::{MatchingRules, Category};
+use pact_matching::models::matchingrules::MatchingRules;
 use std::collections::HashMap;
 
 use prelude::*;
@@ -60,8 +60,7 @@ impl ResponseBuilder {
 
     /// Build the specified `Response` object.
     pub fn build(&self) -> Response {
-        let mut result = self.response.clone();
-        result
+        self.response.clone()
     }
 }
 
