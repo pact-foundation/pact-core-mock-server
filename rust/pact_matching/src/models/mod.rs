@@ -337,6 +337,13 @@ fn headers_to_json(headers: &HashMap<String, String>) -> Value {
     }))
 }
 
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum JsonParsable {
+    JsonStringValue(String),
+    KeyValue(HashMap<String, Value>)
+}
+
 fn body_from_json(request: &Value, fieldname: &str, headers: &Option<HashMap<String, String>>) -> OptionalBody {
     let content_type = match headers {
         &Some(ref h) => match h.iter().find(|kv| kv.0.to_lowercase() == s!("content-type")) {
@@ -359,7 +366,7 @@ fn body_from_json(request: &Value, fieldname: &str, headers: &Option<HashMap<Str
                 } else {
                   let content_type = content_type.unwrap_or(s!("text/plain"));
                   if JSON_CONTENT_TYPE.is_match(&content_type) {
-                    match serde_json::from_str::<HashMap<String, Value>>(&s) {
+                    match serde_json::from_str::<JsonParsable>(&s) {
                       Ok(_) => OptionalBody::Present(s.clone().into()),
                       Err(_) => OptionalBody::Present(format!("\"{}\"", s).into())
                     }
