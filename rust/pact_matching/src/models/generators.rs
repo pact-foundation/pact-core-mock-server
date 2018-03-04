@@ -202,15 +202,21 @@ impl <T> QueryResult<T> where T: Clone {
     QueryResult { value, key: None, parent: None }
   }
 
-  pub fn update_to(&mut self, new_value: &mut T, new_key: Option<String>, new_parent: Option<T>) -> QueryResult<T> {
-    QueryResult { value: new_value.clone(), key: new_key, parent: new_parent }
+  pub fn update_to(&mut self, new_value: &mut T, new_key: Option<String>, new_parent: Option<T>) {
+    self.value = new_value.clone();
+    self.key = new_key;
+    self.parent = new_parent;
+  }
+
+  pub fn update_value(&mut self, new_value: T) {
+    self.value = new_value.clone();
   }
 
 }
 
 pub trait ContentTypeHandler<T> {
   fn process_body(&self) -> OptionalBody;
-  fn apply_key(&self, body: RefCell<QueryResult<T>>, key: &String, generator: &Generator);
+  fn apply_key(&self, mut body: QueryResult<T>, key: &String, generator: &Generator);
   fn new_cursor(&self) -> QueryResult<T>;
 }
 
@@ -219,17 +225,16 @@ pub struct JsonHandler {
 }
 
 impl JsonHandler {
-  fn query_object_graph(&self, path_exp: Iter<PathToken>, body: RefCell<QueryResult<Value>>, callback: &mut FnMut(RefCell<QueryResult<Value>>)) {
+  fn query_object_graph(&self, path_exp: Iter<PathToken>, mut body: QueryResult<Value>, callback: &mut FnMut(QueryResult<Value>)) {
     let mut body_cursor = body.clone();
     for token in path_exp {
       match token {
         &PathToken::Field(ref name) => {
-          let mut br = body_cursor.borrow_mut();
-          let parent = br.value.clone();
-          match br.value.as_object_mut() {
+          let parent = body.value.clone();
+          match body.value.as_object_mut() {
             Some(map) => match map.get_mut(name) {
               Some(new_value) => {
-                body_cursor.replace(QueryResult { value: new_value.clone(), key: Some(name.clone()), parent: Some(parent) });
+                body_cursor.update_to(new_value, Some(name.clone()), Some(parent));
               },
               None => return
             },
@@ -287,14 +292,13 @@ impl ContentTypeHandler<Value> for JsonHandler {
 //  });
   }
 
-  fn apply_key(&self, body: RefCell<QueryResult<Value>>, key: &String, generator: &Generator) {
+  fn apply_key(&self, mut body: QueryResult<Value>, key: &String, generator: &Generator) {
     match parse_path_exp(key.clone()) {
-      Ok(mut path_exp) => self.query_object_graph(path_exp.iter(), body, &mut |mut body_val: RefCell<QueryResult<Value>>| {
+      Ok(mut path_exp) => self.query_object_graph(path_exp.iter(), body, &mut |mut body_val: QueryResult<Value>| {
         p!(body_val);
-        let mut inner = body_val.borrow_mut();
-        let bv = &inner.value.clone();
-        let bk = inner.key.clone();
-        match inner.parent {
+        let bv = &body_val.value.clone();
+        let bk = body_val.key.clone();
+        match body_val.parent.clone() {
           Some(ref mut parent_value) => match parent_value {
             &mut Value::Object(ref mut map) => match generator.generate_value(bv) {
               Some(val) => {
@@ -314,14 +318,14 @@ impl ContentTypeHandler<Value> for JsonHandler {
             },
             _ => match generator.generate_value(bv) {
               Some(mut val) => {
-                body_val.borrow_mut().value = val;
+                body_val.update_value(val);
               },
               None => ()
             }
           },
           _ => match generator.generate_value(bv) {
             Some(mut val) => {
-              body_val.borrow_mut().value = val;
+              body_val.update_value(val);
             },
             None => ()
           }
@@ -345,7 +349,7 @@ impl <'a> ContentTypeHandler<Document<'a>> for XmlHandler<'a> {
     unimplemented!()
   }
 
-  fn apply_key(&self, body: RefCell<QueryResult<Document<'a>>>, key: &String, generator: &Generator) {
+  fn apply_key(&self, mut body: QueryResult<Document<'a>>, key: &String, generator: &Generator) {
     unimplemented!()
   }
 
