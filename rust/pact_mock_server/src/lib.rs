@@ -408,6 +408,7 @@ pub fn start_mock_server(id: String, pact: Pact, port: i32) -> Result<i32, Strin
                             let response = pact_matching::generate_response(&interaction.response);
                             info!("Request matched, sending response {:?}", response);
                             info!("     body: '{}'\n\n", interaction.response.body.str_value());
+                            info!("     body: '{}'\n\n", interaction.response.body.str_value());
                             *res.status_mut() = StatusCode::from_u16(response.status);
                             res.headers_mut().set(AccessControlAllowOrigin::Any);
                             match response.headers {
@@ -443,7 +444,7 @@ pub fn start_mock_server(id: String, pact: Pact, port: i32) -> Result<i32, Strin
             }
         });
 
-                match server_result {
+      match server_result {
             Ok(ref server) => {
                 let port = server.socket.port() as i32;
                 info!("Mock Provider Server started on port {}", port);
@@ -452,12 +453,12 @@ pub fn start_mock_server(id: String, pact: Pact, port: i32) -> Result<i32, Strin
                     mock_server.server(server);
                         });
                 out_tx.send(Ok(port)).unwrap();
-                  },
-                  Err(e) => {
+            },
+            Err(e) => {
                     error!("Could not start server: {}", e);
                     out_tx.send(Err(format!("Could not start server: {}", e))).unwrap();
-                  }
-                }
+            }
+      }
     });
 
     out_rx.recv().unwrap()
@@ -651,16 +652,16 @@ pub extern fn mock_server_matched_ffi(mock_server_port: int32_t) -> bool {
 }
 
 /// Gets all the mismatches from a mock server. The port number of the mock
-/// server is passed in, and the results are returned in JSON format.
+/// server is passed in, and the results are returned in JSON format as a String.
 ///
 /// If there is no mock server with the provided port number, `None` is returned.
 ///
-pub extern fn mock_server_mismatches(mock_server_port: i32) -> Option<serde_json::Value> {
+pub extern fn mock_server_mismatches(mock_server_port: i32) -> Option<std::string::String> {
   lookup_mock_server_by_port(mock_server_port, &|mock_server| {
     let mismatches = mock_server.mismatches().iter()
       .map(|mismatch| mismatch.to_json() )
       .collect::<Vec<serde_json::Value>>();
-    json!(mismatches)
+    json!(mismatches).to_string()
   })
 }
 
