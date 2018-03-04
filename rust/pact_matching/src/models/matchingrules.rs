@@ -607,7 +607,7 @@ macro_rules! matchingrules {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::{json_to_string, json_to_num, calc_path_weight, matches_token};
+    use super::{calc_path_weight, matches_token};
     use expectest::prelude::*;
     use serde_json::Value;
 

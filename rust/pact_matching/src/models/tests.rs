@@ -13,7 +13,7 @@ use super::provider_states::*;
 use super::matchingrules::*;
 use super::generators::{Generators, Generator, generators_from_json};
 use std::str::FromStr;
-use env_logger;
+#[allow(unused_imports)] use env_logger;
 
 #[test]
 fn request_from_json_defaults_to_get() {

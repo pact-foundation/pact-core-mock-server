@@ -329,6 +329,7 @@
 #[macro_use] extern crate log;
 #[macro_use] extern crate maplit;
 #[macro_use] extern crate lazy_static;
+#[allow(unused_imports)] #[macro_use] extern crate p_macro;
 extern crate hex;
 extern crate regex;
 extern crate semver;
@@ -359,6 +360,7 @@ mod matchers;
 pub mod json;
 mod xml;
 
+use models::HttpPart;
 use models::matchingrules::*;
 use models::generators::*;
 use matchers::*;
@@ -984,7 +986,7 @@ pub fn generate_request(request: &models::Request) -> models::Request {
     generators.apply_generator(&GeneratorCategory::QUERY, |key, generator| {
       match request.query {
         Some(ref mut parameters) => match parameters.get_mut(key) {
-          Some(mut parameter) => {
+          Some(parameter) => {
             let mut generated = parameter.clone();
             for (index, val) in parameter.iter().enumerate() {
               match generator.generate_value(val) {
@@ -999,7 +1001,7 @@ pub fn generate_request(request: &models::Request) -> models::Request {
         None => ()
       }
     });
-    //  r.body = generators.applyBodyGenerators(r.body, new ContentType(mimeType()))
+    request.body = generators.apply_body_generators(&request.body, request.content_type_enum());
     request
 }
 
@@ -1024,7 +1026,7 @@ pub fn generate_response(response: &models::Response) -> models::Response {
       None => ()
     }
   });
-//  r.body = generators.applyBodyGenerators(r.body, new ContentType(mimeType()))
+  response.body = generators.apply_body_generators(&response.body, response.content_type_enum());
   response
 }
 
@@ -1035,7 +1037,6 @@ extern crate expectest;
 extern crate quickcheck;
 #[cfg(test)]
 extern crate env_logger;
-#[macro_use] #[cfg(test)] extern crate p_macro;
 
 #[cfg(test)]
 mod tests;

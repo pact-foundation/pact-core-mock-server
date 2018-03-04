@@ -4,6 +4,10 @@ use pact_matching::models::matchingrules::MatchingRules;
 use regex::Regex;
 use std::collections::HashMap;
 
+#[cfg(test)]
+#[allow(unused_imports)]
+use env_logger;
+
 use prelude::*;
 use util::GetDefaulting;
 
@@ -108,7 +112,7 @@ impl RequestBuilder {
 
     /// Build the specified `Request` object.
     pub fn build(&self) -> Request {
-       self.request.clone()
+         self.request.clone()
     }
 }
 

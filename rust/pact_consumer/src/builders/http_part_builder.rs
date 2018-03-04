@@ -6,6 +6,10 @@ use std::collections::HashMap;
 
 use prelude::*;
 
+#[cfg(test)]
+#[allow(unused_imports)]
+use env_logger;
+
 /// Various methods shared between `RequestBuilder` and `ResponseBuilder`.
 pub trait HttpPartBuilder {
     /// (Implementation detail.) This function fetches the mutable state that's

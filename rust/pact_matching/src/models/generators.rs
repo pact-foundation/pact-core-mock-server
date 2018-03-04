@@ -7,7 +7,16 @@ use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 use rand::{self, Rng};
 use uuid::Uuid;
+use models::{OptionalBody, DetectedContentType};
 use models::json_utils::{JsonToNum, json_to_string};
+use models::xml_utils::parse_bytes;
+use sxd_document::dom::Document;
+use path_exp::*;
+use std::slice::Iter;
+use std::rc::Rc;
+use std::borrow::Borrow;
+use std::cell::RefCell;
+use std::ops::Deref;
 
 /// Trait to represent a generator
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash)]
@@ -107,6 +116,26 @@ impl GenerateValue<String> for Generator {
   }
 }
 
+impl GenerateValue<Value> for Generator {
+  fn generate_value(&self, value: &Value) -> Option<Value> {
+    match self {
+      &Generator::RandomInt(min, max) => {
+        let rand_int = rand::thread_rng().gen_range(min, max + 1);
+        match value {
+          &Value::String(_) => Some(json!(format!("{}", rand_int))),
+          &Value::Number(_) => Some(json!(rand_int)),
+          _ => None
+        }
+      },
+      &Generator::Uuid => match value {
+        &Value::String(_) => Some(json!(Uuid::new_v4().simple().to_string())),
+        _ => None
+      },
+      _ => None
+    }
+  }
+}
+
 /// Category that the generator is applied to
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash)]
 pub enum GeneratorCategory {
@@ -157,6 +186,171 @@ impl Into<String> for GeneratorCategory {
   fn into(self) -> String {
     let s: &str = self.into();
     s.to_string()
+  }
+}
+
+#[derive(PartialEq, Debug, Eq, Clone)]
+pub struct QueryResult<T> {
+  pub value: T,
+  pub key: Option<String>,
+  pub parent: Option<T>
+}
+
+impl <T> QueryResult<T> where T: Clone {
+
+  pub fn default(value: T) -> QueryResult<T> {
+    QueryResult { value, key: None, parent: None }
+  }
+
+  pub fn update_to(&mut self, new_value: &mut T, new_key: Option<String>, new_parent: Option<T>) -> QueryResult<T> {
+    QueryResult { value: new_value.clone(), key: new_key, parent: new_parent }
+  }
+
+}
+
+pub trait ContentTypeHandler<T> {
+  fn process_body(&self) -> OptionalBody;
+  fn apply_key(&self, body: RefCell<QueryResult<T>>, key: &String, generator: &Generator);
+  fn new_cursor(&self) -> QueryResult<T>;
+}
+
+pub struct JsonHandler {
+  pub value: Value
+}
+
+impl JsonHandler {
+  fn query_object_graph(&self, path_exp: Iter<PathToken>, body: RefCell<QueryResult<Value>>, callback: &mut FnMut(RefCell<QueryResult<Value>>)) {
+    let mut body_cursor = body.clone();
+    for token in path_exp {
+      match token {
+        &PathToken::Field(ref name) => {
+          let mut br = body_cursor.borrow_mut();
+          let parent = br.value.clone();
+          match br.value.as_object_mut() {
+            Some(map) => match map.get_mut(name) {
+              Some(new_value) => {
+                body_cursor.replace(QueryResult { value: new_value.clone(), key: Some(name.clone()), parent: Some(parent) });
+              },
+              None => return
+            },
+            None => return
+          }
+        }
+        /*
+        is PathToken.Field -> if (bodyCursor.value is Map<*, *> &&
+          (bodyCursor.value as Map<*, *>).containsKey(token.name)) {
+          val map = bodyCursor.value as Map<*, *>
+          bodyCursor = QueryResult(map[token.name]!!, token.name, bodyCursor.value)
+        } else {
+          return
+        }
+        is PathToken.Index -> if (bodyCursor.value is List<*> && (bodyCursor.value as List<*>).size > token.index) {
+          val list = bodyCursor.value as List<*>
+          bodyCursor = QueryResult(list[token.index]!!, token.index, bodyCursor.value)
+        } else {
+          return
+        }
+        is PathToken.Star -> if (bodyCursor.value is MutableMap<*, *>) {
+          val map = bodyCursor.value as MutableMap<*, *>
+          val pathIterator = IteratorUtils.toList(pathExp)
+          map.forEach { (key, value) ->
+            queryObjectGraph(pathIterator.iterator(), QueryResult(value!!, key, map), fn)
+          }
+          return
+        } else {
+          return
+        }
+        is PathToken.StarIndex -> if (bodyCursor.value is List<*>) {
+          val list = bodyCursor.value as List<*>
+          val pathIterator = IteratorUtils.toList(pathExp)
+          list.forEachIndexed { index, item ->
+            queryObjectGraph(pathIterator.iterator(), QueryResult(item!!, index, list), fn)
+          }
+          return
+        } else {
+          return
+        }
+  */
+        _ => ()
+      }
+    }
+
+    callback(body_cursor);
+  }
+}
+
+impl ContentTypeHandler<Value> for JsonHandler {
+  fn process_body(&self) -> OptionalBody {
+    unimplemented!()
+//  self.apply_generator(&GeneratorCategory::BODY, |key, generator| {
+//    handler.apply_key(body_result, key, generator);
+//  });
+  }
+
+  fn apply_key(&self, body: RefCell<QueryResult<Value>>, key: &String, generator: &Generator) {
+    match parse_path_exp(key.clone()) {
+      Ok(mut path_exp) => self.query_object_graph(path_exp.iter(), body, &mut |mut body_val: RefCell<QueryResult<Value>>| {
+        p!(body_val);
+        let mut inner = body_val.borrow_mut();
+        let bv = &inner.value.clone();
+        let bk = inner.key.clone();
+        match inner.parent {
+          Some(ref mut parent_value) => match parent_value {
+            &mut Value::Object(ref mut map) => match generator.generate_value(bv) {
+              Some(val) => {
+                map.insert(bk.unwrap(), val);
+              },
+              None => ()
+            },
+            &mut Value::Array(ref mut array) => match generator.generate_value(bv) {
+              Some(val) => {
+                let index = bk.clone().unwrap().parse::<usize>();
+                match index {
+                  Ok(index) => array.insert(index, val),
+                  Err(err) => warn!("Ignoring generator as {:?} is not a valid array index", bk)
+                }
+              },
+              None => ()
+            },
+            _ => match generator.generate_value(bv) {
+              Some(mut val) => {
+                body_val.borrow_mut().value = val;
+              },
+              None => ()
+            }
+          },
+          _ => match generator.generate_value(bv) {
+            Some(mut val) => {
+              body_val.borrow_mut().value = val;
+            },
+            None => ()
+          }
+        }
+      }),
+      Err(err) => warn!("Generator path '{}' is invalid, ignoring: {}", key, err)
+    }
+  }
+
+  fn new_cursor(&self) -> QueryResult<Value> {
+    unimplemented!()
+  }
+}
+
+pub struct XmlHandler<'a> {
+  pub value: Document<'a>
+}
+
+impl <'a> ContentTypeHandler<Document<'a>> for XmlHandler<'a> {
+  fn process_body(&self) -> OptionalBody {
+    unimplemented!()
+  }
+
+  fn apply_key(&self, body: RefCell<QueryResult<Document<'a>>>, key: &String, generator: &Generator) {
+    unimplemented!()
+  }
+
+  fn new_cursor(&self) -> QueryResult<Document<'a>> {
+    unimplemented!()
   }
 }
 
@@ -262,6 +456,43 @@ impl Generators {
       for (key, value) in self.categories[category].clone() {
         closure(&key, &value)
       }
+    }
+  }
+
+  pub fn apply_body_generators(&self, body: &OptionalBody, content_type: DetectedContentType) -> OptionalBody {
+    if body.is_present() {
+      if self.is_not_empty() {
+        match content_type {
+          DetectedContentType::Json => {
+            let result: Result<Value, serde_json::Error> = serde_json::from_slice(&body.value());
+            match result {
+              Ok(val) => {
+                let handler = JsonHandler { value: val };
+                handler.process_body()
+              },
+              Err(err) => {
+                error!("Failed to parse the body, so not applying any generators: {}", err);
+                body.clone()
+              }
+            }
+          },
+          DetectedContentType::Xml => match parse_bytes(&body.value()) {
+            Ok(val) => {
+              let handler = XmlHandler { value: val.as_document() };
+              handler.process_body()
+            },
+            Err(err) => {
+              error!("Failed to parse the body, so not applying any generators: {}", err);
+              body.clone()
+            }
+          },
+          _ => body.clone()
+        }
+      } else {
+        body.clone()
+      }
+    } else {
+      body.clone()
     }
   }
 }

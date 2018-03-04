@@ -1,4 +1,4 @@
-use serde_json::{self, Value, Map};
+use serde_json::{self, Value};
 use std::str::FromStr;
 
 pub trait JsonToNum<T> {

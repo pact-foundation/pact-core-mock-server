@@ -222,6 +222,7 @@ pub enum DifferenceType {
 }
 
 pub mod json_utils;
+pub mod xml_utils;
 #[macro_use] pub mod matchingrules;
 #[macro_use] pub mod generators;
 
@@ -390,16 +391,21 @@ fn body_from_json(request: &Value, fieldname: &str, headers: &Option<HashMap<Str
         Some(v) => match *v {
             Value::String(ref s) => {
                 if s.is_empty() {
-                    OptionalBody::Empty
-                } else if content_type.unwrap_or(s!("")) == "application/json" {
-                    match serde_json::from_str::<HashMap<String, Value>>(&s) {
-                        Ok(_) => OptionalBody::Present(s.clone().into()),
-                        Err(_) => OptionalBody::Present(format!("\"{}\"", s).into())
-                    }
+                  OptionalBody::Empty
                 } else {
-                  match decode(s) {
-                    Ok(bytes) => OptionalBody::Present(bytes.clone()),
-                    Err(_) => OptionalBody::Present(s.clone().into())
+                  let content_type = content_type.unwrap_or(s!("text/plain"));
+                  if JSON_CONTENT_TYPE.is_match(&content_type) {
+                    match serde_json::from_str::<HashMap<String, Value>>(&s) {
+                      Ok(_) => OptionalBody::Present(s.clone().into()),
+                      Err(_) => OptionalBody::Present(format!("\"{}\"", s).into())
+                    }
+                  } else if content_type.starts_with("text/") {
+                    OptionalBody::Present(s.clone().into())
+                  } else {
+                    match decode(s) {
+                      Ok(bytes) => OptionalBody::Present(bytes.clone()),
+                      Err(_) => OptionalBody::Present(s.clone().into())
+                    }
                   }
                 }
             },

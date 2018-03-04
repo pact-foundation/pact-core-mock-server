@@ -65,7 +65,7 @@
 //!             .content_type("text/plain")
 //!             .body("That is some good Mallory.");
 //!     })
-//!         .build();
+//!     .build();
 //! # }
 //! ```
 //!
@@ -214,10 +214,9 @@
 extern crate env_logger;
 #[macro_use]
 extern crate lazy_static;
-#[cfg(test)]
-#[macro_use]
+#[allow(unused_imports)] #[macro_use]
 extern crate maplit;
-#[macro_use]
+#[allow(unused_imports)] #[macro_use]
 extern crate pact_matching;
 extern crate pact_mock_server;
 extern crate regex;
@@ -228,6 +227,7 @@ extern crate serde_derive;
 extern crate serde_json;
 extern crate url;
 extern crate uuid;
+#[allow(unused_imports)] #[macro_use] extern crate p_macro;
 
 // Child modules which define macros (must be first because macros are resolved)
 // in source inclusion order).
