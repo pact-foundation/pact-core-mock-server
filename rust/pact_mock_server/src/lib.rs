@@ -645,16 +645,16 @@ pub extern fn mock_server_matched_ffi(mock_server_port: int32_t) -> bool {
 }
 
 /// Gets all the mismatches from a mock server. The port number of the mock
-/// server is passed in, and the results are returned in JSON format.
+/// server is passed in, and the results are returned in JSON format as a String.
 ///
 /// If there is no mock server with the provided port number, `None` is returned.
 ///
-pub extern fn mock_server_mismatches(mock_server_port: i32) -> Option<serde_json::Value> {
+pub extern fn mock_server_mismatches(mock_server_port: i32) -> Option<std::string::String> {
   lookup_mock_server_by_port(mock_server_port, &|mock_server| {
     let mismatches = mock_server.mismatches().iter()
       .map(|mismatch| mismatch.to_json() )
       .collect::<Vec<serde_json::Value>>();
-    json!(mismatches)
+    json!(mismatches).to_string()
   })
 }
 
