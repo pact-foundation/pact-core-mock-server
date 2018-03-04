@@ -294,6 +294,32 @@ fn test_load_test_pact_query_old_format() {
 }
 
 #[test]
+fn test_load_test_pact_root_string_json() {
+    let pact_file = fixture_path("test_pact_root_string_json.json");
+    let pact_result = Pact::read_pact(&pact_file);
+
+    match pact_result {
+        Ok(ref pact) => {
+            let mut f = File::open(pact_file).unwrap();
+            let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
+            let pact_json = pact.to_json();
+            expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
+            expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
+
+            let pact_interactions = pact_json.get("interactions").unwrap().as_array().unwrap();
+            let pact_response = pact_interactions[0].get("response").unwrap();
+            expect!(pact_response.get("body").unwrap().to_string()).to(be_equal_to(s!("\"That is some good Mallory.\"")));
+
+            let metadata = pact_json.get("metadata").unwrap().as_object().unwrap();
+            let expected_keys : Vec<String> = vec![s!("pact-rust"), s!("pact-specification")];
+            expect!(metadata.keys().cloned().collect::<Vec<String>>()).to(be_equal_to(expected_keys));
+            expect!(metadata.get("pact-specification").unwrap().to_string()).to(be_equal_to(s!("{\"version\":\"2.0.0\"}")));
+        },
+        Err(err) => panic!("Failed to load pact from '{:?}' - {}", pact_file, err)
+    }
+}
+
+#[test]
 fn test_load_test_pact_with_bodies() {
     let pact_file = fixture_path("test_pact_with_bodies.json");
     let pact_result = Pact::read_pact(&pact_file);

@@ -1365,6 +1365,36 @@ fn body_from_json_returns_the_body_if_the_body_is_a_string() {
 }
 
 #[test]
+fn body_from_text_plain_type_returns_the_same_formatted_body() {
+    let json : serde_json::Value = serde_json::from_str(r#"
+      {
+          "path": "/",
+          "query": "",
+          "headers": {"Content-Type": "text/plain"},
+          "body": "\"This is a string\""
+      }
+     "#).unwrap();
+    let headers = headers_from_json(&json);
+    let body = body_from_json(&json, "body", &headers);
+    expect!(body).to(be_equal_to(OptionalBody::Present("\"This is a string\"".into())));
+}
+
+#[test]
+fn body_from_text_html_type_returns_the_same_formatted_body() {
+    let json : serde_json::Value = serde_json::from_str(r#"
+      {
+          "path": "/",
+          "query": "",
+          "headers": {"Content-Type": "text/html"},
+          "body": "\"This is a string\""
+      }
+     "#).unwrap();
+    let headers = headers_from_json(&json);
+    let body = body_from_json(&json, "body", &headers);
+    expect!(body).to(be_equal_to(OptionalBody::Present("\"This is a string\"".into())));
+}
+
+#[test]
 fn body_from_json_returns_the_a_json_formatted_body_if_the_body_is_a_string_and_the_content_type_is_json() {
     let json : serde_json::Value = serde_json::from_str(r#"
       {
@@ -1372,6 +1402,21 @@ fn body_from_json_returns_the_a_json_formatted_body_if_the_body_is_a_string_and_
           "query": "",
           "headers": {"Content-Type": "application/json"},
           "body": "This is actually a JSON string"
+      }
+     "#).unwrap();
+    let headers = headers_from_json(&json);
+    let body = body_from_json(&json, "body", &headers);
+    expect!(body).to(be_equal_to(OptionalBody::Present("\"This is actually a JSON string\"".into())));
+}
+
+#[test]
+fn body_from_json_returns_the_a_json_formatted_body_if_the_body_is_a_valid_json_string_and_the_content_type_is_json() {
+    let json : serde_json::Value = serde_json::from_str(r#"
+      {
+          "path": "/",
+          "query": "",
+          "headers": {"Content-Type": "application/json"},
+          "body": "\"This is actually a JSON string\""
       }
      "#).unwrap();
     let headers = headers_from_json(&json);
