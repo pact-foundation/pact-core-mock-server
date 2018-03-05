@@ -13,10 +13,7 @@ use models::xml_utils::parse_bytes;
 use sxd_document::dom::Document;
 use path_exp::*;
 use std::slice::Iter;
-use std::rc::Rc;
-use std::borrow::Borrow;
-use std::cell::RefCell;
-use std::ops::Deref;
+use itertools::Itertools;
 
 /// Trait to represent a generator
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash)]
@@ -98,7 +95,7 @@ pub trait GenerateValue<T> {
 }
 
 impl GenerateValue<u16> for Generator {
-  fn generate_value(&self, value: &u16) -> Option<u16> {
+  fn generate_value(&self, _: &u16) -> Option<u16> {
     match self {
       &Generator::RandomInt(min, max) => Some(rand::thread_rng().gen_range(min as u16, max as u16 + 1)),
       _ => None
@@ -107,7 +104,7 @@ impl GenerateValue<u16> for Generator {
 }
 
 impl GenerateValue<String> for Generator {
-  fn generate_value(&self, value: &String) -> Option<String> {
+  fn generate_value(&self, _: &String) -> Option<String> {
     match self {
       &Generator::RandomInt(min, max) => Some(format!("{}", rand::thread_rng().gen_range(min, max + 1))),
       &Generator::Uuid => Some(Uuid::new_v4().simple().to_string()),
@@ -189,35 +186,9 @@ impl Into<String> for GeneratorCategory {
   }
 }
 
-#[derive(PartialEq, Debug, Eq, Clone)]
-pub struct QueryResult<T> {
-  pub value: T,
-  pub key: Option<String>,
-  pub parent: Option<T>
-}
-
-impl <T> QueryResult<T> where T: Clone {
-
-  pub fn default(value: T) -> QueryResult<T> {
-    QueryResult { value, key: None, parent: None }
-  }
-
-  pub fn update_to(&mut self, new_value: &mut T, new_key: Option<String>, new_parent: Option<T>) {
-    self.value = new_value.clone();
-    self.key = new_key;
-    self.parent = new_parent;
-  }
-
-  pub fn update_value(&mut self, new_value: T) {
-    self.value = new_value.clone();
-  }
-
-}
-
 pub trait ContentTypeHandler<T> {
-  fn process_body(&self) -> OptionalBody;
-  fn apply_key(&self, mut body: QueryResult<T>, key: &String, generator: &Generator);
-  fn new_cursor(&self) -> QueryResult<T>;
+  fn process_body(&mut self) -> OptionalBody;
+  fn apply_key(&mut self, key: &String, generator: &Generator);
 }
 
 pub struct JsonHandler {
@@ -225,20 +196,17 @@ pub struct JsonHandler {
 }
 
 impl JsonHandler {
-  fn query_object_graph(&self, path_exp: Iter<PathToken>, mut body: QueryResult<Value>, callback: &mut FnMut(QueryResult<Value>)) {
-    let mut body_cursor = body.clone();
+  fn query_object_graph(&self, path_exp: Iter<PathToken>, body: Value) -> Vec<String> {
+    let mut json_path = vec![];
     for token in path_exp {
       match token {
         &PathToken::Field(ref name) => {
-          let parent = body.value.clone();
-          match body.value.as_object_mut() {
-            Some(map) => match map.get_mut(name) {
-              Some(new_value) => {
-                body_cursor.update_to(new_value, Some(name.clone()), Some(parent));
-              },
-              None => return
+          match body.as_object() {
+            Some(map) => match map.get(name) {
+              Some(_) => json_path.push(name.clone()),
+              None => return vec![]
             },
-            None => return
+            None => return vec![]
           }
         }
         /*
@@ -280,63 +248,72 @@ impl JsonHandler {
       }
     }
 
-    callback(body_cursor);
+    json_path
   }
 }
 
 impl ContentTypeHandler<Value> for JsonHandler {
-  fn process_body(&self) -> OptionalBody {
+  fn process_body(&mut self) -> OptionalBody {
     unimplemented!()
 //  self.apply_generator(&GeneratorCategory::BODY, |key, generator| {
 //    handler.apply_key(body_result, key, generator);
 //  });
   }
 
-  fn apply_key(&self, mut body: QueryResult<Value>, key: &String, generator: &Generator) {
+  fn apply_key(&mut self, key: &String, generator: &Generator) {
     match parse_path_exp(key.clone()) {
-      Ok(mut path_exp) => self.query_object_graph(path_exp.iter(), body, &mut |mut body_val: QueryResult<Value>| {
-        p!(body_val);
-        let bv = &body_val.value.clone();
-        let bk = body_val.key.clone();
-        match body_val.parent.clone() {
-          Some(ref mut parent_value) => match parent_value {
-            &mut Value::Object(ref mut map) => match generator.generate_value(bv) {
-              Some(val) => {
-                map.insert(bk.unwrap(), val);
+      Ok(path_exp) => {
+        let path = self.query_object_graph(path_exp.iter(), self.value.clone());
+        if !path.is_empty() {
+          let pointer_str = "/".to_owned() + &path.iter().join("/");
+          match self.value.pointer_mut(&pointer_str) {
+            Some(json_value) => match generator.generate_value(&json_value.clone()) {
+                Some(new_value) => *json_value = new_value,
+                None => ()
               },
-              None => ()
-            },
-            &mut Value::Array(ref mut array) => match generator.generate_value(bv) {
-              Some(val) => {
-                let index = bk.clone().unwrap().parse::<usize>();
-                match index {
-                  Ok(index) => array.insert(index, val),
-                  Err(err) => warn!("Ignoring generator as {:?} is not a valid array index", bk)
-                }
-              },
-              None => ()
-            },
-            _ => match generator.generate_value(bv) {
-              Some(mut val) => {
-                body_val.update_value(val);
-              },
-              None => ()
-            }
-          },
-          _ => match generator.generate_value(bv) {
-            Some(mut val) => {
-              body_val.update_value(val);
-            },
             None => ()
           }
         }
-      }),
+    //     p!(body_val);
+    //     let bv = &body_val.value.clone();
+    //     let bk = body_val.key.clone();
+    //     match body_val.parent.clone() {
+    //       Some(ref mut parent_value) => match parent_value {
+    //         &mut Value::Object(ref mut map) => match generator.generate_value(bv) {
+    //           Some(val) => {
+    //             map.insert(bk.unwrap(), val);
+    //           },
+    //           None => ()
+    //         },
+    //         &mut Value::Array(ref mut array) => match generator.generate_value(bv) {
+    //           Some(val) => {
+    //             let index = bk.clone().unwrap().parse::<usize>();
+    //             match index {
+    //               Ok(index) => array.insert(index, val),
+    //               Err(err) => warn!("Ignoring generator as {:?} is not a valid array index", bk)
+    //             }
+    //           },
+    //           None => ()
+    //         },
+    //         _ => match generator.generate_value(bv) {
+    //           Some(mut val) => {
+    //             body_val.update_value(val);
+    //           },
+    //           None => ()
+    //         }
+    //       },
+    //       _ => match generator.generate_value(bv) {
+    //         Some(mut val) => {
+    //           body_val.update_value(val);
+    //         },
+    //         None => ()
+    //       }
+    //     };
+    //     body_val
+    //   }),
+      },
       Err(err) => warn!("Generator path '{}' is invalid, ignoring: {}", key, err)
     }
-  }
-
-  fn new_cursor(&self) -> QueryResult<Value> {
-    unimplemented!()
   }
 }
 
@@ -345,15 +322,11 @@ pub struct XmlHandler<'a> {
 }
 
 impl <'a> ContentTypeHandler<Document<'a>> for XmlHandler<'a> {
-  fn process_body(&self) -> OptionalBody {
+  fn process_body(&mut self) -> OptionalBody {
     unimplemented!()
   }
 
-  fn apply_key(&self, mut body: QueryResult<Document<'a>>, key: &String, generator: &Generator) {
-    unimplemented!()
-  }
-
-  fn new_cursor(&self) -> QueryResult<Document<'a>> {
+  fn apply_key(&mut self, key: &String, generator: &Generator) {
     unimplemented!()
   }
 }
@@ -471,7 +444,7 @@ impl Generators {
             let result: Result<Value, serde_json::Error> = serde_json::from_slice(&body.value());
             match result {
               Ok(val) => {
-                let handler = JsonHandler { value: val };
+                let mut handler = JsonHandler { value: val };
                 handler.process_body()
               },
               Err(err) => {
@@ -482,7 +455,7 @@ impl Generators {
           },
           DetectedContentType::Xml => match parse_bytes(&body.value()) {
             Ok(val) => {
-              let handler = XmlHandler { value: val.as_document() };
+              let mut handler = XmlHandler { value: val.as_document() };
               handler.process_body()
             },
             Err(err) => {

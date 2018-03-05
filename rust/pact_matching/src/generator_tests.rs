@@ -1,10 +1,9 @@
 use super::*;
 use expectest::prelude::*;
 use models::{Request, Response, OptionalBody, DetectedContentType};
-use models::generators::{QueryResult, JsonHandler, ContentTypeHandler};
+use models::generators::{JsonHandler, ContentTypeHandler};
 use std::str::FromStr;
 use serde_json::Value;
-use std::cell::RefCell;
 
 #[test]
 fn returns_original_response_if_there_are_no_generators() {
@@ -136,31 +135,31 @@ fn does_not_change_body_if_there_are_no_generators() {
 #[test]
 fn applies_the_generator_to_a_json_map_entry() {
   let map = json!({"a": 100, "b": "B", "c": "C"});
-  let json_handler = JsonHandler { value: map.clone() };
-  let mut query_result = QueryResult::default(map);
-  json_handler.apply_key(query_result.clone(), &s!("$.b"), &Generator::RandomInt(0, 10));
-  p!(query_result);
-  expect!(&query_result.value["b"]).to(be_equal_to(&json!("B")));
+  let mut json_handler = JsonHandler { value: map };
+
+  json_handler.apply_key(&s!("$.b"), &Generator::RandomInt(0, 10));
+
+  expect!(&json_handler.value["b"]).to_not(be_equal_to(&json!("B")));
 }
 
 #[test]
 fn json_generator_handles_invalid_path_expressions() {
   let map = json!({"a": 100, "b": "B", "c": "C"});
-  let json_handler = JsonHandler { value: map.clone() };
-  let mut query_result = QueryResult::default(map.clone());
-  json_handler.apply_key(query_result.clone(), &s!("$["), &Generator::RandomInt(0, 10));
+  let mut json_handler = JsonHandler { value: map };
+  
+  json_handler.apply_key(&s!("$["), &Generator::RandomInt(0, 10));
 
-  expect!(query_result.value).to(be_equal_to(map));
+  expect!(json_handler.value).to(be_equal_to(json!({"a": 100, "b": "B", "c": "C"})));
 }
 
 #[test]
 fn does_not_apply_the_generator_when_field_is_not_in_map() {
   let map = json!({"a": 100, "b": "B", "c": "C"});
-  let expected = map.clone();
-  let json_handler = JsonHandler { value: map.clone() };
-  let mut query_result = QueryResult::default(map.clone());
-  json_handler.apply_key(query_result.clone(), &s!("$.d"), &Generator::RandomInt(0, 10));
-  expect!(query_result.value).to(be_equal_to(expected));
+  let mut json_handler = JsonHandler { value: map };
+  
+  json_handler.apply_key(&s!("$.d"), &Generator::RandomInt(0, 10));
+
+  expect!(json_handler.value).to(be_equal_to(json!({"a": 100, "b": "B", "c": "C"})));
 }
 
 /*

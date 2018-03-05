@@ -966,7 +966,7 @@ pub fn match_message(expected: models::message::Message, actual: models::message
 pub fn generate_request(request: &models::Request) -> models::Request {
     let generators = request.generators.clone();
     let mut request = request.clone();
-    generators.apply_generator(&GeneratorCategory::PATH, |key, generator| {
+    generators.apply_generator(&GeneratorCategory::PATH, |_, generator| {
         match generator.generate_value(&request.path) {
             Some(v) => request.path = v,
             None => ()
@@ -1009,7 +1009,7 @@ pub fn generate_request(request: &models::Request) -> models::Request {
 pub fn generate_response(response: &models::Response) -> models::Response {
   let generators = response.generators.clone();
   let mut response = response.clone();
-  generators.apply_generator(&GeneratorCategory::STATUS, |key, generator| {
+  generators.apply_generator(&GeneratorCategory::STATUS, |_, generator| {
     match generator.generate_value(&response.status) {
       Some(v) => response.status = v,
       None => ()
