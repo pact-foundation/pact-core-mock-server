@@ -105,11 +105,48 @@ impl GenerateValue<u16> for Generator {
   }
 }
 
+fn generate_decimal(digits: usize) -> String {
+  const DIGIT_CHARSET: &'static [u8] = b"0123456789";
+  let mut rnd = rand::thread_rng();
+  (1..digits).map(|_| *rnd.choose(DIGIT_CHARSET).unwrap() as char).collect()
+}
+
+fn generate_hexadecimal(digits: usize) -> String {
+  const HEX_CHARSET: &'static [u8] = b"0123456789ABCDEF";
+  let mut rnd = rand::thread_rng();
+  (1..digits).map(|_| *rnd.choose(HEX_CHARSET).unwrap() as char).collect()
+}
+
+fn generate_ascii_string(size: usize) -> String {
+  rand::thread_rng().gen_ascii_chars().take(size).collect()
+}
+
 impl GenerateValue<String> for Generator {
   fn generate_value(&self, _: &String) -> Option<String> {
+    let mut rnd = rand::thread_rng();
     match self {
-      &Generator::RandomInt(min, max) => Some(format!("{}", rand::thread_rng().gen_range(min, max + 1))),
+      &Generator::RandomInt(min, max) => Some(format!("{}", rnd.gen_range(min, max + 1))),
       &Generator::Uuid => Some(Uuid::new_v4().simple().to_string()),
+      &Generator::RandomDecimal(digits) => Some(generate_decimal(digits as usize)),
+      &Generator::RandomHexadecimal(digits) => Some(generate_hexadecimal(digits as usize)),
+      &Generator::RandomString(size) => Some(generate_ascii_string(size as usize)),
+      &Generator::Regex(ref regex) => {
+        warn!("Regex generator is not implemented");
+        None
+      },
+      &Generator::Date(ref format) => {
+        warn!("Date generator is not implemented");
+        None
+      },
+      &Generator::Time(ref format) => {
+        warn!("Time generator is not implemented");
+        None
+      },
+      &Generator::Timestamp(ref format) => {
+        warn!("Timestamp generator is not implemented");
+        None
+      },
+      &Generator::RandomBoolean => Some(format!("{}", rnd.gen::<bool>())),
       _ => None
     }
   }
@@ -130,6 +167,39 @@ impl GenerateValue<Value> for Generator {
         &Value::String(_) => Some(json!(Uuid::new_v4().simple().to_string())),
         _ => None
       },
+      &Generator::RandomDecimal(digits) => match value {
+        &Value::String(_) => Some(json!(generate_decimal(digits as usize))),
+        &Value::Number(_) => match generate_decimal(digits as usize).parse::<u64>() {
+          Ok(val) => Some(json!(val)),
+          Err(_) => None
+        },
+        _ => None
+      },
+      &Generator::RandomHexadecimal(digits) => match value {
+        &Value::String(_) => Some(json!(generate_hexadecimal(digits as usize))),
+        _ => None
+      },
+      &Generator::RandomString(size) => match value {
+        &Value::String(_) => Some(json!(generate_ascii_string(size as usize))),
+        _ => None
+      },
+      &Generator::Regex(ref regex) => {
+        warn!("Regex generator is not implemented");
+        None
+      },
+      &Generator::Date(ref format) => {
+        warn!("Date generator is not implemented");
+        None
+      },
+      &Generator::Time(ref format) => {
+        warn!("Time generator is not implemented");
+        None
+      },
+      &Generator::Timestamp(ref format) => {
+        warn!("Timestamp generator is not implemented");
+        None
+      },
+      &Generator::RandomBoolean => Some(json!(rand::thread_rng().gen::<bool>())),
       _ => None
     }
   }
