@@ -88,6 +88,13 @@ fn apply_generator_to_empty_body_test() {
 }
 
 #[test]
+fn do_not_apply_generators_if_there_are_no_body_generators() {
+  let generators = Generators::default();
+  let body = OptionalBody::Present("{\"a\": 100, \"b\": \"B\"}".into());
+  expect!(generators.apply_body_generators(&body, DetectedContentType::Json)).to(be_equal_to(body));
+}
+
+#[test]
 fn apply_generator_to_text_body_test() {
   let generators = Generators::default();
   let body = OptionalBody::Present("some text".into());
@@ -95,27 +102,26 @@ fn apply_generator_to_text_body_test() {
 }
 
 #[test]
-#[ignore]
 fn applies_body_generator_to_the_copy_of_the_request() {
   let request = Request { body: OptionalBody::Present("{\"a\": 100, \"b\": \"B\"}".into()),
     generators: generators! {
       "BODY" => {
-        "a" => Generator::RandomInt(1, 10)
+        "$.a" => Generator::RandomInt(1, 10)
       }
     }, .. Request::default_request()
   };
-  let body: Value = serde_json::from_str(generate_request(&request).body.str_value()).unwrap();
+  let generated_request = generate_request(&request);
+  let body: Value = serde_json::from_str(generated_request.body.str_value()).unwrap();
   expect!(&body["a"]).to_not(be_equal_to(&json!(100)));
   expect!(&body["b"]).to(be_equal_to(&json!("B")));
 }
 
 #[test]
-#[ignore]
 fn applies_body_generator_to_the_copy_of_the_response() {
   let response = Response { body: OptionalBody::Present("{\"a\": 100, \"b\": \"B\"}".into()),
     generators: generators! {
       "BODY" => {
-        "a" => Generator::RandomInt(1, 10)
+        "$.a" => Generator::RandomInt(1, 10)
       }
     }, .. Response::default_response()
   };

@@ -189,7 +189,7 @@ impl Into<String> for GeneratorCategory {
 }
 
 pub trait ContentTypeHandler<T> {
-  fn process_body(&mut self) -> OptionalBody;
+  fn process_body(&mut self, generators: &HashMap<String, Generator>) -> OptionalBody;
   fn apply_key(&mut self, key: &String, generator: &Generator);
 }
 
@@ -274,11 +274,11 @@ impl JsonHandler {
 }
 
 impl ContentTypeHandler<Value> for JsonHandler {
-  fn process_body(&mut self) -> OptionalBody {
-    unimplemented!()
-//  self.apply_generator(&GeneratorCategory::BODY, |key, generator| {
-//    handler.apply_key(body_result, key, generator);
-//  });
+  fn process_body(&mut self, generators: &HashMap<String, Generator>) -> OptionalBody {
+    for (key, generator) in generators {
+      self.apply_key(key, generator);
+    };
+    OptionalBody::Present(self.value.to_string().into())
   }
 
   fn apply_key(&mut self, key: &String, generator: &Generator) {
@@ -297,7 +297,6 @@ impl ContentTypeHandler<Value> for JsonHandler {
           }
           acc
         });
-        p!(expanded_paths);
 
         if !expanded_paths.is_empty() {
           for pointer_str in expanded_paths {
@@ -326,7 +325,7 @@ pub struct XmlHandler<'a> {
 }
 
 impl <'a> ContentTypeHandler<Document<'a>> for XmlHandler<'a> {
-  fn process_body(&mut self) -> OptionalBody {
+  fn process_body(&mut self, generators: &HashMap<String, Generator>) -> OptionalBody {
     unimplemented!()
   }
 
@@ -441,36 +440,34 @@ impl Generators {
   }
 
   pub fn apply_body_generators(&self, body: &OptionalBody, content_type: DetectedContentType) -> OptionalBody {
-    if body.is_present() {
-      if self.is_not_empty() {
-        match content_type {
-          DetectedContentType::Json => {
-            let result: Result<Value, serde_json::Error> = serde_json::from_slice(&body.value());
-            match result {
-              Ok(val) => {
-                let mut handler = JsonHandler { value: val };
-                handler.process_body()
-              },
-              Err(err) => {
-                error!("Failed to parse the body, so not applying any generators: {}", err);
-                body.clone()
-              }
-            }
-          },
-          DetectedContentType::Xml => match parse_bytes(&body.value()) {
+    if body.is_present() && self.categories.contains_key(&GeneratorCategory::BODY) &&
+      !self.categories[&GeneratorCategory::BODY].is_empty() {
+      let generators = &self.categories[&GeneratorCategory::BODY];
+      match content_type {
+        DetectedContentType::Json => {
+          let result: Result<Value, serde_json::Error> = serde_json::from_slice(&body.value());
+          match result {
             Ok(val) => {
-              let mut handler = XmlHandler { value: val.as_document() };
-              handler.process_body()
+              let mut handler = JsonHandler { value: val };
+              handler.process_body(&generators)
             },
             Err(err) => {
               error!("Failed to parse the body, so not applying any generators: {}", err);
               body.clone()
             }
+          }
+        },
+        DetectedContentType::Xml => match parse_bytes(&body.value()) {
+          Ok(val) => {
+            let mut handler = XmlHandler { value: val.as_document() };
+            handler.process_body(&generators)
           },
-          _ => body.clone()
-        }
-      } else {
-        body.clone()
+          Err(err) => {
+            error!("Failed to parse the body, so not applying any generators: {}", err);
+            body.clone()
+          }
+        },
+        _ => body.clone()
       }
     } else {
       body.clone()
