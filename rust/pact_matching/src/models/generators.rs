@@ -14,6 +14,8 @@ use sxd_document::dom::Document;
 use path_exp::*;
 use std::slice::Iter;
 use itertools::Itertools;
+use indextree::{Arena, NodeId};
+use std::ops::Index;
 
 /// Trait to represent a generator
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash)]
@@ -196,59 +198,78 @@ pub struct JsonHandler {
 }
 
 impl JsonHandler {
-  fn query_object_graph(&self, path_exp: Iter<PathToken>, body: Value) -> Vec<String> {
-    let mut json_path = vec![];
-    for token in path_exp {
-      match token {
-        &PathToken::Field(ref name) => {
-          match body.as_object() {
-            Some(map) => match map.get(name) {
-              Some(_) => json_path.push(name.clone()),
-              None => return vec![]
+  fn query_object_graph(&self, path_exp: &Vec<PathToken>, tree: &mut Arena<String>, root: NodeId, body: Value) {
+    let mut body_cursor = body;
+    let mut it = path_exp.iter();
+    let mut node_cursor = root;
+    loop {
+      match it.next() {
+        Some(token) => {
+          p!(token);
+          p!(body_cursor);
+
+          match token {
+            &PathToken::Field(ref name) => {
+              match body_cursor.clone().as_object() {
+                Some(map) => match map.get(name) {
+                  Some(val) => {
+                    let mut node = tree.new_node(name.clone());
+                    node_cursor.append(node, tree);
+                    body_cursor = val.clone();
+                    node_cursor = node;
+                  },
+                  None => return
+                },
+                None => return
+              }
             },
-            None => return vec![]
+            &PathToken::Index(index) => {
+              match body_cursor.clone().as_array() {
+                Some(list) => if list.len() > index {
+                  let mut node = tree.new_node(format!("{}", index));
+                  node_cursor.append(node, tree);
+                  body_cursor = list[index].clone();
+                  node_cursor = node;
+                },
+                None => return
+              }
+            }
+            &PathToken::Star => {
+              match body_cursor.clone().as_object() {
+                Some(map) => {
+                  let remaining = it.by_ref().cloned().collect();
+                  p!(remaining);
+                  for (key, val) in map {
+                    let mut node = tree.new_node(key.clone());
+                    node_cursor.append(node, tree);
+                    body_cursor = val.clone();
+                    self.query_object_graph(&remaining, tree, node, val.clone());
+                  }
+                },
+                None => return
+              }
+            },
+            &PathToken::StarIndex => {
+              match body_cursor.clone().as_array() {
+                Some(list) => {
+                  let remaining = it.by_ref().cloned().collect();
+                  p!(remaining);
+                  for (index, val) in list.iter().enumerate() {
+                    let mut node = tree.new_node(format!("{}", index));
+                    node_cursor.append(node, tree);
+                    body_cursor = val.clone();
+                    self.query_object_graph(&remaining, tree, node,val.clone());
+                  }
+                },
+                None => return
+              }
+            },
+            _ => ()
           }
-        }
-        /*
-        is PathToken.Field -> if (bodyCursor.value is Map<*, *> &&
-          (bodyCursor.value as Map<*, *>).containsKey(token.name)) {
-          val map = bodyCursor.value as Map<*, *>
-          bodyCursor = QueryResult(map[token.name]!!, token.name, bodyCursor.value)
-        } else {
-          return
-        }
-        is PathToken.Index -> if (bodyCursor.value is List<*> && (bodyCursor.value as List<*>).size > token.index) {
-          val list = bodyCursor.value as List<*>
-          bodyCursor = QueryResult(list[token.index]!!, token.index, bodyCursor.value)
-        } else {
-          return
-        }
-        is PathToken.Star -> if (bodyCursor.value is MutableMap<*, *>) {
-          val map = bodyCursor.value as MutableMap<*, *>
-          val pathIterator = IteratorUtils.toList(pathExp)
-          map.forEach { (key, value) ->
-            queryObjectGraph(pathIterator.iterator(), QueryResult(value!!, key, map), fn)
-          }
-          return
-        } else {
-          return
-        }
-        is PathToken.StarIndex -> if (bodyCursor.value is List<*>) {
-          val list = bodyCursor.value as List<*>
-          val pathIterator = IteratorUtils.toList(pathExp)
-          list.forEachIndexed { index, item ->
-            queryObjectGraph(pathIterator.iterator(), QueryResult(item!!, index, list), fn)
-          }
-          return
-        } else {
-          return
-        }
-  */
-        _ => ()
+        },
+        None => break
       }
     }
-
-    json_path
   }
 }
 
@@ -263,54 +284,37 @@ impl ContentTypeHandler<Value> for JsonHandler {
   fn apply_key(&mut self, key: &String, generator: &Generator) {
     match parse_path_exp(key.clone()) {
       Ok(path_exp) => {
-        let path = self.query_object_graph(path_exp.iter(), self.value.clone());
-        if !path.is_empty() {
-          let pointer_str = "/".to_owned() + &path.iter().join("/");
-          match self.value.pointer_mut(&pointer_str) {
-            Some(json_value) => match generator.generate_value(&json_value.clone()) {
+        let mut tree = Arena::new();
+        let mut root = tree.new_node("".into());
+        self.query_object_graph(&path_exp, &mut tree, root, self.value.clone());
+        let expanded_paths = root.descendants(&tree).fold(Vec::<String>::new(), |mut acc, node_id| {
+          let node = tree.index(node_id);
+          if !node.data.is_empty() && node.first_child().is_none() {
+            let path: Vec<String> = node_id.ancestors(&tree).map(|n| format!("{}", tree.index(n).data)).collect();
+            if path.len() == path_exp.len() {
+              acc.push(path.iter().rev().join("/"));
+            }
+          }
+          acc
+        });
+        p!(expanded_paths);
+
+        if !expanded_paths.is_empty() {
+          for pointer_str in expanded_paths {
+            match self.value.pointer_mut(&pointer_str) {
+              Some(json_value) => match generator.generate_value(&json_value.clone()) {
                 Some(new_value) => *json_value = new_value,
                 None => ()
               },
+              None => ()
+            }
+          }
+        } else if path_exp.len() == 1 {
+          match generator.generate_value(&self.value.clone()) {
+            Some(new_value) => self.value = new_value,
             None => ()
           }
         }
-    //     p!(body_val);
-    //     let bv = &body_val.value.clone();
-    //     let bk = body_val.key.clone();
-    //     match body_val.parent.clone() {
-    //       Some(ref mut parent_value) => match parent_value {
-    //         &mut Value::Object(ref mut map) => match generator.generate_value(bv) {
-    //           Some(val) => {
-    //             map.insert(bk.unwrap(), val);
-    //           },
-    //           None => ()
-    //         },
-    //         &mut Value::Array(ref mut array) => match generator.generate_value(bv) {
-    //           Some(val) => {
-    //             let index = bk.clone().unwrap().parse::<usize>();
-    //             match index {
-    //               Ok(index) => array.insert(index, val),
-    //               Err(err) => warn!("Ignoring generator as {:?} is not a valid array index", bk)
-    //             }
-    //           },
-    //           None => ()
-    //         },
-    //         _ => match generator.generate_value(bv) {
-    //           Some(mut val) => {
-    //             body_val.update_value(val);
-    //           },
-    //           None => ()
-    //         }
-    //       },
-    //       _ => match generator.generate_value(bv) {
-    //         Some(mut val) => {
-    //           body_val.update_value(val);
-    //         },
-    //         None => ()
-    //       }
-    //     };
-    //     body_val
-    //   }),
       },
       Err(err) => warn!("Generator path '{}' is invalid, ignoring: {}", key, err)
     }

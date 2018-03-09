@@ -162,157 +162,134 @@ fn does_not_apply_the_generator_when_field_is_not_in_map() {
   expect!(json_handler.value).to(be_equal_to(json!({"a": 100, "b": "B", "c": "C"})));
 }
 
-/*
+#[test]
+fn does_not_apply_the_generator_when_not_a_map() {
+  let map = json!(100);
+  let mut json_handler = JsonHandler { value: map };
+  
+  json_handler.apply_key(&s!("$.d"), &Generator::RandomInt(0, 10));
 
-  def 'does not apply the generator when field is not in map'() {
-    given:
-    def map = [a: 'A', b: 'B', c: 'C']
-    QueryResult body = new QueryResult(map, null, null)
-    def key = '$.d'
-    def generator = { 'X' } as Generator
+  expect!(json_handler.value).to(be_equal_to(json!(100)));
+}
 
-    when:
-    JsonContentTypeHandler.INSTANCE.applyKey(body, key, generator)
+#[test]
+fn applies_the_generator_to_a_list_item() {
+  let list = json!([100, 200, 300]);
+  let mut json_handler = JsonHandler { value: list };
 
-    then:
-    body.value == [a: 'A', b: 'B', c: 'C']
-  }
+  json_handler.apply_key(&s!("$[1]"), &Generator::RandomInt(0, 10));
 
-  def 'does not apply the generator when not a map'() {
-    given:
-    QueryResult body = new QueryResult(100, null, null)
-    def key = '$.d'
-    def generator = { 'X' } as Generator
+  expect!(&json_handler.value[1]).to_not(be_equal_to(&json!(200)));
+}
 
-    when:
-    JsonContentTypeHandler.INSTANCE.applyKey(body, key, generator)
+#[test]
+fn does_not_apply_the_generator_when_index_is_not_in_list() {
+  let list = json!([100, 200, 300]);
+  let mut json_handler = JsonHandler { value: list };
+  
+  json_handler.apply_key(&s!("$[3]"), &Generator::RandomInt(0, 10));
 
-    then:
-    body.value == 100
-  }
+  expect!(json_handler.value).to(be_equal_to(json!([100, 200, 300])));
+}
 
-  def 'applies the generator to a list item'() {
-    given:
-    def list = ['A', 'B', 'C']
-    QueryResult body = new QueryResult(list, null, null)
-    def key = '$[1]'
-    def generator = { 'X' } as Generator
+#[test]
+fn does_not_apply_the_generator_when_not_a_list() {
+  let list = json!(100);
+  let mut json_handler = JsonHandler { value: list };
+  
+  json_handler.apply_key(&s!("$[3]"), &Generator::RandomInt(0, 10));
 
-    when:
-    JsonContentTypeHandler.INSTANCE.applyKey(body, key, generator)
+  expect!(json_handler.value).to(be_equal_to(json!(100)));
+}
 
-    then:
-    body.value == ['A', 'X', 'C']
-  }
+#[test]
+fn applies_the_generator_to_the_root() {
+  let value = json!(100);
+  let mut json_handler = JsonHandler { value };
 
-  def 'does not apply the generator if the index is not in the list'() {
-    given:
-    def list = ['A', 'B', 'C']
-    QueryResult body = new QueryResult(list, null, null)
-    def key = '$[3]'
-    def generator = { 'X' } as Generator
+  json_handler.apply_key(&s!("$"), &Generator::RandomInt(0, 10));
 
-    when:
-    JsonContentTypeHandler.INSTANCE.applyKey(body, key, generator)
+  expect!(&json_handler.value).to_not(be_equal_to(&json!(100)));
+}
 
-    then:
-    body.value == ['A', 'B', 'C']
-  }
+#[test]
+fn applies_the_generator_to_the_object_graph() {
+  let value = json!({
+    "a": ["A", {"a": "A", "b": {"1": "1", "2": "2"}, "c": "C"}, "C"],
+    "b": "B",
+    "c": "C"
+  });
+  let mut json_handler = JsonHandler { value };
 
-  def 'does not apply the generator when not a list'() {
-    given:
-    QueryResult body = new QueryResult(100, null, null)
-    def key = '$[3]'
-    def generator = { 'X' } as Generator
+  json_handler.apply_key(&s!("$.a[1].b['2']"), &Generator::RandomInt(3, 10));
 
-    when:
-    JsonContentTypeHandler.INSTANCE.applyKey(body, key, generator)
+  expect!(&json_handler.value["a"][1]["b"]["2"]).to_not(be_equal_to(&json!("2")));
+}
 
-    then:
-    body.value == 100
-  }
+#[test]
+fn does_not_apply_the_generator_to_the_object_graph_when_the_expression_does_not_match() {
+  let value = json!({
+    "a": "A",
+    "b": "B",
+    "c": "C"
+  });
+  let mut json_handler = JsonHandler { value };
 
-  def 'applies the generator to the root'() {
-    given:
-    def bodyValue = 100
-    QueryResult body = new QueryResult(bodyValue, null, null)
-    def key = '$'
-    def generator = { 'X' } as Generator
+  json_handler.apply_key(&s!("$.a[1].b['2']"), &Generator::RandomInt(0, 10));
 
-    when:
-    JsonContentTypeHandler.INSTANCE.applyKey(body, key, generator)
+  expect!(&json_handler.value).to(be_equal_to(&json!({
+    "a": "A",
+    "b": "B",
+    "c": "C"
+  })));
+}
 
-    then:
-    body.value == 'X'
-  }
+#[test]
+fn applies_the_generator_to_all_map_entries() {
+  let value = json!({
+    "a": "A",
+    "b": "B",
+    "c": "C"
+  });
+  let mut json_handler = JsonHandler { value };
 
-  def 'applies the generator to the object graph'() {
-    given:
-    def graph = [a: ['A', [a: 'A', b: ['1': '1', '2': '2'], c: 'C'], 'C'], b: 'B', c: 'C']
-    QueryResult body = new QueryResult(graph, null, null)
-    def key = '$.a[1].b[\'2\']'
-    def generator = { 'X' } as Generator
+  json_handler.apply_key(&s!("$.*"), &Generator::RandomInt(0, 10));
 
-    when:
-    JsonContentTypeHandler.INSTANCE.applyKey(body, key, generator)
+  expect!(&json_handler.value["a"]).to_not(be_equal_to(&json!("A")));
+  expect!(&json_handler.value["b"]).to_not(be_equal_to(&json!("B")));
+  expect!(&json_handler.value["c"]).to_not(be_equal_to(&json!("C")));
+}
 
-    then:
-    body.value == [a: ['A', [a: 'A', b: ['1': '1', '2': 'X'], c: 'C'], 'C'], b: 'B', c: 'C']
-  }
+#[test]
+fn applies_the_generator_to_all_list_items() {
+  let value = json!(["A", "B", "C"]);
+  let mut json_handler = JsonHandler { value };
 
-  def 'does not apply the generator to the object graph when the expression does not match'() {
-    given:
-    def graph = [d: 'A', b: 'B', c: 'C']
-    QueryResult body = new QueryResult(graph, null, null)
-    def key = '$.a[1].b[\'2\']'
-    def generator = { 'X' } as Generator
+  json_handler.apply_key(&s!("$[*]"), &Generator::RandomInt(0, 10));
 
-    when:
-    JsonContentTypeHandler.INSTANCE.applyKey(body, key, generator)
+  expect!(&json_handler.value[0]).to_not(be_equal_to(&json!("A")));
+  expect!(&json_handler.value[1]).to_not(be_equal_to(&json!("B")));
+  expect!(&json_handler.value[2]).to_not(be_equal_to(&json!("C")));
+}
 
-    then:
-    body.value == [d: 'A', b: 'B', c: 'C']
-  }
+#[test]
+fn applies_the_generator_to_the_object_graph_with_wildcard() {
+  let value = json!({
+    "a": ["A", {"a": "A", "b": ["1", "2"], "c": "C"}, "C"],
+    "b": "B",
+    "c": "C"
+  });
+  let mut json_handler = JsonHandler { value };
 
-  def 'applies the generator to all map entries'() {
-    given:
-    def map = [a: 'A', b: 'B', c: 'C']
-    QueryResult body = new QueryResult(map, null, null)
-    def key = '$.*'
-    def generator = { 'X' } as Generator
+  json_handler.apply_key(&s!("$.*[1].b[*]"), &Generator::RandomInt(3, 10));
 
-    when:
-    JsonContentTypeHandler.INSTANCE.applyKey(body, key, generator)
-
-    then:
-    body.value == [a: 'X', b: 'X', c: 'X']
-  }
-
-  def 'applies the generator to all list items'() {
-    given:
-    def list = ['A', 'B', 'C']
-    QueryResult body = new QueryResult(list, null, null)
-    def key = '$[*]'
-    def generator = { 'X' } as Generator
-
-    when:
-    JsonContentTypeHandler.INSTANCE.applyKey(body, key, generator)
-
-    then:
-    body.value == ['X', 'X', 'X']
-  }
-
-  def 'applies the generator to the object graph with wildcard'() {
-    given:
-    def graph = [a: ['A', [a: 'A', b: ['1', '2'], c: 'C'], 'C'], b: 'B', c: 'C']
-    QueryResult body = new QueryResult(graph, null, null)
-    def key = '$.*[1].b[*]'
-    def generator = { 'X' } as Generator
-
-    when:
-    JsonContentTypeHandler.INSTANCE.applyKey(body, key, generator)
-
-    then:
-    body.value == [a: ['A', [a: 'A', b: ['X', 'X'], c: 'C'], 'C'], b: 'B', c: 'C']
-  }
-*/
+  p!(json_handler.value);
+  expect!(&json_handler.value["a"][0]).to(be_equal_to(&json!("A")));
+  expect!(&json_handler.value["a"][1]["a"]).to(be_equal_to(&json!("A")));
+  expect!(&json_handler.value["a"][1]["b"][0]).to_not(be_equal_to(&json!("1")));
+  expect!(&json_handler.value["a"][1]["b"][1]).to_not(be_equal_to(&json!("2")));
+  expect!(&json_handler.value["a"][1]["c"]).to(be_equal_to(&json!("C")));
+  expect!(&json_handler.value["a"][2]).to(be_equal_to(&json!("C")));
+  expect!(&json_handler.value["b"]).to(be_equal_to(&json!("B")));
+  expect!(&json_handler.value["c"]).to(be_equal_to(&json!("C")));
+}

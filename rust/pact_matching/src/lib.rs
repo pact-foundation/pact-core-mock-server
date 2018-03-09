@@ -341,6 +341,7 @@ extern crate ansi_term;
 extern crate difference;
 extern crate base64;
 extern crate uuid;
+extern crate indextree;
 
 /// Simple macro to convert a string slice to a `String` struct.
 #[macro_export]
