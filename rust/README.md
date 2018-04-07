@@ -1,6 +1,6 @@
 # Reference implementation in Rust for the Pact Specification
 
-[![Build Status](https://travis-ci.org/pact-foundation/pact-reference.svg?branch=master)](https://travis-ci.org/pact-foundation/pact-reference) [![Windows Build status](https://ci.appveyor.com/api/projects/status/bqlb7ny924lsu6yi?svg=true)](https://ci.appveyor.com/project/MichelBoudreau/pact-reference)
+[![Build Status](https://travis-ci.org/pact-foundation/pact-reference.svg?branch=master)](https://travis-ci.org/pact-foundation/pact-reference) [![Windows Build status](https://ci.appveyor.com/api/projects/status/bqlb7ny924lsu6yi?svg=true)](https://ci.appveyor.com/project/pact-foundation/pact-reference)
 
 This is the project for a reference implementation of Pact in Rust. It implements the [V2 Pact specification](https://github.com/pact-foundation/pact-specification/tree/version-2).
 
