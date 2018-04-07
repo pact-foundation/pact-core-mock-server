@@ -7,7 +7,7 @@ in the `rust/libpact_mock_server` directory.
 
 The C example uses libcurl, so the development library needs to be installed. On Ubuntu, you can use apt to install it.
 
-    $ apt-get install libcurl4-openssl-dev
+    $ sudo apt-get install libcurl4-openssl-dev
 
 ### configure/make dance
 
@@ -66,7 +66,7 @@ There are two tests. The basic test expects all requests to the verified, and th
 validation errors. The src/consumer-verification executable takes 2 parameters: the test to run (basic or error) and the
 path to the libpact_mock_server library.
 
-    $ src/consumer-verification basic ../../rust/libpact_mock_server/target/debug/libpact_mock_server.so
+    $ src/consumer-verification basic ../../rust/target/debug/libpact_mock_server.so
     This is consumer-verification 0.0.0.
     Running basic pact test
     Mock server started on port 39263

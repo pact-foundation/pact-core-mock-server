@@ -53,10 +53,10 @@ int setup_mock_server_functions(char *mock_server_lib) {
   void *handle = dlopen(mock_server_lib, RTLD_NOW | RTLD_GLOBAL);
   if (handle) {
     /* We have a handle, so lookup the functions we need */
-    create_mock_server = dlsym(handle, "create_mock_server");
-    mock_server_matched = dlsym(handle, "mock_server_matched");
-    cleanup_mock_server = dlsym(handle, "cleanup_mock_server");
-    mock_server_mismatches = dlsym(handle, "mock_server_mismatches");
+    create_mock_server = dlsym(handle, "create_mock_server_ffi");
+    mock_server_matched = dlsym(handle, "mock_server_matched_ffi");
+    cleanup_mock_server = dlsym(handle, "cleanup_mock_server_ffi");
+    mock_server_mismatches = dlsym(handle, "mock_server_mismatches_ffi");
     return create_mock_server != 0 && mock_server_matched != 0 && cleanup_mock_server != 0 &&
       mock_server_mismatches != 0;
   } else {
