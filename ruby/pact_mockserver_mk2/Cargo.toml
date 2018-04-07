@@ -1,0 +1,11 @@
+[package]
+name = "pact_mockserver_mk2"
+version = "0.0.0"
+authors = ["Ronald Holshausen <uglyog@gmail.com>"]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+helix = "0.7"
+pact_mock_server = { version = "0.4", path = "../../rust/pact_mock_server" }

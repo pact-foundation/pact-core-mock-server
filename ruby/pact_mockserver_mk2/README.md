@@ -9,7 +9,7 @@ TODO: Delete this and the text above, and describe your gem
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'pact-mockserver-mk2'
+gem 'pact_mockserver_mk2'
 ```
 
 And then execute:
