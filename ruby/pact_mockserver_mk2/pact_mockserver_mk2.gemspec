@@ -4,7 +4,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require 'pact/mockserver/mk2/version'
 
 Gem::Specification.new do |spec|
-  spec.name          = 'pact-mockserver-mk2'
+  spec.name          = 'pact_mockserver_mk2'
   spec.version       = Pact::Mockserver::Mk2::VERSION
   spec.authors       = ['Ronald Holshausen']
   spec.email         = ['uglyog@gmail.com']
