@@ -15,3 +15,5 @@ have a look at the [V2 Branch](https://github.com/pact-foundation/pact-reference
 [JavaScript Example](javascript)
 
 [C Example](c/consumer-verification)
+
+[Ruby Example](ruby/example_consumer_spec)
