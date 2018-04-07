@@ -1,9 +1,9 @@
 [package]
 name = "pact_matching"
-version = "0.3.2"
+version = "0.4.1"
 authors = ["Ronald Holshausen <uglyog@gmail.com>"]
 description = "Pact-Rust support library that implements request and response matching logic"
-documentation = "https://docs.rs/pact_matching/0.3.2/pact_matching/"
+documentation = "https://docs.rs/pact_matching/0.4.1/pact_matching/"
 homepage = "http://www.pact.io"
 repository = "https://github.com/pact-foundation/pact-reference/blob/master/rust/pact_matching"
 readme = "README.md"
@@ -24,12 +24,14 @@ p-macro = "0.2.0"
 maplit = "0.1.4"
 lazy_static = "0.2.8"
 semver = "0.7.0"
-itertools = "0.6.1"
-rand = "0.3.16"
+itertools = "0.7.3"
+rand = "0.4.2"
 sxd-document = "0.2.4"
 ansi_term = "0.9.0"
 difference = "1.0.0"
 base64 = "0.7.0"
+uuid = { version = "0.5.1", features = ["v4"] }
+indextree = "1.1.1"
 
 [dependencies.hyper]
 version = "0.9.7"

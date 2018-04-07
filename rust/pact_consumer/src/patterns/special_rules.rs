@@ -1,6 +1,6 @@
 //! Special matching rules, including `Like`, `Term`, etc.
 
-use pact_matching::models::matchingrules::{MatchingRule, Category};
+use pact_matching::models::matchingrules::{MatchingRule, Category, RuleLogic};
 use regex::Regex;
 use serde_json;
 use std::iter::repeat;
@@ -41,7 +41,7 @@ impl<Nested: Pattern> Pattern for Like<Nested> {
     }
 
     fn extract_matching_rules(&self, path: &str, rules_out: &mut Category) {
-        rules_out.add_rule(&path.to_string(), MatchingRule::Type);
+        rules_out.add_rule(&path.to_string(), MatchingRule::Type, &RuleLogic::And);
         self.example.extract_matching_rules(path, rules_out);
     }
 }
@@ -126,11 +126,13 @@ impl Pattern for EachLike {
     fn extract_matching_rules(&self, path: &str, rules_out: &mut Category) {
         rules_out.add_rule(
             &path.to_string(),
-            MatchingRule::MinType(self.min_len)
+            MatchingRule::MinType(self.min_len),
+            &RuleLogic::And
         );
         rules_out.add_rule(
             &format!("{}[*].*", path),
-            MatchingRule::Type
+            MatchingRule::Type,
+            &RuleLogic::And
         );
         let new_path = format!("{}[*]", path);
         self.example_element.extract_matching_rules(
@@ -288,7 +290,8 @@ where
     fn extract_matching_rules(&self, path: &str, rules_out: &mut Category) {
         rules_out.add_rule(
             &path.to_string(),
-            MatchingRule::Regex(self.regex.to_string())
+            MatchingRule::Regex(self.regex.to_string()),
+            &RuleLogic::And
         );
     }
 }

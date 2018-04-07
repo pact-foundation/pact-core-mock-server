@@ -30,7 +30,7 @@ fn test_load_pact() {
         Ok(ref pact) => {
             let mut f = File::open(pact_file).unwrap();
             let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-            let pact_json = pact.to_json();
+            let pact_json = pact.to_json(PactSpecification::V2);
             expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
             expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
             expect!(pact_json.get("interactions")).to(be_equal_to(pact_json_from_file.get("interactions")));
@@ -54,7 +54,7 @@ fn test_load_test_pact() {
         Ok(ref pact) => {
             let mut f = File::open(pact_file).unwrap();
             let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-            let pact_json = pact.to_json();
+            let pact_json = pact.to_json(pact.spec_version());
             expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
             expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
             expect!(pact_json.get("interactions")).to(be_equal_to(pact_json_from_file.get("interactions")));
@@ -78,7 +78,7 @@ fn test_load_pact_encoded_query() {
         Ok(ref pact) => {
             let mut f = File::open(pact_file).unwrap();
             let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-            let pact_json = pact.to_json();
+            let pact_json = pact.to_json(pact.spec_version());
             expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
             expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
 
@@ -121,7 +121,7 @@ fn test_load_test_pact_lowercase_method() {
         Ok(ref pact) => {
             let mut f = File::open(pact_file).unwrap();
             let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-            let pact_json = pact.to_json();
+            let pact_json = pact.to_json(PactSpecification::V3);
             expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
             expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
 
@@ -144,11 +144,11 @@ fn test_load_test_pact_lowercase_method() {
                 expect!(pact_request.get("query")).to(be_equal_to(file_request.get("query")));
             }
 
-            expect!(pact.metadata.get("pact-specification").unwrap().get("version")).to(be_some().value("2.0.0"));
+            expect!(pact.metadata.get("pact-specification").unwrap().get("version")).to(be_some().value("3.0.0"));
             let metadata = pact_json.get("metadata").unwrap().as_object().unwrap();
             let expected_keys : Vec<String> = vec![s!("pact-jvm"), s!("pact-rust"), s!("pact-specification")];
             expect!(metadata.keys().cloned().collect::<Vec<String>>()).to(be_equal_to(expected_keys));
-            expect!(metadata.get("pact-specification").unwrap().to_string()).to(be_equal_to(s!("{\"version\":\"2.0.0\"}")));
+            expect!(metadata.get("pact-specification").unwrap().to_string()).to(be_equal_to(s!("{\"version\":\"3.0.0\"}")));
         },
         Err(err) => panic!("Failed to load pact from '{:?}' - {}", pact_file, err)
     }
@@ -163,7 +163,7 @@ fn test_load_test_pact_no_bodies() {
         Ok(ref pact) => {
             let mut f = File::open(pact_file).unwrap();
             let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-            let pact_json = pact.to_json();
+            let pact_json = pact.to_json(pact.spec_version());
             expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
             expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
             expect!(pact_json.get("interactions")).to(be_equal_to(pact_json_from_file.get("interactions")));
@@ -192,7 +192,7 @@ fn test_load_test_pact_no_metadata() {
         Ok(ref pact) => {
             let mut f = File::open(pact_file).unwrap();
             let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-            let pact_json = pact.to_json();
+            let pact_json = pact.to_json(PactSpecification::V2);
             expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
             expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
             expect!(pact_json.get("interactions")).to(be_equal_to(pact_json_from_file.get("interactions")));
@@ -216,7 +216,7 @@ fn test_load_test_pact_no_spec_version() {
         Ok(ref pact) => {
             let mut f = File::open(pact_file).unwrap();
             let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-            let pact_json = pact.to_json();
+            let pact_json = pact.to_json(PactSpecification::V2);
             expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
             expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
             expect!(pact_json.get("interactions")).to(be_equal_to(pact_json_from_file.get("interactions")));
@@ -253,7 +253,7 @@ fn test_load_test_pact_no_version() {
         Ok(ref pact) => {
             let mut f = File::open(pact_file).unwrap();
             let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-            let pact_json = pact.to_json();
+            let pact_json = pact.to_json(PactSpecification::V2);
             expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
             expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
             expect!(pact_json.get("interactions")).to(be_equal_to(pact_json_from_file.get("interactions")));
@@ -278,7 +278,7 @@ fn test_load_test_pact_query_old_format() {
         Ok(ref pact) => {
             let mut f = File::open(pact_file).unwrap();
             let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-            let pact_json = pact.to_json();
+            let pact_json = pact.to_json(pact.spec_version());
             expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
             expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
             expect!(pact_json.get("interactions")).to(be_equal_to(pact_json_from_file.get("interactions")));
@@ -302,7 +302,7 @@ fn test_load_test_pact_root_string_json() {
         Ok(ref pact) => {
             let mut f = File::open(pact_file).unwrap();
             let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-            let pact_json = pact.to_json();
+            let pact_json = pact.to_json(PactSpecification::V3);
             expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
             expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
 
@@ -313,7 +313,7 @@ fn test_load_test_pact_root_string_json() {
             let metadata = pact_json.get("metadata").unwrap().as_object().unwrap();
             let expected_keys : Vec<String> = vec![s!("pact-rust"), s!("pact-specification")];
             expect!(metadata.keys().cloned().collect::<Vec<String>>()).to(be_equal_to(expected_keys));
-            expect!(metadata.get("pact-specification").unwrap().to_string()).to(be_equal_to(s!("{\"version\":\"2.0.0\"}")));
+            expect!(metadata.get("pact-specification").unwrap().to_string()).to(be_equal_to(s!("{\"version\":\"3.0.0\"}")));
         },
         Err(err) => panic!("Failed to load pact from '{:?}' - {}", pact_file, err)
     }
@@ -328,7 +328,7 @@ fn test_load_test_pact_with_bodies() {
         Ok(ref pact) => {
             let mut f = File::open(pact_file).unwrap();
             let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-            let pact_json = pact.to_json();
+            let pact_json = pact.to_json(pact.spec_version());
             expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
             expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
             expect!(pact_json.get("interactions")).to(be_equal_to(pact_json_from_file.get("interactions")));
@@ -352,7 +352,7 @@ fn test_load_v2_pact() {
         Ok(ref pact) => {
             let mut f = File::open(pact_file).unwrap();
             let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-            let pact_json = pact.to_json();
+            let pact_json = pact.to_json(pact.spec_version());
             expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
             expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
             expect!(pact_json.get("interactions")).to(be_equal_to(pact_json_from_file.get("interactions")));
@@ -376,7 +376,7 @@ fn test_load_v2_pact_query() {
         Ok(ref pact) => {
             let mut f = File::open(pact_file).unwrap();
             let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-            let pact_json = pact.to_json();
+            let pact_json = pact.to_json(pact.spec_version());
             expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
             expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
 
@@ -419,7 +419,7 @@ fn test_load_test_pact_matchers() {
         Ok(ref pact) => {
             let mut f = File::open(pact_file).unwrap();
             let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-            let pact_json = pact.to_json();
+            let pact_json = pact.to_json(pact.spec_version());
             expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
             expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
             expect!(pact_json.get("interactions")).to(be_equal_to(pact_json_from_file.get("interactions")));
@@ -443,7 +443,7 @@ fn test_load_test_pact_matchers_old_format() {
         Ok(ref pact) => {
             let mut f = File::open(pact_file).unwrap();
             let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-            let pact_json = pact.to_json();
+            let pact_json = pact.to_json(pact.spec_version());
             expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
             expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
 

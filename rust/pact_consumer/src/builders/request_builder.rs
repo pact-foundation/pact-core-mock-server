@@ -112,7 +112,7 @@ impl RequestBuilder {
 
     /// Build the specified `Request` object.
     pub fn build(&self) -> Request {
-        self.request.clone()
+         self.request.clone()
     }
 }
 

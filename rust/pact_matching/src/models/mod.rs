@@ -36,7 +36,9 @@ pub enum PactSpecification {
     /// Version two of the pact specification (https://github.com/pact-foundation/pact-specification/tree/version-2)
     V2,
     /// Version three of the pact specification (https://github.com/pact-foundation/pact-specification/tree/version-3)
-    V3
+    V3,
+    /// Version four of the pact specification (https://github.com/pact-foundation/pact-specification/tree/version-4)
+    V4
 }
 
 impl PactSpecification {
@@ -47,6 +49,7 @@ impl PactSpecification {
             PactSpecification::V1_1 => s!("1.1.0"),
             PactSpecification::V2 => s!("2.0.0"),
             PactSpecification::V3 => s!("3.0.0"),
+            PactSpecification::V4 => s!("4.0.0"),
             _ => s!("unknown")
         }
     }
@@ -58,6 +61,7 @@ impl PactSpecification {
             PactSpecification::V1_1 => s!("V1.1"),
             PactSpecification::V2 => s!("V2"),
             PactSpecification::V3 => s!("V3"),
+            PactSpecification::V4 => s!("V4"),
             _ => s!("unknown")
         }
     }
@@ -157,6 +161,26 @@ impl OptionalBody {
   }
 }
 
+impl From<String> for OptionalBody {
+  fn from(s: String) -> Self {
+    if s.is_empty() {
+      OptionalBody::Empty
+    } else {
+      OptionalBody::Present(Vec::from(s.as_bytes()))
+    }
+  }
+}
+
+impl <'a> From<&'a str> for OptionalBody {
+  fn from(s: &'a str) -> Self {
+    if s.is_empty() {
+      OptionalBody::Empty
+    } else {
+      OptionalBody::Present(Vec::from(s.as_bytes()))
+    }
+  }
+}
+
 lazy_static! {
     static ref XMLREGEXP: Regex = Regex::new(r"^\s*<\?xml\s*version.*").unwrap();
     static ref HTMLREGEXP: Regex = Regex::new(r"^\s*(<!DOCTYPE)|(<HTML>).*").unwrap();
@@ -197,7 +221,10 @@ pub enum DifferenceType {
   Status
 }
 
+pub mod json_utils;
+pub mod xml_utils;
 #[macro_use] pub mod matchingrules;
+#[macro_use] pub mod generators;
 
 /// Trait to specify an HTTP part of a message. It encapsulates the shared parts of a request and
 /// response.
@@ -208,6 +235,8 @@ pub trait HttpPart {
     fn body(&self) -> &OptionalBody;
     /// Returns the matching rules of the HTTP part.
     fn matching_rules(&self) -> &matchingrules::MatchingRules;
+    /// Returns the generators of the HTTP part.
+    fn generators(&self) -> &generators::Generators;
 
     /// Determine the content type of the HTTP part. If a `Content-Type` header is present, the
     /// value of that header will be returned. Otherwise, the body will be inspected.
@@ -277,7 +306,9 @@ pub struct Request {
     /// Request body
     pub body: OptionalBody,
     /// Request matching rules
-    pub matching_rules: matchingrules::MatchingRules
+    pub matching_rules: matchingrules::MatchingRules,
+    /// Request generators
+    pub generators: generators::Generators
 }
 
 impl HttpPart for Request {
@@ -291,6 +322,10 @@ impl HttpPart for Request {
 
     fn matching_rules(&self) -> &matchingrules::MatchingRules {
         &self.matching_rules
+    }
+
+    fn generators(&self) -> &generators::Generators {
+      &self.generators
     }
 }
 
@@ -312,6 +347,7 @@ impl Hash for Request {
         }
         self.body.hash(state);
         self.matching_rules.hash(state);
+        self.generators.hash(state);
     }
 }
 
@@ -400,6 +436,50 @@ pub fn build_query_string(query: HashMap<String, Vec<String>>) -> String {
         .join("&")
 }
 
+fn query_from_json(query_json: &Value, spec_version: &PactSpecification) -> Option<HashMap<String, Vec<String>>> {
+    match query_json {
+        &Value::String(ref s) => parse_query_string(s),
+        _ => {
+            warn!("Only string versions of request query strings are supported with specification version {}, ignoring.",
+                spec_version.to_string());
+            None
+        }
+    }
+}
+
+fn v3_query_from_json(query_json: &Value, spec_version: &PactSpecification) -> Option<HashMap<String, Vec<String>>> {
+    match query_json {
+        &Value::String(ref s) => parse_query_string(s),
+        &Value::Object(ref map) => Some(map.iter().map(|(k, v)| {
+            (k.clone(), match v {
+                &Value::String(ref s) => vec![s.clone()],
+                &Value::Array(ref array) => array.iter().map(|item| match item {
+                    &Value::String(ref s) => s.clone(),
+                    _ => v.to_string()
+                }).collect(),
+                _ => {
+                    warn!("Query paramter value '{}' is not valid, ignoring", v);
+                    vec![]
+                }
+            })
+        }).collect()),
+        _ => {
+            warn!("Only string or map versions of request query strings are supported with specification version {}, ignoring.",
+                spec_version.to_string());
+            None
+        }
+    }
+}
+
+fn query_to_json(query: HashMap<String, Vec<String>>, spec_version: &PactSpecification) -> Value {
+    match spec_version {
+        &PactSpecification::V3 => Value::Object(query.iter().map(|(k, v)| {
+            (k.clone(), Value::Array(v.iter().map(|q| Value::String(q.clone())).collect()))}
+        ).collect()),
+        _ => Value::String(build_query_string(query))
+    }
+}
+
 impl Request {
     /// Builds a `Request` from a `Value` struct.
     pub fn from_json(request_json: &Value, spec_version: &PactSpecification) -> Request {
@@ -418,13 +498,9 @@ impl Request {
             None => "/".to_string()
         };
         let query_val = match request_json.get("query") {
-            Some(v) => match *v {
-                Value::String(ref s) => parse_query_string(s),
-                _ => {
-                    warn!("Only string versions of request query strings are supported with specification version {}, ignoring.",
-                        spec_version.to_string());
-                    None
-                }
+            Some(v) => match spec_version {
+                &PactSpecification::V3 => v3_query_from_json(v, spec_version),
+                _ => query_from_json(v, spec_version)
             },
             None => None
         };
@@ -435,12 +511,13 @@ impl Request {
             query: query_val,
             headers: headers.clone(),
             body: body_from_json(request_json, "body", &headers),
-            matching_rules: matchingrules::matchers_from_json(request_json, &Some(s!("requestMatchingRules")))
+            matching_rules: matchingrules::matchers_from_json(request_json, &Some(s!("requestMatchingRules"))),
+            generators: generators::generators_from_json(request_json)
         }
     }
 
     /// Converts this `Request` to a `Value` struct.
-    pub fn to_json(&self) -> Value {
+    pub fn to_json(&self, spec_version: &PactSpecification) -> Value {
         let mut json = json!({
             s!("method") : Value::String(self.method.to_uppercase()),
             s!("path") : Value::String(self.path.clone())
@@ -448,7 +525,7 @@ impl Request {
         {
             let map = json.as_object_mut().unwrap();
             if self.query.is_some() {
-                map.insert(s!("query"), Value::String(build_query_string(self.query.clone().unwrap())));
+                map.insert(s!("query"), query_to_json(self.query.clone().unwrap(), spec_version));
             }
             if self.headers.is_some() {
                 map.insert(s!("headers"), headers_to_json(&self.headers.clone().unwrap()));
@@ -464,8 +541,8 @@ impl Request {
                             }
                         }
                     } else {
-                      match str::from_utf8(body) {
-                        Ok(s) => map.insert(s!("body"), Value::String(s.to_string())),
+                        match str::from_utf8(body) {
+                        Ok(s) =>map.insert(s!("body"), Value::String(s.to_string())),
                         Err(_) => map.insert(s!("body"), Value::String(encode(body)))
                       };
                     }
@@ -476,7 +553,11 @@ impl Request {
             }
             if self.matching_rules.is_not_empty() {
                 map.insert(s!("matchingRules"), matchingrules::matchers_to_json(
-                &self.matching_rules.clone(), &PactSpecification::V2));
+                &self.matching_rules.clone(), spec_version));
+            }
+            if self.generators.is_not_empty() {
+              map.insert(s!("generators"), generators::generators_to_json(
+                &self.generators.clone(), spec_version));
             }
         }
         json
@@ -490,7 +571,8 @@ impl Request {
             query: None,
             headers: None,
             body: OptionalBody::Missing,
-            matching_rules: matchingrules::MatchingRules::default()
+            matching_rules: matchingrules::MatchingRules::default(),
+            generators: generators::Generators::default()
         }
     }
 
@@ -529,7 +611,9 @@ pub struct Response {
     /// Response body
     pub body: OptionalBody,
     /// Response matching rules
-    pub matching_rules: matchingrules::MatchingRules
+    pub matching_rules: matchingrules::MatchingRules,
+    /// Response generators
+    pub generators: generators::Generators
 }
 
 impl Response {
@@ -545,7 +629,8 @@ impl Response {
             status: status_val,
             headers: headers.clone(),
             body: body_from_json(response, "body", &headers),
-            matching_rules:  matchingrules::matchers_from_json(response, &Some(s!("responseMatchingRules")))
+            matching_rules:  matchingrules::matchers_from_json(response, &Some(s!("responseMatchingRules"))),
+            generators:  generators::generators_from_json(response)
         }
     }
 
@@ -555,12 +640,14 @@ impl Response {
             status: 200,
             headers: None,
             body: OptionalBody::Missing,
-            matching_rules: matchingrules::MatchingRules::default()
+            matching_rules: matchingrules::MatchingRules::default(),
+            generators: generators::Generators::default()
         }
     }
 
     /// Converts this response to a `Value` struct.
-    pub fn to_json(&self) -> Value {
+    #[allow(unused_variables)]
+    pub fn to_json(&self, spec_version: &PactSpecification) -> Value {
         let mut json = json!({
             s!("status") : json!(self.status)
         });
@@ -592,7 +679,11 @@ impl Response {
             }
             if self.matching_rules.is_not_empty() {
                 map.insert(s!("matchingRules"), matchingrules::matchers_to_json(
-              &self.matching_rules.clone(), &PactSpecification::V2));
+              &self.matching_rules.clone(), spec_version));
+            }
+            if self.generators.is_not_empty() {
+              map.insert(s!("generators"), generators::generators_to_json(
+                &self.generators.clone(), spec_version));
             }
         }
         json
@@ -629,6 +720,10 @@ impl HttpPart for Response {
     fn matching_rules(&self) -> &matchingrules::MatchingRules {
         &self.matching_rules
     }
+
+    fn generators(&self) -> &generators::Generators {
+      &self.generators
+    }
 }
 
 impl Hash for Response {
@@ -642,8 +737,11 @@ impl Hash for Response {
         }
         self.body.hash(state);
         self.matching_rules.hash(state);
+        self.generators.hash(state);
     }
 }
+
+pub mod provider_states;
 
 /// Struct that defined an interaction conflict
 #[derive(Debug, Clone)]
@@ -659,9 +757,9 @@ pub struct PactConflict {
 pub struct Interaction {
     /// Description of this interaction. This needs to be unique in the pact file.
     pub description: String,
-    /// Optional provider state for the interaction.
+    /// Optional provider states for the interaction.
     /// See http://docs.pact.io/documentation/provider_states.html for more info on provider states.
-    pub provider_state: Option<String>,
+    pub provider_states: Vec<provider_states::ProviderState>,
     /// Request of the interaction
     pub request: Request,
     /// Response of the interaction
@@ -678,18 +776,7 @@ impl Interaction {
             },
             None => format!("Interaction {}", index)
         };
-        let provider_state = match pact_json.get("providerState").or(pact_json.get("provider_state")) {
-            Some(v) => match *v {
-                Value::String(ref s) => if s.is_empty() {
-                    None
-                } else {
-                    Some(s.clone())
-                },
-                Value::Null => None,
-                _ => Some(v.to_string())
-            },
-            None => None
-        };
+        let provider_states = provider_states::ProviderState::from_json(pact_json);
         let request = match pact_json.get("request") {
             Some(v) => Request::from_json(v, spec_version),
             None => Request::default_request()
@@ -700,22 +787,27 @@ impl Interaction {
         };
         Interaction {
              description,
-             provider_state,
+             provider_states,
              request,
              response
         }
     }
 
     /// Converts this interaction to a `Value` struct.
-    pub fn to_json(&self) -> Value {
+    pub fn to_json(&self, spec_version: &PactSpecification) -> Value {
         let mut value = json!({
-            s!("description") : Value::String(self.description.clone()),
-            s!("request") : self.request.to_json(),
-            s!("response") : self.response.to_json()
+            s!("description"): Value::String(self.description.clone()),
+            s!("request"): self.request.to_json(spec_version),
+            s!("response"): self.response.to_json(spec_version)
         });
-        if self.provider_state.is_some() {
+        if !self.provider_states.is_empty() {
             let map = value.as_object_mut().unwrap();
-            map.insert(s!("providerState"), json!(self.provider_state.clone().unwrap()));
+            match spec_version {
+                &PactSpecification::V3 => map.insert(s!("providerStates"),
+                                                     Value::Array(self.provider_states.iter().map(|p| p.to_json()).collect())),
+                _ => map.insert(s!("providerState"), Value::String(
+                    self.provider_states.first().unwrap().name.clone()))
+            };
         }
         value
     }
@@ -725,7 +817,7 @@ impl Interaction {
     /// Two interactions conflict if they have the same description and provider state, but they request and
     /// responses are not equal
     pub fn conflicts_with(&self, other: &Interaction) -> Vec<PactConflict> {
-        if self.description == other.description && self.provider_state == other.provider_state {
+        if self.description == other.description && self.provider_states == other.provider_states {
             let mut conflicts = self.request.differences_from(&other.request).iter()
                 .filter(|difference| match difference.0 {
                   DifferenceType::MatchingRules | DifferenceType::Body => false,
@@ -749,7 +841,7 @@ impl Interaction {
     pub fn default() -> Interaction {
         Interaction {
              description: s!("Default Interaction"),
-             provider_state: None,
+             provider_states: vec![],
              request: Request::default_request(),
              response: Response::default_response()
         }
@@ -806,7 +898,7 @@ fn parse_interactions(pact_json: &Value, spec_version: PactSpecification) -> Vec
     }
 }
 
-fn determin_spec_version(file: &String, metadata: &BTreeMap<String, BTreeMap<String, String>>) -> PactSpecification {
+fn determine_spec_version(file: &String, metadata: &BTreeMap<String, BTreeMap<String, String>>) -> PactSpecification {
     let specification = if metadata.get("pact-specification").is_none()
         { metadata.get("pactSpecification") } else { metadata.get("pact-specification") };
     match specification {
@@ -818,40 +910,46 @@ fn determin_spec_version(file: &String, metadata: &BTreeMap<String, BTreeMap<Str
                             0 => PactSpecification::V1,
                             1 => PactSpecification::V1_1,
                             _ => {
-                                warn!("Unsupported specification version '{}' found in the metadata in the pact file {:?}, will try load it as a V2 specification", ver, file);
+                                warn!("Unsupported specification version '{}' found in the metadata in the pact file {:?}, will try load it as a V3 specification", ver, file);
                                 PactSpecification::Unknown
                             }
                         },
                         2 => PactSpecification::V2,
+                        3 => PactSpecification::V3,
                         _ => {
-                            warn!("Unsupported specification version '{}' found in the metadata in the pact file {:?}, will try load it as a V2 specification", ver, file);
+                            warn!("Unsupported specification version '{}' found in the metadata in the pact file {:?}, will try load it as a V3 specification", ver, file);
                             PactSpecification::Unknown
                         }
                     },
                     Err(err) => {
-                        warn!("Could not parse specification version '{}' found in the metadata in the pact file {:?}, assuming V2 specification - {}", ver, file, err);
+                        warn!("Could not parse specification version '{}' found in the metadata in the pact file {:?}, assuming V3 specification - {}", ver, file, err);
                         PactSpecification::Unknown
                     }
                 },
                 None => {
-                    warn!("No specification version found in the metadata in the pact file {:?}, assuming V2 specification", file);
-                    PactSpecification::V2
+                    warn!("No specification version found in the metadata in the pact file {:?}, assuming V3 specification", file);
+                    PactSpecification::V3
                 }
             }
         },
         None => {
-            warn!("No metadata found in pact file {:?}, assuming V2 specification", file);
-            PactSpecification::V2
+            warn!("No metadata found in pact file {:?}, assuming V3 specification", file);
+            PactSpecification::V3
         }
     }
 }
 
 impl Pact {
 
+    /// Returns the specification version of this pact
+    pub fn spec_version(&self) -> PactSpecification {
+        determine_spec_version(&s!("<Pact>"), &self.metadata)
+    }
+
     /// Creates a `Pact` from a `Value` struct.
     pub fn from_json(file: &String, pact_json: &Value) -> Pact {
         let metadata = parse_meta_data(pact_json);
-        let spec_version = determin_spec_version(file, &metadata);
+        let spec_version = determine_spec_version(file, &metadata);
 
         let consumer = match pact_json.get("consumer") {
             Some(v) => Consumer::from_json(v),
@@ -871,17 +969,17 @@ impl Pact {
     }
 
     /// Converts this pact to a `Value` struct.
-    pub fn to_json(&self) -> Value {
+    pub fn to_json(&self, pact_spec: PactSpecification) -> Value {
         json!({
             s!("consumer"): self.consumer.to_json(),
             s!("provider"): self.provider.to_json(),
-            s!("interactions"): Value::Array(self.interactions.iter().map(|i| i.to_json()).collect()),
-            s!("metadata"): json!(self.metadata_to_json())
+            s!("interactions"): Value::Array(self.interactions.iter().map(|i| i.to_json(&pact_spec)).collect()),
+            s!("metadata"): json!(self.metadata_to_json(&pact_spec))
         })
     }
 
     /// Creates a BTreeMap of the metadata of this pact.
-    pub fn metadata_to_json(&self) -> BTreeMap<String, Value> {
+    pub fn metadata_to_json(&self, pact_spec: &PactSpecification) -> BTreeMap<String, Value> {
         let mut md_map: BTreeMap<String, Value> = self.metadata.iter()
             .map(|(k, v)| {
                 (k.clone(), json!(v.iter()
@@ -889,7 +987,7 @@ impl Pact {
                 .collect::<BTreeMap<String, String>>()))
             })
             .collect();
-        md_map.insert(s!("pact-specification"), json!({"version" : PactSpecification::V2.version_str()}));
+        md_map.insert(s!("pact-specification"), json!({"version" : pact_spec.version_str()}));
 
         md_map.insert(s!("pact-rust"), json!({"version" : s!(VERSION.unwrap_or("unknown"))}));
         md_map
@@ -923,7 +1021,8 @@ impl Pact {
                         .chain(pact.interactions.iter())
                         .cloned()
                         .sorted_by(|a, b| {
-                            let cmp = Ord::cmp(&a.provider_state, &b.provider_state);
+                            let cmp = Ord::cmp(&a.provider_states.iter().map(|p| p.name.clone()).collect::<Vec<String>>(),
+                                &b.provider_states.iter().map(|p| p.name.clone()).collect::<Vec<String>>());
                             if cmp == Ordering::Equal {
                                 Ord::cmp(&a.description, &b.description)
                             } else {
@@ -967,31 +1066,31 @@ impl Pact {
                         Ok(ref json) => Ok(Pact::from_json(url, json)),
                         Err(err) => Err(format!("Failed to parse Pact JSON - {}", err))
                     }
-                } else {
+          } else {
                     Err(format!("Request failed with status - {}", res.status))
                 },
             Err(err) => Err(format!("Request failed - {}", err))
-        }
+          }
     }
 
     /// Writes this pact out to the provided file path. All directories in the path will
     /// automatically created. If an existing pact is found at the path, this pact will be
     /// merged into the pact file.
-    pub fn write_pact(&self, path: &Path) -> io::Result<()> {
+    pub fn write_pact(&self, path: &Path, pact_spec: PactSpecification) -> io::Result<()> {
         fs::create_dir_all(path.parent().unwrap())?;
         if path.exists() {
             let existing_pact = Pact::read_pact(path)?;
             match existing_pact.merge(self) {
                 Ok(ref merged_pact) => {
                     let mut file = File::create(path)?;
-                    file.write_all(format!("{}", serde_json::to_string_pretty(&merged_pact.to_json()).unwrap()).as_bytes())?;
+                    file.write_all(format!("{}", serde_json::to_string_pretty(&merged_pact.to_json(pact_spec)).unwrap()).as_bytes())?;
                     Ok(())
                 },
                 Err(ref message) => Err(Error::new(ErrorKind::Other, message.clone()))
             }
         } else {
             let mut file = File::create(path)?;
-            file.write_all(format!("{}", serde_json::to_string_pretty(&self.to_json()).unwrap()).as_bytes())?;
+            file.write_all(format!("{}", serde_json::to_string_pretty(&self.to_json(pact_spec)).unwrap()).as_bytes())?;
             Ok(())
         }
     }
@@ -1003,10 +1102,10 @@ impl Pact {
             provider: Provider { name: s!("default_provider") },
             interactions: Vec::new(),
             metadata: btreemap!{
-                s!("pact-specification") => btreemap!{ s!("version") => PactSpecification::V1_1.version_str() },
+                s!("pact-specification") => btreemap!{ s!("version") => PactSpecification::V3.version_str() },
                 s!("pact-rust") => btreemap!{ s!("version") => s!(VERSION.unwrap_or("unknown")) }
             },
-            specification_version: PactSpecification::V2
+            specification_version: PactSpecification::V3
         }
     }
 }

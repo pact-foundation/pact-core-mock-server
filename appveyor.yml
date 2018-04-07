@@ -38,4 +38,3 @@ build_script:
   - cd "%APPVEYOR_BUILD_FOLDER%\rust\pact_verifier_cli"
   - cargo build
   - cargo test
-

@@ -1,18 +1,12 @@
 use super::Mismatch;
 use super::DiffConfig;
-use sxd_document::*;
 use sxd_document::dom::*;
 use std::collections::btree_map::BTreeMap;
 use itertools::Itertools;
 use models::matchingrules::*;
 use matchers::*;
 use regex::Regex;
-use std::str;
-
-fn parse_bytes(bytes: &Vec<u8>) -> Result<Package, String> {
-  let string = str::from_utf8(bytes).map_err(|e| format!("{:?}", e))?;
-  parser::parse(string).map_err(|e| format!("{:?}", e))
-}
+use models::xml_utils::parse_bytes;
 
 pub fn match_xml(expected: &Vec<u8>, actual: &Vec<u8>, config: DiffConfig,
     mismatches: &mut Vec<super::Mismatch>, matchers: &MatchingRules) {

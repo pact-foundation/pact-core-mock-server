@@ -1,6 +1,6 @@
 //! The `pact_mock_server` crate provides the in-process mock server for mocking HTTP requests
-//! and generating responses based on a pact file. It implements the V2 Pact specification
-//! (https://github.com/pact-foundation/pact-specification/tree/version-2).
+//! and generating responses based on a pact file. It implements the V3 Pact specification
+//! (https://github.com/pact-foundation/pact-specification/tree/version-3).
 //!
 //! There are a number of exported functions using C bindings for controlling the mock server. These can be used in any
 //! language that supports C bindings.
@@ -58,16 +58,20 @@ extern crate hyper;
 extern crate uuid;
 extern crate itertools;
 
+#[cfg(test)]
+#[macro_use]
+extern crate maplit;
+
 use libc::{c_char, int32_t};
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::str;
 use std::panic::catch_unwind;
-use pact_matching::models::{Pact, Interaction, Request, OptionalBody};
+use pact_matching::models::{Pact, Interaction, Request, OptionalBody, PactSpecification};
 use pact_matching::models::parse_query_string;
 use pact_matching::models::matchingrules::*;
+use pact_matching::models::generators::*;
 use pact_matching::Mismatch;
-
 use std::collections::{BTreeMap, HashMap};
 use std::thread;
 use std::sync::Mutex;
@@ -120,16 +124,16 @@ impl MatchResult {
             &MatchResult::RequestMatch(_) => json!({ s!("type") : s!("request-match")}),
             &MatchResult::RequestMismatch(ref interaction, ref mismatches) => mismatches_to_json(&interaction.request, mismatches),
             &MatchResult::RequestNotFound(ref req) => json!({
-                s!("type") : json!("request-not-found"),
-                s!("method") : json!(req.method),
-                s!("path") : json!(req.path),
-                s!("request") : json!(req)
+                "type": json!("request-not-found"),
+                "method": json!(req.method),
+                "path": json!(req.path),
+                "request": req.to_json(&PactSpecification::V3)
             }),
             &MatchResult::MissingRequest(ref interaction) => json!({
-                s!("type") : json!("missing-request"),
-                s!("method") : json!(interaction.request.method),
-                s!("path") : json!(interaction.request.path),
-                s!("request") : json!(interaction.request)
+                "type": json!("missing-request"),
+                "method": json!(interaction.request.method),
+                "path": json!(interaction.request.path),
+                "request": interaction.request.to_json(&PactSpecification::V3)
             })
         }
     }
@@ -220,7 +224,7 @@ impl MockServer {
             None => PathBuf::from(pact_file_name)
         };
         info!("Writing pact out to '{}'", filename.display());
-        match self.pact.write_pact(filename.as_path()) {
+        match self.pact.write_pact(filename.as_path(), PactSpecification::V3) {
             Ok(_) => Ok(()),
             Err(err) => {
                 warn!("Failed to write pact to file - {}", err);
@@ -299,7 +303,7 @@ fn extract_query_string(uri: &RequestUri) -> Option<HashMap<String, Vec<String>>
             Some(q) => parse_query_string(&s!(q)),
             None => None
         },
-        _ => None
+      _ => None
     }
 }
 
@@ -314,15 +318,15 @@ fn extract_headers(headers: &Headers) -> Option<HashMap<String, String>> {
 fn extract_body(req: &mut hyper::server::Request) -> OptionalBody {
     let mut buffer = Vec::new();
     match req.read_to_end(&mut buffer) {
-        Ok(size) => if size > 0 {
-                OptionalBody::Present(buffer)
-            } else {
-                OptionalBody::Empty
-            },
-        Err(err) => {
-            warn!("Failed to read request body: {}", err);
-            OptionalBody::Empty
-        }
+      Ok(size) => if size > 0 {
+        OptionalBody::Present(buffer)
+      } else {
+        OptionalBody::Empty
+      },
+      Err(err) => {
+        warn!("Failed to read request body: {}", err);
+        OptionalBody::Empty
+      }
     }
 }
 
@@ -333,7 +337,8 @@ fn hyper_request_to_pact_request(req: &mut hyper::server::Request) -> Request {
         query: extract_query_string(&req.uri),
         headers: extract_headers(&req.headers),
         body: extract_body(req),
-        matching_rules: MatchingRules::default()
+        matching_rules: MatchingRules::default(),
+        generators: Generators::default()
     }
 }
 
@@ -400,11 +405,13 @@ pub fn start_mock_server(id: String, pact: Pact, port: i32) -> Result<i32, Strin
                     record_result(&mock_server_id, &match_result);
                     match match_result {
                         MatchResult::RequestMatch(ref interaction) => {
-                            info!("Request matched, sending response {:?}", interaction.response);
+                            let response = pact_matching::generate_response(&interaction.response);
+                            info!("Request matched, sending response {:?}", response);
                             info!("     body: '{}'\n\n", interaction.response.body.str_value());
-                            *res.status_mut() = StatusCode::from_u16(interaction.response.status);
+                            info!("     body: '{}'\n\n", interaction.response.body.str_value());
+                            *res.status_mut() = StatusCode::from_u16(response.status);
                             res.headers_mut().set(AccessControlAllowOrigin::Any);
-                            match interaction.response.headers {
+                            match response.headers {
                                 Some(ref headers) => {
                                     for (k, v) in headers.clone() {
                                         res.headers_mut().set_raw(k, vec![v.into_bytes()]);
@@ -412,7 +419,7 @@ pub fn start_mock_server(id: String, pact: Pact, port: i32) -> Result<i32, Strin
                                 },
                                 None => ()
                             }
-                            match interaction.response.body {
+                            match response.body {
                                 OptionalBody::Present(ref body) => {
                                     res.send(body).unwrap();
                                 },
@@ -437,21 +444,21 @@ pub fn start_mock_server(id: String, pact: Pact, port: i32) -> Result<i32, Strin
             }
         });
 
-        match server_result {
+      match server_result {
             Ok(ref server) => {
                 let port = server.socket.port() as i32;
                 info!("Mock Provider Server started on port {}", port);
-                update_mock_server(&id, &|mock_server| {
+                        update_mock_server(&id, &|mock_server| {
                     mock_server.port(port);
                     mock_server.server(server);
-                });
+                        });
                 out_tx.send(Ok(port)).unwrap();
             },
             Err(e) => {
-                error!("Could not start server: {}", e);
-                out_tx.send(Err(format!("Could not start server: {}", e))).unwrap();
+                    error!("Could not start server: {}", e);
+                    out_tx.send(Err(format!("Could not start server: {}", e))).unwrap();
             }
-        }
+      }
     });
 
     out_rx.recv().unwrap()
@@ -810,9 +817,6 @@ extern crate expectest;
 
 #[cfg(test)]
 extern crate quickcheck;
-
-#[cfg(test)]
-#[macro_use] extern crate maplit;
 
 #[cfg(test)]
 mod tests;

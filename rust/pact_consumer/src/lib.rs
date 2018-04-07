@@ -1,5 +1,5 @@
 //! The `pact_consumer` crate provides tools for writing consumer [Pact
-//! tests][pact]. It implements the [V2 Pact specification][spec]. You can also
+//! tests][pact]. It implements the [V3 Pact specification][spec]. You can also
 //! use it as a simple HTTP mocking library for Rust.
 //!
 //! [pact]: https://docs.pact.io/ [spec]:
@@ -31,7 +31,7 @@
 //!
 //! ```toml
 //! [dev-dependencies]
-//! pact_consumer = "0.2"
+//! pact_consumer = "0.4.0"
 //! ```
 //!
 //! Then add the following to your top-level `lib.rs` or `main.rs` file:

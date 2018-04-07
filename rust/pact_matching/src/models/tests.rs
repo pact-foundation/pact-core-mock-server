@@ -9,6 +9,11 @@ use std::env;
 use expectest::prelude::*;
 use rand;
 use std::hash::{Hash, Hasher};
+use super::provider_states::*;
+use super::matchingrules::*;
+use super::generators::{Generators, Generator, generators_from_json};
+use std::str::FromStr;
+#[allow(unused_imports)] use env_logger;
 
 #[test]
 fn request_from_json_defaults_to_get() {
@@ -137,7 +142,7 @@ fn quickcheck_parse_query_string() {
 #[test]
 fn request_mimetype_is_based_on_the_content_type_header() {
     let request = Request { method: s!("GET"), path: s!("/"), query: None, headers: None,
-        body: OptionalBody::Missing, matching_rules: matchingrules!{} };
+        body: OptionalBody::Missing, .. Request::default_request() };
     expect!(request.content_type()).to(be_equal_to("text/plain"));
     expect!(Request {
         headers: Some(hashmap!{ s!("Content-Type") => s!("text/html") }), .. request.clone() }.content_type())
@@ -183,7 +188,7 @@ fn request_mimetype_is_based_on_the_content_type_header() {
 #[test]
 fn content_type_enum_test() {
     let request = Request { method: s!("GET"), path: s!("/"), query: None, headers: None,
-        body: OptionalBody::Missing, matching_rules: matchingrules!{} };
+        body: OptionalBody::Missing, .. Request::default_request() };
     expect!(request.content_type_enum()).to(be_equal_to(DetectedContentType::Text));
     expect!(Request {
         headers: Some(hashmap!{ s!("Content-Type") => s!("text/html") }), .. request.clone() }.content_type_enum())
@@ -213,7 +218,8 @@ fn loading_interaction_from_json() {
     }"#;
     let interaction = Interaction::from_json(0, &serde_json::from_str({interaction_json}).unwrap(), &PactSpecification::V1_1);
     expect!(interaction.description).to(be_equal_to("String"));
-    expect!(interaction.provider_state).to(be_some().value("provider state"));
+    expect!(interaction.provider_states).to(be_equal_to(vec![
+        ProviderState { name: s!("provider state"), params: hashmap!{} } ]));
 }
 
 #[test]
@@ -223,15 +229,16 @@ fn defaults_to_number_if_no_description() {
     }"#;
     let interaction = Interaction::from_json(0, &serde_json::from_str({interaction_json}).unwrap(), &PactSpecification::V1_1);
     expect!(interaction.description).to(be_equal_to("Interaction 0"));
-    expect!(interaction.provider_state).to(be_some().value("provider state"));
+    expect!(interaction.provider_states).to(be_equal_to(vec![
+        ProviderState { name: s!("provider state"), params: hashmap!{} } ]));
 }
 
 #[test]
-fn defaults_to_none_if_no_provider_state() {
+fn defaults_to_empty_if_no_provider_state() {
     let interaction_json = r#"{
     }"#;
-    let interaction = Interaction::from_json(0, &serde_json::from_str({interaction_json}).unwrap(), &PactSpecification::V1_1);
-    expect!(interaction.provider_state).to(be_none());
+    let interaction = Interaction::from_json(0, &serde_json::from_str({interaction_json}).unwrap(), &PactSpecification::V1);
+    expect!(interaction.provider_states.iter()).to(be_empty());
 }
 
 #[test]
@@ -239,8 +246,8 @@ fn defaults_to_none_if_provider_state_null() {
     let interaction_json = r#"{
         "providerState": null
     }"#;
-    let interaction = Interaction::from_json(0, &serde_json::from_str({interaction_json}).unwrap(), &PactSpecification::V1_1);
-    expect!(interaction.provider_state).to(be_none());
+    let interaction = Interaction::from_json(0, &serde_json::from_str({interaction_json}).unwrap(), &PactSpecification::V1);
+    expect!(interaction.provider_states.iter()).to(be_empty());
 }
 
 #[test]
@@ -251,14 +258,14 @@ fn load_empty_pact() {
     expect!(pact.consumer.name).to(be_equal_to("consumer"));
     expect!(pact.interactions.iter()).to(have_count(0));
     expect!(pact.metadata.iter()).to(have_count(0));
-    expect!(pact.specification_version).to(be_equal_to(PactSpecification::V2));
+    expect!(pact.specification_version).to(be_equal_to(PactSpecification::V3));
 }
 
 #[test]
 fn missing_metadata() {
     let pact_json = r#"{}"#;
     let pact = Pact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
-    expect!(pact.specification_version).to(be_equal_to(PactSpecification::V2));
+    expect!(pact.specification_version).to(be_equal_to(PactSpecification::V3));
 }
 
 #[test]
@@ -268,7 +275,7 @@ fn missing_spec_version() {
         }
     }"#;
     let pact = Pact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
-    expect!(pact.specification_version).to(be_equal_to(PactSpecification::V2));
+    expect!(pact.specification_version).to(be_equal_to(PactSpecification::V3));
 }
 
 #[test]
@@ -281,7 +288,7 @@ fn missing_version_in_spec_version() {
         }
     }"#;
     let pact = Pact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
-    expect!(pact.specification_version).to(be_equal_to(PactSpecification::V2));
+    expect!(pact.specification_version).to(be_equal_to(PactSpecification::V3));
 }
 
 #[test]
@@ -359,22 +366,22 @@ fn load_basic_pact() {
     expect!(pact.interactions.iter()).to(have_count(1));
     let interaction = pact.interactions[0].clone();
     expect!(interaction.description).to(be_equal_to("a retrieve Mallory request"));
-    expect!(interaction.provider_state).to(be_none());
+    expect!(interaction.provider_states.iter()).to(be_empty());
     expect!(interaction.request).to(be_equal_to(Request {
         method: s!("GET"),
         path: s!("/mallory"),
         query: Some(hashmap!{ s!("name") => vec![s!("ron")], s!("status") => vec![s!("good")] }),
         headers: None,
         body: OptionalBody::Missing,
-        matching_rules: matchingrules!{}
+      .. Request::default_request()
     }));
     expect!(interaction.response).to(be_equal_to(Response {
         status: 200,
         headers: Some(hashmap!{ s!("Content-Type") => s!("text/html") }),
         body: OptionalBody::Present("\"That is some good Mallory.\"".into()),
-        matching_rules: matchingrules!{}
+      .. Response::default_response()
     }));
-    expect!(pact.specification_version).to(be_equal_to(PactSpecification::V2));
+    expect!(pact.specification_version).to(be_equal_to(PactSpecification::V3));
     expect!(pact.metadata.iter()).to(have_count(0));
 }
 
@@ -431,20 +438,95 @@ fn load_pact() {
     expect!(pact.interactions.iter()).to(have_count(1));
     let interaction = pact.interactions[0].clone();
     expect!(interaction.description).to(be_equal_to("test interaction"));
-    expect!(interaction.provider_state).to(be_some().value("test state"));
+    expect!(interaction.provider_states).to(be_equal_to(vec![
+        ProviderState { name: s!("test state"), params: hashmap!{} } ]));
+    expect!(interaction.request).to(be_equal_to(Request {
+        method: s!("GET"),
+        path: s!("/"),
+        query: Some(hashmap!{ s!("q") => vec![s!("p"), s!("p2")], s!("r") => vec![s!("s")] }),
+        headers: Some(hashmap!{ s!("testreqheader") => s!("testreqheadervalue") }),
+        body: "{\"test\":true}".into(),
+      .. Request::default_request()
+    }));
+    expect!(interaction.response).to(be_equal_to(Response {
+        status: 200,
+        headers: Some(hashmap!{ s!("testreqheader") => s!("testreqheaderval") }),
+        body: "{\"responsetest\":true}".into(),
+        .. Response::default_response()
+    }));
+}
+
+#[test]
+fn load_v3_pact() {
+    let pact_json = r#"
+    {
+      "provider" : {
+        "name" : "test_provider"
+      },
+      "consumer" : {
+        "name" : "test_consumer"
+      },
+      "interactions" : [ {
+        "providerState" : "test state",
+        "description" : "test interaction",
+        "request" : {
+          "method" : "GET",
+          "path" : "/",
+          "headers" : {
+            "testreqheader" : "testreqheadervalue"
+          },
+          "query" : {
+              "q": ["p", "p2"],
+              "r": ["s"]
+          },
+          "body" : {
+            "test" : true
+          }
+        },
+        "response" : {
+          "status" : 200,
+          "headers" : {
+            "testreqheader" : "testreqheaderval"
+          },
+          "body" : {
+            "responsetest" : true
+          }
+        }
+      } ],
+      "metadata" : {
+        "pact-specification" : {
+          "version" : "3.0.0"
+        },
+        "pact-jvm" : {
+          "version" : ""
+        }
+      }
+    }
+    "#;
+    let pact = Pact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
+    expect!(&pact.provider.name).to(be_equal_to("test_provider"));
+    expect!(&pact.consumer.name).to(be_equal_to("test_consumer"));
+    expect!(pact.metadata.iter()).to(have_count(2));
+    expect!(&pact.metadata["pact-specification"]["version"]).to(be_equal_to("3.0.0"));
+    expect!(pact.specification_version).to(be_equal_to(PactSpecification::V3));
+    expect!(pact.interactions.iter()).to(have_count(1));
+    let interaction = pact.interactions[0].clone();
+    expect!(interaction.description).to(be_equal_to("test interaction"));
+    expect!(interaction.provider_states).to(be_equal_to(vec![
+        ProviderState { name: s!("test state"), params: hashmap!{} } ]));
     expect!(interaction.request).to(be_equal_to(Request {
         method: s!("GET"),
         path: s!("/"),
         query: Some(hashmap!{ s!("q") => vec![s!("p"), s!("p2")], s!("r") => vec![s!("s")] }),
         headers: Some(hashmap!{ s!("testreqheader") => s!("testreqheadervalue") }),
         body: OptionalBody::Present("{\"test\":true}".into()),
-        matching_rules: matchingrules!{}
+      .. Request::default_request()
     }));
     expect!(interaction.response).to(be_equal_to(Response {
         status: 200,
         headers: Some(hashmap!{ s!("testreqheader") => s!("testreqheaderval") }),
         body: OptionalBody::Present("{\"responsetest\":true}".into()),
-        matching_rules: matchingrules!{}
+        .. Response::default_response()
     }));
 }
 
@@ -502,7 +584,7 @@ fn load_pact_encoded_query_string() {
             s!("description") => vec![s!("hello world!")] }),
         headers: Some(hashmap!{ s!("testreqheader") => s!("testreqheadervalue") }),
         body: OptionalBody::Present("{\"test\":true}".into()),
-        matching_rules: matchingrules!{}
+      .. Request::default_request()
     }));
 }
 
@@ -531,20 +613,21 @@ fn load_pact_converts_methods_to_uppercase() {
         query: None,
         headers: None,
         body: OptionalBody::Missing,
-        matching_rules: matchingrules!{}
+      .. Request::default_request()
     }));
 }
 
 #[test]
 fn request_to_json_with_defaults() {
     let request = Request::default_request();
-    expect!(request.to_json().to_string()).to(be_equal_to("{\"method\":\"GET\",\"path\":\"/\"}"));
+    expect!(request.to_json(&PactSpecification::V3).to_string()).to(
+        be_equal_to("{\"method\":\"GET\",\"path\":\"/\"}"));
 }
 
 #[test]
 fn request_to_json_converts_methods_to_upper_case() {
     let request = Request { method: s!("post"), .. Request::default_request() };
-    expect!(request.to_json().to_string()).to(be_equal_to("{\"method\":\"POST\",\"path\":\"/\"}"));
+    expect!(request.to_json(&PactSpecification::V3).to_string()).to(be_equal_to("{\"method\":\"POST\",\"path\":\"/\"}"));
 }
 
 #[test]
@@ -553,7 +636,7 @@ fn request_to_json_with_a_query() {
         s!("a") => vec![s!("1"), s!("2")],
         s!("b") => vec![s!("3")]
     }), .. Request::default_request() };
-    expect!(request.to_json().to_string()).to(
+    expect!(request.to_json(&PactSpecification::V2).to_string()).to(
         be_equal_to(r#"{"method":"GET","path":"/","query":"a=1&a=2&b=3"}"#)
     );
 }
@@ -563,7 +646,7 @@ fn request_to_json_with_a_query_must_encode_the_query() {
     let request = Request { query: Some(hashmap!{
         s!("datetime") => vec![s!("2011-12-03T10:15:30+01:00")],
         s!("description") => vec![s!("hello world!")] }), .. Request::default_request() };
-    expect!(request.to_json().to_string()).to(
+    expect!(request.to_json(&PactSpecification::V2).to_string()).to(
         be_equal_to(r#"{"method":"GET","path":"/","query":"datetime=2011-12-03T10%3a15%3a30%2b01%3a00&description=hello+world%21"}"#)
     );
 }
@@ -573,8 +656,39 @@ fn request_to_json_with_a_query_must_encode_the_query_with_utf8_chars() {
     let request = Request { query: Some(hashmap!{
         s!("a") => vec![s!("b=c&d❤")]
     }), .. Request::default_request() };
-    expect!(request.to_json().to_string()).to(
+    expect!(request.to_json(&PactSpecification::V2).to_string()).to(
         be_equal_to(r#"{"method":"GET","path":"/","query":"a=b%3dc%26d%27%64"}"#)
+    );
+}
+
+#[test]
+fn request_to_json_with_a_query_v3() {
+    let request = Request { query: Some(hashmap!{
+        s!("a") => vec![s!("1"), s!("2")],
+        s!("b") => vec![s!("3")]
+    }), .. Request::default_request() };
+    expect!(request.to_json(&PactSpecification::V3).to_string()).to(
+        be_equal_to(r#"{"method":"GET","path":"/","query":{"a":["1","2"],"b":["3"]}}"#)
+    );
+}
+
+#[test]
+fn request_to_json_with_a_query_v3_must_not_encode_the_query() {
+    let request = Request { query: Some(hashmap!{
+        s!("datetime") => vec![s!("2011-12-03T10:15:30+01:00")],
+        s!("description") => vec![s!("hello world!")] }), .. Request::default_request() };
+    expect!(request.to_json(&PactSpecification::V3).to_string()).to(
+        be_equal_to(r#"{"method":"GET","path":"/","query":{"datetime":["2011-12-03T10:15:30+01:00"],"description":["hello world!"]}}"#)
+    );
+}
+
+#[test]
+fn request_to_json_with_a_query_v3_must_not_encode_the_query_with_utf8_chars() {
+    let request = Request { query: Some(hashmap!{
+        s!("a") => vec![s!("b=c&d❤")]
+    }), .. Request::default_request() };
+    expect!(request.to_json(&PactSpecification::V3).to_string()).to(
+        be_equal_to(r#"{"method":"GET","path":"/","query":{"a":["b=c&d❤"]}}"#)
     );
 }
 
@@ -584,7 +698,7 @@ fn request_to_json_with_headers() {
         s!("HEADERA") => s!("VALUEA"),
         s!("HEADERB") => s!("VALUEB1, VALUEB2")
     }), .. Request::default_request() };
-    expect!(request.to_json().to_string()).to(
+    expect!(request.to_json(&PactSpecification::V3).to_string()).to(
         be_equal_to(r#"{"headers":{"HEADERA":"VALUEA","HEADERB":"VALUEB1, VALUEB2"},"method":"GET","path":"/"}"#)
     );
 }
@@ -594,7 +708,7 @@ fn request_to_json_with_json_body() {
     let request = Request { headers: Some(hashmap!{
         s!("Content-Type") => s!("application/json")
     }), body: OptionalBody::Present(r#"{"key": "value"}"#.into()), .. Request::default_request() };
-    expect!(request.to_json().to_string()).to(
+    expect!(request.to_json(&PactSpecification::V3).to_string()).to(
         be_equal_to(r#"{"body":{"key":"value"},"headers":{"Content-Type":"application/json"},"method":"GET","path":"/"}"#)
     );
 }
@@ -604,7 +718,7 @@ fn request_to_json_with_json_body() {
 fn request_to_json_with_non_json_body() {
     let request = Request { headers: Some(hashmap!{ s!("Content-Type") => s!("text/plain") }),
         body: OptionalBody::Present("This is some text".into()), .. Request::default_request() };
-    expect!(request.to_json().to_string()).to(
+    expect!(request.to_json(&PactSpecification::V3).to_string()).to(
         be_equal_to(r#"{"body":"This is some text","headers":{"Content-Type":"text/plain"},"method":"GET","path":"/"}"#)
     );
 }
@@ -612,7 +726,7 @@ fn request_to_json_with_non_json_body() {
 #[test]
 fn request_to_json_with_empty_body() {
     let request = Request { body: OptionalBody::Empty, .. Request::default_request() };
-    expect!(request.to_json().to_string()).to(
+    expect!(request.to_json(&PactSpecification::V3).to_string()).to(
         be_equal_to(r#"{"body":"","method":"GET","path":"/"}"#)
     );
 }
@@ -620,7 +734,7 @@ fn request_to_json_with_empty_body() {
 #[test]
 fn request_to_json_with_null_body() {
     let request = Request { body: OptionalBody::Null, .. Request::default_request() };
-    expect!(request.to_json().to_string()).to(
+    expect!(request.to_json(&PactSpecification::V3).to_string()).to(
         be_equal_to(r#"{"body":null,"method":"GET","path":"/"}"#)
     );
 }
@@ -628,7 +742,7 @@ fn request_to_json_with_null_body() {
 #[test]
 fn response_to_json_with_defaults() {
     let response = Response::default_response();
-    expect!(response.to_json().to_string()).to(be_equal_to("{\"status\":200}"));
+    expect!(response.to_json(&PactSpecification::V3).to_string()).to(be_equal_to("{\"status\":200}"));
 }
 
 #[test]
@@ -637,7 +751,7 @@ fn response_to_json_with_headers() {
         s!("HEADERA") => s!("VALUEA"),
         s!("HEADERB") => s!("VALUEB1, VALUEB2")
     }), .. Response::default_response() };
-    expect!(response.to_json().to_string()).to(
+    expect!(response.to_json(&PactSpecification::V3).to_string()).to(
         be_equal_to(r#"{"headers":{"HEADERA":"VALUEA","HEADERB":"VALUEB1, VALUEB2"},"status":200}"#)
     );
 }
@@ -647,7 +761,7 @@ fn response_to_json_with_json_body() {
     let response = Response { headers: Some(hashmap!{
         s!("Content-Type") => s!("application/json")
     }), body: OptionalBody::Present(r#"{"key": "value"}"#.into()), .. Response::default_response() };
-    expect!(response.to_json().to_string()).to(
+    expect!(response.to_json(&PactSpecification::V3).to_string()).to(
         be_equal_to(r#"{"body":{"key":"value"},"headers":{"Content-Type":"application/json"},"status":200}"#)
     );
 }
@@ -656,7 +770,7 @@ fn response_to_json_with_json_body() {
 fn response_to_json_with_non_json_body() {
     let response = Response { headers: Some(hashmap!{ s!("Content-Type") => s!("text/plain") }),
         body: OptionalBody::Present("This is some text".into()), .. Response::default_response() };
-    expect!(response.to_json().to_string()).to(
+    expect!(response.to_json(&PactSpecification::V3).to_string()).to(
         be_equal_to(r#"{"body":"This is some text","headers":{"Content-Type":"text/plain"},"status":200}"#)
     );
 }
@@ -664,7 +778,7 @@ fn response_to_json_with_non_json_body() {
 #[test]
 fn response_to_json_with_empty_body() {
     let response = Response { body: OptionalBody::Empty, .. Response::default_response() };
-    expect!(response.to_json().to_string()).to(
+    expect!(response.to_json(&PactSpecification::V3).to_string()).to(
         be_equal_to(r#"{"body":"","status":200}"#)
     );
 }
@@ -672,7 +786,7 @@ fn response_to_json_with_empty_body() {
 #[test]
 fn response_to_json_with_null_body() {
     let response = Response { body: OptionalBody::Null, .. Response::default_response() };
-    expect!(response.to_json().to_string()).to(
+    expect!(response.to_json(&PactSpecification::V3).to_string()).to(
         be_equal_to(r#"{"body":null,"status":200}"#)
     );
 }
@@ -702,7 +816,7 @@ fn write_pact_test() {
         interactions: vec![
             Interaction {
                 description: s!("Test Interaction"),
-                provider_state: Some(s!("Good state to be in")),
+                provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
                 request: Request::default_request(),
                 response: Response::default_response()
             }
@@ -713,13 +827,13 @@ fn write_pact_test() {
     dir.push(format!("pact_test_{}", x));
     dir.push(pact.default_file_name());
 
-    let result = pact.write_pact(dir.as_path());
+    let result = pact.write_pact(dir.as_path(), PactSpecification::V2);
 
     let pact_file = read_pact_file(dir.as_path().to_str().unwrap()).unwrap_or(s!(""));
     fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());
 
     expect!(result).to(be_ok());
-    expect(pact_file).to(be_equal_to(format!(r#"{{
+    expect!(pact_file).to(be_equal_to(format!(r#"{{
   "consumer": {{
     "name": "write_pact_test_consumer"
   }},
@@ -757,7 +871,7 @@ fn write_pact_test_should_merge_pacts() {
         interactions: vec![
             Interaction {
                 description: s!("Test Interaction 2"),
-                provider_state: Some(s!("Good state to be in")),
+                provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
                 request: Request::default_request(),
                 response: Response::default_response()
             }
@@ -770,7 +884,7 @@ fn write_pact_test_should_merge_pacts() {
         interactions: vec![
             Interaction {
                 description: s!("Test Interaction"),
-                provider_state: Some(s!("Good state to be in")),
+                provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
                 request: Request::default_request(),
                 response: Response::default_response()
             }
@@ -783,8 +897,8 @@ fn write_pact_test_should_merge_pacts() {
     dir.push(format!("pact_test_{}", x));
     dir.push(pact.default_file_name());
 
-    let result = pact.write_pact(dir.as_path());
-    let result2 = pact2.write_pact(dir.as_path());
+    let result = pact.write_pact(dir.as_path(), PactSpecification::V2);
+    let result2 = pact2.write_pact(dir.as_path(), PactSpecification::V2);
 
     let pact_file = read_pact_file(dir.as_path().to_str().unwrap()).unwrap_or(s!(""));
     fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());
@@ -840,7 +954,7 @@ fn write_pact_test_should_not_merge_pacts_with_conflicts() {
         interactions: vec![
             Interaction {
                 description: s!("Test Interaction"),
-                provider_state: Some(s!("Good state to be in")),
+                provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
                 request: Request::default_request(),
                 response: Response::default_response()
             }
@@ -853,7 +967,7 @@ fn write_pact_test_should_not_merge_pacts_with_conflicts() {
         interactions: vec![
             Interaction {
                 description: s!("Test Interaction"),
-                provider_state: Some(s!("Good state to be in")),
+                provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
                 request: Request::default_request(),
                 response: Response { status: 400, .. Response::default_response() }
             }
@@ -866,8 +980,8 @@ fn write_pact_test_should_not_merge_pacts_with_conflicts() {
     dir.push(format!("pact_test_{}", x));
     dir.push(pact.default_file_name());
 
-    let result = pact.write_pact(dir.as_path());
-    let result2 = pact2.write_pact(dir.as_path());
+    let result = pact.write_pact(dir.as_path(), PactSpecification::V2);
+    let result2 = pact2.write_pact(dir.as_path(), PactSpecification::V2);
 
     let pact_file = read_pact_file(dir.as_path().to_str().unwrap()).unwrap_or(s!(""));
     fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());
@@ -946,7 +1060,7 @@ fn pact_merge_does_not_merge_where_there_are_conflicting_interactions() {
         interactions: vec![
             Interaction {
                 description: s!("Test Interaction"),
-                provider_state: Some(s!("Good state to be in")),
+                provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
                 request: Request::default_request(),
                 response: Response::default_response()
             }
@@ -959,7 +1073,7 @@ fn pact_merge_does_not_merge_where_there_are_conflicting_interactions() {
         interactions: vec![
             Interaction {
                 description: s!("Test Interaction"),
-                provider_state: Some(s!("Good state to be in")),
+                provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
                 request: Request { path: s!("/other"), .. Request::default_request() },
                 response: Response::default_response()
             }
@@ -977,7 +1091,7 @@ fn pact_merge_removes_duplicates() {
         interactions: vec![
             Interaction {
                 description: s!("Test Interaction"),
-                provider_state: Some(s!("Good state to be in")),
+                provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
                 request: Request::default_request(),
                 response: Response::default_response()
             }
@@ -989,13 +1103,13 @@ fn pact_merge_removes_duplicates() {
         interactions: vec![
             Interaction {
                 description: s!("Test Interaction"),
-                provider_state: Some(s!("Good state to be in")),
+                provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
                 request: Request::default_request(),
                 response: Response::default_response()
             },
             Interaction {
                 description: s!("Test Interaction 2"),
-                provider_state: Some(s!("Good state to be in")),
+                provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
                 request: Request::default_request(),
                 response: Response::default_response()
             }
@@ -1011,13 +1125,13 @@ fn pact_merge_removes_duplicates() {
 fn interactions_do_not_conflict_if_they_have_different_descriptions() {
     let interaction1 = Interaction {
         description: s!("Test Interaction"),
-        provider_state: Some(s!("Good state to be in")),
+        provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
         request: Request::default_request(),
         response: Response::default_response()
     };
     let interaction2 =Interaction {
         description: s!("Test Interaction 2"),
-        provider_state: Some(s!("Good state to be in")),
+        provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
         request: Request::default_request(),
         response: Response::default_response()
     };
@@ -1028,13 +1142,13 @@ fn interactions_do_not_conflict_if_they_have_different_descriptions() {
 fn interactions_do_not_conflict_if_they_have_different_provider_states() {
     let interaction1 = Interaction {
         description: s!("Test Interaction"),
-        provider_state: Some(s!("Good state to be in")),
+        provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
         request: Request::default_request(),
         response: Response::default_response()
     };
     let interaction2 =Interaction {
         description: s!("Test Interaction"),
-        provider_state: Some(s!("Bad state to be in")),
+        provider_states: vec![ProviderState { name: s!("Bad state to be in"), params: hashmap!{} }],
         request: Request::default_request(),
         response: Response::default_response()
     };
@@ -1045,13 +1159,13 @@ fn interactions_do_not_conflict_if_they_have_different_provider_states() {
 fn interactions_do_not_conflict_if_they_have_the_same_requests_and_responses() {
     let interaction1 = Interaction {
         description: s!("Test Interaction"),
-        provider_state: Some(s!("Good state to be in")),
+        provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
         request: Request::default_request(),
         response: Response::default_response()
     };
     let interaction2 =Interaction {
         description: s!("Test Interaction"),
-        provider_state: Some(s!("Good state to be in")),
+        provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
         request: Request::default_request(),
         response: Response::default_response()
     };
@@ -1062,13 +1176,13 @@ fn interactions_do_not_conflict_if_they_have_the_same_requests_and_responses() {
 fn interactions_conflict_if_they_have_different_requests() {
     let interaction1 = Interaction {
         description: s!("Test Interaction"),
-        provider_state: Some(s!("Good state to be in")),
+        provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
         request: Request::default_request(),
         response: Response::default_response()
     };
     let interaction2 =Interaction {
         description: s!("Test Interaction"),
-        provider_state: Some(s!("Good state to be in")),
+        provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
         request: Request { method: s!("POST"), .. Request::default_request() },
         response: Response::default_response()
     };
@@ -1079,13 +1193,13 @@ fn interactions_conflict_if_they_have_different_requests() {
 fn interactions_conflict_if_they_have_different_responses() {
     let interaction1 = Interaction {
         description: s!("Test Interaction"),
-        provider_state: Some(s!("Good state to be in")),
+        provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
         request: Request::default_request(),
         response: Response::default_response()
     };
     let interaction2 =Interaction {
         description: s!("Test Interaction"),
-        provider_state: Some(s!("Good state to be in")),
+        provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
         request: Request::default_request(),
         response: Response { status: 400, .. Response::default_response() }
     };
@@ -1165,7 +1279,9 @@ fn matchers_from_json_handles_matcher_with_no_matching_rules() {
           "query": "",
           "headers": {},
           "matchingRules": {
-            "$.body.*.path": {}
+            "body": {
+                "$.*.path": {}
+            }
           }
       }
      "#).unwrap();
@@ -1185,9 +1301,13 @@ fn matchers_from_json_loads_matchers_correctly() {
           "query": "",
           "headers": {},
           "matchingRules": {
-            "$.body.*.path": {
-                "match": "regex",
-                "regex": "\\d+"
+            "body": {
+                "$.*.path": {
+                    "matchers": [{
+                        "match": "regex",
+                        "regex": "\\d+"
+                    }]
+                }
             }
           }
       }
@@ -1208,9 +1328,13 @@ fn matchers_from_json_loads_matchers_from_deprecated_name() {
           "query": "",
           "headers": {},
           "deprecatedName": {
-              "$.body.*.path": {
-                "match": "regex",
-                "regex": "\\d+"
+              "body": {
+                "$.*.path": {
+                    "matchers": [{
+                        "match": "regex",
+                        "regex": "\\d+"
+                    }]
+                }
               }
           }
       }
@@ -1230,11 +1354,11 @@ fn write_pact_test_with_matchers() {
         interactions: vec![
             Interaction {
                 description: s!("Test Interaction"),
-                provider_state: Some(s!("Good state to be in")),
+                provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
                 request: Request {
                     matching_rules: matchingrules!{
                         "body" => {
-                            "" => [ MatchingRule::Type ]
+                            "$" => [ MatchingRule::Type ]
                         }
                     },
                     .. Request::default_request()
@@ -1248,7 +1372,7 @@ fn write_pact_test_with_matchers() {
     dir.push(format!("pact_test_{}", x));
     dir.push(pact.default_file_name());
 
-    let result = pact.write_pact(dir.as_path());
+    let result = pact.write_pact(dir.as_path(), PactSpecification::V2);
 
     let pact_file = read_pact_file(dir.as_path().to_str().unwrap()).unwrap_or(s!(""));
     fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());
@@ -1286,6 +1410,102 @@ fn write_pact_test_with_matchers() {
   }},
   "provider": {{
     "name": "write_pact_test_provider"
+  }}
+}}"#, super::VERSION.unwrap())));
+}
+
+#[test]
+fn write_pact_v3_test_with_matchers() {
+    let pact = Pact { consumer: Consumer { name: s!("write_pact_test_consumer_v3") },
+        provider: Provider { name: s!("write_pact_test_provider_v3") },
+        interactions: vec![
+        Interaction {
+            description: s!("Test Interaction"),
+            provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
+            request: Request {
+                matching_rules: matchingrules!{
+                        "body" => {
+                            "$" => [ MatchingRule::Type ]
+                        },
+                        "header" => {
+                          "HEADER_A" => [ MatchingRule::Include(s!("ValA")), MatchingRule::Include(s!("ValB")) ]
+                        }
+                    },
+                .. Request::default_request()
+            },
+            response: Response::default_response()
+        }
+        ],
+        .. Pact::default() };
+    let mut dir = env::temp_dir();
+    let x = rand::random::<u16>();
+    dir.push(format!("pact_test_{}", x));
+    dir.push(pact.default_file_name());
+
+    let result = pact.write_pact(dir.as_path(), PactSpecification::V3);
+
+    let pact_file = read_pact_file(dir.as_path().to_str().unwrap()).unwrap_or(s!(""));
+    fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());
+
+    expect!(result).to(be_ok());
+    expect!(pact_file).to(be_equal_to(format!(r#"{{
+  "consumer": {{
+    "name": "write_pact_test_consumer_v3"
+  }},
+  "interactions": [
+    {{
+      "description": "Test Interaction",
+      "providerStates": [
+        {{
+          "name": "Good state to be in"
+        }}
+      ],
+      "request": {{
+        "matchingRules": {{
+          "body": {{
+            "$": {{
+              "combine": "AND",
+              "matchers": [
+                {{
+                  "match": "type"
+                }}
+              ]
+            }}
+          }},
+          "header": {{
+            "HEADER_A": {{
+              "combine": "AND",
+              "matchers": [
+                {{
+                  "match": "include",
+                  "value": "ValA"
+                }},
+                {{
+                  "match": "include",
+                  "value": "ValB"
+                }}
+              ]
+            }}
+          }}
+        }},
+        "method": "GET",
+        "path": "/"
+      }},
+      "response": {{
+        "status": 200
+      }}
+    }}
+  ],
+  "metadata": {{
+    "pact-rust": {{
+      "version": "{}"
+    }},
+    "pact-specification": {{
+      "version": "3.0.0"
+    }}
+  }},
+  "provider": {{
+    "name": "write_pact_test_provider_v3"
   }}
 }}"#, super::VERSION.unwrap())));
 }
@@ -1437,4 +1657,267 @@ fn body_from_json_returns_the_body_if_the_content_type_is_json() {
     let headers = headers_from_json(&json);
     let body = body_from_json(&json, "body", &headers);
     expect!(body).to(be_equal_to(OptionalBody::Present("{\"test\":true}".into())));
+}
+
+#[test]
+fn write_v3_pact_test() {
+    let pact = Pact { consumer: Consumer { name: s!("write_pact_test_consumer") },
+        provider: Provider { name: s!("write_pact_test_provider") },
+        interactions: vec![
+            Interaction {
+                description: s!("Test Interaction"),
+                provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
+                request: Request {
+                    query: Some(hashmap!{
+                        s!("a") => vec![s!("1"), s!("2"), s!("3")],
+                        s!("b") => vec![s!("bill"), s!("bob")],
+                    }),
+                    .. Request::default_request()
+                },
+                response: Response::default_response()
+            }
+        ],
+        .. Pact::default() };
+    let mut dir = env::temp_dir();
+    let x = rand::random::<u16>();
+    dir.push(format!("pact_test_{}", x));
+    dir.push(pact.default_file_name());
+
+    let result = pact.write_pact(dir.as_path(), PactSpecification::V3);
+
+    let pact_file = read_pact_file(dir.as_path().to_str().unwrap()).unwrap_or(s!(""));
+    fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());
+
+    expect!(result).to(be_ok());
+    expect!(pact_file).to(be_equal_to(format!(r#"{{
+  "consumer": {{
+    "name": "write_pact_test_consumer"
+  }},
+  "interactions": [
+    {{
+      "description": "Test Interaction",
+      "providerStates": [
+        {{
+          "name": "Good state to be in"
+        }}
+      ],
+      "request": {{
+        "method": "GET",
+        "path": "/",
+        "query": {{
+          "a": [
+            "1",
+            "2",
+            "3"
+          ],
+          "b": [
+            "bill",
+            "bob"
+          ]
+        }}
+      }},
+      "response": {{
+        "status": 200
+      }}
+    }}
+  ],
+  "metadata": {{
+    "pact-rust": {{
+      "version": "{}"
+    }},
+    "pact-specification": {{
+      "version": "3.0.0"
+    }}
+  }},
+  "provider": {{
+    "name": "write_pact_test_provider"
+  }}
+}}"#, super::VERSION.unwrap())));
+}
+
+#[test]
+fn generators_from_json_handles_missing_generators() {
+    let json : serde_json::Value = serde_json::from_str(r#"
+      {
+          "path": "/",
+          "query": "",
+          "headers": {}
+      }
+     "#).unwrap();
+    let generators = generators_from_json(&json);
+    expect!(generators.categories.iter()).to(be_empty());
+}
+
+#[test]
+fn generators_from_json_handles_empty_generators() {
+    let json : serde_json::Value = serde_json::from_str(r#"
+      {
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "generators": {}
+      }
+     "#).unwrap();
+    let generators = generators_from_json(&json);
+    expect!(generators.categories.iter()).to(be_empty());
+}
+
+#[test]
+fn generators_from_json_handles_generator_with_no_rules() {
+    let json : serde_json::Value = serde_json::from_str(r#"
+      {
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "generators": {
+            "body": {
+                "$.*.path": {}
+            }
+          }
+      }
+     "#).unwrap();
+    let generators = generators_from_json(&json);
+    expect!(generators).to(be_equal_to(Generators::default()));
+}
+
+#[test]
+fn generators_from_json_ignores_invalid_generators() {
+    let json : serde_json::Value = serde_json::from_str(r#"
+      {
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "generators": {
+            "body": {
+                "$.*.path": {
+                  "type": "invalid"
+                },
+                "$.invalid": {
+                  "type": 100
+                },
+                "$.other": null
+            },
+            "invalid": {
+                "path": "path"
+            },
+            "more_invalid": 100
+          }
+      }
+     "#).unwrap();
+    let generators = generators_from_json(&json);
+    expect!(generators).to(be_equal_to(Generators::default()));
+}
+
+#[test]
+fn generators_from_json_loads_generators_correctly() {
+    let json : serde_json::Value = serde_json::from_str(r#"
+      {
+        "path": "/",
+        "query": "",
+        "headers": {},
+        "generators": {
+          "body": {
+              "$.*.path": {
+                  "type": "RandomInt",
+                  "min": 1,
+                  "max": 10
+              }
+          },
+          "path": {
+            "type": "RandomString"
+          }
+        }
+      }
+     "#).unwrap();
+    let generators = generators_from_json(&json);
+    expect!(generators).to(be_equal_to(generators!{
+        "BODY" => {
+            "$.*.path" => Generator::RandomInt(1, 10)
+        },
+        "PATH" => { "" => Generator::RandomString(10) }
+    }));
+}
+
+#[test]
+fn write_pact_test_with_generators() {
+    let pact = Pact { consumer: Consumer { name: s!("write_pact_test_consumer") },
+        provider: Provider { name: s!("write_pact_test_provider") },
+        interactions: vec![
+            Interaction {
+                description: s!("Test Interaction with generators"),
+                provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
+                request: Request {
+                    generators: generators!{
+                        "BODY" => {
+                          "$" => Generator::RandomInt(1, 10)
+                        },
+                        "HEADER" => {
+                          "A" => Generator::RandomString(20)
+                        }
+                    },
+                    .. Request::default_request()
+                },
+                response: Response::default_response()
+            }
+        ],
+        .. Pact::default() };
+    let mut dir = env::temp_dir();
+    let x = rand::random::<u16>();
+    dir.push(format!("pact_test_{}", x));
+    dir.push(pact.default_file_name());
+
+    let result = pact.write_pact(dir.as_path(), PactSpecification::V3);
+
+    let pact_file = read_pact_file(dir.as_path().to_str().unwrap()).unwrap_or(s!(""));
+    fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());
+
+    expect!(result).to(be_ok());
+    expect!(pact_file).to(be_equal_to(format!(r#"{{
+  "consumer": {{
+    "name": "write_pact_test_consumer"
+  }},
+  "interactions": [
+    {{
+      "description": "Test Interaction with generators",
+      "providerStates": [
+        {{
+          "name": "Good state to be in"
+        }}
+      ],
+      "request": {{
+        "generators": {{
+          "body": {{
+            "$": {{
+              "max": 10,
+              "min": 1,
+              "type": "RandomInt"
+            }}
+          }},
+          "header": {{
+            "A": {{
+              "size": 20,
+              "type": "RandomString"
+            }}
+          }}
+        }},
+        "method": "GET",
+        "path": "/"
+      }},
+      "response": {{
+        "status": 200
+      }}
+    }}
+  ],
+  "metadata": {{
+    "pact-rust": {{
+      "version": "{}"
+    }},
+    "pact-specification": {{
+      "version": "3.0.0"
+    }}
+  }},
+  "provider": {{
+    "name": "write_pact_test_provider"
+  }}
+}}"#, super::VERSION.unwrap())));
 }

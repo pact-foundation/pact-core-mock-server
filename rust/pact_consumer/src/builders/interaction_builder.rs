@@ -1,4 +1,5 @@
 use pact_matching::models::*;
+use pact_matching::models::provider_states::ProviderState;
 
 use super::request_builder::RequestBuilder;
 use super::response_builder::ResponseBuilder;
@@ -7,7 +8,7 @@ use super::response_builder::ResponseBuilder;
 /// `PactBuilder::interaction`.
 pub struct InteractionBuilder {
     description: String,
-    provider_state: Option<String>,
+    provider_states: Vec<ProviderState>,
 
     /// A builder for this interaction's `Request`.
     pub request: RequestBuilder,
@@ -21,7 +22,7 @@ impl InteractionBuilder {
     pub fn new<D: Into<String>>(description: D) -> Self {
         InteractionBuilder {
             description: description.into(),
-            provider_state: None,
+            provider_states: vec![],
             request: RequestBuilder::default(),
             response: ResponseBuilder::default(),
         }
@@ -30,7 +31,7 @@ impl InteractionBuilder {
     /// Specify a "provider state" for this interaction. This is normally use to
     /// set up database fixtures when using a pact to test a provider.
     pub fn given<G: Into<String>>(&mut self, given: G) -> &mut Self {
-        self.provider_state = Some(given.into());
+        self.provider_states.push(ProviderState::default(&given.into()));
         self
     }
 
@@ -38,7 +39,7 @@ impl InteractionBuilder {
     pub fn build(&self) -> Interaction {
         Interaction {
             description: self.description.clone(),
-            provider_state: self.provider_state.clone(),
+            provider_states: self.provider_states.clone(),
             request: self.request.build(),
             response: self.response.build(),
         }

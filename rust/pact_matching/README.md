@@ -1,7 +1,7 @@
 # Pact Request and Response Matching
 
 This library implements the core matching logic required for matching HTTP requests and responses. It is based on the
-[V2 pact specification](https://github.com/pact-foundation/pact-specification/tree/version-2).
+[V3 pact specification](https://github.com/pact-foundation/pact-specification/tree/version-3).
 
 [Online rust docs](https://docs.rs/pact_matching/)
 
@@ -34,7 +34,7 @@ versions up to V2, but will converted a V1 and V1.1 spec file to a V2 format.
 V2 specification matching is supported for both JSON and XML bodies, headers, query strings and request paths.
 
 To understand the basic rules of matching, see [Matching Gotchas](https://github.com/realestate-com-au/pact/wiki/Matching-gotchas).
-For example test cases for matching, see the [Pact Specification Project, version 2](https://github.com/bethesque/pact-specification/tree/version-2).
+For example test cases for matching, see the [Pact Specification Project, version 3](https://github.com/bethesque/pact-specification/tree/version-3).
 
 By default, Pact will use string equality matching following Postel's Law. This means
 that for an actual value to match an expected one, they both must consist of the same
@@ -53,7 +53,7 @@ Other formats will either have their own matching rules, or will follow the JSON
 #### JSON body matching rules
 
 Bodies consist of Objects (Maps of Key-Value pairs), Arrays (Lists) and values (Strings, Numbers, true, false, null).
-Body matching rules are prefixed with `$.body`.
+Body matching rules are prefixed with `$.`.
 
 The following method is used to determine if two bodies match:
 
@@ -108,7 +108,7 @@ matcher
 #### XML body matching rules
 
 Bodies consist of a root element, Elements (Lists with children), Attributes (Maps) and values (Strings).
-Body matching rules are prefixed with `$.body`.
+Body matching rules are prefixed with `$.`.
 
 The following method is used to determine if two bodies match:
 
@@ -182,7 +182,7 @@ matcher
 
 Paths are matched by the following:
 
-1. If there is a matcher defined for `$.path`, default to that matcher.
+1. If there is a matcher defined for `path`, default to that matcher.
 2. Otherwise paths are compared as Strings
 
 ### Matching Queries
@@ -207,7 +207,7 @@ are compared in the order they appear in the query string.
 
 For matching header values:
 
-1. If there is a matcher defined for `$.header.<HEADER_KEY>`, default to that matcher
+1. If there is a matcher defined for `header.<HEADER_KEY>`, default to that matcher
 2. Otherwise strip all whitespace after commas and compare the resulting strings.
 
 #### Matching Request Headers
@@ -239,11 +239,10 @@ Pact does not support the full JSON path expressions, only ones that match the f
 
 1. All paths start with a dollar (`$`), representing the root.
 2. All path elements are separated by periods (`.`), except array indices which use square brackets (`[]`).
-3. The second element of the path is the http type that the matcher is applied to (e.g., `$.body` or `$.header`).
-4. Path elements represent keys.
-5. A star (`*`) can be used to match all keys of a map or all items of an array (one level only).
+3. Path elements represent keys.
+4. A star (`*`) can be used to match all keys of a map or all items of an array (one level only).
 
-So the expression `$.body.item1.level[2].id` will match the highlighted item in the following body:
+So the expression `$.item1.level[2].id` will match the highlighted item in the following body:
 
 ```js
 {
@@ -256,7 +255,7 @@ So the expression `$.body.item1.level[2].id` will match the highlighted item in 
         "id": 101
       },
       {
-        "id": 102 // <---- $.body.item1.level[2].id
+        "id": 102 // <---- $.item1.level[2].id
       },
       {
         "id": 103
@@ -266,7 +265,7 @@ So the expression `$.body.item1.level[2].id` will match the highlighted item in 
 }
 ```
 
-while `$.body.*.level[*].id` will match all the ids of all the levels for all items.
+while `$.*.level[*].id` will match all the ids of all the levels for all items.
 
 ### Matcher selection algorithm
 
@@ -309,20 +308,18 @@ The expressions will have the following weightings:
 | expression | weighting calculation | weighting |
 |------------|-----------------------|-----------|
 | $ | $(2) | 2 |
-| $.body | $(2).body(2) | 4 |
-| $.body.item1 | $(2).body(2).item1(2) | 8 |
-| $.body.item2 | $(2).body(2).item2(0) | 0 |
-| $.header.item1 | $(2).header(0).item1(2) | 0 |
-| $.body.item1.level | $(2).body(2).item1(2).level(2) | 16 |
-| $.body.item1.level[1] | $(2).body(2).item1(2).level(2)[1(2)] | 32 |
-| $.body.item1.level[1].id | $(2).body(2).item1(2).level(2)[1(2)].id(2) | 64 |
-| $.body.item1.level[1].name | $(2).body(2).item1(2).level(2)[1(2)].name(0) | 0 |
-| $.body.item1.level[2] | $(2).body(2).item1(2).level(2)[2(0)] | 0 |
-| $.body.item1.level[2].id | $(2).body(2).item1(2).level(2)[2(0)].id(2) | 0 |
-| $.body.item1.level[*].id | $(2).body(2).item1(2).level(2)[*(1)].id(2) | 32 |
-| $.body.\*.level[\*].id | $(2).body(2).*(1).level(2)[*(1)].id(2) | 8 |
+| $.item1 | $(2).item1(2) | 4 |
+| $.item2 | $(2).item2(0) | 0 |
+| $.item1.level | $(2).item1(2).level(2) | 8 |
+| $.item1.level[1] | $(2).item1(2).level(2)[1(2)] | 16 |
+| $.item1.level[1].id | $(2).item1(2).level(2)[1(2)].id(2) | 32 |
+| $.item1.level[1].name | $(2).item1(2).level(2)[1(2)].name(0) | 0 |
+| $.item1.level[2] | $(2).item1(2).level(2)[2(0)] | 0 |
+| $.item1.level[2].id | $(2).item1(2).level(2)[2(0)].id(2) | 0 |
+| $.item1.level[*].id | $(2).item1(2).level(2)[*(1)].id(2) | 16 |
+| $.\*.level[\*].id | $(2).*(1).level(2)[*(1)].id(2) | 8 |
 
-So for the item with id 102, the matcher with path `$.body.item1.level[1].id` and weighting 64 will be selected.
+So for the item with id 102, the matcher with path `$.item1.level[1].id` and weighting 32 will be selected.
 
 ## Supported matchers
 

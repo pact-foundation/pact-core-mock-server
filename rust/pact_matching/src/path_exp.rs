@@ -162,8 +162,8 @@ fn path_exp<I>(chars: &mut Peekable<I>, tokens: &mut Vec<PathToken>, path: &Stri
     while next_char.is_some() {
         let ch = next_char.unwrap();
         match ch.1 {
-            '.' => try!{ path_identifier(chars, tokens, path, ch.0) },
-            '[' => try!{ bracket_path(chars, tokens, path, ch.0) },
+            '.' => path_identifier(chars, tokens, path, ch.0)?,
+            '[' => bracket_path(chars, tokens, path, ch.0)?,
             _ => return Err(format!("Expected a \".\" or \"[\" instead of \"{}\" in path expression \"{}\" at index {}",
                 ch.1, path, ch.0))
         }
@@ -181,7 +181,7 @@ pub fn parse_path_exp(path: String) -> Result<Vec<PathToken>, String> {
         Some(ch) => {
             if ch.1 == '$' {
                 tokens.push(PathToken::Root);
-                try!{ path_exp(&mut chars, &mut tokens, &path) }
+                path_exp(&mut chars, &mut tokens, &path)?;
                 Ok(tokens)
             } else {
                 Err(format!("Path expression \"{}\" does not start with a root marker \"$\"", path))

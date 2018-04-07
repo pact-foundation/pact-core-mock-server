@@ -1,33 +1,15 @@
 //! `matchingrules` module includes all the classes to deal with V3 format matchers
 
 use serde_json::{self, Value};
-use std::collections::{HashMap, HashSet};
-use std::hash::{Hash, Hasher};
+use std::{
+  collections::{HashMap, HashSet},
+  hash::{Hash, Hasher}
+};
+#[allow(unused_imports)] // FromStr is actually used
 use std::str::FromStr;
+use models::json_utils::{json_to_string, json_to_num};
 use path_exp::*;
 use super::PactSpecification;
-
-fn json_to_string(value: &Value) -> String {
-  match value {
-    &Value::String(ref s) => s.clone(),
-    _ => value.to_string()
-  }
-}
-
-fn json_to_num(value: Option<Value>) -> Option<usize> {
-  if let Some(value) = value {
-    match value {
-      Value::Number(n) => if n.is_i64() && n.as_i64().unwrap() > 0 { Some(n.as_i64().unwrap() as usize) }
-        else if n.is_f64() { Some(n.as_f64().unwrap() as usize) }
-        else if n.is_u64() { Some(n.as_u64().unwrap() as usize) }
-        else { None },
-      Value::String(ref s) => usize::from_str(&s.clone()).ok(),
-      _ => None
-    }
-  } else {
-    None
-  }
-}
 
 fn matches_token(path_fragment: &String, path_token: &PathToken) -> usize {
   match *path_token {
@@ -207,27 +189,58 @@ impl MatchingRule {
 
 }
 
+/// Enumeration to define how to combine rules
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash)]
+pub enum RuleLogic {
+  /// All rules must match
+  And,
+  /// At least one rule must match
+  Or
+}
+
+impl RuleLogic {
+
+  fn to_json(&self) -> Value {
+    Value::String(match self {
+      &RuleLogic::And => s!("AND"),
+      &RuleLogic::Or => s!("OR")
+    })
+  }
+
+}
+
 /// Data structure for representing a list of rules and the logic needed to combine them
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash)]
 pub struct RuleList {
   /// List of rules to apply
-  pub rules: Vec<MatchingRule>
+  pub rules: Vec<MatchingRule>,
+  /// Rule logic to use to evaluate multiple rules
+  pub rule_logic: RuleLogic
 }
 
 impl RuleList {
 
   /// Creates a new empty rule list
-  pub fn default() -> RuleList {
+  pub fn default(rule_logic: &RuleLogic) -> RuleList {
     RuleList {
-      rules: Vec::new()
+      rules: Vec::new(),
+      rule_logic: rule_logic.clone()
     }
   }
 
   /// Creates a new rule list with the single matching rule
   pub fn new(rule: MatchingRule) -> RuleList {
     RuleList {
-      rules: vec![ rule ]
+      rules: vec![ rule ],
+      rule_logic: RuleLogic::And
     }
+  }
+
+  fn to_v3_json(&self) -> Value {
+    json!({
+      s!("combine"): self.rule_logic.to_json(),
+      s!("matchers"): Value::Array(self.rules.iter().map(|matcher| matcher.to_json()).collect())
+    })
   }
 
   fn to_v2_json(&self) -> Value {
@@ -271,10 +284,10 @@ impl Category {
   }
 
   /// Adds a rule from the Value representation
-  pub fn rule_from_json(&mut self, key: &String, matcher_json: &Value) {
+  pub fn rule_from_json(&mut self, key: &String, matcher_json: &Value, rule_logic: &RuleLogic) {
     match MatchingRule::from_json(matcher_json) {
       Some(matching_rule) => {
-        let rules = self.rules.entry(key.clone()).or_insert(RuleList::default());
+        let rules = self.rules.entry(key.clone()).or_insert(RuleList::default(rule_logic));
         rules.rules.push(matching_rule);
       },
       None => warn!("Could not parse matcher {:?}", matcher_json)
@@ -282,8 +295,8 @@ impl Category {
   }
 
   /// Adds a rule to this category
-  pub fn add_rule(&mut self, key: &String, matcher: MatchingRule) {
-    let rules = self.rules.entry(key.clone()).or_insert(RuleList::default());
+  pub fn add_rule(&mut self, key: &String, matcher: MatchingRule, rule_logic: &RuleLogic) {
+    let rules = self.rules.entry(key.clone()).or_insert(RuleList::default(rule_logic));
     rules.rules.push(matcher);
   }
 
@@ -304,17 +317,21 @@ impl Category {
       .map(|(_, v, _)| v.clone())
   }
 
-  /// Convert the rule category to JSON
+  /// Returns a JSON Value representation in V3 format
+  pub fn to_v3_json(&self) -> Value {
+    Value::Object(self.rules.iter().fold(serde_json::Map::new(), |mut map, (category, rulelist)| {
+      map.insert(category.clone(), rulelist.to_v3_json());
+      map
+    }))
+  }
+
+  /// Returns a JSON Value representation in V2 format
   pub fn to_v2_json(&self) -> HashMap<String, Value> {
     let mut map = hashmap!{};
 
     if self.name == "body" {
       for (k, v) in self.rules.clone() {
-        if k.is_empty() {
-          map.insert("$.body".to_string(), v.to_v2_json());
-        } else {
-          map.insert(k.replace("$", "$.body"), v.to_v2_json());
-        }
+        map.insert(k.replace("$", "$.body"), v.to_v2_json());
       }
     } else {
       for (k, v) in self.rules.clone() {
@@ -454,13 +471,73 @@ impl MatchingRules {
       }
     }
 
+    fn load_from_v3_map(&mut self, map: &serde_json::Map<String, Value>) {
+      for (k, v) in map {
+        self.add_rules(k, v);
+      }
+    }
+
+    fn add_rules(&mut self, category_name: &String, rules: &Value) {
+      let category = self.add_category(category_name.clone());
+      if category_name == "path" {
+        let rule_logic = match rules.get("combine") {
+          Some(val) => if json_to_string(val).to_uppercase() == "OR" {
+              RuleLogic::Or
+            } else {
+              RuleLogic::And
+            },
+          None => RuleLogic::And
+        };
+        match rules.get("matchers") {
+          Some(matchers) => match matchers {
+            &Value::Array(ref array) => for matcher in array {
+              category.rule_from_json(&s!(""), &matcher, &rule_logic)
+            },
+            _ => ()
+          },
+          None => ()
+        }
+      } else {
+        match rules {
+          &Value::Object(ref m) => {
+            for (k, v) in m {
+              let rule_logic = match v.get("combine") {
+                Some(val) => if json_to_string(val).to_uppercase() == "OR" {
+                  RuleLogic::Or
+                } else {
+                  RuleLogic::And
+                },
+                None => RuleLogic::And
+              };
+              match v.get("matchers") {
+                Some(matchers) => match matchers {
+                  &Value::Array(ref array) => for matcher in array {
+                    category.rule_from_json(k, &matcher, &rule_logic)
+                  },
+                  _ => ()
+                },
+                None => ()
+              }
+            }
+          },
+          _ => ()
+        }
+      }
+    }
+
   fn add_v2_rule(&mut self, category_name: String, sub_category: String, rule: &Value) {
     let category = self.add_category(category_name);
-    category.rule_from_json(&sub_category, rule);
+    category.rule_from_json(&sub_category, rule, &RuleLogic::And);
   }
 
-  /// Convert these rules to JSON
-  pub fn to_v2_json(&self) -> Value {
+  fn to_v3_json(&self) -> Value {
+    Value::Object(self.rules.iter().fold(serde_json::Map::new(), |mut map, (name, category)| {
+      map.insert(name.clone(), category.to_v3_json());
+      map
+    }))
+  }
+
+  fn to_v2_json(&self) -> Value {
     Value::Object(self.rules.iter().fold(serde_json::Map::new(), |mut map, (_, category)| {
       for (key, value) in category.to_v2_json() {
         map.insert(key.clone(), value);
@@ -472,7 +549,7 @@ impl MatchingRules {
 
 impl Hash for MatchingRules {
   fn hash<H: Hasher>(&self, state: &mut H) {
-    for (k, v) in self.rules.clone() {
+    for (k, v) in self.rules.iter() {
       k.hash(state);
       v.hash(state);
     }
@@ -491,7 +568,11 @@ pub fn matchers_from_json(value: &Value, deprecated_name: &Option<String>) -> Ma
   match matchers_json {
       Some(value) => match value {
         &Value::Object(ref m) => {
-            matching_rules.load_from_v2_map(m)
+            if m.keys().next().unwrap_or(&s!("")).starts_with("$") {
+                matching_rules.load_from_v2_map(m)
+            } else {
+                matching_rules.load_from_v3_map(m)
+            }
         },
         _ => ()
       },
@@ -503,6 +584,7 @@ pub fn matchers_from_json(value: &Value, deprecated_name: &Option<String>) -> Ma
 /// Generates a Value structure for the provided matching rules
 pub fn matchers_to_json(matchers: &MatchingRules, spec_version: &PactSpecification) -> Value {
    match spec_version {
+     &PactSpecification::V3 => matchers.to_v3_json(),
      _ => matchers.to_v2_json()
    }
 }
@@ -517,7 +599,7 @@ macro_rules! matchingrules {
             let mut _category = _rules.add_category($name);
             $({
               $({
-                _category.add_rule(&$subname.to_string(), $matcher);
+                _category.add_rule(&$subname.to_string(), $matcher, &RuleLogic::And);
               })*
             })*
         })*
@@ -528,7 +610,7 @@ macro_rules! matchingrules {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::{json_to_string, json_to_num, calc_path_weight, matches_token};
+    use super::{calc_path_weight, matches_token};
     use expectest::prelude::*;
     use serde_json::Value;
 
@@ -558,7 +640,8 @@ mod tests {
                     name: s!("query"),
                     rules: hashmap!{
                       s!("") => RuleList {
-                        rules: vec![ MatchingRule::Equality ]
+                        rules: vec![ MatchingRule::Equality ],
+                        rule_logic: RuleLogic::And
                       }
                     }
                 },
@@ -566,10 +649,10 @@ mod tests {
         }.is_empty()).to(be_false());
     }
 
-    #[test]
-    fn matchers_from_json_test() {
-        expect!(matchers_from_json(&Value::Null, &None).rules.iter()).to(be_empty());
-    }
+  #[test]
+  fn matchers_from_json_test() {
+      expect!(matchers_from_json(&Value::Null, &None).rules.iter()).to(be_empty());
+  }
 
   #[test]
   fn loads_v2_matching_rules() {
@@ -589,51 +672,95 @@ mod tests {
     expect!(matching_rules.categories()).to(be_equal_to(hashset!{ s!("path"), s!("query"), s!("header"), s!("body") }));
     expect!(matching_rules.rules_for_category(&s!("path"))).to(be_some().value(Category {
       name: s!("path"),
-      rules: hashmap! { s!("") => RuleList { rules: vec![ MatchingRule::Regex(s!("\\w+")) ] } }
+      rules: hashmap! { s!("") => RuleList { rules: vec![ MatchingRule::Regex(s!("\\w+")) ], rule_logic: RuleLogic::And } }
     }));
     expect!(matching_rules.rules_for_category(&s!("query"))).to(be_some().value(Category {
       name: s!("query"),
-      rules: hashmap!{ s!("Q1") => RuleList { rules: vec![ MatchingRule::Regex(s!("\\d+")) ] } }
+      rules: hashmap!{ s!("Q1") => RuleList { rules: vec![ MatchingRule::Regex(s!("\\d+")) ], rule_logic: RuleLogic::And } }
     }));
     expect!(matching_rules.rules_for_category(&s!("header"))).to(be_some().value(Category {
       name: s!("header"),
       rules: hashmap!{ s!("HEADERY") => RuleList { rules: vec![
-        MatchingRule::Include(s!("ValueA")) ] } }
+        MatchingRule::Include(s!("ValueA")) ], rule_logic: RuleLogic::And } }
     }));
     expect!(matching_rules.rules_for_category(&s!("body"))).to(be_some().value(Category {
       name: s!("body"),
       rules: hashmap!{
-        s!("$.animals") => RuleList { rules: vec![ MatchingRule::MinType(1) ] },
-        s!("$.animals[*].*") => RuleList { rules: vec![ MatchingRule::Type ] },
-        s!("$.animals[*].children") => RuleList { rules: vec![ MatchingRule::MinType(1) ] },
-        s!("$.animals[*].children[*].*") => RuleList { rules: vec![ MatchingRule::Type ] }
+        s!("$.animals") => RuleList { rules: vec![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
+        s!("$.animals[*].*") => RuleList { rules: vec![ MatchingRule::Type ], rule_logic: RuleLogic::And },
+        s!("$.animals[*].children") => RuleList { rules: vec![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
+        s!("$.animals[*].children[*].*") => RuleList { rules: vec![ MatchingRule::Type ], rule_logic: RuleLogic::And }
       }
     }));
   }
 
   #[test]
-  fn json_to_string_test() {
-    expect!(json_to_string(&Value::from_str("\"test string\"").unwrap())).to(be_equal_to(s!("test string")));
-    expect!(json_to_string(&Value::from_str("null").unwrap())).to(be_equal_to(s!("null")));
-    expect!(json_to_string(&Value::from_str("100").unwrap())).to(be_equal_to(s!("100")));
-    expect!(json_to_string(&Value::from_str("100.10").unwrap())).to(be_equal_to(s!("100.1")));
-    expect!(json_to_string(&Value::from_str("{}").unwrap())).to(be_equal_to(s!("{}")));
-    expect!(json_to_string(&Value::from_str("[]").unwrap())).to(be_equal_to(s!("[]")));
-    expect!(json_to_string(&Value::from_str("true").unwrap())).to(be_equal_to(s!("true")));
-    expect!(json_to_string(&Value::from_str("false").unwrap())).to(be_equal_to(s!("false")));
-  }
+  fn loads_v3_matching_rules() {
+    let matching_rules_json = Value::from_str(r#"{"matchingRules": {
+      "path": {
+        "matchers": [
+          { "match": "regex", "regex": "\\w+" }
+        ]
+      },
+      "query": {
+        "Q1": {
+          "matchers": [
+            { "match": "regex", "regex": "\\d+" }
+          ]
+        }
+      },
+      "header": {
+        "HEADERY": {
+          "combine": "OR",
+          "matchers": [
+            {"match": "include", "value": "ValueA"},
+            {"match": "include", "value": "ValueB"}
+          ]
+        }
+      },
+      "body": {
+        "$.animals": {
+          "matchers": [{"min": 1, "match": "type"}]
+        },
+        "$.animals[*].*": {
+          "matchers": [{"match": "type"}]
+        },
+        "$.animals[*].children": {
+          "matchers": [{"min": 1}]
+        },
+        "$.animals[*].children[*].*": {
+          "matchers": [{"match": "type"}]
+        }
+      }
+    }}"#).unwrap();
 
-  #[test]
-  fn json_to_num_test() {
-    expect!(json_to_num(Value::from_str("\"test string\"").ok())).to(be_none());
-    expect!(json_to_num(Value::from_str("null").ok())).to(be_none());
-    expect!(json_to_num(Value::from_str("{}").ok())).to(be_none());
-    expect!(json_to_num(Value::from_str("[]").ok())).to(be_none());
-    expect!(json_to_num(Value::from_str("true").ok())).to(be_none());
-    expect!(json_to_num(Value::from_str("false").ok())).to(be_none());
-    expect!(json_to_num(Value::from_str("100").ok())).to(be_some().value(100));
-    expect!(json_to_num(Value::from_str("-100").ok())).to(be_none());
-    expect!(json_to_num(Value::from_str("100.10").ok())).to(be_some().value(100));
+    let matching_rules = matchers_from_json(&matching_rules_json, &None);
+
+    expect!(matching_rules.rules.iter()).to_not(be_empty());
+    expect!(matching_rules.categories()).to(be_equal_to(hashset!{ s!("path"), s!("query"), s!("header"), s!("body") }));
+    expect!(matching_rules.rules_for_category(&s!("path"))).to(be_some().value(Category {
+      name: s!("path"),
+      rules: hashmap! { s!("") => RuleList { rules: vec![ MatchingRule::Regex(s!("\\w+")) ], rule_logic: RuleLogic::And } }
+    }));
+    expect!(matching_rules.rules_for_category(&s!("query"))).to(be_some().value(Category {
+      name: s!("query"),
+      rules: hashmap!{ s!("Q1") => RuleList { rules: vec![ MatchingRule::Regex(s!("\\d+")) ], rule_logic: RuleLogic::And } }
+    }));
+    expect!(matching_rules.rules_for_category(&s!("header"))).to(be_some().value(Category {
+      name: s!("header"),
+      rules: hashmap!{ s!("HEADERY") => RuleList { rules: vec![
+        MatchingRule::Include(s!("ValueA")),
+        MatchingRule::Include(s!("ValueB")) ], rule_logic: RuleLogic::Or } }
+    }));
+    expect!(matching_rules.rules_for_category(&s!("body"))).to(be_some().value(Category {
+      name: s!("body"),
+      rules: hashmap!{
+        s!("$.animals") => RuleList { rules: vec![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
+        s!("$.animals[*].*") => RuleList { rules: vec![ MatchingRule::Type ], rule_logic: RuleLogic::And },
+        s!("$.animals[*].children") => RuleList { rules: vec![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
+        s!("$.animals[*].children[*].*") => RuleList { rules: vec![ MatchingRule::Type ], rule_logic: RuleLogic::And }
+      }
+    }));
   }
 
   #[test]

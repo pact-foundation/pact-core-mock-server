@@ -1,6 +1,7 @@
 use super::*;
 use pact_matching::models::*;
-use pact_matching::models::matchingrules::MatchingRules;
+use pact_matching::models::matchingrules::*;
+use pact_matching::models::generators::*;
 use std::str::FromStr;
 use std::collections::hash_map::HashMap;
 use std::io::Read;
@@ -89,7 +90,8 @@ fn hyper_response_to_pact_response(response: &mut HyperResponse) -> Response {
         status: response.status.to_u16(),
         headers: extract_headers(&response.headers),
         body: extract_body(response),
-        matching_rules: MatchingRules::default()
+        matching_rules: MatchingRules::default(),
+        generators: Generators::default()
     }
 }
 

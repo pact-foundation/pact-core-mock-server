@@ -6,7 +6,9 @@
     "name" : "test_consumer"
   },
   "interactions" : [ {
-    "providerState" : "test state",
+    "providerStates" : [
+      {"name": "test state"}
+    ],
     "description" : "test interaction",
     "request" : {
       "method" : "get",
@@ -14,7 +16,10 @@
       "headers" : {
         "testreqheader" : "testreqheadervalue"
       },
-      "query" : "q=p&q=p2&r=s",
+      "query" : {
+        "q": ["p", "p2"],
+        "r": ["s"]
+      },
       "body" : {
         "test" : true
       }
@@ -31,7 +36,7 @@
   } ],
   "metadata" : {
     "pact-specification" : {
-      "version" : "2.0.0"
+      "version" : "3.0.0"
     },
     "pact-jvm" : {
       "version" : ""

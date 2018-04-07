@@ -202,10 +202,21 @@ pub fn match_values<E, A>(category: &str, path: &Vec<String>, matchers: Matching
                             path.iter().join("."))]),
         Some(ref rulelist) => {
           let results = rulelist.rules.iter().map(|rule| expected.matches(actual, rule)).collect::<Vec<Result<(), String>>>();
-          if results.iter().all(|result| result.is_ok()) {
-            Ok(())
-          } else {
-            Err(results.iter().filter(|result| result.is_err()).map(|result| result.clone().unwrap_err()).collect())
+          match rulelist.rule_logic {
+            RuleLogic::And => {
+              if results.iter().all(|result| result.is_ok()) {
+                Ok(())
+              } else {
+                Err(results.iter().filter(|result| result.is_err()).map(|result| result.clone().unwrap_err()).collect())
+              }
+            },
+            RuleLogic::Or => {
+              if results.iter().any(|result| result.is_ok()) {
+                Ok(())
+              } else {
+                Err(results.iter().filter(|result| result.is_err()).map(|result| result.clone().unwrap_err()).collect())
+              }
+            }
           }
         }
     }

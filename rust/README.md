@@ -2,11 +2,12 @@
 
 [![Build Status](https://travis-ci.org/pact-foundation/pact-reference.svg?branch=master)](https://travis-ci.org/pact-foundation/pact-reference) [![Windows Build status](https://ci.appveyor.com/api/projects/status/bqlb7ny924lsu6yi?svg=true)](https://ci.appveyor.com/project/pact-foundation/pact-reference)
 
-This is the project for a reference implementation of Pact in Rust. It implements the [V2 Pact specification](https://github.com/pact-foundation/pact-specification/tree/version-2).
+This is the project for a reference implementation of Pact in Rust. It implements the [V3 Pact specification](https://github.com/pact-foundation/pact-specification/tree/version-3).
 
 For a version of this project that implements the [V1 Pact specification](https://github.com/pact-foundation/pact-specification/tree/version-1),
 have a look at the [V1 Branch](https://github.com/pact-foundation/pact-reference/tree/v1-spec). For [V1.1 Pact specification](https://github.com/pact-foundation/pact-specification/tree/version-1.1),
-have a look at the [V1.1 Branch](https://github.com/pact-foundation/pact-reference/tree/v1.1-spec)
+have a look at the [V1.1 Branch](https://github.com/pact-foundation/pact-reference/tree/v1.1-spec). For [V2 Pact specification](https://github.com/pact-foundation/pact-specification/tree/version-2),
+have a look at the [V2 Branch](https://github.com/pact-foundation/pact-reference/tree/v2-spec)
 
 There are 5 main modules to this implementation:
 

@@ -26,4 +26,5 @@ c/consumer-verification/stamp-h1
 autom4te.cache/
 *~
 .vscode/
+tokamak.toml
 
