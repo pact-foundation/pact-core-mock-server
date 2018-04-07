@@ -1,12 +1,15 @@
 //! `matchingrules` module includes all the classes to deal with V3 format matchers
 
 use serde_json::{self, Value};
-use std::collections::{HashMap, HashSet};
-use std::hash::{Hash, Hasher};
+use std::{
+  collections::{HashMap, HashSet},
+  hash::{Hash, Hasher}
+};
+#[allow(unused_imports)] // FromStr is actually used
+use std::str::FromStr;
+use models::json_utils::{json_to_string, json_to_num};
 use path_exp::*;
 use super::PactSpecification;
-use models::json_utils::{json_to_string, json_to_num};
-use std::str::FromStr;
 
 fn matches_token(path_fragment: &String, path_token: &PathToken) -> usize {
   match *path_token {

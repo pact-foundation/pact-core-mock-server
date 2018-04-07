@@ -1,10 +1,13 @@
 //! `generators` module includes all the classes to deal with V3 format generators
 
-use std::collections::HashMap;
+use std::{
+  collections::HashMap,
+  hash::{Hash, Hasher},
+  str::FromStr,
+  ops::Index
+};
 use serde_json::{self, Value};
 use super::PactSpecification;
-use std::hash::{Hash, Hasher};
-use std::str::FromStr;
 use rand::{self, Rng};
 use uuid::Uuid;
 use models::{OptionalBody, DetectedContentType};
@@ -12,10 +15,8 @@ use models::json_utils::{JsonToNum, json_to_string};
 use models::xml_utils::parse_bytes;
 use sxd_document::dom::Document;
 use path_exp::*;
-use std::slice::Iter;
 use itertools::Itertools;
 use indextree::{Arena, NodeId};
-use std::ops::Index;
 
 /// Trait to represent a generator
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash)]
@@ -68,6 +69,7 @@ impl Generator {
     }
   }
 
+  /// Converts a JSON map into a `Generator` struct, returning `None` if it can not be converted.
   pub fn from_map(gen_type: &String, map: &serde_json::Map<String, Value>) -> Option<Generator> {
     match gen_type.as_str() {
       "RandomInt" => {
@@ -92,7 +94,10 @@ impl Generator {
   }
 }
 
+/// Trait that represents generation of a value based on a source value.
 pub trait GenerateValue<T> {
+  /// Generates a new value based on the source value. `None` will be returned if the value can not
+  /// be generated.
   fn generate_value(&self, value: &T) -> Option<T>;
 }
 
@@ -130,24 +135,23 @@ impl GenerateValue<String> for Generator {
       &Generator::RandomDecimal(digits) => Some(generate_decimal(digits as usize)),
       &Generator::RandomHexadecimal(digits) => Some(generate_hexadecimal(digits as usize)),
       &Generator::RandomString(size) => Some(generate_ascii_string(size as usize)),
-      &Generator::Regex(ref regex) => {
+      &Generator::Regex(ref _regex) => {
         warn!("Regex generator is not implemented");
         None
       },
-      &Generator::Date(ref format) => {
+      &Generator::Date(ref _format) => {
         warn!("Date generator is not implemented");
         None
       },
-      &Generator::Time(ref format) => {
+      &Generator::Time(ref _format) => {
         warn!("Time generator is not implemented");
         None
       },
-      &Generator::Timestamp(ref format) => {
+      &Generator::Timestamp(ref _format) => {
         warn!("Timestamp generator is not implemented");
         None
       },
-      &Generator::RandomBoolean => Some(format!("{}", rnd.gen::<bool>())),
-      _ => None
+      &Generator::RandomBoolean => Some(format!("{}", rnd.gen::<bool>()))
     }
   }
 }
@@ -183,24 +187,23 @@ impl GenerateValue<Value> for Generator {
         &Value::String(_) => Some(json!(generate_ascii_string(size as usize))),
         _ => None
       },
-      &Generator::Regex(ref regex) => {
+      &Generator::Regex(ref _regex) => {
         warn!("Regex generator is not implemented");
         None
       },
-      &Generator::Date(ref format) => {
+      &Generator::Date(ref _format) => {
         warn!("Date generator is not implemented");
         None
       },
-      &Generator::Time(ref format) => {
+      &Generator::Time(ref _format) => {
         warn!("Time generator is not implemented");
         None
       },
-      &Generator::Timestamp(ref format) => {
+      &Generator::Timestamp(ref _format) => {
         warn!("Timestamp generator is not implemented");
         None
       },
-      &Generator::RandomBoolean => Some(json!(rand::thread_rng().gen::<bool>())),
-      _ => None
+      &Generator::RandomBoolean => Some(json!(rand::thread_rng().gen::<bool>()))
     }
   }
 }
@@ -258,12 +261,17 @@ impl Into<String> for GeneratorCategory {
   }
 }
 
+/// Trait to define a handler for applying generators to data of a particular content type.
 pub trait ContentTypeHandler<T> {
+  /// Processes the body using the map of generators, returning a (possibly) updated body.
   fn process_body(&mut self, generators: &HashMap<String, Generator>) -> OptionalBody;
+  /// Applies the generator to the key in the body.
   fn apply_key(&mut self, key: &String, generator: &Generator);
 }
 
+/// Implementation of a content type handler for JSON
 pub struct JsonHandler {
+  /// JSON document to apply the generators to.
   pub value: Value
 }
 
@@ -390,16 +398,18 @@ impl ContentTypeHandler<Value> for JsonHandler {
   }
 }
 
+/// Implementation of a content type handler for XML (currently unimplemented).
 pub struct XmlHandler<'a> {
+  /// XML document to apply the generators to.
   pub value: Document<'a>
 }
 
 impl <'a> ContentTypeHandler<Document<'a>> for XmlHandler<'a> {
-  fn process_body(&mut self, generators: &HashMap<String, Generator>) -> OptionalBody {
+  fn process_body(&mut self, _generators: &HashMap<String, Generator>) -> OptionalBody {
     unimplemented!()
   }
 
-  fn apply_key(&mut self, key: &String, generator: &Generator) {
+  fn apply_key(&mut self, _key: &String, _generator: &Generator) {
     unimplemented!()
   }
 }
@@ -429,6 +439,7 @@ impl Generators {
     self.categories.values().any(|category| !category.is_empty())
   }
 
+  /// Loads the generators for a JSON map
   pub fn load_from_map(&mut self, map: &serde_json::Map<String, Value>) {
     for (k, v) in map {
       match v {
@@ -475,7 +486,7 @@ impl Generators {
         &GeneratorCategory::PATH | &GeneratorCategory::METHOD | &GeneratorCategory::STATUS => {
           match category.get("") {
             Some(generator) => {
-              map.insert(cat.clone(), category.get("").unwrap().to_json());
+              map.insert(cat.clone(), generator.to_json());
             },
             None => ()
           }
@@ -490,16 +501,20 @@ impl Generators {
     }))
   }
 
+  /// Adds the generator to the category (body, headers, etc.)
   pub fn add_generator(&mut self, category: &GeneratorCategory, generator: Generator) {
     self.add_generator_with_subcategory(category, "", generator);
   }
 
+  /// Adds a generator to the category with a sub-category key (i.e. headers or query parameters)
   pub fn add_generator_with_subcategory<S: Into<String>>(&mut self, category: &GeneratorCategory,
                                                          subcategory: S, generator: Generator) {
     let category_map = self.categories.entry(category.clone()).or_insert(HashMap::new());
     category_map.insert(subcategory.into(), generator.clone());
   }
 
+  /// If there are generators for the provided category, invokes the closure for all keys and values
+  /// in the category.
   pub fn apply_generator<F>(&self, category: &GeneratorCategory, mut closure: F)
     where F: FnMut(&String, &Generator) {
     if self.categories.contains_key(category) && !self.categories[category].is_empty() {
@@ -509,6 +524,7 @@ impl Generators {
     }
   }
 
+  /// Applies all the body generators to the body and returns a new body (if anything was applied).
   pub fn apply_body_generators(&self, body: &OptionalBody, content_type: DetectedContentType) -> OptionalBody {
     if body.is_present() && self.categories.contains_key(&GeneratorCategory::BODY) &&
       !self.categories[&GeneratorCategory::BODY].is_empty() {

@@ -1,7 +1,11 @@
+//! Collection of utilities for working with JSON
+
 use serde_json::{self, Value};
 use std::str::FromStr;
 
+/// Trait to convert a JSON structure to a number
 pub trait JsonToNum<T> {
+  /// Converts the JSON field in the map to a Number
   fn json_to_number(map: &serde_json::Map<String, Value>, field: &str, default: T) -> T;
 }
 
@@ -35,6 +39,7 @@ impl JsonToNum<u16> for u16 {
   }
 }
 
+/// Converts the JSON struct to a String, first checking if it is a JSON String
 pub fn json_to_string(value: &Value) -> String {
   match value {
     &Value::String(ref s) => s.clone(),
@@ -42,6 +47,7 @@ pub fn json_to_string(value: &Value) -> String {
   }
 }
 
+/// Converts an optional JSON struct to a usize, returning `None` if it is not a numeric type.
 pub fn json_to_num(value: Option<Value>) -> Option<usize> {
   if let Some(value) = value {
     match value {
