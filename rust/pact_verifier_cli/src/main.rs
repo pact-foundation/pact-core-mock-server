@@ -228,7 +228,7 @@ fn main() {
 
 fn print_version() {
     println!("\npact verifier version     : v{}", crate_version!());
-    println!("pact specification version: v{}", PactSpecification::V2.version_str());
+    println!("pact specification version: v{}", PactSpecification::V3.version_str());
 }
 
 fn integer_value(v: String) -> Result<(), String> {
