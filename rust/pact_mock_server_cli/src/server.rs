@@ -275,7 +275,8 @@ impl Handler for ServerHandler {
 pub fn start_server(port: u16, matches: &ArgMatches) -> Result<(), i32> {
     let output_path = matches.value_of("output").map(|s| s.to_owned());
     let base_port = matches.value_of("base-port").map(|s| s.parse::<u16>().unwrap_or(0));
-    let server_key = rand::thread_rng().gen_ascii_chars().take(16).collect::<String>();
+    let server_key = matches.value_of("server-key").map(|s| s.to_owned())
+      .unwrap_or(rand::thread_rng().gen_ascii_chars().take(16).collect::<String>());
     match Server::http(format!("0.0.0.0:{}", port).as_str()) {
         Ok(mut server) => {
             server.keep_alive(None);
