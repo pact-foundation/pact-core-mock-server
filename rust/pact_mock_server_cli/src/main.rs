@@ -17,6 +17,7 @@ extern crate rand;
 extern crate webmachine_rust;
 extern crate regex;
 extern crate lazy_static;
+#[allow(unused_imports)] #[macro_use] extern crate p_macro;
 
 #[cfg(test)]
 extern crate quickcheck;
@@ -104,21 +105,6 @@ fn setup_loggers(level: &str, command: &str, output: Option<&str>, no_file_log: 
       SimpleLogger::init(log_level, Config::default()).map_err(|e| format!("{:?}", e))
     } else {
       TermLogger::init(log_level, Config::default()).map_err(|e| format!("{:?}", e))
-    }
-}
-
-fn lookup_global_option<'a>(option: &str, matches: &'a ArgMatches<'a>) -> Option<&'a str> {
-    let global_value = matches.value_of(option);
-    let command_value = matches.subcommand().1.unwrap().value_of(option);
-    match (global_value, command_value) {
-        (Some(v), None) => Some(v),
-        (None, Some(v)) => Some(v),
-        (Some(_), Some(v)) => {
-            eprintln!("WARNING: The value for '{}' has been provided twice, defaulting to the second value '{}'",
-                option, v);
-            Some(v)
-        },
-        (None, None) => None
     }
 }
 
@@ -258,7 +244,7 @@ fn handle_command_args() -> Result<(), i32> {
     let matches = app.get_matches_safe();
     match matches {
         Ok(ref matches) => {
-            let log_level = lookup_global_option("loglevel", matches);
+            let log_level = matches.value_of("loglevel");
             if let Err(err) = setup_loggers(log_level.unwrap_or("info"),
                 matches.subcommand_name().unwrap(),
                 matches.subcommand().1.unwrap().value_of("output"),
@@ -267,8 +253,8 @@ fn handle_command_args() -> Result<(), i32> {
                 eprintln!("WARN: Could not setup loggers: {}", err);
                 eprintln!();
             }
-            let port = lookup_global_option("port", matches).unwrap_or("8080");
-            let host = lookup_global_option("host", matches).unwrap_or("localhost");
+            let port = matches.value_of("port").unwrap_or("8080");
+            let host = matches.value_of("host").unwrap_or("localhost");
             match port.parse::<u16>() {
                 Ok(p) => {
                     match matches.subcommand() {
