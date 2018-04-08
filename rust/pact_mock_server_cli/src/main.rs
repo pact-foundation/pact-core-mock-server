@@ -52,7 +52,7 @@ mod shutdown;
 
 fn print_version() {
     println!("\npact mock server version  : v{}", crate_version!());
-    println!("pact specification version: v{}", PactSpecification::V2.version_str());
+    println!("pact specification version: v{}", PactSpecification::V3.version_str());
 }
 
 fn setup_log_file(output: Option<&str>) -> Result<File, io::Error> {
