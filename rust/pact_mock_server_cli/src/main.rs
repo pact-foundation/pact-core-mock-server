@@ -38,9 +38,9 @@ use uuid::Uuid;
 use pact_matching::models::PactSpecification;
 
 fn display_error(error: String, matches: &ArgMatches) -> ! {
-    println!("ERROR: {}", error);
-    println!();
-    println!("{}", matches.usage());
+    eprintln!("ERROR: {}", error);
+    eprintln!();
+    eprintln!("{}", matches.usage());
     panic!("{}", error)
 }
 
@@ -114,7 +114,7 @@ fn lookup_global_option<'a>(option: &str, matches: &'a ArgMatches<'a>) -> Option
         (Some(v), None) => Some(v),
         (None, Some(v)) => Some(v),
         (Some(_), Some(v)) => {
-            println!("WARNING: The value for '{}' has been provided twice, defaulting to the second value '{}'",
+            eprintln!("WARNING: The value for '{}' has been provided twice, defaulting to the second value '{}'",
                 option, v);
             Some(v)
         },
@@ -264,8 +264,8 @@ fn handle_command_args() -> Result<(), i32> {
                 matches.subcommand().1.unwrap().value_of("output"),
                 global_option_present("no-file-log", matches),
                 global_option_present("no-term-log", matches)) {
-                println!("WARN: Could not setup loggers: {}", err);
-                println!();
+                eprintln!("WARN: Could not setup loggers: {}", err);
+                eprintln!();
             }
             let port = lookup_global_option("port", matches).unwrap_or("8080");
             let host = lookup_global_option("host", matches).unwrap_or("localhost");
@@ -295,7 +295,6 @@ fn handle_command_args() -> Result<(), i32> {
                     Ok(())
                 },
                 _ => {
-                    println!("{}", err.message);
                     err.exit()
                 }
             }

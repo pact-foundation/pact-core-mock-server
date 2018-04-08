@@ -435,7 +435,6 @@ fn handle_command_args() -> Result<(), i32> {
                     Ok(())
                 },
                 _ => {
-                    println!("{}", err.message);
                     err.exit()
                 }
             }
