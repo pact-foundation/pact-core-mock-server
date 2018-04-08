@@ -239,7 +239,24 @@ fn handle_command_args() -> Result<(), i32> {
                     .required_unless("mock-server-host")
                     .help("the port number of the mock server")
                     .validator(integer_value))
-                .setting(AppSettings::ColoredHelp));
+                .setting(AppSettings::ColoredHelp))
+        .subcommand(SubCommand::with_name("shutdown-master")
+          .about("Performs a graceful shutdown of the master server (displayed when it started)")
+          .arg(Arg::with_name("server-key")
+            .short("k")
+            .long("server-key")
+            .takes_value(true)
+            .use_delimiter(false)
+            .required(true)
+            .help("the server key of the master server"))
+          .arg(Arg::with_name("period")
+            .long("period")
+            .takes_value(true)
+            .use_delimiter(false)
+            .help("the period of time in milliseconds to allow the server to shutdown (defaults to 100ms)")
+            .validator(integer_value))
+          .setting(AppSettings::ColoredHelp))
+    ;
 
     let matches = app.get_matches_safe();
     match matches {
@@ -263,6 +280,7 @@ fn handle_command_args() -> Result<(), i32> {
                         ("create", Some(sub_matches)) => create_mock::create_mock_server(host, p, sub_matches),
                         ("verify", Some(sub_matches)) => verify::verify_mock_server(host, p, sub_matches),
                         ("shutdown", Some(sub_matches)) => shutdown::shutdown_mock_server(host, p, sub_matches),
+                        ("shutdown-master", Some(sub_matches)) => shutdown::shutdown_master_server(host, p, sub_matches),
                         _ => Err(3)
                     }
                 },

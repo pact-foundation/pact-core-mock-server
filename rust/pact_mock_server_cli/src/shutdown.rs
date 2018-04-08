@@ -1,7 +1,7 @@
 use clap::ArgMatches;
-use hyper::Client;
-use hyper::Url;
-use hyper::status::*;
+use hyper::{
+  Client, Url, status::*, header::{Authorization, Bearer}
+};
 
 pub fn shutdown_mock_server(host: &str, port: u16, matches: &ArgMatches) -> Result<(), i32> {
     let mock_server_id = matches.value_of("mock-server-id");
@@ -37,4 +37,32 @@ pub fn shutdown_mock_server(host: &str, port: u16, matches: &ArgMatches) -> Resu
             ::display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), matches);
         }
     }
+}
+
+pub fn shutdown_master_server(host: &str, port: u16, matches: &ArgMatches) -> Result<(), i32> {
+  let client = Client::new();
+  let url = Url::parse(format!("http://{}:{}/shutdown", host, port)
+    .as_str()).unwrap();
+  let server_key = matches.value_of("server-key").unwrap().to_owned();
+  let shutdown_period = matches.value_of("period").map(|val| val.parse::<u16>().unwrap_or(100)).unwrap_or(100);
+  let res = client.post(url.clone())
+    .header(Authorization(Bearer { token: server_key }))
+    .body(&json!({ "period": shutdown_period }).to_string())
+    .send();
+
+  match res {
+    Ok(result) => {
+      if !result.status.is_success() {
+        match result.status {
+          _ => ::display_error(format!("Unexpected response from master mock server '{}': {}", url, result.status), matches)
+        }
+      } else {
+        println!("Master server shutting down ok");
+        Ok(())
+      }
+    },
+    Err(err) => {
+      ::display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), matches);
+    }
+  }
 }

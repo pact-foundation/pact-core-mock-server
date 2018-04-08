@@ -8,16 +8,22 @@ use pact_mock_server::{
     MockServer
 };
 use uuid::Uuid;
-use serde_json;
-use std::sync::Arc;
-use std::iter::FromIterator;
-use std::ops::Deref;
+use serde_json::{self, Value};
+use std::{
+  sync::Arc,
+  thread,
+  time::Duration,
+  iter::FromIterator,
+  ops::Deref,
+  net::TcpListener,
+  process
+};
 use verify;
 use webmachine_rust::*;
 use webmachine_rust::context::*;
 use webmachine_rust::headers::*;
 use clap::ArgMatches;
-use std::net::TcpListener;
+use rand::{self, Rng};
 
 fn json_error(error: String) -> String {
     let json_response = json!({ s!("error") : json!(error) });
@@ -129,6 +135,50 @@ fn main_resource(base_port: Arc<Option<u16>>) -> WebmachineResource {
     }
 }
 
+fn shutdown_resource(server_key: Arc<String>) -> WebmachineResource {
+  WebmachineResource {
+    allowed_methods: vec![s!("POST")],
+    forbidden: Box::new(move |context: &mut WebmachineContext| {
+      !context.request.has_header_value(&"Authorization".to_owned(), &format!("Bearer {}", server_key.deref()))
+    }),
+    process_post: Box::new(|context| {
+      let shutdown_period = match context.request.body {
+        Some(ref body) if !body.is_empty() => {
+          match serde_json::from_str::<Value>(body) {
+            Ok(ref json) => match json.get("period") {
+              Some(val) => match val.clone() {
+                Value::Number(n) => Ok(n.as_u64().unwrap_or(100)),
+                _ => Ok(100)
+              },
+              None => Ok(100)
+            },
+            Err(err) => {
+              error!("Failed to parse json body - {}", err);
+              context.response.body = Some(json_error(format!("Failed to parse json body - {}", err)));
+              Err(422)
+            }
+          }
+        },
+        _ => Ok(100)
+      };
+
+      match shutdown_period {
+        Ok(period) => {
+          thread::spawn(move || {
+            info!("Scheduling master server to shutdown in {}ms", period);
+            thread::sleep(Duration::from_millis(period));
+            info!("Shutting down");
+            process::exit(0);
+          });
+          Ok(true)
+        },
+        Err(err) => Err(err)
+      }
+    }),
+    .. WebmachineResource::default()
+  }
+}
+
 fn mock_server_resource(output_path: Arc<Option<String>>) -> WebmachineResource {
     WebmachineResource {
         allowed_methods: vec![s!("OPTIONS"), s!("GET"), s!("HEAD"), s!("POST"), s!("DELETE")],
@@ -191,44 +241,48 @@ fn mock_server_resource(output_path: Arc<Option<String>>) -> WebmachineResource 
 }
 
 struct ServerHandler {
-    output_path: Arc<Option<String>>,
-    base_port: Arc<Option<u16>>
+  output_path: Arc<Option<String>>,
+  base_port: Arc<Option<u16>>,
+  server_key: Arc<String>
 }
 
 impl ServerHandler {
-    fn new(output_path: Option<String>, base_port: Option<u16>) -> ServerHandler {
+    fn new(output_path: Option<String>, base_port: Option<u16>, server_key: String) -> ServerHandler {
         ServerHandler {
             output_path: Arc::new(output_path),
-            base_port: Arc::new(base_port)
+            base_port: Arc::new(base_port),
+            server_key: Arc::new(server_key)
         }
     }
 }
 
 impl Handler for ServerHandler {
-
-    fn handle(&self, req: Request, res: Response) {
-        let dispatcher = WebmachineDispatcher::new(
-            btreemap!{
-                s!("/") => Arc::new(main_resource(self.base_port.clone())),
-                s!("/mockserver") => Arc::new(mock_server_resource(self.output_path.clone()))
-            }
-        );
-        match dispatcher.dispatch(req, res) {
-            Ok(_) => (),
-            Err(err) => warn!("Error generating response - {}", err)
-        };
-    }
+  fn handle(&self, req: Request, res: Response) {
+    let dispatcher = WebmachineDispatcher::new(
+      btreemap! {
+            s!("/") => Arc::new(main_resource(self.base_port.clone())),
+            s!("/mockserver") => Arc::new(mock_server_resource(self.output_path.clone())),
+            s!("/shutdown") => Arc::new(shutdown_resource(self.server_key.clone()))
+        }
+    );
+    match dispatcher.dispatch(req, res) {
+      Ok(_) => (),
+      Err(err) => warn!("Error generating response - {}", err)
+    };
+  }
 }
 
 pub fn start_server(port: u16, matches: &ArgMatches) -> Result<(), i32> {
     let output_path = matches.value_of("output").map(|s| s.to_owned());
     let base_port = matches.value_of("base-port").map(|s| s.parse::<u16>().unwrap_or(0));
+    let server_key = rand::thread_rng().gen_ascii_chars().take(16).collect::<String>();
     match Server::http(format!("0.0.0.0:{}", port).as_str()) {
         Ok(mut server) => {
             server.keep_alive(None);
-            match server.handle(ServerHandler::new(output_path, base_port)) {
+            match server.handle(ServerHandler::new(output_path, base_port, server_key.clone())) {
                 Ok(listener) => {
-                    info!("Server started on port {}", listener.socket.port());
+                    info!("Master server started on port {}", listener.socket.port());
+                    info!("Server key: '{}'", server_key);
                     Ok(())
                 },
                 Err(err) => {
@@ -238,7 +292,7 @@ pub fn start_server(port: u16, matches: &ArgMatches) -> Result<(), i32> {
             }
         },
         Err(err) => {
-            error!("could not start server: {}", err);
+            error!("could not start master server: {}", err);
             Err(1)
         }
     }
