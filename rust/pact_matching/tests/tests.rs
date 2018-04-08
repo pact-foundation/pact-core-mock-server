@@ -7,10 +7,14 @@ extern crate serde_json;
 mod spec_testcases;
 
 use pact_matching::models::*;
-use std::env;
-use std::path::PathBuf;
+use std::{
+  env,
+  path::PathBuf,
+  fs::File,
+  io::prelude::*,
+  iter::Iterator
+};
 use expectest::prelude::*;
-use std::fs::File;
 
 /// Get the path to one of our sample *.json files.
 fn fixture_path(path: &str) -> PathBuf {
@@ -481,4 +485,30 @@ fn test_load_test_pact_matchers_old_format() {
         },
         Err(err) => panic!("Failed to load pact from '{:?}' - {}", pact_file, err)
     }
+}
+
+#[test]
+fn test_load_pact_with_binary_body() {
+  let pact_file = fixture_path("test_pact_binary_body.json");
+
+  let mut buffer = Vec::new();
+  let gif_file = fixture_path("1px.gif");
+  File::open(gif_file).unwrap().read_to_end(&mut buffer).unwrap();
+
+  let pact_result = Pact::read_pact(&pact_file);
+
+  match pact_result {
+    Ok(ref pact) => {
+      let mut f = File::open(pact_file).unwrap();
+      let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
+      let pact_json = pact.to_json(PactSpecification::V2);
+
+      let interaction = pact.interactions.first().unwrap();
+      expect!(interaction.response.body.value()).to(be_equal_to(buffer));
+      let pact_interactions = pact_json.get("interactions").unwrap().as_array().unwrap();
+      let pact_interactions_from_file = pact_json_from_file.get("interactions").unwrap().as_array().unwrap();
+      expect!(pact_interactions).to(be_equal_to(pact_interactions_from_file));
+    },
+    Err(err) => panic!("Failed to load pact from '{:?}' - {}", pact_file, err)
+  }
 }
