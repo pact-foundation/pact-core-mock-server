@@ -2,10 +2,12 @@
 
 use pact_matching::models::*;
 use pact_mock_server::*;
-use std::fmt::Write as FmtWrite;
-use std::io;
-use std::io::prelude::*;
-use std::thread;
+use std::{
+  fmt::Write as FmtWrite,
+  env,
+  io::{self, prelude::*},
+  thread
+};
 use url::Url;
 use uuid::Uuid;
 
@@ -81,7 +83,7 @@ impl ValidatingMockServer {
         if mismatches.is_empty() {
             // Success! Write out the generated pact file.
             lookup_mock_server_by_port(self.port, &|ms| {
-                ms.write_pact(&Some("target/pacts".to_owned()))
+                ms.write_pact(&Some(env::var("PACT_OUTPUT_DIR").unwrap_or("target/pacts".to_owned())))
             })
                 .ok_or_else(|| "unable to find mock server".to_owned())?
                 .map_err(|err| format!("error writing pact: {}", err))?;

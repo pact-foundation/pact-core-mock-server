@@ -53,3 +53,7 @@ fn a_service_consumer_side_of_a_pact_goes_a_little_something_like_this() {
     expect!(result).to(be_equal_to(VerificationResult::PactVerified)); // This means it is all good
 }
 ```
+
+### Changing the output directory
+
+By default, the pact files will be written to `target/pacts`. To change this, set the environment variable `PACT_OUTPUT_DIR`.
