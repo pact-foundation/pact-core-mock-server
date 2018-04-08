@@ -878,7 +878,12 @@ fn parse_meta_data(pact_json: &Value) -> BTreeMap<String, BTreeMap<String, Strin
                     }).collect(),
                     _ => btreemap!{}
                 };
-                (k.clone(), val)
+                let key = match k.as_str() {
+                  "pact-specification" => s!("pactSpecification"),
+                  "pact-rust" => s!("pactRust"),
+                  _ => k.clone()
+                };
+                (key, val)
             }).collect(),
             _ => btreemap!{}
         },
@@ -982,14 +987,19 @@ impl Pact {
     pub fn metadata_to_json(&self, pact_spec: &PactSpecification) -> BTreeMap<String, Value> {
         let mut md_map: BTreeMap<String, Value> = self.metadata.iter()
             .map(|(k, v)| {
-                (k.clone(), json!(v.iter()
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect::<BTreeMap<String, String>>()))
+                let key = match k.as_str() {
+                  "pact-specification" => s!("pactSpecification"),
+                  "pact-rust" => s!("pactRust"),
+                  _ => k.clone()
+                };
+                (key, json!(v.iter()
+                  .map(|(k, v)| (k.clone(), v.clone()))
+                  .collect::<BTreeMap<String, String>>()))
             })
             .collect();
-        md_map.insert(s!("pact-specification"), json!({"version" : pact_spec.version_str()}));
 
-        md_map.insert(s!("pact-rust"), json!({"version" : s!(VERSION.unwrap_or("unknown"))}));
+        md_map.insert(s!("pactSpecification"), json!({"version" : pact_spec.version_str()}));
+        md_map.insert(s!("pactRust"), json!({"version" : s!(VERSION.unwrap_or("unknown"))}));
         md_map
     }
 

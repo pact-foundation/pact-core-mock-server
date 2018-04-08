@@ -433,7 +433,7 @@ fn load_pact() {
     expect!(&pact.provider.name).to(be_equal_to("test_provider"));
     expect!(&pact.consumer.name).to(be_equal_to("test_consumer"));
     expect!(pact.metadata.iter()).to(have_count(2));
-    expect!(&pact.metadata["pact-specification"]["version"]).to(be_equal_to("1.0.0"));
+    expect!(&pact.metadata["pactSpecification"]["version"]).to(be_equal_to("1.0.0"));
     expect!(pact.specification_version).to(be_equal_to(PactSpecification::V1));
     expect!(pact.interactions.iter()).to(have_count(1));
     let interaction = pact.interactions[0].clone();
@@ -507,7 +507,7 @@ fn load_v3_pact() {
     expect!(&pact.provider.name).to(be_equal_to("test_provider"));
     expect!(&pact.consumer.name).to(be_equal_to("test_consumer"));
     expect!(pact.metadata.iter()).to(have_count(2));
-    expect!(&pact.metadata["pact-specification"]["version"]).to(be_equal_to("3.0.0"));
+    expect!(&pact.metadata["pactSpecification"]["version"]).to(be_equal_to("3.0.0"));
     expect!(pact.specification_version).to(be_equal_to(PactSpecification::V3));
     expect!(pact.interactions.iter()).to(have_count(1));
     let interaction = pact.interactions[0].clone();
@@ -851,10 +851,10 @@ fn write_pact_test() {
     }}
   ],
   "metadata": {{
-    "pact-rust": {{
+    "pactRust": {{
       "version": "{}"
     }},
-    "pact-specification": {{
+    "pactSpecification": {{
       "version": "2.0.0"
     }}
   }},
@@ -934,10 +934,10 @@ fn write_pact_test_should_merge_pacts() {
     }}
   ],
   "metadata": {{
-    "pact-rust": {{
+    "pactRust": {{
       "version": "{}"
     }},
-    "pact-specification": {{
+    "pactSpecification": {{
       "version": "2.0.0"
     }}
   }},
@@ -1006,10 +1006,10 @@ fn write_pact_test_should_not_merge_pacts_with_conflicts() {
     }}
   ],
   "metadata": {{
-    "pact-rust": {{
+    "pactRust": {{
       "version": "{}"
     }},
-    "pact-specification": {{
+    "pactSpecification": {{
       "version": "2.0.0"
     }}
   }},
@@ -1401,10 +1401,10 @@ fn write_pact_test_with_matchers() {
     }}
   ],
   "metadata": {{
-    "pact-rust": {{
+    "pactRust": {{
       "version": "{}"
     }},
-    "pact-specification": {{
+    "pactSpecification": {{
       "version": "2.0.0"
     }}
   }},
@@ -1497,10 +1497,10 @@ fn write_pact_v3_test_with_matchers() {
     }}
   ],
   "metadata": {{
-    "pact-rust": {{
+    "pactRust": {{
       "version": "{}"
     }},
-    "pact-specification": {{
+    "pactSpecification": {{
       "version": "3.0.0"
     }}
   }},
@@ -1722,10 +1722,10 @@ fn write_v3_pact_test() {
     }}
   ],
   "metadata": {{
-    "pact-rust": {{
+    "pactRust": {{
       "version": "{}"
     }},
-    "pact-specification": {{
+    "pactSpecification": {{
       "version": "3.0.0"
     }}
   }},
@@ -1909,10 +1909,10 @@ fn write_pact_test_with_generators() {
     }}
   ],
   "metadata": {{
-    "pact-rust": {{
+    "pactRust": {{
       "version": "{}"
     }},
-    "pact-specification": {{
+    "pactSpecification": {{
       "version": "3.0.0"
     }}
   }},
