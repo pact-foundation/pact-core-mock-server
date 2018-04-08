@@ -1,4 +1,11 @@
 #!/bin/bash -xe
+
+if [ "" = "$1" ]; then
+  echo "Usage: "
+  echo "  ./release-osx.sh version"
+  exit 1
+fi
+
 cargo clean
 cargo build --release
 cargo build --release --target x86_64-apple-ios
