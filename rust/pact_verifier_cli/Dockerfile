@@ -3,8 +3,6 @@ FROM ekidd/rust-musl-builder AS builder
 # Add our source code.
 ADD . ./
 
-RUN cargo clean
-
 # Fix permissions on source code.
 RUN sudo chown -R rust:rust /home/rust
 
