@@ -11,7 +11,7 @@ To use it, add it to your dependencies in your cargo manifest and add an extern 
 
 ```toml
 [dependencies]
-pact_matching = "0.3.0"
+pact_matching = "0.4.0"
 ```
 
 ```rust
@@ -27,11 +27,11 @@ any response.
 ## Reading and writing Pact files
 
 The `Pact` struct in the `models` module has methods to read and write pact JSON files. It supports all the specification
-versions up to V2, but will converted a V1 and V1.1 spec file to a V2 format.
+versions up to V3, but will converted a V1, V1.1 and V2 spec file to a V3 format.
 
 ## Matching request and response parts
 
-V2 specification matching is supported for both JSON and XML bodies, headers, query strings and request paths.
+V3 specification matching is supported for both JSON and XML bodies, headers, query strings and request paths.
 
 To understand the basic rules of matching, see [Matching Gotchas](https://github.com/realestate-com-au/pact/wiki/Matching-gotchas).
 For example test cases for matching, see the [Pact Specification Project, version 3](https://github.com/bethesque/pact-specification/tree/version-3).
@@ -332,3 +332,8 @@ The following matchers are supported:
 | Type | `{ "match": "type" }` | This executes a type based match against the values, that is, they are equal if they are the same type. |
 | MinType | `{ "match": "type", "min": 2 }` | This executes a type based match against the values, that is, they are equal if they are the same type. In addition, if the values represent a collection, the length of the actual value is compared against the minimum. |
 | MaxType | `{ "match": "type", "max": 10 }` | This executes a type based match against the values, that is, they are equal if they are the same type. In addition, if the values represent a collection, the length of the actual value is compared against the maximum. |
+| MinMaxType | `{ "match": "type", "max": 10, "min": 2 }` | This executes a type based match against the values, that is, they are equal if they are the same type. In addition, if the values represent a collection, the length of the actual value is compared against the minimum and maximum. |
+| Include | `{ "match": "include", "value": "substr" }` | This checks if the string representation of a values contains the substring. |
+| Integer | `{ "match": "integer" }` | This checks if the type of the value is an integer. |
+| Decimal | `{ "match": "decimal" }` | This checks if the type of the value is a number with decimal places. |
+| Number | `{ "match": "number" }` | This checks if the type of the value is a number. |
