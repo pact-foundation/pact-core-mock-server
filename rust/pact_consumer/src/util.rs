@@ -50,7 +50,9 @@ fn strip_null_fields_mut(json: &mut serde_json::Value) {
 /// use with `each_like!`, because it follows the pact convention of removing
 /// optional fields.
 ///
-/// ```
+///
+// This fails to link with Rust beta 1.27.0
+/// ```ignore
 /// #[macro_use]
 /// extern crate pact_consumer;
 /// #[macro_use]
@@ -130,5 +132,3 @@ fn obj_key_for_path_quotes_keys_when_necessary() {
     assert_eq!(obj_key_for_path(r#"a'"#), r#"['a\'']"#);
     assert_eq!(obj_key_for_path(r#"\"#), r#"['\\']"#);
 }
-
-

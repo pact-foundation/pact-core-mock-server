@@ -159,7 +159,8 @@
 //! Normally, it's best to generate your JSON using your actual domain objects.
 //! This is easier, and it reduces duplication in your code.
 //!
-//! ```
+// This fails to link with Rust beta 1.27.0
+//! ```ignore
 //! #[macro_use]
 //! extern crate pact_consumer;
 //! #[macro_use]
