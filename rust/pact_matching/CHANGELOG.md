@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.4.1 - implemented some missing matchers (include, null, integer, decimal, number)
+
+* b060bbb - feat: implemented some missing matchers (include, null, integer, decimal, number) (Ronald Holshausen, Sun May 13 13:46:23 2018 +1000)
+* 0aa161d - test: Added a test to confirm that binary bodies are persisted in base64 format #19 (Ronald Holshausen, Sun Apr 8 14:27:19 2018 +1000)
+* b68c893 - fix: pact specification key in the metadata should be camelcase #3 (Ronald Holshausen, Sun Apr 8 12:05:39 2018 +1000)
+* 10eb623 - bump version to 0.4.1 (Ronald Holshausen, Sat Apr 7 14:08:52 2018 +1000)
+
 # 0.4.0 - First V3 specification release
 
 * e5322f1 - code cleanup in prep of release (Ronald Holshausen, Sat Apr 7 13:58:55 2018 +1000)
