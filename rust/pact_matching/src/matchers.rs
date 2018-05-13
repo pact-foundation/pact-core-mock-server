@@ -8,7 +8,7 @@ pub trait Matches<A> {
 
 impl Matches<String> for String {
     fn matches(&self, actual: &String, matcher: &MatchingRule) -> Result<(), String> {
-        debug!("comparing '{}' to '{}' using {:?}", self, actual, matcher);
+        debug!("String -> String: comparing '{}' to '{}' using {:?}", self, actual, matcher);
         match *matcher {
           MatchingRule::Regex(ref regex) => {
             match Regex::new(regex) {
@@ -33,6 +33,25 @@ impl Matches<String> for String {
           MatchingRule::MinType(_) |
           MatchingRule::MaxType(_)|
           MatchingRule::MinMaxType(_, _) => Ok(()),
+          MatchingRule::Include(ref substr) => {
+            if actual.contains(substr) {
+              Ok(())
+            } else {
+              Err(format!("Expected '{}' to include '{}'", actual, substr))
+            }
+          },
+          MatchingRule::Number | MatchingRule::Decimal => {
+            match actual.parse::<f64>() {
+              Ok(_) => Ok(()),
+              Err(_) => Err(format!("Expected '{}' to match a number", actual))
+            }
+          },
+          MatchingRule::Integer => {
+            match actual.parse::<u64>() {
+              Ok(_) => Ok(()),
+              Err(_) => Err(format!("Expected '{}' to match an integer number", actual))
+            }
+          },
           _ => Err(format!("Unable to match '{}' using {:?}", self, matcher))
        }
     }
@@ -40,7 +59,7 @@ impl Matches<String> for String {
 
 impl Matches<u64> for String {
     fn matches(&self, actual: &u64, matcher: &MatchingRule) -> Result<(), String> {
-        debug!("comparing '{}' to {} using {:?}", self, actual, matcher);
+        debug!("String -> u64: comparing '{}' to {} using {:?}", self, actual, matcher);
         match *matcher {
           MatchingRule::Regex(ref regex) => {
             match Regex::new(regex) {
@@ -48,7 +67,7 @@ impl Matches<u64> for String {
                 if re.is_match(&actual.to_string()) {
                   Ok(())
                 } else {
-                  Err(format!("Expected '{}' to match '{}'", actual, regex))
+                  Err(format!("Expected {} to match '{}'", actual, regex))
                 }
               },
               Err(err) => Err(format!("'{}' is not a valid regular expression - {}", regex, err))
@@ -58,16 +77,25 @@ impl Matches<u64> for String {
           MatchingRule::MinType(_) |
           MatchingRule::MaxType(_) |
           MatchingRule::MinMaxType(_, _) =>
-            Err(format!("Expected '{}' (String) to be the same type as '{}' (Number)", self, actual)),
-          MatchingRule::Equality => Err(format!("Expected '{}' (String) to be equal to '{}' (Number)", self, actual)),
-          _ => Err(format!("Unable to match '{}' using {:?}", self, matcher))
+            Err(format!("Expected '{}' (String) to be the same type as {} (Number)", self, actual)),
+          MatchingRule::Equality => Err(format!("Expected '{}' (String) to be equal to {} (Number)", self, actual)),
+          MatchingRule::Include(ref substr) => {
+            if actual.to_string().contains(substr) {
+              Ok(())
+            } else {
+              Err(format!("Expected {} to include '{}'", actual, substr))
+            }
+          },
+          MatchingRule::Number | MatchingRule::Integer => Ok(()),
+          MatchingRule::Decimal => Err(format!("Expected {} to match a decimal number", actual)),
+          _ => Err(format!("String: Unable to match {} using {:?}", self, matcher))
        }
     }
 }
 
 impl Matches<u64> for u64 {
     fn matches(&self, actual: &u64, matcher: &MatchingRule) -> Result<(), String> {
-        debug!("comparing '{}' to {} using {:?}", self, actual, matcher);
+        debug!("u64 -> u64: comparing {} to {} using {:?}", self, actual, matcher);
         match *matcher {
           MatchingRule::Regex(ref regex) => {
             match Regex::new(regex) {
@@ -75,7 +103,7 @@ impl Matches<u64> for u64 {
                 if re.is_match(&actual.to_string()) {
                   Ok(())
                 } else {
-                  Err(format!("Expected '{}' to match '{}'", actual, regex))
+                  Err(format!("Expected {} to match '{}'", actual, regex))
                 }
               },
               Err(err) => Err(format!("'{}' is not a valid regular expression - {}", regex, err))
@@ -89,17 +117,26 @@ impl Matches<u64> for u64 {
              if self == actual {
                  Ok(())
              } else {
-                 Err(format!("Expected '{}' to be equal to '{}'", self, actual))
+                 Err(format!("Expected {} to be equal to {}", self, actual))
              }
           },
-          _ => Err(format!("Unable to match '{}' using {:?}", self, matcher))
+          MatchingRule::Include(ref substr) => {
+            if actual.to_string().contains(substr) {
+              Ok(())
+            } else {
+              Err(format!("Expected {} to include '{}'", actual, substr))
+            }
+          },
+          MatchingRule::Number | MatchingRule::Integer => Ok(()),
+          MatchingRule::Decimal => Err(format!("Expected {} to match a decimal number", actual)),
+          _ => Err(format!("Unable to match {} using {:?}", self, matcher))
        }
     }
 }
 
 impl Matches<f64> for u64 {
     fn matches(&self, actual: &f64, matcher: &MatchingRule) -> Result<(), String> {
-        debug!("comparing '{}' to {} using {:?}", self, actual, matcher);
+        debug!("u64 -> f64: comparing {} to {} using {:?}", self, actual, matcher);
         match *matcher {
           MatchingRule::Regex(ref regex) => {
             match Regex::new(regex) {
@@ -107,7 +144,7 @@ impl Matches<f64> for u64 {
                 if re.is_match(&actual.to_string()) {
                   Ok(())
                 } else {
-                  Err(format!("Expected '{}' to match '{}'", actual, regex))
+                  Err(format!("Expected {} to match '{}'", actual, regex))
                 }
               },
               Err(err) => Err(format!("'{}' is not a valid regular expression - {}", regex, err))
@@ -117,16 +154,25 @@ impl Matches<f64> for u64 {
           MatchingRule::MinType(_) |
           MatchingRule::MaxType(_) |
           MatchingRule::MinMaxType(_, _) =>
-            Err(format!("Expected '{}' (Integer) to be the same type as '{}' (Decimal)", self, actual)),
-          MatchingRule::Equality => Err(format!("Expected '{}' (Integer) to be equal to '{}' (Decimal)", self, actual)),
-          _ => Err(format!("Unable to match '{}' using {:?}", self, matcher))
+            Err(format!("Expected {} (Integer) to be the same type as {} (Decimal)", self, actual)),
+          MatchingRule::Equality => Err(format!("Expected {} (Integer) to be equal to {} (Decimal)", self, actual)),
+          MatchingRule::Include(ref substr) => {
+            if actual.to_string().contains(substr) {
+              Ok(())
+            } else {
+              Err(format!("Expected {} to include '{}'", actual, substr))
+            }
+          },
+          MatchingRule::Number | MatchingRule::Decimal => Ok(()),
+          MatchingRule::Integer => Err(format!("Expected {} to match an integer number", actual)),
+          _ => Err(format!("Unable to match {} using {:?}", self, matcher))
        }
     }
 }
 
 impl Matches<f64> for f64 {
     fn matches(&self, actual: &f64, matcher: &MatchingRule) -> Result<(), String> {
-        debug!("comparing '{}' to {} using {:?}", self, actual, matcher);
+        debug!("f64 -> f64: comparing {} to {} using {:?}", self, actual, matcher);
         match *matcher {
           MatchingRule::Regex(ref regex) => {
             match Regex::new(regex) {
@@ -134,7 +180,7 @@ impl Matches<f64> for f64 {
                 if re.is_match(&actual.to_string()) {
                   Ok(())
                 } else {
-                  Err(format!("Expected '{}' to match '{}'", actual, regex))
+                  Err(format!("Expected {} to match '{}'", actual, regex))
                 }
               },
               Err(err) => Err(format!("'{}' is not a valid regular expression - {}", regex, err))
@@ -148,17 +194,26 @@ impl Matches<f64> for f64 {
              if self == actual {
                  Ok(())
              } else {
-                 Err(format!("Expected '{}' to be equal to '{}'", self, actual))
+                 Err(format!("Expected {} to be equal to {}", self, actual))
              }
           },
-          _ => Err(format!("Unable to match '{}' using {:?}", self, matcher))
+          MatchingRule::Include(ref substr) => {
+            if actual.to_string().contains(substr) {
+              Ok(())
+            } else {
+              Err(format!("Expected {} to include '{}'", actual, substr))
+            }
+          },
+          MatchingRule::Number | MatchingRule::Decimal => Ok(()),
+          MatchingRule::Integer => Err(format!("Expected {} to match an integer number", actual)),
+          _ => Err(format!("Unable to match {} using {:?}", self, matcher))
        }
     }
 }
 
 impl Matches<u64> for f64 {
     fn matches(&self, actual: &u64, matcher: &MatchingRule) -> Result<(), String> {
-        debug!("comparing '{}' to {} using {:?}", self, actual, matcher);
+        debug!("f64 -> u64: comparing {} to {} using {:?}", self, actual, matcher);
         match *matcher {
           MatchingRule::Regex(ref regex) => {
             match Regex::new(regex) {
@@ -176,8 +231,17 @@ impl Matches<u64> for f64 {
           MatchingRule::MinType(_) |
           MatchingRule::MaxType(_) |
           MatchingRule::MinMaxType(_, _) =>
-            Err(format!("Expected '{}' (Decimal) to be the same type as '{}' (Integer)", self, actual)),
-          MatchingRule::Equality => Err(format!("Expected '{}' (Decimal) to be equal to '{}' (Integer)", self, actual)),
+            Err(format!("Expected {} (Decimal) to be the same type as {} (Integer)", self, actual)),
+          MatchingRule::Equality => Err(format!("Expected {} (Decimal) to be equal to {} (Integer)", self, actual)),
+          MatchingRule::Include(ref substr) => {
+            if actual.to_string().contains(substr) {
+              Ok(())
+            } else {
+              Err(format!("Expected {} to include '{}'", actual, substr))
+            }
+          },
+          MatchingRule::Number | MatchingRule::Integer => Ok(()),
+          MatchingRule::Decimal => Err(format!("Expected {} to match a decimal number", actual)),
           _ => Err(format!("Unable to match '{}' using {:?}", self, matcher))
        }
     }
@@ -362,4 +426,113 @@ mod tests {
         expect!(100.matches(&100.1, &matcher)).to(be_err());
         expect!(100.1f64.matches(&100.2, &matcher)).to(be_ok());
     }
+
+  #[test]
+  fn minmax_type_matcher_test() {
+    let matcher = MatchingRule::MinMaxType(3, 6);
+    expect!(s!("100").matches(&s!("100"), &matcher)).to(be_ok());
+    expect!(s!("100").matches(&s!("10a"), &matcher)).to(be_ok());
+    expect!(s!("100").matches(&s!("1000"), &matcher)).to(be_ok());
+    expect!(s!("100").matches(&100, &matcher)).to(be_err());
+    expect!(100.matches(&200, &matcher)).to(be_ok());
+    expect!(100.matches(&100.1, &matcher)).to(be_err());
+    expect!(100.1f64.matches(&100.2, &matcher)).to(be_ok());
+  }
+
+  #[test]
+  fn timestamp_matcher_test() {
+    let matcher = MatchingRule::Timestamp("3, 6".into());
+    expect!(s!("100").matches(&s!("100"), &matcher)).to(be_err());
+    expect!(s!("100").matches(&s!("10a"), &matcher)).to(be_err());
+    expect!(s!("100").matches(&s!("1000"), &matcher)).to(be_err());
+    expect!(s!("100").matches(&100, &matcher)).to(be_err());
+    expect!(100.matches(&200, &matcher)).to(be_err());
+    expect!(100.matches(&100.1, &matcher)).to(be_err());
+    expect!(100.1f64.matches(&100.2, &matcher)).to(be_err());
+  }
+
+  #[test]
+  fn time_matcher_test() {
+    let matcher = MatchingRule::Time("3, 6".into());
+    expect!(s!("100").matches(&s!("100"), &matcher)).to(be_err());
+    expect!(s!("100").matches(&s!("10a"), &matcher)).to(be_err());
+    expect!(s!("100").matches(&s!("1000"), &matcher)).to(be_err());
+    expect!(s!("100").matches(&100, &matcher)).to(be_err());
+    expect!(100.matches(&200, &matcher)).to(be_err());
+    expect!(100.matches(&100.1, &matcher)).to(be_err());
+    expect!(100.1f64.matches(&100.2, &matcher)).to(be_err());
+  }
+
+  #[test]
+  fn date_matcher_test() {
+    let matcher = MatchingRule::Date("3, 6".into());
+    expect!(s!("100").matches(&s!("100"), &matcher)).to(be_err());
+    expect!(s!("100").matches(&s!("10a"), &matcher)).to(be_err());
+    expect!(s!("100").matches(&s!("1000"), &matcher)).to(be_err());
+    expect!(s!("100").matches(&100, &matcher)).to(be_err());
+    expect!(100.matches(&200, &matcher)).to(be_err());
+    expect!(100.matches(&100.1, &matcher)).to(be_err());
+    expect!(100.1f64.matches(&100.2, &matcher)).to(be_err());
+  }
+
+  #[test]
+  fn include_matcher_test() {
+    let matcher = MatchingRule::Include("10".into());
+    expect!(s!("100").matches(&s!("100"), &matcher)).to(be_ok());
+    expect!(s!("100").matches(&s!("10a"), &matcher)).to(be_ok());
+    expect!(s!("100").matches(&s!("1000"), &matcher)).to(be_ok());
+    expect!(s!("100").matches(&s!("200"), &matcher)).to(be_err());
+    expect!(s!("100").matches(&100, &matcher)).to(be_ok());
+    expect!(100.matches(&100, &matcher)).to(be_ok());
+    expect!(100.matches(&100.1, &matcher)).to(be_ok());
+    expect!(100.1f64.matches(&100.2, &matcher)).to(be_ok());
+  }
+
+  #[test]
+  fn number_matcher_test() {
+    let matcher = MatchingRule::Number;
+    expect!(s!("100").matches(&s!("100"), &matcher)).to(be_ok());
+    expect!(s!("100").matches(&s!("10a"), &matcher)).to(be_err());
+    expect!(s!("100").matches(&s!("1000"), &matcher)).to(be_ok());
+    expect!(s!("100").matches(&100, &matcher)).to(be_ok());
+    expect!(100.matches(&200, &matcher)).to(be_ok());
+    expect!(100.matches(&100.1, &matcher)).to(be_ok());
+    expect!(100.1f64.matches(&100.2, &matcher)).to(be_ok());
+  }
+
+  #[test]
+  fn integer_matcher_test() {
+    let matcher = MatchingRule::Integer;
+    expect!(s!("100").matches(&s!("100"), &matcher)).to(be_ok());
+    expect!(s!("100").matches(&s!("10a"), &matcher)).to(be_err());
+    expect!(s!("100").matches(&s!("1000"), &matcher)).to(be_ok());
+    expect!(s!("100").matches(&100, &matcher)).to(be_ok());
+    expect!(100.matches(&200, &matcher)).to(be_ok());
+    expect!(100.matches(&100.1, &matcher)).to(be_err());
+    expect!(100.1f64.matches(&100.2, &matcher)).to(be_err());
+  }
+
+  #[test]
+  fn decimal_matcher_test() {
+    let matcher = MatchingRule::Decimal;
+    expect!(s!("100").matches(&s!("100"), &matcher)).to(be_ok());
+    expect!(s!("100").matches(&s!("10a"), &matcher)).to(be_err());
+    expect!(s!("100").matches(&s!("1000"), &matcher)).to(be_ok());
+    expect!(s!("100").matches(&100, &matcher)).to(be_err());
+    expect!(100.matches(&200, &matcher)).to(be_err());
+    expect!(100.matches(&100.1, &matcher)).to(be_ok());
+    expect!(100.1f64.matches(&100.2, &matcher)).to(be_ok());
+  }
+
+  #[test]
+  fn null_matcher_test() {
+    let matcher = MatchingRule::Null;
+    expect!(s!("100").matches(&s!("100"), &matcher)).to(be_err());
+    expect!(s!("100").matches(&s!("10a"), &matcher)).to(be_err());
+    expect!(s!("100").matches(&s!("1000"), &matcher)).to(be_err());
+    expect!(s!("100").matches(&100, &matcher)).to(be_err());
+    expect!(100.matches(&200, &matcher)).to(be_err());
+    expect!(100.matches(&100.1, &matcher)).to(be_err());
+    expect!(100.1f64.matches(&100.2, &matcher)).to(be_err());
+  }
 }

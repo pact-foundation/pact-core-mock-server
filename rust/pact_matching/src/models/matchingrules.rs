@@ -86,7 +86,9 @@ pub enum MatchingRule {
   /// Match if the value is an integer number
   Integer,
   /// Match if the value is a decimal number
-  Decimal
+  Decimal,
+  /// Match if the value is a null value (this is content specific, for JSON will match a JSON null)
+  Null
 }
 
 impl MatchingRule {
@@ -137,6 +139,7 @@ impl MatchingRule {
               Some(s) => Some(MatchingRule::Time(json_to_string(s))),
               None => None
             },
+            "null" => Some(MatchingRule::Null),
             _ => None
           }
         },
@@ -183,7 +186,8 @@ impl MatchingRule {
         "value": Value::String(s.clone()) }),
       &MatchingRule::Number => json!({ "match": Value::String(s!("number")) }),
       &MatchingRule::Integer => json!({ "match": Value::String(s!("integer")) }),
-      &MatchingRule::Decimal => json!({ "match": Value::String(s!("decimal")) })
+      &MatchingRule::Decimal => json!({ "match": Value::String(s!("decimal")) }),
+      &MatchingRule::Null => json!({ "match": Value::String(s!("null")) })
     }
   }
 
@@ -835,6 +839,9 @@ mod tests {
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"date\", \"date\": \"A\"}").unwrap())).to(
       be_some().value(MatchingRule::Date(s!("A"))));
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"date\"}").unwrap())).to(be_none());
+
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"null\"}").unwrap())).to(
+      be_some().value(MatchingRule::Null));
   }
 
   #[test]

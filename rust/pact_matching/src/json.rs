@@ -45,6 +45,17 @@ impl Matches<Value> for Value {
               Err(err) => Err(format!("'{}' is not a valid regular expression - {}", regex, err))
             }
           },
+          MatchingRule::Include(ref substr) => {
+            let actual_str = match actual {
+              &Value::String(ref s) => s.clone(),
+              _ => actual.to_string()
+            };
+            if actual_str.contains(substr) {
+              Ok(())
+            } else {
+              Err(format!("Expected '{}' to include '{}'", value_of(actual), substr))
+            }
+          },
           MatchingRule::Type => {
                match (self, actual) {
                    (&Value::Array(_), &Value::Array(_)) => Ok(()),
@@ -109,6 +120,25 @@ impl Matches<Value> for Value {
                } else {
                    Err(format!("Expected '{}' to be equal to '{}'", value_of(self), value_of(actual)))
                }
+          },
+          MatchingRule::Null => match actual {
+            &Value::Null => Ok(()),
+            _ => Err(format!("Expected '{}' to be a null value", value_of(actual)))
+          },
+          MatchingRule::Integer => if actual.is_i64() || actual.is_u64() {
+            Ok(())
+          } else {
+            Err(format!("Expected '{}' to be an integer value", value_of(actual)))
+          },
+          MatchingRule::Decimal => if actual.is_f64() {
+            Ok(())
+          } else {
+            Err(format!("Expected '{}' to be a decimal value", value_of(actual)))
+          },
+          MatchingRule::Number => if actual.is_number() {
+            Ok(())
+          } else {
+            Err(format!("Expected '{}' to be a number", value_of(actual)))
           },
           _ => Err(format!("Unable to match '{}' using {:?}", self, matcher))
        };
@@ -719,6 +749,15 @@ mod tests {
         expect!(Value::String(s!("100")).matches(&json!(100), &matcher)).to(be_ok());
     }
 
+  #[test]
+  fn includes_matcher_test() {
+    let matcher = MatchingRule::Include(s!("10"));
+    expect!(Value::String(s!("100")).matches(&Value::String(s!("100")), &matcher)).to(be_ok());
+    expect!(Value::String(s!("100")).matches(&Value::String(s!("101")), &matcher)).to(be_ok());
+    expect!(Value::String(s!("100")).matches(&Value::String(s!("1a0")), &matcher)).to(be_err());
+    expect!(Value::String(s!("100")).matches(&json!(100), &matcher)).to(be_ok());
+  }
+
     #[test]
     fn type_matcher_test() {
         let matcher = MatchingRule::Type;
@@ -756,6 +795,42 @@ mod tests {
       expect!(Value::Array(vec![]).matches(&Value::Array(vec![json!(100)]), &matcher)).to(be_err());
       expect!(Value::String(s!("100")).matches(&Value::String(s!("101")), &matcher)).to(be_ok());
     }
+
+  #[test]
+  fn integer_matcher_test() {
+    let matcher = MatchingRule::Integer;
+    expect!(Value::String(s!("100")).matches(&Value::String(s!("100")), &matcher)).to(be_err());
+    expect!(Value::String(s!("100")).matches(&json!(100), &matcher)).to(be_ok());
+    expect!(Value::String(s!("100")).matches(&json!(100.02), &matcher)).to(be_err());
+  }
+
+  #[test]
+  fn decimal_matcher_test() {
+    let matcher = MatchingRule::Decimal;
+    expect!(Value::String(s!("100")).matches(&Value::String(s!("100")), &matcher)).to(be_err());
+    expect!(Value::String(s!("100")).matches(&json!(100), &matcher)).to(be_err());
+    expect!(Value::String(s!("100")).matches(&json!(100.01), &matcher)).to(be_ok());
+  }
+
+  #[test]
+  fn number_matcher_test() {
+    let matcher = MatchingRule::Number;
+    expect!(Value::String(s!("100")).matches(&Value::String(s!("100")), &matcher)).to(be_err());
+    expect!(Value::String(s!("100")).matches(&json!(100), &matcher)).to(be_ok());
+    expect!(Value::String(s!("100")).matches(&json!(100.01), &matcher)).to(be_ok());
+  }
+
+  #[test]
+  fn null_matcher_test() {
+    let matcher = MatchingRule::Null;
+    expect!(Value::String(s!("100")).matches(&Value::String(s!("100")), &matcher)).to(be_err());
+    expect!(Value::String(s!("100")).matches(&Value::String(s!("101")), &matcher)).to(be_err());
+    expect!(Value::String(s!("100")).matches(&Value::String(s!("10a")), &matcher)).to(be_err());
+    expect!(Value::String(s!("100")).matches(&json!(100), &matcher)).to(be_err());
+    expect!(Value::String(s!("100")).matches(&json!(100.2), &matcher)).to(be_err());
+    expect!(Value::String(s!("100")).matches(&json!("null"), &matcher)).to(be_err());
+    expect!(Value::String(s!("100")).matches(&Value::Null, &matcher)).to(be_ok());
+  }
 
     #[test]
     fn compare_maps_handles_wildcard_matchers() {
