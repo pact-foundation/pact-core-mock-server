@@ -325,7 +325,7 @@ mod tests {
         expect!(select_best_matcher("body", &vec![s!("$"), s!("item3")], &matchers)).to(
           be_some().value(RuleList::new(MatchingRule::Regex(s!("1")))));
 
-        expect!(select_best_matcher("header", &vec![s!("item1")], &matchers)).to(
+        expect!(select_best_matcher("header", &vec![s!("$"), s!("item1")], &matchers)).to(
           be_some().value(RuleList::new(MatchingRule::Regex(s!("5")))));
 
         expect!(select_best_matcher("body", &vec![s!("$"), s!("item1"), s!("level")], &matchers)).to(

@@ -656,9 +656,9 @@ pub fn match_path(expected: String, actual: String, mismatches: &mut Vec<Mismatc
     }
 }
 
-fn compare_query_parameter_value(key: &String, expected: &String, actual: &String,
+fn compare_query_parameter_value(key: &String, expected: &String, actual: &String, index: usize,
     mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
-    let path = vec![key.clone()];
+    let path = vec![s!("$"), key.clone(), format!("{}", index)];
     let matcher_result = if matchers.matcher_is_defined("query", &path) {
       matchers::match_values("query", &path, matchers.clone(), expected, actual)
     } else {
@@ -683,7 +683,7 @@ fn compare_query_parameter_values(key: &String, expected: &Vec<String>, actual: 
     mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
     for (index, val) in expected.iter().enumerate() {
         if index < actual.len() {
-            compare_query_parameter_value(key, val, &actual[index], mismatches, matchers);
+            compare_query_parameter_value(key, val, &actual[index], index, mismatches, matchers);
         } else {
             mismatches.push(Mismatch::QueryMismatch { parameter: key.clone(),
                 expected: format!("{:?}", expected),
@@ -795,11 +795,11 @@ fn match_parameter_header(expected: &String, actual: &String, mismatches: &mut V
 
 fn match_header_value(key: &String, expected: &String, actual: &String, mismatches: &mut Vec<Mismatch>,
     matchers: &MatchingRules) {
-    let path = vec![key.clone()];
+    let path = vec![s!("$"), key.clone()];
     let expected = strip_whitespace::<String>(expected, ",");
     let actual = strip_whitespace::<String>(actual, ",");
 
-    let matcher_result = if matchers.matcher_is_defined("header",&path) {
+    let matcher_result = if matchers.matcher_is_defined("header", &path) {
         matchers::match_values("header",&path, matchers.clone(), &expected, &actual)
     } else if PARAMETERISED_HEADER_TYPES.contains(&key.to_lowercase().as_str()) {
         match_parameter_header(&expected, &actual, mismatches, &key);

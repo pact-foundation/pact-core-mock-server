@@ -46,8 +46,8 @@ fn path_identifier<I>(chars: &mut Peekable<I>, tokens: &mut Vec<PathToken>, path
                 Ok(())
             },
             c if c.is_alphabetic() || c.is_numeric() => {
-                try!{ identifier(c, chars, tokens, path) }
-                Ok(())
+              identifier(c, chars, tokens, path)?;
+              Ok(())
             },
             _ => Err(format!("Expected either a \"*\" or path identifier in path expression \"{}\" at index {}",
                 path, ch.0))
@@ -123,10 +123,10 @@ fn bracket_path<I>(chars: &mut Peekable<I>, tokens: &mut Vec<PathToken>, path: &
     match ch {
         Some(c) => {
             if c.1 == '\'' {
-                chars.next();
-                try!{ string_path(chars, tokens, path, c.0) }
+              chars.next();
+              string_path(chars, tokens, path, c.0)?
             } else if c.1.is_numeric() {
-                try!{ index_path(chars, tokens, path) }
+              index_path(chars, tokens, path)?
             } else if c.1 == '*' {
                 chars.next();
                 tokens.push(PathToken::StarIndex);
@@ -178,16 +178,23 @@ pub fn parse_path_exp(path: String) -> Result<Vec<PathToken>, String> {
     // parse_path_exp -> $ path_exp | empty
     let mut chars = path.chars().enumerate().peekable();
     match chars.next() {
-        Some(ch) => {
-            if ch.1 == '$' {
-                tokens.push(PathToken::Root);
-                path_exp(&mut chars, &mut tokens, &path)?;
-                Ok(tokens)
-            } else {
-                Err(format!("Path expression \"{}\" does not start with a root marker \"$\"", path))
-            }
-        },
-        None => Ok(tokens)
+      Some(ch) => {
+        match ch.1 {
+          '$' => {
+            tokens.push(PathToken::Root);
+            path_exp(&mut chars, &mut tokens, &path)?;
+            Ok(tokens)
+          },
+          c if c.is_alphabetic() || c.is_numeric() => {
+            tokens.push(PathToken::Root);
+            identifier(c, &mut chars, &mut tokens, &path)?;
+            path_exp(&mut chars, &mut tokens, &path)?;
+            Ok(tokens)
+          },
+          _ => Err(format ! ("Path expression \"{}\" does not start with a root marker \"$\"", path))
+        }
+      },
+      None => Ok(tokens)
     }
 }
 
@@ -208,8 +215,8 @@ mod tests {
 
     #[test]
     fn parse_path_exp_handles_missing_root() {
-        expect!(parse_path_exp(s!("adsjhaskjdh"))).to(
-            be_err().value(s!("Path expression \"adsjhaskjdh\" does not start with a root marker \"$\"")));
+        expect!(parse_path_exp(s!("adsjhaskjdh")))
+          .to(be_ok().value(vec![PathToken::Root, PathToken::Field(s!("adsjhaskjdh"))]));
     }
 
     #[test]
@@ -236,11 +243,14 @@ mod tests {
 
     #[test]
     fn parse_path_exp_with_simple_identifiers() {
-        expect!(parse_path_exp(s!("$.a"))).to(
-            be_ok().value(vec![PathToken::Root, PathToken::Field(s!("a"))]));
-        expect!(parse_path_exp(s!("$.a.b.c"))).to(
-            be_ok().value(vec![PathToken::Root, PathToken::Field(s!("a")), PathToken::Field(s!("b")),
-            PathToken::Field(s!("c"))]));
+      expect!(parse_path_exp(s!("$.a"))).to(
+          be_ok().value(vec![PathToken::Root, PathToken::Field(s!("a"))]));
+      expect!(parse_path_exp(s!("$.a.b.c"))).to(
+          be_ok().value(vec![PathToken::Root, PathToken::Field(s!("a")), PathToken::Field(s!("b")),
+          PathToken::Field(s!("c"))]));
+      expect!(parse_path_exp(s!("a.b.c"))).to(
+        be_ok().value(vec![PathToken::Root, PathToken::Field(s!("a")), PathToken::Field(s!("b")),
+                           PathToken::Field(s!("c"))]));
     }
 
     #[test]
