@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.4.2 - Bugfix Release
+
+* d6fbed4 - fix: query and header paths should be escaped (Ronald Holshausen, Sat Jun 30 16:22:56 2018 +1000)
+* 948e620 - fix: parse the V3 keys as path expressions for query and header matchers (Ronald Holshausen, Sat Jun 30 15:22:51 2018 +1000)
+* dec17b8 - doc: update readme (Ronald Holshausen, Sun May 13 14:33:20 2018 +1000)
+* c3898b9 - bump version to 0.4.2 (Ronald Holshausen, Sun May 13 14:24:54 2018 +1000)
+
 # 0.4.1 - implemented some missing matchers (include, null, integer, decimal, number)
 
 * b060bbb - feat: implemented some missing matchers (include, null, integer, decimal, number) (Ronald Holshausen, Sun May 13 13:46:23 2018 +1000)
