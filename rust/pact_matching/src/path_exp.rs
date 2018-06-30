@@ -191,12 +191,6 @@ pub fn parse_path_exp(path: String) -> Result<Vec<PathToken>, String> {
             path_exp(&mut chars, &mut tokens, &path)?;
             Ok(tokens)
           },
-          '[' => {
-            tokens.push(PathToken::Root);
-            bracket_path(&mut chars, &mut tokens, &path, ch.0)?;
-            path_exp(&mut chars, &mut tokens, &path)?;
-            Ok(tokens)
-          },
           _ => Err(format ! ("Path expression \"{}\" does not start with a root marker \"$\"", path))
         }
       },
@@ -277,21 +271,17 @@ mod tests {
 
     #[test]
     fn parse_path_exp_with_bracket_notation() {
-      expect!(parse_path_exp(s!("$['val1']"))).to(
-        be_ok().value(vec![PathToken::Root, PathToken::Field(s!("val1"))]));
-      expect!(parse_path_exp(s!("['val1']"))).to(
-        be_ok().value(vec![PathToken::Root, PathToken::Field(s!("val1"))]));
-      expect!(parse_path_exp(s!("['val-1']"))).to(
-        be_ok().value(vec![PathToken::Root, PathToken::Field(s!("val-1"))]));
-      expect!(parse_path_exp(s!("$.a['val@1.'].c"))).to(
-          be_ok().value(vec![PathToken::Root, PathToken::Field(s!("a")), PathToken::Field(s!("val@1.")),
-          PathToken::Field(s!("c"))]));
-      expect!(parse_path_exp(s!("$.a[1].c"))).to(
-          be_ok().value(vec![PathToken::Root, PathToken::Field(s!("a")), PathToken::Index(1),
-          PathToken::Field(s!("c"))]));
-      expect!(parse_path_exp(s!("$.a[*].c"))).to(
-          be_ok().value(vec![PathToken::Root, PathToken::Field(s!("a")), PathToken::StarIndex,
-          PathToken::Field(s!("c"))]));
+        expect!(parse_path_exp(s!("$['val1']"))).to(
+            be_ok().value(vec![PathToken::Root, PathToken::Field(s!("val1"))]));
+        expect!(parse_path_exp(s!("$.a['val@1.'].c"))).to(
+            be_ok().value(vec![PathToken::Root, PathToken::Field(s!("a")), PathToken::Field(s!("val@1.")),
+            PathToken::Field(s!("c"))]));
+        expect!(parse_path_exp(s!("$.a[1].c"))).to(
+            be_ok().value(vec![PathToken::Root, PathToken::Field(s!("a")), PathToken::Index(1),
+            PathToken::Field(s!("c"))]));
+        expect!(parse_path_exp(s!("$.a[*].c"))).to(
+            be_ok().value(vec![PathToken::Root, PathToken::Field(s!("a")), PathToken::StarIndex,
+            PathToken::Field(s!("c"))]));
     }
 
     #[test]
