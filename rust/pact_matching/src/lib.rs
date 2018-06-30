@@ -800,7 +800,7 @@ fn match_header_value(key: &String, expected: &String, actual: &String, mismatch
     let actual = strip_whitespace::<String>(actual, ",");
 
     let matcher_result = if matchers.matcher_is_defined("header", &path) {
-        matchers::match_values("header",&path, matchers.clone(), &expected, &actual)
+        matchers::match_values("header", &path, matchers.clone(), &expected, &actual)
     } else if PARAMETERISED_HEADER_TYPES.contains(&key.to_lowercase().as_str()) {
         match_parameter_header(&expected, &actual, mismatches, &key);
         Ok(())

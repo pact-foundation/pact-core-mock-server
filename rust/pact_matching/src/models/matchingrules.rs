@@ -423,9 +423,13 @@ impl MatchingRules {
 
     /// Returns a `Category` filtered with all rules that match the given path.
     pub fn resolve_matchers(&self, category: &str, path: &Vec<String>) -> Option<Category> {
-      if category == "body" || category == "header" || category == "query" {
+      if category == "body" {
         self.rules_for_category(&s!(category)).map(|category| category.filter(|&(val, _)| {
           calc_path_weight(val.clone(), path) > 0
+        }))
+      } else if category == "header" || category == "query" {
+        self.rules_for_category(&s!(category)).map(|category| category.filter(|&(val, _)| {
+          calc_path_weight(format!("['{}']", val), path) > 0
         }))
       } else {
         self.rules_for_category(&s!(category))
