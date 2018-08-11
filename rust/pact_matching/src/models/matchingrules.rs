@@ -479,7 +479,7 @@ impl MatchingRules {
 
     fn add_rules(&mut self, category_name: &String, rules: &Value) {
       let category = self.add_category(category_name.clone());
-      if category_name == "path" {
+      if category_name == "path" && rules.get("matchers").is_some() {
         let rule_logic = match rules.get("combine") {
           Some(val) => if json_to_string(val).to_uppercase() == "OR" {
               RuleLogic::Or
@@ -760,6 +760,28 @@ mod tests {
         s!("$.animals[*].children") => RuleList { rules: vec![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
         s!("$.animals[*].children[*].*") => RuleList { rules: vec![ MatchingRule::Type ], rule_logic: RuleLogic::And }
       }
+    }));
+  }
+
+  #[test]
+  fn correctly_loads_v3_matching_rules_with_incorrect_path_format() {
+    let matching_rules_json = Value::from_str(r#"{"matchingRules": {
+      "path": {
+        "": {
+          "matchers": [
+            { "match": "regex", "regex": "\\w+" }
+          ]
+        }
+      }
+    }}"#).unwrap();
+
+    let matching_rules = matchers_from_json(&matching_rules_json, &None);
+
+    expect!(matching_rules.rules.iter()).to_not(be_empty());
+    expect!(matching_rules.categories()).to(be_equal_to(hashset!{ s!("path") }));
+    expect!(matching_rules.rules_for_category(&s!("path"))).to(be_some().value(Category {
+      name: s!("path"),
+      rules: hashmap! { s!("") => RuleList { rules: vec![ MatchingRule::Regex(s!("\\w+")) ], rule_logic: RuleLogic::And } }
     }));
   }
 
