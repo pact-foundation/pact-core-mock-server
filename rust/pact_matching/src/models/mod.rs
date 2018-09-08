@@ -231,22 +231,22 @@ pub mod xml_utils;
 pub trait HttpPart {
     /// Returns the headers of the HTTP part.
     fn headers(&self) -> &Option<HashMap<String, String>>;
+
     /// Returns the body of the HTTP part.
     fn body(&self) -> &OptionalBody;
+
     /// Returns the matching rules of the HTTP part.
     fn matching_rules(&self) -> &matchingrules::MatchingRules;
+
     /// Returns the generators of the HTTP part.
     fn generators(&self) -> &generators::Generators;
 
     /// Determine the content type of the HTTP part. If a `Content-Type` header is present, the
     /// value of that header will be returned. Otherwise, the body will be inspected.
     fn content_type(&self) -> String {
-        match *self.headers() {
-            Some(ref h) => match h.iter().find(|kv| kv.0.to_lowercase() == s!("content-type")) {
-                Some(kv) => match strip_whitespace::<Vec<&str>>(kv.1, ";").first() {
-                    Some(v) => s!(*v),
-                    None => self.detect_content_type()
-                },
+        match self.lookup_header_value(&s!("content-type")) {
+            Some(ref h) => match strip_whitespace::<Vec<&str>>(h, ";").first() {
+                Some(v) => s!(*v),
                 None => self.detect_content_type()
             },
             None => self.detect_content_type()
@@ -288,6 +288,21 @@ pub trait HttpPart {
             DetectedContentType::Xml
         } else {
             DetectedContentType::Text
+        }
+    }
+
+    /// Checks if the HTTP Part has the given header
+    fn has_header(&self, header_name: &String) -> bool {
+        self.lookup_header_value(header_name).is_some()
+    }
+
+    /// Checks if the HTTP Part has the given header
+    fn lookup_header_value(&self, header_name: &String) -> Option<String> {
+        match *self.headers() {
+            Some(ref h) => h.iter()
+                .find(|kv| kv.0.to_lowercase() == header_name.to_lowercase())
+                .map(|kv| kv.1.clone()),
+            None => None
         }
     }
 }

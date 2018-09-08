@@ -211,6 +211,15 @@ fn content_type_enum_test() {
 }
 
 #[test]
+fn http_part_has_header_test() {
+    let request = Request { method: s!("GET"), path: s!("/"), query: None,
+        headers: Some(hashmap!{ s!("Content-Type") => s!("application/json; charset=UTF-8") }),
+        body: OptionalBody::Missing, .. Request::default_request() };
+    expect!(request.has_header(&s!("Content-Type"))).to(be_true());
+    expect!(request.lookup_header_value(&s!("Content-Type"))).to(be_some().value("application/json; charset=UTF-8"));
+}
+
+#[test]
 fn loading_interaction_from_json() {
     let interaction_json = r#"{
         "description": "String",
