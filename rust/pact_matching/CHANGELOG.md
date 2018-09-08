@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.4.5 - feat: added convenience header methods to HttpPart
+
+* ead1af2 - feat: added convenience header methods to HttpPart (Ronald Holshausen, Sat Sep 8 14:29:59 2018 +1000)
+* 129333f - bump version to 0.4.5 (Ronald Holshausen, Sat Aug 11 15:21:01 2018 +1000)
+
 # 0.4.4 - Bugfix Release
 
 * 97abce4 - fix: support matching rules affected by Pact-JVM defect 743 (Ronald Holshausen, Sat Aug 11 15:07:41 2018 +1000)
