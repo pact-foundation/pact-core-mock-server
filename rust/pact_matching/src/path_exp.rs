@@ -13,6 +13,10 @@ fn peek<I>(chars: &mut Peekable<I>) -> Option<(usize, char)> where I: Iterator<I
     chars.peek().map(|tup| (tup.0.clone(), tup.1.clone()))
 }
 
+fn is_identifier_char(ch: char) -> bool {
+    ch.is_alphabetic() || ch.is_numeric() || ch == '_' || ch == '-'
+}
+
 // identifier -> a-zA-Z0-9+
 fn identifier<I>(ch: char, chars: &mut Peekable<I>, tokens: &mut Vec<PathToken>, path: &String)-> Result<(), String>
     where I: Iterator<Item = (usize, char)>  {
@@ -21,7 +25,7 @@ fn identifier<I>(ch: char, chars: &mut Peekable<I>, tokens: &mut Vec<PathToken>,
     let mut next_char = peek(chars);
     while next_char.is_some() {
         let ch = next_char.unwrap();
-        if ch.1.is_alphabetic() || ch.1.is_numeric() || ch.1 == '_' || ch.1 == '-' {
+        if is_identifier_char(ch.1) {
             chars.next();
             id.push(ch.1);
         } else if ch.1 == '.' || ch.1 == '\'' || ch.1 == '[' {
@@ -37,7 +41,7 @@ fn identifier<I>(ch: char, chars: &mut Peekable<I>, tokens: &mut Vec<PathToken>,
 }
 
 // path_identifier -> identifier | *
-fn path_identifier<I>(chars: &mut Peekable<I>, tokens: &mut Vec<PathToken>, path: &String, index: usize)-> Result<(), String>
+fn path_identifier<I>(chars: &mut Peekable<I>, tokens: &mut Vec<PathToken>, path: &String, index: usize) -> Result<(), String>
     where I: Iterator<Item = (usize, char)>  {
     match chars.next() {
         Some(ch) => match ch.1 {
@@ -45,7 +49,7 @@ fn path_identifier<I>(chars: &mut Peekable<I>, tokens: &mut Vec<PathToken>, path
                 tokens.push(PathToken::Star);
                 Ok(())
             },
-            c if c.is_alphabetic() || c.is_numeric() => {
+            c if is_identifier_char(c) => {
               identifier(c, chars, tokens, path)?;
               Ok(())
             },
@@ -58,7 +62,7 @@ fn path_identifier<I>(chars: &mut Peekable<I>, tokens: &mut Vec<PathToken>, path
 }
 
 // string_path -> [^']+
-fn string_path<I>(chars: &mut Peekable<I>, tokens: &mut Vec<PathToken>, path: &String, index: usize)-> Result<(), String>
+fn string_path<I>(chars: &mut Peekable<I>, tokens: &mut Vec<PathToken>, path: &String, index: usize) -> Result<(), String>
     where I: Iterator<Item = (usize, char)>  {
     let mut id = String::new();
     let mut next_char = peek(chars);
@@ -88,7 +92,7 @@ fn string_path<I>(chars: &mut Peekable<I>, tokens: &mut Vec<PathToken>, path: &S
 }
 
 // index_path -> [0-9]+
-fn index_path<I>(chars: &mut Peekable<I>, tokens: &mut Vec<PathToken>, path: &String)-> Result<(), String>
+fn index_path<I>(chars: &mut Peekable<I>, tokens: &mut Vec<PathToken>, path: &String) -> Result<(), String>
     where I: Iterator<Item = (usize, char)>  {
     let mut id = String::new();
     let mut next_char = chars.next();
@@ -117,7 +121,7 @@ fn index_path<I>(chars: &mut Peekable<I>, tokens: &mut Vec<PathToken>, path: &St
 }
 
 // bracket_path -> (string_path | index | *) ]
-fn bracket_path<I>(chars: &mut Peekable<I>, tokens: &mut Vec<PathToken>, path: &String, index: usize)-> Result<(), String>
+fn bracket_path<I>(chars: &mut Peekable<I>, tokens: &mut Vec<PathToken>, path: &String, index: usize) -> Result<(), String>
     where I: Iterator<Item = (usize, char)>  {
     let mut ch = peek(chars);
     match ch {
@@ -156,7 +160,7 @@ fn bracket_path<I>(chars: &mut Peekable<I>, tokens: &mut Vec<PathToken>, path: &
 }
 
 // path_exp -> (dot-path | bracket-path)*
-fn path_exp<I>(chars: &mut Peekable<I>, tokens: &mut Vec<PathToken>, path: &String)-> Result<(), String>
+fn path_exp<I>(chars: &mut Peekable<I>, tokens: &mut Vec<PathToken>, path: &String) -> Result<(), String>
     where I: Iterator<Item = (usize, char)> {
     let mut next_char = chars.next();
     while next_char.is_some() {
@@ -258,6 +262,9 @@ mod tests {
         expect!(parse_path_exp(s!("$.user_id.user-id"))).to(
             be_ok().value(vec![PathToken::Root, PathToken::Field(s!("user_id")),
                                PathToken::Field(s!("user-id"))])
+        );
+        expect!(parse_path_exp(s!("$._id"))).to(
+            be_ok().value(vec![PathToken::Root, PathToken::Field(s!("_id"))])
         );
     }
 
