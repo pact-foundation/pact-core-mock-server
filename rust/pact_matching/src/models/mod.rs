@@ -19,6 +19,7 @@ use std::hash::{Hash, Hasher};
 use hyper::client::Client;
 use std::str;
 use base64::{encode, decode};
+use std::fmt::{Display, Formatter};
 
 /// Version of the library
 pub const VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
@@ -177,6 +178,17 @@ impl <'a> From<&'a str> for OptionalBody {
       OptionalBody::Empty
     } else {
       OptionalBody::Present(Vec::from(s.as_bytes()))
+    }
+  }
+}
+
+impl Display for OptionalBody {
+  fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    match *self {
+      OptionalBody::Missing => write!(f, "Missing"),
+      OptionalBody::Empty => write!(f, "Empty"),
+      OptionalBody::Null => write!(f, "Null"),
+      OptionalBody::Present(ref s) => write!(f, "Present({} bytes)", s.len())
     }
   }
 }
@@ -364,6 +376,13 @@ impl Hash for Request {
         self.matching_rules.hash(state);
         self.generators.hash(state);
     }
+}
+
+impl Display for Request {
+  fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    write!(f, "Request ( method: {}, path: {}, query: {:?}, headers: {:?}, body: {} )",
+      self.method, self.path, self.query, self.headers, self.body)
+  }
 }
 
 fn headers_from_json(request: &Value) -> Option<HashMap<String, String>> {
@@ -754,6 +773,13 @@ impl Hash for Response {
         self.matching_rules.hash(state);
         self.generators.hash(state);
     }
+}
+
+impl Display for Response {
+  fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    write!(f, "Response ( status: {}, headers: {:?}, body: {} )", self.status, self.headers,
+           self.body)
+  }
 }
 
 pub mod provider_states;

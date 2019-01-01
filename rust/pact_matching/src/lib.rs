@@ -912,7 +912,10 @@ pub fn match_body(expected: &models::HttpPart, actual: &models::HttpPart, config
 pub fn match_request(expected: models::Request, actual: models::Request) -> Vec<Mismatch> {
     let mut mismatches = vec![];
 
-    info!("comparing to expected request: {:?}", expected);
+    info!("comparing to expected {}", expected);
+    debug!("     body: '{}'", expected.body.str_value());
+    debug!("     matching_rules: {:?}", expected.matching_rules);
+    debug!("     generators: {:?}", expected.generators);
     match_method(expected.method.clone(), actual.method.clone(), &mut mismatches);
     match_path(expected.path.clone(), actual.path.clone(), &mut mismatches, &expected.matching_rules);
     match_body(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &expected.matching_rules);
