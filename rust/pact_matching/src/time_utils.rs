@@ -1,9 +1,7 @@
 use nom::types::CompleteStr;
 use nom::digit1;
+use itertools::Itertools;
 
-//F	Day of week in month	Number	2
-//E	Day name in week	Text	Tuesday; Tue
-//u	Day number of week (1 = Monday, ..., 7 = Sunday)	Number	1
 //a	Am/pm marker	Text	PM
 //H	Hour in day (0-23)	Number	0
 //k	Hour in day (1-24)	Number	24
@@ -18,7 +16,17 @@ use nom::digit1;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DateTimePatternToken {
-  Era, Year, Month, Text(Vec<char>), WeekInYear, WeekInMonth, DayInYear, DayInMonth
+  Era,
+  Year,
+  Month,
+  Text(Vec<char>),
+  WeekInYear,
+  WeekInMonth,
+  DayInYear,
+  DayInMonth,
+  DayOfWeekInMonth,
+  DayName,
+  DayOfWeek
 }
 
 fn is_digit(ch: char) -> bool {
@@ -56,14 +64,33 @@ fn validate_day_in_month(m: CompleteStr) -> Result<CompleteStr, String> {
   validate_number(m, "day in month".into(), 1, 31)
 }
 
+fn validate_day_of_week(m: CompleteStr) -> Result<CompleteStr, String> {
+  validate_number(m, "day of week".into(), 1, 7)
+}
+
 named!(era_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::Era, many1!(char!('G'))));
 named!(week_in_year_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::WeekInYear, many1!(char!('w'))));
 named!(week_in_month_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::WeekInMonth, many1!(char!('W'))));
 named!(day_in_year_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::DayInYear, many1!(char!('D'))));
 named!(day_in_month_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::DayInMonth, many1!(char!('d'))));
+named!(day_of_week_in_month_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::DayOfWeekInMonth, many1!(char!('F'))));
+named!(day_name_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::DayName, many1!(char!('E'))));
+named!(day_of_week_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::DayOfWeek, many1!(char!('u'))));
 named!(year_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::Year, many1!(is_a!("yY"))));
 named!(month_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::Month, many1!(is_a!("ML"))));
-named!(text_pattern <CompleteStr, DateTimePatternToken>, do_parse!(t: many1!(none_of!("GyYMLwWdD")) >> (DateTimePatternToken::Text(t))));
+named!(text_pattern <CompleteStr, DateTimePatternToken>, do_parse!(
+  t: many1!(none_of!("GyYMLwWdDFEu'"))
+  >> (DateTimePatternToken::Text(t))
+));
+named!(quoted_text_pattern <CompleteStr, DateTimePatternToken>, do_parse!(
+  char!('\'')
+  >> t: many1!(alt!(tag!("''") | is_not!("'")))
+  >> char!('\'')
+  >> (DateTimePatternToken::Text(t.iter()
+    .map(|s| s.chars().coalesce(|x, y| if x == '\'' && y == '\'' { Ok('\'') } else { Err((x, y)) }).collect::<String>())
+    .join("").chars().collect()))
+));
+named!(quote_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::Text("'".chars().collect()), tag!("''")));
 named!(parse_pattern <CompleteStr, Vec<DateTimePatternToken> >, do_parse!(
   v: many0!(alt!(
     era_pattern |
@@ -73,6 +100,11 @@ named!(parse_pattern <CompleteStr, Vec<DateTimePatternToken> >, do_parse!(
     week_in_month_pattern |
     day_in_year_pattern |
     day_in_month_pattern |
+    day_of_week_in_month_pattern |
+    day_name_pattern |
+    day_of_week_pattern |
+    quoted_text_pattern |
+    quote_pattern |
     text_pattern)) >> (v)
 ));
 
@@ -97,9 +129,21 @@ named!(week_in_year <CompleteStr, CompleteStr>, map_res!(take_while_m_n!(1, 2, i
 named!(week_in_month <CompleteStr, CompleteStr>, map_res!(take_while_m_n!(1, 2, is_digit), validate_week_in_month));
 named!(day_in_year <CompleteStr, CompleteStr>, map_res!(take_while_m_n!(1, 2, is_digit), validate_day_in_year));
 named!(day_in_month <CompleteStr, CompleteStr>, map_res!(take_while_m_n!(1, 2, is_digit), validate_day_in_month));
+named!(day_of_week <CompleteStr, CompleteStr>, map_res!(take_while_m_n!(1, 1, is_digit), validate_day_of_week));
 named_args!(text<'a>(t: &'a Vec<char>) <CompleteStr<'a>, CompleteStr<'a>>, tag!(t.iter().collect::<String>().as_str()));
+named!(day_of_week_name <CompleteStr, CompleteStr>, alt!(
+  tag_no_case!("sunday")    | tag_no_case!("sun") |
+  tag_no_case!("monday")    | tag_no_case!("mon") |
+  tag_no_case!("tuesday")   | tag_no_case!("tue") |
+  tag_no_case!("wednesday") | tag_no_case!("wed") |
+  tag_no_case!("thursday")  | tag_no_case!("thu") |
+  tag_no_case!("friday")    | tag_no_case!("fri") |
+  tag_no_case!("saturday")  | tag_no_case!("sat")
+));
 
 fn validate_datetime_string<'a>(value: &String, pattern_tokens: &Vec<DateTimePatternToken>) -> Result<(), String> {
+  p!(value);
+  p!(pattern_tokens);
   let mut buffer = CompleteStr(&value);
   for token in pattern_tokens {
     let result = match token {
@@ -111,6 +155,9 @@ fn validate_datetime_string<'a>(value: &String, pattern_tokens: &Vec<DateTimePat
       DateTimePatternToken::DayInMonth => day_in_month(buffer),
       DateTimePatternToken::Month => month(buffer),
       DateTimePatternToken::Text(t) => text(buffer, t),
+      DateTimePatternToken::DayOfWeekInMonth => digit1(buffer),
+      DateTimePatternToken::DayName => day_of_week_name(buffer),
+      DateTimePatternToken::DayOfWeek => day_of_week(buffer)
     }.map_err(|err| format!("{:?}", err))?;
     buffer = result.0;
   }
@@ -136,8 +183,23 @@ mod tests {
 
 
   #[test]
-  fn parse_simple_date() {
+  fn parse_date_and_time() {
     expect!(validate_datetime(&"2001-01-02".into(), &"yyyy-MM-dd".into())).to(be_ok());
+    expect!(validate_datetime(&"2001-01-02 12:33:45".into(), &"yyyy-MM-dd HH:mm:ss".into())).to(be_ok());
+
+//    "yyyy.MM.dd G 'at' HH:mm:ss z"	2001.07.04 AD at 12:08:56 PDT
+    expect!(validate_datetime(&"Wed, Jul 4, '01".into(), &"EEE, MMM d, ''yy".into())).to(be_ok());
+
+//    "h:mm a"	12:08 PM
+//    "hh 'o''clock' a, zzzz"	12 o'clock PM, Pacific Daylight Time
+//    "K:mm a, z"	0:08 PM, PDT
+//    "yyyyy.MMMMM.dd GGG hh:mm aaa"	02001.July.04 AD 12:08 PM
+//    "EEE, d MMM yyyy HH:mm:ss Z"	Wed, 4 Jul 2001 12:08:56 -0700
+//    "yyMMddHHmmssZ"	010704120856-0700
+//    "yyyy-MM-dd'T'HH:mm:ss.SSSZ"	2001-07-04T12:08:56.235-0700
+//    "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"	2001-07-04T12:08:56.235-07:00
+
+    expect!(validate_datetime(&"2001-W27-3".into(), &"YYYY-'W'ww-u".into())).to(be_ok());
   }
 
   #[test]
@@ -200,9 +262,16 @@ mod tests {
   fn parse_text() {
     expect!(parse_pattern(CompleteStr("ello"))).to(
       be_ok().value((CompleteStr(""), vec![DateTimePatternToken::Text("ello".chars().collect())])));
+    expect!(parse_pattern(CompleteStr("'dd-MM-yyyy'"))).to(
+      be_ok().value((CompleteStr(""), vec![DateTimePatternToken::Text("dd-MM-yyyy".chars().collect())])));
+    expect!(parse_pattern(CompleteStr("''"))).to(
+      be_ok().value((CompleteStr(""), vec![DateTimePatternToken::Text("'".chars().collect())])));
+    expect!(parse_pattern(CompleteStr("'dd-''MM''-yyyy'"))).to(
+      be_ok().value((CompleteStr(""), vec![DateTimePatternToken::Text("dd-'MM'-yyyy".chars().collect())])));
 
     expect!(validate_datetime(&"ello".into(), &"ello".into())).to(be_ok());
     expect!(validate_datetime(&"elo".into(), &"ello".into())).to(be_err());
+    expect!(validate_datetime(&"dd-MM-yyyy".into(), &"'dd-MM-yyyy'".into())).to(be_ok());
   }
 
   #[test]
@@ -233,6 +302,23 @@ mod tests {
     expect!(validate_datetime(&"03".into(), &"DD".into())).to(be_ok());
     expect!(validate_datetime(&"32".into(), &"dd".into())).to(be_err());
     expect!(validate_datetime(&"0".into(), &"D".into())).to(be_err());
+  }
+
+  #[test]
+  fn parse_day_of_week() {
+    expect!(parse_pattern(CompleteStr("F"))).to(
+      be_ok().value((CompleteStr(""), vec![DateTimePatternToken::DayOfWeekInMonth])));
+    expect!(parse_pattern(CompleteStr("EE"))).to(
+      be_ok().value((CompleteStr(""), vec![DateTimePatternToken::DayName])));
+    expect!(parse_pattern(CompleteStr("u"))).to(
+      be_ok().value((CompleteStr(""), vec![DateTimePatternToken::DayOfWeek])));
+
+    expect!(validate_datetime(&"12".into(), &"F".into())).to(be_ok());
+    expect!(validate_datetime(&"Tue".into(), &"EEE".into())).to(be_ok());
+    expect!(validate_datetime(&"Tuesday".into(), &"EEE".into())).to(be_ok());
+    expect!(validate_datetime(&"3".into(), &"u".into())).to(be_ok());
+    expect!(validate_datetime(&"32".into(), &"u".into())).to(be_err());
+    expect!(validate_datetime(&"0".into(), &"u".into())).to(be_err());
   }
 
 }
