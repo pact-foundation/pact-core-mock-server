@@ -1091,7 +1091,7 @@ impl Pact {
         }
     }
 
-    /// Determins the default file name for the pact. This is based on the consumer and
+    /// Determines the default file name for the pact. This is based on the consumer and
     /// provider names.
     pub fn default_file_name(&self) -> String {
         format!("{}-{}.json", self.consumer.name, self.provider.name)

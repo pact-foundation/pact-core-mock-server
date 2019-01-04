@@ -32,6 +32,7 @@ difference = "1.0.0"
 base64 = "0.7.0"
 uuid = { version = "0.5.1", features = ["v4"] }
 indextree = "1.1.1"
+nom = "^4.0"
 
 [dependencies.hyper]
 version = "0.9.7"

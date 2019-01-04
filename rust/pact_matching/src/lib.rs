@@ -342,6 +342,7 @@ extern crate difference;
 extern crate base64;
 extern crate uuid;
 extern crate indextree;
+#[macro_use] extern crate nom;
 
 /// Simple macro to convert a string slice to a `String` struct.
 #[macro_export]
@@ -357,6 +358,7 @@ use ansi_term::Colour::*;
 
 #[macro_use] pub mod models;
 mod path_exp;
+mod time_utils;
 mod matchers;
 pub mod json;
 mod xml;

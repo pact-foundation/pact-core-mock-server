@@ -1,6 +1,7 @@
 use models::matchingrules::*;
 use itertools::Itertools;
 use regex::Regex;
+use time_utils::validate_datetime;
 
 pub trait Matches<A> {
     fn matches(&self, actual: &A, matcher: &MatchingRule) -> Result<(), String>;
@@ -50,6 +51,24 @@ impl Matches<String> for String {
             match actual.parse::<u64>() {
               Ok(_) => Ok(()),
               Err(_) => Err(format!("Expected '{}' to match an integer number", actual))
+            }
+          },
+          MatchingRule::Date(ref s) => {
+            match validate_datetime(actual, s) {
+              Ok(_) => Ok(()),
+              Err(_) => Err(format!("Expected '{}' to match a date format of '{}'", actual, s))
+            }
+          },
+          MatchingRule::Time(ref s) => {
+            match validate_datetime(actual, s) {
+              Ok(_) => Ok(()),
+              Err(_) => Err(format!("Expected '{}' to match a time format of '{}'", actual, s))
+            }
+          },
+          MatchingRule::Timestamp(ref s) => {
+            match validate_datetime(actual, s) {
+              Ok(_) => Ok(()),
+              Err(_) => Err(format!("Expected '{}' to match a timestamp format of '{}'", actual, s))
             }
           },
           _ => Err(format!("Unable to match '{}' using {:?}", self, matcher))
@@ -440,8 +459,18 @@ mod tests {
   }
 
   #[test]
+  #[ignore]
   fn timestamp_matcher_test() {
-    let matcher = MatchingRule::Timestamp("3, 6".into());
+    let matcher = MatchingRule::Timestamp("yyyy-MM-dd HH:mm:ssZZZ".into());
+
+//    expected                    | actual                      | pattern               || mustBeEmpty
+//    '2014-01-01 14:00:00+10:00' | '2013-12-01 14:00:00+10:00' | null                  || true
+//    '2014-01-01 14:00:00+10:00' | 'I\'m a timestamp!'         | null                  || false
+//    '2014-01-01 14:00:00+10:00' | '2013#12#01#14#00#00'       | 'yyyy#MM#dd#HH#mm#ss' || true
+//    '2014-01-01 14:00:00+10:00' | null                        | null                  || false
+
+    expect!(s!("100").matches(&s!("2013-12-01 14:00:00+10:00"), &matcher)).to(be_ok());
+    expect!(s!("100").matches(&s!("13-12-01 14:00:00+10:00"), &matcher)).to(be_err());
     expect!(s!("100").matches(&s!("100"), &matcher)).to(be_err());
     expect!(s!("100").matches(&s!("10a"), &matcher)).to(be_err());
     expect!(s!("100").matches(&s!("1000"), &matcher)).to(be_err());
@@ -452,8 +481,18 @@ mod tests {
   }
 
   #[test]
+  #[ignore]
   fn time_matcher_test() {
-    let matcher = MatchingRule::Time("3, 6".into());
+    let matcher = MatchingRule::Time("HH:mm:ss".into());
+
+//    expected         | actual     | pattern    || mustBeEmpty
+//    '14:00:00'       | '14:00:00' | null       || true
+//    '00:00'          | '14:01:02' | 'mm:ss'    || false
+//    '00:00:14'       | '05:10:14' | 'ss:mm:HH' || true
+//    '14:00:00+10:00' | null       | null       || false
+
+    expect!(s!("100").matches(&s!("14:00:00"), &matcher)).to(be_ok());
+    expect!(s!("100").matches(&s!("33:00:00"), &matcher)).to(be_err());
     expect!(s!("100").matches(&s!("100"), &matcher)).to(be_err());
     expect!(s!("100").matches(&s!("10a"), &matcher)).to(be_err());
     expect!(s!("100").matches(&s!("1000"), &matcher)).to(be_err());
@@ -465,7 +504,12 @@ mod tests {
 
   #[test]
   fn date_matcher_test() {
-    let matcher = MatchingRule::Date("3, 6".into());
+    let matcher = MatchingRule::Date("yyyy-MM-dd".into());
+    let matcher2 = MatchingRule::Date("MM/dd/yyyy".into());
+
+    expect!(s!("100").matches(&s!("2001-10-01"), &matcher)).to(be_ok());
+    expect!(s!("100").matches(&s!("01/14/2001"), &matcher2)).to(be_ok());
+    expect!(s!("100").matches(&s!("01-13-01"), &matcher)).to(be_err());
     expect!(s!("100").matches(&s!("100"), &matcher)).to(be_err());
     expect!(s!("100").matches(&s!("10a"), &matcher)).to(be_err());
     expect!(s!("100").matches(&s!("1000"), &matcher)).to(be_err());
