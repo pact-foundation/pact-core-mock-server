@@ -2,17 +2,13 @@ use nom::types::CompleteStr;
 use nom::digit1;
 use itertools::Itertools;
 
-//m	Minute in hour	Number	30
-//s	Second in minute	Number	55
-//S	Millisecond	Number	978
 //z	Time zone	General time zone	Pacific Standard Time; PST; GMT-08:00
-//Z	Time zone	RFC 822 time zone	-0800
 //X	Time zone	ISO 8601 time zone	-08; -0800; -08:00
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DateTimePatternToken {
   Era,
-  Year,
+  Year(usize),
   Month,
   Text(Vec<char>),
   WeekInYear,
@@ -29,7 +25,10 @@ pub enum DateTimePatternToken {
   Hour12ZeroBased,
   Minute,
   Second,
-  Millisecond
+  Millisecond,
+  Timezone,
+  Rfc822Timezone,
+  Iso8601Timezone
 }
 
 fn is_digit(ch: char) -> bool {
@@ -108,10 +107,10 @@ named!(day_in_month_pattern <CompleteStr, DateTimePatternToken>, value!(DateTime
 named!(day_of_week_in_month_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::DayOfWeekInMonth, many1!(char!('F'))));
 named!(day_name_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::DayName, many1!(char!('E'))));
 named!(day_of_week_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::DayOfWeek, many1!(char!('u'))));
-named!(year_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::Year, many1!(is_a!("yY"))));
+named!(year_pattern <CompleteStr, DateTimePatternToken>, do_parse!(y: is_a!("yY") >> (DateTimePatternToken::Year(y.len())) ));
 named!(month_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::Month, many1!(is_a!("ML"))));
 named!(text_pattern <CompleteStr, DateTimePatternToken>, do_parse!(
-  t: many1!(none_of!("GyYMLwWdDFEu'akKhHmsS"))
+  t: many1!(none_of!("GyYMLwWdDFEu'akKhHmsSzZX"))
   >> (DateTimePatternToken::Text(t))
 ));
 named!(quoted_text_pattern <CompleteStr, DateTimePatternToken>, do_parse!(
@@ -130,6 +129,9 @@ named!(hour_0_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatter
 named!(minute_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::Minute, many1!(char!('m'))));
 named!(second_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::Second, many1!(char!('s'))));
 named!(millisecond_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::Millisecond, many1!(char!('S'))));
+named!(timezone_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::Timezone, many1!(char!('z'))));
+named!(rfc_timezone_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::Rfc822Timezone, many1!(char!('Z'))));
+named!(iso_timezone_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::Iso8601Timezone, many1!(char!('X'))));
 named!(parse_pattern <CompleteStr, Vec<DateTimePatternToken> >, do_parse!(
   v: many0!(alt!(
     era_pattern |
@@ -150,6 +152,9 @@ named!(parse_pattern <CompleteStr, Vec<DateTimePatternToken> >, do_parse!(
     minute_pattern |
     second_pattern |
     millisecond_pattern |
+    timezone_pattern |
+    rfc_timezone_pattern |
+    iso_timezone_pattern |
     quoted_text_pattern |
     quote_pattern |
     text_pattern)) >> (v)
@@ -157,6 +162,7 @@ named!(parse_pattern <CompleteStr, Vec<DateTimePatternToken> >, do_parse!(
 
 named!(era <CompleteStr, CompleteStr>, alt!(tag_no_case!("ad") | tag_no_case!("bc")));
 named!(ampm <CompleteStr, CompleteStr>, alt!(tag_no_case!("am") | tag_no_case!("pm")));
+named_args!(year(digits: usize) <CompleteStr, CompleteStr>, take_while_m_n!(1, digits, is_digit));
 named!(month_text <CompleteStr, CompleteStr>, alt!(
   tag_no_case!("january")   | tag_no_case!("jan") |
   tag_no_case!("february")  | tag_no_case!("feb") |
@@ -185,6 +191,9 @@ named!(hour_12_0 <CompleteStr, CompleteStr>, map_res!(take_while_m_n!(1, 2, is_d
 named!(minute <CompleteStr, CompleteStr>, map_res!(take_while_m_n!(1, 2, is_digit), validate_minute));
 named!(second <CompleteStr, CompleteStr>, map_res!(take_while_m_n!(1, 2, is_digit), validate_second));
 named!(millisecond <CompleteStr, CompleteStr>, map_res!(take_while_m_n!(1, 3, is_digit), validate_millisecond));
+named!(timezone <CompleteStr, CompleteStr>, take!(1));
+named!(rfc_timezone <CompleteStr, CompleteStr>, do_parse!(is_a!("+-") >> hour_24_0 >> minute >> (CompleteStr(""))));
+named!(iso_timezone <CompleteStr, CompleteStr>, alt!(tag!("Z") | do_parse!(is_a!("+-") >> hour_12_0 >> opt!(tag!(":")) >> opt!(minute) >> (CompleteStr("")))));
 named_args!(text<'a>(t: &'a Vec<char>) <CompleteStr<'a>, CompleteStr<'a>>, tag!(t.iter().collect::<String>().as_str()));
 named!(day_of_week_name <CompleteStr, CompleteStr>, alt!(
   tag_no_case!("sunday")    | tag_no_case!("sun") |
@@ -203,7 +212,7 @@ fn validate_datetime_string<'a>(value: &String, pattern_tokens: &Vec<DateTimePat
   for token in pattern_tokens {
     let result = match token {
       DateTimePatternToken::Era => era(buffer),
-      DateTimePatternToken::Year => digit1(buffer),
+      DateTimePatternToken::Year(d) => year(buffer, d.clone()),
       DateTimePatternToken::WeekInYear => week_in_year(buffer),
       DateTimePatternToken::WeekInMonth => week_in_month(buffer),
       DateTimePatternToken::DayInYear => day_in_year(buffer),
@@ -220,6 +229,9 @@ fn validate_datetime_string<'a>(value: &String, pattern_tokens: &Vec<DateTimePat
       DateTimePatternToken::Minute => minute(buffer),
       DateTimePatternToken::Second => second(buffer),
       DateTimePatternToken::Millisecond => millisecond(buffer),
+      DateTimePatternToken::Timezone => timezone(buffer),
+      DateTimePatternToken::Rfc822Timezone => rfc_timezone(buffer),
+      DateTimePatternToken::Iso8601Timezone => iso_timezone(buffer),
       DateTimePatternToken::AmPm => ampm(buffer)
     }.map_err(|err| format!("{:?}", err))?;
     buffer = result.0;
@@ -260,11 +272,10 @@ mod tests {
 //    "hh 'o''clock' a, zzzz"	12 o'clock PM, Pacific Daylight Time
 //    "K:mm a, z"	0:08 PM, PDT
     expect!(validate_datetime(&"02001.July.04 AD 12:08 PM".into(), &"yyyyy.MMMMM.dd GGG hh:mm aaa".into())).to(be_ok());
-//    "EEE, d MMM yyyy HH:mm:ss Z"	Wed, 4 Jul 2001 12:08:56 -0700
-//    "yyMMddHHmmssZ"	010704120856-0700
-//    "yyyy-MM-dd'T'HH:mm:ss.SSSZ"	2001-07-04T12:08:56.235-0700
-//    "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"	2001-07-04T12:08:56.235-07:00
-
+    expect!(validate_datetime(&"Wed, 4 Jul 2001 12:08:56 -0700".into(), &"EEE, d MMM yyyy HH:mm:ss Z".into())).to(be_ok());
+    expect!(validate_datetime(&"010704120856-0700".into(), &"yyMMddHHmmssZ".into())).to(be_ok());
+    expect!(validate_datetime(&"2001-07-04T12:08:56.235-0700".into(), &"yyyy-MM-dd'T'HH:mm:ss.SSSZ".into())).to(be_ok());
+    expect!(validate_datetime(&"2001-07-04T12:08:56.235-07:00".into(), &"yyyy-MM-dd'T'HH:mm:ss.SSSXXX".into())).to(be_ok());
     expect!(validate_datetime(&"2001-W27-3".into(), &"YYYY-'W'ww-u".into())).to(be_ok());
   }
 
@@ -303,18 +314,18 @@ mod tests {
   #[test]
   fn parse_year() {
     expect!(parse_pattern(CompleteStr("y"))).to(
-      be_ok().value((CompleteStr(""), vec![DateTimePatternToken::Year])));
+      be_ok().value((CompleteStr(""), vec![DateTimePatternToken::Year(1)])));
     expect!(parse_pattern(CompleteStr("yy"))).to(
-      be_ok().value((CompleteStr(""), vec![DateTimePatternToken::Year])));
+      be_ok().value((CompleteStr(""), vec![DateTimePatternToken::Year(2)])));
     expect!(parse_pattern(CompleteStr("yyyy"))).to(
-      be_ok().value((CompleteStr(""), vec![DateTimePatternToken::Year])));
+      be_ok().value((CompleteStr(""), vec![DateTimePatternToken::Year(4)])));
     expect!(parse_pattern(CompleteStr("YYyy"))).to(
-      be_ok().value((CompleteStr(""), vec![DateTimePatternToken::Year])));
+      be_ok().value((CompleteStr(""), vec![DateTimePatternToken::Year(4)])));
 
-    expect!(validate_datetime(&"2000".into(), &"y".into())).to(be_ok());
-    expect!(validate_datetime(&"2000".into(), &"yy".into())).to(be_ok());
-    expect!(validate_datetime(&"2000".into(), &"YYYY".into())).to(be_ok());
+    expect!(validate_datetime(&"2000".into(), &"yyyy".into())).to(be_ok());
     expect!(validate_datetime(&"20".into(), &"yy".into())).to(be_ok());
+    expect!(validate_datetime(&"2000".into(), &"YYYY".into())).to(be_ok());
+    expect!(validate_datetime(&"20".into(), &"YY".into())).to(be_ok());
     expect!(validate_datetime(&"20".into(), &"yyyy".into())).to(be_ok());
     expect!(validate_datetime(&"".into(), &"yyyy".into())).to(be_err());
   }
@@ -445,6 +456,30 @@ mod tests {
     expect!(validate_datetime(&"60".into(), &"m".into())).to(be_err());
     expect!(validate_datetime(&"60".into(), &"s".into())).to(be_err());
     expect!(validate_datetime(&"1000".into(), &"SS".into())).to(be_err());
+  }
+
+  #[test]
+  fn parse_timezone() {
+    expect!(parse_pattern(CompleteStr("z"))).to(
+      be_ok().value((CompleteStr(""), vec![DateTimePatternToken::Timezone])));
+    expect!(parse_pattern(CompleteStr("Z"))).to(
+      be_ok().value((CompleteStr(""), vec![DateTimePatternToken::Rfc822Timezone])));
+    expect!(parse_pattern(CompleteStr("XXX"))).to(
+      be_ok().value((CompleteStr(""), vec![DateTimePatternToken::Iso8601Timezone])));
+
+    expect!(validate_datetime(&"-0700".into(), &"Z".into())).to(be_ok());
+    expect!(validate_datetime(&"1100".into(), &"ZZZZ".into())).to(be_err());
+    expect!(validate_datetime(&"+1030".into(), &"Z".into())).to(be_ok());
+    expect!(validate_datetime(&"-2400".into(), &"Z".into())).to(be_err());
+    expect!(validate_datetime(&"2361".into(), &"Z".into())).to(be_err());
+
+    expect!(validate_datetime(&"-0700".into(), &"X".into())).to(be_ok());
+    expect!(validate_datetime(&"1100".into(), &"XXXX".into())).to(be_err());
+    expect!(validate_datetime(&"+1030".into(), &"X".into())).to(be_ok());
+    expect!(validate_datetime(&"+10:30".into(), &"X".into())).to(be_ok());
+    expect!(validate_datetime(&"Z".into(), &"X".into())).to(be_ok());
+    expect!(validate_datetime(&"-2400".into(), &"X".into())).to(be_err());
+    expect!(validate_datetime(&"2361".into(), &"X".into())).to(be_err());
   }
 
 }
