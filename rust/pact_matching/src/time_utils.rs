@@ -2,9 +2,6 @@ use nom::types::CompleteStr;
 use nom::digit1;
 use itertools::Itertools;
 
-//z	Time zone	General time zone	Pacific Standard Time; PST; GMT-08:00
-//X	Time zone	ISO 8601 time zone	-08; -0800; -08:00
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DateTimePatternToken {
   Era,
@@ -191,7 +188,12 @@ named!(hour_12_0 <CompleteStr, CompleteStr>, map_res!(take_while_m_n!(1, 2, is_d
 named!(minute <CompleteStr, CompleteStr>, map_res!(take_while_m_n!(1, 2, is_digit), validate_minute));
 named!(second <CompleteStr, CompleteStr>, map_res!(take_while_m_n!(1, 2, is_digit), validate_second));
 named!(millisecond <CompleteStr, CompleteStr>, map_res!(take_while_m_n!(1, 3, is_digit), validate_millisecond));
-named!(timezone <CompleteStr, CompleteStr>, take!(1));
+named!(timezone <CompleteStr, CompleteStr>,
+  alt!(
+    do_parse!(alt!(tag!("GMT") | tag!("UTC")) >> is_a!("+-") >> hour_24_0 >> tag!(":") >> minute >> (CompleteStr(""))) |
+    tag!("GMT") | tag!("UTC")
+  )
+);
 named!(rfc_timezone <CompleteStr, CompleteStr>, do_parse!(is_a!("+-") >> hour_24_0 >> minute >> (CompleteStr(""))));
 named!(iso_timezone <CompleteStr, CompleteStr>, alt!(tag!("Z") | do_parse!(is_a!("+-") >> hour_12_0 >> opt!(tag!(":")) >> opt!(minute) >> (CompleteStr("")))));
 named_args!(text<'a>(t: &'a Vec<char>) <CompleteStr<'a>, CompleteStr<'a>>, tag!(t.iter().collect::<String>().as_str()));
@@ -255,7 +257,8 @@ pub fn validate_datetime(value: &String, format: &String) -> Result<(), String> 
 mod tests {
   use super::*;
   use expectest::prelude::*;
-
+  use chrono::TimeZone;
+  use chrono_tz::Tz;
 
   #[test]
   fn parse_date_and_time() {
@@ -267,10 +270,9 @@ mod tests {
 
 //    "yyyy.MM.dd G 'at' HH:mm:ss z"	2001.07.04 AD at 12:08:56 PDT
     expect!(validate_datetime(&"Wed, Jul 4, '01".into(), &"EEE, MMM d, ''yy".into())).to(be_ok());
-
     expect!(validate_datetime(&"12:08 PM".into(), &"h:mm a".into())).to(be_ok());
 //    "hh 'o''clock' a, zzzz"	12 o'clock PM, Pacific Daylight Time
-//    "K:mm a, z"	0:08 PM, PDT
+//    "K:mm a, z"	0:08 PM, AEST
     expect!(validate_datetime(&"02001.July.04 AD 12:08 PM".into(), &"yyyyy.MMMMM.dd GGG hh:mm aaa".into())).to(be_ok());
     expect!(validate_datetime(&"Wed, 4 Jul 2001 12:08:56 -0700".into(), &"EEE, d MMM yyyy HH:mm:ss Z".into())).to(be_ok());
     expect!(validate_datetime(&"010704120856-0700".into(), &"yyMMddHHmmssZ".into())).to(be_ok());
@@ -474,12 +476,24 @@ mod tests {
     expect!(validate_datetime(&"2361".into(), &"Z".into())).to(be_err());
 
     expect!(validate_datetime(&"-0700".into(), &"X".into())).to(be_ok());
+    expect!(validate_datetime(&"-08".into(), &"X".into())).to(be_ok());
     expect!(validate_datetime(&"1100".into(), &"XXXX".into())).to(be_err());
     expect!(validate_datetime(&"+1030".into(), &"X".into())).to(be_ok());
     expect!(validate_datetime(&"+10:30".into(), &"X".into())).to(be_ok());
     expect!(validate_datetime(&"Z".into(), &"X".into())).to(be_ok());
     expect!(validate_datetime(&"-2400".into(), &"X".into())).to(be_err());
     expect!(validate_datetime(&"2361".into(), &"X".into())).to(be_err());
+
+    expect!(validate_datetime(&"GMT-0:00".into(), &"z".into())).to(be_ok());
+    expect!(validate_datetime(&"UTC-0:00".into(), &"z".into())).to(be_ok());
+    expect!(validate_datetime(&"UTC".into(), &"z".into())).to(be_ok());
+    expect!(validate_datetime(&"GMT+10:00".into(), &"z".into())).to(be_ok());
+    expect!(validate_datetime(&"GMT+10:30".into(), &"z".into())).to(be_ok());
+    expect!(validate_datetime(&"1100".into(), &"zzzz".into())).to(be_err());
+    expect!(validate_datetime(&"GMT-24:00".into(), &"z".into())).to(be_err());
+    expect!(validate_datetime(&"GMT+23:61".into(), &"z".into())).to(be_err());
+    expect!(validate_datetime(&"GMT+2351".into(), &"z".into())).to(be_err());
+
   }
 
 }

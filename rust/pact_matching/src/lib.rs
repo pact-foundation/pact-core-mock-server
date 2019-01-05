@@ -343,6 +343,8 @@ extern crate base64;
 extern crate uuid;
 extern crate indextree;
 #[macro_use] extern crate nom;
+extern crate chrono;
+extern crate chrono_tz;
 
 /// Simple macro to convert a string slice to a `String` struct.
 #[macro_export]
