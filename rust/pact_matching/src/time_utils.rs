@@ -208,8 +208,6 @@ named!(day_of_week_name <CompleteStr, CompleteStr>, alt!(
 ));
 
 fn validate_datetime_string<'a>(value: &String, pattern_tokens: &Vec<DateTimePatternToken>) -> Result<(), String> {
-  p!(value);
-  p!(pattern_tokens);
   let mut buffer = CompleteStr(&value);
   for token in pattern_tokens {
     let result = match token {
@@ -257,6 +255,7 @@ pub fn validate_datetime(value: &String, format: &String) -> Result<(), String> 
 mod tests {
   use super::*;
   use expectest::prelude::*;
+  use chrono::prelude::*;
   use chrono::TimeZone;
   use chrono_tz::Tz;
 
