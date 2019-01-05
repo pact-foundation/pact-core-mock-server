@@ -1045,6 +1045,7 @@ extern crate expectest;
 extern crate quickcheck;
 #[cfg(test)]
 extern crate env_logger;
+#[cfg(test)] #[macro_use] extern crate hamcrest;
 
 #[cfg(test)]
 mod tests;

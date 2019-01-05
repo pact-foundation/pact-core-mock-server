@@ -44,3 +44,4 @@ default-features = false
 quickcheck = "0.4.1"
 expectest = "0.9.1"
 env_logger = "0.4.3"
+hamcrest = "0.1.5"

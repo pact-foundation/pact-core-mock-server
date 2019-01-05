@@ -6,14 +6,14 @@ use itertools::Itertools;
 pub enum DateTimePatternToken {
   Era,
   Year(usize),
-  Month,
+  Month(usize),
   Text(Vec<char>),
   WeekInYear,
   WeekInMonth,
   DayInYear,
   DayInMonth,
   DayOfWeekInMonth,
-  DayName,
+  DayName(usize),
   DayOfWeek,
   AmPm,
   Hour24,
@@ -102,10 +102,10 @@ named!(week_in_month_pattern <CompleteStr, DateTimePatternToken>, value!(DateTim
 named!(day_in_year_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::DayInYear, many1!(char!('D'))));
 named!(day_in_month_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::DayInMonth, many1!(char!('d'))));
 named!(day_of_week_in_month_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::DayOfWeekInMonth, many1!(char!('F'))));
-named!(day_name_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::DayName, many1!(char!('E'))));
+named!(day_name_pattern <CompleteStr, DateTimePatternToken>, do_parse!(d: is_a!("E") >> (DateTimePatternToken::DayName(d.len()))));
 named!(day_of_week_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::DayOfWeek, many1!(char!('u'))));
 named!(year_pattern <CompleteStr, DateTimePatternToken>, do_parse!(y: is_a!("yY") >> (DateTimePatternToken::Year(y.len())) ));
-named!(month_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::Month, many1!(is_a!("ML"))));
+named!(month_pattern <CompleteStr, DateTimePatternToken>, do_parse!(m: is_a!("ML") >> (DateTimePatternToken::Month(m.len()))));
 named!(text_pattern <CompleteStr, DateTimePatternToken>, do_parse!(
   t: many1!(none_of!("GyYMLwWdDFEu'akKhHmsSzZX"))
   >> (DateTimePatternToken::Text(t))
@@ -129,7 +129,7 @@ named!(millisecond_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimeP
 named!(timezone_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::Timezone, many1!(char!('z'))));
 named!(rfc_timezone_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::Rfc822Timezone, many1!(char!('Z'))));
 named!(iso_timezone_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::Iso8601Timezone, many1!(char!('X'))));
-named!(parse_pattern <CompleteStr, Vec<DateTimePatternToken> >, do_parse!(
+named!(pub parse_pattern <CompleteStr, Vec<DateTimePatternToken> >, do_parse!(
   v: many0!(alt!(
     era_pattern |
     year_pattern |
@@ -217,10 +217,10 @@ fn validate_datetime_string<'a>(value: &String, pattern_tokens: &Vec<DateTimePat
       DateTimePatternToken::WeekInMonth => week_in_month(buffer),
       DateTimePatternToken::DayInYear => day_in_year(buffer),
       DateTimePatternToken::DayInMonth => day_in_month(buffer),
-      DateTimePatternToken::Month => month(buffer),
+      DateTimePatternToken::Month(_m) => month(buffer),
       DateTimePatternToken::Text(t) => text(buffer, t),
       DateTimePatternToken::DayOfWeekInMonth => digit1(buffer),
-      DateTimePatternToken::DayName => day_of_week_name(buffer),
+      DateTimePatternToken::DayName(_d) => day_of_week_name(buffer),
       DateTimePatternToken::DayOfWeek => day_of_week(buffer),
       DateTimePatternToken::Hour24 => hour_24(buffer),
       DateTimePatternToken::Hour24ZeroBased => hour_24_0(buffer),
@@ -251,13 +251,49 @@ pub fn validate_datetime(value: &String, format: &String) -> Result<(), String> 
   }
 }
 
+pub fn to_chrono_pattern(tokens: &Vec<DateTimePatternToken>) -> String {
+  let mut buffer = String::new();
+
+  for token in tokens {
+    buffer.push_str(match token {
+      DateTimePatternToken::Era => "AD".into(),
+      DateTimePatternToken::Year(d) => if *d == 2 { "%y".into() } else { "%Y".into() },
+      DateTimePatternToken::WeekInYear => "%U".into(),
+      DateTimePatternToken::WeekInMonth => {
+        warn!("Chono does not support week in month");
+        "".into()
+      },
+      DateTimePatternToken::DayInYear => "%j".into(),
+      DateTimePatternToken::DayInMonth => "%d".into(),
+      DateTimePatternToken::Month(d) => if *d <= 2 { "%m".into() } else if *d > 3 { "%B".into() } else { "%b".into() },
+      DateTimePatternToken::Text(t) => t.iter().join("").replace("%", "%%").to_owned(),
+      DateTimePatternToken::DayOfWeekInMonth => {
+        warn!("Chono does not support day of week in month");
+        "".into()
+      },
+      DateTimePatternToken::DayName(d) => if *d > 3 { "%A".into() } else { "%a".into() },
+      DateTimePatternToken::DayOfWeek => "%u".into(),
+      DateTimePatternToken::Hour24 => "%H".into(),
+      DateTimePatternToken::Hour24ZeroBased => "%H".into(),
+      DateTimePatternToken::Hour12 => "%I".into(),
+      DateTimePatternToken::Hour12ZeroBased => "%I".into(),
+      DateTimePatternToken::Minute => "%M".into(),
+      DateTimePatternToken::Second => "%S".into(),
+      DateTimePatternToken::Millisecond => "%3f".into(),
+      DateTimePatternToken::Timezone => "%:z".into(),
+      DateTimePatternToken::Rfc822Timezone => "%z".into(),
+      DateTimePatternToken::Iso8601Timezone => "%:z".into(),
+      DateTimePatternToken::AmPm => "%p".into()
+    }.as_str());
+  }
+
+  buffer
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
   use expectest::prelude::*;
-  use chrono::prelude::*;
-  use chrono::TimeZone;
-  use chrono_tz::Tz;
 
   #[test]
   fn parse_date_and_time() {
@@ -334,11 +370,11 @@ mod tests {
   #[test]
   fn parse_month() {
     expect!(parse_pattern(CompleteStr("M"))).to(
-      be_ok().value((CompleteStr(""), vec![DateTimePatternToken::Month])));
+      be_ok().value((CompleteStr(""), vec![DateTimePatternToken::Month(1)])));
     expect!(parse_pattern(CompleteStr("MM"))).to(
-      be_ok().value((CompleteStr(""), vec![DateTimePatternToken::Month])));
+      be_ok().value((CompleteStr(""), vec![DateTimePatternToken::Month(2)])));
     expect!(parse_pattern(CompleteStr("LLL"))).to(
-      be_ok().value((CompleteStr(""), vec![DateTimePatternToken::Month])));
+      be_ok().value((CompleteStr(""), vec![DateTimePatternToken::Month(3)])));
 
     expect!(validate_datetime(&"jan".into(), &"M".into())).to(be_ok());
     expect!(validate_datetime(&"october".into(), &"MMM".into())).to(be_ok());
@@ -403,7 +439,7 @@ mod tests {
     expect!(parse_pattern(CompleteStr("F"))).to(
       be_ok().value((CompleteStr(""), vec![DateTimePatternToken::DayOfWeekInMonth])));
     expect!(parse_pattern(CompleteStr("EE"))).to(
-      be_ok().value((CompleteStr(""), vec![DateTimePatternToken::DayName])));
+      be_ok().value((CompleteStr(""), vec![DateTimePatternToken::DayName(2)])));
     expect!(parse_pattern(CompleteStr("u"))).to(
       be_ok().value((CompleteStr(""), vec![DateTimePatternToken::DayOfWeek])));
 
@@ -492,7 +528,21 @@ mod tests {
     expect!(validate_datetime(&"GMT-24:00".into(), &"z".into())).to(be_err());
     expect!(validate_datetime(&"GMT+23:61".into(), &"z".into())).to(be_err());
     expect!(validate_datetime(&"GMT+2351".into(), &"z".into())).to(be_err());
+  }
 
+  #[test]
+  fn to_chrono_pattern_test() {
+    expect!(to_chrono_pattern(&parse_pattern(CompleteStr("yyyy-MM-dd")).unwrap().1)).to(be_equal_to("%Y-%m-%d"));
+    expect!(to_chrono_pattern(&parse_pattern(CompleteStr("yyyy-MM-dd HH:mm:ss")).unwrap().1)).to(be_equal_to("%Y-%m-%d %H:%M:%S"));
+    expect!(to_chrono_pattern(&parse_pattern(CompleteStr("EEE, MMM d, ''yy")).unwrap().1)).to(be_equal_to("%a, %b %d, \'%y"));
+    expect!(to_chrono_pattern(&parse_pattern(CompleteStr("h:mm a")).unwrap().1)).to(be_equal_to("%I:%M %p"));
+    expect!(to_chrono_pattern(&parse_pattern(CompleteStr("hh 'o''clock' a, z")).unwrap().1)).to(be_equal_to("%I o'clock %p, %:z"));
+    expect!(to_chrono_pattern(&parse_pattern(CompleteStr("yyyyy.MMMMM.dd GGG hh:mm aaa")).unwrap().1)).to(be_equal_to("%Y.%B.%d AD %I:%M %p"));
+    expect!(to_chrono_pattern(&parse_pattern(CompleteStr("EEE, d MMM yyyy HH:mm:ss Z")).unwrap().1)).to(be_equal_to("%a, %d %b %Y %H:%M:%S %z"));
+    expect!(to_chrono_pattern(&parse_pattern(CompleteStr("yyMMddHHmmssZ")).unwrap().1)).to(be_equal_to("%y%m%d%H%M%S%z"));
+    expect!(to_chrono_pattern(&parse_pattern(CompleteStr("yyyy-MM-dd'T'HH:mm:ss.SSSZ")).unwrap().1)).to(be_equal_to("%Y-%m-%dT%H:%M:%S.%3f%z"));
+    expect!(to_chrono_pattern(&parse_pattern(CompleteStr("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")).unwrap().1)).to(be_equal_to("%Y-%m-%dT%H:%M:%S.%3f%:z"));
+    expect!(to_chrono_pattern(&parse_pattern(CompleteStr("YYYY-'W'ww-u")).unwrap().1)).to(be_equal_to("%Y-W%U-%u"));
   }
 
 }

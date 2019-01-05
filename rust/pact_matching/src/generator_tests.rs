@@ -4,6 +4,7 @@ use models::{Request, Response, OptionalBody, DetectedContentType};
 use models::generators::{JsonHandler, ContentTypeHandler};
 use std::str::FromStr;
 use serde_json::Value;
+use hamcrest::prelude::*;
 
 #[test]
 fn returns_original_response_if_there_are_no_generators() {
@@ -298,4 +299,31 @@ fn applies_the_generator_to_the_object_graph_with_wildcard() {
   expect!(&json_handler.value["a"][2]).to(be_equal_to(&json!("C")));
   expect!(&json_handler.value["b"]).to(be_equal_to(&json!("B")));
   expect!(&json_handler.value["c"]).to(be_equal_to(&json!("C")));
+}
+
+#[test]
+fn date_generator_test() {
+  let generated = Generator::Date(None).generate_value(&"".to_string());
+  assert_that!(&generated.unwrap(), matches_regex(r"^\d{4}-\d{2}-\d{2}$"));
+
+  let generated2 = Generator::Date(Some("yyyy-MM-ddZ".into())).generate_value(&"".to_string());
+  assert_that!(&generated2.unwrap(), matches_regex(r"^\d{4}-\d{2}-\d{2}[-+]\d{4}$"));
+}
+
+#[test]
+fn time_generator_test() {
+  let generated = Generator::Time(None).generate_value(&"".to_string());
+  assert_that!(&generated.unwrap(), matches_regex(r"^\d{2}:\d{2}:\d{2}$"));
+
+  let generated2 = Generator::Time(Some("HH:mm:ssZ".into())).generate_value(&"".to_string());
+  assert_that!(&generated2.unwrap(), matches_regex(r"^\d{2}:\d{2}:\d{2}[-+]\d+$"));
+}
+
+#[test]
+fn datetime_generator_test() {
+  let generated = Generator::DateTime(None).generate_value(&"".to_string());
+  assert_that!(&generated.unwrap(), matches_regex(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}[-+]\d+$"));
+
+  let generated2 = Generator::DateTime(Some("yyyy-MM-dd HH:mm:ssZ".into())).generate_value(&"".to_string());
+  assert_that!(&generated2.unwrap(), matches_regex(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[-+]\d+$"));
 }
