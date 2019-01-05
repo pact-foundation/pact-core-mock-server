@@ -8,7 +8,8 @@ use std::{
 };
 use serde_json::{self, Value};
 use super::PactSpecification;
-use rand::{self, Rng};
+use rand::prelude::*;
+use rand::distributions::Alphanumeric;
 use uuid::Uuid;
 use models::{OptionalBody, DetectedContentType};
 use models::json_utils::{JsonToNum, json_to_string};
@@ -20,6 +21,7 @@ use indextree::{Arena, NodeId};
 use chrono::prelude::*;
 use time_utils::{parse_pattern, to_chrono_pattern};
 use nom::types::CompleteStr;
+use regex_syntax;
 
 /// Trait to represent a generator
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash)]
@@ -114,19 +116,19 @@ impl GenerateValue<u16> for Generator {
 }
 
 fn generate_decimal(digits: usize) -> String {
-  const DIGIT_CHARSET: &'static [u8] = b"0123456789";
+  const DIGIT_CHARSET: &'static str = "0123456789";
   let mut rnd = rand::thread_rng();
-  (1..digits).map(|_| *rnd.choose(DIGIT_CHARSET).unwrap() as char).collect()
+  DIGIT_CHARSET.chars().choose_multiple(&mut rnd, digits).iter().join("")
 }
 
 fn generate_hexadecimal(digits: usize) -> String {
-  const HEX_CHARSET: &'static [u8] = b"0123456789ABCDEF";
+  const HEX_CHARSET: &'static str = "0123456789ABCDEF";
   let mut rnd = rand::thread_rng();
-  (1..digits).map(|_| *rnd.choose(HEX_CHARSET).unwrap() as char).collect()
+  HEX_CHARSET.chars().choose_multiple(&mut rnd, digits).iter().join("")
 }
 
 fn generate_ascii_string(size: usize) -> String {
-  rand::thread_rng().gen_ascii_chars().take(size).collect()
+  rand::thread_rng().sample_iter(&Alphanumeric).take(size).collect()
 }
 
 impl GenerateValue<String> for Generator {
@@ -138,9 +140,18 @@ impl GenerateValue<String> for Generator {
       &Generator::RandomDecimal(digits) => Some(generate_decimal(digits as usize)),
       &Generator::RandomHexadecimal(digits) => Some(generate_hexadecimal(digits as usize)),
       &Generator::RandomString(size) => Some(generate_ascii_string(size as usize)),
-      &Generator::Regex(ref _regex) => {
-        warn!("Regex generator is not implemented");
-        None
+      &Generator::Regex(ref regex) => {
+        let mut parser = regex_syntax::ParserBuilder::new().unicode(false).build();
+        match parser.parse(regex) {
+          Ok(hir) => {
+            let gen = rand_regex::Regex::with_hir(hir, 20).unwrap();
+            Some(rnd.sample(gen))
+          },
+          Err(err) => {
+            warn!("'{}' is not a valid regular expression - {}", regex, err);
+            None
+          }
+        }
       },
       &Generator::Date(ref format) => match format {
         Some(pattern) => match parse_pattern(CompleteStr(pattern)) {
@@ -208,9 +219,18 @@ impl GenerateValue<Value> for Generator {
         &Value::String(_) => Some(json!(generate_ascii_string(size as usize))),
         _ => None
       },
-      &Generator::Regex(ref _regex) => {
-        warn!("Regex generator is not implemented");
-        None
+      &Generator::Regex(ref regex) => {
+        let mut parser = regex_syntax::ParserBuilder::new().unicode(false).build();
+        match parser.parse(regex) {
+          Ok(hir) => {
+            let gen = rand_regex::Regex::with_hir(hir, 20).unwrap();
+            Some(json!(rand::thread_rng().sample::<String, _>(gen)))
+          },
+          Err(err) => {
+            warn!("'{}' is not a valid regular expression - {}", regex, err);
+            None
+          }
+        }
       },
       &Generator::Date(ref format) => match format {
         Some(pattern) => match parse_pattern(CompleteStr(pattern)) {
@@ -673,6 +693,7 @@ mod tests {
   use expectest::prelude::*;
   use super::Generator;
   use std::str::FromStr;
+  use hamcrest::prelude::*;
 
   #[test]
   fn rules_are_empty_when_there_are_no_categories() {
@@ -849,5 +870,11 @@ mod tests {
     expect!(Generator::DateTime(None).to_json()).to(be_equal_to(json!({
       "type": "DateTime"
     })));
+  }
+
+  #[test]
+  fn generate_decimal_test() {
+    assert_that!(&generate_decimal(4), matches_regex(r"^\d{4}$"));
+    assert_that!(&generate_hexadecimal(4), matches_regex(r"^[0-9A-F]{4}$"));
   }
 }

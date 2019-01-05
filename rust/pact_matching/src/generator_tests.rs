@@ -327,3 +327,9 @@ fn datetime_generator_test() {
   let generated2 = Generator::DateTime(Some("yyyy-MM-dd HH:mm:ssZ".into())).generate_value(&"".to_string());
   assert_that!(&generated2.unwrap(), matches_regex(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[-+]\d+$"));
 }
+
+#[test]
+fn regex_generator_test() {
+  let generated = Generator::Regex(r"\d{4}\w{1,4}".into()).generate_value(&"".to_string());
+  assert_that!(&generated.unwrap(), matches_regex(r"^\d{4}\w{1,4}$"));
+}
