@@ -5,12 +5,16 @@ use pact_matching::models::generators::*;
 use std::str::FromStr;
 use std::collections::hash_map::HashMap;
 use std::io::Read;
+use tokio::runtime::Runtime;
 use hyper::client::Client;
-use hyper::client::response::Response as HyperResponse;
+use hyper::client::connect::HttpConnector;
+use hyper::{Request as HyperRequest, Response as HyperResponse};
+use hyper::http::request::{Builder as RequestBuilder};
+use hyper::Body;
 use hyper::error::Error as HyperError;
-use hyper::method::Method;
-use hyper::header::{Headers, ContentType};
-use hyper::mime::{Mime, TopLevel, SubLevel};
+use hyper::Method;
+use hyper::http::header::HeaderName;
+use hyper::http::header::CONTENT_TYPE;
 
 pub fn join_paths(base: &String, path: String) -> String {
     let mut full_path = s!(base.trim_right_matches("/"));
@@ -19,23 +23,28 @@ pub fn join_paths(base: &String, path: String) -> String {
     full_path
 }
 
-fn setup_headers(headers: &Option<HashMap<String, String>>) -> Headers {
-    let mut hyper_headers = Headers::new();
-    if headers.is_some() {
-        let headers = headers.clone().unwrap();
-        for (k, v) in headers.clone() {
-            hyper_headers.set_raw(k.clone(), vec![v.bytes().collect()]);
-        }
+fn setup_headers(builder: &mut RequestBuilder, headers: &Option<HashMap<String, String>>) -> Result<(), Box<Error>> {
+    let mut hyper_headers = builder.headers_mut().unwrap();
+    match headers {
+        Some(header_map) => {
+            for (k, v) in header_map {
+                // FIXME?: Headers are not sent in "raw" mode.
+                // Names are converted to lower case and values are parsed.
+                hyper_headers.insert(
+                    HeaderName::from_bytes(k.as_bytes())?,
+                    v.parse()?
+                );
+            }
 
-        if !headers.keys().any(|k| k.to_lowercase() == "content-type") {
-            hyper_headers.set(ContentType(Mime(TopLevel::Application, SubLevel::Json,
-                vec![])));
+            if !header_map.keys().any(|k| k.to_lowercase() == "content-type") {
+                hyper_headers.insert(CONTENT_TYPE, "application/json".parse()?);
+            }
         }
     }
-    hyper_headers
+    Ok(())
 }
 
-fn make_request(base_url: &String, request: &Request, client: &Client) -> Result<HyperResponse, HyperError> {
+fn make_request(base_url: &String, request: &Request, runtime: &mut Runtime) -> Result<HyperResponse<Body>, Box<Error>> {
     match Method::from_str(&request.method) {
         Ok(method) => {
             let mut url = join_paths(base_url, request.path.clone());
@@ -44,6 +53,29 @@ fn make_request(base_url: &String, request: &Request, client: &Client) -> Result
                 url.push_str(&build_query_string(request.query.clone().unwrap()));
             }
             debug!("Making request to '{}'", url);
+            let mut builder = HyperRequest::builder()
+                .method(method)
+                .uri(url);
+            setup_headers(&mut builder, &request.headers())?;
+
+            let mut hyper_request = builder
+                .body(match request.body {
+                    OptionalBody::Present(ref s) => Body::from(s.clone()),
+                    OptionalBody::Null => {
+                        if request.content_type() == "application/json" {
+                            Body::from("null")
+                        } else {
+                            Body::empty()
+                        }
+                    },
+                    _ => Body::empty()
+                })?;
+
+            runtime.block_on(
+                Client::new().request(hyper_request)
+            ).map_err(|err| err.into())
+
+            /*
             let hyper_request = client.request(method, &url)
                 .headers(setup_headers(&request.headers.clone()));
             match request.body {
@@ -57,8 +89,10 @@ fn make_request(base_url: &String, request: &Request, client: &Client) -> Result
                 },
                 _ => hyper_request
             }.send()
+            */
+
         },
-        Err(err) => Err(err)
+        Err(err) => Err(err.into())
     }
 }
 
@@ -70,7 +104,7 @@ fn extract_headers(headers: &Headers) -> Option<HashMap<String, String>> {
     }
 }
 
-pub fn extract_body(response: &mut HyperResponse) -> OptionalBody {
+pub fn extract_body(response: &mut HyperResponse<Body>) -> OptionalBody {
     let mut buffer = Vec::new();
     match response.read_to_end(&mut buffer) {
         Ok(size) => if size > 0 {
@@ -85,21 +119,20 @@ pub fn extract_body(response: &mut HyperResponse) -> OptionalBody {
     }
 }
 
-fn hyper_response_to_pact_response(response: &mut HyperResponse) -> Response {
+fn hyper_response_to_pact_response(response: &mut HyperResponse<Body>) -> Response {
     Response {
-        status: response.status.to_u16(),
-        headers: extract_headers(&response.headers),
+        status: response.status().as_u16(),
+        headers: extract_headers(&response.headers()),
         body: extract_body(response),
         matching_rules: MatchingRules::default(),
         generators: Generators::default()
     }
 }
 
-pub fn make_provider_request(provider: &ProviderInfo, request: &Request) -> Result<Response, HyperError> {
+pub fn make_provider_request(provider: &ProviderInfo, request: &Request, runtime: &mut Runtime) -> Result<Response, Box<Error>> {
     debug!("Sending {:?} to provider", request);
-    let client = Client::new();
     match make_request(&format!("{}://{}:{}{}", provider.protocol, provider.host, provider.port,
-        provider.path), request, &client) {
+        provider.path), request, &mut runtime) {
         Ok(ref mut response) => {
             debug!("Received response: {:?}", response);
             Ok(hyper_response_to_pact_response(response))

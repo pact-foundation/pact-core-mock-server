@@ -26,9 +26,10 @@ itertools = "0.5.4"
 ansi_term = "0.9"
 regex = "0.1"
 difference = "0.4"
+tokio = "0.1.14"
 
 [dependencies.hyper]
-version = "0.9.7"
+version = "0.12"
 default-features = false
 
 [lib]
