@@ -137,7 +137,10 @@ pub fn make_provider_request(provider: &ProviderInfo, request: &Request, runtime
                 .and_then(hyper_response_to_pact_response);
 
             runtime.block_on(pact_response_future)
-                .map_err(|err| err.into())
+                .map_err(|err| {
+                    debug!("Response processing failed: {}", err);
+                    err.into()
+                })
         },
         Err(err) => {
             debug!("Request failed: {}", err);
@@ -150,7 +153,8 @@ pub fn make_state_change_request(provider: &ProviderInfo, request: &Request, run
     debug!("Sending {:?} to state change handler", request);
     let client = Client::new();
     match make_request(&provider.state_change_url.clone().unwrap(), request) {
-        Ok(ref mut response) => {
+        Ok(ref mut response_future) => {
+            let response = runtime.block_on(response_future);
             debug!("Received response: {:?}", response);
             if response.status.is_success() {
                 Ok(())
