@@ -4,7 +4,6 @@ use pact_matching::models::matchingrules::*;
 use pact_matching::models::generators::*;
 use std::str::FromStr;
 use std::collections::hash_map::HashMap;
-use tokio::runtime::current_thread::Runtime;
 use hyper::client::Client;
 use hyper::{Request as HyperRequest, Response as HyperResponse};
 use hyper::http::request::{Builder as RequestBuilder};
@@ -14,6 +13,7 @@ use hyper::Method;
 use hyper::http::header::{HeaderMap, HeaderName};
 use hyper::http::header::CONTENT_TYPE;
 use hyper::rt::{Future, Stream};
+use tokio::runtime::current_thread::Runtime;
 use futures::future::done;
 
 pub fn join_paths(base: &String, path: String) -> String {

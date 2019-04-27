@@ -40,6 +40,7 @@ use std::collections::HashMap;
 use provider_client::{make_provider_request, make_state_change_request};
 use regex::Regex;
 use serde_json::Value;
+use tokio::runtime::current_thread::Runtime;
 
 /// Source for loading pacts
 #[derive(Debug, Clone)]
@@ -100,9 +101,9 @@ pub enum MismatchResult {
     Error(String)
 }
 
-fn verify_response_from_provider(provider: &ProviderInfo, interaction: &Interaction) -> Result<(), MismatchResult> {
+fn verify_response_from_provider(provider: &ProviderInfo, interaction: &Interaction, runtime: &mut Runtime) -> Result<(), MismatchResult> {
   let ref expected_response = interaction.response;
-  match make_provider_request(provider, &pact_matching::generate_request(&interaction.request)) {
+  match make_provider_request(provider, &pact_matching::generate_request(&interaction.request), &mut runtime) {
       Ok(ref actual_response) => {
           let mismatches = match_response(expected_response.clone(), actual_response.clone());
           if mismatches.is_empty() {
@@ -117,7 +118,7 @@ fn verify_response_from_provider(provider: &ProviderInfo, interaction: &Interact
   }
 }
 
-fn execute_state_change(provider_state: &ProviderState, provider: &ProviderInfo, setup: bool) -> Result<(), MismatchResult> {
+fn execute_state_change(provider_state: &ProviderState, provider: &ProviderInfo, setup: bool, runtime: &mut Runtime) -> Result<(), MismatchResult> {
     if setup {
         println!("  Given {}", Style::new().bold().paint(provider_state.name.clone()));
     }
@@ -156,7 +157,7 @@ fn execute_state_change(provider_state: &ProviderState, provider: &ProviderInfo,
               }
               state_change_request.query = Some(query);
             }
-            match make_state_change_request(provider, &state_change_request) {
+            match make_state_change_request(provider, &state_change_request, &mut runtime) {
                 Ok(_) => Ok(()),
                 Err(err) => Err(MismatchResult::Error(err))
             }
@@ -173,16 +174,16 @@ fn execute_state_change(provider_state: &ProviderState, provider: &ProviderInfo,
     result
 }
 
-fn verify_interaction(provider: &ProviderInfo, interaction: &Interaction) -> Result<(), MismatchResult> {
+fn verify_interaction(provider: &ProviderInfo, interaction: &Interaction, runtime: &mut Runtime) -> Result<(), MismatchResult> {
     for state in interaction.provider_states.clone() {
-      execute_state_change(&state, provider, true)?
+      execute_state_change(&state, provider, true, &mut runtime)?
     }
 
-    let result = verify_response_from_provider(provider, interaction);
+    let result = verify_response_from_provider(provider, interaction, &mut runtime);
 
     if provider.state_change_teardown {
       for state in interaction.provider_states.clone() {
-        execute_state_change(&state, provider, false)?
+        execute_state_change(&state, provider, false, &mut runtime)?
       }
     }
 
@@ -328,7 +329,7 @@ fn filter_consumers(consumers: &Vec<String>, res: &Result<Pact, String>) -> bool
 
 /// Verify the provider with the given pact sources
 pub fn verify_provider(provider_info: &ProviderInfo, source: Vec<PactSource>, filter: &FilterInfo,
-    consumers: &Vec<String>) -> bool {
+    consumers: &Vec<String>, runtime: &mut Runtime) -> bool {
     let pacts = source.iter().flat_map(|s| {
         match s {
             &PactSource::File(ref file) => vec![Pact::read_pact(Path::new(&file))
@@ -373,7 +374,7 @@ pub fn verify_provider(provider_info: &ProviderInfo, source: Vec<PactSource>, fi
                     let results: HashMap<Interaction, Result<(), MismatchResult>> = pact.interactions.iter()
                     .filter(|interaction| filter_interaction(interaction, filter))
                     .map(|interaction| {
-                        (interaction.clone(), verify_interaction(provider_info, interaction))
+                        (interaction.clone(), verify_interaction(provider_info, interaction, &mut runtime))
                     }).collect();
 
                     for (interaction, result) in results.clone() {
