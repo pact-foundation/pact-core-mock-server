@@ -27,6 +27,7 @@ ansi_term = "0.9"
 regex = "0.1"
 difference = "0.4"
 tokio = "0.1.14"
+futures = "0.1"
 
 [dependencies.hyper]
 version = "0.12"

@@ -4,18 +4,17 @@ use pact_matching::models::matchingrules::*;
 use pact_matching::models::generators::*;
 use std::str::FromStr;
 use std::collections::hash_map::HashMap;
-use std::io::Read;
-use tokio::runtime::Runtime;
+use tokio::runtime::current_thread::Runtime;
 use hyper::client::Client;
 use hyper::{Request as HyperRequest, Response as HyperResponse};
 use hyper::http::request::{Builder as RequestBuilder};
 use hyper::Body;
 use hyper::error::Error as HyperError;
-use hyper::client::ResponseFuture;
 use hyper::Method;
 use hyper::http::header::{HeaderMap, HeaderName};
 use hyper::http::header::CONTENT_TYPE;
 use hyper::rt::{Future, Stream};
+use futures::future::done;
 
 pub fn join_paths(base: &String, path: String) -> String {
     let mut full_path = s!(base.trim_right_matches("/"));
@@ -45,7 +44,7 @@ fn setup_headers(builder: &mut RequestBuilder, headers: &Option<HashMap<String, 
     Ok(())
 }
 
-fn make_request(base_url: &String, request: &Request) -> Result<ResponseFuture, Box<Error>> {
+fn create_hyper_request(base_url: &String, request: &Request) -> Result<HyperRequest<Body>, Box<Error>> {
     match Method::from_str(&request.method) {
         Ok(method) => {
             let mut url = join_paths(base_url, request.path.clone());
@@ -59,7 +58,7 @@ fn make_request(base_url: &String, request: &Request) -> Result<ResponseFuture, 
                 .uri(url);
             setup_headers(&mut builder, &request.headers())?;
 
-            let mut hyper_request = builder
+            let hyper_request = builder
                 .body(match request.body {
                     OptionalBody::Present(ref s) => Body::from(s.clone()),
                     OptionalBody::Null => {
@@ -72,7 +71,7 @@ fn make_request(base_url: &String, request: &Request) -> Result<ResponseFuture, 
                     _ => Body::empty()
                 })?;
 
-            Ok(Client::new().request(hyper_request))
+            Ok(hyper_request)
         },
         Err(err) => Err(err.into())
     }
@@ -128,46 +127,47 @@ fn hyper_response_to_pact_response(response: HyperResponse<Body>) -> impl Future
         })
 }
 
+fn check_hyper_status(result: Result<HyperResponse<Body>, HyperError>) -> Result<(), String> {
+    match result {
+        Ok(response) => {
+            if response.status().is_success() {
+                Ok(())
+            } else {
+                Err(format!("Status code {}", response.status()))
+            }
+        },
+        Err(err) => Err(format!("{}", err))
+    }
+}
+
 pub fn make_provider_request(provider: &ProviderInfo, request: &Request, runtime: &mut Runtime) -> Result<Response, Box<Error>> {
     debug!("Sending {:?} to provider", request);
-    match make_request(&format!("{}://{}:{}{}", provider.protocol, provider.host, provider.port,
-        provider.path), request) {
-        Ok(ref mut response_future) => {
-            let pact_response_future = response_future
-                .and_then(hyper_response_to_pact_response);
+    let base_url = format!("{}://{}:{}{}", provider.protocol, provider.host, provider.port, provider.path);
 
-            runtime.block_on(pact_response_future)
-                .map_err(|err| {
-                    debug!("Response processing failed: {}", err);
-                    err.into()
-                })
-        },
-        Err(err) => {
-            debug!("Request failed: {}", err);
-            Err(err)
-        }
-    }
+    runtime.block_on(
+        done(create_hyper_request(&base_url, request))
+            .and_then(|request| {
+                Client::new().request(request)
+                    .and_then(hyper_response_to_pact_response)
+                    .map_err(|err| err.into())
+            })
+    ).map_err(|err| {
+        debug!("Request failed: {}", err);
+        err
+    })
 }
 
 pub fn make_state_change_request(provider: &ProviderInfo, request: &Request, runtime: &mut Runtime) -> Result<(), String> {
     debug!("Sending {:?} to state change handler", request);
-    let client = Client::new();
-    match make_request(&provider.state_change_url.clone().unwrap(), request) {
-        Ok(ref mut response_future) => {
-            let response = runtime.block_on(response_future);
-            debug!("Received response: {:?}", response);
-            if response.status.is_success() {
-                Ok(())
-            } else {
-                debug!("Request failed: {}", response.status);
-                Err(format!("State change request failed: {}", response.status))
-            }
-        },
-        Err(err) => {
-            debug!("Request failed: {}", err);
-            Err(format!("State change request failed: {}", err))
-        }
-    }
+
+    runtime.block_on(
+        done(create_hyper_request(&provider.state_change_url.clone().unwrap(), request))
+            .map_err(|err| format!("{}", err))
+            .and_then(|request| {
+                Client::new().request(request)
+                    .then(check_hyper_status)
+            })
+    ).map_err(|err| format!("State change request failed: {}", err))
 }
 
 #[cfg(test)]
