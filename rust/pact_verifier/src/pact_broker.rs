@@ -5,12 +5,17 @@ use std::collections::HashMap;
 use hyper::client::*;
 use std::error::Error;
 use super::provider_client::join_paths;
-use hyper::header::{Accept, qitem, ContentType};
-use hyper::mime::{Mime, TopLevel, SubLevel};
+//use hyper::header::{Accept, qitem, ContentType};
+//use hyper::mime::{Mime, TopLevel, SubLevel};
 use provider_client::extract_body;
 use regex::{Regex, Captures};
-use hyper::Url;
-use hyper::status::StatusCode;
+//use hyper::Url;
+use hyper::{Request, Response, Body};
+use hyper::error::Error as HyperError;
+use hyper::Uri;
+use hyper::StatusCode;
+use hyper::rt::{Future, Stream};
+use futures::future;
 
 fn is_true(object: &serde_json::Map<String, serde_json::Value>, field: &String) -> bool {
     match object.get(field) {
@@ -29,20 +34,20 @@ fn as_string(json: &serde_json::Value) -> String {
     }
 }
 
-fn content_type(response: &Response) -> String {
-    match response.headers.get::<ContentType>() {
-        Some(header) => format!("{}", header),
+fn content_type(response: &Response<Body>) -> String {
+    match response.headers().get("content-type") {
+        Some(value) => value.to_str().unwrap_or("text/plain").into(),
         None => s!("text/plain")
     }
 }
 
-fn json_content_type(response: &Response) -> bool {
-    match response.headers.get::<ContentType>() {
-        Some(header) => {
-            let &ContentType(ref mime) = header;
-            match mime.clone() {
-                Mime(TopLevel::Application, SubLevel::Json, _) => true,
-                Mime(TopLevel::Application, SubLevel::Ext(ext), _) => ext == "hal+json",
+fn json_content_type(response: &Response<Body>) -> bool {
+    match response.headers().get("content-type") {
+        Some(value) => {
+            match value.to_str() {
+                Err(e) => false,
+                Ok("application/json") => true,
+                Ok("application/hal+json") => true,
                 _ => false
             }
         },
@@ -122,15 +127,29 @@ impl HALClient {
         HALClient{ url: s!(""), path_info: None }
     }
 
-    fn navigate(&mut self, link: &str, template_values: &HashMap<String, String>) -> Result<serde_json::Value, PactBrokerError> {
-        if self.path_info.is_none() {
-            self.path_info = Some(self.fetch("/")?);
-        }
-        self.path_info = Some(self.fetch_link(link, template_values)?);
-        Ok(self.path_info.clone().unwrap())
+    fn navigate(mut self, link: &'static str, template_values: HashMap<String, String>) -> impl Future<Item = HALClient, Error = PactBrokerError> {
+        future::ok(())
+            .and_then(|_| {
+                Some(self.fetch("/".into()))
+                    .filter(|_| self.path_info.is_none())
+            })
+            .and_then(|path_info| {
+                if self.path_info.is_none() {
+                    self.path_info = path_info;
+                }
+
+                Some(self.fetch_link(link, template_values))
+            })
+            .map(|path_info| {
+                self.path_info = path_info;
+
+                self
+
+                //self.path_info.clone().unwrap()
+            })
     }
 
-    fn find_link(&self, link: &str) -> Result<Link, PactBrokerError> {
+    fn find_link(&self, link: &'static str) -> Result<Link, PactBrokerError> {
         match self.path_info {
             None => Err(PactBrokerError::LinkError(format!("No previous resource has been fetched from the pact broker. URL: '{}', LINK: '{}'",
                 self.url, link))),
@@ -149,63 +168,90 @@ impl HALClient {
         }
     }
 
-    fn fetch_link(&self, link: &str, template_values: &HashMap<String, String>) -> Result<serde_json::Value, PactBrokerError> {
-        let link_data = self.find_link(link)?;
-        self.fetch_url(&link_data, template_values)
+    fn fetch_link(self, link: &'static str, template_values: HashMap<String, String>) -> impl Future<Item = serde_json::Value, Error = PactBrokerError> {
+        future::done(self.find_link(link))
+            .and_then(|link_data| self.fetch_url(&link_data, template_values))
     }
 
-    fn fetch_url(&self, link: &Link, template_values: &HashMap<String, String>) -> Result<serde_json::Value, PactBrokerError> {
-        let link_url = if link.templated {
+    fn fetch_url(self, link: &Link, template_values: HashMap<String, String>) -> impl Future<Item = serde_json::Value, Error = PactBrokerError> {
+        let base_url = self.url.clone();
+        future::done(if link.templated {
             debug!("Link URL is templated");
-            self.parse_link_url(&link, template_values)
+            self.parse_link_url(&link, &template_values)
         } else {
             link.href.clone().ok_or(
                 PactBrokerError::LinkError(format!("Link is malformed, there is no href. URL: '{}', LINK: '{}'",
                                                    self.url, link.name)))
-        }?;
-        let base = Url::parse(&self.url).map_err(|err| PactBrokerError::UrlError(format!("{}", err.description())))?;
-        let url = base.join(&link_url).map_err(|err| PactBrokerError::UrlError(format!("{}", err.description())))?;
-        self.fetch(&url.path())
+        })
+            .and_then(|link_url| {
+                format!("{}{}", self.url, link_url).parse::<Uri>()
+                    .map_err(|err| PactBrokerError::UrlError(format!("{}", err.description())))
+            })
+            .and_then(|uri| {
+                self.fetch(uri.path().into())
+            })
     }
 
-    fn fetch(&self, path: &str) -> Result<serde_json::Value, PactBrokerError> {
+    fn fetch(self, path: String) -> impl Future<Item = serde_json::Value, Error = PactBrokerError> {
         debug!("Fetching path '{}' from pact broker", path);
-        let client = Client::new();
-        let res = client.get(&join_paths(&self.url.clone(), s!(path)))
-            .header(Accept(vec![
-                qitem(Mime(TopLevel::Application, SubLevel::Ext(s!("hal+json")), vec![])),
-                qitem(Mime(TopLevel::Application, SubLevel::Json, vec![]))
-            ]))
-            .send();
-        match res {
-            Ok(mut response) => {
-                if response.status.is_success() {
-                    if json_content_type(&response) {
-                        match extract_body(&mut response) {
-                            OptionalBody::Present(body) => serde_json::from_slice(&body)
-                                    .map_err(|err| PactBrokerError::ContentError(format!("Did not get a valid HAL response body from pact broker path '{}' - {}: {}. URL: '{}'",
-                                                                                         path, err.description(), err, self.url))),
-                            _ => Err(PactBrokerError::ContentError(format!("Did not get a valid HAL response body from pact broker path '{}'. URL: '{}'",
-                                                                          path, self.url)))
 
-                        }
-                    } else {
-                        Err(PactBrokerError::ContentError(format!("Did not get a HAL response from pact broker path '{}', content type is '{}'. URL: '{}'",
-                            path, content_type(&response), self.url)))
-                    }
+        future::done(join_paths(&self.url, s!(path)).parse::<Uri>())
+            .map_err(|err| PactBrokerError::UrlError(format!("{}", err.description())))
+            .and_then(|url| {
+                Client::new().request(
+                    Request::get(url.clone())
+                        .header("accept", "application/hal+json, application/json")
+                        .body(Body::empty())
+                        .unwrap()
+                ).map_err(|err| {
+                    PactBrokerError::IoError(format!("Failed to access pact broker path '{}' - {:?}. URL: '{}'",
+                        path, // path
+                        err.description(),
+                        "self.url") // self.url
+                    )
+                })
+            })
+            .and_then(|response| self.parse_broker_response(response, path))
+    }
+
+    fn parse_broker_response(self, response: Response<Body>, path: String) -> impl Future<Item = serde_json::Value, Error = PactBrokerError> {
+        let is_json_content_type = json_content_type(&response);
+        let content_type = content_type(&response);
+
+        future::done(Ok(response))
+            .and_then(|response| {
+                if response.status().is_success() {
+                    Ok(response)
                 } else {
-                    if response.status == StatusCode::NotFound {
+                    if response.status() == StatusCode::NOT_FOUND {
                         Err(PactBrokerError::NotFound(format!("Request to pact broker path '{}' failed: {}. URL: '{}'", path,
-                            response.status, self.url)))
+                            response.status(), self.url)))
                     } else {
                         Err(PactBrokerError::IoError(format!("Request to pact broker path '{}' failed: {}. URL: '{}'", path,
-                            response.status, self.url)))
+                            response.status(), self.url)))
                     }
                 }
-            },
-            Err(err) => Err(PactBrokerError::IoError(format!("Failed to access pact broker path '{}' - {:?}. URL: '{}'",
-                path, err.description(), self.url)))
-        }
+            })
+            .and_then(|response| {
+                response.into_body().concat2()
+                    .map_err(|err| {
+                        PactBrokerError::IoError(format!("Failed to download response body for path '{}'. URL: '{}'",
+                            path, self.url
+                        ))
+                    })
+            })
+            .and_then(|body| {
+                if is_json_content_type {
+                    serde_json::from_slice(&body)
+                        .map_err(|err| {
+                            PactBrokerError::ContentError(format!("Did not get a valid HAL response body from pact broker path '{}'. URL: '{}'",
+                                                                path, self.url))
+                        })
+                } else {
+                    Err(PactBrokerError::ContentError(format!("Did not get a HAL response from pact broker path '{}', content type is '{}'. URL: '{}'",
+                        path, content_type, self.url)))
+                }
+            })
     }
 
     fn parse_link_url(&self, link: &Link, values: &HashMap<String, String>) -> Result<String, PactBrokerError> {
@@ -257,29 +303,44 @@ impl HALClient {
     }
 }
 
-pub fn fetch_pacts_from_broker(broker_url: &String, provider_name: &String) -> Result<Vec<Result<Pact, PactBrokerError>>, PactBrokerError> {
+pub fn fetch_pacts_from_broker(broker_url: String, provider_name: String) -> impl Future<Item = Vec<Result<Pact, PactBrokerError>>, Error = PactBrokerError> {
     let mut client = HALClient{ url: broker_url.clone(), .. HALClient::default() };
     let template_values = hashmap!{ s!("provider") => provider_name.clone() };
-    match client.navigate("pb:latest-provider-pacts", &template_values) {
-        Ok(_) => {
-            let pact_links = client.iter_links(s!("pacts"))?;
-            debug!("Pact links = {:?}", pact_links);
-            let pacts = pact_links.iter().map(|link| match link.clone().href {
-                Some(_) => client.fetch_url(&link, &template_values).map(|pact_json| Pact::from_json(&link.href.clone().unwrap(), &pact_json)),
-                None => Err(PactBrokerError::LinkError(format!("Expected a HAL+JSON response from the pact broker, but got a link with no HREF. URL: '{}', LINK: '{:?}'",
-                    client.url, link)))
-            }).collect();
-            debug!("pacts = {:?}", pacts);
-            Ok(pacts)
-        },
-        Err(err) => match err {
-            PactBrokerError::NotFound(_) => Err(
-                PactBrokerError::NotFound(
-                    format!("No pacts for provider '{}' where found in the pact broker. URL: '{}'",
-                        provider_name, broker_url))),
-            _ => Err(err)
-        }
-    }
+
+    client.navigate("pb:latest-provider-pacts", template_values.clone())
+        .map_err(|err| {
+            match err {
+                PactBrokerError::NotFound(_) =>
+                    PactBrokerError::NotFound(
+                        format!("No pacts for provider '{}' where found in the pact broker. URL: '{}'",
+                            provider_name, broker_url)),
+                _ => err
+            }
+        })
+        .and_then(|client| {
+            client.iter_links(s!("pacts"))
+                .map(|pact_links| (client, pact_links))
+        })
+        .and_then(|(client, pact_links)| {
+            futures::stream::iter_ok::<_, PactBrokerError>(pact_links)
+                .and_then(|pact_link| {
+                    match pact_link.clone().href {
+                        Some(_) => Ok(pact_link),
+                        None => Err(
+                            PactBrokerError::LinkError(format!("Expected a HAL+JSON response from the pact broker, but got a link with no HREF. URL: '{}', LINK: '{:?}'",
+                                client.url, pact_link))
+                        )
+                    }
+                })
+                .and_then(|pact_link| {
+                    client.fetch_url(&pact_link, template_values.clone())
+                        .map(|pact_json| Pact::from_json(&pact_link.href.clone().unwrap(), &pact_json))
+                })
+                .then(|result| {
+                    Ok(result)
+                })
+                .collect()
+        })
 }
 
 #[cfg(test)]

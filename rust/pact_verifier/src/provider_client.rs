@@ -127,7 +127,7 @@ fn hyper_response_to_pact_response(response: HyperResponse<Body>) -> impl Future
         })
 }
 
-fn check_hyper_status(result: Result<HyperResponse<Body>, HyperError>) -> Result<(), String> {
+fn check_hyper_response_status(result: Result<HyperResponse<Body>, HyperError>) -> Result<(), String> {
     match result {
         Ok(response) => {
             if response.status().is_success() {
@@ -165,7 +165,7 @@ pub fn make_state_change_request(provider: &ProviderInfo, request: &Request, run
             .map_err(|err| format!("{}", err))
             .and_then(|request| {
                 Client::new().request(request)
-                    .then(check_hyper_status)
+                    .then(check_hyper_response_status)
             })
     ).map_err(|err| format!("State change request failed: {}", err))
 }
