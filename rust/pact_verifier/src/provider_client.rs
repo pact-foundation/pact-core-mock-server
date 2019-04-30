@@ -12,9 +12,10 @@ use hyper::error::Error as HyperError;
 use hyper::Method;
 use hyper::http::header::{HeaderMap, HeaderName};
 use hyper::http::header::CONTENT_TYPE;
-use hyper::rt::{Future, Stream};
 use tokio::runtime::current_thread::Runtime;
-use futures::future::done;
+use futures::future;
+use futures::future::Future;
+use futures::stream::Stream;
 
 pub fn join_paths(base: &String, path: String) -> String {
     let mut full_path = s!(base.trim_right_matches("/"));
@@ -39,7 +40,8 @@ fn setup_headers(builder: &mut RequestBuilder, headers: &Option<HashMap<String, 
             if !header_map.keys().any(|k| k.to_lowercase() == "content-type") {
                 hyper_headers.insert(CONTENT_TYPE, "application/json".parse()?);
             }
-        }
+        },
+        _ => {}
     }
     Ok(())
 }
@@ -53,9 +55,9 @@ fn create_hyper_request(base_url: &String, request: &Request) -> Result<HyperReq
                 url.push_str(&build_query_string(request.query.clone().unwrap()));
             }
             debug!("Making request to '{}'", url);
-            let mut builder = HyperRequest::builder()
-                .method(method)
-                .uri(url);
+            let mut builder = HyperRequest::builder();
+            builder.method(method);
+            builder.uri(url);
             setup_headers(&mut builder, &request.headers())?;
 
             let hyper_request = builder
@@ -116,7 +118,7 @@ fn hyper_response_to_pact_response(response: HyperResponse<Body>) -> impl Future
     response.into_body()
         .concat2()
         .then(extract_body)
-        .map(|body| {
+        .map(move |body| {
             Response {
                 status: status,
                 headers: headers,
@@ -145,7 +147,7 @@ pub fn make_provider_request(provider: &ProviderInfo, request: &Request, runtime
     let base_url = format!("{}://{}:{}{}", provider.protocol, provider.host, provider.port, provider.path);
 
     runtime.block_on(
-        done(create_hyper_request(&base_url, request))
+        future::done(create_hyper_request(&base_url, request))
             .and_then(|request| {
                 Client::new().request(request)
                     .and_then(hyper_response_to_pact_response)
@@ -161,7 +163,7 @@ pub fn make_state_change_request(provider: &ProviderInfo, request: &Request, run
     debug!("Sending {:?} to state change handler", request);
 
     runtime.block_on(
-        done(create_hyper_request(&provider.state_change_url.clone().unwrap(), request))
+        future::done(create_hyper_request(&provider.state_change_url.clone().unwrap(), request))
             .map_err(|err| format!("{}", err))
             .and_then(|request| {
                 Client::new().request(request)

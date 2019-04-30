@@ -103,7 +103,7 @@ pub enum MismatchResult {
 
 fn verify_response_from_provider(provider: &ProviderInfo, interaction: &Interaction, runtime: &mut Runtime) -> Result<(), MismatchResult> {
   let ref expected_response = interaction.response;
-  match make_provider_request(provider, &pact_matching::generate_request(&interaction.request), &mut runtime) {
+  match make_provider_request(provider, &pact_matching::generate_request(&interaction.request), runtime) {
       Ok(ref actual_response) => {
           let mismatches = match_response(expected_response.clone(), actual_response.clone());
           if mismatches.is_empty() {
@@ -157,7 +157,7 @@ fn execute_state_change(provider_state: &ProviderState, provider: &ProviderInfo,
               }
               state_change_request.query = Some(query);
             }
-            match make_state_change_request(provider, &state_change_request, &mut runtime) {
+            match make_state_change_request(provider, &state_change_request, runtime) {
                 Ok(_) => Ok(()),
                 Err(err) => Err(MismatchResult::Error(err))
             }
@@ -176,14 +176,14 @@ fn execute_state_change(provider_state: &ProviderState, provider: &ProviderInfo,
 
 fn verify_interaction(provider: &ProviderInfo, interaction: &Interaction, runtime: &mut Runtime) -> Result<(), MismatchResult> {
     for state in interaction.provider_states.clone() {
-      execute_state_change(&state, provider, true, &mut runtime)?
+      execute_state_change(&state, provider, true, runtime)?
     }
 
-    let result = verify_response_from_provider(provider, interaction, &mut runtime);
+    let result = verify_response_from_provider(provider, interaction, runtime);
 
     if provider.state_change_teardown {
       for state in interaction.provider_states.clone() {
-        execute_state_change(&state, provider, false, &mut runtime)?
+        execute_state_change(&state, provider, false, runtime)?
       }
     }
 
@@ -345,7 +345,9 @@ pub fn verify_provider(provider_info: &ProviderInfo, source: Vec<PactSource>, fi
             },
             &PactSource::URL(ref url) => vec![Pact::from_url(url)
                 .map_err(|err| format!("Failed to load pact '{}' - {}", url, err))],
-            &PactSource::BrokerUrl(ref provider_name, ref broker_url) => match pact_broker::fetch_pacts_from_broker(broker_url, provider_name) {
+            &PactSource::BrokerUrl(ref provider_name, ref broker_url) => {
+                let future = pact_broker::fetch_pacts_from_broker(broker_url.clone(), provider_name.clone());
+                match runtime.block_on(future) {
                 Ok(ref pacts) => pacts.iter().map(|p| {
                         match p {
                             &Ok(ref pact) => Ok(pact.clone()),
@@ -353,7 +355,7 @@ pub fn verify_provider(provider_info: &ProviderInfo, source: Vec<PactSource>, fi
                         }
                     }).collect(),
                 Err(err) => vec![Err(format!("Could not load pacts from the pact broker '{}' - {:?}", broker_url, err))]
-            }
+            }}
         }
     })
     .filter(|res| filter_consumers(consumers, res))
@@ -374,7 +376,7 @@ pub fn verify_provider(provider_info: &ProviderInfo, source: Vec<PactSource>, fi
                     let results: HashMap<Interaction, Result<(), MismatchResult>> = pact.interactions.iter()
                     .filter(|interaction| filter_interaction(interaction, filter))
                     .map(|interaction| {
-                        (interaction.clone(), verify_interaction(provider_info, interaction, &mut runtime))
+                        (interaction.clone(), verify_interaction(provider_info, interaction, runtime))
                     }).collect();
 
                     for (interaction, result) in results.clone() {
@@ -490,6 +492,7 @@ mod tests {
   use pact_matching::models::provider_states::*;
   use pact_consumer::prelude::*;
   use env_logger::*;
+  use tokio::runtime::current_thread::Runtime;
 
     #[test]
     fn if_no_interaction_filter_is_defined_returns_true() {
@@ -620,7 +623,7 @@ mod tests {
     };
 
     let provider = ProviderInfo { state_change_url: Some(server.url().to_string()), .. ProviderInfo::default() };
-    let result = execute_state_change(&provider_state, &provider, true);
+    let result = execute_state_change(&provider_state, &provider, true, &mut Runtime::new().unwrap());
     expect!(result.clone()).to(be_ok());
   }
 
@@ -650,7 +653,7 @@ mod tests {
 
     let provider = ProviderInfo { state_change_url: Some(server.url().to_string()),
       state_change_body: false, .. ProviderInfo::default() };
-    let result = execute_state_change(&provider_state, &provider, true);
+    let result = execute_state_change(&provider_state, &provider, true, &mut Runtime::new().unwrap());
     expect!(result.clone()).to(be_ok());
   }
 }
