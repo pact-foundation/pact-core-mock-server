@@ -6,8 +6,10 @@ use hyper::Client;
 use std::error::Error;
 use super::provider_client::join_paths;
 use regex::{Regex, Captures};
+use bytes::Bytes;
 use hyper::{Request, Response, Body};
 use hyper::Uri;
+use hyper::http::uri::{Parts as UriParts};
 use hyper::StatusCode;
 use futures::future;
 use futures::future::Future;
@@ -49,6 +51,27 @@ fn json_content_type<T>(response: &Response<T>) -> bool {
         },
         None => false
     }
+}
+
+fn join_uris(base: Uri, link: Uri) -> Result<Uri, PactBrokerError> {
+    let base_parts = base.into_parts();
+    let link_parts = link.into_parts();
+
+    let path_and_query = format!("{}{}",
+        base_parts.path_and_query
+            .map(|path_and_query| path_and_query.path().to_string())
+            .unwrap_or("".into()),
+        link_parts.path_and_query
+            .map(|path_and_query| path_and_query.as_str().to_string())
+            .unwrap_or("".into())
+        );
+
+    Uri::builder()
+        .scheme(base_parts.scheme.unwrap())
+        .authority(base_parts.authority.unwrap())
+        .path_and_query(Bytes::from(path_and_query))
+        .build()
+        .map_err(|err| PactBrokerError::UrlError(format!("{}", err.description())))
 }
 
 fn find_entry(map: &serde_json::Map<String, serde_json::Value>, key: &String) -> Option<(String, serde_json::Value)> {
@@ -174,9 +197,15 @@ impl HALClient {
                                                    self.url, link.name)))
         })
             .and_then(move |link_url| {
-                format!("{}{}", self.url, link_url).parse::<Uri>()
+                link_url.parse::<Uri>()
                     .map_err(|err| PactBrokerError::UrlError(format!("{}", err.description())))
                     .map(|uri| (self, uri))
+            })
+            .and_then(|(hal_client, link_uri)| {
+                hal_client.url.parse::<Uri>()
+                    .map_err(|err| PactBrokerError::UrlError(format!("{}", err.description())))
+                    .and_then(|base_uri| join_uris(base_uri, link_uri))
+                    .map(|uri| (hal_client, uri))
             })
             .and_then(|(hal_client, uri)| {
                 hal_client.fetch(uri.path().into())
@@ -243,9 +272,9 @@ impl HALClient {
             .and_then(move |(hal_client, path, body)| {
                 if is_json_content_type {
                     serde_json::from_slice(&body)
-                        .map_err(|_| {
-                            PactBrokerError::ContentError(format!("Did not get a valid HAL response body from pact broker path '{}'. URL: '{}'",
-                                                                path, hal_client.url))
+                        .map_err(|err| {
+                            PactBrokerError::ContentError(format!("Did not get a valid HAL response body from pact broker path '{}' - {}: {}. URL: '{}'",
+                                path, err.description(), err, hal_client.url))
                         })
                 } else {
                     Err(PactBrokerError::ContentError(format!("Did not get a HAL response from pact broker path '{}', content type is '{}'. URL: '{}'",

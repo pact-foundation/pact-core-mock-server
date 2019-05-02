@@ -9,6 +9,7 @@ extern crate ansi_term;
 extern crate hyper;
 extern crate tokio;
 extern crate futures;
+extern crate bytes;
 #[macro_use] extern crate maplit;
 extern crate itertools;
 extern crate regex;

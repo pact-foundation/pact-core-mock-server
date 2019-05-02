@@ -29,6 +29,7 @@ difference = "0.4"
 tokio = "0.1.14"
 futures = "0.1"
 hyper = "0.12"
+bytes = "0.4.4"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
