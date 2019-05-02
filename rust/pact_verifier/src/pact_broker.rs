@@ -353,24 +353,6 @@ mod tests {
     use pact_consumer::prelude::*;
     use env_logger::*;
     use pact_matching::models::{Pact, Consumer, Provider, Interaction, PactSpecification};
-    //use hyper::Url;
-    //use hyper::client::response::Response;
-    use std::io::{self, Write, Read};
-    /*
-    use hyper::http::{
-        RawStatus,
-        HttpMessage,
-        RequestHead,
-        ResponseHead,
-    };
-    */
-    use hyper::error::Error;
-    //use hyper::version::HttpVersion;
-    use std::time::Duration;
-    use hyper::HeaderMap;
-    //use hyper::header::{Headers, ContentType};
-    use std::borrow::Cow;
-    //use hyper::mime::{Mime, TopLevel, SubLevel, Attr, Value};
     use tokio::runtime::current_thread::Runtime;
 
     fn wait<T>(future: impl Future<Item = T, Error = PactBrokerError>) -> Result<T, PactBrokerError> {
