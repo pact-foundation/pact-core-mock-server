@@ -38,7 +38,7 @@ use pact_matching::models::provider_states::*;
 use ansi_term::*;
 use ansi_term::Colour::*;
 use std::collections::HashMap;
-use provider_client::{make_provider_request, make_state_change_request};
+use provider_client::{make_provider_request, make_state_change_request, ProviderClientError};
 use regex::Regex;
 use serde_json::Value;
 use tokio::runtime::current_thread::Runtime;
@@ -102,6 +102,23 @@ pub enum MismatchResult {
     Error(String)
 }
 
+fn provider_client_error_to_string(err: ProviderClientError) -> String {
+    match err {
+        ProviderClientError::RequestMethodError(ref method, _) =>
+            format!("Invalid request method: '{}'", method),
+        ProviderClientError::RequestHeaderNameError(ref name, _) =>
+            format!("Invalid header name: '{}'", name),
+        ProviderClientError::RequestHeaderValueError(ref value, _) =>
+            format!("Invalid header value: '{}'", value),
+        ProviderClientError::RequestBodyError(ref message) =>
+            format!("Invalid request body: '{}'", message),
+        ProviderClientError::ResponseError(ref message) =>
+            format!("Invalid response: {}", message),
+        ProviderClientError::ResponseStatusCodeError(ref code) =>
+            format!("Invalid status code: {}", code)
+    }
+}
+
 fn verify_response_from_provider(provider: &ProviderInfo, interaction: &Interaction, runtime: &mut Runtime) -> Result<(), MismatchResult> {
   let ref expected_response = interaction.response;
   match make_provider_request(provider, &pact_matching::generate_request(&interaction.request), runtime) {
@@ -114,7 +131,7 @@ fn verify_response_from_provider(provider: &ProviderInfo, interaction: &Interact
           }
       },
       Err(err) => {
-          Err(MismatchResult::Error(s!(err.description())))
+          Err(MismatchResult::Error(provider_client_error_to_string(err)))
       }
   }
 }
@@ -160,7 +177,7 @@ fn execute_state_change(provider_state: &ProviderState, provider: &ProviderInfo,
             }
             match make_state_change_request(provider, &state_change_request, runtime) {
                 Ok(_) => Ok(()),
-                Err(err) => Err(MismatchResult::Error(err))
+                Err(err) => Err(MismatchResult::Error(provider_client_error_to_string(err)))
             }
         },
         None => {
