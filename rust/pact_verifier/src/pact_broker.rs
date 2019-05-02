@@ -42,7 +42,7 @@ fn json_content_type<T>(response: &Response<T>) -> bool {
     match response.headers().get("content-type") {
         Some(value) => {
             match value.to_str() {
-                Err(e) => false,
+                Err(_) => false,
                 Ok("application/json") => true,
                 Ok("application/hal+json") => true,
                 _ => false
