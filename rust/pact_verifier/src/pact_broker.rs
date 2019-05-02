@@ -9,7 +9,6 @@ use regex::{Regex, Captures};
 use bytes::Bytes;
 use hyper::{Request, Response, Body};
 use hyper::Uri;
-use hyper::http::uri::{Parts as UriParts};
 use hyper::StatusCode;
 use futures::future;
 use futures::future::Future;
@@ -465,8 +464,9 @@ mod tests {
 
         let client = HALClient{ url: pact_broker.url().to_string(), .. HALClient::default() };
         let result = wait(client.clone().fetch(s!("/nonhal")));
-        expect!(result).to(be_err().value(format!("Did not get a valid HAL response body from pact broker path \'/nonhal\'. URL: '{}'",
+        expect!(result).to(be_err().value(format!("Did not get a valid HAL response body from pact broker path \'/nonhal\' - JSON error: EOF while parsing a value at line 1 column 0. URL: '{}'",
             pact_broker.url())));
+
         let result = wait(client.clone().fetch(s!("/nonhal2")));
         expect!(result).to(be_err().value(format!("Did not get a valid HAL response body from pact broker path \'/nonhal2\' - JSON error: expected value at line 1 column 1. URL: '{}'",
             pact_broker.url())));
