@@ -52,27 +52,6 @@ fn json_content_type<T>(response: &Response<T>) -> bool {
     }
 }
 
-fn join_uris(base: Uri, link: Uri) -> Result<Uri, PactBrokerError> {
-    let base_parts = base.into_parts();
-    let link_parts = link.into_parts();
-
-    let path_and_query = format!("{}{}",
-        base_parts.path_and_query
-            .map(|path_and_query| path_and_query.path().to_string())
-            .unwrap_or("".into()),
-        link_parts.path_and_query
-            .map(|path_and_query| path_and_query.as_str().to_string())
-            .unwrap_or("".into())
-        );
-
-    Uri::builder()
-        .scheme(base_parts.scheme.unwrap())
-        .authority(base_parts.authority.unwrap())
-        .path_and_query(Bytes::from(path_and_query))
-        .build()
-        .map_err(|err| PactBrokerError::UrlError(format!("{}", err.description())))
-}
-
 fn find_entry(map: &serde_json::Map<String, serde_json::Value>, key: &String) -> Option<(String, serde_json::Value)> {
     match map.keys().find(|k| k.to_lowercase() == key.to_lowercase() ) {
         Some(k) => map.get(k).map(|v| (key.clone(), v.clone()) ),
@@ -132,6 +111,27 @@ impl Link {
         }
     }
 
+}
+
+fn join_uris(base: Uri, link: Uri) -> Result<Uri, PactBrokerError> {
+    let base_parts = base.into_parts();
+    let link_parts = link.into_parts();
+
+    let path_and_query = format!("{}{}",
+        base_parts.path_and_query
+            .map(|path_and_query| path_and_query.path().to_string())
+            .unwrap_or("".into()),
+        link_parts.path_and_query
+            .map(|path_and_query| path_and_query.as_str().to_string())
+            .unwrap_or("".into())
+        );
+
+    Uri::builder()
+        .scheme(base_parts.scheme.unwrap())
+        .authority(base_parts.authority.unwrap())
+        .path_and_query(Bytes::from(path_and_query))
+        .build()
+        .map_err(|err| PactBrokerError::UrlError(format!("{}", err.description())))
 }
 
 #[derive(Clone)]
