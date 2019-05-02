@@ -3,6 +3,7 @@ use pact_matching::models::*;
 use pact_matching::models::matchingrules::*;
 use pact_matching::models::generators::*;
 use std::str::FromStr;
+use std::error::Error;
 use std::collections::hash_map::HashMap;
 use hyper::client::Client;
 use hyper::{Request as HyperRequest, Response as HyperResponse};
@@ -13,7 +14,6 @@ use hyper::Method;
 use hyper::http::method::InvalidMethod;
 use hyper::http::header::{HeaderMap, HeaderName, HeaderValue, InvalidHeaderName, InvalidHeaderValue};
 use hyper::http::header::CONTENT_TYPE;
-use tokio::runtime::current_thread::Runtime;
 use futures::future;
 use futures::future::Future;
 use futures::stream::Stream;
@@ -154,33 +154,30 @@ fn check_hyper_response_status(result: Result<HyperResponse<Body>, HyperError>) 
     }
 }
 
-pub fn make_provider_request(provider: &ProviderInfo, request: &Request, runtime: &mut Runtime) -> Result<Response, ProviderClientError> {
+pub fn make_provider_request(provider: &ProviderInfo, request: &Request) -> impl Future<Item = Response, Error = ProviderClientError> {
     debug!("Sending {:?} to provider", request);
     let base_url = format!("{}://{}:{}{}", provider.protocol, provider.host, provider.port, provider.path);
 
-    runtime.block_on(
-        future::done(create_hyper_request(&base_url, request))
-            .and_then(|request| {
-                Client::new().request(request)
-                    .and_then(hyper_response_to_pact_response)
-                    .map_err(|err| ProviderClientError::ResponseError(err.description().into()))
-            })
-    ).map_err(|err| {
-        debug!("Request failed: {:?}", err);
-        err
-    })
+    future::done(create_hyper_request(&base_url, request))
+        .and_then(|request| {
+            Client::new().request(request)
+                .and_then(hyper_response_to_pact_response)
+                .map_err(|err| ProviderClientError::ResponseError(err.description().into()))
+        })
+        .map_err(|err| {
+            debug!("Request failed: {:?}", err);
+            err
+        })
 }
 
-pub fn make_state_change_request(provider: &ProviderInfo, request: &Request, runtime: &mut Runtime) -> Result<(), ProviderClientError> {
+pub fn make_state_change_request(provider: &ProviderInfo, request: &Request) -> impl Future<Item = (), Error = ProviderClientError> {
     debug!("Sending {:?} to state change handler", request);
 
-    runtime.block_on(
-        future::done(create_hyper_request(&provider.state_change_url.clone().unwrap(), request))
-            .and_then(|request| {
-                Client::new().request(request)
-                    .then(check_hyper_response_status)
-            })
-    )
+    future::done(create_hyper_request(&provider.state_change_url.clone().unwrap(), request))
+        .and_then(|request| {
+            Client::new().request(request)
+                .then(check_hyper_response_status)
+        })
 }
 
 #[cfg(test)]

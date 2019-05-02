@@ -29,7 +29,6 @@ mod provider_client;
 mod pact_broker;
 
 use std::path::Path;
-use std::error::Error;
 use std::io;
 use std::fs;
 use pact_matching::*;
@@ -121,7 +120,7 @@ fn provider_client_error_to_string(err: ProviderClientError) -> String {
 
 fn verify_response_from_provider(provider: &ProviderInfo, interaction: &Interaction, runtime: &mut Runtime) -> Result<(), MismatchResult> {
   let ref expected_response = interaction.response;
-  match make_provider_request(provider, &pact_matching::generate_request(&interaction.request), runtime) {
+  match runtime.block_on(make_provider_request(provider, &pact_matching::generate_request(&interaction.request))) {
       Ok(ref actual_response) => {
           let mismatches = match_response(expected_response.clone(), actual_response.clone());
           if mismatches.is_empty() {
@@ -175,7 +174,7 @@ fn execute_state_change(provider_state: &ProviderState, provider: &ProviderInfo,
               }
               state_change_request.query = Some(query);
             }
-            match make_state_change_request(provider, &state_change_request, runtime) {
+            match runtime.block_on(make_state_change_request(provider, &state_change_request)) {
                 Ok(_) => Ok(()),
                 Err(err) => Err(MismatchResult::Error(provider_client_error_to_string(err)))
             }
