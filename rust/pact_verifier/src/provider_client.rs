@@ -29,14 +29,14 @@ pub enum ProviderClientError {
 }
 
 pub fn join_paths(base: &String, path: String) -> String {
-    let mut full_path = s!(base.trim_right_matches("/"));
+    let mut full_path = s!(base.trim_end_matches("/"));
     full_path.push('/');
-    full_path.push_str(path.trim_left_matches("/"));
+    full_path.push_str(path.trim_start_matches("/"));
     full_path
 }
 
 fn setup_headers(builder: &mut RequestBuilder, headers: &Option<HashMap<String, String>>) -> Result<(), ProviderClientError> {
-    let mut hyper_headers = builder.headers_mut().unwrap();
+    let hyper_headers = builder.headers_mut().unwrap();
     match headers {
         Some(header_map) => {
             for (k, v) in header_map {
