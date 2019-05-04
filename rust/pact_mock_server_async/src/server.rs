@@ -18,7 +18,7 @@ use futures::future::Future;
 use futures::stream::Stream;
 use itertools::Itertools;
 
-enum MockRequestError {
+enum InteractionError {
     InvalidHeaderEncoding,
     RequestBodyError,
     ResponseHeaderEncodingError,
@@ -38,10 +38,10 @@ fn extract_query_string(uri: &hyper::Uri) -> Option<HashMap<String, Vec<String>>
         .and_then(|query| parse_query_string(&query.into()))
 }
 
-fn extract_headers(headers: &hyper::HeaderMap) -> Result<Option<HashMap<String, String>>, MockRequestError> {
+fn extract_headers(headers: &hyper::HeaderMap) -> Result<Option<HashMap<String, String>>, InteractionError> {
     if headers.len() > 0 {
-        let result: Result<HashMap<String, String>, MockRequestError> = headers.keys()
-            .map(|name| -> Result<(String, String), MockRequestError> {
+        let result: Result<HashMap<String, String>, InteractionError> = headers.keys()
+            .map(|name| -> Result<(String, String), InteractionError> {
                 let values = headers.get_all(name);
                 let mut iter = values.iter();
 
@@ -54,7 +54,7 @@ fn extract_headers(headers: &hyper::HeaderMap) -> Result<Option<HashMap<String, 
                 Ok((
                     name.as_str().into(),
                     first_value.to_str()
-                        .map_err(|err| MockRequestError::InvalidHeaderEncoding)?
+                        .map_err(|err| InteractionError::InvalidHeaderEncoding)?
                         .into()
                     )
                 )
@@ -76,7 +76,7 @@ pub fn extract_body(chunk: hyper::Chunk) -> OptionalBody {
     }
 }
 
-fn hyper_request_to_pact_request(req: hyper::Request<Body>) -> impl Future<Item = Request, Error = MockRequestError> {
+fn hyper_request_to_pact_request(req: hyper::Request<Body>) -> impl Future<Item = Request, Error = InteractionError> {
     let method = req.method().to_string();
     let path = extract_path(req.uri());
     let query = extract_query_string(req.uri());
@@ -86,7 +86,7 @@ fn hyper_request_to_pact_request(req: hyper::Request<Body>) -> impl Future<Item 
         .and_then(move |headers| {
             req.into_body()
                 .concat2()
-                .map_err(|_| MockRequestError::RequestBodyError)
+                .map_err(|_| InteractionError::RequestBodyError)
                 .map(|body_chunk| (headers, body_chunk))
         })
         .and_then(|(headers, body_chunk)|
@@ -131,7 +131,7 @@ fn match_request(req: &Request, interactions: &Vec<Interaction>) -> MatchResult 
     }
 }
 
-fn set_hyper_headers(builder: &mut ResponseBuilder, headers: &Option<HashMap<String, String>>) -> Result<(), MockRequestError> {
+fn set_hyper_headers(builder: &mut ResponseBuilder, headers: &Option<HashMap<String, String>>) -> Result<(), InteractionError> {
     let hyper_headers = builder.headers_mut().unwrap();
     match headers {
         Some(header_map) => {
@@ -142,12 +142,12 @@ fn set_hyper_headers(builder: &mut ResponseBuilder, headers: &Option<HashMap<Str
                     HeaderName::from_bytes(k.as_bytes())
                         .map_err(|err| {
                             error!("Invalid header name '{}' ({})", k, err);
-                            MockRequestError::ResponseHeaderEncodingError
+                            InteractionError::ResponseHeaderEncodingError
                         })?,
                     v.parse::<HeaderValue>()
                         .map_err(|err| {
                             error!("Invalid header value '{}': '{}' ({})", k, v, err);
-                            MockRequestError::ResponseHeaderEncodingError
+                            InteractionError::ResponseHeaderEncodingError
                         })?
                 );
             }
@@ -157,7 +157,7 @@ fn set_hyper_headers(builder: &mut ResponseBuilder, headers: &Option<HashMap<Str
     Ok(())
 }
 
-fn match_result_to_hyper_response(match_result: MatchResult) -> Result<Response<Body>, MockRequestError> {
+fn match_result_to_hyper_response(match_result: MatchResult) -> Result<Response<Body>, InteractionError> {
     match match_result {
         MatchResult::RequestMatch(ref interaction) => {
             let response = pact_matching::generate_response(&interaction.response);
@@ -175,7 +175,7 @@ fn match_result_to_hyper_response(match_result: MatchResult) -> Result<Response<
                 OptionalBody::Present(ref s) => Body::from(s.clone()),
                 _ => Body::empty()
             })
-                .map_err(|_| MockRequestError::ResponseBodyError)
+                .map_err(|_| InteractionError::ResponseBodyError)
         },
         _ => {
             Ok(Response::new(Body::from("Hello")))
@@ -186,7 +186,7 @@ fn match_result_to_hyper_response(match_result: MatchResult) -> Result<Response<
 fn handle_request(
     req: hyper::Request<Body>,
     pact: Arc<Pact>,
-) -> impl Future<Item = Response<Body>, Error = MockRequestError> {
+) -> impl Future<Item = Response<Body>, Error = InteractionError> {
     debug!("Creating pact request from hyper request");
 
     hyper_request_to_pact_request(req)
@@ -202,21 +202,21 @@ fn handle_request(
 }
 
 // TODO: Should instead use some form of X-Pact headers
-fn handle_mock_request_error(result: Result<Response<Body>, MockRequestError>) -> Result<Response<Body>, Error> {
+fn handle_mock_request_error(result: Result<Response<Body>, InteractionError>) -> Result<Response<Body>, Error> {
     match result {
         Ok(response) => Ok(response),
         Err(error) => {
             let response = match error {
-                MockRequestError::InvalidHeaderEncoding => Response::builder()
+                InteractionError::InvalidHeaderEncoding => Response::builder()
                     .status(400)
                     .body(Body::from("Found an invalid header encoding")),
-                MockRequestError::RequestBodyError => Response::builder()
+                InteractionError::RequestBodyError => Response::builder()
                     .status(500)
                     .body(Body::from("Could not process request body")),
-                MockRequestError::ResponseBodyError => Response::builder()
+                InteractionError::ResponseBodyError => Response::builder()
                     .status(500)
                     .body(Body::from("Could not process response body")),
-                MockRequestError::ResponseHeaderEncodingError => Response::builder()
+                InteractionError::ResponseHeaderEncodingError => Response::builder()
                     .status(500)
                     .body(Body::from("Could not set response header"))
             };
