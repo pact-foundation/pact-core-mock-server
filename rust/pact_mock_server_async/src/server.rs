@@ -6,6 +6,7 @@ use pact_matching::models::parse_query_string;
 use std::collections::{BTreeMap, HashMap};
 use log::{log, debug, warn};
 use hyper::{Body, Response, Server, Error};
+use hyper::header::ToStrError;
 use hyper::service::service_fn_ok;
 use futures::future::Future;
 use futures::stream::Stream;
@@ -23,14 +24,26 @@ fn extract_query_string(uri: &hyper::Uri) -> Option<HashMap<String, Vec<String>>
         .and_then(|query| parse_query_string(&query.into()))
 }
 
-fn extract_headers(headers: &hyper::HeaderMap) -> Option<HashMap<String, String>> {
+fn extract_headers(headers: &hyper::HeaderMap) -> Result<Option<HashMap<String, String>>, ToStrError> {
     if headers.len() > 0 {
-        let v = headers.iter().map(|(name, value)| -> Result<(String, String), String> {
-            Ok((name.as_str().into(), value.to_string()?))
-        });
-        None
+        let result: Result<HashMap<String, String>, ToStrError> = headers.keys()
+            .map(|name| -> Result<(String, String), ToStrError> {
+                let values = headers.get_all(name);
+                let mut iter = values.iter();
+
+                let first_value = iter.next().unwrap();
+
+                if iter.next().is_some() {
+                    warn!("Multiple headers associated with '{}', but only the first is matched", name);
+                }
+
+                Ok((name.as_str().into(), first_value.to_str()?.into()))
+            })
+            .collect();
+
+        result.map(|map| Some(map))
     } else {
-        None
+        Ok(None)
     }
 }
 
