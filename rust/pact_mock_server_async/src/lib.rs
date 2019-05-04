@@ -2,6 +2,7 @@ extern crate pact_matching;
 extern crate hyper;
 extern crate futures;
 extern crate tokio;
+extern crate log;
 
 mod server;
 
