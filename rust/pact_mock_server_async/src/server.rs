@@ -97,10 +97,30 @@ fn hyper_request_to_pact_request(req: hyper::Request<Body>) -> impl Future<Item 
 fn handle_request(
     req: hyper::Request<Body>,
     pact: Arc<Pact>,
-) -> impl Future<Item = Response<Body>, Error = Error> {
+) -> impl Future<Item = Response<Body>, Error = MockRequestError> {
     debug!("Creating pact request from hyper request");
-    let req = hyper_request_to_pact_request(req);
-    future::ok(Response::new(Body::from("Hello World")))
+
+    hyper_request_to_pact_request(req)
+        .map(|req| {
+            Response::new(Body::from("Hello World"))
+        })
+}
+
+fn handle_mock_request_error(result: Result<Response<Body>, MockRequestError>) -> Result<Response<Body>, Error> {
+    match result {
+        Ok(response) => Ok(response),
+        Err(error) => {
+            let response = match error {
+                MockRequestError::InvalidHeaderEncoding => Response::builder()
+                    .status(400)
+                    .body(Body::from("Invalid header encoding")),
+                MockRequestError::RequestBodyError => Response::builder()
+                    .status(500)
+                    .body(Body::from("Could not process request body"))
+            };
+            Ok(response.unwrap())
+        }
+    }
 }
 
 pub fn start(
@@ -110,13 +130,14 @@ pub fn start(
     shutdown: impl Future<Item = (), Error = ()>,
 ) -> (impl Future<Item = (), Error = Error>, u16) {
     let pact = Arc::new(pact);
-
     let addr = ([0, 0, 0, 0], port).into();
+
     let server = Server::bind(&addr)
         .serve(move || {
             let pact = pact.clone();
             service_fn(move |req| {
                 handle_request(req, pact.clone())
+                    .then(handle_mock_request_error)
             })
         });
 
