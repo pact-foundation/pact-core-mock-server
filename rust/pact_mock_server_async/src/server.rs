@@ -17,6 +17,7 @@ use futures::future;
 use futures::future::Future;
 use futures::stream::Stream;
 use itertools::Itertools;
+use serde_json::json;
 
 enum InteractionError {
     InvalidHeaderEncoding,
@@ -157,7 +158,12 @@ fn set_hyper_headers(builder: &mut ResponseBuilder, headers: &Option<HashMap<Str
     Ok(())
 }
 
-fn match_result_to_hyper_response(match_result: MatchResult) -> Result<Response<Body>, InteractionError> {
+fn error_body(request: &Request, error: &String) -> String {
+    let body = json!({ "error" : format!("{} : {:?}", error, request) });
+    body.to_string()
+}
+
+fn match_result_to_hyper_response(request: &Request, match_result: MatchResult) -> Result<Response<Body>, InteractionError> {
     match match_result {
         MatchResult::RequestMatch(ref interaction) => {
             let response = pact_matching::generate_response(&interaction.response);
@@ -178,7 +184,13 @@ fn match_result_to_hyper_response(match_result: MatchResult) -> Result<Response<
                 .map_err(|_| InteractionError::ResponseBodyError)
         },
         _ => {
-            Ok(Response::new(Body::from("Hello")))
+            Response::builder()
+                .status(500)
+                .header(hyper::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+                .header(hyper::header::CONTENT_TYPE, "application/json; charset=utf-8")
+                .header("X-Pact", match_result.match_key())
+                .body(Body::from(error_body(&request, &match_result.match_key())))
+                .map_err(|_| InteractionError::ResponseBodyError)
         }
     }
 }
@@ -190,14 +202,14 @@ fn handle_request(
     debug!("Creating pact request from hyper request");
 
     hyper_request_to_pact_request(req)
-        .and_then(move |req| {
-            info!("Received request {:?}", req);
-            let match_result = match_request(&req, &pact.interactions);
+        .and_then(move |request| {
+            info!("Received request {:?}", request);
+            let match_result = match_request(&request, &pact.interactions);
 
             // TODO:
             // record_result(&mock_server_id, &match_result);
 
-            match_result_to_hyper_response(match_result)
+            match_result_to_hyper_response(&request, match_result)
         })
 }
 
