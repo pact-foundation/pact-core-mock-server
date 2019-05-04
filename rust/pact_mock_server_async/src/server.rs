@@ -4,10 +4,10 @@ use pact_matching::models::generators::*;
 use pact_matching::models::parse_query_string;
 
 use std::collections::{BTreeMap, HashMap};
+use std::sync::Arc;
 use log::{log, debug, warn};
 use hyper::{Body, Response, Server, Error};
-use hyper::header::ToStrError;
-use hyper::service::service_fn_ok;
+use hyper::service::service_fn;
 use futures::future;
 use futures::future::Future;
 use futures::stream::Stream;
@@ -94,19 +94,29 @@ fn hyper_request_to_pact_request(req: hyper::Request<Body>) -> impl Future<Item 
         )
 }
 
+fn handle_request(
+    req: hyper::Request<Body>,
+    pact: Arc<Pact>,
+) -> impl Future<Item = Response<Body>, Error = Error> {
+    debug!("Creating pact request from hyper request");
+    let req = hyper_request_to_pact_request(req);
+    future::ok(Response::new(Body::from("Hello World")))
+}
+
 pub fn start(
     id: String,
     pact: Pact,
     port: u16,
     shutdown: impl Future<Item = (), Error = ()>,
 ) -> (impl Future<Item = (), Error = Error>, u16) {
+    let pact = Arc::new(pact);
+
     let addr = ([0, 0, 0, 0], port).into();
     let server = Server::bind(&addr)
-        .serve(|| {
-            service_fn_ok(|req| {
-                debug!("Creating pact request from hyper request");
-                let req = hyper_request_to_pact_request(req);
-                Response::new(Body::from("Hello World"))
+        .serve(move || {
+            let pact = pact.clone();
+            service_fn(move |req| {
+                handle_request(req, pact.clone())
             })
         });
 
