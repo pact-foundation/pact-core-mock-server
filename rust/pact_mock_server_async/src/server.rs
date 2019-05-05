@@ -6,12 +6,12 @@ use pact_matching::models::matchingrules::*;
 use pact_matching::models::generators::*;
 use pact_matching::models::parse_query_string;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::sync::Arc;
 use log::{log, error, warn, info, debug};
 use hyper::{Body, Response, Server, Error};
 use hyper::http::response::{Builder as ResponseBuilder};
-use hyper::http::header::{HeaderMap, HeaderName, HeaderValue, InvalidHeaderName, InvalidHeaderValue};
+use hyper::http::header::{HeaderName, HeaderValue};
 use hyper::service::service_fn;
 use futures::future;
 use futures::future::Future;
@@ -20,7 +20,7 @@ use itertools::Itertools;
 use serde_json::json;
 
 enum InteractionError {
-    InvalidHeaderEncoding,
+    RequestHeaderEncodingError,
     RequestBodyError,
     ResponseHeaderEncodingError,
     ResponseBodyError
@@ -55,7 +55,7 @@ fn extract_headers(headers: &hyper::HeaderMap) -> Result<Option<HashMap<String, 
                 Ok((
                     name.as_str().into(),
                     first_value.to_str()
-                        .map_err(|err| InteractionError::InvalidHeaderEncoding)?
+                        .map_err(|_| InteractionError::RequestHeaderEncodingError)?
                         .into()
                     )
                 )
@@ -172,8 +172,8 @@ fn match_result_to_hyper_response(request: &Request, match_result: MatchResult) 
             info!("     body: '{}'\n\n", interaction.response.body.str_value());
 
             let mut builder = Response::builder();
-            builder.status(response.status);
 
+            builder.status(response.status);
             builder.header(hyper::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*");
             set_hyper_headers(&mut builder, &response.headers)?;
 
@@ -219,7 +219,7 @@ fn handle_mock_request_error(result: Result<Response<Body>, InteractionError>) -
         Ok(response) => Ok(response),
         Err(error) => {
             let response = match error {
-                InteractionError::InvalidHeaderEncoding => Response::builder()
+                InteractionError::RequestHeaderEncodingError => Response::builder()
                     .status(400)
                     .body(Body::from("Found an invalid header encoding")),
                 InteractionError::RequestBodyError => Response::builder()
