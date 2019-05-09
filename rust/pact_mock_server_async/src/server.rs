@@ -241,12 +241,12 @@ pub fn start(
     id: String,
     pact: Pact,
     port: u16,
-    shutdown: impl Future<Item = (), Error = ()>,
-) -> (impl Future<Item = (), Error = Error>, u16) {
+    shutdown: impl Future<Item = (), Error = ()>
+) -> Result<(impl Future<Item = (), Error = ()>, u16), hyper::Error> {
     let pact = Arc::new(pact);
     let addr = ([0, 0, 0, 0], port).into();
 
-    let server = Server::bind(&addr)
+    let server = Server::try_bind(&addr)?
         .serve(move || {
             let pact = pact.clone();
             service_fn(move |req| {
@@ -257,5 +257,11 @@ pub fn start(
 
     let port = server.local_addr().port();
 
-    (server.with_graceful_shutdown(shutdown), port)
+    let prepared_server = server
+        .with_graceful_shutdown(shutdown)
+        .map_err(move |err| {
+            eprintln!("server error: {}", err);
+        });
+
+    Ok((prepared_server, port))
 }
