@@ -237,12 +237,12 @@ fn handle_mock_request_error(result: Result<Response<Body>, InteractionError>) -
     }
 }
 
-pub fn start(
+pub fn create_and_bind(
     id: String,
     pact: Pact,
     port: u16,
     shutdown: impl Future<Item = (), Error = ()>
-) -> Result<(impl Future<Item = (), Error = ()>, u16), hyper::Error> {
+) -> Result<(impl Future<Item = (), Error = ()>, std::net::SocketAddr), hyper::Error> {
     let pact = Arc::new(pact);
     let addr = ([0, 0, 0, 0], port).into();
 
@@ -255,7 +255,7 @@ pub fn start(
             })
         });
 
-    let port = server.local_addr().port();
+    let socket_addr = server.local_addr();
 
     let prepared_server = server
         .with_graceful_shutdown(shutdown)
@@ -263,5 +263,5 @@ pub fn start(
             eprintln!("server error: {}", err);
         });
 
-    Ok((prepared_server, port))
+    Ok((prepared_server, socket_addr))
 }

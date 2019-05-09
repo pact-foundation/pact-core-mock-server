@@ -4,19 +4,23 @@ extern crate serde_json;
 extern crate hyper;
 extern crate futures;
 extern crate tokio;
-extern crate log;
+#[macro_use] extern crate log;
 extern crate itertools;
 #[macro_use] extern crate lazy_static;
 
 mod server;
+mod server_manager;
 
 use pact_matching::models::{Pact, Interaction, Request, OptionalBody, PactSpecification};
 use pact_matching::Mismatch;
 use pact_matching::s;
+use std::ffi::CString;
 use std::sync::Mutex;
+use std::collections::{BTreeMap, HashMap};
+use std::path::PathBuf;
+use std::io::{self, Read, Write};
 use serde_json::json;
 use futures::future::Future;
-use futures::stream::Stream;
 
 /// Enum to define a match result
 #[derive(Debug, Clone, PartialEq)]
@@ -81,11 +85,8 @@ fn mismatches_to_json(request: &Request, mismatches: &Vec<Mismatch>) -> serde_js
 }
 
 lazy_static! {
-    static ref RUNTIME: Mutex<tokio::runtime::Runtime> = Mutex::new(
-        tokio::runtime::Builder::new()
-            .blocking_threads(1)
-            .build()
-            .unwrap()
+    static ref MANAGER: Mutex<server_manager::ServerManager> = Mutex::new(
+        server_manager::ServerManager::new()
     );
 }
 
@@ -99,28 +100,12 @@ lazy_static! {
 ///
 /// - If a mock server is not able to be started
 pub fn start_mock_server(id: String, pact: Pact, port: i32) -> Result<i32, String> {
-    let (shutdown_tx, shutdown_rx) = futures::sync::oneshot::channel();
-
-    let (server, port) = server::start(id, pact, port as u16,
-        shutdown_rx.map_err(|_| ()),
-        //futures::future::done(Ok(())),
-        //Some(init_result_tx)
-    ).map_err(|err| format!("Could not start server: {}", err))?;
-
-    let mut runtime = RUNTIME.lock().unwrap();
-    //let mut runtime = tokio::runtime::current_thread::Runtime::new().unwrap();
-    runtime.spawn(server);
-
-    Ok(port as i32)
+    MANAGER.lock().unwrap()
+        .start_mock_server(id, pact, port as u16)
+        .map(|port| port as i32)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn can_start_mock_server() {
-        let result = start_mock_server("foobar".into(), Pact::default(), 0);
-        assert!(result.is_ok());
-    }
 }
