@@ -1,16 +1,13 @@
 use server;
 use MatchResult;
 
-use pact_matching::models::{Pact, Interaction, Request, OptionalBody, PactSpecification};
-use pact_matching::Mismatch;
-use pact_matching::s;
+use pact_matching::models::{Pact, Interaction, PactSpecification};
 use std::ffi::CString;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::path::PathBuf;
-use std::io::{self, Read, Write};
+use std::io;
 use serde_json::json;
 use futures::future::Future;
-use futures::stream::Stream;
 
 /// Struct to represent a mock server
 #[derive(Debug)]
@@ -19,28 +16,32 @@ pub struct MockServer {
     pub id: String,
     /// Address the mock server is running on
     pub addr: std::net::SocketAddr,
-    /// Receiver of match results
-    matches_rx: std::sync::mpsc::Receiver<MatchResult>,
     /// List of all match results for requests this mock server has received
     pub matches: Vec<MatchResult>,
     /// List of resources that need to be cleaned up when the mock server completes
     pub resources: Vec<CString>,
     /// Pact that this mock server is based on
-    pub pact: Pact
+    pub pact: Pact,
+    /// Receiver of match results
+    matches_rx: std::sync::mpsc::Receiver<MatchResult>,
+    /// Shutdown signal
+    shutdown_tx: futures::sync::oneshot::Sender<()>
 }
 
 impl MockServer {
     /// Creates a new mock server with the given ID, pact and socket address
     pub fn new(id: String, pact: Pact, addr: std::net::SocketAddr,
-        matches_rx: std::sync::mpsc::Receiver<MatchResult>
+        matches_rx: std::sync::mpsc::Receiver<MatchResult>,
+        shutdown_tx: futures::sync::oneshot::Sender<()>
     ) -> MockServer {
         MockServer {
             id: id.clone(),
             addr: addr,
-            matches_rx: matches_rx,
             matches: vec![],
             resources: vec![],
-            pact: pact
+            pact: pact,
+            matches_rx: matches_rx,
+            shutdown_tx: shutdown_tx
         }
     }
 
@@ -54,12 +55,14 @@ impl MockServer {
         })
     }
 
-    fn read_matches(&mut self) {
+    fn read_matches_from_server(&mut self) {
         self.matches.extend(self.matches_rx.iter());
     }
 
     /// Returns all the mismatches that have occurred with this mock server
     pub fn mismatches(&self) -> Vec<MatchResult> {
+        //self.matches.extend(self.matches_rx.iter());
+
         let mismatches = self.matches.iter()
             .filter(|m| !m.matched())
             .map(|m| m.clone());
@@ -134,10 +137,36 @@ impl ServerManager {
 
         self.runtime.spawn(server);
         self.mock_servers.insert(id.clone(), Box::new(
-            MockServer::new(id, pact, socket_addr, matches_rx)
+            MockServer::new(id, pact, socket_addr, matches_rx, shutdown_tx)
         ));
 
         Ok(socket_addr.port())
+    }
+
+    pub fn shutdown_mock_server_by_port(&mut self, port: u16) -> bool {
+        debug!("Shutting down mock server with port {}", port);
+        let result = self.mock_servers.iter()
+            .find(|ms| ms.1.addr.port() == port)
+            .map(|ms| ms.1.id.clone());
+
+        if let Some(id) = result {
+            if let Some(mock_server) = self.mock_servers.remove(&id) {
+                mock_server.shutdown_tx.send(()).unwrap();
+                return true
+            }
+        }
+
+        false
+    }
+
+    pub fn find_server_by_port_mut<R>(&mut self, mock_server_port: u16, f: &Fn(&mut MockServer) -> R) -> Option<R> {
+        match self.mock_servers.iter_mut().find(|ms| ms.1.addr.port() == mock_server_port) {
+            Some(mock_server) => {
+                mock_server.1.read_matches_from_server();
+                Some(f(mock_server.1))
+            },
+            None => None
+        }
     }
 }
 
@@ -146,20 +175,29 @@ mod tests {
     use super::*;
 
     #[test]
-    fn mock_server_read_matches_should_read_nothing_if_server_not_started() {
+    fn mock_server_read_matches_should_read_matches_when_sender_is_closed() {
+        let match_result = MatchResult::RequestMatch(Interaction::default());
+
         let mut mock_server = {
-            let (_, matches_rx) = std::sync::mpsc::channel();
-            MockServer::new("foobar".into(), Pact::default(), ([0, 0, 0, 0], 0).into(), matches_rx)
+            let (shutdown_tx, _) = futures::sync::oneshot::channel();
+            let (matches_tx, matches_rx) = std::sync::mpsc::channel();
+
+            matches_tx.send(match_result.clone()).unwrap();
+
+            MockServer::new("foobar".into(), Pact::default(), ([0, 0, 0, 0], 0).into(), matches_rx, shutdown_tx)
         };
 
-        mock_server.read_matches();
-        assert_eq!(mock_server.matches.len(), 0);
+        mock_server.read_matches_from_server();
+        assert_eq!(mock_server.matches, vec![match_result]);
     }
 
     #[test]
-    fn can_start_mock_server() {
+    fn manager_should_start_and_shutdown_mock_server() {
         let mut manager = ServerManager::new();
-        let result = manager.start_mock_server("foobar".into(), Pact::default(), 0);
-        assert!(result.is_ok())
+        let start_result = manager.start_mock_server("foobar".into(), Pact::default(), 0);
+        assert!(start_result.is_ok());
+
+        let stopped = manager.shutdown_mock_server_by_port(start_result.unwrap());
+        assert!(stopped);
     }
 }
