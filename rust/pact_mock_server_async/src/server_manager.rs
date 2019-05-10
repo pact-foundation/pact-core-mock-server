@@ -128,7 +128,6 @@ impl ServerManager {
         let (matches_tx, matches_rx) = std::sync::mpsc::channel();
 
         let (server, socket_addr) = server::create_and_bind(
-            id.clone(),
             pact.clone(),
             port as u16,
             shutdown_rx.map_err(|_| ()),

@@ -1,7 +1,7 @@
 use ::MatchResult;
 
 use pact_matching::Mismatch;
-use pact_matching::models::{Pact, Interaction, Request, OptionalBody, PactSpecification};
+use pact_matching::models::{Pact, Interaction, Request, OptionalBody};
 use pact_matching::models::matchingrules::*;
 use pact_matching::models::generators::*;
 use pact_matching::models::parse_query_string;
@@ -238,7 +238,6 @@ fn handle_mock_request_error(result: Result<Response<Body>, InteractionError>) -
 }
 
 pub fn create_and_bind(
-    id: String,
     pact: Pact,
     port: u16,
     shutdown: impl Future<Item = (), Error = ()>,
