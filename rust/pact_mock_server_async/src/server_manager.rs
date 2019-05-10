@@ -10,14 +10,17 @@ use std::path::PathBuf;
 use std::io::{self, Read, Write};
 use serde_json::json;
 use futures::future::Future;
+use futures::stream::Stream;
 
 /// Struct to represent a mock server
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct MockServer {
     /// Mock server unique ID
     pub id: String,
     /// Address the mock server is running on
     pub addr: std::net::SocketAddr,
+    /// Receiver of match results
+    matches_rx: std::sync::mpsc::Receiver<MatchResult>,
     /// List of all match results for requests this mock server has received
     pub matches: Vec<MatchResult>,
     /// List of resources that need to be cleaned up when the mock server completes
@@ -28,10 +31,13 @@ pub struct MockServer {
 
 impl MockServer {
     /// Creates a new mock server with the given ID, pact and socket address
-    pub fn new(id: String, pact: Pact, addr: std::net::SocketAddr) -> MockServer {
+    pub fn new(id: String, pact: Pact, addr: std::net::SocketAddr,
+        matches_rx: std::sync::mpsc::Receiver<MatchResult>
+    ) -> MockServer {
         MockServer {
             id: id.clone(),
             addr: addr,
+            matches_rx: matches_rx,
             matches: vec![],
             resources: vec![],
             pact: pact
@@ -46,6 +52,10 @@ impl MockServer {
             "provider" : json!(self.pact.provider.name.clone()),
             "status" : json!(if self.mismatches().is_empty() { "ok" } else { "error" })
         })
+    }
+
+    fn read_matches(&mut self) {
+        self.matches.extend(self.matches_rx.iter());
     }
 
     /// Returns all the mismatches that have occurred with this mock server
@@ -112,17 +122,19 @@ impl ServerManager {
 
     pub fn start_mock_server(&mut self, id: String, pact: Pact, port: u16) -> Result<u16, String> {
         let (shutdown_tx, shutdown_rx) = futures::sync::oneshot::channel();
+        let (matches_tx, matches_rx) = std::sync::mpsc::channel();
 
         let (server, socket_addr) = server::create_and_bind(
             id.clone(),
             pact.clone(),
             port as u16,
-            shutdown_rx.map_err(|_| ())
+            shutdown_rx.map_err(|_| ()),
+            matches_tx
         ).map_err(|err| format!("Could not start server: {}", err))?;
 
         self.runtime.spawn(server);
         self.mock_servers.insert(id.clone(), Box::new(
-            MockServer::new(id, pact, socket_addr)
+            MockServer::new(id, pact, socket_addr, matches_rx)
         ));
 
         Ok(socket_addr.port())
@@ -131,8 +143,18 @@ impl ServerManager {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
+
+    #[test]
+    fn mock_server_read_matches_should_read_nothing_if_server_not_started() {
+        let mut mock_server = {
+            let (_, matches_rx) = std::sync::mpsc::channel();
+            MockServer::new("foobar".into(), Pact::default(), ([0, 0, 0, 0], 0).into(), matches_rx)
+        };
+
+        mock_server.read_matches();
+        assert_eq!(mock_server.matches.len(), 0);
+    }
 
     #[test]
     fn can_start_mock_server() {

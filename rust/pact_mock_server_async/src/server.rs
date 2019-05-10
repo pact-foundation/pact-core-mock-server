@@ -198,6 +198,7 @@ fn match_result_to_hyper_response(request: &Request, match_result: MatchResult) 
 fn handle_request(
     req: hyper::Request<Body>,
     pact: Arc<Pact>,
+    matches_tx: std::sync::mpsc::Sender<MatchResult>
 ) -> impl Future<Item = Response<Body>, Error = InteractionError> {
     debug!("Creating pact request from hyper request");
 
@@ -206,8 +207,7 @@ fn handle_request(
             info!("Received request {:?}", request);
             let match_result = match_request(&request, &pact.interactions);
 
-            // TODO:
-            // record_result(&mock_server_id, &match_result);
+            matches_tx.send(match_result.clone()).unwrap();
 
             match_result_to_hyper_response(&request, match_result)
         })
@@ -241,7 +241,8 @@ pub fn create_and_bind(
     id: String,
     pact: Pact,
     port: u16,
-    shutdown: impl Future<Item = (), Error = ()>
+    shutdown: impl Future<Item = (), Error = ()>,
+    matches_tx: std::sync::mpsc::Sender<MatchResult>
 ) -> Result<(impl Future<Item = (), Error = ()>, std::net::SocketAddr), hyper::Error> {
     let pact = Arc::new(pact);
     let addr = ([0, 0, 0, 0], port).into();
@@ -249,8 +250,10 @@ pub fn create_and_bind(
     let server = Server::try_bind(&addr)?
         .serve(move || {
             let pact = pact.clone();
+            let matches_tx = matches_tx.clone();
+
             service_fn(move |req| {
-                handle_request(req, pact.clone())
+                handle_request(req, pact.clone(), matches_tx.clone())
                     .then(handle_mock_request_error)
             })
         });
