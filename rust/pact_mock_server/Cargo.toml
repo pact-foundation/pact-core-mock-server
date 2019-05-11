@@ -24,10 +24,10 @@ maplit = "0.1.4"
 lazy_static = "0.2.8"
 uuid = { version = "0.6", features = ["v4"] }
 itertools = "0.6.1"
-
-[dependencies.hyper]
-version = "0.9.7"
-default-features = false
+tokio = "0.1.14"
+futures = "0.1"
+hyper = "0.12"
+bytes = "0.4.4"
 
 [lib]
 crate-type = ["cdylib", "staticlib", "rlib"]
