@@ -73,6 +73,7 @@ use std::panic::catch_unwind;
 use std::sync::Mutex;
 use serde_json::json;
 use uuid::Uuid;
+use server_manager::ServerManager;
 
 /// Enum to define a match result
 #[derive(Debug, Clone, PartialEq)]
@@ -144,10 +145,13 @@ pub enum MockServerError {
   MockServerFailedToStart
 }
 
+///
+/// A global thread-safe, "init-on-demand" reference to a server manager.
+/// When the server manager is initialized, it starts a separate thread on which
+/// to serve requests.
+///
 lazy_static! {
-    static ref MANAGER: Mutex<server_manager::ServerManager> = Mutex::new(
-        server_manager::ServerManager::new()
-    );
+    static ref MANAGER: Mutex<Option<ServerManager>> = Mutex::new(Option::None);
 }
 
 /// Starts a mock server with the given ID, pact and port number. The ID needs to be unique. A port
@@ -161,6 +165,7 @@ lazy_static! {
 /// - If a mock server is not able to be started
 pub fn start_mock_server(id: String, pact: Pact, port: i32) -> Result<i32, String> {
     MANAGER.lock().unwrap()
+        .get_or_insert_with(ServerManager::new)
         .start_mock_server(id, pact, port as u16)
         .map(|port| port as i32)
 }
@@ -235,9 +240,12 @@ pub extern fn create_mock_server_ffi(pact_str: *const c_char, port: int32_t) -> 
 /// passed in, and if all requests have been matched, true is returned. False is returned if there
 /// is no mock server on the given port, or if any request has not been successfully matched.
 pub extern fn mock_server_matched(mock_server_port: i32) -> bool {
-    MANAGER.lock().unwrap().find_server_by_port_mut(mock_server_port as u16, &|mock_server| {
-        mock_server.mismatches().is_empty()
-    }).unwrap_or(false)
+    MANAGER.lock().unwrap()
+        .get_or_insert_with(ServerManager::new)
+        .find_server_by_port_mut(mock_server_port as u16, &|mock_server| {
+            mock_server.mismatches().is_empty()
+        })
+        .unwrap_or(false)
 }
 
 /// External interface to check if a mock server has matched all its requests. The port number is
@@ -265,12 +273,14 @@ pub extern fn mock_server_matched_ffi(mock_server_port: int32_t) -> bool {
 /// If there is no mock server with the provided port number, `None` is returned.
 ///
 pub extern fn mock_server_mismatches(mock_server_port: i32) -> Option<std::string::String> {
-  MANAGER.lock().unwrap().find_server_by_port_mut(mock_server_port as u16, &|mock_server| {
-    let mismatches = mock_server.mismatches().iter()
-      .map(|mismatch| mismatch.to_json() )
-      .collect::<Vec<serde_json::Value>>();
-    json!(mismatches).to_string()
-  })
+    MANAGER.lock().unwrap()
+        .get_or_insert_with(ServerManager::new)
+        .find_server_by_port_mut(mock_server_port as u16, &|mock_server| {
+            let mismatches = mock_server.mismatches().iter()
+            .map(|mismatch| mismatch.to_json() )
+            .collect::<Vec<serde_json::Value>>();
+            json!(mismatches).to_string()
+        })
 }
 
 /// External interface to get all the mismatches from a mock server. The port number of the mock
@@ -289,16 +299,18 @@ pub extern fn mock_server_mismatches(mock_server_port: i32) -> Option<std::strin
 #[no_mangle]
 pub extern fn mock_server_mismatches_ffi(mock_server_port: int32_t) -> *mut c_char {
     let result = catch_unwind(|| {
-        let result = MANAGER.lock().unwrap().find_server_by_port_mut(mock_server_port as u16, &|ref mut mock_server| {
-            let mismatches = mock_server.mismatches().iter()
-                .map(|mismatch| mismatch.to_json() )
-                .collect::<Vec<serde_json::Value>>();
-            let json = json!(mismatches);
-            let s = CString::new(json.to_string()).unwrap();
-            let p = s.as_ptr();
-            mock_server.resources.push(s);
-            p
-        });
+        let result = MANAGER.lock().unwrap()
+            .get_or_insert_with(ServerManager::new)
+            .find_server_by_port_mut(mock_server_port as u16, &|ref mut mock_server| {
+                let mismatches = mock_server.mismatches().iter()
+                    .map(|mismatch| mismatch.to_json() )
+                    .collect::<Vec<serde_json::Value>>();
+                let json = json!(mismatches);
+                let s = CString::new(json.to_string()).unwrap();
+                let p = s.as_ptr();
+                mock_server.resources.push(s);
+                p
+            });
         match result {
             Some(p) => p as *mut _,
             None => 0 as *mut _
@@ -324,7 +336,9 @@ pub extern fn mock_server_mismatches_ffi(mock_server_port: int32_t) -> *mut c_ch
 #[no_mangle]
 pub extern fn cleanup_mock_server_ffi(mock_server_port: int32_t) -> bool {
     let result = catch_unwind(|| {
-        MANAGER.lock().unwrap().shutdown_mock_server_by_port(mock_server_port as u16)
+        MANAGER.lock().unwrap()
+            .get_or_insert_with(ServerManager::new)
+            .shutdown_mock_server_by_port(mock_server_port as u16)
     });
 
     match result {
@@ -351,14 +365,18 @@ pub enum WritePactFileErr {
 /// Returns `Ok` if the pact file was successfully written. Returns an `Err` if the file can
 /// not be written, or there is no mock server running on that port.
 pub extern fn write_pact_file(mock_server_port: i32, directory: Option<String>) -> Result<(), WritePactFileErr> {
-    match MANAGER.lock().unwrap().find_server_by_port_mut(mock_server_port as u16, &|mock_server| {
-        mock_server.write_pact(&directory)
-          .map(|_| ())
-          .map_err(|err| {
-            error!("Failed to write pact to file - {}", err);
-            WritePactFileErr::IOError
-          })
-    }) {
+    let opt_result = MANAGER.lock().unwrap()
+        .get_or_insert_with(ServerManager::new)
+        .find_server_by_port_mut(mock_server_port as u16, &|mock_server| {
+            mock_server.write_pact(&directory)
+                .map(|_| ())
+                .map_err(|err| {
+                    error!("Failed to write pact to file - {}", err);
+                    WritePactFileErr::IOError
+                })
+        });
+
+    match opt_result {
         Some(result) => result,
         None => {
             error!("No mock server running on port {}", mock_server_port);
