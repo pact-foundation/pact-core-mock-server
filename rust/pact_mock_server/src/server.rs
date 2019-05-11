@@ -271,7 +271,6 @@ pub fn create_and_bind(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::net::TcpStream;
     use tokio::runtime::current_thread::Runtime;
 
     #[test]
@@ -281,23 +280,19 @@ mod tests {
         let (shutdown_tx, shutdown_rx) = futures::sync::oneshot::channel();
         let (matches_tx, matches_rx) = std::sync::mpsc::channel();
 
-        println!("create_and_bind...");
-
         let (future, _) = create_and_bind(Pact::default(), 0, shutdown_rx.map_err(|_| ()), matches_tx).unwrap();
 
-        println!("spawning...");
         runtime.spawn(future);
-
-        println!("sending shutdown...");
         shutdown_tx.send(()).unwrap();
 
-        let mut matches = vec![];
-        println!("waiting for matches...");
-        matches.extend(matches_rx.iter());
+        // Channel is still open and has no items
+        assert!(matches_rx.try_recv().is_err());
 
-        println!("Running local runtime...");
+        // Server has shut down, now flush the server future from runtime
         runtime.run().unwrap();
 
-        assert_eq!(matches.len(), 0);
+        // Match channel should now be closed and can read 0 matches.
+        let all_matches: Vec<MatchResult> = matches_rx.iter().collect();
+        assert_eq!(all_matches, vec![]);
     }
 }

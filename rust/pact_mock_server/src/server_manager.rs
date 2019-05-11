@@ -55,8 +55,14 @@ impl MockServer {
         })
     }
 
+    /// Read pending matches from the running server. Will not block.
     fn read_matches_from_server(&mut self) {
-        self.matches.extend(self.matches_rx.iter());
+        loop {
+            match self.matches_rx.try_recv() {
+                Ok(match_result) => self.matches.push(match_result),
+                Err(_) => break
+            }
+        }
     }
 
     /// Returns all the mismatches that have occurred with this mock server
@@ -201,6 +207,12 @@ mod tests {
 
         // Server should be up
         assert!(TcpStream::connect(("127.0.0.1", server_port)).is_ok());
+
+        // Should be able to read matches without blocking
+        let matches = manager.find_server_by_port_mut(server_port, &|mock_server| {
+            mock_server.matches.clone()
+        });
+        assert_eq!(matches, Some(vec![]));
 
         let stopped = manager.shutdown_mock_server_by_port(server_port);
         assert!(stopped);
