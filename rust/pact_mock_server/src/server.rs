@@ -267,3 +267,37 @@ pub fn create_and_bind(
 
     Ok((prepared_server, socket_addr))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::TcpStream;
+    use tokio::runtime::current_thread::Runtime;
+
+    #[test]
+    fn can_fetch_results_on_current_thread() {
+        let mut runtime = Runtime::new().unwrap();
+
+        let (shutdown_tx, shutdown_rx) = futures::sync::oneshot::channel();
+        let (matches_tx, matches_rx) = std::sync::mpsc::channel();
+
+        println!("create_and_bind...");
+
+        let (future, _) = create_and_bind(Pact::default(), 0, shutdown_rx.map_err(|_| ()), matches_tx).unwrap();
+
+        println!("spawning...");
+        runtime.spawn(future);
+
+        println!("sending shutdown...");
+        shutdown_tx.send(()).unwrap();
+
+        let mut matches = vec![];
+        println!("waiting for matches...");
+        matches.extend(matches_rx.iter());
+
+        println!("Running local runtime...");
+        runtime.run().unwrap();
+
+        assert_eq!(matches.len(), 0);
+    }
+}
