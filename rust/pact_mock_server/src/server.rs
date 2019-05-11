@@ -1,6 +1,5 @@
-use ::MatchResult;
+use matching::{MatchResult, match_request};
 
-use pact_matching::Mismatch;
 use pact_matching::models::{Pact, Interaction, Request, OptionalBody};
 use pact_matching::models::matchingrules::*;
 use pact_matching::models::generators::*;
@@ -16,7 +15,6 @@ use hyper::service::service_fn;
 use futures::future;
 use futures::future::Future;
 use futures::stream::Stream;
-use itertools::Itertools;
 use serde_json::json;
 
 enum InteractionError {
@@ -101,35 +99,6 @@ fn hyper_request_to_pact_request(req: hyper::Request<Body>) -> impl Future<Item 
                 generators: Generators::default()
             })
         )
-}
-
-fn method_or_path_mismatch(mismatches: &Vec<Mismatch>) -> bool {
-    mismatches.iter()
-        .map(|mismatch| mismatch.mismatch_type())
-        .any(|mismatch_type| mismatch_type == "MethodMismatch" || mismatch_type == "PathMismatch")
-}
-
-fn match_request(req: &Request, interactions: &Vec<Interaction>) -> MatchResult {
-    let match_results = interactions
-        .into_iter()
-        .map(|i| (i.clone(), pact_matching::match_request(i.request.clone(), req.clone())))
-        .sorted_by(|i1, i2| {
-            let list1 = i1.1.clone().into_iter().map(|m| m.mismatch_type()).unique().count();
-            let list2 = i2.1.clone().into_iter().map(|m| m.mismatch_type()).unique().count();
-            Ord::cmp(&list1, &list2)
-        });
-    match match_results.first() {
-        Some(res) => {
-            if res.1.is_empty() {
-                MatchResult::RequestMatch(res.0.clone())
-            } else if method_or_path_mismatch(&res.1) {
-                MatchResult::RequestNotFound(req.clone())
-            } else {
-                MatchResult::RequestMismatch(res.0.clone(), res.1.clone())
-            }
-        },
-        None => MatchResult::RequestNotFound(req.clone())
-    }
 }
 
 fn set_hyper_headers(builder: &mut ResponseBuilder, headers: &Option<HashMap<String, String>>) -> Result<(), InteractionError> {

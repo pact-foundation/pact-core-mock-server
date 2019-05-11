@@ -1,5 +1,5 @@
 use server;
-use MatchResult;
+use matching::MatchResult;
 
 use pact_matching::models::{Pact, Interaction, PactSpecification};
 use std::ffi::CString;
