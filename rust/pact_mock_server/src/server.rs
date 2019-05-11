@@ -1,6 +1,6 @@
 use matching::{MatchResult, match_request};
 
-use pact_matching::models::{Pact, Interaction, Request, OptionalBody};
+use pact_matching::models::{Pact, Request, OptionalBody};
 use pact_matching::models::matchingrules::*;
 use pact_matching::models::generators::*;
 use pact_matching::models::parse_query_string;
