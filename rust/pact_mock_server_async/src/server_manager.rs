@@ -172,6 +172,7 @@ impl ServerManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::net::TcpStream;
 
     #[test]
     fn mock_server_read_matches_should_read_matches_when_sender_is_closed() {
@@ -194,9 +195,20 @@ mod tests {
     fn manager_should_start_and_shutdown_mock_server() {
         let mut manager = ServerManager::new();
         let start_result = manager.start_mock_server("foobar".into(), Pact::default(), 0);
-        assert!(start_result.is_ok());
 
-        let stopped = manager.shutdown_mock_server_by_port(start_result.unwrap());
+        assert!(start_result.is_ok());
+        let server_port = start_result.unwrap();
+
+        // Server should be up
+        assert!(TcpStream::connect(("127.0.0.1", server_port)).is_ok());
+
+        let stopped = manager.shutdown_mock_server_by_port(server_port);
         assert!(stopped);
+
+        // The tokio runtime is now out of tasks
+        manager.runtime.shutdown_on_idle().wait().unwrap();
+
+        // Server should be down
+        assert!(TcpStream::connect(("127.0.0.1", server_port)).is_err());
     }
 }
