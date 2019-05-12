@@ -117,8 +117,6 @@ impl MockServer {
 
     /// Returns all the mismatches that have occurred with this mock server
     pub fn mismatches(&self) -> Vec<MatchResult> {
-        //self.matches.extend(self.matches_rx.iter());
-
         let mismatches = self.matches.iter()
             .filter(|m| !m.matched())
             .map(|m| m.clone());
@@ -151,7 +149,9 @@ impl MockServer {
         info!("Writing pact out to '{}'", filename.display());
 
         // Lock so that no two threads can read/write pact file at the same time.
-        let _write_lock = PACT_FILE_MUTEX.lock().unwrap();
+        // TODO: Could use a fs-based lock in case multiple processes are doing
+        // this concurrently?
+        let _file_lock = PACT_FILE_MUTEX.lock().unwrap();
 
         match self.pact.write_pact(filename.as_path(), PactSpecification::V3) {
             Ok(_) => Ok(()),
