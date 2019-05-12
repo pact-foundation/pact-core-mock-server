@@ -114,9 +114,9 @@ impl ValidatingMockServer {
             .ok_or("Mock server already dropped")?;
 
         // Kill the server
-        // TODO: Is this necessary?
-        //mock_server.shutdown_tx.send(()).unwrap();
+        mock_server.shutdown()?;
 
+        // Read in all match results
         mock_server.read_match_results_from_server();
 
         // Look up any mismatches which occurred.

@@ -29,7 +29,7 @@ pub struct MockServer {
     /// Receiver of match results
     matches_rx: std::sync::mpsc::Receiver<MatchResult>,
     /// Shutdown signal
-    pub shutdown_tx: futures::sync::oneshot::Sender<()>
+    shutdown_tx: Option<futures::sync::oneshot::Sender<()>>
 }
 
 impl MockServer {
@@ -71,20 +71,23 @@ impl MockServer {
             resources: vec![],
             pact: pact,
             matches_rx: matches_rx,
-            shutdown_tx: shutdown_tx
+            shutdown_tx: Some(shutdown_tx)
         };
 
         Ok((mock_server, future))
     }
 
-    /// Converts this mock server to a `Value` struct
-    pub fn to_json(&self) -> serde_json::Value {
-        json!({
-            "id" : json!(self.id.clone()),
-            "port" : json!(self.addr.port() as u64),
-            "provider" : json!(self.pact.provider.name.clone()),
-            "status" : json!(if self.mismatches().is_empty() { "ok" } else { "error" })
-        })
+    /// Send the shutdown signal to the server
+    pub fn shutdown(&mut self) -> Result<(), String> {
+        match self.shutdown_tx.take() {
+            Some(sender) => {
+                match sender.send(()) {
+                    Ok(()) => Ok(()),
+                    Err(_) => Err("Problem sending shutdown signal to mock server".into())
+                }
+            },
+            _ => Err("Mock server already shut down".into())
+        }
     }
 
     /// Read pending matches from the running server. Will not block.
@@ -95,6 +98,16 @@ impl MockServer {
                 Err(_) => break
             }
         }
+    }
+
+    /// Converts this mock server to a `Value` struct
+    pub fn to_json(&self) -> serde_json::Value {
+        json!({
+            "id" : json!(self.id.clone()),
+            "port" : json!(self.addr.port() as u64),
+            "provider" : json!(self.pact.provider.name.clone()),
+            "status" : json!(if self.mismatches().is_empty() { "ok" } else { "error" })
+        })
     }
 
     /// Returns all the mismatches that have occurred with this mock server
@@ -131,6 +144,8 @@ impl MockServer {
         };
 
         info!("Writing pact out to '{}'", filename.display());
+
+        // Lock so that no two threads can read/write pact file at the same time.
         let _write_lock = PACT_FILE_MUTEX.lock().unwrap();
 
         match self.pact.write_pact(filename.as_path(), PactSpecification::V3) {
@@ -169,7 +184,7 @@ mod tests {
                 resources: vec![],
                 pact: Pact::default(),
                 matches_rx: matches_rx,
-                shutdown_tx: shutdown_tx
+                shutdown_tx: Some(shutdown_tx)
             }
         };
 

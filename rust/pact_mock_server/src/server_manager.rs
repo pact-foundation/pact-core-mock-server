@@ -36,9 +36,11 @@ impl ServerManager {
             .map(|ms| ms.1.id.clone());
 
         if let Some(id) = result {
-            if let Some(mock_server) = self.mock_servers.remove(&id) {
-                mock_server.shutdown_tx.send(()).unwrap();
-                return true
+            if let Some(mut mock_server) = self.mock_servers.remove(&id) {
+                return match mock_server.shutdown() {
+                    Ok(()) => true,
+                    Err(_) => false
+                }
             }
         }
 
