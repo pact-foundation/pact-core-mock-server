@@ -1,4 +1,4 @@
-use server;
+use hyper_server;
 use matching::MatchResult;
 
 use pact_matching::models::{Pact, Interaction, PactSpecification};
@@ -133,7 +133,7 @@ impl ServerManager {
         let (shutdown_tx, shutdown_rx) = futures::sync::oneshot::channel();
         let (matches_tx, matches_rx) = std::sync::mpsc::channel();
 
-        let (server, socket_addr) = server::create_and_bind(
+        let (server, socket_addr) = hyper_server::create_and_bind(
             pact.clone(),
             port as u16,
             shutdown_rx.map_err(|_| ()),

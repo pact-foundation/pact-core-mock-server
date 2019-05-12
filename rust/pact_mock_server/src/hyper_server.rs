@@ -66,7 +66,7 @@ fn extract_headers(headers: &hyper::HeaderMap) -> Result<Option<HashMap<String, 
     }
 }
 
-pub fn extract_body(chunk: hyper::Chunk) -> OptionalBody {
+fn extract_body(chunk: hyper::Chunk) -> OptionalBody {
     let bytes = chunk.into_bytes();
     if bytes.len() > 0 {
         OptionalBody::Present(bytes.to_vec())
