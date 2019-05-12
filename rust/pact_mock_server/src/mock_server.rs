@@ -5,8 +5,13 @@ use pact_matching::models::{Pact, Interaction, PactSpecification};
 use std::ffi::CString;
 use std::path::PathBuf;
 use std::io;
+use std::sync::Mutex;
 use serde_json::json;
 use futures::future::Future;
+
+lazy_static! {
+    static ref PACT_FILE_MUTEX: Mutex<()> = Mutex::new(());
+}
 
 /// Struct to represent the "foreground" part of mock server
 #[derive(Debug)]
@@ -124,7 +129,10 @@ impl MockServer {
             },
             None => PathBuf::from(pact_file_name)
         };
+
         info!("Writing pact out to '{}'", filename.display());
+        let _write_lock = PACT_FILE_MUTEX.lock().unwrap();
+
         match self.pact.write_pact(filename.as_path(), PactSpecification::V3) {
             Ok(_) => Ok(()),
             Err(err) => {
