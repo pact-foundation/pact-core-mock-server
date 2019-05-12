@@ -64,8 +64,9 @@ extern crate libc;
 extern crate maplit;
 
 mod matching;
-mod hyper_server;
+mod mock_server;
 mod server_manager;
+mod hyper_server;
 
 use pact_matching::models::Pact;
 use pact_matching::s;
