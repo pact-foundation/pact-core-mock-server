@@ -44,14 +44,12 @@ enum Mode {
 pub struct ValidatingMockServer {
     // A description of our mock server, for use in error messages.
     description: String,
-    // The ID of our mock server.
-    port: i32,
     // The URL of our mock server.
     url: Url,
     // The mock server instance
-    mock_server: Option<mock_server::MockServer>,
+    mock_server: mock_server::MockServer,
     // The running mode of our mock server.
-    mode: Mode
+    _mode: Mode
 }
 
 impl ValidatingMockServer {
@@ -82,10 +80,9 @@ impl ValidatingMockServer {
         let url_str = mock_server.url();
         ValidatingMockServer {
             description,
-            port: mock_server.addr.port() as i32,
             url: url_str.parse().expect("invalid mock server URL"),
-            mock_server: Some(mock_server),
-            mode: mode
+            mock_server: mock_server,
+            _mode: mode
         }
     }
 
@@ -110,21 +107,18 @@ impl ValidatingMockServer {
     /// so that it can return `Err(message)` whenever needed without making the
     /// flow control in `drop` ultra-complex.
     fn drop_helper(&mut self) -> Result<(), String> {
-        let mut mock_server = self.mock_server.take()
-            .ok_or("Mock server already dropped")?;
-
         // Kill the server
-        mock_server.shutdown()?;
+        self.mock_server.shutdown()?;
 
         // Read in all match results
-        mock_server.read_match_results_from_server();
+        self.mock_server.read_match_results_from_server();
 
         // Look up any mismatches which occurred.
-        let mismatches = mock_server.mismatches();
+        let mismatches = self.mock_server.mismatches();
 
         if mismatches.is_empty() {
             // Success! Write out the generated pact file.
-            mock_server.write_pact(&Some(env::var("PACT_OUTPUT_DIR").unwrap_or("target/pacts".to_owned())))
+            self.mock_server.write_pact(&Some(env::var("PACT_OUTPUT_DIR").unwrap_or("target/pacts".to_owned())))
                 .map_err(|err| format!("error writing pact: {}", err))?;
             Ok(())
         } else {
@@ -184,7 +178,6 @@ fn panic_or_print_error(msg: &str) {
 impl Drop for ValidatingMockServer {
     fn drop(&mut self) {
         let result = self.drop_helper();
-        //shutdown_mock_server_by_port(self.port);
         if let Err(msg) = result {
             panic_or_print_error(&msg);
         }
