@@ -13,7 +13,7 @@ impl ServerManager {
     pub fn new() -> ServerManager {
         ServerManager {
             runtime: tokio::runtime::Builder::new()
-                .blocking_threads(1)
+                .core_threads(1)
                 .build()
                 .unwrap(),
             mock_servers: BTreeMap::new()

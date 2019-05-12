@@ -57,7 +57,7 @@ impl ValidatingMockServer {
     /// pact, and runs in a background thread
     pub fn new(pact: Pact) -> ValidatingMockServer {
         let mut runtime = tokio::runtime::Builder::new()
-            .blocking_threads(1)
+            .core_threads(1)
             .build()
             .unwrap();
 
