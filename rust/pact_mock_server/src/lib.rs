@@ -48,7 +48,7 @@
 #![warn(missing_docs)]
 
 #[allow(unused_imports)] extern crate p_macro;
-#[macro_use] extern crate pact_matching;
+#[cfg_attr(test, macro_use)] extern crate pact_matching;
 extern crate serde_json;
 extern crate hyper;
 extern crate futures;
