@@ -228,6 +228,7 @@ extern crate serde_derive;
 extern crate serde_json;
 extern crate url;
 extern crate uuid;
+extern crate tokio;
 #[allow(unused_imports)] #[macro_use] extern crate p_macro;
 
 // Child modules which define macros (must be first because macros are resolved)

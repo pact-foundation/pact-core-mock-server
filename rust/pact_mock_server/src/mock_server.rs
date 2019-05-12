@@ -8,7 +8,7 @@ use std::io;
 use serde_json::json;
 use futures::future::Future;
 
-/// Struct to represent a mock server
+/// Struct to represent the "foreground" part of mock server
 #[derive(Debug)]
 pub struct MockServer {
     /// Mock server unique ID
@@ -83,7 +83,7 @@ impl MockServer {
     }
 
     /// Read pending matches from the running server. Will not block.
-    pub fn read_matches_from_server(&mut self) {
+    pub fn read_match_results_from_server(&mut self) {
         loop {
             match self.matches_rx.try_recv() {
                 Ok(match_result) => self.matches.push(match_result),
@@ -165,7 +165,7 @@ mod tests {
             }
         };
 
-        mock_server.read_matches_from_server();
+        mock_server.read_match_results_from_server();
         assert_eq!(mock_server.matches, vec![match_result]);
     }
 }

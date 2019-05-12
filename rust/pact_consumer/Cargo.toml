@@ -26,6 +26,7 @@ itertools = "0.5.4"
 url = "1.5.1"
 uuid = { version = "0.6", features = ["v4"] }
 p-macro = "0.2.0"
+tokio = "0.1.14"
 
 [dependencies.hyper]
 version = "0.9.7"

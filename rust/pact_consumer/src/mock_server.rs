@@ -2,6 +2,7 @@
 
 use pact_matching::models::*;
 use pact_mock_server::*;
+use pact_mock_server::matching::MatchResult;
 use std::{
   fmt::Write as FmtWrite,
   env,
@@ -9,18 +10,29 @@ use std::{
   thread
 };
 use url::Url;
-use uuid::Uuid;
+use tokio;
+use tokio::runtime::current_thread::{Runtime as CurrentThreadRuntime};
 
 /// This trait is implemented by types which allow us to start a mock server.
 pub trait StartMockServer {
-    /// Start a mock server running.
+    /// Start a mock server running in a background thread.
     fn start_mock_server(&self) -> ValidatingMockServer;
+    /// Start a new async mock server running in a tokio runtime
+    fn start_mock_server_async(&self, runtime: &mut CurrentThreadRuntime) -> ValidatingMockServer;
 }
 
 impl StartMockServer for Pact {
     fn start_mock_server(&self) -> ValidatingMockServer {
         ValidatingMockServer::new(self.clone())
     }
+    fn start_mock_server_async(&self, runtime: &mut CurrentThreadRuntime) -> ValidatingMockServer {
+        ValidatingMockServer::new_async(self.clone(), runtime)
+    }
+}
+
+enum Mode {
+    Background(tokio::runtime::Runtime),
+    Async
 }
 
 /// A mock HTTP server that handles the requests described in a `Pact`, intended
@@ -36,22 +48,44 @@ pub struct ValidatingMockServer {
     port: i32,
     // The URL of our mock server.
     url: Url,
+    // The mock server instance
+    mock_server: Option<mock_server::MockServer>,
+    // The running mode of our mock server.
+    mode: Mode
 }
 
 impl ValidatingMockServer {
     /// Create a new mock server which handles requests as described in the
-    /// pact.
+    /// pact, and runs in a background thread
     pub fn new(pact: Pact) -> ValidatingMockServer {
-        let description = format!("{}/{}", pact.consumer.name, pact.provider.name);
-        let uuid = Uuid::new_v4().simple().to_string();
-        let port = start_mock_server(uuid, pact, 0)
+        let mut runtime = tokio::runtime::Builder::new()
+            .blocking_threads(1)
+            .build()
+            .unwrap();
+
+        let mock_server = mock_server::MockServer::spawn("".into(), pact, 0, &mut runtime)
             .expect("error starting mock server");
-        let url_str = lookup_mock_server_by_port(port, &|ms| ms.url())
-            .expect("could not find mock server");
+
+        ValidatingMockServer::from_mock_server(mock_server, Mode::Background(runtime))
+    }
+
+    /// Create a new async mock server that runs in the current thread
+    pub fn new_async(pact: Pact, runtime: &mut CurrentThreadRuntime) -> ValidatingMockServer {
+        let mock_server = mock_server::MockServer::spawn_current_thread("".into(), pact, 0, runtime)
+            .expect("error starting mock server");
+
+        ValidatingMockServer::from_mock_server(mock_server, Mode::Async)
+    }
+
+    fn from_mock_server(mock_server: mock_server::MockServer, mode: Mode) -> ValidatingMockServer {
+        let description = format!("{}/{}", mock_server.pact.consumer.name, mock_server.pact.provider.name);
+        let url_str = mock_server.url();
         ValidatingMockServer {
             description,
-            port,
+            port: mock_server.addr.port() as i32,
             url: url_str.parse().expect("invalid mock server URL"),
+            mock_server: Some(mock_server),
+            mode: mode
         }
     }
 
@@ -76,16 +110,21 @@ impl ValidatingMockServer {
     /// so that it can return `Err(message)` whenever needed without making the
     /// flow control in `drop` ultra-complex.
     fn drop_helper(&mut self) -> Result<(), String> {
+        let mut mock_server = self.mock_server.take()
+            .ok_or("Mock server already dropped")?;
+
+        // Kill the server
+        // TODO: Is this necessary?
+        //mock_server.shutdown_tx.send(()).unwrap();
+
+        mock_server.read_match_results_from_server();
+
         // Look up any mismatches which occurred.
-        let mismatches = lookup_mock_server_by_port(self.port, &|ms| ms.mismatches())
-            .ok_or_else(|| "unable to find mock server".to_owned())?;
+        let mismatches = mock_server.mismatches();
 
         if mismatches.is_empty() {
             // Success! Write out the generated pact file.
-            lookup_mock_server_by_port(self.port, &|ms| {
-                ms.write_pact(&Some(env::var("PACT_OUTPUT_DIR").unwrap_or("target/pacts".to_owned())))
-            })
-                .ok_or_else(|| "unable to find mock server".to_owned())?
+            mock_server.write_pact(&Some(env::var("PACT_OUTPUT_DIR").unwrap_or("target/pacts".to_owned())))
                 .map_err(|err| format!("error writing pact: {}", err))?;
             Ok(())
         } else {
@@ -145,7 +184,7 @@ fn panic_or_print_error(msg: &str) {
 impl Drop for ValidatingMockServer {
     fn drop(&mut self) {
         let result = self.drop_helper();
-        shutdown_mock_server_by_port(self.port);
+        //shutdown_mock_server_by_port(self.port);
         if let Err(msg) = result {
             panic_or_print_error(&msg);
         }

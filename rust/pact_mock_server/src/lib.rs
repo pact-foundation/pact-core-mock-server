@@ -63,8 +63,8 @@ extern crate libc;
 #[macro_use]
 extern crate maplit;
 
-mod matching;
-mod mock_server;
+pub mod matching;
+pub mod mock_server;
 mod server_manager;
 mod hyper_server;
 

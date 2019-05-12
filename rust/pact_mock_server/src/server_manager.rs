@@ -48,7 +48,7 @@ impl ServerManager {
     pub fn find_server_by_port_mut<R>(&mut self, mock_server_port: u16, f: &Fn(&mut MockServer) -> R) -> Option<R> {
         match self.mock_servers.iter_mut().find(|ms| ms.1.addr.port() == mock_server_port) {
             Some(mock_server) => {
-                mock_server.1.read_matches_from_server();
+                mock_server.1.read_match_results_from_server();
                 Some(f(mock_server.1))
             },
             None => None
@@ -60,6 +60,7 @@ impl ServerManager {
 mod tests {
     use super::*;
     use std::net::TcpStream;
+    use futures::future::Future;
 
     #[test]
     fn manager_should_start_and_shutdown_mock_server() {
