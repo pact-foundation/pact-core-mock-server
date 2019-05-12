@@ -1,3 +1,8 @@
+//!
+//! The matching module defines how a request is matched
+//! against a list of potential interactions.
+//!
+
 use pact_matching::models::{Interaction, Request, PactSpecification};
 use pact_matching::Mismatch;
 use pact_matching::s;
@@ -72,6 +77,9 @@ fn method_or_path_mismatch(mismatches: &Vec<Mismatch>) -> bool {
         .any(|mismatch_type| mismatch_type == "MethodMismatch" || mismatch_type == "PathMismatch")
 }
 
+///
+/// Matches a request against a list of interactions
+///
 pub fn match_request(req: &Request, interactions: &Vec<Interaction>) -> MatchResult {
     let match_results = interactions
         .into_iter()

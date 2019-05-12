@@ -1,3 +1,8 @@
+//!
+//! This module defines the external interface for controlling one particular
+//! instance of a mock server.
+//!
+
 use hyper_server;
 use matching::MatchResult;
 
@@ -44,7 +49,7 @@ impl MockServer {
     }
 
     /// Creates a new mock server with the given ID, pact and socket address,
-    /// and spawns it on a tokio current_thread runtime (convenient for testing)
+    /// and spawns it onto a tokio current_thread runtime (convenient for testing)
     pub fn spawn_current_thread(id: String, pact: Pact, port: u16,
         runtime: &mut tokio::runtime::current_thread::Runtime
     ) -> Result<MockServer, String> {
