@@ -109,7 +109,7 @@ pub trait GenerateValue<T> {
 impl GenerateValue<u16> for Generator {
   fn generate_value(&self, _: &u16) -> Option<u16> {
     match self {
-      &Generator::RandomInt(min, max) => Some(rand::thread_rng().gen_range(min as u16, max as u16 + 1)),
+      &Generator::RandomInt(min, max) => Some(rand::thread_rng().gen_range(min as u16, (max as u16).saturating_add(1))),
       _ => None
     }
   }
@@ -135,7 +135,7 @@ impl GenerateValue<String> for Generator {
   fn generate_value(&self, _: &String) -> Option<String> {
     let mut rnd = rand::thread_rng();
     match self {
-      &Generator::RandomInt(min, max) => Some(format!("{}", rnd.gen_range(min, max + 1))),
+      &Generator::RandomInt(min, max) => Some(format!("{}", rnd.gen_range(min, max.saturating_add(1)))),
       &Generator::Uuid => Some(Uuid::new_v4().simple().to_string()),
       &Generator::RandomDecimal(digits) => Some(generate_decimal(digits as usize)),
       &Generator::RandomHexadecimal(digits) => Some(generate_hexadecimal(digits as usize)),
@@ -192,7 +192,7 @@ impl GenerateValue<Value> for Generator {
   fn generate_value(&self, value: &Value) -> Option<Value> {
     match self {
       &Generator::RandomInt(min, max) => {
-        let rand_int = rand::thread_rng().gen_range(min, max + 1);
+        let rand_int = rand::thread_rng().gen_range(min, max.saturating_add(1));
         match value {
           &Value::String(_) => Some(json!(format!("{}", rand_int))),
           &Value::Number(_) => Some(json!(rand_int)),
@@ -764,6 +764,7 @@ mod tests {
     expect!(Generator::from_map(&s!("RandomInt"), &json!({ "min": 5 }).as_object().unwrap())).to(be_some().value(Generator::RandomInt(5, 10)));
     expect!(Generator::from_map(&s!("RandomInt"), &json!({ "max": 5 }).as_object().unwrap())).to(be_some().value(Generator::RandomInt(0, 5)));
     expect!(Generator::from_map(&s!("RandomInt"), &json!({ "min": 5, "max": 6 }).as_object().unwrap())).to(be_some().value(Generator::RandomInt(5, 6)));
+    expect!(Generator::from_map(&s!("RandomInt"), &json!({ "min": 0, "max": 1234567890 }).as_object().unwrap())).to(be_some().value(Generator::RandomInt(0, 1234567890)));
   }
 
   #[test]
@@ -876,5 +877,10 @@ mod tests {
   fn generate_decimal_test() {
     assert_that!(&generate_decimal(4), matches_regex(r"^\d{4}$"));
     assert_that!(&generate_hexadecimal(4), matches_regex(r"^[0-9A-F]{4}$"));
+  }
+
+  #[test]
+  fn generate_int_with_max_int_test() {
+    assert_that!(&Generator::RandomInt(0, i32::max_value()).generate_value(&0).unwrap().to_string(), matches_regex(r"^\d+$"));
   }
 }
