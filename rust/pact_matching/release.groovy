@@ -17,7 +17,7 @@ def executeOnShell(String command, File workingDir, Closure closure = null) {
   }
   def process = processBuilder.start()
   if (closure) {
-    process.inputStream.eachLine cl
+    process.inputStream.eachLine closure
   }
   process.waitFor()
   if (process.exitValue() > 0) {
