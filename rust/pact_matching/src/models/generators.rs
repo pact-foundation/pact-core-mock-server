@@ -342,9 +342,6 @@ impl JsonHandler {
     loop {
       match it.next() {
         Some(token) => {
-          p!(token);
-          p!(body_cursor);
-
           match token {
             &PathToken::Field(ref name) => {
               match body_cursor.clone().as_object() {
@@ -375,7 +372,6 @@ impl JsonHandler {
               match body_cursor.clone().as_object() {
                 Some(map) => {
                   let remaining = it.by_ref().cloned().collect();
-                  p!(remaining);
                   for (key, val) in map {
                     let mut node = tree.new_node(key.clone());
                     node_cursor.append(node, tree);
@@ -390,7 +386,6 @@ impl JsonHandler {
               match body_cursor.clone().as_array() {
                 Some(list) => {
                   let remaining = it.by_ref().cloned().collect();
-                  p!(remaining);
                   for (index, val) in list.iter().enumerate() {
                     let mut node = tree.new_node(format!("{}", index));
                     node_cursor.append(node, tree);
