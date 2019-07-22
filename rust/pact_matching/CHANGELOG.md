@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.5.1 - Bugfix Release
+
+* eab2d86 - chore: removed P macro (Ronald Holshausen, Sat Jun 29 18:45:12 2019 +1000)
+* 91da912 - fix: correct overflow of max value for random int generator #39 (Ronald Holshausen, Sat Jun 29 18:43:56 2019 +1000)
+* 4ccd09d - bump version to 0.5.1 (Ronald Holshausen, Sat Jan 5 19:42:58 2019 +1100)
+
 # 0.5.0 - Regex, Date and Time matching and generators
 
 * f8fa0d8 - chore: Bump pact matchig version to 0.5.0 (Ronald Holshausen, Sat Jan 5 19:25:53 2019 +1100)

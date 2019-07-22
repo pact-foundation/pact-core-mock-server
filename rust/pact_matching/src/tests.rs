@@ -530,12 +530,12 @@ fn strip_whitespace_quickcheck() {
             let cs = c.as_str();
             let stripped: Vec<&str> = strip_whitespace(&s, cs);
             let result = s.trim() == stripped.join(cs).to_string();
-            if !result {
-                p!(s.trim());
-                p!(c);
-                p!(stripped);
-                p!(stripped.join(cs).to_string());
-            }
+            // if !result {
+            //     dbg!(s.trim());
+            //     dbg!(c);
+            //     dbg!(stripped);
+            //     dbg!(stripped.join(cs).to_string());
+            // }
             TestResult::from_bool(result)
         }
     }

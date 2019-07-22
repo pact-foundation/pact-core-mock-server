@@ -1,7 +1,7 @@
 ## Example use of the rust verification and mock server libraries from C.
 
 Before you can run the C examples, the mock server DLL needs to be built using `cargo build`
-in the `rust/libpact_mock_server` directory.
+in the `rust/pact_mock_server` directory.
 
 ### Install libcurl
 
@@ -58,7 +58,7 @@ Next, for Linux and OSX, do the standard configure and make series of steps.
     make[2]: Leaving directory '/home/ronald/Development/pact-reference/c/consumer-verification'
     make[1]: Leaving directory '/home/ronald/Development/pact-reference/c/consumer-verification'
 
-Now you have an executable `src/consumer-verification` that links to the libpact_mock_server library.
+Now you have an executable `src/consumer-verification` that links to the pact_mock_server library.
 
 ## Running the tests
 

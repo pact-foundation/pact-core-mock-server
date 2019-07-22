@@ -290,7 +290,6 @@ fn applies_the_generator_to_the_object_graph_with_wildcard() {
 
   json_handler.apply_key(&s!("$.*[1].b[*]"), &Generator::RandomInt(3, 10));
 
-  p!(json_handler.value);
   expect!(&json_handler.value["a"][0]).to(be_equal_to(&json!("A")));
   expect!(&json_handler.value["a"][1]["a"]).to(be_equal_to(&json!("A")));
   expect!(&json_handler.value["a"][1]["b"][0]).to_not(be_equal_to(&json!("1")));

@@ -117,20 +117,20 @@ fn quickcheck_parse_query_string() {
                             v.iter().map(|qv| format!("{}={}", k, qv)).join("&")
                         }).join("&");
                         let r = decode_query(&s) == reconstructed_query;
-                        if !r {
-                            p!(reconstructed_query);
-                            p!(decode_query(&s) == reconstructed_query);
-                        }
+                        // if !r {
+                        //     dbg!(reconstructed_query);
+                        //     dbg!(decode_query(&s) == reconstructed_query);
+                        // }
                         r
                     }
                 },
                 None => s.is_empty()
             };
 
-            if !result {
-                p!(s);
-                p!(decode_query(&s));
-            }
+            // if !result {
+            //     dbg!(s);
+            //     dbg!(decode_query(&s));
+            // }
             TestResult::from_bool(result)
         } else {
             TestResult::discard()
