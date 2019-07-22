@@ -5,7 +5,7 @@ use pact_mock_server::{
     iterate_mock_servers,
     lookup_mock_server,
     shutdown_mock_server,
-    MockServer
+    mock_server::MockServer
 };
 use uuid::Uuid;
 use serde_json::{self, Value};

@@ -399,7 +399,7 @@ mod tests {
                 i.request.path("/hello");
                 i.response.status(404);
             })
-            .start_mock_server_async(|future| { runtime.spawn(future); });
+            .create_mock_server(|future| { runtime.spawn(future); });
 
         let client = HALClient{ url: pact_broker.url().to_string(), .. HALClient::default() };
         let result = runtime.block_on(client.fetch(s!("/hello")));
@@ -417,7 +417,7 @@ mod tests {
                     .header("Content-Type", "text/html")
                     .body("<html></html>");
             })
-            .start_mock_server_async(|future| { runtime.spawn(future); });
+            .create_mock_server(|future| { runtime.spawn(future); });
 
         let client = HALClient{ url: pact_broker.url().to_string(), .. HALClient::default() };
         let result = runtime.block_on(client.fetch(s!("/nonjson")));
@@ -459,7 +459,7 @@ mod tests {
                     .header("Content-Type", "application/hal+json")
                     .body("<html>This is not JSON</html>");
             })
-            .start_mock_server_async(|future| { runtime.spawn(future); });
+            .create_mock_server(|future| { runtime.spawn(future); });
 
         let client = HALClient{ url: pact_broker.url().to_string(), .. HALClient::default() };
         let result = runtime.block_on(client.clone().fetch(s!("/nonhal")));
@@ -513,7 +513,7 @@ mod tests {
                     .header("Content-Type", "application/hal+json")
                     .body("{}");
             })
-            .start_mock_server_async(|future| { runtime.spawn(future); });
+            .create_mock_server(|future| { runtime.spawn(future); });
 
         let mut client = HALClient{ url: pact_broker.url().to_string(), .. HALClient::default() };
         let result = runtime.block_on(client.clone().fetch(s!("/")));
@@ -535,7 +535,7 @@ mod tests {
                     .header("Content-Type", "application/hal+json")
                     .body("{\"_links\":[{\"next\":{\"href\":\"abc\"}},{\"prev\":{\"href\":\"def\"}}]}");
             })
-            .start_mock_server_async(|future| { runtime.spawn(future); });
+            .create_mock_server(|future| { runtime.spawn(future); });
 
         let mut client = HALClient{ url: pact_broker.url().to_string(), .. HALClient::default() };
         let result = runtime.block_on(client.clone().fetch(s!("/")));
@@ -556,7 +556,7 @@ mod tests {
                     .header("Content-Type", "application/hal+json")
                     .body("{\"_links\":{\"next\":{\"href\":\"/abc\"},\"prev\":{\"href\":\"/def\"}}}");
             })
-            .start_mock_server_async(|future| { runtime.spawn(future); });
+            .create_mock_server(|future| { runtime.spawn(future); });
 
         let mut client = HALClient{ url: pact_broker.url().to_string(), .. HALClient::default() };
         let result = runtime.block_on(client.clone().fetch(s!("/")));
@@ -583,7 +583,7 @@ mod tests {
                     .header("Content-Type", "application/json")
                     .json_body(json_pattern!("Yay! You found your way here"));
             })
-            .start_mock_server_async(|future| { runtime.spawn(future); });
+            .create_mock_server(|future| { runtime.spawn(future); });
 
         let mut client = HALClient{ url: pact_broker.url().to_string(), .. HALClient::default() };
         let result = runtime.block_on(client.clone().fetch(s!("/")));
@@ -610,7 +610,7 @@ mod tests {
                     .header("Content-Type", "application/json")
                     .json_body(json_pattern!("Yay! You found your way here"));
             })
-            .start_mock_server_async(|future| { runtime.spawn(future); });
+            .create_mock_server(|future| { runtime.spawn(future); });
 
         let mut client = HALClient{ url: pact_broker.url().to_string(), .. HALClient::default() };
         let result = runtime.block_on(client.clone().fetch(s!("/")));
@@ -638,7 +638,7 @@ mod tests {
                     .header("Content-Type", "application/json")
                     .json_body(json_pattern!("Yay! You found your way here"));
             })
-            .start_mock_server_async(|future| { runtime.spawn(future); });
+            .create_mock_server(|future| { runtime.spawn(future); });
 
         let mut client = HALClient{ url: pact_broker.url().to_string(), .. HALClient::default() };
         let result = runtime.block_on(client.clone().fetch(s!("/")));
@@ -675,7 +675,7 @@ mod tests {
                     .header("Accept", "application/hal+json, application/json");
                 i.response.status(404);
             })
-            .start_mock_server_async(|future| { runtime.spawn(future); });
+            .create_mock_server(|future| { runtime.spawn(future); });
 
         let result = runtime.block_on(fetch_pacts_from_broker(pact_broker.url().to_string(), s!("sad_provider")));
         expect!(result).to(be_err().value(format!("No pacts for provider 'sad_provider' where found in the pact broker. URL: '{}'",
@@ -745,7 +745,7 @@ mod tests {
                     .header("Content-Type", "application/json")
                     .body(pact2.clone());
             })
-            .start_mock_server_async(|future| { runtime.spawn(future); });
+            .create_mock_server(|future| { runtime.spawn(future); });
 
         let result = runtime.block_on(fetch_pacts_from_broker(pact_broker.url().to_string(), s!("happy_provider")));
         expect!(result.clone()).to(be_ok());

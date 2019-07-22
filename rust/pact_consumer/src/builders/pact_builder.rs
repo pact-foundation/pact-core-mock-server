@@ -70,10 +70,12 @@ impl PactBuilder {
 
 impl StartMockServer for PactBuilder {
     fn start_mock_server(&self) -> ValidatingMockServer {
-        ValidatingMockServer::with_background_runtime(self.build())
+        ValidatingMockServer::start_on_background_runtime(self.build())
     }
-    fn start_mock_server_async<S>(&self, spawner: S) -> ValidatingMockServer
-        where S: FnOnce(Box<dyn futures::Future<Item = (), Error = ()> + 'static + Send>) {
-        ValidatingMockServer::with_spawner(self.build(), spawner)
+
+    fn create_mock_server<F>(&self, future_consumer: F) -> ValidatingMockServer
+        where F: FnOnce(Box<dyn futures::Future<Item = (), Error = ()> + 'static + Send>)
+    {
+        ValidatingMockServer::with_future_consumer(self.build(), future_consumer)
     }
 }

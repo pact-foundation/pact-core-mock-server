@@ -16,18 +16,24 @@ use tokio;
 pub trait StartMockServer {
     /// Start a mock server running in a background thread.
     fn start_mock_server(&self) -> ValidatingMockServer;
-    /// Start a new async mock server using a custom function for spawning its future
-    fn start_mock_server_async<S>(&self, spawner: S) -> ValidatingMockServer
-        where S: FnOnce(Box<dyn futures::Future<Item = (), Error = ()> + 'static + Send>);
+
+    /// Create a mock server, passing its future to the supplied consumer function
+    /// for spawning onto any client-supplied future executor.
+    /// This API accepts a future consumer instead of a future executor because
+    /// of the intention to support both Future and Future+Send executors.
+    fn create_mock_server<F>(&self, future_consumer: F) -> ValidatingMockServer
+        where F: FnOnce(Box<dyn futures::Future<Item = (), Error = ()> + 'static + Send>);
 }
 
 impl StartMockServer for Pact {
     fn start_mock_server(&self) -> ValidatingMockServer {
-        ValidatingMockServer::with_background_runtime(self.clone())
+        ValidatingMockServer::start_on_background_runtime(self.clone())
     }
-    fn start_mock_server_async<S>(&self, spawner: S) -> ValidatingMockServer
-        where S: FnOnce(Box<dyn futures::Future<Item = (), Error = ()> + 'static + Send>) {
-        ValidatingMockServer::with_spawner(self.clone(), spawner)
+
+    fn create_mock_server<F>(&self, future_consumer: F) -> ValidatingMockServer
+        where F: FnOnce(Box<dyn futures::Future<Item = (), Error = ()> + 'static + Send>)
+    {
+        ValidatingMockServer::with_future_consumer(self.clone(), future_consumer)
     }
 }
 
@@ -54,16 +60,16 @@ pub struct ValidatingMockServer {
 }
 
 impl ValidatingMockServer {
-    /// Create a new mock server with a function that spawns a future
-    pub fn with_spawner<S>(pact: Pact, spawner: S) -> ValidatingMockServer
-        where S: FnOnce(Box<dyn futures::Future<Item = (), Error = ()> + 'static + Send>)
+    /// Create a new mock server
+    pub fn with_future_consumer<F>(pact: Pact, future_consumer: F) -> ValidatingMockServer
+        where F: FnOnce(Box<dyn futures::Future<Item = (), Error = ()> + 'static + Send>)
     {
-        ValidatingMockServer::with_mode_and_spawner(pact, Mode::Async, spawner)
+        ValidatingMockServer::with_mode_and_future_consumer(pact, Mode::Async, future_consumer)
     }
 
     /// Create a new mock server which handles requests as described in the
     /// pact, and runs in a background thread
-    pub fn with_background_runtime(pact: Pact) -> ValidatingMockServer {
+    pub fn start_on_background_runtime(pact: Pact) -> ValidatingMockServer {
         let runtime = tokio::runtime::Builder::new()
             .core_threads(1)
             .blocking_threads(1)
@@ -72,18 +78,18 @@ impl ValidatingMockServer {
 
         let executor = runtime.executor();
 
-        ValidatingMockServer::with_mode_and_spawner(pact, Mode::Background(runtime), |future| {
+        ValidatingMockServer::with_mode_and_future_consumer(pact, Mode::Background(runtime), |future| {
             executor.spawn(future)
         })
     }
 
-    fn with_mode_and_spawner<S>(pact: Pact, mode: Mode, spawner: S) -> ValidatingMockServer
-        where S: FnOnce(Box<dyn futures::Future<Item = (), Error = ()> + 'static + Send>)
+    fn with_mode_and_future_consumer<F>(pact: Pact, mode: Mode, future_consumer: F) -> ValidatingMockServer
+        where F: FnOnce(Box<dyn futures::Future<Item = (), Error = ()> + 'static + Send>)
     {
         let (mock_server, future) = mock_server::MockServer::new("".into(), pact, 0)
             .expect("error starting mock server");
 
-        spawner(Box::new(future));
+        future_consumer(Box::new(future));
 
         let description = format!("{}/{}", mock_server.pact.consumer.name, mock_server.pact.provider.name);
         let url_str = mock_server.url();

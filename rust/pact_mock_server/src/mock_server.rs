@@ -38,6 +38,7 @@ pub struct MockServer {
 }
 
 impl MockServer {
+    /// Create a new mock server, consisting of its state (self) and its executable server future.
     pub fn new(id: String, pact: Pact, port: u16) -> Result<(MockServer, impl Future<Item = (), Error = ()>), String> {
         let (shutdown_tx, shutdown_rx) = futures::sync::oneshot::channel();
         let (matches_tx, matches_rx) = std::sync::mpsc::channel();
