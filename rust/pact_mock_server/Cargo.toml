@@ -24,7 +24,7 @@ maplit = "0.1.4"
 lazy_static = "0.2.8"
 uuid = { version = "0.6", features = ["v4"] }
 itertools = "0.6.1"
-tokio = "0.1.14"
+tokio = "0.1.22"
 futures = "0.1"
 hyper = "0.12"
 bytes = "0.4.4"
