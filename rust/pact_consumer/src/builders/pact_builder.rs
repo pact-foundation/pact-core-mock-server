@@ -2,7 +2,6 @@ use pact_matching::models::*;
 
 use prelude::*;
 use super::interaction_builder::InteractionBuilder;
-use tokio::runtime::current_thread::{Runtime as CurrentThreadRuntime};
 
 /// Builder for `Pact` objects.
 ///
@@ -71,9 +70,10 @@ impl PactBuilder {
 
 impl StartMockServer for PactBuilder {
     fn start_mock_server(&self) -> ValidatingMockServer {
-        ValidatingMockServer::new(self.build())
+        ValidatingMockServer::with_background_runtime(self.build())
     }
-    fn start_mock_server_async(&self, runtime: &mut CurrentThreadRuntime) -> ValidatingMockServer {
-        ValidatingMockServer::new_async(self.build(), runtime)
+    fn start_mock_server_async<S>(&self, spawner: S) -> ValidatingMockServer
+        where S: FnOnce(Box<dyn futures::Future<Item = (), Error = ()> + 'static + Send>) {
+        ValidatingMockServer::with_spawner(self.build(), spawner)
     }
 }

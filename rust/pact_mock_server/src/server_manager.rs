@@ -21,7 +21,8 @@ impl ServerManager {
     }
 
     pub fn start_mock_server(&mut self, id: String, pact: Pact, port: u16) -> Result<u16, String> {
-        let mock_server = MockServer::spawn(id.clone(), pact, port, &mut self.runtime)?;
+        let (mock_server, future) = MockServer::new(id.clone(), pact, port)?;
+        self.runtime.spawn(future);
         let port = mock_server.addr.port();
 
         self.mock_servers.insert(id, Box::new(mock_server));

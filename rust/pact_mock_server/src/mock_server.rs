@@ -38,27 +38,7 @@ pub struct MockServer {
 }
 
 impl MockServer {
-    /// Creates a new mock server with the given ID, pact and socket address,
-    /// and spawns it on a tokio runtime
-    pub fn spawn(id: String, pact: Pact, port: u16,
-        runtime: &mut tokio::runtime::Runtime
-    ) -> Result<MockServer, String> {
-        let (mock_server, future) = MockServer::create_and_bind(id, pact, port)?;
-        runtime.spawn(future);
-        Ok(mock_server)
-    }
-
-    /// Creates a new mock server with the given ID, pact and socket address,
-    /// and spawns it onto a tokio current_thread runtime (convenient for testing)
-    pub fn spawn_current_thread(id: String, pact: Pact, port: u16,
-        runtime: &mut tokio::runtime::current_thread::Runtime
-    ) -> Result<MockServer, String> {
-        let (mock_server, future) = MockServer::create_and_bind(id, pact, port)?;
-        runtime.spawn(future);
-        Ok(mock_server)
-    }
-
-    fn create_and_bind(id: String, pact: Pact, port: u16) -> Result<(MockServer, impl Future<Item = (), Error = ()>), String> {
+    pub fn new(id: String, pact: Pact, port: u16) -> Result<(MockServer, impl Future<Item = (), Error = ()>), String> {
         let (shutdown_tx, shutdown_rx) = futures::sync::oneshot::channel();
         let (matches_tx, matches_rx) = std::sync::mpsc::channel();
 
