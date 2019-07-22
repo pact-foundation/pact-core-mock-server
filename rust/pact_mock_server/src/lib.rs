@@ -65,7 +65,7 @@ extern crate maplit;
 
 pub mod matching;
 pub mod mock_server;
-mod server_manager;
+pub mod server_manager;
 mod hyper_server;
 
 use pact_matching::models::Pact;
@@ -88,13 +88,13 @@ pub enum MockServerError {
   MockServerFailedToStart
 }
 
-///
-/// A global thread-safe, "init-on-demand" reference to a server manager.
-/// When the server manager is initialized, it starts a separate thread on which
-/// to serve requests.
-///
 lazy_static! {
-    static ref MANAGER: Mutex<Option<ServerManager>> = Mutex::new(Option::None);
+  ///
+  /// A global thread-safe, "init-on-demand" reference to a server manager.
+  /// When the server manager is initialized, it starts a separate thread on which
+  /// to serve requests.
+  ///
+  static ref MANAGER: Mutex<Option<ServerManager>> = Mutex::new(Option::None);
 }
 
 /// Starts a mock server with the given ID, pact and port number. The ID needs to be unique. A port
@@ -185,7 +185,7 @@ pub extern fn create_mock_server_ffi(pact_str: *const c_char, port: int32_t) -> 
 pub extern fn mock_server_matched(mock_server_port: i32) -> bool {
     MANAGER.lock().unwrap()
         .get_or_insert_with(ServerManager::new)
-        .find_server_by_port_mut(mock_server_port as u16, &|mock_server| {
+        .find_mock_server_by_port_mut(mock_server_port as u16, &|mock_server| {
             mock_server.mismatches().is_empty()
         })
         .unwrap_or(false)
@@ -218,7 +218,7 @@ pub extern fn mock_server_matched_ffi(mock_server_port: int32_t) -> bool {
 pub extern fn mock_server_mismatches(mock_server_port: i32) -> Option<std::string::String> {
     MANAGER.lock().unwrap()
         .get_or_insert_with(ServerManager::new)
-        .find_server_by_port_mut(mock_server_port as u16, &|mock_server| {
+        .find_mock_server_by_port_mut(mock_server_port as u16, &|mock_server| {
             let mismatches = mock_server.mismatches().iter()
             .map(|mismatch| mismatch.to_json() )
             .collect::<Vec<serde_json::Value>>();
@@ -244,7 +244,7 @@ pub extern fn mock_server_mismatches_ffi(mock_server_port: int32_t) -> *mut c_ch
     let result = catch_unwind(|| {
         let result = MANAGER.lock().unwrap()
             .get_or_insert_with(ServerManager::new)
-            .find_server_by_port_mut(mock_server_port as u16, &|ref mut mock_server| {
+            .find_mock_server_by_port_mut(mock_server_port as u16, &|ref mut mock_server| {
                 let mismatches = mock_server.mismatches().iter()
                     .map(|mismatch| mismatch.to_json() )
                     .collect::<Vec<serde_json::Value>>();
@@ -310,7 +310,7 @@ pub enum WritePactFileErr {
 pub extern fn write_pact_file(mock_server_port: i32, directory: Option<String>) -> Result<(), WritePactFileErr> {
     let opt_result = MANAGER.lock().unwrap()
         .get_or_insert_with(ServerManager::new)
-        .find_server_by_port_mut(mock_server_port as u16, &|mock_server| {
+        .find_mock_server_by_port_mut(mock_server_port as u16, &|mock_server| {
             mock_server.write_pact(&directory)
                 .map(|_| ())
                 .map_err(|err| {

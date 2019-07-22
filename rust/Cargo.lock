@@ -975,30 +975,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pact_mock_server_cli_async"
-version = "0.4.1"
-dependencies = [
- "clap 2.32.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "expectest 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "futures 0.1.25 (registry+https://github.com/rust-lang/crates.io-index)",
- "hyper 0.12.27 (registry+https://github.com/rust-lang/crates.io-index)",
- "lazy_static 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.46 (registry+https://github.com/rust-lang/crates.io-index)",
- "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
- "maplit 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "p-macro 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pact_matching 0.5.1",
- "pact_mock_server 0.4.1",
- "quickcheck 0.2.27 (registry+https://github.com/rust-lang/crates.io-index)",
- "rand 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "regex 0.1.80 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_json 1.0.34 (registry+https://github.com/rust-lang/crates.io-index)",
- "simplelog 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "tokio 0.1.22 (registry+https://github.com/rust-lang/crates.io-index)",
- "uuid 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "pact_verifier"
 version = "0.4.1"
 dependencies = [

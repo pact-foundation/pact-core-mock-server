@@ -149,6 +149,24 @@ impl MockServer {
     }
 }
 
+impl Clone for MockServer {
+    /// Make a clone all of the MockServer fields.
+    /// Note that the clone of the original server cannot be shut down directly.
+    fn clone(&self) -> MockServer {
+        let (_, matches_rx) = std::sync::mpsc::channel();
+
+        MockServer {
+            id: self.id.clone(),
+            addr: self.addr,
+            matches: self.matches.clone(),
+            resources: vec![],
+            pact: self.pact.clone(),
+            matches_rx: matches_rx,
+            shutdown_tx: None
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
