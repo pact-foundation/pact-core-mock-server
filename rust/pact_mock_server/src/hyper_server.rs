@@ -6,7 +6,7 @@ use pact_matching::models::generators::*;
 use pact_matching::models::parse_query_string;
 
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use log::{log, error, warn, info, debug};
 use hyper::{Body, Response, Server, Error};
 use hyper::http::response::{Builder as ResponseBuilder};
@@ -167,7 +167,7 @@ fn match_result_to_hyper_response(request: &Request, match_result: MatchResult) 
 fn handle_request(
     req: hyper::Request<Body>,
     pact: Arc<Pact>,
-    matches_tx: std::sync::mpsc::Sender<MatchResult>
+    matches: Arc<Mutex<Vec<MatchResult>>>
 ) -> impl Future<Item = Response<Body>, Error = InteractionError> {
     debug!("Creating pact request from hyper request");
 
@@ -176,7 +176,7 @@ fn handle_request(
             info!("Received request {:?}", request);
             let match_result = match_request(&request, &pact.interactions);
 
-            matches_tx.send(match_result.clone()).unwrap();
+            matches.lock().unwrap().push(match_result.clone());
 
             match_result_to_hyper_response(&request, match_result)
         })
@@ -210,7 +210,7 @@ pub fn create_and_bind(
     pact: Pact,
     port: u16,
     shutdown: impl Future<Item = (), Error = ()>,
-    matches_tx: std::sync::mpsc::Sender<MatchResult>
+    matches: Arc<Mutex<Vec<MatchResult>>>,
 ) -> Result<(impl Future<Item = (), Error = ()>, std::net::SocketAddr), hyper::Error> {
     let pact = Arc::new(pact);
     let addr = ([0, 0, 0, 0], port).into();
@@ -218,10 +218,10 @@ pub fn create_and_bind(
     let server = Server::try_bind(&addr)?
         .serve(move || {
             let pact = pact.clone();
-            let matches_tx = matches_tx.clone();
+            let matches = matches.clone();
 
             service_fn(move |req| {
-                handle_request(req, pact.clone(), matches_tx.clone())
+                handle_request(req, pact.clone(), matches.clone())
                     .then(handle_mock_request_error)
             })
         });
@@ -247,21 +247,18 @@ mod tests {
         let mut runtime = Runtime::new().unwrap();
 
         let (shutdown_tx, shutdown_rx) = futures::sync::oneshot::channel();
-        let (matches_tx, matches_rx) = std::sync::mpsc::channel();
+        let matches = Arc::new(Mutex::new(vec![]));
 
-        let (future, _) = create_and_bind(Pact::default(), 0, shutdown_rx.map_err(|_| ()), matches_tx).unwrap();
+        let (future, _) = create_and_bind(Pact::default(), 0, shutdown_rx.map_err(|_| ()), matches.clone()).unwrap();
 
         runtime.spawn(future);
         shutdown_tx.send(()).unwrap();
 
-        // Channel is still open and has no items
-        assert!(matches_rx.try_recv().is_err());
-
         // Server has shut down, now flush the server future from runtime
         runtime.run().unwrap();
 
-        // Match channel should now be closed and can read 0 matches.
-        let all_matches: Vec<MatchResult> = matches_rx.iter().collect();
+        // 0 matches have been produced
+        let all_matches = matches.lock().unwrap().clone();
         assert_eq!(all_matches, vec![]);
     }
 }

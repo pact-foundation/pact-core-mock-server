@@ -81,7 +81,6 @@ impl ServerManager {
     pub fn find_mock_server_by_port_mut<R>(&mut self, mock_server_port: u16, f: &Fn(&mut MockServer) -> R) -> Option<R> {
         match self.mock_servers.iter_mut().find(|ms| ms.1.addr.port() == mock_server_port) {
             Some(mock_server) => {
-                mock_server.1.read_match_results_from_server();
                 Some(f(mock_server.1))
             },
             None => None
@@ -117,7 +116,7 @@ mod tests {
 
         // Should be able to read matches without blocking
         let matches = manager.find_mock_server_by_port_mut(server_port, &|mock_server| {
-            mock_server.matches.clone()
+            mock_server.matches()
         });
         assert_eq!(matches, Some(vec![]));
 

@@ -125,9 +125,6 @@ impl ValidatingMockServer {
         // Kill the server
         self.mock_server.shutdown()?;
 
-        // Read in all match results
-        self.mock_server.read_match_results_from_server();
-
         // Look up any mismatches which occurred.
         let mismatches = self.mock_server.mismatches();
 

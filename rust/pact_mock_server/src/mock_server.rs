@@ -10,7 +10,7 @@ use pact_matching::models::{Pact, Interaction, PactSpecification};
 use std::ffi::CString;
 use std::path::PathBuf;
 use std::io;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use serde_json::json;
 use futures::future::Future;
 
@@ -25,14 +25,12 @@ pub struct MockServer {
     pub id: String,
     /// Address the mock server is running on
     pub addr: std::net::SocketAddr,
-    /// List of all match results for requests this mock server has received
-    pub matches: Vec<MatchResult>,
     /// List of resources that need to be cleaned up when the mock server completes
     pub resources: Vec<CString>,
     /// Pact that this mock server is based on
     pub pact: Pact,
     /// Receiver of match results
-    matches_rx: std::sync::mpsc::Receiver<MatchResult>,
+    matches: Arc<Mutex<Vec<MatchResult>>>,
     /// Shutdown signal
     shutdown_tx: Option<futures::sync::oneshot::Sender<()>>
 }
@@ -41,22 +39,21 @@ impl MockServer {
     /// Create a new mock server, consisting of its state (self) and its executable server future.
     pub fn new(id: String, pact: Pact, port: u16) -> Result<(MockServer, impl Future<Item = (), Error = ()>), String> {
         let (shutdown_tx, shutdown_rx) = futures::sync::oneshot::channel();
-        let (matches_tx, matches_rx) = std::sync::mpsc::channel();
+        let matches = Arc::new(Mutex::new(vec![]));
 
         let (future, socket_addr) = hyper_server::create_and_bind(
             pact.clone(),
             port as u16,
             shutdown_rx.map_err(|_| ()),
-            matches_tx
+            matches.clone()
         ).map_err(|err| format!("Could not start server: {}", err))?;
 
         let mock_server = MockServer {
             id: id.clone(),
             addr: socket_addr,
-            matches: vec![],
             resources: vec![],
             pact: pact,
-            matches_rx: matches_rx,
+            matches: matches,
             shutdown_tx: Some(shutdown_tx)
         };
 
@@ -76,16 +73,6 @@ impl MockServer {
         }
     }
 
-    /// Read pending matches from the running server. Will not block.
-    pub fn read_match_results_from_server(&mut self) {
-        loop {
-            match self.matches_rx.try_recv() {
-                Ok(match_result) => self.matches.push(match_result),
-                Err(_) => break
-            }
-        }
-    }
-
     /// Converts this mock server to a `Value` struct
     pub fn to_json(&self) -> serde_json::Value {
         json!({
@@ -96,12 +83,18 @@ impl MockServer {
         })
     }
 
+    /// Returns all collected matches
+    pub fn matches(&self) -> Vec<MatchResult> {
+        self.matches.lock().unwrap().clone()
+    }
+
     /// Returns all the mismatches that have occurred with this mock server
     pub fn mismatches(&self) -> Vec<MatchResult> {
-        let mismatches = self.matches.iter()
+        let matches = self.matches();
+        let mismatches = matches.iter()
             .filter(|m| !m.matched())
             .map(|m| m.clone());
-        let interactions: Vec<&Interaction> = self.matches.iter().map(|m| {
+        let interactions: Vec<&Interaction> = matches.iter().map(|m| {
             match *m {
                 MatchResult::RequestMatch(ref interaction) => Some(interaction),
                 MatchResult::RequestMismatch(ref interaction, _) => Some(interaction),
@@ -153,46 +146,13 @@ impl Clone for MockServer {
     /// Make a clone all of the MockServer fields.
     /// Note that the clone of the original server cannot be shut down directly.
     fn clone(&self) -> MockServer {
-        let (_, matches_rx) = std::sync::mpsc::channel();
-
         MockServer {
             id: self.id.clone(),
             addr: self.addr,
-            matches: self.matches.clone(),
             resources: vec![],
             pact: self.pact.clone(),
-            matches_rx: matches_rx,
+            matches: self.matches.clone(),
             shutdown_tx: None
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn mock_server_read_matches_should_read_matches_when_sender_is_closed() {
-        let match_result = MatchResult::RequestMatch(Interaction::default());
-
-        let mut mock_server = {
-            let (shutdown_tx, _) = futures::sync::oneshot::channel();
-            let (matches_tx, matches_rx) = std::sync::mpsc::channel();
-
-            matches_tx.send(match_result.clone()).unwrap();
-
-            MockServer {
-                id: "foobar".into(),
-                addr: ([0, 0, 0, 0], 0).into(),
-                matches: vec![],
-                resources: vec![],
-                pact: Pact::default(),
-                matches_rx: matches_rx,
-                shutdown_tx: Some(shutdown_tx)
-            }
-        };
-
-        mock_server.read_match_results_from_server();
-        assert_eq!(mock_server.matches, vec![match_result]);
     }
 }
