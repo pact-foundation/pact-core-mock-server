@@ -26,10 +26,10 @@ itertools = "0.5.4"
 ansi_term = "0.9"
 regex = "0.1"
 difference = "0.4"
-
-[dependencies.hyper]
-version = "0.9.7"
-default-features = false
+tokio = "0.1.22"
+futures = "0.1"
+hyper = "0.12"
+bytes = "0.4.4"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

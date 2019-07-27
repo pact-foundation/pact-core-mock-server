@@ -1,16 +1,10 @@
 use hyper::server::{Handler, Server, Request, Response};
 use pact_matching::models::Pact;
-use pact_mock_server::{
-    start_mock_server,
-    iterate_mock_servers,
-    lookup_mock_server,
-    shutdown_mock_server,
-    MockServer
-};
+use pact_mock_server::server_manager::ServerManager;
 use uuid::Uuid;
 use serde_json::{self, Value};
 use std::{
-  sync::Arc,
+  sync::{Arc, Mutex},
   thread,
   time::Duration,
   iter::FromIterator,
@@ -50,14 +44,20 @@ fn get_next_port(base_port: Option<u16>) -> u16 {
   }
 }
 
-fn start_provider(context: &mut WebmachineContext, base_port: Option<u16>) -> Result<bool, u16> {
+fn start_provider(
+    context: &mut WebmachineContext,
+    base_port: Option<u16>,
+    server_manager: Arc<Mutex<ServerManager>>
+) -> Result<bool, u16> {
     match context.request.body {
         Some(ref body) if !body.is_empty() => {
             match serde_json::from_str(body) {
                 Ok(ref json) => {
                     let pact = Pact::from_json(&context.request.request_path, json);
                     let mock_server_id = Uuid::new_v4().simple().to_string();
-                    match start_mock_server(mock_server_id.clone(), pact, get_next_port(base_port) as i32) {
+
+                    let mut lock = server_manager.lock().unwrap();
+                    match lock.start_mock_server(mock_server_id.clone(), pact, get_next_port(base_port)) {
                         Ok(mock_server) => {
                             let mock_server_json = json!({
                                 s!("id") : json!(mock_server_id.clone()),
@@ -90,9 +90,13 @@ fn start_provider(context: &mut WebmachineContext, base_port: Option<u16>) -> Re
     }
 }
 
-pub fn verify_mock_server_request(context: &mut WebmachineContext, output_path: &Option<String>) -> Result<bool, u16> {
+pub fn verify_mock_server_request(
+    context: &mut WebmachineContext,
+    output_path: &Option<String>,
+    server_manager: Arc<Mutex<ServerManager>>
+) -> Result<bool, u16> {
     let id = context.metadata.get(&s!("id")).unwrap_or(&s!("")).clone();
-    match verify::validate_id(&id) {
+    match verify::validate_id(&id, server_manager) {
         Ok(ms) => {
             let mut map = btreemap!{ s!("mockServer") => ms.to_json() };
             let mismatches = ms.mismatches();
@@ -117,20 +121,20 @@ pub fn verify_mock_server_request(context: &mut WebmachineContext, output_path: 
     }
 }
 
-fn main_resource(base_port: Arc<Option<u16>>) -> WebmachineResource {
+fn main_resource(base_port: Arc<Option<u16>>, server_manager: Arc<Mutex<ServerManager>>) -> WebmachineResource {
+    let server_manager1 = server_manager.clone();
+
     WebmachineResource {
         allowed_methods: vec![s!("OPTIONS"), s!("GET"), s!("HEAD"), s!("POST")],
         resource_exists: Box::new(|context| context.request.request_path == "/"),
-        render_response: Box::new(|_| {
-            let mut mock_servers = vec![];
-            iterate_mock_servers(&mut |_: &String, ms: &MockServer| {
-                let mock_server_json = ms.to_json();
-                mock_servers.push(mock_server_json);
+        render_response: Box::new(move |_| {
+            let mock_servers = server_manager.lock().unwrap().map_mock_servers(&|ms| {
+                ms.to_json()
             });
             let json_response = json!({ s!("mockServers") : json!(mock_servers) });
             Some(json_response.to_string())
         }),
-        process_post: Box::new(move |context| start_provider(context, base_port.deref().clone())),
+        process_post: Box::new(move |context| start_provider(context, base_port.deref().clone(), server_manager1.clone())),
         .. WebmachineResource::default()
     }
 }
@@ -179,20 +183,27 @@ fn shutdown_resource(server_key: Arc<String>) -> WebmachineResource {
   }
 }
 
-fn mock_server_resource(output_path: Arc<Option<String>>) -> WebmachineResource {
+fn mock_server_resource(
+    output_path: Arc<Option<String>>,
+    server_manager: Arc<Mutex<ServerManager>>
+) -> WebmachineResource {
+    let server_manager1 = server_manager.clone();
+    let server_manager2 = server_manager.clone();
+    let server_manager3 = server_manager.clone();
+
     WebmachineResource {
         allowed_methods: vec![s!("OPTIONS"), s!("GET"), s!("HEAD"), s!("POST"), s!("DELETE")],
-        resource_exists: Box::new(|context| {
+        resource_exists: Box::new(move |context| {
             let paths: Vec<String> = context.request.request_path
                 .split("/")
                 .filter(|p| !p.is_empty())
                 .map(|p| p.to_string())
                 .collect();
             if paths.len() >= 1 && paths.len() <= 2 {
-                match verify::validate_id(&paths[0].clone()) {
+                match verify::validate_id(&paths[0].clone(), server_manager.clone()) {
                     Ok(ms) => {
                         context.metadata.insert(s!("id"), ms.id.clone());
-                        context.metadata.insert(s!("port"), ms.port.to_string());
+                        context.metadata.insert(s!("port"), ms.addr.port().to_string());
                         if paths.len() > 1 {
                             context.metadata.insert(s!("subpath"), paths[1].clone());
                             paths[1] == s!("verify")
@@ -206,11 +217,12 @@ fn mock_server_resource(output_path: Arc<Option<String>>) -> WebmachineResource 
                 false
             }
         }),
-        render_response: Box::new(|context| {
+        render_response: Box::new(move |context| {
             match context.metadata.get(&s!("subpath")) {
                 None => {
                     let id = context.metadata.get(&s!("id")).unwrap().clone();
-                    lookup_mock_server(id, &|ms| ms.to_json()).map(|json| json.to_string())
+                    server_manager1.lock().unwrap().find_mock_server_by_id(&id, &|ms| ms.to_json())
+                        .map(|json| json.to_string())
                 },
                 Some(_) => {
                     context.response.status = 405;
@@ -221,17 +233,20 @@ fn mock_server_resource(output_path: Arc<Option<String>>) -> WebmachineResource 
         process_post: Box::new(move |context| {
             let subpath = context.metadata.get(&s!("subpath")).unwrap().clone();
             if subpath == "verify" {
-                verify_mock_server_request(context, output_path.deref())
+                verify_mock_server_request(context, output_path.deref(), server_manager2.clone())
             } else {
                 Err(422)
             }
         }),
-        delete_resource: Box::new(|context| {
+        delete_resource: Box::new(move |context| {
             match context.metadata.get(&s!("subpath")) {
                 None => {
                     let id = context.metadata.get(&s!("id")).unwrap().clone();
-                    shutdown_mock_server(&id);
-                    Ok(true)
+                    if server_manager3.lock().unwrap().shutdown_mock_server_by_id(id) {
+                        Ok(true)
+                    } else {
+                        Err(404)
+                    }
                 },
                 Some(_) => Err(405)
             }
@@ -241,9 +256,10 @@ fn mock_server_resource(output_path: Arc<Option<String>>) -> WebmachineResource 
 }
 
 struct ServerHandler {
-  output_path: Arc<Option<String>>,
-  base_port: Arc<Option<u16>>,
-  server_key: Arc<String>
+    output_path: Arc<Option<String>>,
+    base_port: Arc<Option<u16>>,
+    server_key: Arc<String>,
+    server_manager: Arc<Mutex<ServerManager>>
 }
 
 impl ServerHandler {
@@ -251,7 +267,8 @@ impl ServerHandler {
         ServerHandler {
             output_path: Arc::new(output_path),
             base_port: Arc::new(base_port),
-            server_key: Arc::new(server_key)
+            server_key: Arc::new(server_key),
+            server_manager: Arc::new(Mutex::new(ServerManager::new()))
         }
     }
 }
@@ -260,8 +277,8 @@ impl Handler for ServerHandler {
   fn handle(&self, req: Request, res: Response) {
     let dispatcher = WebmachineDispatcher::new(
       btreemap! {
-            s!("/") => Arc::new(main_resource(self.base_port.clone())),
-            s!("/mockserver") => Arc::new(mock_server_resource(self.output_path.clone())),
+            s!("/") => Arc::new(main_resource(self.base_port.clone(), self.server_manager.clone())),
+            s!("/mockserver") => Arc::new(mock_server_resource(self.output_path.clone(), self.server_manager.clone())),
             s!("/shutdown") => Arc::new(shutdown_resource(self.server_key.clone()))
         }
     );

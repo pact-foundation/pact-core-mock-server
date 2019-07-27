@@ -2,12 +2,14 @@ use clap::ArgMatches;
 use hyper::Client;
 use hyper::Url;
 use hyper::status::*;
-use std::io::prelude::*;
+use std::{
+    io::prelude::*,
+    sync::{Arc, Mutex},
+};
 use serde_json;
 use pact_mock_server::{
-    lookup_mock_server,
-    lookup_mock_server_by_port,
-    MockServer
+    server_manager::ServerManager,
+    mock_server::MockServer
 };
 
 pub fn verify_mock_server(host: &str, port: u16, matches: &ArgMatches) -> Result<(), i32> {
@@ -64,37 +66,27 @@ pub fn verify_mock_server(host: &str, port: u16, matches: &ArgMatches) -> Result
     }
 }
 
-fn validate_port(id: u16) -> Result<MockServer, String> {
-    lookup_mock_server_by_port(id as i32, &|ref ms| {
-        MockServer {
-            id: ms.id.clone(),
-            port: ms.port,
-            server: ms.server,
-            matches: ms.matches.clone(),
-            resources: vec![],
-            pact: ms.pact.clone()
-        }
-    }).ok_or(format!("No mock server running with port '{}'", id))
+fn validate_port(port: u16, server_manager: Arc<Mutex<ServerManager>>) -> Result<MockServer, String> {
+    server_manager.lock().unwrap()
+        .find_mock_server_by_port_mut(port, &|ms| {
+            ms.clone()
+        })
+        .ok_or(format!("No mock server running with port '{}'", port))
 }
 
-fn validate_uuid(id: &String) -> Result<MockServer, String> {
-    lookup_mock_server(id.clone(), &|ref ms| {
-        MockServer {
-            id: ms.id.clone(),
-            port: ms.port,
-            server: ms.server,
-            matches: ms.matches.clone(),
-            resources: vec![],
-            pact: ms.pact.clone()
-        }
-    }).ok_or(format!("No mock server running with id '{}'", id))
+fn validate_uuid(id: &String, server_manager: Arc<Mutex<ServerManager>>) -> Result<MockServer, String> {
+    server_manager.lock().unwrap()
+        .find_mock_server_by_id(id, &|ms| {
+            ms.clone()
+        })
+        .ok_or(format!("No mock server running with id '{}'", id))
 }
 
-pub fn validate_id(id: &str) -> Result<MockServer, String> {
+pub fn validate_id(id: &str, server_manager: Arc<Mutex<ServerManager>>) -> Result<MockServer, String> {
     if id.chars().all(|ch| ch.is_digit(10)) {
-        validate_port(id.parse::<u16>().unwrap())
+        validate_port(id.parse::<u16>().unwrap(), server_manager)
     } else {
-        validate_uuid(&s!(id))
+        validate_uuid(&s!(id), server_manager)
     }
 }
 

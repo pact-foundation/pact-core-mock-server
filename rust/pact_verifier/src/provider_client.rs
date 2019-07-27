@@ -3,132 +3,181 @@ use pact_matching::models::*;
 use pact_matching::models::matchingrules::*;
 use pact_matching::models::generators::*;
 use std::str::FromStr;
+use std::error::Error;
 use std::collections::hash_map::HashMap;
-use std::io::Read;
 use hyper::client::Client;
-use hyper::client::response::Response as HyperResponse;
+use hyper::{Request as HyperRequest, Response as HyperResponse};
+use hyper::http::request::{Builder as RequestBuilder};
+use hyper::Body;
 use hyper::error::Error as HyperError;
-use hyper::method::Method;
-use hyper::header::{Headers, ContentType};
-use hyper::mime::{Mime, TopLevel, SubLevel};
+use hyper::Method;
+use hyper::http::method::InvalidMethod;
+use hyper::http::header::{HeaderMap, HeaderName, HeaderValue, InvalidHeaderName, InvalidHeaderValue};
+use hyper::http::header::CONTENT_TYPE;
+use futures::future;
+use futures::future::Future;
+use futures::stream::Stream;
+
+#[derive(Debug)]
+pub enum ProviderClientError {
+    RequestMethodError(String, InvalidMethod),
+    RequestHeaderNameError(String, InvalidHeaderName),
+    RequestHeaderValueError(String, InvalidHeaderValue),
+    RequestBodyError(String),
+    ResponseError(String),
+    ResponseStatusCodeError(u16),
+}
 
 pub fn join_paths(base: &String, path: String) -> String {
-    let mut full_path = s!(base.trim_right_matches("/"));
+    let mut full_path = s!(base.trim_end_matches("/"));
     full_path.push('/');
-    full_path.push_str(path.trim_left_matches("/"));
+    full_path.push_str(path.trim_start_matches("/"));
     full_path
 }
 
-fn setup_headers(headers: &Option<HashMap<String, String>>) -> Headers {
-    let mut hyper_headers = Headers::new();
-    if headers.is_some() {
-        let headers = headers.clone().unwrap();
-        for (k, v) in headers.clone() {
-            hyper_headers.set_raw(k.clone(), vec![v.bytes().collect()]);
-        }
-
-        if !headers.keys().any(|k| k.to_lowercase() == "content-type") {
-            hyper_headers.set(ContentType(Mime(TopLevel::Application, SubLevel::Json,
-                vec![])));
-        }
-    }
-    hyper_headers
-}
-
-fn make_request(base_url: &String, request: &Request, client: &Client) -> Result<HyperResponse, HyperError> {
-    match Method::from_str(&request.method) {
-        Ok(method) => {
-            let mut url = join_paths(base_url, request.path.clone());
-            if request.query.is_some() {
-                url.push('?');
-                url.push_str(&build_query_string(request.query.clone().unwrap()));
+fn setup_headers(builder: &mut RequestBuilder, headers: &Option<HashMap<String, String>>) -> Result<(), ProviderClientError> {
+    let hyper_headers = builder.headers_mut().unwrap();
+    match headers {
+        Some(header_map) => {
+            for (k, v) in header_map {
+                // FIXME?: Headers are not sent in "raw" mode.
+                // Names are converted to lower case and values are parsed.
+                hyper_headers.insert(
+                    HeaderName::from_bytes(k.as_bytes())
+                        .map_err(|err| ProviderClientError::RequestHeaderNameError(k.clone(), err))?,
+                    v.parse::<HeaderValue>()
+                        .map_err(|err| ProviderClientError::RequestHeaderValueError(v.clone(), err))?
+                );
             }
-            debug!("Making request to '{}'", url);
-            let hyper_request = client.request(method, &url)
-                .headers(setup_headers(&request.headers.clone()));
-            match request.body {
-                OptionalBody::Present(ref s) => hyper_request.body(s.as_slice()),
-                OptionalBody::Null => {
-                    if request.content_type() == "application/json" {
-                        hyper_request.body("null")
-                    } else {
-                        hyper_request
-                    }
-                },
-                _ => hyper_request
-            }.send()
+
+            if !header_map.keys().any(|k| k.to_lowercase() == "content-type") {
+                hyper_headers.insert(CONTENT_TYPE, "application/json".parse().unwrap());
+            }
         },
-        Err(err) => Err(err)
+        _ => {}
     }
+    Ok(())
 }
 
-fn extract_headers(headers: &Headers) -> Option<HashMap<String, String>> {
+fn create_hyper_request(base_url: &String, request: &Request) -> Result<HyperRequest<Body>, ProviderClientError> {
+    let mut url = join_paths(base_url, request.path.clone());
+    if request.query.is_some() {
+        url.push('?');
+        url.push_str(&build_query_string(request.query.clone().unwrap()));
+    }
+    debug!("Making request to '{}'", url);
+    let mut builder = HyperRequest::builder();
+    builder.method(
+        Method::from_str(&request.method)
+            .map_err(|err| ProviderClientError::RequestMethodError(request.method.clone(), err))?
+    );
+    builder.uri(url);
+    setup_headers(&mut builder, &request.headers())?;
+
+    let hyper_request = builder
+        .body(match request.body {
+            OptionalBody::Present(ref s) => Body::from(s.clone()),
+            OptionalBody::Null => {
+                if request.content_type() == "application/json" {
+                    Body::from("null")
+                } else {
+                    Body::empty()
+                }
+            },
+            _ => Body::empty()
+        })
+        .map_err(|err| ProviderClientError::RequestBodyError(err.description().into()))?;
+
+    Ok(hyper_request)
+}
+
+fn extract_headers(headers: &HeaderMap) -> Option<HashMap<String, String>> {
     if headers.len() > 0 {
-        Some(headers.iter().map(|h| (s!(h.name()), h.value_string()) ).collect())
+        Some(headers.iter()
+            .map(|(name, value)| {
+                (name.as_str().into(), value.to_str().unwrap().into())
+            })
+            .collect()
+        )
     } else {
         None
     }
 }
 
-pub fn extract_body(response: &mut HyperResponse) -> OptionalBody {
-    let mut buffer = Vec::new();
-    match response.read_to_end(&mut buffer) {
-        Ok(size) => if size > 0 {
-                OptionalBody::Present(buffer)
+pub fn extract_body(hyper_body: Result<hyper::Chunk, HyperError>) -> Result<OptionalBody, HyperError> {
+    match hyper_body {
+        Ok(chunk) => {
+            let bytes = chunk.into_bytes();
+            if bytes.len() > 0 {
+                Ok(OptionalBody::Present(bytes.to_vec()))
             } else {
-                OptionalBody::Empty
-            },
-        Err(err) => {
-            warn!("Failed to read request body: {}", err);
-            OptionalBody::Missing
-        }
-    }
-}
-
-fn hyper_response_to_pact_response(response: &mut HyperResponse) -> Response {
-    Response {
-        status: response.status.to_u16(),
-        headers: extract_headers(&response.headers),
-        body: extract_body(response),
-        matching_rules: MatchingRules::default(),
-        generators: Generators::default()
-    }
-}
-
-pub fn make_provider_request(provider: &ProviderInfo, request: &Request) -> Result<Response, HyperError> {
-    debug!("Sending {:?} to provider", request);
-    let client = Client::new();
-    match make_request(&format!("{}://{}:{}{}", provider.protocol, provider.host, provider.port,
-        provider.path), request, &client) {
-        Ok(ref mut response) => {
-            debug!("Received response: {:?}", response);
-            Ok(hyper_response_to_pact_response(response))
-        },
-        Err(err) => {
-            debug!("Request failed: {}", err);
-            Err(err)
-        }
-    }
-}
-
-pub fn make_state_change_request(provider: &ProviderInfo, request: &Request) -> Result<(), String> {
-    debug!("Sending {:?} to state change handler", request);
-    let client = Client::new();
-    match make_request(&provider.state_change_url.clone().unwrap(), request, &client) {
-        Ok(ref mut response) => {
-            debug!("Received response: {:?}", response);
-            if response.status.is_success() {
-                Ok(())
-            } else {
-                debug!("Request failed: {}", response.status);
-                Err(format!("State change request failed: {}", response.status))
+                Ok(OptionalBody::Empty)
             }
         },
         Err(err) => {
-            debug!("Request failed: {}", err);
-            Err(format!("State change request failed: {}", err))
+            warn!("Failed to read request body: {}", err);
+            Ok(OptionalBody::Missing)
         }
     }
+}
+
+fn hyper_response_to_pact_response(response: HyperResponse<Body>) -> impl Future<Item = Response, Error = HyperError> {
+    debug!("Received response: {:?}", response);
+
+    let status = response.status().as_u16();
+    let headers = extract_headers(response.headers());
+
+    response.into_body()
+        .concat2()
+        .then(extract_body)
+        .map(move |body| {
+            Response {
+                status: status,
+                headers: headers,
+                body: body,
+                matching_rules: MatchingRules::default(),
+                generators: Generators::default()
+            }
+        })
+}
+
+fn check_hyper_response_status(result: Result<HyperResponse<Body>, HyperError>) -> Result<(), ProviderClientError> {
+    match result {
+        Ok(response) => {
+            if response.status().is_success() {
+                Ok(())
+            } else {
+                Err(ProviderClientError::ResponseStatusCodeError(response.status().as_u16()))
+            }
+        },
+        Err(err) => Err(ProviderClientError::ResponseError(err.description().into()))
+    }
+}
+
+pub fn make_provider_request(provider: &ProviderInfo, request: &Request) -> impl Future<Item = Response, Error = ProviderClientError> {
+    debug!("Sending {:?} to provider", request);
+    let base_url = format!("{}://{}:{}{}", provider.protocol, provider.host, provider.port, provider.path);
+
+    future::done(create_hyper_request(&base_url, request))
+        .and_then(|request| {
+            Client::new().request(request)
+                .and_then(hyper_response_to_pact_response)
+                .map_err(|err| ProviderClientError::ResponseError(err.description().into()))
+        })
+        .map_err(|err| {
+            debug!("Request failed: {:?}", err);
+            err
+        })
+}
+
+pub fn make_state_change_request(provider: &ProviderInfo, request: &Request) -> impl Future<Item = (), Error = ProviderClientError> {
+    debug!("Sending {:?} to state change handler", request);
+
+    future::done(create_hyper_request(&provider.state_change_url.clone().unwrap(), request))
+        .and_then(|request| {
+            Client::new().request(request)
+                .then(check_hyper_response_status)
+        })
 }
 
 #[cfg(test)]

@@ -7,6 +7,9 @@
 extern crate ansi_term;
 #[macro_use] extern crate log;
 extern crate hyper;
+extern crate tokio;
+extern crate futures;
+extern crate bytes;
 #[macro_use] extern crate maplit;
 extern crate itertools;
 extern crate regex;
@@ -26,7 +29,6 @@ mod provider_client;
 mod pact_broker;
 
 use std::path::Path;
-use std::error::Error;
 use std::io;
 use std::fs;
 use pact_matching::*;
@@ -35,9 +37,10 @@ use pact_matching::models::provider_states::*;
 use ansi_term::*;
 use ansi_term::Colour::*;
 use std::collections::HashMap;
-use provider_client::{make_provider_request, make_state_change_request};
+use provider_client::{make_provider_request, make_state_change_request, ProviderClientError};
 use regex::Regex;
 use serde_json::Value;
+use tokio::runtime::current_thread::Runtime;
 
 /// Source for loading pacts
 #[derive(Debug, Clone)]
@@ -98,9 +101,26 @@ pub enum MismatchResult {
     Error(String)
 }
 
-fn verify_response_from_provider(provider: &ProviderInfo, interaction: &Interaction) -> Result<(), MismatchResult> {
+fn provider_client_error_to_string(err: ProviderClientError) -> String {
+    match err {
+        ProviderClientError::RequestMethodError(ref method, _) =>
+            format!("Invalid request method: '{}'", method),
+        ProviderClientError::RequestHeaderNameError(ref name, _) =>
+            format!("Invalid header name: '{}'", name),
+        ProviderClientError::RequestHeaderValueError(ref value, _) =>
+            format!("Invalid header value: '{}'", value),
+        ProviderClientError::RequestBodyError(ref message) =>
+            format!("Invalid request body: '{}'", message),
+        ProviderClientError::ResponseError(ref message) =>
+            format!("Invalid response: {}", message),
+        ProviderClientError::ResponseStatusCodeError(ref code) =>
+            format!("Invalid status code: {}", code)
+    }
+}
+
+fn verify_response_from_provider(provider: &ProviderInfo, interaction: &Interaction, runtime: &mut Runtime) -> Result<(), MismatchResult> {
   let ref expected_response = interaction.response;
-  match make_provider_request(provider, &pact_matching::generate_request(&interaction.request)) {
+  match runtime.block_on(make_provider_request(provider, &pact_matching::generate_request(&interaction.request))) {
       Ok(ref actual_response) => {
           let mismatches = match_response(expected_response.clone(), actual_response.clone());
           if mismatches.is_empty() {
@@ -110,12 +130,12 @@ fn verify_response_from_provider(provider: &ProviderInfo, interaction: &Interact
           }
       },
       Err(err) => {
-          Err(MismatchResult::Error(s!(err.description())))
+          Err(MismatchResult::Error(provider_client_error_to_string(err)))
       }
   }
 }
 
-fn execute_state_change(provider_state: &ProviderState, provider: &ProviderInfo, setup: bool) -> Result<(), MismatchResult> {
+fn execute_state_change(provider_state: &ProviderState, provider: &ProviderInfo, setup: bool, runtime: &mut Runtime) -> Result<(), MismatchResult> {
     if setup {
         println!("  Given {}", Style::new().bold().paint(provider_state.name.clone()));
     }
@@ -154,9 +174,9 @@ fn execute_state_change(provider_state: &ProviderState, provider: &ProviderInfo,
               }
               state_change_request.query = Some(query);
             }
-            match make_state_change_request(provider, &state_change_request) {
+            match runtime.block_on(make_state_change_request(provider, &state_change_request)) {
                 Ok(_) => Ok(()),
-                Err(err) => Err(MismatchResult::Error(err))
+                Err(err) => Err(MismatchResult::Error(provider_client_error_to_string(err)))
             }
         },
         None => {
@@ -171,16 +191,16 @@ fn execute_state_change(provider_state: &ProviderState, provider: &ProviderInfo,
     result
 }
 
-fn verify_interaction(provider: &ProviderInfo, interaction: &Interaction) -> Result<(), MismatchResult> {
+fn verify_interaction(provider: &ProviderInfo, interaction: &Interaction, runtime: &mut Runtime) -> Result<(), MismatchResult> {
     for state in interaction.provider_states.clone() {
-      execute_state_change(&state, provider, true)?
+      execute_state_change(&state, provider, true, runtime)?
     }
 
-    let result = verify_response_from_provider(provider, interaction);
+    let result = verify_response_from_provider(provider, interaction, runtime);
 
     if provider.state_change_teardown {
       for state in interaction.provider_states.clone() {
-        execute_state_change(&state, provider, false)?
+        execute_state_change(&state, provider, false, runtime)?
       }
     }
 
@@ -326,7 +346,7 @@ fn filter_consumers(consumers: &Vec<String>, res: &Result<Pact, String>) -> bool
 
 /// Verify the provider with the given pact sources
 pub fn verify_provider(provider_info: &ProviderInfo, source: Vec<PactSource>, filter: &FilterInfo,
-    consumers: &Vec<String>) -> bool {
+    consumers: &Vec<String>, runtime: &mut Runtime) -> bool {
     let pacts = source.iter().flat_map(|s| {
         match s {
             &PactSource::File(ref file) => vec![Pact::read_pact(Path::new(&file))
@@ -342,7 +362,9 @@ pub fn verify_provider(provider_info: &ProviderInfo, source: Vec<PactSource>, fi
             },
             &PactSource::URL(ref url) => vec![Pact::from_url(url)
                 .map_err(|err| format!("Failed to load pact '{}' - {}", url, err))],
-            &PactSource::BrokerUrl(ref provider_name, ref broker_url) => match pact_broker::fetch_pacts_from_broker(broker_url, provider_name) {
+            &PactSource::BrokerUrl(ref provider_name, ref broker_url) => {
+                let future = pact_broker::fetch_pacts_from_broker(broker_url.clone(), provider_name.clone());
+                match runtime.block_on(future) {
                 Ok(ref pacts) => pacts.iter().map(|p| {
                         match p {
                             &Ok(ref pact) => Ok(pact.clone()),
@@ -350,7 +372,7 @@ pub fn verify_provider(provider_info: &ProviderInfo, source: Vec<PactSource>, fi
                         }
                     }).collect(),
                 Err(err) => vec![Err(format!("Could not load pacts from the pact broker '{}' - {:?}", broker_url, err))]
-            }
+            }}
         }
     })
     .filter(|res| filter_consumers(consumers, res))
@@ -371,7 +393,7 @@ pub fn verify_provider(provider_info: &ProviderInfo, source: Vec<PactSource>, fi
                     let results: HashMap<Interaction, Result<(), MismatchResult>> = pact.interactions.iter()
                     .filter(|interaction| filter_interaction(interaction, filter))
                     .map(|interaction| {
-                        (interaction.clone(), verify_interaction(provider_info, interaction))
+                        (interaction.clone(), verify_interaction(provider_info, interaction, runtime))
                     }).collect();
 
                     for (interaction, result) in results.clone() {
@@ -487,6 +509,7 @@ mod tests {
   use pact_matching::models::provider_states::*;
   use pact_consumer::prelude::*;
   use env_logger::*;
+  use tokio::runtime::current_thread::Runtime;
 
     #[test]
     fn if_no_interaction_filter_is_defined_returns_true() {
@@ -617,7 +640,7 @@ mod tests {
     };
 
     let provider = ProviderInfo { state_change_url: Some(server.url().to_string()), .. ProviderInfo::default() };
-    let result = execute_state_change(&provider_state, &provider, true);
+    let result = execute_state_change(&provider_state, &provider, true, &mut Runtime::new().unwrap());
     expect!(result.clone()).to(be_ok());
   }
 
@@ -647,7 +670,7 @@ mod tests {
 
     let provider = ProviderInfo { state_change_url: Some(server.url().to_string()),
       state_change_body: false, .. ProviderInfo::default() };
-    let result = execute_state_change(&provider_state, &provider, true);
+    let result = execute_state_change(&provider_state, &provider, true, &mut Runtime::new().unwrap());
     expect!(result.clone()).to(be_ok());
   }
 }

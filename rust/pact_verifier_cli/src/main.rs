@@ -201,6 +201,7 @@ extern crate pact_verifier;
 extern crate simplelog;
 extern crate rand;
 extern crate regex;
+extern crate tokio;
 
 #[cfg(test)]
 #[macro_use(expect)]
@@ -218,6 +219,7 @@ use simplelog::TermLogger;
 use std::str::FromStr;
 use std::error::Error;
 use regex::Regex;
+use tokio::runtime::current_thread::Runtime;
 
 fn main() {
     match handle_command_args() {
@@ -417,7 +419,9 @@ fn handle_command_args() -> Result<(), i32> {
             };
             let source = pact_source(matches);
             let filter = interaction_filter(matches);
-            if verify_provider(&provider, source, &filter, &matches.values_of_lossy("filter-consumer").unwrap_or(vec![])) {
+            let mut runtime = Runtime::new().unwrap();
+
+            if verify_provider(&provider, source, &filter, &matches.values_of_lossy("filter-consumer").unwrap_or(vec![]), &mut runtime) {
                 Ok(())
             } else {
                 Err(2)
