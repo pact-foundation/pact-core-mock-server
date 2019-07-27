@@ -1,5 +1,31 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.5.0 - Upgrade to non-blocking Hyper 0.12
+
+* d842100 - chore: bump component versions to 0.5.0 (Ronald Holshausen, Sat Jul 27 15:44:51 2019 +1000)
+* a7c674a - fix: remove duplicated line (Ronald Holshausen, Sat Jul 27 15:41:00 2019 +1000)
+* ee8a898 - Rewrite server matches sync from mpsc queue to Arc<Mutex<Vec>>. Avoids awkward synchronization (Audun Halland, Tue Jul 23 02:10:55 2019 +0200)
+* 5ea7815 - Merge remote-tracking branch 'upstream/master' into hyper_upgrade_merge (Audun Halland, Tue Jul 23 01:46:51 2019 +0200)
+* 2826bb0 - Make pact_mock_server_cli use ServerManager (Audun Halland, Tue Jul 23 01:40:46 2019 +0200)
+* 47ab6d0 - Upgrade tokio to 0.1.22 everywhere (Audun Halland, Mon Jul 22 23:47:09 2019 +0200)
+* 4df2797 - Rename API function again (Audun Halland, Mon Jul 22 23:38:11 2019 +0200)
+* 7f7dcb0 - Don't expose tokio Runtime inside the libraries (Audun Halland, Mon Jul 22 02:18:52 2019 +0200)
+* 2230be9 - bump version to 0.4.2 (Ronald Holshausen, Sun Jun 30 16:23:22 2019 +1000)
+* 0223d31 - Remove warning about unused macros in production code (Audun Halland, Sun May 12 10:57:35 2019 +0200)
+* 0e83d41 - Comment the use of PACT_FILE_MUTEX (Audun Halland, Sun May 12 10:55:55 2019 +0200)
+* 9c1d5a3 - Fix missing documentation (Audun Halland, Sun May 12 10:48:58 2019 +0200)
+* 522e7ba - Set runtime::Builder core_threads instead of blocking_threads (Audun Halland, Sun May 12 10:36:54 2019 +0200)
+* a0dc885 - Shut down MockServer without consuming self, by putting shutdown_tx in an Option (Audun Halland, Sun May 12 10:28:27 2019 +0200)
+* 16cc6b6 - Run pact_verifier tests in async mode + pact write lock (Audun Halland, Sun May 12 04:05:08 2019 +0200)
+* 39d231d - pact_consumer async support (untested) (Audun Halland, Sun May 12 03:45:05 2019 +0200)
+* 2b34371 - Refactor MockServer; move to separate file (Audun Halland, Sun May 12 02:51:22 2019 +0200)
+* cd2ef48 - Rename server.rs to hyper_server.rs (Audun Halland, Sun May 12 02:04:00 2019 +0200)
+* ab1ff4d - Remove unused import (Audun Halland, Sun May 12 01:44:24 2019 +0200)
+* 9e34c33 - Make the old tests in tests.rs work (Audun Halland, Sun May 12 01:42:22 2019 +0200)
+* 32b52cd - Manager should not block waiting for match requests. (Audun Halland, Sun May 12 01:19:10 2019 +0200)
+* 71dc054 - A failing test for mock server on current_thread runtime (Audun Halland, Sat May 11 22:57:12 2019 +0200)
+* 56768ff - Move pact_mock_server_async into pact_mock_server, making it the official implementation (Audun Halland, Sat May 11 22:04:38 2019 +0200)
+
 # 0.4.1 - pact matchig version to 0.5.0
 
 * 61a6b7f - chore: updated release script (Ronald Holshausen, Sun Jun 30 16:15:49 2019 +1000)
