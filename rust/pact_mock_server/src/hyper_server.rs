@@ -138,7 +138,6 @@ fn match_result_to_hyper_response(request: &Request, match_result: MatchResult) 
             let response = pact_matching::generate_response(&interaction.response);
             info!("Request matched, sending response {:?}", response);
             info!("     body: '{}'\n\n", interaction.response.body.str_value());
-            info!("     body: '{}'\n\n", interaction.response.body.str_value());
 
             let mut builder = Response::builder();
 
