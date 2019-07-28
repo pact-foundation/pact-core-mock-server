@@ -184,9 +184,9 @@ impl HALClient {
         })
             .and_then(move |link_url| {
                 self.url.parse::<reqwest::Url>()
-                    .map_err(|err| PactBrokerError::UrlError(format!("{}", err.description())))
+                    .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))
                     .and_then(|base_url| base_url.join(&link_url)
-                        .map_err(|err| PactBrokerError::UrlError(format!("{}", err.description())))
+                        .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))
                     )
                     .map(|uri| (self, uri))
             })
@@ -199,7 +199,7 @@ impl HALClient {
         debug!("Fetching path '{}' from pact broker", path);
 
         future::done(join_paths(&self.url, path.clone()).parse::<reqwest::Url>())
-            .map_err(|err| PactBrokerError::UrlError(format!("{}", err.description())))
+            .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))
             .and_then(move |url| {
                 let client_url_cloned = self.url.clone();
                 let path_cloned = path.clone();
@@ -208,9 +208,9 @@ impl HALClient {
                     .header("accept", "application/hal+json, application/json")
                     .send()
                     .map_err(move |err| {
-                        PactBrokerError::IoError(format!("Failed to access pact broker path '{}' - {:?}. URL: '{}'",
+                        PactBrokerError::IoError(format!("Failed to access pact broker path '{}' - {}. URL: '{}'",
                             path_cloned,
-                            err.description(),
+                            err,
                             client_url_cloned
                         ))
                     })
@@ -257,8 +257,8 @@ impl HALClient {
                 if is_json_content_type {
                     serde_json::from_slice(&body)
                         .map_err(|err| {
-                            PactBrokerError::ContentError(format!("Did not get a valid HAL response body from pact broker path '{}' - {}: {}. URL: '{}'",
-                                path, err.description(), err, hal_client.url))
+                            PactBrokerError::ContentError(format!("Did not get a valid HAL response body from pact broker path '{}' - {}. URL: '{}'",
+                                path, err, hal_client.url))
                         })
                 } else {
                     Err(PactBrokerError::ContentError(format!("Did not get a HAL response from pact broker path '{}', content type is '{}'. URL: '{}'",
