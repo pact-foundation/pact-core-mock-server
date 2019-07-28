@@ -34,16 +34,14 @@ fn content_type(response: &reqwest::async::Response) -> String {
 }
 
 fn json_content_type(response: &reqwest::async::Response) -> bool {
-    match response.headers().get("content-type") {
-        Some(value) => {
-            match value.to_str() {
-                Err(_) => false,
-                Ok("application/json") => true,
-                Ok("application/hal+json") => true,
-                _ => false
-            }
-        },
-        None => false
+    match content_type(response).parse::<mime::Mime>() {
+        Ok(mime) => {
+            mime.type_() == mime::APPLICATION && (
+                mime.subtype() == "hal" ||
+                mime.subtype() == mime::JSON
+            )
+        }
+        Err(_) => false
     }
 }
 
@@ -118,7 +116,10 @@ impl HALClient {
 
     fn default() -> HALClient {
         HALClient {
-            client: reqwest::async::ClientBuilder::new().build().unwrap(),
+            client: reqwest::async::ClientBuilder::new()
+                .use_default_tls()
+                .build()
+                .unwrap(),
             url: s!(""),
             path_info: None
         }
@@ -429,6 +430,18 @@ mod tests {
         let response = reqwest::async::Response::from(
             http::response::Builder::new()
                 .header("content-type", "application/json")
+                .body("null")
+                .unwrap()
+        );
+
+        expect!(json_content_type(&response)).to(be_true());
+    }
+
+    #[test]
+    fn json_content_type_utf8_test() {
+        let response = reqwest::async::Response::from(
+            http::response::Builder::new()
+                .header("content-type", "application/hal+json;charset=utf-8")
                 .body("null")
                 .unwrap()
         );

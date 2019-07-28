@@ -30,6 +30,7 @@ tokio = "0.1.22"
 futures = "0.1"
 hyper = "0.12"
 reqwest = "0.9.19"
+mime = "0.3"
 bytes = "0.4.4"
 
 [lib]

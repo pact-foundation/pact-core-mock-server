@@ -11,6 +11,7 @@ extern crate tokio;
 extern crate futures;
 extern crate bytes;
 extern crate reqwest;
+extern crate mime;
 #[macro_use] extern crate maplit;
 extern crate itertools;
 extern crate regex;
