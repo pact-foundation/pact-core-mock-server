@@ -2,14 +2,9 @@ use pact_matching::models::Pact;
 use serde_json;
 use itertools::Itertools;
 use std::collections::HashMap;
-use hyper::Client;
 use std::error::Error;
 use super::provider_client::join_paths;
 use regex::{Regex, Captures};
-use bytes::Bytes;
-use hyper::{Request, Response, Body};
-use hyper::Uri;
-use hyper::StatusCode;
 use futures::future;
 use futures::future::Future;
 use futures::stream::Stream;
@@ -31,14 +26,14 @@ fn as_string(json: &serde_json::Value) -> String {
     }
 }
 
-fn content_type<T>(response: &Response<T>) -> String {
+fn content_type(response: &reqwest::async::Response) -> String {
     match response.headers().get("content-type") {
         Some(value) => value.to_str().unwrap_or("text/plain").into(),
         None => s!("text/plain")
     }
 }
 
-fn json_content_type<T>(response: &Response<T>) -> bool {
+fn json_content_type(response: &reqwest::async::Response) -> bool {
     match response.headers().get("content-type") {
         Some(value) => {
             match value.to_str() {
@@ -110,32 +105,11 @@ impl Link {
             templated: is_true(link_data, &s!("templated"))
         }
     }
-
-}
-
-fn join_uris(base: Uri, link: Uri) -> Result<Uri, PactBrokerError> {
-    let base_parts = base.into_parts();
-    let link_parts = link.into_parts();
-
-    let path_and_query = format!("{}{}",
-        base_parts.path_and_query
-            .map(|path_and_query| path_and_query.path().to_string())
-            .unwrap_or("".into()),
-        link_parts.path_and_query
-            .map(|path_and_query| path_and_query.as_str().to_string())
-            .unwrap_or("".into())
-        );
-
-    Uri::builder()
-        .scheme(base_parts.scheme.unwrap())
-        .authority(base_parts.authority.unwrap())
-        .path_and_query(Bytes::from(path_and_query))
-        .build()
-        .map_err(|err| PactBrokerError::UrlError(format!("{}", err.description())))
 }
 
 #[derive(Clone)]
 pub struct HALClient {
+    client: reqwest::async::Client,
     url: String,
     path_info: Option<serde_json::Value>
 }
@@ -143,11 +117,23 @@ pub struct HALClient {
 impl HALClient {
 
     fn default() -> HALClient {
-        HALClient{ url: s!(""), path_info: None }
+        HALClient {
+            client: reqwest::async::ClientBuilder::new().build().unwrap(),
+            url: s!(""),
+            path_info: None
+        }
+    }
+
+    fn with_url(url: String) -> HALClient {
+        HALClient { url: url, .. HALClient::default() }
     }
 
     fn update_path_info(self, path_info: serde_json::Value) -> HALClient {
-        HALClient{ url: self.url, path_info: Some(path_info) }
+        HALClient {
+            client: self.client.clone(),
+            url: self.url,
+            path_info: Some(path_info)
+        }
     }
 
     fn navigate(self, link: &'static str, template_values: HashMap<String, String>) -> impl Future<Item = HALClient, Error = PactBrokerError> {
@@ -196,15 +182,12 @@ impl HALClient {
                                                    self.url, link.name)))
         })
             .and_then(move |link_url| {
-                link_url.parse::<Uri>()
+                self.url.parse::<reqwest::Url>()
                     .map_err(|err| PactBrokerError::UrlError(format!("{}", err.description())))
+                    .and_then(|base_url| base_url.join(&link_url)
+                        .map_err(|err| PactBrokerError::UrlError(format!("{}", err.description())))
+                    )
                     .map(|uri| (self, uri))
-            })
-            .and_then(|(hal_client, link_uri)| {
-                hal_client.url.parse::<Uri>()
-                    .map_err(|err| PactBrokerError::UrlError(format!("{}", err.description())))
-                    .and_then(|base_uri| join_uris(base_uri, link_uri))
-                    .map(|uri| (hal_client, uri))
             })
             .and_then(|(hal_client, uri)| {
                 hal_client.fetch(uri.path().into())
@@ -214,18 +197,15 @@ impl HALClient {
     fn fetch(self, path: String) -> impl Future<Item = serde_json::Value, Error = PactBrokerError> {
         debug!("Fetching path '{}' from pact broker", path);
 
-        future::done(join_paths(&self.url, path.clone()).parse::<Uri>())
+        future::done(join_paths(&self.url, path.clone()).parse::<reqwest::Url>())
             .map_err(|err| PactBrokerError::UrlError(format!("{}", err.description())))
             .and_then(move |url| {
                 let client_url_cloned = self.url.clone();
                 let path_cloned = path.clone();
 
-                Client::new().request(
-                    Request::get(url)
-                        .header("accept", "application/hal+json, application/json")
-                        .body(Body::empty())
-                        .unwrap()
-                )
+                self.client.get(url.clone())
+                    .header("accept", "application/hal+json, application/json")
+                    .send()
                     .map_err(move |err| {
                         PactBrokerError::IoError(format!("Failed to access pact broker path '{}' - {:?}. URL: '{}'",
                             path_cloned,
@@ -238,7 +218,11 @@ impl HALClient {
             .and_then(|(hal_client, path, response)| hal_client.parse_broker_response(path, response))
     }
 
-    fn parse_broker_response(self, path: String, response: Response<Body>) -> impl Future<Item = serde_json::Value, Error = PactBrokerError> {
+    fn parse_broker_response(
+        self,
+        path: String,
+        response: reqwest::async::Response
+    ) -> impl Future<Item = serde_json::Value, Error = PactBrokerError> {
         let is_json_content_type = json_content_type(&response);
         let content_type = content_type(&response);
 
@@ -247,7 +231,7 @@ impl HALClient {
                 if response.status().is_success() {
                     Ok((self, path, response))
                 } else {
-                    if response.status() == StatusCode::NOT_FOUND {
+                    if response.status() == reqwest::StatusCode::NOT_FOUND {
                         Err(PactBrokerError::NotFound(format!("Request to pact broker path '{}' failed: {}. URL: '{}'", path,
                             response.status(), self.url)))
                     } else {
@@ -331,8 +315,11 @@ impl HALClient {
     }
 }
 
-pub fn fetch_pacts_from_broker(broker_url: String, provider_name: String) -> impl Future<Item = Vec<Result<Pact, PactBrokerError>>, Error = PactBrokerError> {
-    let hal_client = HALClient{ url: broker_url.clone(), .. HALClient::default() };
+pub fn fetch_pacts_from_broker(
+    broker_url: String,
+    provider_name: String
+) -> impl Future<Item = Vec<Result<Pact, PactBrokerError>>, Error = PactBrokerError> {
+    let hal_client = HALClient::with_url(broker_url.clone());
     let template_values = hashmap!{ s!("provider") => provider_name.clone() };
 
     hal_client.navigate("pb:latest-provider-pacts", template_values.clone())
@@ -386,7 +373,7 @@ mod tests {
     #[test]
     fn fetch_returns_an_error_if_there_is_no_pact_broker() {
         let mut runtime = Runtime::new().unwrap();
-        let client = HALClient{ url: s!("http://idont.exist:6666"), .. HALClient::default() };
+        let client = HALClient::with_url(s!("http://idont.exist:6666"));
         expect!(runtime.block_on(client.fetch(s!("/")))).to(be_err());
     }
 
@@ -401,7 +388,7 @@ mod tests {
             })
             .create_mock_server(|future| { runtime.spawn(future); });
 
-        let client = HALClient{ url: pact_broker.url().to_string(), .. HALClient::default() };
+        let client = HALClient::with_url(pact_broker.url().to_string());
         let result = runtime.block_on(client.fetch(s!("/hello")));
         expect!(result).to(be_err().value(format!("Request to pact broker path \'/hello\' failed: 404 Not Found. URL: '{}'",
             pact_broker.url())));
@@ -419,7 +406,7 @@ mod tests {
             })
             .create_mock_server(|future| { runtime.spawn(future); });
 
-        let client = HALClient{ url: pact_broker.url().to_string(), .. HALClient::default() };
+        let client = HALClient::with_url(pact_broker.url().to_string());
         let result = runtime.block_on(client.fetch(s!("/nonjson")));
         expect!(result).to(be_err().value(format!("Did not get a HAL response from pact broker path \'/nonjson\', content type is 'text/html'. URL: '{}'",
             pact_broker.url())));
@@ -427,20 +414,24 @@ mod tests {
 
     #[test]
     fn content_type_test() {
-        let response = Response::builder()
-            .header("content-type", "application/hal+json; charset=utf-8")
-            .body(())
-            .unwrap();
+        let response = reqwest::async::Response::from(
+            http::response::Builder::new()
+                .header("content-type", "application/hal+json; charset=utf-8")
+                .body("null")
+                .unwrap()
+        );
 
         expect!(content_type(&response)).to(be_equal_to(s!("application/hal+json; charset=utf-8")));
     }
 
     #[test]
     fn json_content_type_test() {
-        let response = Response::builder()
-            .header("content-type", "application/json")
-            .body(())
-            .unwrap();
+        let response = reqwest::async::Response::from(
+            http::response::Builder::new()
+                .header("content-type", "application/json")
+                .body("null")
+                .unwrap()
+        );
 
         expect!(json_content_type(&response)).to(be_true());
     }
@@ -461,7 +452,7 @@ mod tests {
             })
             .create_mock_server(|future| { runtime.spawn(future); });
 
-        let client = HALClient{ url: pact_broker.url().to_string(), .. HALClient::default() };
+        let client = HALClient::with_url(pact_broker.url().to_string());
         let result = runtime.block_on(client.clone().fetch(s!("/nonhal")));
         expect!(result).to(be_err().value(format!("Did not get a valid HAL response body from pact broker path \'/nonhal\' - JSON error: EOF while parsing a value at line 1 column 0. URL: '{}'",
             pact_broker.url())));
@@ -497,7 +488,7 @@ mod tests {
     #[test]
     fn fetch_link_returns_an_error_if_a_previous_resource_has_not_been_fetched() {
         let mut runtime = Runtime::new().unwrap();
-        let client = HALClient{ url: s!("http://localhost"), .. HALClient::default() };
+        let client = HALClient::with_url(s!("http://localhost"));
         let result = runtime.block_on(client.fetch_link("anything_will_do", hashmap!{}));
         expect!(result).to(be_err().value(s!("No previous resource has been fetched from the pact broker. URL: 'http://localhost', LINK: 'anything_will_do'")));
     }
@@ -515,7 +506,7 @@ mod tests {
             })
             .create_mock_server(|future| { runtime.spawn(future); });
 
-        let mut client = HALClient{ url: pact_broker.url().to_string(), .. HALClient::default() };
+        let mut client = HALClient::with_url(pact_broker.url().to_string());
         let result = runtime.block_on(client.clone().fetch(s!("/")));
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
@@ -537,7 +528,7 @@ mod tests {
             })
             .create_mock_server(|future| { runtime.spawn(future); });
 
-        let mut client = HALClient{ url: pact_broker.url().to_string(), .. HALClient::default() };
+        let mut client = HALClient::with_url(pact_broker.url().to_string());
         let result = runtime.block_on(client.clone().fetch(s!("/")));
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
@@ -558,7 +549,7 @@ mod tests {
             })
             .create_mock_server(|future| { runtime.spawn(future); });
 
-        let mut client = HALClient{ url: pact_broker.url().to_string(), .. HALClient::default() };
+        let mut client = HALClient::with_url(pact_broker.url().to_string());
         let result = runtime.block_on(client.clone().fetch(s!("/")));
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
@@ -585,7 +576,7 @@ mod tests {
             })
             .create_mock_server(|future| { runtime.spawn(future); });
 
-        let mut client = HALClient{ url: pact_broker.url().to_string(), .. HALClient::default() };
+        let mut client = HALClient::with_url(pact_broker.url().to_string());
         let result = runtime.block_on(client.clone().fetch(s!("/")));
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
@@ -612,7 +603,7 @@ mod tests {
             })
             .create_mock_server(|future| { runtime.spawn(future); });
 
-        let mut client = HALClient{ url: pact_broker.url().to_string(), .. HALClient::default() };
+        let mut client = HALClient::with_url(pact_broker.url().to_string());
         let result = runtime.block_on(client.clone().fetch(s!("/")));
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
@@ -640,7 +631,7 @@ mod tests {
             })
             .create_mock_server(|future| { runtime.spawn(future); });
 
-        let mut client = HALClient{ url: pact_broker.url().to_string(), .. HALClient::default() };
+        let mut client = HALClient::with_url(pact_broker.url().to_string());
         let result = runtime.block_on(client.clone().fetch(s!("/")));
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
