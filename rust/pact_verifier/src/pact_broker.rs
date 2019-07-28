@@ -466,11 +466,11 @@ mod tests {
 
         let client = HALClient::with_url(pact_broker.url().to_string());
         let result = runtime.block_on(client.clone().fetch(s!("/nonhal")));
-        expect!(result).to(be_err().value(format!("Did not get a valid HAL response body from pact broker path \'/nonhal\' - JSON error: EOF while parsing a value at line 1 column 0. URL: '{}'",
+        expect!(result).to(be_err().value(format!("Did not get a valid HAL response body from pact broker path \'/nonhal\' - EOF while parsing a value at line 1 column 0. URL: '{}'",
             pact_broker.url())));
 
         let result = runtime.block_on(client.clone().fetch(s!("/nonhal2")));
-        expect!(result).to(be_err().value(format!("Did not get a valid HAL response body from pact broker path \'/nonhal2\' - JSON error: expected value at line 1 column 1. URL: '{}'",
+        expect!(result).to(be_err().value(format!("Did not get a valid HAL response body from pact broker path \'/nonhal2\' - expected value at line 1 column 1. URL: '{}'",
             pact_broker.url())));
     }
 
