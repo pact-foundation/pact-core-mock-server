@@ -2,7 +2,6 @@ use pact_matching::models::Pact;
 use serde_json;
 use itertools::Itertools;
 use std::collections::HashMap;
-use std::error::Error;
 use super::provider_client::join_paths;
 use regex::{Regex, Captures};
 use futures::future;
