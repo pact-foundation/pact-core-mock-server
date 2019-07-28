@@ -204,7 +204,7 @@ impl HALClient {
                 let client_url_cloned = self.url.clone();
                 let path_cloned = path.clone();
 
-                self.client.get(url.clone())
+                self.client.get(url)
                     .header("accept", "application/hal+json, application/json")
                     .send()
                     .map_err(move |err| {
