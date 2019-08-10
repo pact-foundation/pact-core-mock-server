@@ -266,6 +266,19 @@ impl Matches<u64> for f64 {
     }
 }
 
+impl Matches<Vec<u8>> for String {
+  fn matches(&self, actual: &Vec<u8>, matcher: &MatchingRule) -> Result<(), String> {
+    self.matches(&s!(std::str::from_utf8(actual).unwrap_or("")), matcher)
+  }
+}
+
+impl Matches<Vec<u8>> for Vec<u8> {
+  fn matches(&self, actual: &Vec<u8>, matcher: &MatchingRule) -> Result<(), String> {
+    let self_str: String = s!(std::str::from_utf8(self).unwrap_or(""));
+    self_str.matches(&s!(std::str::from_utf8(actual).unwrap_or("")), matcher)
+  }
+}
+
 fn select_best_matcher(category: &str, path: &Vec<String>, matchers: &MatchingRules) -> Option<RuleList> {
   if category == "body" {
     matchers.resolve_body_matchers_by_path(path)

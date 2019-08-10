@@ -624,12 +624,24 @@ pub enum DiffConfig {
 }
 
 /// Matches the actual text body to the expected one.
-pub fn match_text(expected: &Vec<u8>, actual: &Vec<u8>, mismatches: &mut Vec<Mismatch>) {
-    if expected != actual {
-        mismatches.push(Mismatch::BodyMismatch { path: s!("/"), expected: Some(expected.clone()),
-            actual: Some(actual.clone()),
-            mismatch: format!("Expected text '{:?}' but received '{:?}'", expected, actual) });
+pub fn match_text(expected: &Vec<u8>, actual: &Vec<u8>, mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
+  let path = vec![s!("$")];
+  if matchers.matcher_is_defined("body", &path) {
+    if let Err(messages) = match_values("body", &path, matchers.clone(), expected, actual) {
+      for message in messages {
+        mismatches.push(Mismatch::BodyMismatch {
+          path: s!("$"),
+          expected: Some(expected.clone()),
+          actual: Some(actual.clone()),
+          mismatch: message.clone()
+        })
+      }
     }
+  } else if expected != actual {
+    mismatches.push(Mismatch::BodyMismatch { path: s!("$"), expected: Some(expected.clone()),
+      actual: Some(actual.clone()),
+      mismatch: format!("Expected text '{:?}' but received '{:?}'", expected, actual) });
+  };
 }
 
 /// Matches the actual request method to the expected one.
@@ -870,7 +882,7 @@ fn compare_bodies(mimetype: String, expected: &Vec<u8>, actual: &Vec<u8>, config
     mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
     match BODY_MATCHERS.iter().find(|mt| mt.0.is_match(&mimetype)) {
         Some(ref match_fn) => match_fn.1(expected, actual, config, mismatches, matchers),
-        None => match_text(expected, actual, mismatches)
+        None => match_text(expected, actual, mismatches, matchers)
     }
 }
 

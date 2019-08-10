@@ -3,6 +3,7 @@ use super::{match_header_value, strip_whitespace};
 use std::collections::HashMap;
 use expectest::prelude::*;
 use models::{Request, OptionalBody};
+use nom::AsBytes;
 
 #[test]
 fn match_method_returns_nothing_if_the_method_matches() {
@@ -640,4 +641,45 @@ fn matching_headers_be_false_when_headers_do_not_match_by_matcher() {
     assert_eq!(mismatches[0], Mismatch::HeaderMismatch { key: s!("HEADER"),
         expected: s!("HEADER"), actual: s!("HEADER"),
         mismatch: s!("") });
+}
+
+#[test]
+fn matching_text_body_be_true_when_bodies_are_equal() {
+  let mut mismatches = vec![];
+  let expected: Vec<u8> = "body value".as_bytes().into();
+  let actual: Vec<u8> = "body value".as_bytes().into();
+  compare_bodies(s!("text/plain"), &expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &matchingrules!{});
+  expect!(mismatches.iter()).to(be_empty());
+}
+
+#[test]
+fn matching_text_body_be_false_when_bodies_are_not_equal() {
+  let mut mismatches = vec![];
+  let expected: Vec<u8> = "expected body value".as_bytes().into();
+  let actual: Vec<u8> = "actual body value".as_bytes().into();
+  compare_bodies(s!("text/plain"), &expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &matchingrules!{});
+  expect!(mismatches.iter()).to_not(be_empty());
+  assert_eq!(mismatches[0], Mismatch::BodyMismatch { path: s!("$"),
+      expected: Some(expected), actual: Some(actual),
+      mismatch: s!("") });
+}
+
+#[test]
+fn matching_text_body_must_use_defined_matcher() {
+  let mut mismatches = vec![];
+  let expected: Vec<u8> = "expected body value".as_bytes().into();
+  let actual: Vec<u8> = "actualbodyvalue".as_bytes().into();
+  compare_bodies(s!("text/plain"), &expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &matchingrules!{
+    "body" => {
+      "$" => [ MatchingRule::Regex(s!("\\w+")) ]
+    }
+  });
+  expect!(mismatches.iter()).to(be_empty());
+
+  compare_bodies(s!("text/plain"), &expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &matchingrules!{
+    "body" => {
+      "$" => [ MatchingRule::Regex(s!("\\d+")) ]
+    }
+  });
+  expect!(mismatches.iter()).to_not(be_empty());
 }
