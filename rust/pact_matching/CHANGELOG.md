@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.5.2 - Support headers with multiple values
+
+* 0c5f718 - feat: support matchers on plain text bodies #43 (Ronald Holshausen, Sat Aug 10 17:54:26 2019 +1000)
+* f0c0d07 - feat: support headers with multiple values (Ronald Holshausen, Sat Aug 10 17:01:10 2019 +1000)
+* 699f48f - bump version to 0.5.2 (Ronald Holshausen, Sat Jun 29 19:34:44 2019 +1000)
+* 0fe57d9 - fix: release script (Ronald Holshausen, Sat Jun 29 19:28:46 2019 +1000)
+* 756ac9d - chore: update release script (Ronald Holshausen, Sat Jun 29 19:27:45 2019 +1000)
+
 # 0.5.1 - Bugfix Release
 
 * eab2d86 - chore: removed P macro (Ronald Holshausen, Sat Jun 29 18:45:12 2019 +1000)
