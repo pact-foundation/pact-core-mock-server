@@ -188,6 +188,12 @@ impl GenerateValue<String> for Generator {
   }
 }
 
+impl GenerateValue<Vec<String>> for Generator {
+  fn generate_value(&self, vals: &Vec<String>) -> Option<Vec<String>> {
+    self.generate_value(vals.first().unwrap_or(&s!(""))).map(|v| vec![v])
+  }
+}
+
 impl GenerateValue<Value> for Generator {
   fn generate_value(&self, value: &Value) -> Option<Value> {
     match self {
@@ -347,7 +353,7 @@ impl JsonHandler {
               match body_cursor.clone().as_object() {
                 Some(map) => match map.get(name) {
                   Some(val) => {
-                    let mut node = tree.new_node(name.clone());
+                    let node = tree.new_node(name.clone());
                     node_cursor.append(node, tree);
                     body_cursor = val.clone();
                     node_cursor = node;
@@ -360,7 +366,7 @@ impl JsonHandler {
             &PathToken::Index(index) => {
               match body_cursor.clone().as_array() {
                 Some(list) => if list.len() > index {
-                  let mut node = tree.new_node(format!("{}", index));
+                  let node = tree.new_node(format!("{}", index));
                   node_cursor.append(node, tree);
                   body_cursor = list[index].clone();
                   node_cursor = node;
@@ -373,7 +379,7 @@ impl JsonHandler {
                 Some(map) => {
                   let remaining = it.by_ref().cloned().collect();
                   for (key, val) in map {
-                    let mut node = tree.new_node(key.clone());
+                    let node = tree.new_node(key.clone());
                     node_cursor.append(node, tree);
                     body_cursor = val.clone();
                     self.query_object_graph(&remaining, tree, node, val.clone());
@@ -387,7 +393,7 @@ impl JsonHandler {
                 Some(list) => {
                   let remaining = it.by_ref().cloned().collect();
                   for (index, val) in list.iter().enumerate() {
-                    let mut node = tree.new_node(format!("{}", index));
+                    let node = tree.new_node(format!("{}", index));
                     node_cursor.append(node, tree);
                     body_cursor = val.clone();
                     self.query_object_graph(&remaining, tree, node,val.clone());
@@ -417,7 +423,7 @@ impl ContentTypeHandler<Value> for JsonHandler {
     match parse_path_exp(key.clone()) {
       Ok(path_exp) => {
         let mut tree = Arena::new();
-        let mut root = tree.new_node("".into());
+        let root = tree.new_node("".into());
         self.query_object_graph(&path_exp, &mut tree, root, self.value.clone());
         let expanded_paths = root.descendants(&tree).fold(Vec::<String>::new(), |mut acc, node_id| {
           let node = tree.index(node_id);

@@ -35,28 +35,30 @@ pub fn join_paths(base: &String, path: String) -> String {
     full_path
 }
 
-fn setup_headers(builder: &mut RequestBuilder, headers: &Option<HashMap<String, String>>) -> Result<(), ProviderClientError> {
-    let hyper_headers = builder.headers_mut().unwrap();
-    match headers {
-        Some(header_map) => {
-            for (k, v) in header_map {
-                // FIXME?: Headers are not sent in "raw" mode.
-                // Names are converted to lower case and values are parsed.
-                hyper_headers.insert(
-                    HeaderName::from_bytes(k.as_bytes())
-                        .map_err(|err| ProviderClientError::RequestHeaderNameError(k.clone(), err))?,
-                    v.parse::<HeaderValue>()
-                        .map_err(|err| ProviderClientError::RequestHeaderValueError(v.clone(), err))?
-                );
-            }
+fn setup_headers(builder: &mut RequestBuilder, headers: &Option<HashMap<String, Vec<String>>>) -> Result<(), ProviderClientError> {
+  let hyper_headers = builder.headers_mut().unwrap();
+  match headers {
+    Some(header_map) => {
+      for (k, v) in header_map {
+        for val in v {
+          // FIXME?: Headers are not sent in "raw" mode.
+          // Names are converted to lower case and values are parsed.
+          hyper_headers.append(
+            HeaderName::from_bytes(k.as_bytes())
+              .map_err(|err| ProviderClientError::RequestHeaderNameError(k.clone(), err))?,
+            val.parse::<HeaderValue>()
+              .map_err(|err| ProviderClientError::RequestHeaderValueError(val.clone(), err))?
+          );
+        }
+      }
 
-            if !header_map.keys().any(|k| k.to_lowercase() == "content-type") {
-                hyper_headers.insert(CONTENT_TYPE, "application/json".parse().unwrap());
-            }
-        },
-        _ => {}
-    }
-    Ok(())
+      if !header_map.keys().any(|k| k.to_lowercase() == "content-type") {
+        hyper_headers.insert(CONTENT_TYPE, "application/json".parse().unwrap());
+      }
+    },
+    _ => {}
+  }
+  Ok(())
 }
 
 fn create_hyper_request(base_url: &String, request: &Request) -> Result<HyperRequest<Body>, ProviderClientError> {
@@ -91,17 +93,30 @@ fn create_hyper_request(base_url: &String, request: &Request) -> Result<HyperReq
     Ok(hyper_request)
 }
 
-fn extract_headers(headers: &HeaderMap) -> Option<HashMap<String, String>> {
-    if headers.len() > 0 {
-        Some(headers.iter()
-            .map(|(name, value)| {
-                (name.as_str().into(), value.to_str().unwrap().into())
+fn extract_headers(headers: &HeaderMap) -> Option<HashMap<String, Vec<String>>> {
+  if !headers.is_empty() {
+    let result = headers.keys()
+      .map(|name| {
+        let values = headers.get_all(name);
+        let parsed_vals: Vec<Result<String, ()>> = values.iter()
+          .map(|val| val.to_str()
+            .map(|v| v.to_string())
+            .map_err(|err| {
+              warn!("Failed to parse HTTP header value: {}", err);
+              ()
             })
-            .collect()
-        )
-    } else {
-        None
-    }
+          ).collect();
+        (name.as_str().into(), parsed_vals.iter().cloned()
+          .filter(|val| val.is_ok())
+          .map(|val| val.unwrap_or_default())
+          .collect())
+      })
+      .collect();
+
+    Some(result)
+  } else {
+    None
+  }
 }
 
 pub fn extract_body(hyper_body: Result<hyper::Chunk, HyperError>) -> Result<OptionalBody, HyperError> {
@@ -132,9 +147,9 @@ fn hyper_response_to_pact_response(response: HyperResponse<Body>) -> impl Future
         .then(extract_body)
         .map(move |body| {
             Response {
-                status: status,
-                headers: headers,
-                body: body,
+                status,
+                headers,
+                body,
                 matching_rules: MatchingRules::default(),
                 generators: Generators::default()
             }

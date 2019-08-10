@@ -20,7 +20,7 @@ pub trait HttpPartBuilder {
     /// `&mut` into two `&mut` pointing to sub-objects, which has to be done
     /// carefully in Rust.
     #[doc(hidden)]
-    fn headers_and_matching_rules_mut(&mut self) -> (&mut HashMap<String, String>, &mut MatchingRules);
+    fn headers_and_matching_rules_mut(&mut self) -> (&mut HashMap<String, Vec<String>>, &mut MatchingRules);
 
     /// (Implementation detail.) This function fetches the mutable state that's
     /// needed to update this builder's `body`. You should not need to use this
@@ -54,14 +54,18 @@ pub trait HttpPartBuilder {
         N: Into<String>,
         V: Into<StringPattern>,
     {
-        let name = name.into();
-        let value = value.into();
-        {
-            let (headers, rules) = self.headers_and_matching_rules_mut();
-            headers.insert(name.clone(), value.to_example());
-            value.extract_matching_rules(&name, rules.add_category("header"))
+      let name = name.into();
+      let value = value.into();
+      {
+        let (headers, rules) = self.headers_and_matching_rules_mut();
+        if headers.contains_key(&name) {
+          headers.get_mut(&name).map(|val| val.push(value.to_example()));
+        } else {
+          headers.insert(name.clone(), vec![value.to_example()]);
         }
-        self
+        value.extract_matching_rules(&name, rules.add_category("header"))
+      }
+      self
     }
 
     /// Set the `Content-Type` header.

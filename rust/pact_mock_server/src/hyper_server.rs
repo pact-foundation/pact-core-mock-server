@@ -10,13 +10,15 @@ use std::sync::{Arc, Mutex};
 use log::{log, error, warn, info, debug};
 use hyper::{Body, Response, Server, Error};
 use hyper::http::response::{Builder as ResponseBuilder};
-use hyper::http::header::{HeaderName, HeaderValue};
+use hyper::http::header::{HeaderName, HeaderValue, ToStrError};
 use hyper::service::service_fn;
 use futures::future;
 use futures::future::Future;
 use futures::stream::Stream;
 use serde_json::json;
+use itertools::{Itertools, any};
 
+#[derive(Debug, Clone)]
 enum InteractionError {
     RequestHeaderEncodingError,
     RequestBodyError,
@@ -37,33 +39,33 @@ fn extract_query_string(uri: &hyper::Uri) -> Option<HashMap<String, Vec<String>>
         .and_then(|query| parse_query_string(&query.into()))
 }
 
-fn extract_headers(headers: &hyper::HeaderMap) -> Result<Option<HashMap<String, String>>, InteractionError> {
-    if headers.len() > 0 {
-        let result: Result<HashMap<String, String>, InteractionError> = headers.keys()
-            .map(|name| -> Result<(String, String), InteractionError> {
-                let values = headers.get_all(name);
-                let mut iter = values.iter();
-
-                let first_value = iter.next().unwrap();
-
-                if iter.next().is_some() {
-                    warn!("Multiple headers associated with '{}', but only the first is used", name);
-                }
-
-                Ok((
-                    name.as_str().into(),
-                    first_value.to_str()
-                        .map_err(|_| InteractionError::RequestHeaderEncodingError)?
-                        .into()
-                    )
-                )
+fn extract_headers(headers: &hyper::HeaderMap) -> Result<Option<HashMap<String, Vec<String>>>, InteractionError> {
+  if !headers.is_empty() {
+    let result: Result<HashMap<String, Vec<String>>, InteractionError> = headers.keys()
+      .map(|name| -> Result<(String, Vec<String>), InteractionError> {
+        let values = headers.get_all(name);
+        let parsed_vals: Vec<Result<String, InteractionError>> = values.iter()
+          .map(|val| val.to_str()
+            .map(|v| v.to_string())
+            .map_err(|err| {
+              warn!("Failed to parse HTTP header value: {}", err);
+              InteractionError::RequestHeaderEncodingError
             })
-            .collect();
+          ).collect();
+        if parsed_vals.iter().find(|val| val.is_err()).is_some() {
+          Err(InteractionError::RequestHeaderEncodingError)
+        } else {
+          Ok((name.as_str().into(), parsed_vals.iter().cloned()
+            .map(|val| val.unwrap_or_default())
+            .collect()))
+        }
+      })
+      .collect();
 
-        result.map(|map| Some(map))
-    } else {
-        Ok(None)
-    }
+    result.map(|map| Some(map))
+  } else {
+    Ok(None)
+  }
 }
 
 fn extract_body(chunk: hyper::Chunk) -> OptionalBody {
@@ -76,55 +78,57 @@ fn extract_body(chunk: hyper::Chunk) -> OptionalBody {
 }
 
 fn hyper_request_to_pact_request(req: hyper::Request<Body>) -> impl Future<Item = Request, Error = InteractionError> {
-    let method = req.method().to_string();
-    let path = extract_path(req.uri());
-    let query = extract_query_string(req.uri());
-    let headers = extract_headers(req.headers());
+  let method = req.method().to_string();
+  let path = extract_path(req.uri());
+  let query = extract_query_string(req.uri());
+  let headers = extract_headers(req.headers());
 
-    future::done(headers)
-        .and_then(move |headers| {
-            req.into_body()
-                .concat2()
-                .map_err(|_| InteractionError::RequestBodyError)
-                .map(|body_chunk| (headers, body_chunk))
-        })
-        .and_then(|(headers, body_chunk)|
-            Ok(Request {
-                method: method,
-                path: path,
-                query: query,
-                headers: headers,
-                body: extract_body(body_chunk),
-                matching_rules: MatchingRules::default(),
-                generators: Generators::default()
-            })
-        )
+  future::done(headers)
+    .and_then(move |headers| {
+      req.into_body()
+        .concat2()
+        .map_err(|_| InteractionError::RequestBodyError)
+        .map(|body_chunk| (headers, body_chunk))
+    })
+    .and_then(|(headers, body_chunk)|
+      Ok(Request {
+          method,
+          path,
+          query,
+          headers,
+          body: extract_body(body_chunk),
+          matching_rules: MatchingRules::default(),
+          generators: Generators::default()
+      })
+    )
 }
 
-fn set_hyper_headers(builder: &mut ResponseBuilder, headers: &Option<HashMap<String, String>>) -> Result<(), InteractionError> {
-    let hyper_headers = builder.headers_mut().unwrap();
-    match headers {
-        Some(header_map) => {
-            for (k, v) in header_map {
-                // FIXME?: Headers are not sent in "raw" mode.
-                // Names are converted to lower case and values are parsed.
-                hyper_headers.insert(
-                    HeaderName::from_bytes(k.as_bytes())
-                        .map_err(|err| {
-                            error!("Invalid header name '{}' ({})", k, err);
-                            InteractionError::ResponseHeaderEncodingError
-                        })?,
-                    v.parse::<HeaderValue>()
-                        .map_err(|err| {
-                            error!("Invalid header value '{}': '{}' ({})", k, v, err);
-                            InteractionError::ResponseHeaderEncodingError
-                        })?
-                );
-            }
-        },
-        _ => {}
-    }
-    Ok(())
+fn set_hyper_headers(builder: &mut ResponseBuilder, headers: &Option<HashMap<String, Vec<String>>>) -> Result<(), InteractionError> {
+  let hyper_headers = builder.headers_mut().unwrap();
+  match headers {
+    Some(header_map) => {
+      for (k, v) in header_map {
+        for val in v {
+          // FIXME?: Headers are not sent in "raw" mode.
+          // Names are converted to lower case and values are parsed.
+          hyper_headers.append(
+            HeaderName::from_bytes(k.as_bytes())
+              .map_err(|err| {
+                error!("Invalid header name '{}' ({})", k, err);
+                InteractionError::ResponseHeaderEncodingError
+              })?,
+            val.parse::<HeaderValue>()
+              .map_err(|err| {
+                error!("Invalid header value '{}': '{}' ({})", k, val, err);
+                InteractionError::ResponseHeaderEncodingError
+              })?
+          );
+        }
+      }
+    },
+    _ => {}
+  }
+  Ok(())
 }
 
 fn error_body(request: &Request, error: &String) -> String {

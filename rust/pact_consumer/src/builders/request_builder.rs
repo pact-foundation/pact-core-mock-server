@@ -123,19 +123,19 @@ impl Default for RequestBuilder {
 }
 
 impl HttpPartBuilder for RequestBuilder {
-    fn headers_and_matching_rules_mut(&mut self) -> (&mut HashMap<String, String>, &mut MatchingRules) {
-        (
-            self.request.headers.get_defaulting(),
-            &mut self.request.matching_rules,
-        )
-    }
+  fn headers_and_matching_rules_mut(&mut self) -> (&mut HashMap<String, Vec<String>>, &mut MatchingRules) {
+    (
+      self.request.headers.get_or_insert(hashmap!{}),
+      &mut self.request.matching_rules,
+    )
+  }
 
-    fn body_and_matching_rules_mut(&mut self) -> (&mut OptionalBody, &mut MatchingRules) {
-        (
-            &mut self.request.body,
-            &mut self.request.matching_rules,
-        )
-    }
+  fn body_and_matching_rules_mut(&mut self) -> (&mut OptionalBody, &mut MatchingRules) {
+      (
+          &mut self.request.body,
+          &mut self.request.matching_rules,
+      )
+  }
 }
 
 #[test]

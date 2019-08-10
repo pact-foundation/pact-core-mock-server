@@ -834,34 +834,36 @@ fn find_entry<T>(map: &HashMap<String, T>, key: &String) -> Option<(String, T)> 
     }
 }
 
-fn match_header_maps(expected: HashMap<String, String>, actual: HashMap<String, String>,
-    mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
-    for (key, value) in &expected {
-        match find_entry(&actual, key) {
-            Some((_, actual_value)) => match_header_value(key, value, &actual_value, mismatches, matchers),
-            None => mismatches.push(Mismatch::HeaderMismatch { key: key.clone(),
-                expected: format!("{:?}", value),
-                actual: "".to_string(),
-                mismatch: format!("Expected header '{}' but was missing", key) })
-        }
+fn match_header_maps(expected: HashMap<String, Vec<String>>, actual: HashMap<String, Vec<String>>,
+  mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
+  for (key, value) in &expected {
+    match find_entry(&actual, key) {
+      Some((_, actual_value)) => for (index, val) in value.iter().enumerate() {
+        match_header_value(key, val, actual_value.get(index).unwrap_or(&s!("")), mismatches, matchers)
+      },
+      None => mismatches.push(Mismatch::HeaderMismatch { key: key.clone(),
+        expected: format!("{:?}", value.join(", ")),
+        actual: "".to_string(),
+        mismatch: format!("Expected header '{}' but was missing", key) })
     }
+  }
 }
 
 /// Matches the actual headers to the expected ones.
-pub fn match_headers(expected: Option<HashMap<String, String>>,
-    actual: Option<HashMap<String, String>>, mismatches: &mut Vec<Mismatch>,
-    matchers: &MatchingRules) {
-    match (actual, expected) {
-        (Some(aqm), Some(eqm)) => match_header_maps(eqm, aqm, mismatches, matchers),
-        (Some(_), None) => (),
-        (None, Some(eqm)) => for (key, value) in &eqm {
-            mismatches.push(Mismatch::HeaderMismatch { key: key.clone(),
-                expected: format!("{:?}", value),
-                actual: "".to_string(),
-                mismatch: format!("Expected header '{}' but was missing", key) });
-        },
-        (None, None) => (),
-    };
+pub fn match_headers(expected: Option<HashMap<String, Vec<String>>>,
+  actual: Option<HashMap<String, Vec<String>>>, mismatches: &mut Vec<Mismatch>,
+  matchers: &MatchingRules) {
+  match (actual, expected) {
+    (Some(aqm), Some(eqm)) => match_header_maps(eqm, aqm, mismatches, matchers),
+    (Some(_), None) => (),
+    (None, Some(eqm)) => for (key, value) in &eqm {
+      mismatches.push(Mismatch::HeaderMismatch { key: key.clone(),
+        expected: format!("{:?}", value.join(", ")),
+        actual: "".to_string(),
+        mismatch: format!("Expected header '{}' but was missing", key) });
+    },
+    (None, None) => (),
+  };
 }
 
 fn compare_bodies(mimetype: String, expected: &Vec<u8>, actual: &Vec<u8>, config: DiffConfig,

@@ -101,7 +101,7 @@ fn match_request_returns_the_most_appropriate_mismatch_for_multiple_requests() {
 #[test]
 fn match_request_supports_v2_matchers() {
     let request = Request { method: s!("GET"), path: s!("/"),
-        headers: Some(hashmap!{ s!("Content-Type") => s!("application/json") }), body: OptionalBody::Present(
+        headers: Some(hashmap!{ s!("Content-Type") => vec![s!("application/json")] }), body: OptionalBody::Present(
             r#"
             {
                 "a": 100,
@@ -111,7 +111,7 @@ fn match_request_supports_v2_matchers() {
         ), .. Request::default_request() };
     let response = Response::default_response();
     let expected_request = Request { method: s!("GET"), path: s!("/"),
-        headers: Some(hashmap!{ s!("Content-Type") => s!("application/json") }),
+        headers: Some(hashmap!{ s!("Content-Type") => vec![s!("application/json")] }),
         body: OptionalBody::Present(
             r#"
             {
@@ -135,14 +135,14 @@ fn match_request_supports_v2_matchers() {
 #[test]
 fn match_request_supports_v2_matchers_with_xml() {
     let request = Request { method: s!("GET"), path: s!("/"), query: None,
-        headers: Some(hashmap!{ s!("Content-Type") => s!("application/xml") }), body: OptionalBody::Present(
+        headers: Some(hashmap!{ s!("Content-Type") => vec![s!("application/xml")] }), body: OptionalBody::Present(
             r#"<?xml version="1.0" encoding="UTF-8"?>
             <foo>hello<bar/>world</foo>
             "#.into()
         ), .. Request::default_request() };
     let response = Response::default_response();
     let expected_request = Request { method: s!("GET"), path: s!("/"), query: None,
-        headers: Some(hashmap!{ s!("Content-Type") => s!("application/xml") }),
+        headers: Some(hashmap!{ s!("Content-Type") => vec![s!("application/xml")] }),
         body: OptionalBody::Present(
             r#"<?xml version="1.0" encoding="UTF-8"?>
             <foo>hello<bar/>mars </foo>

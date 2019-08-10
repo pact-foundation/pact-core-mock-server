@@ -12,7 +12,7 @@ use itertools::Itertools;
 /// Enum to define a match result
 #[derive(Debug, Clone, PartialEq)]
 pub enum MatchResult {
-    /// Match result where the request was sucessfully matched
+    /// Match result where the request was successfully matched
     RequestMatch(Interaction),
     /// Match result where there were a number of mismatches
     RequestMismatch(Interaction, Vec<Mismatch>),

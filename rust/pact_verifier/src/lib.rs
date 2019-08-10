@@ -158,7 +158,7 @@ fn execute_state_change(provider_state: &ProviderState, provider: &ProviderInfo,
                 }
               }
               state_change_request.body = OptionalBody::Present(json_body.to_string().into());
-              state_change_request.headers = Some(hashmap!{ s!("Content-Type") => s!("application/json") });
+              state_change_request.headers = Some(hashmap!{ s!("Content-Type") => vec![s!("application/json")] });
             } else {
               let mut query = hashmap!{ s!("state") => vec![provider_state.name.clone()] };
               if setup {
@@ -410,10 +410,10 @@ pub fn verify_provider(provider_info: &ProviderInfo, source: Vec<PactSource>, fi
                         println!("  {}", interaction.description);
                         match result {
                             Ok(()) => {
-                                display_result(interaction.response.status, Green.paint("OK"),
-                                    interaction.response.headers.map(|h| h.iter().map(|(k, v)| {
-                                        (k.clone(), v.clone(), Green.paint("OK"))
-                                    }).collect()), Green.paint("OK"))
+                              display_result(interaction.response.status, Green.paint("OK"),
+                                interaction.response.headers.map(|h| h.iter().map(|(k, v)| {
+                                  (k.clone(), v.join(", "), Green.paint("OK"))
+                                }).collect()), Green.paint("OK"))
                             },
                             Err(ref err) => match err {
                                 &MismatchResult::Error(ref err_des) => {
@@ -431,17 +431,17 @@ pub fn verify_provider(provider_info: &ProviderInfo, source: Vec<PactSource>, fi
                                     };
                                     let header_results = match interaction.response.headers {
                                         Some(ref h) => Some(h.iter().map(|(k, v)| {
-                                            (k.clone(), v.clone(), if mismatches.iter().any(|m| {
-                                                match m {
-                                                    &Mismatch::HeaderMismatch{ ref key, .. } => k == key,
-                                                    _ => false
-                                                }
-                                            }) {
-                                                verify_provider_result = false;
-                                                Red.paint("FAILED")
-                                            } else {
-                                                Green.paint("OK")
-                                            })
+                                          (k.clone(), v.join(", "), if mismatches.iter().any(|m| {
+                                            match m {
+                                              &Mismatch::HeaderMismatch{ ref key, .. } => k == key,
+                                              _ => false
+                                            }
+                                          }) {
+                                            verify_provider_result = false;
+                                            Red.paint("FAILED")
+                                          } else {
+                                            Green.paint("OK")
+                                          })
                                         }).collect()),
                                         None => None
                                     };

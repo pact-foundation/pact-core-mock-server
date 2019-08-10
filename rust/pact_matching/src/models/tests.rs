@@ -145,16 +145,16 @@ fn request_mimetype_is_based_on_the_content_type_header() {
         body: OptionalBody::Missing, .. Request::default_request() };
     expect!(request.content_type()).to(be_equal_to("text/plain"));
     expect!(Request {
-        headers: Some(hashmap!{ s!("Content-Type") => s!("text/html") }), .. request.clone() }.content_type())
+        headers: Some(hashmap!{ s!("Content-Type") => vec![s!("text/html")] }), .. request.clone() }.content_type())
         .to(be_equal_to("text/html"));
     expect!(Request {
-        headers: Some(hashmap!{ s!("Content-Type") => s!("application/json; charset=UTF-8") }), .. request.clone() }.content_type())
+        headers: Some(hashmap!{ s!("Content-Type") => vec![s!("application/json; charset=UTF-8")] }), .. request.clone() }.content_type())
         .to(be_equal_to("application/json"));
     expect!(Request {
-        headers: Some(hashmap!{ s!("Content-Type") => s!("application/json") }), .. request.clone() }.content_type())
+        headers: Some(hashmap!{ s!("Content-Type") => vec![s!("application/json")] }), .. request.clone() }.content_type())
         .to(be_equal_to("application/json"));
     expect!(Request {
-        headers: Some(hashmap!{ s!("CONTENT-TYPE") => s!("application/json ; charset=UTF-8") }), .. request.clone() }.content_type())
+        headers: Some(hashmap!{ s!("CONTENT-TYPE") => vec![s!("application/json ; charset=UTF-8")] }), .. request.clone() }.content_type())
         .to(be_equal_to("application/json"));
     expect!(Request {
         body: OptionalBody::Present("{\"json\": true}".into()), .. request.clone() }.content_type())
@@ -191,29 +191,29 @@ fn content_type_enum_test() {
         body: OptionalBody::Missing, .. Request::default_request() };
     expect!(request.content_type_enum()).to(be_equal_to(DetectedContentType::Text));
     expect!(Request {
-        headers: Some(hashmap!{ s!("Content-Type") => s!("text/html") }), .. request.clone() }.content_type_enum())
+        headers: Some(hashmap!{ s!("Content-Type") => vec![s!("text/html")] }), .. request.clone() }.content_type_enum())
         .to(be_equal_to(DetectedContentType::Text));
     expect!(Request {
-        headers: Some(hashmap!{ s!("Content-Type") => s!("application/json") }), .. request.clone() }.content_type_enum())
+        headers: Some(hashmap!{ s!("Content-Type") => vec![s!("application/json")] }), .. request.clone() }.content_type_enum())
         .to(be_equal_to(DetectedContentType::Json));
     expect!(Request {
-        headers: Some(hashmap!{ s!("Content-Type") => s!("application/hal+json") }), .. request.clone() }.content_type_enum())
+        headers: Some(hashmap!{ s!("Content-Type") => vec![s!("application/hal+json")] }), .. request.clone() }.content_type_enum())
         .to(be_equal_to(DetectedContentType::Json));
     expect!(Request {
-        headers: Some(hashmap!{ s!("CONTENT-TYPE") => s!("application/json-rpc") }), .. request.clone() }.content_type_enum())
+        headers: Some(hashmap!{ s!("CONTENT-TYPE") => vec![s!("application/json-rpc")] }), .. request.clone() }.content_type_enum())
         .to(be_equal_to(DetectedContentType::Json));
     expect!(Request {
-        headers: Some(hashmap!{ s!("CONTENT-TYPE") => s!("application/xml") }), .. request.clone() }.content_type_enum())
+        headers: Some(hashmap!{ s!("CONTENT-TYPE") => vec![s!("application/xml")] }), .. request.clone() }.content_type_enum())
         .to(be_equal_to(DetectedContentType::Xml));
     expect!(Request {
-        headers: Some(hashmap!{ s!("CONTENT-TYPE") => s!("application/stuff+xml") }), .. request.clone() }.content_type_enum())
+        headers: Some(hashmap!{ s!("CONTENT-TYPE") => vec![s!("application/stuff+xml")] }), .. request.clone() }.content_type_enum())
         .to(be_equal_to(DetectedContentType::Xml));
 }
 
 #[test]
 fn http_part_has_header_test() {
     let request = Request { method: s!("GET"), path: s!("/"), query: None,
-        headers: Some(hashmap!{ s!("Content-Type") => s!("application/json; charset=UTF-8") }),
+        headers: Some(hashmap!{ s!("Content-Type") => vec![s!("application/json; charset=UTF-8")] }),
         body: OptionalBody::Missing, .. Request::default_request() };
     expect!(request.has_header(&s!("Content-Type"))).to(be_true());
     expect!(request.lookup_header_value(&s!("Content-Type"))).to(be_some().value("application/json; charset=UTF-8"));
@@ -386,7 +386,7 @@ fn load_basic_pact() {
     }));
     expect!(interaction.response).to(be_equal_to(Response {
         status: 200,
-        headers: Some(hashmap!{ s!("Content-Type") => s!("text/html") }),
+        headers: Some(hashmap!{ s!("Content-Type") => vec![s!("text/html")] }),
         body: OptionalBody::Present("\"That is some good Mallory.\"".into()),
       .. Response::default_response()
     }));
@@ -453,13 +453,13 @@ fn load_pact() {
         method: s!("GET"),
         path: s!("/"),
         query: Some(hashmap!{ s!("q") => vec![s!("p"), s!("p2")], s!("r") => vec![s!("s")] }),
-        headers: Some(hashmap!{ s!("testreqheader") => s!("testreqheadervalue") }),
+        headers: Some(hashmap!{ s!("testreqheader") => vec![s!("testreqheadervalue")] }),
         body: "{\"test\":true}".into(),
       .. Request::default_request()
     }));
     expect!(interaction.response).to(be_equal_to(Response {
         status: 200,
-        headers: Some(hashmap!{ s!("testreqheader") => s!("testreqheaderval") }),
+        headers: Some(hashmap!{ s!("testreqheader") => vec![s!("testreqheaderval")] }),
         body: "{\"responsetest\":true}".into(),
         .. Response::default_response()
     }));
@@ -527,13 +527,13 @@ fn load_v3_pact() {
         method: s!("GET"),
         path: s!("/"),
         query: Some(hashmap!{ s!("q") => vec![s!("p"), s!("p2")], s!("r") => vec![s!("s")] }),
-        headers: Some(hashmap!{ s!("testreqheader") => s!("testreqheadervalue") }),
+        headers: Some(hashmap!{ s!("testreqheader") => vec![s!("testreqheadervalue")] }),
         body: OptionalBody::Present("{\"test\":true}".into()),
       .. Request::default_request()
     }));
     expect!(interaction.response).to(be_equal_to(Response {
         status: 200,
-        headers: Some(hashmap!{ s!("testreqheader") => s!("testreqheaderval") }),
+        headers: Some(hashmap!{ s!("testreqheader") => vec![s!("testreqheaderval")] }),
         body: OptionalBody::Present("{\"responsetest\":true}".into()),
         .. Response::default_response()
     }));
@@ -591,7 +591,7 @@ fn load_pact_encoded_query_string() {
         path: s!("/"),
         query: Some(hashmap!{ s!("datetime") => vec![s!("2011-12-03T10:15:30+01:00")],
             s!("description") => vec![s!("hello world!")] }),
-        headers: Some(hashmap!{ s!("testreqheader") => s!("testreqheadervalue") }),
+        headers: Some(hashmap!{ s!("testreqheader") => vec![s!("testreqheadervalue")] }),
         body: OptionalBody::Present("{\"test\":true}".into()),
       .. Request::default_request()
     }));
@@ -704,8 +704,8 @@ fn request_to_json_with_a_query_v3_must_not_encode_the_query_with_utf8_chars() {
 #[test]
 fn request_to_json_with_headers() {
     let request = Request { headers: Some(hashmap!{
-        s!("HEADERA") => s!("VALUEA"),
-        s!("HEADERB") => s!("VALUEB1, VALUEB2")
+        s!("HEADERA") => vec![s!("VALUEA")],
+        s!("HEADERB") => vec![s!("VALUEB1, VALUEB2")]
     }), .. Request::default_request() };
     expect!(request.to_json(&PactSpecification::V3).to_string()).to(
         be_equal_to(r#"{"headers":{"HEADERA":"VALUEA","HEADERB":"VALUEB1, VALUEB2"},"method":"GET","path":"/"}"#)
@@ -715,7 +715,7 @@ fn request_to_json_with_headers() {
 #[test]
 fn request_to_json_with_json_body() {
     let request = Request { headers: Some(hashmap!{
-        s!("Content-Type") => s!("application/json")
+        s!("Content-Type") => vec![s!("application/json")]
     }), body: OptionalBody::Present(r#"{"key": "value"}"#.into()), .. Request::default_request() };
     expect!(request.to_json(&PactSpecification::V3).to_string()).to(
         be_equal_to(r#"{"body":{"key":"value"},"headers":{"Content-Type":"application/json"},"method":"GET","path":"/"}"#)
@@ -725,7 +725,7 @@ fn request_to_json_with_json_body() {
 
 #[test]
 fn request_to_json_with_non_json_body() {
-    let request = Request { headers: Some(hashmap!{ s!("Content-Type") => s!("text/plain") }),
+    let request = Request { headers: Some(hashmap!{ s!("Content-Type") => vec![s!("text/plain")] }),
         body: OptionalBody::Present("This is some text".into()), .. Request::default_request() };
     expect!(request.to_json(&PactSpecification::V3).to_string()).to(
         be_equal_to(r#"{"body":"This is some text","headers":{"Content-Type":"text/plain"},"method":"GET","path":"/"}"#)
@@ -757,8 +757,8 @@ fn response_to_json_with_defaults() {
 #[test]
 fn response_to_json_with_headers() {
     let response = Response { headers: Some(hashmap!{
-        s!("HEADERA") => s!("VALUEA"),
-        s!("HEADERB") => s!("VALUEB1, VALUEB2")
+        s!("HEADERA") => vec![s!("VALUEA")],
+        s!("HEADERB") => vec![s!("VALUEB1, VALUEB2")]
     }), .. Response::default_response() };
     expect!(response.to_json(&PactSpecification::V3).to_string()).to(
         be_equal_to(r#"{"headers":{"HEADERA":"VALUEA","HEADERB":"VALUEB1, VALUEB2"},"status":200}"#)
@@ -768,7 +768,7 @@ fn response_to_json_with_headers() {
 #[test]
 fn response_to_json_with_json_body() {
     let response = Response { headers: Some(hashmap!{
-        s!("Content-Type") => s!("application/json")
+        s!("Content-Type") => vec![s!("application/json")]
     }), body: OptionalBody::Present(r#"{"key": "value"}"#.into()), .. Response::default_response() };
     expect!(response.to_json(&PactSpecification::V3).to_string()).to(
         be_equal_to(r#"{"body":{"key":"value"},"headers":{"Content-Type":"application/json"},"status":200}"#)
@@ -777,7 +777,7 @@ fn response_to_json_with_json_body() {
 
 #[test]
 fn response_to_json_with_non_json_body() {
-    let response = Response { headers: Some(hashmap!{ s!("Content-Type") => s!("text/plain") }),
+    let response = Response { headers: Some(hashmap!{ s!("Content-Type") => vec![s!("text/plain")] }),
         body: OptionalBody::Present("This is some text".into()), .. Response::default_response() };
     expect!(response.to_json(&PactSpecification::V3).to_string()).to(
         be_equal_to(r#"{"body":"This is some text","headers":{"Content-Type":"text/plain"},"status":200}"#)
@@ -1226,10 +1226,10 @@ fn hash_for_request() {
     let request1 = Request::default_request();
     let request2 = Request { method: s!("POST"), .. Request::default_request() };
     let request3 = Request { headers: Some(hashmap!{
-        s!("H1") => s!("A")
+        s!("H1") => vec![s!("A")]
     }), .. Request::default_request() };
     let request4 = Request { headers: Some(hashmap!{
-        s!("H1") => s!("B")
+        s!("H1") => vec![s!("B")]
     }), .. Request::default_request() };
     expect!(hash(&request1)).to(be_equal_to(hash(&request1)));
     expect!(hash(&request3)).to(be_equal_to(hash(&request3)));
@@ -1242,10 +1242,10 @@ fn hash_for_response() {
     let response1 = Response::default_response();
     let response2 = Response { status: 400, .. Response::default_response() };
     let response3 = Response { headers: Some(hashmap!{
-        s!("H1") => s!("A")
+        s!("H1") => vec![s!("A")]
     }), .. Response::default_response() };
     let response4 = Response { headers: Some(hashmap!{
-        s!("H1") => s!("B")
+        s!("H1") => vec![s!("B")]
     }), .. Response::default_response() };
     expect!(hash(&response1)).to(be_equal_to(hash(&response1)));
     expect!(hash(&response3)).to(be_equal_to(hash(&response3)));

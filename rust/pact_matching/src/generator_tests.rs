@@ -23,8 +23,8 @@ fn applies_status_generator_for_status_to_the_copy_of_the_response() {
 #[test]
 fn applies_header_generator_for_headers_to_the_copy_of_the_response() {
   let response = Response { headers: Some(hashmap!{
-      s!("A") => s!("a"),
-      s!("B") => s!("b")
+      s!("A") => vec![s!("a")],
+      s!("B") => vec![s!("b")]
     }), generators: generators! {
       "HEADER" => {
         "A" => Generator::Uuid
@@ -32,7 +32,7 @@ fn applies_header_generator_for_headers_to_the_copy_of_the_response() {
     }, .. Response::default_response()
   };
   let headers = generate_response(&response).headers.unwrap().clone();
-  expect!(headers.get("A").unwrap()).to_not(be_equal_to("a"));
+  expect!(headers.get("A").unwrap().first().unwrap()).to_not(be_equal_to("a"));
 }
 
 #[test]
@@ -52,8 +52,8 @@ fn applies_path_generator_for_the_path_to_the_copy_of_the_request() {
 #[test]
 fn applies_header_generator_for_headers_to_the_copy_of_the_request() {
   let request = Request { headers: Some(hashmap!{
-      s!("A") => s!("a"),
-      s!("B") => s!("b")
+      s!("A") => vec![s!("a")],
+      s!("B") => vec![s!("b")]
     }), generators: generators! {
       "HEADER" => {
         "A" => Generator::Uuid
@@ -61,7 +61,7 @@ fn applies_header_generator_for_headers_to_the_copy_of_the_request() {
     }, .. Request::default_request()
   };
   let headers = generate_request(&request).headers.unwrap().clone();
-  expect!(headers.get("A").unwrap()).to_not(be_equal_to("a"));
+  expect!(headers.get("A").unwrap().first().unwrap()).to_not(be_equal_to("a"));
 }
 
 #[test]

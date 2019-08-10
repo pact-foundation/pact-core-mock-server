@@ -242,7 +242,7 @@ pub mod xml_utils;
 /// response.
 pub trait HttpPart {
     /// Returns the headers of the HTTP part.
-    fn headers(&self) -> &Option<HashMap<String, String>>;
+    fn headers(&self) -> &Option<HashMap<String, Vec<String>>>;
 
     /// Returns the body of the HTTP part.
     fn body(&self) -> &OptionalBody;
@@ -310,12 +310,12 @@ pub trait HttpPart {
 
     /// Checks if the HTTP Part has the given header
     fn lookup_header_value(&self, header_name: &String) -> Option<String> {
-        match *self.headers() {
-            Some(ref h) => h.iter()
-                .find(|kv| kv.0.to_lowercase() == header_name.to_lowercase())
-                .map(|kv| kv.1.clone()),
-            None => None
-        }
+      match *self.headers() {
+        Some(ref h) => h.iter()
+          .find(|kv| kv.0.to_lowercase() == header_name.to_lowercase())
+          .map(|kv| kv.1.clone().join(", ")),
+        None => None
+      }
     }
 }
 
@@ -329,7 +329,7 @@ pub struct Request {
     /// Request query string
     pub query: Option<HashMap<String, Vec<String>>>,
     /// Request headers
-    pub headers: Option<HashMap<String, String>>,
+    pub headers: Option<HashMap<String, Vec<String>>>,
     /// Request body
     pub body: OptionalBody,
     /// Request matching rules
@@ -339,7 +339,7 @@ pub struct Request {
 }
 
 impl HttpPart for Request {
-    fn headers(&self) -> &Option<HashMap<String, String>> {
+    fn headers(&self) -> &Option<HashMap<String, Vec<String>>> {
         &self.headers
     }
 
@@ -385,26 +385,32 @@ impl Display for Request {
   }
 }
 
-fn headers_from_json(request: &Value) -> Option<HashMap<String, String>> {
-    match request.get("headers") {
-        Some(v) => match *v {
-            Value::Object(ref m) => Some(m.iter().map(|(key, val)| {
-                match val {
-                    &Value::String(ref s) => (key.clone(), s.clone()),
-                    _ => (key.clone(), val.to_string())
-                }
-            }).collect()),
-            _ => None
-        },
-        None => None
-    }
+fn headers_from_json(request: &Value) -> Option<HashMap<String, Vec<String>>> {
+  match request.get("headers") {
+    Some(v) => match *v {
+      Value::Object(ref m) => Some(m.iter().map(|(key, val)| {
+        match val {
+          &Value::String(ref s) => (key.clone(), s.clone().split(',').map(|v| s!(v.trim())).collect()),
+          &Value::Array(ref v) => (key.clone(), v.iter().map(|val| {
+            match val {
+              &Value::String(ref s) => s.clone(),
+              _ => val.to_string()
+            }
+          }).collect()),
+          _ => (key.clone(), vec![val.to_string()])
+        }
+      }).collect()),
+      _ => None
+    },
+    None => None
+  }
 }
 
-fn headers_to_json(headers: &HashMap<String, String>) -> Value {
-    json!(headers.iter().fold(BTreeMap::new(), |mut map, kv| {
-        map.insert(kv.0.clone(), Value::String(kv.1.clone()));
-        map
-    }))
+fn headers_to_json(headers: &HashMap<String, Vec<String>>) -> Value {
+  json!(headers.iter().fold(BTreeMap::new(), |mut map, kv| {
+    map.insert(kv.0.clone(), Value::String(kv.1.join(", ")));
+    map
+  }))
 }
 
 #[derive(Deserialize)]
@@ -414,18 +420,18 @@ enum JsonParsable {
     KeyValue(HashMap<String, Value>)
 }
 
-fn body_from_json(request: &Value, fieldname: &str, headers: &Option<HashMap<String, String>>) -> OptionalBody {
+fn body_from_json(request: &Value, fieldname: &str, headers: &Option<HashMap<String, Vec<String>>>) -> OptionalBody {
     let content_type = match headers {
-        &Some(ref h) => match h.iter().find(|kv| kv.0.to_lowercase() == s!("content-type")) {
-            Some(kv) => {
-                match strip_whitespace::<Vec<&str>>(&kv.1, ";").first() {
-                    Some(v) => Some(v.to_lowercase()),
-                    None => None
-                }
-            },
+      &Some(ref h) => match h.iter().find(|kv| kv.0.to_lowercase() == s!("content-type")) {
+        Some(kv) => {
+          match strip_whitespace::<Vec<&str>>(&kv.1.first().unwrap_or(&s!("")), ";").first() {
+            Some(v) => Some(v.to_lowercase()),
             None => None
+          }
         },
-        &None => None
+        None => None
+      },
+      &None => None
     };
 
     match request.get(fieldname) {
@@ -461,7 +467,6 @@ fn body_from_json(request: &Value, fieldname: &str, headers: &Option<HashMap<Str
 pub fn build_query_string(query: HashMap<String, Vec<String>>) -> String {
     query.into_iter()
         .sorted_by(|a, b| Ord::cmp(&a.0, &b.0))
-        .iter()
         .flat_map(|kv| {
             kv.1.iter()
                 .map(|v| format!("{}={}", kv.0, encode_query(v)))
@@ -622,7 +627,9 @@ impl Request {
         if self.query != other.query {
             differences.push((DifferenceType::QueryParameters, format!("Request query {:?} != {:?}", self.query, other.query)));
         }
-        if self.headers != other.headers {
+        let keys = self.headers.clone().map(|m| m.keys().cloned().collect_vec()).unwrap_or_default();
+        let other_keys = other.headers.clone().map(|m| m.keys().cloned().collect_vec()).unwrap_or_default();
+        if keys != other_keys {
             differences.push((DifferenceType::Headers, format!("Request headers {:?} != {:?}", self.headers, other.headers)));
         }
         if self.body != other.body {
@@ -641,7 +648,7 @@ pub struct Response {
     /// Response status
     pub status: u16,
     /// Response headers
-    pub headers: Option<HashMap<String, String>>,
+    pub headers: Option<HashMap<String, Vec<String>>>,
     /// Response body
     pub body: OptionalBody,
     /// Response matching rules
@@ -743,7 +750,7 @@ impl Response {
 }
 
 impl HttpPart for Response {
-    fn headers(&self) -> &Option<HashMap<String, String>> {
+    fn headers(&self) -> &Option<HashMap<String, Vec<String>>> {
         &self.headers
     }
 
