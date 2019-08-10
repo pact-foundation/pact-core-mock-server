@@ -35,10 +35,11 @@ fn content_type(response: &reqwest::async::Response) -> String {
 fn json_content_type(response: &reqwest::async::Response) -> bool {
     match content_type(response).parse::<mime::Mime>() {
         Ok(mime) => {
-            mime.type_() == mime::APPLICATION && (
-                mime.subtype() == "hal" ||
-                mime.subtype() == mime::JSON
-            )
+            match (mime.type_().as_str(), mime.subtype().as_str(), mime.suffix()) {
+                ("application", "json", None) => true,
+                ("application", "hal", Some(mime::JSON)) => true,
+                _ => false
+            }
         }
         Err(_) => false
     }
