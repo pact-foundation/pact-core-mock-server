@@ -19,7 +19,7 @@ use std::hash::{Hash, Hasher};
 use std::str;
 use base64::{encode, decode};
 use std::fmt::{Display, Formatter};
-use models::http_utils::UrlAuth;
+use models::http_utils::HttpAuth;
 
 pub mod json_utils;
 pub mod xml_utils;
@@ -1116,7 +1116,7 @@ impl Pact {
     }
 
     /// Reads the pact file from a URL and parses the resulting JSON into a `Pact` struct
-    pub fn from_url(url: &String, auth: &Option<UrlAuth>) -> Result<Pact, String> {
+    pub fn from_url(url: &String, auth: &Option<HttpAuth>) -> Result<Pact, String> {
       http_utils::fetch_json_from_url(url, auth).map(|(ref url, ref json)| Pact::from_json(url, json))
     }
 

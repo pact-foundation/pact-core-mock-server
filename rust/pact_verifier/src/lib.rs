@@ -38,7 +38,7 @@ use std::fs;
 use pact_matching::*;
 use pact_matching::models::*;
 use pact_matching::models::provider_states::*;
-use pact_matching::models::http_utils::UrlAuth;
+use pact_matching::models::http_utils::HttpAuth;
 use ansi_term::*;
 use ansi_term::Colour::*;
 use std::collections::HashMap;
@@ -55,9 +55,9 @@ pub enum PactSource {
     /// Load all the pacts from a Directory
     Dir(String),
     /// Load the pact from a URL
-    URL(String, Option<UrlAuth>),
+    URL(String, Option<HttpAuth>),
     /// Load all pacts with the provider name from the pact broker url
-    BrokerUrl(String, String)
+    BrokerUrl(String, String, Option<HttpAuth>)
 }
 
 /// Information about the Provider to verify
@@ -367,8 +367,8 @@ pub fn verify_provider(provider_info: &ProviderInfo, source: Vec<PactSource>, fi
             },
             &PactSource::URL(ref url, ref auth) => vec![Pact::from_url(url, auth)
                 .map_err(|err| format!("Failed to load pact '{}' - {}", url, err))],
-            &PactSource::BrokerUrl(ref provider_name, ref broker_url) => {
-                let future = pact_broker::fetch_pacts_from_broker(broker_url.clone(), provider_name.clone());
+            &PactSource::BrokerUrl(ref provider_name, ref broker_url, ref auth) => {
+                let future = pact_broker::fetch_pacts_from_broker(broker_url.clone(), provider_name.clone(), auth.clone());
                 match runtime.block_on(future) {
                 Ok(ref pacts) => pacts.iter().map(|p| {
                         match p {

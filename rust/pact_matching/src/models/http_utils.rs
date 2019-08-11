@@ -5,7 +5,7 @@ use serde_json::Value;
 
 /// Type of authentication to use
 #[derive(Debug, Clone)]
-pub enum UrlAuth {
+pub enum HttpAuth {
   /// Username and Password
   User(String, Option<String>),
   /// Bearer token
@@ -13,13 +13,13 @@ pub enum UrlAuth {
 }
 
 /// Fetches the JSON from a URL
-pub fn fetch_json_from_url(url: &String, auth: &Option<UrlAuth>) -> Result<(String, Value), String> {
+pub fn fetch_json_from_url(url: &String, auth: &Option<HttpAuth>) -> Result<(String, Value), String> {
   let client = Client::new();
   let request = match auth {
     &Some(ref auth) => {
       match auth {
-        &UrlAuth::User(ref username, ref password) => client.get(url).basic_auth(username.clone(), password.clone()),
-        &UrlAuth::Token(ref token) => client.get(url).bearer_auth(token.clone())
+        &HttpAuth::User(ref username, ref password) => client.get(url).basic_auth(username.clone(), password.clone()),
+        &HttpAuth::Token(ref token) => client.get(url).bearer_auth(token.clone())
       }
     },
     &None => client.get(url)

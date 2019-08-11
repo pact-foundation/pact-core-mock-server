@@ -7,6 +7,7 @@ use regex::{Regex, Captures};
 use futures::future;
 use futures::future::Future;
 use futures::stream::Stream;
+use pact_matching::models::http_utils::HttpAuth;
 
 fn is_true(object: &serde_json::Map<String, serde_json::Value>, field: &String) -> bool {
     match object.get(field) {
@@ -107,34 +108,37 @@ impl Link {
 
 #[derive(Clone)]
 pub struct HALClient {
-    client: reqwest::async::Client,
-    url: String,
-    path_info: Option<serde_json::Value>
+  client: reqwest::async::Client,
+  url: String,
+  path_info: Option<serde_json::Value>,
+  auth: Option<HttpAuth>
 }
 
 impl HALClient {
 
     fn default() -> HALClient {
-        HALClient {
-            client: reqwest::async::ClientBuilder::new()
-                .use_default_tls()
-                .build()
-                .unwrap(),
-            url: s!(""),
-            path_info: None
-        }
+      HALClient {
+        client: reqwest::async::ClientBuilder::new()
+          .use_default_tls()
+          .build()
+          .unwrap(),
+        url: s!(""),
+        path_info: None,
+        auth: None
+      }
     }
 
-    fn with_url(url: String) -> HALClient {
-        HALClient { url, .. HALClient::default() }
+    fn with_url(url: String, auth: Option<HttpAuth>) -> HALClient {
+      HALClient { url, auth, ..HALClient::default() }
     }
 
     fn update_path_info(self, path_info: serde_json::Value) -> HALClient {
-        HALClient {
-            client: self.client.clone(),
-            url: self.url,
-            path_info: Some(path_info)
-        }
+      HALClient {
+        client: self.client.clone(),
+        url: self.url,
+        path_info: Some(path_info),
+        auth: self.auth.clone()
+      }
     }
 
     fn navigate(self, link: &'static str, template_values: HashMap<String, String>) -> impl Future<Item = HALClient, Error = PactBrokerError> {
@@ -201,20 +205,25 @@ impl HALClient {
         future::done(join_paths(&self.url, path.clone()).parse::<reqwest::Url>())
             .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))
             .and_then(move |url| {
-                let client_url_cloned = self.url.clone();
-                let path_cloned = path.clone();
+              let client_url_cloned = self.url.clone();
+              let path_cloned = path.clone();
+              let http_client = match self.auth {
+                Some(ref auth) => match auth {
+                   HttpAuth::User(username, password) => self.client.get(url).basic_auth(username, password.clone()),
+                   HttpAuth::Token(token) => self.client.get(url).bearer_auth(token)
+                },
+                None => self.client.get(url)
+              }.header("accept", "application/hal+json, application/json");
 
-                self.client.get(url)
-                    .header("accept", "application/hal+json, application/json")
-                    .send()
-                    .map_err(move |err| {
-                        PactBrokerError::IoError(format!("Failed to access pact broker path '{}' - {}. URL: '{}'",
-                            path_cloned,
-                            err,
-                            client_url_cloned
-                        ))
-                    })
-                    .map(|response| (self, path, response))
+              http_client.send()
+                  .map_err(move |err| {
+                      PactBrokerError::IoError(format!("Failed to access pact broker path '{}' - {}. URL: '{}'",
+                          path_cloned,
+                          err,
+                          client_url_cloned
+                      ))
+                  })
+                  .map(|response| (self, path, response))
             })
             .and_then(|(hal_client, path, response)| hal_client.parse_broker_response(path, response))
     }
@@ -318,9 +327,10 @@ impl HALClient {
 
 pub fn fetch_pacts_from_broker(
     broker_url: String,
-    provider_name: String
+    provider_name: String,
+    auth: Option<HttpAuth>
 ) -> impl Future<Item = Vec<Result<Pact, PactBrokerError>>, Error = PactBrokerError> {
-    let hal_client = HALClient::with_url(broker_url.clone());
+    let hal_client = HALClient::with_url(broker_url.clone(), auth);
     let template_values = hashmap!{ s!("provider") => provider_name.clone() };
 
     hal_client.navigate("pb:latest-provider-pacts", template_values.clone())
@@ -374,7 +384,7 @@ mod tests {
     #[test]
     fn fetch_returns_an_error_if_there_is_no_pact_broker() {
         let mut runtime = Runtime::new().unwrap();
-        let client = HALClient::with_url(s!("http://idont.exist:6666"));
+        let client = HALClient::with_url(s!("http://idont.exist:6666"), None);
         expect!(runtime.block_on(client.fetch(s!("/")))).to(be_err());
     }
 
@@ -389,7 +399,7 @@ mod tests {
             })
             .create_mock_server(|future| { runtime.spawn(future); });
 
-        let client = HALClient::with_url(pact_broker.url().to_string());
+        let client = HALClient::with_url(pact_broker.url().to_string(), None);
         let result = runtime.block_on(client.fetch(s!("/hello")));
         expect!(result).to(be_err().value(format!("Request to pact broker path \'/hello\' failed: 404 Not Found. URL: '{}'",
             pact_broker.url())));
@@ -407,7 +417,7 @@ mod tests {
             })
             .create_mock_server(|future| { runtime.spawn(future); });
 
-        let client = HALClient::with_url(pact_broker.url().to_string());
+        let client = HALClient::with_url(pact_broker.url().to_string(), None);
         let result = runtime.block_on(client.fetch(s!("/nonjson")));
         expect!(result).to(be_err().value(format!("Did not get a HAL response from pact broker path \'/nonjson\', content type is 'text/html'. URL: '{}'",
             pact_broker.url())));
@@ -465,7 +475,7 @@ mod tests {
             })
             .create_mock_server(|future| { runtime.spawn(future); });
 
-        let client = HALClient::with_url(pact_broker.url().to_string());
+        let client = HALClient::with_url(pact_broker.url().to_string(), None);
         let result = runtime.block_on(client.clone().fetch(s!("/nonhal")));
         expect!(result).to(be_err().value(format!("Did not get a valid HAL response body from pact broker path \'/nonhal\' - EOF while parsing a value at line 1 column 0. URL: '{}'",
             pact_broker.url())));
@@ -501,7 +511,7 @@ mod tests {
     #[test]
     fn fetch_link_returns_an_error_if_a_previous_resource_has_not_been_fetched() {
         let mut runtime = Runtime::new().unwrap();
-        let client = HALClient::with_url(s!("http://localhost"));
+        let client = HALClient::with_url(s!("http://localhost"), None);
         let result = runtime.block_on(client.fetch_link("anything_will_do", hashmap!{}));
         expect!(result).to(be_err().value(s!("No previous resource has been fetched from the pact broker. URL: 'http://localhost', LINK: 'anything_will_do'")));
     }
@@ -519,7 +529,7 @@ mod tests {
             })
             .create_mock_server(|future| { runtime.spawn(future); });
 
-        let mut client = HALClient::with_url(pact_broker.url().to_string());
+        let mut client = HALClient::with_url(pact_broker.url().to_string(), None);
         let result = runtime.block_on(client.clone().fetch(s!("/")));
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
@@ -541,7 +551,7 @@ mod tests {
             })
             .create_mock_server(|future| { runtime.spawn(future); });
 
-        let mut client = HALClient::with_url(pact_broker.url().to_string());
+        let mut client = HALClient::with_url(pact_broker.url().to_string(), None);
         let result = runtime.block_on(client.clone().fetch(s!("/")));
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
@@ -562,7 +572,7 @@ mod tests {
             })
             .create_mock_server(|future| { runtime.spawn(future); });
 
-        let mut client = HALClient::with_url(pact_broker.url().to_string());
+        let mut client = HALClient::with_url(pact_broker.url().to_string(), None);
         let result = runtime.block_on(client.clone().fetch(s!("/")));
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
@@ -589,7 +599,7 @@ mod tests {
             })
             .create_mock_server(|future| { runtime.spawn(future); });
 
-        let mut client = HALClient::with_url(pact_broker.url().to_string());
+        let mut client = HALClient::with_url(pact_broker.url().to_string(), None);
         let result = runtime.block_on(client.clone().fetch(s!("/")));
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
@@ -616,7 +626,7 @@ mod tests {
             })
             .create_mock_server(|future| { runtime.spawn(future); });
 
-        let mut client = HALClient::with_url(pact_broker.url().to_string());
+        let mut client = HALClient::with_url(pact_broker.url().to_string(), None);
         let result = runtime.block_on(client.clone().fetch(s!("/")));
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
@@ -644,7 +654,7 @@ mod tests {
             })
             .create_mock_server(|future| { runtime.spawn(future); });
 
-        let mut client = HALClient::with_url(pact_broker.url().to_string());
+        let mut client = HALClient::with_url(pact_broker.url().to_string(), None);
         let result = runtime.block_on(client.clone().fetch(s!("/")));
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
@@ -681,7 +691,7 @@ mod tests {
             })
             .create_mock_server(|future| { runtime.spawn(future); });
 
-        let result = runtime.block_on(fetch_pacts_from_broker(pact_broker.url().to_string(), s!("sad_provider")));
+        let result = runtime.block_on(fetch_pacts_from_broker(pact_broker.url().to_string(), s!("sad_provider"), None));
         expect!(result).to(be_err().value(format!("No pacts for provider 'sad_provider' where found in the pact broker. URL: '{}'",
             pact_broker.url())));
     }
@@ -751,7 +761,7 @@ mod tests {
             })
             .create_mock_server(|future| { runtime.spawn(future); });
 
-        let result = runtime.block_on(fetch_pacts_from_broker(pact_broker.url().to_string(), s!("happy_provider")));
+        let result = runtime.block_on(fetch_pacts_from_broker(pact_broker.url().to_string(), s!("happy_provider"), None));
         expect!(result.clone()).to(be_ok());
         let pacts = result.unwrap();
         expect!(pacts.len()).to(be_equal_to(2));

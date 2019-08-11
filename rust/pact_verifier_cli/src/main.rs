@@ -220,7 +220,7 @@ use std::str::FromStr;
 use std::error::Error;
 use regex::Regex;
 use tokio::runtime::current_thread::Runtime;
-use pact_matching::models::http_utils::UrlAuth;
+use pact_matching::models::http_utils::HttpAuth;
 
 fn main() {
     match handle_command_args() {
@@ -252,10 +252,10 @@ fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
       Some(values) => sources.extend(values.map(|v| {
         if matches.is_present("user") {
           PactSource::URL(s!(v), matches.value_of("user").map(|user| {
-            UrlAuth::User(user.to_string(), matches.value_of("password").map(|p| p.to_string()))
+            HttpAuth::User(user.to_string(), matches.value_of("password").map(|p| p.to_string()))
           }))
         } else if matches.is_present("token") {
-          PactSource::URL(s!(v), matches.value_of("token").map(|token| UrlAuth::Token(token.to_string())))
+          PactSource::URL(s!(v), matches.value_of("token").map(|token| HttpAuth::Token(token.to_string())))
         } else {
           PactSource::URL(s!(v), None)
         }
@@ -263,8 +263,17 @@ fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
       None => ()
     };
     match matches.values_of("broker-url") {
-        Some(values) => sources.extend(values.map(|v| PactSource::BrokerUrl(s!(matches.value_of("provider-name").unwrap()),
-            s!(v))).collect::<Vec<PactSource>>()),
+        Some(values) => sources.extend(values.map(|v| {
+          if matches.is_present("user") {
+            PactSource::BrokerUrl(s!(matches.value_of("provider-name").unwrap()), s!(v), matches.value_of("user").map(|user| {
+              HttpAuth::User(user.to_string(), matches.value_of("password").map(|p| p.to_string()))
+            }))
+          } else if matches.is_present("token") {
+            PactSource::BrokerUrl(s!(matches.value_of("provider-name").unwrap()), s!(v), matches.value_of("token").map(|token| HttpAuth::Token(token.to_string())))
+          } else {
+            PactSource::BrokerUrl(s!(matches.value_of("provider-name").unwrap()), s!(v), None)
+          }
+        }).collect::<Vec<PactSource>>()),
         None => ()
     };
     sources
