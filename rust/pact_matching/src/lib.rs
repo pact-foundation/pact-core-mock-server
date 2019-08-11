@@ -346,6 +346,7 @@ extern crate chrono;
 extern crate chrono_tz;
 extern crate rand_regex;
 extern crate regex_syntax;
+extern crate reqwest;
 
 /// Simple macro to convert a string slice to a `String` struct.
 #[macro_export]

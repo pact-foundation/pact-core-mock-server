@@ -3,7 +3,6 @@ use super::{match_header_value, strip_whitespace};
 use std::collections::HashMap;
 use expectest::prelude::*;
 use models::{Request, OptionalBody};
-use nom::AsBytes;
 
 #[test]
 fn match_method_returns_nothing_if_the_method_matches() {

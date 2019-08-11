@@ -16,10 +16,16 @@ use std::fs::File;
 use std::path::Path;
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
-use hyper::client::Client;
 use std::str;
 use base64::{encode, decode};
 use std::fmt::{Display, Formatter};
+use models::http_utils::UrlAuth;
+
+pub mod json_utils;
+pub mod xml_utils;
+#[macro_use] pub mod matchingrules;
+#[macro_use] pub mod generators;
+pub mod http_utils;
 
 /// Version of the library
 pub const VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
@@ -232,11 +238,6 @@ pub enum DifferenceType {
   /// Response status differ
   Status
 }
-
-pub mod json_utils;
-pub mod xml_utils;
-#[macro_use] pub mod matchingrules;
-#[macro_use] pub mod generators;
 
 /// Trait to specify an HTTP part of a message. It encapsulates the shared parts of a request and
 /// response.
@@ -1115,25 +1116,13 @@ impl Pact {
     }
 
     /// Reads the pact file from a URL and parses the resulting JSON into a `Pact` struct
-    pub fn from_url(url: &String) -> Result<Pact, String> {
-        let client = Client::new();
-        match client.get(url).send() {
-            Ok(mut res) => if res.status.is_success() {
-                    let pact_json = serde_json::de::from_reader(&mut res);
-                    match pact_json {
-                        Ok(ref json) => Ok(Pact::from_json(url, json)),
-                        Err(err) => Err(format!("Failed to parse Pact JSON - {}", err))
-                    }
-          } else {
-                    Err(format!("Request failed with status - {}", res.status))
-                },
-            Err(err) => Err(format!("Request failed - {}", err))
-          }
+    pub fn from_url(url: &String, auth: &Option<UrlAuth>) -> Result<Pact, String> {
+      http_utils::fetch_json_from_url(url, auth).map(|(ref url, ref json)| Pact::from_json(url, json))
     }
 
-    /// Writes this pact out to the provided file path. All directories in the path will
-    /// automatically created. If an existing pact is found at the path, this pact will be
-    /// merged into the pact file.
+  /// Writes this pact out to the provided file path. All directories in the path will
+  /// automatically created. If an existing pact is found at the path, this pact will be
+  /// merged into the pact file.
     pub fn write_pact(&self, path: &Path, pact_spec: PactSpecification) -> io::Result<()> {
         fs::create_dir_all(path.parent().unwrap())?;
         if path.exists() {

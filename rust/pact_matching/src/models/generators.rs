@@ -657,6 +657,15 @@ pub fn generators_to_json(generators: &Generators, spec_version: &PactSpecificat
   }
 }
 
+/// Macro to make constructing generators easy
+/// Example usage:
+/// ```ignore
+/// generators! {
+///   "HEADER" => {
+///     "A" => Generator::Uuid
+///   }
+/// }
+///```
 #[macro_export]
 macro_rules! generators {
   (

@@ -220,6 +220,7 @@ use std::str::FromStr;
 use std::error::Error;
 use regex::Regex;
 use tokio::runtime::current_thread::Runtime;
+use pact_matching::models::http_utils::UrlAuth;
 
 fn main() {
     match handle_command_args() {
@@ -248,8 +249,18 @@ fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
         None => ()
     };
     match matches.values_of("url") {
-        Some(values) => sources.extend(values.map(|v| PactSource::URL(s!(v))).collect::<Vec<PactSource>>()),
-        None => ()
+      Some(values) => sources.extend(values.map(|v| {
+        if matches.is_present("user") {
+          PactSource::URL(s!(v), matches.value_of("user").map(|user| {
+            UrlAuth::User(user.to_string(), matches.value_of("password").map(|p| p.to_string()))
+          }))
+        } else if matches.is_present("token") {
+          PactSource::URL(s!(v), matches.value_of("token").map(|token| UrlAuth::Token(token.to_string())))
+        } else {
+          PactSource::URL(s!(v), None)
+        }
+      }).collect::<Vec<PactSource>>()),
+      None => ()
     };
     match matches.values_of("broker-url") {
         Some(values) => sources.extend(values.map(|v| PactSource::BrokerUrl(s!(matches.value_of("provider-name").unwrap()),
@@ -398,6 +409,31 @@ fn handle_command_args() -> Result<(), i32> {
             .multiple(true)
             .empty_values(false)
             .help("Consumer name to filter the pacts to be verified (can be repeated)"))
+        .arg(Arg::with_name("user")
+          .long("user")
+          .takes_value(true)
+          .use_delimiter(false)
+          .number_of_values(1)
+          .empty_values(false)
+          .conflicts_with("token")
+          .help("Username to use when fetching pacts from URLS"))
+        .arg(Arg::with_name("password")
+          .long("password")
+          .takes_value(true)
+          .use_delimiter(false)
+          .number_of_values(1)
+          .empty_values(false)
+          .conflicts_with("token")
+          .help("Password to use when fetching pacts from URLS"))
+        .arg(Arg::with_name("token")
+          .short("t")
+          .long("token")
+          .takes_value(true)
+          .use_delimiter(false)
+          .number_of_values(1)
+          .empty_values(false)
+          .conflicts_with("user")
+          .help("Bearer token to use when fetching pacts from URLS"))
         ;
 
     let matches = app.get_matches_safe();

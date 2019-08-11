@@ -589,6 +589,13 @@ pub fn matchers_to_json(matchers: &MatchingRules, spec_version: &PactSpecificati
    }
 }
 
+/// Macro to ease constructing matching rules
+/// Example usage:
+/// ```ignore
+/// matchingrules! {
+///   "query" => { "user_id" => [ MatchingRule::Regex(s!("^[0-9]+$")) ] }
+/// }
+/// ```
 #[macro_export]
 macro_rules! matchingrules {
     ( $( $name:expr => {

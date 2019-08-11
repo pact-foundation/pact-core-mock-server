@@ -126,7 +126,7 @@ impl HALClient {
     }
 
     fn with_url(url: String) -> HALClient {
-        HALClient { url: url, .. HALClient::default() }
+        HALClient { url, .. HALClient::default() }
     }
 
     fn update_path_info(self, path_info: serde_json::Value) -> HALClient {
