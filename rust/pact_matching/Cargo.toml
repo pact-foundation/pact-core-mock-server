@@ -38,10 +38,6 @@ rand_regex = "0.12.0"
 regex-syntax = "0.6.4"
 reqwest = "0.9.19"
 
-[dependencies.hyper]
-version = "0.9.7"
-default-features = false
-
 [dev-dependencies]
 quickcheck = "0.4.1"
 expectest = "0.9.1"

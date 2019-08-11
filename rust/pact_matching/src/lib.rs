@@ -335,7 +335,6 @@ extern crate semver;
 #[macro_use] extern crate itertools;
 extern crate rand;
 extern crate sxd_document;
-extern crate hyper;
 extern crate ansi_term;
 extern crate difference;
 extern crate base64;

@@ -10,13 +10,12 @@ use std::sync::{Arc, Mutex};
 use log::{log, error, warn, info, debug};
 use hyper::{Body, Response, Server, Error};
 use hyper::http::response::{Builder as ResponseBuilder};
-use hyper::http::header::{HeaderName, HeaderValue, ToStrError};
+use hyper::http::header::{HeaderName, HeaderValue};
 use hyper::service::service_fn;
 use futures::future;
 use futures::future::Future;
 use futures::stream::Stream;
 use serde_json::json;
-use itertools::{Itertools, any};
 
 #[derive(Debug, Clone)]
 enum InteractionError {

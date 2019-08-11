@@ -70,7 +70,7 @@ mod hyper_server;
 
 use pact_matching::models::Pact;
 use pact_matching::s;
-use libc::{c_char, int32_t};
+use libc::{c_char};
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::str;
@@ -149,7 +149,7 @@ pub extern fn create_mock_server(pact_json: &str, port: i32) -> Result<i32, Mock
 /// | -4 | The method panicked |
 ///
 #[no_mangle]
-pub extern fn create_mock_server_ffi(pact_str: *const c_char, port: int32_t) -> int32_t {
+pub extern fn create_mock_server_ffi(pact_str: *const c_char, port: i32) -> i32 {
     env_logger::init().unwrap_or(());
 
     let result = catch_unwind(|| {
@@ -196,7 +196,7 @@ pub extern fn mock_server_matched(mock_server_port: i32) -> bool {
 /// is no mock server on the given port, or if any request has not been successfully matched, or
 /// the method panics.
 #[no_mangle]
-pub extern fn mock_server_matched_ffi(mock_server_port: int32_t) -> bool {
+pub extern fn mock_server_matched_ffi(mock_server_port: i32) -> bool {
     let result = catch_unwind(|| {
       mock_server_matched(mock_server_port)
     });
@@ -240,7 +240,7 @@ pub extern fn mock_server_mismatches(mock_server_port: i32) -> Option<std::strin
 /// pointer will be returned. Don't try to dereference it, it will not end well for you.
 ///
 #[no_mangle]
-pub extern fn mock_server_mismatches_ffi(mock_server_port: int32_t) -> *mut c_char {
+pub extern fn mock_server_mismatches_ffi(mock_server_port: i32) -> *mut c_char {
     let result = catch_unwind(|| {
         let result = MANAGER.lock().unwrap()
             .get_or_insert_with(ServerManager::new)
@@ -277,7 +277,7 @@ pub extern fn mock_server_mismatches_ffi(mock_server_port: int32_t) -> *mut c_ch
 /// currently work and the listerner will continue handling requests. In this
 /// case, it will always return a 404 once the mock server has been cleaned up.
 #[no_mangle]
-pub extern fn cleanup_mock_server_ffi(mock_server_port: int32_t) -> bool {
+pub extern fn cleanup_mock_server_ffi(mock_server_port: i32) -> bool {
     let result = catch_unwind(|| {
         MANAGER.lock().unwrap()
             .get_or_insert_with(ServerManager::new)
@@ -345,7 +345,7 @@ pub extern fn write_pact_file(mock_server_port: i32, directory: Option<String>) 
 /// | 2 | The pact file was not able to be written |
 /// | 3 | A mock server with the provided port was not found |
 #[no_mangle]
-pub extern fn write_pact_file_ffi(mock_server_port: int32_t, directory: *const c_char) -> int32_t {
+pub extern fn write_pact_file_ffi(mock_server_port: i32, directory: *const c_char) -> i32 {
   let result = catch_unwind(|| {
     let dir = unsafe {
       if directory.is_null() {
