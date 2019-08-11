@@ -214,8 +214,8 @@ use std::env;
 use clap::{Arg, App, AppSettings, ErrorKind, ArgMatches};
 use pact_matching::models::PactSpecification;
 use pact_verifier::*;
-use log::LogLevelFilter;
-use simplelog::TermLogger;
+use log::LevelFilter;
+use simplelog::{TermLogger, Config, TerminalMode};
 use std::str::FromStr;
 use std::error::Error;
 use regex::Regex;
@@ -405,10 +405,10 @@ fn handle_command_args() -> Result<(), i32> {
         Ok(ref matches) => {
             let level = matches.value_of("loglevel").unwrap_or("warn");
             let log_level = match level {
-                "none" => LogLevelFilter::Off,
-                _ => LogLevelFilter::from_str(level).unwrap()
+                "none" => LevelFilter::Off,
+                _ => LevelFilter::from_str(level).unwrap()
             };
-            TermLogger::init(log_level).unwrap();
+            TermLogger::init(log_level, Config::default(), TerminalMode::Mixed).unwrap_or_default();
             let provider = ProviderInfo {
                 host: s!(matches.value_of("hostname").unwrap_or("localhost")),
                 port: matches.value_of("port").unwrap_or("8080").parse::<u16>().unwrap(),
