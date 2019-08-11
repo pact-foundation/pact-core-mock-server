@@ -1087,7 +1087,7 @@ dependencies = [
  "maplit 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "p-macro 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "pact_matching 0.5.4",
- "pact_mock_server 0.5.1",
+ "pact_mock_server 0.5.2",
  "quickcheck 0.2.27 (registry+https://github.com/rust-lang/crates.io-index)",
  "regex 0.1.80 (registry+https://github.com/rust-lang/crates.io-index)",
  "reqwest 0.9.19 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1134,7 +1134,7 @@ dependencies = [
 
 [[package]]
 name = "pact_mock_server"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "bytes 0.4.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1166,7 +1166,7 @@ dependencies = [
  "maplit 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "p-macro 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "pact_matching 0.5.4",
- "pact_mock_server 0.5.1",
+ "pact_mock_server 0.5.2",
  "quickcheck 0.2.27 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "regex 0.1.80 (registry+https://github.com/rust-lang/crates.io-index)",
