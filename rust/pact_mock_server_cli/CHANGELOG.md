@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.5.1 - support headers with multiple values
+
+* 5b22076 - fix: docker release script (Ronald Holshausen, Sat Jul 27 16:52:12 2019 +1000)
+* 2e59235 - bump version to 0.5.1 (Ronald Holshausen, Sat Jul 27 16:36:51 2019 +1000)
+
 # 0.5.0 - Upgrade to non-blocking Hyper 0.12
 
 * d842100 - chore: bump component versions to 0.5.0 (Ronald Holshausen, Sat Jul 27 15:44:51 2019 +1000)
