@@ -15,7 +15,7 @@ exclude = [
 
 [dependencies]
 libc = "0.2.9"
-pact_matching = { version = "0.5.1", path = "../pact_matching" }
+pact_matching = { version = "0.5.3", path = "../pact_matching" }
 pact_mock_server = { version = "0.5.1", path = "../pact_mock_server" }
 log = "0.3.5"
 maplit = "0.1.3"
