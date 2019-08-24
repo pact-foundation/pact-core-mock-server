@@ -15,7 +15,7 @@ exclude = [
 [dependencies]
 libc = "0.2.9"
 clap = "2.31.2"
-pact_matching = { version = "0.5.1", path = "../pact_matching" }
+pact_matching = { version = "0.5.3", path = "../pact_matching" }
 pact_verifier = { version = "0.5.1", path = "../pact_verifier" }
 simplelog = "0.6.0"
 log = "0.4.8"
