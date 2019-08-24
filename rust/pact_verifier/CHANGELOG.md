@@ -1,5 +1,22 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.5.1 - Use reqwest for better HTTP/S support, support headers with multiple values
+
+* f79b033 - chore: update terminal support in release scripts (Ronald Holshausen, Sat Aug 24 12:25:28 2019 +1000)
+* b8019ba - chore: bump the version of the matching lib (Ronald Holshausen, Sat Aug 24 12:22:35 2019 +1000)
+* dac8ae1 - feat: support authentication when fetching pacts from a pact broker (Ronald Holshausen, Sun Aug 11 13:57:29 2019 +1000)
+* e007763 - feat: support bearer tokens when fetching pacts from URLs (Ronald Holshausen, Sun Aug 11 13:21:17 2019 +1000)
+* 4378110 - Merge pull request #42 from audunhalland/reqwest (Ronald Holshausen, Sun Aug 11 09:32:30 2019 +1000)
+* 75c9b3a - Fix hal+json matching (Audun Halland, Sat Aug 10 14:30:17 2019 +0200)
+* f0c0d07 - feat: support headers with multiple values (Ronald Holshausen, Sat Aug 10 17:01:10 2019 +1000)
+* 9310f78 - Error messages are a bit different using reqwest: Fix tests (Audun Halland, Mon Jul 29 01:48:03 2019 +0200)
+* 58b8c3c - Remove unused import (Audun Halland, Sun Jul 28 18:34:20 2019 +0200)
+* 9fd6458 - Print errors using Display trait (Audun Halland, Sun Jul 28 18:33:47 2019 +0200)
+* 19f11f7 - Avoid unnecessary clone (Audun Halland, Sun Jul 28 16:39:12 2019 +0200)
+* 8717cdd - Fix for json_content_type with charset (Audun Halland, Sun Jul 28 16:17:37 2019 +0200)
+* aa1b714 - Switch pact_broker/HAL client to use reqwest instead of hyper directly (Audun Halland, Sun Jul 28 15:48:31 2019 +0200)
+* 8b9648c - bump version to 0.5.1 (Ronald Holshausen, Sat Jul 27 17:29:57 2019 +1000)
+
 # 0.5.0 - Upgrade to non-blocking Hyper 0.12
 
 * 89e58cc - chore: update release script (Ronald Holshausen, Sat Jul 27 17:10:06 2019 +1000)
