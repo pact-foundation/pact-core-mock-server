@@ -1,6 +1,7 @@
 //! `matchingrules` module includes all the classes to deal with V3 format matchers
 
 use serde_json::{self, Value};
+use serde_json::map::Map;
 use std::{
   collections::{HashMap, HashSet},
   hash::{Hash, Hasher}
@@ -158,6 +159,59 @@ impl MatchingRule {
           } else {
             None
           }
+      },
+      _ => None
+    }
+  }
+
+  /// Builds a `MatchingRule` from a `Value` struct used by language integrations
+  pub fn from_integration_json(m: &Map<String, Value>) -> Option<MatchingRule> {
+    match m.get("pact:matcher:type") {
+      Some(value) => {
+        let val = json_to_string(value);
+        match val.as_str() {
+          "regex" => match m.get(&val) {
+            Some(s) => Some(MatchingRule::Regex(json_to_string(s))),
+            None => None
+          },
+          "equality" => Some(MatchingRule::Equality),
+          "include" => match m.get("value") {
+            Some(s) => Some(MatchingRule::Include(json_to_string(s))),
+            None => None
+          },
+          "type" => match (json_to_num(m.get("min").cloned()), json_to_num(m.get("max").cloned())) {
+            (Some(min), Some(max)) => Some(MatchingRule::MinMaxType(min, max)),
+            (Some(min), None) => Some(MatchingRule::MinType(min)),
+            (None, Some(max)) => Some(MatchingRule::MaxType(max)),
+            _ => Some(MatchingRule::Type)
+          },
+          "number" => Some(MatchingRule::Number),
+          "integer" => Some(MatchingRule::Integer),
+          "decimal" => Some(MatchingRule::Decimal),
+          "real" => Some(MatchingRule::Decimal),
+          "min" => match json_to_num(m.get(&val).cloned()) {
+            Some(min) => Some(MatchingRule::MinType(min)),
+            None => None
+          },
+          "max" => match json_to_num(m.get(&val).cloned()) {
+            Some(max) => Some(MatchingRule::MaxType(max)),
+            None => None
+          },
+          "timestamp" => match m.get(&val) {
+            Some(s) => Some(MatchingRule::Timestamp(json_to_string(s))),
+            None => None
+          },
+          "date" => match m.get(&val) {
+            Some(s) => Some(MatchingRule::Date(json_to_string(s))),
+            None => None
+          },
+          "time" => match m.get(&val) {
+            Some(s) => Some(MatchingRule::Time(json_to_string(s))),
+            None => None
+          },
+          "null" => Some(MatchingRule::Null),
+          _ => None
+        }
       },
       _ => None
     }
