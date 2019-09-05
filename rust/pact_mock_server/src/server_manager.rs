@@ -27,14 +27,18 @@ impl ServerManager {
     }
 
     /// Start a new server on the runtime
-    pub fn start_mock_server(&mut self, id: String, pact: Pact, port: u16) -> Result<u16, String> {
-        let (mock_server, future) = MockServer::new(id.clone(), pact, port)?;
+    pub fn start_mock_server_with_addr(&mut self, id: String, pact: Pact, addr: std::net::SocketAddr) -> Result<std::net::SocketAddr, String> {
+        let (mock_server, future) = MockServer::new(id.clone(), pact, addr)?;
         self.runtime.spawn(future);
-        let port = mock_server.addr.port();
+        let addr = mock_server.addr;
 
         self.mock_servers.insert(id, Box::new(mock_server));
+        Ok(addr)
+    }
 
-        Ok(port)
+    /// Start a new server on the runtime
+    pub fn start_mock_server(&mut self, id: String, pact: Pact, port: u16) -> Result<u16, String> {
+        self.start_mock_server_with_addr(id, pact, ([0, 0, 0, 0], port as u16).into()).map(|addr| addr.port())
     }
 
     /// Shut down a server by its id

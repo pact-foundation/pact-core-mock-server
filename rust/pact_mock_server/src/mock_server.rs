@@ -37,13 +37,13 @@ pub struct MockServer {
 
 impl MockServer {
     /// Create a new mock server, consisting of its state (self) and its executable server future.
-    pub fn new(id: String, pact: Pact, port: u16) -> Result<(MockServer, impl Future<Item = (), Error = ()>), String> {
+    pub fn new(id: String, pact: Pact, addr: std::net::SocketAddr) -> Result<(MockServer, impl Future<Item = (), Error = ()>), String> {
         let (shutdown_tx, shutdown_rx) = futures::sync::oneshot::channel();
         let matches = Arc::new(Mutex::new(vec![]));
 
         let (future, socket_addr) = hyper_server::create_and_bind(
             pact.clone(),
-            port as u16,
+            addr,
             shutdown_rx.map_err(|_| ()),
             matches.clone()
         ).map_err(|err| format!("Could not start server: {}", err))?;

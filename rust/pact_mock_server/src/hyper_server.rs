@@ -210,12 +210,11 @@ fn handle_mock_request_error(result: Result<Response<Body>, InteractionError>) -
 
 pub fn create_and_bind(
     pact: Pact,
-    port: u16,
+    addr: std::net::SocketAddr,
     shutdown: impl Future<Item = (), Error = ()>,
     matches: Arc<Mutex<Vec<MatchResult>>>,
 ) -> Result<(impl Future<Item = (), Error = ()>, std::net::SocketAddr), hyper::Error> {
     let pact = Arc::new(pact);
-    let addr = ([0, 0, 0, 0], port).into();
 
     let server = Server::try_bind(&addr)?
         .serve(move || {
@@ -251,7 +250,7 @@ mod tests {
         let (shutdown_tx, shutdown_rx) = futures::sync::oneshot::channel();
         let matches = Arc::new(Mutex::new(vec![]));
 
-        let (future, _) = create_and_bind(Pact::default(), 0, shutdown_rx.map_err(|_| ()), matches.clone()).unwrap();
+        let (future, _) = create_and_bind(Pact::default(), ([0, 0, 0, 0], 0 as u16).into(), shutdown_rx.map_err(|_| ()), matches.clone()).unwrap();
 
         runtime.spawn(future);
         shutdown_tx.send(()).unwrap();

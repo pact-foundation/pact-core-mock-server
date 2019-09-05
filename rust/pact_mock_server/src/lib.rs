@@ -105,21 +105,21 @@ lazy_static! {
 /// An error with a message will be returned in the following conditions:
 ///
 /// - If a mock server is not able to be started
-pub fn start_mock_server(id: String, pact: Pact, port: i32) -> Result<i32, String> {
+pub fn start_mock_server(id: String, pact: Pact, addr: std::net::SocketAddr) -> Result<i32, String> {
     MANAGER.lock().unwrap()
         .get_or_insert_with(ServerManager::new)
-        .start_mock_server(id, pact, port as u16)
-        .map(|port| port as i32)
+        .start_mock_server_with_addr(id, pact, addr)
+        .map(|addr| addr.port() as i32)
 }
 
 /// Creates a mock server. Requires the pact JSON as a string as well as the port for the mock
 /// server to run on. A value of 0 for the port will result in a
 /// port being allocated by the operating system. The port of the mock server is returned.
-pub extern fn create_mock_server(pact_json: &str, port: i32) -> Result<i32, MockServerError> {
+pub extern fn create_mock_server(pact_json: &str, addr: std::net::SocketAddr) -> Result<i32, MockServerError> {
   match serde_json::from_str(pact_json) {
     Ok(pact_json) => {
       let pact = Pact::from_json(&s!("<create_mock_server>"), &pact_json);
-      start_mock_server(Uuid::new_v4().simple().to_string(), pact, port)
+      start_mock_server(Uuid::new_v4().simple().to_string(), pact, addr)
         .map_err(|err| {
           error!("Could not start mock server: {}", err);
           MockServerError::MockServerFailedToStart
@@ -146,9 +146,10 @@ pub extern fn create_mock_server(pact_json: &str, port: i32) -> Result<i32, Mock
 /// | -2 | The pact JSON could not be parsed |
 /// | -3 | The mock server could not be started |
 /// | -4 | The method panicked |
+/// | -5 | The address is not valid |
 ///
 #[no_mangle]
-pub extern fn create_mock_server_ffi(pact_str: *const c_char, port: i32) -> i32 {
+pub extern fn create_mock_server_ffi(pact_str: *const c_char, addr_str: *const c_char) -> i32 {
     env_logger::init().unwrap_or(());
 
     let result = catch_unwind(|| {
@@ -160,12 +161,25 @@ pub extern fn create_mock_server_ffi(pact_str: *const c_char, port: i32) -> i32 
             CStr::from_ptr(pact_str)
         };
 
-        match create_mock_server(str::from_utf8(c_str.to_bytes()).unwrap(), port) {
-          Ok(ms_port) => ms_port,
-          Err(err) => match err {
-            MockServerError::InvalidPactJson => -2,
-            MockServerError::MockServerFailedToStart => -3
+        let addr_c_str = unsafe {
+            if addr_str.is_null() {
+                error!("Got a null pointer instead of listener address");
+                return -1;
+            }
+            CStr::from_ptr(addr_str)
+        };
+
+        if let Ok(Ok(addr)) = str::from_utf8(addr_c_str.to_bytes()).map(|s| s.parse::<std::net::SocketAddr>()) {
+          match create_mock_server(str::from_utf8(c_str.to_bytes()).unwrap(), addr) {
+            Ok(ms_port) => ms_port,
+            Err(err) => match err {
+              MockServerError::InvalidPactJson => -2,
+              MockServerError::MockServerFailedToStart => -3
+            }
           }
+        }
+        else {
+          -5
         }
     });
 

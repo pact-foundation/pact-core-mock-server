@@ -86,7 +86,7 @@ impl ValidatingMockServer {
     fn with_mode_and_future_consumer<F>(pact: Pact, mode: Mode, future_consumer: F) -> ValidatingMockServer
         where F: FnOnce(Box<dyn futures::Future<Item = (), Error = ()> + 'static + Send>)
     {
-        let (mock_server, future) = mock_server::MockServer::new("".into(), pact, 0)
+        let (mock_server, future) = mock_server::MockServer::new("".into(), pact, ([0, 0, 0, 0], 0 as u16).into())
             .expect("error starting mock server");
 
         future_consumer(Box::new(future));
