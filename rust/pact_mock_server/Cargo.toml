@@ -14,13 +14,11 @@ exclude = [
 ]
 
 [dependencies]
-libc = "0.2.9"
 serde_json = "1.0"
 pact_matching = { version =  "0.5.3", path = "../pact_matching" }
-env_logger = "0.4.3"
-log = "0.3.8"
+log = "0.4.8"
 maplit = "0.1.4"
-lazy_static = "0.2.8"
+lazy_static = "1.4.0"
 uuid = { version = "0.6", features = ["v4"] }
 itertools = "0.6.1"
 tokio = "0.1.22"

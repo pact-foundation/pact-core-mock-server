@@ -7,7 +7,7 @@ use pact_matching::models::parse_query_string;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use log::{log, error, warn, info, debug};
+use log::{error, warn, info, debug};
 use hyper::{Body, Response, Server, Error};
 use hyper::http::response::{Builder as ResponseBuilder};
 use hyper::http::header::{HeaderName, HeaderValue};
