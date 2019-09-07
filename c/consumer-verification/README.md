@@ -1,7 +1,7 @@
 ## Example use of the rust verification and mock server libraries from C.
 
 Before you can run the C examples, the mock server DLL needs to be built using `cargo build`
-in the `rust/pact_mock_server` directory.
+in the `rust/pact_mock_server_ffi` directory.
 
 ### Install libcurl
 
@@ -45,7 +45,8 @@ Next, for Linux and OSX, do the standard configure and make series of steps.
     config.status: creating config.h
     config.status: config.h is unchanged
     config.status: executing depfiles commands
-    ronald@ronald-VirtualBox:~/Development/pact-reference/c/consumer-verification$ make
+    
+    $ make
     make  all-recursive
     make[1]: Entering directory '/home/ronald/Development/pact-reference/c/consumer-verification'
     Making all in src
@@ -64,9 +65,9 @@ Now you have an executable `src/consumer-verification` that links to the pact_mo
 
 There are two tests. The basic test expects all requests to the verified, and the error test where there should be
 validation errors. The src/consumer-verification executable takes 2 parameters: the test to run (basic or error) and the
-path to the libpact_mock_server library.
+path to the libpact_mock_server_ffi library.
 
-    $ src/consumer-verification basic ../../rust/target/debug/libpact_mock_server.so
+    $ src/consumer-verification basic ../../rust/target/debug/libpact_mock_server_ffi.so
     This is consumer-verification 0.0.0.
     Running basic pact test
     Mock server started on port 39263
@@ -88,4 +89,4 @@ path to the libpact_mock_server library.
 
     OK: Mock server verified all requests, as expected
 
-On OSX, the shared object would be `libpact_mock_server.dylib` and on windows `libpact_mock_server.dll`.
+On OSX, the shared object would be `libpact_mock_server_ffi.dylib` and on windows `libpact_mock_server_ffi.dll`.
