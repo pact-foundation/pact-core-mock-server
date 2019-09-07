@@ -116,7 +116,7 @@ pub extern fn mock_server_mismatches(mock_server_port: i32) -> Option<std::strin
 
 /// Write Pact File Errors
 pub enum WritePactFileErr {
-  /// IO Error occured
+  /// IO Error occurred
   IOError,
   /// No mock server was running on the port
   NoMockServer

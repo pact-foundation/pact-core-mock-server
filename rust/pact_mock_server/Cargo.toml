@@ -26,9 +26,6 @@ futures = "0.1"
 hyper = "0.12"
 bytes = "0.4.4"
 
-[lib]
-crate-type = ["cdylib", "staticlib", "rlib"]
-
 [dev-dependencies]
 quickcheck = "0.4.1"
 expectest = "0.9.1"

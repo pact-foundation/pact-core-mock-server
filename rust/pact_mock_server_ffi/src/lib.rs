@@ -1,38 +1,38 @@
 //! The `pact_mock_server` crate provides a number of exported functions using C bindings for
 //! controlling the mock server. These can be used in any language that supports C bindings.
 //!
-//! ## [create_mock_server_ffi](fn.create_mock_server_ffi.html)
+//! ## [create_mock_server](fn.create_mock_server_ffi.html)
 //!
 //! External interface to create a mock server. A pointer to the pact JSON as a C string is passed in,
 //! as well as the port for the mock server to run on. A value of 0 for the port will result in a
 //! port being allocated by the operating system. The port of the mock server is returned.
 //!
-//! ## [mock_server_matched_ffi](fn.mock_server_matched_ffi.html)
+//! ## [mock_server_matched](fn.mock_server_matched_ffi.html)
 //!
 //! Simple function that returns a boolean value given the port number of the mock service. This value will be true if all
 //! the expectations of the pact that the mock server was created with have been met. It will return false if any request did
 //! not match, an un-recognised request was received or an expected request was not received.
 //!
-//! ## [mock_server_mismatches_ffi](fn.mock_server_mismatches_ffi.html)
+//! ## [mock_server_mismatches](fn.mock_server_mismatches_ffi.html)
 //!
 //! This returns all the mismatches, un-expected requests and missing requests in JSON format, given the port number of the
 //! mock server.
 //!
 //! **IMPORTANT NOTE:** The JSON string for the result is allocated on the rust heap, and will have to be freed once the
-//! code using the mock server is complete. The [`cleanup_mock_server_ffi`](fn.cleanup_mock_server_ffi.html) function is provided for this purpose. If the mock
+//! code using the mock server is complete. The [`cleanup_mock_server`](fn.cleanup_mock_server.html) function is provided for this purpose. If the mock
 //! server is not cleaned up properly, this will result in memory leaks as the rust heap will not be reclaimed.
 //!
-//! ## [cleanup_mock_server_ffi](fn.cleanup_mock_server_ffi.html)
+//! ## [cleanup_mock_server](fn.cleanup_mock_server.html)
 //!
 //! This function will try terminate the mock server with the given port number and cleanup any memory allocated for it by
-//! the [`mock_server_mismatches_ffi`](fn.mock_server_mismatches_ffi.html) function. Returns `true`, unless a mock server with the given port number does not exist,
+//! the [`mock_server_mismatches`](fn.mock_server_mismatches.html) function. Returns `true`, unless a mock server with the given port number does not exist,
 //! or the function fails in some way.
 //!
 //! **NOTE:** Although `close()` on the listerner for the mock server is called, this does not currently work and the
 //! listerner will continue handling requests. In this case, it will always return a 501 once the mock server has been
 //! cleaned up.
 //!
-//! ## [write_pact_file_ffi](fn.write_pact_file_ffi.html)
+//! ## [write_pact_file](fn.write_pact_file.html)
 //!
 //! External interface to trigger a mock server to write out its pact file. This function should
 //! be called if all the consumer tests have passed. The directory to write the file to is passed
@@ -55,14 +55,7 @@ use std::ffi::CStr;
 use std::ffi::CString;
 use std::str;
 use serde_json::json;
-use pact_mock_server::{
-  create_mock_server,
-  MockServerError,
-  mock_server_matched,
-  write_pact_file,
-  WritePactFileErr,
-  MANAGER
-};
+use pact_mock_server::{MockServerError, WritePactFileErr, MANAGER};
 use pact_mock_server::server_manager::ServerManager;
 
 /// External interface to create a mock server. A pointer to the pact JSON as a C string is passed in,
@@ -81,7 +74,7 @@ use pact_mock_server::server_manager::ServerManager;
 /// | -4 | The method panicked |
 ///
 #[no_mangle]
-pub extern fn create_mock_server_ffi(pact_str: *const c_char, port: i32) -> i32 {
+pub extern fn create_mock_server(pact_str: *const c_char, port: i32) -> i32 {
   env_logger::init();
 
   let result = catch_unwind(|| {
@@ -93,7 +86,7 @@ pub extern fn create_mock_server_ffi(pact_str: *const c_char, port: i32) -> i32 
       CStr::from_ptr(pact_str)
     };
 
-    match create_mock_server(str::from_utf8(c_str.to_bytes()).unwrap(), port) {
+    match pact_mock_server::create_mock_server(str::from_utf8(c_str.to_bytes()).unwrap(), port) {
       Ok(ms_port) => ms_port,
       Err(err) => match err {
         MockServerError::InvalidPactJson => -2,
@@ -116,9 +109,9 @@ pub extern fn create_mock_server_ffi(pact_str: *const c_char, port: i32) -> i32 
 /// is no mock server on the given port, or if any request has not been successfully matched, or
 /// the method panics.
 #[no_mangle]
-pub extern fn mock_server_matched_ffi(mock_server_port: i32) -> bool {
+pub extern fn mock_server_matched(mock_server_port: i32) -> bool {
   let result = catch_unwind(|| {
-    mock_server_matched(mock_server_port)
+    pact_mock_server::mock_server_matched(mock_server_port)
   });
 
   match result {
@@ -144,7 +137,7 @@ pub extern fn mock_server_matched_ffi(mock_server_port: i32) -> bool {
 /// pointer will be returned. Don't try to dereference it, it will not end well for you.
 ///
 #[no_mangle]
-pub extern fn mock_server_mismatches_ffi(mock_server_port: i32) -> *mut c_char {
+pub extern fn mock_server_mismatches(mock_server_port: i32) -> *mut c_char {
   let result = catch_unwind(|| {
     let result = MANAGER.lock().unwrap()
       .get_or_insert_with(ServerManager::new)
@@ -181,7 +174,7 @@ pub extern fn mock_server_mismatches_ffi(mock_server_port: i32) -> *mut c_char {
 /// currently work and the listener will continue handling requests. In this
 /// case, it will always return a 404 once the mock server has been cleaned up.
 #[no_mangle]
-pub extern fn cleanup_mock_server_ffi(mock_server_port: i32) -> bool {
+pub extern fn cleanup_mock_server(mock_server_port: i32) -> bool {
   let result = catch_unwind(|| {
     MANAGER.lock().unwrap()
       .get_or_insert_with(ServerManager::new)
@@ -214,7 +207,7 @@ pub extern fn cleanup_mock_server_ffi(mock_server_port: i32) -> bool {
 /// | 2 | The pact file was not able to be written |
 /// | 3 | A mock server with the provided port was not found |
 #[no_mangle]
-pub extern fn write_pact_file_ffi(mock_server_port: i32, directory: *const c_char) -> i32 {
+pub extern fn write_pact_file(mock_server_port: i32, directory: *const c_char) -> i32 {
   let result = catch_unwind(|| {
     let dir = unsafe {
       if directory.is_null() {
@@ -231,7 +224,7 @@ pub extern fn write_pact_file_ffi(mock_server_port: i32, directory: *const c_cha
       }
     };
 
-    write_pact_file(mock_server_port, dir)
+    pact_mock_server::write_pact_file(mock_server_port, dir)
   });
 
   match result {
