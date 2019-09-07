@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash -e
 
 if [ "" = "$1" ]; then
   echo "Usage: "
@@ -6,10 +6,16 @@ if [ "" = "$1" ]; then
   exit 1
 fi
 
+if [ "" = "$OSXCROSS" ]; then
+  echo "This script needs OSXCROSS set to the home of osxcross"
+  exit 1
+fi
+
+export PATH="$OSXCROSS/target/bin:$PATH"
+export CC=o64-clang
+export CXX=o64-clang++
+
 cargo clean
-cargo build --release
-cargo build --release --target x86_64-apple-ios
-gzip -c ../target/release/libpact_mock_server_ffi.dylib > ../target/release/libpact_mock_server_ffi-osx-x86_64-$1.dylib.gz
-gzip -c ../target/release/libpact_mock_server_ffi.a > ../target/release/libpact_mock_server_ffi-osx-x86_64-$1.a.gz
-cargo build --release --target x86_64-apple-ios
-gzip -c ../target/x86_64-apple-ios/release/libpact_mock_server_ffi.a > ../target/x86_64-apple-ios/release/libpact_mock_server_ffi-ios-x86_64-$1.a.gz
+cargo build --release --target x86_64-apple-darwin
+gzip -c ../target/x86_64-apple-darwin/release/libpact_mock_server_ffi.dylib > ../target/release/libpact_mock_server_ffi-osx-x86_64-$1.dylib.gz
+gzip -c ../target/x86_64-apple-darwin/release/libpact_mock_server_ffi.a > ../target/release/libpact_mock_server_ffi-osx-x86_64-$1.a.gz
