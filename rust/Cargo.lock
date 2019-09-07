@@ -1153,7 +1153,7 @@ dependencies = [
 
 [[package]]
 name = "pact_mock_server_ffi"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "env_logger 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "expectest 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",

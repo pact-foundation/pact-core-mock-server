@@ -1,6 +1,6 @@
 [package]
 name = "pact_mock_server_ffi"
-version = "0.0.0"
+version = "0.0.1"
 authors = ["Ronald Holshausen <uglyog@gmail.com>"]
 description = "Pact mock server interface for foreign languages"
 homepage = "http://www.pact.io"
