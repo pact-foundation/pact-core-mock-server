@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.6.0 - moved the ffi functions into the ffi module
+
+* e4355d5 - refactor: removed the ffi suffix from the exported functions (Ronald Holshausen, Sat Sep 7 10:36:19 2019 +1000)
+* 9abde6c - refactor: moved the ffi functions into the ffi module (Ronald Holshausen, Sat Sep 7 10:16:54 2019 +1000)
+* 097d045 - refactor: added a mock server ffi module and bumped the mock server minor version (Ronald Holshausen, Sat Sep 7 09:39:27 2019 +1000)
+* 3adf21d - bump version to 0.5.2 (Ronald Holshausen, Sun Aug 11 15:03:24 2019 +1000)
+
 # 0.5.1 - support headers with multiple values
 
 * 1971e2a - chore: remove the p-macro crate (Ronald Holshausen, Sun Aug 11 14:51:24 2019 +1000)
