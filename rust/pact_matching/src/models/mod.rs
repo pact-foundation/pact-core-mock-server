@@ -1201,25 +1201,25 @@ fn decode_query(query: &str) -> String {
 }
 
 fn encode_query(query: &str) -> String {
-    query.chars().map(|ch| {
-        match ch {
-            ' ' => s!("+"),
-            '-' => ch.to_string(),
-            'a'...'z' => ch.to_string(),
-            'A'...'Z' => ch.to_string(),
-            '0'...'9' => ch.to_string(),
-            _ => ch.escape_unicode()
-                .filter(|u| u.is_digit(16))
-                .batching(|it| {
-                    match it.next() {
-                        None => None,
-                        Some(x) => Some((x, it.next().unwrap()))
-                    }
-                })
-                .map(|u| format!("%{}{}", u.0, u.1))
-                .collect()
-        }
-    }).collect()
+  query.chars().map(|ch| {
+    match ch {
+      ' ' => s!("+"),
+      '-' => ch.to_string(),
+      'a'..='z' => ch.to_string(),
+      'A'..='Z' => ch.to_string(),
+      '0'..='9' => ch.to_string(),
+      _ => ch.escape_unicode()
+          .filter(|u| u.is_digit(16))
+          .batching(|it| {
+              match it.next() {
+                  None => None,
+                  Some(x) => Some((x, it.next().unwrap()))
+              }
+          })
+          .map(|u| format!("%{}{}", u.0, u.1))
+          .collect()
+    }
+  }).collect()
 }
 
 /// Parses a query string into an optional map. The query parameter name will be mapped to

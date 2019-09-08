@@ -16,10 +16,7 @@ extern crate tokio;
 extern crate uuid;
 extern crate itertools;
 #[macro_use] extern crate lazy_static;
-
-#[cfg(test)]
-#[macro_use]
-extern crate maplit;
+#[macro_use] extern crate maplit;
 
 pub mod matching;
 pub mod mock_server;

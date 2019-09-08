@@ -138,7 +138,7 @@ fn error_body(request: &Request, error: &String) -> String {
 fn match_result_to_hyper_response(request: &Request, match_result: MatchResult) -> Result<Response<Body>, InteractionError> {
     match match_result {
         MatchResult::RequestMatch(ref interaction) => {
-            let response = pact_matching::generate_response(&interaction.response);
+            let response = pact_matching::generate_response(&interaction.response, &hashmap!{});
             info!("Request matched, sending response {:?}", response);
             info!("     body: '{}'\n\n", interaction.response.body.str_value());
 
