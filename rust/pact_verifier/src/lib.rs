@@ -125,7 +125,7 @@ fn provider_client_error_to_string(err: ProviderClientError) -> String {
 
 fn verify_response_from_provider(provider: &ProviderInfo, interaction: &Interaction, runtime: &mut Runtime) -> Result<(), MismatchResult> {
   let ref expected_response = interaction.response;
-  match runtime.block_on(make_provider_request(provider, &pact_matching::generate_request(&interaction.request))) {
+  match runtime.block_on(make_provider_request(provider, &pact_matching::generate_request(&interaction.request, &hashmap!{}))) {
       Ok(ref actual_response) => {
           let mismatches = match_response(expected_response.clone(), actual_response.clone());
           if mismatches.is_empty() {

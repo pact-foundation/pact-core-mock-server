@@ -1,6 +1,6 @@
 [package]
 name = "pact_mock_server"
-version = "0.5.2"
+version = "0.6.1"
 authors = ["Ronald Holshausen <uglyog@gmail.com>"]
 description = "Pact-Rust support library that implements in process mock server"
 documentation = "https://docs.rs/pact_mock_server/0.4.2/pact_mock_server/"
@@ -14,22 +14,17 @@ exclude = [
 ]
 
 [dependencies]
-libc = "0.2.9"
 serde_json = "1.0"
 pact_matching = { version =  "0.5.3", path = "../pact_matching" }
-env_logger = "0.4.3"
-log = "0.3.8"
+log = "0.4.8"
 maplit = "0.1.4"
-lazy_static = "0.2.8"
+lazy_static = "1.4.0"
 uuid = { version = "0.6", features = ["v4"] }
 itertools = "0.6.1"
 tokio = "0.1.22"
 futures = "0.1"
 hyper = "0.12"
 bytes = "0.4.4"
-
-[lib]
-crate-type = ["cdylib", "staticlib", "rlib"]
 
 [dev-dependencies]
 quickcheck = "0.4.1"

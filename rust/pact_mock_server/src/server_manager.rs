@@ -74,7 +74,7 @@ impl ServerManager {
     }
 
     /// Find mock server by id, and map it using supplied function if found
-    pub fn find_mock_server_by_id<R>(&self, id: &String, f: &Fn(&MockServer) -> R) -> Option<R> {
+    pub fn find_mock_server_by_id<R>(&self, id: &String, f: &dyn Fn(&MockServer) -> R) -> Option<R> {
         match self.mock_servers.get(id) {
             Some(mock_server) => Some(f(mock_server)),
             None => None
@@ -82,7 +82,7 @@ impl ServerManager {
     }
 
     /// Find a mock server by port number and apply a mutating operation on it if successful
-    pub fn find_mock_server_by_port_mut<R>(&mut self, mock_server_port: u16, f: &Fn(&mut MockServer) -> R) -> Option<R> {
+    pub fn find_mock_server_by_port_mut<R>(&mut self, mock_server_port: u16, f: &dyn Fn(&mut MockServer) -> R) -> Option<R> {
         match self.mock_servers.iter_mut().find(|ms| ms.1.addr.port() == mock_server_port) {
             Some(mock_server) => {
                 Some(f(mock_server.1))
@@ -92,7 +92,7 @@ impl ServerManager {
     }
 
     /// Map all the running mock servers
-    pub fn map_mock_servers<R>(&self, f: &Fn(&MockServer) -> R) -> Vec<R> {
+    pub fn map_mock_servers<R>(&self, f: &dyn Fn(&MockServer) -> R) -> Vec<R> {
         let mut results = vec![];
         for (_, mock_server) in self.mock_servers.iter() {
             results.push(f(mock_server));

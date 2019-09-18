@@ -21,6 +21,11 @@ and writing pact files.
 This is a library that provides an in-process mock server for Pact client tests. It uses the [pact_matching](pact_matching)
 library.
 
+## [pact_mock_server_ffi](pact_mock_server_ffi)
+
+This is a library that implements exported functions using C bindings for controlling the in-process mock server from
+non-rust languages.
+
 ## [pact_mock_server_cli](pact_mock_server_cli)
 
 This module provides a command line executable that provides a standalone pact mock server and commands for controlling

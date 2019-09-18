@@ -1,13 +1,11 @@
-# Pact Mock Server library
+# Pact Mock Server FFI library
 
-This library implements the in-process mock server for matching HTTP requests and generating responses from a pact file.
-It implements the [V3 Pact specification](https://github.com/pact-foundation/pact-specification/tree/version-3).
+This library implements exported functions using C bindings for controlling the in-process mock server for 
+matching HTTP requests and generating responses from a pact file.
 
-[Online rust docs](https://docs.rs/pact_mock_server/)
+[Online rust docs](https://docs.rs/pact_mock_server_ffi/)
 
 For an example of calling these functions, have a [look at the JavaScript reference](../../../javascript/README.md).
-
-All the exported functions using C bindings for controlling the mock server are now found in the [pact_mock_server_ffi module](../pact_mock_server_ffi).
 
 ## [create_mock_server](http://www.pact.io/reference/rust/libpact_mock_server-docs-latest/pact_mock_server/fn.create_mock_server.html)
 

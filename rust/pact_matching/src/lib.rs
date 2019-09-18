@@ -370,6 +370,7 @@ use models::HttpPart;
 use models::matchingrules::*;
 use models::generators::*;
 use matchers::*;
+use serde_json::Value;
 
 fn strip_whitespace<'a, T: FromIterator<&'a str>>(val: &'a String, split_by: &'a str) -> T {
     val.split(split_by).map(|v| v.trim().clone() ).collect()
@@ -915,7 +916,7 @@ fn match_body_content(content_type: String, expected: &models::OptionalBody, act
 }
 
 /// Matches the actual body to the expected one. This takes into account the content type of each.
-pub fn match_body(expected: &models::HttpPart, actual: &models::HttpPart, config: DiffConfig,
+pub fn match_body(expected: &dyn models::HttpPart, actual: &dyn models::HttpPart, config: DiffConfig,
     mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
     debug!("expected content type = '{}', actual content type = '{}'", expected.content_type(),
            actual.content_type());
@@ -986,11 +987,11 @@ pub fn match_message(expected: models::message::Message, actual: models::message
 }
 
 /// Generates the request by applying any defined generators
-pub fn generate_request(request: &models::Request) -> models::Request {
+pub fn generate_request(request: &models::Request, context: &HashMap<String, Value>) -> models::Request {
     let generators = request.generators.clone();
     let mut request = request.clone();
     generators.apply_generator(&GeneratorCategory::PATH, |_, generator| {
-        match generator.generate_value(&request.path) {
+        match generator.generate_value(&request.path, context) {
             Some(v) => request.path = v,
             None => ()
         }
@@ -998,7 +999,7 @@ pub fn generate_request(request: &models::Request) -> models::Request {
     generators.apply_generator(&GeneratorCategory::HEADER, |key, generator| {
         match request.headers {
             Some(ref mut headers) => if headers.contains_key(key) {
-                match generator.generate_value(&headers.get(key).unwrap().clone()) {
+                match generator.generate_value(&headers.get(key).unwrap().clone(), context) {
                     Some(v) => headers.insert(key.clone(), v),
                     None => None
                 };
@@ -1012,7 +1013,7 @@ pub fn generate_request(request: &models::Request) -> models::Request {
           Some(parameter) => {
             let mut generated = parameter.clone();
             for (index, val) in parameter.iter().enumerate() {
-              match generator.generate_value(val) {
+              match generator.generate_value(val, context) {
                 Some(v) => generated[index] = v,
                 None => ()
               };
@@ -1024,16 +1025,17 @@ pub fn generate_request(request: &models::Request) -> models::Request {
         None => ()
       }
     });
-    request.body = generators.apply_body_generators(&request.body, request.content_type_enum());
+    request.body = generators.apply_body_generators(&request.body, request.content_type_enum(),
+        context);
     request
 }
 
 /// Generates the response by applying any defined generators
-pub fn generate_response(response: &models::Response) -> models::Response {
+pub fn generate_response(response: &models::Response, context: &HashMap<String, Value>) -> models::Response {
   let generators = response.generators.clone();
   let mut response = response.clone();
   generators.apply_generator(&GeneratorCategory::STATUS, |_, generator| {
-    match generator.generate_value(&response.status) {
+    match generator.generate_value(&response.status, context) {
       Some(v) => response.status = v,
       None => ()
     }
@@ -1041,7 +1043,7 @@ pub fn generate_response(response: &models::Response) -> models::Response {
   generators.apply_generator(&GeneratorCategory::HEADER, |key, generator| {
     match response.headers {
       Some(ref mut headers) => if headers.contains_key(key) {
-        match generator.generate_value(&headers.get(key).unwrap().clone()) {
+        match generator.generate_value(&headers.get(key).unwrap().clone(), context) {
           Some(v) => headers.insert(key.clone(), v),
           None => None
         };
@@ -1049,7 +1051,8 @@ pub fn generate_response(response: &models::Response) -> models::Response {
       None => ()
     }
   });
-  response.body = generators.apply_body_generators(&response.body, response.content_type_enum());
+  response.body = generators.apply_body_generators(&response.body, response.content_type_enum(),
+    context);
   response
 }
 

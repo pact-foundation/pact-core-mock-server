@@ -45,7 +45,9 @@ pub enum Generator {
   /// Generates a random timestamp that matches either the provided format or the ISO format
   DateTime(Option<String>),
   /// Generates a random boolean value
-  RandomBoolean
+  RandomBoolean,
+  /// Generates a value that is looked up from the provider state context
+  ProviderStateGenerator(String)
 }
 
 impl Generator {
@@ -70,7 +72,8 @@ impl Generator {
         &Some(ref format) => json!({ "type": "DateTime", "format": format }),
         &None => json!({ "type": "DateTime" })
       },
-      &Generator::RandomBoolean => json!({ "type": "RandomBoolean" })
+      &Generator::RandomBoolean => json!({ "type": "RandomBoolean" }),
+      &Generator::ProviderStateGenerator(ref expression) => json!({"type": "ProviderState", "expression": expression})
     }
   }
 
@@ -91,6 +94,7 @@ impl Generator {
       "Time" => Some(Generator::Time(map.get("format").map(|f| json_to_string(f)))),
       "DateTime" => Some(Generator::DateTime(map.get("format").map(|f| json_to_string(f)))),
       "RandomBoolean" => Some(Generator::RandomBoolean),
+      "ProviderState" => Some(Generator::ProviderStateGenerator(map.get("expression").map(|f| json_to_string(f)).unwrap())),
       _ => {
         warn!("'{}' is not a valid generator type", gen_type);
         None
@@ -103,13 +107,14 @@ impl Generator {
 pub trait GenerateValue<T> {
   /// Generates a new value based on the source value. `None` will be returned if the value can not
   /// be generated.
-  fn generate_value(&self, value: &T) -> Option<T>;
+  fn generate_value(&self, value: &T, context: &HashMap<String, Value>) -> Option<T>;
 }
 
 impl GenerateValue<u16> for Generator {
-  fn generate_value(&self, _: &u16) -> Option<u16> {
+  fn generate_value(&self, _: &u16, context: &HashMap<String, Value>) -> Option<u16> {
     match self {
       &Generator::RandomInt(min, max) => Some(rand::thread_rng().gen_range(min as u16, (max as u16).saturating_add(1))),
+      &Generator::ProviderStateGenerator(ref exp) => None,
       _ => None
     }
   }
@@ -132,7 +137,7 @@ fn generate_ascii_string(size: usize) -> String {
 }
 
 impl GenerateValue<String> for Generator {
-  fn generate_value(&self, _: &String) -> Option<String> {
+  fn generate_value(&self, _: &String, context: &HashMap<String, Value>) -> Option<String> {
     let mut rnd = rand::thread_rng();
     match self {
       &Generator::RandomInt(min, max) => Some(format!("{}", rnd.gen_range(min, max.saturating_add(1)))),
@@ -183,19 +188,20 @@ impl GenerateValue<String> for Generator {
         },
         None => Some(Local::now().format("%Y-%m-%dT%H:%M:%S.%3f%z").to_string())
       },
-      &Generator::RandomBoolean => Some(format!("{}", rnd.gen::<bool>()))
+      &Generator::RandomBoolean => Some(format!("{}", rnd.gen::<bool>())),
+      &Generator::ProviderStateGenerator(ref exp) => None
     }
   }
 }
 
 impl GenerateValue<Vec<String>> for Generator {
-  fn generate_value(&self, vals: &Vec<String>) -> Option<Vec<String>> {
-    self.generate_value(vals.first().unwrap_or(&s!(""))).map(|v| vec![v])
+  fn generate_value(&self, vals: &Vec<String>, context: &HashMap<String, Value>) -> Option<Vec<String>> {
+    self.generate_value(vals.first().unwrap_or(&s!("")), context).map(|v| vec![v])
   }
 }
 
 impl GenerateValue<Value> for Generator {
-  fn generate_value(&self, value: &Value) -> Option<Value> {
+  fn generate_value(&self, value: &Value, context: &HashMap<String, Value>) -> Option<Value> {
     match self {
       &Generator::RandomInt(min, max) => {
         let rand_int = rand::thread_rng().gen_range(min, max.saturating_add(1));
@@ -268,7 +274,8 @@ impl GenerateValue<Value> for Generator {
         },
         None => Some(json!(Local::now().format("%Y-%m-%dT%H:%M:%S.%3f%z").to_string()))
       },
-      &Generator::RandomBoolean => Some(json!(rand::thread_rng().gen::<bool>()))
+      &Generator::RandomBoolean => Some(json!(rand::thread_rng().gen::<bool>())),
+      &Generator::ProviderStateGenerator(ref exp) => None
     }
   }
 }
@@ -329,9 +336,9 @@ impl Into<String> for GeneratorCategory {
 /// Trait to define a handler for applying generators to data of a particular content type.
 pub trait ContentTypeHandler<T> {
   /// Processes the body using the map of generators, returning a (possibly) updated body.
-  fn process_body(&mut self, generators: &HashMap<String, Generator>) -> OptionalBody;
+  fn process_body(&mut self, generators: &HashMap<String, Generator>, context: &HashMap<String, Value>) -> OptionalBody;
   /// Applies the generator to the key in the body.
-  fn apply_key(&mut self, key: &String, generator: &Generator);
+  fn apply_key(&mut self, key: &String, generator: &Generator, context: &HashMap<String, Value>);
 }
 
 /// Implementation of a content type handler for JSON
@@ -412,14 +419,14 @@ impl JsonHandler {
 }
 
 impl ContentTypeHandler<Value> for JsonHandler {
-  fn process_body(&mut self, generators: &HashMap<String, Generator>) -> OptionalBody {
+  fn process_body(&mut self, generators: &HashMap<String, Generator>, context: &HashMap<String, Value>) -> OptionalBody {
     for (key, generator) in generators {
-      self.apply_key(key, generator);
+      self.apply_key(key, generator, context);
     };
     OptionalBody::Present(self.value.to_string().into())
   }
 
-  fn apply_key(&mut self, key: &String, generator: &Generator) {
+  fn apply_key(&mut self, key: &String, generator: &Generator, context: &HashMap<String, Value>) {
     match parse_path_exp(key.clone()) {
       Ok(path_exp) => {
         let mut tree = Arena::new();
@@ -439,7 +446,7 @@ impl ContentTypeHandler<Value> for JsonHandler {
         if !expanded_paths.is_empty() {
           for pointer_str in expanded_paths {
             match self.value.pointer_mut(&pointer_str) {
-              Some(json_value) => match generator.generate_value(&json_value.clone()) {
+              Some(json_value) => match generator.generate_value(&json_value.clone(), context) {
                 Some(new_value) => *json_value = new_value,
                 None => ()
               },
@@ -447,7 +454,7 @@ impl ContentTypeHandler<Value> for JsonHandler {
             }
           }
         } else if path_exp.len() == 1 {
-          match generator.generate_value(&self.value.clone()) {
+          match generator.generate_value(&self.value.clone(), context) {
             Some(new_value) => self.value = new_value,
             None => ()
           }
@@ -465,11 +472,11 @@ pub struct XmlHandler<'a> {
 }
 
 impl <'a> ContentTypeHandler<Document<'a>> for XmlHandler<'a> {
-  fn process_body(&mut self, _generators: &HashMap<String, Generator>) -> OptionalBody {
+  fn process_body(&mut self, _generators: &HashMap<String, Generator>, context: &HashMap<String, Value>) -> OptionalBody {
     unimplemented!()
   }
 
-  fn apply_key(&mut self, _key: &String, _generator: &Generator) {
+  fn apply_key(&mut self, _key: &String, _generator: &Generator, context: &HashMap<String, Value>) {
     unimplemented!()
   }
 }
@@ -585,7 +592,7 @@ impl Generators {
   }
 
   /// Applies all the body generators to the body and returns a new body (if anything was applied).
-  pub fn apply_body_generators(&self, body: &OptionalBody, content_type: DetectedContentType) -> OptionalBody {
+  pub fn apply_body_generators(&self, body: &OptionalBody, content_type: DetectedContentType, context: &HashMap<String, Value>) -> OptionalBody {
     if body.is_present() && self.categories.contains_key(&GeneratorCategory::BODY) &&
       !self.categories[&GeneratorCategory::BODY].is_empty() {
       let generators = &self.categories[&GeneratorCategory::BODY];
@@ -595,7 +602,7 @@ impl Generators {
           match result {
             Ok(val) => {
               let mut handler = JsonHandler { value: val };
-              handler.process_body(&generators)
+              handler.process_body(&generators, context)
             },
             Err(err) => {
               error!("Failed to parse the body, so not applying any generators: {}", err);
@@ -606,7 +613,7 @@ impl Generators {
         DetectedContentType::Xml => match parse_bytes(&body.value()) {
           Ok(val) => {
             let mut handler = XmlHandler { value: val.as_document() };
-            handler.process_body(&generators)
+            handler.process_body(&generators, context)
           },
           Err(err) => {
             error!("Failed to parse the body, so not applying any generators: {}", err);
@@ -891,6 +898,7 @@ mod tests {
 
   #[test]
   fn generate_int_with_max_int_test() {
-    assert_that!(&Generator::RandomInt(0, i32::max_value()).generate_value(&0).unwrap().to_string(), matches_regex(r"^\d+$"));
+    assert_that!(&Generator::RandomInt(0, i32::max_value()).generate_value(&0,
+      &hashmap!{}).unwrap().to_string(), matches_regex(r"^\d+$"));
   }
 }

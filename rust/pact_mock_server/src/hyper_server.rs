@@ -7,7 +7,7 @@ use pact_matching::models::parse_query_string;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use log::{log, error, warn, info, debug};
+use log::{error, warn, info, debug};
 use hyper::{Body, Response, Server, Error};
 use hyper::http::response::{Builder as ResponseBuilder};
 use hyper::http::header::{HeaderName, HeaderValue};
@@ -138,7 +138,7 @@ fn error_body(request: &Request, error: &String) -> String {
 fn match_result_to_hyper_response(request: &Request, match_result: MatchResult) -> Result<Response<Body>, InteractionError> {
     match match_result {
         MatchResult::RequestMatch(ref interaction) => {
-            let response = pact_matching::generate_response(&interaction.response);
+            let response = pact_matching::generate_response(&interaction.response, &hashmap!{});
             info!("Request matched, sending response {:?}", response);
             info!("     body: '{}'\n\n", interaction.response.body.str_value());
 

@@ -1,10 +1,10 @@
 {
-  "name": "pact-reference-v1-js",
+  "name": "pact-reference-js",
   "version": "1.0.0",
   "description": "Reference implementation of calling pact mock server from JS",
   "main": "index.js",
   "dependencies": {
-    "ffi": "^2.0.0"
+    "ffi": "^2.3.0"
   },
   "devDependencies": {},
   "scripts": {

@@ -230,7 +230,7 @@ pub fn match_json(expected: &Vec<u8>, actual: &Vec<u8>, config: DiffConfig,
     }
 }
 
-fn walk_json(json: &Value, path: &mut Iterator<Item=&str>) -> Option<Value> {
+fn walk_json(json: &Value, path: &mut dyn Iterator<Item=&str>) -> Option<Value> {
     match path.next() {
         Some(p) => match json {
             &Value::Object(_) => json.get(p).map(|json| json.clone()),

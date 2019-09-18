@@ -48,7 +48,7 @@ def projectProps = new File('Cargo.toml').text
 def versionMatch = projectProps =~ /(?m)version\s*=\s*"(.*)"/
 def version = versionMatch[0][1]
 
-def prevTag = 'git describe --abbrev=0  --tags --match=libpact_mock_server-*'.execute().text.trim()
+def prevTag = 'git describe --abbrev=0  --tags --match=libpact_mock_server_ffi-*'.execute().text.trim()
 def changelog = []
 executeOnShell("git log --pretty='* %h - %s (%an, %ad)' ${prevTag}..HEAD .".toString()) {
   println it
@@ -91,7 +91,7 @@ ask('Update Changelog?: [Y]') {
 
 ask('Tag and Push commits?: [Y]') {
   executeOnShell 'git push'
-  executeOnShell("git tag libpact_mock_server-v${releaseVer}")
+  executeOnShell("git tag libpact_mock_server_ffi-v${releaseVer}")
   executeOnShell 'git push --tags'
 }
 
@@ -100,10 +100,14 @@ ask('Publish library to crates.io?: [Y]') {
   executeOnShell 'cargo publish'
 }
 
+executeOnShell "cargo build --release"
+executeOnShell "gzip -c ../target/release/libpact_mock_server_ffi.so > ../target/release/libpact_mock_server_ffi-linux-x86_64-${releaseVer}.so.gz"
+executeOnShell "gzip -c ../target/release/libpact_mock_server_ffi.a > ../target/release/libpact_mock_server_ffi-linux-x86_64-${releaseVer}.a.gz"
+
 def nextVer = Version.valueOf(releaseVer).incrementPatchVersion()
 ask("Bump version to $nextVer?: [Y]") {
   executeOnShell "sed -i -e 's/version = \"${releaseVer}\"/version = \"${nextVer}\"/' Cargo.toml"
-  executeOnShell "sed -i -e 's/documentation = \"https:\\/\\/docs\\.rs\\/pact_mock_server\\/${releaseVer}\\/pact_mock_server\\/\"/documentation = \"https:\\/\\/docs\\.rs\\/pact_mock_server\\/${nextVer}\\/pact_mock_server\\/\"/' Cargo.toml"
+  executeOnShell "sed -i -e 's/documentation = \"https:\\/\\/docs\\.rs\\/pact_mock_server_ffi\\/${releaseVer}\\/pact_mock_server_ffi\\/\"/documentation = \"https:\\/\\/docs\\.rs\\/pact_mock_server_ffi\\/${nextVer}\\/pact_mock_server_ffi\\/\"/' Cargo.toml"
   executeOnShell("cargo update")
   executeOnShell("git add Cargo.toml")
   executeOnShell("git add ../Cargo.lock")
