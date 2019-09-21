@@ -72,36 +72,50 @@ use pact_mock_server::server_manager::ServerManager;
 /// | -2 | The pact JSON could not be parsed |
 /// | -3 | The mock server could not be started |
 /// | -4 | The method panicked |
+/// | -5 | The address is not valid |
 ///
 #[no_mangle]
-pub extern fn create_mock_server(pact_str: *const c_char, port: i32) -> i32 {
-  env_logger::init();
+pub extern fn create_mock_server_ffi(pact_str: *const c_char, addr_str: *const c_char) -> i32 {
+    env_logger::init();
 
-  let result = catch_unwind(|| {
-    let c_str = unsafe {
-      if pact_str.is_null() {
-        error!("Got a null pointer instead of pact json");
-        return -1;
-      }
-      CStr::from_ptr(pact_str)
-    };
+    let result = catch_unwind(|| {
+        let c_str = unsafe {
+            if pact_str.is_null() {
+                error!("Got a null pointer instead of pact json");
+                return -1;
+            }
+            CStr::from_ptr(pact_str)
+        };
 
-    match pact_mock_server::create_mock_server(str::from_utf8(c_str.to_bytes()).unwrap(), port) {
-      Ok(ms_port) => ms_port,
-      Err(err) => match err {
-        MockServerError::InvalidPactJson => -2,
-        MockServerError::MockServerFailedToStart => -3
-      }
+        let addr_c_str = unsafe {
+            if addr_str.is_null() {
+                error!("Got a null pointer instead of listener address");
+                return -1;
+            }
+            CStr::from_ptr(addr_str)
+        };
+
+        if let Ok(Ok(addr)) = str::from_utf8(addr_c_str.to_bytes()).map(|s| s.parse::<std::net::SocketAddr>()) {
+          match pact_mock_server::create_mock_server(str::from_utf8(c_str.to_bytes()).unwrap(), addr) {
+            Ok(ms_port) => ms_port,
+            Err(err) => match err {
+              MockServerError::InvalidPactJson => -2,
+              MockServerError::MockServerFailedToStart => -3
+            }
+          }
+        }
+        else {
+          -5
+        }
+    });
+
+    match result {
+        Ok(val) => val,
+        Err(cause) => {
+            error!("Caught a general panic: {:?}", cause);
+            -4
+        }
     }
-  });
-
-  match result {
-    Ok(val) => val,
-    Err(cause) => {
-      error!("Caught a general panic: {:?}", cause);
-      -4
-    }
-  }
 }
 
 /// External interface to check if a mock server has matched all its requests. The port number is

@@ -56,21 +56,21 @@ lazy_static! {
 /// An error with a message will be returned in the following conditions:
 ///
 /// - If a mock server is not able to be started
-pub fn start_mock_server(id: String, pact: Pact, port: i32) -> Result<i32, String> {
+pub fn start_mock_server(id: String, pact: Pact, addr: std::net::SocketAddr) -> Result<i32, String> {
     MANAGER.lock().unwrap()
         .get_or_insert_with(ServerManager::new)
-        .start_mock_server(id, pact, port as u16)
-        .map(|port| port as i32)
+        .start_mock_server_with_addr(id, pact, addr)
+        .map(|addr| addr.port() as i32)
 }
 
 /// Creates a mock server. Requires the pact JSON as a string as well as the port for the mock
 /// server to run on. A value of 0 for the port will result in a
 /// port being allocated by the operating system. The port of the mock server is returned.
-pub extern fn create_mock_server(pact_json: &str, port: i32) -> Result<i32, MockServerError> {
+pub extern fn create_mock_server(pact_json: &str, addr: std::net::SocketAddr) -> Result<i32, MockServerError> {
   match serde_json::from_str(pact_json) {
     Ok(pact_json) => {
       let pact = Pact::from_json(&s!("<create_mock_server>"), &pact_json);
-      start_mock_server(Uuid::new_v4().simple().to_string(), pact, port)
+      start_mock_server(Uuid::new_v4().simple().to_string(), pact, addr)
         .map_err(|err| {
           error!("Could not start mock server: {}", err);
           MockServerError::MockServerFailedToStart
