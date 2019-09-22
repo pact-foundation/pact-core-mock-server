@@ -1,5 +1,5 @@
 use pact_matching::models::Pact;
-use serde_json;
+use ::{serde_json, MismatchResult};
 use itertools::Itertools;
 use std::collections::HashMap;
 use super::provider_client::join_paths;
@@ -8,6 +8,8 @@ use futures::future;
 use futures::future::Future;
 use futures::stream::Stream;
 use pact_matching::models::http_utils::HttpAuth;
+use pact_matching::Mismatch;
+use std::fmt::{Display, Formatter};
 
 fn is_true(object: &serde_json::Map<String, serde_json::Value>, field: &String) -> bool {
     match object.get(field) {
@@ -88,6 +90,18 @@ impl <'a> PartialEq<&'a str> for PactBrokerError {
     }
 }
 
+impl Display for PactBrokerError {
+  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    match self {
+      &PactBrokerError::LinkError(ref s) => write!(f, "LinkError({})", s),
+      &PactBrokerError::ContentError(ref s) => write!(f, "ContentError({})", s),
+      &PactBrokerError::IoError(ref s) => write!(f, "IoError({})", s),
+      &PactBrokerError::NotFound(ref s) => write!(f, "NotFound({})", s),
+      &PactBrokerError::UrlError(ref s) => write!(f, "UrlError({})", s)
+    }
+  }
+}
+
 #[derive(Debug, Clone)]
 pub struct Link {
     name: String,
@@ -104,6 +118,16 @@ impl Link {
             templated: is_true(link_data, &s!("templated"))
         }
     }
+}
+
+impl Default for Link {
+  fn default() -> Self {
+    Link {
+      name: "link".to_string(),
+      href: None,
+      templated: false
+    }
+  }
 }
 
 #[derive(Clone)]
@@ -313,7 +337,7 @@ impl HALClient {
                             &serde_json::Value::String(ref s) => Link { name: link.clone(), href: Some(s.clone()), templated: false },
                             _ => Link { name: link.clone(), href: Some(link_json.to_string()), templated: false }
                         }).collect())
-                        .ok_or(PactBrokerError::LinkError(format!("Link is malformed, expcted an object but got {}. URL: '{}', LINK: '{}'",
+                        .ok_or(PactBrokerError::LinkError(format!("Link is malformed, expected an object but got {}. URL: '{}', LINK: '{}'",
                             link_data, self.url, link))),
                     None => Err(PactBrokerError::LinkError(format!("Link '{}' was not found in the response, only the following links where found: {:?}. URL: '{}', LINK: '{}'",
                         link, json.as_object().unwrap_or(&json!({}).as_object().unwrap()).keys().join(", "), self.url, link)))
@@ -323,13 +347,52 @@ impl HALClient {
             }
         }
     }
+
+  fn post_json(self, url: String, body: String) -> impl Future<Item = (), Error = PactBrokerError> {
+    debug!("Posting JSON to {}: {}", url, body);
+    future::done(url.parse::<reqwest::Url>())
+      .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))
+      .and_then( move |url| {
+        let http_client = match self.auth {
+          Some(ref auth) => match auth {
+            HttpAuth::User(username, password) => self.client.post(url.clone()).basic_auth(username, password.clone()),
+            HttpAuth::Token(token) => self.client.post(url.clone()).bearer_auth(token)
+          },
+          None => self.client.post(url.clone())
+        }.header("Content-Type", "application/json")
+        .body(body);
+
+        http_client.send()
+          .map_err(move |err| {
+            PactBrokerError::IoError(format!("Failed to post JSON to the pact broker URL '{}' - {}",
+              url, err
+            ))
+          })
+          .map(|_| ())
+      })
+  }
+}
+
+fn links_from_json(json: &serde_json::Value) -> Vec<Link> {
+  match json.get("_links") {
+    Some(json) => match json {
+      &serde_json::Value::Object(ref v) => {
+        v.iter().map(|(link, json)| match json {
+          &serde_json::Value::Object(ref attr) => Link::from_json(link, attr),
+          _ => Link { name: link.clone(), .. Link::default() }
+        }).collect()
+      },
+      _ => vec![]
+    },
+    None => vec![]
+  }
 }
 
 pub fn fetch_pacts_from_broker(
     broker_url: String,
     provider_name: String,
     auth: Option<HttpAuth>
-) -> impl Future<Item = Vec<Result<Pact, PactBrokerError>>, Error = PactBrokerError> {
+) -> impl Future<Item = Vec<Result<(Pact, Vec<Link>), PactBrokerError>>, Error = PactBrokerError> {
     let hal_client = HALClient::with_url(broker_url.clone(), auth);
     let template_values = hashmap!{ s!("provider") => provider_name.clone() };
 
@@ -361,14 +424,128 @@ pub fn fetch_pacts_from_broker(
                     }
                 })
                 .and_then(move |pact_link| {
-                    hal_client.clone().fetch_url(&pact_link, template_values.clone())
-                        .map(move |pact_json| Pact::from_json(&pact_link.href.clone().unwrap(), &pact_json))
+                  hal_client.clone().fetch_url(&pact_link, template_values.clone())
+                    .map(move |pact_json| {
+                      let pact = Pact::from_json(&pact_link.href.clone().unwrap(), &pact_json);
+                      let links = links_from_json(&pact_json);
+                      (pact, links)
+                    })
                 })
                 .then(|result| {
                     Ok(result)
                 })
                 .collect()
         })
+}
+
+pub enum TestResult {
+  Ok,
+  Failed(Vec<(String, MismatchResult)>)
+}
+
+impl TestResult {
+  pub fn to_bool(&self) -> bool {
+    match self {
+      TestResult::Ok => true,
+      _ => false
+    }
+  }
+}
+
+/// Publishes the result to the "pb:publish-verification-results" link in the links associated with the pact
+pub fn publish_verification_results(links: Vec<Link>, broker_url: String, auth: Option<HttpAuth>, result: TestResult, version: String, build_url: Option<String>)
+  -> impl Future<Item = (), Error = PactBrokerError> {
+  let publish_link = links.iter().cloned().find(|item| item.name.to_ascii_lowercase() == "pb:publish-verification-results")
+    .ok_or(PactBrokerError::LinkError("Response from the pact broker has no 'pb:publish-verification-results' link".into()));
+  future::done(publish_link)
+  .and_then(move |publish_link| {
+    let json = build_payload(result, version, build_url);
+    let hal_client = HALClient::with_url(broker_url.clone(), auth.clone());
+    hal_client.post_json(publish_link.href.clone().unwrap(), json.to_string())
+  })
+}
+
+fn build_payload(result: TestResult, version: String, build_url: Option<String>) -> serde_json::Value {
+  let mut json = json!({
+    "success": result.to_bool(),
+    "providerApplicationVersion": version
+  });
+  let json_obj = json.as_object_mut().unwrap();
+
+  if build_url.is_some() {
+    json_obj.insert("buildUrl".into(), json!(build_url.unwrap()));
+  }
+
+  match result {
+    TestResult::Failed(mismatches) => {
+      let values = mismatches.iter()
+        .group_by(|mismatch| mismatch.1.interaction_id().unwrap_or(String::new()))
+        .into_iter()
+        .map(|(key, mismatches)| {
+          let acc: (Vec<serde_json::Value>, Vec<serde_json::Value>) = (vec![], vec![]);
+          let values = mismatches.into_iter().fold(acc, |mut acc, mismatch| {
+            match mismatch.1 {
+              MismatchResult::Mismatches { ref mismatches, .. } => {
+                for mismatch in mismatches {
+                  match mismatch {
+                    &Mismatch::MethodMismatch { ref expected, ref actual } => acc.0.push(json!({
+                      "attribute": "method",
+                      "description": format!("Expected method of {} but received {}", expected, actual)
+                    })),
+                    &Mismatch::PathMismatch { ref mismatch, .. } => acc.0.push(json!({
+                      "attribute": "path",
+                      "description": mismatch
+                    })),
+                    &Mismatch::StatusMismatch { ref expected, ref actual } => acc.0.push(json!({
+                      "attribute": "status",
+                      "description": format!("Expected status of {} but received {}", expected, actual)
+                    })),
+                    &Mismatch::QueryMismatch { ref parameter, ref mismatch, .. } => acc.0.push(json!({
+                      "attribute": "query",
+                      "identifier": parameter,
+                      "description": mismatch
+                    })),
+                    &Mismatch::HeaderMismatch { ref key, ref mismatch, .. } => acc.0.push(json!({
+                      "attribute": "header",
+                      "identifier": key,
+                      "description": mismatch
+                    })),
+                    &Mismatch::BodyTypeMismatch { ref expected, ref actual} => acc.0.push(json!({
+                      "attribute": "body",
+                      "identifier": "$",
+                      "description": format!("Expected body type of '{}' but received '{}'", expected, actual)
+                    })),
+                    &Mismatch::BodyMismatch { ref path, ref mismatch, .. } => acc.0.push(json!({
+                      "attribute": "body",
+                      "identifier": path,
+                      "description": mismatch
+                    }))
+                  }
+                }
+              },
+              MismatchResult::Error(ref err, _) => acc.1.push(json!({ "message": err }))
+            };
+            acc
+          });
+
+          let mut json = json!({
+            "interactionId": key,
+            "success": false,
+            "mismatches": values.0
+          });
+
+          if !values.1.is_empty() {
+            json.as_object_mut().unwrap().insert("exceptions".into(), json!(values.1));
+          }
+
+          json
+        }).collect::<Vec<serde_json::Value>>();
+
+      json_obj.insert("testResults".into(), serde_json::Value::Array(values));
+    },
+    _ => ()
+  }
+  json
 }
 
 #[cfg(test)]

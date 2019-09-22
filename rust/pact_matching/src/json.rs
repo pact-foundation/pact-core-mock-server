@@ -19,7 +19,7 @@ fn type_of(json: &Value) -> String {
     }
 }
 
-fn value_of(json: &Value) -> String {
+pub(crate) fn value_of(json: &Value) -> String {
     match json {
         &Value::String(ref s) => s.clone(),
         _ => format!("{}", json)

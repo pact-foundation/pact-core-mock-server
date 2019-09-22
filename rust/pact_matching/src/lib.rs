@@ -444,7 +444,7 @@ pub enum Mismatch {
     },
     /// Body element mismatch
     BodyMismatch {
-        /// path expression to where the mismatch occured
+        /// path expression to where the mismatch occurred
         path: String,
         /// expected value
         expected: Option<Vec<u8>>,
@@ -563,7 +563,7 @@ impl Mismatch {
         }
     }
 
-    /// Returns a formated string with ansi escape codes for this mismatch
+    /// Returns a formatted string with ansi escape codes for this mismatch
     pub fn ansi_description(&self) -> String {
         match *self {
             Mismatch::MethodMismatch { expected: ref e, actual: ref a } => format!("expected {} but was {}", Red.paint(e.clone()), Green.paint(a.clone())),

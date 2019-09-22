@@ -489,13 +489,6 @@ pub struct Generators {
 }
 
 impl Generators {
-  /// Create a empty set of generators
-  pub fn default() -> Generators {
-    Generators {
-      categories: hashmap!{}
-    }
-  }
-
   /// If the generators are empty (that is there are no rules assigned to any categories)
   pub fn is_empty(&self) -> bool {
     self.categories.values().all(|category| category.is_empty())
@@ -636,6 +629,14 @@ impl Hash for Generators {
         k2.hash(state);
         v2.hash(state);
       }
+    }
+  }
+}
+
+impl Default for Generators {
+  fn default() -> Self {
+    Generators {
+      categories: hashmap!{}
     }
   }
 }

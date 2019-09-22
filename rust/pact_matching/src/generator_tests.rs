@@ -8,7 +8,7 @@ use hamcrest::prelude::*;
 
 #[test]
 fn returns_original_response_if_there_are_no_generators() {
-  let response = Response::default_response();
+  let response = Response::default();
   expect!(generate_response(&response, &hashmap!{})).to(be_equal_to(response));
 }
 
@@ -16,7 +16,7 @@ fn returns_original_response_if_there_are_no_generators() {
 fn applies_status_generator_for_status_to_the_copy_of_the_response() {
   let response = Response { status: 200, generators: generators! {
     "STATUS" => Generator::RandomInt(400, 499)
-  }, .. Response::default_response() };
+  }, .. Response::default() };
   expect!(generate_response(&response, &hashmap!{}).status).to(be_greater_or_equal_to(400));
 }
 
@@ -29,7 +29,7 @@ fn applies_header_generator_for_headers_to_the_copy_of_the_response() {
       "HEADER" => {
         "A" => Generator::Uuid
       }
-    }, .. Response::default_response()
+    }, .. Response::default()
   };
   let headers = generate_response(&response, &hashmap!{}).headers.unwrap().clone();
   expect!(headers.get("A").unwrap().first().unwrap()).to_not(be_equal_to("a"));
@@ -37,7 +37,7 @@ fn applies_header_generator_for_headers_to_the_copy_of_the_response() {
 
 #[test]
 fn returns_original_request_if_there_are_no_generators() {
-  let request = Request::default_request();
+  let request = Request::default();
   expect!(generate_request(&request, &hashmap!{})).to(be_equal_to(request));
 }
 
@@ -45,7 +45,7 @@ fn returns_original_request_if_there_are_no_generators() {
 fn applies_path_generator_for_the_path_to_the_copy_of_the_request() {
   let request = Request { path: s!("/path"), generators: generators! {
     "PATH" => Generator::RandomInt(1, 10)
-  }, .. Request::default_request() };
+  }, .. Request::default() };
   expect!(generate_request(&request, &hashmap!{}).path).to_not(be_equal_to("/path"));
 }
 
@@ -58,7 +58,7 @@ fn applies_header_generator_for_headers_to_the_copy_of_the_request() {
       "HEADER" => {
         "A" => Generator::Uuid
       }
-    }, .. Request::default_request()
+    }, .. Request::default()
   };
   let headers = generate_request(&request, &hashmap!{}).headers.unwrap().clone();
   expect!(headers.get("A").unwrap().first().unwrap()).to_not(be_equal_to("a"));
@@ -73,7 +73,7 @@ fn applies_query_generator_for_query_parameters_to_the_copy_of_the_request() {
       "QUERY" => {
         "A" => Generator::Uuid
       }
-    }, .. Request::default_request()
+    }, .. Request::default()
   };
   let query = generate_request(&request, &hashmap!{}).query.unwrap().clone();
   let query_val = &query.get("A").unwrap()[0];
@@ -109,7 +109,7 @@ fn applies_body_generator_to_the_copy_of_the_request() {
       "BODY" => {
         "$.a" => Generator::RandomInt(1, 10)
       }
-    }, .. Request::default_request()
+    }, .. Request::default()
   };
   let generated_request = generate_request(&request, &hashmap!{});
   let body: Value = serde_json::from_str(generated_request.body.str_value()).unwrap();
@@ -124,7 +124,7 @@ fn applies_body_generator_to_the_copy_of_the_response() {
       "BODY" => {
         "$.a" => Generator::RandomInt(1, 10)
       }
-    }, .. Response::default_response()
+    }, .. Response::default()
   };
   let body: Value = serde_json::from_str(generate_response(&response, &hashmap!{}).body.str_value()).unwrap();
   expect!(&body["a"]).to_not(be_equal_to(&json!(100)));

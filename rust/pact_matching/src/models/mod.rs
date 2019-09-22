@@ -17,9 +17,11 @@ use std::path::Path;
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use std::str;
+use std::default::Default;
 use base64::{encode, decode};
 use std::fmt::{Display, Formatter};
 use models::http_utils::HttpAuth;
+use super::json::value_of;
 
 pub mod json_utils;
 pub mod xml_utils;
@@ -386,6 +388,20 @@ impl Display for Request {
   }
 }
 
+impl Default for Request {
+  fn default() -> Self {
+    Request {
+      method: s!("GET"),
+      path: s!("/"),
+      query: None,
+      headers: None,
+      body: OptionalBody::Missing,
+      matching_rules: matchingrules::MatchingRules::default(),
+      generators: generators::Generators::default()
+    }
+  }
+}
+
 fn headers_from_json(request: &Value) -> Option<HashMap<String, Vec<String>>> {
   match request.get("headers") {
     Some(v) => match *v {
@@ -604,16 +620,9 @@ impl Request {
     }
 
     /// Returns the default request: a GET request to the root.
+    #[deprecated(since="0.6.0", note="please use `default()` from the standard Default trait instead")]
     pub fn default_request() -> Request {
-        Request {
-            method: s!("GET"),
-            path: s!("/"),
-            query: None,
-            headers: None,
-            body: OptionalBody::Missing,
-            matching_rules: matchingrules::MatchingRules::default(),
-            generators: generators::Generators::default()
-        }
+      Request::default()
     }
 
     /// Return a description of all the differences from the other request
@@ -677,14 +686,9 @@ impl Response {
     }
 
     /// Returns a default response: Status 200
+    #[deprecated(since="0.5.4", note="please use `default()` from the standard Default trait instead")]
     pub fn default_response() -> Response {
-        Response {
-            status: 200,
-            headers: None,
-            body: OptionalBody::Missing,
-            matching_rules: matchingrules::MatchingRules::default(),
-            generators: generators::Generators::default()
-        }
+      Response::default()
     }
 
     /// Converts this response to a `Value` struct.
@@ -790,6 +794,18 @@ impl Display for Response {
   }
 }
 
+impl Default for Response {
+  fn default() -> Self {
+    Response {
+      status: 200,
+      headers: None,
+      body: OptionalBody::Missing,
+      matching_rules: matchingrules::MatchingRules::default(),
+      generators: generators::Generators::default()
+    }
+  }
+}
+
 pub mod provider_states;
 
 /// Struct that defined an interaction conflict
@@ -804,6 +820,8 @@ pub struct PactConflict {
 /// Struct that defines an interaction (request and response pair)
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Interaction {
+    /// Interaction ID. This will only be set if the Pact file was fetched from a Pact Broker
+    pub id: Option<String>,
     /// Description of this interaction. This needs to be unique in the pact file.
     pub description: String,
     /// Optional provider states for the interaction.
@@ -818,6 +836,7 @@ pub struct Interaction {
 impl Interaction {
     /// Constructs an `Interaction` from the `Value` struct.
     pub fn from_json(index: usize, pact_json: &Value, spec_version: &PactSpecification) -> Interaction {
+        let id = pact_json.get("_id").map(|id| value_of(id));
         let description = match pact_json.get("description") {
             Some(v) => match *v {
                 Value::String(ref s) => s.clone(),
@@ -828,17 +847,18 @@ impl Interaction {
         let provider_states = provider_states::ProviderState::from_json(pact_json);
         let request = match pact_json.get("request") {
             Some(v) => Request::from_json(v, spec_version),
-            None => Request::default_request()
+            None => Request::default()
         };
         let response = match pact_json.get("response") {
             Some(v) => Response::from_json(v, spec_version),
-            None => Response::default_response()
+            None => Response::default()
         };
         Interaction {
-             description,
-             provider_states,
-             request,
-             response
+          id,
+          description,
+          provider_states,
+          request,
+          response
         }
     }
 
@@ -885,16 +905,18 @@ impl Interaction {
             vec![]
         }
     }
+}
 
-    /// Creates a default interaction
-    pub fn default() -> Interaction {
-        Interaction {
-             description: s!("Default Interaction"),
-             provider_states: vec![],
-             request: Request::default_request(),
-             response: Response::default_response()
-        }
+impl Default for Interaction {
+  fn default() -> Self {
+    Interaction {
+      id: None,
+      description: s!("Default Interaction"),
+      provider_states: vec![],
+      request: Request::default(),
+      response: Response::default()
     }
+  }
 }
 
 pub mod message;

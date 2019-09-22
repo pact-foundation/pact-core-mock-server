@@ -421,13 +421,6 @@ pub struct MatchingRules {
 
 impl MatchingRules {
 
-    /// Create a empty set of matching rules
-    pub fn default() -> MatchingRules {
-        MatchingRules {
-            rules: hashmap!{}
-        }
-    }
-
     /// If the matching rules are empty (that is there are no rules assigned to any categories)
     pub fn is_empty(&self) -> bool {
         self.rules.values().all(|category| category.is_empty())
@@ -610,6 +603,14 @@ impl Hash for MatchingRules {
   }
 }
 
+impl Default for MatchingRules {
+  fn default() -> Self {
+    MatchingRules {
+      rules: hashmap!{}
+    }
+  }
+}
+
 /// Parses the matching rules from the Value structure
 pub fn matchers_from_json(value: &Value, deprecated_name: &Option<String>) -> MatchingRules {
   let matchers_json = match (value.get("matchingRules"), deprecated_name.clone().and_then(|name| value.get(&name))) {
@@ -622,7 +623,7 @@ pub fn matchers_from_json(value: &Value, deprecated_name: &Option<String>) -> Ma
   match matchers_json {
       Some(value) => match value {
         &Value::Object(ref m) => {
-            if m.keys().next().unwrap_or(&s!("")).starts_with("$") {
+            if m.keys().next().unwrap_or(&String::default()).starts_with("$") {
                 matching_rules.load_from_v2_map(m)
             } else {
                 matching_rules.load_from_v3_map(m)

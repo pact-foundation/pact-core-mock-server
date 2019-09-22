@@ -118,7 +118,7 @@ impl RequestBuilder {
 
 impl Default for RequestBuilder {
     fn default() -> Self {
-        RequestBuilder { request: Request::default_request() }
+        RequestBuilder { request: Request::default() }
     }
 }
 

@@ -38,6 +38,7 @@ impl InteractionBuilder {
     /// The interaction we've built.
     pub fn build(&self) -> Interaction {
         Interaction {
+            id: None,
             description: self.description.clone(),
             provider_states: self.provider_states.clone(),
             request: self.request.build(),

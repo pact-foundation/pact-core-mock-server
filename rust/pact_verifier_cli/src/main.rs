@@ -265,13 +265,17 @@ fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
     match matches.values_of("broker-url") {
         Some(values) => sources.extend(values.map(|v| {
           if matches.is_present("user") {
-            PactSource::BrokerUrl(s!(matches.value_of("provider-name").unwrap()), s!(v), matches.value_of("user").map(|user| {
+            let name = matches.value_of("provider-name").unwrap().to_string();
+            let auth = matches.value_of("user").map(|user| {
               HttpAuth::User(user.to_string(), matches.value_of("password").map(|p| p.to_string()))
-            }))
+            });
+            PactSource::BrokerUrl(name, s!(v), auth, vec![])
           } else if matches.is_present("token") {
-            PactSource::BrokerUrl(s!(matches.value_of("provider-name").unwrap()), s!(v), matches.value_of("token").map(|token| HttpAuth::Token(token.to_string())))
+            PactSource::BrokerUrl(s!(matches.value_of("provider-name").unwrap()), s!(v),
+              matches.value_of("token").map(|token| HttpAuth::Token(token.to_string())),
+              vec![])
           } else {
-            PactSource::BrokerUrl(s!(matches.value_of("provider-name").unwrap()), s!(v), None)
+            PactSource::BrokerUrl(s!(matches.value_of("provider-name").unwrap()), s!(v), None, vec![])
           }
         }).collect::<Vec<PactSource>>()),
         None => ()
@@ -443,6 +447,25 @@ fn handle_command_args() -> Result<(), i32> {
           .empty_values(false)
           .conflicts_with("user")
           .help("Bearer token to use when fetching pacts from URLS"))
+        .arg(Arg::with_name("publish")
+          .long("publish")
+          .requires("broker-url")
+          .requires("provider-version")
+          .help("Enables publishing of verification results back to the Pact Broker. Requires the broker-url and provider-version parameters."))
+        .arg(Arg::with_name("provider-version")
+          .long("provider-version")
+          .takes_value(true)
+          .use_delimiter(false)
+          .number_of_values(1)
+          .empty_values(false)
+          .help("Provider version that is being verified. This is required when publishing results."))
+        .arg(Arg::with_name("build-url")
+          .long("build-url")
+          .takes_value(true)
+          .use_delimiter(false)
+          .number_of_values(1)
+          .empty_values(false)
+          .help("URL of the build to associate with the published verification results."))
         ;
 
     let matches = app.get_matches_safe();
@@ -466,10 +489,17 @@ fn handle_command_args() -> Result<(), i32> {
             let filter = interaction_filter(matches);
             let mut runtime = Runtime::new().unwrap();
 
-            if verify_provider(&provider, source, &filter, &matches.values_of_lossy("filter-consumer").unwrap_or(vec![]), &mut runtime) {
-                Ok(())
+            let options = VerificationOptions {
+              publish: matches.is_present("publish"),
+              provider_version: matches.value_of("provider-version").map(|v| v.to_string()),
+              build_url: matches.value_of("build-url").map(|v| v.to_string())
+            };
+            if verify_provider(&provider, source, &filter,
+                               &matches.values_of_lossy("filter-consumer").unwrap_or(vec![]),
+                               &options, &mut runtime) {
+              Ok(())
             } else {
-                Err(2)
+              Err(2)
             }
         },
         Err(ref err) => {

@@ -345,10 +345,10 @@ fn body_does_not_match_if_different_content_types() {
     let mut mismatches = vec![];
     let expected = Request { method: s!("GET"), path: s!("/"), query: None,
         headers: Some(hashmap!{ s!("Content-Type") => vec![s!("application/json")] }),
-        body: OptionalBody::Present(vec![]), .. Request::default_request() };
+        body: OptionalBody::Present(vec![]), .. Request::default() };
     let actual = Request { method: s!("GET"), path: s!("/"), query: None,
         headers: Some(hashmap!{ s!("Content-Type") => vec![s!("text/plain")] }),
-        body: OptionalBody::Missing, .. Request::default_request() };
+        body: OptionalBody::Missing, .. Request::default() };
     match_body(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &matchingrules!{});
     expect!(mismatches.iter()).to_not(be_empty());
     expect!(mismatches[0].clone()).to(be_equal_to(Mismatch::BodyTypeMismatch { expected: s!("application/json"),
@@ -360,10 +360,10 @@ fn body_matches_if_expected_is_missing() {
     let mut mismatches = vec![];
     let expected = Request { method: s!("GET"), path: s!("/"), query: None,
         headers: Some(hashmap!{ s!("Content-Type") => vec![s!("application/json")] }),
-        body: OptionalBody::Missing, .. Request::default_request() };
+        body: OptionalBody::Missing, .. Request::default() };
     let actual = Request { method: s!("GET"), path: s!("/"), query: None,
         headers: Some(hashmap!{ s!("Content-Type") => vec![s!("application/json")] }),
-        body: OptionalBody::Present("{}".into()), .. Request::default_request() };
+        body: OptionalBody::Present("{}".into()), .. Request::default() };
     match_body(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &matchingrules!{});
     expect!(mismatches.iter()).to(be_empty());
 }
@@ -373,10 +373,10 @@ fn body_matches_with_extended_mime_types() {
     let mut mismatches = vec![];
     let expected = Request { method: s!("GET"), path: s!("/"), query: None,
         headers: Some(hashmap!{ s!("Content-Type") => vec![s!("application/thrift+json")] }),
-        body: OptionalBody::Present(r#"{"test":true}"#.into()), .. Request::default_request() };
+        body: OptionalBody::Present(r#"{"test":true}"#.into()), .. Request::default() };
     let actual = Request { method: s!("GET"), path: s!("/"), query: None,
         headers: Some(hashmap!{ s!("Content-Type") => vec![s!("application/thrift+json")] }),
-        body: OptionalBody::Present(r#"{"test": true}"#.into()), .. Request::default_request() };
+        body: OptionalBody::Present(r#"{"test": true}"#.into()), .. Request::default() };
     match_body(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &matchingrules!{});
     expect!(mismatches.iter()).to(be_empty());
 }

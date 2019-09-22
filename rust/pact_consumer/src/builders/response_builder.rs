@@ -65,7 +65,7 @@ impl ResponseBuilder {
 
 impl Default for ResponseBuilder {
     fn default() -> Self {
-        ResponseBuilder { response: Response::default_response() }
+        ResponseBuilder { response: Response::default() }
     }
 }
 
