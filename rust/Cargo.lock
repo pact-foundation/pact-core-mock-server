@@ -1191,7 +1191,7 @@ dependencies = [
 
 [[package]]
 name = "pact_verifier_cli"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "expectest 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
