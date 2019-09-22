@@ -801,6 +801,23 @@ fn response_to_json_with_null_body() {
 }
 
 #[test]
+fn interaction_from_json_sets_the_id_if_loaded_from_broker() {
+  let json = json!({
+    "_id": "123456789",
+    "description": "Test Interaction",
+    "providerState": "Good state to be in",
+    "request": {
+      "method": "GET",
+      "path": "/"
+    },
+    "response": {
+      "status": 200
+    }
+  });
+  expect!(Interaction::from_json(0, &json, &PactSpecification::V3).id).to(be_some().value("123456789".to_string()));
+}
+
+#[test]
 fn default_file_name_is_based_in_the_consumer_and_provider() {
     let pact = Pact { consumer: Consumer { name: s!("consumer") },
         provider: Provider { name: s!("provider") },

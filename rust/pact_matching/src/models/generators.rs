@@ -711,7 +711,7 @@ mod tests {
   use expectest::prelude::*;
   use super::Generator;
   use std::str::FromStr;
-  use hamcrest::prelude::*;
+  use hamcrest2::prelude::*;
 
   #[test]
   fn rules_are_empty_when_there_are_no_categories() {
@@ -893,13 +893,13 @@ mod tests {
 
   #[test]
   fn generate_decimal_test() {
-    assert_that!(&generate_decimal(4), matches_regex(r"^\d{4}$"));
-    assert_that!(&generate_hexadecimal(4), matches_regex(r"^[0-9A-F]{4}$"));
+    assert_that!(generate_decimal(4), matches_regex(r"^\d{4}$"));
+    assert_that!(generate_hexadecimal(4), matches_regex(r"^[0-9A-F]{4}$"));
   }
 
   #[test]
   fn generate_int_with_max_int_test() {
-    assert_that!(&Generator::RandomInt(0, i32::max_value()).generate_value(&0,
+    assert_that!(Generator::RandomInt(0, i32::max_value()).generate_value(&0,
       &hashmap!{}).unwrap().to_string(), matches_regex(r"^\d+$"));
   }
 }

@@ -104,9 +104,9 @@ impl Display for PactBrokerError {
 
 #[derive(Debug, Clone)]
 pub struct Link {
-    name: String,
-    href: Option<String>,
-    templated: bool
+  pub name: String,
+  pub href: Option<String>,
+  pub templated: bool
 }
 
 impl Link {
@@ -557,8 +557,9 @@ mod tests {
     use env_logger::*;
     use pact_matching::models::{Pact, Consumer, Provider, Interaction, PactSpecification};
     use tokio::runtime::current_thread::Runtime;
+  use pact_matching::Mismatch::MethodMismatch;
 
-    #[test]
+  #[test]
     fn fetch_returns_an_error_if_there_is_no_pact_broker() {
         let mut runtime = Runtime::new().unwrap();
         let client = HALClient::with_url(s!("http://idont.exist:6666"), None);
@@ -946,4 +947,87 @@ mod tests {
             expect!(pact).to(be_ok());
         }
     }
+
+  #[test]
+  fn test_build_payload_with_success() {
+    let result = TestResult::Ok;
+    let payload = super::build_payload(result, "1".to_string(), None);
+    expect!(payload).to(be_equal_to(json!({
+      "providerApplicationVersion": "1", "success": true
+    })));
+  }
+
+  #[test]
+  fn test_build_payload_adds_the_build_url_if_provided() {
+    let result = TestResult::Ok;
+    let payload = super::build_payload(result, "1".to_string(), Some("http://build-url".to_string()));
+    expect!(payload).to(be_equal_to(json!({
+      "providerApplicationVersion": "1",
+      "success": true,
+      "buildUrl": "http://build-url"
+    })));
+  }
+
+  #[test]
+  fn test_build_payload_with_failure() {
+    let result = TestResult::Failed(vec![]);
+    let payload = super::build_payload(result, "1".to_string(), None);
+    expect!(payload).to(be_equal_to(json!({
+      "providerApplicationVersion": "1", "success": false, "testResults": []
+    })));
+  }
+
+  #[test]
+  fn test_build_payload_with_failure_with_mismatches() {
+    let result = TestResult::Failed(vec![
+      ("Description".to_string(), MismatchResult::Mismatches {
+        mismatches: vec![
+          MethodMismatch { expected: "PUT".to_string(), actual: "POST".to_string() }
+        ],
+        expected: Default::default(),
+        actual: Default::default(),
+        interaction_id: Some("1234abc".to_string())
+      })
+    ]);
+    let payload = super::build_payload(result, "1".to_string(), None);
+    expect!(payload).to(be_equal_to(json!({
+      "providerApplicationVersion": "1",
+      "success": false,
+      "testResults": [
+        {
+          "interactionId": "1234abc",
+          "mismatches": [
+            {
+              "attribute": "method", "description": "Expected method of PUT but received POST"
+            }
+          ],
+          "success": false
+        }
+      ]
+    })));
+  }
+
+  #[test]
+  fn test_build_payload_with_failure_with_exception() {
+    let result = TestResult::Failed(vec![
+      ("Description".to_string(), MismatchResult::Error("Bang".to_string(), Some("1234abc".to_string())))
+    ]);
+    let payload = super::build_payload(result, "1".to_string(), None);
+    expect!(payload).to(be_equal_to(json!({
+      "providerApplicationVersion": "1",
+      "success": false,
+      "testResults": [
+        {
+          "exceptions": [
+            {
+              "message": "Bang"
+            }
+          ],
+          "interactionId": "1234abc",
+          "mismatches": [],
+          "success": false
+        }
+      ]
+    })));
+  }
 }

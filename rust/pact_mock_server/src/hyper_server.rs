@@ -175,7 +175,7 @@ fn handle_request(
 
     hyper_request_to_pact_request(req)
         .and_then(move |request| {
-            info!("Received request {:?}", request);
+            info!("Received request {}", request);
             let match_result = match_request(&request, &pact.interactions);
 
             matches.lock().unwrap().push(match_result.clone());

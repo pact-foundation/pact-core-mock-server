@@ -118,6 +118,11 @@ impl ValidatingMockServer {
         self.url.join(path.as_ref()).expect("could not parse URL")
     }
 
+    /// Returns the current status of the mock server
+    pub fn status(&self) -> Vec<MatchResult> {
+      self.mock_server.mismatches()
+    }
+
     /// Helper function called by our `drop` implementation. This basically exists
     /// so that it can return `Err(message)` whenever needed without making the
     /// flow control in `drop` ultra-complex.

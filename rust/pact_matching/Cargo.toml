@@ -40,6 +40,6 @@ reqwest = "0.9.19"
 
 [dev-dependencies]
 quickcheck = "0.4.1"
-expectest = "0.9.1"
+expectest = "0.11.0"
 env_logger = "0.4.3"
-hamcrest = "0.1.5"
+hamcrest2 = "0.2.6"
