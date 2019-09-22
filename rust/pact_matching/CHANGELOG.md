@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.5.4 - Refactor for publishing verification results
+
+* eef3d97 - feat: added some tests for publishing verification results to the pact broker #44 (Ronald Holshausen, Sun Sep 22 16:44:52 2019 +1000)
+* 1110b47 - feat: implemented publishing verification results to the pact broker #44 (Ronald Holshausen, Sun Sep 22 13:53:27 2019 +1000)
+* cb30a2f - feat: added the ProviderStateGenerator as a generator type (Ronald Holshausen, Sun Sep 8 16:29:46 2019 +1000)
+* 8932ef6 - feat: support an integration format for matchers for language integration (Ronald Holshausen, Sun Aug 25 11:36:23 2019 +1000)
+* 6899663 - bump version to 0.5.4 (Ronald Holshausen, Sun Aug 11 14:41:09 2019 +1000)
+
 # 0.5.3 - support bearer tokens
 
 * 152682e - chore: cleanup crates and warnings (Ronald Holshausen, Sun Aug 11 14:28:02 2019 +1000)
