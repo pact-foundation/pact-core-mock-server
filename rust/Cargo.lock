@@ -1163,7 +1163,7 @@ dependencies = [
 
 [[package]]
 name = "pact_verifier"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "ansi_term 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bytes 0.4.12 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1191,7 +1191,7 @@ dependencies = [
 
 [[package]]
 name = "pact_verifier_cli"
-version = "0.5.2"
+version = "0.6.0"
 dependencies = [
  "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "expectest 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1202,7 +1202,7 @@ dependencies = [
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "maplit 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "pact_matching 0.5.5",
- "pact_verifier 0.6.0",
+ "pact_verifier 0.6.1",
  "quickcheck 0.2.27 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.23 (registry+https://github.com/rust-lang/crates.io-index)",
  "regex 0.1.80 (registry+https://github.com/rust-lang/crates.io-index)",
