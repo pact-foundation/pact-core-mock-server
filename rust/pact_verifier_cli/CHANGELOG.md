@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.6.1 - Bugfix + Oniguruma crate for regex matching
+
+* e32350e - chore: use the latest matching lib (Ronald Holshausen, Fri Sep 27 15:22:12 2019 +1000)
+* 0cc03db - bump version to 0.6.1 (Ronald Holshausen, Sun Sep 22 18:13:48 2019 +1000)
+
 # 0.6.0 - Publishing verification results
 
 * 0e1da1b - chore: bump minor version (Ronald Holshausen, Sun Sep 22 17:59:51 2019 +1000)
