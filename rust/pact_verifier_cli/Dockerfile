@@ -6,6 +6,8 @@ ADD . ./
 # Fix permissions on source code.
 RUN sudo chown -R rust:rust /home/rust
 
+RUN sudo apt-get update && sudo apt-get install -y libclang-dev
+
 # Fix the cargo manifest so it can be built standalone
 RUN sed -i -e 's/pact_matching = {\s*version\s*=\s*"\([^"]*\).*/pact_matching = "\1"/' Cargo.toml
 RUN sed -i -e 's/pact_verifier = {\s*version\s*=\s*"\([^"]*\).*/pact_verifier = "\1"/' Cargo.toml
