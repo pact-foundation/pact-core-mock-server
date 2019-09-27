@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.5.5 - Oniguruma crate for regex matching
+
+* defe890 - fix: switch to the Oniguruma crate for regex matching #46 (Ronald Holshausen, Fri Sep 27 14:35:16 2019 +1000)
+* d5c0ac8 - chore: re-enabled time and timestamp matching tests (Ronald Holshausen, Fri Sep 27 12:49:32 2019 +1000)
+* 19bf916 - bump version to 0.5.5 (Ronald Holshausen, Sun Sep 22 17:11:00 2019 +1000)
+
 # 0.5.4 - Refactor for publishing verification results
 
 * eef3d97 - feat: added some tests for publishing verification results to the pact broker #44 (Ronald Holshausen, Sun Sep 22 16:44:52 2019 +1000)
