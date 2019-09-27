@@ -6,7 +6,7 @@ use serde_json;
 use serde_json::Value;
 use hex::FromHex;
 use super::strip_whitespace;
-use regex::Regex;
+use onig::Regex;
 use semver::Version;
 use itertools::Itertools;
 use std::io::{self, Error, ErrorKind};
@@ -278,13 +278,13 @@ pub trait HttpPart {
                   Err(_) => String::new()
                 };
                 debug!("Detecting content type from contents: '{}'", s);
-                if XMLREGEXP.is_match(s.as_str()) {
+                if is_match(&XMLREGEXP, s.as_str()) {
                     s!("application/xml")
-                } else if HTMLREGEXP.is_match(s.to_uppercase().as_str()) {
+                } else if is_match(&HTMLREGEXP, s.to_uppercase().as_str()) {
                     s!("text/html")
-                } else if XMLREGEXP2.is_match(s.as_str()) {
+                } else if is_match(&XMLREGEXP2, s.as_str()) {
                     s!("application/xml")
-                } else if JSONREGEXP.is_match(s.as_str()) {
+                } else if is_match(&JSONREGEXP, s.as_str()) {
                     s!("application/json")
                 } else {
                     s!("text/plain")
@@ -320,6 +320,14 @@ pub trait HttpPart {
         None => None
       }
     }
+}
+
+fn is_match(regex: &Regex, string: &str) -> bool {
+  if let Some(m) = regex.find(string) {
+    m.0 == 0
+  } else {
+    false
+  }
 }
 
 /// Struct that defines the request.

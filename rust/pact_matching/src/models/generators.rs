@@ -111,10 +111,10 @@ pub trait GenerateValue<T> {
 }
 
 impl GenerateValue<u16> for Generator {
-  fn generate_value(&self, _: &u16, context: &HashMap<String, Value>) -> Option<u16> {
+  fn generate_value(&self, _: &u16, _context: &HashMap<String, Value>) -> Option<u16> {
     match self {
       &Generator::RandomInt(min, max) => Some(rand::thread_rng().gen_range(min as u16, (max as u16).saturating_add(1))),
-      &Generator::ProviderStateGenerator(ref exp) => None,
+      &Generator::ProviderStateGenerator(ref _exp) => None,
       _ => None
     }
   }
@@ -137,7 +137,7 @@ fn generate_ascii_string(size: usize) -> String {
 }
 
 impl GenerateValue<String> for Generator {
-  fn generate_value(&self, _: &String, context: &HashMap<String, Value>) -> Option<String> {
+  fn generate_value(&self, _: &String, _context: &HashMap<String, Value>) -> Option<String> {
     let mut rnd = rand::thread_rng();
     match self {
       &Generator::RandomInt(min, max) => Some(format!("{}", rnd.gen_range(min, max.saturating_add(1)))),
@@ -189,7 +189,7 @@ impl GenerateValue<String> for Generator {
         None => Some(Local::now().format("%Y-%m-%dT%H:%M:%S.%3f%z").to_string())
       },
       &Generator::RandomBoolean => Some(format!("{}", rnd.gen::<bool>())),
-      &Generator::ProviderStateGenerator(ref exp) => None
+      &Generator::ProviderStateGenerator(ref _exp) => None
     }
   }
 }
@@ -201,7 +201,7 @@ impl GenerateValue<Vec<String>> for Generator {
 }
 
 impl GenerateValue<Value> for Generator {
-  fn generate_value(&self, value: &Value, context: &HashMap<String, Value>) -> Option<Value> {
+  fn generate_value(&self, value: &Value, _context: &HashMap<String, Value>) -> Option<Value> {
     match self {
       &Generator::RandomInt(min, max) => {
         let rand_int = rand::thread_rng().gen_range(min, max.saturating_add(1));
@@ -275,7 +275,7 @@ impl GenerateValue<Value> for Generator {
         None => Some(json!(Local::now().format("%Y-%m-%dT%H:%M:%S.%3f%z").to_string()))
       },
       &Generator::RandomBoolean => Some(json!(rand::thread_rng().gen::<bool>())),
-      &Generator::ProviderStateGenerator(ref exp) => None
+      &Generator::ProviderStateGenerator(ref _exp) => None
     }
   }
 }
@@ -472,11 +472,11 @@ pub struct XmlHandler<'a> {
 }
 
 impl <'a> ContentTypeHandler<Document<'a>> for XmlHandler<'a> {
-  fn process_body(&mut self, _generators: &HashMap<String, Generator>, context: &HashMap<String, Value>) -> OptionalBody {
+  fn process_body(&mut self, _generators: &HashMap<String, Generator>, _context: &HashMap<String, Value>) -> OptionalBody {
     unimplemented!()
   }
 
-  fn apply_key(&mut self, _key: &String, _generator: &Generator, context: &HashMap<String, Value>) {
+  fn apply_key(&mut self, _key: &String, _generator: &Generator, _context: &HashMap<String, Value>) {
     unimplemented!()
   }
 }

@@ -1,6 +1,6 @@
 use models::matchingrules::*;
 use itertools::Itertools;
-use regex::Regex;
+use onig::Regex;
 use time_utils::validate_datetime;
 
 pub trait Matches<A> {
@@ -595,5 +595,13 @@ mod tests {
     expect!(100.matches(&200, &matcher)).to(be_err());
     expect!(100.matches(&100.1, &matcher)).to(be_err());
     expect!(100.1f64.matches(&100.2, &matcher)).to(be_err());
+  }
+
+  #[test]
+  fn regex_matcher_supports_crazy_regexes() {
+    let matcher = MatchingRule::Regex(
+      r"^([\+-]?\d{4}(?!\d{2}\b))((-?)((0[1-9]|1[0-2])(\3([12]\d|0[1-9]|3[01]))?|W([0-4]\d|5[0-2])(-?[1-7])?|(00[1-9]|0[1-9]\d|[12]\d{2}|3([0-5]\d|6[1-6])))?)$"
+        .into());
+    expect!(s!("100").matches(&s!("2019-09-27"), &matcher)).to(be_ok());
   }
 }

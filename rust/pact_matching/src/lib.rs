@@ -330,7 +330,7 @@
 #[macro_use] extern crate maplit;
 #[macro_use] extern crate lazy_static;
 extern crate hex;
-extern crate regex;
+extern crate onig;
 extern crate semver;
 #[macro_use] extern crate itertools;
 extern crate rand;
@@ -355,7 +355,7 @@ macro_rules! s {
 
 use std::collections::HashMap;
 use std::iter::FromIterator;
-use regex::Regex;
+use onig::Regex;
 use ansi_term::*;
 use ansi_term::Colour::*;
 

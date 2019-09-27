@@ -9,7 +9,7 @@ use ansi_term::Colour::*;
 use std::str::FromStr;
 use models::matchingrules::*;
 use matchers::*;
-use regex::Regex;
+use onig::Regex;
 
 fn type_of(json: &Value) -> String {
     match json {

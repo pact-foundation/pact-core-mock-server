@@ -5,7 +5,7 @@ use std::collections::btree_map::BTreeMap;
 use itertools::Itertools;
 use models::matchingrules::*;
 use matchers::*;
-use regex::Regex;
+use onig::Regex;
 use models::xml_utils::parse_bytes;
 
 pub fn match_xml(expected: &Vec<u8>, actual: &Vec<u8>, config: DiffConfig,
@@ -688,7 +688,7 @@ mod tests {
         mismatches.clear();
         match_xml(&expected.into(), &actual.into(), DiffConfig::AllowUnexpectedKeys, &mut mismatches, &matchingrules!{
             "body" => {
-                "$.foo['#text']" => [ MatchingRule::Regex(s!("[a-z]+")) ]
+                "$.foo['#text']" => [ MatchingRule::Regex(r"[a-z\s]+".into()) ]
             }
         });
         expect!(mismatches.iter()).to(be_empty());
