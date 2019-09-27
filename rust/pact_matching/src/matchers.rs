@@ -472,18 +472,13 @@ mod tests {
   }
 
   #[test]
-  #[ignore]
   fn timestamp_matcher_test() {
     let matcher = MatchingRule::Timestamp("yyyy-MM-dd HH:mm:ssZZZ".into());
 
-//    expected                    | actual                      | pattern               || mustBeEmpty
-//    '2014-01-01 14:00:00+10:00' | '2013-12-01 14:00:00+10:00' | null                  || true
-//    '2014-01-01 14:00:00+10:00' | 'I\'m a timestamp!'         | null                  || false
-//    '2014-01-01 14:00:00+10:00' | '2013#12#01#14#00#00'       | 'yyyy#MM#dd#HH#mm#ss' || true
-//    '2014-01-01 14:00:00+10:00' | null                        | null                  || false
-
-    expect!(s!("100").matches(&s!("2013-12-01 14:00:00+10:00"), &matcher)).to(be_ok());
+    expect!(s!("100").matches(&s!("2013-12-01 14:00:00+10:00"), &matcher)).to(be_err());
+    expect!(s!("100").matches(&s!("2013-12-01 14:00:00+1000"), &matcher)).to(be_ok());
     expect!(s!("100").matches(&s!("13-12-01 14:00:00+10:00"), &matcher)).to(be_err());
+    expect!(s!("100").matches(&s!("I\'m a timestamp!"), &matcher)).to(be_err());
     expect!(s!("100").matches(&s!("100"), &matcher)).to(be_err());
     expect!(s!("100").matches(&s!("10a"), &matcher)).to(be_err());
     expect!(s!("100").matches(&s!("1000"), &matcher)).to(be_err());
@@ -491,28 +486,37 @@ mod tests {
     expect!(100.matches(&200, &matcher)).to(be_err());
     expect!(100.matches(&100.1, &matcher)).to(be_err());
     expect!(100.1f64.matches(&100.2, &matcher)).to(be_err());
+
+    let matcher = MatchingRule::Timestamp("yyyy-MM-dd HH:mm:ssX".into());
+    expect!(s!("2014-01-01 14:00:00+10:00").matches(&s!("2013-12-01 14:00:00+10:00"), &matcher)).to(be_ok());
+
+    let matcher = MatchingRule::Timestamp("yyyy#MM#dd#HH#mm#ss".into());
+    expect!(s!("2014-01-01 14:00:00+10:00").matches(&s!("2013#12#01#14#00#00"), &matcher)).to(be_ok());
   }
 
   #[test]
-  #[ignore]
   fn time_matcher_test() {
     let matcher = MatchingRule::Time("HH:mm:ss".into());
 
-//    expected         | actual     | pattern    || mustBeEmpty
-//    '14:00:00'       | '14:00:00' | null       || true
-//    '00:00'          | '14:01:02' | 'mm:ss'    || false
-//    '00:00:14'       | '05:10:14' | 'ss:mm:HH' || true
-//    '14:00:00+10:00' | null       | null       || false
-
-    expect!(s!("100").matches(&s!("14:00:00"), &matcher)).to(be_ok());
-    expect!(s!("100").matches(&s!("33:00:00"), &matcher)).to(be_err());
-    expect!(s!("100").matches(&s!("100"), &matcher)).to(be_err());
-    expect!(s!("100").matches(&s!("10a"), &matcher)).to(be_err());
-    expect!(s!("100").matches(&s!("1000"), &matcher)).to(be_err());
-    expect!(s!("100").matches(&100, &matcher)).to(be_err());
+    expect!(s!("00:00:00").matches(&s!("14:00:00"), &matcher)).to(be_ok());
+    expect!(s!("00:00:00").matches(&s!("33:00:00"), &matcher)).to(be_err());
+    expect!(s!("00:00:00").matches(&s!("100"), &matcher)).to(be_err());
+    expect!(s!("00:00:00").matches(&s!("10a"), &matcher)).to(be_err());
+    expect!(s!("00:00:00").matches(&s!("1000"), &matcher)).to(be_err());
+    expect!(s!("00:00:00").matches(&100, &matcher)).to(be_err());
     expect!(100.matches(&200, &matcher)).to(be_err());
     expect!(100.matches(&100.1, &matcher)).to(be_err());
     expect!(100.1f64.matches(&100.2, &matcher)).to(be_err());
+
+    let matcher = MatchingRule::Time("mm:ss".into());
+    expect!(s!("100").matches(&s!("14:01:01"), &matcher)).to(be_err());
+    expect!(s!("100").matches(&s!("61:01"), &matcher)).to(be_err());
+
+    let matcher = MatchingRule::Time("ss:mm:HH".into());
+    expect!(s!("100").matches(&s!("05:10:14"), &matcher)).to(be_ok());
+
+    let matcher = MatchingRule::Time("".into());
+    expect!(s!("100").matches(&s!("14:00:00+10:00"), &matcher)).to(be_err());
   }
 
   #[test]
