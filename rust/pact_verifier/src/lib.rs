@@ -407,7 +407,6 @@ pub fn verify_provider(provider_info: &ProviderInfo, source: Vec<PactSource>, fi
     consumers: &Vec<String>, options: &VerificationOptions, runtime: &mut Runtime) -> bool {
     let pacts = fetch_pacts(&source, consumers, runtime);
 
-    let mut verify_provider_result = true;
     let mut all_errors: Vec<(String, MismatchResult)> = vec![];
     for pact in pacts {
       match pact {
@@ -420,7 +419,7 @@ pub fn verify_provider(provider_info: &ProviderInfo, source: Vec<PactSource>, fi
             if pact.interactions.is_empty() {
               println!("         {}", Yellow.paint("WARNING: Pact file has no interactions"));
             } else {
-              let errors = verify_pact(provider_info, filter, runtime, verify_provider_result, pact);
+              let errors = verify_pact(provider_info, filter, runtime, pact);
               for error in errors.clone() {
                 all_errors.push(error);
               }
@@ -432,7 +431,6 @@ pub fn verify_provider(provider_info: &ProviderInfo, source: Vec<PactSource>, fi
         },
         Err(err) => {
             error!("Failed to load pact - {}", Red.paint(format!("{}", err)));
-            verify_provider_result = false;
             all_errors.push((s!("Failed to load pact"), MismatchResult::Error(format!("{}", err), None)));
         }
       }
@@ -460,9 +458,10 @@ pub fn verify_provider(provider_info: &ProviderInfo, source: Vec<PactSource>, fi
         }
 
         println!("\nThere were {} pact failures\n", all_errors.len());
+      false
+    } else {
+      true
     }
-
-    verify_provider_result
 }
 
 fn fetch_pacts(source: &Vec<PactSource>, consumers: &Vec<String>, runtime: &mut Runtime) -> Vec<Result<(Pact, PactSource), String>> {
@@ -506,7 +505,7 @@ fn fetch_pacts(source: &Vec<PactSource>, consumers: &Vec<String>, runtime: &mut 
 }
 
 fn verify_pact(provider_info: &ProviderInfo, filter: &FilterInfo, runtime: &mut Runtime,
-               mut verify_provider_result: bool, pact: &Pact) -> Vec<(String, MismatchResult)> {
+               pact: &Pact) -> Vec<(String, MismatchResult)> {
   let mut errors = vec![];
 
   let results: HashMap<Interaction, Result<(), MismatchResult>> = pact.interactions.iter()
@@ -539,12 +538,10 @@ fn verify_pact(provider_info: &ProviderInfo, filter: &FilterInfo, runtime: &mut 
         &MismatchResult::Error(ref err_des, _) => {
           println!("      {}", Red.paint(format!("Request Failed - {}", err_des)));
           errors.push((description, err.clone()));
-          verify_provider_result = false;
         },
         &MismatchResult::Mismatches { ref mismatches, .. } => {
           description.push_str(" returns a response which ");
           let status_result = if mismatches.iter().any(|m| m.mismatch_type() == s!("StatusMismatch")) {
-            verify_provider_result = false;
             Red.paint("FAILED")
           } else {
             Green.paint("OK")
@@ -557,7 +554,6 @@ fn verify_pact(provider_info: &ProviderInfo, filter: &FilterInfo, runtime: &mut 
                   _ => false
                 }
               }) {
-                verify_provider_result = false;
                 Red.paint("FAILED")
               } else {
                 Green.paint("OK")
@@ -567,7 +563,6 @@ fn verify_pact(provider_info: &ProviderInfo, filter: &FilterInfo, runtime: &mut 
           };
           let body_result = if mismatches.iter().any(|m| m.mismatch_type() == s!("BodyMismatch") ||
             m.mismatch_type() == s!("BodyTypeMismatch")) {
-            verify_provider_result = false;
             Red.paint("FAILED")
           } else {
             Green.paint("OK")
