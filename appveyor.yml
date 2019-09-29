@@ -3,13 +3,10 @@ init:
   - git config --global core.autocrlf input
 
 environment:
-  #global:
-    #CC: gcc.exe
   RUST_BACKTRACE: 1
   matrix:
   - TARGET: x86_64-pc-windows-msvc
-  # - TARGET: i686-pc-windows-msvc
-  - TARGET: i686-pc-windows-gnu
+  - TARGET: x86_64-pc-windows-gnu
     CC: gcc.exe
 
 install:
