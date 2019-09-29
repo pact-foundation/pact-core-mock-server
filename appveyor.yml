@@ -2,6 +2,8 @@
 init:
   - git config --global core.autocrlf input
 
+os: Visual Studio 2015
+
 environment:
   global:
     CC: gcc.exe
@@ -14,7 +16,7 @@ environment:
 install:
   - appveyor-retry appveyor DownloadFile "https://static.rust-lang.org/rustup/dist/%TARGET%/rustup-init.exe" -FileName rustup-init.exe
   - rustup-init.exe -y --default-host %TARGET%
-  - set PATH=%PATH%;C:\Users\appveyor\.cargo\bin;C:\msys64\mingw64\bin
+  - set PATH=%PATH%;C:\Users\appveyor\.cargo\bin;C:\msys64\mingw64\bin;C:\Program Files\LLVM\bin
 
 build: false
 
