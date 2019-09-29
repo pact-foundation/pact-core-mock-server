@@ -6,8 +6,8 @@ environment:
   RUST_BACKTRACE: 1
   matrix:
   - TARGET: x86_64-pc-windows-msvc
-  - TARGET: x86_64-pc-windows-gnu
-    CC: gcc.exe
+  #- TARGET: x86_64-pc-windows-gnu
+  #  CC: gcc.exe
 
 install:
   - appveyor-retry appveyor DownloadFile "https://static.rust-lang.org/rustup/dist/%TARGET%/rustup-init.exe" -FileName rustup-init.exe
