@@ -38,7 +38,7 @@ pub enum JsonPattern {
     Object(Map<String, JsonPattern>),
     /// A term which contains an arbitrary matchable. This is where rules like
     /// `Like` hook into our syntax.
-    Pattern(Box<Pattern<Matches = serde_json::Value>>),
+    Pattern(Box<dyn Pattern<Matches = serde_json::Value>>),
 }
 
 impl JsonPattern {

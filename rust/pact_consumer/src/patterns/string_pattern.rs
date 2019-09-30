@@ -11,7 +11,7 @@ pub enum StringPattern {
     /// A literal string, which matches and generates itself.
     String(String),
     /// A nested pattern.
-    Pattern(Box<Pattern<Matches = String>>),
+    Pattern(Box<dyn Pattern<Matches = String>>),
 }
 
 impl StringPattern {
