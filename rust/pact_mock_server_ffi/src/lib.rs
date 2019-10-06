@@ -76,7 +76,7 @@ use pact_mock_server::server_manager::ServerManager;
 ///
 #[no_mangle]
 pub extern fn create_mock_server_ffi(pact_str: *const c_char, addr_str: *const c_char) -> i32 {
-    env_logger::init();
+    env_logger::try_init().unwrap_or(());
 
     let result = catch_unwind(|| {
         let c_str = unsafe {
