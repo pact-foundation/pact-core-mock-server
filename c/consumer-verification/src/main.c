@@ -37,7 +37,7 @@ char *slurp_file(char *filename) {
 /*
 Definitions of the exported functions from the pact mock server library
 */
-typedef int32_t (*lib_create_mock_server)(char *, int32_t);
+typedef int32_t (*lib_create_mock_server)(const char *, const char*);
 typedef int32_t (*lib_mock_server_matched)(int32_t);
 typedef int32_t (*lib_cleanup_mock_server)(int32_t);
 typedef char* (*lib_mock_server_mismatches)(int32_t);
@@ -94,23 +94,27 @@ void basic_test(char *executable) {
   char *pact = slurp_file(pactfile);
   if (pact) {
     /* Create the mock server from the pact file. The mock server port will be returned */
-    int port = create_mock_server(pact, 0);
-    printf("Mock server started on port %d\n", port);
+    int port = create_mock_server(pact, "127.0.0.1:0");
+    if (port > 0) {
+      printf("Mock server started on port %d\n", port);
 
-    /* Now we execute out test against the mock server */
-    execute_basic_test(port);
+      /* Now we execute out test against the mock server */
+      execute_basic_test(port);
 
-    /* Check the result */
-    if (mock_server_matched(port)) {
-      puts("OK: Mock server verified all requests, as expected");
+      /* Check the result */
+      if (mock_server_matched(port)) {
+        puts("OK: Mock server verified all requests, as expected");
+      } else {
+        puts("FAILED: Mock server did not match all requests!!");
+      }
+
+      /* Lastly, we need to shutdown and cleanup the mock server */
+      cleanup_mock_server(port);
+
+      free(pact);
     } else {
-      puts("FAILED: Mock server did not match all requests!!");
+      printf("Failed to start mock_server %d\n", port);
     }
-
-    /* Lastly, we need to shutdown and cleanup the mock server */
-    cleanup_mock_server(port);
-
-    free(pact);
   } else {
     printf("Failed to read %s\n", pactfile);
   }
@@ -163,24 +167,28 @@ void error_test(char *executable) {
   char *pact = slurp_file(pactfile);
   if (pact) {
     /* Create the mock server from the pact file. The mock server port will be returned */
-    int port = create_mock_server(pact, 0);
-    printf("Mock server started on port %d\n", port);
+    int port = create_mock_server(pact, "127.0.0.1:0");
+    if (port > 0) {
+      printf("Mock server started on port %d\n", port);
 
-    /* Now we execute out test against the mock server */
-    execute_error_test(port);
+      /* Now we execute out test against the mock server */
+      execute_error_test(port);
 
-    /* Check the result */
-    if (mock_server_matched(port)) {
-      puts("FAILED: Mock server verified all requests!!");
+      /* Check the result */
+      if (mock_server_matched(port)) {
+        puts("FAILED: Mock server verified all requests!!");
+      } else {
+        puts("OK: Mock server did not match all requests.");
+        char *mismatch_json = mock_server_mismatches(port);
+        puts(mismatch_json);
+      }
+
+      /* Lastly, we need to shutdown and cleanup the mock server */
+      cleanup_mock_server(port);
+      free(pact);
     } else {
-      puts("OK: Mock server did not match all requests.");
-      char *mismatch_json = mock_server_mismatches(port);
-      puts(mismatch_json);
+      printf("Failed to start mock_server %d\n", port);
     }
-
-    /* Lastly, we need to shutdown and cleanup the mock server */
-    cleanup_mock_server(port);
-    free(pact);
   } else {
     printf("Failed to read %s\n", pactfile);
   }

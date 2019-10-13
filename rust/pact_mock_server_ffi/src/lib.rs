@@ -75,7 +75,7 @@ use pact_mock_server::server_manager::ServerManager;
 /// | -5 | The address is not valid |
 ///
 #[no_mangle]
-pub extern fn create_mock_server_ffi(pact_str: *const c_char, addr_str: *const c_char) -> i32 {
+pub extern fn create_mock_server(pact_str: *const c_char, addr_str: *const c_char) -> i32 {
     env_logger::init();
 
     let result = catch_unwind(|| {
