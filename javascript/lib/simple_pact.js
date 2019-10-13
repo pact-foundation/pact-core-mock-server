@@ -6,7 +6,7 @@ const url = require('url');
 
 var dll = '../../rust/target/debug/libpact_mock_server_ffi';
 var lib = ffi.Library(path.join(__dirname, dll), {
-  create_mock_server: ['int32', ['string', 'int32']],
+  create_mock_server: ['int32', ['string', 'string']],
   mock_server_matched: ['bool', ['int32']],
   cleanup_mock_server: ['bool', ['int32']]
 });
@@ -45,8 +45,8 @@ var pact = "{\n" +
   "}\n" +
 "}\n";
 
-var port = lib.create_mock_server(pact, 0);
-console.log("Mock server port=" + port);
+var port = lib.create_mock_server(pact, '127.0.0.1:0');
+console.log('Mock server port=' + port);
 
 var options = {
   hostname: 'localhost',
