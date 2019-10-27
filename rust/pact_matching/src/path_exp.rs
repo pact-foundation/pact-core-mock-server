@@ -14,7 +14,7 @@ fn peek<I>(chars: &mut Peekable<I>) -> Option<(usize, char)> where I: Iterator<I
 }
 
 fn is_identifier_char(ch: char) -> bool {
-    ch.is_alphabetic() || ch.is_numeric() || ch == '_' || ch == '-'
+    ch.is_alphabetic() || ch.is_numeric() || ch == '_' || ch == '-' || ch == ':'
 }
 
 // identifier -> a-zA-Z0-9+
@@ -265,6 +265,9 @@ mod tests {
         );
         expect!(parse_path_exp(s!("$._id"))).to(
             be_ok().value(vec![PathToken::Root, PathToken::Field(s!("_id"))])
+        );
+        expect!(parse_path_exp(s!("$.id:test"))).to(
+            be_ok().value(vec![PathToken::Root, PathToken::Field(s!("id:test"))])
         );
     }
 
