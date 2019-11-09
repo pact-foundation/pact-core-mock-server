@@ -3,7 +3,7 @@
 use serde_json::{self, Value};
 use serde_json::map::Map;
 use std::{
-  collections::{HashMap, HashSet},
+  collections::{HashMap, HashSet, BTreeSet},
   hash::{Hash, Hasher}
 };
 #[allow(unused_imports)] // FromStr is actually used
@@ -60,7 +60,7 @@ fn path_length(path_exp: String) -> usize {
 }
 
 /// Set of all matching rules
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash, PartialOrd, Ord)]
 pub enum MatchingRule {
   /// Matcher using equals
   Equality,
@@ -271,7 +271,7 @@ impl RuleLogic {
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash)]
 pub struct RuleList {
   /// List of rules to apply
-  pub rules: Vec<MatchingRule>,
+  pub rules: BTreeSet<MatchingRule>,
   /// Rule logic to use to evaluate multiple rules
   pub rule_logic: RuleLogic
 }
@@ -281,7 +281,7 @@ impl RuleList {
   /// Creates a new empty rule list
   pub fn default(rule_logic: &RuleLogic) -> RuleList {
     RuleList {
-      rules: Vec::new(),
+      rules: BTreeSet::new(),
       rule_logic: rule_logic.clone()
     }
   }
@@ -289,7 +289,7 @@ impl RuleList {
   /// Creates a new rule list with the single matching rule
   pub fn new(rule: MatchingRule) -> RuleList {
     RuleList {
-      rules: vec![ rule ],
+      rules: btreeset![ rule ],
       rule_logic: RuleLogic::And
     }
   }
@@ -346,7 +346,7 @@ impl Category {
     match MatchingRule::from_json(matcher_json) {
       Some(matching_rule) => {
         let rules = self.rules.entry(key.clone()).or_insert(RuleList::default(rule_logic));
-        rules.rules.push(matching_rule);
+        rules.rules.insert(matching_rule);
       },
       None => warn!("Could not parse matcher {:?}", matcher_json)
     }
@@ -355,7 +355,7 @@ impl Category {
   /// Adds a rule to this category
   pub fn add_rule(&mut self, key: &String, matcher: MatchingRule, rule_logic: &RuleLogic) {
     let rules = self.rules.entry(key.clone()).or_insert(RuleList::default(rule_logic));
-    rules.rules.push(matcher);
+    rules.rules.insert(matcher);
   }
 
   /// Filters the matchers in the category by the predicate, and returns a new category
@@ -702,7 +702,7 @@ mod tests {
                     name: s!("query"),
                     rules: hashmap!{
                       s!("") => RuleList {
-                        rules: vec![ MatchingRule::Equality ],
+                        rules: btreeset![ MatchingRule::Equality ],
                         rule_logic: RuleLogic::And
                       }
                     }
@@ -734,24 +734,24 @@ mod tests {
     expect!(matching_rules.categories()).to(be_equal_to(hashset!{ s!("path"), s!("query"), s!("header"), s!("body") }));
     expect!(matching_rules.rules_for_category(&s!("path"))).to(be_some().value(Category {
       name: s!("path"),
-      rules: hashmap! { s!("") => RuleList { rules: vec![ MatchingRule::Regex(s!("\\w+")) ], rule_logic: RuleLogic::And } }
+      rules: hashmap! { s!("") => RuleList { rules: btreeset![ MatchingRule::Regex(s!("\\w+")) ], rule_logic: RuleLogic::And } }
     }));
     expect!(matching_rules.rules_for_category(&s!("query"))).to(be_some().value(Category {
       name: s!("query"),
-      rules: hashmap!{ s!("Q1") => RuleList { rules: vec![ MatchingRule::Regex(s!("\\d+")) ], rule_logic: RuleLogic::And } }
+      rules: hashmap!{ s!("Q1") => RuleList { rules: btreeset![ MatchingRule::Regex(s!("\\d+")) ], rule_logic: RuleLogic::And } }
     }));
     expect!(matching_rules.rules_for_category(&s!("header"))).to(be_some().value(Category {
       name: s!("header"),
-      rules: hashmap!{ s!("HEADERY") => RuleList { rules: vec![
+      rules: hashmap!{ s!("HEADERY") => RuleList { rules: btreeset![
         MatchingRule::Include(s!("ValueA")) ], rule_logic: RuleLogic::And } }
     }));
     expect!(matching_rules.rules_for_category(&s!("body"))).to(be_some().value(Category {
       name: s!("body"),
       rules: hashmap!{
-        s!("$.animals") => RuleList { rules: vec![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
-        s!("$.animals[*].*") => RuleList { rules: vec![ MatchingRule::Type ], rule_logic: RuleLogic::And },
-        s!("$.animals[*].children") => RuleList { rules: vec![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
-        s!("$.animals[*].children[*].*") => RuleList { rules: vec![ MatchingRule::Type ], rule_logic: RuleLogic::And }
+        s!("$.animals") => RuleList { rules: btreeset![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
+        s!("$.animals[*].*") => RuleList { rules: btreeset![ MatchingRule::Type ], rule_logic: RuleLogic::And },
+        s!("$.animals[*].children") => RuleList { rules: btreeset![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
+        s!("$.animals[*].children[*].*") => RuleList { rules: btreeset![ MatchingRule::Type ], rule_logic: RuleLogic::And }
       }
     }));
   }
@@ -802,25 +802,25 @@ mod tests {
     expect!(matching_rules.categories()).to(be_equal_to(hashset!{ s!("path"), s!("query"), s!("header"), s!("body") }));
     expect!(matching_rules.rules_for_category(&s!("path"))).to(be_some().value(Category {
       name: s!("path"),
-      rules: hashmap! { s!("") => RuleList { rules: vec![ MatchingRule::Regex(s!("\\w+")) ], rule_logic: RuleLogic::And } }
+      rules: hashmap! { s!("") => RuleList { rules: btreeset![ MatchingRule::Regex(s!("\\w+")) ], rule_logic: RuleLogic::And } }
     }));
     expect!(matching_rules.rules_for_category(&s!("query"))).to(be_some().value(Category {
       name: s!("query"),
-      rules: hashmap!{ s!("Q1") => RuleList { rules: vec![ MatchingRule::Regex(s!("\\d+")) ], rule_logic: RuleLogic::And } }
+      rules: hashmap!{ s!("Q1") => RuleList { rules: btreeset![ MatchingRule::Regex(s!("\\d+")) ], rule_logic: RuleLogic::And } }
     }));
     expect!(matching_rules.rules_for_category(&s!("header"))).to(be_some().value(Category {
       name: s!("header"),
-      rules: hashmap!{ s!("HEADERY") => RuleList { rules: vec![
+      rules: hashmap!{ s!("HEADERY") => RuleList { rules: btreeset![
         MatchingRule::Include(s!("ValueA")),
         MatchingRule::Include(s!("ValueB")) ], rule_logic: RuleLogic::Or } }
     }));
     expect!(matching_rules.rules_for_category(&s!("body"))).to(be_some().value(Category {
       name: s!("body"),
       rules: hashmap!{
-        s!("$.animals") => RuleList { rules: vec![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
-        s!("$.animals[*].*") => RuleList { rules: vec![ MatchingRule::Type ], rule_logic: RuleLogic::And },
-        s!("$.animals[*].children") => RuleList { rules: vec![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
-        s!("$.animals[*].children[*].*") => RuleList { rules: vec![ MatchingRule::Type ], rule_logic: RuleLogic::And }
+        s!("$.animals") => RuleList { rules: btreeset![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
+        s!("$.animals[*].*") => RuleList { rules: btreeset![ MatchingRule::Type ], rule_logic: RuleLogic::And },
+        s!("$.animals[*].children") => RuleList { rules: btreeset![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
+        s!("$.animals[*].children[*].*") => RuleList { rules: btreeset![ MatchingRule::Type ], rule_logic: RuleLogic::And }
       }
     }));
   }
@@ -843,7 +843,7 @@ mod tests {
     expect!(matching_rules.categories()).to(be_equal_to(hashset!{ s!("path") }));
     expect!(matching_rules.rules_for_category(&s!("path"))).to(be_some().value(Category {
       name: s!("path"),
-      rules: hashmap! { s!("") => RuleList { rules: vec![ MatchingRule::Regex(s!("\\w+")) ], rule_logic: RuleLogic::And } }
+      rules: hashmap! { s!("") => RuleList { rules: btreeset![ MatchingRule::Regex(s!("\\w+")) ], rule_logic: RuleLogic::And } }
     }));
   }
 
