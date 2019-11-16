@@ -2,6 +2,7 @@
 name = "pact_verifier"
 version = "0.6.2"
 authors = ["Ronald Holshausen <uglyog@gmail.com>"]
+edition = "2018"
 description = "Pact-Rust support library that implements provider verification functions"
 documentation = "https://docs.rs/pact_verifier/0.6.2/pact_verifier/"
 homepage = "http://www.pact.io"

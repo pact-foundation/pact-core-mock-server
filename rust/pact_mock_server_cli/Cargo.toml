@@ -2,6 +2,7 @@
 name = "pact_mock_server_cli"
 version = "0.5.2"
 authors = ["Ronald Holshausen <uglyog@gmail.com>"]
+edition = "2018"
 description = "Standalone pact mock server for consumer pact tests"
 homepage = "http://www.pact.io"
 repository = "https://github.com/pact-foundation/pact-reference/blob/master/rust/pact_mock_server_cli"
