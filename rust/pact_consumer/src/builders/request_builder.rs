@@ -67,10 +67,6 @@ impl RequestBuilder {
     /// a list of values to represent a repeated parameter.
     ///
     /// ```
-    /// #[macro_use]
-    /// extern crate pact_consumer;
-    /// extern crate regex;
-    ///
     /// use pact_consumer::prelude::*;
     /// use pact_consumer::builders::RequestBuilder;
     /// use regex::Regex;

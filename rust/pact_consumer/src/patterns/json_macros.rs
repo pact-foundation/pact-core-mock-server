@@ -15,9 +15,6 @@
 ///
 /// ```rust
 /// // Place this declaration in your top-level `main.rs` or `lib.rs` file.
-/// #[macro_use]
-/// extern crate pact_consumer;
-///
 /// # fn main() {
 /// json_pattern!({
 ///     "message": "Hello, world!",
@@ -31,13 +28,6 @@
 ///
 /// ```
 /// // Place these declarations in your top-level `main.rs` or `lib.rs` file.
-/// #[macro_use]
-/// extern crate pact_consumer;
-/// #[macro_use]
-/// extern crate serde_derive;
-/// #[macro_use]
-/// extern crate serde_json;
-///
 /// use pact_consumer::prelude::*;
 ///
 /// #[derive(Serialize)]

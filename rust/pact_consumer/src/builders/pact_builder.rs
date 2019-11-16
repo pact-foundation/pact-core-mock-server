@@ -6,9 +6,6 @@ use super::interaction_builder::InteractionBuilder;
 /// Builder for `Pact` objects.
 ///
 /// ```
-/// #[macro_use]
-/// extern crate pact_consumer;
-///
 /// use pact_consumer::prelude::*;
 ///
 /// # fn main() {

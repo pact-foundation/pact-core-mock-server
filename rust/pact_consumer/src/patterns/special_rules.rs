@@ -72,7 +72,6 @@ fn like_into() {
 /// as a `json_pattern!`.
 ///
 /// ```
-/// # #[macro_use] extern crate pact_consumer;
 /// # fn main() {
 /// json_pattern!({
 ///   "id": like!(10),
@@ -211,7 +210,6 @@ macro_rules! each_like_helper {
 /// as a `json_pattern!`.
 ///
 /// ```
-/// # #[macro_use] extern crate pact_consumer;
 /// # fn main() {
 /// json_pattern!({
 ///   // Expect an array of strings.
@@ -335,7 +333,6 @@ pub fn build_regex<S: AsRef<str>>(regex_str: S) -> Regex {
 /// string) literal, and which generates `$example`.
 ///
 /// ```
-/// # #[macro_use] extern crate pact_consumer;
 /// # fn main() {
 /// json_pattern!({
 ///   // Match a string consisting of numbers and lower case letters, and
