@@ -14,17 +14,10 @@ To use it, add it to your dev-dependencies in your cargo manifest and add an ext
 pact_consumer = "0.2.0"
 ```
 
-Then in your main module
-
-```rust
-#[cfg(test)]
-#[macro_use]
-extern crate pact_consumer;
-```
-
 You can now write a pact test using the consumer DSL.
 
 ```rust
+use pact_consumer::prelude::*;
 use pact_consumer::*;
 
 #[test]
