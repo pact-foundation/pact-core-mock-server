@@ -3,6 +3,7 @@ use pact_matching::models::matchingrules::MatchingRules;
 #[cfg(test)]
 use regex::Regex;
 use std::collections::HashMap;
+use maplit::*;
 
 #[cfg(test)]
 #[allow(unused_imports)]

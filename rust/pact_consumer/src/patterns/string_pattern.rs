@@ -48,6 +48,9 @@ impl Pattern for StringPattern {
 fn string_pattern_is_pattern() {
     use env_logger;
     use regex::Regex;
+    use maplit::*;
+    use pact_matching::s;
+    use serde_json::*;
 
     use super::special_rules::Term;
 
@@ -85,4 +88,3 @@ impl<'a> From<Cow<'a, str>> for StringPattern {
         StringPattern::String(s.into())
     }
 }
-

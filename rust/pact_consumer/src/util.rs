@@ -4,6 +4,7 @@
 
 use regex::{Captures, Regex};
 use serde_json;
+use lazy_static::*;
 
 /// Internal helper method for `strip_null_fields`.
 fn strip_null_fields_mut(json: &mut serde_json::Value) {

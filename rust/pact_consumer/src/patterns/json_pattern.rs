@@ -98,6 +98,9 @@ impl Pattern for JsonPattern {
 #[test]
 fn json_pattern_is_pattern() {
     use env_logger;
+    use maplit::*;
+    use pact_matching::s;
+    use serde_json::*;
 
     use super::special_rules::Like;
 

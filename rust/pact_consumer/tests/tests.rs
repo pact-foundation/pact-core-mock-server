@@ -1,8 +1,3 @@
-extern crate env_logger;
-extern crate pact_consumer;
-extern crate reqwest;
-#[macro_use(expect)] extern crate expectest;
-
 use pact_consumer::prelude::*;
 use std::{
   io::prelude::*,
@@ -16,6 +11,8 @@ use expectest::prelude::*;
 /// we have an executable copy here.
 #[test]
 fn mock_server_passing_validation() {
+    use expectest::*;
+
     let _ = env_logger::init();
 
     let output_dir = Path::new("target/pact_dir");

@@ -1,6 +1,7 @@
 use pact_matching::models::*;
 use pact_matching::models::matchingrules::MatchingRules;
 use std::collections::HashMap;
+use maplit::*;
 
 use crate::prelude::*;
 
