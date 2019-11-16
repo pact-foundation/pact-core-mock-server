@@ -3,10 +3,10 @@ use super::DiffConfig;
 use sxd_document::dom::*;
 use std::collections::btree_map::BTreeMap;
 use itertools::Itertools;
-use models::matchingrules::*;
-use matchers::*;
+use crate::models::matchingrules::*;
+use crate::matchers::*;
 use onig::Regex;
-use models::xml_utils::parse_bytes;
+use crate::models::xml_utils::parse_bytes;
 
 pub fn match_xml(expected: &Vec<u8>, actual: &Vec<u8>, config: DiffConfig,
     mismatches: &mut Vec<super::Mismatch>, matchers: &MatchingRules) {
@@ -291,8 +291,8 @@ fn compare_value(path: &Vec<String>, expected: &String, actual: &String,
 mod tests {
     use super::*;
     use expectest::prelude::*;
-    use Mismatch;
-    use DiffConfig;
+    use crate::Mismatch;
+    use crate::DiffConfig;
     use env_logger;
 
     #[test]

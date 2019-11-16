@@ -43,11 +43,11 @@ use pact_matching::models::http_utils::HttpAuth;
 use ansi_term::*;
 use ansi_term::Colour::*;
 use std::collections::HashMap;
-use provider_client::{make_provider_request, make_state_change_request, ProviderClientError};
+use crate::provider_client::{make_provider_request, make_state_change_request, ProviderClientError};
 use regex::Regex;
 use serde_json::Value;
 use tokio::runtime::current_thread::Runtime;
-use pact_broker::{publish_verification_results, TestResult, Link};
+use crate::pact_broker::{publish_verification_results, TestResult, Link};
 
 /// Source for loading pacts
 #[derive(Debug, Clone)]

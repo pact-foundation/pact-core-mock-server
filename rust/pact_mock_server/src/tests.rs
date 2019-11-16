@@ -1,6 +1,6 @@
 use expectest::prelude::*;
 use super::*;
-use matching::{MatchResult, match_request};
+use crate::matching::{MatchResult, match_request};
 use pact_matching::models::{Interaction, Request, OptionalBody};
 use pact_matching::Mismatch;
 use pact_matching::models::matchingrules::*;

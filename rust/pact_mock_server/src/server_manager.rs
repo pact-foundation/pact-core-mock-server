@@ -2,7 +2,7 @@
 //! This module defines a manager for holding multiple instances of mock servers.
 //!
 
-use mock_server::MockServer;
+use crate::mock_server::MockServer;
 
 use pact_matching::models::{Pact};
 use std::collections::BTreeMap;

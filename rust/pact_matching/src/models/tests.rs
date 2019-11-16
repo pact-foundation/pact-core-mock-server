@@ -1,6 +1,6 @@
 use super::*;
 use super::{body_from_json, headers_from_json};
-use models::matchingrules::{MatchingRule, matchers_from_json};
+use crate::models::matchingrules::{MatchingRule, matchers_from_json};
 use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
 use std::fs::{self, File};

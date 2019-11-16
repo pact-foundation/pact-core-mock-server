@@ -12,7 +12,7 @@ use std::{
   net::TcpListener,
   process
 };
-use verify;
+use crate::verify;
 use webmachine_rust::*;
 use webmachine_rust::context::*;
 use webmachine_rust::headers::*;

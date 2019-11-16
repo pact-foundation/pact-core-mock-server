@@ -8,8 +8,8 @@ use std::collections::HashMap;
 #[allow(unused_imports)]
 use env_logger;
 
-use prelude::*;
-use util::GetDefaulting;
+use crate::prelude::*;
+use crate::util::GetDefaulting;
 
 /// Builder for `Request` objects. Normally created via `PactBuilder`.
 pub struct RequestBuilder {
@@ -196,7 +196,7 @@ fn query_param_with_underscore() {
 
 #[test]
 fn term_does_not_require_anchors() {
-    use prelude::*;
+    use crate::prelude::*;
 
     let pattern = PactBuilder::new("C", "P")
         .interaction("I", |i| {

@@ -20,7 +20,7 @@ use std::str;
 use std::default::Default;
 use base64::{encode, decode};
 use std::fmt::{Display, Formatter};
-use models::http_utils::HttpAuth;
+use crate::models::http_utils::HttpAuth;
 use super::json::value_of;
 
 pub mod json_utils;

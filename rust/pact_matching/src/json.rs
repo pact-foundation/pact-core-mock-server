@@ -7,8 +7,8 @@ use super::DiffConfig;
 use difference::*;
 use ansi_term::Colour::*;
 use std::str::FromStr;
-use models::matchingrules::*;
-use matchers::*;
+use crate::models::matchingrules::*;
+use crate::matchers::*;
 use onig::Regex;
 
 fn type_of(json: &Value) -> String {
@@ -436,8 +436,8 @@ fn compare_values(path: &Vec<String>, expected: &Value, actual: &Value, mismatch
 mod tests {
     use super::*;
     use expectest::prelude::*;
-    use Mismatch;
-    use DiffConfig;
+    use crate::Mismatch;
+    use crate::DiffConfig;
 
     #[test]
     fn match_json_handles_invalid_expected_json() {

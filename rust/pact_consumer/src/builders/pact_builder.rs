@@ -1,6 +1,6 @@
 use pact_matching::models::*;
 
-use prelude::*;
+use crate::prelude::*;
 use super::interaction_builder::InteractionBuilder;
 
 /// Builder for `Pact` objects.

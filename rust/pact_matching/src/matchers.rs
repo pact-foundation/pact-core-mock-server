@@ -1,7 +1,7 @@
-use models::matchingrules::*;
+use crate::models::matchingrules::*;
 use itertools::Itertools;
 use onig::Regex;
-use time_utils::validate_datetime;
+use crate::time_utils::validate_datetime;
 
 pub trait Matches<A> {
     fn matches(&self, actual: &A, matcher: &MatchingRule) -> Result<(), String>;

@@ -4,7 +4,7 @@ use pact_matching::models::matchingrules::MatchingRules;
 use regex::Regex;
 use std::collections::HashMap;
 
-use prelude::*;
+use crate::prelude::*;
 
 #[cfg(test)]
 #[allow(unused_imports)]

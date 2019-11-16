@@ -3,8 +3,8 @@
 //! instance of a mock server.
 //!
 
-use hyper_server;
-use matching::MatchResult;
+use crate::hyper_server;
+use crate::matching::MatchResult;
 
 use pact_matching::models::{Pact, Interaction, PactSpecification};
 use std::ffi::CString;

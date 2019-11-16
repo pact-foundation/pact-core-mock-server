@@ -5,9 +5,9 @@ use pact_matching::models::provider_states::*;
 use pact_consumer::prelude::*;
 use env_logger::*;
 use tokio::runtime::current_thread::Runtime;
-use PactSource;
+use crate::PactSource;
 use std::panic::catch_unwind;
-use pact_broker::Link;
+use crate::pact_broker::Link;
 
 #[test]
 fn if_no_interaction_filter_is_defined_returns_true() {

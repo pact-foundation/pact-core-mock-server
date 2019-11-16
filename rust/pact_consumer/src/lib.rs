@@ -251,9 +251,9 @@ pub mod util;
 /// use pact_consumer::prelude::*;
 /// ```
 pub mod prelude {
-    pub use builders::{HttpPartBuilder, PactBuilder};
-    pub use patterns::{Pattern, JsonPattern, StringPattern};
-    pub use patterns::{EachLike, Like, Term};
-    pub use mock_server::{StartMockServer, ValidatingMockServer};
-    pub use util::strip_null_fields;
+    pub use crate::builders::{HttpPartBuilder, PactBuilder};
+    pub use crate::patterns::{Pattern, JsonPattern, StringPattern};
+    pub use crate::patterns::{EachLike, Like, Term};
+    pub use crate::mock_server::{StartMockServer, ValidatingMockServer};
+    pub use crate::util::strip_null_fields;
 }

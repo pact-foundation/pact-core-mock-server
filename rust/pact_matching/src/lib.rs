@@ -366,10 +366,10 @@ mod matchers;
 pub mod json;
 mod xml;
 
-use models::HttpPart;
-use models::matchingrules::*;
-use models::generators::*;
-use matchers::*;
+use crate::models::HttpPart;
+use crate::models::matchingrules::*;
+use crate::models::generators::*;
+use crate::matchers::*;
 use serde_json::Value;
 
 fn strip_whitespace<'a, T: FromIterator<&'a str>>(val: &'a String, split_by: &'a str) -> T {

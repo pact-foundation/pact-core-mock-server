@@ -1,5 +1,5 @@
 use pact_matching::models::Pact;
-use ::{serde_json, MismatchResult};
+use crate::{serde_json, MismatchResult};
 use itertools::Itertools;
 use std::collections::HashMap;
 use super::provider_client::join_paths;
@@ -28,14 +28,14 @@ fn as_string(json: &serde_json::Value) -> String {
     }
 }
 
-fn content_type(response: &reqwest::async::Response) -> String {
+fn content_type(response: &reqwest::r#async::Response) -> String {
     match response.headers().get("content-type") {
         Some(value) => value.to_str().unwrap_or("text/plain").into(),
         None => s!("text/plain")
     }
 }
 
-fn json_content_type(response: &reqwest::async::Response) -> bool {
+fn json_content_type(response: &reqwest::r#async::Response) -> bool {
     match content_type(response).parse::<mime::Mime>() {
         Ok(mime) => {
             match (mime.type_().as_str(), mime.subtype().as_str(), mime.suffix()) {
@@ -132,7 +132,7 @@ impl Default for Link {
 
 #[derive(Clone)]
 pub struct HALClient {
-  client: reqwest::async::Client,
+  client: reqwest::r#async::Client,
   url: String,
   path_info: Option<serde_json::Value>,
   auth: Option<HttpAuth>
@@ -142,7 +142,7 @@ impl HALClient {
 
     fn default() -> HALClient {
       HALClient {
-        client: reqwest::async::ClientBuilder::new()
+        client: reqwest::r#async::ClientBuilder::new()
           .use_default_tls()
           .build()
           .unwrap(),
@@ -255,7 +255,7 @@ impl HALClient {
     fn parse_broker_response(
         self,
         path: String,
-        response: reqwest::async::Response
+        response: reqwest::r#async::Response
     ) -> impl Future<Item = serde_json::Value, Error = PactBrokerError> {
         let is_json_content_type = json_content_type(&response);
         let content_type = content_type(&response);
@@ -603,7 +603,7 @@ mod tests {
 
     #[test]
     fn content_type_test() {
-        let response = reqwest::async::Response::from(
+        let response = reqwest::r#async::Response::from(
             http::response::Builder::new()
                 .header("content-type", "application/hal+json; charset=utf-8")
                 .body("null")
@@ -615,7 +615,7 @@ mod tests {
 
     #[test]
     fn json_content_type_test() {
-        let response = reqwest::async::Response::from(
+        let response = reqwest::r#async::Response::from(
             http::response::Builder::new()
                 .header("content-type", "application/json")
                 .body("null")
@@ -627,7 +627,7 @@ mod tests {
 
     #[test]
     fn json_content_type_utf8_test() {
-        let response = reqwest::async::Response::from(
+        let response = reqwest::r#async::Response::from(
             http::response::Builder::new()
                 .header("content-type", "application/hal+json;charset=utf-8")
                 .body("null")

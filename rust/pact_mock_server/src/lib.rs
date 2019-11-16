@@ -28,7 +28,7 @@ use pact_matching::s;
 use std::sync::Mutex;
 use serde_json::json;
 use uuid::Uuid;
-use server_manager::ServerManager;
+use crate::server_manager::ServerManager;
 
 /// Mock server errors
 pub enum MockServerError {

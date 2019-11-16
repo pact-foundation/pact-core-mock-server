@@ -1,7 +1,7 @@
 use super::*;
 use expectest::prelude::*;
-use models::{Request, Response, OptionalBody, DetectedContentType};
-use models::generators::{JsonHandler, ContentTypeHandler};
+use crate::models::{Request, Response, OptionalBody, DetectedContentType};
+use crate::models::generators::{JsonHandler, ContentTypeHandler};
 use std::str::FromStr;
 use serde_json::Value;
 use hamcrest2::prelude::*;

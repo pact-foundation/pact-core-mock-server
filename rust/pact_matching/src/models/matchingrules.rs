@@ -8,8 +8,8 @@ use std::{
 };
 #[allow(unused_imports)] // FromStr is actually used
 use std::str::FromStr;
-use models::json_utils::{json_to_string, json_to_num};
-use path_exp::*;
+use crate::models::json_utils::{json_to_string, json_to_num};
+use crate::path_exp::*;
 use super::PactSpecification;
 
 fn matches_token(path_fragment: &String, path_token: &PathToken) -> usize {

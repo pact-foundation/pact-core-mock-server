@@ -49,11 +49,11 @@ pub fn verify_mock_server(host: &str, port: u16, matches: &ArgMatches) -> Result
                             },
                             Err(err) => {
                                 error!("Failed to parse JSON: {}\n{}", err, body);
-                                ::display_error(format!("Failed to parse JSON: {}\n{}", err, body), matches);
+                                crate::display_error(format!("Failed to parse JSON: {}\n{}", err, body), matches);
                             }
                         }
                     },
-                    _ => ::display_error(format!("Unexpected response from master mock server '{}': {}", url, result.status), matches)
+                    _ => crate::display_error(format!("Unexpected response from master mock server '{}': {}", url, result.status), matches)
                 }
             } else {
                 println!("Mock server with {} '{}' verified ok", id.1, id.0);
@@ -61,7 +61,7 @@ pub fn verify_mock_server(host: &str, port: u16, matches: &ArgMatches) -> Result
             }
         },
         Err(err) => {
-            ::display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), matches);
+            crate::display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), matches);
         }
     }
 }

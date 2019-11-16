@@ -2,7 +2,7 @@ use pact_matching::models::*;
 use pact_matching::models::matchingrules::MatchingRules;
 use std::collections::HashMap;
 
-use prelude::*;
+use crate::prelude::*;
 
 /// Builder for `Response` objects. Normally created via `PactBuilder`.
 pub struct ResponseBuilder {
