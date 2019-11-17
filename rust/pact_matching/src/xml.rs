@@ -291,6 +291,7 @@ fn compare_value(path: &Vec<String>, expected: &String, actual: &String,
 mod tests {
     use super::*;
     use expectest::prelude::*;
+    use expectest::expect;
     use crate::Mismatch;
     use crate::DiffConfig;
     use env_logger;

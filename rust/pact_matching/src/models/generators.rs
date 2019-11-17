@@ -711,9 +711,10 @@ macro_rules! generators {
 mod tests {
   use super::*;
   use expectest::prelude::*;
+  use expectest::expect;
   use super::Generator;
   use std::str::FromStr;
-  use hamcrest2::prelude::*;
+  use hamcrest2::*;
 
   #[test]
   fn rules_are_empty_when_there_are_no_categories() {

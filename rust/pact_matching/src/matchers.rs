@@ -323,6 +323,7 @@ mod tests {
     use super::*;
     use super::select_best_matcher;
     use expectest::prelude::*;
+    use expectest::expect;
 
     #[test]
     fn select_best_matcher_selects_most_appropriate_by_weight() {

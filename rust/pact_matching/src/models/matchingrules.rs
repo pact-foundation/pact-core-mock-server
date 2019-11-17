@@ -676,6 +676,7 @@ mod tests {
     use super::*;
     use super::{calc_path_weight, matches_token};
     use expectest::prelude::*;
+    use expectest::expect;
     use serde_json::Value;
 
     #[test]

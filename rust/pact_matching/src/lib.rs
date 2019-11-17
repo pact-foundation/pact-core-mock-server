@@ -1036,15 +1036,6 @@ pub fn generate_response(response: &models::Response, context: &HashMap<String, 
 }
 
 #[cfg(test)]
-#[macro_use(expect)]
-extern crate expectest;
-#[cfg(test)]
-extern crate quickcheck;
-#[cfg(test)]
-extern crate env_logger;
-#[cfg(test)] #[macro_use] extern crate hamcrest2;
-
-#[cfg(test)]
 mod tests;
 #[cfg(test)]
 mod generator_tests;

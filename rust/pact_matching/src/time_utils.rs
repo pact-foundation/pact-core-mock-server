@@ -295,6 +295,7 @@ pub fn to_chrono_pattern(tokens: &Vec<DateTimePatternToken>) -> String {
 mod tests {
   use super::*;
   use expectest::prelude::*;
+  use expectest::expect;
 
   #[test]
   fn parse_date_and_time() {

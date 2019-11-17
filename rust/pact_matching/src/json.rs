@@ -435,6 +435,7 @@ fn compare_values(path: &Vec<String>, expected: &Value, actual: &Value, mismatch
 mod tests {
     use super::*;
     use expectest::prelude::*;
+    use expectest::expect;
     use crate::Mismatch;
     use crate::DiffConfig;
 

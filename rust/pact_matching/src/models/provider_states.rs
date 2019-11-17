@@ -121,6 +121,7 @@ impl Eq for ProviderState {
 mod tests {
     use super::*;
     use expectest::prelude::*;
+    use expectest::expect;
     use serde_json;
     use serde_json::Value;
 

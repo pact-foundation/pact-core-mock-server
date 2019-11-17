@@ -92,6 +92,7 @@ impl Message {
 mod tests {
     use super::*;
     use expectest::prelude::*;
+    use expectest::expect;
     use serde_json;
 
     #[test]

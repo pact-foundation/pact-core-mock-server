@@ -7,6 +7,7 @@ use std::fs::{self, File};
 use std::io;
 use std::env;
 use expectest::prelude::*;
+use expectest::expect;
 use rand;
 use std::hash::{Hash, Hasher};
 use super::provider_states::*;
