@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
+use maplit::*;
 use super::*;
 use super::body_from_json;
 

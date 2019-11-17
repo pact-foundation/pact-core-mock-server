@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::collections::BTreeMap;
 use serde::{Serialize, Deserialize};
 use serde_json::{Value, json};
+use maplit::*;
 use hex::FromHex;
 use super::strip_whitespace;
 use onig::Regex;

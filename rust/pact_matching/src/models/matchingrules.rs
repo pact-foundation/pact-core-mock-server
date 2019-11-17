@@ -3,6 +3,7 @@
 use serde::{Serialize, Deserialize};
 use serde_json::{self, Value, json};
 use serde_json::map::Map;
+use maplit::*;
 use std::{
   collections::{HashMap, HashSet, BTreeSet},
   hash::{Hash, Hasher}

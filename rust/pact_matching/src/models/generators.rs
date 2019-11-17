@@ -8,6 +8,7 @@ use std::{
 };
 use serde::{Serialize, Deserialize};
 use serde_json::{self, Value, json};
+use maplit::*;
 use super::PactSpecification;
 use rand::prelude::*;
 use rand::distributions::Alphanumeric;

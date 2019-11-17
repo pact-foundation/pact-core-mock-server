@@ -4,6 +4,7 @@
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 use serde_json::*;
+use maplit::*;
 use std::hash::{Hash, Hasher};
 use std::cmp::Eq;
 

@@ -324,7 +324,6 @@
 //!
 
 #![warn(missing_docs)]
-#[macro_use] extern crate maplit;
 #[macro_use] extern crate lazy_static;
 extern crate hex;
 extern crate onig;

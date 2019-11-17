@@ -1,6 +1,7 @@
 use super::*;
 use super::{match_header_value, strip_whitespace};
 use std::collections::HashMap;
+use maplit::*;
 use expectest::prelude::*;
 use crate::models::{Request, OptionalBody};
 
