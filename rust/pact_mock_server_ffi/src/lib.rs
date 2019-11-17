@@ -43,12 +43,6 @@
 
 #![warn(missing_docs)]
 
-extern crate pact_mock_server;
-extern crate libc;
-extern crate serde_json;
-extern crate env_logger;
-#[macro_use] extern crate log;
-
 use std::panic::catch_unwind;
 use libc::c_char;
 use std::ffi::CStr;
@@ -81,7 +75,7 @@ pub extern fn create_mock_server(pact_str: *const c_char, addr_str: *const c_cha
     let result = catch_unwind(|| {
         let c_str = unsafe {
             if pact_str.is_null() {
-                error!("Got a null pointer instead of pact json");
+                log::error!("Got a null pointer instead of pact json");
                 return -1;
             }
             CStr::from_ptr(pact_str)
@@ -89,7 +83,7 @@ pub extern fn create_mock_server(pact_str: *const c_char, addr_str: *const c_cha
 
         let addr_c_str = unsafe {
             if addr_str.is_null() {
-                error!("Got a null pointer instead of listener address");
+                log::error!("Got a null pointer instead of listener address");
                 return -1;
             }
             CStr::from_ptr(addr_str)
@@ -112,7 +106,7 @@ pub extern fn create_mock_server(pact_str: *const c_char, addr_str: *const c_cha
     match result {
         Ok(val) => val,
         Err(cause) => {
-            error!("Caught a general panic: {:?}", cause);
+            log::error!("Caught a general panic: {:?}", cause);
             -4
         }
     }
@@ -131,7 +125,7 @@ pub extern fn mock_server_matched(mock_server_port: i32) -> bool {
   match result {
     Ok(val) => val,
     Err(cause) => {
-      error!("Caught a general panic: {:?}", cause);
+      log::error!("Caught a general panic: {:?}", cause);
       false
     }
   }
@@ -174,7 +168,7 @@ pub extern fn mock_server_mismatches(mock_server_port: i32) -> *mut c_char {
   match result {
     Ok(val) => val,
     Err(cause) => {
-      error!("Caught a general panic: {:?}", cause);
+      log::error!("Caught a general panic: {:?}", cause);
       0 as *mut _
     }
   }
@@ -198,7 +192,7 @@ pub extern fn cleanup_mock_server(mock_server_port: i32) -> bool {
   match result {
     Ok(val) => val,
     Err(cause) => {
-      error!("Caught a general panic: {:?}", cause);
+      log::error!("Caught a general panic: {:?}", cause);
       false
     }
   }
@@ -225,7 +219,7 @@ pub extern fn write_pact_file(mock_server_port: i32, directory: *const c_char) -
   let result = catch_unwind(|| {
     let dir = unsafe {
       if directory.is_null() {
-        warn!("Directory to write to is NULL, defaulting to the current working directory");
+        log::warn!("Directory to write to is NULL, defaulting to the current working directory");
         None
       } else {
         let c_str = CStr::from_ptr(directory);
@@ -250,7 +244,7 @@ pub extern fn write_pact_file(mock_server_port: i32, directory: *const c_char) -
       }
     },
     Err(cause) => {
-      error!("Caught a general panic: {:?}", cause);
+      log::error!("Caught a general panic: {:?}", cause);
       1
     }
   }
