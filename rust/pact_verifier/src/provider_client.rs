@@ -2,6 +2,7 @@ use super::*;
 use pact_matching::models::*;
 use pact_matching::models::matchingrules::*;
 use pact_matching::models::generators::*;
+use pact_matching::s;
 use std::str::FromStr;
 use std::error::Error;
 use std::collections::hash_map::HashMap;
@@ -67,7 +68,7 @@ fn create_hyper_request(base_url: &String, request: &Request) -> Result<HyperReq
         url.push('?');
         url.push_str(&build_query_string(request.query.clone().unwrap()));
     }
-    debug!("Making request to '{}'", url);
+    log::debug!("Making request to '{}'", url);
     let mut builder = HyperRequest::builder();
     builder.method(
         Method::from_str(&request.method)
@@ -102,7 +103,7 @@ fn extract_headers(headers: &HeaderMap) -> Option<HashMap<String, Vec<String>>> 
           .map(|val| val.to_str()
             .map(|v| v.to_string())
             .map_err(|err| {
-              warn!("Failed to parse HTTP header value: {}", err);
+              log::warn!("Failed to parse HTTP header value: {}", err);
               ()
             })
           ).collect();
@@ -130,14 +131,14 @@ pub fn extract_body(hyper_body: Result<hyper::Chunk, HyperError>) -> Result<Opti
             }
         },
         Err(err) => {
-            warn!("Failed to read request body: {}", err);
+            log::warn!("Failed to read request body: {}", err);
             Ok(OptionalBody::Missing)
         }
     }
 }
 
 fn hyper_response_to_pact_response(response: HyperResponse<Body>) -> impl Future<Item = Response, Error = HyperError> {
-    debug!("Received response: {:?}", response);
+    log::debug!("Received response: {:?}", response);
 
     let status = response.status().as_u16();
     let headers = extract_headers(response.headers());
@@ -170,7 +171,7 @@ fn check_hyper_response_status(result: Result<HyperResponse<Body>, HyperError>) 
 }
 
 pub fn make_provider_request(provider: &ProviderInfo, request: &Request) -> impl Future<Item = Response, Error = ProviderClientError> {
-    debug!("Sending {:?} to provider", request);
+    log::debug!("Sending {:?} to provider", request);
     let base_url = format!("{}://{}:{}{}", provider.protocol, provider.host, provider.port, provider.path);
 
     future::done(create_hyper_request(&base_url, request))
@@ -180,13 +181,13 @@ pub fn make_provider_request(provider: &ProviderInfo, request: &Request) -> impl
                 .map_err(|err| ProviderClientError::ResponseError(err.description().into()))
         })
         .map_err(|err| {
-            debug!("Request failed: {:?}", err);
+            log::debug!("Request failed: {:?}", err);
             err
         })
 }
 
 pub fn make_state_change_request(provider: &ProviderInfo, request: &Request) -> impl Future<Item = (), Error = ProviderClientError> {
-    debug!("Sending {:?} to state change handler", request);
+    log::debug!("Sending {:?} to state change handler", request);
 
     future::done(create_hyper_request(&provider.state_change_url.clone().unwrap(), request))
         .and_then(|request| {
@@ -198,7 +199,9 @@ pub fn make_state_change_request(provider: &ProviderInfo, request: &Request) -> 
 #[cfg(test)]
 mod tests {
     use expectest::prelude::*;
+    use expectest::expect;
     use super::join_paths;
+    use pact_matching::s;
 
     #[test]
     fn join_paths_test() {

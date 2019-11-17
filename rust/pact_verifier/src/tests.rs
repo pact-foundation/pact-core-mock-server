@@ -1,13 +1,18 @@
 use expectest::prelude::*;
+use expectest::expect;
 use super::{FilterInfo, filter_interaction, filter_consumers, execute_state_change, ProviderInfo};
 use pact_matching::models::*;
 use pact_matching::models::provider_states::*;
+use pact_matching::s;
 use pact_consumer::prelude::*;
+use pact_consumer::*;
 use env_logger::*;
 use tokio::runtime::current_thread::Runtime;
 use crate::PactSource;
 use std::panic::catch_unwind;
 use crate::pact_broker::Link;
+use maplit::*;
+use serde_json::json;
 
 #[test]
 fn if_no_interaction_filter_is_defined_returns_true() {
