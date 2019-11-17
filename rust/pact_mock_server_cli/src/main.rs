@@ -31,7 +31,7 @@ use std::env;
 use std::str::FromStr;
 use std::fs::{self, File};
 use std::io;
-use log::{LogLevelFilter};
+use log::{LevelFilter};
 use simplelog::{CombinedLogger, TermLogger, WriteLogger, SimpleLogger, Config};
 use std::path::PathBuf;
 use std::fs::OpenOptions;
@@ -75,9 +75,10 @@ fn setup_log_file(output: Option<&str>) -> Result<File, io::Error> {
 }
 
 fn setup_loggers(level: &str, command: &str, output: Option<&str>, no_file_log: bool, no_term_log: bool) -> Result<(), String> {
+    let term_mode = simplelog::TerminalMode::Stdout;
     let log_level = match level {
-        "none" => LogLevelFilter::Off,
-        _ => LogLevelFilter::from_str(level).unwrap()
+        "none" => LevelFilter::Off,
+        _ => LevelFilter::from_str(level).unwrap()
     };
 
     if command == "start" {
@@ -86,7 +87,7 @@ fn setup_loggers(level: &str, command: &str, output: Option<&str>, no_file_log: 
           SimpleLogger::init(log_level, Config::default()).map_err(|e| format!("{:?}", e))
         },
         (true, false) => {
-          TermLogger::init(log_level, Config::default()).map_err(|e| format!("{:?}", e))
+          TermLogger::init(log_level, Config::default(), term_mode).map_err(|e| format!("{:?}", e))
         },
         (false, true) => {
           let log_file = setup_log_file(output).map_err(|e| format!("{:?}", e))?;
@@ -94,7 +95,7 @@ fn setup_loggers(level: &str, command: &str, output: Option<&str>, no_file_log: 
         },
         _ => {
           let log_file = setup_log_file(output).map_err(|e| format!("{:?}", e))?;
-          match TermLogger::new(log_level, Config::default()) {
+          match TermLogger::new(log_level, Config::default(), term_mode) {
             Some(logger) => CombinedLogger::init(vec![logger, WriteLogger::new(log_level,
                                                                                Config::default(), log_file)]).map_err(|e| format!("{:?}", e)),
             None => WriteLogger::init(log_level, Config::default(), log_file).map_err(|e| format!("{:?}", e))
@@ -104,7 +105,7 @@ fn setup_loggers(level: &str, command: &str, output: Option<&str>, no_file_log: 
     } else if no_term_log {
       SimpleLogger::init(log_level, Config::default()).map_err(|e| format!("{:?}", e))
     } else {
-      TermLogger::init(log_level, Config::default()).map_err(|e| format!("{:?}", e))
+      TermLogger::init(log_level, Config::default(), term_mode).map_err(|e| format!("{:?}", e))
     }
 }
 
