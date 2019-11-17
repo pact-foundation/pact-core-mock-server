@@ -8,6 +8,7 @@ use pact_matching::models::Response;
 use pact_matching::match_response;
 #[allow(unused_imports)]
 use expectest::prelude::*;
+use expectest::*;
 #[allow(unused_imports)]
 use serde_json;
 
@@ -20,7 +21,7 @@ fn empty_headers() {
         "comment": "Empty headers match",
         "expected" : {
           "headers": {}
-      
+
         },
         "actual": {
           "headers": {}
@@ -130,7 +131,7 @@ fn matches_with_regex() {
           }
         }
       }
-              
+
     "#).unwrap();
 
     let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);

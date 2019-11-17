@@ -8,6 +8,7 @@ use pact_matching::models::Request;
 use pact_matching::match_request;
 #[allow(unused_imports)]
 use expectest::prelude::*;
+use expectest::*;
 #[allow(unused_imports)]
 use serde_json;
 
@@ -23,14 +24,14 @@ fn empty_path_found_when_forward_slash_expected() {
           "path": "/",
           "query": "",
           "headers": {}
-      
+
         },
         "actual": {
           "method": "POST",
           "path": "",
           "query": "",
           "headers": {}
-      
+
         }
       }
     "#).unwrap();
@@ -60,14 +61,14 @@ fn forward_slash_found_when_empty_path_expected() {
           "path": "",
           "query": "",
           "headers": {}
-      
+
         },
         "actual": {
           "method": "POST",
           "path": "/",
           "query": "",
           "headers": {}
-      
+
         }
       }
     "#).unwrap();
@@ -97,14 +98,14 @@ fn incorrect_path() {
           "path": "/path/to/something",
           "query": "",
           "headers": {}
-      
+
         },
         "actual": {
           "method": "POST",
           "path": "/path/to/something/else",
           "query": "",
           "headers": {}
-      
+
         }
       }
     "#).unwrap();
@@ -134,14 +135,14 @@ fn matches() {
           "path": "/path/to/something",
           "query": "",
           "headers": {}
-      
+
         },
         "actual": {
           "method": "POST",
           "path": "/path/to/something",
           "query": "",
           "headers": {}
-      
+
         }
       }
     "#).unwrap();
@@ -171,14 +172,14 @@ fn missing_trailing_slash_in_path() {
           "path": "/path/to/something/",
           "query": "",
           "headers": {}
-      
+
         },
         "actual": {
           "method": "POST",
           "path": "/path/to/something",
           "query": "",
           "headers": {}
-      
+
         }
       }
     "#).unwrap();
@@ -208,14 +209,14 @@ fn unexpected_trailing_slash_in_path() {
           "path": "/path/to/something",
           "query": "",
           "headers": {}
-      
+
         },
         "actual": {
           "method": "POST",
           "path": "/path/to/something/",
           "query": "",
           "headers": {}
-      
+
         }
       }
     "#).unwrap();

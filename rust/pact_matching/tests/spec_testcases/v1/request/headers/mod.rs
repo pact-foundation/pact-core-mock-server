@@ -8,6 +8,7 @@ use pact_matching::models::Request;
 use pact_matching::match_request;
 #[allow(unused_imports)]
 use expectest::prelude::*;
+use expectest::*;
 #[allow(unused_imports)]
 use serde_json;
 
@@ -257,7 +258,7 @@ fn empty_headers() {
           "path": "/path",
           "query": "",
           "headers": {}
-      
+
         },
         "actual": {
           "method": "POST",

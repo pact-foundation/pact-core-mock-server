@@ -1,5 +1,5 @@
 use nom::types::CompleteStr;
-use nom::digit1;
+use nom::*;
 use itertools::Itertools;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

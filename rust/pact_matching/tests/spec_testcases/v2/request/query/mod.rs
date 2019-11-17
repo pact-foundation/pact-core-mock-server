@@ -8,6 +8,7 @@ use pact_matching::models::Request;
 use pact_matching::match_request;
 #[allow(unused_imports)]
 use expectest::prelude::*;
+use expectest::*;
 #[allow(unused_imports)]
 use serde_json;
 
@@ -23,14 +24,14 @@ fn different_order() {
           "path": "/path",
           "query": "alligator=Mary&hippo=John",
           "headers": {}
-      
+
         },
         "actual": {
           "method": "GET",
           "path": "/path",
           "query": "hippo=John&alligator=Mary",
           "headers": {}
-      
+
         }
       }
     "#).unwrap();
@@ -60,14 +61,14 @@ fn different_params() {
           "path": "/path",
           "query": "alligator=Mary&hippo=John",
           "headers": {}
-      
+
         },
         "actual": {
           "method": "GET",
           "path": "/path",
           "query": "alligator=Mary&hippo=Fred",
           "headers": {}
-      
+
         }
       }
     "#).unwrap();
@@ -97,14 +98,14 @@ fn matches_with_equals_in_the_query_value() {
           "path": "/path",
           "query": "options=delete.topic.enable=true&broker=1",
           "headers": {}
-      
+
         },
         "actual": {
           "method": "GET",
           "path": "/path",
           "query": "options=delete.topic.enable%3Dtrue&broker=1",
           "headers": {}
-      
+
         }
       }
     "#).unwrap();
@@ -134,14 +135,14 @@ fn matches() {
           "path": "/path",
           "query": "alligator=Mary&hippo=John",
           "headers": {}
-      
+
         },
         "actual": {
           "method": "GET",
           "path": "/path",
           "query": "alligator=Mary&hippo=John",
           "headers": {}
-      
+
         }
       }
     "#).unwrap();
@@ -171,14 +172,14 @@ fn missing_params() {
           "path": "/path",
           "query": "alligator=Mary&hippo=Fred&elephant=missing",
           "headers": {}
-      
+
         },
         "actual": {
           "method": "GET",
           "path": "/path",
           "query": "alligator=Mary&hippo=Fred",
           "headers": {}
-      
+
         }
       }
     "#).unwrap();
@@ -208,14 +209,14 @@ fn same_parameter_different_values() {
           "path": "/path",
           "query": "animal=alligator&animal=hippo",
           "headers": {}
-      
+
         },
         "actual": {
           "method": "GET",
           "path": "/path",
           "query": "animal=alligator&animal=elephant",
           "headers": {}
-      
+
         }
       }
     "#).unwrap();
@@ -245,7 +246,7 @@ fn same_parameter_multiple_times_in_different_order() {
           "path": "/path",
           "query": "animal=alligator&animal=hippo&animal=elephant",
           "headers": {}
-      
+
         },
         "actual": {
           "method": "GET",
@@ -281,7 +282,7 @@ fn same_parameter_multiple_times() {
           "path": "/path",
           "query": "animal=alligator&animal=hippo&animal=elephant&hippo=Fred",
           "headers": {}
-      
+
         },
         "actual": {
           "method": "GET",
@@ -317,14 +318,14 @@ fn trailing_ampersand() {
           "path": "/path",
           "query": "alligator=Mary&hippo=John",
           "headers": {}
-      
+
         },
         "actual": {
           "method": "GET",
           "path": "/path",
           "query": "alligator=Mary&hippo=John&",
           "headers": {}
-      
+
         }
       }
     "#).unwrap();
@@ -354,14 +355,14 @@ fn unexpected_param() {
           "path": "/path",
           "query": "alligator=Mary&hippo=John",
           "headers": {}
-      
+
         },
         "actual": {
           "method": "GET",
           "path": "/path",
           "query": "alligator=Mary&hippo=John&elephant=unexpected",
           "headers": {}
-      
+
         }
       }
     "#).unwrap();

@@ -1,11 +1,7 @@
-#[macro_use] extern crate pact_matching;
-#[macro_use(expect)] extern crate expectest;
-extern crate env_logger;
-extern crate serde_json;
-
 mod spec_testcases;
 
 use pact_matching::models::*;
+use pact_matching::s;
 use std::{
   env,
   path::PathBuf,
@@ -14,6 +10,7 @@ use std::{
   iter::Iterator
 };
 use expectest::prelude::*;
+use expectest::*;
 
 /// Get the path to one of our sample *.json files.
 fn fixture_path(path: &str) -> PathBuf {

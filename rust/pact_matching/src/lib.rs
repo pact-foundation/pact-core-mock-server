@@ -324,24 +324,6 @@
 //!
 
 #![warn(missing_docs)]
-#[macro_use] extern crate lazy_static;
-extern crate hex;
-extern crate onig;
-extern crate semver;
-#[macro_use] extern crate itertools;
-extern crate rand;
-extern crate sxd_document;
-extern crate ansi_term;
-extern crate difference;
-extern crate base64;
-extern crate uuid;
-extern crate indextree;
-#[macro_use] extern crate nom;
-extern crate chrono;
-extern crate chrono_tz;
-extern crate rand_regex;
-extern crate regex_syntax;
-extern crate reqwest;
 
 /// Simple macro to convert a string slice to a `String` struct.
 #[macro_export]
@@ -352,6 +334,7 @@ macro_rules! s {
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use onig::Regex;
+use lazy_static::*;
 use ansi_term::*;
 use ansi_term::Colour::*;
 

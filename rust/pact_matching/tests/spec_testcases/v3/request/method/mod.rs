@@ -8,6 +8,7 @@ use pact_matching::models::Request;
 use pact_matching::match_request;
 #[allow(unused_imports)]
 use expectest::prelude::*;
+use expectest::*;
 #[allow(unused_imports)]
 use serde_json;
 
@@ -29,7 +30,7 @@ fn different_method() {
           "path": "/",
           "query": {},
           "headers": {}
-      
+
         }
       }
     "#).unwrap();
@@ -65,7 +66,7 @@ fn matches() {
           "path": "/",
           "query": {},
           "headers": {}
-      
+
         }
       }
     "#).unwrap();
@@ -101,7 +102,7 @@ fn method_is_different_case() {
           "path": "/",
           "query": {},
           "headers": {}
-      
+
         }
       }
     "#).unwrap();

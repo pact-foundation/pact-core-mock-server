@@ -14,10 +14,6 @@ To use it, add it to your dependencies in your cargo manifest and add an extern 
 pact_matching = "0.4.0"
 ```
 
-```rust
-extern crate pact_matching;
-```
-
 This crate provides two functions: `match_request` and `match_response`. These functions take an expected and actual request or response
 model from the `models` module, and return a vector of mismatches.
 
