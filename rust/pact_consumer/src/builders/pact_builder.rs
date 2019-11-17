@@ -7,6 +7,7 @@ use super::interaction_builder::InteractionBuilder;
 ///
 /// ```
 /// use pact_consumer::prelude::*;
+/// use pact_consumer::*;
 ///
 /// # fn main() {
 /// let pact = PactBuilder::new("Greeting Client", "Greeting Server")

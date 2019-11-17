@@ -97,6 +97,7 @@
 //! ```
 //! # fn main() {
 //! use pact_consumer::prelude::*;
+//! use pact_consumer::*;
 //!
 //! PactBuilder::new("quotes client", "quotes service")
 //!     .interaction("add a new quote to the database", |i| {

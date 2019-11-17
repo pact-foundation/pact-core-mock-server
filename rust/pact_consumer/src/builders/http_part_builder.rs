@@ -36,6 +36,7 @@ pub trait HttpPartBuilder {
     ///
     /// ```
     /// use pact_consumer::prelude::*;
+    /// use pact_consumer::*;
     /// use pact_consumer::builders::RequestBuilder;
     /// use regex::Regex;
     ///
@@ -113,6 +114,7 @@ pub trait HttpPartBuilder {
     ///
     /// ```
     /// use pact_consumer::prelude::*;
+    /// use pact_consumer::*;
     /// use pact_consumer::builders::RequestBuilder;
     ///
     /// # fn main() {

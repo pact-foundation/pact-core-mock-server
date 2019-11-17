@@ -14,7 +14,8 @@
 /// Construct a `JsonPattern` object using a convenient syntax.
 ///
 /// ```rust
-/// // Place this declaration in your top-level `main.rs` or `lib.rs` file.
+/// use pact_consumer::*;
+///
 /// # fn main() {
 /// json_pattern!({
 ///     "message": "Hello, world!",
@@ -27,10 +28,10 @@
 /// The `json_pattern!` macro supports nested Rust expressions:
 ///
 /// ```
-/// // Place these declarations in your top-level `main.rs` or `lib.rs` file.
-/// use pact_consumer::prelude::*;
+/// use pact_consumer::*;
+/// use serde_json::*;
 ///
-/// #[derive(Serialize)]
+/// #[derive(serde::Serialize)]
 /// struct Point {
 ///    x: f32,
 ///    y: f32,
