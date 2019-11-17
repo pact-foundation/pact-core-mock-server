@@ -7,7 +7,7 @@ This library implements the core matching logic required for matching HTTP reque
 
 ## To use it
 
-To use it, add it to your dependencies in your cargo manifest and add an extern crate definition for it.
+To use it, add it to your dependencies in your cargo manifest:
 
 ```toml
 [dependencies]

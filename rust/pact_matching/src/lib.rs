@@ -3,7 +3,7 @@
 //!
 //! ## To use it
 //!
-//! To use it, add it to your dependencies in your cargo manifest and add an extern crate definition for it.
+//! To use it, add it to your dependencies in your cargo manifest.
 //!
 //! This crate provides two functions: [`match_request`](fn.match_request.html) and [`match_response`](fn.match_response.html).
 //! These functions take an expected and actual request or response

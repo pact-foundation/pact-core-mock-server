@@ -7,7 +7,7 @@ This library provides a test DSL for writing consumer pact tests in Rust. It is 
 
 ## To use it
 
-To use it, add it to your dev-dependencies in your cargo manifest.
+To use it, add it to your dev-dependencies in your cargo manifest:
 
 ```
 [dev-dependencies]
