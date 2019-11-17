@@ -1,8 +1,9 @@
 use hyper::server::{Handler, Server, Request, Response};
 use pact_matching::models::Pact;
+use pact_matching::s;
 use pact_mock_server::server_manager::ServerManager;
 use uuid::Uuid;
-use serde_json::{self, Value};
+use serde_json::{self, Value, json};
 use std::{
   sync::{Arc, Mutex},
   thread,
@@ -18,6 +19,7 @@ use webmachine_rust::context::*;
 use webmachine_rust::headers::*;
 use clap::ArgMatches;
 use rand::{self, Rng};
+use maplit::*;
 
 fn json_error(error: String) -> String {
     let json_response = json!({ s!("error") : json!(error) });
@@ -76,14 +78,14 @@ fn start_provider(
                     }
                 },
                 Err(err) => {
-                    error!("Failed to parse json body - {}", err);
+                    log::error!("Failed to parse json body - {}", err);
                     context.response.body = Some(json_error(format!("Failed to parse json body - {}", err)));
                     Err(422)
                 }
             }
         },
         _ => {
-            error!("No pact json was supplied");
+            log::error!("No pact json was supplied");
             context.response.body = Some(json_error(s!("No pact json was supplied")));
             Err(422)
         }
@@ -157,7 +159,7 @@ fn shutdown_resource(server_key: Arc<String>) -> WebmachineResource {
               None => Ok(100)
             },
             Err(err) => {
-              error!("Failed to parse json body - {}", err);
+              log::error!("Failed to parse json body - {}", err);
               context.response.body = Some(json_error(format!("Failed to parse json body - {}", err)));
               Err(422)
             }
@@ -169,9 +171,9 @@ fn shutdown_resource(server_key: Arc<String>) -> WebmachineResource {
       match shutdown_period {
         Ok(period) => {
           thread::spawn(move || {
-            info!("Scheduling master server to shutdown in {}ms", period);
+            log::info!("Scheduling master server to shutdown in {}ms", period);
             thread::sleep(Duration::from_millis(period));
-            info!("Shutting down");
+            log::info!("Shutting down");
             process::exit(0);
           });
           Ok(true)
@@ -284,7 +286,7 @@ impl Handler for ServerHandler {
     );
     match dispatcher.dispatch(req, res) {
       Ok(_) => (),
-      Err(err) => warn!("Error generating response - {}", err)
+      Err(err) => log::warn!("Error generating response - {}", err)
     };
   }
 }
@@ -299,18 +301,18 @@ pub fn start_server(port: u16, matches: &ArgMatches) -> Result<(), i32> {
             server.keep_alive(None);
             match server.handle(ServerHandler::new(output_path, base_port, server_key.clone())) {
                 Ok(listener) => {
-                    info!("Master server started on port {}", listener.socket.port());
-                    info!("Server key: '{}'", server_key);
+                    log::info!("Master server started on port {}", listener.socket.port());
+                    log::info!("Server key: '{}'", server_key);
                     Ok(())
                 },
                 Err(err) => {
-                    error!("could not bind listener to port: {}", err);
+                    log::error!("could not bind listener to port: {}", err);
                     Err(2)
                 }
             }
         },
         Err(err) => {
-            error!("could not start master server: {}", err);
+            log::error!("could not start master server: {}", err);
             Err(1)
         }
     }

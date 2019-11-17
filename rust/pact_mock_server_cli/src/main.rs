@@ -4,28 +4,6 @@
 
 #![warn(missing_docs)]
 
-#[macro_use] extern crate clap;
-#[macro_use] extern crate pact_matching;
-extern crate pact_mock_server;
-#[macro_use] extern crate log;
-#[macro_use] extern crate maplit;
-extern crate simplelog;
-extern crate uuid;
-#[macro_use] extern crate serde_json;
-extern crate hyper;
-extern crate rand;
-extern crate webmachine_rust;
-extern crate regex;
-extern crate lazy_static;
-#[allow(unused_imports)] #[macro_use] extern crate p_macro;
-
-#[cfg(test)]
-extern crate quickcheck;
-
-#[cfg(test)]
-#[macro_use(expect)]
-extern crate expectest;
-
 use clap::{Arg, App, SubCommand, AppSettings, ErrorKind, ArgMatches};
 use std::env;
 use std::str::FromStr;
@@ -52,7 +30,7 @@ mod verify;
 mod shutdown;
 
 fn print_version() {
-    println!("\npact mock server version  : v{}", crate_version!());
+    println!("\npact mock server version  : v{}", clap::crate_version!());
     println!("pact specification version: v{}", PactSpecification::V3.version_str());
 }
 
@@ -132,7 +110,7 @@ fn handle_command_args() -> Result<(), i32> {
     let args: Vec<String> = env::args().collect();
     let program = args[0].clone();
 
-    let version = format!("v{}", crate_version!());
+    let version = format!("v{}", clap::crate_version!());
     let app = App::new(program)
         .version(version.as_str())
         .about("Standalone Pact mock server")
@@ -319,6 +297,8 @@ mod test {
     use rand::Rng;
     use super::{integer_value, uuid_value};
     use expectest::prelude::*;
+    use expectest::expect;
+    use pact_matching::s;
 
     #[test]
     fn validates_integer_value() {

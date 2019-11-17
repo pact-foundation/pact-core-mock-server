@@ -50,7 +50,7 @@ pub fn list_mock_servers(host: &str, port: u16, matches: &ArgMatches) -> Result<
                         Ok(())
                     },
                     Err(err) => {
-                        error!("Failed to parse JSON: {}\n{}", err, body);
+                        log::error!("Failed to parse JSON: {}\n{}", err, body);
                         crate::display_error(format!("Failed to parse JSON: {}\n{}", err, body), matches);
                     }
                 }

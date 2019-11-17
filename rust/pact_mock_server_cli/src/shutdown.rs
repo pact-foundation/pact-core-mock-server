@@ -2,6 +2,7 @@ use clap::ArgMatches;
 use hyper::{
   Client, Url, status::*, header::{Authorization, Bearer}
 };
+use serde_json::json;
 
 pub fn shutdown_mock_server(host: &str, port: u16, matches: &ArgMatches) -> Result<(), i32> {
     let mock_server_id = matches.value_of("mock-server-id");

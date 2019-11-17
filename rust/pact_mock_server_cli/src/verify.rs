@@ -11,6 +11,7 @@ use pact_mock_server::{
     server_manager::ServerManager,
     mock_server::MockServer
 };
+use pact_matching::s;
 
 pub fn verify_mock_server(host: &str, port: u16, matches: &ArgMatches) -> Result<(), i32> {
     let mock_server_id = matches.value_of("mock-server-id");
@@ -48,7 +49,7 @@ pub fn verify_mock_server(host: &str, port: u16, matches: &ArgMatches) -> Result
                                 Err(2)
                             },
                             Err(err) => {
-                                error!("Failed to parse JSON: {}\n{}", err, body);
+                                log::error!("Failed to parse JSON: {}\n{}", err, body);
                                 crate::display_error(format!("Failed to parse JSON: {}\n{}", err, body), matches);
                             }
                         }
