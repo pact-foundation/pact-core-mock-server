@@ -9,7 +9,7 @@ pub trait Matches<A> {
 
 impl Matches<String> for String {
     fn matches(&self, actual: &String, matcher: &MatchingRule) -> Result<(), String> {
-        debug!("String -> String: comparing '{}' to '{}' using {:?}", self, actual, matcher);
+        log::debug!("String -> String: comparing '{}' to '{}' using {:?}", self, actual, matcher);
         match *matcher {
           MatchingRule::Regex(ref regex) => {
             match Regex::new(regex) {
@@ -78,7 +78,7 @@ impl Matches<String> for String {
 
 impl Matches<u64> for String {
     fn matches(&self, actual: &u64, matcher: &MatchingRule) -> Result<(), String> {
-        debug!("String -> u64: comparing '{}' to {} using {:?}", self, actual, matcher);
+        log::debug!("String -> u64: comparing '{}' to {} using {:?}", self, actual, matcher);
         match *matcher {
           MatchingRule::Regex(ref regex) => {
             match Regex::new(regex) {
@@ -114,7 +114,7 @@ impl Matches<u64> for String {
 
 impl Matches<u64> for u64 {
     fn matches(&self, actual: &u64, matcher: &MatchingRule) -> Result<(), String> {
-        debug!("u64 -> u64: comparing {} to {} using {:?}", self, actual, matcher);
+        log::debug!("u64 -> u64: comparing {} to {} using {:?}", self, actual, matcher);
         match *matcher {
           MatchingRule::Regex(ref regex) => {
             match Regex::new(regex) {
@@ -155,7 +155,7 @@ impl Matches<u64> for u64 {
 
 impl Matches<f64> for u64 {
     fn matches(&self, actual: &f64, matcher: &MatchingRule) -> Result<(), String> {
-        debug!("u64 -> f64: comparing {} to {} using {:?}", self, actual, matcher);
+        log::debug!("u64 -> f64: comparing {} to {} using {:?}", self, actual, matcher);
         match *matcher {
           MatchingRule::Regex(ref regex) => {
             match Regex::new(regex) {
@@ -191,7 +191,7 @@ impl Matches<f64> for u64 {
 
 impl Matches<f64> for f64 {
     fn matches(&self, actual: &f64, matcher: &MatchingRule) -> Result<(), String> {
-        debug!("f64 -> f64: comparing {} to {} using {:?}", self, actual, matcher);
+        log::debug!("f64 -> f64: comparing {} to {} using {:?}", self, actual, matcher);
         match *matcher {
           MatchingRule::Regex(ref regex) => {
             match Regex::new(regex) {
@@ -232,7 +232,7 @@ impl Matches<f64> for f64 {
 
 impl Matches<u64> for f64 {
     fn matches(&self, actual: &u64, matcher: &MatchingRule) -> Result<(), String> {
-        debug!("f64 -> u64: comparing {} to {} using {:?}", self, actual, matcher);
+        log::debug!("f64 -> u64: comparing {} to {} using {:?}", self, actual, matcher);
         match *matcher {
           MatchingRule::Regex(ref regex) => {
             match Regex::new(regex) {

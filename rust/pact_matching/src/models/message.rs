@@ -1,6 +1,7 @@
 //! The `message` module provides all functionality to deal with messages.
 
 use std::collections::HashMap;
+use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use super::*;
 use super::body_from_json;

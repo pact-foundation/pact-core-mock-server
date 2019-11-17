@@ -324,8 +324,6 @@
 //!
 
 #![warn(missing_docs)]
-#[macro_use] extern crate serde_derive;
-#[macro_use] extern crate log;
 #[macro_use] extern crate maplit;
 #[macro_use] extern crate lazy_static;
 extern crate hex;
@@ -917,7 +915,7 @@ fn match_body_content(content_type: String, expected: &models::OptionalBody, act
 /// Matches the actual body to the expected one. This takes into account the content type of each.
 pub fn match_body(expected: &dyn models::HttpPart, actual: &dyn models::HttpPart, config: DiffConfig,
     mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
-    debug!("expected content type = '{}', actual content type = '{}'", expected.content_type(),
+    log::debug!("expected content type = '{}', actual content type = '{}'", expected.content_type(),
            actual.content_type());
     if expected.content_type() == actual.content_type() {
         match_body_content(expected.content_type(), expected.body(), actual.body(), config, mismatches, matchers)
@@ -931,17 +929,17 @@ pub fn match_body(expected: &dyn models::HttpPart, actual: &dyn models::HttpPart
 pub fn match_request(expected: models::Request, actual: models::Request) -> Vec<Mismatch> {
     let mut mismatches = vec![];
 
-    info!("comparing to expected {}", expected);
-    debug!("     body: '{}'", expected.body.str_value());
-    debug!("     matching_rules: {:?}", expected.matching_rules);
-    debug!("     generators: {:?}", expected.generators);
+    log::info!("comparing to expected {}", expected);
+    log::debug!("     body: '{}'", expected.body.str_value());
+    log::debug!("     matching_rules: {:?}", expected.matching_rules);
+    log::debug!("     generators: {:?}", expected.generators);
     match_method(expected.method.clone(), actual.method.clone(), &mut mismatches);
     match_path(expected.path.clone(), actual.path.clone(), &mut mismatches, &expected.matching_rules);
     match_body(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &expected.matching_rules);
     match_query(expected.query, actual.query, &mut mismatches, &expected.matching_rules);
     match_headers(expected.headers, actual.headers, &mut mismatches, &expected.matching_rules);
 
-    debug!("--> Mismatches: {:?}", mismatches);
+    log::debug!("--> Mismatches: {:?}", mismatches);
     mismatches
 }
 
@@ -956,7 +954,7 @@ pub fn match_status(expected: u16, actual: u16, mismatches: &mut Vec<Mismatch>) 
 pub fn match_response(expected: models::Response, actual: models::Response) -> Vec<Mismatch> {
     let mut mismatches = vec![];
 
-    info!("comparing to expected response: {:?}", expected);
+    log::info!("comparing to expected response: {:?}", expected);
     match_body(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &expected.matching_rules);
     match_status(expected.status, actual.status, &mut mismatches);
     match_headers(expected.headers, actual.headers, &mut mismatches, &expected.matching_rules);
@@ -979,7 +977,7 @@ pub fn match_message_contents(expected: &models::message::Message, actual: &mode
 pub fn match_message(expected: models::message::Message, actual: models::message::Message) -> Vec<Mismatch> {
     let mut mismatches = vec![];
 
-    info!("comparing to expected message: {:?}", expected);
+    log::info!("comparing to expected message: {:?}", expected);
     match_message_contents(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &expected.matching_rules);
 
     mismatches

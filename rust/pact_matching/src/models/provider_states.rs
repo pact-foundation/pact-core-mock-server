@@ -2,6 +2,7 @@
 //! See http://docs.pact.io/documentation/provider_states.html for more info on provider states.
 
 use std::collections::HashMap;
+use serde::{Serialize, Deserialize};
 use serde_json::*;
 use std::hash::{Hash, Hasher};
 use std::cmp::Eq;
@@ -33,7 +34,7 @@ impl ProviderState {
                 _ => v.to_string()
             },
             None => {
-                warn!("Provider state does not have a 'name' field");
+                log::warn!("Provider state does not have a 'name' field");
                 s!("unknown provider states")
             }
         };
@@ -41,7 +42,7 @@ impl ProviderState {
             Some(v) => match *v {
                 Value::Object(ref map) => map.iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
                 _ => {
-                    warn!("Provider state parameters must be a map");
+                    log::warn!("Provider state parameters must be a map");
                     hashmap!{}
                 }
             },

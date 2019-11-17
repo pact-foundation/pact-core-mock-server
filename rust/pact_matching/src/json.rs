@@ -141,7 +141,7 @@ impl Matches<Value> for Value {
           },
           _ => Err(format!("Unable to match '{}' using {:?}", self, matcher))
        };
-       debug!("Comparing '{}' to '{}' using {:?} -> {:?}", self, actual, matcher, result);
+       log::debug!("Comparing '{}' to '{}' using {:?} -> {:?}", self, actual, matcher, result);
        result
     }
 }
@@ -195,7 +195,7 @@ impl Matches<Vec<Value>> for Vec<Value> {
           },
           _ => Err(format!("Unable to match {:?} using {:?}", self, matcher))
        };
-       debug!("Comparing '{:?}' to '{:?}' using {:?} -> {:?}", self, actual, matcher, result);
+       log::debug!("Comparing '{:?}' to '{:?}' using {:?} -> {:?}", self, actual, matcher, result);
        result
     }
 }
@@ -270,7 +270,7 @@ pub fn display_diff(expected: &String, actual: &String, path: &String) -> String
 
 fn compare(path: &Vec<String>, expected: &Value, actual: &Value, config: &DiffConfig,
     mismatches: &mut Vec<super::Mismatch>, matchers: &MatchingRules) {
-    debug!("Comparing path {}", path.join("."));
+    log::debug!("Comparing path {}", path.join("."));
     match (expected, actual) {
         (&Value::Object(ref emap), &Value::Object(ref amap)) => compare_maps(path, emap, amap, config, mismatches, matchers),
         (&Value::Object(_), _) => {
@@ -351,7 +351,7 @@ fn compare_lists(path: &Vec<String>, expected: &Vec<Value>, actual: &Vec<Value>,
     mismatches: &mut Vec<super::Mismatch>, matchers: &MatchingRules) {
     let spath = path.join(".");
     if matchers.matcher_is_defined("body", &path) {
-        debug!("compare_lists: matcher defined for path '{}'", spath);
+        log::debug!("compare_lists: matcher defined for path '{}'", spath);
         let expected_json = Value::Array(expected.clone());
         let actual_json = Value::Array(actual.clone());
         match match_values("body", path, matchers.clone(), &expected_json, &actual_json) {
@@ -394,7 +394,7 @@ fn compare_list_content(path: &Vec<String>, expected: &Vec<Value>, actual: &Vec<
     mismatches: &mut Vec<super::Mismatch>, matchers: &MatchingRules) {
     for (index, value) in expected.iter().enumerate() {
       let ps = index.to_string();
-      debug!("Comparing list item {} with value '{:?}' to '{:?}'", index, actual.get(index), value);
+      log::debug!("Comparing list item {} with value '{:?}' to '{:?}'", index, actual.get(index), value);
       let mut p = path.to_vec();
       p.push(ps);
       if index < actual.len() {
@@ -415,7 +415,7 @@ fn compare_values(path: &Vec<String>, expected: &Value, actual: &Value, mismatch
     } else {
         expected.matches(actual, &MatchingRule::Equality).map_err(|err| vec![err])
     };
-    debug!("Comparing '{:?}' to '{:?}' at path '{}' -> {:?}", expected, actual, path.join("."), matcher_result);
+    log::debug!("Comparing '{:?}' to '{:?}' at path '{}' -> {:?}", expected, actual, path.join("."), matcher_result);
     match matcher_result {
         Err(messages) => {
           for message in messages {

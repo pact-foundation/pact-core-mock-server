@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::collections::BTreeMap;
+use serde::{Serialize, Deserialize};
 use serde_json::{Value, json};
 use hex::FromHex;
 use super::strip_whitespace;
@@ -276,7 +277,7 @@ pub trait HttpPart {
                   Ok(s) => s.to_string(),
                   Err(_) => String::new()
                 };
-                debug!("Detecting content type from contents: '{}'", s);
+                log::debug!("Detecting content type from contents: '{}'", s);
                 if is_match(&XMLREGEXP, s.as_str()) {
                     s!("application/xml")
                 } else if is_match(&HTMLREGEXP, s.to_uppercase().as_str()) {
@@ -503,7 +504,7 @@ fn query_from_json(query_json: &Value, spec_version: &PactSpecification) -> Opti
     match query_json {
         &Value::String(ref s) => parse_query_string(s),
         _ => {
-            warn!("Only string versions of request query strings are supported with specification version {}, ignoring.",
+            log::warn!("Only string versions of request query strings are supported with specification version {}, ignoring.",
                 spec_version.to_string());
             None
         }
@@ -521,13 +522,13 @@ fn v3_query_from_json(query_json: &Value, spec_version: &PactSpecification) -> O
                     _ => v.to_string()
                 }).collect(),
                 _ => {
-                    warn!("Query paramter value '{}' is not valid, ignoring", v);
+                    log::warn!("Query paramter value '{}' is not valid, ignoring", v);
                     vec![]
                 }
             })
         }).collect()),
         _ => {
-            warn!("Only string or map versions of request query strings are supported with specification version {}, ignoring.",
+            log::warn!("Only string or map versions of request query strings are supported with specification version {}, ignoring.",
                 spec_version.to_string());
             None
         }
@@ -599,7 +600,7 @@ impl Request {
                         match serde_json::from_slice(body) {
                             Ok(json_body) => { map.insert(s!("body"), json_body); },
                             Err(err) => {
-                                warn!("Failed to parse json body: {}", err);
+                                log::warn!("Failed to parse json body: {}", err);
                                 map.insert(s!("body"), Value::String(encode(body)));
                             }
                         }
@@ -715,7 +716,7 @@ impl Response {
                         match serde_json::from_slice(body) {
                             Ok(json_body) => { map.insert(s!("body"), json_body); },
                             Err(err) => {
-                                warn!("Failed to parse json body: {}", err);
+                                log::warn!("Failed to parse json body: {}", err);
                                 map.insert(s!("body"), Value::String(encode(body)));
                             }
                         }
@@ -993,30 +994,30 @@ fn determine_spec_version(file: &String, metadata: &BTreeMap<String, BTreeMap<St
                             0 => PactSpecification::V1,
                             1 => PactSpecification::V1_1,
                             _ => {
-                                warn!("Unsupported specification version '{}' found in the metadata in the pact file {:?}, will try load it as a V3 specification", ver, file);
+                                log::warn!("Unsupported specification version '{}' found in the metadata in the pact file {:?}, will try load it as a V3 specification", ver, file);
                                 PactSpecification::Unknown
                             }
                         },
                         2 => PactSpecification::V2,
                         3 => PactSpecification::V3,
                         _ => {
-                            warn!("Unsupported specification version '{}' found in the metadata in the pact file {:?}, will try load it as a V3 specification", ver, file);
+                            log::warn!("Unsupported specification version '{}' found in the metadata in the pact file {:?}, will try load it as a V3 specification", ver, file);
                             PactSpecification::Unknown
                         }
                     },
                     Err(err) => {
-                        warn!("Could not parse specification version '{}' found in the metadata in the pact file {:?}, assuming V3 specification - {}", ver, file, err);
+                        log::warn!("Could not parse specification version '{}' found in the metadata in the pact file {:?}, assuming V3 specification - {}", ver, file, err);
                         PactSpecification::Unknown
                     }
                 },
                 None => {
-                    warn!("No specification version found in the metadata in the pact file {:?}, assuming V3 specification", file);
+                    log::warn!("No specification version found in the metadata in the pact file {:?}, assuming V3 specification", file);
                     PactSpecification::V3
                 }
             }
         },
         None => {
-            warn!("No metadata found in pact file {:?}, assuming V3 specification", file);
+            log::warn!("No metadata found in pact file {:?}, assuming V3 specification", file);
             PactSpecification::V3
         }
     }
@@ -1092,11 +1093,11 @@ impl Pact {
                 .collect::<Vec<Vec<PactConflict>>>();
             let num_conflicts = conflicts.len();
             if num_conflicts > 0 {
-                warn!("The following conflicting interactions where found:");
+                log::warn!("The following conflicting interactions where found:");
                 for interaction_conflicts in conflicts {
-                    warn!(" Interaction '{}':", interaction_conflicts.first().unwrap().interaction);
+                    log::warn!(" Interaction '{}':", interaction_conflicts.first().unwrap().interaction);
                     for conflict in interaction_conflicts {
-                        warn!("   {}", conflict.description);
+                        log::warn!("   {}", conflict.description);
                     }
                 }
                 Err(format!("Unable to merge pacts, as there were {} conflict(s) between the interactions",
