@@ -194,25 +194,10 @@
 
 #![warn(missing_docs)]
 
-#[macro_use] extern crate clap;
-#[allow(unused_imports)] #[macro_use] extern crate log;
-#[macro_use] extern crate pact_matching;
-extern crate pact_verifier;
-extern crate simplelog;
-extern crate rand;
-extern crate regex;
-extern crate tokio;
-
-#[cfg(test)]
-#[macro_use(expect)]
-extern crate expectest;
-
-#[cfg(test)]
-extern crate quickcheck;
-
 use std::env;
 use clap::{Arg, App, AppSettings, ErrorKind, ArgMatches};
 use pact_matching::models::PactSpecification;
+use pact_matching::s;
 use pact_verifier::*;
 use log::LevelFilter;
 use simplelog::{TermLogger, Config, TerminalMode};
@@ -230,7 +215,7 @@ fn main() {
 }
 
 fn print_version() {
-    println!("\npact verifier version     : v{}", crate_version!());
+    println!("\npact verifier version     : v{}", clap::crate_version!());
     println!("pact specification version: v{}", PactSpecification::V3.version_str());
 }
 
@@ -308,7 +293,7 @@ fn handle_command_args() -> Result<(), i32> {
     let args: Vec<String> = env::args().collect();
     let program = args[0].clone();
 
-    let version = format!("v{}", crate_version!());
+    let version = format!("v{}", clap::crate_version!());
     let app = App::new(program)
         .version(version.as_str())
         .about("Standalone Pact verifier")
@@ -528,6 +513,8 @@ mod test {
     use rand::Rng;
     use super::integer_value;
     use expectest::prelude::*;
+    use expectest::expect;
+    use pact_matching::s;
 
     #[test]
     fn validates_integer_value() {
