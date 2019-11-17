@@ -324,7 +324,6 @@
 //!
 
 #![warn(missing_docs)]
-#[macro_use] extern crate serde_json;
 #[macro_use] extern crate serde_derive;
 #[macro_use] extern crate log;
 #[macro_use] extern crate maplit;
@@ -370,7 +369,7 @@ use crate::models::HttpPart;
 use crate::models::matchingrules::*;
 use crate::models::generators::*;
 use crate::matchers::*;
-use serde_json::Value;
+use serde_json::*;
 
 fn strip_whitespace<'a, T: FromIterator<&'a str>>(val: &'a String, split_by: &'a str) -> T {
     val.split(split_by).map(|v| v.trim().clone() ).collect()

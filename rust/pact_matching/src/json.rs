@@ -1,7 +1,6 @@
 //! The `json` module provides functions to compare and display the differences between JSON bodies
 
-use serde_json;
-use serde_json::value::Value;
+use serde_json::{Value, json};
 use super::Mismatch;
 use super::DiffConfig;
 use difference::*;

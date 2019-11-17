@@ -1,6 +1,6 @@
 //! `matchingrules` module includes all the classes to deal with V3 format matchers
 
-use serde_json::{self, Value};
+use serde_json::{self, Value, json};
 use serde_json::map::Map;
 use std::{
   collections::{HashMap, HashSet, BTreeSet},

@@ -2,7 +2,7 @@
 //! See http://docs.pact.io/documentation/provider_states.html for more info on provider states.
 
 use std::collections::HashMap;
-use serde_json::Value;
+use serde_json::*;
 use std::hash::{Hash, Hasher};
 use std::cmp::Eq;
 

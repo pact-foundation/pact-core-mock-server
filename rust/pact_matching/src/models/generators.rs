@@ -6,7 +6,7 @@ use std::{
   str::FromStr,
   ops::Index
 };
-use serde_json::{self, Value};
+use serde_json::{self, Value, json};
 use super::PactSpecification;
 use rand::prelude::*;
 use rand::distributions::Alphanumeric;

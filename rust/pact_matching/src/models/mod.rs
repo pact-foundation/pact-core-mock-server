@@ -2,8 +2,7 @@
 
 use std::collections::HashMap;
 use std::collections::BTreeMap;
-use serde_json;
-use serde_json::Value;
+use serde_json::{Value, json};
 use hex::FromHex;
 use super::strip_whitespace;
 use onig::Regex;
