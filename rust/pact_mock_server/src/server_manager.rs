@@ -2,7 +2,7 @@
 //! This module defines a manager for holding multiple instances of mock servers.
 //!
 
-use mock_server::MockServer;
+use crate::mock_server::MockServer;
 
 use pact_matching::models::{Pact};
 use std::collections::BTreeMap;
@@ -56,7 +56,7 @@ impl ServerManager {
 
     /// Shut down a server by its local port number
     pub fn shutdown_mock_server_by_port(&mut self, port: u16) -> bool {
-        debug!("Shutting down mock server with port {}", port);
+        log::debug!("Shutting down mock server with port {}", port);
         let result = self.mock_servers.iter()
             .find(|ms| ms.1.addr.port() == port)
             .map(|ms| ms.1.id.clone());

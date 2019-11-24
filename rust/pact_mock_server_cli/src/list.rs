@@ -50,16 +50,16 @@ pub fn list_mock_servers(host: &str, port: u16, matches: &ArgMatches) -> Result<
                         Ok(())
                     },
                     Err(err) => {
-                        error!("Failed to parse JSON: {}\n{}", err, body);
-                        ::display_error(format!("Failed to parse JSON: {}\n{}", err, body), matches);
+                        log::error!("Failed to parse JSON: {}\n{}", err, body);
+                        crate::display_error(format!("Failed to parse JSON: {}\n{}", err, body), matches);
                     }
                 }
             } else {
-                ::display_error(format!("Master mock server returned an error: {}\n{}", result.status, body), matches);
+                crate::display_error(format!("Master mock server returned an error: {}\n{}", result.status, body), matches);
             }
         },
         Err(err) => {
-            ::display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), matches);
+            crate::display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), matches);
         }
     }
 }

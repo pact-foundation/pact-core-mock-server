@@ -8,6 +8,7 @@ use pact_matching::models::Request;
 use pact_matching::match_request;
 #[allow(unused_imports)]
 use expectest::prelude::*;
+use expectest::*;
 #[allow(unused_imports)]
 use serde_json;
 
@@ -23,14 +24,14 @@ fn trailing_amperand() {
           "path": "/path",
           "query": "alligator=Mary&hippo=John",
           "headers": {}
-      
+
         },
         "actual": {
           "method": "GET",
           "path": "/path",
           "query": "alligator=Mary&hippo=John&",
           "headers": {}
-      
+
         }
       }
     "#).unwrap();
@@ -60,14 +61,14 @@ fn matches() {
           "path": "/path",
           "query": "alligator=Mary&hippo=John",
           "headers": {}
-      
+
         },
         "actual": {
           "method": "GET",
           "path": "/path",
           "query": "alligator=Mary&hippo=John",
           "headers": {}
-      
+
         }
       }
     "#).unwrap();
@@ -97,14 +98,14 @@ fn different_param_values() {
           "path": "/path",
           "query": "alligator=Mary&hippo=John",
           "headers": {}
-      
+
         },
         "actual": {
           "method": "GET",
           "path": "/path",
           "query": "alligator=Mary&hippo=Fred",
           "headers": {}
-      
+
         }
       }
     "#).unwrap();
@@ -134,14 +135,14 @@ fn different_param_order() {
           "path": "/path",
           "query": "alligator=Mary&hippo=John",
           "headers": {}
-      
+
         },
         "actual": {
           "method": "GET",
           "path": "/path",
           "query": "hippo=John&alligator=Mary",
           "headers": {}
-      
+
         }
       }
     "#).unwrap();

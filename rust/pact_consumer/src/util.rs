@@ -4,6 +4,7 @@
 
 use regex::{Captures, Regex};
 use serde_json;
+use lazy_static::*;
 
 /// Internal helper method for `strip_null_fields`.
 fn strip_null_fields_mut(json: &mut serde_json::Value) {
@@ -53,11 +54,6 @@ fn strip_null_fields_mut(json: &mut serde_json::Value) {
 ///
 // This fails to link with Rust beta 1.27.0
 /// ```ignore
-/// #[macro_use]
-/// extern crate pact_consumer;
-/// #[macro_use]
-/// extern crate serde_json;
-///
 /// use pact_consumer::prelude::*;
 ///
 /// # fn main() {

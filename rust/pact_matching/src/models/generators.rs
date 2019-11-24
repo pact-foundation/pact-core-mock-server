@@ -6,20 +6,22 @@ use std::{
   str::FromStr,
   ops::Index
 };
-use serde_json::{self, Value};
+use serde::{Serialize, Deserialize};
+use serde_json::{self, Value, json};
+use maplit::*;
 use super::PactSpecification;
 use rand::prelude::*;
 use rand::distributions::Alphanumeric;
 use uuid::Uuid;
-use models::{OptionalBody, DetectedContentType};
-use models::json_utils::{JsonToNum, json_to_string};
-use models::xml_utils::parse_bytes;
+use crate::models::{OptionalBody, DetectedContentType};
+use crate::models::json_utils::{JsonToNum, json_to_string};
+use crate::models::xml_utils::parse_bytes;
 use sxd_document::dom::Document;
-use path_exp::*;
+use crate::path_exp::*;
 use itertools::Itertools;
 use indextree::{Arena, NodeId};
 use chrono::prelude::*;
-use time_utils::{parse_pattern, to_chrono_pattern};
+use crate::time_utils::{parse_pattern, to_chrono_pattern};
 use nom::types::CompleteStr;
 use regex_syntax;
 
@@ -96,7 +98,7 @@ impl Generator {
       "RandomBoolean" => Some(Generator::RandomBoolean),
       "ProviderState" => Some(Generator::ProviderStateGenerator(map.get("expression").map(|f| json_to_string(f)).unwrap())),
       _ => {
-        warn!("'{}' is not a valid generator type", gen_type);
+        log::warn!("'{}' is not a valid generator type", gen_type);
         None
       }
     }
@@ -153,7 +155,7 @@ impl GenerateValue<String> for Generator {
             Some(rnd.sample(gen))
           },
           Err(err) => {
-            warn!("'{}' is not a valid regular expression - {}", regex, err);
+            log::warn!("'{}' is not a valid regular expression - {}", regex, err);
             None
           }
         }
@@ -162,7 +164,7 @@ impl GenerateValue<String> for Generator {
         Some(pattern) => match parse_pattern(CompleteStr(pattern)) {
           Ok(tokens) => Some(Local::now().date().format(&to_chrono_pattern(&tokens.1)).to_string()),
           Err(err) => {
-            warn!("Date format {} is not valid - {}", pattern, err);
+            log::warn!("Date format {} is not valid - {}", pattern, err);
             None
           }
         },
@@ -172,7 +174,7 @@ impl GenerateValue<String> for Generator {
         Some(pattern) => match parse_pattern(CompleteStr(pattern)) {
           Ok(tokens) => Some(Local::now().format(&to_chrono_pattern(&tokens.1)).to_string()),
           Err(err) => {
-            warn!("Time format {} is not valid - {}", pattern, err);
+            log::warn!("Time format {} is not valid - {}", pattern, err);
             None
           }
         },
@@ -182,7 +184,7 @@ impl GenerateValue<String> for Generator {
         Some(pattern) => match parse_pattern(CompleteStr(pattern)) {
           Ok(tokens) => Some(Local::now().format(&to_chrono_pattern(&tokens.1)).to_string()),
           Err(err) => {
-            warn!("DateTime format {} is not valid - {}", pattern, err);
+            log::warn!("DateTime format {} is not valid - {}", pattern, err);
             None
           }
         },
@@ -239,7 +241,7 @@ impl GenerateValue<Value> for Generator {
             Some(json!(rand::thread_rng().sample::<String, _>(gen)))
           },
           Err(err) => {
-            warn!("'{}' is not a valid regular expression - {}", regex, err);
+            log::warn!("'{}' is not a valid regular expression - {}", regex, err);
             None
           }
         }
@@ -248,7 +250,7 @@ impl GenerateValue<Value> for Generator {
         Some(pattern) => match parse_pattern(CompleteStr(pattern)) {
           Ok(tokens) => Some(json!(Local::now().date().format(&to_chrono_pattern(&tokens.1)).to_string())),
           Err(err) => {
-            warn!("Date format {} is not valid - {}", pattern, err);
+            log::warn!("Date format {} is not valid - {}", pattern, err);
             None
           }
         },
@@ -258,7 +260,7 @@ impl GenerateValue<Value> for Generator {
         Some(pattern) => match parse_pattern(CompleteStr(pattern)) {
           Ok(tokens) => Some(json!(Local::now().format(&to_chrono_pattern(&tokens.1)).to_string())),
           Err(err) => {
-            warn!("Time format {} is not valid - {}", pattern, err);
+            log::warn!("Time format {} is not valid - {}", pattern, err);
             None
           }
         },
@@ -268,7 +270,7 @@ impl GenerateValue<Value> for Generator {
         Some(pattern) => match parse_pattern(CompleteStr(pattern)) {
           Ok(tokens) => Some(json!(Local::now().format(&to_chrono_pattern(&tokens.1)).to_string())),
           Err(err) => {
-            warn!("DateTime format {} is not valid - {}", pattern, err);
+            log::warn!("DateTime format {} is not valid - {}", pattern, err);
             None
           }
         },
@@ -460,7 +462,7 @@ impl ContentTypeHandler<Value> for JsonHandler {
           }
         }
       },
-      Err(err) => warn!("Generator path '{}' is invalid, ignoring: {}", key, err)
+      Err(err) => log::warn!("Generator path '{}' is invalid, ignoring: {}", key, err)
     }
   }
 }
@@ -511,13 +513,13 @@ impl Generators {
             _ => for (sub_k, sub_v) in map {
               match sub_v {
                 &Value::Object(ref map) => self.parse_generator_from_map(category, map, Some(sub_k.clone())),
-                _ => warn!("Ignoring invalid generator JSON '{}' -> {:?}", sub_k, sub_v)
+                _ => log::warn!("Ignoring invalid generator JSON '{}' -> {:?}", sub_k, sub_v)
               }
             }
           },
-          Err(err) => warn!("Ignoring generator with invalid category '{}' - {}", k, err)
+          Err(err) => log::warn!("Ignoring generator with invalid category '{}' - {}", k, err)
         },
-        _ => warn!("Ignoring invalid generator JSON '{}' -> {:?}", k, v)
+        _ => log::warn!("Ignoring invalid generator JSON '{}' -> {:?}", k, v)
       }
     }
   }
@@ -531,11 +533,11 @@ impl Generators {
             Some(s) => self.add_generator_with_subcategory(category, s, generator),
             None => self.add_generator(category, generator)
           },
-          None => warn!("Ignoring invalid generator JSON '{:?}' with invalid type attribute -> {:?}", category, map)
+          None => log::warn!("Ignoring invalid generator JSON '{:?}' with invalid type attribute -> {:?}", category, map)
         },
-        _ => warn!("Ignoring invalid generator JSON '{:?}' with invalid type attribute -> {:?}", category, map)
+        _ => log::warn!("Ignoring invalid generator JSON '{:?}' with invalid type attribute -> {:?}", category, map)
       },
-      None => warn!("Ignoring invalid generator JSON '{:?}' with no type attribute -> {:?}", category, map)
+      None => log::warn!("Ignoring invalid generator JSON '{:?}' with no type attribute -> {:?}", category, map)
     }
   }
 
@@ -598,7 +600,7 @@ impl Generators {
               handler.process_body(&generators, context)
             },
             Err(err) => {
-              error!("Failed to parse the body, so not applying any generators: {}", err);
+              log::error!("Failed to parse the body, so not applying any generators: {}", err);
               body.clone()
             }
           }
@@ -609,7 +611,7 @@ impl Generators {
             handler.process_body(&generators, context)
           },
           Err(err) => {
-            error!("Failed to parse the body, so not applying any generators: {}", err);
+            log::error!("Failed to parse the body, so not applying any generators: {}", err);
             body.clone()
           }
         },
@@ -709,9 +711,10 @@ macro_rules! generators {
 mod tests {
   use super::*;
   use expectest::prelude::*;
+  use expectest::expect;
   use super::Generator;
   use std::str::FromStr;
-  use hamcrest2::prelude::*;
+  use hamcrest2::*;
 
   #[test]
   fn rules_are_empty_when_there_are_no_categories() {

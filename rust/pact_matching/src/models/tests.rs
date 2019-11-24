@@ -1,18 +1,20 @@
 use super::*;
 use super::{body_from_json, headers_from_json};
-use models::matchingrules::{MatchingRule, matchers_from_json};
+use crate::models::matchingrules::{MatchingRule, matchers_from_json};
 use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
 use std::fs::{self, File};
 use std::io;
 use std::env;
 use expectest::prelude::*;
+use expectest::expect;
 use rand;
 use std::hash::{Hash, Hasher};
 use super::provider_states::*;
 use super::matchingrules::*;
 use super::generators::{Generators, Generator, generators_from_json};
 use std::str::FromStr;
+use serde_json::json;
 #[allow(unused_imports)] use env_logger;
 
 #[test]

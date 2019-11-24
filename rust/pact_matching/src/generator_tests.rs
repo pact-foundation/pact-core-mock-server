@@ -1,10 +1,13 @@
 use super::*;
 use expectest::prelude::*;
-use models::{Request, Response, OptionalBody, DetectedContentType};
-use models::generators::{JsonHandler, ContentTypeHandler};
+use expectest::expect;
+use crate::models::{Request, Response, OptionalBody, DetectedContentType};
+use crate::models::generators::{JsonHandler, ContentTypeHandler};
 use std::str::FromStr;
 use serde_json::Value;
+use maplit::*;
 use hamcrest2::prelude::*;
+use hamcrest2::*;
 
 #[test]
 fn returns_original_response_if_there_are_no_generators() {
@@ -154,7 +157,7 @@ fn applies_the_generator_to_a_json_map_entry() {
 fn json_generator_handles_invalid_path_expressions() {
   let map = json!({"a": 100, "b": "B", "c": "C"});
   let mut json_handler = JsonHandler { value: map };
-  
+
   json_handler.apply_key(&s!("$["), &Generator::RandomInt(0, 10), &hashmap!{});
 
   expect!(json_handler.value).to(be_equal_to(json!({"a": 100, "b": "B", "c": "C"})));
@@ -164,7 +167,7 @@ fn json_generator_handles_invalid_path_expressions() {
 fn does_not_apply_the_generator_when_field_is_not_in_map() {
   let map = json!({"a": 100, "b": "B", "c": "C"});
   let mut json_handler = JsonHandler { value: map };
-  
+
   json_handler.apply_key(&s!("$.d"), &Generator::RandomInt(0, 10), &hashmap!{});
 
   expect!(json_handler.value).to(be_equal_to(json!({"a": 100, "b": "B", "c": "C"})));
@@ -174,7 +177,7 @@ fn does_not_apply_the_generator_when_field_is_not_in_map() {
 fn does_not_apply_the_generator_when_not_a_map() {
   let map = json!(100);
   let mut json_handler = JsonHandler { value: map };
-  
+
   json_handler.apply_key(&s!("$.d"), &Generator::RandomInt(0, 10), &hashmap!{});
 
   expect!(json_handler.value).to(be_equal_to(json!(100)));
@@ -194,7 +197,7 @@ fn applies_the_generator_to_a_list_item() {
 fn does_not_apply_the_generator_when_index_is_not_in_list() {
   let list = json!([100, 200, 300]);
   let mut json_handler = JsonHandler { value: list };
-  
+
   json_handler.apply_key(&s!("$[3]"), &Generator::RandomInt(0, 10), &hashmap!{});
 
   expect!(json_handler.value).to(be_equal_to(json!([100, 200, 300])));
@@ -204,7 +207,7 @@ fn does_not_apply_the_generator_when_index_is_not_in_list() {
 fn does_not_apply_the_generator_when_not_a_list() {
   let list = json!(100);
   let mut json_handler = JsonHandler { value: list };
-  
+
   json_handler.apply_key(&s!("$[3]"), &Generator::RandomInt(0, 10), &hashmap!{});
 
   expect!(json_handler.value).to(be_equal_to(json!(100)));

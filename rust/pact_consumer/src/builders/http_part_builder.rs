@@ -4,7 +4,7 @@ use pact_matching::models::matchingrules::MatchingRules;
 use regex::Regex;
 use std::collections::HashMap;
 
-use prelude::*;
+use crate::prelude::*;
 
 #[cfg(test)]
 #[allow(unused_imports)]
@@ -35,11 +35,8 @@ pub trait HttpPartBuilder {
     /// Specify a header pattern.
     ///
     /// ```
-    /// #[macro_use]
-    /// extern crate pact_consumer;
-    /// extern crate regex;
-    ///
     /// use pact_consumer::prelude::*;
+    /// use pact_consumer::*;
     /// use pact_consumer::builders::RequestBuilder;
     /// use regex::Regex;
     ///
@@ -93,9 +90,6 @@ pub trait HttpPartBuilder {
     /// Specify a body literal. This does not allow using patterns.
     ///
     /// ```
-    /// #[macro_use]
-    /// extern crate pact_consumer;
-    ///
     /// use pact_consumer::prelude::*;
     /// use pact_consumer::builders::RequestBuilder;
     ///
@@ -119,10 +113,8 @@ pub trait HttpPartBuilder {
     /// rules.
     ///
     /// ```
-    /// #[macro_use]
-    /// extern crate pact_consumer;
-    ///
     /// use pact_consumer::prelude::*;
+    /// use pact_consumer::*;
     /// use pact_consumer::builders::RequestBuilder;
     ///
     /// # fn main() {

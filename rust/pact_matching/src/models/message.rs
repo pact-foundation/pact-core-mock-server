@@ -1,7 +1,9 @@
 //! The `message` module provides all functionality to deal with messages.
 
 use std::collections::HashMap;
+use serde::{Serialize, Deserialize};
 use serde_json::Value;
+use maplit::*;
 use super::*;
 use super::body_from_json;
 
@@ -90,6 +92,7 @@ impl Message {
 mod tests {
     use super::*;
     use expectest::prelude::*;
+    use expectest::expect;
     use serde_json;
 
     #[test]

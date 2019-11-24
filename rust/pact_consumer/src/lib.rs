@@ -34,19 +34,10 @@
 //! pact_consumer = "0.4.0"
 //! ```
 //!
-//! Then add the following to your top-level `lib.rs` or `main.rs` file:
-//!
-//! ```
-//! #[cfg(test)]
-//! #[macro_use]
-//! extern crate pact_consumer;
-//! ```
-//!
 //! Once this is done, you can then write the following inside a function marked
 //! with `#[test]`:
 //!
 //! ```
-//! # #[macro_use] extern crate pact_consumer;
 //! # fn main() {
 //! use pact_consumer::prelude::*;
 //!
@@ -76,9 +67,6 @@
 //! # // This is marked `no_run` because of the issues described in
 //! # // https://github.com/rust-lang/cargo/issues/4567. An executable
 //! # // version is checked in tests/tests.rs.
-//! # #[macro_use] extern crate pact_consumer;
-//! # extern crate pact_matching;
-//! # extern crate reqwest;
 //! # use pact_matching::models::Pact;
 //! # use std::io::Read;
 //! # fn main() {
@@ -107,9 +95,9 @@
 //! `json_pattern!` macro:
 //!
 //! ```
-//! # #[macro_use] extern crate pact_consumer;
 //! # fn main() {
 //! use pact_consumer::prelude::*;
+//! use pact_consumer::*;
 //!
 //! PactBuilder::new("quotes client", "quotes service")
 //!     .interaction("add a new quote to the database", |i| {
@@ -161,13 +149,6 @@
 //!
 // This fails to link with Rust beta 1.27.0
 //! ```ignore
-//! #[macro_use]
-//! extern crate pact_consumer;
-//! #[macro_use]
-//! extern crate serde_derive;
-//! #[macro_use]
-//! extern crate serde_json;
-//!
 //! use pact_consumer::prelude::*;
 //!
 //! /// Our application's domain object representing a user.
@@ -211,26 +192,6 @@
 //! [Best Practices]: https://docs.pact.io/best_practices/consumer.html
 #![warn(missing_docs)]
 
-#[cfg(test)]
-extern crate env_logger;
-#[macro_use]
-extern crate lazy_static;
-#[allow(unused_imports)] #[macro_use]
-extern crate maplit;
-#[allow(unused_imports)] #[macro_use]
-extern crate pact_matching;
-extern crate pact_mock_server;
-extern crate regex;
-#[cfg(test)]
-#[macro_use]
-extern crate serde_derive;
-#[cfg_attr(test, macro_use)]
-extern crate serde_json;
-extern crate url;
-extern crate uuid;
-extern crate tokio;
-extern crate futures;
-
 // Child modules which define macros (must be first because macros are resolved)
 // in source inclusion order).
 #[macro_use]
@@ -251,9 +212,9 @@ pub mod util;
 /// use pact_consumer::prelude::*;
 /// ```
 pub mod prelude {
-    pub use builders::{HttpPartBuilder, PactBuilder};
-    pub use patterns::{Pattern, JsonPattern, StringPattern};
-    pub use patterns::{EachLike, Like, Term};
-    pub use mock_server::{StartMockServer, ValidatingMockServer};
-    pub use util::strip_null_fields;
+    pub use crate::builders::{HttpPartBuilder, PactBuilder};
+    pub use crate::patterns::{Pattern, JsonPattern, StringPattern};
+    pub use crate::patterns::{EachLike, Like, Term};
+    pub use crate::mock_server::{StartMockServer, ValidatingMockServer};
+    pub use crate::util::strip_null_fields;
 }

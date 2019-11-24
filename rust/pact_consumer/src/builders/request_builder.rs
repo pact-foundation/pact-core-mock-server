@@ -3,13 +3,14 @@ use pact_matching::models::matchingrules::MatchingRules;
 #[cfg(test)]
 use regex::Regex;
 use std::collections::HashMap;
+use maplit::*;
 
 #[cfg(test)]
 #[allow(unused_imports)]
 use env_logger;
 
-use prelude::*;
-use util::GetDefaulting;
+use crate::prelude::*;
+use crate::util::GetDefaulting;
 
 /// Builder for `Request` objects. Normally created via `PactBuilder`.
 pub struct RequestBuilder {
@@ -67,11 +68,7 @@ impl RequestBuilder {
     /// a list of values to represent a repeated parameter.
     ///
     /// ```
-    /// #[macro_use]
-    /// extern crate pact_consumer;
-    /// extern crate regex;
-    ///
-    /// use pact_consumer::prelude::*;
+    /// use pact_consumer::*;
     /// use pact_consumer::builders::RequestBuilder;
     /// use regex::Regex;
     ///
@@ -196,7 +193,7 @@ fn query_param_with_underscore() {
 
 #[test]
 fn term_does_not_require_anchors() {
-    use prelude::*;
+    use crate::prelude::*;
 
     let pattern = PactBuilder::new("C", "P")
         .interaction("I", |i| {

@@ -1,15 +1,17 @@
 //! `matchingrules` module includes all the classes to deal with V3 format matchers
 
-use serde_json::{self, Value};
+use serde::{Serialize, Deserialize};
+use serde_json::{self, Value, json};
 use serde_json::map::Map;
+use maplit::*;
 use std::{
   collections::{HashMap, HashSet, BTreeSet},
   hash::{Hash, Hasher}
 };
 #[allow(unused_imports)] // FromStr is actually used
 use std::str::FromStr;
-use models::json_utils::{json_to_string, json_to_num};
-use path_exp::*;
+use crate::models::json_utils::{json_to_string, json_to_num};
+use crate::path_exp::*;
 use super::PactSpecification;
 
 fn matches_token(path_fragment: &String, path_token: &PathToken) -> usize {
@@ -32,7 +34,7 @@ fn matches_token(path_fragment: &String, path_token: &PathToken) -> usize {
 fn calc_path_weight(path_exp: String, path: &Vec<String>) -> usize {
   let weight = match parse_path_exp(path_exp.clone()) {
     Ok(path_tokens) => {
-      debug!("Calculating weight for path tokens '{:?}' and path '{:?}'", path_tokens, path);
+      log::debug!("Calculating weight for path tokens '{:?}' and path '{:?}'", path_tokens, path);
       if path.len() >= path_tokens.len() {
         path_tokens.iter().zip(path.iter())
           .fold(1, |acc, (token, fragment)| acc * matches_token(fragment, token))
@@ -41,11 +43,11 @@ fn calc_path_weight(path_exp: String, path: &Vec<String>) -> usize {
       }
     },
     Err(err) => {
-      warn!("Failed to parse path expression - {}", err);
+      log::warn!("Failed to parse path expression - {}", err);
       0
     }
   };
-  debug!("Calculated weight {} for path '{}' and '{:?}'", weight, path_exp, path);
+  log::debug!("Calculated weight {} for path '{}' and '{:?}'", weight, path_exp, path);
   weight
 }
 
@@ -53,7 +55,7 @@ fn path_length(path_exp: String) -> usize {
   match parse_path_exp(path_exp.clone()) {
     Ok(path_tokens) => path_tokens.len(),
     Err(err) => {
-      warn!("Failed to parse path expression - {}", err);
+      log::warn!("Failed to parse path expression - {}", err);
       0
     }
   }
@@ -348,7 +350,7 @@ impl Category {
         let rules = self.rules.entry(key.clone()).or_insert(RuleList::default(rule_logic));
         rules.rules.insert(matching_rule);
       },
-      None => warn!("Could not parse matcher {:?}", matcher_json)
+      None => log::warn!("Could not parse matcher {:?}", matcher_json)
     }
   }
 
@@ -674,6 +676,7 @@ mod tests {
     use super::*;
     use super::{calc_path_weight, matches_token};
     use expectest::prelude::*;
+    use expectest::expect;
     use serde_json::Value;
 
     #[test]

@@ -10,7 +10,7 @@ use pact_matching::models::Pact;
 
 pub fn create_mock_server(host: &str, port: u16, matches: &ArgMatches) -> Result<(), i32> {
     let file = matches.value_of("file").unwrap();
-    info!("Creating mock server from file {}", file);
+    log::info!("Creating mock server from file {}", file);
 
     match Pact::read_pact(&Path::new(file)) {
         Ok(ref pact) => {
@@ -37,21 +37,21 @@ pub fn create_mock_server(host: &str, port: u16, matches: &ArgMatches) -> Result
                                 Ok(())
                             },
                             Err(err) => {
-                                error!("Failed to parse JSON: {}\n{}", err, body);
-                                ::display_error(format!("Failed to parse JSON: {}\n{}", err, body), matches);
+                                log::error!("Failed to parse JSON: {}\n{}", err, body);
+                                crate::display_error(format!("Failed to parse JSON: {}\n{}", err, body), matches);
                             }
                         }
                     } else {
-                        ::display_error(format!("Master mock server returned an error: {}\n{}", result.status, body), matches);
+                        crate::display_error(format!("Master mock server returned an error: {}\n{}", result.status, body), matches);
                     }
                 },
                 Err(err) => {
-                    ::display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), matches);
+                    crate::display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), matches);
                 }
             }
         },
         Err(err) => {
-            ::display_error(format!("Failed to load pact file '{}': {}", file, err), matches);
+            crate::display_error(format!("Failed to load pact file '{}': {}", file, err), matches);
         }
     }
 }

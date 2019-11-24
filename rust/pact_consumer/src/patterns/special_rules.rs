@@ -51,6 +51,10 @@ impl_from_for_pattern!(Like<StringPattern>, StringPattern);
 
 #[test]
 fn like_is_pattern() {
+    use maplit::*;
+    use pact_matching::s;
+    use serde_json::*;
+
     let matchable = Like::<JsonPattern>::new(json_pattern!("hello"));
     assert_eq!(matchable.to_example(), json!("hello"));
     let mut rules = Category::default("body");
@@ -72,7 +76,8 @@ fn like_into() {
 /// as a `json_pattern!`.
 ///
 /// ```
-/// # #[macro_use] extern crate pact_consumer;
+/// use pact_consumer::*;
+///
 /// # fn main() {
 /// json_pattern!({
 ///   "id": like!(10),
@@ -144,6 +149,10 @@ impl Pattern for EachLike {
 
 #[test]
 fn each_like_is_pattern() {
+    use maplit::*;
+    use pact_matching::s;
+    use serde_json::*;
+
     let elem = Like::new(json_pattern!("hello"));
     let matchable = EachLike::new(json_pattern!(elem)).with_min_len(2);
     assert_eq!(matchable.to_example(), json!(["hello", "hello"]));
@@ -211,7 +220,8 @@ macro_rules! each_like_helper {
 /// as a `json_pattern!`.
 ///
 /// ```
-/// # #[macro_use] extern crate pact_consumer;
+/// use pact_consumer::*;
+///
 /// # fn main() {
 /// json_pattern!({
 ///   // Expect an array of strings.
@@ -233,7 +243,9 @@ macro_rules! each_like {
 
 #[test]
 fn each_like_macro_parsing() {
-    #[derive(Serialize)]
+    use serde_json::*;
+
+    #[derive(serde::Serialize)]
     struct Point {
         x: i32,
         y: i32
@@ -301,6 +313,10 @@ impl_from_for_pattern!(Term<StringPattern>, StringPattern);
 
 #[test]
 fn term_is_pattern() {
+    use maplit::*;
+    use pact_matching::s;
+    use serde_json::*;
+
     let matchable = Term::<JsonPattern>::new(Regex::new("[Hh]ello").unwrap(), "hello");
     assert_eq!(matchable.to_example(), json!("hello"));
 
@@ -335,7 +351,8 @@ pub fn build_regex<S: AsRef<str>>(regex_str: S) -> Regex {
 /// string) literal, and which generates `$example`.
 ///
 /// ```
-/// # #[macro_use] extern crate pact_consumer;
+/// use pact_consumer::*;
+///
 /// # fn main() {
 /// json_pattern!({
 ///   // Match a string consisting of numbers and lower case letters, and

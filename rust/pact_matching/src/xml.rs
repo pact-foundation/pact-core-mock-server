@@ -3,10 +3,10 @@ use super::DiffConfig;
 use sxd_document::dom::*;
 use std::collections::btree_map::BTreeMap;
 use itertools::Itertools;
-use models::matchingrules::*;
-use matchers::*;
+use crate::models::matchingrules::*;
+use crate::matchers::*;
 use onig::Regex;
-use models::xml_utils::parse_bytes;
+use crate::models::xml_utils::parse_bytes;
 
 pub fn match_xml(expected: &Vec<u8>, actual: &Vec<u8>, config: DiffConfig,
     mismatches: &mut Vec<super::Mismatch>, matchers: &MatchingRules) {
@@ -90,7 +90,7 @@ impl<'a> Matches<Element<'a>> for Element<'a> {
           },
           _ => Err(format!("Unable to match {:?} using {:?}", self, matcher))
         };
-        debug!("Comparing '{:?}' to '{:?}' using {:?} -> {:?}", self, actual, matcher, result);
+        log::debug!("Comparing '{:?}' to '{:?}' using {:?} -> {:?}", self, actual, matcher, result);
         result
     }
 }
@@ -108,12 +108,12 @@ fn path_to_string(path: &Vec<String>) -> String {
 fn compare_element(path: &Vec<String>, expected: &Element, actual: &Element, config: DiffConfig,
     mismatches: &mut Vec<super::Mismatch>, matchers: &MatchingRules) {
     let matcher_result = if matchers.matcher_is_defined("body", &path) {
-      debug!("calling match_values");
+      log::debug!("calling match_values");
       match_values("body", path, matchers.clone(), expected, actual)
     } else {
       expected.matches(actual, &MatchingRule::Equality).map_err(|err| vec![err])
     };
-    debug!("Comparing '{:?}' to '{:?}' at path '{}' -> {:?}", expected, actual, path_to_string(path), matcher_result);
+    log::debug!("Comparing '{:?}' to '{:?}' at path '{}' -> {:?}", expected, actual, path_to_string(path), matcher_result);
     match matcher_result {
         Err(messages) => {
           for message in messages {
@@ -247,7 +247,7 @@ fn compare_text(path: &Vec<String>, expected: &Element, actual: &Element,
     } else {
       expected_text.matches(&actual_text, &MatchingRule::Equality).map_err(|err| vec![err])
     };
-    debug!("Comparing text '{}' to '{}' at path '{}' -> {:?}", expected_text, actual_text,
+    log::debug!("Comparing text '{}' to '{}' at path '{}' -> {:?}", expected_text, actual_text,
         path_to_string(path), matcher_result);
     match matcher_result {
         Err(messages) => {
@@ -271,7 +271,7 @@ fn compare_value(path: &Vec<String>, expected: &String, actual: &String,
     } else {
       expected.matches(actual, &MatchingRule::Equality).map_err(|err| vec![err])
     };
-    debug!("Comparing '{}' to '{}' at path '{}' -> {:?}", expected, actual, path_to_string(path), matcher_result);
+    log::debug!("Comparing '{}' to '{}' at path '{}' -> {:?}", expected, actual, path_to_string(path), matcher_result);
     match matcher_result {
         Err(messages) => {
           for message in messages {
@@ -291,8 +291,9 @@ fn compare_value(path: &Vec<String>, expected: &String, actual: &String,
 mod tests {
     use super::*;
     use expectest::prelude::*;
-    use Mismatch;
-    use DiffConfig;
+    use expectest::expect;
+    use crate::Mismatch;
+    use crate::DiffConfig;
     use env_logger;
 
     #[test]

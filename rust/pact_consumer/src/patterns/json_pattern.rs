@@ -7,7 +7,7 @@ use std::collections::HashMap as Map;
 use std::iter::FromIterator;
 
 use super::Pattern;
-use util::obj_key_for_path;
+use crate::util::obj_key_for_path;
 
 /// A pattern which can be used to either:
 ///
@@ -98,6 +98,9 @@ impl Pattern for JsonPattern {
 #[test]
 fn json_pattern_is_pattern() {
     use env_logger;
+    use maplit::*;
+    use pact_matching::s;
+    use serde_json::*;
 
     use super::special_rules::Like;
 

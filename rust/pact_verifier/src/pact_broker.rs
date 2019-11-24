@@ -1,5 +1,7 @@
 use pact_matching::models::Pact;
-use ::{serde_json, MismatchResult};
+use pact_matching::s;
+use crate::MismatchResult;
+use serde_json::{json};
 use itertools::Itertools;
 use std::collections::HashMap;
 use super::provider_client::join_paths;
@@ -10,6 +12,7 @@ use futures::stream::Stream;
 use pact_matching::models::http_utils::HttpAuth;
 use pact_matching::Mismatch;
 use std::fmt::{Display, Formatter};
+use maplit::*;
 
 fn is_true(object: &serde_json::Map<String, serde_json::Value>, field: &String) -> bool {
     match object.get(field) {
@@ -28,14 +31,14 @@ fn as_string(json: &serde_json::Value) -> String {
     }
 }
 
-fn content_type(response: &reqwest::async::Response) -> String {
+fn content_type(response: &reqwest::r#async::Response) -> String {
     match response.headers().get("content-type") {
         Some(value) => value.to_str().unwrap_or("text/plain").into(),
         None => s!("text/plain")
     }
 }
 
-fn json_content_type(response: &reqwest::async::Response) -> bool {
+fn json_content_type(response: &reqwest::r#async::Response) -> bool {
     match content_type(response).parse::<mime::Mime>() {
         Ok(mime) => {
             match (mime.type_().as_str(), mime.subtype().as_str(), mime.suffix()) {
@@ -132,7 +135,7 @@ impl Default for Link {
 
 #[derive(Clone)]
 pub struct HALClient {
-  client: reqwest::async::Client,
+  client: reqwest::r#async::Client,
   url: String,
   path_info: Option<serde_json::Value>,
   auth: Option<HttpAuth>
@@ -142,7 +145,7 @@ impl HALClient {
 
     fn default() -> HALClient {
       HALClient {
-        client: reqwest::async::ClientBuilder::new()
+        client: reqwest::r#async::ClientBuilder::new()
           .use_default_tls()
           .build()
           .unwrap(),
@@ -203,7 +206,7 @@ impl HALClient {
 
     fn fetch_url(self, link: &Link, template_values: HashMap<String, String>) -> impl Future<Item = serde_json::Value, Error = PactBrokerError> {
         future::done(if link.templated {
-            debug!("Link URL is templated");
+            log::debug!("Link URL is templated");
             self.parse_link_url(&link, &template_values)
         } else {
             link.href.clone().ok_or(
@@ -224,7 +227,7 @@ impl HALClient {
     }
 
     fn fetch(self, path: String) -> impl Future<Item = serde_json::Value, Error = PactBrokerError> {
-        debug!("Fetching path '{}' from pact broker", path);
+        log::debug!("Fetching path '{}' from pact broker", path);
 
         future::done(join_paths(&self.url, path.clone()).parse::<reqwest::Url>())
             .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))
@@ -255,7 +258,7 @@ impl HALClient {
     fn parse_broker_response(
         self,
         path: String,
-        response: reqwest::async::Response
+        response: reqwest::r#async::Response
     ) -> impl Future<Item = serde_json::Value, Error = PactBrokerError> {
         let is_json_content_type = json_content_type(&response);
         let content_type = content_type(&response);
@@ -303,21 +306,21 @@ impl HALClient {
     fn parse_link_url(&self, link: &Link, values: &HashMap<String, String>) -> Result<String, PactBrokerError> {
         match link.href {
             Some(ref href) => {
-                debug!("templated URL = {}", href);
+                log::debug!("templated URL = {}", href);
                 let re = Regex::new(r"\{(\w+)\}").unwrap();
                 let final_url = re.replace_all(href, |caps: &Captures| {
                     let lookup = caps.get(1).unwrap().as_str();
-                    debug!("Looking up value for key '{}'", lookup);
+                    log::debug!("Looking up value for key '{}'", lookup);
                     match values.get(lookup) {
                         Some(val) => val.clone(),
                         None => {
-                            warn!("No value was found for key '{}', mapped values are {:?}",
+                            log::warn!("No value was found for key '{}', mapped values are {:?}",
                                 lookup, values);
                             format!("{{{}}}", lookup)
                         }
                     }
                 });
-                debug!("final URL = {}", final_url);
+                log::debug!("final URL = {}", final_url);
                 Ok(final_url.to_string())
             },
             None => Err(PactBrokerError::LinkError(format!("Expected a HAL+JSON response from the pact broker, but got a link with no HREF. URL: '{}', LINK: '{}'",
@@ -349,7 +352,7 @@ impl HALClient {
     }
 
   fn post_json(self, url: String, body: String) -> impl Future<Item = (), Error = PactBrokerError> {
-    debug!("Posting JSON to {}: {}", url, body);
+    log::debug!("Posting JSON to {}: {}", url, body);
     future::done(url.parse::<reqwest::Url>())
       .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))
       .and_then( move |url| {
@@ -551,9 +554,11 @@ fn build_payload(result: TestResult, version: String, build_url: Option<String>)
 #[cfg(test)]
 mod tests {
     use expectest::prelude::*;
+    use expectest::expect;
     use super::*;
     use super::{content_type, json_content_type};
     use pact_consumer::prelude::*;
+    use pact_consumer::*;
     use env_logger::*;
     use pact_matching::models::{Pact, Consumer, Provider, Interaction, PactSpecification};
     use tokio::runtime::current_thread::Runtime;
@@ -603,7 +608,7 @@ mod tests {
 
     #[test]
     fn content_type_test() {
-        let response = reqwest::async::Response::from(
+        let response = reqwest::r#async::Response::from(
             http::response::Builder::new()
                 .header("content-type", "application/hal+json; charset=utf-8")
                 .body("null")
@@ -615,7 +620,7 @@ mod tests {
 
     #[test]
     fn json_content_type_test() {
-        let response = reqwest::async::Response::from(
+        let response = reqwest::r#async::Response::from(
             http::response::Builder::new()
                 .header("content-type", "application/json")
                 .body("null")
@@ -627,7 +632,7 @@ mod tests {
 
     #[test]
     fn json_content_type_utf8_test() {
-        let response = reqwest::async::Response::from(
+        let response = reqwest::r#async::Response::from(
             http::response::Builder::new()
                 .header("content-type", "application/hal+json;charset=utf-8")
                 .body("null")

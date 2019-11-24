@@ -1,8 +1,10 @@
 use super::*;
 use super::{match_header_value, strip_whitespace};
 use std::collections::HashMap;
+use maplit::*;
 use expectest::prelude::*;
-use models::{Request, OptionalBody};
+use expectest::expect;
+use crate::models::{Request, OptionalBody};
 
 #[test]
 fn match_method_returns_nothing_if_the_method_matches() {

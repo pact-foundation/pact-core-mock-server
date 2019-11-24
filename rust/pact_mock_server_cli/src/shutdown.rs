@@ -2,6 +2,7 @@ use clap::ArgMatches;
 use hyper::{
   Client, Url, status::*, header::{Authorization, Bearer}
 };
+use serde_json::json;
 
 pub fn shutdown_mock_server(host: &str, port: u16, matches: &ArgMatches) -> Result<(), i32> {
     let mock_server_id = matches.value_of("mock-server-id");
@@ -26,7 +27,7 @@ pub fn shutdown_mock_server(host: &str, port: u16, matches: &ArgMatches) -> Resu
                             id.1, id.0);
                         Err(3)
                     },
-                    _ => ::display_error(format!("Unexpected response from master mock server '{}': {}", url, result.status), matches)
+                    _ => crate::display_error(format!("Unexpected response from master mock server '{}': {}", url, result.status), matches)
                 }
             } else {
                 println!("Mock server with {} '{}' shutdown ok", id.1, id.0);
@@ -34,7 +35,7 @@ pub fn shutdown_mock_server(host: &str, port: u16, matches: &ArgMatches) -> Resu
             }
         },
         Err(err) => {
-            ::display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), matches);
+            crate::display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), matches);
         }
     }
 }
@@ -54,7 +55,7 @@ pub fn shutdown_master_server(host: &str, port: u16, matches: &ArgMatches) -> Re
     Ok(result) => {
       if !result.status.is_success() {
         match result.status {
-          _ => ::display_error(format!("Unexpected response from master mock server '{}': {}", url, result.status), matches)
+          _ => crate::display_error(format!("Unexpected response from master mock server '{}': {}", url, result.status), matches)
         }
       } else {
         println!("Master server shutting down ok");
@@ -62,7 +63,7 @@ pub fn shutdown_master_server(host: &str, port: u16, matches: &ArgMatches) -> Re
       }
     },
     Err(err) => {
-      ::display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), matches);
+      crate::display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), matches);
     }
   }
 }

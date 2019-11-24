@@ -3,8 +3,8 @@
 //! instance of a mock server.
 //!
 
-use hyper_server;
-use matching::MatchResult;
+use crate::hyper_server;
+use crate::matching::MatchResult;
 
 use pact_matching::models::{Pact, Interaction, PactSpecification};
 use std::ffi::CString;
@@ -13,6 +13,7 @@ use std::io;
 use std::sync::{Arc, Mutex};
 use serde_json::json;
 use futures::future::Future;
+use lazy_static::*;
 
 lazy_static! {
     static ref PACT_FILE_MUTEX: Mutex<()> = Mutex::new(());
@@ -120,7 +121,7 @@ impl MockServer {
             None => PathBuf::from(pact_file_name)
         };
 
-        info!("Writing pact out to '{}'", filename.display());
+        log::info!("Writing pact out to '{}'", filename.display());
 
         // Lock so that no two threads can read/write pact file at the same time.
         // TODO: Could use a fs-based lock in case multiple processes are doing
@@ -130,7 +131,7 @@ impl MockServer {
         match self.pact.write_pact(filename.as_path(), PactSpecification::V3) {
             Ok(_) => Ok(()),
             Err(err) => {
-                warn!("Failed to write pact to file - {}", err);
+                log::warn!("Failed to write pact to file - {}", err);
                 Err(err)
             }
         }

@@ -3,32 +3,6 @@
 
 #![warn(missing_docs)]
 
-#[macro_use] extern crate pact_matching;
-extern crate ansi_term;
-#[macro_use] extern crate log;
-extern crate hyper;
-extern crate tokio;
-extern crate futures;
-extern crate bytes;
-extern crate reqwest;
-extern crate mime;
-#[macro_use] extern crate maplit;
-extern crate itertools;
-extern crate regex;
-extern crate difference;
-#[macro_use] extern crate serde_json;
-
-#[cfg(test)]
-#[macro_use(expect)]
-extern crate expectest;
-#[cfg(test)]
-#[macro_use]
-extern crate pact_consumer;
-#[cfg(test)]
-extern crate env_logger;
-#[cfg(test)]
-extern crate http;
-
 mod provider_client;
 mod pact_broker;
 
@@ -43,11 +17,12 @@ use pact_matching::models::http_utils::HttpAuth;
 use ansi_term::*;
 use ansi_term::Colour::*;
 use std::collections::HashMap;
-use provider_client::{make_provider_request, make_state_change_request, ProviderClientError};
+use crate::provider_client::{make_provider_request, make_state_change_request, ProviderClientError};
 use regex::Regex;
-use serde_json::Value;
+use serde_json::{Value, json};
 use tokio::runtime::current_thread::Runtime;
-use pact_broker::{publish_verification_results, TestResult, Link};
+use crate::pact_broker::{publish_verification_results, TestResult, Link};
+use maplit::*;
 
 /// Source for loading pacts
 #[derive(Debug, Clone)]
@@ -235,7 +210,7 @@ fn execute_state_change(provider_state: &ProviderState, provider: &ProviderInfo,
         }
     };
 
-    debug!("State Change: \"{:?}\" -> {:?}", provider_state, result);
+    log::debug!("State Change: \"{:?}\" -> {:?}", provider_state, result);
     result
 }
 
@@ -276,7 +251,7 @@ fn display_result(status: u16, status_result: ANSIGenericString<str>,
 
 fn walkdir(dir: &Path) -> io::Result<Vec<io::Result<Pact>>> {
     let mut pacts = vec![];
-    debug!("Scanning {:?}", dir);
+    log::debug!("Scanning {:?}", dir);
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
@@ -430,7 +405,7 @@ pub fn verify_provider(provider_info: &ProviderInfo, source: Vec<PactSource>, fi
             }
         },
         Err(err) => {
-            error!("Failed to load pact - {}", Red.paint(format!("{}", err)));
+            log::error!("Failed to load pact - {}", Red.paint(format!("{}", err)));
             all_errors.push((s!("Failed to load pact"), MismatchResult::Error(format!("{}", err), None)));
         }
       }
@@ -488,7 +463,7 @@ fn fetch_pacts(source: &Vec<PactSource>, consumers: &Vec<String>, runtime: &mut 
           Ok(ref pacts) => pacts.iter().map(|p| {
             match p {
               &Ok((ref pact, ref links)) => {
-                debug!("Got pact with links {:?}", links);
+                log::debug!("Got pact with links {:?}", links);
                 Ok((pact.clone(), PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone())))
               },
               &Err(ref err) => Err(format!("Failed to load pact from '{}' - {:?}", broker_url, err))
@@ -584,20 +559,20 @@ fn publish_result(errors: &Vec<(String, MismatchResult)>, source: &PactSource,
   options: &VerificationOptions, runtime: &mut Runtime) {
   match source.clone() {
     PactSource::BrokerUrl(_, broker_url, auth, links) => {
-      info!("Publishing verification results back to the Pact Broker");
+      log::info!("Publishing verification results back to the Pact Broker");
       let result = if errors.is_empty() {
-        debug!("Publishing a successful result to {}", source);
+        log::debug!("Publishing a successful result to {}", source);
         TestResult::Ok
       } else {
-        debug!("Publishing a failure result to {}", source);
+        log::debug!("Publishing a failure result to {}", source);
         TestResult::Failed(errors.clone())
       };
       let provider_version = options.provider_version.clone().unwrap();
       let future = publish_verification_results(links, broker_url.clone(), auth.clone(),
         result, provider_version, options.build_url.clone());
       match runtime.block_on(future) {
-        Ok(_) => info!("Results published to Pact Broker"),
-        Err(ref err) => error!("Publishing of verification results failed with an error: {}", err)
+        Ok(_) => log::info!("Results published to Pact Broker"),
+        Err(ref err) => log::error!("Publishing of verification results failed with an error: {}", err)
       };
     },
     _ => ()

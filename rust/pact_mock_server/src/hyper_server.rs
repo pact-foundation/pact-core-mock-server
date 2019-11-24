@@ -1,4 +1,4 @@
-use matching::{MatchResult, match_request};
+use crate::matching::{MatchResult, match_request};
 
 use pact_matching::models::{Pact, Request, OptionalBody};
 use pact_matching::models::matchingrules::*;
@@ -16,6 +16,7 @@ use futures::future;
 use futures::future::Future;
 use futures::stream::Stream;
 use serde_json::json;
+use maplit::*;
 
 #[derive(Debug, Clone)]
 enum InteractionError {

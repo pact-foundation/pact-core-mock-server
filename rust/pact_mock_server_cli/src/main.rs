@@ -4,34 +4,12 @@
 
 #![warn(missing_docs)]
 
-#[macro_use] extern crate clap;
-#[macro_use] extern crate pact_matching;
-extern crate pact_mock_server;
-#[macro_use] extern crate log;
-#[macro_use] extern crate maplit;
-extern crate simplelog;
-extern crate uuid;
-#[macro_use] extern crate serde_json;
-extern crate hyper;
-extern crate rand;
-extern crate webmachine_rust;
-extern crate regex;
-extern crate lazy_static;
-#[allow(unused_imports)] #[macro_use] extern crate p_macro;
-
-#[cfg(test)]
-extern crate quickcheck;
-
-#[cfg(test)]
-#[macro_use(expect)]
-extern crate expectest;
-
 use clap::{Arg, App, SubCommand, AppSettings, ErrorKind, ArgMatches};
 use std::env;
 use std::str::FromStr;
 use std::fs::{self, File};
 use std::io;
-use log::{LogLevelFilter};
+use log::{LevelFilter};
 use simplelog::{CombinedLogger, TermLogger, WriteLogger, SimpleLogger, Config};
 use std::path::PathBuf;
 use std::fs::OpenOptions;
@@ -52,7 +30,7 @@ mod verify;
 mod shutdown;
 
 fn print_version() {
-    println!("\npact mock server version  : v{}", crate_version!());
+    println!("\npact mock server version  : v{}", clap::crate_version!());
     println!("pact specification version: v{}", PactSpecification::V3.version_str());
 }
 
@@ -75,9 +53,10 @@ fn setup_log_file(output: Option<&str>) -> Result<File, io::Error> {
 }
 
 fn setup_loggers(level: &str, command: &str, output: Option<&str>, no_file_log: bool, no_term_log: bool) -> Result<(), String> {
+    let term_mode = simplelog::TerminalMode::Stdout;
     let log_level = match level {
-        "none" => LogLevelFilter::Off,
-        _ => LogLevelFilter::from_str(level).unwrap()
+        "none" => LevelFilter::Off,
+        _ => LevelFilter::from_str(level).unwrap()
     };
 
     if command == "start" {
@@ -86,7 +65,7 @@ fn setup_loggers(level: &str, command: &str, output: Option<&str>, no_file_log: 
           SimpleLogger::init(log_level, Config::default()).map_err(|e| format!("{:?}", e))
         },
         (true, false) => {
-          TermLogger::init(log_level, Config::default()).map_err(|e| format!("{:?}", e))
+          TermLogger::init(log_level, Config::default(), term_mode).map_err(|e| format!("{:?}", e))
         },
         (false, true) => {
           let log_file = setup_log_file(output).map_err(|e| format!("{:?}", e))?;
@@ -94,7 +73,7 @@ fn setup_loggers(level: &str, command: &str, output: Option<&str>, no_file_log: 
         },
         _ => {
           let log_file = setup_log_file(output).map_err(|e| format!("{:?}", e))?;
-          match TermLogger::new(log_level, Config::default()) {
+          match TermLogger::new(log_level, Config::default(), term_mode) {
             Some(logger) => CombinedLogger::init(vec![logger, WriteLogger::new(log_level,
                                                                                Config::default(), log_file)]).map_err(|e| format!("{:?}", e)),
             None => WriteLogger::init(log_level, Config::default(), log_file).map_err(|e| format!("{:?}", e))
@@ -104,7 +83,7 @@ fn setup_loggers(level: &str, command: &str, output: Option<&str>, no_file_log: 
     } else if no_term_log {
       SimpleLogger::init(log_level, Config::default()).map_err(|e| format!("{:?}", e))
     } else {
-      TermLogger::init(log_level, Config::default()).map_err(|e| format!("{:?}", e))
+      TermLogger::init(log_level, Config::default(), term_mode).map_err(|e| format!("{:?}", e))
     }
 }
 
@@ -131,7 +110,7 @@ fn handle_command_args() -> Result<(), i32> {
     let args: Vec<String> = env::args().collect();
     let program = args[0].clone();
 
-    let version = format!("v{}", crate_version!());
+    let version = format!("v{}", clap::crate_version!());
     let app = App::new(program)
         .version(version.as_str())
         .about("Standalone Pact mock server")
@@ -318,6 +297,8 @@ mod test {
     use rand::Rng;
     use super::{integer_value, uuid_value};
     use expectest::prelude::*;
+    use expectest::expect;
+    use pact_matching::s;
 
     #[test]
     fn validates_integer_value() {

@@ -8,6 +8,7 @@ use pact_matching::models::Response;
 use pact_matching::match_response;
 #[allow(unused_imports)]
 use expectest::prelude::*;
+use expectest::*;
 #[allow(unused_imports)]
 use serde_json;
 
@@ -39,7 +40,7 @@ fn additional_property_with_type_matcher_that_does_not_match() {
               "age": 39,
               "nationality": "Australian"
             }
-          }    
+          }
         }
       }
     "#).unwrap();
@@ -542,7 +543,7 @@ fn array_with_regex_matcher() {
               "15/12/2014",
               "30/06/2015"
             ]
-          }    
+          }
         }
       }
     "#).unwrap();
@@ -636,9 +637,9 @@ fn array_with_type_matcher_mismatch() {
               5,
               "100299"
             ]
-          }    
+          }
         }
-      }   
+      }
     "#).unwrap();
 
     let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
@@ -744,7 +745,7 @@ fn array_with_type_matcher() {
               5,
               1910
             ]
-          }    
+          }
         }
       }
     "#).unwrap();

@@ -67,6 +67,8 @@ pub fn json_to_num(value: Option<Value>) -> Option<usize> {
 mod tests {
   use super::*;
   use expectest::prelude::*;
+  use expectest::expect;
+  use serde_json::json;
 
   #[test]
   fn json_to_int_test() {

@@ -1,5 +1,5 @@
 use nom::types::CompleteStr;
-use nom::digit1;
+use nom::*;
 use itertools::Itertools;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -261,7 +261,7 @@ pub fn to_chrono_pattern(tokens: &Vec<DateTimePatternToken>) -> String {
       DateTimePatternToken::Year(d) => if *d == 2 { "%y".into() } else { "%Y".into() },
       DateTimePatternToken::WeekInYear => "%U".into(),
       DateTimePatternToken::WeekInMonth => {
-        warn!("Chono does not support week in month");
+        log::warn!("Chono does not support week in month");
         "".into()
       },
       DateTimePatternToken::DayInYear => "%j".into(),
@@ -269,7 +269,7 @@ pub fn to_chrono_pattern(tokens: &Vec<DateTimePatternToken>) -> String {
       DateTimePatternToken::Month(d) => if *d <= 2 { "%m".into() } else if *d > 3 { "%B".into() } else { "%b".into() },
       DateTimePatternToken::Text(t) => t.iter().join("").replace("%", "%%").to_owned(),
       DateTimePatternToken::DayOfWeekInMonth => {
-        warn!("Chono does not support day of week in month");
+        log::warn!("Chono does not support day of week in month");
         "".into()
       },
       DateTimePatternToken::DayName(d) => if *d > 3 { "%A".into() } else { "%a".into() },
@@ -295,6 +295,7 @@ pub fn to_chrono_pattern(tokens: &Vec<DateTimePatternToken>) -> String {
 mod tests {
   use super::*;
   use expectest::prelude::*;
+  use expectest::expect;
 
   #[test]
   fn parse_date_and_time() {

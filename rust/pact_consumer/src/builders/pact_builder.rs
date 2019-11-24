@@ -1,15 +1,13 @@
 use pact_matching::models::*;
 
-use prelude::*;
+use crate::prelude::*;
 use super::interaction_builder::InteractionBuilder;
 
 /// Builder for `Pact` objects.
 ///
 /// ```
-/// #[macro_use]
-/// extern crate pact_consumer;
-///
 /// use pact_consumer::prelude::*;
+/// use pact_consumer::*;
 ///
 /// # fn main() {
 /// let pact = PactBuilder::new("Greeting Client", "Greeting Server")

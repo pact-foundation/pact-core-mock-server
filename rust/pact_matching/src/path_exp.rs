@@ -206,6 +206,7 @@ pub fn parse_path_exp(path: String) -> Result<Vec<PathToken>, String> {
 mod tests {
     use super::*;
     use expectest::prelude::*;
+    use expectest::expect;
 
     #[test]
     fn parse_path_exp_handles_empty_string() {

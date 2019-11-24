@@ -7,17 +7,6 @@
 
 #![warn(missing_docs)]
 
-#[cfg_attr(test, macro_use)] extern crate pact_matching;
-extern crate serde_json;
-extern crate hyper;
-extern crate futures;
-extern crate tokio;
-#[macro_use] extern crate log;
-extern crate uuid;
-extern crate itertools;
-#[macro_use] extern crate lazy_static;
-#[macro_use] extern crate maplit;
-
 pub mod matching;
 pub mod mock_server;
 pub mod server_manager;
@@ -28,7 +17,8 @@ use pact_matching::s;
 use std::sync::Mutex;
 use serde_json::json;
 use uuid::Uuid;
-use server_manager::ServerManager;
+use crate::server_manager::ServerManager;
+use lazy_static::*;
 
 /// Mock server errors
 pub enum MockServerError {
@@ -72,12 +62,12 @@ pub extern fn create_mock_server(pact_json: &str, addr: std::net::SocketAddr) ->
       let pact = Pact::from_json(&s!("<create_mock_server>"), &pact_json);
       start_mock_server(Uuid::new_v4().simple().to_string(), pact, addr)
         .map_err(|err| {
-          error!("Could not start mock server: {}", err);
+          log::error!("Could not start mock server: {}", err);
           MockServerError::MockServerFailedToStart
         })
     },
     Err(err) => {
-      error!("Could not parse pact json: {}", err);
+      log::error!("Could not parse pact json: {}", err);
       Err(MockServerError::InvalidPactJson)
     }
   }
@@ -132,7 +122,7 @@ pub extern fn write_pact_file(mock_server_port: i32, directory: Option<String>) 
             mock_server.write_pact(&directory)
                 .map(|_| ())
                 .map_err(|err| {
-                    error!("Failed to write pact to file - {}", err);
+                    log::error!("Failed to write pact to file - {}", err);
                     WritePactFileErr::IOError
                 })
         });
@@ -140,18 +130,11 @@ pub extern fn write_pact_file(mock_server_port: i32, directory: Option<String>) 
     match opt_result {
         Some(result) => result,
         None => {
-            error!("No mock server running on port {}", mock_server_port);
+            log::error!("No mock server running on port {}", mock_server_port);
             Err(WritePactFileErr::NoMockServer)
         }
     }
 }
-
-#[cfg(test)]
-#[macro_use(expect)]
-extern crate expectest;
-
-#[cfg(test)]
-extern crate quickcheck;
 
 #[cfg(test)]
 mod tests;

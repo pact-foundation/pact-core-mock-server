@@ -7,24 +7,17 @@ This library provides a test DSL for writing consumer pact tests in Rust. It is 
 
 ## To use it
 
-To use it, add it to your dev-dependencies in your cargo manifest and add an extern crate definition for it.
+To use it, add it to your dev-dependencies in your cargo manifest:
 
 ```
 [dev-dependencies]
 pact_consumer = "0.2.0"
 ```
 
-Then in your main module
-
-```rust
-#[cfg(test)]
-#[macro_use]
-extern crate pact_consumer;
-```
-
 You can now write a pact test using the consumer DSL.
 
 ```rust
+use pact_consumer::prelude::*;
 use pact_consumer::*;
 
 #[test]

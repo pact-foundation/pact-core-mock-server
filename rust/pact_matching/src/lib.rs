@@ -3,7 +3,7 @@
 //!
 //! ## To use it
 //!
-//! To use it, add it to your dependencies in your cargo manifest and add an extern crate definition for it.
+//! To use it, add it to your dependencies in your cargo manifest.
 //!
 //! This crate provides two functions: [`match_request`](fn.match_request.html) and [`match_response`](fn.match_response.html).
 //! These functions take an expected and actual request or response
@@ -324,28 +324,6 @@
 //!
 
 #![warn(missing_docs)]
-#[macro_use] extern crate serde_json;
-#[macro_use] extern crate serde_derive;
-#[macro_use] extern crate log;
-#[macro_use] extern crate maplit;
-#[macro_use] extern crate lazy_static;
-extern crate hex;
-extern crate onig;
-extern crate semver;
-#[macro_use] extern crate itertools;
-extern crate rand;
-extern crate sxd_document;
-extern crate ansi_term;
-extern crate difference;
-extern crate base64;
-extern crate uuid;
-extern crate indextree;
-#[macro_use] extern crate nom;
-extern crate chrono;
-extern crate chrono_tz;
-extern crate rand_regex;
-extern crate regex_syntax;
-extern crate reqwest;
 
 /// Simple macro to convert a string slice to a `String` struct.
 #[macro_export]
@@ -356,6 +334,7 @@ macro_rules! s {
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use onig::Regex;
+use lazy_static::*;
 use ansi_term::*;
 use ansi_term::Colour::*;
 
@@ -366,11 +345,11 @@ mod matchers;
 pub mod json;
 mod xml;
 
-use models::HttpPart;
-use models::matchingrules::*;
-use models::generators::*;
-use matchers::*;
-use serde_json::Value;
+use crate::models::HttpPart;
+use crate::models::matchingrules::*;
+use crate::models::generators::*;
+use crate::matchers::*;
+use serde_json::*;
 
 fn strip_whitespace<'a, T: FromIterator<&'a str>>(val: &'a String, split_by: &'a str) -> T {
     val.split(split_by).map(|v| v.trim().clone() ).collect()
@@ -918,7 +897,7 @@ fn match_body_content(content_type: String, expected: &models::OptionalBody, act
 /// Matches the actual body to the expected one. This takes into account the content type of each.
 pub fn match_body(expected: &dyn models::HttpPart, actual: &dyn models::HttpPart, config: DiffConfig,
     mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
-    debug!("expected content type = '{}', actual content type = '{}'", expected.content_type(),
+    log::debug!("expected content type = '{}', actual content type = '{}'", expected.content_type(),
            actual.content_type());
     if expected.content_type() == actual.content_type() {
         match_body_content(expected.content_type(), expected.body(), actual.body(), config, mismatches, matchers)
@@ -932,17 +911,17 @@ pub fn match_body(expected: &dyn models::HttpPart, actual: &dyn models::HttpPart
 pub fn match_request(expected: models::Request, actual: models::Request) -> Vec<Mismatch> {
     let mut mismatches = vec![];
 
-    info!("comparing to expected {}", expected);
-    debug!("     body: '{}'", expected.body.str_value());
-    debug!("     matching_rules: {:?}", expected.matching_rules);
-    debug!("     generators: {:?}", expected.generators);
+    log::info!("comparing to expected {}", expected);
+    log::debug!("     body: '{}'", expected.body.str_value());
+    log::debug!("     matching_rules: {:?}", expected.matching_rules);
+    log::debug!("     generators: {:?}", expected.generators);
     match_method(expected.method.clone(), actual.method.clone(), &mut mismatches);
     match_path(expected.path.clone(), actual.path.clone(), &mut mismatches, &expected.matching_rules);
     match_body(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &expected.matching_rules);
     match_query(expected.query, actual.query, &mut mismatches, &expected.matching_rules);
     match_headers(expected.headers, actual.headers, &mut mismatches, &expected.matching_rules);
 
-    debug!("--> Mismatches: {:?}", mismatches);
+    log::debug!("--> Mismatches: {:?}", mismatches);
     mismatches
 }
 
@@ -957,7 +936,7 @@ pub fn match_status(expected: u16, actual: u16, mismatches: &mut Vec<Mismatch>) 
 pub fn match_response(expected: models::Response, actual: models::Response) -> Vec<Mismatch> {
     let mut mismatches = vec![];
 
-    info!("comparing to expected response: {:?}", expected);
+    log::info!("comparing to expected response: {:?}", expected);
     match_body(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &expected.matching_rules);
     match_status(expected.status, actual.status, &mut mismatches);
     match_headers(expected.headers, actual.headers, &mut mismatches, &expected.matching_rules);
@@ -980,7 +959,7 @@ pub fn match_message_contents(expected: &models::message::Message, actual: &mode
 pub fn match_message(expected: models::message::Message, actual: models::message::Message) -> Vec<Mismatch> {
     let mut mismatches = vec![];
 
-    info!("comparing to expected message: {:?}", expected);
+    log::info!("comparing to expected message: {:?}", expected);
     match_message_contents(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &expected.matching_rules);
 
     mismatches
@@ -1055,15 +1034,6 @@ pub fn generate_response(response: &models::Response, context: &HashMap<String, 
     context);
   response
 }
-
-#[cfg(test)]
-#[macro_use(expect)]
-extern crate expectest;
-#[cfg(test)]
-extern crate quickcheck;
-#[cfg(test)]
-extern crate env_logger;
-#[cfg(test)] #[macro_use] extern crate hamcrest2;
 
 #[cfg(test)]
 mod tests;

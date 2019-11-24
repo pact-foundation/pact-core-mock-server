@@ -2,6 +2,7 @@
 name = "pact_mock_server_cli"
 version = "0.5.2"
 authors = ["Ronald Holshausen <uglyog@gmail.com>"]
+edition = "2018"
 description = "Standalone pact mock server for consumer pact tests"
 homepage = "http://www.pact.io"
 repository = "https://github.com/pact-foundation/pact-reference/blob/master/rust/pact_mock_server_cli"
@@ -18,9 +19,8 @@ clap = "2.31.2"
 serde_json = "1.0"
 pact_matching = { version = "0.5.3", path = "../pact_matching" }
 pact_mock_server = { version = "0.6.0", path = "../pact_mock_server" }
-p-macro = "0.2.0"
-simplelog = "^0.4.0"
-log = "0.3.5"
+simplelog = "^0.7"
+log = "0.4"
 uuid = "0.6"
 maplit = "0.1.3"
 rand = "0.4.2"
