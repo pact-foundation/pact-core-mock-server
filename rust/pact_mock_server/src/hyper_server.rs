@@ -12,9 +12,8 @@ use hyper::{Body, Response, Server, Error};
 use hyper::http::response::{Builder as ResponseBuilder};
 use hyper::http::header::{HeaderName, HeaderValue};
 use hyper::service::service_fn;
-use futures::future;
-use futures::future::Future;
-use futures::stream::Stream;
+use hyper::service::make_service_fn;
+use futures::stream::*;
 use serde_json::json;
 use maplit::*;
 
@@ -40,36 +39,35 @@ fn extract_query_string(uri: &hyper::Uri) -> Option<HashMap<String, Vec<String>>
 }
 
 fn extract_headers(headers: &hyper::HeaderMap) -> Result<Option<HashMap<String, Vec<String>>>, InteractionError> {
-  if !headers.is_empty() {
-    let result: Result<HashMap<String, Vec<String>>, InteractionError> = headers.keys()
-      .map(|name| -> Result<(String, Vec<String>), InteractionError> {
-        let values = headers.get_all(name);
-        let parsed_vals: Vec<Result<String, InteractionError>> = values.iter()
-          .map(|val| val.to_str()
-            .map(|v| v.to_string())
-            .map_err(|err| {
-              warn!("Failed to parse HTTP header value: {}", err);
-              InteractionError::RequestHeaderEncodingError
+    if !headers.is_empty() {
+        let result: Result<HashMap<String, Vec<String>>, InteractionError> = headers.keys()
+            .map(|name| -> Result<(String, Vec<String>), InteractionError> {
+                let values = headers.get_all(name);
+                let parsed_vals: Vec<Result<String, InteractionError>> = values.iter()
+                    .map(|val| val.to_str()
+                        .map(|v| v.to_string())
+                        .map_err(|err| {
+                            warn!("Failed to parse HTTP header value: {}", err);
+                            InteractionError::RequestHeaderEncodingError
+                        })
+                    ).collect();
+                if parsed_vals.iter().find(|val| val.is_err()).is_some() {
+                    Err(InteractionError::RequestHeaderEncodingError)
+                } else {
+                    Ok((name.as_str().into(), parsed_vals.iter().cloned()
+                        .map(|val| val.unwrap_or_default())
+                        .collect()))
+                }
             })
-          ).collect();
-        if parsed_vals.iter().find(|val| val.is_err()).is_some() {
-          Err(InteractionError::RequestHeaderEncodingError)
-        } else {
-          Ok((name.as_str().into(), parsed_vals.iter().cloned()
-            .map(|val| val.unwrap_or_default())
-            .collect()))
-        }
-      })
-      .collect();
+            .collect();
 
-    result.map(|map| Some(map))
-  } else {
-    Ok(None)
-  }
+        result.map(|map| Some(map))
+    } else {
+        Ok(None)
+    }
 }
 
-fn extract_body(chunk: hyper::Chunk) -> OptionalBody {
-    let bytes = chunk.into_bytes();
+fn extract_body(bytes: bytes::Bytes) -> OptionalBody {
     if bytes.len() > 0 {
         OptionalBody::Present(bytes.to_vec())
     } else {
@@ -77,58 +75,53 @@ fn extract_body(chunk: hyper::Chunk) -> OptionalBody {
     }
 }
 
-fn hyper_request_to_pact_request(req: hyper::Request<Body>) -> impl Future<Item = Request, Error = InteractionError> {
-  let method = req.method().to_string();
-  let path = extract_path(req.uri());
-  let query = extract_query_string(req.uri());
-  let headers = extract_headers(req.headers());
+async fn hyper_request_to_pact_request(req: hyper::Request<Body>) -> Result<Request, InteractionError> {
+    let method = req.method().to_string();
+    let path = extract_path(req.uri());
+    let query = extract_query_string(req.uri());
+    let headers = extract_headers(req.headers())?;
 
-  future::done(headers)
-    .and_then(move |headers| {
-      req.into_body()
-        .concat2()
-        .map_err(|_| InteractionError::RequestBodyError)
-        .map(|body_chunk| (headers, body_chunk))
+    let body_chunk = hyper::body::to_bytes(req.into_body())
+        .await
+        .map_err(|_| InteractionError::RequestBodyError)?;
+
+    Ok(Request {
+        method,
+        path,
+        query,
+        headers,
+        body: extract_body(body_chunk),
+        matching_rules: MatchingRules::default(),
+        generators: Generators::default()
     })
-    .and_then(|(headers, body_chunk)|
-      Ok(Request {
-          method,
-          path,
-          query,
-          headers,
-          body: extract_body(body_chunk),
-          matching_rules: MatchingRules::default(),
-          generators: Generators::default()
-      })
-    )
 }
 
 fn set_hyper_headers(builder: &mut ResponseBuilder, headers: &Option<HashMap<String, Vec<String>>>) -> Result<(), InteractionError> {
-  let hyper_headers = builder.headers_mut().unwrap();
-  match headers {
-    Some(header_map) => {
-      for (k, v) in header_map {
-        for val in v {
-          // FIXME?: Headers are not sent in "raw" mode.
-          // Names are converted to lower case and values are parsed.
-          hyper_headers.append(
-            HeaderName::from_bytes(k.as_bytes())
-              .map_err(|err| {
-                error!("Invalid header name '{}' ({})", k, err);
-                InteractionError::ResponseHeaderEncodingError
-              })?,
-            val.parse::<HeaderValue>()
-              .map_err(|err| {
-                error!("Invalid header value '{}': '{}' ({})", k, val, err);
-                InteractionError::ResponseHeaderEncodingError
-              })?
-          );
-        }
-      }
-    },
-    _ => {}
-  }
-  Ok(())
+    let hyper_headers = builder.headers_mut().unwrap();
+    match headers {
+        Some(header_map) => {
+            for (k, v) in header_map {
+                for val in v {
+                    // FIXME?: Headers are not sent in "raw" mode.
+                    // Names are converted to lower case and values are parsed.
+                    hyper_headers.append(
+                        HeaderName::from_bytes(k.as_bytes())
+                            .map_err(|err| {
+                                error!("Invalid header name '{}' ({})", k, err);
+                                InteractionError::ResponseHeaderEncodingError
+                            })?,
+                        val.parse::<HeaderValue>()
+                            .map_err(|err| {
+                                error!("Invalid header value '{}': '{}' ({})", k, val, err);
+                                InteractionError::ResponseHeaderEncodingError
+                            })?
+                    );
+                }
+            }
+        },
+        _ => {}
+    }
+    Ok(())
 }
 
 fn error_body(request: &Request, error: &String) -> String {
@@ -167,22 +160,21 @@ fn match_result_to_hyper_response(request: &Request, match_result: MatchResult) 
     }
 }
 
-fn handle_request(
+async fn handle_request(
     req: hyper::Request<Body>,
     pact: Arc<Pact>,
     matches: Arc<Mutex<Vec<MatchResult>>>
-) -> impl Future<Item = Response<Body>, Error = InteractionError> {
+) -> Result<Response<Body>, InteractionError> {
     debug!("Creating pact request from hyper request");
 
-    hyper_request_to_pact_request(req)
-        .and_then(move |request| {
-            info!("Received request {}", request);
-            let match_result = match_request(&request, &pact.interactions);
+    let pact_request = hyper_request_to_pact_request(req).await?;
+    info!("Received request {}", pact_request);
 
-            matches.lock().unwrap().push(match_result.clone());
+    let match_result = match_request(&pact_request, &pact.interactions);
 
-            match_result_to_hyper_response(&request, match_result)
-        })
+    matches.lock().unwrap().push(match_result.clone());
+
+    match_result_to_hyper_response(&pact_request, match_result)
 }
 
 // TODO: Should instead use some form of X-Pact headers
@@ -212,52 +204,59 @@ fn handle_mock_request_error(result: Result<Response<Body>, InteractionError>) -
 pub fn create_and_bind(
     pact: Pact,
     addr: std::net::SocketAddr,
-    shutdown: impl Future<Item = (), Error = ()>,
+    shutdown: impl std::future::Future<Output = ()>,
     matches: Arc<Mutex<Vec<MatchResult>>>,
-) -> Result<(impl Future<Item = (), Error = ()>, std::net::SocketAddr), hyper::Error> {
+) -> Result<(impl std::future::Future<Output = ()>, std::net::SocketAddr), hyper::Error> {
     let pact = Arc::new(pact);
 
     let server = Server::try_bind(&addr)?
-        .serve(move || {
+        .serve(make_service_fn(move |_| {
             let pact = pact.clone();
             let matches = matches.clone();
 
-            service_fn(move |req| {
-                handle_request(req, pact.clone(), matches.clone())
-                    .then(handle_mock_request_error)
-            })
-        });
+            async {
+                Ok(service_fn(move |req| async {
+                    handle_mock_request_error(
+                        handle_request(req, pact.clone(), matches.clone()).await
+                    )
+                }))
+            }
+        }));
 
     let socket_addr = server.local_addr();
 
-    let prepared_server = server
-        .with_graceful_shutdown(shutdown)
-        .map_err(move |err| {
-            eprintln!("server error: {}", err);
-        });
-
-    Ok((prepared_server, socket_addr))
+    Ok((
+        async {
+            let _ = server.with_graceful_shutdown(shutdown);
+        },
+        socket_addr
+    ))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio::runtime::current_thread::Runtime;
 
-    #[test]
-    fn can_fetch_results_on_current_thread() {
-        let mut runtime = Runtime::new().unwrap();
-
-        let (shutdown_tx, shutdown_rx) = futures::sync::oneshot::channel();
+    #[tokio::test]
+    async fn can_fetch_results_on_current_thread() {
+        let (shutdown_tx, shutdown_rx) = futures::channel::oneshot::channel();
         let matches = Arc::new(Mutex::new(vec![]));
 
-        let (future, _) = create_and_bind(Pact::default(), ([0, 0, 0, 0], 0 as u16).into(), shutdown_rx.map_err(|_| ()), matches.clone()).unwrap();
+        let (future, _) = create_and_bind(
+            Pact::default(),
+            ([0, 0, 0, 0], 0 as u16).into(),
+            async {
+                shutdown_rx.await.ok();
+            },
+            matches.clone()
+        ).unwrap();
 
-        runtime.spawn(future);
+        let join_handle = tokio::task::spawn(future);
+
         shutdown_tx.send(()).unwrap();
 
         // Server has shut down, now flush the server future from runtime
-        runtime.run().unwrap();
+        join_handle.await.unwrap();
 
         // 0 matches have been produced
         let all_matches = matches.lock().unwrap().clone();
