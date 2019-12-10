@@ -19,7 +19,7 @@ impl ServerManager {
     pub fn new() -> ServerManager {
         ServerManager {
             runtime: tokio::runtime::Builder::new()
-                .core_threads(1)
+                .num_threads(1)
                 .build()
                 .unwrap(),
             mock_servers: BTreeMap::new()
@@ -105,7 +105,6 @@ impl ServerManager {
 mod tests {
     use super::*;
     use std::net::TcpStream;
-    use futures::future::Future;
 
     #[test]
     fn manager_should_start_and_shutdown_mock_server() {
@@ -128,7 +127,7 @@ mod tests {
         assert!(stopped);
 
         // The tokio runtime is now out of tasks
-        manager.runtime.shutdown_on_idle().wait().unwrap();
+        drop(manager);
 
         // Server should be down
         assert!(TcpStream::connect(("127.0.0.1", server_port)).is_err());

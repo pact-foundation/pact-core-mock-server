@@ -13,7 +13,6 @@ use hyper::http::response::{Builder as ResponseBuilder};
 use hyper::http::header::{HeaderName, HeaderValue};
 use hyper::service::service_fn;
 use hyper::service::make_service_fn;
-use futures::stream::*;
 use serde_json::json;
 use maplit::*;
 
@@ -136,10 +135,10 @@ fn match_result_to_hyper_response(request: &Request, match_result: MatchResult) 
             info!("Request matched, sending response {:?}", response);
             info!("     body: '{}'\n\n", interaction.response.body.str_value());
 
-            let mut builder = Response::builder();
+            let mut builder = Response::builder()
+                .status(response.status)
+                .header(hyper::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*");
 
-            builder.status(response.status);
-            builder.header(hyper::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*");
             set_hyper_headers(&mut builder, &response.headers)?;
 
             builder.body(match response.body {
@@ -215,11 +214,18 @@ pub fn create_and_bind(
             let matches = matches.clone();
 
             async {
-                Ok(service_fn(move |req| async {
-                    handle_mock_request_error(
-                        handle_request(req, pact.clone(), matches.clone()).await
-                    )
-                }))
+                Ok::<_, hyper::Error>(
+                    service_fn(move |req| {
+                        let pact = pact.clone();
+                        let matches = matches.clone();
+
+                        async {
+                            handle_mock_request_error(
+                                handle_request(req, pact, matches).await
+                            )
+                        }
+                    })
+                )
             }
         }));
 

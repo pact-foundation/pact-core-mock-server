@@ -33,19 +33,25 @@ pub struct MockServer {
     /// Receiver of match results
     matches: Arc<Mutex<Vec<MatchResult>>>,
     /// Shutdown signal
-    shutdown_tx: Option<futures::sync::oneshot::Sender<()>>
+    shutdown_tx: Option<futures::channel::oneshot::Sender<()>>
 }
 
 impl MockServer {
     /// Create a new mock server, consisting of its state (self) and its executable server future.
-    pub fn new(id: String, pact: Pact, addr: std::net::SocketAddr) -> Result<(MockServer, impl Future<Item = (), Error = ()>), String> {
-        let (shutdown_tx, shutdown_rx) = futures::sync::oneshot::channel();
+    pub fn new(
+        id: String,
+        pact: Pact,
+        addr: std::net::SocketAddr
+    ) -> Result<(MockServer, impl Future<Output = ()>), String> {
+        let (shutdown_tx, shutdown_rx) = futures::channel::oneshot::channel();
         let matches = Arc::new(Mutex::new(vec![]));
 
         let (future, socket_addr) = hyper_server::create_and_bind(
             pact.clone(),
             addr,
-            shutdown_rx.map_err(|_| ()),
+            async {
+                shutdown_rx.await.ok();
+            },
             matches.clone()
         ).map_err(|err| format!("Could not start server: {}", err))?;
 
