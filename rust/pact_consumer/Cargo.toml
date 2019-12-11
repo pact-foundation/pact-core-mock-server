@@ -27,7 +27,7 @@ itertools = "0.5.4"
 url = "1.5.1"
 uuid = { version = "0.6", features = ["v4"] }
 futures = "0.3"
-tokio = { version = "0.2", features = ["full"] }
+tokio = { version = "0.2", features = ["rt-threaded"] }
 
 [dev-dependencies]
 quickcheck = "0.2"
