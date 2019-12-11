@@ -3,6 +3,8 @@ use pact_matching::models::*;
 use crate::prelude::*;
 use super::interaction_builder::InteractionBuilder;
 
+use futures::future::*;
+
 /// Builder for `Pact` objects.
 ///
 /// ```
@@ -71,9 +73,7 @@ impl StartMockServer for PactBuilder {
         ValidatingMockServer::start_on_background_runtime(self.build())
     }
 
-    fn create_mock_server<F>(&self, future_consumer: F) -> ValidatingMockServer
-        where F: FnOnce(Box<dyn futures::Future<Item = (), Error = ()> + 'static + Send>)
-    {
-        ValidatingMockServer::with_future_consumer(self.build(), future_consumer)
+    fn spawn_mock_server(&self) -> BoxFuture<'static, ValidatingMockServer> {
+        ValidatingMockServer::spawn_on_current_runtime(self.build()).boxed()
     }
 }

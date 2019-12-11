@@ -26,12 +26,8 @@ serde_json = "1.0"
 itertools = "0.5.4"
 url = "1.5.1"
 uuid = { version = "0.6", features = ["v4"] }
-futures = "0.1"
-tokio = "0.1.22"
-
-[dependencies.hyper]
-version = "0.9.7"
-default-features = false
+futures = "0.3"
+tokio = { version = "0.2", features = ["full"] }
 
 [dev-dependencies]
 quickcheck = "0.2"

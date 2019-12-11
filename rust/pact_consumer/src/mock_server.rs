@@ -10,19 +10,15 @@ use std::{
   thread
 };
 use url::Url;
-use tokio;
+use futures::future::*;
 
 /// This trait is implemented by types which allow us to start a mock server.
 pub trait StartMockServer {
     /// Start a mock server running in a background thread.
     fn start_mock_server(&self) -> ValidatingMockServer;
 
-    /// Create a mock server, passing its future to the supplied consumer function
-    /// for spawning onto any client-supplied future executor.
-    /// This API accepts a future consumer instead of a future executor because
-    /// of the intention to support both Future and Future+Send executors.
-    fn create_mock_server<F>(&self, future_consumer: F) -> ValidatingMockServer
-        where F: FnOnce(Box<dyn futures::Future<Item = (), Error = ()> + 'static + Send>);
+    /// Asynchronously spawn a mock server onto the current tokio runtime.
+    fn spawn_mock_server(&self) -> BoxFuture<'static, ValidatingMockServer>;
 }
 
 impl StartMockServer for Pact {
@@ -30,16 +26,14 @@ impl StartMockServer for Pact {
         ValidatingMockServer::start_on_background_runtime(self.clone())
     }
 
-    fn create_mock_server<F>(&self, future_consumer: F) -> ValidatingMockServer
-        where F: FnOnce(Box<dyn futures::Future<Item = (), Error = ()> + 'static + Send>)
-    {
-        ValidatingMockServer::with_future_consumer(self.clone(), future_consumer)
+    fn spawn_mock_server(&self) -> BoxFuture<'static, ValidatingMockServer> {
+        ValidatingMockServer::spawn_on_current_runtime(self.clone()).boxed()
     }
 }
 
-enum Mode {
+enum Runtime {
     Background(tokio::runtime::Runtime),
-    Async
+    Current
 }
 
 /// A mock HTTP server that handles the requests described in a `Pact`, intended
@@ -55,50 +49,64 @@ pub struct ValidatingMockServer {
     url: Url,
     // The mock server instance
     mock_server: mock_server::MockServer,
-    // The running mode of our mock server.
-    _mode: Mode
+    // The runtime configuration of our mock server.
+    _runtime: Runtime
 }
 
 impl ValidatingMockServer {
-    /// Create a new mock server
-    pub fn with_future_consumer<F>(pact: Pact, future_consumer: F) -> ValidatingMockServer
-        where F: FnOnce(Box<dyn futures::Future<Item = (), Error = ()> + 'static + Send>)
-    {
-        ValidatingMockServer::with_mode_and_future_consumer(pact, Mode::Async, future_consumer)
-    }
-
     /// Create a new mock server which handles requests as described in the
     /// pact, and runs in a background thread
     pub fn start_on_background_runtime(pact: Pact) -> ValidatingMockServer {
-        let runtime = tokio::runtime::Builder::new()
-            .core_threads(1)
-            .blocking_threads(1)
+        let mut runtime = tokio::runtime::Builder::new()
+            .threaded_scheduler()
+            .num_threads(1)
+            .enable_all()
             .build()
             .unwrap();
 
-        let executor = runtime.executor();
+        let (mock_server, future) = runtime.block_on(ValidatingMockServer::init_mock_server(pact))
+            .expect("error initializing mock server");
 
-        ValidatingMockServer::with_mode_and_future_consumer(pact, Mode::Background(runtime), |future| {
-            executor.spawn(future)
-        })
+        runtime.spawn(future);
+
+        ValidatingMockServer::with_mock_server_and_runtime(mock_server, Runtime::Background(runtime))
     }
 
-    fn with_mode_and_future_consumer<F>(pact: Pact, mode: Mode, future_consumer: F) -> ValidatingMockServer
-        where F: FnOnce(Box<dyn futures::Future<Item = (), Error = ()> + 'static + Send>)
-    {
-        let (mock_server, future) = mock_server::MockServer::new("".into(), pact, ([0, 0, 0, 0], 0 as u16).into())
-            .expect("error starting mock server");
+    /// Asynchronously create and spawn a new mock server
+    pub async fn spawn_on_current_runtime(pact: Pact) -> ValidatingMockServer {
+        let (mock_server, future) = ValidatingMockServer::init_mock_server(pact)
+            .await
+            .expect("error initializing mock server");
 
-        future_consumer(Box::new(future));
+        tokio::spawn(future);
 
+        ValidatingMockServer::with_mock_server_and_runtime(mock_server, Runtime::Current)
+    }
+
+    // Initialize this struct
+    fn with_mock_server_and_runtime(
+        mock_server: mock_server::MockServer,
+        runtime: Runtime
+    ) -> ValidatingMockServer {
         let description = format!("{}/{}", mock_server.pact.consumer.name, mock_server.pact.provider.name);
         let url_str = mock_server.url();
         ValidatingMockServer {
             description,
             url: url_str.parse().expect("invalid mock server URL"),
             mock_server: mock_server,
-            _mode: mode
+            _runtime: runtime
         }
+    }
+
+    // Initialize the inner mock server instance
+    async fn init_mock_server(
+        pact: Pact
+    ) -> Result<(mock_server::MockServer, impl std::future::Future<Output = ()>), String> {
+        mock_server::MockServer::new(
+            "".into(),
+            pact,
+            ([0, 0, 0, 0], 0 as u16).into()
+        ).await
     }
 
     /// The URL of our mock server. You can make normal HTTP requests using this
