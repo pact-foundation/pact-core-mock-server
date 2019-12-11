@@ -200,7 +200,11 @@ fn handle_mock_request_error(result: Result<Response<Body>, InteractionError>) -
     }
 }
 
-pub fn create_and_bind(
+// Create and bind the server, but do not start it.
+// Returns a future that drives the server.
+// The reason that the function itself is still async (even if it performs
+// no async operations) is that it needs a tokio context to be able to call try_bind.
+pub async fn create_and_bind(
     pact: Pact,
     addr: std::net::SocketAddr,
     shutdown: impl std::future::Future<Output = ()>,
@@ -232,8 +236,11 @@ pub fn create_and_bind(
     let socket_addr = server.local_addr();
 
     Ok((
+        // This is the future that drives the server:
         async {
-            let _ = server.with_graceful_shutdown(shutdown);
+            let _ = server
+                .with_graceful_shutdown(shutdown)
+                .await;
         },
         socket_addr
     ))
@@ -255,7 +262,7 @@ mod tests {
                 shutdown_rx.await.ok();
             },
             matches.clone()
-        ).unwrap();
+        ).await.unwrap();
 
         let join_handle = tokio::task::spawn(future);
 

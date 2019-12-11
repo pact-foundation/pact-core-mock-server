@@ -38,7 +38,7 @@ pub struct MockServer {
 
 impl MockServer {
     /// Create a new mock server, consisting of its state (self) and its executable server future.
-    pub fn new(
+    pub async fn new(
         id: String,
         pact: Pact,
         addr: std::net::SocketAddr
@@ -53,7 +53,9 @@ impl MockServer {
                 shutdown_rx.await.ok();
             },
             matches.clone()
-        ).map_err(|err| format!("Could not start server: {}", err))?;
+        )
+            .await
+            .map_err(|err| format!("Could not start server: {}", err))?;
 
         let mock_server = MockServer {
             id: id.clone(),

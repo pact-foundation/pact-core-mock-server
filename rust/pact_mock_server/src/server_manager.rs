@@ -19,7 +19,9 @@ impl ServerManager {
     pub fn new() -> ServerManager {
         ServerManager {
             runtime: tokio::runtime::Builder::new()
+                .threaded_scheduler()
                 .num_threads(1)
+                .enable_all()
                 .build()
                 .unwrap(),
             mock_servers: BTreeMap::new()
@@ -27,8 +29,16 @@ impl ServerManager {
     }
 
     /// Start a new server on the runtime
-    pub fn start_mock_server_with_addr(&mut self, id: String, pact: Pact, addr: std::net::SocketAddr) -> Result<std::net::SocketAddr, String> {
-        let (mock_server, future) = MockServer::new(id.clone(), pact, addr)?;
+    pub fn start_mock_server_with_addr(
+        &mut self,
+        id: String,
+        pact: Pact,
+        addr: std::net::SocketAddr
+    ) -> Result<std::net::SocketAddr, String> {
+        let (mock_server, future) = self.runtime.block_on(
+            MockServer::new(id.clone(), pact, addr)
+        )?;
+
         self.runtime.spawn(future);
         let addr = mock_server.addr;
 
