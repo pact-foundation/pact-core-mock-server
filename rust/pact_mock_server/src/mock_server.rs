@@ -12,7 +12,6 @@ use std::path::PathBuf;
 use std::io;
 use std::sync::{Arc, Mutex};
 use serde_json::json;
-use futures::future::Future;
 use lazy_static::*;
 
 lazy_static! {
@@ -42,7 +41,7 @@ impl MockServer {
         id: String,
         pact: Pact,
         addr: std::net::SocketAddr
-    ) -> Result<(MockServer, impl Future<Output = ()>), String> {
+    ) -> Result<(MockServer, impl std::future::Future<Output = ()>), String> {
         let (shutdown_tx, shutdown_rx) = futures::channel::oneshot::channel();
         let matches = Arc::new(Mutex::new(vec![]));
 
