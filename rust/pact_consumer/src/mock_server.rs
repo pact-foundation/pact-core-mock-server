@@ -31,6 +31,9 @@ impl StartMockServer for Pact {
     }
 }
 
+///
+/// A trait for accessing the properties of a mock server.
+///
 pub trait ValidatingMockServer {
     /// The URL of our mock server. You can make normal HTTP requests using this
     /// as the base URL.
@@ -46,6 +49,7 @@ pub trait ValidatingMockServer {
     fn status(&self) -> Vec<MatchResult>;
 }
 
+/// Inner struct for shared data and behaviour of mock servers
 struct InnerServer {
     // A description of our mock server, for use in error messages.
     description: String,
@@ -72,8 +76,7 @@ impl InnerServer {
         }
     }
 
-
-    // Initialize the inner mock server instance
+    /// Initialize the inner mock server instance
     async fn init_mock_server(
         pact: Pact
     ) -> Result<(mock_server::MockServer, impl std::future::Future<Output = ()>), String> {
@@ -136,6 +139,10 @@ impl InnerServer {
     }
 }
 
+///
+/// A mock server running synchronously, in a background thread.
+/// Convenient when used with synchronous code.
+///
 pub struct BackgroundMockServer {
     inner: InnerServer,
     runtime: tokio::runtime::Runtime
@@ -155,10 +162,8 @@ impl BackgroundMockServer {
         let (mock_server, future) = runtime.block_on(InnerServer::init_mock_server(pact))
             .expect("error initializing mock server");
 
-        let server_handle = runtime.spawn(future);
-
         BackgroundMockServer {
-            inner: InnerServer::new(mock_server, server_handle),
+            inner: InnerServer::new(mock_server, runtime.spawn(future)),
             runtime,
         }
     }
@@ -202,10 +207,10 @@ impl Drop for BackgroundMockServer {
 }
 
 ///
-/// A mock server version that is spawned onto the implicit current
-/// tokio runtime, which is outside our control.
+/// A mock server implementation that is spawned onto the implicit current
+/// tokio runtime that drives the current unit test via tokio::test.
 /// After use, the server must be explitcly and asynchronously disposed by a call to
-/// shutdown(). If not, the runtime might end up deadlocked.
+/// shutdown(). If not, the test runtime might end up deadlocked.
 ///
 #[must_use = "Remember to call shutdown().await"]
 pub struct SpawnedMockServer {
@@ -219,19 +224,27 @@ impl SpawnedMockServer {
             .await
             .expect("error initializing mock server");
 
-        let server_handle = tokio::spawn(future);
-
         SpawnedMockServer {
-            inner: InnerServer::new(mock_server, server_handle)
+            inner: InnerServer::new(mock_server, tokio::spawn(future))
         }
     }
 
-    /// Asynchronously shut down the server. Only needed for "spawned" mode.
+    /// Asynchronously shut down the server.
+    /// This is necessary before the test runtime gets destroyed.
+    /// The reason is that the mock server is spawned as a background task.
+    /// When the tokio test runtime tries to shut down, it will wait for
+    /// all its running tasks to complete. Only by first awaiting the server's
+    /// JoinHandle can the shutdown procedure be properly executed.
     pub async fn shutdown(mut self) {
+        // Send the server shutdown signal
         self.inner.mock_server.shutdown().unwrap();
-        if let Some(server_handle) = self.inner.server_handle.take() {
-            server_handle.await.unwrap();
-        }
+
+        let server_handle = self.inner.server_handle
+            .take()
+            .expect("Server was already shut down");
+
+        // Await the running server's task's join handle
+        server_handle.await.unwrap();
     }
 
     fn drop_helper(&mut self) -> Result<(), String> {
