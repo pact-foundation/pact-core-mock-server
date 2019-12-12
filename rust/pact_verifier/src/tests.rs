@@ -193,7 +193,7 @@ fn publish_result_does_nothing_if_not_from_broker() {
       .unwrap();
 
     runtime.block_on(async {
-      PactBuilder::new("RustPactVerifier", "PactBroker")
+      let server = PactBuilder::new("RustPactVerifier", "PactBroker")
         .interaction("publish results", |i| {
           i.request.method("POST");
           i.request.path("/");
@@ -208,6 +208,7 @@ fn publish_result_does_nothing_if_not_from_broker() {
         build_url: None
       };
       super::publish_result(&vec![], &PactSource::File("/tmp/test".into()), &options).await;
+      server.shutdown().await;
     })
   });
   expect!(server_response).to(be_err());
@@ -244,4 +245,5 @@ async fn publish_successful_result_to_broker() {
   ];
   let source = PactSource::BrokerUrl("Test".to_string(), server.url().to_string(), None, links);
   super::publish_result(&vec![], &source, &options).await;
+  server.shutdown().await;
 }

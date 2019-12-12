@@ -69,11 +69,11 @@ impl PactBuilder {
 }
 
 impl StartMockServer for PactBuilder {
-    fn start_mock_server(&self) -> ValidatingMockServer {
-        ValidatingMockServer::start_on_background_runtime(self.build())
+    fn start_mock_server(&self) -> BackgroundMockServer {
+        BackgroundMockServer::new(self.build())
     }
 
-    fn spawn_mock_server(&self) -> BoxFuture<'static, ValidatingMockServer> {
-        ValidatingMockServer::spawn_on_current_runtime(self.build()).boxed()
+    fn spawn_mock_server(&self) -> BoxFuture<'static, SpawnedMockServer> {
+        SpawnedMockServer::new(self.build()).boxed()
     }
 }
