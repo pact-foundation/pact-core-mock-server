@@ -7,7 +7,6 @@ use pact_matching::s;
 use pact_consumer::prelude::*;
 use pact_consumer::*;
 use env_logger::*;
-use tokio::runtime::current_thread::Runtime;
 use crate::PactSource;
 use std::panic::catch_unwind;
 use crate::pact_broker::Link;
@@ -120,8 +119,8 @@ fn if_a_consumer_filter_is_defined_returns_true_if_the_consumer_name_does_match(
   expect!(filter_consumers(&consumers, &result)).to(be_true());
 }
 
-#[test]
-fn test_state_change_with_parameters() {
+#[tokio::test]
+async fn test_state_change_with_parameters() {
   init().unwrap_or(());
 
   let server = PactBuilder::new("RustPactVerifier", "SomeRunningProvider")
@@ -143,13 +142,12 @@ fn test_state_change_with_parameters() {
   };
 
   let provider = ProviderInfo { state_change_url: Some(server.url().to_string()), .. ProviderInfo::default() };
-  let result = execute_state_change(&provider_state, &provider, true,
-    &mut Runtime::new().unwrap(), None);
+  let result = execute_state_change(&provider_state, &provider, true, None).await;
   expect!(result.clone()).to(be_ok());
 }
 
-#[test]
-fn test_state_change_with_parameters_in_query() {
+#[tokio::test]
+async fn test_state_change_with_parameters_in_query() {
   init().unwrap_or(());
 
   let server = PactBuilder::new("RustPactVerifier", "SomeRunningProvider")
@@ -174,8 +172,7 @@ fn test_state_change_with_parameters_in_query() {
 
   let provider = ProviderInfo { state_change_url: Some(server.url().to_string()),
     state_change_body: false, .. ProviderInfo::default() };
-  let result = execute_state_change(&provider_state, &provider, true,
-    &mut Runtime::new().unwrap(), None);
+  let result = execute_state_change(&provider_state, &provider, true, None).await;
   expect!(result.clone()).to(be_ok());
 }
 
@@ -184,27 +181,35 @@ fn publish_result_does_nothing_if_not_from_broker() {
   init().unwrap_or(());
 
   let server_response = catch_unwind(|| {
-    PactBuilder::new("RustPactVerifier", "PactBroker")
-      .interaction("publish results", |i| {
-        i.request.method("POST");
-        i.request.path("/");
-        i.response.status(201);
-      })
-      .start_mock_server();
+    let mut runtime = tokio::runtime::Builder::new()
+      .basic_scheduler()
+      .enable_all()
+      .build()
+      .unwrap();
 
-    let options = super::VerificationOptions {
-      publish: true,
-      provider_version: None,
-      build_url: None
-    };
-    super::publish_result(&vec![], &PactSource::File("/tmp/test".into()), &options,
-      &mut Runtime::new().unwrap());
+    runtime.block_on(async {
+      PactBuilder::new("RustPactVerifier", "PactBroker")
+        .interaction("publish results", |i| {
+          i.request.method("POST");
+          i.request.path("/");
+          i.response.status(201);
+        })
+        .spawn_mock_server()
+        .await;
+
+      let options = super::VerificationOptions {
+        publish: true,
+        provider_version: None,
+        build_url: None
+      };
+      super::publish_result(&vec![], &PactSource::File("/tmp/test".into()), &options).await;
+    })
   });
   expect!(server_response).to(be_err());
 }
 
-#[test]
-fn publish_successful_result_to_broker() {
+#[tokio::test]
+async fn publish_successful_result_to_broker() {
   init().unwrap_or(());
 
   let server = PactBuilder::new("RustPactVerifier", "PactBroker")
@@ -232,5 +237,5 @@ fn publish_successful_result_to_broker() {
     }
   ];
   let source = PactSource::BrokerUrl("Test".to_string(), server.url().to_string(), None, links);
-  super::publish_result(&vec![], &source, &options, &mut Runtime::new().unwrap());
+  super::publish_result(&vec![], &source, &options).await;
 }

@@ -8,7 +8,7 @@ use super::provider_client::join_paths;
 use regex::{Regex, Captures};
 use futures::future;
 use futures::future::Future;
-use futures::stream::Stream;
+use futures::stream::*;
 use pact_matching::models::http_utils::HttpAuth;
 use pact_matching::Mismatch;
 use std::fmt::{Display, Formatter};
@@ -156,19 +156,32 @@ impl HALClient {
     }
 
     fn with_url(url: String, auth: Option<HttpAuth>) -> HALClient {
-      HALClient { url, auth, ..HALClient::default() }
+        HALClient { url, auth, ..HALClient::default() }
     }
 
     fn update_path_info(self, path_info: serde_json::Value) -> HALClient {
-      HALClient {
-        client: self.client.clone(),
-        url: self.url,
-        path_info: Some(path_info),
-        auth: self.auth.clone()
-      }
+        HALClient {
+            client: self.client.clone(),
+            url: self.url,
+            path_info: Some(path_info),
+            auth: self.auth.clone()
+        }
     }
 
-    fn navigate(self, link: &'static str, template_values: HashMap<String, String>) -> impl Future<Item = HALClient, Error = PactBrokerError> {
+    async fn navigate(
+        self,
+        link: &'static str,
+        template_values: HashMap<String, String>
+    ) -> Result<HALClient, PactBrokerError> {
+        let path_info = self.fetch("/".into()).await?;
+        self = self.update_path_info(path_info);
+
+        let path_info = self.fetch_link(link, template_values).await?;
+        self = self.update_path_info(path_info);
+
+        Ok(self)
+
+        /*
         future::ok(self)
             .and_then(|client| {
                 client.clone().fetch("/".into())
@@ -178,6 +191,7 @@ impl HALClient {
                 client.clone().fetch_link(link, template_values)
                     .map(|path_info| client.update_path_info(path_info))
             })
+            */
     }
 
     fn find_link(&self, link: &'static str) -> Result<Link, PactBrokerError> {
@@ -199,12 +213,44 @@ impl HALClient {
         }
     }
 
-    fn fetch_link(self, link: &'static str, template_values: HashMap<String, String>) -> impl Future<Item = serde_json::Value, Error = PactBrokerError> {
+    async fn fetch_link(
+        self,
+        link: &'static str,
+        template_values: HashMap<String, String>
+    ) -> Result<serde_json::Value, PactBrokerError> {
+        let link_data = self.find_link(link)?;
+
+        self.fetch_url(link_data, template_values).await
+        /*
         future::done(self.find_link(link))
             .and_then(|link_data| self.fetch_url(&link_data, template_values))
+            */
     }
 
-    fn fetch_url(self, link: &Link, template_values: HashMap<String, String>) -> impl Future<Item = serde_json::Value, Error = PactBrokerError> {
+    async fn fetch_url(
+        self,
+        link: Link,
+        template_values: HashMap<String, String>
+    ) -> Result<serde_json::Value, PactBrokerError> {
+        let link_url = if link.templated {
+            log::debug!("Link URL is templated");
+            self.parse_link_url(&link, &template_values)
+        } else {
+            link.href.clone().ok_or(
+                PactBrokerError::LinkError(format!("Link is malformed, there is no href. URL: '{}', LINK: '{}'",
+                                                   self.url, link.name)))
+        }?;
+
+        let base_url = self.url.parse::<reqwest::Url>()
+            .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?;
+
+        let joined_url = base_url.join(&link_url)
+            .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?;
+
+        self.fetch(joined_url.path().into()).await
+
+
+        /*
         future::done(if link.templated {
             log::debug!("Link URL is templated");
             self.parse_link_url(&link, &template_values)
@@ -224,45 +270,54 @@ impl HALClient {
             .and_then(|(hal_client, uri)| {
                 hal_client.fetch(uri.path().into())
             })
+            */
     }
 
-    fn fetch(self, path: String) -> impl Future<Item = serde_json::Value, Error = PactBrokerError> {
+    async fn fetch(self, path: String) -> Result<serde_json::Value, PactBrokerError> {
         log::debug!("Fetching path '{}' from pact broker", path);
 
-        future::done(join_paths(&self.url, path.clone()).parse::<reqwest::Url>())
-            .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))
-            .and_then(move |url| {
-              let client_url_cloned = self.url.clone();
-              let path_cloned = path.clone();
-              let http_client = match self.auth {
-                Some(ref auth) => match auth {
-                   HttpAuth::User(username, password) => self.client.get(url).basic_auth(username, password.clone()),
-                   HttpAuth::Token(token) => self.client.get(url).bearer_auth(token)
-                },
-                None => self.client.get(url)
-              }.header("accept", "application/hal+json, application/json");
+        let url = join_paths(&self.url, path.clone()).parse::<reqwest::Url>()
+            .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?;
 
-              http_client.send()
-                  .map_err(move |err| {
-                      PactBrokerError::IoError(format!("Failed to access pact broker path '{}' - {}. URL: '{}'",
-                          path_cloned,
-                          err,
-                          client_url_cloned
-                      ))
-                  })
-                  .map(|response| (self, path, response))
+        let client_url_cloned = self.url.clone();
+        let path_cloned = path.clone();
+        let http_client = match self.auth {
+            Some(ref auth) => match auth {
+                HttpAuth::User(username, password) => self.client.get(url).basic_auth(username, password.clone()),
+                HttpAuth::Token(token) => self.client.get(url).bearer_auth(token)
+            },
+            None => self.client.get(url)
+        }.header("accept", "application/hal+json, application/json");
+
+        panic!();
+
+        /*
+
+        http_client.send()
+            .map_err(move |err| {
+                PactBrokerError::IoError(format!("Failed to access pact broker path '{}' - {}. URL: '{}'",
+                    path_cloned,
+                    err,
+                    client_url_cloned
+                ))
             })
+                .map(|response| (self, path, response))
+        })
             .and_then(|(hal_client, path, response)| hal_client.parse_broker_response(path, response))
+            */
     }
 
-    fn parse_broker_response(
+    async fn parse_broker_response(
         self,
         path: String,
         response: reqwest::r#async::Response
-    ) -> impl Future<Item = serde_json::Value, Error = PactBrokerError> {
+    ) -> Result<serde_json::Value, PactBrokerError> {
         let is_json_content_type = json_content_type(&response);
         let content_type = content_type(&response);
 
+        panic!();
+
+        /*
         future::done(Ok(response))
             .and_then(move |response| {
                 if response.status().is_success() {
@@ -301,6 +356,7 @@ impl HALClient {
                         path, content_type, hal_client.url)))
                 }
             })
+            */
     }
 
     fn parse_link_url(&self, link: &Link, values: &HashMap<String, String>) -> Result<String, PactBrokerError> {
@@ -351,33 +407,42 @@ impl HALClient {
         }
     }
 
-  fn post_json(self, url: String, body: String) -> impl Future<Item = (), Error = PactBrokerError> {
-    log::debug!("Posting JSON to {}: {}", url, body);
-    future::done(url.parse::<reqwest::Url>())
-      .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))
-      .and_then( move |url| {
-        let http_client = match self.auth {
-          Some(ref auth) => match auth {
-            HttpAuth::User(username, password) => self.client.post(url.clone()).basic_auth(username, password.clone()),
-            HttpAuth::Token(token) => self.client.post(url.clone()).bearer_auth(token)
-          },
-          None => self.client.post(url.clone())
-        }.header("Content-Type", "application/json")
-        .body(body);
+    async fn post_json(self, url: String, body: String) -> Result<(), PactBrokerError> {
+        log::debug!("Posting JSON to {}: {}", url, body);
 
-        http_client.send()
-          .map_err(move |err| {
-            PactBrokerError::IoError(format!("Failed to post JSON to the pact broker URL '{}' - {}",
-              url, err
-            ))
-          })
-          .map(|_| ())
-      })
-  }
+        let url = url.parse::<reqwest::Url>()
+            .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?;
+
+        let req = match self.auth {
+            Some(ref auth) => match auth {
+                HttpAuth::User(username, password) => self.client
+                    .post(url.clone())
+                    .basic_auth(username, password.clone()),
+                HttpAuth::Token(token) => self.client
+                    .post(url.clone())
+                    .bearer_auth(token)
+            },
+            None => self.client.post(url.clone())
+        }
+            .header("Content-Type", "application/json")
+            .body(body);
+
+        panic!();
+
+        /*
+
+        req.send()
+            .map_err(move |err| {
+                PactBrokerError::IoError(format!("Failed to post JSON to the pact broker URL '{}' - {}",
+                    url, err
+                ))
+            })
+            .map(|_| ())*/
+    }
 }
 
 fn links_from_json(json: &serde_json::Value) -> Vec<Link> {
-  match json.get("_links") {
+   match json.get("_links") {
     Some(json) => match json {
       &serde_json::Value::Object(ref v) => {
         v.iter().map(|(link, json)| match json {
@@ -391,15 +456,16 @@ fn links_from_json(json: &serde_json::Value) -> Vec<Link> {
   }
 }
 
-pub fn fetch_pacts_from_broker(
+pub async fn fetch_pacts_from_broker(
     broker_url: String,
     provider_name: String,
     auth: Option<HttpAuth>
-) -> impl Future<Item = Vec<Result<(Pact, Vec<Link>), PactBrokerError>>, Error = PactBrokerError> {
-    let hal_client = HALClient::with_url(broker_url.clone(), auth);
+) -> Result<Vec<Result<(Pact, Vec<Link>), PactBrokerError>>, PactBrokerError> {
+    let mut hal_client = HALClient::with_url(broker_url.clone(), auth);
     let template_values = hashmap!{ s!("provider") => provider_name.clone() };
 
-    hal_client.navigate("pb:latest-provider-pacts", template_values.clone())
+    hal_client = hal_client.navigate("pb:latest-provider-pacts", template_values.clone())
+        .await
         .map_err(move |err| {
             match err {
                 PactBrokerError::NotFound(_) =>
@@ -408,37 +474,46 @@ pub fn fetch_pacts_from_broker(
                             provider_name, broker_url)),
                 _ => err
             }
-        })
-        .and_then(|hal_client| {
-            hal_client.iter_links(s!("pacts"))
-                .map(|pact_links| (hal_client, pact_links))
-        })
-        .and_then(move |(hal_client, pact_links)| {
-            let client_url_cloned = hal_client.url.clone();
+        })?;
 
-            futures::stream::iter_ok::<_, PactBrokerError>(pact_links)
-                .and_then(move |pact_link| {
-                    match pact_link.clone().href {
-                        Some(_) => Ok(pact_link),
-                        None => Err(
-                            PactBrokerError::LinkError(format!("Expected a HAL+JSON response from the pact broker, but got a link with no HREF. URL: '{}', LINK: '{:?}'",
-                                client_url_cloned, pact_link))
+    let pact_links = hal_client.iter_links(s!("pacts"))?;
+
+    let client_url_cloned = hal_client.url.clone();
+
+    let results: Vec<_> = futures::stream::iter(pact_links)
+        .map(move |pact_link| {
+            match pact_link.clone().href {
+                Some(_) => Ok((hal_client.clone(), pact_link)),
+                None => Err(
+                    PactBrokerError::LinkError(
+                        format!(
+                            "Expected a HAL+JSON response from the pact broker, but got a link with no HREF. URL: '{}', LINK: '{:?}'",
+                            client_url_cloned,
+                            pact_link
                         )
-                    }
-                })
-                .and_then(move |pact_link| {
-                  hal_client.clone().fetch_url(&pact_link, template_values.clone())
-                    .map(move |pact_json| {
-                      let pact = Pact::from_json(&pact_link.href.clone().unwrap(), &pact_json);
-                      let links = links_from_json(&pact_json);
-                      (pact, links)
-                    })
-                })
-                .then(|result| {
-                    Ok(result)
-                })
-                .collect()
+                    )
+                )
+            }
         })
+        .and_then(|(hal_client, pact_link)| async {
+            let pact_json = hal_client.fetch_url(
+                pact_link.clone(),
+                template_values.clone()
+            ).await?;
+            Ok((pact_link, pact_json))
+        })
+        .map_ok(|(pact_link, pact_json)| {
+            let href = pact_link.href.unwrap();
+            let pact = Pact::from_json(&href, &pact_json);
+            let links = links_from_json(&pact_json);
+
+            (pact, links)
+        })
+        .into_stream()
+        .collect()
+        .await;
+
+    Ok(results)
 }
 
 pub enum TestResult {
@@ -456,16 +531,24 @@ impl TestResult {
 }
 
 /// Publishes the result to the "pb:publish-verification-results" link in the links associated with the pact
-pub fn publish_verification_results(links: Vec<Link>, broker_url: String, auth: Option<HttpAuth>, result: TestResult, version: String, build_url: Option<String>)
-  -> impl Future<Item = (), Error = PactBrokerError> {
-  let publish_link = links.iter().cloned().find(|item| item.name.to_ascii_lowercase() == "pb:publish-verification-results")
-    .ok_or(PactBrokerError::LinkError("Response from the pact broker has no 'pb:publish-verification-results' link".into()));
-  future::done(publish_link)
-  .and_then(move |publish_link| {
+pub async fn publish_verification_results(
+    links: Vec<Link>,
+    broker_url: String,
+    auth: Option<HttpAuth>,
+    result: TestResult, version:
+    String, build_url: Option<String>
+) -> Result<(), PactBrokerError> {
+    let publish_link = links
+        .iter()
+        .cloned()
+        .find(|item| item.name.to_ascii_lowercase() == "pb:publish-verification-results")
+        .ok_or(PactBrokerError::LinkError(
+            "Response from the pact broker has no 'pb:publish-verification-results' link".into()
+        ))?;
+
     let json = build_payload(result, version, build_url);
     let hal_client = HALClient::with_url(broker_url.clone(), auth.clone());
-    hal_client.post_json(publish_link.href.clone().unwrap(), json.to_string())
-  })
+    hal_client.post_json(publish_link.href.clone().unwrap(), json.to_string()).await
 }
 
 fn build_payload(result: TestResult, version: String, build_url: Option<String>) -> serde_json::Value {
@@ -562,9 +645,9 @@ mod tests {
     use env_logger::*;
     use pact_matching::models::{Pact, Consumer, Provider, Interaction, PactSpecification};
     use tokio::runtime::current_thread::Runtime;
-  use pact_matching::Mismatch::MethodMismatch;
+    use pact_matching::Mismatch::MethodMismatch;
 
-  #[test]
+    #[test]
     fn fetch_returns_an_error_if_there_is_no_pact_broker() {
         let mut runtime = Runtime::new().unwrap();
         let client = HALClient::with_url(s!("http://idont.exist:6666"), None);

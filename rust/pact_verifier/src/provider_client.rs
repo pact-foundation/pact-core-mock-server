@@ -15,9 +15,6 @@ use hyper::Method;
 use hyper::http::method::InvalidMethod;
 use hyper::http::header::{HeaderMap, HeaderName, HeaderValue, InvalidHeaderName, InvalidHeaderValue};
 use hyper::http::header::CONTENT_TYPE;
-use futures::future;
-use futures::future::Future;
-use futures::stream::Stream;
 
 #[derive(Debug)]
 pub enum ProviderClientError {
@@ -69,12 +66,12 @@ fn create_hyper_request(base_url: &String, request: &Request) -> Result<HyperReq
         url.push_str(&build_query_string(request.query.clone().unwrap()));
     }
     log::debug!("Making request to '{}'", url);
-    let mut builder = HyperRequest::builder();
-    builder.method(
-        Method::from_str(&request.method)
-            .map_err(|err| ProviderClientError::RequestMethodError(request.method.clone(), err))?
-    );
-    builder.uri(url);
+    let mut builder = HyperRequest::builder()
+        .method(
+            Method::from_str(&request.method)
+                .map_err(|err| ProviderClientError::RequestMethodError(request.method.clone(), err))?
+        )
+        .uri(url);
     setup_headers(&mut builder, &request.headers())?;
 
     let hyper_request = builder
@@ -120,10 +117,9 @@ fn extract_headers(headers: &HeaderMap) -> Option<HashMap<String, Vec<String>>> 
   }
 }
 
-pub fn extract_body(hyper_body: Result<hyper::Chunk, HyperError>) -> Result<OptionalBody, HyperError> {
+pub fn extract_body(hyper_body: Result<bytes::Bytes, HyperError>) -> Result<OptionalBody, HyperError> {
     match hyper_body {
-        Ok(chunk) => {
-            let bytes = chunk.into_bytes();
+        Ok(bytes) => {
             if bytes.len() > 0 {
                 Ok(OptionalBody::Present(bytes.to_vec()))
             } else {
@@ -137,12 +133,17 @@ pub fn extract_body(hyper_body: Result<hyper::Chunk, HyperError>) -> Result<Opti
     }
 }
 
-fn hyper_response_to_pact_response(response: HyperResponse<Body>) -> impl Future<Item = Response, Error = HyperError> {
+async fn hyper_response_to_pact_response(
+    response: HyperResponse<Body>
+) -> Result<Response, HyperError> {
     log::debug!("Received response: {:?}", response);
 
     let status = response.status().as_u16();
     let headers = extract_headers(response.headers());
 
+    panic!();
+
+    /*
     response.into_body()
         .concat2()
         .then(extract_body)
@@ -155,6 +156,7 @@ fn hyper_response_to_pact_response(response: HyperResponse<Body>) -> impl Future
                 generators: Generators::default()
             }
         })
+        */
 }
 
 fn check_hyper_response_status(result: Result<HyperResponse<Body>, HyperError>) -> Result<(), ProviderClientError> {
@@ -170,10 +172,16 @@ fn check_hyper_response_status(result: Result<HyperResponse<Body>, HyperError>) 
     }
 }
 
-pub fn make_provider_request(provider: &ProviderInfo, request: &Request) -> impl Future<Item = Response, Error = ProviderClientError> {
+pub async fn make_provider_request(
+    provider: &ProviderInfo,
+    request: &Request
+) -> Result<Response, ProviderClientError> {
     log::debug!("Sending {:?} to provider", request);
     let base_url = format!("{}://{}:{}{}", provider.protocol, provider.host, provider.port, provider.path);
 
+    panic!();
+
+    /*
     future::done(create_hyper_request(&base_url, request))
         .and_then(|request| {
             Client::new().request(request)
@@ -184,16 +192,24 @@ pub fn make_provider_request(provider: &ProviderInfo, request: &Request) -> impl
             log::debug!("Request failed: {:?}", err);
             err
         })
+        */
 }
 
-pub fn make_state_change_request(provider: &ProviderInfo, request: &Request) -> impl Future<Item = (), Error = ProviderClientError> {
+pub async fn make_state_change_request(
+    provider: &ProviderInfo,
+    request: &Request
+) -> Result<(), ProviderClientError> {
     log::debug!("Sending {:?} to state change handler", request);
+
+    panic!();
+    /*
 
     future::done(create_hyper_request(&provider.state_change_url.clone().unwrap(), request))
         .and_then(|request| {
             Client::new().request(request)
                 .then(check_hyper_response_status)
         })
+        */
 }
 
 #[cfg(test)]
