@@ -131,7 +131,8 @@ async fn test_state_change_with_parameters() {
       i.request.body("{\"A\":\"1\",\"B\":\"2\",\"action\":\"setup\",\"state\":\"TestState\"}");
       i.response.status(200);
     })
-    .start_mock_server();
+    .spawn_mock_server()
+    .await;
 
   let provider_state = ProviderState {
     name: s!("TestState"),
@@ -160,7 +161,8 @@ async fn test_state_change_with_parameters_in_query() {
       i.request.query_param("B", "2");
       i.response.status(200);
     })
-    .start_mock_server();
+    .spawn_mock_server()
+    .await;
 
   let provider_state = ProviderState {
     name: s!("TestState"),
@@ -222,7 +224,8 @@ async fn publish_successful_result_to_broker() {
       }));
       i.response.status(201);
     })
-    .start_mock_server();
+    .spawn_mock_server()
+    .await;
 
   let options = super::VerificationOptions {
     publish: true,
