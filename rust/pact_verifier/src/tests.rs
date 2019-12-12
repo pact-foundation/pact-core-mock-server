@@ -174,8 +174,11 @@ async fn test_state_change_with_parameters_in_query() {
 
   let provider = ProviderInfo { state_change_url: Some(server.url().to_string()),
     state_change_body: false, .. ProviderInfo::default() };
+
   let result = execute_state_change(&provider_state, &provider, true, None).await;
   expect!(result.clone()).to(be_ok());
+
+  server.shutdown().await;
 }
 
 #[test]

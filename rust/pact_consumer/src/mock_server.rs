@@ -49,8 +49,10 @@ pub struct ValidatingMockServer {
     url: Url,
     // The mock server instance
     mock_server: mock_server::MockServer,
+    // The running server's join handle
+    server_handle: Option<tokio::task::JoinHandle<()>>,
     // The runtime configuration of our mock server.
-    _runtime: Runtime
+    runtime: Runtime,
 }
 
 impl ValidatingMockServer {
@@ -67,9 +69,13 @@ impl ValidatingMockServer {
         let (mock_server, future) = runtime.block_on(ValidatingMockServer::init_mock_server(pact))
             .expect("error initializing mock server");
 
-        runtime.spawn(future);
+        let server_handle = runtime.spawn(future);
 
-        ValidatingMockServer::with_mock_server_and_runtime(mock_server, Runtime::Background(runtime))
+        ValidatingMockServer::with_mock_server_and_runtime(
+            mock_server,
+            server_handle,
+            Runtime::Background(runtime)
+        )
     }
 
     /// Asynchronously create and spawn a new mock server
@@ -78,14 +84,19 @@ impl ValidatingMockServer {
             .await
             .expect("error initializing mock server");
 
-        tokio::spawn(future);
+        let server_handle = tokio::spawn(future);
 
-        ValidatingMockServer::with_mock_server_and_runtime(mock_server, Runtime::Current)
+        ValidatingMockServer::with_mock_server_and_runtime(
+            mock_server,
+            server_handle,
+            Runtime::Current
+        )
     }
 
     // Initialize this struct
     fn with_mock_server_and_runtime(
         mock_server: mock_server::MockServer,
+        server_handle: tokio::task::JoinHandle<()>,
         runtime: Runtime
     ) -> ValidatingMockServer {
         let description = format!("{}/{}", mock_server.pact.consumer.name, mock_server.pact.provider.name);
@@ -93,8 +104,9 @@ impl ValidatingMockServer {
         ValidatingMockServer {
             description,
             url: url_str.parse().expect("invalid mock server URL"),
-            mock_server: mock_server,
-            _runtime: runtime
+            mock_server,
+            server_handle: Some(server_handle),
+            runtime: runtime
         }
     }
 
@@ -131,12 +143,34 @@ impl ValidatingMockServer {
       self.mock_server.mismatches()
     }
 
+    /// Asynchronously shut down the server. Only needed for "spawned" mode.
+    pub async fn shutdown(mut self) {
+        self.mock_server.shutdown().unwrap();
+        if let Some(server_handle) = self.server_handle.take() {
+            server_handle.await.unwrap();
+        }
+    }
+
     /// Helper function called by our `drop` implementation. This basically exists
     /// so that it can return `Err(message)` whenever needed without making the
     /// flow control in `drop` ultra-complex.
     fn drop_helper(&mut self) -> Result<(), String> {
         // Kill the server
-        self.mock_server.shutdown()?;
+        match &mut self.runtime {
+            Runtime::Background(runtime) => {
+                let server_handle = self.server_handle
+                    .take()
+                    .expect("Server was already shut down");
+                self.mock_server.shutdown().ok();
+
+                runtime.block_on(server_handle).unwrap();
+            },
+            Runtime::Current => {
+                if self.server_handle.is_some() {
+                    panic!("Running in spawned mode, the server should be shut down using shutdown().await");
+                }
+            }
+        }
 
         // Look up any mismatches which occurred.
         let mismatches = self.mock_server.mismatches();
