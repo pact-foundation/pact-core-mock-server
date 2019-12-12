@@ -80,7 +80,7 @@ async fn hyper_request_to_pact_request(req: hyper::Request<Body>) -> Result<Requ
     let query = extract_query_string(req.uri());
     let headers = extract_headers(req.headers())?;
 
-    let body_chunk = hyper::body::to_bytes(req.into_body())
+    let body_bytes = hyper::body::to_bytes(req.into_body())
         .await
         .map_err(|_| InteractionError::RequestBodyError)?;
 
@@ -89,7 +89,7 @@ async fn hyper_request_to_pact_request(req: hyper::Request<Body>) -> Result<Requ
         path,
         query,
         headers,
-        body: extract_body(body_chunk),
+        body: extract_body(body_bytes),
         matching_rules: MatchingRules::default(),
         generators: Generators::default()
     })

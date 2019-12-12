@@ -15,6 +15,7 @@ use hyper::Method;
 use hyper::http::method::InvalidMethod;
 use hyper::http::header::{HeaderMap, HeaderName, HeaderValue, InvalidHeaderName, InvalidHeaderValue};
 use hyper::http::header::CONTENT_TYPE;
+use futures::future::*;
 
 #[derive(Debug)]
 pub enum ProviderClientError {
@@ -140,23 +141,17 @@ async fn hyper_response_to_pact_response(
 
     let status = response.status().as_u16();
     let headers = extract_headers(response.headers());
+    let body = extract_body(hyper::body::to_bytes(response.into_body()).await)?;
 
-    panic!();
-
-    /*
-    response.into_body()
-        .concat2()
-        .then(extract_body)
-        .map(move |body| {
-            Response {
-                status,
-                headers,
-                body,
-                matching_rules: MatchingRules::default(),
-                generators: Generators::default()
-            }
-        })
-        */
+    Ok(
+        Response {
+            status,
+            headers,
+            body,
+            matching_rules: MatchingRules::default(),
+            generators: Generators::default(),
+        }
+    )
 }
 
 fn check_hyper_response_status(result: Result<HyperResponse<Body>, HyperError>) -> Result<(), ProviderClientError> {
@@ -177,22 +172,16 @@ pub async fn make_provider_request(
     request: &Request
 ) -> Result<Response, ProviderClientError> {
     log::debug!("Sending {:?} to provider", request);
+
     let base_url = format!("{}://{}:{}{}", provider.protocol, provider.host, provider.port, provider.path);
+    let request = create_hyper_request(&base_url, request)?;
 
-    panic!();
+    let response = Client::new().request(request)
+        .and_then(hyper_response_to_pact_response)
+        .await
+        .map_err(|err| ProviderClientError::ResponseError(err.description().into()))?;
 
-    /*
-    future::done(create_hyper_request(&base_url, request))
-        .and_then(|request| {
-            Client::new().request(request)
-                .and_then(hyper_response_to_pact_response)
-                .map_err(|err| ProviderClientError::ResponseError(err.description().into()))
-        })
-        .map_err(|err| {
-            log::debug!("Request failed: {:?}", err);
-            err
-        })
-        */
+    Ok(response)
 }
 
 pub async fn make_state_change_request(
@@ -201,15 +190,10 @@ pub async fn make_state_change_request(
 ) -> Result<(), ProviderClientError> {
     log::debug!("Sending {:?} to state change handler", request);
 
-    panic!();
-    /*
+    let request = create_hyper_request(&provider.state_change_url.clone().unwrap(), request)?;
+    let result = Client::new().request(request).await;
 
-    future::done(create_hyper_request(&provider.state_change_url.clone().unwrap(), request))
-        .and_then(|request| {
-            Client::new().request(request)
-                .then(check_hyper_response_status)
-        })
-        */
+    check_hyper_response_status(result)
 }
 
 #[cfg(test)]
