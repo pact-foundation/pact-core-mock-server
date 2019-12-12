@@ -667,6 +667,8 @@ mod tests {
         let result = client.fetch(s!("/hello")).await;
         expect!(result).to(be_err().value(format!("Request to pact broker path \'/hello\' failed: 404 Not Found. URL: '{}'",
             pact_broker.url())));
+
+        pact_broker.shutdown().await;
     }
 
     #[tokio::test]
@@ -685,6 +687,8 @@ mod tests {
         let result = client.fetch(s!("/nonjson")).await;
         expect!(result).to(be_err().value(format!("Did not get a HAL response from pact broker path \'/nonjson\', content type is 'text/html'. URL: '{}'",
             pact_broker.url())));
+
+        pact_broker.shutdown().await;
     }
 
     #[test]
@@ -747,6 +751,8 @@ mod tests {
         let result = client.clone().fetch(s!("/nonhal2")).await;
         expect!(result).to(be_err().value(format!("Did not get a valid HAL response body from pact broker path \'/nonhal2\' - expected value at line 1 column 1. URL: '{}'",
             pact_broker.url())));
+
+        pact_broker.shutdown().await;
     }
 
     #[test]
@@ -799,6 +805,8 @@ mod tests {
         let result = client.clone().fetch_link("hal2", hashmap!{}).await;
         expect!(result).to(be_err().value(format!("Expected a HAL+JSON response from the pact broker, but got a response with no '_links'. URL: '{}', LINK: 'hal2'",
             pact_broker.url())));
+
+        pact_broker.shutdown().await;
     }
 
     #[tokio::test]
@@ -821,6 +829,8 @@ mod tests {
         let result = client.clone().fetch_link("any", hashmap!{}).await;
         expect!(result).to(be_err().value(format!("Link 'any' was not found in the response, only the following links where found: \"\". URL: '{}', LINK: 'any'",
             pact_broker.url())));
+
+        pact_broker.shutdown().await;
     }
 
     #[tokio::test]
@@ -842,6 +852,8 @@ mod tests {
         let result = client.clone().fetch_link("any", hashmap!{}).await;
         expect!(result).to(be_err().value(format!("Link 'any' was not found in the response, only the following links where found: \"next, prev\". URL: '{}', LINK: 'any'",
             pact_broker.url())));
+
+        pact_broker.shutdown().await;
     }
 
     #[tokio::test]
@@ -868,6 +880,8 @@ mod tests {
         client.path_info = result.ok();
         let result = client.clone().fetch_link("next", hashmap!{}).await;
         expect!(result).to(be_ok().value(serde_json::Value::String(s!("Yay! You found your way here"))));
+
+        pact_broker.shutdown().await;
     }
 
     #[tokio::test]
@@ -895,6 +909,8 @@ mod tests {
         client.path_info = result.ok();
         let result = client.clone().fetch_link("next", hashmap!{}).await;
         expect!(result).to(be_ok().value(serde_json::Value::String(s!("Yay! You found your way here"))));
+
+        pact_broker.shutdown().await;
     }
 
     #[tokio::test]
@@ -923,6 +939,8 @@ mod tests {
         client.path_info = result.ok();
         let result = client.clone().fetch_link("document", hashmap!{ s!("id") => s!("abc") }).await;
         expect!(result).to(be_ok().value(serde_json::Value::String(s!("Yay! You found your way here"))));
+
+        pact_broker.shutdown().await;
     }
 
     #[tokio::test]
@@ -957,6 +975,8 @@ mod tests {
         let result = fetch_pacts_from_broker(pact_broker.url().to_string(), s!("sad_provider"), None).await;
         expect!(result).to(be_err().value(format!("No pacts for provider 'sad_provider' where found in the pact broker. URL: '{}'",
             pact_broker.url())));
+
+        pact_broker.shutdown().await;
     }
 
     #[tokio::test]
@@ -1031,6 +1051,8 @@ mod tests {
         for pact in pacts {
             expect!(pact).to(be_ok());
         }
+
+        pact_broker.shutdown().await;
     }
 
   #[test]
