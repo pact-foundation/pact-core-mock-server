@@ -173,13 +173,13 @@ impl HALClient {
         link: &'static str,
         template_values: HashMap<String, String>
     ) -> Result<HALClient, PactBrokerError> {
-        let path_info = self.fetch("/".into()).await?;
-        self = self.update_path_info(path_info);
+        let path_info = self.clone().fetch("/".into()).await?;
+        let client = self.update_path_info(path_info);
 
-        let path_info = self.fetch_link(link, template_values).await?;
-        self = self.update_path_info(path_info);
+        let path_info = client.clone().fetch_link(link, template_values).await?;
+        let client = client.update_path_info(path_info);
 
-        Ok(self)
+        Ok(client)
 
         /*
         future::ok(self)
@@ -644,36 +644,33 @@ mod tests {
     use pact_consumer::*;
     use env_logger::*;
     use pact_matching::models::{Pact, Consumer, Provider, Interaction, PactSpecification};
-    use tokio::runtime::current_thread::Runtime;
     use pact_matching::Mismatch::MethodMismatch;
 
-    #[test]
-    fn fetch_returns_an_error_if_there_is_no_pact_broker() {
-        let mut runtime = Runtime::new().unwrap();
+    #[tokio::test]
+    async fn fetch_returns_an_error_if_there_is_no_pact_broker() {
         let client = HALClient::with_url(s!("http://idont.exist:6666"), None);
-        expect!(runtime.block_on(client.fetch(s!("/")))).to(be_err());
+        expect!(client.fetch(s!("/")).await).to(be_err());
     }
 
-    #[test]
-    fn fetch_returns_an_error_if_it_does_not_get_a_success_response() {
-        let mut runtime = Runtime::new().unwrap();
+    #[tokio::test]
+    async fn fetch_returns_an_error_if_it_does_not_get_a_success_response() {
         let pact_broker = PactBuilder::new("RustPactVerifier", "PactBroker")
             .interaction("a request to a non-existant path", |i| {
                 i.given("the pact broker has a valid pact");
                 i.request.path("/hello");
                 i.response.status(404);
             })
-            .create_mock_server(|future| { runtime.spawn(future); });
+            .spawn_mock_server()
+            .await;
 
         let client = HALClient::with_url(pact_broker.url().to_string(), None);
-        let result = runtime.block_on(client.fetch(s!("/hello")));
+        let result = client.fetch(s!("/hello")).await;
         expect!(result).to(be_err().value(format!("Request to pact broker path \'/hello\' failed: 404 Not Found. URL: '{}'",
             pact_broker.url())));
     }
 
-    #[test]
-    fn fetch_returns_an_error_if_it_does_not_get_a_hal_response() {
-        let mut runtime = Runtime::new().unwrap();
+    #[tokio::test]
+    async fn fetch_returns_an_error_if_it_does_not_get_a_hal_response() {
         let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
             .interaction("a request to a non-json resource", |i| {
                 i.request.path("/nonjson");
@@ -681,10 +678,11 @@ mod tests {
                     .header("Content-Type", "text/html")
                     .body("<html></html>");
             })
-            .create_mock_server(|future| { runtime.spawn(future); });
+            .spawn_mock_server()
+            .await;
 
         let client = HALClient::with_url(pact_broker.url().to_string(), None);
-        let result = runtime.block_on(client.fetch(s!("/nonjson")));
+        let result = client.fetch(s!("/nonjson")).await;
         expect!(result).to(be_err().value(format!("Did not get a HAL response from pact broker path \'/nonjson\', content type is 'text/html'. URL: '{}'",
             pact_broker.url())));
     }
@@ -725,9 +723,8 @@ mod tests {
         expect!(json_content_type(&response)).to(be_true());
     }
 
-    #[test]
-    fn fetch_returns_an_error_if_it_does_not_get_a_valid_hal_response() {
-        let mut runtime = Runtime::new().unwrap();
+    #[tokio::test]
+    async fn fetch_returns_an_error_if_it_does_not_get_a_valid_hal_response() {
         let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
             .interaction("a request to a non-hal resource", |i| {
                 i.request.path("/nonhal");
@@ -739,14 +736,15 @@ mod tests {
                     .header("Content-Type", "application/hal+json")
                     .body("<html>This is not JSON</html>");
             })
-            .create_mock_server(|future| { runtime.spawn(future); });
+            .spawn_mock_server()
+            .await;
 
         let client = HALClient::with_url(pact_broker.url().to_string(), None);
-        let result = runtime.block_on(client.clone().fetch(s!("/nonhal")));
+        let result = client.clone().fetch(s!("/nonhal")).await;
         expect!(result).to(be_err().value(format!("Did not get a valid HAL response body from pact broker path \'/nonhal\' - EOF while parsing a value at line 1 column 0. URL: '{}'",
             pact_broker.url())));
 
-        let result = runtime.block_on(client.clone().fetch(s!("/nonhal2")));
+        let result = client.clone().fetch(s!("/nonhal2")).await;
         expect!(result).to(be_err().value(format!("Did not get a valid HAL response body from pact broker path \'/nonhal2\' - expected value at line 1 column 1. URL: '{}'",
             pact_broker.url())));
     }
@@ -774,18 +772,16 @@ mod tests {
         expect!(client.parse_link_url(&link, &values)).to(be_ok().value("http://A/{valC}"));
     }
 
-    #[test]
-    fn fetch_link_returns_an_error_if_a_previous_resource_has_not_been_fetched() {
-        let mut runtime = Runtime::new().unwrap();
+    #[tokio::test]
+    async fn fetch_link_returns_an_error_if_a_previous_resource_has_not_been_fetched() {
         let client = HALClient::with_url(s!("http://localhost"), None);
-        let result = runtime.block_on(client.fetch_link("anything_will_do", hashmap!{}));
+        let result = client.fetch_link("anything_will_do", hashmap!{}).await;
         expect!(result).to(be_err().value(s!("No previous resource has been fetched from the pact broker. URL: 'http://localhost', LINK: 'anything_will_do'")));
     }
 
-    #[test]
-    fn fetch_link_returns_an_error_if_the_previous_resource_was_not_hal() {
+    #[tokio::test]
+    async fn fetch_link_returns_an_error_if_the_previous_resource_was_not_hal() {
         init().unwrap_or(());
-        let mut runtime = Runtime::new().unwrap();
         let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
             .interaction("a request to a non-hal json resource", |i| {
                 i.request.path("/");
@@ -793,21 +789,21 @@ mod tests {
                     .header("Content-Type", "application/hal+json")
                     .body("{}");
             })
-            .create_mock_server(|future| { runtime.spawn(future); });
+            .spawn_mock_server()
+            .await;
 
         let mut client = HALClient::with_url(pact_broker.url().to_string(), None);
-        let result = runtime.block_on(client.clone().fetch(s!("/")));
+        let result = client.clone().fetch(s!("/")).await;
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
-        let result = runtime.block_on(client.clone().fetch_link("hal2", hashmap!{}));
+        let result = client.clone().fetch_link("hal2", hashmap!{}).await;
         expect!(result).to(be_err().value(format!("Expected a HAL+JSON response from the pact broker, but got a response with no '_links'. URL: '{}', LINK: 'hal2'",
             pact_broker.url())));
     }
 
-    #[test]
-    fn fetch_link_returns_an_error_if_the_previous_resource_links_are_not_correctly_formed() {
+    #[tokio::test]
+    async fn fetch_link_returns_an_error_if_the_previous_resource_links_are_not_correctly_formed() {
         init().unwrap_or(());
-        let mut runtime = Runtime::new().unwrap();
         let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
             .interaction("a request to a hal resource with invalid links", |i| {
                 i.request.path("/");
@@ -815,20 +811,20 @@ mod tests {
                     .header("Content-Type", "application/hal+json")
                     .body("{\"_links\":[{\"next\":{\"href\":\"abc\"}},{\"prev\":{\"href\":\"def\"}}]}");
             })
-            .create_mock_server(|future| { runtime.spawn(future); });
+            .spawn_mock_server()
+            .await;
 
         let mut client = HALClient::with_url(pact_broker.url().to_string(), None);
-        let result = runtime.block_on(client.clone().fetch(s!("/")));
+        let result = client.clone().fetch(s!("/")).await;
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
-        let result = runtime.block_on(client.clone().fetch_link("any", hashmap!{}));
+        let result = client.clone().fetch_link("any", hashmap!{}).await;
         expect!(result).to(be_err().value(format!("Link 'any' was not found in the response, only the following links where found: \"\". URL: '{}', LINK: 'any'",
             pact_broker.url())));
     }
 
-    #[test]
-    fn fetch_link_returns_an_error_if_the_previous_resource_does_not_have_the_link() {
-        let mut runtime = Runtime::new().unwrap();
+    #[tokio::test]
+    async fn fetch_link_returns_an_error_if_the_previous_resource_does_not_have_the_link() {
         let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
             .interaction("a request to a hal resource", |i| {
                 i.request.path("/");
@@ -836,20 +832,20 @@ mod tests {
                     .header("Content-Type", "application/hal+json")
                     .body("{\"_links\":{\"next\":{\"href\":\"/abc\"},\"prev\":{\"href\":\"/def\"}}}");
             })
-            .create_mock_server(|future| { runtime.spawn(future); });
+            .spawn_mock_server()
+            .await;
 
         let mut client = HALClient::with_url(pact_broker.url().to_string(), None);
-        let result = runtime.block_on(client.clone().fetch(s!("/")));
+        let result = client.clone().fetch(s!("/")).await;
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
-        let result = runtime.block_on(client.clone().fetch_link("any", hashmap!{}));
+        let result = client.clone().fetch_link("any", hashmap!{}).await;
         expect!(result).to(be_err().value(format!("Link 'any' was not found in the response, only the following links where found: \"next, prev\". URL: '{}', LINK: 'any'",
             pact_broker.url())));
     }
 
-    #[test]
-    fn fetch_link_returns_the_resource_for_the_link() {
-        let mut runtime = Runtime::new().unwrap();
+    #[tokio::test]
+    async fn fetch_link_returns_the_resource_for_the_link() {
         let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
             .interaction("a request to a hal resource", |i| {
                 i.request.path("/");
@@ -863,20 +859,20 @@ mod tests {
                     .header("Content-Type", "application/json")
                     .json_body(json_pattern!("Yay! You found your way here"));
             })
-            .create_mock_server(|future| { runtime.spawn(future); });
+            .spawn_mock_server()
+            .await;
 
         let mut client = HALClient::with_url(pact_broker.url().to_string(), None);
-        let result = runtime.block_on(client.clone().fetch(s!("/")));
+        let result = client.clone().fetch(s!("/")).await;
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
-        let result = runtime.block_on(client.clone().fetch_link("next", hashmap!{}));
+        let result = client.clone().fetch_link("next", hashmap!{}).await;
         expect!(result).to(be_ok().value(serde_json::Value::String(s!("Yay! You found your way here"))));
     }
 
-    #[test]
-    fn fetch_link_returns_handles_absolute_resource_links() {
+    #[tokio::test]
+    async fn fetch_link_returns_handles_absolute_resource_links() {
         init().unwrap_or(());
-        let mut runtime = Runtime::new().unwrap();
         let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
             .interaction("a request to a hal resource with absolute paths", |i| {
                 i.request.path("/");
@@ -890,20 +886,20 @@ mod tests {
                     .header("Content-Type", "application/json")
                     .json_body(json_pattern!("Yay! You found your way here"));
             })
-            .create_mock_server(|future| { runtime.spawn(future); });
+            .spawn_mock_server()
+            .await;
 
         let mut client = HALClient::with_url(pact_broker.url().to_string(), None);
-        let result = runtime.block_on(client.clone().fetch(s!("/")));
+        let result = client.clone().fetch(s!("/")).await;
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
-        let result = runtime.block_on(client.clone().fetch_link("next", hashmap!{}));
+        let result = client.clone().fetch_link("next", hashmap!{}).await;
         expect!(result).to(be_ok().value(serde_json::Value::String(s!("Yay! You found your way here"))));
     }
 
-    #[test]
-    fn fetch_link_returns_the_resource_for_the_templated_link() {
+    #[tokio::test]
+    async fn fetch_link_returns_the_resource_for_the_templated_link() {
         init().unwrap_or(());
-        let mut runtime = Runtime::new().unwrap();
         let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
             .interaction("a request to a templated hal resource", |i| {
                 i.request.path("/");
@@ -918,20 +914,20 @@ mod tests {
                     .header("Content-Type", "application/json")
                     .json_body(json_pattern!("Yay! You found your way here"));
             })
-            .create_mock_server(|future| { runtime.spawn(future); });
+            .spawn_mock_server()
+            .await;
 
         let mut client = HALClient::with_url(pact_broker.url().to_string(), None);
-        let result = runtime.block_on(client.clone().fetch(s!("/")));
+        let result = client.clone().fetch(s!("/")).await;
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
-        let result = runtime.block_on(client.clone().fetch_link("document", hashmap!{ s!("id") => s!("abc") }));
+        let result = client.clone().fetch_link("document", hashmap!{ s!("id") => s!("abc") }).await;
         expect!(result).to(be_ok().value(serde_json::Value::String(s!("Yay! You found your way here"))));
     }
 
-    #[test]
-    fn fetch_pacts_from_broker_returns_empty_list_if_there_are_no_pacts() {
+    #[tokio::test]
+    async fn fetch_pacts_from_broker_returns_empty_list_if_there_are_no_pacts() {
         init().unwrap_or(());
-        let mut runtime = Runtime::new().unwrap();
         let pact_broker = PactBuilder::new("RustPactVerifier", "PactBroker")
             .interaction("a request to the pact broker root", |i| {
                 i.request
@@ -955,17 +951,17 @@ mod tests {
                     .header("Accept", "application/hal+json, application/json");
                 i.response.status(404);
             })
-            .create_mock_server(|future| { runtime.spawn(future); });
+            .spawn_mock_server()
+            .await;
 
-        let result = runtime.block_on(fetch_pacts_from_broker(pact_broker.url().to_string(), s!("sad_provider"), None));
+        let result = fetch_pacts_from_broker(pact_broker.url().to_string(), s!("sad_provider"), None).await;
         expect!(result).to(be_err().value(format!("No pacts for provider 'sad_provider' where found in the pact broker. URL: '{}'",
             pact_broker.url())));
     }
 
-    #[test]
-    fn fetch_pacts_from_broker_returns_a_list_of_pacts() {
+    #[tokio::test]
+    async fn fetch_pacts_from_broker_returns_a_list_of_pacts() {
         init().unwrap_or(());
-        let mut runtime = Runtime::new().unwrap();
         let pact = Pact { consumer: Consumer { name: s!("Consumer") },
             provider: Provider { name: s!("happy_provider") },
             .. Pact::default() }
@@ -1025,9 +1021,10 @@ mod tests {
                     .header("Content-Type", "application/json")
                     .body(pact2.clone());
             })
-            .create_mock_server(|future| { runtime.spawn(future); });
+            .spawn_mock_server()
+            .await;
 
-        let result = runtime.block_on(fetch_pacts_from_broker(pact_broker.url().to_string(), s!("happy_provider"), None));
+        let result = fetch_pacts_from_broker(pact_broker.url().to_string(), s!("happy_provider"), None).await;
         expect!(result.clone()).to(be_ok());
         let pacts = result.unwrap();
         expect!(pacts.len()).to(be_equal_to(2));
