@@ -80,7 +80,7 @@ fn mock_server_failing_validation() {
 fn duplicate_interactions() {
   let _ = env_logger::init();
 
-  let output_dir = Path::new("target/duplicate_interactions");
+  let output_dir = Path::new("/tmp/duplicate_interactions");
   fs::remove_dir_all(output_dir).unwrap_or(());
 
   env::set_var("PACT_OUTPUT_DIR", &output_dir);
@@ -119,6 +119,8 @@ fn duplicate_interactions() {
       "TrixR4Kidz",
     );
   }
+
+  env::remove_var("PACT_OUTPUT_DIR");
 
   let path = output_dir.join("consumer 1-provider 1.json");
   let written_pact = Pact::read_pact(path.as_path()).unwrap();

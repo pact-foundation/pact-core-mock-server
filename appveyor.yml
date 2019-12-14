@@ -32,10 +32,11 @@ build_script:
   - cargo test
   - cd "%APPVEYOR_BUILD_FOLDER%\rust\pact_consumer"
   - cargo build
-  - cargo test
+  - cargo test -- --test-threads 1
   - cd "%APPVEYOR_BUILD_FOLDER%\rust\pact_verifier"
   - cargo build
   - cargo test
   - cd "%APPVEYOR_BUILD_FOLDER%\rust\pact_verifier_cli"
   - cargo build
   - cargo test
+
