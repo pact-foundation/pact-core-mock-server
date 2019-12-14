@@ -60,7 +60,7 @@
 macro_rules! json_pattern {
     // Hide distracting implementation details from the generated rustdoc.
     ($($json:tt)+) => {
-        json_pattern_internal!($($json)+)
+      $crate::json_pattern_internal!($($json)+)
     };
 }
 
