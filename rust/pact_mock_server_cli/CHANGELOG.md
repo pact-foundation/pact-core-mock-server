@@ -1,5 +1,17 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.6.0 - Bugfix Release
+
+* d2908af - chore: bump minor version (Ronald Holshausen, Sat Dec 14 17:15:41 2019 +1100)
+* 2d95535 - pact_mock_server_cli: Remove extern crate from main.rs (Audun Halland, Sun Nov 17 23:10:10 2019 +0100)
+* abc2a36 - pact_mock_server_cli: Upgrade log, simplelog (Audun Halland, Sun Nov 17 23:01:50 2019 +0100)
+* 713cd6a - Explicit edition 2018 in Cargo.toml files (Audun Halland, Sat Nov 16 23:55:37 2019 +0100)
+* 924452f - 2018 edition autofix "cargo fix --edition" (Audun Halland, Sat Nov 16 22:27:42 2019 +0100)
+* 097d045 - refactor: added a mock server ffi module and bumped the mock server minor version (Ronald Holshausen, Sat Sep 7 09:39:27 2019 +1000)
+* f79b033 - chore: update terminal support in release scripts (Ronald Holshausen, Sat Aug 24 12:25:28 2019 +1000)
+* da1956a - chore: bump the version of the matching lib (Ronald Holshausen, Sat Aug 24 12:06:51 2019 +1000)
+* c5e55ab - bump version to 0.5.2 (Ronald Holshausen, Sat Aug 24 11:29:20 2019 +1000)
+
 # 0.5.1 - support headers with multiple values
 
 * 5b22076 - fix: docker release script (Ronald Holshausen, Sat Jul 27 16:52:12 2019 +1000)
