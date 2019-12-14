@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.6.2 - Rust 2018 edition
+
+* 8bfeb0b - pact_mock_server: Remove extern crate from lib.rs (Audun Halland, Sun Nov 17 22:53:52 2019 +0100)
+* 713cd6a - Explicit edition 2018 in Cargo.toml files (Audun Halland, Sat Nov 16 23:55:37 2019 +0100)
+* 924452f - 2018 edition autofix "cargo fix --edition" (Audun Halland, Sat Nov 16 22:27:42 2019 +0100)
+* 99fdde2 - bump version to 0.6.2 (Ronald Holshausen, Sat Sep 28 14:19:43 2019 +1000)
+
 # 0.6.1 - Bugfix Release
 
 * 37d89dd - chore: use the latest matching lib (Ronald Holshausen, Sat Sep 28 14:04:55 2019 +1000)
