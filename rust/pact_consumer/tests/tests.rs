@@ -80,7 +80,7 @@ fn mock_server_failing_validation() {
 fn duplicate_interactions() {
   let _ = env_logger::init();
 
-  {
+  for _ in 1..3 {
     let mock_service = PactBuilder::new("consumer 1", "provider 1")
       .interaction("tricky test", |interaction| {
         interaction
