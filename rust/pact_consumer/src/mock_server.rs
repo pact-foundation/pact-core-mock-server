@@ -96,7 +96,7 @@ impl ValidatingMockServer {
         ValidatingMockServer {
             description,
             url: url_str.parse().expect("invalid mock server URL"),
-            mock_server: mock_server,
+            mock_server,
             _mode: mode
         }
     }
