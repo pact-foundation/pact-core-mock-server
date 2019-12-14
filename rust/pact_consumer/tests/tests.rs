@@ -80,6 +80,11 @@ fn mock_server_failing_validation() {
 fn duplicate_interactions() {
   let _ = env_logger::init();
 
+  let output_dir = Path::new("target/duplicate_interactions");
+  fs::remove_dir_all(output_dir).unwrap_or(());
+
+  env::set_var("PACT_OUTPUT_DIR", &output_dir);
+
   for _ in 1..3 {
     let mock_service = PactBuilder::new("consumer 1", "provider 1")
       .interaction("tricky test", |interaction| {
@@ -115,7 +120,7 @@ fn duplicate_interactions() {
     );
   }
 
-  let path = Path::new("target/pacts/consumer 1-provider 1.json");
-  let written_pact = Pact::read_pact(path).unwrap();
+  let path = output_dir.join("consumer 1-provider 1.json");
+  let written_pact = Pact::read_pact(path.as_path()).unwrap();
   expect!(written_pact.interactions.len()).to(be_equal_to(1));
 }
