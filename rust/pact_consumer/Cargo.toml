@@ -24,7 +24,7 @@ lazy_static = "1.4.0"
 regex = "0.1.56"
 serde_json = "1.0"
 itertools = "0.5.4"
-url = "1.5.1"
+url = "2.1"
 uuid = { version = "0.6", features = ["v4"] }
 futures = "0.3"
 tokio = { version = "0.2", features = ["rt-threaded"] }
@@ -33,6 +33,6 @@ tokio = { version = "0.2", features = ["rt-threaded"] }
 quickcheck = "0.2"
 env_logger = "0.4"
 expectest = "0.9.2"
-reqwest = "0.9.5"
+reqwest = { git = "https://github.com/seanmonstar/reqwest", features = ["default-tls", "blocking" ] }
 serde = "1.0"
 serde_derive = "1.0"
