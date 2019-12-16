@@ -693,7 +693,7 @@ mod tests {
 
     #[test]
     fn content_type_test() {
-        let response = reqwest::r#async::Response::from(
+        let response = reqwest::Response::from(
             http::response::Builder::new()
                 .header("content-type", "application/hal+json; charset=utf-8")
                 .body("null")
@@ -705,7 +705,7 @@ mod tests {
 
     #[test]
     fn json_content_type_test() {
-        let response = reqwest::r#async::Response::from(
+        let response = reqwest::Response::from(
             http::response::Builder::new()
                 .header("content-type", "application/json")
                 .body("null")
@@ -717,7 +717,7 @@ mod tests {
 
     #[test]
     fn json_content_type_utf8_test() {
-        let response = reqwest::r#async::Response::from(
+        let response = reqwest::Response::from(
             http::response::Builder::new()
                 .header("content-type", "application/hal+json;charset=utf-8")
                 .body("null")
