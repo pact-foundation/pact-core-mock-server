@@ -18,6 +18,7 @@ pub trait StartMockServer {
     fn start_mock_server(&self) -> BackgroundMockServer;
 
     /// Asynchronously spawn a mock server onto the current tokio runtime.
+    /// Note that the returned server should be shut down after use by calling server.shutdown().await.
     fn spawn_mock_server(&self) -> BoxFuture<'static, SpawnedMockServer>;
 }
 
