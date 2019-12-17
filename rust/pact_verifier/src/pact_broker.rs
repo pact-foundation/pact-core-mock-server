@@ -241,8 +241,6 @@ impl HALClient {
         let url = join_paths(&self.url, path.clone()).parse::<reqwest::Url>()
             .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?;
 
-        let client_url_cloned = self.url.clone();
-        let path_cloned = path.clone();
         let request_builder = match self.auth {
             Some(ref auth) => match auth {
                 HttpAuth::User(username, password) => self.client.get(url).basic_auth(username, password.clone()),
@@ -254,11 +252,11 @@ impl HALClient {
         let response = request_builder
             .send()
             .await
-            .map_err(move |err| {
+            .map_err(|err| {
                 PactBrokerError::IoError(format!("Failed to access pact broker path '{}' - {}. URL: '{}'",
-                    path_cloned,
+                    &path,
                     err,
-                    client_url_cloned
+                    &self.url,
                 ))
             })?;
 
@@ -427,17 +425,15 @@ pub async fn fetch_pacts_from_broker(
 
     let pact_links = hal_client.iter_links(s!("pacts"))?;
 
-    let client_url_cloned = hal_client.url.clone();
-
     let results: Vec<_> = futures::stream::iter(pact_links)
-        .map(move |pact_link| {
+        .map(|pact_link| {
             match pact_link.clone().href {
                 Some(_) => Ok((hal_client.clone(), pact_link)),
                 None => Err(
                     PactBrokerError::LinkError(
                         format!(
                             "Expected a HAL+JSON response from the pact broker, but got a link with no HREF. URL: '{}', LINK: '{:?}'",
-                            client_url_cloned,
+                            &hal_client.url,
                             pact_link
                         )
                     )
