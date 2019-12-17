@@ -8,7 +8,7 @@ use std::{
 };
 use expectest::prelude::*;
 use expectest::expect;
-use reqwest::Client;
+use reqwest::blocking::Client;
 use pact_matching::models::Pact;
 
 /// This is supposed to be a doctest in lib.rs, but it's breaking there, so
