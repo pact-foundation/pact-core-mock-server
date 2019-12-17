@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 if [ "" = "$1" ]; then
   echo "Usage: "
   echo "  ./release-docker.sh version"

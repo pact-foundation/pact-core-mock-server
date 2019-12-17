@@ -1,5 +1,22 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.5.3 - Bugfix Release
+
+* ec1a368 - chore: update lib versions (Ronald Holshausen, Sat Dec 14 18:09:26 2019 +1100)
+* 19e8ced - fix: cleanup env var and set tests to not run in parallel on CI #54 (Ronald Holshausen, Sat Dec 14 16:08:56 2019 +1100)
+* b5474b4 - fix: set the path to the generated pact file #54 (Ronald Holshausen, Sat Dec 14 15:46:37 2019 +1100)
+* d4dd39f - fix: repeat the test 3 times #54 (Ronald Holshausen, Sat Dec 14 15:30:01 2019 +1100)
+* bc044be - fix: check the size of the merged pact file #54 (Ronald Holshausen, Sat Dec 14 15:25:33 2019 +1100)
+* a660b87 - fix: correct pact merging to remove duplicates #54 (Ronald Holshausen, Sat Dec 14 15:06:30 2019 +1100)
+* 51f5a3e - Update READMEs and doc to not require any "extern crate" (Audun Halland, Sun Nov 17 23:28:21 2019 +0100)
+* 9ba4fc1 - Fix doc uses in pact_consumer (Audun Halland, Sun Nov 17 02:43:53 2019 +0100)
+* 276fa40 - 2018ize pact_consumer (Audun Halland, Sun Nov 17 00:21:59 2019 +0100)
+* 346bf5e - Update pact_consumer/README (Audun Halland, Sun Nov 17 00:04:54 2019 +0100)
+* 4a7d402 - Remove macro_use from documentation (Audun Halland, Sun Nov 17 00:02:58 2019 +0100)
+* 713cd6a - Explicit edition 2018 in Cargo.toml files (Audun Halland, Sat Nov 16 23:55:37 2019 +0100)
+* 924452f - 2018 edition autofix "cargo fix --edition" (Audun Halland, Sat Nov 16 22:27:42 2019 +0100)
+* d736b8a - bump version to 0.5.3 (Ronald Holshausen, Mon Sep 30 11:02:42 2019 +1000)
+
 # 0.5.2 - Fix dependency versions
 
 * b5ab246 - chore: update the pact_matching and pact_mock_server to latest versions (Ronald Holshausen, Mon Sep 30 10:41:02 2019 +1000)

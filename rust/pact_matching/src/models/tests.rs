@@ -1136,9 +1136,14 @@ fn pact_merge_removes_duplicates() {
         ],
         .. Pact::default()
     };
+
     let merged_pact = pact.merge(&pact2);
     expect!(merged_pact.clone()).to(be_ok());
     expect!(merged_pact.clone().unwrap().interactions.len()).to(be_equal_to(2));
+
+    let merged_pact2 = pact.merge(&pact.clone());
+    expect!(merged_pact2.clone()).to(be_ok());
+    expect!(merged_pact2.clone().unwrap().interactions.len()).to(be_equal_to(1));
 }
 
 #[test]

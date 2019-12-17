@@ -1,5 +1,19 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.5.7 - Bugfix Release
+
+* a660b87 - fix: correct pact merging to remove duplicates #54 (Ronald Holshausen, Sat Dec 14 15:06:30 2019 +1100)
+* 51f5a3e - Update READMEs and doc to not require any "extern crate" (Audun Halland, Sun Nov 17 23:28:21 2019 +0100)
+* bc1515a - pact_matching: Upgrade lazy_static to get rid of warning msg (Audun Halland, Sun Nov 17 22:47:30 2019 +0100)
+* e0bb698 - pact_matching: Remove test extern crate from lib.rs (Audun Halland, Sun Nov 17 22:43:45 2019 +0100)
+* c16574d - pact_matching: Remove prod extern crate from lib.rs (Audun Halland, Sun Nov 17 22:32:35 2019 +0100)
+* 85efd07 - pact_matching: use maplit::* explicitly (Audun Halland, Sun Nov 17 22:17:53 2019 +0100)
+* 382f304 - pact_matching: Upgrade log to 0.4 - for scoped macro (Audun Halland, Sun Nov 17 22:12:55 2019 +0100)
+* fcadd7f - pact_matching: Remove extern crate serde_json (Audun Halland, Sun Nov 17 21:57:39 2019 +0100)
+* 713cd6a - Explicit edition 2018 in Cargo.toml files (Audun Halland, Sat Nov 16 23:55:37 2019 +0100)
+* 924452f - 2018 edition autofix "cargo fix --edition" (Audun Halland, Sat Nov 16 22:27:42 2019 +0100)
+* 8523e69 - bump version to 0.5.7 (Ronald Holshausen, Sun Nov 10 10:30:20 2019 +1100)
+
 # 0.5.6 - Bugfix Release
 
 * a0dc946 - fix: store matching rules in a set to avoid duplicates (Ronald Holshausen, Sun Nov 10 10:08:34 2019 +1100)

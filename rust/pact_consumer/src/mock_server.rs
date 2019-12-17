@@ -73,7 +73,7 @@ impl InnerServer {
             description,
             url: url_str.parse().expect("invalid mock server URL"),
             mock_server,
-            server_handle: Some(server_handle)
+            server_handle: Some(server_handle),
         }
     }
 

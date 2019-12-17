@@ -1,4 +1,5 @@
 use pact_consumer::prelude::*;
+use pact_consumer::{json_pattern, json_pattern_internal};
 use std::{
   io::prelude::*,
   env,
@@ -6,6 +7,9 @@ use std::{
   fs
 };
 use expectest::prelude::*;
+use expectest::expect;
+use reqwest::Client;
+use pact_matching::models::Pact;
 
 /// This is supposed to be a doctest in lib.rs, but it's breaking there, so
 /// we have an executable copy here.
@@ -70,4 +74,55 @@ fn mock_server_failing_validation() {
     // the function.
     let url = hello_service.path("/goodbye");
     let _ = reqwest::blocking::get(url);
+}
+
+#[test]
+fn duplicate_interactions() {
+  let _ = env_logger::init();
+
+  let output_dir = Path::new("/tmp/duplicate_interactions");
+  fs::remove_dir_all(output_dir).unwrap_or(());
+
+  env::set_var("PACT_OUTPUT_DIR", &output_dir);
+
+  for _ in 1..3 {
+    let mock_service = PactBuilder::new("consumer 1", "provider 1")
+      .interaction("tricky test", |interaction| {
+        interaction
+          .request
+          .put()
+          .json_body(pact_consumer::json_pattern!({
+                          "name": pact_consumer::like!("mai"),
+                          "street": pact_consumer::like!("5th"),
+                          "state": pact_consumer::like!("VA"),
+                      }))
+          .path("/rolex.html");
+        interaction.response.body("TrixR4Kidz");
+      })
+      .build()
+      .start_mock_server();
+
+    let mock_url = mock_service.url().as_ref();
+
+    assert_eq!(
+      Client::new()
+        .put(&format!("{}rolex.html", mock_url))
+        .json(&serde_json::json!({
+                      "name": "mai",
+                      "street": "5th",
+                      "state": "VA",
+                  }))
+        .send()
+        .unwrap()
+        .text()
+        .unwrap(),
+      "TrixR4Kidz",
+    );
+  }
+
+  env::remove_var("PACT_OUTPUT_DIR");
+
+  let path = output_dir.join("consumer 1-provider 1.json");
+  let written_pact = Pact::read_pact(path.as_path()).unwrap();
+  expect!(written_pact.interactions.len()).to(be_equal_to(1));
 }

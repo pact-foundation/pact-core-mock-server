@@ -11,7 +11,7 @@ all:
 	# We call `build` and `test` separately, because they compile slightly
 	# different things.
 	cargo build --all
-	cargo test --all
+	cargo test --all -- --test-threads 1
 
 clean:
 	# This doesn't require `--all`, perhaps because there's only one shared

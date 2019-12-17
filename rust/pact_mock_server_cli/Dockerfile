@@ -10,6 +10,9 @@ RUN sudo chown -R rust:rust /home/rust
 RUN sed -i -e 's/pact_matching = {\s*version\s*=\s*"\([^"]*\).*/pact_matching = "\1"/' Cargo.toml
 RUN sed -i -e 's/pact_mock_server = {\s*version\s*=\s*"\([^"]*\).*/pact_mock_server = "\1"/' Cargo.toml
 
+RUN sudo apt-get update -y
+RUN sudo apt-get install llvm libclang-dev -y
+
 # Build our application.
 RUN cargo build --release
 

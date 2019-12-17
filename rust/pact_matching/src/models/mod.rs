@@ -11,6 +11,7 @@ use super::strip_whitespace;
 use onig::Regex;
 use semver::Version;
 use itertools::{Itertools, iproduct};
+use itertools::EitherOrBoth::{Left, Right, Both};
 use std::io::{self, Error, ErrorKind};
 use std::io::prelude::*;
 use std::fs;
@@ -1088,47 +1089,50 @@ impl Pact {
     /// Returns an error if there is a merge conflict, which will occur if any interaction has the
     /// same description and provider state and the requests and responses are different.
     pub fn merge(&self, pact: &Pact) -> Result<Pact, String> {
-        if self.consumer.name == pact.consumer.name && self.provider.name == pact.provider.name {
-            let conflicts = iproduct!(self.interactions.clone(), pact.interactions.clone())
-                .map(|i| i.0.conflicts_with(&i.1))
-                .filter(|conflicts| !conflicts.is_empty())
-                .collect::<Vec<Vec<PactConflict>>>();
-            let num_conflicts = conflicts.len();
-            if num_conflicts > 0 {
-                log::warn!("The following conflicting interactions where found:");
-                for interaction_conflicts in conflicts {
-                    log::warn!(" Interaction '{}':", interaction_conflicts.first().unwrap().interaction);
-                    for conflict in interaction_conflicts {
-                        log::warn!("   {}", conflict.description);
-                    }
+      if self.consumer.name == pact.consumer.name && self.provider.name == pact.provider.name {
+          let conflicts = iproduct!(self.interactions.clone(), pact.interactions.clone())
+            .map(|i| i.0.conflicts_with(&i.1))
+            .filter(|conflicts| !conflicts.is_empty())
+            .collect::<Vec<Vec<PactConflict>>>();
+          let num_conflicts = conflicts.len();
+          if num_conflicts > 0 {
+            log::warn!("The following conflicting interactions where found:");
+            for interaction_conflicts in conflicts {
+                log::warn!(" Interaction '{}':", interaction_conflicts.first().unwrap().interaction);
+                for conflict in interaction_conflicts {
+                    log::warn!("   {}", conflict.description);
                 }
-                Err(format!("Unable to merge pacts, as there were {} conflict(s) between the interactions",
-                    num_conflicts))
-            } else {
-                Ok(Pact {
-                    provider: self.provider.clone(),
-                    consumer: self.consumer.clone(),
-                    interactions: self.interactions.iter()
-                        .chain(pact.interactions.iter())
-                        .cloned()
-                        .sorted_by(|a, b| {
-                            let cmp = Ord::cmp(&a.provider_states.iter().map(|p| p.name.clone()).collect::<Vec<String>>(),
-                                &b.provider_states.iter().map(|p| p.name.clone()).collect::<Vec<String>>());
-                            if cmp == Ordering::Equal {
-                                Ord::cmp(&a.description, &b.description)
-                            } else {
-                                cmp
-                            }
-                        }).into_iter()
-                        .unique()
-                        .collect(),
-                    metadata: self.metadata.clone(),
-                    specification_version: self.specification_version.clone()
-                })
             }
-        } else {
-            Err(s!("Unable to merge pacts, as they have different consumers or providers"))
-        }
+            Err(format!("Unable to merge pacts, as there were {} conflict(s) between the interactions",
+                num_conflicts))
+          } else {
+            Ok(Pact {
+              provider: self.provider.clone(),
+              consumer: self.consumer.clone(),
+              interactions: self.interactions.iter()
+                .merge_join_by(pact.interactions.iter(), |a, b| {
+                  let cmp = Ord::cmp(&a.provider_states.iter().map(|p| p.name.clone()).collect::<Vec<String>>(),
+                    &b.provider_states.iter().map(|p| p.name.clone()).collect::<Vec<String>>());
+                  if cmp == Ordering::Equal {
+                    Ord::cmp(&a.description, &b.description)
+                  } else {
+                    cmp
+                  }
+                })
+                .map(|either| match either {
+                  Left(i) => i,
+                  Right(i) => i,
+                  Both(i, _) => i
+                })
+                .cloned()
+                .collect(),
+              metadata: self.metadata.clone(),
+              specification_version: self.specification_version.clone()
+            })
+          }
+      } else {
+        Err(s!("Unable to merge pacts, as they have different consumers or providers"))
+      }
     }
 
     /// Determines the default file name for the pact. This is based on the consumer and
@@ -1156,22 +1160,24 @@ impl Pact {
   /// automatically created. If an existing pact is found at the path, this pact will be
   /// merged into the pact file.
     pub fn write_pact(&self, path: &Path, pact_spec: PactSpecification) -> io::Result<()> {
-        fs::create_dir_all(path.parent().unwrap())?;
-        if path.exists() {
-            let existing_pact = Pact::read_pact(path)?;
-            match existing_pact.merge(self) {
-                Ok(ref merged_pact) => {
-                    let mut file = File::create(path)?;
-                    file.write_all(format!("{}", serde_json::to_string_pretty(&merged_pact.to_json(pact_spec)).unwrap()).as_bytes())?;
-                    Ok(())
-                },
-                Err(ref message) => Err(Error::new(ErrorKind::Other, message.clone()))
-            }
-        } else {
-            let mut file = File::create(path)?;
-            file.write_all(format!("{}", serde_json::to_string_pretty(&self.to_json(pact_spec)).unwrap()).as_bytes())?;
-            Ok(())
+      fs::create_dir_all(path.parent().unwrap())?;
+      if path.exists() {
+        log::debug!("Merging pact with file {:?}", path);
+        let existing_pact = Pact::read_pact(path)?;
+        match existing_pact.merge(self) {
+            Ok(ref merged_pact) => {
+                let mut file = File::create(path)?;
+                file.write_all(format!("{}", serde_json::to_string_pretty(&merged_pact.to_json(pact_spec)).unwrap()).as_bytes())?;
+                Ok(())
+            },
+            Err(ref message) => Err(Error::new(ErrorKind::Other, message.clone()))
         }
+      } else {
+        log::debug!("Writing new pact file to {:?}", path);
+        let mut file = File::create(path)?;
+        file.write_all(format!("{}", serde_json::to_string_pretty(&self.to_json(pact_spec)).unwrap()).as_bytes())?;
+        Ok(())
+      }
     }
 
     /// Returns a default Pact struct
