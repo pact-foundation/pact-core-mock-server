@@ -194,6 +194,9 @@
 
 #![warn(missing_docs)]
 
+// Due to large generated future for async fns
+#![type_length_limit="2601013"]
+
 use std::env;
 use clap::{Arg, App, AppSettings, ErrorKind, ArgMatches};
 use pact_matching::models::PactSpecification;
