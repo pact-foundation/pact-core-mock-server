@@ -145,6 +145,8 @@ async fn test_state_change_with_parameters() {
   let provider = ProviderInfo { state_change_url: Some(server.url().to_string()), .. ProviderInfo::default() };
   let result = execute_state_change(&provider_state, &provider, true, None).await;
   expect!(result.clone()).to(be_ok());
+
+  server.shutdown().await;
 }
 
 #[tokio::test]
