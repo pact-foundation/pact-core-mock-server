@@ -144,7 +144,6 @@ impl HALClient {
     fn default() -> HALClient {
       HALClient {
         client: reqwest::ClientBuilder::new()
-          .use_default_tls()
           .build()
           .unwrap(),
         url: s!(""),
