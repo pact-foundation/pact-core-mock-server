@@ -155,7 +155,7 @@ impl BackgroundMockServer {
     pub fn new(pact: Pact) -> BackgroundMockServer {
         let mut runtime = tokio::runtime::Builder::new()
             .threaded_scheduler()
-            .num_threads(1)
+            .core_threads(1)
             .enable_all()
             .build()
             .unwrap();
