@@ -131,8 +131,7 @@ async fn test_state_change_with_parameters() {
       i.request.body("{\"A\":\"1\",\"B\":\"2\",\"action\":\"setup\",\"state\":\"TestState\"}");
       i.response.status(200);
     })
-    .spawn_mock_server()
-    .await;
+    .start_mock_server();
 
   let provider_state = ProviderState {
     name: s!("TestState"),
@@ -145,8 +144,6 @@ async fn test_state_change_with_parameters() {
   let provider = ProviderInfo { state_change_url: Some(server.url().to_string()), .. ProviderInfo::default() };
   let result = execute_state_change(&provider_state, &provider, true, None).await;
   expect!(result.clone()).to(be_ok());
-
-  server.shutdown().await;
 }
 
 #[tokio::test]
@@ -163,8 +160,7 @@ async fn test_state_change_with_parameters_in_query() {
       i.request.query_param("B", "2");
       i.response.status(200);
     })
-    .spawn_mock_server()
-    .await;
+    .start_mock_server();
 
   let provider_state = ProviderState {
     name: s!("TestState"),
@@ -179,8 +175,6 @@ async fn test_state_change_with_parameters_in_query() {
 
   let result = execute_state_change(&provider_state, &provider, true, None).await;
   expect!(result.clone()).to(be_ok());
-
-  server.shutdown().await;
 }
 
 #[test]
@@ -195,14 +189,13 @@ fn publish_result_does_nothing_if_not_from_broker() {
       .unwrap();
 
     runtime.block_on(async {
-      let server = PactBuilder::new("RustPactVerifier", "PactBroker")
+      let _server = PactBuilder::new("RustPactVerifier", "PactBroker")
         .interaction("publish results", |i| {
           i.request.method("POST");
           i.request.path("/");
           i.response.status(201);
         })
-        .spawn_mock_server()
-        .await;
+        .start_mock_server();
 
       let options = super::VerificationOptions {
         publish: true,
@@ -210,7 +203,6 @@ fn publish_result_does_nothing_if_not_from_broker() {
         build_url: None
       };
       super::publish_result(&vec![], &PactSource::File("/tmp/test".into()), &options).await;
-      server.shutdown().await;
     })
   });
   expect!(server_response).to(be_err());
@@ -230,8 +222,7 @@ async fn publish_successful_result_to_broker() {
       }));
       i.response.status(201);
     })
-    .spawn_mock_server()
-    .await;
+    .start_mock_server();
 
   let options = super::VerificationOptions {
     publish: true,
@@ -247,5 +238,4 @@ async fn publish_successful_result_to_broker() {
   ];
   let source = PactSource::BrokerUrl("Test".to_string(), server.url().to_string(), None, links);
   super::publish_result(&vec![], &source, &options).await;
-  server.shutdown().await;
 }

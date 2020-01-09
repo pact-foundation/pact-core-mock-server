@@ -213,13 +213,8 @@ pub mod util;
 /// ```
 pub mod prelude {
     pub use crate::builders::{HttpPartBuilder, PactBuilder};
-    pub use crate::patterns::{Pattern, JsonPattern, StringPattern};
+    pub use crate::mock_server::{StartMockServer, ValidatingMockServer};
     pub use crate::patterns::{EachLike, Like, Term};
-    pub use crate::mock_server::{
-        StartMockServer,
-        ValidatingMockServer,
-        BackgroundMockServer,
-        SpawnedMockServer,
-    };
+    pub use crate::patterns::{JsonPattern, Pattern, StringPattern};
     pub use crate::util::strip_null_fields;
 }

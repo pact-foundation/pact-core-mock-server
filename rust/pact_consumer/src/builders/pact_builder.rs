@@ -1,9 +1,7 @@
 use pact_matching::models::*;
 
-use crate::prelude::*;
 use super::interaction_builder::InteractionBuilder;
-
-use futures::future::*;
+use crate::prelude::*;
 
 /// Builder for `Pact` objects.
 ///
@@ -39,8 +37,12 @@ impl PactBuilder {
         P: Into<String>,
     {
         let mut pact = Pact::default();
-        pact.consumer = Consumer { name: consumer.into() };
-        pact.provider = Provider { name: provider.into() };
+        pact.consumer = Consumer {
+            name: consumer.into(),
+        };
+        pact.provider = Provider {
+            name: provider.into(),
+        };
         PactBuilder { pact }
     }
 
@@ -69,11 +71,7 @@ impl PactBuilder {
 }
 
 impl StartMockServer for PactBuilder {
-    fn start_mock_server(&self) -> BackgroundMockServer {
-        BackgroundMockServer::new(self.build())
-    }
-
-    fn spawn_mock_server(&self) -> BoxFuture<'static, SpawnedMockServer> {
-        SpawnedMockServer::new(self.build()).boxed()
+    fn start_mock_server(&self) -> ValidatingMockServer {
+        ValidatingMockServer::start(self.build())
     }
 }
