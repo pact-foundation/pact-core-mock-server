@@ -77,7 +77,7 @@
 //!
 //! // You would use your actual client code here.
 //! let mallory_url = alice_service.path("/mallory");
-//! let mut response = reqwest::get(mallory_url).expect("could not fetch URL");
+//! let mut response = reqwest::blocking::get(mallory_url).expect("could not fetch URL");
 //! let mut body = String::new();
 //! response.read_to_string(&mut body).expect("could not read response body");
 //! assert_eq!(body, "That is some good Mallory.");
@@ -213,8 +213,8 @@ pub mod util;
 /// ```
 pub mod prelude {
     pub use crate::builders::{HttpPartBuilder, PactBuilder};
-    pub use crate::patterns::{Pattern, JsonPattern, StringPattern};
-    pub use crate::patterns::{EachLike, Like, Term};
     pub use crate::mock_server::{StartMockServer, ValidatingMockServer};
+    pub use crate::patterns::{EachLike, Like, Term};
+    pub use crate::patterns::{JsonPattern, Pattern, StringPattern};
     pub use crate::util::strip_null_fields;
 }

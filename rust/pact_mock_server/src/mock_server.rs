@@ -12,7 +12,6 @@ use std::path::PathBuf;
 use std::io;
 use std::sync::{Arc, Mutex};
 use serde_json::json;
-use futures::future::Future;
 use lazy_static::*;
 
 lazy_static! {
@@ -33,21 +32,29 @@ pub struct MockServer {
     /// Receiver of match results
     matches: Arc<Mutex<Vec<MatchResult>>>,
     /// Shutdown signal
-    shutdown_tx: Option<futures::sync::oneshot::Sender<()>>
+    shutdown_tx: Option<futures::channel::oneshot::Sender<()>>
 }
 
 impl MockServer {
     /// Create a new mock server, consisting of its state (self) and its executable server future.
-    pub fn new(id: String, pact: Pact, addr: std::net::SocketAddr) -> Result<(MockServer, impl Future<Item = (), Error = ()>), String> {
-        let (shutdown_tx, shutdown_rx) = futures::sync::oneshot::channel();
+    pub async fn new(
+        id: String,
+        pact: Pact,
+        addr: std::net::SocketAddr
+    ) -> Result<(MockServer, impl std::future::Future<Output = ()>), String> {
+        let (shutdown_tx, shutdown_rx) = futures::channel::oneshot::channel();
         let matches = Arc::new(Mutex::new(vec![]));
 
         let (future, socket_addr) = hyper_server::create_and_bind(
             pact.clone(),
             addr,
-            shutdown_rx.map_err(|_| ()),
+            async {
+                shutdown_rx.await.ok();
+            },
             matches.clone()
-        ).map_err(|err| format!("Could not start server: {}", err))?;
+        )
+            .await
+            .map_err(|err| format!("Could not start server: {}", err))?;
 
         let mock_server = MockServer {
             id: id.clone(),

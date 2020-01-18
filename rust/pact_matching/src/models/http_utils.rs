@@ -1,6 +1,7 @@
 //! Module for fetching documents via HTTP
 
-use reqwest::{Client, Error};
+use reqwest::Error;
+use reqwest::blocking::Client;
 use serde_json::Value;
 
 /// Type of authentication to use
@@ -26,7 +27,7 @@ pub fn fetch_json_from_url(url: &String, auth: &Option<HttpAuth>) -> Result<(Str
   };
 
   match request.send() {
-    Ok(mut res) => if res.status().is_success() {
+    Ok(res) => if res.status().is_success() {
       let pact_json: Result<Value, Error> = res.json();
       match pact_json {
         Ok(ref json) => Ok((url.clone(), json.clone())),

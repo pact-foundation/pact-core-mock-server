@@ -8,7 +8,7 @@ use std::{
 };
 use expectest::prelude::*;
 use expectest::expect;
-use reqwest::Client;
+use reqwest::blocking::Client;
 use pact_matching::models::Pact;
 
 /// This is supposed to be a doctest in lib.rs, but it's breaking there, so
@@ -44,7 +44,7 @@ fn mock_server_passing_validation() {
 
       // You would use your actual client code here.
       let mallory_url = alice_service.path("/mallory");
-      let mut response = reqwest::get(mallory_url).expect("could not fetch URL");
+      let mut response = reqwest::blocking::get(mallory_url).expect("could not fetch URL");
       let mut body = String::new();
       response.read_to_string(&mut body).expect("could not read response body");
       assert_eq!(body, "That is some good Mallory.");
@@ -73,7 +73,7 @@ fn mock_server_failing_validation() {
     // Call with the wrong URL, which should lead to a panic at the end of
     // the function.
     let url = hello_service.path("/goodbye");
-    let _ = reqwest::get(url);
+    let _ = reqwest::blocking::get(url);
 }
 
 #[test]

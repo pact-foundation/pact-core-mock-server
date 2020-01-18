@@ -20,9 +20,9 @@ use std::collections::HashMap;
 use crate::provider_client::{make_provider_request, make_state_change_request, ProviderClientError};
 use regex::Regex;
 use serde_json::{Value, json};
-use tokio::runtime::current_thread::Runtime;
 use crate::pact_broker::{publish_verification_results, TestResult, Link};
 use maplit::*;
+use futures::stream::*;
 
 /// Source for loading pacts
 #[derive(Debug, Clone)]
@@ -40,17 +40,17 @@ pub enum PactSource {
 }
 
 impl Display for PactSource {
-  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-    match self {
-      &PactSource::File(ref file) => write!(f, "File({})", file),
-      &PactSource::Dir(ref dir) => write!(f, "Dir({})", dir),
-      &PactSource::URL(ref url, _) => write!(f, "URL({})", url),
-      &PactSource::BrokerUrl(ref provider_name, ref broker_url, _, _) => {
-        write!(f, "PactBroker({}, provider_name='{}')", broker_url, provider_name)
-      }
-      _ => write!(f, "Unknown")
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            &PactSource::File(ref file) => write!(f, "File({})", file),
+            &PactSource::Dir(ref dir) => write!(f, "Dir({})", dir),
+            &PactSource::URL(ref url, _) => write!(f, "URL({})", url),
+            &PactSource::BrokerUrl(ref provider_name, ref broker_url, _, _) => {
+                write!(f, "PactBroker({}, provider_name='{}')", broker_url, provider_name)
+            }
+            _ => write!(f, "Unknown")
+        }
     }
-  }
 }
 
 /// Information about the Provider to verify
@@ -109,13 +109,13 @@ pub enum MismatchResult {
 }
 
 impl MismatchResult {
-  /// Return the interaction ID associated with the error, if any
-  pub fn interaction_id(&self) -> Option<String> {
-    match self {
-      &MismatchResult::Mismatches { ref interaction_id, .. } => interaction_id.clone(),
-      &MismatchResult::Error(_, ref interaction_id) => interaction_id.clone()
+    /// Return the interaction ID associated with the error, if any
+    pub fn interaction_id(&self) -> Option<String> {
+        match self {
+            &MismatchResult::Mismatches { ref interaction_id, .. } => interaction_id.clone(),
+            &MismatchResult::Error(_, ref interaction_id) => interaction_id.clone()
+        }
     }
-  }
 }
 
 fn provider_client_error_to_string(err: ProviderClientError) -> String {
@@ -135,30 +135,37 @@ fn provider_client_error_to_string(err: ProviderClientError) -> String {
     }
 }
 
-fn verify_response_from_provider(provider: &ProviderInfo, interaction: &Interaction, runtime: &mut Runtime) -> Result<(), MismatchResult> {
-  let ref expected_response = interaction.response;
-  match runtime.block_on(make_provider_request(provider, &pact_matching::generate_request(&interaction.request, &hashmap!{}))) {
-    Ok(ref actual_response) => {
-      let mismatches = match_response(expected_response.clone(), actual_response.clone());
-      if mismatches.is_empty() {
-        Ok(())
-      } else {
-        Err(MismatchResult::Mismatches {
-          mismatches,
-          expected: expected_response.clone(),
-          actual: actual_response.clone(),
-          interaction_id: interaction.id.clone()
-        })
-      }
-    },
-    Err(err) => {
-      Err(MismatchResult::Error(provider_client_error_to_string(err), interaction.id.clone()))
+async fn verify_response_from_provider(
+    provider: &ProviderInfo,
+    interaction: &Interaction
+) -> Result<(), MismatchResult> {
+    let ref expected_response = interaction.response;
+    match make_provider_request(provider, &pact_matching::generate_request(&interaction.request, &hashmap!{})).await {
+        Ok(ref actual_response) => {
+            let mismatches = match_response(expected_response.clone(), actual_response.clone());
+            if mismatches.is_empty() {
+                Ok(())
+            } else {
+                Err(MismatchResult::Mismatches {
+                mismatches,
+                expected: expected_response.clone(),
+                actual: actual_response.clone(),
+                interaction_id: interaction.id.clone()
+                })
+            }
+        },
+        Err(err) => {
+            Err(MismatchResult::Error(provider_client_error_to_string(err), interaction.id.clone()))
+        }
     }
-  }
 }
 
-fn execute_state_change(provider_state: &ProviderState, provider: &ProviderInfo, setup: bool,
-  runtime: &mut Runtime, interaction_id: Option<String>) -> Result<(), MismatchResult> {
+async fn execute_state_change(
+    provider_state: &ProviderState,
+    provider: &ProviderInfo,
+    setup: bool,
+    interaction_id: Option<String>
+) -> Result<(), MismatchResult> {
     if setup {
         println!("  Given {}", Style::new().bold().paint(provider_state.name.clone()));
     }
@@ -166,38 +173,38 @@ fn execute_state_change(provider_state: &ProviderState, provider: &ProviderInfo,
         Some(_) => {
             let mut state_change_request = Request { method: s!("POST"), .. Request::default() };
             if provider.state_change_body {
-              let mut json_body = json!({
-                  s!("state") : json!(provider_state.name.clone()),
-                  s!("action") : json!(if setup {
-                    s!("setup")
-                  } else {
-                    s!("teardown")
-                  })
-              });
-              {
-                let json_body_mut = json_body.as_object_mut().unwrap();
-                for (k, v) in provider_state.params.clone() {
-                  json_body_mut.insert(k, v);
+                let mut json_body = json!({
+                    s!("state") : json!(provider_state.name.clone()),
+                    s!("action") : json!(if setup {
+                        s!("setup")
+                    } else {
+                        s!("teardown")
+                    })
+                });
+                {
+                    let json_body_mut = json_body.as_object_mut().unwrap();
+                    for (k, v) in provider_state.params.clone() {
+                        json_body_mut.insert(k, v);
+                    }
                 }
-              }
-              state_change_request.body = OptionalBody::Present(json_body.to_string().into());
-              state_change_request.headers = Some(hashmap!{ s!("Content-Type") => vec![s!("application/json")] });
+                state_change_request.body = OptionalBody::Present(json_body.to_string().into());
+                state_change_request.headers = Some(hashmap!{ s!("Content-Type") => vec![s!("application/json")] });
             } else {
-              let mut query = hashmap!{ s!("state") => vec![provider_state.name.clone()] };
-              if setup {
-                query.insert(s!("action"), vec![s!("setup")]);
-              } else {
-                query.insert(s!("action"), vec![s!("teardown")]);
-              }
-              for (k, v) in provider_state.params.clone() {
-                query.insert(k, vec![match v {
-                  Value::String(ref s) => s.clone(),
-                  _ => v.to_string()
-                }]);
-              }
-              state_change_request.query = Some(query);
+                let mut query = hashmap!{ s!("state") => vec![provider_state.name.clone()] };
+                if setup {
+                    query.insert(s!("action"), vec![s!("setup")]);
+                } else {
+                    query.insert(s!("action"), vec![s!("teardown")]);
+                }
+                for (k, v) in provider_state.params.clone() {
+                    query.insert(k, vec![match v {
+                        Value::String(ref s) => s.clone(),
+                        _ => v.to_string()
+                    }]);
+                }
+                state_change_request.query = Some(query);
             }
-            match runtime.block_on(make_state_change_request(provider, &state_change_request)) {
+            match make_state_change_request(provider, &state_change_request).await {
                 Ok(_) => Ok(()),
                 Err(err) => Err(MismatchResult::Error(provider_client_error_to_string(err), interaction_id))
             }
@@ -214,17 +221,20 @@ fn execute_state_change(provider_state: &ProviderState, provider: &ProviderInfo,
     result
 }
 
-fn verify_interaction(provider: &ProviderInfo, interaction: &Interaction, runtime: &mut Runtime) -> Result<(), MismatchResult> {
+async fn verify_interaction(
+    provider: &ProviderInfo,
+    interaction: Interaction,
+) -> Result<(), MismatchResult> {
     for state in interaction.provider_states.clone() {
-      execute_state_change(&state, provider, true, runtime, interaction.id.clone())?
+        execute_state_change(&state, provider, true, interaction.id.clone()).await?
     }
 
-    let result = verify_response_from_provider(provider, interaction, runtime);
+    let result = verify_response_from_provider(provider, &interaction).await;
 
     if provider.state_change_teardown {
-      for state in interaction.provider_states.clone() {
-        execute_state_change(&state, provider, false, runtime, interaction.id.clone())?
-      }
+        for state in interaction.provider_states.clone() {
+            execute_state_change(&state, provider, false, interaction.id.clone()).await?
+        }
     }
 
     result
@@ -369,214 +379,259 @@ fn filter_consumers(consumers: &Vec<String>, res: &Result<(Pact, PactSource), St
 
 /// Options to use when running the verification
 pub struct VerificationOptions {
-  /// If results should be published back to the broker
-  pub publish: bool,
-  /// Provider version being published
-  pub provider_version: Option<String>,
-  /// Build URL to associate with the published results
-  pub build_url: Option<String>
+    /// If results should be published back to the broker
+    pub publish: bool,
+    /// Provider version being published
+    pub provider_version: Option<String>,
+    /// Build URL to associate with the published results
+    pub build_url: Option<String>
 }
 
 /// Verify the provider with the given pact sources
-pub fn verify_provider(provider_info: &ProviderInfo, source: Vec<PactSource>, filter: &FilterInfo,
-    consumers: &Vec<String>, options: &VerificationOptions, runtime: &mut Runtime) -> bool {
-    let pacts = fetch_pacts(&source, consumers, runtime);
+pub async fn verify_provider(
+    provider_info: &ProviderInfo,
+    source: Vec<PactSource>,
+    filter: &FilterInfo,
+    consumers: &Vec<String>,
+    options: &VerificationOptions,
+) -> bool {
+    let pact_results = fetch_pacts(&source, consumers).await;
 
     let mut all_errors: Vec<(String, MismatchResult)> = vec![];
-    for pact in pacts {
-      match pact {
-        Ok(ref res) => {
-          let pact = &res.0;
-            println!("\nVerifying a pact between {} and {}",
-                Style::new().bold().paint(pact.consumer.name.clone()),
-                Style::new().bold().paint(pact.provider.name.clone()));
+    for pact_result in pact_results {
+        match pact_result {
+            Ok((pact, pact_source)) => {
+                println!("\nVerifying a pact between {} and {}",
+                    Style::new().bold().paint(pact.consumer.name.clone()),
+                    Style::new().bold().paint(pact.provider.name.clone()));
 
-            if pact.interactions.is_empty() {
-              println!("         {}", Yellow.paint("WARNING: Pact file has no interactions"));
-            } else {
-              let errors = verify_pact(provider_info, filter, runtime, pact);
-              for error in errors.clone() {
-                all_errors.push(error);
-              }
+                if pact.interactions.is_empty() {
+                    println!("         {}", Yellow.paint("WARNING: Pact file has no interactions"));
+                } else {
+                    let errors = verify_pact(provider_info, filter, pact).await;
+                    for error in errors.clone() {
+                        all_errors.push(error);
+                    }
 
-              if options.publish {
-                publish_result(&errors, &res.1, &options, runtime)
-              }
+                    if options.publish {
+                        publish_result(&errors, &pact_source, &options).await
+                    }
+                }
+            },
+            Err(err) => {
+                log::error!("Failed to load pact - {}", Red.paint(format!("{}", err)));
+                all_errors.push((s!("Failed to load pact"), MismatchResult::Error(format!("{}", err), None)));
             }
-        },
-        Err(err) => {
-            log::error!("Failed to load pact - {}", Red.paint(format!("{}", err)));
-            all_errors.push((s!("Failed to load pact"), MismatchResult::Error(format!("{}", err), None)));
         }
-      }
     };
 
     if !all_errors.is_empty() {
         println!("\nFailures:\n");
 
         for (i, &(ref description, ref mismatch)) in all_errors.iter().enumerate() {
-          match mismatch {
-            &MismatchResult::Error(ref err, _) => println!("{}) {} - {}\n", i, description, err),
-            &MismatchResult::Mismatches { ref mismatches, ref expected, ref actual, .. } => {
-              let mismatch = mismatches.first().unwrap();
-              println!("{}) {}{}", i, description, mismatch.summary());
-              for mismatch in mismatches {
-                println!("    {}\n", mismatch.ansi_description());
-              }
+            match mismatch {
+                &MismatchResult::Error(ref err, _) => println!("{}) {} - {}\n", i, description, err),
+                &MismatchResult::Mismatches { ref mismatches, ref expected, ref actual, .. } => {
+                    let mismatch = mismatches.first().unwrap();
+                    println!("{}) {}{}", i, description, mismatch.summary());
+                    for mismatch in mismatches {
+                        println!("    {}\n", mismatch.ansi_description());
+                    }
 
-              match mismatch {
-                &Mismatch::BodyMismatch{ref path, ..} => display_body_mismatch(expected, actual, path),
-                _ => ()
-              }
+                    match mismatch {
+                        &Mismatch::BodyMismatch{ref path, ..} => display_body_mismatch(expected, actual, path),
+                        _ => ()
+                    }
+                }
             }
-          }
         }
 
         println!("\nThere were {} pact failures\n", all_errors.len());
-      false
+        false
     } else {
-      true
+        true
     }
 }
 
-fn fetch_pacts(source: &Vec<PactSource>, consumers: &Vec<String>, runtime: &mut Runtime) -> Vec<Result<(Pact, PactSource), String>> {
-  source.iter().flat_map(|s| {
-    match s {
-      &PactSource::File(ref file) => vec![Pact::read_pact(Path::new(&file))
-        .map_err(|err| format!("Failed to load pact '{}' - {}", file, err))
-        .map(|pact| (pact, s.clone()))],
-      &PactSource::Dir(ref dir) => match walkdir(Path::new(dir)) {
-        Ok(ref pacts) => pacts.iter().map(|p| {
-          match p {
-            &Ok(ref pact) => Ok((pact.clone(), s.clone())),
-            &Err(ref err) => Err(format!("Failed to load pact from '{}' - {}", dir, err))
-          }
-        }).collect(),
-        Err(err) => vec![Err(format!("Could not load pacts from directory '{}' - {}", dir, err))]
-      },
-      &PactSource::URL(ref url, ref auth) => vec![Pact::from_url(url, auth)
-        .map_err(|err| format!("Failed to load pact '{}' - {}", url, err))
-        .map(|pact| (pact, s.clone()))],
-      &PactSource::BrokerUrl(ref provider_name, ref broker_url, ref auth, _) => {
-        let future = pact_broker::fetch_pacts_from_broker(broker_url.clone(), provider_name.clone(), auth.clone());
-        match runtime.block_on(future) {
-          Ok(ref pacts) => pacts.iter().map(|p| {
-            match p {
-              &Ok((ref pact, ref links)) => {
-                log::debug!("Got pact with links {:?}", links);
-                Ok((pact.clone(), PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone())))
-              },
-              &Err(ref err) => Err(format!("Failed to load pact from '{}' - {:?}", broker_url, err))
-            }
-          }).collect(),
-          Err(err) => vec![Err(format!("Could not load pacts from the pact broker '{}' - {:?}", broker_url, err))]
-        }
-      },
-      _ => vec![Err(format!("Could not load pacts, unknown pact source"))]
-    }
-  })
-    .filter(|res| filter_consumers(consumers, res))
-    .collect()
-}
-
-fn verify_pact(provider_info: &ProviderInfo, filter: &FilterInfo, runtime: &mut Runtime,
-               pact: &Pact) -> Vec<(String, MismatchResult)> {
-  let mut errors = vec![];
-
-  let results: HashMap<Interaction, Result<(), MismatchResult>> = pact.interactions.iter()
-    .filter(|interaction| filter_interaction(interaction, filter))
-    .map(|interaction| {
-      (interaction.clone(), verify_interaction(provider_info, interaction, runtime))
-    }).collect();
-
-  for (interaction, result) in results.clone() {
-    let mut description = format!("Verifying a pact between {} and {}",
-                                  pact.consumer.name.clone(), pact.provider.name.clone());
-    if let Some((first, elements)) = interaction.provider_states.split_first() {
-      description.push_str(&format!(" Given {}", first.name));
-      for state in elements {
-        description.push_str(&format!(" And {}", state.name));
-      }
-    }
-    description.push_str(" - ");
-    description.push_str(&interaction.description);
-    println!("  {}", interaction.description);
-    match result {
-      Ok(()) => {
-        display_result(interaction.response.status, Green.paint("OK"),
-                       interaction.response.headers.map(|h| h.iter().map(|(k, v)| {
-                         (k.clone(), v.join(", "), Green.paint("OK"))
-                       }).collect()), Green.paint("OK"))
-
-      },
-      Err(ref err) => match err {
-        &MismatchResult::Error(ref err_des, _) => {
-          println!("      {}", Red.paint(format!("Request Failed - {}", err_des)));
-          errors.push((description, err.clone()));
-        },
-        &MismatchResult::Mismatches { ref mismatches, .. } => {
-          description.push_str(" returns a response which ");
-          let status_result = if mismatches.iter().any(|m| m.mismatch_type() == s!("StatusMismatch")) {
-            Red.paint("FAILED")
-          } else {
-            Green.paint("OK")
-          };
-          let header_results = match interaction.response.headers {
-            Some(ref h) => Some(h.iter().map(|(k, v)| {
-              (k.clone(), v.join(", "), if mismatches.iter().any(|m| {
-                match m {
-                  &Mismatch::HeaderMismatch { ref key, .. } => k == key,
-                  _ => false
+async fn fetch_pact(
+    source: PactSource
+) -> Vec<Result<(Pact, PactSource), String>> {
+    match &source {
+        &PactSource::File(ref file) => vec![Pact::read_pact(Path::new(&file))
+            .map_err(|err| format!("Failed to load pact '{}' - {}", file, err))
+            .map(|pact| (pact, source))],
+        &PactSource::Dir(ref dir) => match walkdir(Path::new(dir)) {
+            Ok(pact_results) => pact_results.into_iter().map(|pact_result| {
+                match pact_result {
+                    Ok(pact) => Ok((pact, source.clone())),
+                    Err(err) => Err(format!("Failed to load pact from '{}' - {}", dir, err))
                 }
-              }) {
-                Red.paint("FAILED")
-              } else {
-                Green.paint("OK")
-              })
-            }).collect()),
-            None => None
-          };
-          let body_result = if mismatches.iter().any(|m| m.mismatch_type() == s!("BodyMismatch") ||
-            m.mismatch_type() == s!("BodyTypeMismatch")) {
-            Red.paint("FAILED")
-          } else {
-            Green.paint("OK")
-          };
+            }).collect(),
+            Err(err) => vec![Err(format!("Could not load pacts from directory '{}' - {}", dir, err))]
+        },
+        &PactSource::URL(ref url, ref auth) => vec![Pact::from_url(url, auth)
+            .map_err(|err| format!("Failed to load pact '{}' - {}", url, err))
+            .map(|pact| (pact, source))],
+        &PactSource::BrokerUrl(ref provider_name, ref broker_url, ref auth, _) => {
+            let result = pact_broker::fetch_pacts_from_broker(
+                broker_url.clone(),
+                provider_name.clone(),
+                auth.clone()
+            ).await;
 
-          display_result(interaction.response.status, status_result, header_results, body_result);
-          errors.push((description.clone(), err.clone()));
-        }
-      }
+            match result {
+                Ok(ref pacts) => pacts.iter().map(|p| {
+                    match p {
+                        &Ok((ref pact, ref links)) => {
+                            log::debug!("Got pact with links {:?}", links);
+                            Ok((pact.clone(), PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone())))
+                        },
+                        &Err(ref err) => Err(format!("Failed to load pact from '{}' - {:?}", broker_url, err))
+                    }
+                }).collect(),
+                Err(err) => vec![Err(format!("Could not load pacts from the pact broker '{}' - {:?}", broker_url, err))]
+            }
+        },
+        _ => vec![Err(format!("Could not load pacts, unknown pact source"))]
     }
-  }
-
-  println!();
-
-  errors
 }
 
-fn publish_result(errors: &Vec<(String, MismatchResult)>, source: &PactSource,
-  options: &VerificationOptions, runtime: &mut Runtime) {
-  match source.clone() {
-    PactSource::BrokerUrl(_, broker_url, auth, links) => {
-      log::info!("Publishing verification results back to the Pact Broker");
-      let result = if errors.is_empty() {
-        log::debug!("Publishing a successful result to {}", source);
-        TestResult::Ok
-      } else {
-        log::debug!("Publishing a failure result to {}", source);
-        TestResult::Failed(errors.clone())
-      };
-      let provider_version = options.provider_version.clone().unwrap();
-      let future = publish_verification_results(links, broker_url.clone(), auth.clone(),
-        result, provider_version, options.build_url.clone());
-      match runtime.block_on(future) {
-        Ok(_) => log::info!("Results published to Pact Broker"),
-        Err(ref err) => log::error!("Publishing of verification results failed with an error: {}", err)
-      };
-    },
-    _ => ()
-  }
+async fn fetch_pacts(
+    source: &Vec<PactSource>,
+    consumers: &Vec<String>
+) -> Vec<Result<(Pact, PactSource), String>> {
+    futures::stream::iter(source)
+        .map(|pact_source| pact_source.clone())
+        .then(|pact_source| async {
+            futures::stream::iter(fetch_pact(pact_source).await)
+        })
+        .flatten()
+        .filter(|res| futures::future::ready(filter_consumers(consumers, res)))
+        .collect()
+        .await
+}
+
+async fn verify_pact(
+    provider_info: &ProviderInfo,
+    filter: &FilterInfo,
+    pact: Pact
+) -> Vec<(String, MismatchResult)> {
+    let mut errors = vec![];
+
+    let results: HashMap<Interaction, Result<(), MismatchResult>> = futures::stream::iter(
+        pact.interactions.clone().into_iter()
+    )
+        .filter(|interaction| futures::future::ready(filter_interaction(interaction, filter)))
+        .then(|interaction| {
+            let key = interaction.clone();
+
+            async {
+                (key, verify_interaction(provider_info, interaction).await)
+            }
+        })
+        .collect()
+        .await;
+
+    for (interaction, result) in results.clone() {
+        let mut description = format!("Verifying a pact between {} and {}",
+                                    pact.consumer.name.clone(), pact.provider.name.clone());
+        if let Some((first, elements)) = interaction.provider_states.split_first() {
+            description.push_str(&format!(" Given {}", first.name));
+            for state in elements {
+                description.push_str(&format!(" And {}", state.name));
+            }
+        }
+        description.push_str(" - ");
+        description.push_str(&interaction.description);
+        println!("  {}", interaction.description);
+        match result {
+            Ok(()) => {
+                display_result(
+                    interaction.response.status,
+                    Green.paint("OK"),
+                    interaction.response.headers.map(|h| h.iter().map(|(k, v)| {
+                        (k.clone(), v.join(", "), Green.paint("OK"))
+                    }).collect()), Green.paint("OK")
+                )
+            },
+            Err(ref err) => match err {
+                &MismatchResult::Error(ref err_des, _) => {
+                    println!("      {}", Red.paint(format!("Request Failed - {}", err_des)));
+                    errors.push((description, err.clone()));
+                },
+                &MismatchResult::Mismatches { ref mismatches, .. } => {
+                    description.push_str(" returns a response which ");
+                    let status_result = if mismatches.iter().any(|m| m.mismatch_type() == s!("StatusMismatch")) {
+                        Red.paint("FAILED")
+                    } else {
+                        Green.paint("OK")
+                    };
+                    let header_results = match interaction.response.headers {
+                        Some(ref h) => Some(h.iter().map(|(k, v)| {
+                            (k.clone(), v.join(", "), if mismatches.iter().any(|m| {
+                                match m {
+                                    &Mismatch::HeaderMismatch { ref key, .. } => k == key,
+                                    _ => false
+                                }
+                            }) {
+                                Red.paint("FAILED")
+                            } else {
+                                Green.paint("OK")
+                            })
+                        }).collect()),
+                        None => None
+                    };
+                    let body_result = if mismatches.iter().any(|m| m.mismatch_type() == s!("BodyMismatch") ||
+                        m.mismatch_type() == s!("BodyTypeMismatch")) {
+                        Red.paint("FAILED")
+                    } else {
+                        Green.paint("OK")
+                    };
+
+                    display_result(interaction.response.status, status_result, header_results, body_result);
+                    errors.push((description.clone(), err.clone()));
+                }
+            }
+        }
+    }
+
+    println!();
+
+    errors
+}
+
+async fn publish_result(
+    errors: &Vec<(String, MismatchResult)>,
+    source: &PactSource,
+    options: &VerificationOptions,
+) {
+    match source.clone() {
+        PactSource::BrokerUrl(_, broker_url, auth, links) => {
+            log::info!("Publishing verification results back to the Pact Broker");
+            let result = if errors.is_empty() {
+                log::debug!("Publishing a successful result to {}", source);
+                TestResult::Ok
+            } else {
+                log::debug!("Publishing a failure result to {}", source);
+                TestResult::Failed(errors.clone())
+            };
+            let provider_version = options.provider_version.clone().unwrap();
+            let publish_result = publish_verification_results(
+                links,
+                broker_url.clone(),
+                auth.clone(),
+                result,
+                provider_version,
+                options.build_url.clone()
+            ).await;
+
+            match publish_result {
+                Ok(_) => log::info!("Results published to Pact Broker"),
+                Err(ref err) => log::error!("Publishing of verification results failed with an error: {}", err)
+            };
+        },
+        _ => ()
+    }
 }
 
 #[cfg(test)]

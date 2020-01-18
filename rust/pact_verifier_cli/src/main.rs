@@ -194,6 +194,9 @@
 
 #![warn(missing_docs)]
 
+// Due to large generated future for async fns
+#![type_length_limit="2601013"]
+
 use std::env;
 use clap::{Arg, App, AppSettings, ErrorKind, ArgMatches};
 use pact_matching::models::PactSpecification;
@@ -204,7 +207,6 @@ use simplelog::{TermLogger, Config, TerminalMode};
 use std::str::FromStr;
 use std::error::Error;
 use regex::Regex;
-use tokio::runtime::current_thread::Runtime;
 use pact_matching::models::http_utils::HttpAuth;
 
 fn main() {
@@ -472,19 +474,30 @@ fn handle_command_args() -> Result<(), i32> {
             };
             let source = pact_source(matches);
             let filter = interaction_filter(matches);
-            let mut runtime = Runtime::new().unwrap();
 
             let options = VerificationOptions {
-              publish: matches.is_present("publish"),
-              provider_version: matches.value_of("provider-version").map(|v| v.to_string()),
-              build_url: matches.value_of("build-url").map(|v| v.to_string())
+                publish: matches.is_present("publish"),
+                provider_version: matches.value_of("provider-version").map(|v| v.to_string()),
+                build_url: matches.value_of("build-url").map(|v| v.to_string())
             };
-            if verify_provider(&provider, source, &filter,
-                               &matches.values_of_lossy("filter-consumer").unwrap_or(vec![]),
-                               &options, &mut runtime) {
-              Ok(())
+
+            let mut runtime = tokio::runtime::Builder::new()
+                .basic_scheduler()
+                .build()
+                .unwrap();
+
+            if runtime.block_on(
+                verify_provider(
+                    &provider,
+                    source,
+                    &filter,
+                    &matches.values_of_lossy("filter-consumer").unwrap_or(vec![]),
+                    &options,
+                )
+            ) {
+                Ok(())
             } else {
-              Err(2)
+                Err(2)
             }
         },
         Err(ref err) => {
