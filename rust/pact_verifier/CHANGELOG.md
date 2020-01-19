@@ -1,5 +1,27 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.7.0 - Convert to async/await
+
+* 70a33dd - chore: bump minor version of pact_verifier (Ronald Holshausen, Sun Jan 19 11:51:36 2020 +1100)
+* 9d3ad57 - chore: bump minor version of pact consumer crate (Ronald Holshausen, Sun Jan 19 11:40:27 2020 +1100)
+* cb4c560 - Upgrade tokio to 0.2.9 (Audun Halland, Fri Jan 10 00:13:02 2020 +0100)
+* e8034bf - Remove mock server async spawning. (Audun Halland, Thu Jan 9 21:59:56 2020 +0100)
+* 9dec41b - Upgrade reqwest to 0.10 (Audun Halland, Tue Dec 31 07:22:36 2019 +0100)
+* d24c434 - pact_verifier/pact_broker: Avoid completely unnecessary clones (Audun Halland, Tue Dec 17 02:54:45 2019 +0100)
+* cd1046d - pact_verifier: Actually implement HAL client using async reqwest (Audun Halland, Tue Dec 17 01:42:57 2019 +0100)
+* d395d2d - pact_verifier: Upgrade reqwest to latest git alpha (Audun Halland, Tue Dec 17 00:57:16 2019 +0100)
+* 8019d6d - pact_verifier: Async mock server shutdown (Audun Halland, Thu Dec 12 21:45:16 2019 +0100)
+* 3074059 - Refactor ValidatingMockServer into a trait, with two implementations (Audun Halland, Thu Dec 12 15:58:50 2019 +0100)
+* fe72f92 - Temporarily solve a problem where a spawned server prevents the test runtime from terminating (Audun Halland, Thu Dec 12 14:14:02 2019 +0100)
+* 23a652d - pact_verifier: Implement hyper requests for provider/state change (Audun Halland, Thu Dec 12 11:46:50 2019 +0100)
+* 30b1935 - pact_verifier tests: Change to spawned mock server (Audun Halland, Thu Dec 12 11:22:49 2019 +0100)
+* bceb44d - pact_verifier: convert pact broker tests to async (Audun Halland, Thu Dec 12 11:04:53 2019 +0100)
+* a8866e8 - pact_verifier: Into async/await, part 1 (Audun Halland, Thu Dec 12 10:43:38 2019 +0100)
+* 95e46e5 - pact_verifier: Remove extern crate from lib.rs (Audun Halland, Sun Nov 17 23:22:13 2019 +0100)
+* 713cd6a - Explicit edition 2018 in Cargo.toml files (Audun Halland, Sat Nov 16 23:55:37 2019 +0100)
+* 924452f - 2018 edition autofix "cargo fix --edition" (Audun Halland, Sat Nov 16 22:27:42 2019 +0100)
+* d566d23 - bump version to 0.6.2 (Ronald Holshausen, Fri Sep 27 15:17:24 2019 +1000)
+
 # 0.6.1 - Bugfix + Oniguruma crate for regex matching
 
 * 173bf22 - chore: use the matching lib with the Oniguruma crate #46 (Ronald Holshausen, Fri Sep 27 15:02:03 2019 +1000)
