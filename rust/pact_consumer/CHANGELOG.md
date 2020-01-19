@@ -1,5 +1,26 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.6.0 - Convert to async/await
+
+* 9d3ad57 - chore: bump minor version of pact consumer crate (Ronald Holshausen, Sun Jan 19 11:40:27 2020 +1100)
+* d457221 - chore: update dependant crates to use mock server lib 0.7.0 (Ronald Holshausen, Sun Jan 19 11:31:21 2020 +1100)
+* cb4c560 - Upgrade tokio to 0.2.9 (Audun Halland, Fri Jan 10 00:13:02 2020 +0100)
+* e8034bf - Remove mock server async spawning. (Audun Halland, Thu Jan 9 21:59:56 2020 +0100)
+* 3dec6ff - Upgrade tokio to 0.2.6 (Audun Halland, Tue Dec 31 07:40:14 2019 +0100)
+* 9dec41b - Upgrade reqwest to 0.10 (Audun Halland, Tue Dec 31 07:22:36 2019 +0100)
+* ec81ed2 - pact_consumer test: Use blocking reqwest (Audun Halland, Tue Dec 17 02:27:24 2019 +0100)
+* fda11e4 - Merge remote-tracking branch 'upstream/master' into async-await (Audun Halland, Tue Dec 17 02:13:58 2019 +0100)
+* 5573583 - Add more doc (Audun Halland, Tue Dec 17 01:56:03 2019 +0100)
+* d395d2d - pact_verifier: Upgrade reqwest to latest git alpha (Audun Halland, Tue Dec 17 00:57:16 2019 +0100)
+* 298f217 - pact_matching: Upgrade reqwest to current alpha (Audun Halland, Tue Dec 17 00:36:33 2019 +0100)
+* c4dea34 - pact_consumer: Upgrade blocking to 2.1, upgrade reqwest to unreleased alpha (Audun Halland, Tue Dec 17 00:16:30 2019 +0100)
+* 6e4f12b - bump version to 0.5.4 (Ronald Holshausen, Sat Dec 14 18:31:17 2019 +1100)
+* fee6d06 - pact_consumer: Better mock server documentation (Audun Halland, Thu Dec 12 21:44:09 2019 +0100)
+* 3074059 - Refactor ValidatingMockServer into a trait, with two implementations (Audun Halland, Thu Dec 12 15:58:50 2019 +0100)
+* fe72f92 - Temporarily solve a problem where a spawned server prevents the test runtime from terminating (Audun Halland, Thu Dec 12 14:14:02 2019 +0100)
+* 6a43f82 - Cut down tokio features to the bone (Audun Halland, Wed Dec 11 22:15:03 2019 +0100)
+* d4bdcb6 - Update ValidatingMockServer interfaces for use with tokio::test (Audun Halland, Wed Dec 11 22:01:06 2019 +0100)
+
 # 0.5.3 - Bugfix Release
 
 * ec1a368 - chore: update lib versions (Ronald Holshausen, Sat Dec 14 18:09:26 2019 +1100)
