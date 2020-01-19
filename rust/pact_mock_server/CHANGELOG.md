@@ -1,5 +1,22 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.7.0 - Convert to async/await
+
+* cf452f5 - chore: bump minor version (Ronald Holshausen, Sun Jan 19 11:18:03 2020 +1100)
+* 2b85b71 - chore: dump pact matching crate to 0.5.8 (Ronald Holshausen, Sun Jan 19 11:15:07 2020 +1100)
+* cb4c560 - Upgrade tokio to 0.2.9 (Audun Halland, Fri Jan 10 00:13:02 2020 +0100)
+* 3dec6ff - Upgrade tokio to 0.2.6 (Audun Halland, Tue Dec 31 07:40:14 2019 +0100)
+* 6747a98 - pact_mock_server: Try to fix windows test fail by awaiting the server shutdown (Audun Halland, Thu Dec 19 23:39:07 2019 +0100)
+* fda11e4 - Merge remote-tracking branch 'upstream/master' into async-await (Audun Halland, Tue Dec 17 02:13:58 2019 +0100)
+* 65a4452 - chore: set min matching lib version to 0.5.7 (Ronald Holshausen, Sat Dec 14 17:09:03 2019 +1100)
+* b6dda08 - bump version to 0.6.3 (Ronald Holshausen, Sat Dec 14 17:07:50 2019 +1100)
+* 23a652d - pact_verifier: Implement hyper requests for provider/state change (Audun Halland, Thu Dec 12 11:46:50 2019 +0100)
+* 6a43f82 - Cut down tokio features to the bone (Audun Halland, Wed Dec 11 22:15:03 2019 +0100)
+* 353cb5b - pact_mock_server: Use std future trait instead of futures-rs (Audun Halland, Wed Dec 11 21:56:05 2019 +0100)
+* 2136306 - pact_mock_server: Pass all tests (Audun Halland, Wed Dec 11 01:08:24 2019 +0100)
+* 6699bc8 - pact_mock_server: Make it all compile with async/await (Audun Halland, Wed Dec 11 00:32:49 2019 +0100)
+* 42f72f2 - mock_server: Convert hyper_server to async await. Use 4 space indent (Audun Halland, Wed Dec 11 00:13:15 2019 +0100)
+
 # 0.6.2 - Rust 2018 edition
 
 * 8bfeb0b - pact_mock_server: Remove extern crate from lib.rs (Audun Halland, Sun Nov 17 22:53:52 2019 +0100)
