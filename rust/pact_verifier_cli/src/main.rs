@@ -209,8 +209,9 @@ use std::error::Error;
 use regex::Regex;
 use pact_matching::models::http_utils::HttpAuth;
 
-fn main() {
-    match handle_command_args() {
+#[tokio::main]
+async fn main() {
+    match handle_command_args().await {
         Ok(_) => (),
         Err(err) => std::process::exit(err)
     }
@@ -291,7 +292,7 @@ fn interaction_filter(matches: &ArgMatches) -> FilterInfo {
     }
 }
 
-fn handle_command_args() -> Result<(), i32> {
+async fn handle_command_args() -> Result<(), i32> {
     let args: Vec<String> = env::args().collect();
     let program = args[0].clone();
 
@@ -481,20 +482,13 @@ fn handle_command_args() -> Result<(), i32> {
                 build_url: matches.value_of("build-url").map(|v| v.to_string())
             };
 
-            let mut runtime = tokio::runtime::Builder::new()
-                .basic_scheduler()
-                .build()
-                .unwrap();
-
-            if runtime.block_on(
-                verify_provider(
-                    &provider,
-                    source,
-                    &filter,
-                    &matches.values_of_lossy("filter-consumer").unwrap_or(vec![]),
-                    &options,
-                )
-            ) {
+            if verify_provider(
+                &provider,
+                source,
+                &filter,
+                &matches.values_of_lossy("filter-consumer").unwrap_or(vec![]),
+                &options,
+            ).await {
                 Ok(())
             } else {
                 Err(2)
