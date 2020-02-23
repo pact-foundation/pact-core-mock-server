@@ -30,12 +30,12 @@ hyper = "0.13"
 reqwest = { version = "0.10", features = ["blocking", "json"] }
 mime = "0.3"
 bytes = "0.5"
+tokio = { version = "0.2.11", features = ["rt-core", "macros"] }
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [dev-dependencies]
-tokio = { version = "0.2.9", features = ["rt-core", "macros"] }
 quickcheck = "0.2"
 expectest = "0.5.1"
 env_logger = "0.3.2"

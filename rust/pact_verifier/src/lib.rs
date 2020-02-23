@@ -1,10 +1,11 @@
 //! The `pact_verifier` crate provides the core logic to performing verification of providers.
 //! It implements the V3 Pact specification (https://github.com/pact-foundation/pact-specification/tree/version-3).
-
+#![type_length_limit="4776643"]
 #![warn(missing_docs)]
 
 mod provider_client;
 mod pact_broker;
+pub mod callback_executors;
 
 use std::path::Path;
 use std::io;
@@ -23,6 +24,7 @@ use serde_json::{Value, json};
 use crate::pact_broker::{publish_verification_results, TestResult, Link};
 use maplit::*;
 use futures::stream::*;
+use callback_executors::RequestFilterExecutor;
 
 /// Source for loading pacts
 #[derive(Debug, Clone)]
@@ -135,12 +137,13 @@ fn provider_client_error_to_string(err: ProviderClientError) -> String {
     }
 }
 
-async fn verify_response_from_provider(
-    provider: &ProviderInfo,
-    interaction: &Interaction
+async fn verify_response_from_provider<F: RequestFilterExecutor>(
+  provider: &ProviderInfo,
+  interaction: &Interaction,
+  options: &VerificationOptions<F>
 ) -> Result<(), MismatchResult> {
     let ref expected_response = interaction.response;
-    match make_provider_request(provider, &pact_matching::generate_request(&interaction.request, &hashmap!{})).await {
+    match make_provider_request(provider, &pact_matching::generate_request(&interaction.request, &hashmap!{}), options).await {
         Ok(ref actual_response) => {
             let mismatches = match_response(expected_response.clone(), actual_response.clone());
             if mismatches.is_empty() {
@@ -221,15 +224,16 @@ async fn execute_state_change(
     result
 }
 
-async fn verify_interaction(
-    provider: &ProviderInfo,
-    interaction: Interaction,
+async fn verify_interaction<F: RequestFilterExecutor>(
+  provider: &ProviderInfo,
+  interaction: Interaction,
+  options: &VerificationOptions<F>
 ) -> Result<(), MismatchResult> {
     for state in interaction.provider_states.clone() {
         execute_state_change(&state, provider, true, interaction.id.clone()).await?
     }
 
-    let result = verify_response_from_provider(provider, &interaction).await;
+    let result = verify_response_from_provider(provider, &interaction, options).await;
 
     if provider.state_change_teardown {
         for state in interaction.provider_states.clone() {
@@ -283,6 +287,7 @@ fn display_body_mismatch(expected: &Response, actual: &Response, path: &String) 
 }
 
 /// Filter information used to filter the interactions that are verified
+#[derive(Debug, Clone)]
 pub enum FilterInfo {
     /// No filter, all interactions will be verified
     None,
@@ -378,24 +383,38 @@ fn filter_consumers(consumers: &Vec<String>, res: &Result<(Pact, PactSource), St
 }
 
 /// Options to use when running the verification
-pub struct VerificationOptions {
+#[derive(Debug, Clone)]
+pub struct VerificationOptions<F> where F: RequestFilterExecutor {
     /// If results should be published back to the broker
     pub publish: bool,
     /// Provider version being published
     pub provider_version: Option<String>,
     /// Build URL to associate with the published results
-    pub build_url: Option<String>
+    pub build_url: Option<String>,
+    /// Request filter callback
+    pub request_filter: Option<Box<F>>
+}
+
+impl <F: RequestFilterExecutor> Default for VerificationOptions<F> {
+  fn default() -> Self {
+    VerificationOptions {
+      publish: false,
+      provider_version: None,
+      build_url: None,
+      request_filter: None
+    }
+  }
 }
 
 /// Verify the provider with the given pact sources
-pub async fn verify_provider(
-    provider_info: &ProviderInfo,
+pub async fn verify_provider<F: RequestFilterExecutor>(
+    provider_info: ProviderInfo,
     source: Vec<PactSource>,
-    filter: &FilterInfo,
-    consumers: &Vec<String>,
-    options: &VerificationOptions,
+    filter: FilterInfo,
+    consumers: Vec<String>,
+    options: VerificationOptions<F>,
 ) -> bool {
-    let pact_results = fetch_pacts(&source, consumers).await;
+    let pact_results = fetch_pacts(source, consumers).await;
 
     let mut all_errors: Vec<(String, MismatchResult)> = vec![];
     for pact_result in pact_results {
@@ -408,7 +427,7 @@ pub async fn verify_provider(
                 if pact.interactions.is_empty() {
                     println!("         {}", Yellow.paint("WARNING: Pact file has no interactions"));
                 } else {
-                    let errors = verify_pact(provider_info, filter, pact).await;
+                    let errors = verify_pact(&provider_info, &filter, pact, &options).await;
                     for error in errors.clone() {
                         all_errors.push(error);
                     }
@@ -497,24 +516,25 @@ async fn fetch_pact(
 }
 
 async fn fetch_pacts(
-    source: &Vec<PactSource>,
-    consumers: &Vec<String>
+    source: Vec<PactSource>,
+    consumers: Vec<String>
 ) -> Vec<Result<(Pact, PactSource), String>> {
     futures::stream::iter(source)
-        .map(|pact_source| pact_source.clone())
+        // .map(|pact_source| pact_source.clone())
         .then(|pact_source| async {
             futures::stream::iter(fetch_pact(pact_source).await)
         })
         .flatten()
-        .filter(|res| futures::future::ready(filter_consumers(consumers, res)))
+        .filter(|res| futures::future::ready(filter_consumers(&consumers, res)))
         .collect()
         .await
 }
 
-async fn verify_pact(
-    provider_info: &ProviderInfo,
-    filter: &FilterInfo,
-    pact: Pact
+async fn verify_pact<F: RequestFilterExecutor>(
+  provider_info: &ProviderInfo,
+  filter: &FilterInfo,
+  pact: Pact,
+  options: &VerificationOptions<F>
 ) -> Vec<(String, MismatchResult)> {
     let mut errors = vec![];
 
@@ -526,7 +546,7 @@ async fn verify_pact(
             let key = interaction.clone();
 
             async {
-                (key, verify_interaction(provider_info, interaction).await)
+                (key, verify_interaction(provider_info, interaction, options).await)
             }
         })
         .collect()
@@ -600,10 +620,10 @@ async fn verify_pact(
     errors
 }
 
-async fn publish_result(
+async fn publish_result<F: RequestFilterExecutor>(
     errors: &Vec<(String, MismatchResult)>,
     source: &PactSource,
-    options: &VerificationOptions,
+    options: &VerificationOptions<F>
 ) {
     match source.clone() {
         PactSource::BrokerUrl(_, broker_url, auth, links) => {

@@ -16,6 +16,7 @@ use hyper::http::method::InvalidMethod;
 use hyper::http::header::{HeaderMap, HeaderName, HeaderValue, InvalidHeaderName, InvalidHeaderValue};
 use hyper::http::header::CONTENT_TYPE;
 use futures::future::*;
+use std::borrow::Borrow;
 
 #[derive(Debug)]
 pub enum ProviderClientError {
@@ -167,14 +168,23 @@ fn check_hyper_response_status(result: Result<HyperResponse<Body>, HyperError>) 
     }
 }
 
-pub async fn make_provider_request(
-    provider: &ProviderInfo,
-    request: &Request
+pub async fn make_provider_request<F: RequestFilterExecutor>(
+  provider: &ProviderInfo,
+  request: &Request,
+  options: &VerificationOptions<F>
 ) -> Result<Response, ProviderClientError> {
+    let request_filter_option = options.request_filter.as_ref();
+    let request = if request_filter_option.is_some() {
+      let request_filter = request_filter_option.unwrap();
+      log::debug!("Invoking request filter for request");
+      request_filter.call(request)
+    } else {
+      request.clone()
+    };
     log::debug!("Sending {:?} to provider", request);
 
     let base_url = format!("{}://{}:{}{}", provider.protocol, provider.host, provider.port, provider.path);
-    let request = create_hyper_request(&base_url, request)?;
+    let request = create_hyper_request(&base_url, &request)?;
 
     let response = Client::new().request(request)
         .and_then(hyper_response_to_pact_response)
