@@ -25,6 +25,7 @@ use crate::pact_broker::{publish_verification_results, TestResult, Link};
 use maplit::*;
 use futures::stream::*;
 use callback_executors::RequestFilterExecutor;
+pub use callback_executors::NullRequestFilterExecutor;
 
 /// Source for loading pacts
 #[derive(Debug, Clone)]
