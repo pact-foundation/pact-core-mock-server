@@ -13,7 +13,7 @@ pub struct Message {
     /// Description of this message interaction. This needs to be unique in the pact file.
     pub description: String,
     /// Optional provider state for the interaction.
-    /// See http://docs.pact.io/documentation/provider_states.html for more info on provider states.
+    /// See https://docs.pact.io/getting_started/provider_states for more info on provider states.
     pub provider_state: Option<String>,
     /// The contents of the message
     pub contents: OptionalBody,
