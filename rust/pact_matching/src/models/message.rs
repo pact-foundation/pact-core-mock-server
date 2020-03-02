@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use maplit::*;
+use crate::models::provider_states::ProviderState;
 use super::*;
 use super::body_from_json;
 
@@ -14,7 +15,7 @@ pub struct Message {
     pub description: String,
     /// Optional provider state for the interaction.
     /// See https://docs.pact.io/getting_started/provider_states for more info on provider states.
-    pub provider_state: Option<String>,
+    pub provider_states: Vec<ProviderState>,
     /// The contents of the message
     pub contents: OptionalBody,
     /// Metadata associated with this message.
@@ -28,7 +29,7 @@ impl Message {
     pub fn default() -> Message {
         Message {
             description: s!("message"),
-            provider_state: None,
+            provider_states: vec![],
             contents: OptionalBody::Missing,
             metadata: hashmap!{},
             matching_rules: matchingrules::MatchingRules::default()
@@ -46,18 +47,7 @@ impl Message {
                     },
                     None => format!("Message {}", index)
                 };
-                let provider_state = match json.get("providerState") {
-                    Some(v) => match *v {
-                        Value::String(ref s) => if s.is_empty() {
-                            None
-                        } else {
-                            Some(s.clone())
-                        },
-                        Value::Null => None,
-                        _ => Some(v.to_string())
-                    },
-                    None => None
-                };
+                let provider_states = ProviderState::from_json(json);
                 let metadata = match json.get("metadata") {
                     Some(&Value::Object(ref v)) => v.iter().map(|(k, v)| {
                         (k.clone(), match v {
@@ -68,11 +58,11 @@ impl Message {
                     _ => hashmap!{}
                 };
                 Ok(Message {
-                     description: description,
-                     provider_state: provider_state,
+                     description,
+                     provider_states,
                      contents: body_from_json(json, "contents", &None),
                      matching_rules: matchingrules::matchers_from_json(json, &None),
-                     metadata: metadata
+                     metadata
                 })
             },
             _ => Err(s!("Messages require Pact Specification version 3 or later"))
