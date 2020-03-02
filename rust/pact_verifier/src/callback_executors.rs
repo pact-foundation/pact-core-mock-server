@@ -4,6 +4,7 @@ use pact_matching::models::Request;
 
 /// Trait for executors that call request filters
 pub trait RequestFilterExecutor {
+  /// Filters requests based on some criteria.
   fn call(&self, request: &Request) -> Request;
 }
 
@@ -17,7 +18,7 @@ pub struct NullRequestFilterExecutor {
 }
 
 impl RequestFilterExecutor for NullRequestFilterExecutor {
-  fn call(&self, request: &Request) -> Request {
+  fn call(&self, _request: &Request) -> Request {
     unimplemented!("NullRequestFilterExecutor should never be called")
   }
 }
