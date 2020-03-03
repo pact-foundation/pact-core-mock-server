@@ -16,7 +16,6 @@ use hyper::http::method::InvalidMethod;
 use hyper::http::header::{HeaderMap, HeaderName, HeaderValue, InvalidHeaderName, InvalidHeaderValue};
 use hyper::http::header::CONTENT_TYPE;
 use futures::future::*;
-use std::borrow::Borrow;
 
 #[derive(Debug)]
 pub enum ProviderClientError {
