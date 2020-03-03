@@ -14,6 +14,7 @@ use pact_matching::models::Pact;
 /// This is supposed to be a doctest in lib.rs, but it's breaking there, so
 /// we have an executable copy here.
 #[test]
+#[ignore]
 fn mock_server_passing_validation() {
     use expectest::*;
 
