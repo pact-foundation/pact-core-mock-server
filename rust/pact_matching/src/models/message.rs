@@ -13,14 +13,24 @@ use super::body_from_json;
 pub struct Message {
     /// Description of this message interaction. This needs to be unique in the pact file.
     pub description: String,
+
     /// Optional provider state for the interaction.
     /// See https://docs.pact.io/getting_started/provider_states for more info on provider states.
+    #[serde(rename = "providerStates")]
+    #[serde(default)]
     pub provider_states: Vec<ProviderState>,
+
     /// The contents of the message
+    #[serde(default = "missing_body")]
     pub contents: OptionalBody,
+
     /// Metadata associated with this message.
+    #[serde(default)]
     pub metadata: HashMap<String, String>,
+
     /// Matching rules
+    #[serde(rename = "matchingRules")]
+    #[serde(default)]
     pub matching_rules: matchingrules::MatchingRules
 }
 
@@ -76,6 +86,10 @@ impl Message {
             None => s!("application/json")
         }
     }
+}
+
+fn missing_body() -> OptionalBody {
+    OptionalBody::Missing
 }
 
 #[cfg(test)]
@@ -209,5 +223,37 @@ mod tests {
     fn message_mimetype_defaults_to_json() {
         let message = Message::default();
         expect!(message.mimetype()).to(be_equal_to("application/json"));
+    }
+
+    #[test]
+    fn ignoring_v1_provider_state_when_deserializing_message() {
+        let message_json = r#"{
+            "description": "String",
+            "providerState": "provider state",
+            "matchingRules": {}
+        }"#;
+
+        // This line should panic, because providerState is not the name of the field.
+        let message: Message = serde_json::from_str(message_json).unwrap();
+        expect!(message.description).to(be_equal_to("String"));
+        expect!(message.provider_states.iter()).to(be_empty());
+        expect!(message.matching_rules.rules.iter()).to(be_empty());
+    }
+
+    #[test]
+    fn loading_message_from_json_by_deserializing() {
+        let message_json = r#"{
+            "description": "String",
+            "providerStates": [{ "name": "provider state", "params": {} }],
+            "matchingRules": {}
+        }"#;
+
+        let message: Message = serde_json::from_str(message_json).unwrap();
+        expect!(message.description).to(be_equal_to("String"));
+        expect!(message.provider_states).to(be_equal_to(vec![ProviderState {
+            name: s!("provider state"),
+            params: hashmap!(),
+        }]));
+        expect!(message.matching_rules.rules.iter()).to(be_empty());
     }
 }

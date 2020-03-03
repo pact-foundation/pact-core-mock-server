@@ -134,6 +134,7 @@ impl Provider {
 /// Enum that defines the four main states that a body of a request and response can be in a pact
 /// file.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[serde(untagged)]
 pub enum OptionalBody {
     /// A body is missing if it is not present in the pact file
     Missing,

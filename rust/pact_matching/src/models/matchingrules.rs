@@ -416,6 +416,7 @@ impl Hash for Category {
 
 /// Data structure for representing a collection of matchers
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq)]
+#[serde(transparent)]
 pub struct MatchingRules {
     /// Categories of matching rules
     pub rules: HashMap<String, Category>
