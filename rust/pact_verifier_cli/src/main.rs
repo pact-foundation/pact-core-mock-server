@@ -480,7 +480,7 @@ async fn handle_command_args() -> Result<(), i32> {
                 publish: matches.is_present("publish"),
                 provider_version: matches.value_of("provider-version").map(|v| v.to_string()),
                 build_url: matches.value_of("build-url").map(|v| v.to_string()),
-                request_filter: None
+                request_filter: None::<Box<NullRequestFilterExecutor>>
             };
 
             if verify_provider(
