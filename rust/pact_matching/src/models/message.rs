@@ -94,7 +94,10 @@ mod tests {
         }"#;
         let message = Message::from_json(0, &serde_json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
         expect!(message.description).to(be_equal_to("String"));
-        expect!(message.provider_state).to(be_some().value("provider state"));
+        expect!(message.provider_states).to(be_equal_to(vec![ProviderState {
+            name: s!("provider state"),
+            params: hashmap!(),
+        }]));
         expect!(message.matching_rules.rules.iter()).to(be_empty());
     }
 
@@ -112,7 +115,7 @@ mod tests {
         let message_json = r#"{
         }"#;
         let message = Message::from_json(0, &serde_json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
-        expect!(message.provider_state).to(be_none());
+        expect!(message.provider_states.iter()).to(be_empty());
         expect!(message.matching_rules.rules.iter()).to(be_empty());
     }
 
@@ -122,7 +125,7 @@ mod tests {
             "providerState": null
         }"#;
         let message = Message::from_json(0, &serde_json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
-        expect!(message.provider_state).to(be_none());
+        expect!(message.provider_states.iter()).to(be_empty());
     }
 
     #[test]
