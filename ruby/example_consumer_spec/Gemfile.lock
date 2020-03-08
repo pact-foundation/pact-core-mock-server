@@ -15,7 +15,7 @@ GEM
     httparty (0.16.1)
       multi_xml (>= 0.5.2)
     multi_xml (0.6.0)
-    rake (12.3.1)
+    rake (13.0.1)
     rspec (3.7.0)
       rspec-core (~> 3.7.0)
       rspec-expectations (~> 3.7.0)
