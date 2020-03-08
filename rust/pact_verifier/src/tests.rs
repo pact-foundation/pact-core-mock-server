@@ -202,6 +202,7 @@ fn publish_result_does_nothing_if_not_from_broker() {
         provider_version: None,
         build_url: None,
         request_filter: None::<Box<super::NullRequestFilterExecutor>>,
+        provider_tags: vec![]
       };
       super::publish_result(&vec![], &PactSource::File("/tmp/test".into()), &options).await;
     })
@@ -230,6 +231,7 @@ async fn publish_successful_result_to_broker() {
     provider_version: Some("1".into()),
     build_url: None,
     request_filter: None::<Box<super::NullRequestFilterExecutor>>,
+    provider_tags: vec![]
   };
   let links = vec![
     Link {

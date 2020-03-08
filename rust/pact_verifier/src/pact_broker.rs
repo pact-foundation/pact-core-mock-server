@@ -11,6 +11,8 @@ use pact_matching::models::http_utils::HttpAuth;
 use pact_matching::Mismatch;
 use std::fmt::{Display, Formatter};
 use maplit::*;
+use reqwest::Method;
+use log::*;
 
 fn is_true(object: &serde_json::Map<String, serde_json::Value>, field: &String) -> bool {
     match object.get(field) {
@@ -104,21 +106,40 @@ impl Display for PactBrokerError {
 }
 
 #[derive(Debug, Clone)]
+/// Structure to represent a HAL link
 pub struct Link {
+  /// Link name
   pub name: String,
+  /// Link HREF
   pub href: Option<String>,
+  /// If the link is templated (has expressions in the HREF that need to be expanded
   pub templated: bool
 }
 
 impl Link {
 
+    /// Create a link from serde JSON data
     pub fn from_json(link: &String, link_data: &serde_json::Map<String, serde_json::Value>) -> Link {
         Link {
             name: link.clone(),
-            href: find_entry(link_data, &s!("href")).map(|(_, href)| as_string(&href)),
+            href: find_entry(link_data, &"href".to_string())
+              .map(|(_, href)| as_string(&href)),
             templated: is_true(link_data, &s!("templated"))
         }
     }
+
+  /// Converts the Link into a JSON representation
+  pub fn as_json(&self) -> serde_json::Value {
+    match self.href.clone() {
+      Some(href) => json!({
+        "href": href,
+        "templated": self.templated
+      }),
+      None => json!({
+        "templated": self.templated
+      })
+    }
+  }
 }
 
 impl Default for Link {
@@ -159,7 +180,7 @@ impl HALClient {
     fn update_path_info(self, path_info: serde_json::Value) -> HALClient {
         HALClient {
             client: self.client.clone(),
-            url: self.url,
+            url: self.url.clone(),
             path_info: Some(path_info),
             auth: self.auth.clone()
         }
@@ -168,15 +189,19 @@ impl HALClient {
     async fn navigate(
         self,
         link: &'static str,
-        template_values: HashMap<String, String>
+        template_values: &HashMap<String, String>
     ) -> Result<HALClient, PactBrokerError> {
+      let client = if self.path_info.is_none() {
         let path_info = self.clone().fetch("/".into()).await?;
-        let client = self.update_path_info(path_info);
+        self.update_path_info(path_info)
+      } else {
+        self
+      };
 
-        let path_info = client.clone().fetch_link(link, template_values).await?;
-        let client = client.update_path_info(path_info);
+      let path_info = client.clone().fetch_link(link, template_values).await?;
+      let client = client.update_path_info(path_info);
 
-        Ok(client)
+      Ok(client)
     }
 
     fn find_link(&self, link: &'static str) -> Result<Link, PactBrokerError> {
@@ -186,7 +211,7 @@ impl HALClient {
             Some(ref json) => match json.get("_links") {
                 Some(json) => match json.get(link) {
                     Some(link_data) => link_data.as_object()
-                        .map(|link_data| Link::from_json(&s!(link), &link_data))
+                        .map(|link_data| Link::from_json(&link.to_string(), &link_data))
                         .ok_or(PactBrokerError::LinkError(format!("Link is malformed, expected an object but got {}. URL: '{}', LINK: '{}'",
                             link_data, self.url, link))),
                     None => Err(PactBrokerError::LinkError(format!("Link '{}' was not found in the response, only the following links where found: {:?}. URL: '{}', LINK: '{}'",
@@ -201,21 +226,21 @@ impl HALClient {
     async fn fetch_link(
         self,
         link: &'static str,
-        template_values: HashMap<String, String>
+        template_values: &HashMap<String, String>
     ) -> Result<serde_json::Value, PactBrokerError> {
         let link_data = self.find_link(link)?;
 
-        self.fetch_url(link_data, template_values).await
+        self.fetch_url(&link_data, template_values).await
     }
 
     async fn fetch_url(
         self,
-        link: Link,
-        template_values: HashMap<String, String>
+        link: &Link,
+        template_values: &HashMap<String, String>
     ) -> Result<serde_json::Value, PactBrokerError> {
         let link_url = if link.templated {
             log::debug!("Link URL is templated");
-            self.parse_link_url(&link, &template_values)
+            self.clone().parse_link_url(&link, &template_values)
         } else {
             link.href.clone()
                 .ok_or_else(|| PactBrokerError::LinkError(
@@ -275,19 +300,19 @@ impl HALClient {
             let body = response.bytes()
                 .await
                 .map_err(|_| PactBrokerError::IoError(
-                    format!("Failed to download response body for path '{}'. URL: '{}'", &path, &self.url)
+                    format!("Failed to download response body for path '{}'. URL: '{}'", &path, self.url)
                 ))?;
 
             if is_json_content_type {
                 serde_json::from_slice(&body)
                     .map_err(|err| PactBrokerError::ContentError(
                         format!("Did not get a valid HAL response body from pact broker path '{}' - {}. URL: '{}'",
-                            path, err, &self.url)
+                            path, err, self.url)
                     ))
             } else {
                 Err(PactBrokerError::ContentError(
                     format!("Did not get a HAL response from pact broker path '{}', content type is '{}'. URL: '{}'",
-                        path, content_type, &self.url
+                        path, content_type, self.url
                     )
                 ))
             }
@@ -306,7 +331,7 @@ impl HALClient {
         }
     }
 
-    fn parse_link_url(&self, link: &Link, values: &HashMap<String, String>) -> Result<String, PactBrokerError> {
+    fn parse_link_url(self, link: &Link, values: &HashMap<String, String>) -> Result<String, PactBrokerError> {
         match link.href {
             Some(ref href) => {
                 log::debug!("templated URL = {}", href);
@@ -331,7 +356,7 @@ impl HALClient {
         }
     }
 
-    fn iter_links(&self, link: String) -> Result<Vec<Link>, PactBrokerError> {
+    fn iter_links(self, link: String) -> Result<Vec<Link>, PactBrokerError> {
         match self.path_info {
             None => Err(PactBrokerError::LinkError(format!("No previous resource has been fetched from the pact broker. URL: '{}', LINK: '{}'",
                 self.url, link))),
@@ -354,37 +379,54 @@ impl HALClient {
         }
     }
 
-    async fn post_json(self, url: String, body: String) -> Result<(), PactBrokerError> {
-        log::debug!("Posting JSON to {}: {}", url, body);
+  async fn post_json(self, url: String, body: String) -> Result<(), PactBrokerError> {
+    self.send_document(url, body, Method::POST).await
+  }
 
-        let url = url.parse::<reqwest::Url>()
-            .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?;
+  async fn put_json(self, url: String, body: String) -> Result<(), PactBrokerError> {
+    self.send_document(url, body, Method::PUT).await
+  }
 
-        let request_builder = match self.auth {
-            Some(ref auth) => match auth {
-                HttpAuth::User(username, password) => self.client
-                    .post(url.clone())
-                    .basic_auth(username, password.clone()),
-                HttpAuth::Token(token) => self.client
-                    .post(url.clone())
-                    .bearer_auth(token)
-            },
-            None => self.client.post(url.clone())
-        }
-            .header("Content-Type", "application/json")
-            .body(body);
+  async fn send_document(self, url: String, body: String, method: Method) -> Result<(), PactBrokerError> {
+    log::debug!("Sending JSON to {} using {}: {}", url, method, body);
 
-        request_builder.send()
-            .await
-            .map_err(|err| PactBrokerError::IoError(
-                format!("Failed to post JSON to the pact broker URL '{}' - {}", url, err)
-            ))?
-            .error_for_status()
-            .map_err(|err| PactBrokerError::ContentError(
-                format!("Post request to pact broker URL '{}' failed - {}",  url, err)
-            ))
-            .map(|_| ())
+    let url = url.parse::<reqwest::Url>()
+      .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?;
+
+    let request_builder = match self.auth {
+      Some(ref auth) => match auth {
+        HttpAuth::User(username, password) => self.client
+          .request(method, url.clone())
+          .basic_auth(username, password.clone()),
+        HttpAuth::Token(token) => self.client
+          .request(method, url.clone())
+          .bearer_auth(token)
+      },
+      None => self.client.request(method, url.clone())
     }
+      .header("Content-Type", "application/json")
+      .body(body);
+
+    request_builder.send()
+      .await
+      .map_err(|err| PactBrokerError::IoError(
+        format!("Failed to send JSON to the pact broker URL '{}' - {}", url, err)
+      ))?
+      .error_for_status()
+      .map_err(|err| PactBrokerError::ContentError(
+        format!("Request to pact broker URL '{}' failed - {}",  url, err)
+      ))
+      .map(|_| ())
+  }
+
+  fn with_doc_context(self, doc_attributes: &Vec<Link>) -> Result<HALClient, PactBrokerError> {
+    let links: serde_json::Map<String, serde_json::Value> = doc_attributes.iter()
+      .map(|link| (link.name.clone(), link.as_json())).collect();
+    let links_json = json!({
+      "_links": json!(links)
+    });
+    Ok(self.clone().update_path_info(links_json))
+  }
 }
 
 fn links_from_json(json: &serde_json::Value) -> Vec<Link> {
@@ -410,7 +452,7 @@ pub async fn fetch_pacts_from_broker(
     let mut hal_client = HALClient::with_url(broker_url.clone(), auth);
     let template_values = hashmap!{ s!("provider") => provider_name.clone() };
 
-    hal_client = hal_client.navigate("pb:latest-provider-pacts", template_values.clone())
+    hal_client = hal_client.navigate("pb:latest-provider-pacts", &template_values)
         .await
         .map_err(move |err| {
             match err {
@@ -422,27 +464,27 @@ pub async fn fetch_pacts_from_broker(
             }
         })?;
 
-    let pact_links = hal_client.iter_links(s!("pacts"))?;
+    let pact_links = hal_client.clone().iter_links(s!("pacts"))?;
 
     let results: Vec<_> = futures::stream::iter(pact_links)
-        .map(|pact_link| {
-            match pact_link.clone().href {
-                Some(_) => Ok((hal_client.clone(), pact_link)),
-                None => Err(
-                    PactBrokerError::LinkError(
-                        format!(
-                            "Expected a HAL+JSON response from the pact broker, but got a link with no HREF. URL: '{}', LINK: '{:?}'",
-                            &hal_client.url,
-                            pact_link
-                        )
-                    )
+        .map(|ref pact_link| {
+          match pact_link.href {
+            Some(_) => Ok((hal_client.clone(), pact_link.clone())),
+            None => Err(
+              PactBrokerError::LinkError(
+                format!(
+                  "Expected a HAL+JSON response from the pact broker, but got a link with no HREF. URL: '{}', LINK: '{:?}'",
+                  &hal_client.url,
+                  pact_link
                 )
-            }
+              )
+            )
+          }
         })
         .and_then(|(hal_client, pact_link)| async {
             let pact_json = hal_client.fetch_url(
-                pact_link.clone(),
-                template_values.clone()
+                &pact_link.clone(),
+                &template_values.clone()
             ).await?;
             Ok((pact_link, pact_json))
         })
@@ -476,23 +518,30 @@ impl TestResult {
 
 /// Publishes the result to the "pb:publish-verification-results" link in the links associated with the pact
 pub async fn publish_verification_results(
-    links: Vec<Link>,
-    broker_url: String,
-    auth: Option<HttpAuth>,
-    result: TestResult, version:
-    String, build_url: Option<String>
+  links: Vec<Link>,
+  broker_url: String,
+  auth: Option<HttpAuth>,
+  result: TestResult,
+  version: String,
+  build_url: Option<String>,
+  provider_tags: Vec<String>
 ) -> Result<(), PactBrokerError> {
-    let publish_link = links
-        .iter()
-        .cloned()
-        .find(|item| item.name.to_ascii_lowercase() == "pb:publish-verification-results")
-        .ok_or(PactBrokerError::LinkError(
-            "Response from the pact broker has no 'pb:publish-verification-results' link".into()
-        ))?;
+  let hal_client = HALClient::with_url(broker_url.clone(), auth.clone());
 
-    let json = build_payload(result, version, build_url);
-    let hal_client = HALClient::with_url(broker_url.clone(), auth.clone());
-    hal_client.post_json(publish_link.href.clone().unwrap(), json.to_string()).await
+  if !provider_tags.is_empty() {
+    publish_provider_tags(&hal_client, &links, provider_tags, &version).await?;
+  }
+
+  let publish_link = links
+      .iter()
+      .cloned()
+      .find(|item| item.name.to_ascii_lowercase() == "pb:publish-verification-results")
+      .ok_or(PactBrokerError::LinkError(
+          "Response from the pact broker has no 'pb:publish-verification-results' link".into()
+      ))?;
+
+  let json = build_payload(result, version, build_url);
+  hal_client.post_json(publish_link.href.clone().unwrap(), json.to_string()).await
 }
 
 fn build_payload(result: TestResult, version: String, build_url: Option<String>) -> serde_json::Value {
@@ -576,6 +625,34 @@ fn build_payload(result: TestResult, version: String, build_url: Option<String>)
     _ => ()
   }
   json
+}
+
+async fn publish_provider_tags(
+  hal_client: &HALClient,
+  links: &Vec<Link>,
+  provider_tags: Vec<String>,
+  version: &String) -> Result<(), PactBrokerError> {
+  let hal_client = hal_client.clone().with_doc_context(links)?
+    .navigate("pb:provider", &hashmap!{}).await?;
+  match hal_client.find_link("pb:version-tag") {
+    Ok(link) => {
+      for tag in &provider_tags {
+        let template_values = hashmap! {
+          "version".to_string() => version.clone(),
+          "tag".to_string() => tag.clone()
+        };
+        match hal_client.clone().put_json(hal_client.clone().parse_link_url(&link, &template_values)?, "{}".to_string()).await {
+          Ok(_) => debug!("Pushed tag {} for provider version {}", tag, version),
+          Err(err) => {
+            error!("Failed to push tag {} for provider version {}", tag, version);
+            return Err(err);
+          }
+        }
+      };
+      Ok(())
+    },
+    Err(_) => Err(PactBrokerError::LinkError(format!("Can't publish provider tags as there is no 'pb:version-tag' link")))
+  }
 }
 
 #[cfg(test)]
@@ -704,19 +781,19 @@ mod tests {
         let values = hashmap!{ s!("valA") => s!("A"), s!("valB") => s!("B") };
 
         let link = Link { name: s!("link"), href: Some(s!("http://localhost")), templated: false };
-        expect!(client.parse_link_url(&link, &values)).to(be_ok().value("http://localhost"));
+        expect!(client.clone().parse_link_url(&link, &values)).to(be_ok().value("http://localhost"));
 
         let link = Link { name: s!("link"), href: Some(s!("http://{valA}/{valB}")), templated: false };
-        expect!(client.parse_link_url(&link, &values)).to(be_ok().value("http://A/B"));
+        expect!(client.clone().parse_link_url(&link, &values)).to(be_ok().value("http://A/B"));
 
         let link = Link { name: s!("link"), href: Some(s!("http://{valA}/{valC}")), templated: false };
-        expect!(client.parse_link_url(&link, &values)).to(be_ok().value("http://A/{valC}"));
+        expect!(client.clone().parse_link_url(&link, &values)).to(be_ok().value("http://A/{valC}"));
     }
 
     #[tokio::test]
     async fn fetch_link_returns_an_error_if_a_previous_resource_has_not_been_fetched() {
         let client = HALClient::with_url(s!("http://localhost"), None);
-        let result = client.fetch_link("anything_will_do", hashmap!{}).await;
+        let result = client.fetch_link("anything_will_do", &hashmap!{}).await;
         expect!(result).to(be_err().value(s!("No previous resource has been fetched from the pact broker. URL: 'http://localhost', LINK: 'anything_will_do'")));
     }
 
@@ -736,7 +813,7 @@ mod tests {
         let result = client.clone().fetch(s!("/")).await;
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
-        let result = client.clone().fetch_link("hal2", hashmap!{}).await;
+        let result = client.clone().fetch_link("hal2", &hashmap!{}).await;
         expect!(result).to(be_err().value(format!("Expected a HAL+JSON response from the pact broker, but got a response with no '_links'. URL: '{}', LINK: 'hal2'",
             pact_broker.url())));
     }
@@ -757,7 +834,7 @@ mod tests {
         let result = client.clone().fetch(s!("/")).await;
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
-        let result = client.clone().fetch_link("any", hashmap!{}).await;
+        let result = client.clone().fetch_link("any", &hashmap!{}).await;
         expect!(result).to(be_err().value(format!("Link 'any' was not found in the response, only the following links where found: \"\". URL: '{}', LINK: 'any'",
             pact_broker.url())));
     }
@@ -777,7 +854,7 @@ mod tests {
         let result = client.clone().fetch(s!("/")).await;
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
-        let result = client.clone().fetch_link("any", hashmap!{}).await;
+        let result = client.clone().fetch_link("any", &hashmap!{}).await;
         expect!(result).to(be_err().value(format!("Link 'any' was not found in the response, only the following links where found: \"next, prev\". URL: '{}', LINK: 'any'",
             pact_broker.url())));
     }
@@ -803,7 +880,7 @@ mod tests {
         let result = client.clone().fetch(s!("/")).await;
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
-        let result = client.clone().fetch_link("next", hashmap!{}).await;
+        let result = client.clone().fetch_link("next", &hashmap!{}).await;
         expect!(result).to(be_ok().value(serde_json::Value::String(s!("Yay! You found your way here"))));
     }
 
@@ -829,7 +906,7 @@ mod tests {
         let result = client.clone().fetch(s!("/")).await;
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
-        let result = client.clone().fetch_link("next", hashmap!{}).await;
+        let result = client.clone().fetch_link("next", &hashmap!{}).await;
         expect!(result).to(be_ok().value(serde_json::Value::String(s!("Yay! You found your way here"))));
     }
 
@@ -856,7 +933,7 @@ mod tests {
         let result = client.clone().fetch(s!("/")).await;
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
-        let result = client.clone().fetch_link("document", hashmap!{ s!("id") => s!("abc") }).await;
+        let result = client.clone().fetch_link("document", &hashmap!{ s!("id") => s!("abc") }).await;
         expect!(result).to(be_ok().value(serde_json::Value::String(s!("Yay! You found your way here"))));
     }
 
@@ -1047,5 +1124,36 @@ mod tests {
         }
       ]
     })));
+  }
+
+  #[test]
+  fn build_link_from_json() {
+    let json = json!({
+      "href": "localhost"
+    });
+    let link = Link::from_json(&"link name".to_string(), json.as_object().unwrap());
+    expect!(link.name).to(be_equal_to("link name"));
+    expect!(link.href).to(be_some().value("localhost"));
+    expect!(link.templated).to(be_false());
+
+    let json2 = json!({
+      "templated": true
+    });
+    let link2 = Link::from_json(&"link name".to_string(), json2.as_object().unwrap());
+    expect!(link2.name).to(be_equal_to("link name"));
+    expect!(link2.href).to(be_none());
+    expect!(link2.templated).to(be_true());
+  }
+
+  #[test]
+  fn build_json_from_link() {
+    let link = Link {
+      name: "Link Name".to_string(),
+      href: Some("1234".to_string()),
+      templated: true
+    };
+    let json = link.as_json();
+    expect!(json.to_string()).to(be_equal_to(
+      "{\"href\":\"1234\",\"templated\":true}"));
   }
 }

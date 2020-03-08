@@ -11,32 +11,49 @@
 //! The pact verifier is bundled as a single binary executable `pact_verifier_cli`. Running this with out any options displays the standard help.
 //!
 //! ```console,ignore
-//! pact_verifier_cli v0.2.0
+//! pact_verifier_cli v0.6.2
 //! Standalone Pact verifier
 //!
 //! USAGE:
-//!     pact_verifier_cli [FLAGS] [OPTIONS] --file <file> --dir <dir> --url <url> --broker-url <broker-url> --provider-name <provider-name>
+//!     pact_verifier_cli [FLAGS] [OPTIONS] --broker-url <broker-url>... --dir <dir>... --file <file>... --provider-name <provider-name> --url <url>...
 //!
 //! FLAGS:
 //!         --filter-no-state          Only validate interactions that have no defined provider state
 //!         --help                     Prints help information
-//!         --state-change-as-query    State change request data will be sent as query parameters instead of in the request body
+//!         --publish                  Enables publishing of verification results back to the Pact Broker. Requires the
+//!                                    broker-url and provider-version parameters.
+//!         --state-change-as-query    State change request data will be sent as query parameters instead of in the request
+//!                                    body
 //!         --state-change-teardown    State change teardown requests are to be made after each interaction
 //!     -v, --version                  Prints version information
 //!
 //! OPTIONS:
-//!     -b, --broker-url <broker-url>                    URL of the pact broker to fetch pacts from to verify (requires the provider name parameter)
-//!     -d, --dir <dir>                                  Directory of pact files to verify (can be repeated)
-//!     -f, --file <file>                                Pact file to verify (can be repeated)
-//!     -c, --filter-consumer <filter-consumer>       Consumer name to filter the pacts to be verified (can be repeated)
+//!     -b, --broker-url <broker-url>...
+//!             URL of the pact broker to fetch pacts from to verify (requires the provider name parameter)
+//!
+//!         --build-url <build-url>
+//!             URL of the build to associate with the published verification results.
+//!
+//!     -d, --dir <dir>...                               Directory of pact files to verify (can be repeated)
+//!     -f, --file <file>...                             Pact file to verify (can be repeated)
+//!     -c, --filter-consumer <filter-consumer>...       Consumer name to filter the pacts to be verified (can be repeated)
 //!         --filter-description <filter-description>    Only validate interactions whose descriptions match this filter
 //!         --filter-state <filter-state>                Only validate interactions whose provider states match this filter
 //!     -h, --hostname <hostname>                        Provider hostname (defaults to localhost)
-//!     -l, --loglevel <loglevel>                        Log level (defaults to warn) [values: error, warn, info, debug, trace, none]
+//!     -l, --loglevel <loglevel>
+//!             Log level (defaults to warn) [possible values: error, warn, info, debug,
+//!             trace, none]
+//!         --password <password>                        Password to use when fetching pacts from URLS
 //!     -p, --port <port>                                Provider port (defaults to 8080)
 //!     -n, --provider-name <provider-name>              Provider name (defaults to provider)
+//!         --provider-tags <provider-tags>              Provider tags to use when publishing results.
+//!         --provider-version <provider-version>
+//!             Provider version that is being verified. This is required when publishing results.
+//!
 //!     -s, --state-change-url <state-change-url>        URL to post state change requests to
-//!     -u, --url <url>                                  URL of pact file to verify (can be repeated)
+//!     -t, --token <token>                              Bearer token to use when fetching pacts from URLS
+//!     -u, --url <url>...                               URL of pact file to verify (can be repeated)
+//!         --user <user>                                Username to use when fetching pacts from URLS
 //! ```
 //!
 //! ## Options
@@ -97,8 +114,8 @@
 //! #### `--state-change-as-query`
 //!
 //! By default, the state for the state change request will be sent as a JSON document in the body of the request. This option forces it to be sent as a query parameter instead.
-//! #### `--state-change-teardown`
 //!
+//! #### `--state-change-teardown`
 //!
 //! This option will cause the verifier to also make a tear down request after the main request is made. It will receive a second field in the body or a query parameter named `action` with the value `teardown`.
 //!
@@ -198,16 +215,16 @@
 #![type_length_limit="100000000"]
 
 use std::env;
-use clap::{Arg, App, AppSettings, ErrorKind, ArgMatches};
+use clap::{ErrorKind, ArgMatches};
 use pact_matching::models::PactSpecification;
 use pact_matching::s;
 use pact_verifier::*;
 use log::LevelFilter;
 use simplelog::{TermLogger, Config, TerminalMode};
 use std::str::FromStr;
-use std::error::Error;
-use regex::Regex;
 use pact_matching::models::http_utils::HttpAuth;
+
+mod args;
 
 #[tokio::main]
 async fn main() {
@@ -220,10 +237,6 @@ async fn main() {
 fn print_version() {
     println!("\npact verifier version     : v{}", clap::crate_version!());
     println!("pact specification version: v{}", PactSpecification::V3.version_str());
-}
-
-fn integer_value(v: String) -> Result<(), String> {
-    v.parse::<u16>().map(|_| ()).map_err(|e| format!("'{}' is not a valid port value: {}", v, e) )
 }
 
 fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
@@ -295,167 +308,8 @@ fn interaction_filter(matches: &ArgMatches) -> FilterInfo {
 async fn handle_command_args() -> Result<(), i32> {
     let args: Vec<String> = env::args().collect();
     let program = args[0].clone();
-
-    let version = format!("v{}", clap::crate_version!());
-    let app = App::new(program)
-        .version(version.as_str())
-        .about("Standalone Pact verifier")
-        .version_short("v")
-        .setting(AppSettings::ArgRequiredElseHelp)
-        .setting(AppSettings::ColoredHelp)
-        .arg(Arg::with_name("loglevel")
-            .short("l")
-            .long("loglevel")
-            .takes_value(true)
-            .use_delimiter(false)
-            .possible_values(&["error", "warn", "info", "debug", "trace", "none"])
-            .help("Log level (defaults to warn)"))
-        .arg(Arg::with_name("file")
-            .short("f")
-            .long("file")
-            .required_unless_one(&["dir", "url", "broker-url"])
-            .takes_value(true)
-            .use_delimiter(false)
-            .multiple(true)
-            .number_of_values(1)
-            .empty_values(false)
-            .help("Pact file to verify (can be repeated)"))
-        .arg(Arg::with_name("dir")
-            .short("d")
-            .long("dir")
-            .required_unless_one(&["file", "url", "broker-url"])
-            .takes_value(true)
-            .use_delimiter(false)
-            .multiple(true)
-            .number_of_values(1)
-            .empty_values(false)
-            .help("Directory of pact files to verify (can be repeated)"))
-        .arg(Arg::with_name("url")
-            .short("u")
-            .long("url")
-            .required_unless_one(&["file", "dir", "broker-url"])
-            .takes_value(true)
-            .use_delimiter(false)
-            .multiple(true)
-            .number_of_values(1)
-            .empty_values(false)
-            .help("URL of pact file to verify (can be repeated)"))
-        .arg(Arg::with_name("broker-url")
-            .short("b")
-            .long("broker-url")
-            .required_unless_one(&["file", "dir", "url"])
-            .requires("provider-name")
-            .takes_value(true)
-            .use_delimiter(false)
-            .multiple(true)
-            .number_of_values(1)
-            .empty_values(false)
-            .help("URL of the pact broker to fetch pacts from to verify (requires the provider name parameter)"))
-        .arg(Arg::with_name("hostname")
-            .short("h")
-            .long("hostname")
-            .takes_value(true)
-            .use_delimiter(false)
-            .help("Provider hostname (defaults to localhost)"))
-        .arg(Arg::with_name("port")
-            .short("p")
-            .long("port")
-            .takes_value(true)
-            .use_delimiter(false)
-            .help("Provider port (defaults to 8080)")
-            .validator(integer_value))
-        .arg(Arg::with_name("provider-name")
-            .short("n")
-            .long("provider-name")
-            .takes_value(true)
-            .use_delimiter(false)
-            .help("Provider name (defaults to provider)"))
-        .arg(Arg::with_name("state-change-url")
-            .short("s")
-            .long("state-change-url")
-            .takes_value(true)
-            .use_delimiter(false)
-            .help("URL to post state change requests to"))
-        .arg(Arg::with_name("state-change-as-query")
-            .long("state-change-as-query")
-            .help("State change request data will be sent as query parameters instead of in the request body"))
-        .arg(Arg::with_name("state-change-teardown")
-            .long("state-change-teardown")
-            .help("State change teardown requests are to be made after each interaction"))
-        .arg(Arg::with_name("filter-description")
-            .long("filter-description")
-            .takes_value(true)
-            .use_delimiter(false)
-            .validator(|val| Regex::new(&val)
-                .map(|_| ())
-                .map_err(|err| format!("'{}' is an invalid filter value: {}", val, err.description())))
-            .help("Only validate interactions whose descriptions match this filter"))
-        .arg(Arg::with_name("filter-state")
-            .long("filter-state")
-            .takes_value(true)
-            .use_delimiter(false)
-            .conflicts_with("filter-no-state")
-            .validator(|val| Regex::new(&val)
-                .map(|_| ())
-                .map_err(|err| format!("'{}' is an invalid filter value: {}", val, err.description())))
-            .help("Only validate interactions whose provider states match this filter"))
-        .arg(Arg::with_name("filter-no-state")
-            .long("filter-no-state")
-            .conflicts_with("filter-state")
-            .help("Only validate interactions that have no defined provider state"))
-        .arg(Arg::with_name("filter-consumer")
-            .short("c")
-            .long("filter-consumer")
-            .takes_value(true)
-            .multiple(true)
-            .empty_values(false)
-            .help("Consumer name to filter the pacts to be verified (can be repeated)"))
-        .arg(Arg::with_name("user")
-          .long("user")
-          .takes_value(true)
-          .use_delimiter(false)
-          .number_of_values(1)
-          .empty_values(false)
-          .conflicts_with("token")
-          .help("Username to use when fetching pacts from URLS"))
-        .arg(Arg::with_name("password")
-          .long("password")
-          .takes_value(true)
-          .use_delimiter(false)
-          .number_of_values(1)
-          .empty_values(false)
-          .conflicts_with("token")
-          .help("Password to use when fetching pacts from URLS"))
-        .arg(Arg::with_name("token")
-          .short("t")
-          .long("token")
-          .takes_value(true)
-          .use_delimiter(false)
-          .number_of_values(1)
-          .empty_values(false)
-          .conflicts_with("user")
-          .help("Bearer token to use when fetching pacts from URLS"))
-        .arg(Arg::with_name("publish")
-          .long("publish")
-          .requires("broker-url")
-          .requires("provider-version")
-          .help("Enables publishing of verification results back to the Pact Broker. Requires the broker-url and provider-version parameters."))
-        .arg(Arg::with_name("provider-version")
-          .long("provider-version")
-          .takes_value(true)
-          .use_delimiter(false)
-          .number_of_values(1)
-          .empty_values(false)
-          .help("Provider version that is being verified. This is required when publishing results."))
-        .arg(Arg::with_name("build-url")
-          .long("build-url")
-          .takes_value(true)
-          .use_delimiter(false)
-          .number_of_values(1)
-          .empty_values(false)
-          .help("URL of the build to associate with the published verification results."))
-        ;
-
+    let version = format!("v{}", clap::crate_version!()).as_str().to_owned();
+    let app = args::setup_app(program, &version);
     let matches = app.get_matches_safe();
     match matches {
         Ok(ref matches) => {
@@ -480,7 +334,9 @@ async fn handle_command_args() -> Result<(), i32> {
                 publish: matches.is_present("publish"),
                 provider_version: matches.value_of("provider-version").map(|v| v.to_string()),
                 build_url: matches.value_of("build-url").map(|v| v.to_string()),
-                request_filter: None::<Box<NullRequestFilterExecutor>>
+                request_filter: None::<Box<NullRequestFilterExecutor>>,
+                provider_tags: matches.values_of("provider-tags")
+                  .map_or_else(|| vec![], |tags| tags.map(|tag| tag.to_string()).collect())
             };
 
             if verify_provider(
@@ -511,36 +367,5 @@ async fn handle_command_args() -> Result<(), i32> {
                 }
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod test {
-
-    use quickcheck::{TestResult, quickcheck};
-    use rand::Rng;
-    use super::integer_value;
-    use expectest::prelude::*;
-    use expectest::expect;
-    use pact_matching::s;
-
-    #[test]
-    fn validates_integer_value() {
-        fn prop(s: String) -> TestResult {
-            let mut rng = ::rand::thread_rng();
-            if rng.gen() && s.chars().any(|ch| !ch.is_numeric()) {
-                TestResult::discard()
-            } else {
-                let validation = integer_value(s.clone());
-                match validation {
-                    Ok(_) => TestResult::from_bool(!s.is_empty() && s.chars().all(|ch| ch.is_numeric() )),
-                    Err(_) => TestResult::from_bool(s.is_empty() || s.chars().find(|ch| !ch.is_numeric() ).is_some())
-                }
-            }
-        }
-        quickcheck(prop as fn(_) -> _);
-
-        expect!(integer_value(s!("1234"))).to(be_ok());
-        expect!(integer_value(s!("1234x"))).to(be_err());
     }
 }

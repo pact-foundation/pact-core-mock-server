@@ -393,7 +393,9 @@ pub struct VerificationOptions<F> where F: RequestFilterExecutor {
     /// Build URL to associate with the published results
     pub build_url: Option<String>,
     /// Request filter callback
-    pub request_filter: Option<Box<F>>
+    pub request_filter: Option<Box<F>>,
+    /// Tags to use when publishing results
+    pub provider_tags: Vec<String>
 }
 
 impl <F: RequestFilterExecutor> Default for VerificationOptions<F> {
@@ -402,7 +404,8 @@ impl <F: RequestFilterExecutor> Default for VerificationOptions<F> {
       publish: false,
       provider_version: None,
       build_url: None,
-      request_filter: None
+      request_filter: None,
+      provider_tags: vec![]
     }
   }
 }
@@ -643,7 +646,8 @@ async fn publish_result<F: RequestFilterExecutor>(
                 auth.clone(),
                 result,
                 provider_version,
-                options.build_url.clone()
+                options.build_url.clone(),
+                options.provider_tags.clone()
             ).await;
 
             match publish_result {
