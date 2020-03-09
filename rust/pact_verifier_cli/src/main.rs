@@ -321,7 +321,7 @@ async fn handle_command_args() -> Result<(), i32> {
             TermLogger::init(log_level, Config::default(), TerminalMode::Mixed).unwrap_or_default();
             let provider = ProviderInfo {
                 host: s!(matches.value_of("hostname").unwrap_or("localhost")),
-                port: matches.value_of("port").unwrap_or("8080").parse::<u16>().unwrap(),
+                port: matches.value_of("port").map(|port| port.parse::<u16>().unwrap()),
                 state_change_url: matches.value_of("state-change-url").map(|s| s.to_string()),
                 state_change_body: !matches.is_present("state-change-as-query"),
                 state_change_teardown: matches.is_present("state-change-teardown"),

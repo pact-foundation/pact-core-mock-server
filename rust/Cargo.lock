@@ -1314,7 +1314,6 @@ dependencies = [
  "expectest 0.12.0",
  "futures",
  "http",
- "hyper 0.13.3",
  "itertools 0.8.2",
  "lazy_static 0.1.16",
  "libc",

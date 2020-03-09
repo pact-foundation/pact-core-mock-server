@@ -936,7 +936,7 @@ pub fn match_status(expected: u16, actual: u16, mismatches: &mut Vec<Mismatch>) 
 pub fn match_response(expected: models::Response, actual: models::Response) -> Vec<Mismatch> {
     let mut mismatches = vec![];
 
-    log::info!("comparing to expected response: {:?}", expected);
+    log::info!("comparing to expected response: {}", expected);
     match_body(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &expected.matching_rules);
     match_status(expected.status, actual.status, &mut mismatches);
     match_headers(expected.headers, actual.headers, &mut mismatches, &expected.matching_rules);

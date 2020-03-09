@@ -66,7 +66,7 @@ pub struct ProviderInfo {
     /// Hostname of the provider
     pub host: String,
     /// Port the provider is running on, defaults to 8080
-    pub port: u16,
+    pub port: Option<u16>,
     /// Base path for the provider, defaults to /
     pub path: String,
     /// URL to post state change requests to
@@ -84,7 +84,7 @@ impl ProviderInfo {
             name: s!("provider"),
             protocol: s!("http"),
             host: s!("localhost"),
-            port: 8080,
+            port: Some(8080),
             path: s!("/"),
             state_change_url: None,
             state_change_teardown: false,
@@ -141,34 +141,36 @@ fn provider_client_error_to_string(err: ProviderClientError) -> String {
 async fn verify_response_from_provider<F: RequestFilterExecutor>(
   provider: &ProviderInfo,
   interaction: &Interaction,
-  options: &VerificationOptions<F>
+  options: &VerificationOptions<F>,
+  client: &reqwest::Client
 ) -> Result<(), MismatchResult> {
-    let ref expected_response = interaction.response;
-    match make_provider_request(provider, &pact_matching::generate_request(&interaction.request, &hashmap!{}), options).await {
-        Ok(ref actual_response) => {
-            let mismatches = match_response(expected_response.clone(), actual_response.clone());
-            if mismatches.is_empty() {
-                Ok(())
-            } else {
-                Err(MismatchResult::Mismatches {
-                mismatches,
-                expected: expected_response.clone(),
-                actual: actual_response.clone(),
-                interaction_id: interaction.id.clone()
-                })
-            }
-        },
-        Err(err) => {
-            Err(MismatchResult::Error(provider_client_error_to_string(err), interaction.id.clone()))
-        }
+  let ref expected_response = interaction.response;
+  match make_provider_request(provider, &pact_matching::generate_request(&interaction.request, &hashmap!{}), options, client).await {
+    Ok(ref actual_response) => {
+      let mismatches = match_response(expected_response.clone(), actual_response.clone());
+      if mismatches.is_empty() {
+        Ok(())
+      } else {
+        Err(MismatchResult::Mismatches {
+          mismatches,
+          expected: expected_response.clone(),
+          actual: actual_response.clone(),
+          interaction_id: interaction.id.clone()
+        })
+      }
+    },
+    Err(err) => {
+      Err(MismatchResult::Error(provider_client_error_to_string(err), interaction.id.clone()))
     }
+  }
 }
 
 async fn execute_state_change(
-    provider_state: &ProviderState,
-    provider: &ProviderInfo,
-    setup: bool,
-    interaction_id: Option<String>
+  provider_state: &ProviderState,
+  provider: &ProviderInfo,
+  setup: bool,
+  interaction_id: Option<String>,
+  client: &reqwest::Client
 ) -> Result<(), MismatchResult> {
     if setup {
         println!("  Given {}", Style::new().bold().paint(provider_state.name.clone()));
@@ -208,7 +210,7 @@ async fn execute_state_change(
                 }
                 state_change_request.query = Some(query);
             }
-            match make_state_change_request(provider, &state_change_request).await {
+            match make_state_change_request(client, provider, &state_change_request).await {
                 Ok(_) => Ok(()),
                 Err(err) => Err(MismatchResult::Error(provider_client_error_to_string(err), interaction_id))
             }
@@ -230,19 +232,21 @@ async fn verify_interaction<F: RequestFilterExecutor>(
   interaction: Interaction,
   options: &VerificationOptions<F>
 ) -> Result<(), MismatchResult> {
+  let client = reqwest::Client::new();
+
+  for state in interaction.provider_states.clone() {
+    execute_state_change(&state, provider, true, interaction.id.clone(), &client).await?
+  }
+
+  let result = verify_response_from_provider(provider, &interaction, options, &client).await;
+
+  if provider.state_change_teardown {
     for state in interaction.provider_states.clone() {
-        execute_state_change(&state, provider, true, interaction.id.clone()).await?
+      execute_state_change(&state, provider, false, interaction.id.clone(), &client).await?
     }
+  }
 
-    let result = verify_response_from_provider(provider, &interaction, options).await;
-
-    if provider.state_change_teardown {
-        for state in interaction.provider_states.clone() {
-            execute_state_change(&state, provider, false, interaction.id.clone()).await?
-        }
-    }
-
-    result
+  result
 }
 
 fn display_result(status: u16, status_result: ANSIGenericString<str>,

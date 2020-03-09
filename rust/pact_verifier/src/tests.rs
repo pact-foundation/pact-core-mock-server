@@ -142,7 +142,8 @@ async fn test_state_change_with_parameters() {
   };
 
   let provider = ProviderInfo { state_change_url: Some(server.url().to_string()), .. ProviderInfo::default() };
-  let result = execute_state_change(&provider_state, &provider, true, None).await;
+  let client = reqwest::Client::new();
+  let result = execute_state_change(&provider_state, &provider, true, None, &client).await;
   expect!(result.clone()).to(be_ok());
 }
 
@@ -172,8 +173,9 @@ async fn test_state_change_with_parameters_in_query() {
 
   let provider = ProviderInfo { state_change_url: Some(server.url().to_string()),
     state_change_body: false, .. ProviderInfo::default() };
+  let client = reqwest::Client::new();
 
-  let result = execute_state_change(&provider_state, &provider, true, None).await;
+  let result = execute_state_change(&provider_state, &provider, true, None, &client).await;
   expect!(result.clone()).to(be_ok());
 }
 
