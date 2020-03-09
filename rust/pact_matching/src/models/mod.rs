@@ -134,6 +134,7 @@ impl Provider {
 /// Enum that defines the four main states that a body of a request and response can be in a pact
 /// file.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[serde(untagged)]
 pub enum OptionalBody {
     /// A body is missing if it is not present in the pact file
     Missing,
@@ -836,7 +837,7 @@ pub struct Interaction {
     /// Description of this interaction. This needs to be unique in the pact file.
     pub description: String,
     /// Optional provider states for the interaction.
-    /// See http://docs.pact.io/documentation/provider_states.html for more info on provider states.
+    /// See https://docs.pact.io/getting_started/provider_states for more info on provider states.
     pub provider_states: Vec<provider_states::ProviderState>,
     /// Request of the interaction
     pub request: Request,

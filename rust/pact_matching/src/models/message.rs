@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use maplit::*;
+use crate::models::provider_states::ProviderState;
 use super::*;
 use super::body_from_json;
 
@@ -12,14 +13,24 @@ use super::body_from_json;
 pub struct Message {
     /// Description of this message interaction. This needs to be unique in the pact file.
     pub description: String,
+
     /// Optional provider state for the interaction.
-    /// See http://docs.pact.io/documentation/provider_states.html for more info on provider states.
-    pub provider_state: Option<String>,
+    /// See https://docs.pact.io/getting_started/provider_states for more info on provider states.
+    #[serde(rename = "providerStates")]
+    #[serde(default)]
+    pub provider_states: Vec<ProviderState>,
+
     /// The contents of the message
+    #[serde(default = "missing_body")]
     pub contents: OptionalBody,
+
     /// Metadata associated with this message.
+    #[serde(default)]
     pub metadata: HashMap<String, String>,
+
     /// Matching rules
+    #[serde(rename = "matchingRules")]
+    #[serde(default)]
     pub matching_rules: matchingrules::MatchingRules
 }
 
@@ -28,7 +39,7 @@ impl Message {
     pub fn default() -> Message {
         Message {
             description: s!("message"),
-            provider_state: None,
+            provider_states: vec![],
             contents: OptionalBody::Missing,
             metadata: hashmap!{},
             matching_rules: matchingrules::MatchingRules::default()
@@ -46,18 +57,7 @@ impl Message {
                     },
                     None => format!("Message {}", index)
                 };
-                let provider_state = match json.get("providerState") {
-                    Some(v) => match *v {
-                        Value::String(ref s) => if s.is_empty() {
-                            None
-                        } else {
-                            Some(s.clone())
-                        },
-                        Value::Null => None,
-                        _ => Some(v.to_string())
-                    },
-                    None => None
-                };
+                let provider_states = ProviderState::from_json(json);
                 let metadata = match json.get("metadata") {
                     Some(&Value::Object(ref v)) => v.iter().map(|(k, v)| {
                         (k.clone(), match v {
@@ -68,11 +68,11 @@ impl Message {
                     _ => hashmap!{}
                 };
                 Ok(Message {
-                     description: description,
-                     provider_state: provider_state,
+                     description,
+                     provider_states,
                      contents: body_from_json(json, "contents", &None),
                      matching_rules: matchingrules::matchers_from_json(json, &None),
-                     metadata: metadata
+                     metadata
                 })
             },
             _ => Err(s!("Messages require Pact Specification version 3 or later"))
@@ -86,6 +86,10 @@ impl Message {
             None => s!("application/json")
         }
     }
+}
+
+fn missing_body() -> OptionalBody {
+    OptionalBody::Missing
 }
 
 #[cfg(test)]
@@ -104,7 +108,10 @@ mod tests {
         }"#;
         let message = Message::from_json(0, &serde_json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
         expect!(message.description).to(be_equal_to("String"));
-        expect!(message.provider_state).to(be_some().value("provider state"));
+        expect!(message.provider_states).to(be_equal_to(vec![ProviderState {
+            name: s!("provider state"),
+            params: hashmap!(),
+        }]));
         expect!(message.matching_rules.rules.iter()).to(be_empty());
     }
 
@@ -122,7 +129,7 @@ mod tests {
         let message_json = r#"{
         }"#;
         let message = Message::from_json(0, &serde_json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
-        expect!(message.provider_state).to(be_none());
+        expect!(message.provider_states.iter()).to(be_empty());
         expect!(message.matching_rules.rules.iter()).to(be_empty());
     }
 
@@ -132,7 +139,7 @@ mod tests {
             "providerState": null
         }"#;
         let message = Message::from_json(0, &serde_json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
-        expect!(message.provider_state).to(be_none());
+        expect!(message.provider_states.iter()).to(be_empty());
     }
 
     #[test]
@@ -216,5 +223,37 @@ mod tests {
     fn message_mimetype_defaults_to_json() {
         let message = Message::default();
         expect!(message.mimetype()).to(be_equal_to("application/json"));
+    }
+
+    #[test]
+    fn ignoring_v1_provider_state_when_deserializing_message() {
+        let message_json = r#"{
+            "description": "String",
+            "providerState": "provider state",
+            "matchingRules": {}
+        }"#;
+
+        // This line should panic, because providerState is not the name of the field.
+        let message: Message = serde_json::from_str(message_json).unwrap();
+        expect!(message.description).to(be_equal_to("String"));
+        expect!(message.provider_states.iter()).to(be_empty());
+        expect!(message.matching_rules.rules.iter()).to(be_empty());
+    }
+
+    #[test]
+    fn loading_message_from_json_by_deserializing() {
+        let message_json = r#"{
+            "description": "String",
+            "providerStates": [{ "name": "provider state", "params": {} }],
+            "matchingRules": {}
+        }"#;
+
+        let message: Message = serde_json::from_str(message_json).unwrap();
+        expect!(message.description).to(be_equal_to("String"));
+        expect!(message.provider_states).to(be_equal_to(vec![ProviderState {
+            name: s!("provider state"),
+            params: hashmap!(),
+        }]));
+        expect!(message.matching_rules.rules.iter()).to(be_empty());
     }
 }
