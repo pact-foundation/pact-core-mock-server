@@ -18,14 +18,15 @@ use pact_matching::models::http_utils::HttpAuth;
 use ansi_term::*;
 use ansi_term::Colour::*;
 use std::collections::HashMap;
-use crate::provider_client::{make_provider_request, make_state_change_request, ProviderClientError};
+use crate::provider_client::{make_provider_request, provider_client_error_to_string};
 use regex::Regex;
-use serde_json::{Value, json};
+use serde_json::Value;
 use crate::pact_broker::{publish_verification_results, TestResult, Link};
 use maplit::*;
 use futures::stream::*;
 use callback_executors::RequestFilterExecutor;
 pub use callback_executors::NullRequestFilterExecutor;
+use crate::callback_executors::{ProviderStateExecutor, ProviderStateError};
 
 /// Source for loading pacts
 #[derive(Debug, Clone)]
@@ -68,27 +69,18 @@ pub struct ProviderInfo {
     /// Port the provider is running on, defaults to 8080
     pub port: Option<u16>,
     /// Base path for the provider, defaults to /
-    pub path: String,
-    /// URL to post state change requests to
-    pub state_change_url: Option<String>,
-    /// If teardown state change requests should be made (default is false)
-    pub state_change_teardown: bool,
-    /// If state change request data should be sent in the body (true) or as query parameters (false)
-    pub state_change_body: bool
+    pub path: String
 }
 
-impl ProviderInfo {
+impl Default for ProviderInfo {
     /// Create a default provider info
-    pub fn default() -> ProviderInfo {
+  fn default() -> ProviderInfo {
         ProviderInfo {
             name: s!("provider"),
             protocol: s!("http"),
             host: s!("localhost"),
             port: Some(8080),
-            path: s!("/"),
-            state_change_url: None,
-            state_change_teardown: false,
-            state_change_body: true
+            path: s!("/")
         }
     }
 }
@@ -121,21 +113,10 @@ impl MismatchResult {
     }
 }
 
-fn provider_client_error_to_string(err: ProviderClientError) -> String {
-    match err {
-        ProviderClientError::RequestMethodError(ref method, _) =>
-            format!("Invalid request method: '{}'", method),
-        ProviderClientError::RequestHeaderNameError(ref name, _) =>
-            format!("Invalid header name: '{}'", name),
-        ProviderClientError::RequestHeaderValueError(ref value, _) =>
-            format!("Invalid header value: '{}'", value),
-        ProviderClientError::RequestBodyError(ref message) =>
-            format!("Invalid request body: '{}'", message),
-        ProviderClientError::ResponseError(ref message) =>
-            format!("Invalid response: {}", message),
-        ProviderClientError::ResponseStatusCodeError(ref code) =>
-            format!("Invalid status code: {}", code)
-    }
+impl From<ProviderStateError> for MismatchResult {
+  fn from(error: ProviderStateError) -> Self {
+    MismatchResult::Error(error.description, error.interaction_id)
+  }
 }
 
 async fn verify_response_from_provider<F: RequestFilterExecutor>(
@@ -165,85 +146,39 @@ async fn verify_response_from_provider<F: RequestFilterExecutor>(
   }
 }
 
-async fn execute_state_change(
+async fn execute_state_change<S: ProviderStateExecutor>(
   provider_state: &ProviderState,
-  provider: &ProviderInfo,
   setup: bool,
   interaction_id: Option<String>,
-  client: &reqwest::Client
-) -> Result<(), MismatchResult> {
+  client: &reqwest::Client,
+  provider_state_executor: &S
+) -> Result<HashMap<String, Value>, ProviderStateError> {
     if setup {
         println!("  Given {}", Style::new().bold().paint(provider_state.name.clone()));
     }
-    let result = match provider.state_change_url {
-        Some(_) => {
-            let mut state_change_request = Request { method: s!("POST"), .. Request::default() };
-            if provider.state_change_body {
-                let mut json_body = json!({
-                    s!("state") : json!(provider_state.name.clone()),
-                    s!("action") : json!(if setup {
-                        s!("setup")
-                    } else {
-                        s!("teardown")
-                    })
-                });
-                {
-                    let json_body_mut = json_body.as_object_mut().unwrap();
-                    for (k, v) in provider_state.params.clone() {
-                        json_body_mut.insert(k, v);
-                    }
-                }
-                state_change_request.body = OptionalBody::Present(json_body.to_string().into());
-                state_change_request.headers = Some(hashmap!{ s!("Content-Type") => vec![s!("application/json")] });
-            } else {
-                let mut query = hashmap!{ s!("state") => vec![provider_state.name.clone()] };
-                if setup {
-                    query.insert(s!("action"), vec![s!("setup")]);
-                } else {
-                    query.insert(s!("action"), vec![s!("teardown")]);
-                }
-                for (k, v) in provider_state.params.clone() {
-                    query.insert(k, vec![match v {
-                        Value::String(ref s) => s.clone(),
-                        _ => v.to_string()
-                    }]);
-                }
-                state_change_request.query = Some(query);
-            }
-            match make_state_change_request(client, provider, &state_change_request).await {
-                Ok(_) => Ok(()),
-                Err(err) => Err(MismatchResult::Error(provider_client_error_to_string(err), interaction_id))
-            }
-        },
-        None => {
-            if setup {
-                println!("    {}", Yellow.paint("WARNING: State Change ignored as there is no state change URL"));
-            }
-            Ok(())
-        }
-    };
-
+    let result = provider_state_executor.call(interaction_id, provider_state, setup, client).await;
     log::debug!("State Change: \"{:?}\" -> {:?}", provider_state, result);
     result
 }
 
-async fn verify_interaction<F: RequestFilterExecutor>(
+async fn verify_interaction<F: RequestFilterExecutor, S: ProviderStateExecutor>(
   provider: &ProviderInfo,
   interaction: Interaction,
-  options: &VerificationOptions<F>
+  options: &VerificationOptions<F>,
+  provider_state_executor: &S
 ) -> Result<(), MismatchResult> {
   let client = reqwest::Client::new();
 
   for state in interaction.provider_states.clone() {
-    execute_state_change(&state, provider, true, interaction.id.clone(), &client).await?
+    execute_state_change(&state, true, interaction.id.clone(),
+                         &client, provider_state_executor).await?;
   }
 
   let result = verify_response_from_provider(provider, &interaction, options, &client).await;
 
-  if provider.state_change_teardown {
-    for state in interaction.provider_states.clone() {
-      execute_state_change(&state, provider, false, interaction.id.clone(), &client).await?
-    }
+  for state in interaction.provider_states.clone() {
+    execute_state_change(&state, false, interaction.id.clone(),
+                         &client, provider_state_executor).await?;
   }
 
   result
@@ -415,12 +350,13 @@ impl <F: RequestFilterExecutor> Default for VerificationOptions<F> {
 }
 
 /// Verify the provider with the given pact sources
-pub async fn verify_provider<F: RequestFilterExecutor>(
+pub async fn verify_provider<F: RequestFilterExecutor, S: ProviderStateExecutor>(
     provider_info: ProviderInfo,
     source: Vec<PactSource>,
     filter: FilterInfo,
     consumers: Vec<String>,
     options: VerificationOptions<F>,
+    provider_state_executor: &S
 ) -> bool {
     let pact_results = fetch_pacts(source, consumers).await;
 
@@ -435,7 +371,7 @@ pub async fn verify_provider<F: RequestFilterExecutor>(
                 if pact.interactions.is_empty() {
                     println!("         {}", Yellow.paint("WARNING: Pact file has no interactions"));
                 } else {
-                    let errors = verify_pact(&provider_info, &filter, pact, &options).await;
+                    let errors = verify_pact(&provider_info, &filter, pact, &options, provider_state_executor).await;
                     for error in errors.clone() {
                         all_errors.push(error);
                     }
@@ -538,11 +474,12 @@ async fn fetch_pacts(
         .await
 }
 
-async fn verify_pact<F: RequestFilterExecutor>(
+async fn verify_pact<F: RequestFilterExecutor, S: ProviderStateExecutor>(
   provider_info: &ProviderInfo,
   filter: &FilterInfo,
   pact: Pact,
-  options: &VerificationOptions<F>
+  options: &VerificationOptions<F>,
+  provider_state_executor: &S
 ) -> Vec<(String, MismatchResult)> {
     let mut errors = vec![];
 
@@ -554,7 +491,7 @@ async fn verify_pact<F: RequestFilterExecutor>(
             let key = interaction.clone();
 
             async {
-                (key, verify_interaction(provider_info, interaction, options).await)
+                (key, verify_interaction(provider_info, interaction, options, provider_state_executor).await)
             }
         })
         .collect()

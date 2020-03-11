@@ -223,6 +223,7 @@ use log::LevelFilter;
 use simplelog::{TermLogger, Config, TerminalMode};
 use std::str::FromStr;
 use pact_matching::models::http_utils::HttpAuth;
+use pact_verifier::callback_executors::HttpRequestProviderStateExecutor;
 
 mod args;
 
@@ -322,13 +323,15 @@ async fn handle_command_args() -> Result<(), i32> {
             let provider = ProviderInfo {
                 host: s!(matches.value_of("hostname").unwrap_or("localhost")),
                 port: matches.value_of("port").map(|port| port.parse::<u16>().unwrap()),
-                state_change_url: matches.value_of("state-change-url").map(|s| s.to_string()),
-                state_change_body: !matches.is_present("state-change-as-query"),
-                state_change_teardown: matches.is_present("state-change-teardown"),
                 .. ProviderInfo::default()
             };
             let source = pact_source(matches);
             let filter = interaction_filter(matches);
+            let provider_state_executor = HttpRequestProviderStateExecutor {
+              state_change_url: matches.value_of("state-change-url").map(|s| s.to_string()),
+              state_change_body: !matches.is_present("state-change-as-query"),
+              state_change_teardown: matches.is_present("state-change-teardown")
+            };
 
             let options = VerificationOptions {
                 publish: matches.is_present("publish"),
@@ -345,6 +348,7 @@ async fn handle_command_args() -> Result<(), i32> {
                 filter,
                 matches.values_of_lossy("filter-consumer").unwrap_or(vec![]),
                 options,
+                &provider_state_executor
             ).await {
                 Ok(())
             } else {

@@ -55,6 +55,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cff77d8686867eceff3105329d4698d96c2391c176d5d03adc90c7389162b5b8"
 
 [[package]]
+name = "async-trait"
+version = "0.1.24"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "750b1c38a1dfadd108da0f01c08f4cdc7ff1bb39b325f9c82cc972361780a6e1"
+dependencies = [
+ "proc-macro2 1.0.9",
+ "quote 1.0.3",
+ "syn",
+]
+
+[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1305,9 +1316,10 @@ dependencies = [
 
 [[package]]
 name = "pact_verifier"
-version = "0.7.1"
+version = "0.8.0"
 dependencies = [
  "ansi_term 0.9.0",
+ "async-trait",
  "bytes",
  "difference 0.4.1",
  "env_logger 0.3.5",
@@ -1331,7 +1343,7 @@ dependencies = [
 
 [[package]]
 name = "pact_verifier_cli"
-version = "0.6.2"
+version = "0.7.0"
 dependencies = [
  "clap",
  "expectest 0.5.1",

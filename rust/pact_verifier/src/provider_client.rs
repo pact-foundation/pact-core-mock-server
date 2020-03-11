@@ -164,23 +164,44 @@ pub async fn make_provider_request<F: RequestFilterExecutor>(
 
 pub async fn make_state_change_request(
   client: &reqwest::Client,
-  provider: &ProviderInfo,
+  state_change_url: &String,
   request: &Request
 ) -> Result<(), ProviderClientError> {
   log::debug!("Sending {} to state change handler", request);
 
-  let request = create_native_request(client, &provider.state_change_url.clone().unwrap(), request)?;
+  let request = create_native_request(client, state_change_url, request)?;
   let result = request.send().await;
 
   match result {
     Ok(response) => {
+      debug!("State change request: {:?}", response);
       if response.status().is_success() {
         Ok(())
       } else {
         Err(ProviderClientError::ResponseStatusCodeError(response.status().as_u16()))
       }
     },
-    Err(err) => Err(ProviderClientError::ResponseError(err.description().into()))
+    Err(err) => {
+      debug!("State change request failed with error {}", err);
+      Err(ProviderClientError::ResponseError(err.description().into()))
+    }
+  }
+}
+
+pub fn provider_client_error_to_string(err: ProviderClientError) -> String {
+  match err {
+    ProviderClientError::RequestMethodError(ref method, _) =>
+      format!("Invalid request method: '{}'", method),
+    ProviderClientError::RequestHeaderNameError(ref name, _) =>
+      format!("Invalid header name: '{}'", name),
+    ProviderClientError::RequestHeaderValueError(ref value, _) =>
+      format!("Invalid header value: '{}'", value),
+    ProviderClientError::RequestBodyError(ref message) =>
+      format!("Invalid request body: '{}'", message),
+    ProviderClientError::ResponseError(ref message) =>
+      format!("Invalid response: {}", message),
+    ProviderClientError::ResponseStatusCodeError(ref code) =>
+      format!("Invalid status code: {}", code)
   }
 }
 

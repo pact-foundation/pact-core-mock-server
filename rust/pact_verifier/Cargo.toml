@@ -1,6 +1,6 @@
 [package]
 name = "pact_verifier"
-version = "0.7.1"
+version = "0.8.0"
 authors = ["Ronald Holshausen <uglyog@gmail.com>"]
 edition = "2018"
 description = "Pact-Rust support library that implements provider verification functions"
@@ -31,6 +31,7 @@ mime = "0.3"
 bytes = "0.5"
 tokio = { version = "0.2.11", features = ["rt-core", "macros"] }
 http = "0.2"
+async-trait = "0.1.24"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

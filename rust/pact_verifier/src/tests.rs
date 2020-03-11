@@ -1,6 +1,6 @@
 use expectest::prelude::*;
 use expectest::expect;
-use super::{FilterInfo, filter_interaction, filter_consumers, execute_state_change, ProviderInfo};
+use super::{FilterInfo, filter_interaction, filter_consumers, execute_state_change};
 use pact_matching::models::*;
 use pact_matching::models::provider_states::*;
 use pact_matching::s;
@@ -12,6 +12,7 @@ use std::panic::catch_unwind;
 use crate::pact_broker::Link;
 use maplit::*;
 use serde_json::json;
+use crate::callback_executors::HttpRequestProviderStateExecutor;
 
 #[test]
 fn if_no_interaction_filter_is_defined_returns_true() {
@@ -141,9 +142,13 @@ async fn test_state_change_with_parameters() {
       }
   };
 
-  let provider = ProviderInfo { state_change_url: Some(server.url().to_string()), .. ProviderInfo::default() };
+  let provider_state_executor = HttpRequestProviderStateExecutor {
+    state_change_url: Some(server.url().to_string()),
+    .. HttpRequestProviderStateExecutor::default()
+  };
   let client = reqwest::Client::new();
-  let result = execute_state_change(&provider_state, &provider, true, None, &client).await;
+  let result = execute_state_change(&provider_state, true,
+                                    None, &client, &provider_state_executor).await;
   expect!(result.clone()).to(be_ok());
 }
 
@@ -171,11 +176,15 @@ async fn test_state_change_with_parameters_in_query() {
       }
   };
 
-  let provider = ProviderInfo { state_change_url: Some(server.url().to_string()),
-    state_change_body: false, .. ProviderInfo::default() };
+  let provider_state_executor = HttpRequestProviderStateExecutor {
+    state_change_url: Some(server.url().to_string()),
+    state_change_body: false,
+    .. HttpRequestProviderStateExecutor::default()
+  };
   let client = reqwest::Client::new();
 
-  let result = execute_state_change(&provider_state, &provider, true, None, &client).await;
+  let result = execute_state_change(&provider_state, true,
+                                    None, &client, &provider_state_executor).await;
   expect!(result.clone()).to(be_ok());
 }
 
