@@ -43,7 +43,7 @@ pub struct ProviderStateError {
 #[async_trait]
 pub trait ProviderStateExecutor {
   /// Invoke the callback for the given provider state, returning an optional Map of values
-  async fn call(&self, interaction_id: Option<String>, provider_state: &ProviderState, setup: bool, client: &reqwest::Client) -> Result<HashMap<String, Value>, ProviderStateError>;
+  async fn call(&self, interaction_id: Option<String>, provider_state: &ProviderState, setup: bool, client: Option<&reqwest::Client>) -> Result<HashMap<String, Value>, ProviderStateError>;
 }
 
 /// Default provider state callback executor, which executes an HTTP request
@@ -69,7 +69,7 @@ impl Default for HttpRequestProviderStateExecutor {
 
 #[async_trait]
 impl ProviderStateExecutor for HttpRequestProviderStateExecutor {
-  async fn call(&self, interaction_id: Option<String>, provider_state: &ProviderState, setup: bool, client: &reqwest::Client) -> Result<HashMap<String, Value>, ProviderStateError> {
+  async fn call(&self, interaction_id: Option<String>, provider_state: &ProviderState, setup: bool, client: Option<&reqwest::Client>) -> Result<HashMap<String, Value>, ProviderStateError> {
     match &self.state_change_url {
       Some(state_change_url) => {
         let mut state_change_request = Request { method: "POST".to_string(), .. Request::default() };
@@ -105,7 +105,7 @@ impl ProviderStateExecutor for HttpRequestProviderStateExecutor {
           }
           state_change_request.query = Some(query);
         }
-        match make_state_change_request(client, &state_change_url, &state_change_request).await {
+        match make_state_change_request(client.unwrap_or(&reqwest::Client::default()), &state_change_url, &state_change_request).await {
           Ok(_) => Ok(hashmap!{}),
           Err(err) => Err(ProviderStateError {
             description: provider_client_error_to_string(err), interaction_id })

@@ -156,7 +156,7 @@ async fn execute_state_change<S: ProviderStateExecutor>(
     if setup {
         println!("  Given {}", Style::new().bold().paint(provider_state.name.clone()));
     }
-    let result = provider_state_executor.call(interaction_id, provider_state, setup, client).await;
+    let result = provider_state_executor.call(interaction_id, provider_state, setup, Some(client)).await;
     log::debug!("State Change: \"{:?}\" -> {:?}", provider_state, result);
     result
 }
