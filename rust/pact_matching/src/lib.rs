@@ -340,7 +340,7 @@ use ansi_term::Colour::*;
 
 #[macro_use] pub mod models;
 mod path_exp;
-mod time_utils;
+pub mod time_utils;
 mod matchers;
 pub mod json;
 mod xml;

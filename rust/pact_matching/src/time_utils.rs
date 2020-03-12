@@ -1,8 +1,12 @@
+//! Utilities for dealing with time and date values
 use nom::types::CompleteStr;
 use nom::*;
 use itertools::Itertools;
+use chrono::Local;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(missing_docs)]
+/// Tokens for DateTime patterns
 pub enum DateTimePatternToken {
   Era,
   Year(usize),
@@ -244,6 +248,7 @@ fn validate_datetime_string<'a>(value: &String, pattern_tokens: &Vec<DateTimePat
   }
 }
 
+/// Validates the given datetime against the pattern
 pub fn validate_datetime(value: &String, format: &String) -> Result<(), String> {
   match parse_pattern(CompleteStr(format.as_str())) {
     Ok(pattern_tokens) => validate_datetime_string(value, &pattern_tokens.1),
@@ -251,6 +256,7 @@ pub fn validate_datetime(value: &String, format: &String) -> Result<(), String> 
   }
 }
 
+/// Converts the date time pattern tokens to a chrono formatted string
 pub fn to_chrono_pattern(tokens: &Vec<DateTimePatternToken>) -> String {
   let mut buffer = String::new();
 
@@ -288,6 +294,15 @@ pub fn to_chrono_pattern(tokens: &Vec<DateTimePatternToken>) -> String {
   }
 
   buffer
+}
+
+/// Generates a date/time string from the current system clock using the provided format string
+pub fn generate_string(format: &String) -> Result<String, String> {
+  match parse_pattern(CompleteStr(format.as_str())) {
+    Ok(pattern_tokens) => Ok(Local::now().format(
+      to_chrono_pattern(&pattern_tokens.1).as_str()).to_string()),
+    Err(err) => Err(format!("Error parsing '{}': {:?}", format, err))
+  }
 }
 
 #[cfg(test)]
