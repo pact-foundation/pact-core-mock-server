@@ -9,6 +9,8 @@ use std::str::FromStr;
 use crate::models::matchingrules::*;
 use crate::matchers::*;
 use onig::Regex;
+use log::*;
+use crate::time_utils::validate_datetime;
 
 fn type_of(json: &Value) -> String {
     match json {
@@ -139,9 +141,20 @@ impl Matches<Value> for Value {
           } else {
             Err(format!("Expected '{}' to be a number", value_of(actual)))
           },
-          _ => Err(format!("Unable to match '{}' using {:?}", self, matcher))
+          MatchingRule::Date(ref s) => {
+            validate_datetime(&value_of(actual), s)
+              .map_err(|err| format!("Expected '{}' to match a date format of '{}': {}", actual, s, err))
+          },
+          MatchingRule::Time(ref s) => {
+            validate_datetime(&value_of(actual), s)
+              .map_err(|err| format!("Expected '{}' to match a time format of '{}': {}", actual, s, err))
+          },
+          MatchingRule::Timestamp(ref s) => {
+            validate_datetime(&value_of(actual), s)
+              .map_err(|err| format!("Expected '{}' to match a timestamp format of '{}': {}", actual, s, err))
+          }
        };
-       log::debug!("Comparing '{}' to '{}' using {:?} -> {:?}", self, actual, matcher, result);
+       debug!("JSON -> JSON: Comparing '{}' to '{}' using {:?} -> {:?}", self, actual, matcher, result);
        result
     }
 }
@@ -411,6 +424,7 @@ fn compare_list_content(path: &Vec<String>, expected: &Vec<Value>, actual: &Vec<
 fn compare_values(path: &Vec<String>, expected: &Value, actual: &Value, mismatches: &mut Vec<super::Mismatch>,
     matchers: &MatchingRules) {
     let matcher_result = if matchers.matcher_is_defined("body", &path) {
+        debug!("Calling match_values for path {}", path.join("."));
         match_values("body", path, matchers.clone(), expected, actual)
     } else {
         expected.matches(actual, &MatchingRule::Equality).map_err(|err| vec![err])

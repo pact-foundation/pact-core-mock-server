@@ -234,11 +234,10 @@ fn validate_datetime_string<'a>(value: &String, pattern_tokens: &Vec<DateTimePat
       DateTimePatternToken::Iso8601Timezone => iso_timezone(buffer),
       DateTimePatternToken::AmPm => ampm(buffer)
     }.map_err(|err| format!("{:?}", err))?;
-    std::dbg!(result);
     buffer = result.0;
   }
 
-  if std::dbg!(buffer).len() > 0 {
+  if buffer.len() > 0 {
     Err(format!("Remaining data after applying pattern {:?}", buffer))
   } else {
     Ok(())
@@ -248,7 +247,7 @@ fn validate_datetime_string<'a>(value: &String, pattern_tokens: &Vec<DateTimePat
 pub fn validate_datetime(value: &String, format: &String) -> Result<(), String> {
   match parse_pattern(CompleteStr(format.as_str())) {
     Ok(pattern_tokens) => validate_datetime_string(value, &pattern_tokens.1),
-    Err(err) => Err(format!("{:?}", err))
+    Err(err) => Err(format!("Error parsing '{}': {:?}", value, err))
   }
 }
 
@@ -314,6 +313,7 @@ mod tests {
     expect!(validate_datetime(&"Wed, 4 Jul 2001 12:08:56 -0700".into(), &"EEE, d MMM yyyy HH:mm:ss Z".into())).to(be_ok());
     expect!(validate_datetime(&"010704120856-0700".into(), &"yyMMddHHmmssZ".into())).to(be_ok());
     expect!(validate_datetime(&"2001-07-04T12:08:56.235-0700".into(), &"yyyy-MM-dd'T'HH:mm:ss.SSSZ".into())).to(be_ok());
+    expect!(validate_datetime(&"2001-07-04T12:08:56.235Z".into(), &"yyyy-MM-dd'T'HH:mm:ss.SSSX".into())).to(be_ok());
     expect!(validate_datetime(&"2001-07-04T12:08:56.235-07:00".into(), &"yyyy-MM-dd'T'HH:mm:ss.SSSXXX".into())).to(be_ok());
     expect!(validate_datetime(&"2001-W27-3".into(), &"YYYY-'W'ww-u".into())).to(be_ok());
   }

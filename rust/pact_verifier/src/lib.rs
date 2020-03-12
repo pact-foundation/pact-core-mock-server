@@ -172,7 +172,7 @@ fn verify_interaction<F: RequestFilterExecutor, S: ProviderStateExecutor>(
   let client = reqwest::Client::new();
 
   if !interaction.provider_states.is_empty() {
-    info!("Running provider state change handlers for {}", interaction.description);
+    info!("Running provider state change handlers for '{}'", interaction.description);
     let interaction_id = interaction.id.clone();
     let sc_result: Vec<Result<HashMap<String, Value>, MismatchResult>> = block_on(
       futures::stream::iter(interaction.provider_states.iter())
@@ -185,11 +185,11 @@ fn verify_interaction<F: RequestFilterExecutor, S: ProviderStateExecutor>(
     }
   }
 
-  info!("Running provider verification for {}", interaction.description);
+  info!("Running provider verification for '{}'", interaction.description);
   let result = block_on(verify_response_from_provider(provider, &interaction, options, &client));
 
   if !interaction.provider_states.is_empty() {
-    info!("Running provider state change handler teardowns for {}", interaction.description);
+    info!("Running provider state change handler teardowns for '{}'", interaction.description);
     let interaction_id = interaction.id.clone();
     let sc_teardown_result: Vec<Result<HashMap<String, Value>, MismatchResult>> = block_on(
       futures::stream::iter(interaction.provider_states.iter())

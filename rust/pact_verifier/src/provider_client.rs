@@ -109,23 +109,23 @@ async fn extract_body(response: reqwest::Response) -> Result<OptionalBody, reqwe
 }
 
 async fn native_response_to_pact_response(
-    response: reqwest::Response
+    native_response: reqwest::Response
 ) -> Result<Response, reqwest::Error> {
-  debug!("Received response: {:?}", response);
+  debug!("Received response: {:?}", native_response);
 
-  let status = response.status().as_u16();
-  let headers = extract_headers(response.headers());
-  let body = extract_body(response).await?;
+  let status = native_response.status().as_u16();
+  let headers = extract_headers(native_response.headers());
+  let body = extract_body(native_response).await?;
 
-  Ok(
-    Response {
-      status,
-      headers,
-      body,
-      matching_rules: MatchingRules::default(),
-      generators: Generators::default(),
-    }
-  )
+  let response = Response {
+    status,
+    headers,
+    body,
+    matching_rules: MatchingRules::default(),
+    generators: Generators::default(),
+  };
+  info!("Received response: {}", response);
+  Ok(response)
 }
 
 /// This function makes the actual request to the provider, executing any request filter before
