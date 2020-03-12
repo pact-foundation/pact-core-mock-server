@@ -139,7 +139,7 @@ pub async fn make_provider_request<F: RequestFilterExecutor>(
   let request_filter_option = options.request_filter.as_ref();
   let request = if request_filter_option.is_some() {
     let request_filter = request_filter_option.unwrap();
-    log::debug!("Invoking request filter for request");
+    info!("Invoking request filter for request");
     request_filter.call(request)
   } else {
     request.clone()

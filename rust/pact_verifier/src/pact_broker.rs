@@ -260,7 +260,7 @@ impl HALClient {
     }
 
     async fn fetch(self, path: String) -> Result<serde_json::Value, PactBrokerError> {
-        log::debug!("Fetching path '{}' from pact broker", path);
+        log::info!("Fetching path '{}' from pact broker", path);
 
         let url = join_paths(&self.url, path.clone()).parse::<reqwest::Url>()
             .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?;

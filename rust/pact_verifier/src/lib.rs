@@ -27,6 +27,8 @@ use futures::stream::*;
 use callback_executors::RequestFilterExecutor;
 pub use callback_executors::NullRequestFilterExecutor;
 use crate::callback_executors::{ProviderStateExecutor, ProviderStateError};
+use log::*;
+use futures::executor::block_on;
 
 /// Source for loading pacts
 #[derive(Debug, Clone)]
@@ -152,16 +154,16 @@ async fn execute_state_change<S: ProviderStateExecutor>(
   interaction_id: Option<String>,
   client: &reqwest::Client,
   provider_state_executor: &S
-) -> Result<HashMap<String, Value>, ProviderStateError> {
+) -> Result<HashMap<String, Value>, MismatchResult> {
     if setup {
         println!("  Given {}", Style::new().bold().paint(provider_state.name.clone()));
     }
     let result = provider_state_executor.call(interaction_id, provider_state, setup, Some(client)).await;
     log::debug!("State Change: \"{:?}\" -> {:?}", provider_state, result);
-    result
+    result.map_err(|err| MismatchResult::Error(err.description, err.interaction_id))
 }
 
-async fn verify_interaction<F: RequestFilterExecutor, S: ProviderStateExecutor>(
+fn verify_interaction<F: RequestFilterExecutor, S: ProviderStateExecutor>(
   provider: &ProviderInfo,
   interaction: Interaction,
   options: &VerificationOptions<F>,
@@ -169,16 +171,35 @@ async fn verify_interaction<F: RequestFilterExecutor, S: ProviderStateExecutor>(
 ) -> Result<(), MismatchResult> {
   let client = reqwest::Client::new();
 
-  for state in interaction.provider_states.clone() {
-    execute_state_change(&state, true, interaction.id.clone(),
-                         &client, provider_state_executor).await?;
+  if !interaction.provider_states.is_empty() {
+    info!("Running provider state change handlers for {}", interaction.description);
+    let interaction_id = interaction.id.clone();
+    let sc_result: Vec<Result<HashMap<String, Value>, MismatchResult>> = block_on(
+      futures::stream::iter(interaction.provider_states.iter())
+        .then(|state| {
+          execute_state_change(&state, true, interaction_id.clone(), &client, provider_state_executor)
+        }).collect());
+
+    if sc_result.iter().any(|result| result.is_err()) {
+      return Err(MismatchResult::Error("One or more of the state change handlers has failed".to_string(), interaction.id))
+    }
   }
 
-  let result = verify_response_from_provider(provider, &interaction, options, &client).await;
+  info!("Running provider verification for {}", interaction.description);
+  let result = block_on(verify_response_from_provider(provider, &interaction, options, &client));
 
-  for state in interaction.provider_states.clone() {
-    execute_state_change(&state, false, interaction.id.clone(),
-                         &client, provider_state_executor).await?;
+  if !interaction.provider_states.is_empty() {
+    info!("Running provider state change handler teardowns for {}", interaction.description);
+    let interaction_id = interaction.id.clone();
+    let sc_teardown_result: Vec<Result<HashMap<String, Value>, MismatchResult>> = block_on(
+      futures::stream::iter(interaction.provider_states.iter())
+        .then(|state| {
+          execute_state_change(&state, false, interaction_id.clone(), &client, provider_state_executor)
+        }).collect());
+
+    if sc_teardown_result.iter().any(|result| result.is_err()) {
+      return Err(MismatchResult::Error("One or more of the state change handlers has failed during teardown phase".to_string(), interaction.id))
+    }
   }
 
   result
@@ -481,83 +502,79 @@ async fn verify_pact<F: RequestFilterExecutor, S: ProviderStateExecutor>(
   options: &VerificationOptions<F>,
   provider_state_executor: &S
 ) -> Vec<(String, MismatchResult)> {
-    let mut errors = vec![];
+    let mut errors: Vec<(String, MismatchResult)> = vec![];
 
-    let results: HashMap<Interaction, Result<(), MismatchResult>> = futures::stream::iter(
-        pact.interactions.clone().into_iter()
+    let results: Vec<(Interaction, Result<(), MismatchResult>)> = futures::stream::iter(
+      pact.interactions.clone().into_iter()
     )
-        .filter(|interaction| futures::future::ready(filter_interaction(interaction, filter)))
-        .then(|interaction| {
-            let key = interaction.clone();
+      .filter(|interaction| futures::future::ready(filter_interaction(interaction, filter)))
+      .then( |interaction| {
+        futures::future::ready((interaction.clone(), verify_interaction(provider_info, interaction, options, provider_state_executor)))
+      })
+      .collect()
+      .await;
 
-            async {
-                (key, verify_interaction(provider_info, interaction, options, provider_state_executor).await)
-            }
-        })
-        .collect()
-        .await;
-
-    for (interaction, result) in results.clone() {
-        let mut description = format!("Verifying a pact between {} and {}",
+    for (interaction, match_result) in results {
+      let mut description = format!("Verifying a pact between {} and {}",
                                     pact.consumer.name.clone(), pact.provider.name.clone());
-        if let Some((first, elements)) = interaction.provider_states.split_first() {
-            description.push_str(&format!(" Given {}", first.name));
-            for state in elements {
-                description.push_str(&format!(" And {}", state.name));
-            }
+      if let Some((first, elements)) = interaction.provider_states.split_first() {
+        description.push_str(&format!(" Given {}", first.name));
+        for state in elements {
+          description.push_str(&format!(" And {}", state.name));
         }
-        description.push_str(" - ");
-        description.push_str(&interaction.description);
-        println!("  {}", interaction.description);
-        match result {
-            Ok(()) => {
-                display_result(
-                    interaction.response.status,
-                    Green.paint("OK"),
-                    interaction.response.headers.map(|h| h.iter().map(|(k, v)| {
-                        (k.clone(), v.join(", "), Green.paint("OK"))
-                    }).collect()), Green.paint("OK")
-                )
-            },
-            Err(ref err) => match err {
-                &MismatchResult::Error(ref err_des, _) => {
-                    println!("      {}", Red.paint(format!("Request Failed - {}", err_des)));
-                    errors.push((description, err.clone()));
-                },
-                &MismatchResult::Mismatches { ref mismatches, .. } => {
-                    description.push_str(" returns a response which ");
-                    let status_result = if mismatches.iter().any(|m| m.mismatch_type() == s!("StatusMismatch")) {
-                        Red.paint("FAILED")
-                    } else {
-                        Green.paint("OK")
-                    };
-                    let header_results = match interaction.response.headers {
-                        Some(ref h) => Some(h.iter().map(|(k, v)| {
-                            (k.clone(), v.join(", "), if mismatches.iter().any(|m| {
-                                match m {
-                                    &Mismatch::HeaderMismatch { ref key, .. } => k == key,
-                                    _ => false
-                                }
-                            }) {
-                                Red.paint("FAILED")
-                            } else {
-                                Green.paint("OK")
-                            })
-                        }).collect()),
-                        None => None
-                    };
-                    let body_result = if mismatches.iter().any(|m| m.mismatch_type() == s!("BodyMismatch") ||
-                        m.mismatch_type() == s!("BodyTypeMismatch")) {
-                        Red.paint("FAILED")
-                    } else {
-                        Green.paint("OK")
-                    };
+      }
+      description.push_str(" - ");
+      description.push_str(&interaction.description);
+      println!("  {}", interaction.description);
+      match match_result {
+        Ok(()) => {
+          display_result(
+            interaction.response.status,
+            Green.paint("OK"),
+            interaction.response.headers.map(|h| h.iter().map(|(k, v)| {
+              (k.clone(), v.join(", "), Green.paint("OK"))
+            }).collect()), Green.paint("OK")
+          )
+        },
+        Err(ref err) => match err {
+          &MismatchResult::Error(ref err_des, _) => {
+            println!("      {}", Red.paint(format!("Request Failed - {}", err_des)));
+            errors.push((description, err.clone()));
+          },
+          &MismatchResult::Mismatches { ref mismatches, .. } => {
+            description.push_str(" returns a response which ");
+            let status_result = if mismatches.iter().any(|m| m.mismatch_type() == s!("StatusMismatch")) {
+              Red.paint("FAILED")
+            } else {
+              Green.paint("OK")
+            };
+            let header_results = match interaction.response.headers {
+              Some(ref h) => Some(h.iter().map(|(k, v)| {
+                (k.clone(), v.join(", "), if mismatches.iter().any(|m| {
+                  match m {
+                    &Mismatch::HeaderMismatch { ref key, .. } => k == key,
+                    _ => false
+                  }
+                }) {
+                  Red.paint("FAILED")
+                } else {
+                  Green.paint("OK")
+                })
+              }).collect()),
+              None => None
+            };
+            let body_result = if mismatches.iter().any(|m| m.mismatch_type() == s!("BodyMismatch") ||
+              m.mismatch_type() == s!("BodyTypeMismatch")) {
+              Red.paint("FAILED")
+            } else {
+              Green.paint("OK")
+            };
 
-                    display_result(interaction.response.status, status_result, header_results, body_result);
-                    errors.push((description.clone(), err.clone()));
-                }
-            }
+            display_result(interaction.response.status, status_result, header_results, body_result);
+            errors.push((description.clone(), err.clone()));
+          }
         }
+      }
     }
 
     println!();
