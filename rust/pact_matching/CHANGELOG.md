@@ -1,5 +1,17 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.5.9 - Bugfixes + Date/Time matchers with JSON
+
+* e0f23a2 - feat: exposes time/date utils for language implementations (Ronald Holshausen, Thu Mar 12 17:01:44 2020 +1100)
+* 2920364 - fix: date and time matchers with JSON (Ronald Holshausen, Thu Mar 12 16:07:05 2020 +1100)
+* db74b68 - Merge pull request #61 from mitre/v3_provider_states (Ronald Holshausen, Mon Mar 9 13:37:03 2020 +1100)
+* 70e6648 - chore: converted verifier to use Reqwest (Ronald Holshausen, Mon Mar 9 12:20:14 2020 +1100)
+* 627c4ad - At least partially correct broken Serialize/Deserialize for Message. (Andrew Lilley Brinker, Tue Mar 3 08:06:52 2020 -0800)
+* 162f52d - Fixed three broken tests. (Andrew Lilley Brinker, Tue Mar 3 07:15:44 2020 -0800)
+* d87a2c3 - Made `Message` understand `providerStates`. (Andrew Lilley Brinker, Mon Mar 2 08:38:56 2020 -0800)
+* d594dbb - Fix broken documentation link for provider_states. (Andrew Lilley Brinker, Mon Mar 2 08:21:40 2020 -0800)
+* 6187cfa - bump version to 0.5.9 (Ronald Holshausen, Sun Jan 19 11:11:09 2020 +1100)
+
 # 0.5.8 - Upgrade reqwest to 0.10
 
 * 9dec41b - Upgrade reqwest to 0.10 (Audun Halland, Tue Dec 31 07:22:36 2019 +0100)
