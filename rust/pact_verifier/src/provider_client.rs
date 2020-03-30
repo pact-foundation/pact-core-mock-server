@@ -3,7 +3,6 @@ use pact_matching::models::*;
 use pact_matching::models::matchingrules::*;
 use pact_matching::models::generators::*;
 use pact_matching::s;
-use std::error::Error;
 use std::collections::hash_map::HashMap;
 use std::convert::TryFrom;
 use futures::future::*;
@@ -183,7 +182,7 @@ pub async fn make_state_change_request(
     },
     Err(err) => {
       debug!("State change request failed with error {}", err);
-      Err(ProviderClientError::ResponseError(err.description().into()))
+      Err(ProviderClientError::ResponseError(format!("{}", err)))
     }
   }
 }
