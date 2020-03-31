@@ -182,7 +182,7 @@ pub async fn make_state_change_request(
     },
     Err(err) => {
       debug!("State change request failed with error {}", err);
-      Err(ProviderClientError::ResponseError(format!("{}", err)))
+      Err(ProviderClientError::ResponseError(err.to_string()))
     }
   }
 }
