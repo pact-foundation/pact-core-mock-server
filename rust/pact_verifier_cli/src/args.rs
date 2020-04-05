@@ -1,6 +1,5 @@
 use clap::{App, AppSettings, Arg};
 use regex::Regex;
-use std::error::Error;
 
 fn integer_value(v: String) -> Result<(), String> {
   v.parse::<u16>().map(|_| ()).map_err(|e| format!("'{}' is not a valid port value: {}", v, e) )
@@ -98,7 +97,7 @@ pub(crate) fn setup_app<'a, 'b>(program: String, version: &'b str) -> App<'a, 'b
       .use_delimiter(false)
       .validator(|val| Regex::new(&val)
         .map(|_| ())
-        .map_err(|err| format!("'{}' is an invalid filter value: {}", val, err.description())))
+        .map_err(|err| format!("'{}' is an invalid filter value: {}", val, err)))
       .help("Only validate interactions whose descriptions match this filter"))
     .arg(Arg::with_name("filter-state")
       .long("filter-state")
@@ -107,7 +106,7 @@ pub(crate) fn setup_app<'a, 'b>(program: String, version: &'b str) -> App<'a, 'b
       .conflicts_with("filter-no-state")
       .validator(|val| Regex::new(&val)
         .map(|_| ())
-        .map_err(|err| format!("'{}' is an invalid filter value: {}", val, err.description())))
+        .map_err(|err| format!("'{}' is an invalid filter value: {}", val, err)))
       .help("Only validate interactions whose provider states match this filter"))
     .arg(Arg::with_name("filter-no-state")
       .long("filter-no-state")
