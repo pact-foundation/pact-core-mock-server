@@ -7,7 +7,6 @@ use std::str::FromStr;
 use serde_json::Value;
 use maplit::*;
 use hamcrest2::prelude::*;
-use hamcrest2::*;
 
 #[test]
 fn returns_original_response_if_there_are_no_generators() {

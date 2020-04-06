@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use env_logger;
+use test_env_log::test;
 #[allow(unused_imports)]
 use pact_matching::models::PactSpecification;
 #[allow(unused_imports)]
@@ -8,13 +8,11 @@ use pact_matching::models::Request;
 use pact_matching::match_request;
 #[allow(unused_imports)]
 use expectest::prelude::*;
-use expectest::*;
 #[allow(unused_imports)]
 use serde_json;
 
 #[test]
 fn different_order() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -55,7 +53,6 @@ fn different_order() {
 
 #[test]
 fn different_params() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -96,7 +93,6 @@ fn different_params() {
 
 #[test]
 fn matches_with_equals_in_the_query_value() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -137,7 +133,6 @@ fn matches_with_equals_in_the_query_value() {
 
 #[test]
 fn matches_with_regex() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -190,7 +185,6 @@ fn matches_with_regex() {
 
 #[test]
 fn matches() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -231,7 +225,6 @@ fn matches() {
 
 #[test]
 fn missing_params() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -273,7 +266,6 @@ fn missing_params() {
 
 #[test]
 fn same_parameter_different_values() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -312,7 +304,6 @@ fn same_parameter_different_values() {
 
 #[test]
 fn same_parameter_multiple_times_in_different_order() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -351,7 +342,6 @@ fn same_parameter_multiple_times_in_different_order() {
 
 #[test]
 fn same_parameter_multiple_times() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -392,7 +382,6 @@ fn same_parameter_multiple_times() {
 
 #[test]
 fn unexpected_param() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,

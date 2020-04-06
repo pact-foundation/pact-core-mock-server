@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use env_logger;
+use test_env_log::test;
 #[allow(unused_imports)]
 use pact_matching::models::PactSpecification;
 #[allow(unused_imports)]
@@ -8,13 +8,11 @@ use pact_matching::models::Request;
 use pact_matching::match_request;
 #[allow(unused_imports)]
 use expectest::prelude::*;
-use expectest::*;
 #[allow(unused_imports)]
 use serde_json;
 
 #[test]
 fn whitespace_after_comma_different() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -53,7 +51,6 @@ fn whitespace_after_comma_different() {
 
 #[test]
 fn unexpected_header_found() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -90,7 +87,6 @@ fn unexpected_header_found() {
 
 #[test]
 fn order_of_comma_separated_header_values_different() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -129,7 +125,6 @@ fn order_of_comma_separated_header_values_different() {
 
 #[test]
 fn matches() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -170,7 +165,6 @@ fn matches() {
 
 #[test]
 fn header_value_is_different_case() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -209,7 +203,6 @@ fn header_value_is_different_case() {
 
 #[test]
 fn header_name_is_different_case() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -248,7 +241,6 @@ fn header_name_is_different_case() {
 
 #[test]
 fn empty_headers() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -258,7 +250,7 @@ fn empty_headers() {
           "path": "/path",
           "query": "",
           "headers": {}
-
+      
         },
         "actual": {
           "method": "POST",

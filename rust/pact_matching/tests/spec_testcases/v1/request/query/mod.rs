@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use env_logger;
+use test_env_log::test;
 #[allow(unused_imports)]
 use pact_matching::models::PactSpecification;
 #[allow(unused_imports)]
@@ -8,13 +8,11 @@ use pact_matching::models::Request;
 use pact_matching::match_request;
 #[allow(unused_imports)]
 use expectest::prelude::*;
-use expectest::*;
 #[allow(unused_imports)]
 use serde_json;
 
 #[test]
 fn trailing_amperand() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -24,14 +22,14 @@ fn trailing_amperand() {
           "path": "/path",
           "query": "alligator=Mary&hippo=John",
           "headers": {}
-
+      
         },
         "actual": {
           "method": "GET",
           "path": "/path",
           "query": "alligator=Mary&hippo=John&",
           "headers": {}
-
+      
         }
       }
     "#).unwrap();
@@ -51,7 +49,6 @@ fn trailing_amperand() {
 
 #[test]
 fn matches() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -61,14 +58,14 @@ fn matches() {
           "path": "/path",
           "query": "alligator=Mary&hippo=John",
           "headers": {}
-
+      
         },
         "actual": {
           "method": "GET",
           "path": "/path",
           "query": "alligator=Mary&hippo=John",
           "headers": {}
-
+      
         }
       }
     "#).unwrap();
@@ -88,7 +85,6 @@ fn matches() {
 
 #[test]
 fn different_param_values() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -98,14 +94,14 @@ fn different_param_values() {
           "path": "/path",
           "query": "alligator=Mary&hippo=John",
           "headers": {}
-
+      
         },
         "actual": {
           "method": "GET",
           "path": "/path",
           "query": "alligator=Mary&hippo=Fred",
           "headers": {}
-
+      
         }
       }
     "#).unwrap();
@@ -125,7 +121,6 @@ fn different_param_values() {
 
 #[test]
 fn different_param_order() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -135,14 +130,14 @@ fn different_param_order() {
           "path": "/path",
           "query": "alligator=Mary&hippo=John",
           "headers": {}
-
+      
         },
         "actual": {
           "method": "GET",
           "path": "/path",
           "query": "hippo=John&alligator=Mary",
           "headers": {}
-
+      
         }
       }
     "#).unwrap();

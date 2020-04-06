@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use env_logger;
+use test_env_log::test;
 #[allow(unused_imports)]
 use pact_matching::models::PactSpecification;
 #[allow(unused_imports)]
@@ -8,13 +8,11 @@ use pact_matching::models::Response;
 use pact_matching::match_response;
 #[allow(unused_imports)]
 use expectest::prelude::*;
-use expectest::*;
 #[allow(unused_imports)]
 use serde_json;
 
 #[test]
 fn different_status() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -43,7 +41,6 @@ fn different_status() {
 
 #[test]
 fn matches() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
       	"match": true,

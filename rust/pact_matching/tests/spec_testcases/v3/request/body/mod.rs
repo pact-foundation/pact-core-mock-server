@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use env_logger;
+use test_env_log::test;
 #[allow(unused_imports)]
 use pact_matching::models::PactSpecification;
 #[allow(unused_imports)]
@@ -8,13 +8,11 @@ use pact_matching::models::Request;
 use pact_matching::match_request;
 #[allow(unused_imports)]
 use expectest::prelude::*;
-use expectest::*;
 #[allow(unused_imports)]
 use serde_json;
 
 #[test]
 fn array_at_top_level_xml() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -51,7 +49,6 @@ fn array_at_top_level_xml() {
 
 #[test]
 fn array_at_top_level() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -114,7 +111,6 @@ fn array_at_top_level() {
 
 #[test]
 fn array_in_different_order_xml() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -151,7 +147,6 @@ fn array_in_different_order_xml() {
 
 #[test]
 fn array_in_different_order() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -196,7 +191,6 @@ fn array_in_different_order() {
 
 #[test]
 fn array_size_less_than_required_xml() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -244,7 +238,6 @@ fn array_size_less_than_required_xml() {
 
 #[test]
 fn array_size_less_than_required() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -304,7 +297,6 @@ fn array_size_less_than_required() {
 
 #[test]
 fn array_with_at_least_one_element_matching_by_example_xml() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -367,7 +359,6 @@ fn array_with_at_least_one_element_matching_by_example_xml() {
 
 #[test]
 fn array_with_at_least_one_element_matching_by_example() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -437,7 +428,6 @@ fn array_with_at_least_one_element_matching_by_example() {
 
 #[test]
 fn array_with_at_least_one_element_not_matching_example_type() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -507,7 +497,6 @@ fn array_with_at_least_one_element_not_matching_example_type() {
 
 #[test]
 fn array_with_nested_array_that_does_not_match() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -595,7 +584,6 @@ fn array_with_nested_array_that_does_not_match() {
 
 #[test]
 fn array_with_nested_array_that_matches() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -693,7 +681,6 @@ fn array_with_nested_array_that_matches() {
 
 #[test]
 fn array_with_regular_expression_in_element_xml() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -764,7 +751,6 @@ fn array_with_regular_expression_in_element_xml() {
 
 #[test]
 fn array_with_regular_expression_in_element() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -842,7 +828,6 @@ fn array_with_regular_expression_in_element() {
 
 #[test]
 fn array_with_regular_expression_that_does_not_match_in_element_xml() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -913,7 +898,6 @@ fn array_with_regular_expression_that_does_not_match_in_element_xml() {
 
 #[test]
 fn array_with_regular_expression_that_does_not_match_in_element() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -991,7 +975,6 @@ fn array_with_regular_expression_that_does_not_match_in_element() {
 
 #[test]
 fn different_value_found_at_index_xml() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -1028,7 +1011,6 @@ fn different_value_found_at_index_xml() {
 
 #[test]
 fn different_value_found_at_index() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -1073,7 +1055,6 @@ fn different_value_found_at_index() {
 
 #[test]
 fn different_value_found_at_key_xml() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -1110,7 +1091,6 @@ fn different_value_found_at_key_xml() {
 
 #[test]
 fn different_value_found_at_key() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -1155,7 +1135,6 @@ fn different_value_found_at_key() {
 
 #[test]
 fn empty_body_no_content_type() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -1191,7 +1170,6 @@ fn empty_body_no_content_type() {
 
 #[test]
 fn empty_body() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -1228,7 +1206,6 @@ fn empty_body() {
 
 #[test]
 fn empty_found_at_key_where_not_empty_expected_xml() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -1265,7 +1242,6 @@ fn empty_found_at_key_where_not_empty_expected_xml() {
 
 #[test]
 fn matches_with_regex_with_bracket_notation_xml() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -1314,7 +1290,6 @@ fn matches_with_regex_with_bracket_notation_xml() {
 
 #[test]
 fn matches_with_regex_with_bracket_notation() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -1371,7 +1346,6 @@ fn matches_with_regex_with_bracket_notation() {
 
 #[test]
 fn matches_with_regex_xml() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -1436,7 +1410,6 @@ fn matches_with_regex_xml() {
 
 #[test]
 fn matches_with_regex() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -1513,7 +1486,6 @@ fn matches_with_regex() {
 
 #[test]
 fn matches_with_type() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -1580,7 +1552,6 @@ fn matches_with_type() {
 
 #[test]
 fn matches_xml() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -1617,7 +1588,6 @@ fn matches_xml() {
 
 #[test]
 fn matches() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -1666,7 +1636,6 @@ fn matches() {
 
 #[test]
 fn missing_body_found_when_empty_expected() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -1700,7 +1669,6 @@ fn missing_body_found_when_empty_expected() {
 
 #[test]
 fn missing_body_no_content_type() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -1739,7 +1707,6 @@ fn missing_body_no_content_type() {
 
 #[test]
 fn missing_body() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -1779,7 +1746,6 @@ fn missing_body() {
 
 #[test]
 fn missing_index_xml() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -1816,7 +1782,6 @@ fn missing_index_xml() {
 
 #[test]
 fn missing_index() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -1861,7 +1826,6 @@ fn missing_index() {
 
 #[test]
 fn missing_key_xml() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -1898,7 +1862,6 @@ fn missing_key_xml() {
 
 #[test]
 fn missing_key() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -1944,7 +1907,6 @@ fn missing_key() {
 
 #[test]
 fn no_body_no_content_type_xml() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -1979,7 +1941,6 @@ fn no_body_no_content_type_xml() {
 
 #[test]
 fn no_body_no_content_type() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -2018,7 +1979,6 @@ fn no_body_no_content_type() {
 
 #[test]
 fn no_body_xml() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -2054,7 +2014,6 @@ fn no_body_xml() {
 
 #[test]
 fn no_body() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -2094,7 +2053,6 @@ fn no_body() {
 
 #[test]
 fn non_empty_body_found_when_empty_expected() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -2135,7 +2093,6 @@ fn non_empty_body_found_when_empty_expected() {
 
 #[test]
 fn not_empty_found_at_key_when_empty_expected_xml() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -2172,7 +2129,6 @@ fn not_empty_found_at_key_when_empty_expected_xml() {
 
 #[test]
 fn not_empty_found_in_array_when_empty_expected_xml() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -2209,7 +2165,6 @@ fn not_empty_found_in_array_when_empty_expected_xml() {
 
 #[test]
 fn not_null_found_at_key_when_null_expected() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -2254,7 +2209,6 @@ fn not_null_found_at_key_when_null_expected() {
 
 #[test]
 fn not_null_found_in_array_when_null_expected() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -2299,7 +2253,6 @@ fn not_null_found_in_array_when_null_expected() {
 
 #[test]
 fn null_body_no_content_type() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -2335,7 +2288,6 @@ fn null_body_no_content_type() {
 
 #[test]
 fn null_body() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -2372,7 +2324,6 @@ fn null_body() {
 
 #[test]
 fn null_found_at_key_where_not_null_expected() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -2417,7 +2368,6 @@ fn null_found_at_key_where_not_null_expected() {
 
 #[test]
 fn null_found_in_array_when_not_null_expected() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -2462,7 +2412,6 @@ fn null_found_in_array_when_not_null_expected() {
 
 #[test]
 fn number_found_at_key_when_string_expected() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -2507,7 +2456,6 @@ fn number_found_at_key_when_string_expected() {
 
 #[test]
 fn number_found_in_array_when_string_expected() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -2552,7 +2500,6 @@ fn number_found_in_array_when_string_expected() {
 
 #[test]
 fn plain_text_that_does_not_match() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -2589,7 +2536,6 @@ fn plain_text_that_does_not_match() {
 
 #[test]
 fn plain_text_that_matches() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -2626,7 +2572,6 @@ fn plain_text_that_matches() {
 
 #[test]
 fn string_found_at_key_when_number_expected() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -2671,7 +2616,6 @@ fn string_found_at_key_when_number_expected() {
 
 #[test]
 fn string_found_in_array_when_number_expected() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -2716,7 +2660,6 @@ fn string_found_in_array_when_number_expected() {
 
 #[test]
 fn unexpected_index_with_missing_value_xml() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -2753,7 +2696,6 @@ fn unexpected_index_with_missing_value_xml() {
 
 #[test]
 fn unexpected_index_with_non_empty_value_xml() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -2790,7 +2732,6 @@ fn unexpected_index_with_non_empty_value_xml() {
 
 #[test]
 fn unexpected_index_with_not_null_value() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -2835,7 +2776,6 @@ fn unexpected_index_with_not_null_value() {
 
 #[test]
 fn unexpected_index_with_null_value() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -2880,7 +2820,6 @@ fn unexpected_index_with_null_value() {
 
 #[test]
 fn unexpected_key_with_empty_value_xml() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -2917,7 +2856,6 @@ fn unexpected_key_with_empty_value_xml() {
 
 #[test]
 fn unexpected_key_with_non_empty_value_xml() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -2954,7 +2892,6 @@ fn unexpected_key_with_non_empty_value_xml() {
 
 #[test]
 fn unexpected_key_with_not_null_value() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -3000,7 +2937,6 @@ fn unexpected_key_with_not_null_value() {
 
 #[test]
 fn unexpected_key_with_null_value() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -3046,7 +2982,6 @@ fn unexpected_key_with_null_value() {
 
 #[test]
 fn value_found_in_array_when_empty_expected_xml() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,

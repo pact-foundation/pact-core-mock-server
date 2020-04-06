@@ -294,7 +294,7 @@ mod tests {
     use expectest::expect;
     use crate::Mismatch;
     use crate::DiffConfig;
-    use env_logger;
+    use test_env_log::test;
 
     #[test]
     fn match_xml_handles_empty_strings() {
@@ -588,8 +588,6 @@ mod tests {
 
     #[test]
     fn match_xml_when_actual_is_same_size_but_different_children() {
-        env_logger::init().unwrap_or(());
-
         let mut mismatches = vec![];
         let expected = s!(r#"<?xml version="1.0" encoding="UTF-8"?>
         <foo><one/><two/><three/></foo>
@@ -670,7 +668,6 @@ mod tests {
 
     #[test]
     fn match_xml_with_the_different_text() {
-        env_logger::init().unwrap_or(());
         let mut mismatches = vec![];
         let expected = s!(r#"<?xml version="1.0" encoding="UTF-8"?>
         <foo>hello world</foo>

@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use env_logger;
+use test_env_log::test;
 #[allow(unused_imports)]
 use pact_matching::models::PactSpecification;
 #[allow(unused_imports)]
@@ -8,13 +8,11 @@ use pact_matching::models::Request;
 use pact_matching::match_request;
 #[allow(unused_imports)]
 use expectest::prelude::*;
-use expectest::*;
 #[allow(unused_imports)]
 use serde_json;
 
 #[test]
 fn empty_path_found_when_forward_slash_expected() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -24,14 +22,14 @@ fn empty_path_found_when_forward_slash_expected() {
           "path": "/",
           "query": "",
           "headers": {}
-
+      
         },
         "actual": {
           "method": "POST",
           "path": "",
           "query": "",
           "headers": {}
-
+      
         }
       }
     "#).unwrap();
@@ -51,7 +49,6 @@ fn empty_path_found_when_forward_slash_expected() {
 
 #[test]
 fn forward_slash_found_when_empty_path_expected() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -61,14 +58,14 @@ fn forward_slash_found_when_empty_path_expected() {
           "path": "",
           "query": "",
           "headers": {}
-
+      
         },
         "actual": {
           "method": "POST",
           "path": "/",
           "query": "",
           "headers": {}
-
+      
         }
       }
     "#).unwrap();
@@ -88,7 +85,6 @@ fn forward_slash_found_when_empty_path_expected() {
 
 #[test]
 fn incorrect_path() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -98,14 +94,14 @@ fn incorrect_path() {
           "path": "/path/to/something",
           "query": "",
           "headers": {}
-
+      
         },
         "actual": {
           "method": "POST",
           "path": "/path/to/something/else",
           "query": "",
           "headers": {}
-
+      
         }
       }
     "#).unwrap();
@@ -125,7 +121,6 @@ fn incorrect_path() {
 
 #[test]
 fn matches() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -135,14 +130,14 @@ fn matches() {
           "path": "/path/to/something",
           "query": "",
           "headers": {}
-
+      
         },
         "actual": {
           "method": "POST",
           "path": "/path/to/something",
           "query": "",
           "headers": {}
-
+      
         }
       }
     "#).unwrap();
@@ -162,7 +157,6 @@ fn matches() {
 
 #[test]
 fn missing_trailing_slash_in_path() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -172,14 +166,14 @@ fn missing_trailing_slash_in_path() {
           "path": "/path/to/something/",
           "query": "",
           "headers": {}
-
+      
         },
         "actual": {
           "method": "POST",
           "path": "/path/to/something",
           "query": "",
           "headers": {}
-
+      
         }
       }
     "#).unwrap();
@@ -199,7 +193,6 @@ fn missing_trailing_slash_in_path() {
 
 #[test]
 fn unexpected_trailing_slash_in_path() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -209,14 +202,14 @@ fn unexpected_trailing_slash_in_path() {
           "path": "/path/to/something",
           "query": "",
           "headers": {}
-
+      
         },
         "actual": {
           "method": "POST",
           "path": "/path/to/something/",
           "query": "",
           "headers": {}
-
+      
         }
       }
     "#).unwrap();

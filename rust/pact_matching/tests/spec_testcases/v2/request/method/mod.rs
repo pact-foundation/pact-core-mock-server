@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use env_logger;
+use test_env_log::test;
 #[allow(unused_imports)]
 use pact_matching::models::PactSpecification;
 #[allow(unused_imports)]
@@ -8,13 +8,11 @@ use pact_matching::models::Request;
 use pact_matching::match_request;
 #[allow(unused_imports)]
 use expectest::prelude::*;
-use expectest::*;
 #[allow(unused_imports)]
 use serde_json;
 
 #[test]
 fn different_method() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -30,7 +28,7 @@ fn different_method() {
           "path": "/",
           "query": "",
           "headers": {}
-
+      
         }
       }
     "#).unwrap();
@@ -50,7 +48,6 @@ fn different_method() {
 
 #[test]
 fn matches() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -66,7 +63,7 @@ fn matches() {
           "path": "/",
           "query": "",
           "headers": {}
-
+      
         }
       }
     "#).unwrap();
@@ -86,7 +83,6 @@ fn matches() {
 
 #[test]
 fn method_is_different_case() {
-    env_logger::init().unwrap_or(());
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -102,7 +98,7 @@ fn method_is_different_case() {
           "path": "/",
           "query": "",
           "headers": {}
-
+      
         }
       }
     "#).unwrap();
