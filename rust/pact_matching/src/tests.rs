@@ -3,7 +3,6 @@ use super::{match_header_value, strip_whitespace};
 use std::collections::HashMap;
 use maplit::*;
 use expectest::prelude::*;
-use expectest::expect;
 use crate::models::{Request, OptionalBody};
 
 #[test]

@@ -581,8 +581,14 @@ impl MatchingRules {
   }
 
   fn to_v3_json(&self) -> Value {
-    Value::Object(self.rules.iter().fold(serde_json::Map::new(), |mut map, (name, category)| {
-      map.insert(name.clone(), category.to_v3_json());
+    Value::Object(self.rules.iter().fold(serde_json::Map::new(), |mut map, (name, sub_category)| {
+      if name == "path" {
+        if let Some(rules) = sub_category.rules.get("") {
+          map.insert(name.clone(), rules.to_v3_json());
+        }
+      } else {
+        map.insert(name.clone(), sub_category.to_v3_json());
+      }
       map
     }))
   }
@@ -679,6 +685,7 @@ mod tests {
     use expectest::prelude::*;
     use expectest::expect;
     use serde_json::Value;
+    use speculate::speculate;
 
     #[test]
     fn rules_are_empty_when_there_are_no_categories() {
@@ -849,6 +856,43 @@ mod tests {
       name: s!("path"),
       rules: hashmap! { s!("") => RuleList { rules: btreeset![ MatchingRule::Regex(s!("\\w+")) ], rule_logic: RuleLogic::And } }
     }));
+  }
+
+  speculate! {
+    describe "generating matcher JSON" {
+      before {
+        let matchers = matchingrules!{
+          "body" => {
+            "$.a.b" => [ MatchingRule::Type ]
+          },
+          "path" => { "" => [ MatchingRule::Regex(s!("/path/\\d+")) ] },
+          "query" => {
+            "a" => [ MatchingRule::Regex(s!("\\w+")) ]
+          },
+          "header" => {
+            "item1" => [ MatchingRule::Regex(s!("5")) ]
+          }
+        };
+      }
+
+      it "generates V2 matcher format" {
+        expect!(matchers.to_v2_json().to_string()).to(be_equal_to(
+          "{\"$.body.a.b\":{\"match\":\"type\"},\
+          \"$.header.item1\":{\"match\":\"regex\",\"regex\":\"5\"},\
+          \"$.path.\":{\"match\":\"regex\",\"regex\":\"/path/\\\\d+\"},\
+          \"$.query.a\":{\"match\":\"regex\",\"regex\":\"\\\\w+\"}}"
+        ));
+      }
+
+      it "generates V3 matcher format" {
+        expect!(matchers.to_v3_json().to_string()).to(be_equal_to(
+          "{\"body\":{\"$.a.b\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"type\"}]}},\
+          \"header\":{\"item1\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"regex\",\"regex\":\"5\"}]}},\
+          \"path\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"regex\",\"regex\":\"/path/\\\\d+\"}]},\
+          \"query\":{\"a\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"regex\",\"regex\":\"\\\\w+\"}]}}}"
+        ));
+      }
+    }
   }
 
   #[test]

@@ -10,7 +10,6 @@ use std::{
   iter::Iterator
 };
 use expectest::prelude::*;
-use expectest::*;
 
 /// Get the path to one of our sample *.json files.
 fn fixture_path(path: &str) -> PathBuf {
