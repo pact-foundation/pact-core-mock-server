@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.5.10 - Bugfix Release
+
+* b52f095 - fix: V3 path matcher JSON format was incorrect (Ronald Holshausen, Tue Apr 7 11:14:25 2020 +1000)
+* 9623183 - chore: upgraded the testing crates to latest (Ronald Holshausen, Tue Apr 7 09:40:39 2020 +1000)
+* a9d512f - bump version to 0.5.10 (Ronald Holshausen, Fri Mar 13 09:39:43 2020 +1100)
+
 # 0.5.9 - Bugfixes + Date/Time matchers with JSON
 
 * e0f23a2 - feat: exposes time/date utils for language implementations (Ronald Holshausen, Thu Mar 12 17:01:44 2020 +1100)
