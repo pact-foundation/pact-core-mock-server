@@ -13,11 +13,14 @@ use log::*;
 use crate::time_utils::validate_datetime;
 
 fn type_of(json: &Value) -> String {
-    match json {
-        &Value::Object(_) => s!("Map"),
-        &Value::Array(_) => s!("List"),
-        _ => s!("")
-    }
+  match json {
+    &Value::Object(_) => "Map",
+    &Value::Array(_) => "List",
+    &Value::Null => "Null",
+    &Value::Bool(_) => "Boolean",
+    &Value::Number(_) => "Number",
+    &Value::String(_) => "String"
+  }.to_string()
 }
 
 pub(crate) fn value_of(json: &Value) -> String {

@@ -13,6 +13,7 @@ use std::str::FromStr;
 use crate::models::json_utils::{json_to_string, json_to_num};
 use crate::path_exp::*;
 use super::PactSpecification;
+use log::*;
 
 fn matches_token(path_fragment: &String, path_token: &PathToken) -> usize {
   match *path_token {
@@ -34,7 +35,7 @@ fn matches_token(path_fragment: &String, path_token: &PathToken) -> usize {
 fn calc_path_weight(path_exp: String, path: &Vec<String>) -> usize {
   let weight = match parse_path_exp(path_exp.clone()) {
     Ok(path_tokens) => {
-      log::debug!("Calculating weight for path tokens '{:?}' and path '{:?}'", path_tokens, path);
+      trace!("Calculating weight for path tokens '{:?}' and path '{:?}'", path_tokens, path);
       if path.len() >= path_tokens.len() {
         path_tokens.iter().zip(path.iter())
           .fold(1, |acc, (token, fragment)| acc * matches_token(fragment, token))
@@ -43,11 +44,11 @@ fn calc_path_weight(path_exp: String, path: &Vec<String>) -> usize {
       }
     },
     Err(err) => {
-      log::warn!("Failed to parse path expression - {}", err);
+      warn!("Failed to parse path expression - {}", err);
       0
     }
   };
-  log::debug!("Calculated weight {} for path '{}' and '{:?}'", weight, path_exp, path);
+  trace!("Calculated weight {} for path '{}' and '{:?}'", weight, path_exp, path);
   weight
 }
 
@@ -55,7 +56,7 @@ fn path_length(path_exp: String) -> usize {
   match parse_path_exp(path_exp.clone()) {
     Ok(path_tokens) => path_tokens.len(),
     Err(err) => {
-      log::warn!("Failed to parse path expression - {}", err);
+      warn!("Failed to parse path expression - {}", err);
       0
     }
   }
