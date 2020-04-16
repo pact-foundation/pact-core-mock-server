@@ -25,14 +25,19 @@ use std::slice;
 ///
 /// Note that this function zeroes out any excess in the provided buffer.
 #[no_mangle]
-pub extern "C" fn get_error_message(buffer: *mut c_char, length: c_int) -> c_int {
+pub extern "C" fn get_error_message(
+    buffer: *mut c_char,
+    length: c_int,
+) -> c_int {
     // Make sure the buffer isn't null.
     if buffer.is_null() {
         return Status::NullBuffer as c_int;
     }
 
     // Convert the buffer raw pointer into a byte slice.
-    let buffer = unsafe { slice::from_raw_parts_mut(buffer as *mut u8, length as usize) };
+    let buffer = unsafe {
+        slice::from_raw_parts_mut(buffer as *mut u8, length as usize)
+    };
 
     // Get the last error, possibly empty if there isn't one.
     let last_err = get_error_msg().unwrap_or(String::new());

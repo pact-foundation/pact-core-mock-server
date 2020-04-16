@@ -6,4 +6,5 @@
 #![warn(missing_copy_implementations)]
 
 pub mod error;
+pub mod log;
 pub(crate) mod util;

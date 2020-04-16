@@ -8,7 +8,10 @@ use zeroize::Zeroize;
 ///
 /// This performs a write, including the null terminator and performing zeroization of any
 /// excess in the destination buffer.
-pub(crate) fn write_to_c_buf(src: &str, dst: &mut [u8]) -> Result<(), WriteBufError> {
+pub(crate) fn write_to_c_buf(
+    src: &str,
+    dst: &mut [u8],
+) -> Result<(), WriteBufError> {
     // Ensure the string has the null terminator.
     let src = CString::new(src.as_bytes())?;
     let src = src.as_bytes_with_nul();

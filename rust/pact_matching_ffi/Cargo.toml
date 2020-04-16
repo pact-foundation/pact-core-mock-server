@@ -12,11 +12,13 @@ exclude = [
 ]
 
 [dependencies]
+pact_matching = { version = "0.5.11", path = "../pact_matching" }
 anyhow = "1.0.28"
 libc = "0.2.69"
 zeroize = "1.1.0"
 thiserror = "1.0.15"
-pact_matching = { version = "0.5.11", path = "../pact_matching" }
+fern = "0.6.0"
+log = "0.4.8"
 
 [lib]
 crate-type = ["cdylib", "staticlib", "rlib"]
