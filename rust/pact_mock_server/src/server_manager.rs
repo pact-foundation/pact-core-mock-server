@@ -166,7 +166,7 @@ mod tests {
         // The tokio runtime is now out of tasks
         drop(manager);
 
-        let ten_millis = time::Duration::from_millis(10);
+        let ten_millis = time::Duration::from_millis(200);
         thread::sleep(ten_millis);
 
         // Server should be down
