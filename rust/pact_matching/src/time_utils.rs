@@ -133,7 +133,7 @@ named!(millisecond_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimeP
 named!(timezone_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::Timezone, many1!(char!('z'))));
 named!(rfc_timezone_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::Rfc822Timezone, many1!(char!('Z'))));
 named!(iso_timezone_pattern <CompleteStr, DateTimePatternToken>, value!(DateTimePatternToken::Iso8601Timezone, many1!(char!('X'))));
-named!(pub parse_pattern <CompleteStr, Vec<DateTimePatternToken> >, do_parse!(
+named!(parse_pattern_inner <CompleteStr, Vec<DateTimePatternToken> >, do_parse!(
   v: many0!(alt!(
     era_pattern |
     year_pattern |
@@ -210,6 +210,11 @@ named!(day_of_week_name <CompleteStr, CompleteStr>, alt!(
   tag_no_case!("friday")    | tag_no_case!("fri") |
   tag_no_case!("saturday")  | tag_no_case!("sat")
 ));
+
+/// Parses a string into a vector of date/time tokens
+pub fn parse_pattern(str: CompleteStr) -> IResult<CompleteStr, Vec<DateTimePatternToken>, u32> {
+  parse_pattern_inner(str)
+}
 
 fn validate_datetime_string<'a>(value: &String, pattern_tokens: &Vec<DateTimePatternToken>) -> Result<(), String> {
   let mut buffer = CompleteStr(&value);
