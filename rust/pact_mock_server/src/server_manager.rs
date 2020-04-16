@@ -142,6 +142,7 @@ impl ServerManager {
 mod tests {
     use super::*;
     use std::net::TcpStream;
+    use std::{thread, time};
 
     #[test]
     fn manager_should_start_and_shutdown_mock_server() {
@@ -164,6 +165,9 @@ mod tests {
 
         // The tokio runtime is now out of tasks
         drop(manager);
+
+        let ten_millis = time::Duration::from_millis(10);
+        thread::sleep(ten_millis);
 
         // Server should be down
         assert!(TcpStream::connect(("127.0.0.1", server_port)).is_err());
