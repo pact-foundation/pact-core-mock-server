@@ -52,6 +52,8 @@ use serde_json::json;
 use pact_mock_server::{MockServerError, WritePactFileErr, MANAGER};
 use pact_mock_server::server_manager::ServerManager;
 
+pub mod handles;
+
 /// External interface to create a mock server. A pointer to the pact JSON as a C string is passed in,
 /// as well as the port for the mock server to run on. A value of 0 for the port will result in a
 /// port being allocated by the operating system. The port of the mock server is returned.
@@ -248,4 +250,10 @@ pub extern fn write_pact_file(mock_server_port: i32, directory: *const c_char) -
       1
     }
   }
+}
+
+#[no_mangle]
+/// Creates a new Pact model and returns a handle to it
+pub extern fn new_pact() -> handles::PactHandle {
+  handles::PactHandle::new()
 }

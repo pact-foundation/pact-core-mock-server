@@ -185,6 +185,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "130aac562c0dd69c56b3b1cc8ffd2e17be31d0b6c25b61c96b76231aa23e39e1"
 
 [[package]]
+name = "cbindgen"
+version = "0.14.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b15be43e426e5133330fffd63026e178e70ecc74df7a4a844a8ff6e6ffc2fcde"
+dependencies = [
+ "clap",
+ "log 0.4.8",
+ "proc-macro2 1.0.10",
+ "quote 1.0.3",
+ "serde",
+ "serde_json",
+ "syn 1.0.17",
+ "tempfile",
+ "toml",
+]
+
+[[package]]
 name = "cc"
 version = "1.0.50"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -435,15 +452,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f7cd36c2ff8ac3904c8cc2581da9dfc4375cf5c7c499c6b75faf45194c04438"
 dependencies = [
  "num-traits 0.1.43",
-]
-
-[[package]]
-name = "expectest"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8ddac6a693f5781618269dc8f527d429c3bb4ede443f9f33ad8eb9ae321bb01"
-dependencies = [
- "num-traits 0.2.11",
 ]
 
 [[package]]
@@ -1230,8 +1238,8 @@ dependencies = [
  "libc",
  "log 0.4.8",
  "maplit",
- "pact_matching",
- "pact_mock_server",
+ "pact_matching 0.5.11",
+ "pact_mock_server 0.7.1",
  "quickcheck 0.2.27",
  "regex 0.1.80",
  "reqwest",
@@ -1240,6 +1248,36 @@ dependencies = [
  "tokio",
  "url 2.1.1",
  "uuid 0.6.5",
+]
+
+[[package]]
+name = "pact_matching"
+version = "0.5.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "01da47ba3a857164ed622a5ba696fe51e977abd4ce180b6b2c4857192d38798e"
+dependencies = [
+ "ansi_term 0.9.0",
+ "base64 0.7.0",
+ "chrono 0.4.11",
+ "chrono-tz",
+ "difference 1.0.0",
+ "hex",
+ "indextree",
+ "itertools 0.8.2",
+ "lazy_static 1.4.0",
+ "log 0.4.8",
+ "maplit",
+ "nom",
+ "onig",
+ "rand 0.6.5",
+ "rand_regex",
+ "regex-syntax 0.6.17",
+ "reqwest",
+ "semver",
+ "serde",
+ "serde_json",
+ "sxd-document",
+ "uuid 0.5.1",
 ]
 
 [[package]]
@@ -1278,6 +1316,25 @@ dependencies = [
 
 [[package]]
 name = "pact_mock_server"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b2d7df78cd2ab228cf78d5c8f9ffff446556f6288da29e05bacd93aeb6190a4"
+dependencies = [
+ "bytes",
+ "futures",
+ "hyper 0.13.4",
+ "itertools 0.6.5",
+ "lazy_static 1.4.0",
+ "log 0.4.8",
+ "maplit",
+ "pact_matching 0.5.10",
+ "serde_json",
+ "tokio",
+ "uuid 0.6.5",
+]
+
+[[package]]
+name = "pact_mock_server"
 version = "0.7.1"
 dependencies = [
  "bytes",
@@ -1288,7 +1345,7 @@ dependencies = [
  "lazy_static 1.4.0",
  "log 0.4.8",
  "maplit",
- "pact_matching",
+ "pact_matching 0.5.11",
  "quickcheck 0.4.1",
  "serde_json",
  "tokio",
@@ -1306,8 +1363,8 @@ dependencies = [
  "libc",
  "log 0.4.8",
  "maplit",
- "pact_matching",
- "pact_mock_server",
+ "pact_matching 0.5.11",
+ "pact_mock_server 0.7.1",
  "quickcheck 0.2.27",
  "rand 0.4.6",
  "regex 0.1.80",
@@ -1321,12 +1378,14 @@ dependencies = [
 name = "pact_mock_server_ffi"
 version = "0.0.1"
 dependencies = [
- "env_logger 0.6.2",
- "expectest 0.11.0",
+ "cbindgen",
+ "env_logger 0.7.1",
+ "expectest 0.12.0",
+ "lazy_static 1.4.0",
  "libc",
  "log 0.4.8",
- "pact_matching",
- "pact_mock_server",
+ "pact_matching 0.5.10",
+ "pact_mock_server 0.7.0",
  "serde_json",
 ]
 
@@ -1349,7 +1408,7 @@ dependencies = [
  "maplit",
  "mime 0.3.16",
  "pact_consumer",
- "pact_matching",
+ "pact_matching 0.5.11",
  "quickcheck 0.2.27",
  "regex 1.3.6",
  "reqwest",
@@ -1367,7 +1426,7 @@ dependencies = [
  "libc",
  "log 0.4.8",
  "maplit",
- "pact_matching",
+ "pact_matching 0.5.11",
  "pact_verifier",
  "quickcheck 0.2.27",
  "rand 0.3.23",
@@ -2249,6 +2308,15 @@ dependencies = [
  "log 0.4.8",
  "pin-project-lite",
  "tokio",
+]
+
+[[package]]
+name = "toml"
+version = "0.5.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ffc92d160b1eef40665be3a05630d003936a3bc7da7421277846c2613e92c71a"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
