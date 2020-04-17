@@ -51,8 +51,19 @@ use std::str;
 use serde_json::json;
 use pact_mock_server::{MockServerError, WritePactFileErr, MANAGER};
 use pact_mock_server::server_manager::ServerManager;
+use log::*;
+use std::any::Any;
+use pact_matching::models::Interaction;
+use pact_matching::models::provider_states::ProviderState;
+use std::borrow::BorrowMut;
 
 pub mod handles;
+
+/// Initialise the mock server library
+#[no_mangle]
+pub extern fn init() {
+  env_logger::try_init().unwrap_or(());
+}
 
 /// External interface to create a mock server. A pointer to the pact JSON as a C string is passed in,
 /// as well as the port for the mock server to run on. A value of 0 for the port will result in a
@@ -252,8 +263,71 @@ pub extern fn write_pact_file(mock_server_port: i32, directory: *const c_char) -
   }
 }
 
-#[no_mangle]
 /// Creates a new Pact model and returns a handle to it
-pub extern fn new_pact() -> handles::PactHandle {
-  handles::PactHandle::new()
+#[no_mangle]
+pub extern fn new_pact(consumer_name: *const c_char, provider_name: *const c_char) -> handles::PactHandle {
+  let consumer = convert_cstr(consumer_name, "Consumer");
+  let provider = convert_cstr(provider_name, "Provider");
+  handles::PactHandle::new(consumer, provider)
+}
+
+/// Creates a new Interaction and returns a handle to it
+#[no_mangle]
+pub extern fn new_interaction(pact: handles::PactHandle, description: *const c_char) -> handles::InteractionHandle {
+  let description = convert_cstr(description, "ERROR");
+  pact.with_pact(&|_, inner| {
+    let interaction = Interaction {
+      description: description.to_string(),
+      .. Interaction::default()
+    };
+    inner.interactions.push(interaction);
+    handles::InteractionHandle::new(pact.clone(), inner.interactions.len())
+  }).unwrap_or(handles::InteractionHandle::new(pact.clone(), 0))
+}
+
+/// Sets the description for the Interaction
+#[no_mangle]
+pub extern fn upon_receiving(interaction: handles::InteractionHandle, description: *const c_char) {
+  let description = convert_cstr(description, "ERROR");
+  interaction.with_interaction(&|_, inner| {
+    inner.description = description.to_string();
+    dbg!(inner);
+  });
+}
+
+/// Adds a provider state to the Interaction
+#[no_mangle]
+pub extern fn given(interaction: handles::InteractionHandle, description: *const c_char) {
+  let description = convert_cstr(description, "ERROR");
+  interaction.with_interaction(&|_, inner| {
+    inner.provider_states.push(ProviderState::default(&description.to_string()));
+  });
+}
+
+fn error_message(err: Box<dyn Any>, method: &str) -> String {
+  if let Some(err) = err.downcast_ref::<&str>() {
+    format!("{} failed with an error - {}", method, err)
+  } else if let Some(err) = err.downcast_ref::<String>() {
+    format!("{} failed with an error - {}", method, err)
+  } else {
+    format!("{} failed with an unknown error", method)
+  }
+}
+
+fn convert_cstr(name: *const c_char, default: &str) -> &str {
+  unsafe {
+    if name.is_null() {
+      warn!("{} name is NULL, defaulting to '{}'", default, default);
+      default
+    } else {
+      let c_str = CStr::from_ptr(name);
+      match c_str.to_str() {
+        Ok(str) => str,
+        Err(err) => {
+          warn!("Failed to parse {} name as a UTF-8 string, defaulting to '{}': {}", default, default, err);
+          default
+        }
+      }
+    }
+  }
 }

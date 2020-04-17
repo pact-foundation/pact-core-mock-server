@@ -5,6 +5,7 @@ fn main() {
     let source_name = base_name.replace("-", "_");
     cbindgen::Builder::new()
         .with_crate(crate_dir)
+        .with_include_version(true)
         .with_namespace("handles")
         .with_language(cbindgen::Language::Cxx)
         .with_namespace(&source_name)
