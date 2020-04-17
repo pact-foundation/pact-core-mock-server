@@ -1,7 +1,5 @@
 //! Utility functions for working with raw pointers.
 
-#![allow(unused)]
-
 use std::mem;
 use std::ptr;
 
@@ -24,6 +22,7 @@ pub(crate) fn drop_raw<T>(raw: *mut T) {
 
 /// Get a constant null pointer to the given type.
 #[inline]
+#[allow(dead_code)]
 pub(crate) fn null_to<T>() -> *const T {
     ptr::null() as *const T
 }

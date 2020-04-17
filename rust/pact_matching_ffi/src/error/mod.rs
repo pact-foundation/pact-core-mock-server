@@ -31,8 +31,6 @@
 //!
 //! [book]: https://michael-f-bryan.github.io/rust-ffi-guide/errors/index.html "Better Error Handling chapter of the Unofficial Rust FFI book"
 
-#![allow(unused)]
-
 mod any_error;
 mod error_msg;
 mod ffi;

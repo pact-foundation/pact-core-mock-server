@@ -1,7 +1,5 @@
 //! Sets up a log sink to view logs from the FFI.
 
-#![allow(unused)]
-
 mod ffi;
 mod level_filter;
 mod logger;

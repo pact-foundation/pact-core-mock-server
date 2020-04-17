@@ -1,7 +1,5 @@
 //! The internal API for setting and getting the last error message.
 
-#![allow(dead_code)]
-
 use std::cell::RefCell;
 
 thread_local! {
