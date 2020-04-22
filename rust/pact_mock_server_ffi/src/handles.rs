@@ -13,6 +13,7 @@ lazy_static! {
 #[derive(Debug, Clone)]
 /// Wraps a Pact model struct
 pub struct PactHandle {
+  /// Pact reference
   pub pact: usize
 }
 
@@ -20,7 +21,9 @@ pub struct PactHandle {
 #[derive(Debug, Clone)]
 /// Wraps a Pact model struct
 pub struct InteractionHandle {
+  /// Pact reference
   pub pact: usize,
+  /// Interaction reference
   pub interaction: usize
 }
 
@@ -32,6 +35,16 @@ pub enum PactResult {
   Ok(PactHandle),
   /// Error result containing an error code
   Err(usize)
+}
+
+#[repr(C)]
+#[derive(Debug, Clone)]
+/// Request or Response enum
+pub enum InteractionPart {
+  /// Request part
+  Request,
+  /// Response part
+  Response
 }
 
 impl PactHandle {

@@ -44,7 +44,7 @@
 #![warn(missing_docs)]
 
 use std::panic::catch_unwind;
-use libc::c_char;
+use libc::{c_char, size_t, c_ushort};
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::str;
@@ -53,9 +53,10 @@ use pact_mock_server::{MockServerError, WritePactFileErr, MANAGER};
 use pact_mock_server::server_manager::ServerManager;
 use log::*;
 use std::any::Any;
-use pact_matching::models::Interaction;
+use pact_matching::models::{Interaction, OptionalBody, HttpPart};
 use pact_matching::models::provider_states::ProviderState;
-use std::borrow::BorrowMut;
+use maplit::*;
+use crate::handles::InteractionPart;
 
 pub mod handles;
 
@@ -291,7 +292,6 @@ pub extern fn upon_receiving(interaction: handles::InteractionHandle, descriptio
   let description = convert_cstr(description, "ERROR");
   interaction.with_interaction(&|_, inner| {
     inner.description = description.to_string();
-    dbg!(inner);
   });
 }
 
@@ -301,6 +301,153 @@ pub extern fn given(interaction: handles::InteractionHandle, description: *const
   let description = convert_cstr(description, "ERROR");
   interaction.with_interaction(&|_, inner| {
     inner.provider_states.push(ProviderState::default(&description.to_string()));
+  });
+}
+
+/// Configures the request for the Interaction
+#[no_mangle]
+pub extern fn with_request(interaction: handles::InteractionHandle, method: *const c_char, path: *const c_char) {
+  let method = convert_cstr(method, "GET");
+  let path = convert_cstr(path, "/");
+  interaction.with_interaction(&|_, inner| {
+    inner.request.method = method.to_string();
+    inner.request.path = path.to_string();
+  });
+}
+
+/// Configures a query parameter for the Interaction
+#[no_mangle]
+pub extern fn with_query_parameter(interaction: handles::InteractionHandle,
+                                   name: *const c_char, index: size_t, value: *const c_char) {
+  let name = convert_cstr(name, "");
+  let value = convert_cstr(value, "");
+  if name.len() > 0 {
+    interaction.with_interaction(&|_, inner| {
+      inner.request.query = inner.request.query.clone().map(|mut q| {
+        if q.contains_key(name) {
+          let values = q.get_mut(name).unwrap();
+          if index > values.len() {
+            values.resize_with(index + 1, Default::default);
+          }
+          values[index] = value.to_string();
+        } else {
+          let mut values: Vec<String> = Vec::new();
+          if index > 0 {
+            values.resize_with(index + 1, Default::default);
+          }
+          values[index] = value.to_string();
+          q.insert(name.to_string(), values);
+        };
+        q
+      }).or_else(|| {
+        let mut values: Vec<String> = Vec::new();
+        if index > 0 {
+          values.resize_with(index + 1, Default::default);
+          values[index] = value.to_string();
+        } else {
+          values.push(value.to_string());
+        }
+        Some(hashmap!{ name.to_string() => values })
+      });
+    });
+  } else {
+    warn!("Ignoring query parameter with empty or null name");
+  }
+}
+
+/// Configures a header for the Interaction
+#[no_mangle]
+pub extern fn with_header(interaction: handles::InteractionHandle, part: InteractionPart,
+                          name: *const c_char, index: size_t, value: *const c_char) {
+  let name = convert_cstr(name, "");
+  let value = convert_cstr(value, "");
+  if name.len() > 0 {
+    interaction.with_interaction(&|_, inner| {
+      let headers = match part {
+        InteractionPart::Request => inner.request.headers.clone(),
+        InteractionPart::Response => inner.response.headers.clone()
+      };
+      let updated_headers = headers.clone().map(|mut h| {
+        if h.contains_key(name) {
+          let values = h.get_mut(name).unwrap();
+          if index > values.len() {
+            values.resize_with(index + 1, Default::default);
+          }
+          values[index] = value.to_string();
+        } else {
+          let mut values: Vec<String> = Vec::new();
+          if index > 0 {
+            values.resize_with(index + 1, Default::default);
+          }
+          values[index] = value.to_string();
+          h.insert(name.to_string(), values);
+        };
+        h
+      }).or_else(|| {
+        let mut values: Vec<String> = Vec::new();
+        if index > 0 {
+          values.resize_with(index + 1, Default::default);
+          values[index] = value.to_string();
+        } else {
+          values.push(value.to_string());
+        }
+        Some(hashmap!{ name.to_string() => values })
+      });
+      match part {
+        InteractionPart::Request => inner.request.headers = updated_headers,
+        InteractionPart::Response => inner.response.headers = updated_headers
+      };
+    });
+  } else {
+    warn!("Ignoring header with empty or null name");
+  }
+}
+
+/// Configures the response for the Interaction
+#[no_mangle]
+pub extern fn response_status(interaction: handles::InteractionHandle, status: c_ushort) {
+  interaction.with_interaction(&|_, inner| {
+    inner.response.status = status;
+  });
+}
+
+/// Adds the body for the interaction
+#[no_mangle]
+pub extern fn with_body(interaction: handles::InteractionHandle, part: InteractionPart,
+                        content_type: *const c_char, body: *const c_char) {
+  let content_type = convert_cstr(content_type, "text/plain");
+  let body = convert_cstr(body, "");
+  let content_type_header = "Content-Type".to_string();
+  interaction.with_interaction(&|_, inner| {
+    let body = OptionalBody::from(dbg!(body));
+    match part {
+      InteractionPart::Request => {
+        inner.request.body = body;
+        if !inner.request.has_header(&content_type_header) {
+          match inner.request.headers {
+            Some(ref mut headers) => {
+              headers.insert(content_type_header.clone(), vec![ content_type.to_string() ]);
+            },
+            None => {
+              inner.request.headers = Some(hashmap! { content_type_header.clone() => vec![ content_type.to_string() ]});
+            }
+          }
+        }
+      },
+      InteractionPart::Response => {
+        inner.response.body = body;
+        if !inner.response.has_header(&content_type_header) {
+          match inner.response.headers {
+            Some(ref mut headers) => {
+              headers.insert(content_type_header.clone(), vec![ content_type.to_string() ]);
+            },
+            None => {
+              inner.response.headers = Some(hashmap! { content_type_header.clone() => vec![ content_type.to_string() ]});
+            }
+          }
+        }
+      }
+    };
   });
 }
 
