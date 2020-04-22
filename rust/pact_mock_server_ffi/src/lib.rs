@@ -57,13 +57,33 @@ use pact_matching::models::{Interaction, OptionalBody, HttpPart};
 use pact_matching::models::provider_states::ProviderState;
 use maplit::*;
 use crate::handles::InteractionPart;
+use uuid::Uuid;
+use env_logger::Builder;
 
 pub mod handles;
 
-/// Initialise the mock server library
+/// Initialise the mock server library, can provide an environment variable name to use to
+/// set the log levels.
 #[no_mangle]
-pub extern fn init() {
-  env_logger::try_init().unwrap_or(());
+pub extern fn init(log_env_var: *const c_char) {
+  let log_env_var = unsafe {
+    if !log_env_var.is_null() {
+      let c_str = CStr::from_ptr(log_env_var);
+      match c_str.to_str() {
+        Ok(str) => str,
+        Err(err) => {
+          warn!("Failed to parse the environment variable name as a UTF-8 string: {}", err);
+          "LOG_LEVEL"
+        }
+      }
+    } else {
+      "LOG_LEVEL"
+    }
+  };
+
+  let env = env_logger::Env::new().filter(log_env_var);
+  let mut builder = Builder::from_env(env);
+  builder.try_init().unwrap_or(());
 }
 
 /// External interface to create a mock server. A pointer to the pact JSON as a C string is passed in,
@@ -84,8 +104,6 @@ pub extern fn init() {
 ///
 #[no_mangle]
 pub extern fn create_mock_server(pact_str: *const c_char, addr_str: *const c_char) -> i32 {
-    env_logger::try_init().unwrap_or(());
-
     let result = catch_unwind(|| {
         let c_str = unsafe {
             if pact_str.is_null() {
@@ -124,6 +142,57 @@ pub extern fn create_mock_server(pact_str: *const c_char, addr_str: *const c_cha
             -4
         }
     }
+}
+
+/// External interface to create a mock server. A Pact handle is passed in,
+/// as well as the port for the mock server to run on. A value of 0 for the port will result in a
+/// port being allocated by the operating system. The port of the mock server is returned.
+///
+/// # Errors
+///
+/// Errors are returned as negative values.
+///
+/// | Error | Description |
+/// |-------|-------------|
+/// | -1 | An invalid handle was received |
+/// | -3 | The mock server could not be started |
+/// | -4 | The method panicked |
+/// | -5 | The address is not valid |
+///
+#[no_mangle]
+pub extern fn create_mock_server_for_pact(pact: handles::PactHandle, addr_str: *const c_char) -> i32 {
+  let result = catch_unwind(|| {
+    let addr_c_str = unsafe {
+      if addr_str.is_null() {
+        log::error!("Got a null pointer instead of listener address");
+        return -1;
+      }
+      CStr::from_ptr(addr_str)
+    };
+
+    if let Ok(Ok(addr)) = str::from_utf8(addr_c_str.to_bytes()).map(|s| s.parse::<std::net::SocketAddr>()) {
+      pact.with_pact(&|_, inner| {
+        match pact_mock_server::start_mock_server(Uuid::new_v4().to_string(), inner.clone(), addr) {
+          Ok(ms_port) => ms_port,
+          Err(err) => {
+            error!("Failed to start mock server - {}", err);
+            -3
+          }
+        }
+      }).unwrap_or(-1)
+    }
+    else {
+      -5
+    }
+  });
+
+  match result {
+    Ok(val) => val,
+    Err(cause) => {
+      log::error!("Caught a general panic: {:?}", cause);
+      -4
+    }
+  }
 }
 
 /// External interface to check if a mock server has matched all its requests. The port number is

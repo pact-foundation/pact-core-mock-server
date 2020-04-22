@@ -1244,8 +1244,8 @@ dependencies = [
  "libc",
  "log 0.4.8",
  "maplit 0.1.6",
- "pact_matching 0.5.11",
- "pact_mock_server 0.7.1",
+ "pact_matching",
+ "pact_mock_server",
  "quickcheck 0.2.27",
  "regex 0.1.80",
  "reqwest",
@@ -1254,36 +1254,6 @@ dependencies = [
  "tokio",
  "url 2.1.1",
  "uuid 0.6.5",
-]
-
-[[package]]
-name = "pact_matching"
-version = "0.5.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "01da47ba3a857164ed622a5ba696fe51e977abd4ce180b6b2c4857192d38798e"
-dependencies = [
- "ansi_term 0.9.0",
- "base64 0.7.0",
- "chrono 0.4.11",
- "chrono-tz",
- "difference 1.0.0",
- "hex",
- "indextree",
- "itertools 0.8.2",
- "lazy_static 1.4.0",
- "log 0.4.8",
- "maplit 0.1.6",
- "nom",
- "onig",
- "rand 0.6.5",
- "rand_regex",
- "regex-syntax 0.6.17",
- "reqwest",
- "semver",
- "serde",
- "serde_json",
- "sxd-document",
- "uuid 0.5.1",
 ]
 
 [[package]]
@@ -1322,25 +1292,6 @@ dependencies = [
 
 [[package]]
 name = "pact_mock_server"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b2d7df78cd2ab228cf78d5c8f9ffff446556f6288da29e05bacd93aeb6190a4"
-dependencies = [
- "bytes",
- "futures",
- "hyper 0.13.4",
- "itertools 0.6.5",
- "lazy_static 1.4.0",
- "log 0.4.8",
- "maplit 0.1.6",
- "pact_matching 0.5.10",
- "serde_json",
- "tokio",
- "uuid 0.6.5",
-]
-
-[[package]]
-name = "pact_mock_server"
 version = "0.7.1"
 dependencies = [
  "bytes",
@@ -1351,11 +1302,11 @@ dependencies = [
  "lazy_static 1.4.0",
  "log 0.4.8",
  "maplit 0.1.6",
- "pact_matching 0.5.11",
+ "pact_matching",
  "quickcheck 0.4.1",
  "serde_json",
  "tokio",
- "uuid 0.6.5",
+ "uuid 0.8.1",
 ]
 
 [[package]]
@@ -1369,8 +1320,8 @@ dependencies = [
  "libc",
  "log 0.4.8",
  "maplit 0.1.6",
- "pact_matching 0.5.11",
- "pact_mock_server 0.7.1",
+ "pact_matching",
+ "pact_mock_server",
  "quickcheck 0.2.27",
  "rand 0.4.6",
  "regex 0.1.80",
@@ -1391,9 +1342,10 @@ dependencies = [
  "libc",
  "log 0.4.8",
  "maplit 1.0.2",
- "pact_matching 0.5.10",
- "pact_mock_server 0.7.0",
+ "pact_matching",
+ "pact_mock_server",
  "serde_json",
+ "uuid 0.8.1",
 ]
 
 [[package]]
@@ -1415,7 +1367,7 @@ dependencies = [
  "maplit 0.1.6",
  "mime 0.3.16",
  "pact_consumer",
- "pact_matching 0.5.11",
+ "pact_matching",
  "quickcheck 0.2.27",
  "regex 1.3.6",
  "reqwest",
@@ -1433,7 +1385,7 @@ dependencies = [
  "libc",
  "log 0.4.8",
  "maplit 0.1.6",
- "pact_matching 0.5.11",
+ "pact_matching",
  "pact_verifier",
  "quickcheck 0.2.27",
  "rand 0.3.23",
@@ -2467,6 +2419,15 @@ checksum = "e1436e58182935dcd9ce0add9ea0b558e8a87befe01c1a301e6020aeb0876363"
 dependencies = [
  "cfg-if",
  "rand 0.4.6",
+]
+
+[[package]]
+name = "uuid"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9fde2f6a4bea1d6e007c4ad38c6839fa71cbb63b6dbf5b595aa38dc9b1093c11"
+dependencies = [
+ "rand 0.7.3",
 ]
 
 [[package]]
