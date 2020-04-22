@@ -931,6 +931,13 @@ impl Default for Interaction {
   }
 }
 
+impl Display for Interaction {
+  fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    write!(f, "Interaction ( id: {:?}, description: \"{}\", provider_states: {:?}, request: {}, response: {} )",
+           self.id, self.description, self.provider_states, self.request, self.response)
+  }
+}
+
 pub mod message;
 
 /// Struct that represents a pact between the consumer and provider of a service.
