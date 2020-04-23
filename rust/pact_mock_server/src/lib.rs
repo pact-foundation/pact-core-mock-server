@@ -60,7 +60,7 @@ pub extern fn create_mock_server(pact_json: &str, addr: std::net::SocketAddr) ->
   match serde_json::from_str(pact_json) {
     Ok(pact_json) => {
       let pact = Pact::from_json(&s!("<create_mock_server>"), &pact_json);
-      start_mock_server(Uuid::new_v4().simple().to_string(), pact, addr)
+      start_mock_server(Uuid::new_v4().to_string(), pact, addr)
         .map_err(|err| {
           log::error!("Could not start mock server: {}", err);
           MockServerError::MockServerFailedToStart

@@ -133,7 +133,7 @@ fn match_result_to_hyper_response(request: &Request, match_result: MatchResult) 
         MatchResult::RequestMatch(ref interaction) => {
             let response = pact_matching::generate_response(&interaction.response, &hashmap!{});
             info!("Request matched, sending response {}", response);
-            info!("     body: '{}'", interaction.response.body.str_value());
+            debug!("     body: '{}'", interaction.response.body.str_value());
 
             let mut builder = Response::builder()
                 .status(response.status)

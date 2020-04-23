@@ -1336,12 +1336,15 @@ name = "pact_mock_server_ffi"
 version = "0.0.1"
 dependencies = [
  "cbindgen",
+ "chrono 0.4.11",
+ "chrono-tz",
  "env_logger 0.7.1",
  "expectest 0.12.0",
  "lazy_static 1.4.0",
  "libc",
  "log 0.4.8",
  "maplit 1.0.2",
+ "nom",
  "pact_matching",
  "pact_mock_server",
  "serde_json",

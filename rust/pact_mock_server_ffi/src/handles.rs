@@ -29,16 +29,6 @@ pub struct InteractionHandle {
 
 #[repr(C)]
 #[derive(Debug, Clone)]
-/// Result enum for returning the Pact model
-pub enum PactResult {
-  /// OK result containing the handle
-  Ok(PactHandle),
-  /// Error result containing an error code
-  Err(usize)
-}
-
-#[repr(C)]
-#[derive(Debug, Clone)]
 /// Request or Response enum
 pub enum InteractionPart {
   /// Request part

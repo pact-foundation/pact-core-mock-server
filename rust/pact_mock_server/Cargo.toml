@@ -20,7 +20,7 @@ pact_matching = { version =  "0.5.10", path = "../pact_matching" }
 log = "0.4.8"
 maplit = "0.1.4"
 lazy_static = "1.4.0"
-uuid = { version = "0.6", features = ["v4"] }
+uuid = { version = "0.8", features = ["v4"] }
 itertools = "0.6.1"
 tokio = { version = "0.2.9", features = ["rt-threaded", "macros"] }
 futures = "0.3"

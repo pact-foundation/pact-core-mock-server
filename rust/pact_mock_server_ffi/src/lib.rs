@@ -53,14 +53,19 @@ use pact_mock_server::{MockServerError, WritePactFileErr, MANAGER};
 use pact_mock_server::server_manager::ServerManager;
 use log::*;
 use std::any::Any;
-use pact_matching::models::{Interaction, OptionalBody, HttpPart};
+use pact_matching::models::{Interaction, OptionalBody, HttpPart, DetectedContentType};
 use pact_matching::models::provider_states::ProviderState;
 use maplit::*;
 use crate::handles::InteractionPart;
 use uuid::Uuid;
 use env_logger::Builder;
+use crate::bodies::process_json;
+use pact_matching::time_utils::{parse_pattern, to_chrono_pattern};
+use nom::types::CompleteStr;
+use chrono::Local;
 
 pub mod handles;
+pub mod bodies;
 
 /// Initialise the mock server library, can provide an environment variable name to use to
 /// set the log levels.
@@ -488,9 +493,15 @@ pub extern fn with_body(interaction: handles::InteractionHandle, part: Interacti
   let body = convert_cstr(body, "");
   let content_type_header = "Content-Type".to_string();
   interaction.with_interaction(&|_, inner| {
-    let body = OptionalBody::from(dbg!(body));
     match part {
       InteractionPart::Request => {
+        let body = match inner.request.content_type_enum() {
+          DetectedContentType::Json => {
+            let category = inner.request.matching_rules.add_category("body");
+            OptionalBody::from(process_json(body.to_string(), category, &mut inner.request.generators))
+          },
+          _ => OptionalBody::from(body)
+        };
         inner.request.body = body;
         if !inner.request.has_header(&content_type_header) {
           match inner.request.headers {
@@ -504,6 +515,13 @@ pub extern fn with_body(interaction: handles::InteractionHandle, part: Interacti
         }
       },
       InteractionPart::Response => {
+        let body = match inner.response.content_type_enum() {
+          DetectedContentType::Json => {
+            let category = inner.response.matching_rules.add_category("body");
+            OptionalBody::from(process_json(body.to_string(), category, &mut inner.response.generators))
+          },
+          _ => OptionalBody::from(body)
+        };
         inner.response.body = body;
         if !inner.response.has_header(&content_type_header) {
           match inner.response.headers {
@@ -546,4 +564,58 @@ fn convert_cstr(name: *const c_char, default: &str) -> &str {
       }
     }
   }
+}
+
+#[repr(C)]
+#[derive(Debug, Clone)]
+/// Result of generating a datetime value from a format string
+pub enum DateTimeResult {
+  /// Was generated OK
+  Ok(*mut c_char),
+  /// There was an error generating the string
+  Failed(*mut c_char)
+}
+
+/// Generates a datetime value from the provided format string, using the current system date and time
+/// NOTE: The memory for the returned string needs to be freed with the free_string function
+#[no_mangle]
+pub extern fn generate_datetime_string(format: *const c_char) -> DateTimeResult {
+  unsafe {
+    if format.is_null() {
+      let error = CString::new("generate_datetime_string: format is NULL").unwrap();
+      DateTimeResult::Failed(error.into_raw())
+    } else {
+      let c_str = CStr::from_ptr(format);
+      match c_str.to_str() {
+        Ok(s) => match parse_pattern(CompleteStr(s)) {
+          Ok(pattern_tokens) => {
+            let result = Local::now().format(to_chrono_pattern(&pattern_tokens.1).as_str()).to_string();
+            let result_str = CString::new(result.as_str()).unwrap();
+            DateTimeResult::Ok(result_str.into_raw())
+          },
+          Err(err) => {
+            let error = format!("Error parsing '{}': {:?}", s, err);
+            let error_str = CString::new(error.as_str()).unwrap();
+            DateTimeResult::Failed(error_str.into_raw())
+          }
+        },
+        Err(err) => {
+          let error = format!("generate_datetime_string: format is not a valid UTF-8 string: {:?}", err);
+          let error_str = CString::new(error.as_str()).unwrap();
+          DateTimeResult::Failed(error_str.into_raw())
+        }
+      }
+    }
+  }
+}
+
+/// Frees the memory allocated to a string by another function
+#[no_mangle]
+pub extern fn free_string(s: *mut c_char) {
+  unsafe {
+    if s.is_null() {
+      return;
+    }
+    CString::from_raw(s)
+  };
 }
