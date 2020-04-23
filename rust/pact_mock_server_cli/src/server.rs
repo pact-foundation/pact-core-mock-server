@@ -56,7 +56,7 @@ fn start_provider(
             match serde_json::from_str(body) {
                 Ok(ref json) => {
                     let pact = Pact::from_json(&context.request.request_path, json);
-                    let mock_server_id = Uuid::new_v4().simple().to_string();
+                    let mock_server_id = Uuid::new_v4().to_string();
 
                     let mut lock = server_manager.lock().unwrap();
                     match lock.start_mock_server(mock_server_id.clone(), pact, get_next_port(base_port)) {
