@@ -1,5 +1,15 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.7.1 - Changes to support C++ DSL
+
+* 43de9c3 - chore: update matching library to latest (Ronald Holshausen, Fri Apr 24 10:20:55 2020 +1000)
+* 5f8d0a0 - feat: handle bodies with embedded matchers and generators (Ronald Holshausen, Thu Apr 23 12:25:05 2020 +1000)
+* 734723d - chore: increase timeout for test on Appveyor (Ronald Holshausen, Fri Apr 17 09:06:55 2020 +1000)
+* a0b2c7b - chore: add a wait for test on Appveyor (Ronald Holshausen, Thu Apr 16 14:42:46 2020 +1000)
+* 7e89ca9 - chore: update matching crate to latest (Ronald Holshausen, Thu Apr 16 14:06:02 2020 +1000)
+* 9ff6f20 - chore: cleaned up some debug logging (Ronald Holshausen, Tue Apr 7 12:10:12 2020 +1000)
+* f9b690e - bump version to 0.7.1 (Ronald Holshausen, Sun Jan 19 11:30:42 2020 +1100)
+
 # 0.7.0 - Convert to async/await
 
 * cf452f5 - chore: bump minor version (Ronald Holshausen, Sun Jan 19 11:18:03 2020 +1100)
