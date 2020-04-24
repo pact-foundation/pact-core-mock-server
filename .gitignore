@@ -40,5 +40,4 @@ ruby/*/tmp/
 # rspec failure tracking
 ruby/*/.rspec_status
 
-pact_mock_server_ffi.h
 build/
