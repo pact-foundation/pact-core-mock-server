@@ -101,8 +101,8 @@ ask('Publish library to crates.io?: [Y]') {
 }
 
 executeOnShell "cargo build --release"
-executeOnShell "gzip -c ../target/release/libpact_mock_server_ffi.so > ../target/release/libpact_mock_server_ffi-linux-x86_64-${releaseVer}.so.gz"
-executeOnShell "gzip -c ../target/release/libpact_mock_server_ffi.a > ../target/release/libpact_mock_server_ffi-linux-x86_64-${releaseVer}.a.gz"
+executeOnShell "gzip -c ../target/release/libpact_mock_server_ffi.so > ../target/release/libpact_mock_server_ffi-linux-x86_64.so.gz"
+executeOnShell "gzip -c ../target/release/libpact_mock_server_ffi.a > ../target/release/libpact_mock_server_ffi-linux-x86_64.a.gz"
 
 def nextVer = Version.valueOf(releaseVer).incrementPatchVersion()
 ask("Bump version to $nextVer?: [Y]") {
