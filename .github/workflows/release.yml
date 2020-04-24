@@ -22,9 +22,8 @@ jobs:
         run: choco install -y llvm
         if: runner.os == 'Windows'
       - run: echo github.ref=${{github.ref}}
-      - if: startsWith(github.ref, 'libpact_mock_server_ffi')
-        run: cargo build --release
-        working-directory: rust/pact_mock_server_ffi
+      - run: cargo build --release
+        working-directory: rust
       - if: startsWith(github.ref, 'libpact_mock_server_ffi') && runner.os == 'Linux'
         run: ./release-linux.sh
         working-directory: rust/pact_mock_server_ffi
