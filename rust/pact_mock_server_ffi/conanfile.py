@@ -22,7 +22,7 @@ class CbindgenTestConan(ConanFile):
                 % (str(self.version)))
             tools.download(url, "libpact_mock_server_ffi.a.gz")
             tools.unzip("libpact_mock_server_ffi.a.gz")
-        elif self.settings.os == "macOS":
+        elif self.settings.os == "Macos":
             url = ("https://github.com/pact-foundation/pact-reference/releases/download/libpact_mock_server_ffi-v%s/libpact_mock_server_ffi-osx-x86_64.a.gz"
                    % (str(self.version)))
             tools.download(url, "libpact_mock_server_ffi.a.gz")
