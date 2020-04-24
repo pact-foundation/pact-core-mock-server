@@ -5,4 +5,5 @@
 
 cargo clean
 cargo lipo --release
-gzip -c ../target/universal/release/libpact_mock_server_ffi.a > ../target/universal/release/libpact_mock_server_ffi-ios-universal.a.gz
+mkdir -p target/artifacts
+gzip -c ../target/universal/release/libpact_mock_server_ffi.a > ../target/artifacts/libpact_mock_server_ffi-ios-universal.a.gz

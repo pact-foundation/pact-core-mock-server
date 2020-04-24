@@ -32,9 +32,10 @@ jobs:
         run: ./release-osx.sh
         shell: bash
         working-directory: rust/pact_mock_server_ffi
+      - run: ls -l rust/target/artifacts
+        shell: bash
       - name: Upload the artifacts
-        uses: skx/github-action-publish-binaries@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: actions/upload-artifact@v1
         with:
-          args: 'rust/target/release/libpact_mock_server_ffi-*'
+          name: pact_mock_server_ffi
+          path: rust/target/artifacts
