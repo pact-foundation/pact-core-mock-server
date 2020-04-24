@@ -2,7 +2,7 @@ name: Release workflow
 
 on:
   release:
-    types: [created]
+    types: [created, published]
 
 jobs:
   build-release:
@@ -21,6 +21,7 @@ jobs:
       - name: Install LLVM
         run: choco install -y llvm
         if: runner.os == 'Windows'
+      - run: echo github.ref=${{github.ref}}
       - if: startsWith(github.ref, 'libpact_mock_server_ffi')
         run: cargo build --release
         working-directory: rust/pact_mock_server_ffi
