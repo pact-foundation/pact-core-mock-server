@@ -13,7 +13,7 @@ class CbindgenTestConan(ConanFile):
 
     def build(self):
         if self.settings.os == "Windows":
-            url = ("https://github.com/pact-foundation/pact-reference/releases/download/libpact_mock_server_ffi-v%s/libpact_mock_server_ffi-linux-x86_64.lib.gz"
+            url = ("https://github.com/pact-foundation/pact-reference/releases/download/libpact_mock_server_ffi-v%s/libpact_mock_server_ffi-windows-x86_64.lib.gz"
                    % (str(self.version)))
             tools.download(url, "libpact_mock_server_ffi.lib.gz")
             tools.unzip("libpact_mock_server_ffi.lib.gz")
