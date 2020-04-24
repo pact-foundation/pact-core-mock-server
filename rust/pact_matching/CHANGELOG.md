@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.5.11 - Cleaned up logging and warnings
+
+* 3d490ef - chore: implemented Display for Interaction (Ronald Holshausen, Wed Apr 22 13:01:45 2020 +1000)
+* af8d19a - chore: cleanup warning (Ronald Holshausen, Thu Apr 16 14:37:55 2020 +1000)
+* 9ff6f20 - chore: cleaned up some debug logging (Ronald Holshausen, Tue Apr 7 12:10:12 2020 +1000)
+* 1ad8edd - bump version to 0.5.11 (Ronald Holshausen, Tue Apr 7 11:42:14 2020 +1000)
+
 # 0.5.10 - Bugfix Release
 
 * b52f095 - fix: V3 path matcher JSON format was incorrect (Ronald Holshausen, Tue Apr 7 11:14:25 2020 +1000)
