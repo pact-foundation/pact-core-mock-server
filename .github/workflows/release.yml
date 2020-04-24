@@ -1,0 +1,37 @@
+name: Release workflow
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build-release:
+    runs-on: ${{ matrix.operating-system }}
+    strategy:
+      matrix:
+        operating-system: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install stable Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Install LLVM
+        run: choco install -y llvm
+        if: runner.os == 'Windows'
+      - if: startsWith(github.ref, 'libpact_mock_server_ffi')
+        run: cargo build --release
+        working-directory: rust/pact_mock_server_ffi
+      - if: startsWith(github.ref, 'libpact_mock_server_ffi') && runner.os == 'Linux'
+        run: ./release-linux.sh
+        working-directory: rust/pact_mock_server_ffi
+      - if: startsWith(github.ref, 'libpact_mock_server_ffi') && runner.os == 'Windows'
+        run: ./release-win.sh
+        shell: bash
+        working-directory: rust/pact_mock_server_ffi
+      - if: startsWith(github.ref, 'libpact_mock_server_ffi') && runner.os == 'macOS'
+        run: ./release-osx.sh
+        shell: bash
+        working-directory: rust/pact_mock_server_ffi
