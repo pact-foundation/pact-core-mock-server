@@ -34,7 +34,7 @@ class CbindgenTestConan(ConanFile):
 
     def package(self):
         self.copy("libpact_mock_server_ffi*.a", "lib", "")
-        self.copy("libpact_mock_server_ffi*.lib", "lib", "")
+        self.copy("pact_mock_server_ffi*.lib", "lib", "")
         self.copy("*.h", "", "")
 
     def package_info(self):  # still very useful for package consumers
