@@ -26,6 +26,10 @@ uuid = { version = "0.8", features = ["v4"] }
 nom = "^4.0"
 chrono = "0.4"
 chrono-tz = "0.4"
+rand_regex = "0.12.0"
+regex-syntax = "0.6.4"
+onig = "5.0.0"
+rand = "0.6"
 
 [dev-dependencies]
 expectest = "0.12.0"
