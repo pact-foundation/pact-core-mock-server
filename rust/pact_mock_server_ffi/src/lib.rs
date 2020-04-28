@@ -338,7 +338,12 @@ pub extern fn write_pact_file(mock_server_port: i32, directory: *const c_char) -
   }
 }
 
-/// Creates a new Pact model and returns a handle to it
+/// Creates a new Pact model and returns a handle to it.
+///
+/// * `consumer_name` - The name of the consumer for the pact.
+/// * `provider_name` - The name of the provider for the pact.
+///
+/// Returns a new `PactHandle`.
 #[no_mangle]
 pub extern fn new_pact(consumer_name: *const c_char, provider_name: *const c_char) -> handles::PactHandle {
   let consumer = convert_cstr(consumer_name, "Consumer");
@@ -346,7 +351,11 @@ pub extern fn new_pact(consumer_name: *const c_char, provider_name: *const c_cha
   handles::PactHandle::new(consumer, provider)
 }
 
-/// Creates a new Interaction and returns a handle to it
+/// Creates a new Interaction and returns a handle to it.
+///
+/// * `description` - The interaction description. It needs to be unique for each interaction.
+///
+/// Returns a new `InteractionHandle`.
 #[no_mangle]
 pub extern fn new_interaction(pact: handles::PactHandle, description: *const c_char) -> handles::InteractionHandle {
   let description = convert_cstr(description, "ERROR");
@@ -360,7 +369,9 @@ pub extern fn new_interaction(pact: handles::PactHandle, description: *const c_c
   }).unwrap_or(handles::InteractionHandle::new(pact.clone(), 0))
 }
 
-/// Sets the description for the Interaction
+/// Sets the description for the Interaction.
+///
+/// * `description` - The interaction description. It needs to be unique for each interaction.
 #[no_mangle]
 pub extern fn upon_receiving(interaction: handles::InteractionHandle, description: *const c_char) {
   let description = convert_cstr(description, "ERROR");
@@ -369,7 +380,9 @@ pub extern fn upon_receiving(interaction: handles::InteractionHandle, descriptio
   });
 }
 
-/// Adds a provider state to the Interaction
+/// Adds a provider state to the Interaction.
+///
+/// * `description` - The provider state description. It needs to be unique.
 #[no_mangle]
 pub extern fn given(interaction: handles::InteractionHandle, description: *const c_char) {
   let description = convert_cstr(description, "ERROR");
@@ -378,7 +391,10 @@ pub extern fn given(interaction: handles::InteractionHandle, description: *const
   });
 }
 
-/// Configures the request for the Interaction
+/// Configures the request for the Interaction.
+///
+/// * `method` - The request method. Defaults to GET.
+/// * `path` - The request path. Defaults to `/`.
 #[no_mangle]
 pub extern fn with_request(interaction: handles::InteractionHandle, method: *const c_char, path: *const c_char) {
   let method = convert_cstr(method, "GET");
@@ -389,7 +405,11 @@ pub extern fn with_request(interaction: handles::InteractionHandle, method: *con
   });
 }
 
-/// Configures a query parameter for the Interaction
+/// Configures a query parameter for the Interaction.
+///
+/// * `name` - the query parameter name.
+/// * `value` - the query parameter value.
+/// * `index` - the index of the value (starts at 0). You can use this to create a query parameter with multiple values
 #[no_mangle]
 pub extern fn with_query_parameter(interaction: handles::InteractionHandle,
                                    name: *const c_char, index: size_t, value: *const c_char) {
@@ -429,7 +449,12 @@ pub extern fn with_query_parameter(interaction: handles::InteractionHandle,
   }
 }
 
-/// Configures a header for the Interaction
+/// Configures a header for the Interaction.
+///
+/// * `part` - The part of the interaction to add the header to (Request or Response).
+/// * `name` - the header name.
+/// * `value` - the header value.
+/// * `index` - the index of the value (starts at 0). You can use this to create a header with multiple values
 #[no_mangle]
 pub extern fn with_header(interaction: handles::InteractionHandle, part: InteractionPart,
                           name: *const c_char, index: size_t, value: *const c_char) {
@@ -477,7 +502,9 @@ pub extern fn with_header(interaction: handles::InteractionHandle, part: Interac
   }
 }
 
-/// Configures the response for the Interaction
+/// Configures the response for the Interaction.
+///
+/// * `status` - the response status. Defaults to 200.
 #[no_mangle]
 pub extern fn response_status(interaction: handles::InteractionHandle, status: c_ushort) {
   interaction.with_interaction(&|_, inner| {
@@ -485,7 +512,11 @@ pub extern fn response_status(interaction: handles::InteractionHandle, status: c
   });
 }
 
-/// Adds the body for the interaction
+/// Adds the body for the interaction.
+///
+/// * `part` - The part of the interaction to add the body to (Request or Response).
+/// * `content_type` - The content type of the body. Defaults to `text/plain`.
+/// * `body` - The body contents. For JSON payloads, matching rules can be embedded in the body.
 #[no_mangle]
 pub extern fn with_body(interaction: handles::InteractionHandle, part: InteractionPart,
                         content_type: *const c_char, body: *const c_char) {
