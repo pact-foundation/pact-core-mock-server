@@ -314,7 +314,7 @@ impl RuleList {
 }
 
 /// Data structure for representing a category of matching rules
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq)]
 pub struct Category {
     /// Name of the category
     pub name: String,
@@ -415,8 +415,18 @@ impl Hash for Category {
   }
 }
 
+impl PartialEq for Category {
+  fn eq(&self, other: &Self) -> bool {
+    self.name == other.name && self.rules == other.rules
+  }
+
+  fn ne(&self, other: &Self) -> bool {
+    self.name != other.name || self.rules != other.rules
+  }
+}
+
 /// Data structure for representing a collection of matchers
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq)]
 #[serde(transparent)]
 pub struct MatchingRules {
     /// Categories of matching rules
@@ -610,6 +620,16 @@ impl Hash for MatchingRules {
       k.hash(state);
       v.hash(state);
     }
+  }
+}
+
+impl PartialEq for MatchingRules {
+  fn eq(&self, other: &Self) -> bool {
+    self.rules == other.rules
+  }
+
+  fn ne(&self, other: &Self) -> bool {
+    self.rules != other.rules
   }
 }
 

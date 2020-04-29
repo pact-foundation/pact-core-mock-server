@@ -335,7 +335,7 @@ fn is_match(regex: &Regex, string: &str) -> bool {
 }
 
 /// Struct that defines the request.
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq)]
 pub struct Request {
     /// Request method
     pub method: String,
@@ -391,6 +391,20 @@ impl Hash for Request {
         self.matching_rules.hash(state);
         self.generators.hash(state);
     }
+}
+
+impl PartialEq for Request {
+  fn eq(&self, other: &Self) -> bool {
+    self.method == other.method && self.path == other.path && self.query == other.query &&
+      self.headers == other.headers && self.body == other.body &&
+      self.matching_rules == other.matching_rules && self.generators == other.generators
+  }
+
+  fn ne(&self, other: &Self) -> bool {
+    self.method != other.method || self.path != other.path || self.query != other.query ||
+      self.headers != other.headers || self.body != other.body ||
+      self.matching_rules != other.matching_rules || self.generators != other.generators
+  }
 }
 
 impl Display for Request {
@@ -665,7 +679,7 @@ impl Request {
 }
 
 /// Struct that defines the response.
-#[derive(PartialEq, Debug, Clone, Eq)]
+#[derive(Debug, Clone, Eq)]
 pub struct Response {
     /// Response status
     pub status: u16,
@@ -797,6 +811,18 @@ impl Hash for Response {
         self.matching_rules.hash(state);
         self.generators.hash(state);
     }
+}
+
+impl PartialEq for Response {
+  fn eq(&self, other: &Self) -> bool {
+    self.status == other.status && self.headers == other.headers && self.body == other.body &&
+      self.matching_rules == other.matching_rules && self.generators == other.generators
+  }
+
+  fn ne(&self, other: &Self) -> bool {
+    self.status != other.status || self.headers != other.headers || self.body != other.body ||
+      self.matching_rules != other.matching_rules || self.generators != other.generators
+  }
 }
 
 impl Display for Response {

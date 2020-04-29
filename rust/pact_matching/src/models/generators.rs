@@ -484,7 +484,7 @@ impl <'a> ContentTypeHandler<Document<'a>> for XmlHandler<'a> {
 }
 
 /// Data structure for representing a collection of generators
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq)]
 pub struct Generators {
   /// Map of generator categories to maps of generators
   pub categories: HashMap<GeneratorCategory, HashMap<String, Generator>>
@@ -632,6 +632,16 @@ impl Hash for Generators {
         v2.hash(state);
       }
     }
+  }
+}
+
+impl PartialEq for Generators {
+  fn eq(&self, other: &Self) -> bool {
+    self.categories == other.categories
+  }
+
+  fn ne(&self, other: &Self) -> bool {
+    self.categories != other.categories
   }
 }
 

@@ -42,8 +42,8 @@ impl PactHandle {
   pub fn new(consumer: &str, provider: &str) -> Self {
     let mut handles = PACT_HANDLES.lock().unwrap();
     handles.push(RefCell::new(Pact {
-      consumer: Consumer { name: consumer.clone().to_string() },
-      provider: Provider { name: provider.clone().to_string() },
+      consumer: Consumer { name: consumer.to_string() },
+      provider: Provider { name: provider.to_string() },
       .. Pact::default()
     }));
     PactHandle {

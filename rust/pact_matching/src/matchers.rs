@@ -190,6 +190,7 @@ impl Matches<f64> for u64 {
 }
 
 impl Matches<f64> for f64 {
+    #[allow(clippy::float_cmp)]
     fn matches(&self, actual: &f64, matcher: &MatchingRule) -> Result<(), String> {
         log::debug!("f64 -> f64: comparing {} to {} using {:?}", self, actual, matcher);
         match *matcher {

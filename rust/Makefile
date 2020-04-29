@@ -11,6 +11,7 @@ all:
 	# We call `build` and `test` separately, because they compile slightly
 	# different things.
 	cargo build --all
+	cargo clippy --all
 	cargo test --all -- --test-threads 1
 
 clean:

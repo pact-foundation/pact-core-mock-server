@@ -9,7 +9,7 @@ use std::hash::{Hash, Hasher};
 use std::cmp::Eq;
 
 /// Struct that encapsulates all the info about a provider state
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq)]
 pub struct ProviderState {
     /// Description of this provider state
     pub name: String,
@@ -113,8 +113,14 @@ impl Hash for ProviderState {
     }
 }
 
-impl Eq for ProviderState {
+impl PartialEq for ProviderState {
+  fn eq(&self, other: &Self) -> bool {
+    self.name == other.name && self.params == other.params
+  }
 
+  fn ne(&self, other: &Self) -> bool {
+    self.name != other.name || self.params != other.params
+  }
 }
 
 #[cfg(test)]
