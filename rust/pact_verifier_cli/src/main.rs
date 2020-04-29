@@ -242,16 +242,14 @@ fn print_version() {
 
 fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
     let mut sources = vec![];
-    match matches.values_of("file") {
-        Some(values) => sources.extend(values.map(|v| PactSource::File(s!(v))).collect::<Vec<PactSource>>()),
-        None => ()
+    if let Some(values) = matches.values_of("file") {
+      sources.extend(values.map(|v| PactSource::File(s!(v))).collect::<Vec<PactSource>>());
     };
-    match matches.values_of("dir") {
-        Some(values) => sources.extend(values.map(|v| PactSource::Dir(s!(v))).collect::<Vec<PactSource>>()),
-        None => ()
+    if let Some(values) = matches.values_of("dir") {
+      sources.extend(values.map(|v| PactSource::Dir(s!(v))).collect::<Vec<PactSource>>());
     };
-    match matches.values_of("url") {
-      Some(values) => sources.extend(values.map(|v| {
+    if let Some(values) = matches.values_of("url") {
+      sources.extend(values.map(|v| {
         if matches.is_present("user") {
           PactSource::URL(s!(v), matches.value_of("user").map(|user| {
             HttpAuth::User(user.to_string(), matches.value_of("password").map(|p| p.to_string()))
@@ -261,26 +259,24 @@ fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
         } else {
           PactSource::URL(s!(v), None)
         }
-      }).collect::<Vec<PactSource>>()),
-      None => ()
+      }).collect::<Vec<PactSource>>());
     };
-    match matches.values_of("broker-url") {
-        Some(values) => sources.extend(values.map(|v| {
-          if matches.is_present("user") {
-            let name = matches.value_of("provider-name").unwrap().to_string();
-            let auth = matches.value_of("user").map(|user| {
-              HttpAuth::User(user.to_string(), matches.value_of("password").map(|p| p.to_string()))
-            });
-            PactSource::BrokerUrl(name, s!(v), auth, vec![])
-          } else if matches.is_present("token") {
-            PactSource::BrokerUrl(s!(matches.value_of("provider-name").unwrap()), s!(v),
-              matches.value_of("token").map(|token| HttpAuth::Token(token.to_string())),
-              vec![])
-          } else {
-            PactSource::BrokerUrl(s!(matches.value_of("provider-name").unwrap()), s!(v), None, vec![])
-          }
-        }).collect::<Vec<PactSource>>()),
-        None => ()
+    if let Some(values) = matches.values_of("broker-url") {
+      sources.extend(values.map(|v| {
+        if matches.is_present("user") {
+          let name = matches.value_of("provider-name").unwrap().to_string();
+          let auth = matches.value_of("user").map(|user| {
+            HttpAuth::User(user.to_string(), matches.value_of("password").map(|p| p.to_string()))
+          });
+          PactSource::BrokerUrl(name, s!(v), auth, vec![])
+        } else if matches.is_present("token") {
+          PactSource::BrokerUrl(s!(matches.value_of("provider-name").unwrap()), s!(v),
+            matches.value_of("token").map(|token| HttpAuth::Token(token.to_string())),
+            vec![])
+        } else {
+          PactSource::BrokerUrl(s!(matches.value_of("provider-name").unwrap()), s!(v), None, vec![])
+        }
+      }).collect::<Vec<PactSource>>());
     };
     sources
 }
@@ -346,7 +342,7 @@ async fn handle_command_args() -> Result<(), i32> {
                 provider,
                 source,
                 filter,
-                matches.values_of_lossy("filter-consumer").unwrap_or(vec![]),
+                matches.values_of_lossy("filter-consumer").unwrap_or_default(),
                 options,
                 &provider_state_executor
             ).await {

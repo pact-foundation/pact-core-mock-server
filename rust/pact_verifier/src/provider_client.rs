@@ -24,20 +24,20 @@ pub enum ProviderClientError {
     ResponseStatusCodeError(u16),
 }
 
-pub fn join_paths(base: &String, path: String) -> String {
-    let mut full_path = s!(base.trim_end_matches("/"));
+pub fn join_paths(base: &str, path: String) -> String {
+    let mut full_path = s!(base.trim_end_matches('/'));
     full_path.push('/');
-    full_path.push_str(path.trim_start_matches("/"));
+    full_path.push_str(path.trim_start_matches('/'));
     full_path
 }
 
-fn create_native_request(client: &Client, base_url: &String, request: &Request) -> Result<RequestBuilder, ProviderClientError> {
+fn create_native_request(client: &Client, base_url: &str, request: &Request) -> Result<RequestBuilder, ProviderClientError> {
   let url = join_paths(base_url, request.path.clone());
   let mut builder = client.request(Method::from_bytes(
     &request.method.clone().into_bytes()).unwrap_or(Method::GET), &url);
 
   if let Some(query) = &request.query {
-    builder = builder.query(&query.into_iter()
+    builder = builder.query(&query.iter()
       .sorted_by(|a, b| Ord::cmp(&a.0, &b.0))
       .flat_map(|(k, v)| {
         v.iter().map(|v| (k, v)).collect_vec()
@@ -80,10 +80,7 @@ fn extract_headers(headers: &HeaderMap) -> Option<HashMap<String, Vec<String>>> 
         let parsed_vals: Vec<Result<String, ()>> = values.iter()
           .map(|val| val.to_str()
             .map(|v| v.to_string())
-            .map_err(|err| {
-              log::warn!("Failed to parse HTTP header value: {}", err);
-              ()
-            })
+            .map_err(|err| log::warn!("Failed to parse HTTP header value: {}", err))
           ).collect();
         (name.as_str().into(), parsed_vals.iter().cloned()
           .filter(|val| val.is_ok())
@@ -100,7 +97,7 @@ fn extract_headers(headers: &HeaderMap) -> Option<HashMap<String, Vec<String>>> 
 
 async fn extract_body(response: reqwest::Response) -> Result<OptionalBody, reqwest::Error> {
   let body = response.bytes().await?;
-  if body.len() > 0 {
+  if !body.is_empty() {
     Ok(OptionalBody::Present(body.to_vec()))
   } else {
     Ok(OptionalBody::Empty)
@@ -156,14 +153,14 @@ pub async fn make_provider_request<F: RequestFilterExecutor>(
   let response = request.send()
     .and_then(native_response_to_pact_response)
     .await
-    .map_err(|err| ProviderClientError::ResponseError(err.to_string().into()))?;
+    .map_err(|err| ProviderClientError::ResponseError(err.to_string()))?;
 
   Ok(response)
 }
 
 pub async fn make_state_change_request(
   client: &reqwest::Client,
-  state_change_url: &String,
+  state_change_url: &str,
   request: &Request
 ) -> Result<(), ProviderClientError> {
   log::debug!("Sending {} to state change handler", request);

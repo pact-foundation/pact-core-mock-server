@@ -260,7 +260,7 @@ fn walk_json(json: &Value, path: &mut dyn Iterator<Item=&str>) -> Option<Value> 
 }
 
 /// Returns a diff of the expected versus the actual JSON bodies, focusing on a particular path
-pub fn display_diff(expected: &String, actual: &String, path: &String) -> String {
+pub fn display_diff(expected: &String, actual: &String, path: &str) -> String {
     let expected_body = Value::from_str(expected).unwrap();
     let actual_body = Value::from_str(actual).unwrap();
     let path = path.split('.').skip(2);

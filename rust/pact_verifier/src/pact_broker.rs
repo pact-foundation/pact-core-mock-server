@@ -14,10 +14,10 @@ use maplit::*;
 use reqwest::Method;
 use log::*;
 
-fn is_true(object: &serde_json::Map<String, serde_json::Value>, field: &String) -> bool {
+fn is_true(object: &serde_json::Map<String, serde_json::Value>, field: &str) -> bool {
     match object.get(field) {
-        Some(json) => match json {
-            &serde_json::Value::Bool(b) => b,
+        Some(json) => match *json {
+            serde_json::Value::Bool(b) => b,
             _ => false
         },
         None => false
@@ -25,8 +25,8 @@ fn is_true(object: &serde_json::Map<String, serde_json::Value>, field: &String) 
 }
 
 fn as_string(json: &serde_json::Value) -> String {
-    match json {
-        &serde_json::Value::String(ref s) => s.clone(),
+    match *json {
+        serde_json::Value::String(ref s) => s.clone(),
         _ => format!("{}", json)
     }
 }
@@ -51,9 +51,9 @@ fn json_content_type(response: &reqwest::Response) -> bool {
     }
 }
 
-fn find_entry(map: &serde_json::Map<String, serde_json::Value>, key: &String) -> Option<(String, serde_json::Value)> {
+fn find_entry(map: &serde_json::Map<String, serde_json::Value>, key: &str) -> Option<(String, serde_json::Value)> {
     match map.keys().find(|k| k.to_lowercase() == key.to_lowercase() ) {
-        Some(k) => map.get(k).map(|v| (key.clone(), v.clone()) ),
+        Some(k) => map.get(k).map(|v| (key.to_string(), v.clone()) ),
         None => None
     }
 }
@@ -69,12 +69,12 @@ pub enum PactBrokerError {
 
 impl PartialEq<String> for PactBrokerError {
     fn eq(&self, other: &String) -> bool {
-        let message = match self {
-            &PactBrokerError::LinkError(ref s) => s.clone(),
-            &PactBrokerError::ContentError(ref s) => s.clone(),
-            &PactBrokerError::IoError(ref s) => s.clone(),
-            &PactBrokerError::NotFound(ref s) => s.clone(),
-            &PactBrokerError::UrlError(ref s) => s.clone()
+        let message = match *self {
+            PactBrokerError::LinkError(ref s) => s.clone(),
+            PactBrokerError::ContentError(ref s) => s.clone(),
+            PactBrokerError::IoError(ref s) => s.clone(),
+            PactBrokerError::NotFound(ref s) => s.clone(),
+            PactBrokerError::UrlError(ref s) => s.clone()
         };
         message == *other
     }
@@ -82,12 +82,12 @@ impl PartialEq<String> for PactBrokerError {
 
 impl <'a> PartialEq<&'a str> for PactBrokerError {
     fn eq(&self, other: &&str) -> bool {
-        let message = match self {
-            &PactBrokerError::LinkError(ref s) => s.clone(),
-            &PactBrokerError::ContentError(ref s) => s.clone(),
-            &PactBrokerError::IoError(ref s) => s.clone(),
-            &PactBrokerError::NotFound(ref s) => s.clone(),
-            &PactBrokerError::UrlError(ref s) => s.clone()
+        let message = match *self {
+            PactBrokerError::LinkError(ref s) => s.clone(),
+            PactBrokerError::ContentError(ref s) => s.clone(),
+            PactBrokerError::IoError(ref s) => s.clone(),
+            PactBrokerError::NotFound(ref s) => s.clone(),
+            PactBrokerError::UrlError(ref s) => s.clone()
         };
         message.as_str() == *other
     }
@@ -95,12 +95,12 @@ impl <'a> PartialEq<&'a str> for PactBrokerError {
 
 impl Display for PactBrokerError {
   fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-    match self {
-      &PactBrokerError::LinkError(ref s) => write!(f, "LinkError({})", s),
-      &PactBrokerError::ContentError(ref s) => write!(f, "ContentError({})", s),
-      &PactBrokerError::IoError(ref s) => write!(f, "IoError({})", s),
-      &PactBrokerError::NotFound(ref s) => write!(f, "NotFound({})", s),
-      &PactBrokerError::UrlError(ref s) => write!(f, "UrlError({})", s)
+    match *self {
+      PactBrokerError::LinkError(ref s) => write!(f, "LinkError({})", s),
+      PactBrokerError::ContentError(ref s) => write!(f, "ContentError({})", s),
+      PactBrokerError::IoError(ref s) => write!(f, "IoError({})", s),
+      PactBrokerError::NotFound(ref s) => write!(f, "NotFound({})", s),
+      PactBrokerError::UrlError(ref s) => write!(f, "UrlError({})", s)
     }
   }
 }
@@ -119,9 +119,9 @@ pub struct Link {
 impl Link {
 
     /// Create a link from serde JSON data
-    pub fn from_json(link: &String, link_data: &serde_json::Map<String, serde_json::Value>) -> Link {
+    pub fn from_json(link: &str, link_data: &serde_json::Map<String, serde_json::Value>) -> Link {
         Link {
-            name: link.clone(),
+            name: link.to_string(),
             href: find_entry(link_data, &"href".to_string())
               .map(|(_, href)| as_string(&href)),
             templated: is_true(link_data, &s!("templated"))
@@ -182,7 +182,7 @@ impl HALClient {
             client: self.client.clone(),
             url: self.url.clone(),
             path_info: Some(path_info),
-            auth: self.auth.clone()
+            auth: self.auth
         }
     }
 
@@ -212,7 +212,7 @@ impl HALClient {
                 Some(json) => match json.get(link) {
                     Some(link_data) => link_data.as_object()
                         .map(|link_data| Link::from_json(&link.to_string(), &link_data))
-                        .ok_or(PactBrokerError::LinkError(format!("Link is malformed, expected an object but got {}. URL: '{}', LINK: '{}'",
+                        .ok_or_else(|| PactBrokerError::LinkError(format!("Link is malformed, expected an object but got {}. URL: '{}', LINK: '{}'",
                             link_data, self.url, link))),
                     None => Err(PactBrokerError::LinkError(format!("Link '{}' was not found in the response, only the following links where found: {:?}. URL: '{}', LINK: '{}'",
                         link, json.as_object().unwrap_or(&json!({}).as_object().unwrap()).keys().join(", "), self.url, link)))
@@ -363,12 +363,12 @@ impl HALClient {
             Some(ref json) => match json.get("_links") {
                 Some(json) => match json.get(&link) {
                     Some(link_data) => link_data.as_array()
-                        .map(|link_data| link_data.iter().map(|link_json| match link_json {
-                            &serde_json::Value::Object(ref data) => Link::from_json(&link, data),
-                            &serde_json::Value::String(ref s) => Link { name: link.clone(), href: Some(s.clone()), templated: false },
+                        .map(|link_data| link_data.iter().map(|link_json| match *link_json {
+                            serde_json::Value::Object(ref data) => Link::from_json(&link, data),
+                            serde_json::Value::String(ref s) => Link { name: link.clone(), href: Some(s.clone()), templated: false },
                             _ => Link { name: link.clone(), href: Some(link_json.to_string()), templated: false }
                         }).collect())
-                        .ok_or(PactBrokerError::LinkError(format!("Link is malformed, expected an object but got {}. URL: '{}', LINK: '{}'",
+                        .ok_or_else(|| PactBrokerError::LinkError(format!("Link is malformed, expected an object but got {}. URL: '{}', LINK: '{}'",
                             link_data, self.url, link))),
                     None => Err(PactBrokerError::LinkError(format!("Link '{}' was not found in the response, only the following links where found: {:?}. URL: '{}', LINK: '{}'",
                         link, json.as_object().unwrap_or(&json!({}).as_object().unwrap()).keys().join(", "), self.url, link)))
@@ -419,22 +419,22 @@ impl HALClient {
       .map(|_| ())
   }
 
-  fn with_doc_context(self, doc_attributes: &Vec<Link>) -> Result<HALClient, PactBrokerError> {
+  fn with_doc_context(self, doc_attributes: &[Link]) -> Result<HALClient, PactBrokerError> {
     let links: serde_json::Map<String, serde_json::Value> = doc_attributes.iter()
       .map(|link| (link.name.clone(), link.as_json())).collect();
     let links_json = json!({
       "_links": json!(links)
     });
-    Ok(self.clone().update_path_info(links_json))
+    Ok(self.update_path_info(links_json))
   }
 }
 
 fn links_from_json(json: &serde_json::Value) -> Vec<Link> {
    match json.get("_links") {
-    Some(json) => match json {
-      &serde_json::Value::Object(ref v) => {
-        v.iter().map(|(link, json)| match json {
-          &serde_json::Value::Object(ref attr) => Link::from_json(link, attr),
+    Some(json) => match *json {
+      serde_json::Value::Object(ref v) => {
+        v.iter().map(|(link, json)| match *json {
+          serde_json::Value::Object(ref attr) => Link::from_json(link, attr),
           _ => Link { name: link.clone(), .. Link::default() }
         }).collect()
       },
@@ -536,7 +536,7 @@ pub async fn publish_verification_results(
       .iter()
       .cloned()
       .find(|item| item.name.to_ascii_lowercase() == "pb:publish-verification-results")
-      .ok_or(PactBrokerError::LinkError(
+      .ok_or_else(|| PactBrokerError::LinkError(
           "Response from the pact broker has no 'pb:publish-verification-results' link".into()
       ))?;
 
@@ -555,90 +555,87 @@ fn build_payload(result: TestResult, version: String, build_url: Option<String>)
     json_obj.insert("buildUrl".into(), json!(build_url.unwrap()));
   }
 
-  match result {
-    TestResult::Failed(mismatches) => {
-      let values = mismatches.iter()
-        .group_by(|mismatch| mismatch.1.interaction_id().unwrap_or(String::new()))
-        .into_iter()
-        .map(|(key, mismatches)| {
-          let acc: (Vec<serde_json::Value>, Vec<serde_json::Value>) = (vec![], vec![]);
-          let values = mismatches.into_iter().fold(acc, |mut acc, mismatch| {
-            match mismatch.1 {
-              MismatchResult::Mismatches { ref mismatches, .. } => {
-                for mismatch in mismatches {
-                  match mismatch {
-                    &Mismatch::MethodMismatch { ref expected, ref actual } => acc.0.push(json!({
-                      "attribute": "method",
-                      "description": format!("Expected method of {} but received {}", expected, actual)
-                    })),
-                    &Mismatch::PathMismatch { ref mismatch, .. } => acc.0.push(json!({
-                      "attribute": "path",
-                      "description": mismatch
-                    })),
-                    &Mismatch::StatusMismatch { ref expected, ref actual } => acc.0.push(json!({
-                      "attribute": "status",
-                      "description": format!("Expected status of {} but received {}", expected, actual)
-                    })),
-                    &Mismatch::QueryMismatch { ref parameter, ref mismatch, .. } => acc.0.push(json!({
-                      "attribute": "query",
-                      "identifier": parameter,
-                      "description": mismatch
-                    })),
-                    &Mismatch::HeaderMismatch { ref key, ref mismatch, .. } => acc.0.push(json!({
-                      "attribute": "header",
-                      "identifier": key,
-                      "description": mismatch
-                    })),
-                    &Mismatch::BodyTypeMismatch { ref expected, ref actual} => acc.0.push(json!({
-                      "attribute": "body",
-                      "identifier": "$",
-                      "description": format!("Expected body type of '{}' but received '{}'", expected, actual)
-                    })),
-                    &Mismatch::BodyMismatch { ref path, ref mismatch, .. } => acc.0.push(json!({
-                      "attribute": "body",
-                      "identifier": path,
-                      "description": mismatch
-                    }))
-                  }
+  if let TestResult::Failed(mismatches) = result {
+    let values = mismatches.iter()
+      .group_by(|mismatch| mismatch.1.interaction_id().unwrap_or_default())
+      .into_iter()
+      .map(|(key, mismatches)| {
+        let acc: (Vec<serde_json::Value>, Vec<serde_json::Value>) = (vec![], vec![]);
+        let values = mismatches.fold(acc, |mut acc, mismatch| {
+          match mismatch.1 {
+            MismatchResult::Mismatches { ref mismatches, .. } => {
+              for mismatch in mismatches {
+                match *mismatch {
+                  Mismatch::MethodMismatch { ref expected, ref actual } => acc.0.push(json!({
+                    "attribute": "method",
+                    "description": format!("Expected method of {} but received {}", expected, actual)
+                  })),
+                  Mismatch::PathMismatch { ref mismatch, .. } => acc.0.push(json!({
+                    "attribute": "path",
+                    "description": mismatch
+                  })),
+                  Mismatch::StatusMismatch { ref expected, ref actual } => acc.0.push(json!({
+                    "attribute": "status",
+                    "description": format!("Expected status of {} but received {}", expected, actual)
+                  })),
+                  Mismatch::QueryMismatch { ref parameter, ref mismatch, .. } => acc.0.push(json!({
+                    "attribute": "query",
+                    "identifier": parameter,
+                    "description": mismatch
+                  })),
+                  Mismatch::HeaderMismatch { ref key, ref mismatch, .. } => acc.0.push(json!({
+                    "attribute": "header",
+                    "identifier": key,
+                    "description": mismatch
+                  })),
+                  Mismatch::BodyTypeMismatch { ref expected, ref actual} => acc.0.push(json!({
+                    "attribute": "body",
+                    "identifier": "$",
+                    "description": format!("Expected body type of '{}' but received '{}'", expected, actual)
+                  })),
+                  Mismatch::BodyMismatch { ref path, ref mismatch, .. } => acc.0.push(json!({
+                    "attribute": "body",
+                    "identifier": path,
+                    "description": mismatch
+                  }))
                 }
-              },
-              MismatchResult::Error(ref err, _) => acc.1.push(json!({ "message": err }))
-            };
-            acc
-          });
+              }
+            },
+            MismatchResult::Error(ref err, _) => acc.1.push(json!({ "message": err }))
+          };
+          acc
+        });
 
-          let mut json = json!({
-            "interactionId": key,
-            "success": false,
-            "mismatches": values.0
-          });
+        let mut json = json!({
+          "interactionId": key,
+          "success": false,
+          "mismatches": values.0
+        });
 
-          if !values.1.is_empty() {
-            json.as_object_mut().unwrap().insert("exceptions".into(), json!(values.1));
-          }
+        if !values.1.is_empty() {
+          json.as_object_mut().unwrap().insert("exceptions".into(), json!(values.1));
+        }
 
-          json
-        }).collect::<Vec<serde_json::Value>>();
+        json
+      }).collect::<Vec<serde_json::Value>>();
 
-      json_obj.insert("testResults".into(), serde_json::Value::Array(values));
-    },
-    _ => ()
+    json_obj.insert("testResults".into(), serde_json::Value::Array(values));
   }
   json
 }
 
 async fn publish_provider_tags(
   hal_client: &HALClient,
-  links: &Vec<Link>,
+  links: &[Link],
   provider_tags: Vec<String>,
-  version: &String) -> Result<(), PactBrokerError> {
+  version: &str) -> Result<(), PactBrokerError> {
   let hal_client = hal_client.clone().with_doc_context(links)?
     .navigate("pb:provider", &hashmap!{}).await?;
   match hal_client.find_link("pb:version-tag") {
     Ok(link) => {
       for tag in &provider_tags {
         let template_values = hashmap! {
-          "version".to_string() => version.clone(),
+          "version".to_string() => version.to_string(),
           "tag".to_string() => tag.clone()
         };
         match hal_client.clone().put_json(hal_client.clone().parse_link_url(&link, &template_values)?, "{}".to_string()).await {
@@ -651,7 +648,7 @@ async fn publish_provider_tags(
       };
       Ok(())
     },
-    Err(_) => Err(PactBrokerError::LinkError(format!("Can't publish provider tags as there is no 'pb:version-tag' link")))
+    Err(_) => Err(PactBrokerError::LinkError("Can't publish provider tags as there is no 'pb:version-tag' link".to_string()))
   }
 }
 
