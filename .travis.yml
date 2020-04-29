@@ -5,5 +5,7 @@ rust:
 os:
   - linux
   - osx
+before_script:
+  - rustup component add clippy
 script:
   - cd rust && make -B
