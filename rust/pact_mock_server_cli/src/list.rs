@@ -6,14 +6,15 @@ use serde_json::{self, Value};
 
 fn json2string(json: Option<&Value>) -> String {
   match json {
-    Some(v) => match v {
-      &Value::String(ref s) => s.clone(),
+    Some(v) => match *v {
+      Value::String(ref s) => s.clone(),
       _ => v.to_string()
     },
     None => String::new()
   }
 }
 
+#[allow(clippy::print_literal)]
 pub fn list_mock_servers(host: &str, port: u16, matches: &ArgMatches) -> Result<(), i32> {
     let client = Client::new();
     let url = Url::parse(format!("http://{}:{}/", host, port).as_str()).unwrap();

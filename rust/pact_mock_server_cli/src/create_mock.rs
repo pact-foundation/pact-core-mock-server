@@ -5,7 +5,6 @@ use hyper::header::ContentType;
 use hyper::mime::{Mime, TopLevel, SubLevel, Attr, Value};
 use std::io::prelude::*;
 use std::path::Path;
-use serde_json;
 use pact_matching::models::Pact;
 
 pub fn create_mock_server(host: &str, port: u16, matches: &ArgMatches) -> Result<(), i32> {

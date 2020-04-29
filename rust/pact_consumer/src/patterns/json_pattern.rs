@@ -1,7 +1,6 @@
 //! Our `JsonPattern` type and supporting code.
 
 use pact_matching::models::matchingrules::Category;
-use serde_json;
 use std::borrow::Cow;
 use std::collections::HashMap as Map;
 use std::iter::FromIterator;
@@ -66,7 +65,7 @@ impl Pattern for JsonPattern {
                 serde_json::Value::Array(arr.iter().map(|v| v.to_example()).collect())
             }
             JsonPattern::Object(ref obj) => {
-                let fields = obj.into_iter().map(|(k, v)| (k.to_owned(), v.to_example()));
+                let fields = obj.iter().map(|(k, v)| (k.to_owned(), v.to_example()));
                 serde_json::Value::Object(serde_json::Map::from_iter(fields))
             }
             JsonPattern::Pattern(ref pattern) => pattern.to_example(),
@@ -77,7 +76,7 @@ impl Pattern for JsonPattern {
         match *self {
             JsonPattern::Json(_) => {}
             JsonPattern::Array(ref arr) => {
-                for (i, val) in arr.into_iter().enumerate() {
+                for (i, val) in arr.iter().enumerate() {
                     let val_path = format!("{}[{}]", path, i);
                     val.extract_matching_rules(&val_path, rules_out);
                 }
@@ -171,7 +170,7 @@ impl<T: Into<JsonPattern>> From<Vec<T>> for JsonPattern {
 
 impl<'a, T: Clone + Into<JsonPattern>> From<&'a [T]> for JsonPattern {
     fn from(arr: &'a [T]) -> Self {
-        JsonPattern::Array(arr.into_iter().map(|v| v.clone().into()).collect())
+        JsonPattern::Array(arr.iter().map(|v| v.clone().into()).collect())
     }
 }
 

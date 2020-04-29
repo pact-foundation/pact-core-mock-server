@@ -38,7 +38,6 @@
 //! with `#[test]`:
 //!
 //! ```
-//! # fn main() {
 //! use pact_consumer::prelude::*;
 //!
 //! // Define the Pact for the test, specify the names of the consuming
@@ -57,21 +56,29 @@
 //!             .body("That is some good Mallory.");
 //!     })
 //!     .build();
-//! # }
 //! ```
 //!
 //! You can than use an HTTP client like `reqwest` to make requests against your
 //! server.
 //!
-//! ```rust,no_run
-//! # // This is marked `no_run` because of the issues described in
-//! # // https://github.com/rust-lang/cargo/issues/4567. An executable
-//! # // version is checked in tests/tests.rs.
+//! ```rust
 //! # use pact_matching::models::Pact;
 //! # use std::io::Read;
-//! # fn main() {
-//! #     use pact_consumer::prelude::*;
-//! #     let pact: Pact = unimplemented!();
+//! # use pact_consumer::prelude::*;
+//! # let pact = PactBuilder::new("Consumer", "Alice Service")
+//! #     // Start a new interaction. We can add as many interactions as we want.
+//! #     .interaction("a retrieve Mallory request", |i| {
+//! #         // Defines a provider state. It is optional.
+//! #         i.given("there is some good mallory");
+//! #         // Define the request, a GET (default) request to '/mallory'.
+//! #         i.request.path("/mallory");
+//! #         // Define the response we want returned. We assume a 200 OK
+//! #         // response by default.
+//! #         i.response
+//! #             .content_type("text/plain")
+//! #             .body("That is some good Mallory.");
+//! #     })
+//! #     .build();
 //! // Start the mock server running.
 //! let alice_service = pact.start_mock_server();
 //!
@@ -85,7 +92,6 @@
 //! // When `alice_service` goes out of scope, your pact will be validated,
 //! // and the test will fail if the mock server didn't receive matching
 //! // requests.
-//! # }
 //! ```
 //!
 //! ## Matching using patterns
@@ -95,7 +101,6 @@
 //! `json_pattern!` macro:
 //!
 //! ```
-//! # fn main() {
 //! use pact_consumer::prelude::*;
 //! use pact_consumer::*;
 //!
@@ -124,7 +129,6 @@
 //!             // testing the server, allow it to return any numeric ID.
 //!             .header("Location", term!("^/quotes/[0-9]+$", "/quotes/12"));
 //!     });
-//! # }
 //! ```
 //!
 //! The key insight here is this "pact" can be used to test both the client and
@@ -147,9 +151,10 @@
 //! Normally, it's best to generate your JSON using your actual domain objects.
 //! This is easier, and it reduces duplication in your code.
 //!
-// This fails to link with Rust beta 1.27.0
-//! ```ignore
+//! ```
 //! use pact_consumer::prelude::*;
+//! use pact_consumer::{each_like, each_like_helper, json_pattern};
+//! use serde::{Deserialize, Serialize};
 //!
 //! /// Our application's domain object representing a user.
 //! #[derive(Deserialize, Serialize)]
@@ -162,7 +167,6 @@
 //!     comment: Option<String>,
 //! }
 //!
-//! # fn main() {
 //! // Create our example user using our normal application objects.
 //! let example = User {
 //!     name: "J. Smith".to_owned(),
@@ -180,11 +184,10 @@
 //!                 // the generated JSON, allowing our pattern to match
 //!                 // missing comments, null comments, and comments with
 //!                 // strings.
-//!                 strip_null_fields(json!(example)),
+//!                 strip_null_fields(serde_json::json!(example)),
 //!             ));
 //!     })
 //!     .build();
-//! # }
 //! ```
 //!
 //! For more advice on writing good pacts, see [Best Practices][].

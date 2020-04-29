@@ -6,7 +6,6 @@ use std::{
     io::prelude::*,
     sync::{Arc, Mutex},
 };
-use serde_json;
 use pact_mock_server::{
     server_manager::ServerManager,
     mock_server::MockServer
@@ -16,10 +15,10 @@ use pact_matching::s;
 pub fn verify_mock_server(host: &str, port: u16, matches: &ArgMatches) -> Result<(), i32> {
     let mock_server_id = matches.value_of("mock-server-id");
     let mock_server_port = matches.value_of("mock-server-port");
-    let id = if mock_server_id.is_some() {
-        (mock_server_id.unwrap(), "id")
+    let id = if let Some(id) = mock_server_id {
+      (id, "id")
     } else {
-        (mock_server_port.unwrap(), "port")
+      (mock_server_port.unwrap(), "port")
     };
 
     let client = Client::new();
@@ -75,9 +74,9 @@ fn validate_port(port: u16, server_manager: Arc<Mutex<ServerManager>>) -> Result
         .ok_or(format!("No mock server running with port '{}'", port))
 }
 
-fn validate_uuid(id: &String, server_manager: Arc<Mutex<ServerManager>>) -> Result<MockServer, String> {
+fn validate_uuid(id: &str, server_manager: Arc<Mutex<ServerManager>>) -> Result<MockServer, String> {
     server_manager.lock().unwrap()
-        .find_mock_server_by_id(id, &|ms| {
+        .find_mock_server_by_id(&id.to_string(), &|ms| {
             ms.clone()
         })
         .ok_or(format!("No mock server running with id '{}'", id))

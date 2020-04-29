@@ -136,7 +136,7 @@ fn main_resource(base_port: Arc<Option<u16>>, server_manager: Arc<Mutex<ServerMa
             let json_response = json!({ s!("mockServers") : json!(mock_servers) });
             Some(json_response.to_string())
         }),
-        process_post: Box::new(move |context| start_provider(context, base_port.deref().clone(), server_manager1.clone())),
+        process_post: Box::new(move |context| start_provider(context, *base_port.deref(), server_manager1.clone())),
         .. WebmachineResource::default()
     }
 }
@@ -197,18 +197,18 @@ fn mock_server_resource(
         allowed_methods: vec![s!("OPTIONS"), s!("GET"), s!("HEAD"), s!("POST"), s!("DELETE")],
         resource_exists: Box::new(move |context| {
             let paths: Vec<String> = context.request.request_path
-                .split("/")
+                .split('/')
                 .filter(|p| !p.is_empty())
                 .map(|p| p.to_string())
                 .collect();
-            if paths.len() >= 1 && paths.len() <= 2 {
+            if !paths.is_empty() && paths.len() <= 2 {
                 match verify::validate_id(&paths[0].clone(), server_manager.clone()) {
                     Ok(ms) => {
                         context.metadata.insert(s!("id"), ms.id.clone());
                         context.metadata.insert(s!("port"), ms.addr.port().to_string());
                         if paths.len() > 1 {
                             context.metadata.insert(s!("subpath"), paths[1].clone());
-                            paths[1] == s!("verify")
+                            paths[1] == "verify"
                         } else {
                             true
                         }
@@ -295,7 +295,7 @@ pub fn start_server(port: u16, matches: &ArgMatches) -> Result<(), i32> {
     let output_path = matches.value_of("output").map(|s| s.to_owned());
     let base_port = matches.value_of("base-port").map(|s| s.parse::<u16>().unwrap_or(0));
     let server_key = matches.value_of("server-key").map(|s| s.to_owned())
-      .unwrap_or(rand::thread_rng().gen_ascii_chars().take(16).collect::<String>());
+      .unwrap_or_else(|| rand::thread_rng().gen_ascii_chars().take(16).collect::<String>());
     match Server::http(format!("0.0.0.0:{}", port).as_str()) {
         Ok(mut server) => {
             server.keep_alive(None);

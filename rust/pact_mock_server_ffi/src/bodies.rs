@@ -5,7 +5,7 @@ use pact_matching::models::generators::{Generators, Generator, GeneratorCategory
 use serde_json::{Value, Map};
 use pact_matching::models::json_utils::json_to_string;
 
-fn process_array(array: &Vec<Value>, matching_rules: &mut Category, generators: &mut Generators, path: &String, type_matcher: bool) -> Value {
+fn process_array(array: &[Value], matching_rules: &mut Category, generators: &mut Generators, path: &str, type_matcher: bool) -> Value {
   Value::Array(array.iter().enumerate().map(|(index, val)| {
     let updated_path = if type_matcher {
       path.to_owned() + "[*]"
@@ -20,16 +20,15 @@ fn process_array(array: &Vec<Value>, matching_rules: &mut Category, generators: 
   }).collect())
 }
 
-fn process_object(obj: &Map<String, Value>, matching_rules: &mut Category, generators: &mut Generators, path: &String, type_matcher: bool) -> Value {
+fn process_object(obj: &Map<String, Value>, matching_rules: &mut Category, generators: &mut Generators, path: &str, type_matcher: bool) -> Value {
   if obj.contains_key("pact:matcher:type") {
     if let Some(rule) = MatchingRule::from_integration_json(obj) {
-      matching_rules.add_rule(path, rule, &RuleLogic::And);
+      matching_rules.add_rule(&path.to_string(), rule, &RuleLogic::And);
     }
     if let Some(gen) = obj.get("pact:generator:type") {
-      match Generator::from_map(&json_to_string(gen), obj) {
-        Some(generator) => generators.add_generator_with_subcategory(&GeneratorCategory::BODY, path, generator),
-        _ => ()
-      };
+      if let Some(generator) = Generator::from_map(&json_to_string(gen), obj) {
+        generators.add_generator_with_subcategory(&GeneratorCategory::BODY, path, generator);
+      }
     }
     match obj.get("value") {
       Some(val) => match val {

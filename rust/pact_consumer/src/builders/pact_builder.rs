@@ -9,7 +9,6 @@ use crate::prelude::*;
 /// use pact_consumer::prelude::*;
 /// use pact_consumer::*;
 ///
-/// # fn main() {
 /// let pact = PactBuilder::new("Greeting Client", "Greeting Server")
 ///     .interaction("asks for a greeting", |i| {
 ///         i.request.path("/greeting/hello");
@@ -22,7 +21,6 @@ use crate::prelude::*;
 /// // The request method and response status default as follows.
 /// assert_eq!(pact.interactions[0].request.method, "GET");
 /// assert_eq!(pact.interactions[0].response.status, 200);
-/// # }
 /// ```
 pub struct PactBuilder {
     pact: Pact,

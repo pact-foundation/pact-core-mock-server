@@ -7,10 +7,10 @@ use serde_json::json;
 pub fn shutdown_mock_server(host: &str, port: u16, matches: &ArgMatches) -> Result<(), i32> {
     let mock_server_id = matches.value_of("mock-server-id");
     let mock_server_port = matches.value_of("mock-server-port");
-    let id = if mock_server_id.is_some() {
-        (mock_server_id.unwrap(), "id")
+    let id = if let Some(id) = mock_server_id {
+      (id, "id")
     } else {
-        (mock_server_port.unwrap(), "port")
+      (mock_server_port.unwrap(), "port")
     };
 
     let client = Client::new();
@@ -54,9 +54,7 @@ pub fn shutdown_master_server(host: &str, port: u16, matches: &ArgMatches) -> Re
   match res {
     Ok(result) => {
       if !result.status.is_success() {
-        match result.status {
-          _ => crate::display_error(format!("Unexpected response from master mock server '{}': {}", url, result.status), matches)
-        }
+        crate::display_error(format!("Unexpected response from master mock server '{}': {}", url, result.status), matches)
       } else {
         println!("Master server shutting down ok");
         Ok(())

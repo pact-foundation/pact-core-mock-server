@@ -40,12 +40,11 @@ pub trait HttpPartBuilder {
     /// use pact_consumer::builders::RequestBuilder;
     /// use regex::Regex;
     ///
-    /// # fn main() {
     /// RequestBuilder::default()
     ///     .header("X-Simple", "value")
     ///     .header("X-Digits", term!("^[0-9]+$", "123"));
-    /// # }
     /// ```
+    #[allow(clippy::option_map_unit_fn)]
     fn header<N, V>(&mut self, name: N, value: V) -> &mut Self
     where
         N: Into<String>,
@@ -93,9 +92,7 @@ pub trait HttpPartBuilder {
     /// use pact_consumer::prelude::*;
     /// use pact_consumer::builders::RequestBuilder;
     ///
-    /// # fn main() {
     /// RequestBuilder::default().body("Hello");
-    /// # }
     /// ```
     ///
     /// TODO: We may want to change this to `B: Into<Vec<u8>>` depending on what
@@ -117,11 +114,9 @@ pub trait HttpPartBuilder {
     /// use pact_consumer::*;
     /// use pact_consumer::builders::RequestBuilder;
     ///
-    /// # fn main() {
     /// RequestBuilder::default().json_body(json_pattern!({
     ///     "message": like!("Hello"),
     /// }));
-    /// # }
     /// ```
     fn json_body<B: Into<JsonPattern>>(&mut self, body: B) -> &mut Self {
         let body = body.into();

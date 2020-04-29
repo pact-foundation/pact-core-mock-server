@@ -64,7 +64,6 @@ use pact_matching::time_utils::{parse_pattern, to_chrono_pattern};
 use nom::types::CompleteStr;
 use chrono::Local;
 use onig::Regex;
-use regex_syntax;
 use rand::prelude::*;
 
 pub mod handles;
@@ -72,6 +71,10 @@ pub mod bodies;
 
 /// Initialise the mock server library, can provide an environment variable name to use to
 /// set the log levels.
+///
+/// # Safety
+///
+/// Exported functions are inherently unsafe.
 #[no_mangle]
 pub unsafe extern fn init(log_env_var: *const c_char) {
   let log_env_var = if !log_env_var.is_null() {
@@ -250,15 +253,15 @@ pub extern fn mock_server_mismatches(mock_server_port: i32) -> *mut c_char {
       });
     match result {
       Some(p) => p as *mut _,
-      None => 0 as *mut _
+      None => std::ptr::null_mut()
     }
   });
 
   match result {
     Ok(val) => val,
     Err(cause) => {
-      log::error!("Caught a general panic: {:?}", cause);
-      0 as *mut _
+      error!("{}", error_message(cause, "mock_server_mismatches"));
+      std::ptr::null_mut()
     }
   }
 }
@@ -367,7 +370,7 @@ pub extern fn new_interaction(pact: handles::PactHandle, description: *const c_c
     };
     inner.interactions.push(interaction);
     handles::InteractionHandle::new(pact.clone(), inner.interactions.len())
-  }).unwrap_or(handles::InteractionHandle::new(pact.clone(), 0))
+  }).unwrap_or_else(|| handles::InteractionHandle::new(pact.clone(), 0))
 }
 
 /// Sets the description for the Interaction.
@@ -416,7 +419,7 @@ pub extern fn with_query_parameter(interaction: handles::InteractionHandle,
                                    name: *const c_char, index: size_t, value: *const c_char) {
   let name = convert_cstr(name, "");
   let value = convert_cstr(value, "");
-  if name.len() > 0 {
+  if !name.is_empty() {
     interaction.with_interaction(&|_, inner| {
       inner.request.query = inner.request.query.clone().map(|mut q| {
         if q.contains_key(name) {
@@ -461,13 +464,13 @@ pub extern fn with_header(interaction: handles::InteractionHandle, part: Interac
                           name: *const c_char, index: size_t, value: *const c_char) {
   let name = convert_cstr(name, "");
   let value = convert_cstr(value, "");
-  if name.len() > 0 {
+  if !name.is_empty() {
     interaction.with_interaction(&|_, inner| {
       let headers = match part {
         InteractionPart::Request => inner.request.headers.clone(),
         InteractionPart::Response => inner.response.headers.clone()
       };
-      let updated_headers = headers.clone().map(|mut h| {
+      let updated_headers = headers.map(|mut h| {
         if h.contains_key(name) {
           let values = h.get_mut(name).unwrap();
           if index > values.len() {
@@ -610,6 +613,10 @@ pub enum DateTimeResult {
 
 /// Generates a datetime value from the provided format string, using the current system date and time
 /// NOTE: The memory for the returned string needs to be freed with the free_string function
+///
+/// # Safety
+///
+/// Exported functions are inherently unsafe.
 #[no_mangle]
 pub unsafe extern fn generate_datetime_string(format: *const c_char) -> DateTimeResult {
   if format.is_null() {
@@ -640,6 +647,10 @@ pub unsafe extern fn generate_datetime_string(format: *const c_char) -> DateTime
 }
 
 /// Checks that the example string matches the given regex
+///
+/// # Safety
+///
+/// Exported functions are inherently unsafe.
 #[no_mangle]
 pub unsafe extern fn check_regex(regex: *const c_char, example: *const c_char) -> bool {
   if regex.is_null() {
@@ -677,6 +688,10 @@ pub enum RegexResult {
 
 /// Generates an example string based on the provided regex.
 /// NOTE: The memory for the returned string needs to be freed with the free_string function
+///
+/// # Safety
+///
+/// Exported functions are inherently unsafe.
 #[no_mangle]
 pub unsafe extern fn generate_regex_value(regex: *const c_char) -> RegexResult {
   if regex.is_null() {
@@ -710,6 +725,10 @@ pub unsafe extern fn generate_regex_value(regex: *const c_char) -> RegexResult {
 }
 
 /// Frees the memory allocated to a string by another function
+///
+/// # Safety
+///
+/// Exported functions are inherently unsafe.
 #[no_mangle]
 pub unsafe extern fn free_string(s: *mut c_char) {
   if s.is_null() {

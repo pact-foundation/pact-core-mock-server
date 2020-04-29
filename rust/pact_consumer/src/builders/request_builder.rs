@@ -72,11 +72,9 @@ impl RequestBuilder {
     /// use pact_consumer::builders::RequestBuilder;
     /// use regex::Regex;
     ///
-    /// # fn main() {
     /// RequestBuilder::default()
     ///     .query_param("simple", "value")
     ///     .query_param("pattern", term!("^[0-9]+$", "123"));
-    /// # }
     /// ```
     ///
     /// To pass multiple parameters with the same name, call `query_param` more

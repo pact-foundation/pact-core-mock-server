@@ -9,7 +9,6 @@ use std::{
     io::{self, prelude::*},
     thread,
 };
-use tokio;
 use url::Url;
 
 /// This trait is implemented by types which allow us to start a mock server.
@@ -136,7 +135,7 @@ impl ValidatingMockServer {
             // Success! Write out the generated pact file.
             self.mock_server
                 .write_pact(&Some(
-                    env::var("PACT_OUTPUT_DIR").unwrap_or("target/pacts".to_owned()),
+                    env::var("PACT_OUTPUT_DIR").unwrap_or_else(|_| "target/pacts".to_owned()),
                 ))
                 .map_err(|err| format!("error writing pact: {}", err))?;
             Ok(())

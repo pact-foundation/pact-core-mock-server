@@ -2,7 +2,6 @@
 
 use pact_matching::models::matchingrules::{MatchingRule, Category, RuleLogic};
 use regex::Regex;
-use serde_json;
 use std::iter::repeat;
 use std::marker::PhantomData;
 

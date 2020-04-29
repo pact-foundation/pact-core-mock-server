@@ -3,7 +3,6 @@
 //! the crate, but prevents them from winding up in our public API.
 
 use regex::{Captures, Regex};
-use serde_json;
 use lazy_static::*;
 
 /// Internal helper method for `strip_null_fields`.
@@ -52,21 +51,18 @@ fn strip_null_fields_mut(json: &mut serde_json::Value) {
 /// optional fields.
 ///
 ///
-// This fails to link with Rust beta 1.27.0
-/// ```ignore
+/// ```
 /// use pact_consumer::prelude::*;
 ///
-/// # fn main() {
-/// let actual = strip_null_fields(json!([
+/// let actual = strip_null_fields(serde_json::json!([
 ///     null,
 ///     { "a": 1, "b": null },
 /// ]));
-/// let expected = json!([
+/// let expected = serde_json::json!([
 ///     null,       // nulls in arrays are left alone.
 ///     { "a": 1 }, // nulls in objects are stripped.
 /// ]);
 /// assert_eq!(actual, expected);
-/// # }
 /// ```
 pub fn strip_null_fields<V>(json: V) -> serde_json::Value
 where
