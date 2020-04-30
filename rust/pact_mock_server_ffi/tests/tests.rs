@@ -10,7 +10,7 @@ fn post_to_mock_server_with_misatches() {
   let pact_json = include_str!("post-pact.json");
   let pact_json_c = CString::new(pact_json).expect("Could not construct C string from json");
   let address = CString::new("127.0.0.1:0").unwrap();
-  let port = create_mock_server(pact_json_c.as_ptr(), address.as_ptr());
+  let port = create_mock_server(pact_json_c.as_ptr(), address.as_ptr(), false);
   expect!(port).to(be_greater_than(0));
 
   let _result = catch_unwind(|| {

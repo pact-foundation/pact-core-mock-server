@@ -11,6 +11,7 @@ pub mod matching;
 pub mod mock_server;
 pub mod server_manager;
 mod hyper_server;
+mod tls;
 
 use pact_matching::models::Pact;
 use pact_matching::s;
@@ -19,6 +20,9 @@ use serde_json::json;
 use uuid::Uuid;
 use crate::server_manager::ServerManager;
 use lazy_static::*;
+use rustls::ServerConfig;
+
+pub use tls::TlsConfigBuilder;
 
 /// Mock server errors
 pub enum MockServerError {
@@ -41,26 +45,94 @@ lazy_static! {
 /// number of 0 will result in an auto-allocated port by the operating system. Returns the port
 /// that the mock server is running on wrapped in a `Result`.
 ///
+/// * `id` - Unique ID for the mock server.
+/// * `pact` - Pact model to use for the mock server.
+/// * `addr` - Socket address that the server should listen on.
+///
 /// # Errors
 ///
 /// An error with a message will be returned in the following conditions:
 ///
 /// - If a mock server is not able to be started
-pub fn start_mock_server(id: String, pact: Pact, addr: std::net::SocketAddr) -> Result<i32, String> {
-    MANAGER.lock().unwrap()
-        .get_or_insert_with(ServerManager::new)
-        .start_mock_server_with_addr(id, pact, addr)
-        .map(|addr| addr.port() as i32)
+pub fn start_mock_server(
+  id: String,
+  pact: Pact,
+  addr: std::net::SocketAddr
+) -> Result<i32, String> {
+  MANAGER.lock().unwrap()
+    .get_or_insert_with(ServerManager::new)
+    .start_mock_server_with_addr(id, pact, addr)
+    .map(|addr| addr.port() as i32)
+}
+
+/// Starts a TLS mock server with the given ID, pact and port number. The ID needs to be unique. A port
+/// number of 0 will result in an auto-allocated port by the operating system. Returns the port
+/// that the mock server is running on wrapped in a `Result`.
+///
+/// * `id` - Unique ID for the mock server.
+/// * `pact` - Pact model to use for the mock server.
+/// * `addr` - Socket address that the server should listen on.
+/// * `tls` - TLS config.
+///
+/// # Errors
+///
+/// An error with a message will be returned in the following conditions:
+///
+/// - If a mock server is not able to be started
+pub fn start_tls_mock_server(
+  id: String,
+  pact: Pact,
+  addr: std::net::SocketAddr,
+  tls: &ServerConfig
+) -> Result<i32, String> {
+  MANAGER.lock().unwrap()
+    .get_or_insert_with(ServerManager::new)
+    .start_tls_mock_server_with_addr(id, pact, addr, tls)
+    .map(|addr| addr.port() as i32)
 }
 
 /// Creates a mock server. Requires the pact JSON as a string as well as the port for the mock
 /// server to run on. A value of 0 for the port will result in a
 /// port being allocated by the operating system. The port of the mock server is returned.
-pub extern fn create_mock_server(pact_json: &str, addr: std::net::SocketAddr) -> Result<i32, MockServerError> {
+///
+/// * `pact_json` - Pact in JSON format
+/// * `addr` - Socket address to listen on
+pub extern fn create_mock_server(
+  pact_json: &str,
+  addr: std::net::SocketAddr
+) -> Result<i32, MockServerError> {
   match serde_json::from_str(pact_json) {
     Ok(pact_json) => {
       let pact = Pact::from_json(&s!("<create_mock_server>"), &pact_json);
       start_mock_server(Uuid::new_v4().to_string(), pact, addr)
+        .map_err(|err| {
+          log::error!("Could not start mock server: {}", err);
+          MockServerError::MockServerFailedToStart
+        })
+    },
+    Err(err) => {
+      log::error!("Could not parse pact json: {}", err);
+      Err(MockServerError::InvalidPactJson)
+    }
+  }
+}
+
+/// Creates a TLS mock server. Requires the pact JSON as a string as well as the port for the mock
+/// server to run on. A value of 0 for the port will result in a
+/// port being allocated by the operating system. The port of the mock server is returned.
+///
+/// * `pact_json` - Pact in JSON format
+/// * `addr` - Socket address to listen on
+/// * `tls` - TLS config
+pub extern fn create_tls_mock_server(
+  pact_json: &str,
+  addr: std::net::SocketAddr,
+  tls: &ServerConfig
+) -> Result<i32, MockServerError> {
+  match serde_json::from_str(pact_json) {
+    Ok(pact_json) => {
+      let pact = Pact::from_json(&s!("<create_mock_server>"), &pact_json);
+      start_tls_mock_server(Uuid::new_v4().to_string(), pact, addr, tls)
         .map_err(|err| {
           log::error!("Could not start mock server: {}", err);
           MockServerError::MockServerFailedToStart

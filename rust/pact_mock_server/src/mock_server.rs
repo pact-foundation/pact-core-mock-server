@@ -13,6 +13,7 @@ use std::io;
 use std::sync::{Arc, Mutex};
 use serde_json::json;
 use lazy_static::*;
+use rustls::ServerConfig;
 
 lazy_static! {
     static ref PACT_FILE_MUTEX: Mutex<()> = Mutex::new(());
@@ -67,6 +68,38 @@ impl MockServer {
 
         Ok((mock_server, future))
     }
+
+  /// Create a new TLS mock server, consisting of its state (self) and its executable server future.
+  pub async fn new_tls(
+    id: String,
+    pact: Pact,
+    addr: std::net::SocketAddr,
+    tls: &ServerConfig
+  ) -> Result<(MockServer, impl std::future::Future<Output = ()>), String> {
+    let (shutdown_tx, shutdown_rx) = futures::channel::oneshot::channel();
+    let matches = Arc::new(Mutex::new(vec![]));
+
+    let (future, addr) = hyper_server::create_and_bind_tls(
+      pact.clone(),
+      addr,
+      async {
+        shutdown_rx.await.ok();
+      },
+      matches.clone(),
+      tls
+    ).await.map_err(|err| format!("Could not start server: {}", err))?;
+
+    let mock_server = MockServer {
+      id: id.clone(),
+      addr,
+      resources: vec![],
+      pact,
+      matches,
+      shutdown_tx: Some(shutdown_tx)
+    };
+
+    Ok((mock_server, future))
+  }
 
     /// Send the shutdown signal to the server
     pub fn shutdown(&mut self) -> Result<(), String> {

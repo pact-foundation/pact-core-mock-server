@@ -49,7 +49,7 @@ use std::ffi::CStr;
 use std::ffi::CString;
 use std::str;
 use serde_json::json;
-use pact_mock_server::{MockServerError, WritePactFileErr, MANAGER};
+use pact_mock_server::{MockServerError, WritePactFileErr, MANAGER, TlsConfigBuilder};
 use pact_mock_server::server_manager::ServerManager;
 use log::*;
 use std::any::Any;
@@ -99,6 +99,10 @@ pub unsafe extern fn init(log_env_var: *const c_char) {
 /// as well as the port for the mock server to run on. A value of 0 for the port will result in a
 /// port being allocated by the operating system. The port of the mock server is returned.
 ///
+/// * `pact_str` - Pact JSON
+/// * `addr_str` - Address to bind to in the form name:port (i.e. 127.0.0.1:0)
+/// * `tls` - boolean flag to indicate of the mock server should use TLS (using a self-signed certificate)
+///
 /// # Errors
 ///
 /// Errors are returned as negative values.
@@ -110,52 +114,78 @@ pub unsafe extern fn init(log_env_var: *const c_char) {
 /// | -3 | The mock server could not be started |
 /// | -4 | The method panicked |
 /// | -5 | The address is not valid |
+/// | -6 | Could not create the TLS configuration with the self-signed certificate |
 ///
 #[no_mangle]
-pub extern fn create_mock_server(pact_str: *const c_char, addr_str: *const c_char) -> i32 {
-    let result = catch_unwind(|| {
-        let c_str = unsafe {
-            if pact_str.is_null() {
-                log::error!("Got a null pointer instead of pact json");
-                return -1;
-            }
-            CStr::from_ptr(pact_str)
-        };
+pub extern fn create_mock_server(pact_str: *const c_char, addr_str: *const c_char, tls: bool) -> i32 {
+  let result = catch_unwind(|| {
+    let c_str = unsafe {
+      if pact_str.is_null() {
+        log::error!("Got a null pointer instead of pact json");
+        return -1;
+      }
+      CStr::from_ptr(pact_str)
+    };
 
-        let addr_c_str = unsafe {
-            if addr_str.is_null() {
-                log::error!("Got a null pointer instead of listener address");
-                return -1;
-            }
-            CStr::from_ptr(addr_str)
-        };
+    let addr_c_str = unsafe {
+      if addr_str.is_null() {
+        log::error!("Got a null pointer instead of listener address");
+        return -1;
+      }
+      CStr::from_ptr(addr_str)
+    };
 
-        if let Ok(Ok(addr)) = str::from_utf8(addr_c_str.to_bytes()).map(|s| s.parse::<std::net::SocketAddr>()) {
-          match pact_mock_server::create_mock_server(str::from_utf8(c_str.to_bytes()).unwrap(), addr) {
-            Ok(ms_port) => ms_port,
-            Err(err) => match err {
-              MockServerError::InvalidPactJson => -2,
-              MockServerError::MockServerFailedToStart => -3
-            }
-          }
+    let tls_config = if tls {
+      let key = include_str!("self-signed.key");
+      let cert = include_str!("self-signed.crt");
+      match TlsConfigBuilder::new()
+        .key(key.as_bytes())
+        .cert(cert.as_bytes())
+        .build() {
+        Ok(tls_config) => Some(tls_config),
+        Err(err) => {
+          error!("Failed to build TLS configuration - {}", err);
+          return -6;
         }
-        else {
-          -5
-        }
-    });
+      }
+    } else {
+      None
+    };
 
-    match result {
-        Ok(val) => val,
-        Err(cause) => {
-            log::error!("Caught a general panic: {:?}", cause);
-            -4
+    if let Ok(Ok(addr)) = str::from_utf8(addr_c_str.to_bytes()).map(|s| s.parse::<std::net::SocketAddr>()) {
+      let server_result = match tls_config {
+        Some(tls_config) => pact_mock_server::create_tls_mock_server(str::from_utf8(c_str.to_bytes()).unwrap(), addr, &tls_config),
+        None => pact_mock_server::create_mock_server(str::from_utf8(c_str.to_bytes()).unwrap(), addr)
+      };
+      match server_result {
+        Ok(ms_port) => ms_port,
+        Err(err) => match err {
+          MockServerError::InvalidPactJson => -2,
+          MockServerError::MockServerFailedToStart => -3
         }
+      }
     }
+    else {
+      -5
+    }
+  });
+
+  match result {
+    Ok(val) => val,
+    Err(cause) => {
+      log::error!("Caught a general panic: {:?}", cause);
+      -4
+    }
+  }
 }
 
 /// External interface to create a mock server. A Pact handle is passed in,
 /// as well as the port for the mock server to run on. A value of 0 for the port will result in a
 /// port being allocated by the operating system. The port of the mock server is returned.
+///
+/// * `pact` - Handle to a Pact model
+/// * `addr_str` - Address to bind to in the form name:port (i.e. 127.0.0.1:0)
+/// * `tls` - boolean flag to indicate of the mock server should use TLS (using a self-signed certificate)
 ///
 /// # Errors
 ///
@@ -167,9 +197,10 @@ pub extern fn create_mock_server(pact_str: *const c_char, addr_str: *const c_cha
 /// | -3 | The mock server could not be started |
 /// | -4 | The method panicked |
 /// | -5 | The address is not valid |
+/// | -6 | Could not create the TLS configuration with the self-signed certificate |
 ///
 #[no_mangle]
-pub extern fn create_mock_server_for_pact(pact: handles::PactHandle, addr_str: *const c_char) -> i32 {
+pub extern fn create_mock_server_for_pact(pact: handles::PactHandle, addr_str: *const c_char, tls: bool) -> i32 {
   let result = catch_unwind(|| {
     let addr_c_str = unsafe {
       if addr_str.is_null() {
@@ -179,9 +210,30 @@ pub extern fn create_mock_server_for_pact(pact: handles::PactHandle, addr_str: *
       CStr::from_ptr(addr_str)
     };
 
+    let tls_config = if tls {
+      let key = include_str!("self-signed.key");
+      let cert = include_str!("self-signed.crt");
+      match TlsConfigBuilder::new()
+        .key(key.as_bytes())
+        .cert(cert.as_bytes())
+        .build() {
+        Ok(tls_config) => Some(tls_config),
+        Err(err) => {
+          error!("Failed to build TLS configuration - {}", err);
+          return -6;
+        }
+      }
+    } else {
+      None
+    };
+
     if let Ok(Ok(addr)) = str::from_utf8(addr_c_str.to_bytes()).map(|s| s.parse::<std::net::SocketAddr>()) {
-      pact.with_pact(&|_, inner| {
-        match pact_mock_server::start_mock_server(Uuid::new_v4().to_string(), inner.clone(), addr) {
+      pact.with_pact(&move |_, inner| {
+        let server_result = match &tls_config {
+          Some(tls_config) => pact_mock_server::start_tls_mock_server(Uuid::new_v4().to_string(), inner.clone(), addr, tls_config),
+          None => pact_mock_server::start_mock_server(Uuid::new_v4().to_string(), inner.clone(), addr)
+        };
+        match server_result {
           Ok(ms_port) => ms_port,
           Err(err) => {
             error!("Failed to start mock server - {}", err);

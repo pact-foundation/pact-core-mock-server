@@ -15,6 +15,8 @@ use hyper::service::service_fn;
 use hyper::service::make_service_fn;
 use serde_json::json;
 use maplit::*;
+use hyper::server::conn::AddrIncoming;
+use rustls::ServerConfig;
 
 #[derive(Debug, Clone)]
 enum InteractionError {
@@ -204,7 +206,7 @@ fn handle_mock_request_error(result: Result<Response<Body>, InteractionError>) -
 // Returns a future that drives the server.
 // The reason that the function itself is still async (even if it performs
 // no async operations) is that it needs a tokio context to be able to call try_bind.
-pub async fn create_and_bind(
+pub(crate) async fn create_and_bind(
     pact: Pact,
     addr: std::net::SocketAddr,
     shutdown: impl std::future::Future<Output = ()>,
@@ -244,6 +246,49 @@ pub async fn create_and_bind(
         },
         socket_addr
     ))
+}
+
+pub(crate) async fn create_and_bind_tls(
+  pact: Pact,
+  addr: std::net::SocketAddr,
+  shutdown: impl std::future::Future<Output = ()>,
+  matches: Arc<Mutex<Vec<MatchResult>>>,
+  tls: &ServerConfig
+) -> Result<(impl std::future::Future<Output = ()>, std::net::SocketAddr), hyper::Error> {
+  let pact = Arc::new(pact);
+
+  let incoming = AddrIncoming::bind(&addr)?;
+  let socket_addr = incoming.local_addr();
+  let server = Server::builder(crate::tls::TlsAcceptor::new(tls.clone(), incoming))
+    .serve(make_service_fn(move |_| {
+      let pact = pact.clone();
+      let matches = matches.clone();
+
+      async {
+        Ok::<_, hyper::Error>(
+          service_fn(move |req| {
+            let pact = pact.clone();
+            let matches = matches.clone();
+
+            async {
+              handle_mock_request_error(
+                handle_request(req, pact, matches).await
+              )
+            }
+          })
+        )
+      }
+    }));
+
+  Ok((
+    // This is the future that drives the server:
+    async {
+      let _ = server
+        .with_graceful_shutdown(shutdown)
+        .await;
+    },
+    socket_addr
+  ))
 }
 
 #[cfg(test)]
