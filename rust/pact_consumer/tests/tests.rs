@@ -13,6 +13,9 @@ use pact_matching::models::Pact;
 
 /// This is supposed to be a doctest in lib.rs, but it's breaking there, so
 /// we have an executable copy here.
+///
+/// This test is currently ignored because it has a race condition when running in CI. Probably
+/// because it is mutating environment variables that point to directories on disk
 #[test]
 #[ignore]
 fn mock_server_passing_validation() {

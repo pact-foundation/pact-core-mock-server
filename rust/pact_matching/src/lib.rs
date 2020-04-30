@@ -337,6 +337,7 @@ use onig::Regex;
 use lazy_static::*;
 use ansi_term::*;
 use ansi_term::Colour::*;
+use std::str;
 
 #[macro_use] pub mod models;
 mod path_exp;
@@ -490,11 +491,11 @@ impl Mismatch {
                     s!("type") : json!("BodyMismatch"),
                     s!("path") : json!(p),
                     s!("expected") : match e {
-                        &Some(ref v) => json!(v),
+                        &Some(ref v) => json!(str::from_utf8(v).unwrap_or("ERROR: could not convert from bytes")),
                         &None => serde_json::Value::Null
                     },
                     s!("actual") : match a {
-                        &Some(ref v) => json!(v),
+                        &Some(ref v) => json!(str::from_utf8(v).unwrap_or("ERROR: could not convert from bytes")),
                         &None => serde_json::Value::Null
                     },
                     s!("mismatch") : json!(m)

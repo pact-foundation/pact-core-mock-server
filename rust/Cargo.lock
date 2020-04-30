@@ -1238,6 +1238,7 @@ dependencies = [
  "rand 0.6.5",
  "rand_regex",
  "regex-syntax 0.6.17",
+ "reqwest",
  "serde_json",
  "uuid 0.8.1",
 ]
