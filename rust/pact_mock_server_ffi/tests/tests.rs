@@ -1,9 +1,9 @@
-use pact_mock_server_ffi::*;
 use std::ffi::{CString, CStr};
 use expectest::prelude::*;
 use reqwest::blocking::Client;
 use reqwest::header::CONTENT_TYPE;
 use std::panic::catch_unwind;
+use pact_mock_server_ffi::{create_mock_server, mock_server_mismatches, cleanup_mock_server};
 
 #[test]
 fn post_to_mock_server_with_misatches() {
