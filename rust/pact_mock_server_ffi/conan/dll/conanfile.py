@@ -34,6 +34,8 @@ class CbindgenTestConan(ConanFile):
             raise Exception("Binary does not exist for these settings")
         tools.download(("https://github.com/pact-foundation/pact-reference/releases/download/libpact_mock_server_ffi-v%s/pact_mock_server_ffi.h"
                 % (str(self.version))), "include/pact_mock_server_ffi.h")
+        tools.download(("https://github.com/pact-foundation/pact-reference/releases/download/libpact_mock_server_ffi-v%s/pact_mock_server_ffi-c.h"
+                % (str(self.version))), "include/pact_mock_server_ffi-c.h")
 
     def package(self):
         self.copy("libpact_mock_server_ffi*.so", "lib", "")
