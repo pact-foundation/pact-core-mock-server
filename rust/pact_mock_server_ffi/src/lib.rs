@@ -655,8 +655,8 @@ fn convert_cstr(name: *const c_char, default: &str) -> &str {
 
 #[repr(C)]
 #[derive(Debug, Clone)]
-/// Result of generating a datetime value from a format string
-pub enum DateTimeResult {
+/// Result of wrapping a string value
+pub enum StringResult {
   /// Was generated OK
   Ok(*mut c_char),
   /// There was an error generating the string
@@ -670,10 +670,10 @@ pub enum DateTimeResult {
 ///
 /// Exported functions are inherently unsafe.
 #[no_mangle]
-pub unsafe extern fn generate_datetime_string(format: *const c_char) -> DateTimeResult {
+pub unsafe extern fn generate_datetime_string(format: *const c_char) -> StringResult {
   if format.is_null() {
     let error = CString::new("generate_datetime_string: format is NULL").unwrap();
-    DateTimeResult::Failed(error.into_raw())
+    StringResult::Failed(error.into_raw())
   } else {
     let c_str = CStr::from_ptr(format);
     match c_str.to_str() {
@@ -681,18 +681,18 @@ pub unsafe extern fn generate_datetime_string(format: *const c_char) -> DateTime
         Ok(pattern_tokens) => {
           let result = Local::now().format(to_chrono_pattern(&pattern_tokens.1).as_str()).to_string();
           let result_str = CString::new(result.as_str()).unwrap();
-          DateTimeResult::Ok(result_str.into_raw())
+          StringResult::Ok(result_str.into_raw())
         },
         Err(err) => {
           let error = format!("Error parsing '{}': {:?}", s, err);
           let error_str = CString::new(error.as_str()).unwrap();
-          DateTimeResult::Failed(error_str.into_raw())
+          StringResult::Failed(error_str.into_raw())
         }
       },
       Err(err) => {
         let error = format!("generate_datetime_string: format is not a valid UTF-8 string: {:?}", err);
         let error_str = CString::new(error.as_str()).unwrap();
-        DateTimeResult::Failed(error_str.into_raw())
+        StringResult::Failed(error_str.into_raw())
       }
     }
   }
@@ -728,16 +728,6 @@ pub unsafe extern fn check_regex(regex: *const c_char, example: *const c_char) -
   }
 }
 
-#[repr(C)]
-#[derive(Debug, Clone)]
-/// Result of generating a value from a regex
-pub enum RegexResult {
-  /// Was generated OK
-  Ok(*mut c_char),
-  /// There was an error generating the string
-  Failed(*mut c_char)
-}
-
 /// Generates an example string based on the provided regex.
 /// NOTE: The memory for the returned string needs to be freed with the free_string function
 ///
@@ -745,10 +735,10 @@ pub enum RegexResult {
 ///
 /// Exported functions are inherently unsafe.
 #[no_mangle]
-pub unsafe extern fn generate_regex_value(regex: *const c_char) -> RegexResult {
+pub unsafe extern fn generate_regex_value(regex: *const c_char) -> StringResult {
   if regex.is_null() {
     let error = CString::new("generate_regex_value: regex is NULL").unwrap();
-    RegexResult::Failed(error.into_raw())
+    StringResult::Failed(error.into_raw())
   } else {
     let c_str = CStr::from_ptr(regex);
     match c_str.to_str() {
@@ -760,17 +750,17 @@ pub unsafe extern fn generate_regex_value(regex: *const c_char) -> RegexResult {
             let gen = rand_regex::Regex::with_hir(hir, 20).unwrap();
             let result: String = rnd.sample(gen);
             let result_str = CString::new(result.as_str()).unwrap();
-            RegexResult::Ok(result_str.into_raw())
+            StringResult::Ok(result_str.into_raw())
           },
           Err(err) => {
             let error = CString::new(format!("generate_regex_value: '{}' is not a valid regular expression - {}", regex, err)).unwrap();
-            RegexResult::Failed(error.into_raw())
+            StringResult::Failed(error.into_raw())
           }
         }
       },
       Err(err) => {
         let error = CString::new(format!("generate_regex_value: regex is not a valid UTF-8 string: {:?}", err)).unwrap();
-        RegexResult::Failed(error.into_raw())
+        StringResult::Failed(error.into_raw())
       }
     }
   }
