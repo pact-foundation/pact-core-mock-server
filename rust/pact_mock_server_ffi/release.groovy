@@ -97,7 +97,7 @@ ask('Tag and Push commits?: [Y]') {
 }
 
 ask('Publish library to crates.io?: [Y]') {
-  executeOnShell 'rm -rf pact_mock_server_ffi.h test_package/lib/build test_package/dll/build'
+  executeOnShell 'rm -rf pact_mock_server_ffi.h conan/lib/test_package/build conan/dll/test_package/build'
   executeOnShell 'cargo package --no-verify'
   executeOnShell 'cargo publish --no-verify'
 }
