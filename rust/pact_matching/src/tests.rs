@@ -342,6 +342,15 @@ fn mismatched_header_description_reports_accept_header_mismatches_correctly() {
 }
 
 #[test]
+fn accept_header_matching_with_multiple_values() {
+    let expected = Some(hashmap!{ "accept".to_string() => vec!["application/json".to_string(), "application/hal+json".to_string()] });
+    let actual = Some(hashmap!{ "accept".to_string() => vec!["application/json".to_string(), "application/hal+json".to_string()] });
+    let mut mismatches = vec![];
+    match_headers(expected, actual, &mut mismatches, &matchingrules!{});
+    expect!(mismatches.iter()).to(be_empty());
+}
+
+#[test]
 fn body_does_not_match_if_different_content_types() {
     let mut mismatches = vec![];
     let expected = Request { method: s!("GET"), path: s!("/"), query: None,

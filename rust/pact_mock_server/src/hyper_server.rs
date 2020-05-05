@@ -40,32 +40,34 @@ fn extract_query_string(uri: &hyper::Uri) -> Option<HashMap<String, Vec<String>>
 }
 
 fn extract_headers(headers: &hyper::HeaderMap) -> Result<Option<HashMap<String, Vec<String>>>, InteractionError> {
-    if !headers.is_empty() {
-        let result: Result<HashMap<String, Vec<String>>, InteractionError> = headers.keys()
-            .map(|name| -> Result<(String, Vec<String>), InteractionError> {
-                let values = headers.get_all(name);
-                let parsed_vals: Vec<Result<String, InteractionError>> = values.iter()
-                    .map(|val| val.to_str()
-                        .map(|v| v.to_string())
-                        .map_err(|err| {
-                            warn!("Failed to parse HTTP header value: {}", err);
-                            InteractionError::RequestHeaderEncodingError
-                        })
-                    ).collect();
-                if parsed_vals.iter().find(|val| val.is_err()).is_some() {
-                    Err(InteractionError::RequestHeaderEncodingError)
-                } else {
-                    Ok((name.as_str().into(), parsed_vals.iter().cloned()
-                        .map(|val| val.unwrap_or_default())
-                        .collect()))
-                }
+  if !headers.is_empty() {
+    let result: Result<HashMap<String, Vec<String>>, InteractionError> = headers.keys()
+      .map(|name| -> Result<(String, Vec<String>), InteractionError> {
+        let values = headers.get_all(name);
+        let parsed_vals: Vec<Result<String, InteractionError>> = values.iter()
+          .map(|val| val.to_str()
+            .map(|v| v.to_string())
+            .map_err(|err| {
+              warn!("Failed to parse HTTP header value: {}", err);
+              InteractionError::RequestHeaderEncodingError
             })
-            .collect();
+          ).collect();
+        if parsed_vals.iter().find(|val| val.is_err()).is_some() {
+          Err(InteractionError::RequestHeaderEncodingError)
+        } else {
+          Ok((name.as_str().into(), parsed_vals.iter().cloned()
+            .map(|val| val.unwrap_or_default())
+            .flat_map(|val| val.split(",").map(|v| v.to_string()).collect::<Vec<String>>())
+            .map(|val| val.trim().to_string())
+            .collect()))
+        }
+      })
+      .collect();
 
-        result.map(|map| Some(map))
-    } else {
-        Ok(None)
-    }
+    result.map(|map| Some(map))
+  } else {
+    Ok(None)
+  }
 }
 
 fn extract_body(bytes: bytes::Bytes) -> OptionalBody {
@@ -293,9 +295,13 @@ pub(crate) async fn create_and_bind_tls(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+  use super::*;
+  use hyper::HeaderMap;
+  use hyper::header::{ACCEPT, USER_AGENT, CONTENT_TYPE};
+  use expectest::prelude::*;
+  use expectest::expect;
 
-    #[tokio::test]
+  #[tokio::test]
     async fn can_fetch_results_on_current_thread() {
         let (shutdown_tx, shutdown_rx) = futures::channel::oneshot::channel();
         let matches = Arc::new(Mutex::new(vec![]));
@@ -320,4 +326,19 @@ mod tests {
         let all_matches = matches.lock().unwrap().clone();
         assert_eq!(all_matches, vec![]);
     }
+
+  #[test]
+  fn handle_hyper_headers_with_multiple_values() {
+    let mut headers = HeaderMap::new();
+    headers.append(ACCEPT, "application/xml, application/json".parse().unwrap());
+    headers.append(USER_AGENT, "test".parse().unwrap());
+    headers.append(USER_AGENT, "test2".parse().unwrap());
+    headers.append(CONTENT_TYPE, "text/plain".parse().unwrap());
+    let result = extract_headers(&headers);
+    expect!(result).to(be_ok().value(Some(hashmap! {
+      "accept".to_string() => vec!["application/xml".to_string(), "application/json".to_string()],
+      "user-agent".to_string() => vec!["test".to_string(), "test2".to_string()],
+      "content-type".to_string() => vec!["text/plain".to_string()]
+    })));
+  }
 }

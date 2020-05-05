@@ -7,6 +7,7 @@ use pact_matching::models::{Interaction, Request, OptionalBody};
 use pact_matching::Mismatch;
 use pact_matching::models::matchingrules::*;
 use pact_matching::matchingrules;
+use reqwest::header::ACCEPT;
 
 #[test]
 fn match_request_returns_a_match_for_identical_requests() {
@@ -142,4 +143,35 @@ fn match_request_supports_v2_matchers_with_xml() {
     let interaction = Interaction { request: expected_request, .. Interaction::default() };
     let result = match_request(&request, &vec![interaction.clone()]);
     expect!(result).to(be_equal_to(MatchResult::RequestMatch(interaction)));
+}
+
+#[test]
+fn match_request_with_header_with_multiple_values() {
+  let pact = Pact {
+    interactions: vec![
+      Interaction {
+        request: Request {
+          headers: Some(hashmap! {
+            "accept".to_string() => vec!["application/hal+json".to_string(), "application/json".to_string()]
+          }),
+          .. Request::default()
+        },
+        .. Interaction::default()
+      }
+    ],
+    .. Pact::default()
+  };
+  let mut manager = ServerManager::new();
+  let id = "match_request_with_header_with_multiple_values".to_string();
+  let port = manager.start_mock_server(id.clone(), pact, 0).unwrap();
+
+  let client = reqwest::blocking::Client::new();
+  let response = client.get(format!("http://127.0.0.1:{}", port).as_str())
+    .header(ACCEPT, "application/hal+json, application/json").send();
+
+  let mismatches = manager.find_mock_server_by_id(&id, &|ms| ms.mismatches());
+  manager.shutdown_mock_server_by_port(port);
+
+  expect!(mismatches).to(be_some().value(vec![]));
+  expect!(response.unwrap().status()).to(be_equal_to(200));
 }

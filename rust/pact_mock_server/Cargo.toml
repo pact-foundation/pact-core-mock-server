@@ -32,3 +32,6 @@ rustls = "0.17.0"
 [dev-dependencies]
 quickcheck = "0.4.1"
 expectest = "0.9.1"
+reqwest = { version = "0.10", features = ["blocking"] }
+env_logger = "0.7.1"
+test-env-log = "0.2.2"
