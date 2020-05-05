@@ -2,11 +2,13 @@
 
 use pact_matching::models::{Pact, Consumer, Provider, Interaction};
 use lazy_static::*;
+use maplit::*;
 use std::sync::Mutex;
 use std::cell::RefCell;
+use std::collections::HashMap;
 
 lazy_static! {
-  static ref PACT_HANDLES: Mutex<Vec<RefCell<Pact>>> = Mutex::new(vec![]);
+  static ref PACT_HANDLES: Mutex<HashMap<usize, RefCell<Pact>>> = Mutex::new(hashmap![]);
 }
 
 #[repr(C)]
@@ -41,20 +43,21 @@ impl PactHandle {
   /// Creates a new handle to a Pact model
   pub fn new(consumer: &str, provider: &str) -> Self {
     let mut handles = PACT_HANDLES.lock().unwrap();
-    handles.push(RefCell::new(Pact {
+    let id = handles.len() + 1;
+    handles.insert(id, RefCell::new(Pact {
       consumer: Consumer { name: consumer.to_string() },
       provider: Provider { name: provider.to_string() },
       .. Pact::default()
     }));
     PactHandle {
-      pact: handles.len()
+      pact: id
     }
   }
 
   /// Invokes the closure with the inner Pact model
   pub fn with_pact<R>(&self, f: &dyn Fn(usize, &mut Pact) -> R) -> Option<R> {
     let mut handles = PACT_HANDLES.lock().unwrap();
-    handles.get_mut(self.pact - 1).map(|inner| f(self.pact - 1, &mut inner.borrow_mut()))
+    handles.get_mut(&self.pact).map(|inner| f(self.pact - 1, &mut inner.borrow_mut()))
   }
 }
 
@@ -70,13 +73,13 @@ impl InteractionHandle {
   /// Invokes the closure with the inner Pact model
   pub fn with_pact<R>(&self, f: &dyn Fn(usize, &mut Pact) -> R) -> Option<R> {
     let mut handles = PACT_HANDLES.lock().unwrap();
-    handles.get_mut(self.pact - 1).map(|inner| f(self.pact - 1, &mut inner.borrow_mut()))
+    handles.get_mut(&self.pact).map(|inner| f(self.pact - 1, &mut inner.borrow_mut()))
   }
 
   /// Invokes the closure with the inner Interaction model
   pub fn with_interaction<R>(&self, f: &dyn Fn(usize, &mut Interaction) -> R) -> Option<R> {
     let mut handles = PACT_HANDLES.lock().unwrap();
-    handles.get_mut(self.pact - 1).map(|inner| {
+    handles.get_mut(&self.pact).map(|inner| {
       match inner.borrow_mut().interactions.get_mut(self.interaction - 1) {
         Some(inner_i) => Some(f(self.interaction - 1, inner_i)),
         None => None
