@@ -941,7 +941,8 @@ mod tests {
             .interaction("a request to the pact broker root", |i| {
                 i.request
                     .path("/")
-                    .header("Accept", "application/hal+json, application/json");
+                    .header("Accept", "application/hal+json")
+                    .header("Accept", "application/json");
                 i.response
                     .header("Content-Type", "application/hal+json")
                     .json_body(json_pattern!({
@@ -957,7 +958,8 @@ mod tests {
                 i.given("There are no pacts in the pact broker");
                 i.request
                     .path("/pacts/provider/sad_provider/latest")
-                    .header("Accept", "application/hal+json, application/json");
+                    .header("Accept", "application/hal+json")
+                    .header("Accept", "application/json");
                 i.response.status(404);
             })
             .start_mock_server();
@@ -983,7 +985,8 @@ mod tests {
             .interaction("a request to the pact broker root", |i| {
                 i.request
                     .path("/")
-                    .header("Accept", "application/hal+json, application/json");
+                    .header("Accept", "application/hal+json")
+                    .header("Accept", "application/json");
                 i.response
                     .header("Content-Type", "application/hal+json")
                     .json_body(json_pattern!({
@@ -999,7 +1002,8 @@ mod tests {
                 i.given("There are two pacts in the pact broker");
                 i.request
                     .path("/pacts/provider/happy_provider/latest")
-                    .header("Accept", "application/hal+json, application/json");
+                    .header("Accept", "application/hal+json")
+                    .header("Accept", "application/json");
                 i.response
                     .header("Content-Type", "application/hal+json")
                     .json_body(json_pattern!({
@@ -1015,7 +1019,8 @@ mod tests {
                 i.given("There are two pacts in the pact broker");
                 i.request
                     .path("/pacts/provider/happy_provider/consumer/Consumer/version/1.0.0")
-                    .header("Accept", "application/hal+json, application/json");
+                    .header("Accept", "application/hal+json")
+                    .header("Accept", "application/json");
                 i.response
                     .header("Content-Type", "application/json")
                     .body(pact.clone());
@@ -1024,7 +1029,8 @@ mod tests {
                 i.given("There are two pacts in the pact broker");
                 i.request
                     .path("/pacts/provider/happy_provider/consumer/Consumer2/version/1.0.0")
-                    .header("Accept", "application/hal+json, application/json");
+                    .header("Accept", "application/hal+json")
+                    .header("Accept", "application/json");
                 i.response
                     .header("Content-Type", "application/json")
                     .body(pact2.clone());
