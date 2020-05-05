@@ -476,7 +476,7 @@ pub extern fn with_query_parameter(interaction: handles::InteractionHandle,
       inner.request.query = inner.request.query.clone().map(|mut q| {
         if q.contains_key(name) {
           let values = q.get_mut(name).unwrap();
-          if index > values.len() {
+          if index >= values.len() {
             values.resize_with(index + 1, Default::default);
           }
           values[index] = value.to_string();
@@ -525,7 +525,7 @@ pub extern fn with_header(interaction: handles::InteractionHandle, part: Interac
       let updated_headers = headers.map(|mut h| {
         if h.contains_key(name) {
           let values = h.get_mut(name).unwrap();
-          if index > values.len() {
+          if index >= values.len() {
             values.resize_with(index + 1, Default::default);
           }
           values[index] = value.to_string();
