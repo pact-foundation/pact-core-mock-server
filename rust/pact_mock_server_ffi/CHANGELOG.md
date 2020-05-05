@@ -1,5 +1,30 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.0.2 - Bugfix Release
+
+* 3260ce3 - chore: fix release script (Ronald Holshausen, Tue May 5 17:03:33 2020 +1000)
+* b41fc58 - chore: correct the version in the conan recipe (Ronald Holshausen, Tue May 5 16:59:21 2020 +1000)
+* a686afd - chore: use a hashmap instead of a vec to store the Pact models (Ronald Holshausen, Tue May 5 12:54:18 2020 +1000)
+* 75c965e - fix: correct issue with headers/query with multiple values (Ronald Holshausen, Tue May 5 12:53:28 2020 +1000)
+* 2eba288 - fix: update conan test packages to use updated API (Ronald Holshausen, Tue May 5 12:52:28 2020 +1000)
+* 2679653 - fix: for failing integration test (Ronald Holshausen, Fri May 1 16:16:30 2020 +1000)
+* 1cc568c - chore: generate headers for both C and C++ (Ronald Holshausen, Fri May 1 15:42:53 2020 +1000)
+* 9b1c192 - fix: use a single result enum #66 (Ronald Holshausen, Fri May 1 15:42:27 2020 +1000)
+* 90b93f1 - chore: create a conan package for the dll/so (Ronald Holshausen, Fri May 1 14:45:49 2020 +1000)
+* da885a3 - feat: add support for TLS with the mock server #65 (Ronald Holshausen, Thu Apr 30 16:41:30 2020 +1000)
+* a45d0c3 - fix: FFI mismatch json should have the actual values as UTF-8 string not bytes #64 (Ronald Holshausen, Thu Apr 30 11:16:25 2020 +1000)
+* 2003d7b - chore: roll back onig crate to 4.3.3 #64 (Ronald Holshausen, Thu Apr 30 09:50:48 2020 +1000)
+* 411f697 - chore: correct some clippy warnings (Ronald Holshausen, Wed Apr 29 16:49:36 2020 +1000)
+* 47cc589 - chore: added clippy and fixed resulting lint errors (Ronald Holshausen, Wed Apr 29 15:32:55 2020 +1000)
+* b30fd2d - feat: add support functions for regular expressions for foreign DSLs (Ronald Holshausen, Tue Apr 28 17:33:48 2020 +1000)
+* a36b490 - chore: update documentation (Ronald Holshausen, Tue Apr 28 11:25:09 2020 +1000)
+* 8a7e4d1 - chore: bump version in conan package (Ronald Holshausen, Tue Apr 28 10:04:55 2020 +1000)
+* 4287f0e - fix: correct the windows lib name in conan package (Ronald Holshausen, Mon Apr 27 14:18:01 2020 +1000)
+* c1015d5 - fix: correct the windows lib name in conan package (Ronald Holshausen, Mon Apr 27 14:02:44 2020 +1000)
+* a0d701e - fix: Macos on conan package (Ronald Holshausen, Fri Apr 24 15:23:53 2020 +1000)
+* bb1e35e - fix: Windows URL on conan package (Ronald Holshausen, Fri Apr 24 15:00:24 2020 +1000)
+* a13c0fc - fix: Add OSX to the conan package (Ronald Holshausen, Fri Apr 24 14:46:49 2020 +1000)
+
 # 0.0.1 - Changes to support C++ DSL
 
 * 1655472 - chore: remove the version for the release artifact file name (Ronald Holshausen, Fri Apr 24 11:06:24 2020 +1000)
