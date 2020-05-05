@@ -32,8 +32,6 @@ jobs:
         run: ./release-osx.sh
         shell: bash
         working-directory: rust/pact_mock_server_ffi
-      - run: ls -l rust/target/artifacts
-        shell: bash
       - name: Upload the artifacts
         uses: actions/upload-artifact@v1
         with:
