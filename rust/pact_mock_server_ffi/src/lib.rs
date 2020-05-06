@@ -65,6 +65,7 @@ use nom::types::CompleteStr;
 use chrono::Local;
 use onig::Regex;
 use rand::prelude::*;
+use itertools::Itertools;
 
 pub mod handles;
 pub mod bodies;
@@ -402,8 +403,8 @@ pub extern fn write_pact_file(mock_server_port: i32, directory: *const c_char) -
 /// Returns a new `PactHandle`.
 #[no_mangle]
 pub extern fn new_pact(consumer_name: *const c_char, provider_name: *const c_char) -> handles::PactHandle {
-  let consumer = convert_cstr(consumer_name, "Consumer");
-  let provider = convert_cstr(provider_name, "Provider");
+  let consumer = convert_cstr("consumer_name", consumer_name).unwrap_or_else(|| "Consumer");
+  let provider = convert_cstr("provider_name", provider_name).unwrap_or_else(|| "Provider");
   handles::PactHandle::new(consumer, provider)
 }
 
@@ -414,15 +415,18 @@ pub extern fn new_pact(consumer_name: *const c_char, provider_name: *const c_cha
 /// Returns a new `InteractionHandle`.
 #[no_mangle]
 pub extern fn new_interaction(pact: handles::PactHandle, description: *const c_char) -> handles::InteractionHandle {
-  let description = convert_cstr(description, "ERROR");
-  pact.with_pact(&|_, inner| {
-    let interaction = Interaction {
-      description: description.to_string(),
-      .. Interaction::default()
-    };
-    inner.interactions.push(interaction);
-    handles::InteractionHandle::new(pact.clone(), inner.interactions.len())
-  }).unwrap_or_else(|| handles::InteractionHandle::new(pact.clone(), 0))
+  if let Some(description) = convert_cstr("description", description) {
+    pact.with_pact(&|_, inner| {
+      let interaction = Interaction {
+        description: description.to_string(),
+        ..Interaction::default()
+      };
+      inner.interactions.push(interaction);
+      handles::InteractionHandle::new(pact.clone(), inner.interactions.len())
+    }).unwrap_or_else(|| handles::InteractionHandle::new(pact.clone(), 0))
+  } else {
+    handles::InteractionHandle::new(pact.clone(), 0)
+  }
 }
 
 /// Sets the description for the Interaction.
@@ -430,10 +434,11 @@ pub extern fn new_interaction(pact: handles::PactHandle, description: *const c_c
 /// * `description` - The interaction description. It needs to be unique for each interaction.
 #[no_mangle]
 pub extern fn upon_receiving(interaction: handles::InteractionHandle, description: *const c_char) {
-  let description = convert_cstr(description, "ERROR");
-  interaction.with_interaction(&|_, inner| {
-    inner.description = description.to_string();
-  });
+  if let Some(description) = convert_cstr("description", description) {
+    interaction.with_interaction(&|_, inner| {
+      inner.description = description.to_string();
+    });
+  }
 }
 
 /// Adds a provider state to the Interaction.
@@ -441,10 +446,38 @@ pub extern fn upon_receiving(interaction: handles::InteractionHandle, descriptio
 /// * `description` - The provider state description. It needs to be unique.
 #[no_mangle]
 pub extern fn given(interaction: handles::InteractionHandle, description: *const c_char) {
-  let description = convert_cstr(description, "ERROR");
-  interaction.with_interaction(&|_, inner| {
-    inner.provider_states.push(ProviderState::default(&description.to_string()));
-  });
+  if let Some(description) = convert_cstr("description", description) {
+    interaction.with_interaction(&|_, inner| {
+      inner.provider_states.push(ProviderState::default(&description.to_string()));
+    });
+  }
+}
+
+/// Adds a provider state to the Interaction with a parameter key and value.
+///
+/// * `description` - The provider state description. It needs to be unique.
+/// * `name` - Parameter name.
+/// * `value` - Parameter value.
+#[no_mangle]
+pub extern fn given_with_param(interaction: handles::InteractionHandle, description: *const c_char,
+                               name: *const c_char, value: *const c_char) {
+  if let Some(description) = convert_cstr("description", description) {
+    if let Some(name) = convert_cstr("name", name) {
+      let value = convert_cstr("value", value).unwrap_or_default();
+      interaction.with_interaction(&|_, inner| {
+        let value = match serde_json::from_str(value) {
+          Ok(json) => json,
+          Err(_) => json!(value)
+        };
+        match inner.provider_states.iter().find_position(|state| state.name == name) {
+          Some((index, _)) => {
+            inner.provider_states.get_mut(index).unwrap().params.insert(name.to_string(), value);
+          },
+          None => inner.provider_states.push(ProviderState::default(&description.to_string()))
+        };
+      });
+    }
+  }
 }
 
 /// Configures the request for the Interaction.
@@ -453,8 +486,8 @@ pub extern fn given(interaction: handles::InteractionHandle, description: *const
 /// * `path` - The request path. Defaults to `/`.
 #[no_mangle]
 pub extern fn with_request(interaction: handles::InteractionHandle, method: *const c_char, path: *const c_char) {
-  let method = convert_cstr(method, "GET");
-  let path = convert_cstr(path, "/");
+  let method = convert_cstr("method", method).unwrap_or_else(|| "GET");
+  let path = convert_cstr("path", path).unwrap_or_else(|| "/");
   interaction.with_interaction(&|_, inner| {
     inner.request.method = method.to_string();
     inner.request.path = path.to_string();
@@ -469,9 +502,8 @@ pub extern fn with_request(interaction: handles::InteractionHandle, method: *con
 #[no_mangle]
 pub extern fn with_query_parameter(interaction: handles::InteractionHandle,
                                    name: *const c_char, index: size_t, value: *const c_char) {
-  let name = convert_cstr(name, "");
-  let value = convert_cstr(value, "");
-  if !name.is_empty() {
+  if let Some(name) = convert_cstr("name", name) {
+    let value = convert_cstr("value", value).unwrap_or_default();
     interaction.with_interaction(&|_, inner| {
       inner.request.query = inner.request.query.clone().map(|mut q| {
         if q.contains_key(name) {
@@ -514,9 +546,8 @@ pub extern fn with_query_parameter(interaction: handles::InteractionHandle,
 #[no_mangle]
 pub extern fn with_header(interaction: handles::InteractionHandle, part: InteractionPart,
                           name: *const c_char, index: size_t, value: *const c_char) {
-  let name = convert_cstr(name, "");
-  let value = convert_cstr(value, "");
-  if !name.is_empty() {
+  if let Some(name) = convert_cstr("name", name) {
+    let value = convert_cstr("value", value).unwrap_or_default();
     interaction.with_interaction(&|_, inner| {
       let headers = match part {
         InteractionPart::Request => inner.request.headers.clone(),
@@ -576,8 +607,8 @@ pub extern fn response_status(interaction: handles::InteractionHandle, status: c
 #[no_mangle]
 pub extern fn with_body(interaction: handles::InteractionHandle, part: InteractionPart,
                         content_type: *const c_char, body: *const c_char) {
-  let content_type = convert_cstr(content_type, "text/plain");
-  let body = convert_cstr(body, "");
+  let content_type = convert_cstr("content_type", content_type).unwrap_or_else(|| "text/plain");
+  let body = convert_cstr("body", body).unwrap_or_default();
   let content_type_header = "Content-Type".to_string();
   interaction.with_interaction(&|_, inner| {
     match part {
@@ -635,18 +666,18 @@ fn error_message(err: Box<dyn Any>, method: &str) -> String {
   }
 }
 
-fn convert_cstr(name: *const c_char, default: &str) -> &str {
+fn convert_cstr(name: &str, value: *const c_char) -> Option<&str> {
   unsafe {
-    if name.is_null() {
-      warn!("{} name is NULL, defaulting to '{}'", default, default);
-      default
+    if value.is_null() {
+      warn!("{} is NULL!", name);
+      None
     } else {
-      let c_str = CStr::from_ptr(name);
+      let c_str = CStr::from_ptr(value);
       match c_str.to_str() {
-        Ok(str) => str,
+        Ok(str) => Some(str),
         Err(err) => {
-          warn!("Failed to parse {} name as a UTF-8 string, defaulting to '{}': {}", default, default, err);
-          default
+          warn!("Failed to parse {} name as a UTF-8 string: {}", name, err);
+          None
         }
       }
     }
@@ -711,7 +742,7 @@ pub unsafe extern fn check_regex(regex: *const c_char, example: *const c_char) -
     let c_str = CStr::from_ptr(regex);
     match c_str.to_str() {
       Ok(regex) => {
-        let example = convert_cstr(example, "");
+        let example = convert_cstr("example", example).unwrap_or_default();
         match Regex::new(regex) {
           Ok(re) => re.is_match(example),
           Err(err) => {
