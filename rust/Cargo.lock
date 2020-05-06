@@ -750,18 +750,9 @@ checksum = "c4a9b56eb56058f43dc66e58f40a214b2ccbc9f3df51861b63d51dec7b65bc3f"
 
 [[package]]
 name = "itertools"
-version = "0.6.5"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3f2be4da1690a039e9ae5fd575f706a63ad5a2120f161b1d653c9da3930dd21"
-dependencies = [
- "either",
-]
-
-[[package]]
-name = "itertools"
-version = "0.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f56a2d0bc861f9165be4eb3442afd3c236d8a98afd426f65d92324ae1091a484"
+checksum = "284f18f85651fe11e8a991b2adb42cb078325c996ed026d994719efcfca1d54b"
 dependencies = [
  "either",
 ]
@@ -1142,7 +1133,7 @@ dependencies = [
  "env_logger 0.4.3",
  "expectest 0.9.2",
  "futures",
- "itertools 0.8.2",
+ "itertools 0.9.0",
  "lazy_static 1.4.0",
  "libc",
  "log 0.4.8",
@@ -1173,7 +1164,7 @@ dependencies = [
  "hamcrest2",
  "hex",
  "indextree",
- "itertools 0.8.2",
+ "itertools 0.9.0",
  "lazy_static 1.4.0",
  "log 0.4.8",
  "maplit 0.1.6",
@@ -1202,7 +1193,7 @@ dependencies = [
  "expectest 0.9.2",
  "futures",
  "hyper 0.13.5",
- "itertools 0.6.5",
+ "itertools 0.9.0",
  "lazy_static 1.4.0",
  "log 0.4.8",
  "maplit 0.1.6",
@@ -1248,6 +1239,7 @@ dependencies = [
  "chrono-tz",
  "env_logger 0.7.1",
  "expectest 0.12.0",
+ "itertools 0.9.0",
  "lazy_static 1.4.0",
  "libc",
  "log 0.4.8",
@@ -1276,7 +1268,7 @@ dependencies = [
  "expectest 0.12.0",
  "futures",
  "http",
- "itertools 0.8.2",
+ "itertools 0.9.0",
  "lazy_static 0.1.16",
  "libc",
  "log 0.4.8",

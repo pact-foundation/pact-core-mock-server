@@ -81,7 +81,7 @@ fn method_or_path_mismatch(mismatches: &Vec<Mismatch>) -> bool {
 /// Matches a request against a list of interactions
 ///
 pub fn match_request(req: &Request, interactions: &Vec<Interaction>) -> MatchResult {
-    let match_results = interactions
+    let mut match_results = interactions
         .into_iter()
         .map(|i| (i.clone(), pact_matching::match_request(i.request.clone(), req.clone())))
         .sorted_by(|i1, i2| {
@@ -89,7 +89,7 @@ pub fn match_request(req: &Request, interactions: &Vec<Interaction>) -> MatchRes
             let list2 = i2.1.clone().into_iter().map(|m| m.mismatch_type()).unique().count();
             Ord::cmp(&list1, &list2)
         });
-    match match_results.first() {
+    match match_results.next() {
         Some(res) => {
             if res.1.is_empty() {
                 MatchResult::RequestMatch(res.0.clone())
