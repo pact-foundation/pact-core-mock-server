@@ -2,6 +2,7 @@ use crate::models::matchingrules::*;
 use itertools::Itertools;
 use onig::Regex;
 use crate::time_utils::validate_datetime;
+use crate::binary_utils::match_content_type;
 
 pub trait Matches<A> {
     fn matches(&self, actual: &A, matcher: &MatchingRule) -> Result<(), String>;
@@ -269,18 +270,28 @@ impl Matches<u64> for f64 {
 
 impl Matches<Vec<u8>> for String {
   fn matches(&self, actual: &Vec<u8>, matcher: &MatchingRule) -> Result<(), String> {
-    self.matches(&s!(std::str::from_utf8(actual).unwrap_or("")), matcher)
+    match matcher {
+      MatchingRule::ContentType(s) => match_content_type(actual.as_slice(), s)
+        .map_err(|err| format!("Expected binary data to have a content type of '{}' but detected '{}'", s, err)),
+      _ => self.matches(&s!(std::str::from_utf8(actual).unwrap_or("")), matcher)
+    }
   }
 }
 
 impl Matches<Vec<u8>> for Vec<u8> {
   fn matches(&self, actual: &Vec<u8>, matcher: &MatchingRule) -> Result<(), String> {
-    let self_str: String = s!(std::str::from_utf8(self).unwrap_or(""));
-    self_str.matches(&s!(std::str::from_utf8(actual).unwrap_or("")), matcher)
+    match matcher {
+      MatchingRule::ContentType(s) => match_content_type(actual.as_slice(), s)
+        .map_err(|err| format!("Expected binary data to have a content type of '{}' but detected '{}'", s, err)),
+      _ => {
+        let self_str: String = s!(std::str::from_utf8(self).unwrap_or(""));
+        self_str.matches(&s!(std::str::from_utf8(actual).unwrap_or("")), matcher)
+      }
+    }
   }
 }
 
-fn select_best_matcher(category: &str, path: &Vec<String>, matchers: &MatchingRules) -> Option<RuleList> {
+pub fn select_best_matcher(category: &str, path: &Vec<String>, matchers: &MatchingRules) -> Option<RuleList> {
   if category == "body" {
     matchers.resolve_body_matchers_by_path(path)
   } else {

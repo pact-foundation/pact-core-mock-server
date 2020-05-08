@@ -11,6 +11,7 @@ use crate::matchers::*;
 use onig::Regex;
 use log::*;
 use crate::time_utils::validate_datetime;
+use crate::binary_utils::{match_content_type, convert_data};
 
 fn type_of(json: &Value) -> String {
   match json {
@@ -155,6 +156,10 @@ impl Matches<Value> for Value {
           MatchingRule::Timestamp(ref s) => {
             validate_datetime(&value_of(actual), s)
               .map_err(|err| format!("Expected '{}' to match a timestamp format of '{}': {}", actual, s, err))
+          },
+          MatchingRule::ContentType(ref expected_content_type) => {
+            match_content_type(&convert_data(actual), expected_content_type)
+              .map_err(|err| format!("Expected data to have a content type of '{}' but was {}", expected_content_type, err))
           }
        };
        debug!("JSON -> JSON: Comparing '{}' to '{}' using {:?} -> {:?}", self, actual, matcher, result);

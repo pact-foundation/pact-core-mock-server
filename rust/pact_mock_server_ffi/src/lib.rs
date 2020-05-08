@@ -66,6 +66,7 @@ use chrono::Local;
 use onig::Regex;
 use rand::prelude::*;
 use itertools::Itertools;
+use pact_matching::models::matchingrules::{MatchingRule, RuleLogic};
 
 pub mod handles;
 pub mod bodies;
@@ -808,4 +809,64 @@ pub unsafe extern fn free_string(s: *mut c_char) {
     return;
   }
   CString::from_raw(s);
+}
+
+/// Adds a binary file as the body with the expected content type and example contents. Will use
+/// a mime type matcher to match the body.
+///
+/// * `interaction` - Interaction handle to set the body for.
+/// * `part` - Request or response part.
+/// * `content_type` - Expected content type.
+/// * `body` - example body contents in bytes
+#[no_mangle]
+pub extern fn with_binary_file(interaction: handles::InteractionHandle, part: InteractionPart,
+                               content_type: *const c_char, body: *const c_char , size: size_t) {
+  let content_type_header = "Content-Type".to_string();
+  match convert_cstr("content_type", content_type) {
+    Some(content_type) => {
+      interaction.with_interaction(&|_, inner| {
+        match part {
+          InteractionPart::Request => {
+            inner.request.body = convert_ptr_to_body(body, size);
+            if !inner.request.has_header(&content_type_header) {
+              match inner.request.headers {
+                Some(ref mut headers) => {
+                  headers.insert(content_type_header.clone(), vec!["application/octet-stream".to_string()]);
+                },
+                None => {
+                  inner.request.headers = Some(hashmap! { content_type_header.clone() => vec!["application/octet-stream".to_string()]});
+                }
+              }
+            };
+            inner.request.matching_rules.add_category("body").add_rule("$", MatchingRule::ContentType(content_type.into()), &RuleLogic::And);
+          },
+          InteractionPart::Response => {
+            inner.response.body = convert_ptr_to_body(body, size);
+            if !inner.response.has_header(&content_type_header) {
+              match inner.response.headers {
+                Some(ref mut headers) => {
+                  headers.insert(content_type_header.clone(), vec!["application/octet-stream".to_string()]);
+                },
+                None => {
+                  inner.response.headers = Some(hashmap! { content_type_header.clone() => vec!["application/octet-stream".to_string()]});
+                }
+              }
+            }
+            inner.request.matching_rules.add_category("body").add_rule("$", MatchingRule::ContentType(content_type.into()), &RuleLogic::And);
+          }
+        };
+      });
+    },
+    None => warn!("with_binary_file: Content type value is not valid (NULL or non-UTF-8)")
+  }
+}
+
+fn convert_ptr_to_body(body: *const c_char, size: size_t) -> OptionalBody {
+  if body.is_null() {
+    OptionalBody::Null
+  } else if size == 0 {
+    OptionalBody::Empty
+  } else {
+    OptionalBody::Present(unsafe { std::slice::from_raw_parts(body as *const u8, size) }.to_vec())
+  }
 }

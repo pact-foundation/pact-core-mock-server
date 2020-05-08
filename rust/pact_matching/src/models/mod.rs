@@ -324,6 +324,11 @@ pub trait HttpPart {
         None => None
       }
     }
+
+  /// If the body is a textual type (non-binary)
+  fn has_text_body(&self) -> bool {
+    self.content_type() != "application/octet-stream"
+  }
 }
 
 fn is_match(regex: &Regex, string: &str) -> bool {

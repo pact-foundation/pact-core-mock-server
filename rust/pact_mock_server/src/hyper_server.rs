@@ -1,6 +1,6 @@
 use crate::matching::{MatchResult, match_request};
 
-use pact_matching::models::{Pact, Request, OptionalBody};
+use pact_matching::models::{Pact, Request, OptionalBody, HttpPart};
 use pact_matching::models::matchingrules::*;
 use pact_matching::models::generators::*;
 use pact_matching::models::parse_query_string;
@@ -137,7 +137,9 @@ fn match_result_to_hyper_response(request: &Request, match_result: MatchResult) 
         MatchResult::RequestMatch(ref interaction) => {
             let response = pact_matching::generate_response(&interaction.response, &hashmap!{});
             info!("Request matched, sending response {}", response);
-            debug!("     body: '{}'", interaction.response.body.str_value());
+            if interaction.response.has_text_body() {
+                debug!("     body: '{}'", interaction.response.body.str_value());
+            }
 
             let mut builder = Response::builder()
                 .status(response.status)
@@ -172,6 +174,9 @@ async fn handle_request(
 
     let pact_request = hyper_request_to_pact_request(req).await?;
     info!("Received request {}", pact_request);
+    if pact_request.has_text_body() {
+      debug!("     body: '{}'", pact_request.body.str_value());
+    }
 
     let match_result = match_request(&pact_request, &pact.interactions);
 

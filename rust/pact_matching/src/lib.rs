@@ -338,6 +338,8 @@ use lazy_static::*;
 use ansi_term::*;
 use ansi_term::Colour::*;
 use std::str;
+use serde_json::*;
+use log::*;
 
 #[macro_use] pub mod models;
 mod path_exp;
@@ -345,12 +347,12 @@ pub mod time_utils;
 mod matchers;
 pub mod json;
 mod xml;
+mod binary_utils;
 
 use crate::models::HttpPart;
 use crate::models::matchingrules::*;
 use crate::models::generators::*;
 use crate::matchers::*;
-use serde_json::*;
 
 fn strip_whitespace<'a, T: FromIterator<&'a str>>(val: &'a String, split_by: &'a str) -> T {
   val.split(split_by).map(|v| v.trim()).collect()
@@ -358,10 +360,11 @@ fn strip_whitespace<'a, T: FromIterator<&'a str>>(val: &'a String, split_by: &'a
 
 lazy_static! {
     static ref BODY_MATCHERS: [(Regex, fn(expected: &Vec<u8>, actual: &Vec<u8>, config: DiffConfig,
-            mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules)); 3] = [
+            mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules)); 4] = [
         (Regex::new("application/.*json").unwrap(), json::match_json),
         (Regex::new("application/json.*").unwrap(), json::match_json),
-        (Regex::new("application/.*xml").unwrap(), xml::match_xml)
+        (Regex::new("application/.*xml").unwrap(), xml::match_xml),
+        (Regex::new("application/octet-stream").unwrap(), binary_utils::match_octet_stream)
     ];
 }
 
@@ -859,12 +862,18 @@ pub fn match_headers(expected: Option<HashMap<String, Vec<String>>>,
   };
 }
 
-fn compare_bodies(mimetype: String, expected: &Vec<u8>, actual: &Vec<u8>, config: DiffConfig,
-    mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
-    match BODY_MATCHERS.iter().find(|mt| mt.0.is_match(&mimetype)) {
-        Some(ref match_fn) => match_fn.1(expected, actual, config, mismatches, matchers),
-        None => match_text(expected, actual, mismatches, matchers)
+fn compare_bodies(content_type: String, expected: &Vec<u8>, actual: &Vec<u8>, config: DiffConfig,
+                  mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
+  match BODY_MATCHERS.iter().find(|mt| mt.0.is_match(&content_type)) {
+    Some(ref match_fn) => {
+      debug!("Using body matcher for content type '{}'", content_type);
+      match_fn.1(expected, actual, config, mismatches, matchers)
+    },
+    None => {
+      debug!("No body matcher defined for content type '{}', using plain text matcher", content_type);
+      match_text(expected, actual, mismatches, matchers)
     }
+  }
 }
 
 fn match_body_content(content_type: String, expected: &models::OptionalBody, actual: &models::OptionalBody,
@@ -898,8 +907,8 @@ fn match_body_content(content_type: String, expected: &models::OptionalBody, act
 /// Matches the actual body to the expected one. This takes into account the content type of each.
 pub fn match_body(expected: &dyn models::HttpPart, actual: &dyn models::HttpPart, config: DiffConfig,
     mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
-    log::debug!("expected content type = '{}', actual content type = '{}'", expected.content_type(),
-           actual.content_type());
+    debug!("expected content type = '{}', actual content type = '{}'", expected.content_type(),
+      actual.content_type());
     if expected.content_type() == actual.content_type() {
         match_body_content(expected.content_type(), expected.body(), actual.body(), config, mismatches, matchers)
     } else if expected.body().is_present() {

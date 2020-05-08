@@ -92,7 +92,9 @@ pub enum MatchingRule {
   /// Match if the value is a decimal number
   Decimal,
   /// Match if the value is a null value (this is content specific, for JSON will match a JSON null)
-  Null
+  Null,
+  /// Match binary data by its content type (magic file check)
+  ContentType(String)
 }
 
 impl MatchingRule {
@@ -144,6 +146,10 @@ impl MatchingRule {
               None => None
             },
             "null" => Some(MatchingRule::Null),
+            "contentType" => match m.get("value") {
+              Some(s) => Some(MatchingRule::ContentType(json_to_string(s))),
+              None => None
+            },
             _ => None
           }
         },
@@ -213,6 +219,10 @@ impl MatchingRule {
             None => None
           },
           "null" => Some(MatchingRule::Null),
+          "contentType" => match m.get("value") {
+            Some(s) => Some(MatchingRule::ContentType(json_to_string(s))),
+            None => None
+          }
           _ => None
         }
       },
@@ -222,32 +232,33 @@ impl MatchingRule {
 
   /// Converts this `MatchingRule` to a `Value` struct
   pub fn to_json(&self) -> Value {
-    match self {
-      &MatchingRule::Equality => json!({ "match": Value::String(s!("equality")) }),
-      &MatchingRule::Regex(ref r) => json!({ "match": Value::String(s!("regex")),
+    match *self {
+      MatchingRule::Equality => json!({ "match": Value::String(s!("equality")) }),
+      MatchingRule::Regex(ref r) => json!({ "match": Value::String(s!("regex")),
         "regex": Value::String(r.clone()) }),
-      &MatchingRule::Type => json!({ "match": Value::String(s!("type")) }),
-      &MatchingRule::MinType(min) => json!({ "match": Value::String(s!("type")),
+      MatchingRule::Type => json!({ "match": Value::String(s!("type")) }),
+      MatchingRule::MinType(min) => json!({ "match": Value::String(s!("type")),
         "min": json!(min as u64) }),
-      &MatchingRule::MaxType(max) => json!({ "match": Value::String(s!("type")),
+      MatchingRule::MaxType(max) => json!({ "match": Value::String(s!("type")),
         "max": json!(max as u64) }),
-      &MatchingRule::MinMaxType(min, max) => json!({ "match": Value::String(s!("type")),
+      MatchingRule::MinMaxType(min, max) => json!({ "match": Value::String(s!("type")),
         "min": json!(min as u64), "max": json!(max as u64) }),
-      &MatchingRule::Timestamp(ref t) => json!({ "match": Value::String(s!("timestamp")),
+      MatchingRule::Timestamp(ref t) => json!({ "match": Value::String(s!("timestamp")),
         "timestamp": Value::String(t.clone()) }),
-      &MatchingRule::Time(ref t) => json!({ s!("match"): Value::String(s!("time")),
+      MatchingRule::Time(ref t) => json!({ s!("match"): Value::String(s!("time")),
         s!("time"): Value::String(t.clone()) }),
-      &MatchingRule::Date(ref d) => json!({ s!("match"): Value::String(s!("date")),
+      MatchingRule::Date(ref d) => json!({ s!("match"): Value::String(s!("date")),
         s!("date"): Value::String(d.clone()) }),
-      &MatchingRule::Include(ref s) => json!({ "match": Value::String(s!("include")),
+      MatchingRule::Include(ref s) => json!({ "match": Value::String(s!("include")),
         "value": Value::String(s.clone()) }),
-      &MatchingRule::Number => json!({ "match": Value::String(s!("number")) }),
-      &MatchingRule::Integer => json!({ "match": Value::String(s!("integer")) }),
-      &MatchingRule::Decimal => json!({ "match": Value::String(s!("decimal")) }),
-      &MatchingRule::Null => json!({ "match": Value::String(s!("null")) })
+      MatchingRule::Number => json!({ "match": Value::String(s!("number")) }),
+      MatchingRule::Integer => json!({ "match": Value::String(s!("integer")) }),
+      MatchingRule::Decimal => json!({ "match": Value::String(s!("decimal")) }),
+      MatchingRule::Null => json!({ "match": Value::String(s!("null")) }),
+      MatchingRule::ContentType(ref r) => json!({ "match": Value::String(s!("contentType")),
+        "value": Value::String(r.clone()) })
     }
   }
-
 }
 
 /// Enumeration to define how to combine rules
@@ -356,8 +367,9 @@ impl Category {
   }
 
   /// Adds a rule to this category
-  pub fn add_rule(&mut self, key: &String, matcher: MatchingRule, rule_logic: &RuleLogic) {
-    let rules = self.rules.entry(key.clone()).or_insert(RuleList::default(rule_logic));
+  pub fn add_rule<S>(&mut self, key: S, matcher: MatchingRule, rule_logic: &RuleLogic)
+    where S: Into<String> {
+    let rules = self.rules.entry(key.into()).or_insert(RuleList::default(rule_logic));
     rules.rules.insert(matcher);
   }
 
