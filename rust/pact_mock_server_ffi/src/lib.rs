@@ -470,11 +470,14 @@ pub extern fn given_with_param(interaction: handles::InteractionHandle, descript
           Ok(json) => json,
           Err(_) => json!(value)
         };
-        match inner.provider_states.iter().find_position(|state| state.name == name) {
+        match inner.provider_states.iter().find_position(|state| state.name == description) {
           Some((index, _)) => {
             inner.provider_states.get_mut(index).unwrap().params.insert(name.to_string(), value);
           },
-          None => inner.provider_states.push(ProviderState::default(&description.to_string()))
+          None => inner.provider_states.push(ProviderState {
+            name: description.to_string(),
+            params: hashmap!{ name.to_string() => value }
+          })
         };
       });
     }
