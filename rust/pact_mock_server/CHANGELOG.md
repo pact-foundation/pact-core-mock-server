@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.7.3 - matching of binary payloads
+
+* 4a28e7c - chore: add debug log entry when request does not match (Ronald Holshausen, Tue May 12 11:59:02 2020 +1000)
+* 708db47 - feat: implement matching of binary payloads (application/octet-stream) (Ronald Holshausen, Fri May 8 15:52:03 2020 +1000)
+* 754a483 - chore: updated itertools to latest (Ronald Holshausen, Wed May 6 15:49:27 2020 +1000)
+* 215eb67 - bump version to 0.7.3 (Ronald Holshausen, Tue May 5 16:53:48 2020 +1000)
+
 # 0.7.2 - TLS suppport + bugfixes
 
 * d85f28c - fix: mock server matching requests with headers with multiple values (Ronald Holshausen, Tue May 5 15:23:11 2020 +1000)
