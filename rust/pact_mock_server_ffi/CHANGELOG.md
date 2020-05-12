@@ -1,5 +1,17 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.0.3 - matching of binary payloads + fixes handling provider state parameters
+
+* 3a12b6f - fix: incorrectly handling provider state parameters from FFI call (Ronald Holshausen, Fri May 8 16:31:45 2020 +1000)
+* 708db47 - feat: implement matching of binary payloads (application/octet-stream) (Ronald Holshausen, Fri May 8 15:52:03 2020 +1000)
+* 136c61b - feat: update FFI to support provider states with parameters (Ronald Holshausen, Wed May 6 15:50:10 2020 +1000)
+* 754a483 - chore: updated itertools to latest (Ronald Holshausen, Wed May 6 15:49:27 2020 +1000)
+* dffcd42 - chore: fix release script (Ronald Holshausen, Tue May 5 17:20:18 2020 +1000)
+* 4601c49 - chore: fix release script (Ronald Holshausen, Tue May 5 17:17:15 2020 +1000)
+* 95899fe - bump version to 0.0.3 (Ronald Holshausen, Tue May 5 17:14:49 2020 +1000)
+* f64b668 - chore: fix release script (Ronald Holshausen, Tue May 5 17:10:32 2020 +1000)
+* cc5c79c - chore: fix release script (Ronald Holshausen, Tue May 5 17:09:15 2020 +1000)
+
 # 0.0.2 - Bugfix Release
 
 * 3260ce3 - chore: fix release script (Ronald Holshausen, Tue May 5 17:03:33 2020 +1000)
