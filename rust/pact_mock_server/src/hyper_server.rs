@@ -154,6 +154,7 @@ fn match_result_to_hyper_response(request: &Request, match_result: MatchResult) 
                 .map_err(|_| InteractionError::ResponseBodyError)
         },
         _ => {
+            debug!("Request did not match: {:?}", match_result);
             Response::builder()
                 .status(500)
                 .header(hyper::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
