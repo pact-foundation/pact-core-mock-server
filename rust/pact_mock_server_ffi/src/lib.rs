@@ -566,21 +566,15 @@ pub extern fn with_header(interaction: handles::InteractionHandle, part: Interac
           values[index] = value.to_string();
         } else {
           let mut values: Vec<String> = Vec::new();
-          if index > 0 {
-            values.resize_with(index + 1, Default::default);
-          }
+          values.resize_with(index + 1, Default::default);
           values[index] = value.to_string();
           h.insert(name.to_string(), values);
         };
         h
       }).or_else(|| {
         let mut values: Vec<String> = Vec::new();
-        if index > 0 {
-          values.resize_with(index + 1, Default::default);
-          values[index] = value.to_string();
-        } else {
-          values.push(value.to_string());
-        }
+        values.resize_with(index + 1, Default::default);
+        values[index] = value.to_string();
         Some(hashmap!{ name.to_string() => values })
       });
       match part {
