@@ -109,12 +109,12 @@ executeOnShell "gzip -c ../target/release/libpact_mock_server_ffi.a > ../target/
 def nextVer = Version.valueOf(releaseVer).incrementPatchVersion()
 ask("Bump version to $nextVer?: [Y]") {
   executeOnShell "sed -i -e 's/version = \"${releaseVer}\"/version = \"${nextVer}\"/' Cargo.toml"
-  executeOnShell "sed -i -e 's`pact_mock_server_ffi\\/${releaseVer}@pact\\/beta`/`pact_mock_server_ffi\\/${nextVer}@pact\\/beta`/' README.md"
+  executeOnShell "sed -i -e 's/pact_mock_server_ffi\\/${releaseVer}@pact\\/beta/pact_mock_server_ffi\\/${nextVer}@pact\\/beta/' README.md"
   executeOnShell "sed -i -e 's/version = \"${releaseVer}\"/version = \"${nextVer}\"/' conan/dll/conanfile.py"
   executeOnShell "sed -i -e 's/version = \"${releaseVer}\"/version = \"${nextVer}\"/' conan/lib/conanfile.py"
   executeOnShell "sed -i -e 's/documentation = \"https:\\/\\/docs\\.rs\\/pact_mock_server_ffi\\/${releaseVer}\\/pact_mock_server_ffi\\/\"/documentation = \"https:\\/\\/docs\\.rs\\/pact_mock_server_ffi\\/${nextVer}\\/pact_mock_server_ffi\\/\"/' Cargo.toml"
   executeOnShell("cargo update")
-  executeOnShell("git add Cargo.toml")
+  executeOnShell("git add Cargo.toml README.md conan/dll/conanfile.py conan/lib/conanfile.py")
   executeOnShell("git add ../Cargo.lock")
   executeOnShell("git diff --cached")
   ask("Commit and push this change?: [Y]") {
