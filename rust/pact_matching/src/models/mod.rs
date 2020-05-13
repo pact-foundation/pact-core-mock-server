@@ -25,6 +25,7 @@ use base64::{encode, decode};
 use std::fmt::{Display, Formatter};
 use crate::models::http_utils::HttpAuth;
 use super::json::value_of;
+use log::*;
 
 pub mod json_utils;
 pub mod xml_utils;
@@ -1135,14 +1136,14 @@ impl Pact {
             .collect::<Vec<Vec<PactConflict>>>();
           let num_conflicts = conflicts.len();
           if num_conflicts > 0 {
-            log::warn!("The following conflicting interactions where found:");
+            warn!("The following conflicting interactions where found:");
             for interaction_conflicts in conflicts {
-                log::warn!(" Interaction '{}':", interaction_conflicts.first().unwrap().interaction);
+                warn!(" Interaction '{}':", interaction_conflicts.first().unwrap().interaction);
                 for conflict in interaction_conflicts {
-                    log::warn!("   {}", conflict.description);
+                    warn!("   {}", conflict.description);
                 }
             }
-            Err(format!("Unable to merge pacts, as there were {} conflict(s) between the interactions",
+            Err(format!("Unable to merge pacts, as there were {} conflict(s) between the interactions. Please clean out your pact directory before running the tests.",
                 num_conflicts))
           } else {
             Ok(Pact {
@@ -1201,7 +1202,7 @@ impl Pact {
     pub fn write_pact(&self, path: &Path, pact_spec: PactSpecification) -> io::Result<()> {
       fs::create_dir_all(path.parent().unwrap())?;
       if path.exists() {
-        log::debug!("Merging pact with file {:?}", path);
+        debug!("Merging pact with file {:?}", path);
         let existing_pact = Pact::read_pact(path)?;
         match existing_pact.merge(self) {
             Ok(ref merged_pact) => {
@@ -1212,7 +1213,7 @@ impl Pact {
             Err(ref message) => Err(Error::new(ErrorKind::Other, message.clone()))
         }
       } else {
-        log::debug!("Writing new pact file to {:?}", path);
+        debug!("Writing new pact file to {:?}", path);
         let mut file = File::create(path)?;
         file.write_all(format!("{}", serde_json::to_string_pretty(&self.to_json(pact_spec)).unwrap()).as_bytes())?;
         Ok(())
