@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.0.4 - Bugfix Release
+
+* 2d11c17 - chore: set version of patch matching crate to 0.5.14 (Ronald Holshausen, Fri May 15 16:33:21 2020 +1000)
+* c93e364 - fix: correct the backing array list for query parameters from FFI call (Ronald Holshausen, Wed May 13 11:52:55 2020 +1000)
+* 9c84713 - fix: correct the backing arary list for headers from FFI call (Ronald Holshausen, Tue May 12 16:45:38 2020 +1000)
+* d5c4f96 - bump version to 0.0.4 (Ronald Holshausen, Tue May 12 12:56:30 2020 +1000)
+* 8f01bc6 - bump version to 0.0.4 (Ronald Holshausen, Tue May 12 12:54:56 2020 +1000)
+
 # 0.0.3 - matching of binary payloads + fixes handling provider state parameters
 
 * 3a12b6f - fix: incorrectly handling provider state parameters from FFI call (Ronald Holshausen, Fri May 8 16:31:45 2020 +1000)
