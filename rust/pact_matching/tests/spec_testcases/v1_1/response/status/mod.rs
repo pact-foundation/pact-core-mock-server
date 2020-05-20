@@ -13,6 +13,7 @@ use serde_json;
 
 #[test]
 fn different_status() {
+    println!("FILE: tests/spec_testcases/v1_1/response/status/different status.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
           "match": false,
@@ -27,11 +28,14 @@ fn different_status() {
     "#).unwrap();
 
     let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
     let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
+    println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
     } else {
@@ -41,6 +45,7 @@ fn different_status() {
 
 #[test]
 fn matches() {
+    println!("FILE: tests/spec_testcases/v1_1/response/status/matches.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
           "match": true,
@@ -55,11 +60,14 @@ fn matches() {
     "#).unwrap();
 
     let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
     let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_response(expected, actual);
+    println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
     } else {

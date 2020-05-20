@@ -10,8 +10,8 @@ use pact_matching::match_request;
 use expectest::prelude::*;
 #[allow(unused_imports)]
 use serde_json;
-mod body;
-mod headers;
 mod method;
 mod path;
+mod headers;
 mod query;
+mod body;

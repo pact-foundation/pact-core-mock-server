@@ -11,7 +11,7 @@
         "matchers": [
           {
             "match": "regex",
-            "regex": "/path/to/\\d{4}"
+            "regex": "\\/path\\/to\\/\\d{4}"
           }
         ]
       }

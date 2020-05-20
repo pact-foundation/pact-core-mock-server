@@ -54,6 +54,7 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
       def testBody = """
         |#[test]
         |fn ${it.name.replaceAll(' ', '_').replaceAll('-', '_').replaceAll('\\.json', '')}() {
+        |    println!("FILE: ${it}");
         |    let pact : serde_json::Value = serde_json::from_str(r#"
       """
       it.text.eachLine { line ->
@@ -63,11 +64,14 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
       if (requestResponsePath == 'request') {
         testBody += """
         |    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::$specVersion);
-        |    println!("{:?}", expected);
+        |    println!("EXPECTED: {}", expected);
+        |    println!("BODY: {}", expected.body.str_value());
         |    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::$specVersion);
-        |    println!("{:?}", actual);
+        |    println!("ACTUAL: {}", actual);
+        |    println!("BODY: {}", actual.body.str_value());
         |    let pact_match = pact.get("match").unwrap();
         |    let result = match_request(expected, actual);
+        |    println!("RESULT: {:?}", result);
         |    if pact_match.as_bool().unwrap() {
         |       expect!(result.iter()).to(be_empty());
         |    } else {
@@ -77,11 +81,14 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
       } else if (requestResponsePath == 'response') {
         testBody += """
         |    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::$specVersion);
-        |    println!("{:?}", expected);
+        |    println!("EXPECTED: {}", expected);
+        |    println!("BODY: {}", expected.body.str_value());
         |    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::$specVersion);
-        |    println!("{:?}", actual);
+        |    println!("ACTUAL: {}", actual);
+        |    println!("BODY: {}", actual.body.str_value());
         |    let pact_match = pact.get("match").unwrap();
         |    let result = match_response(expected, actual);
+        |    println!("RESULT: {:?}", result);
         |    if pact_match.as_bool().unwrap() {
         |       expect!(result.iter()).to(be_empty());
         |    } else {
@@ -91,11 +98,12 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
       } else if (requestResponsePath == 'message') {
         testBody += """
         |    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::$specVersion).unwrap();
-        |    println!("{:?}", expected);
+        |    println!("EXPECTED: {:?}", expected);
         |    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::$specVersion).unwrap();
-        |    println!("{:?}", actual);
+        |    println!("ACTUAL: {:?}", actual);
         |    let pact_match = pact.get("match").unwrap();
         |    let result = match_message(expected, actual);
+        |    println!("RESULT: {:?}", result);
         |    if pact_match.as_bool().unwrap() {
         |       expect!(result.iter()).to(be_empty());
         |    } else {

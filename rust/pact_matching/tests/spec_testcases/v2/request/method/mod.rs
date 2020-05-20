@@ -13,6 +13,7 @@ use serde_json;
 
 #[test]
 fn different_method() {
+    println!("FILE: tests/spec_testcases/v2/request/method/different method.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -34,46 +35,14 @@ fn different_method() {
     "#).unwrap();
 
     let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
-    println!("{:?}", expected);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
-    println!("{:?}", actual);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_request(expected, actual);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[test]
-fn matches() {
-    let pact : serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": true,
-        "comment": "Methods match",
-        "expected" : {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {}
-        },
-        "actual": {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {}
-      
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
-    println!("{:?}", actual);
-    let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
     } else {
@@ -83,6 +52,7 @@ fn matches() {
 
 #[test]
 fn method_is_different_case() {
+    println!("FILE: tests/spec_testcases/v2/request/method/method is different case.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -104,11 +74,53 @@ fn method_is_different_case() {
     "#).unwrap();
 
     let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
-    println!("{:?}", expected);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
-    println!("{:?}", actual);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[test]
+fn matches() {
+    println!("FILE: tests/spec_testcases/v2/request/method/matches.json");
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": true,
+        "comment": "Methods match",
+        "expected" : {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {}
+        },
+        "actual": {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {}
+      
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
+    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
+    let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
     } else {

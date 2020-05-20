@@ -12,33 +12,40 @@ use expectest::prelude::*;
 use serde_json;
 
 #[test]
-fn empty_headers() {
+fn order_of_comma_separated_header_values_different() {
+    println!("FILE: tests/spec_testcases/v2/request/headers/order of comma separated header values different.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
-        "match": true,
-        "comment": "Empty headers match",
+        "match": false,
+        "comment": "Comma separated headers out of order, order can matter http://tools.ietf.org/html/rfc2616",
         "expected" : {
           "method": "POST",
           "path": "/path",
           "query": "",
-          "headers": {}
-      
+          "headers": {
+            "Accept": "alligators, hippos"
+          }
         },
         "actual": {
           "method": "POST",
           "path": "/path",
           "query": "",
-          "headers": {}
+          "headers": {
+            "Accept": "hippos, alligators"
+          }
         }
       }
     "#).unwrap();
 
     let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
-    println!("{:?}", expected);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
-    println!("{:?}", actual);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
     } else {
@@ -47,17 +54,18 @@ fn empty_headers() {
 }
 
 #[test]
-fn header_name_is_different_case() {
+fn whitespace_after_comma_different() {
+    println!("FILE: tests/spec_testcases/v2/request/headers/whitespace after comma different.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
-        "comment": "Header name is case insensitive",
+        "comment": "Whitespace between comma separated headers does not matter",
         "expected" : {
           "method": "POST",
           "path": "/path",
           "query": "",
           "headers": {
-            "Accept": "alligators"
+            "Accept": "alligators,hippos"
           }
         },
         "actual": {
@@ -65,18 +73,21 @@ fn header_name_is_different_case() {
           "path": "/path",
           "query": "",
           "headers": {
-            "ACCEPT": "alligators"
+            "Accept": "alligators, hippos"
           }
         }
       }
     "#).unwrap();
 
     let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
-    println!("{:?}", expected);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
-    println!("{:?}", actual);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
     } else {
@@ -86,6 +97,7 @@ fn header_name_is_different_case() {
 
 #[test]
 fn header_value_is_different_case() {
+    println!("FILE: tests/spec_testcases/v2/request/headers/header value is different case.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -110,11 +122,56 @@ fn header_value_is_different_case() {
     "#).unwrap();
 
     let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
-    println!("{:?}", expected);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
-    println!("{:?}", actual);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[test]
+fn header_name_is_different_case() {
+    println!("FILE: tests/spec_testcases/v2/request/headers/header name is different case.json");
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": true,
+        "comment": "Header name is case insensitive",
+        "expected" : {
+          "method": "POST",
+          "path": "/path",
+          "query": "",
+          "headers": {
+            "Accept": "alligators"
+          }
+        },
+        "actual": {
+          "method": "POST",
+          "path": "/path",
+          "query": "",
+          "headers": {
+            "ACCEPT": "alligators"
+          }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
+    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
+    let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
     } else {
@@ -124,6 +181,7 @@ fn header_value_is_different_case() {
 
 #[test]
 fn matches_with_regex() {
+    println!("FILE: tests/spec_testcases/v2/request/headers/matches with regex.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -151,11 +209,54 @@ fn matches_with_regex() {
     "#).unwrap();
 
     let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
-    println!("{:?}", expected);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
-    println!("{:?}", actual);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[test]
+fn unexpected_header_found() {
+    println!("FILE: tests/spec_testcases/v2/request/headers/unexpected header found.json");
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": true,
+        "comment": "Extra headers allowed",
+        "expected" : {
+          "method": "POST",
+          "path": "/path",
+          "query": "",
+          "headers": {}
+        },
+        "actual": {
+          "method": "POST",
+          "path": "/path",
+          "query": "",
+          "headers": {
+            "Accept": "alligators"
+          }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
+    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
+    let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
     } else {
@@ -165,6 +266,7 @@ fn matches_with_regex() {
 
 #[test]
 fn matches() {
+    println!("FILE: tests/spec_testcases/v2/request/headers/matches.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -191,11 +293,14 @@ fn matches() {
     "#).unwrap();
 
     let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
-    println!("{:?}", expected);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
-    println!("{:?}", actual);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
     } else {
@@ -204,110 +309,37 @@ fn matches() {
 }
 
 #[test]
-fn order_of_comma_separated_header_values_different() {
-    let pact : serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Comma separated headers out of order, order can matter http://tools.ietf.org/html/rfc2616",
-        "expected" : {
-          "method": "POST",
-          "path": "/path",
-          "query": "",
-          "headers": {
-            "Accept": "alligators, hippos"
-          }
-        },
-        "actual": {
-          "method": "POST",
-          "path": "/path",
-          "query": "",
-          "headers": {
-            "Accept": "hippos, alligators"
-          }
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
-    println!("{:?}", actual);
-    let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[test]
-fn unexpected_header_found() {
+fn empty_headers() {
+    println!("FILE: tests/spec_testcases/v2/request/headers/empty headers.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
-        "comment": "Extra headers allowed",
+        "comment": "Empty headers match",
         "expected" : {
           "method": "POST",
           "path": "/path",
           "query": "",
           "headers": {}
+      
         },
         "actual": {
           "method": "POST",
           "path": "/path",
           "query": "",
-          "headers": {
-            "Accept": "alligators"
-          }
+          "headers": {}
         }
       }
     "#).unwrap();
 
     let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
-    println!("{:?}", expected);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
-    println!("{:?}", actual);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_request(expected, actual);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[test]
-fn whitespace_after_comma_different() {
-    let pact : serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": true,
-        "comment": "Whitespace between comma separated headers does not matter",
-        "expected" : {
-          "method": "POST",
-          "path": "/path",
-          "query": "",
-          "headers": {
-            "Accept": "alligators,hippos"
-          }
-        },
-        "actual": {
-          "method": "POST",
-          "path": "/path",
-          "query": "",
-          "headers": {
-            "Accept": "alligators, hippos"
-          }
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
-    println!("{:?}", actual);
-    let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
     } else {

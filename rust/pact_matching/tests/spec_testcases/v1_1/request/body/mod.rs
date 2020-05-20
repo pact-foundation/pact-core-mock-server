@@ -12,11 +12,12 @@ use expectest::prelude::*;
 use serde_json;
 
 #[test]
-fn array_in_different_order() {
+fn unexpected_index_with_not_null_value() {
+    println!("FILE: tests/spec_testcases/v1_1/request/body/unexpected index with not null value.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
-        "comment": "Favourite colours in wrong order",
+        "comment": "Unexpected favourite colour",
         "expected" : {
           "method": "POST",
           "path": "/",
@@ -35,7 +36,7 @@ fn array_in_different_order() {
           "headers": {},
           "body": {
             "alligator":{
-              "favouriteColours": ["blue", "red"]
+              "favouriteColours": ["red","blue","taupe"]
             }
           }
         }
@@ -43,11 +44,14 @@ fn array_in_different_order() {
     "#).unwrap();
 
     let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
     } else {
@@ -56,11 +60,55 @@ fn array_in_different_order() {
 }
 
 #[test]
-fn different_value_found_at_index() {
+fn missing_body() {
+    println!("FILE: tests/spec_testcases/v1_1/request/body/missing body.json");
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": true,
+        "comment": "Missing body",
+        "expected" : {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {"Content-Type": "application/json"}
+        },
+        "actual": {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {"Content-Type": "application/json"},
+          "body": {
+            "alligator": {
+              "age": 3
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
+    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
+    let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[test]
+fn unexpected_key_with_null_value() {
+    println!("FILE: tests/spec_testcases/v1_1/request/body/unexpected key with null value.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
-        "comment": "Incorrect favourite colour",
+        "comment": "Unexpected phone number with null value",
         "expected" : {
           "method": "POST",
           "path": "/",
@@ -68,7 +116,7 @@ fn different_value_found_at_index() {
           "headers": {},
           "body": {
             "alligator":{
-              "favouriteColours": ["red","blue"]
+              "name": "Mary"
             }
           }
         },
@@ -79,7 +127,8 @@ fn different_value_found_at_index() {
           "headers": {},
           "body": {
             "alligator":{
-              "favouriteColours": ["red","taupe"]
+              "name": "Mary",
+              "phoneNumber": null
             }
           }
         }
@@ -87,11 +136,14 @@ fn different_value_found_at_index() {
     "#).unwrap();
 
     let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
     } else {
@@ -101,6 +153,7 @@ fn different_value_found_at_index() {
 
 #[test]
 fn different_value_found_at_key() {
+    println!("FILE: tests/spec_testcases/v1_1/request/body/different value found at key.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -131,11 +184,158 @@ fn different_value_found_at_key() {
     "#).unwrap();
 
     let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[test]
+fn not_null_found_at_key_when_null_expected() {
+    println!("FILE: tests/spec_testcases/v1_1/request/body/not null found at key when null expected.json");
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Name should be null",
+        "expected" : {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "body": {
+            "alligator":{
+              "name": null
+            }
+          }
+        },
+        "actual": {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "body": {
+            "alligator":{
+              "name": "Fred"
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
+    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
+    let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[test]
+fn number_found_in_array_when_string_expected() {
+    println!("FILE: tests/spec_testcases/v1_1/request/body/number found in array when string expected.json");
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Favourite colours expected to be strings found a number",
+        "expected" : {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "body": {
+            "alligator":{
+              "favouriteNumbers": ["1","2","3"]
+            }
+          }
+        },
+        "actual": {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "body": {
+            "alligator":{
+              "favouriteNumbers": ["1",2,"3"]
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
+    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
+    let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[test]
+fn array_in_different_order() {
+    println!("FILE: tests/spec_testcases/v1_1/request/body/array in different order.json");
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Favourite colours in wrong order",
+        "expected" : {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "body": {
+            "alligator":{
+              "favouriteColours": ["red","blue"]
+            }
+          }
+        },
+        "actual": {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "body": {
+            "alligator":{
+              "favouriteColours": ["blue", "red"]
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
+    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
+    let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
     } else {
@@ -145,6 +345,7 @@ fn different_value_found_at_key() {
 
 #[test]
 fn empty_body_no_content_type() {
+    println!("FILE: tests/spec_testcases/v1_1/request/body/empty body no content type.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -166,11 +367,96 @@ fn empty_body_no_content_type() {
     "#).unwrap();
 
     let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[test]
+fn plain_text_that_matches() {
+    println!("FILE: tests/spec_testcases/v1_1/request/body/plain text that matches.json");
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": true,
+        "comment": "Plain text that matches",
+        "expected" : {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": { "Content-Type": "text/plain" },
+          "body": "alligator named mary"
+        },
+        "actual": {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": { "Content-Type": "text/plain" },
+          "body": "alligator named mary"
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
+    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
+    let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[test]
+fn missing_body_no_content_type() {
+    println!("FILE: tests/spec_testcases/v1_1/request/body/missing body no content type.json");
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": true,
+        "comment": "Missing body, no content-type",
+        "expected" : {
+          "method": "POST",
+          "path": "/",
+          "query": ""
+        },
+        "actual": {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {"Content-Type": "application/json"},
+          "body": {
+            "alligator": {
+              "age": 3
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
+    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
+    let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
     } else {
@@ -180,6 +466,7 @@ fn empty_body_no_content_type() {
 
 #[test]
 fn empty_body() {
+    println!("FILE: tests/spec_testcases/v1_1/request/body/empty body.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -202,11 +489,656 @@ fn empty_body() {
     "#).unwrap();
 
     let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[test]
+fn string_found_in_array_when_number_expected() {
+    println!("FILE: tests/spec_testcases/v1_1/request/body/string found in array when number expected.json");
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Favourite Numbers expected to be numbers, but 2 is a string",
+        "expected" : {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "body": {
+            "alligator":{
+              "favouriteNumbers": [1,2,3]
+            }
+          }
+        },
+        "actual": {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "body": {
+            "alligator":{
+              "favouriteNumbers": [1,"2",3]
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
+    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
+    let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[test]
+fn null_body_no_content_type() {
+    println!("FILE: tests/spec_testcases/v1_1/request/body/null body no content type.json");
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": true,
+        "comment": "NULL body, no content-type",
+        "expected" : {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "body": null
+        },
+        "actual": {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {"Content-Type": "application/json"},
+          "body": null
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
+    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
+    let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[test]
+fn non_empty_body_found_when_empty_expected() {
+    println!("FILE: tests/spec_testcases/v1_1/request/body/non empty body found when empty expected.json");
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Non empty body found, when an empty body was expected",
+        "expected" : {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {"Content-Type": "application/json"},
+          "body": null
+        },
+        "actual": {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {"Content-Type": "application/json"},
+          "body": {
+            "alligator": {
+              "age": 3
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
+    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
+    let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[test]
+fn not_null_found_in_array_when_null_expected() {
+    println!("FILE: tests/spec_testcases/v1_1/request/body/not null found in array when null expected.json");
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Favourite colours expected to contain null, but not null found",
+        "expected" : {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "body": {
+            "alligator":{
+              "favouriteNumbers": ["1",null,"3"]
+            }
+          }
+        },
+        "actual": {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "body": {
+            "alligator":{
+              "favouriteNumbers": ["1","2","3"]
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
+    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
+    let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[test]
+fn different_value_found_at_index() {
+    println!("FILE: tests/spec_testcases/v1_1/request/body/different value found at index.json");
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Incorrect favourite colour",
+        "expected" : {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "body": {
+            "alligator":{
+              "favouriteColours": ["red","blue"]
+            }
+          }
+        },
+        "actual": {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "body": {
+            "alligator":{
+              "favouriteColours": ["red","taupe"]
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
+    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
+    let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[test]
+fn number_found_at_key_when_string_expected() {
+    println!("FILE: tests/spec_testcases/v1_1/request/body/number found at key when string expected.json");
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Number of feet expected to be string but was number",
+        "expected" : {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "body": {
+            "alligator":{
+              "feet": "4"
+            }
+          }
+        },
+        "actual": {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "body": {
+            "alligator":{
+              "feet": 4
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
+    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
+    let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[test]
+fn missing_index() {
+    println!("FILE: tests/spec_testcases/v1_1/request/body/missing index.json");
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Missing favorite colour",
+        "expected" : {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "body": {
+            "alligator":{
+              "favouriteColours": ["red","blue"]
+            }
+          }
+        },
+        "actual": {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "body": {
+            "alligator": {
+              "favouriteColours": ["red"]
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
+    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
+    let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[test]
+fn null_body() {
+    println!("FILE: tests/spec_testcases/v1_1/request/body/null body.json");
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": true,
+        "comment": "NULL body",
+        "expected" : {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {"Content-Type": "application/json"},
+          "body": null
+        },
+        "actual": {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {"Content-Type": "application/json"},
+          "body": null
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
+    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
+    let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[test]
+fn null_found_in_array_when_not_null_expected() {
+    println!("FILE: tests/spec_testcases/v1_1/request/body/null found in array when not null expected.json");
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Favourite colours expected to be strings found a null",
+        "expected" : {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "body": {
+            "alligator":{
+              "favouriteNumbers": ["1","2","3"]
+            }
+          }
+        },
+        "actual": {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "body": {
+            "alligator":{
+              "favouriteNumbers": ["1",null,"3"]
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
+    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
+    let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[test]
+fn unexpected_index_with_null_value() {
+    println!("FILE: tests/spec_testcases/v1_1/request/body/unexpected index with null value.json");
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Unexpected favourite colour with null value",
+        "expected" : {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "body": {
+            "alligator":{
+              "favouriteColours": ["red","blue"]
+            }
+          }
+        },
+        "actual": {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "body": {
+            "alligator":{
+              "favouriteColours": ["red","blue", null]
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
+    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
+    let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[test]
+fn unexpected_key_with_not_null_value() {
+    println!("FILE: tests/spec_testcases/v1_1/request/body/unexpected key with not null value.json");
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Unexpected phone number",
+        "expected" : {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "body": {
+            "alligator":{
+              "name": "Mary"
+            }
+          }
+        },
+        "actual": {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "body": {
+            "alligator":{
+              "name": "Mary",
+              "phoneNumber": "12345678"
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
+    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
+    let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[test]
+fn missing_body_found_when_empty_expected() {
+    println!("FILE: tests/spec_testcases/v1_1/request/body/missing body found when empty expected.json");
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": true,
+        "comment": "Missing body found, when an empty body was expected",
+        "expected" : {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "body": null
+        },
+        "actual": {
+          "method": "POST",
+          "path": "/",
+          "query": ""
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
+    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
+    let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[test]
+fn string_found_at_key_when_number_expected() {
+    println!("FILE: tests/spec_testcases/v1_1/request/body/string found at key when number expected.json");
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Number of feet expected to be number but was string",
+        "expected" : {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "body": {
+            "alligator":{
+              "feet": 4
+            }
+          }
+        },
+        "actual": {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "body": {
+            "alligator":{
+              "feet": "4"
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
+    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
+    let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[test]
+fn missing_key() {
+    println!("FILE: tests/spec_testcases/v1_1/request/body/missing key.json");
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Missing key alligator name",
+        "expected" : {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "body": {
+            "alligator":{
+              "name": "Mary",
+              "age": 3
+            }
+          }
+        },
+        "actual": {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "body": {
+            "alligator": {
+              "age": 3
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
+    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
+    let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
     } else {
@@ -216,6 +1148,7 @@ fn empty_body() {
 
 #[test]
 fn matches() {
+    println!("FILE: tests/spec_testcases/v1_1/request/body/matches.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -250,409 +1183,14 @@ fn matches() {
     "#).unwrap();
 
     let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_request(expected, actual);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[test]
-fn missing_body_found_when_empty_expected() {
-    let pact : serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": true,
-        "comment": "Missing body found, when an empty body was expected",
-        "expected" : {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "body": null
-        },
-        "actual": {
-          "method": "POST",
-          "path": "/",
-          "query": ""
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
-    let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[test]
-fn missing_body_no_content_type() {
-    let pact : serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": true,
-        "comment": "Missing body, no content-type",
-        "expected" : {
-          "method": "POST",
-          "path": "/",
-          "query": ""
-        },
-        "actual": {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {"Content-Type": "application/json"},
-          "body": {
-            "alligator": {
-              "age": 3
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
-    let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[test]
-fn missing_body() {
-    let pact : serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": true,
-        "comment": "Missing body",
-        "expected" : {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {"Content-Type": "application/json"}
-        },
-        "actual": {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {"Content-Type": "application/json"},
-          "body": {
-            "alligator": {
-              "age": 3
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
-    let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[test]
-fn missing_index() {
-    let pact : serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Missing favorite colour",
-        "expected" : {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "body": {
-            "alligator":{
-              "favouriteColours": ["red","blue"]
-            }
-          }
-        },
-        "actual": {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "body": {
-            "alligator": {
-              "favouriteColours": ["red"]
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
-    let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[test]
-fn missing_key() {
-    let pact : serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Missing key alligator name",
-        "expected" : {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "body": {
-            "alligator":{
-              "name": "Mary",
-              "age": 3
-            }
-          }
-        },
-        "actual": {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "body": {
-            "alligator": {
-              "age": 3
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
-    let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[test]
-fn non_empty_body_found_when_empty_expected() {
-    let pact : serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Non empty body found, when an empty body was expected",
-        "expected" : {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {"Content-Type": "application/json"},
-          "body": null
-        },
-        "actual": {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {"Content-Type": "application/json"},
-          "body": {
-            "alligator": {
-              "age": 3
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
-    let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[test]
-fn not_null_found_at_key_when_null_expected() {
-    let pact : serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Name should be null",
-        "expected" : {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "body": {
-            "alligator":{
-              "name": null
-            }
-          }
-        },
-        "actual": {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "body": {
-            "alligator":{
-              "name": "Fred"
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
-    let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[test]
-fn not_null_found_in_array_when_null_expected() {
-    let pact : serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Favourite colours expected to contain null, but not null found",
-        "expected" : {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "body": {
-            "alligator":{
-              "favouriteNumbers": ["1",null,"3"]
-            }
-          }
-        },
-        "actual": {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "body": {
-            "alligator":{
-              "favouriteNumbers": ["1","2","3"]
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
-    let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[test]
-fn null_body_no_content_type() {
-    let pact : serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": true,
-        "comment": "NULL body, no content-type",
-        "expected" : {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "body": null
-        },
-        "actual": {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {"Content-Type": "application/json"},
-          "body": null
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
-    let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[test]
-fn null_body() {
-    let pact : serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": true,
-        "comment": "NULL body",
-        "expected" : {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {"Content-Type": "application/json"},
-          "body": null
-        },
-        "actual": {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {"Content-Type": "application/json"},
-          "body": null
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
-    let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
     } else {
@@ -662,6 +1200,7 @@ fn null_body() {
 
 #[test]
 fn null_found_at_key_where_not_null_expected() {
+    println!("FILE: tests/spec_testcases/v1_1/request/body/null found at key where not null expected.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -692,143 +1231,14 @@ fn null_found_at_key_where_not_null_expected() {
     "#).unwrap();
 
     let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_request(expected, actual);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[test]
-fn null_found_in_array_when_not_null_expected() {
-    let pact : serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Favourite colours expected to be strings found a null",
-        "expected" : {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "body": {
-            "alligator":{
-              "favouriteNumbers": ["1","2","3"]
-            }
-          }
-        },
-        "actual": {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "body": {
-            "alligator":{
-              "favouriteNumbers": ["1",null,"3"]
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
-    let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[test]
-fn number_found_at_key_when_string_expected() {
-    let pact : serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Number of feet expected to be string but was number",
-        "expected" : {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "body": {
-            "alligator":{
-              "feet": "4"
-            }
-          }
-        },
-        "actual": {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "body": {
-            "alligator":{
-              "feet": 4
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
-    let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[test]
-fn number_found_in_array_when_string_expected() {
-    let pact : serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Favourite colours expected to be strings found a number",
-        "expected" : {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "body": {
-            "alligator":{
-              "favouriteNumbers": ["1","2","3"]
-            }
-          }
-        },
-        "actual": {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "body": {
-            "alligator":{
-              "favouriteNumbers": ["1",2,"3"]
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
-    let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
     } else {
@@ -838,6 +1248,7 @@ fn number_found_in_array_when_string_expected() {
 
 #[test]
 fn plain_text_that_does_not_match() {
+    println!("FILE: tests/spec_testcases/v1_1/request/body/plain text that does not match.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -860,313 +1271,14 @@ fn plain_text_that_does_not_match() {
     "#).unwrap();
 
     let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_request(expected, actual);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[test]
-fn plain_text_that_matches() {
-    let pact : serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": true,
-        "comment": "Plain text that matches",
-        "expected" : {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": { "Content-Type": "text/plain" },
-          "body": "alligator named mary"
-        },
-        "actual": {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": { "Content-Type": "text/plain" },
-          "body": "alligator named mary"
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
-    let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[test]
-fn string_found_at_key_when_number_expected() {
-    let pact : serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Number of feet expected to be number but was string",
-        "expected" : {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "body": {
-            "alligator":{
-              "feet": 4
-            }
-          }
-        },
-        "actual": {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "body": {
-            "alligator":{
-              "feet": "4"
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
-    let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[test]
-fn string_found_in_array_when_number_expected() {
-    let pact : serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Favourite Numbers expected to be numbers, but 2 is a string",
-        "expected" : {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "body": {
-            "alligator":{
-              "favouriteNumbers": [1,2,3]
-            }
-          }
-        },
-        "actual": {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "body": {
-            "alligator":{
-              "favouriteNumbers": [1,"2",3]
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
-    let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[test]
-fn unexpected_index_with_not_null_value() {
-    let pact : serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Unexpected favourite colour",
-        "expected" : {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "body": {
-            "alligator":{
-              "favouriteColours": ["red","blue"]
-            }
-          }
-        },
-        "actual": {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "body": {
-            "alligator":{
-              "favouriteColours": ["red","blue","taupe"]
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
-    let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[test]
-fn unexpected_index_with_null_value() {
-    let pact : serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Unexpected favourite colour with null value",
-        "expected" : {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "body": {
-            "alligator":{
-              "favouriteColours": ["red","blue"]
-            }
-          }
-        },
-        "actual": {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "body": {
-            "alligator":{
-              "favouriteColours": ["red","blue", null]
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
-    let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[test]
-fn unexpected_key_with_not_null_value() {
-    let pact : serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Unexpected phone number",
-        "expected" : {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "body": {
-            "alligator":{
-              "name": "Mary"
-            }
-          }
-        },
-        "actual": {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "body": {
-            "alligator":{
-              "name": "Mary",
-              "phoneNumber": "12345678"
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
-    let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[test]
-fn unexpected_key_with_null_value() {
-    let pact : serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Unexpected phone number with null value",
-        "expected" : {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "body": {
-            "alligator":{
-              "name": "Mary"
-            }
-          }
-        },
-        "actual": {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "body": {
-            "alligator":{
-              "name": "Mary",
-              "phoneNumber": null
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
-    println!("{:?}", actual);
-    let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
     } else {

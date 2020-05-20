@@ -12,11 +12,12 @@ use expectest::prelude::*;
 use serde_json;
 
 #[test]
-fn different_order() {
+fn unexpected_param() {
+    println!("FILE: tests/spec_testcases/v3/request/query/unexpected param.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
-        "match": true,
-        "comment": "Queries are the same but in different key order",
+        "match": false,
+        "comment": "Queries are not the same - elephant is not expected",
         "expected" : {
           "method": "GET",
           "path": "/path",
@@ -30,8 +31,9 @@ fn different_order() {
           "method": "GET",
           "path": "/path",
           "query": {
+            "alligator": ["Mary"],
             "hippo": ["John"],
-            "alligator": ["Mary"]
+            "elephant": ["unexpected"]
           },
           "headers": {}
         }
@@ -39,11 +41,14 @@ fn different_order() {
     "#).unwrap();
 
     let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
     } else {
@@ -53,6 +58,7 @@ fn different_order() {
 
 #[test]
 fn different_params() {
+    println!("FILE: tests/spec_testcases/v3/request/query/different params.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
@@ -79,11 +85,56 @@ fn different_params() {
     "#).unwrap();
 
     let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[test]
+fn same_parameter_different_values() {
+    println!("FILE: tests/spec_testcases/v3/request/query/same parameter different values.json");
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Queries are not the same - animals are alligator, hippo versus alligator, elephant",
+        "expected" : {
+          "method": "GET",
+          "path": "/path",
+          "query": {
+            "animal": ["alligator", "hippo"]
+          },
+          "headers": {}
+        },
+        "actual": {
+          "method": "GET",
+          "path": "/path",
+          "query": {
+            "animal": ["alligator", "elephant"]
+          },
+          "headers": {}
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
+    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
+    let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
     } else {
@@ -93,6 +144,7 @@ fn different_params() {
 
 #[test]
 fn matches_with_equals_in_the_query_value() {
+    println!("FILE: tests/spec_testcases/v3/request/query/matches with equals in the query value.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -119,11 +171,101 @@ fn matches_with_equals_in_the_query_value() {
     "#).unwrap();
 
     let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[test]
+fn missing_params() {
+    println!("FILE: tests/spec_testcases/v3/request/query/missing params.json");
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Queries are not the same - elephant is missing",
+        "expected" : {
+          "method": "GET",
+          "path": "/path",
+          "query": {
+            "alligator": ["Mary"],
+            "hippo": ["Fred"],
+            "elephant": ["missing"]
+          },
+          "headers": {}
+        },
+        "actual": {
+          "method": "GET",
+          "path": "/path",
+          "query": {
+            "alligator": ["Mary"],
+            "hippo": ["Fred"]
+          },
+          "headers": {}
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
+    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
+    let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[test]
+fn same_parameter_multiple_times_in_different_order() {
+    println!("FILE: tests/spec_testcases/v3/request/query/same parameter multiple times in different order.json");
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Queries are not the same - values are in different order",
+        "expected" : {
+          "method": "GET",
+          "path": "/path",
+          "query": {
+            "animal": ["alligator", "hippo", "elephant"]
+          },
+          "headers": {}
+        },
+        "actual": {
+          "method": "GET",
+          "path": "/path",
+          "query": {
+            "animal": ["hippo", "alligator", "elephant"]
+          },
+          "headers": {}
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
+    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
+    let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
     } else {
@@ -133,6 +275,7 @@ fn matches_with_equals_in_the_query_value() {
 
 #[test]
 fn matches_with_regex() {
+    println!("FILE: tests/spec_testcases/v3/request/query/matches with regex.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -171,11 +314,14 @@ fn matches_with_regex() {
     "#).unwrap();
 
     let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
     } else {
@@ -184,11 +330,12 @@ fn matches_with_regex() {
 }
 
 #[test]
-fn matches() {
+fn different_order() {
+    println!("FILE: tests/spec_testcases/v3/request/query/different order.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
-        "comment": "Queries are the same",
+        "comment": "Queries are the same but in different key order",
         "expected" : {
           "method": "GET",
           "path": "/path",
@@ -202,8 +349,8 @@ fn matches() {
           "method": "GET",
           "path": "/path",
           "query": {
-            "alligator": ["Mary"],
-            "hippo": ["John"]
+            "hippo": ["John"],
+            "alligator": ["Mary"]
           },
           "headers": {}
         }
@@ -211,128 +358,14 @@ fn matches() {
     "#).unwrap();
 
     let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_request(expected, actual);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[test]
-fn missing_params() {
-    let pact : serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Queries are not the same - elephant is missing",
-        "expected" : {
-          "method": "GET",
-          "path": "/path",
-          "query": {
-            "alligator": ["Mary"],
-            "hippo": ["Fred"],
-            "elephant": ["missing"]
-          },
-          "headers": {}
-        },
-        "actual": {
-          "method": "GET",
-          "path": "/path",
-          "query": {
-            "alligator": ["Mary"],
-            "hippo": ["Fred"]
-          },
-          "headers": {}
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
-    let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[test]
-fn same_parameter_different_values() {
-    let pact : serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Queries are not the same - animals are alligator, hippo versus alligator, elephant",
-        "expected" : {
-          "method": "GET",
-          "path": "/path",
-          "query": {
-            "animal": ["alligator", "hippo"]
-          },
-          "headers": {}
-        },
-        "actual": {
-          "method": "GET",
-          "path": "/path",
-          "query": {
-            "animal": ["alligator", "elephant"]
-          },
-          "headers": {}
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
-    let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[test]
-fn same_parameter_multiple_times_in_different_order() {
-    let pact : serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Queries are not the same - values are in different order",
-        "expected" : {
-          "method": "GET",
-          "path": "/path",
-          "query": {
-            "animal": ["alligator", "hippo", "elephant"]
-          },
-          "headers": {}
-        },
-        "actual": {
-          "method": "GET",
-          "path": "/path",
-          "query": {
-            "animal": ["hippo", "alligator", "elephant"]
-          },
-          "headers": {}
-        }
-      }
-    "#).unwrap();
-
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
-    let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
     } else {
@@ -342,6 +375,7 @@ fn same_parameter_multiple_times_in_different_order() {
 
 #[test]
 fn same_parameter_multiple_times() {
+    println!("FILE: tests/spec_testcases/v3/request/query/same parameter multiple times.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
@@ -368,11 +402,14 @@ fn same_parameter_multiple_times() {
     "#).unwrap();
 
     let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
     } else {
@@ -381,11 +418,12 @@ fn same_parameter_multiple_times() {
 }
 
 #[test]
-fn unexpected_param() {
+fn matches() {
+    println!("FILE: tests/spec_testcases/v3/request/query/matches.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
-        "match": false,
-        "comment": "Queries are not the same - elephant is not expected",
+        "match": true,
+        "comment": "Queries are the same",
         "expected" : {
           "method": "GET",
           "path": "/path",
@@ -400,8 +438,7 @@ fn unexpected_param() {
           "path": "/path",
           "query": {
             "alligator": ["Mary"],
-            "hippo": ["John"],
-            "elephant": ["unexpected"]
+            "hippo": ["John"]
           },
           "headers": {}
         }
@@ -409,11 +446,14 @@ fn unexpected_param() {
     "#).unwrap();
 
     let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V3);
-    println!("{:?}", expected);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
     let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V3);
-    println!("{:?}", actual);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
     } else {

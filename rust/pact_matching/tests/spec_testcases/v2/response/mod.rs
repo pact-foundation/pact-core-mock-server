@@ -10,6 +10,6 @@ use pact_matching::match_response;
 use expectest::prelude::*;
 #[allow(unused_imports)]
 use serde_json;
-mod body;
 mod headers;
 mod status;
+mod body;
