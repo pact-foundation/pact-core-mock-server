@@ -588,7 +588,7 @@ fn build_payload(result: TestResult, version: String, build_url: Option<String>)
                     "identifier": key,
                     "description": mismatch
                   })),
-                  Mismatch::BodyTypeMismatch { ref expected, ref actual} => acc.0.push(json!({
+                  Mismatch::BodyTypeMismatch { ref expected, ref actual, .. } => acc.0.push(json!({
                     "attribute": "body",
                     "identifier": "$",
                     "description": format!("Expected body type of '{}' but received '{}'", expected, actual)
