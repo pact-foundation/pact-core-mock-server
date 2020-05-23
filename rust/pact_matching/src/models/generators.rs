@@ -485,6 +485,7 @@ impl <'a> ContentTypeHandler<Document<'a>> for XmlHandler<'a> {
 
 /// Data structure for representing a collection of generators
 #[derive(Serialize, Deserialize, Debug, Clone, Eq)]
+#[serde(transparent)]
 pub struct Generators {
   /// Map of generator categories to maps of generators
   pub categories: HashMap<GeneratorCategory, HashMap<String, Generator>>

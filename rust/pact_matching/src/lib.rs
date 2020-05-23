@@ -359,12 +359,13 @@ fn strip_whitespace<'a, T: FromIterator<&'a str>>(val: &'a String, split_by: &'a
 }
 
 lazy_static! {
-    static ref BODY_MATCHERS: [(Regex, fn(expected: &Vec<u8>, actual: &Vec<u8>, config: DiffConfig,
-            mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules)); 4] = [
+    static ref BODY_MATCHERS: [(Regex, fn(expected: &dyn models::HttpPart, actual: &dyn models::HttpPart, config: DiffConfig,
+            mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules)); 5] = [
         (Regex::new("application/.*json").unwrap(), json::match_json),
         (Regex::new("application/json.*").unwrap(), json::match_json),
         (Regex::new("application/.*xml").unwrap(), xml::match_xml),
-        (Regex::new("application/octet-stream").unwrap(), binary_utils::match_octet_stream)
+        (Regex::new("application/octet-stream").unwrap(), binary_utils::match_octet_stream),
+        (Regex::new("multipart/form-data").unwrap(), binary_utils::match_mime_multipart)
     ];
 }
 
@@ -423,7 +424,9 @@ pub enum Mismatch {
         /// expected content type of the body
         expected: String,
         /// actual content type of the body
-        actual: String
+        actual: String,
+        /// description of the mismatch
+        mismatch: String
     },
     /// Body element mismatch
     BodyMismatch {
@@ -482,11 +485,12 @@ impl Mismatch {
                     s!("mismatch") : json!(m)
                 })
             },
-            &Mismatch::BodyTypeMismatch { expected: ref e, actual: ref a } => {
+            &Mismatch::BodyTypeMismatch { expected: ref e, actual: ref a, mismatch: ref m } => {
                 json!({
                     s!("type") : json!("BodyTypeMismatch"),
                     s!("expected") : json!(e),
-                    s!("actual") : json!(a)
+                    s!("actual") : json!(a),
+                    s!("mismatch") : json!(m)
                 })
             },
             &Mismatch::BodyMismatch { path: ref p, expected: ref e, actual: ref a, mismatch: ref m } => {
@@ -541,7 +545,7 @@ impl Mismatch {
             Mismatch::StatusMismatch { expected: ref e, actual: ref a } => format!("expected {} but was {}", e, a),
             Mismatch::QueryMismatch { ref mismatch, .. } => mismatch.clone(),
             Mismatch::HeaderMismatch { ref mismatch, .. } => mismatch.clone(),
-            Mismatch::BodyTypeMismatch {  expected: ref e, actual: ref a } => format!("expected '{}' body but was '{}'", e, a),
+            Mismatch::BodyTypeMismatch {  expected: ref e, actual: ref a, .. } => format!("expected '{}' body but was '{}'", e, a),
             Mismatch::BodyMismatch { ref path, ref mismatch, .. } => format!("{} -> {}", path, mismatch)
         }
     }
@@ -556,7 +560,7 @@ impl Mismatch {
                 Red.paint(e.to_string()), Green.paint(a.to_string()), Style::new().bold().paint(p.clone())),
             Mismatch::HeaderMismatch { expected: ref e, actual: ref a, key: ref k, .. } => format!("Expected header '{}' to have value '{}' but was '{}'",
                 Style::new().bold().paint(k.clone()), Red.paint(e.to_string()), Green.paint(a.to_string())),
-            Mismatch::BodyTypeMismatch {  expected: ref e, actual: ref a } => format!("expected '{}' body but was '{}'", Red.paint(e.clone()), Green.paint(a.clone())),
+            Mismatch::BodyTypeMismatch {  expected: ref e, actual: ref a, .. } => format!("expected '{}' body but was '{}'", Red.paint(e.clone()), Green.paint(a.clone())),
             Mismatch::BodyMismatch { ref path, ref mismatch, .. } => format!("{} -> {}", Style::new().bold().paint(path.clone()), mismatch)
         }
     }
@@ -577,8 +581,8 @@ impl PartialEq for Mismatch {
                 &Mismatch::StatusMismatch{ expected: ref e2, actual: ref a2 }) => {
                 e1 == e2 && a1 == a2
             },
-            (&Mismatch::BodyTypeMismatch{ expected: ref e1, actual: ref a1 },
-                &Mismatch::BodyTypeMismatch{ expected: ref e2, actual: ref a2 }) => {
+            (&Mismatch::BodyTypeMismatch{ expected: ref e1, actual: ref a1, mismatch: _  },
+                &Mismatch::BodyTypeMismatch{ expected: ref e2, actual: ref a2, mismatch: _ }) => {
                 e1 == e2 && a1 == a2
             },
             (&Mismatch::QueryMismatch{ parameter: ref p1, expected: ref e1, actual: ref a1, mismatch: _ },
@@ -862,7 +866,7 @@ pub fn match_headers(expected: Option<HashMap<String, Vec<String>>>,
   };
 }
 
-fn compare_bodies(content_type: String, expected: &Vec<u8>, actual: &Vec<u8>, config: DiffConfig,
+fn compare_bodies(content_type: String, expected: &dyn models::HttpPart, actual: &dyn models::HttpPart, config: DiffConfig,
                   mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
   match BODY_MATCHERS.iter().find(|mt| mt.0.is_match(&content_type)) {
     Some(ref match_fn) => {
@@ -871,14 +875,14 @@ fn compare_bodies(content_type: String, expected: &Vec<u8>, actual: &Vec<u8>, co
     },
     None => {
       debug!("No body matcher defined for content type '{}', using plain text matcher", content_type);
-      match_text(expected, actual, mismatches, matchers)
+      match_text(&expected.body().value(), &actual.body().value(), mismatches, matchers)
     }
   }
 }
 
-fn match_body_content(content_type: String, expected: &models::OptionalBody, actual: &models::OptionalBody,
+fn match_body_content(content_type: String, expected: &dyn models::HttpPart, actual: &dyn models::HttpPart,
     config: DiffConfig, mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
-    match (expected, actual) {
+    match (expected.body(), actual.body()) {
         (&models::OptionalBody::Missing, _) => (),
         (&models::OptionalBody::Null, &models::OptionalBody::Present(ref b)) => {
             mismatches.push(Mismatch::BodyMismatch { expected: None, actual: Some(b.clone()),
@@ -898,8 +902,7 @@ fn match_body_content(content_type: String, expected: &models::OptionalBody, act
                 path: s!("/")});
         },
         (_, _) => {
-            compare_bodies(content_type, &expected.value(), &actual.value(),
-                config, mismatches, matchers);
+          compare_bodies(content_type, expected, actual, config, mismatches, matchers);
         }
     }
 }
@@ -910,10 +913,11 @@ pub fn match_body(expected: &dyn models::HttpPart, actual: &dyn models::HttpPart
     debug!("expected content type = '{}', actual content type = '{}'", expected.content_type(),
       actual.content_type());
     if expected.content_type() == actual.content_type() {
-        match_body_content(expected.content_type(), expected.body(), actual.body(), config, mismatches, matchers)
+        match_body_content(expected.content_type(), expected, actual, config, mismatches, matchers)
     } else if expected.body().is_present() {
         mismatches.push(Mismatch::BodyTypeMismatch { expected: expected.content_type(),
-            actual: actual.content_type() });
+            actual: actual.content_type(), mismatch: format!("Expected body with content type {} but was {}",
+                                                             expected.content_type(), actual.content_type()) });
     }
 }
 
@@ -958,10 +962,11 @@ pub fn match_response(expected: models::Response, actual: models::Response) -> V
 pub fn match_message_contents(expected: &models::message::Message, actual: &models::message::Message, config: DiffConfig,
     mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
     if expected.mimetype() == actual.mimetype() {
-        match_body_content(expected.mimetype(), &expected.contents, &actual.contents, config, mismatches, matchers)
+        match_body_content(expected.mimetype(), expected, actual, config, mismatches, matchers)
     } else if expected.contents.is_present() {
         mismatches.push(Mismatch::BodyTypeMismatch { expected: expected.mimetype(),
-            actual: actual.mimetype() });
+            actual: actual.mimetype(), mismatch: format!("Expected message with content type {} but was {}",
+                                                         expected.content_type(), actual.content_type()) });
     }
 }
 

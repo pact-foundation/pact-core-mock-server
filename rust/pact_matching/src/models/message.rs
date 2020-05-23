@@ -7,6 +7,8 @@ use maplit::*;
 use crate::models::provider_states::ProviderState;
 use super::*;
 use super::body_from_json;
+use crate::models::matchingrules::MatchingRules;
+use crate::models::generators::Generators;
 
 /// Struct that defines a message.
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq)]
@@ -31,19 +33,24 @@ pub struct Message {
     /// Matching rules
     #[serde(rename = "matchingRules")]
     #[serde(default)]
-    pub matching_rules: matchingrules::MatchingRules
+    pub matching_rules: matchingrules::MatchingRules,
+
+    /// Generators
+    #[serde(default)]
+    pub generators: generators::Generators
 }
 
 impl Message {
     /// Returns a default message
     pub fn default() -> Message {
-        Message {
-            description: s!("message"),
-            provider_states: vec![],
-            contents: OptionalBody::Missing,
-            metadata: hashmap!{},
-            matching_rules: matchingrules::MatchingRules::default()
-        }
+      Message {
+        description: s!("message"),
+        provider_states: vec![],
+        contents: OptionalBody::Missing,
+        metadata: hashmap!{},
+        matching_rules: matchingrules::MatchingRules::default(),
+        generators: Generators::default()
+      }
     }
 
     /// Constructs a `Message` from the `Json` struct.
@@ -68,11 +75,12 @@ impl Message {
                     _ => hashmap!{}
                 };
                 Ok(Message {
-                     description,
-                     provider_states,
-                     contents: body_from_json(json, "contents", &None),
-                     matching_rules: matchingrules::matchers_from_json(json, &None),
-                     metadata
+                  description,
+                  provider_states,
+                  contents: body_from_json(json, "contents", &None),
+                  matching_rules: matchingrules::matchers_from_json(json, &None),
+                  metadata,
+                  generators: Generators::default()
                 })
             },
             _ => Err(s!("Messages require Pact Specification version 3 or later"))
@@ -86,6 +94,24 @@ impl Message {
             None => s!("application/json")
         }
     }
+}
+
+impl HttpPart for Message {
+  fn headers(&self) -> &Option<HashMap<String, Vec<String>>> {
+    &None
+  }
+
+  fn body(&self) -> &OptionalBody {
+    &self.contents
+  }
+
+  fn matching_rules(&self) -> &MatchingRules {
+    &self.matching_rules
+  }
+
+  fn generators(&self) -> &Generators {
+    &self.generators
+  }
 }
 
 fn missing_body() -> OptionalBody {
@@ -230,7 +256,8 @@ mod tests {
         let message_json = r#"{
             "description": "String",
             "providerState": "provider state",
-            "matchingRules": {}
+            "matchingRules": {},
+            "generators": {}
         }"#;
 
         // This line should panic, because providerState is not the name of the field.
@@ -245,7 +272,8 @@ mod tests {
         let message_json = r#"{
             "description": "String",
             "providerStates": [{ "name": "provider state", "params": {} }],
-            "matchingRules": {}
+            "matchingRules": {},
+            "generators": {}
         }"#;
 
         let message: Message = serde_json::from_str(message_json).unwrap();
