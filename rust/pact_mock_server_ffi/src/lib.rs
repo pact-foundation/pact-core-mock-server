@@ -47,14 +47,11 @@ use std::any::Any;
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::panic::catch_unwind;
-use std::path::Path;
 use std::ptr::null_mut;
 use std::str;
 
 use chrono::Local;
 use env_logger::Builder;
-use formdata::{FilePart, FormData};
-use hyper::header::Headers;
 use itertools::Itertools;
 use libc::{c_char, c_ushort, size_t};
 use log::*;
@@ -72,7 +69,7 @@ use pact_matching::time_utils::{parse_pattern, to_chrono_pattern};
 use pact_mock_server::{MANAGER, MockServerError, TlsConfigBuilder, WritePactFileErr};
 use pact_mock_server::server_manager::ServerManager;
 
-use crate::bodies::process_json;
+use crate::bodies::{process_json, request_multipart, response_multipart, file_as_multipart_body};
 use crate::handles::InteractionPart;
 
 pub mod handles;
@@ -875,7 +872,6 @@ pub extern fn with_multipart_file(
   file: *const c_char,
   part_name: *const c_char
 ) -> StringResult {
-  let content_type_header = "Content-Type".to_string();
   let part_name = convert_cstr("part_name", part_name).unwrap_or_else(|| "file");
   match convert_cstr("content_type", content_type) {
     Some(content_type) => {
@@ -884,40 +880,8 @@ pub extern fn with_multipart_file(
         match convert_ptr_to_mime_part_body(file, part_name, boundary.as_str()) {
           Ok(body) => {
             match part {
-              InteractionPart::Request => {
-                inner.request.body = body;
-                match inner.request.headers {
-                  Some(ref mut headers) => {
-                    headers.insert(content_type_header.clone(), vec![format!("multipart/form-data; boundary={}", boundary)]);
-                  },
-                  None => {
-                    inner.request.headers = Some(hashmap! {
-                      content_type_header.clone() => vec![format!("multipart/form-data; boundary={}", boundary)]
-                    });
-                  }
-                };
-                inner.request.matching_rules.add_category("body")
-                  .add_rule(format!("$['{}']", part_name), MatchingRule::ContentType(content_type.into()), &RuleLogic::And);
-                inner.request.matching_rules.add_category("header")
-                    .add_rule("Content-Type", MatchingRule::Regex(r"multipart/form-data;(\s*charset=[^;]*;)?\s*boundary=.*".into()), &RuleLogic::And);
-              },
-              InteractionPart::Response => {
-                inner.response.body = body;
-                match inner.response.headers {
-                  Some(ref mut headers) => {
-                    headers.insert(content_type_header.clone(), vec![format!("multipart/form-data; boundary={}", boundary)]);
-                  },
-                  None => {
-                    inner.response.headers = Some(hashmap! {
-                      content_type_header.clone() => vec![format!("multipart/form-data; boundary={}", boundary)]
-                    });
-                  }
-                }
-                inner.response.matching_rules.add_category("body")
-                  .add_rule(format!("$['{}']", part_name), MatchingRule::ContentType(content_type.into()), &RuleLogic::And);
-                inner.response.matching_rules.add_category("header")
-                    .add_rule("Content-Type", MatchingRule::Regex(r"multipart/form-data;(\s*charset=[^;]*;)?\s*boundary=.*".into()), &RuleLogic::And);
-              }
+              InteractionPart::Request => request_multipart(&mut inner.request, &boundary, body, &content_type, part_name),
+              InteractionPart::Response => response_multipart(&mut inner.response, &boundary, body, &content_type, part_name)
             };
             Ok(())
           },
@@ -967,18 +931,6 @@ fn convert_ptr_to_mime_part_body(file: *const c_char, part_name: &str, boundary:
         Err(format!("convert_ptr_to_mime_part_body: Failed to parse file name as a UTF-8 string: {}", err))
       }
     }?;
-    let headers = Headers::new();
-    let formdata = FormData {
-      fields: vec![],
-      files: vec![(part_name.to_string(), FilePart::new(headers, Path::new(file)))]
-    };
-    let mut buffer: Vec<u8> = vec![];
-    match formdata::write_formdata(&mut buffer, &boundary.as_bytes().to_vec(), &formdata) {
-      Ok(_) => Ok(OptionalBody::Present(buffer.clone())),
-      Err(err) => {
-        warn!("convert_ptr_to_mime_part_body: Failed to generate multipart body: {}", err);
-        Err(format!("convert_ptr_to_mime_part_body: Failed to generate multipart body: {}", err))
-      }
-    }
+    file_as_multipart_body(file, part_name, boundary)
   }
 }
