@@ -43,30 +43,37 @@
 
 #![warn(missing_docs)]
 
-use std::panic::catch_unwind;
-use libc::{c_char, size_t, c_ushort};
+use std::any::Any;
 use std::ffi::CStr;
 use std::ffi::CString;
+use std::panic::catch_unwind;
+use std::path::Path;
+use std::ptr::null_mut;
 use std::str;
-use serde_json::json;
-use pact_mock_server::{MockServerError, WritePactFileErr, MANAGER, TlsConfigBuilder};
-use pact_mock_server::server_manager::ServerManager;
-use log::*;
-use std::any::Any;
-use pact_matching::models::{Interaction, OptionalBody, HttpPart, DetectedContentType};
-use pact_matching::models::provider_states::ProviderState;
-use maplit::*;
-use crate::handles::InteractionPart;
-use uuid::Uuid;
-use env_logger::Builder;
-use crate::bodies::process_json;
-use pact_matching::time_utils::{parse_pattern, to_chrono_pattern};
-use nom::types::CompleteStr;
+
 use chrono::Local;
+use env_logger::Builder;
+use formdata::{FilePart, FormData};
+use hyper::header::Headers;
+use itertools::Itertools;
+use libc::{c_char, c_ushort, size_t};
+use log::*;
+use maplit::*;
+use nom::types::CompleteStr;
 use onig::Regex;
 use rand::prelude::*;
-use itertools::Itertools;
+use serde_json::json;
+use uuid::Uuid;
+
+use pact_matching::models::{DetectedContentType, HttpPart, Interaction, OptionalBody};
 use pact_matching::models::matchingrules::{MatchingRule, RuleLogic};
+use pact_matching::models::provider_states::ProviderState;
+use pact_matching::time_utils::{parse_pattern, to_chrono_pattern};
+use pact_mock_server::{MANAGER, MockServerError, TlsConfigBuilder, WritePactFileErr};
+use pact_mock_server::server_manager::ServerManager;
+
+use crate::bodies::process_json;
+use crate::handles::InteractionPart;
 
 pub mod handles;
 pub mod bodies;
@@ -605,14 +612,6 @@ pub extern fn with_body(interaction: handles::InteractionHandle, part: Interacti
   interaction.with_interaction(&|_, inner| {
     match part {
       InteractionPart::Request => {
-        let body = match inner.request.content_type_enum() {
-          DetectedContentType::Json => {
-            let category = inner.request.matching_rules.add_category("body");
-            OptionalBody::from(process_json(body.to_string(), category, &mut inner.request.generators))
-          },
-          _ => OptionalBody::from(body)
-        };
-        inner.request.body = body;
         if !inner.request.has_header(&content_type_header) {
           match inner.request.headers {
             Some(ref mut headers) => {
@@ -623,16 +622,16 @@ pub extern fn with_body(interaction: handles::InteractionHandle, part: Interacti
             }
           }
         }
-      },
-      InteractionPart::Response => {
-        let body = match inner.response.content_type_enum() {
+        let body = match inner.request.content_type_enum() {
           DetectedContentType::Json => {
-            let category = inner.response.matching_rules.add_category("body");
-            OptionalBody::from(process_json(body.to_string(), category, &mut inner.response.generators))
+            let category = inner.request.matching_rules.add_category("body");
+            OptionalBody::from(process_json(body.to_string(), category, &mut inner.request.generators))
           },
           _ => OptionalBody::from(body)
         };
-        inner.response.body = body;
+        inner.request.body = body;
+      },
+      InteractionPart::Response => {
         if !inner.response.has_header(&content_type_header) {
           match inner.response.headers {
             Some(ref mut headers) => {
@@ -643,6 +642,14 @@ pub extern fn with_body(interaction: handles::InteractionHandle, part: Interacti
             }
           }
         }
+        let body = match inner.response.content_type_enum() {
+          DetectedContentType::Json => {
+            let category = inner.response.matching_rules.add_category("body");
+            OptionalBody::from(process_json(body.to_string(), category, &mut inner.response.generators))
+          },
+          _ => OptionalBody::from(body)
+        };
+        inner.response.body = body;
       }
     };
   });
@@ -843,12 +850,98 @@ pub extern fn with_binary_file(interaction: handles::InteractionHandle, part: In
                 }
               }
             }
-            inner.request.matching_rules.add_category("body").add_rule("$", MatchingRule::ContentType(content_type.into()), &RuleLogic::And);
+            inner.response.matching_rules.add_category("body").add_rule("$", MatchingRule::ContentType(content_type.into()), &RuleLogic::And);
           }
         };
       });
     },
     None => warn!("with_binary_file: Content type value is not valid (NULL or non-UTF-8)")
+  }
+}
+
+/// Adds a binary file as the body as a MIME multipart with the expected content type and example contents. Will use
+/// a mime type matcher to match the body.
+///
+/// * `interaction` - Interaction handle to set the body for.
+/// * `part` - Request or response part.
+/// * `content_type` - Expected content type of the file.
+/// * `file` - path to the example file
+/// * `part_name` - name for the mime part
+#[no_mangle]
+pub extern fn with_multipart_file(
+  interaction: handles::InteractionHandle,
+  part: InteractionPart,
+  content_type: *const c_char,
+  file: *const c_char,
+  part_name: *const c_char
+) -> StringResult {
+  let content_type_header = "Content-Type".to_string();
+  let part_name = convert_cstr("part_name", part_name).unwrap_or_else(|| "file");
+  match convert_cstr("content_type", content_type) {
+    Some(content_type) => {
+      match interaction.with_interaction(&|_, inner| {
+        let boundary = inner.description.replace(" ", "_");
+        match convert_ptr_to_mime_part_body(file, part_name, boundary.as_str()) {
+          Ok(body) => {
+            match part {
+              InteractionPart::Request => {
+                inner.request.body = body;
+                match inner.request.headers {
+                  Some(ref mut headers) => {
+                    headers.insert(content_type_header.clone(), vec![format!("multipart/form-data; boundary={}", boundary)]);
+                  },
+                  None => {
+                    inner.request.headers = Some(hashmap! {
+                      content_type_header.clone() => vec![format!("multipart/form-data; boundary={}", boundary)]
+                    });
+                  }
+                };
+                inner.request.matching_rules.add_category("body")
+                  .add_rule(format!("$['{}']", part_name), MatchingRule::ContentType(content_type.into()), &RuleLogic::And);
+                inner.request.matching_rules.add_category("header")
+                    .add_rule("Content-Type", MatchingRule::Regex(r"multipart/form-data;(\s*charset=[^;]*;)?\s*boundary=.*".into()), &RuleLogic::And);
+              },
+              InteractionPart::Response => {
+                inner.response.body = body;
+                match inner.response.headers {
+                  Some(ref mut headers) => {
+                    headers.insert(content_type_header.clone(), vec![format!("multipart/form-data; boundary={}", boundary)]);
+                  },
+                  None => {
+                    inner.response.headers = Some(hashmap! {
+                      content_type_header.clone() => vec![format!("multipart/form-data; boundary={}", boundary)]
+                    });
+                  }
+                }
+                inner.response.matching_rules.add_category("body")
+                  .add_rule(format!("$['{}']", part_name), MatchingRule::ContentType(content_type.into()), &RuleLogic::And);
+                inner.response.matching_rules.add_category("header")
+                    .add_rule("Content-Type", MatchingRule::Regex(r"multipart/form-data;(\s*charset=[^;]*;)?\s*boundary=.*".into()), &RuleLogic::And);
+              }
+            };
+            Ok(())
+          },
+          Err(err) => Err(format!("with_multipart_file: failed to generate multipart body - {}", err))
+        }
+      }) {
+        Some(result) => match result {
+          Ok(_) => StringResult::Ok(null_mut()),
+          Err(err) => {
+            let error = CString::new(err).unwrap();
+            StringResult::Failed(error.into_raw())
+          }
+        },
+        None => {
+          let error = CString::new("with_multipart_file: Interaction handle is invalid").unwrap();
+          StringResult::Failed(error.into_raw())
+        }
+      }
+    },
+    None => {
+      warn!("with_multipart_file: Content type value is not valid (NULL or non-UTF-8)");
+      let error = CString::new("with_multipart_file: Content type value is not valid (NULL or non-UTF-8)").unwrap();
+      StringResult::Failed(error.into_raw())
+    }
   }
 }
 
@@ -859,5 +952,33 @@ fn convert_ptr_to_body(body: *const c_char, size: size_t) -> OptionalBody {
     OptionalBody::Empty
   } else {
     OptionalBody::Present(unsafe { std::slice::from_raw_parts(body as *const u8, size) }.to_vec())
+  }
+}
+
+fn convert_ptr_to_mime_part_body(file: *const c_char, part_name: &str, boundary: &str) -> Result<OptionalBody, String> {
+  if file.is_null() {
+    Ok(OptionalBody::Null)
+  } else {
+    let c_str = unsafe { CStr::from_ptr(file) };
+    let file = match c_str.to_str() {
+      Ok(str) => Ok(str),
+      Err(err) => {
+        warn!("convert_ptr_to_mime_part_body: Failed to parse file name as a UTF-8 string: {}", err);
+        Err(format!("convert_ptr_to_mime_part_body: Failed to parse file name as a UTF-8 string: {}", err))
+      }
+    }?;
+    let headers = Headers::new();
+    let formdata = FormData {
+      fields: vec![],
+      files: vec![(part_name.to_string(), FilePart::new(headers, Path::new(file)))]
+    };
+    let mut buffer: Vec<u8> = vec![];
+    match formdata::write_formdata(&mut buffer, &boundary.as_bytes().to_vec(), &formdata) {
+      Ok(_) => Ok(OptionalBody::Present(buffer.clone())),
+      Err(err) => {
+        warn!("convert_ptr_to_mime_part_body: Failed to generate multipart body: {}", err);
+        Err(format!("convert_ptr_to_mime_part_body: Failed to generate multipart body: {}", err))
+      }
+    }
   }
 }
