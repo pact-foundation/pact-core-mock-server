@@ -110,9 +110,11 @@ pub fn match_mime_multipart(expected: &dyn HttpPart, actual: &dyn HttpPart, _con
     let actual_form_data = actual_form_data.unwrap();
     let expected_form_data = expected_form_data.unwrap();
     for (key, value) in expected_form_data.fields {
+      debug!("Comparing MIME field multipart '{}'", key);
       match actual_form_data.fields.iter().find(|(k, _)| *k == key) {
         Some((_, actual)) => match_field(&key, &value, actual, mismatches, matchers),
         None => {
+          debug!("MIME multipart '{}' is missing in the actual body", key);
           mismatches.push(Mismatch::BodyMismatch { path: s!("$"), expected: Some(key.clone().into_bytes()),
             actual: None,
             mismatch: format!("Expected a MIME part '{}' but was missing", key)});
@@ -120,9 +122,11 @@ pub fn match_mime_multipart(expected: &dyn HttpPart, actual: &dyn HttpPart, _con
       }
     }
     for (key, value) in expected_form_data.files {
+      debug!("Comparing MIME file multipart '{}'", key);
       match actual_form_data.files.iter().find(|(k, _)| *k == key) {
         Some((_, actual)) => match_file(&key, &value, actual, mismatches, matchers),
         None => {
+          debug!("MIME multipart '{}' is missing in the actual body", key);
           mismatches.push(Mismatch::BodyMismatch { path: s!("$"), expected: Some(key.clone().into_bytes()),
             actual: None,
             mismatch: format!("Expected a MIME part '{}' but was missing", key)});

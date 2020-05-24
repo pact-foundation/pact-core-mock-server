@@ -328,7 +328,9 @@ pub trait HttpPart {
 
   /// If the body is a textual type (non-binary)
   fn has_text_body(&self) -> bool {
-    self.content_type() != "application/octet-stream"
+    let body = self.body();
+    let str_body = body.str_value();
+    body.is_present() && !str_body.is_empty() && str_body.is_ascii()
   }
 }
 

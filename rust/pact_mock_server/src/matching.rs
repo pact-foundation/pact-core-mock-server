@@ -8,6 +8,7 @@ use pact_matching::Mismatch;
 use pact_matching::s;
 use serde_json::json;
 use itertools::Itertools;
+use std::fmt::{Display, Formatter};
 
 /// Enum to define a match result
 #[derive(Debug, Clone, PartialEq)]
@@ -60,6 +61,29 @@ impl MatchResult {
             })
         }
     }
+}
+
+impl Display for MatchResult {
+  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    match self {
+      MatchResult::RequestMatch(interaction) => {
+        write!(f, "Request matched OK - {}", interaction.request)
+      },
+      MatchResult::RequestMismatch(interaction, mismatches) => {
+        write!(f, "Request did not match - {}", interaction.request)?;
+        for (i, mismatch) in mismatches.iter().enumerate() {
+          write!(f, "    {}) {}", i, mismatch)?;
+        }
+        Ok(())
+      },
+      MatchResult::RequestNotFound(request) => {
+        write!(f, "Request was not expected - {}", request)
+      },
+      MatchResult::MissingRequest(interaction) => {
+        write!(f, "Request was not received - {}", interaction.request)
+      }
+    }
+  }
 }
 
 fn mismatches_to_json(request: &Request, mismatches: &Vec<Mismatch>) -> serde_json::Value {

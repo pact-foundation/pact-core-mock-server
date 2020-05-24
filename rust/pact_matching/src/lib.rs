@@ -353,6 +353,8 @@ use crate::models::HttpPart;
 use crate::models::matchingrules::*;
 use crate::models::generators::*;
 use crate::matchers::*;
+use std::fmt::Display;
+use nom::lib::std::fmt::Formatter;
 
 fn strip_whitespace<'a, T: FromIterator<&'a str>>(val: &'a String, split_by: &'a str) -> T {
   val.split(split_by).map(|v| v.trim()).collect()
@@ -600,6 +602,12 @@ impl PartialEq for Mismatch {
             (_, _) => false
         }
     }
+}
+
+impl Display for Mismatch {
+  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    write!(f, "{}", self.description())
+  }
 }
 
 /// Enum that defines the configuration options for performing a match.
