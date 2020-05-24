@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.6.0 - multi-part form post bodies
+
+* ce94df9 - feat: cleaned up the logging of request matches (Ronald Holshausen, Sun May 24 11:17:08 2020 +1000)
+* bea787c - chore: bump matching crate version to 0.6.0 (Ronald Holshausen, Sat May 23 17:56:04 2020 +1000)
+* d0a54f7 - feat: implemented matching multi-part form post bodies (Ronald Holshausen, Sat May 23 17:49:48 2020 +1000)
+* ac2903d - chore: update the specification test cases (Ronald Holshausen, Wed May 20 12:08:08 2020 +1000)
+* b0f3387 - bump version to 0.5.15 (Ronald Holshausen, Fri May 15 16:27:48 2020 +1000)
+
 # 0.5.14 - Bugfix Release
 
 * 61ab50f - fix: date/time matchers fallback to the old key (Ronald Holshausen, Fri May 15 11:27:27 2020 +1000)
