@@ -16,14 +16,14 @@
             }
           ]
         },
-        "$.animals.alligator": {
+        "$.animals.*": {
           "matchers": [
             {
               "match": "type"
             }
           ]
         },
-        "$.animals.alligator['@phoneNumber']": {
+        "$.animals.*.alligator['@phoneNumber']": {
           "matchers": [
             {
               "match": "regex",

@@ -288,7 +288,6 @@ fn not_null_found_at_key_when_null_expected() {
 }
 
 #[test]
-#[ignore]
 fn array_with_regular_expression_in_element_xml() {
     println!("FILE: tests/spec_testcases/v3/request/body/array with regular expression in element xml.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
@@ -310,14 +309,14 @@ fn array_with_regular_expression_in_element_xml() {
                   }
                 ]
               },
-              "$.animals.alligator": {
+              "$.animals.*": {
                 "matchers": [
                   {
                     "match": "type"
                   }
                 ]
               },
-              "$.animals.alligator['@phoneNumber']": {
+              "$.animals.*.alligator['@phoneNumber']": {
                 "matchers": [
                   {
                     "match": "regex",
@@ -2425,7 +2424,6 @@ fn array_in_different_order_xml() {
 }
 
 #[test]
-#[ignore]
 fn matches_with_regex_xml() {
     println!("FILE: tests/spec_testcases/v3/request/body/matches with regex xml.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
@@ -2447,7 +2445,7 @@ fn matches_with_regex_xml() {
                   }
                 ]
               },
-              "$.alligator.favouriteColours.favouriteColour": {
+              "$.alligator.0.favouriteColours.*.favouriteColour.#text": {
                 "matchers": [
                   {
                     "match": "regex",
@@ -3226,12 +3224,11 @@ fn null_found_at_key_where_not_null_expected() {
 }
 
 #[test]
-#[ignore]
 fn unexpected_index_with_non_empty_value_xml() {
     println!("FILE: tests/spec_testcases/v3/request/body/unexpected index with non-empty value xml.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
-        "match": true,
+        "match": false,
         "comment": "XML Unexpected favourite colour",
         "expected" : {
           "method": "POST",
@@ -3347,12 +3344,11 @@ fn plain_text_that_does_not_match() {
 }
 
 #[test]
-#[ignore]
 fn unexpected_index_with_missing_value_xml() {
     println!("FILE: tests/spec_testcases/v3/request/body/unexpected index with missing value xml.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
-        "match": true,
+        "match": false,
         "comment": "XML Unexpected favourite colour with empty value",
         "expected" : {
           "method": "POST",

@@ -2069,7 +2069,6 @@ fn plain_text_empty_body() {
 }
 
 #[test]
-#[ignore]
 fn array_at_top_level_with_matchers_xml() {
     println!("FILE: tests/spec_testcases/v3/response/body/array at top level with matchers xml.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
@@ -2081,21 +2080,21 @@ fn array_at_top_level_with_matchers_xml() {
           "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person dob=\"06/10/2015\" name=\"Rogger the Dogger\" id=\"1014753708\" timestamp=\"2015-06-10T20:41:37\"/><cat dob=\"06/10/2015\" name=\"Cat in the Hat\" id=\"8858030303\" timestamp=\"2015-06-10T20:41:37\"/></people>",
           "matchingRules" : {
             "body": {
-              "$.people.*['@id']": {
+              "$.people.*.*['@id']": {
                 "matchers": [
                   {
                     "match": "type"
                   }
                 ]
               },
-              "$.people.*['@name']": {
+              "$.people.*.*['@name']": {
                 "matchers": [
                   {
                     "match": "type"
                   }
                 ]
               },
-              "$.people.*['@dob']": {
+              "$.people.*.*['@dob']": {
                 "matchers": [
                   {
                     "match": "regex",
@@ -2103,7 +2102,7 @@ fn array_at_top_level_with_matchers_xml() {
                   }
                 ]
               },
-              "$.people.*['@timestamp']": {
+              "$.people.*.*['@timestamp']": {
                 "matchers": [
                   {
                     "match": "regex",
