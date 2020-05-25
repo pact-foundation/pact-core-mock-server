@@ -395,6 +395,23 @@ mod tests {
           be_some().value(RuleList::new(MatchingRule::Regex(s!("13")))));
     }
 
+  #[test]
+  fn select_best_matcher_selects_most_appropriate_when_weight_is_equal() {
+    let matchers = matchingrules!{
+      "body" => {
+          "$.animals" => [ MatchingRule::Regex(s!("1")) ],
+          "$.animals.*" => [ MatchingRule::Regex(s!("2")) ],
+          "$.animals.*.alligator['@phoneNumber']" => [ MatchingRule::Regex(s!("3")) ]
+      },
+      "header" => {
+          "item1" => [ MatchingRule::Regex(s!("5")) ]
+      }
+    };
+
+    expect!(select_best_matcher("body", &vec![s!("$"), s!("animals"), s!("0")], &matchers)).to(
+      be_some().value(RuleList::new(MatchingRule::Regex(s!("2")))));
+  }
+
     #[test]
     fn select_best_matcher_selects_handles_missing_type_attribute() {
         let matchers = matchingrules!{

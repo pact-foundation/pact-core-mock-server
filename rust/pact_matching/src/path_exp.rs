@@ -14,7 +14,7 @@ fn peek<I>(chars: &mut Peekable<I>) -> Option<(usize, char)> where I: Iterator<I
 }
 
 fn is_identifier_char(ch: char) -> bool {
-    ch.is_alphabetic() || ch.is_numeric() || ch == '_' || ch == '-' || ch == ':'
+  ch.is_alphabetic() || ch.is_numeric() || ch == '_' || ch == '-' || ch == ':' || ch == '#' || ch == '@'
 }
 
 // identifier -> a-zA-Z0-9+
@@ -270,6 +270,22 @@ mod tests {
         expect!(parse_path_exp(s!("$.id:test"))).to(
             be_ok().value(vec![PathToken::Root, PathToken::Field(s!("id:test"))])
         );
+    }
+
+    #[test]
+    fn parse_path_exp_handles_xml_names() {
+      expect!(parse_path_exp(s!("$.foo.@val"))).to(
+        be_ok().value(vec![PathToken::Root, PathToken::Field(s!("foo")),
+                             PathToken::Field(s!("@val"))])
+      );
+      expect!(parse_path_exp(s!("$.foo.#text"))).to(
+        be_ok().value(vec![PathToken::Root, PathToken::Field(s!("foo")),
+                             PathToken::Field(s!("#text"))])
+      );
+      expect!(parse_path_exp(s!("$.urn:ns:foo.urn:ns:something.#text"))).to(
+        be_ok().value(vec![PathToken::Root, PathToken::Field(s!("urn:ns:foo")),
+                             PathToken::Field(s!("urn:ns:something")), PathToken::Field(s!("#text"))])
+      );
     }
 
     #[test]

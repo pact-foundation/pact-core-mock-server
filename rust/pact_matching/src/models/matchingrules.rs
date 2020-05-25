@@ -32,23 +32,26 @@ fn matches_token(path_fragment: &String, path_token: &PathToken) -> usize {
   }
 }
 
-fn calc_path_weight(path_exp: String, path: &Vec<String>) -> usize {
+fn calc_path_weight(path_exp: String, path: &Vec<String>) -> (usize, usize) {
   let weight = match parse_path_exp(path_exp.clone()) {
     Ok(path_tokens) => {
       trace!("Calculating weight for path tokens '{:?}' and path '{:?}'", path_tokens, path);
       if path.len() >= path_tokens.len() {
-        path_tokens.iter().zip(path.iter())
-          .fold(1, |acc, (token, fragment)| acc * matches_token(fragment, token))
+        (
+          path_tokens.iter().zip(path.iter())
+          .fold(1, |acc, (token, fragment)| acc * matches_token(fragment, token)),
+         path_tokens.len()
+        )
       } else {
-        0
+        (0, path_tokens.len())
       }
     },
     Err(err) => {
       warn!("Failed to parse path expression - {}", err);
-      0
+      (0, 0)
     }
   };
-  trace!("Calculated weight {} for path '{}' and '{:?}'", weight, path_exp, path);
+  trace!("Calculated weight {:?} for path '{}' and '{:?}'", weight, path_exp, path);
   weight
 }
 
@@ -385,8 +388,8 @@ impl Category {
 
   fn max_by_path(&self, path: &Vec<String>) -> Option<RuleList> {
     self.rules.iter().map(|(k, v)| (k, v, calc_path_weight(k.clone(), path)))
-      .filter(|&(_, _, w)| w > 0)
-      .max_by_key(|&(_, _, w)| w)
+      .filter(|&(_, _, w)| w.0 > 0)
+      .max_by_key(|&(_, _, w)| w.0 * w.1)
       .map(|(_, v, _)| v.clone())
   }
 
@@ -480,10 +483,12 @@ impl MatchingRules {
 
     /// If there is a matcher defined for the category and path
     pub fn matcher_is_defined(&self, category: &str, path: &Vec<String>) -> bool {
-      match self.resolve_matchers(category, path) {
+      let result = match self.resolve_matchers(category, path) {
         Some(ref category) => !category.is_empty(),
         None => false
-      }
+      };
+      trace!("matcher_is_defined for category {} and path {:?} -> {}", category, path, result);
+      result
     }
 
     /// If there is a wildcard matcher defined for the category and path
@@ -498,7 +503,7 @@ impl MatchingRules {
     pub fn resolve_matchers(&self, category: &str, path: &Vec<String>) -> Option<Category> {
       if category == "body" || category == "header" || category == "query" {
         self.rules_for_category(&s!(category)).map(|category| category.filter(|&(val, _)| {
-          calc_path_weight(val.clone(), path) > 0
+          calc_path_weight(val.clone(), path).0 > 0
         }))
       } else {
         self.rules_for_category(&s!(category))
@@ -516,7 +521,7 @@ impl MatchingRules {
     fn resolve_wildcard_matchers(&self, category: &str, path: &Vec<String>) -> Option<Category> {
       if category == "body" {
         self.rules_for_category(&s!(category)).map(|category| category.filter(|&(val, _)| {
-          calc_path_weight(val.clone(), path) > 0 && path_length(val.clone()) == path.len()
+          calc_path_weight(val.clone(), path).0 > 0 && path_length(val.clone()) == path.len()
         }))
       } else if category == "header" || category == "query" {
         self.rules_for_category(&s!(category)).map(|category| category.filter(|&(val, _)| {
@@ -1127,39 +1132,39 @@ mod tests {
 
   #[test]
   fn matches_path_matches_root_path_element() {
-    expect!(calc_path_weight(s!("$"), &vec![s!("$")]) > 0).to(be_true());
-    expect!(calc_path_weight(s!("$"), &vec![]) > 0).to(be_false());
+    expect!(calc_path_weight(s!("$"), &vec![s!("$")]).0 > 0).to(be_true());
+    expect!(calc_path_weight(s!("$"), &vec![]).0 > 0).to(be_false());
   }
 
   #[test]
   fn matches_path_matches_field_name() {
-    expect!(calc_path_weight(s!("$.name"), &vec![s!("$"), s!("name")]) > 0).to(be_true());
-    expect!(calc_path_weight(s!("$['name']"), &vec![s!("$"), s!("name")]) > 0).to(be_true());
-    expect!(calc_path_weight(s!("$.name.other"), &vec![s!("$"), s!("name"), s!("other")]) > 0).to(be_true());
-    expect!(calc_path_weight(s!("$['name'].other"), &vec![s!("$"), s!("name"), s!("other")]) > 0).to(be_true());
-    expect!(calc_path_weight(s!("$.name"), &vec![s!("$"), s!("other")]) > 0).to(be_false());
-    expect!(calc_path_weight(s!("$.name"), &vec![s!("$"), s!("name"), s!("other")]) > 0).to(be_true());
-    expect!(calc_path_weight(s!("$.other"), &vec![s!("$"), s!("name"), s!("other")]) > 0).to(be_false());
-    expect!(calc_path_weight(s!("$.name.other"), &vec![s!("$"), s!("name")]) > 0).to(be_false());
+    expect!(calc_path_weight(s!("$.name"), &vec![s!("$"), s!("name")]).0 > 0).to(be_true());
+    expect!(calc_path_weight(s!("$['name']"), &vec![s!("$"), s!("name")]).0 > 0).to(be_true());
+    expect!(calc_path_weight(s!("$.name.other"), &vec![s!("$"), s!("name"), s!("other")]).0 > 0).to(be_true());
+    expect!(calc_path_weight(s!("$['name'].other"), &vec![s!("$"), s!("name"), s!("other")]).0 > 0).to(be_true());
+    expect!(calc_path_weight(s!("$.name"), &vec![s!("$"), s!("other")]).0 > 0).to(be_false());
+    expect!(calc_path_weight(s!("$.name"), &vec![s!("$"), s!("name"), s!("other")]).0 > 0).to(be_true());
+    expect!(calc_path_weight(s!("$.other"), &vec![s!("$"), s!("name"), s!("other")]).0 > 0).to(be_false());
+    expect!(calc_path_weight(s!("$.name.other"), &vec![s!("$"), s!("name")]).0 > 0).to(be_false());
   }
 
   #[test]
   fn matches_path_matches_array_indices() {
-    expect!(calc_path_weight(s!("$[0]"), &vec![s!("$"), s!("0")]) > 0).to(be_true());
-    expect!(calc_path_weight(s!("$.name[1]"), &vec![s!("$"), s!("name"), s!("1")]) > 0).to(be_true());
-    expect!(calc_path_weight(s!("$.name"), &vec![s!("$"), s!("0")]) > 0).to(be_false());
-    expect!(calc_path_weight(s!("$.name[1]"), &vec![s!("$"), s!("name"), s!("0")]) > 0).to(be_false());
-    expect!(calc_path_weight(s!("$[1].name"), &vec![s!("$"), s!("name"), s!("1")]) > 0).to(be_false());
+    expect!(calc_path_weight(s!("$[0]"), &vec![s!("$"), s!("0")]).0 > 0).to(be_true());
+    expect!(calc_path_weight(s!("$.name[1]"), &vec![s!("$"), s!("name"), s!("1")]).0 > 0).to(be_true());
+    expect!(calc_path_weight(s!("$.name"), &vec![s!("$"), s!("0")]).0 > 0).to(be_false());
+    expect!(calc_path_weight(s!("$.name[1]"), &vec![s!("$"), s!("name"), s!("0")]).0 > 0).to(be_false());
+    expect!(calc_path_weight(s!("$[1].name"), &vec![s!("$"), s!("name"), s!("1")]).0 > 0).to(be_false());
   }
 
   #[test]
   fn matches_path_matches_with_wildcard() {
-    expect!(calc_path_weight(s!("$[*]"), &vec![s!("$"), s!("0")]) > 0).to(be_true());
-    expect!(calc_path_weight(s!("$.*"), &vec![s!("$"), s!("name")]) > 0).to(be_true());
-    expect!(calc_path_weight(s!("$.*.name"), &vec![s!("$"), s!("some"), s!("name")]) > 0).to(be_true());
-    expect!(calc_path_weight(s!("$.name[*]"), &vec![s!("$"), s!("name"), s!("0")]) > 0).to(be_true());
-    expect!(calc_path_weight(s!("$.name[*].name"), &vec![s!("$"), s!("name"), s!("1"), s!("name")]) > 0).to(be_true());
-    expect!(calc_path_weight(s!("$[*]"), &vec![s!("$"), s!("name")]) > 0).to(be_false());
+    expect!(calc_path_weight(s!("$[*]"), &vec![s!("$"), s!("0")]).0 > 0).to(be_true());
+    expect!(calc_path_weight(s!("$.*"), &vec![s!("$"), s!("name")]).0 > 0).to(be_true());
+    expect!(calc_path_weight(s!("$.*.name"), &vec![s!("$"), s!("some"), s!("name")]).0 > 0).to(be_true());
+    expect!(calc_path_weight(s!("$.name[*]"), &vec![s!("$"), s!("name"), s!("0")]).0 > 0).to(be_true());
+    expect!(calc_path_weight(s!("$.name[*].name"), &vec![s!("$"), s!("name"), s!("1"), s!("name")]).0 > 0).to(be_true());
+    expect!(calc_path_weight(s!("$[*]"), &vec![s!("$"), s!("name")]).0 > 0).to(be_false());
   }
 
   #[test]
