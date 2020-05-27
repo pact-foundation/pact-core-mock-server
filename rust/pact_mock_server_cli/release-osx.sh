@@ -1,14 +1,9 @@
 #!/bin/bash -xe
 
-if [ "" = "$1" ]; then
-  echo "Usage: "
-  echo "  ./release-osx.sh version"
-  exit 1
-fi
-
 cargo clean
+
+mkdir -p ../target/artifacts
 cargo build --release
+gzip -c ../target/release/pact_mock_server_cli > ../target/artifacts/pact_mock_server_cli-osx-x86_64.gz
 cargo build --release --target x86_64-apple-ios
-gzip -c ../target/release/pact_mock_server_cli > ../target/release/pact_mock_server_cli-osx-x86_64-$1.gz
-cargo build --release --target x86_64-apple-ios
-gzip -c ../target/x86_64-apple-ios/release/pact_mock_server_cli > ../target/x86_64-apple-ios/release/pact_mock_server_cli-ios-x86_64-$1.gz
+gzip -c ../target/x86_64-apple-ios/release/pact_mock_server_cli > ../target/artifacts/pact_mock_server_cli-ios-x86_64.gz
