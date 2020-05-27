@@ -209,15 +209,15 @@ impl MatchingRule {
             Some(max) => Some(MatchingRule::MaxType(max)),
             None => None
           },
-          "timestamp" => match m.get(&val) {
+          "timestamp" => match m.get("format").or_else(|| m.get(&val)) {
             Some(s) => Some(MatchingRule::Timestamp(json_to_string(s))),
             None => None
           },
-          "date" => match m.get(&val) {
+          "date" => match m.get("format").or_else(|| m.get(&val)) {
             Some(s) => Some(MatchingRule::Date(json_to_string(s))),
             None => None
           },
-          "time" => match m.get(&val) {
+          "time" => match m.get("format").or_else(|| m.get(&val)) {
             Some(s) => Some(MatchingRule::Time(json_to_string(s))),
             None => None
           },
