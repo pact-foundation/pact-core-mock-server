@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.0.6 - Refactor
+
+* 643ac2f - refactor: moved the multipart handling code into re-usable functions (Ronald Holshausen, Sun May 24 13:48:21 2020 +1000)
+* 1104d65 - bump version to 0.0.6 (Ronald Holshausen, Sun May 24 12:05:35 2020 +1000)
+
 # 0.0.5 - matching multipart form posts
 
 * dac517b - feat: implemented FFI support for matching multipart form posts (Ronald Holshausen, Sun May 24 11:17:58 2020 +1000)
