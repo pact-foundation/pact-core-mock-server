@@ -26,12 +26,16 @@ ansi_term = "0.9"
 regex = "1.3.1"
 difference = "0.4"
 futures = "0.3"
-reqwest = { version = "0.10", features = ["blocking", "json", "native-tls"] }
 mime = "0.3"
 bytes = "0.5"
 tokio = { version = "0.2.11", features = ["rt-core", "macros"] }
 http = "0.2"
 async-trait = "0.1.24"
+
+[dependencies.reqwest]
+version = "0.10"
+default-features = false
+features = ["rustls-tls", "blocking", "json"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
