@@ -1253,13 +1253,18 @@ impl Pact {
             consumer: Consumer { name: s!("default_consumer") },
             provider: Provider { name: s!("default_provider") },
             interactions: Vec::new(),
-            metadata: btreemap!{
-                s!("pact-specification") => btreemap!{ s!("version") => PactSpecification::V3.version_str() },
-                s!("pact-rust") => btreemap!{ s!("version") => s!(VERSION.unwrap_or("unknown")) }
-            },
+            metadata: Pact::default_metadata(),
             specification_version: PactSpecification::V3
         }
     }
+
+  /// Returns the default metadata
+  pub fn default_metadata() -> BTreeMap<String, BTreeMap<String, String>> {
+    btreemap!{
+      s!("pact-specification") => btreemap!{ s!("version") => PactSpecification::V3.version_str() },
+      s!("pact-rust") => btreemap!{ s!("version") => s!(VERSION.unwrap_or("unknown")) }
+    }
+  }
 }
 
 fn decode_query(query: &str) -> String {
