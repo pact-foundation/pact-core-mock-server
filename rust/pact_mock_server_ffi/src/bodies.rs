@@ -13,7 +13,8 @@ use log::*;
 
 const CONTENT_TYPE_HEADER: &str = "Content-Type";
 
-fn process_array(array: &[Value], matching_rules: &mut Category, generators: &mut Generators, path: &str, type_matcher: bool) -> Value {
+/// Process an array with embedded matching rules and generators
+pub fn process_array(array: &[Value], matching_rules: &mut Category, generators: &mut Generators, path: &str, type_matcher: bool) -> Value {
   Value::Array(array.iter().enumerate().map(|(index, val)| {
     let updated_path = if type_matcher {
       path.to_owned() + "[*]"
@@ -28,7 +29,8 @@ fn process_array(array: &[Value], matching_rules: &mut Category, generators: &mu
   }).collect())
 }
 
-fn process_object(obj: &Map<String, Value>, matching_rules: &mut Category, generators: &mut Generators, path: &str, type_matcher: bool) -> Value {
+/// Process an object (map) with embedded matching rules and generators
+pub fn process_object(obj: &Map<String, Value>, matching_rules: &mut Category, generators: &mut Generators, path: &str, type_matcher: bool) -> Value {
   if obj.contains_key("pact:matcher:type") {
     if let Some(rule) = MatchingRule::from_integration_json(obj) {
       matching_rules.add_rule(&path.to_string(), rule, &RuleLogic::And);
@@ -71,6 +73,15 @@ pub fn process_json(body: String, matching_rules: &mut Category, generators: &mu
       _ => body
     },
     Err(_) => body
+  }
+}
+
+/// Process a JSON body with embedded matching rules and generators
+pub fn process_json_value(body: &Value, matching_rules: &mut Category, generators: &mut Generators) -> String {
+  match body {
+    Value::Object(ref map) => process_object(map, matching_rules, generators, &"$".to_string(), false).to_string(),
+    Value::Array(ref array) => process_array(array, matching_rules, generators, &"$".to_string(), false).to_string(),
+    _ => body.to_string()
   }
 }
 
