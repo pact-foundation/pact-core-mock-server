@@ -98,7 +98,11 @@ impl Message {
 
 impl HttpPart for Message {
   fn headers(&self) -> &Option<HashMap<String, Vec<String>>> {
-    &None
+    unimplemented!()
+  }
+
+  fn headers_mut(&mut self) -> &mut HashMap<String, Vec<String>> {
+    unimplemented!()
   }
 
   fn body(&self) -> &OptionalBody {

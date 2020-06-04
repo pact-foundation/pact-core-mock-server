@@ -252,6 +252,9 @@ pub trait HttpPart {
     /// Returns the headers of the HTTP part.
     fn headers(&self) -> &Option<HashMap<String, Vec<String>>>;
 
+    /// Returns the headers of the HTTP part in a mutable form.
+    fn headers_mut(&mut self) -> &mut HashMap<String, Vec<String>>;
+
     /// Returns the body of the HTTP part.
     fn body(&self) -> &OptionalBody;
 
@@ -332,6 +335,12 @@ pub trait HttpPart {
     let str_body = body.str_value();
     body.is_present() && !str_body.is_empty() && str_body.is_ascii()
   }
+
+  /// Convenience method to add a header
+  fn add_header(&mut self, key: &str, val: Vec<&str>) {
+    let headers = self.headers_mut();
+    headers.insert(key.to_string(), val.iter().map(|v| v.to_string()).collect());
+  }
 }
 
 fn is_match(regex: &Regex, string: &str) -> bool {
@@ -365,6 +374,13 @@ impl HttpPart for Request {
     fn headers(&self) -> &Option<HashMap<String, Vec<String>>> {
         &self.headers
     }
+
+  fn headers_mut(&mut self) -> &mut HashMap<String, Vec<String>> {
+    if self.headers.is_none() {
+      self.headers = Some(hashmap!{});
+    }
+    self.headers.as_mut().unwrap()
+  }
 
     fn body(&self) -> &OptionalBody {
         &self.body
@@ -794,6 +810,13 @@ impl HttpPart for Response {
     fn headers(&self) -> &Option<HashMap<String, Vec<String>>> {
         &self.headers
     }
+
+  fn headers_mut(&mut self) -> &mut HashMap<String, Vec<String>> {
+    if self.headers.is_none() {
+      self.headers = Some(hashmap!{});
+    }
+    self.headers.as_mut().unwrap()
+  }
 
     fn body(&self) -> &OptionalBody {
         &self.body
