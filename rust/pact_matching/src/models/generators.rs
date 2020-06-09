@@ -22,7 +22,6 @@ use itertools::Itertools;
 use indextree::{Arena, NodeId};
 use chrono::prelude::*;
 use crate::time_utils::{parse_pattern, to_chrono_pattern};
-use nom::types::CompleteStr;
 use regex_syntax;
 
 /// Trait to represent a generator
@@ -161,8 +160,8 @@ impl GenerateValue<String> for Generator {
         }
       },
       &Generator::Date(ref format) => match format {
-        Some(pattern) => match parse_pattern(CompleteStr(pattern)) {
-          Ok(tokens) => Some(Local::now().date().format(&to_chrono_pattern(&tokens.1)).to_string()),
+        Some(pattern) => match parse_pattern(pattern) {
+          Ok(tokens) => Some(Local::now().date().format(&to_chrono_pattern(&tokens)).to_string()),
           Err(err) => {
             log::warn!("Date format {} is not valid - {}", pattern, err);
             None
@@ -171,8 +170,8 @@ impl GenerateValue<String> for Generator {
         None => Some(Local::now().naive_local().date().to_string())
       },
       &Generator::Time(ref format) => match format {
-        Some(pattern) => match parse_pattern(CompleteStr(pattern)) {
-          Ok(tokens) => Some(Local::now().format(&to_chrono_pattern(&tokens.1)).to_string()),
+        Some(pattern) => match parse_pattern(pattern) {
+          Ok(tokens) => Some(Local::now().format(&to_chrono_pattern(&tokens)).to_string()),
           Err(err) => {
             log::warn!("Time format {} is not valid - {}", pattern, err);
             None
@@ -181,8 +180,8 @@ impl GenerateValue<String> for Generator {
         None => Some(Local::now().time().format("%H:%M:%S").to_string())
       },
       &Generator::DateTime(ref format) => match format {
-        Some(pattern) => match parse_pattern(CompleteStr(pattern)) {
-          Ok(tokens) => Some(Local::now().format(&to_chrono_pattern(&tokens.1)).to_string()),
+        Some(pattern) => match parse_pattern(pattern) {
+          Ok(tokens) => Some(Local::now().format(&to_chrono_pattern(&tokens)).to_string()),
           Err(err) => {
             log::warn!("DateTime format {} is not valid - {}", pattern, err);
             None
@@ -247,8 +246,8 @@ impl GenerateValue<Value> for Generator {
         }
       },
       &Generator::Date(ref format) => match format {
-        Some(pattern) => match parse_pattern(CompleteStr(pattern)) {
-          Ok(tokens) => Some(json!(Local::now().date().format(&to_chrono_pattern(&tokens.1)).to_string())),
+        Some(pattern) => match parse_pattern(pattern) {
+          Ok(tokens) => Some(json!(Local::now().date().format(&to_chrono_pattern(&tokens)).to_string())),
           Err(err) => {
             log::warn!("Date format {} is not valid - {}", pattern, err);
             None
@@ -257,8 +256,8 @@ impl GenerateValue<Value> for Generator {
         None => Some(json!(Local::now().naive_local().date().to_string()))
       },
       &Generator::Time(ref format) => match format {
-        Some(pattern) => match parse_pattern(CompleteStr(pattern)) {
-          Ok(tokens) => Some(json!(Local::now().format(&to_chrono_pattern(&tokens.1)).to_string())),
+        Some(pattern) => match parse_pattern(pattern) {
+          Ok(tokens) => Some(json!(Local::now().format(&to_chrono_pattern(&tokens)).to_string())),
           Err(err) => {
             log::warn!("Time format {} is not valid - {}", pattern, err);
             None
@@ -267,8 +266,8 @@ impl GenerateValue<Value> for Generator {
         None => Some(json!(Local::now().time().format("%H:%M:%S").to_string()))
       },
       &Generator::DateTime(ref format) => match format {
-        Some(pattern) => match parse_pattern(CompleteStr(pattern)) {
-          Ok(tokens) => Some(json!(Local::now().format(&to_chrono_pattern(&tokens.1)).to_string())),
+        Some(pattern) => match parse_pattern(pattern) {
+          Ok(tokens) => Some(json!(Local::now().format(&to_chrono_pattern(&tokens)).to_string())),
           Err(err) => {
             log::warn!("DateTime format {} is not valid - {}", pattern, err);
             None

@@ -517,7 +517,7 @@ mod tests {
     expect!(100.matches(&100.1, &matcher)).to(be_err());
     expect!(100.1f64.matches(&100.2, &matcher)).to(be_err());
 
-    let matcher = MatchingRule::Timestamp("yyyy-MM-dd HH:mm:ssX".into());
+    let matcher = MatchingRule::Timestamp("yyyy-MM-dd HH:mm:ssXXX".into());
     expect!(s!("2014-01-01 14:00:00+10:00").matches(&s!("2013-12-01 14:00:00+10:00"), &matcher)).to(be_ok());
 
     let matcher = MatchingRule::Timestamp("yyyy#MM#dd#HH#mm#ss".into());

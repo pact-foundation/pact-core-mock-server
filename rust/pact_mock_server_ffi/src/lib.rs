@@ -69,7 +69,7 @@ use pact_matching::time_utils::{parse_pattern, to_chrono_pattern};
 use pact_mock_server::{MANAGER, MockServerError, TlsConfigBuilder, WritePactFileErr};
 use pact_mock_server::server_manager::ServerManager;
 
-use crate::bodies::{process_json, request_multipart, response_multipart, file_as_multipart_body};
+use crate::bodies::{file_as_multipart_body, process_json, request_multipart, response_multipart};
 use crate::handles::InteractionPart;
 
 pub mod handles;
@@ -704,7 +704,7 @@ pub unsafe extern fn generate_datetime_string(format: *const c_char) -> StringRe
   } else {
     let c_str = CStr::from_ptr(format);
     match c_str.to_str() {
-      Ok(s) => match parse_pattern(CompleteStr(s)) {
+      Ok(s) => match parse_pattern(s) {
         Ok(pattern_tokens) => {
           let result = Local::now().format(to_chrono_pattern(&pattern_tokens.1).as_str()).to_string();
           let result_str = CString::new(result.as_str()).unwrap();
