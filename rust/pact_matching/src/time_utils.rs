@@ -44,13 +44,16 @@ use itertools::Itertools;
 use log::*;
 use nom::branch::alt;
 use nom::bytes::complete::{is_a, is_not, tag, tag_no_case, take_while_m_n};
-use nom::character::complete::{char, digit1};
+use nom::character::complete::{char, digit1, alphanumeric1};
 use nom::combinator::{value, opt};
 use nom::Err::{Error, Failure};
 use nom::error::{ErrorKind, ParseError};
 use nom::IResult;
 use nom::multi::many1;
-use nom::sequence::{delimited, preceded, terminated, tuple};
+use nom::sequence::{delimited, preceded, terminated, tuple, separated_pair};
+use maplit::*;
+use std::collections::hash_map::HashMap;
+use crate::timezone_db::*;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(missing_docs)]
@@ -81,6 +84,7 @@ pub enum DateTimePatternToken {
   TimezoneOffsetXZZero(usize),
   TimezoneOffsetGmt(usize),
   TimezoneName(usize),
+  TimezoneId(usize),
   QuarterOfYear(usize),
   QuarterOfYearNum(usize),
   MillisecondOfDay,
@@ -361,7 +365,7 @@ fn nanosecond_of_day_pattern(s: &str) -> IResult<&str, DateTimePatternToken, Dat
 }
 
 fn timezone_pattern(s: &str) -> IResult<&str, DateTimePatternToken, DateTimePatternError<&str>> {
-  alt((is_a("x"), is_a("X"), is_a("Z"), is_a("O"), is_a("z")))(s).and_then(|(remaining, result)| {
+  alt((is_a("x"), is_a("X"), is_a("Z"), is_a("O"), is_a("z"), is_a("V")))(s).and_then(|(remaining, result)| {
     if result.len() > 5 {
       Err(Failure(DateTimePatternError::TooManyPatternLetters(
         format!("Too many pattern letters for Timezone Offset ('x', 'X', 'O', 'z', or 'Z'): {}", result.len()), result.len())))
@@ -375,6 +379,13 @@ fn timezone_pattern(s: &str) -> IResult<&str, DateTimePatternToken, DateTimePatt
           format!("Too many pattern letters for Timezone Offset ('O'): {}", result.len()), result.len())))
       } else {
         Ok((remaining, DateTimePatternToken::TimezoneOffsetGmt(result.len())))
+      }
+    } else if result.starts_with('V') {
+      if result.len() > 2 {
+        Err(Failure(DateTimePatternError::TooManyPatternLetters(
+          format!("Too many pattern letters for Timezone ID ('V'): {}", result.len()), result.len())))
+      } else {
+        Ok((remaining, DateTimePatternToken::TimezoneId(result.len())))
       }
     } else if result.starts_with('z') {
       if result.len() > 4 {
@@ -614,14 +625,26 @@ fn timezone_long_offset_with_z(s: &str, d: usize) -> IResult<&str, String, DateT
 fn timezone(s: &str, d: usize) -> IResult<&str, String, DateTimeError<&str>> {
   if d < 4 {
     take_while_m_n(3, 4, is_uppercase)(s).and_then(|(remaining, result)| {
-      match result.parse::<Tz>() {
-        Ok(_tz) => Ok((remaining, result.into())),
-        Err(_err) => Err(Error(DateTimeError::InvalidTimezone(result.to_string())))
+      if validate_tz_abbreviation(result) {
+        Ok((remaining, result.into()))
+      } else {
+        Err(Error(DateTimeError::InvalidTimezone(result.to_string())))
       }
     })
   } else {
     Err(Error(DateTimeError::FullTimezonesNotSupported(s.to_string())))
   }
+}
+
+fn timezone_id(s: &str) -> IResult<&str, String, DateTimeError<&str>> {
+  separated_pair(alphanumeric1, char('/'), alphanumeric1)(s).and_then(|(remaining, result)| {
+    let tz = format!("{}/{}", result.0, result.1);
+    if ZONES.contains(tz.as_str()) {
+      Ok((remaining, tz.clone()))
+    } else {
+      Err(Error(DateTimeError::InvalidTimezone(tz.clone())))
+    }
+  })
 }
 
 fn timezone_offset(s: &str, d: usize) -> IResult<&str, String, DateTimeError<&str>> {
@@ -773,6 +796,7 @@ fn validate_datetime_string(value: &String, pattern_tokens: &Vec<DateTimePattern
       DateTimePatternToken::Millisecond(size) => millisecond(buffer, *size),
       DateTimePatternToken::Nanosecond(_size) => digit1(buffer).map(|(remaining, result)| (remaining, result.into())),
       DateTimePatternToken::TimezoneName(size) => timezone(buffer, *size),
+      DateTimePatternToken::TimezoneId(_size) => timezone_id(buffer),
       DateTimePatternToken::TimezoneOffset(size) => timezone_offset(buffer, *size),
       DateTimePatternToken::TimezoneOffsetGmt(size) => timezone_offset_gmt(buffer, *size),
       DateTimePatternToken::TimezoneOffsetX(size) => timezone_long_offset(buffer, *size),
@@ -830,6 +854,7 @@ pub fn to_chrono_pattern(tokens: &Vec<DateTimePatternToken>) -> String {
       DateTimePatternToken::Millisecond(d) => format!("%{}f", *d),
       DateTimePatternToken::Nanosecond(_d) => "%f".into(),
       DateTimePatternToken::TimezoneName(_d) => "%Z".into(),
+      DateTimePatternToken::TimezoneId(_d) => "%Z".into(),
       DateTimePatternToken::TimezoneOffset(_d) => "%z".into(),
       DateTimePatternToken::TimezoneOffsetX(_d) => "%:z".into(),
       DateTimePatternToken::TimezoneOffsetXZZero(_d) => "%:z".into(),
@@ -853,6 +878,10 @@ pub fn generate_string(format: &String) -> Result<String, String> {
   }
 }
 
+fn validate_tz_abbreviation(tz: &str) -> bool {
+  ZONES_ABBR.contains_key(tz)
+}
+
 #[cfg(test)]
 mod tests {
   use expectest::expect;
@@ -868,11 +897,11 @@ mod tests {
     expect!(validate_datetime(&"2001-13-02".into(), &"yyyy-MM-dd".into())).to(be_err());
     expect!(validate_datetime(&"2001-01-02 25:33:45".into(), &"yyyy-MM-dd HH:mm:ss".into())).to(be_err());
 
-//    "yyyy.MM.dd G 'at' HH:mm:ss z"	2001.07.04 AD at 12:08:56 PDT
+    expect!(validate_datetime(&"2001.07.04 AD at 12:08:56 PDT".into(), &"yyyy.MM.dd G 'at' HH:mm:ss z".into())).to(be_ok());
     expect!(validate_datetime(&"Wed, Jul 4, '01".into(), &"EEE, MMM d, ''yy".into())).to(be_ok());
     expect!(validate_datetime(&"12:08 PM".into(), &"h:mm a".into())).to(be_ok());
 //    "hh 'o''clock' a, zzzz"	12 o'clock PM, Pacific Daylight Time
-//    "K:mm a, z"	0:08 PM, AEST
+    expect!(validate_datetime(&"0:08 PM, AEST".into(), &"K:mm a, z".into())).to(be_ok());
     expect!(validate_datetime(&"02001.July.04 AD 12:08 PM".into(), &"yyyyy.MMMMM.dd G hh:mm a".into())).to(be_ok());
     expect!(validate_datetime(&"Wed, 4 Jul 2001 12:08:56 -0700".into(), &"EEE, d MMM yyyy HH:mm:ss Z".into())).to(be_ok());
     expect!(validate_datetime(&"010704120856-0700".into(), &"yyMMddHHmmssZ".into())).to(be_ok());
@@ -881,7 +910,7 @@ mod tests {
     expect!(validate_datetime(&"2001-07-04T12:08:56.235-07:00".into(), &"yyyy-MM-dd'T'HH:mm:ss.SSSXXX".into())).to(be_ok());
     expect!(validate_datetime(&"2001-W27-3".into(), &"YYYY-'W'ww-u".into())).to(be_ok());
 
-    // expect!(validate_datetime(&"2020-01-01T10:00+01:00[Europe/Warsaw]".into(), &"yyyy-MM-dd'T'HH:mmXXX'['VV']'".into())).to(be_ok());
+    expect!(validate_datetime(&"2020-01-01T10:00+01:00[Europe/Warsaw]".into(), &"yyyy-MM-dd'T'HH:mmXXX'['VV']'".into())).to(be_ok());
   }
 
   #[test]
@@ -1183,5 +1212,12 @@ mod tests {
     expect!(validate_datetime(&"Q2".into(), &"qq".into())).to(be_err());
     expect!(validate_datetime(&"2nd quarter".into(), &"QQQQ".into())).to(be_ok());
     expect!(validate_datetime(&"5th quarter".into(), &"QQQQ".into())).to(be_err());
+  }
+
+  #[test]
+  fn timezone_abbreviations() {
+    expect!(validate_tz_abbreviation("AEST")).to(be_true());
+    expect!(validate_tz_abbreviation("AEDT")).to(be_true());
+    expect!(validate_tz_abbreviation("XXX")).to(be_false());
   }
 }
