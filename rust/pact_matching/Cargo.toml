@@ -58,5 +58,5 @@ test-env-log = "0.2.2"
 ntest = "0.7.1"
 
 [build-dependencies]
-parse-zoneinfo = { git = "https://github.com/chronotope/parse-zoneinfo.git", branch = "master" }
+parse-zoneinfo = { version = "0.3.0", git = "https://github.com/chronotope/parse-zoneinfo.git", branch = "master" }
 maplit = "0.1.4"
