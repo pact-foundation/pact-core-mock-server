@@ -227,7 +227,7 @@ fn loading_interaction_from_json() {
         "description": "String",
         "providerState": "provider state"
     }"#;
-    let interaction = Interaction::from_json(0, &serde_json::from_str({interaction_json}).unwrap(), &PactSpecification::V1_1);
+    let interaction = Interaction::from_json(0, &serde_json::from_str(interaction_json).unwrap(), &PactSpecification::V1_1);
     expect!(interaction.description).to(be_equal_to("String"));
     expect!(interaction.provider_states).to(be_equal_to(vec![
         ProviderState { name: s!("provider state"), params: hashmap!{} } ]));
@@ -238,7 +238,7 @@ fn defaults_to_number_if_no_description() {
     let interaction_json = r#"{
         "providerState": "provider state"
     }"#;
-    let interaction = Interaction::from_json(0, &serde_json::from_str({interaction_json}).unwrap(), &PactSpecification::V1_1);
+    let interaction = Interaction::from_json(0, &serde_json::from_str(interaction_json).unwrap(), &PactSpecification::V1_1);
     expect!(interaction.description).to(be_equal_to("Interaction 0"));
     expect!(interaction.provider_states).to(be_equal_to(vec![
         ProviderState { name: s!("provider state"), params: hashmap!{} } ]));
@@ -248,7 +248,7 @@ fn defaults_to_number_if_no_description() {
 fn defaults_to_empty_if_no_provider_state() {
     let interaction_json = r#"{
     }"#;
-    let interaction = Interaction::from_json(0, &serde_json::from_str({interaction_json}).unwrap(), &PactSpecification::V1);
+    let interaction = Interaction::from_json(0, &serde_json::from_str(interaction_json).unwrap(), &PactSpecification::V1);
     expect!(interaction.provider_states.iter()).to(be_empty());
 }
 
@@ -257,7 +257,7 @@ fn defaults_to_none_if_provider_state_null() {
     let interaction_json = r#"{
         "providerState": null
     }"#;
-    let interaction = Interaction::from_json(0, &serde_json::from_str({interaction_json}).unwrap(), &PactSpecification::V1);
+    let interaction = Interaction::from_json(0, &serde_json::from_str(interaction_json).unwrap(), &PactSpecification::V1);
     expect!(interaction.provider_states.iter()).to(be_empty());
 }
 

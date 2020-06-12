@@ -39,7 +39,6 @@
 use std::fmt::{Display, Formatter};
 
 use chrono::Local;
-use chrono_tz::Tz;
 use itertools::Itertools;
 use log::*;
 use nom::branch::alt;
@@ -51,8 +50,6 @@ use nom::error::{ErrorKind, ParseError};
 use nom::IResult;
 use nom::multi::many1;
 use nom::sequence::{delimited, preceded, terminated, tuple, separated_pair};
-use maplit::*;
-use std::collections::hash_map::HashMap;
 use crate::timezone_db::*;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

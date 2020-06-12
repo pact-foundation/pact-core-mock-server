@@ -56,7 +56,6 @@ use itertools::Itertools;
 use libc::{c_char, c_ushort, size_t};
 use log::*;
 use maplit::*;
-use nom::types::CompleteStr;
 use onig::Regex;
 use rand::prelude::*;
 use serde_json::json;
@@ -706,7 +705,7 @@ pub unsafe extern fn generate_datetime_string(format: *const c_char) -> StringRe
     match c_str.to_str() {
       Ok(s) => match parse_pattern(s) {
         Ok(pattern_tokens) => {
-          let result = Local::now().format(to_chrono_pattern(&pattern_tokens.1).as_str()).to_string();
+          let result = Local::now().format(to_chrono_pattern(&pattern_tokens).as_str()).to_string();
           let result_str = CString::new(result.as_str()).unwrap();
           StringResult::Ok(result_str.into_raw())
         },
