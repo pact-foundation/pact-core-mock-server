@@ -1,0 +1,27 @@
+
+@PACKAGE_INIT@
+
+set_and_check(PactMatchingFfi_INCLUDE_DIRS "@PACKAGE_INCLUDE_INSTALL_DIR@")
+
+if(WIN32)
+    set(LIB_NAME "@PACKAGE_LIB_INSTALL_DIR@/pact_matching_ffi.dll")
+    set(IMPORT_NAME "${LIB_NAME}.lib")
+else()
+    set(LIB_NAME "@PACKAGE_LIB_INSTALL_DIR@/pact_matching_ffi.a")
+    set(IMPORT_NAME "")
+endif()
+
+set(HEADER_NAME "@PACKAGE_INCLUDE_INSTALL_DIR@/pact_matching.h")
+
+set_and_check(PactMatchingFfi_LIBRARIES ${LIB_NAME} ${IMPORT_NAME})
+
+add_library(PactMatchingFfi SHARED IMPORTED)
+
+set_target_properties(PactMatchingFfi PROPERTIES
+    IMPORTED_LOCATION ${LIB_NAME}
+    IMPORTED_IMPLIB ${IMPORT_NAME}
+    INTERFACE_INCLUDE_DIRECTORIES @PACKAGE_INCLUDE_INSTALL_DIR@
+    INSTALL_RPATH @PACKAGE_LIB_INSTALL_DIR@
+    BUILD_RPATH @PACKAGE_LIB_INSTALL_DIR@)
+
+check_required_components(PactMatchingFfi)
