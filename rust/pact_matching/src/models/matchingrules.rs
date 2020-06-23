@@ -325,6 +325,16 @@ impl RuleList {
     }
   }
 
+  /// If there is a type matcher defined for the rule list
+  pub fn type_matcher_defined(&self) -> bool {
+    self.rules.iter().any(|rule| match rule {
+      MatchingRule::Type => true,
+      MatchingRule::MinType(_) => true,
+      MatchingRule::MaxType(_) => true,
+      MatchingRule::MinMaxType(_, _) => true,
+      _ => false
+    })
+  }
 }
 
 /// Data structure for representing a category of matching rules
@@ -418,6 +428,10 @@ impl Category {
     map
   }
 
+  /// If there is a type matcher defined for the category
+  pub fn type_matcher_defined(&self) -> bool {
+    self.rules.values().any(|rule_list| rule_list.type_matcher_defined())
+  }
 }
 
 impl Hash for Category {
@@ -498,6 +512,16 @@ impl MatchingRules {
         None => false
       }
     }
+
+  /// If there is a type matcher defined for the category and path
+  pub fn type_matcher_defined(&self, category: &str, path: &Vec<String>) -> bool {
+    let result = match self.resolve_matchers(category, path) {
+      Some(ref category) => category.type_matcher_defined(),
+      None => false
+    };
+    trace!("type_matcher_defined for category {} and path {:?} -> {}", category, path, result);
+    result
+  }
 
     /// Returns a `Category` filtered with all rules that match the given path.
     pub fn resolve_matchers(&self, category: &str, path: &Vec<String>) -> Option<Category> {

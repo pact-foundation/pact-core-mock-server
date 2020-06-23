@@ -464,7 +464,7 @@ mod tests {
   use crate::models::{Request, OptionalBody};
 
   macro_rules! request {
-    ($e:expr) => (Request { body: OptionalBody::Present($e.as_bytes().to_vec()), .. Request::default() })
+    ($e:expr) => (Request { body: OptionalBody::Present($e.as_bytes().to_vec(), None), .. Request::default() })
   }
 
   #[test]

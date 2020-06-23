@@ -424,7 +424,7 @@ impl ContentTypeHandler<Value> for JsonHandler {
     for (key, generator) in generators {
       self.apply_key(key, generator, context);
     };
-    OptionalBody::Present(self.value.to_string().into())
+    OptionalBody::Present(self.value.to_string().into(), Some("application/json".into()))
   }
 
   fn apply_key(&mut self, key: &String, generator: &Generator, context: &HashMap<String, Value>) {

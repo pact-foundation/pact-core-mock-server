@@ -93,20 +93,20 @@ fn apply_generator_to_empty_body_test() {
 #[test]
 fn do_not_apply_generators_if_there_are_no_body_generators() {
   let generators = Generators::default();
-  let body = OptionalBody::Present("{\"a\": 100, \"b\": \"B\"}".into());
+  let body = OptionalBody::Present("{\"a\": 100, \"b\": \"B\"}".into(), None);
   expect!(generators.apply_body_generators(&body, DetectedContentType::Json, &hashmap!{})).to(be_equal_to(body));
 }
 
 #[test]
 fn apply_generator_to_text_body_test() {
   let generators = Generators::default();
-  let body = OptionalBody::Present("some text".into());
+  let body = OptionalBody::Present("some text".into(), None);
   expect!(generators.apply_body_generators(&body, DetectedContentType::Text, &hashmap!{})).to(be_equal_to(body));
 }
 
 #[test]
 fn applies_body_generator_to_the_copy_of_the_request() {
-  let request = Request { body: OptionalBody::Present("{\"a\": 100, \"b\": \"B\"}".into()),
+  let request = Request { body: OptionalBody::Present("{\"a\": 100, \"b\": \"B\"}".into(), None),
     generators: generators! {
       "BODY" => {
         "$.a" => Generator::RandomInt(1, 10)
@@ -121,7 +121,7 @@ fn applies_body_generator_to_the_copy_of_the_request() {
 
 #[test]
 fn applies_body_generator_to_the_copy_of_the_response() {
-  let response = Response { body: OptionalBody::Present("{\"a\": 100, \"b\": \"B\"}".into()),
+  let response = Response { body: OptionalBody::Present("{\"a\": 100, \"b\": \"B\"}".into(), None),
     generators: generators! {
       "BODY" => {
         "$.a" => Generator::RandomInt(1, 10)
@@ -135,7 +135,7 @@ fn applies_body_generator_to_the_copy_of_the_response() {
 
 #[test]
 fn does_not_change_body_if_there_are_no_generators() {
-  let body = OptionalBody::Present("{\"a\": 100, \"b\": \"B\"}".into());
+  let body = OptionalBody::Present("{\"a\": 100, \"b\": \"B\"}".into(), None);
   let generators = generators!{};
   let processed = generators.apply_body_generators(&body, DetectedContentType::Json,
     &hashmap!{});

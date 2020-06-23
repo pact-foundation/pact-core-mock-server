@@ -145,7 +145,7 @@ pub enum OptionalBody {
     /// from null values. It is treated as `Empty`.
     Null,
     /// A non-empty body that is present in the pact file.
-    Present(Vec<u8>)
+    Present(Vec<u8>, Option<String>)
 }
 
 impl OptionalBody {
@@ -153,7 +153,7 @@ impl OptionalBody {
     /// If the body is present in the pact file and not empty or null.
     pub fn is_present(&self) -> bool {
         match *self {
-            OptionalBody::Present(_) => true,
+            OptionalBody::Present(_, _) => true,
             _ => false
         }
     }
@@ -161,7 +161,7 @@ impl OptionalBody {
     /// Returns the body if present, otherwise returns the empty Vec.
     pub fn value(&self) -> Vec<u8> {
         match *self {
-            OptionalBody::Present(ref s) => s.clone(),
+            OptionalBody::Present(ref s, _) => s.clone(),
             _ => vec![]
         }
     }
@@ -169,7 +169,7 @@ impl OptionalBody {
   /// Returns the body if present as a string, otherwise returns the empty string.
   pub fn str_value(&self) -> &str {
     match *self {
-      OptionalBody::Present(ref s) => str::from_utf8(s).unwrap_or(""),
+      OptionalBody::Present(ref s, _) => str::from_utf8(s).unwrap_or(""),
       _ => ""
     }
   }
@@ -180,7 +180,7 @@ impl From<String> for OptionalBody {
     if s.is_empty() {
       OptionalBody::Empty
     } else {
-      OptionalBody::Present(Vec::from(s.as_bytes()))
+      OptionalBody::Present(Vec::from(s.as_bytes()), None)
     }
   }
 }
@@ -190,7 +190,7 @@ impl <'a> From<&'a str> for OptionalBody {
     if s.is_empty() {
       OptionalBody::Empty
     } else {
-      OptionalBody::Present(Vec::from(s.as_bytes()))
+      OptionalBody::Present(Vec::from(s.as_bytes()), None)
     }
   }
 }
@@ -201,8 +201,28 @@ impl Display for OptionalBody {
       OptionalBody::Missing => write!(f, "Missing"),
       OptionalBody::Empty => write!(f, "Empty"),
       OptionalBody::Null => write!(f, "Null"),
-      OptionalBody::Present(ref s) => write!(f, "Present({} bytes)", s.len())
+      OptionalBody::Present(ref s, ref content_type) => {
+        if let Some(content_type) = content_type {
+          write!(f, "Present({} bytes)", s.len())
+        } else {
+          write!(f, "Present({} bytes)", s.len())
+        }
+      }
     }
+  }
+}
+
+#[cfg(test)]
+mod body_tests {
+  use expectest::prelude::*;
+  use super::*;
+
+  #[test]
+  fn display_tests() {
+    expect!(format!("{}", OptionalBody::Missing)).to(be_equal_to("Missing"));
+    expect!(format!("{}", OptionalBody::Empty)).to(be_equal_to("Empty"));
+    expect!(format!("{}", OptionalBody::Null)).to(be_equal_to("Null"));
+    expect!(format!("{}", OptionalBody::Present("hello".into(), None))).to(be_equal_to("Present(5 bytes)"));
   }
 }
 
@@ -280,7 +300,7 @@ pub trait HttpPart {
     /// the first 32 characters. Default to `text/plain` if no match is found.
     fn detect_content_type(&self) -> String {
         match *self.body() {
-            OptionalBody::Present(ref body) => {
+            OptionalBody::Present(ref body, _) => {
                 let s: String = match str::from_utf8(body) {
                   Ok(s) => s.to_string(),
                   Err(_) => String::new()
@@ -510,21 +530,21 @@ fn body_from_json(request: &Value, fieldname: &str, headers: &Option<HashMap<Str
                   let content_type = content_type.unwrap_or(s!("text/plain"));
                   if JSON_CONTENT_TYPE.is_match(&content_type) {
                     match serde_json::from_str::<JsonParsable>(&s) {
-                      Ok(_) => OptionalBody::Present(s.clone().into()),
-                      Err(_) => OptionalBody::Present(format!("\"{}\"", s).into())
+                      Ok(_) => OptionalBody::Present(s.clone().into(), Some(content_type)),
+                      Err(_) => OptionalBody::Present(format!("\"{}\"", s).into(), Some(content_type))
                     }
                   } else if content_type.starts_with("text/") {
-                    OptionalBody::Present(s.clone().into())
+                    OptionalBody::Present(s.clone().into(), Some(content_type))
                   } else {
                     match decode(s) {
-                      Ok(bytes) => OptionalBody::Present(bytes.clone()),
-                      Err(_) => OptionalBody::Present(s.clone().into())
+                      Ok(bytes) => OptionalBody::Present(bytes.clone(), None),
+                      Err(_) => OptionalBody::Present(s.clone().into(), None)
                     }
                   }
                 }
             },
             Value::Null => OptionalBody::Null,
-            _ => OptionalBody::Present(v.to_string().into())
+            _ => OptionalBody::Present(v.to_string().into(), None)
         },
         None => OptionalBody::Missing
     }
@@ -637,7 +657,7 @@ impl Request {
                 map.insert(s!("headers"), headers_to_json(&self.headers.clone().unwrap()));
             }
             match self.body {
-              OptionalBody::Present(ref body) => match self.content_type().as_str() {
+              OptionalBody::Present(ref body, _) => match self.content_type().as_str() {
                 "application/json" => {
                   match serde_json::from_slice(body) {
                     Ok(json_body) => { map.insert(s!("body"), json_body); },
@@ -754,7 +774,7 @@ impl Response {
                 map.insert(s!("headers"), headers_to_json(&self.headers.clone().unwrap()));
             }
             match self.body {
-                OptionalBody::Present(ref body) => {
+                OptionalBody::Present(ref body, _) => {
                   match self.content_type().as_str() {
                     "application/json" => match serde_json::from_slice(body) {
                       Ok(json_body) => { map.insert(s!("body"), json_body); },

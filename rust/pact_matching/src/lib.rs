@@ -893,12 +893,12 @@ fn match_body_content(content_type: String, expected: &dyn models::HttpPart, act
     config: DiffConfig, mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
     match (expected.body(), actual.body()) {
         (&models::OptionalBody::Missing, _) => (),
-        (&models::OptionalBody::Null, &models::OptionalBody::Present(ref b)) => {
+        (&models::OptionalBody::Null, &models::OptionalBody::Present(ref b, _)) => {
             mismatches.push(Mismatch::BodyMismatch { expected: None, actual: Some(b.clone()),
                 mismatch: format!("Expected empty body but received '{:?}'", b.clone()),
                 path: s!("/")});
         },
-        (&models::OptionalBody::Empty, &models::OptionalBody::Present(ref b)) => {
+        (&models::OptionalBody::Empty, &models::OptionalBody::Present(ref b, _)) => {
             mismatches.push(Mismatch::BodyMismatch { expected: None, actual: Some(b.clone()),
                 mismatch: format!("Expected empty body but received '{:?}'", b.clone()),
                 path: s!("/")});

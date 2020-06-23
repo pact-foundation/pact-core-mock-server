@@ -302,7 +302,7 @@ mod tests {
     let body = "not a multipart body";
     let request = Request {
       headers: Some(hashmap!{}),
-      body: OptionalBody::Present(body.as_bytes().to_vec()),
+      body: OptionalBody::Present(body.as_bytes().to_vec(), None),
       ..Request::default()
     };
     let mut mismatches = vec![];
@@ -333,7 +333,7 @@ mod tests {
       --1234--\r\n";
     let expected = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=1234".into() ] }),
-      body: OptionalBody::Present(expected_body.as_bytes().to_vec()),
+      body: OptionalBody::Present(expected_body.as_bytes().to_vec(), None),
       ..Request::default()
     };
     let actual_body = "--1234\r\n\
@@ -350,7 +350,7 @@ mod tests {
       --1234--\r\n";
     let actual = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=1234".into() ] }),
-      body: OptionalBody::Present(actual_body.as_bytes().to_vec()),
+      body: OptionalBody::Present(actual_body.as_bytes().to_vec(), None),
       ..Request::default()
     };
     let mut mismatches = vec![];
@@ -377,7 +377,7 @@ mod tests {
       --1234--\r\n";
     let expected = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=1234".into() ] }),
-      body: OptionalBody::Present(expected_body.as_bytes().to_vec()),
+      body: OptionalBody::Present(expected_body.as_bytes().to_vec(), None),
       ..Request::default()
     };
     let actual_body = "--1234\r\n\
@@ -386,7 +386,7 @@ mod tests {
       --1234--\r\n";
     let actual = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=1234".into() ] }),
-      body: OptionalBody::Present(actual_body.as_bytes().to_vec()),
+      body: OptionalBody::Present(actual_body.as_bytes().to_vec(), None),
       ..Request::default()
     };
     let mut mismatches = vec![];
@@ -416,7 +416,7 @@ mod tests {
       --1234--\r\n";
     let expected = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=1234".into() ] }),
-      body: OptionalBody::Present(expected_body.as_bytes().to_vec()),
+      body: OptionalBody::Present(expected_body.as_bytes().to_vec(), None),
       ..Request::default()
     };
     let actual_body = "--4567\r\n\
@@ -433,7 +433,7 @@ mod tests {
       --4567--\r\n";
     let actual = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=4567".into() ] }),
-      body: OptionalBody::Present(actual_body.as_bytes().to_vec()),
+      body: OptionalBody::Present(actual_body.as_bytes().to_vec(), None),
       ..Request::default()
     };
     let mut mismatches = vec![];
@@ -459,7 +459,7 @@ mod tests {
       --1234--\r\n";
     let expected = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=1234".into() ] }),
-      body: OptionalBody::Present(expected_body.as_bytes().to_vec()),
+      body: OptionalBody::Present(expected_body.as_bytes().to_vec(), None),
       matching_rules: matchingrules! {
         "body" => {
           "$.name" => [ MatchingRule::Regex(s!("^\\w+$")) ],
@@ -482,7 +482,7 @@ mod tests {
       --4567--\r\n";
     let actual = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=4567".into() ] }),
-      body: OptionalBody::Present(actual_body.as_bytes().to_vec()),
+      body: OptionalBody::Present(actual_body.as_bytes().to_vec(), None),
       ..Request::default()
     };
     let mut mismatches = vec![];
@@ -509,7 +509,7 @@ mod tests {
       --1234--\r\n";
     let expected = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=1234".into() ] }),
-      body: OptionalBody::Present(expected_body.as_bytes().to_vec()),
+      body: OptionalBody::Present(expected_body.as_bytes().to_vec(), None),
       ..Request::default()
     };
     let actual_body = "--4567\r\n\
@@ -526,7 +526,7 @@ mod tests {
       --4567--\r\n";
     let actual = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=4567".into() ] }),
-      body: OptionalBody::Present(actual_body.as_bytes().to_vec()),
+      body: OptionalBody::Present(actual_body.as_bytes().to_vec(), None),
       ..Request::default()
     };
     let mut mismatches = vec![];
@@ -555,7 +555,7 @@ mod tests {
       --1234--\r\n";
     let expected = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=1234".into() ] }),
-      body: OptionalBody::Present(expected_body.as_bytes().to_vec()),
+      body: OptionalBody::Present(expected_body.as_bytes().to_vec(), None),
       matching_rules: matchingrules! {
         "body" => {
           "$.file" => [ MatchingRule::ContentType("image/png".into()) ]
@@ -583,7 +583,7 @@ mod tests {
     actual_body.extend_from_slice("\r\n--4567--\r\n".as_bytes());
     let actual = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=4567".into() ] }),
-      body: OptionalBody::Present(actual_body),
+      body: OptionalBody::Present(actual_body, None),
       ..Request::default()
     };
     let mut mismatches = vec![];
@@ -591,7 +591,7 @@ mod tests {
     match_mime_multipart(&expected, &actual, DiffConfig::AllowUnexpectedKeys,
                          &mut mismatches, &expected.matching_rules());
 
-    expect!(dbg!(mismatches).iter()).to(be_empty());
+    expect!(mismatches.iter()).to(be_empty());
   }
 
   #[test]
@@ -610,7 +610,7 @@ mod tests {
       --1234--\r\n";
     let expected = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=1234".into() ] }),
-      body: OptionalBody::Present(expected_body.as_bytes().to_vec()),
+      body: OptionalBody::Present(expected_body.as_bytes().to_vec(), None),
       matching_rules: matchingrules! {
         "body" => {
           "$.file" => [ MatchingRule::ContentType("application/jpeg".into()) ]
@@ -632,7 +632,7 @@ mod tests {
       --4567--\r\n";
     let actual = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=4567".into() ] }),
-      body: OptionalBody::Present(actual_body.as_bytes().to_vec()),
+      body: OptionalBody::Present(actual_body.as_bytes().to_vec(), None),
       ..Request::default()
     };
     let mut mismatches = vec![];

@@ -355,7 +355,7 @@ fn body_does_not_match_if_different_content_types() {
     let mut mismatches = vec![];
     let expected = Request { method: s!("GET"), path: s!("/"), query: None,
         headers: Some(hashmap!{ s!("Content-Type") => vec![s!("application/json")] }),
-        body: OptionalBody::Present(vec![]), .. Request::default() };
+        body: OptionalBody::Present(vec![], None), .. Request::default() };
     let actual = Request { method: s!("GET"), path: s!("/"), query: None,
         headers: Some(hashmap!{ s!("Content-Type") => vec![s!("text/plain")] }),
         body: OptionalBody::Missing, .. Request::default() };
@@ -373,7 +373,7 @@ fn body_matches_if_expected_is_missing() {
         body: OptionalBody::Missing, .. Request::default() };
     let actual = Request { method: s!("GET"), path: s!("/"), query: None,
         headers: Some(hashmap!{ s!("Content-Type") => vec![s!("application/json")] }),
-        body: OptionalBody::Present("{}".into()), .. Request::default() };
+        body: OptionalBody::Present("{}".into(), None), .. Request::default() };
     match_body(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &matchingrules!{});
     expect!(mismatches.iter()).to(be_empty());
 }
@@ -383,10 +383,10 @@ fn body_matches_with_extended_mime_types() {
     let mut mismatches = vec![];
     let expected = Request { method: s!("GET"), path: s!("/"), query: None,
         headers: Some(hashmap!{ s!("Content-Type") => vec![s!("application/thrift+json")] }),
-        body: OptionalBody::Present(r#"{"test":true}"#.into()), .. Request::default() };
+        body: OptionalBody::Present(r#"{"test":true}"#.into(), None), .. Request::default() };
     let actual = Request { method: s!("GET"), path: s!("/"), query: None,
         headers: Some(hashmap!{ s!("Content-Type") => vec![s!("application/thrift+json")] }),
-        body: OptionalBody::Present(r#"{"test": true}"#.into()), .. Request::default() };
+        body: OptionalBody::Present(r#"{"test": true}"#.into(), None), .. Request::default() };
     match_body(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &matchingrules!{});
     expect!(mismatches.iter()).to(be_empty());
 }
@@ -653,7 +653,7 @@ fn matching_headers_be_false_when_headers_do_not_match_by_matcher() {
 }
 
 macro_rules! request {
-  ($e:expr) => (Request { body: OptionalBody::Present($e.as_bytes().to_vec()), .. Request::default() })
+  ($e:expr) => (Request { body: OptionalBody::Present($e.as_bytes().to_vec(), None), .. Request::default() })
 }
 
 #[test]
