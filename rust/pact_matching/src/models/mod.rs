@@ -203,7 +203,7 @@ impl Display for OptionalBody {
       OptionalBody::Null => write!(f, "Null"),
       OptionalBody::Present(ref s, ref content_type) => {
         if let Some(content_type) = content_type {
-          write!(f, "Present({} bytes)", s.len())
+          write!(f, "Present({} bytes, {})", s.len(), content_type)
         } else {
           write!(f, "Present({} bytes)", s.len())
         }

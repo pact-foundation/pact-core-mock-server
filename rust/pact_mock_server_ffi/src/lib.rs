@@ -914,7 +914,7 @@ fn convert_ptr_to_body(body: *const c_char, size: size_t) -> OptionalBody {
   } else if size == 0 {
     OptionalBody::Empty
   } else {
-    OptionalBody::Present(unsafe { std::slice::from_raw_parts(body as *const u8, size) }.to_vec())
+    OptionalBody::Present(unsafe { std::slice::from_raw_parts(body as *const u8, size) }.to_vec(), None)
   }
 }
 

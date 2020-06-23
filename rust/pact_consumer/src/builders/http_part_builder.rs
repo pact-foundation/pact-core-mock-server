@@ -101,10 +101,30 @@ pub trait HttpPartBuilder {
         let body = body.into();
         {
             let (body_ref, _) = self.body_and_matching_rules_mut();
-            *body_ref = OptionalBody::Present(body.into());
+            *body_ref = OptionalBody::Present(body.into(), None);
         }
         self
     }
+
+  /// Specify a body literal with content type. This does not allow using patterns.
+  ///
+  /// ```
+  /// use pact_consumer::prelude::*;
+  /// use pact_consumer::builders::RequestBuilder;
+  ///
+  /// RequestBuilder::default().body2("Hello", "plain/text");
+  /// ```
+  ///
+  /// TODO: We may want to change this to `B: Into<Vec<u8>>` depending on what
+  /// happens with https://github.com/pact-foundation/pact-reference/issues/19
+  fn body2<B: Into<String>>(&mut self, body: B, content_type: B) -> &mut Self {
+    let body = body.into();
+    {
+      let (body_ref, _) = self.body_and_matching_rules_mut();
+      *body_ref = OptionalBody::Present(body.into(), Some(content_type.into()));
+    }
+    self
+  }
 
     /// Specify the body as `JsonPattern`, possibly including special matching
     /// rules.
@@ -122,7 +142,7 @@ pub trait HttpPartBuilder {
         let body = body.into();
         {
             let (body_ref, rules) = self.body_and_matching_rules_mut();
-            *body_ref = OptionalBody::Present(body.to_example().to_string().into());
+            *body_ref = OptionalBody::Present(body.to_example().to_string().into(), Some("application/json".into()));
             body.extract_matching_rules("$", rules.add_category("body"));
         }
         self

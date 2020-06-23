@@ -1,8 +1,6 @@
 use crate::matching::{MatchResult, match_request};
 
 use pact_matching::models::{Pact, Request, OptionalBody, HttpPart};
-use pact_matching::models::matchingrules::*;
-use pact_matching::models::generators::*;
 use pact_matching::models::parse_query_string;
 
 use std::collections::HashMap;
@@ -70,11 +68,11 @@ fn extract_headers(headers: &hyper::HeaderMap) -> Result<Option<HashMap<String, 
   }
 }
 
-fn extract_body(bytes: bytes::Bytes) -> OptionalBody {
+fn extract_body(bytes: bytes::Bytes, request: &Request) -> OptionalBody {
     if bytes.len() > 0 {
-        OptionalBody::Present(bytes.to_vec())
+      OptionalBody::Present(bytes.to_vec(), Some(request.content_type()))
     } else {
-        OptionalBody::Empty
+      OptionalBody::Empty
     }
 }
 
@@ -88,14 +86,17 @@ async fn hyper_request_to_pact_request(req: hyper::Request<Body>) -> Result<Requ
         .await
         .map_err(|_| InteractionError::RequestBodyError)?;
 
+    let request = Request {
+      method,
+      path,
+      query,
+      headers,
+      .. Request::default()
+    };
+
     Ok(Request {
-        method,
-        path,
-        query,
-        headers,
-        body: extract_body(body_bytes),
-        matching_rules: MatchingRules::default(),
-        generators: Generators::default()
+      body: extract_body(body_bytes, &request),
+      .. request.clone()
     })
 }
 
@@ -148,8 +149,8 @@ fn match_result_to_hyper_response(request: &Request, match_result: MatchResult) 
             set_hyper_headers(&mut builder, &response.headers)?;
 
             builder.body(match response.body {
-                OptionalBody::Present(ref s) => Body::from(s.clone()),
-                _ => Body::empty()
+              OptionalBody::Present(ref s, _) => Body::from(s.clone()),
+              _ => Body::empty()
             })
                 .map_err(|_| InteractionError::ResponseBodyError)
         },

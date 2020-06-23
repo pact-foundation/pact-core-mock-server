@@ -1,7 +1,5 @@
 use super::*;
 use pact_matching::models::*;
-use pact_matching::models::matchingrules::*;
-use pact_matching::models::generators::*;
 use pact_matching::s;
 use std::collections::hash_map::HashMap;
 use std::convert::TryFrom;
@@ -60,7 +58,7 @@ fn create_native_request(client: &Client, base_url: &str, request: &Request) -> 
   }
 
   match request.body {
-    OptionalBody::Present(ref s) => builder = builder.body(s.clone()),
+    OptionalBody::Present(ref s, _) => builder = builder.body(s.clone()),
     OptionalBody::Null => {
       if request.content_type_enum() == DetectedContentType::Json {
         builder = builder.body("null");
@@ -95,10 +93,10 @@ fn extract_headers(headers: &HeaderMap) -> Option<HashMap<String, Vec<String>>> 
   }
 }
 
-async fn extract_body(response: reqwest::Response) -> Result<OptionalBody, reqwest::Error> {
+async fn extract_body(response: reqwest::Response, pact_response: &Response) -> Result<OptionalBody, reqwest::Error> {
   let body = response.bytes().await?;
   if !body.is_empty() {
-    Ok(OptionalBody::Present(body.to_vec()))
+    Ok(OptionalBody::Present(body.to_vec(), Some(pact_response.content_type())))
   } else {
     Ok(OptionalBody::Empty)
   }
@@ -111,14 +109,17 @@ async fn native_response_to_pact_response(
 
   let status = native_response.status().as_u16();
   let headers = extract_headers(native_response.headers());
-  let body = extract_body(native_response).await?;
-
   let response = Response {
     status,
     headers,
+    .. Response::default()
+  };
+
+  let body = extract_body(native_response, &response).await?;
+
+  let response = Response {
     body,
-    matching_rules: MatchingRules::default(),
-    generators: Generators::default(),
+    .. response.clone()
   };
   info!("Received response: {}", response);
   Ok(response)

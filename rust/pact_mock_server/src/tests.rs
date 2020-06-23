@@ -69,11 +69,11 @@ fn match_request_returns_request_not_found_if_method_or_path_do_not_match() {
 
 #[test]
 fn match_request_returns_the_most_appropriate_mismatch_for_multiple_requests() {
-    let request = Request { method: s!("GET"), path: s!("/"), body: OptionalBody::Present("This is a body".into()),
+    let request = Request { method: s!("GET"), path: s!("/"), body: OptionalBody::Present("This is a body".into(), None),
       .. Request::default() };
     let request2 = Request { method: s!("GET"), path: s!("/"), query: Some(hashmap!{
         s!("QueryA") => vec![s!("Value A")]
-        }), body: OptionalBody::Present("This is a body".into()),
+        }), body: OptionalBody::Present("This is a body".into(), None),
       .. Request::default() };
     let request3 = Request { method: s!("GET"), path: s!("/"), query: Some(hashmap!{
         s!("QueryA") => vec![s!("Value A")]
@@ -96,7 +96,7 @@ fn match_request_supports_v2_matchers() {
                 "a": 100,
                 "b": "one hundred"
             }
-            "#.into()
+            "#.into(), None
         ), .. Request::default() };
     let expected_request = Request { method: s!("GET"), path: s!("/"),
         headers: Some(hashmap!{ s!("Content-Type") => vec![s!("application/json")] }),
@@ -106,7 +106,7 @@ fn match_request_supports_v2_matchers() {
                 "a": 1000,
                 "b": "One Thousand"
             }
-            "#.into()
+            "#.into(), None
         ), matching_rules: matchingrules!{
           "body" => {
             "$.*" => [ MatchingRule::Type ]
@@ -125,14 +125,14 @@ fn match_request_supports_v2_matchers_with_xml() {
         headers: Some(hashmap!{ s!("Content-Type") => vec![s!("application/xml")] }), body: OptionalBody::Present(
             r#"<?xml version="1.0" encoding="UTF-8"?>
             <foo>hello<bar/>world</foo>
-            "#.into()
+            "#.into(), None
         ), .. Request::default() };
     let expected_request = Request { method: s!("GET"), path: s!("/"), query: None,
         headers: Some(hashmap!{ s!("Content-Type") => vec![s!("application/xml")] }),
         body: OptionalBody::Present(
             r#"<?xml version="1.0" encoding="UTF-8"?>
             <foo>hello<bar/>mars </foo>
-            "#.into()
+            "#.into(), None
         ), matching_rules: matchingrules!{
           "body" => {
             "$.foo['#text']" => [ MatchingRule::Regex(s!("[a-z]+")) ]

@@ -132,7 +132,7 @@ pub fn file_as_multipart_body(file: &str, part_name: &str, boundary: &str) -> Re
   };
   let mut buffer: Vec<u8> = vec![];
   match formdata::write_formdata(&mut buffer, &boundary.as_bytes().to_vec(), &formdata) {
-    Ok(_) => Ok(OptionalBody::Present(buffer.clone())),
+    Ok(_) => Ok(OptionalBody::Present(buffer.clone(), Some("multipart/form-data".into()))),
     Err(err) => {
       warn!("convert_ptr_to_mime_part_body: Failed to generate multipart body: {}", err);
       Err(format!("convert_ptr_to_mime_part_body: Failed to generate multipart body: {}", err))
