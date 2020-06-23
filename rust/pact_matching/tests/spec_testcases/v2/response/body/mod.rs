@@ -355,6 +355,61 @@ fn additional_property_with_type_matcher() {
 }
 
 #[test]
+fn matches_with_integers() {
+    println!("FILE: tests/spec_testcases/v2/response/body/matches with integers.json");
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": true,
+        "comment": "Response match with integers",
+        "expected" : {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {"Content-Type": "application/json"},
+          "matchingRules": {
+            "$.body.alligator.feet": {"match": "regex", "regex": "[0-9]"}
+          },
+          "body": {
+            "alligator":{
+              "name": "Mary",
+              "feet": 4,
+              "favouriteColours": ["red","blue"]
+            }
+          }
+        },
+        "actual": {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {"Content-Type": "application/json"},
+          "body": {
+            "alligator":{
+              "feet": 4,
+              "name": "Mary",
+             "favouriteColours": ["red","blue"]
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
+    let pact_match = pact.get("match").unwrap();
+    let result = match_response(expected, actual);
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[test]
 fn different_value_found_at_key_xml() {
     println!("FILE: tests/spec_testcases/v2/response/body/different value found at key xml.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
@@ -565,6 +620,59 @@ fn array_in_different_order() {
               "favouriteColours": ["blue", "red"]
             }
           }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
+    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
+    let pact_match = pact.get("match").unwrap();
+    let result = match_response(expected, actual);
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[test]
+fn matches_with_floats() {
+    println!("FILE: tests/spec_testcases/v2/response/body/matches with floats.json");
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": true,
+        "comment": "Response match with floats",
+        "expected": {
+          "headers": {"Content-Type": "application/json"},
+          "matchingRules": {
+            "$.body.product.price": {"match": "regex", "regex": "\\d(\\.\\d{1,2})"}
+          },
+          "body": [
+            {
+              "product": {
+                  "id": 123,
+                  "description": "Television",
+                  "price": 500.55
+              }
+            }
+          ]
+        },
+        "actual": {
+          "headers": {"Content-Type": "application/json"},
+          "body": [
+            {
+              "product": {
+                  "id": 123,
+                  "description": "Television",
+                  "price": 500.55
+              }
+            }
+          ]
         }
       }
     "#).unwrap();
@@ -1637,16 +1745,16 @@ fn array_at_top_level_with_matchers_xml() {
           "headers": {"Content-Type": "application/xml"},
           "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person dob=\"06/10/2015\" name=\"Rogger the Dogger\" id=\"1014753708\" timestamp=\"2015-06-10T20:41:37\"/><cat dob=\"06/10/2015\" name=\"Cat in the Hat\" id=\"8858030303\" timestamp=\"2015-06-10T20:41:37\"/></people>",
           "matchingRules" : {
-            "$.body.people[*].*['@id']" : {
+            "$.body.people.*['@id']" : {
               "match" : "type"
             },
-            "$.body.people[*].*['@name']" : {
+            "$.body.people.*['@name']" : {
               "match" : "type"
             },
-            "$.body.people[*].*['@dob']" : {
+            "$.body.people.*['@dob']" : {
               "match": "regex", "regex" : "\\d{2}/\\d{2}/\\d{4}"
             },
-            "$.body.people[*].*['@timestamp']" : {
+            "$.body.people.*['@timestamp']" : {
               "match": "regex", "regex" : "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}"
             }
           }
@@ -1902,7 +2010,7 @@ fn array_in_different_order_xml() {
     println!("FILE: tests/spec_testcases/v2/response/body/array in different order xml.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
       {
-        "match": false,
+        "match": true,
         "comment": "XML Favourite colours in wrong order",
         "expected" : {
           "headers": {"Content-Type": "application/xml"},
@@ -2251,8 +2359,8 @@ fn additional_property_with_type_matcher_that_does_not_match() {
           "headers": {},
           "body": {
             "myPerson": {
-              "name": "Jon Peterson",
-              "age": 39,
+              "name": 39,
+              "age": "39",
               "nationality": "Australian"
             }
           }    

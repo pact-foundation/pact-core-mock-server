@@ -10,7 +10,6 @@ use crate::models::xml_utils::parse_bytes;
 use crate::models::{HttpPart, OptionalBody};
 use sxd_document::QName;
 use maplit::*;
-use std::collections::HashMap;
 
 pub fn match_xml(expected: &dyn HttpPart, actual: &dyn HttpPart, config: DiffConfig,
   mismatches: &mut Vec<super::Mismatch>, matchers: &MatchingRules) {
@@ -228,7 +227,7 @@ fn compare_children(path: &Vec<String>, expected: &Element, actual: &Element, co
       mismatch: format!("Expected no children but received [{}]", desc_children(&actual_children))
     });
   } else {
-    let mut expected_children_by_name: HashMap<String, Vec<Element>> = hashmap!{};
+    let mut expected_children_by_name: BTreeMap<String, Vec<Element>> = btreemap!{};
     for child in &expected_children {
       let key = name(child.name());
       if expected_children_by_name.contains_key(&key) {
@@ -237,7 +236,7 @@ fn compare_children(path: &Vec<String>, expected: &Element, actual: &Element, co
         expected_children_by_name.insert(key, vec![ child.clone() ]);
       }
     }
-    let mut actual_children_by_name: HashMap<String, Vec<Element>> = hashmap!{};
+    let mut actual_children_by_name: BTreeMap<String, Vec<Element>> = btreemap!{};
     for child in &actual_children {
       let key = name(child.name());
       if actual_children_by_name.contains_key(&key) {
@@ -727,15 +726,15 @@ mod tests {
     match_xml(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &MatchingRules::default());
     expect!(mismatches.iter()).to(have_count(2));
     let mismatch = mismatches[0].clone();
-    expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.foo.three"),
-      expected: Some("three, three".into()),
-      actual: Some("one, two, three, four".into()), mismatch: s!("")}));
-    expect!(mismatch_message(&mismatch)).to(be_equal_to(s!("Expected child <three/> but was missing")));
-    let mismatch = mismatches[1].clone();
     expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.foo"),
       expected: Some("one, two, three, three".into()),
       actual: Some("one, two, three, four".into()), mismatch: s!("")}));
     expect!(mismatch_message(&mismatch)).to(be_equal_to(s!("Unexpected child <four/>")));
+    let mismatch = mismatches[1].clone();
+    expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.foo.three"),
+      expected: Some("three, three".into()),
+      actual: Some("one, two, three, four".into()), mismatch: s!("")}));
+    expect!(mismatch_message(&mismatch)).to(be_equal_to(s!("Expected child <three/> but was missing")));
   }
 
   #[test]
@@ -1088,20 +1087,20 @@ mod tests {
     match_xml(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &MatchingRules::default());
     expect!(mismatches.iter()).to(have_count(3));
     let mismatch = mismatches[0].clone();
-    expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.animals.dog"),
-      expected: Some("dog".into()),
-      actual: Some("dog, dog, cat, cat, cat, wolf".into()), mismatch: "Unexpected child <dog/>".into()}));
-    expect!(mismatch_message(&mismatch)).to(be_equal_to(s!("Unexpected child <dog/>")));
+    expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.animals.cat"),
+      expected: Some("cat".into()),
+      actual: Some("dog, dog, cat, cat, cat, wolf".into()), mismatch: s!("")}));
+    expect!(mismatch_message(&mismatch)).to(be_equal_to(s!("Unexpected child <cat/>")));
     let mismatch = mismatches[1].clone();
     expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.animals.cat"),
       expected: Some("cat".into()),
       actual: Some("dog, dog, cat, cat, cat, wolf".into()), mismatch: s!("")}));
     expect!(mismatch_message(&mismatch)).to(be_equal_to(s!("Unexpected child <cat/>")));
     let mismatch = mismatches[2].clone();
-    expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.animals.cat"),
-      expected: Some("cat".into()),
-      actual: Some("dog, dog, cat, cat, cat, wolf".into()), mismatch: s!("")}));
-    expect!(mismatch_message(&mismatch)).to(be_equal_to(s!("Unexpected child <cat/>")));
+    expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.animals.dog"),
+      expected: Some("dog".into()),
+      actual: Some("dog, dog, cat, cat, cat, wolf".into()), mismatch: "Unexpected child <dog/>".into()}));
+    expect!(mismatch_message(&mismatch)).to(be_equal_to(s!("Unexpected child <dog/>")));
   }
 
   #[test]

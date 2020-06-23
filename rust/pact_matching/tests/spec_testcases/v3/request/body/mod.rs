@@ -309,14 +309,14 @@ fn array_with_regular_expression_in_element_xml() {
                   }
                 ]
               },
-              "$.animals.*": {
+              "$.animals.alligator": {
                 "matchers": [
                   {
                     "match": "type"
                   }
                 ]
               },
-              "$.animals.*.alligator['@phoneNumber']": {
+              "$.animals.alligator['@phoneNumber']": {
                 "matchers": [
                   {
                     "match": "regex",
@@ -1344,14 +1344,7 @@ fn array_with_at_least_one_element_matching_by_example_xml() {
                   }
                 ]
               },
-              "$.animals[0]": {
-                "matchers": [
-                  {
-                    "match": "type"
-                  }
-                ]
-              },
-              "$.animals[1]": {
+              "$.animals.alligator": {
                 "matchers": [
                   {
                     "match": "type"
@@ -2445,7 +2438,7 @@ fn matches_with_regex_xml() {
                   }
                 ]
               },
-              "$.alligator.0.favouriteColours.*.favouriteColour.#text": {
+              "$.alligator.favouriteColours.favouriteColour.#text": {
                 "matchers": [
                   {
                     "match": "regex",

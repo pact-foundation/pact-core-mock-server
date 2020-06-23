@@ -301,9 +301,8 @@ fn array_with_regular_expression_in_element_xml() {
           "headers": {"Content-Type": "application/xml"},
           "matchingRules": {
             "$.body.animals": {"min": 1, "match": "type"},
-            "$.body.animals[0]": {"match": "type"},
-            "$.body.animals[1]": {"match": "type"},
-            "$.body.animals[*]['@phoneNumber']": {"match": "regex", "regex": "\\d+"}
+            "$.body.animals.alligator": {"match": "type"},
+            "$.body.animals.alligator[*]['@phoneNumber']": {"match": "regex", "regex": "\\d+"}
           },
           "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><animals><alligator phoneNumber=\"0415674567\"/></animals>"
         },
@@ -371,6 +370,61 @@ fn array_with_regular_expression_in_element() {
                 "phoneNumber": "983479823479283478923"
               }
             ]
+          }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
+    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
+    let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[test]
+fn matches_with_integers() {
+    println!("FILE: tests/spec_testcases/v2/request/body/matches with integers.json");
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": true,
+        "comment": "Request match with integers",
+        "expected" : {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {"Content-Type": "application/json"},
+          "matchingRules": {
+            "$.body.alligator.feet": {"match": "regex", "regex": "[0-9]"}
+          },
+          "body": {
+            "alligator":{
+              "name": "Mary",
+              "feet": 4,
+              "favouriteColours": ["red","blue"]
+            }
+          }
+        },
+        "actual": {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {"Content-Type": "application/json"},
+          "body": {
+            "alligator":{
+              "feet": 4,
+              "name": "Mary",
+             "favouriteColours": ["red","blue"]
+            }
           }
         }
       }
@@ -597,6 +651,59 @@ fn matches_with_regex_with_bracket_notation() {
               "str" : "saldfhksajdhffdskkjh"
             }
           }
+        }
+      }
+    "#).unwrap();
+
+    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.body.str_value());
+    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.body.str_value());
+    let pact_match = pact.get("match").unwrap();
+    let result = match_request(expected, actual);
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[test]
+fn matches_with_floats() {
+    println!("FILE: tests/spec_testcases/v2/request/body/matches with floats.json");
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": true,
+        "comment": "Request matches with floats",
+        "expected": {
+          "headers": {"Content-Type": "application/json"},
+          "matchingRules": {
+            "$.body.product.price": {"match": "regex", "regex": "\\d(\\.\\d{1,2})"}
+          },
+          "body": [
+            {
+              "product": {
+                  "id": 123,
+                  "description": "Television",
+                  "price": 500.55
+              }
+            }
+          ]
+        },
+        "actual": {
+          "headers": {"Content-Type": "application/json"},
+          "body": [
+            {
+              "product": {
+                  "id": 123,
+                  "description": "Television",
+                  "price": 500.55
+              }
+            }
+          ]
         }
       }
     "#).unwrap();
@@ -1101,8 +1208,7 @@ fn array_with_at_least_one_element_matching_by_example_xml() {
           "headers": {"Content-Type": "application/xml"},
           "matchingRules": {
             "$.body.animals": {"min": 1, "match": "type"},
-            "$.body.animals[0]": {"match": "type"},
-            "$.body.animals[1]": {"match": "type"}
+            "$.body.animals.alligator": {"match": "type"}
           },
           "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><animals><alligator name=\"Fred\"/></animals>"
         },
@@ -2056,7 +2162,7 @@ fn matches_with_regex_xml() {
           "headers": {"Content-Type": "application/xml"},
           "matchingRules": {
             "$.body.alligator['@name']": {"match": "regex", "regex": "\\w+"},
-            "$.body.alligator[0].favouriteColours.*.favouriteColour.#text": {"match": "regex", "regex": "red|blue"}
+            "$.body.alligator.favouriteColours.favouriteColour.#text": {"match": "regex", "regex": "red|blue"}
           },
           "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\" feet=\"4\"><favouriteColours><favouriteColour>red</favouriteColour><favouriteColour>blue</favouriteColour></favouriteColours></alligator>"
         },
