@@ -1,5 +1,14 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.0.7 - Updated XML Matching and Date/Time parsing
+
+* f9b0cae - chore: update to latest matching crate (Ronald Holshausen, Wed Jun 24 11:16:38 2020 +1000)
+* a15edea - chore: try set the content type on the body if known (Ronald Holshausen, Tue Jun 23 16:53:32 2020 +1000)
+* 45fc1a0 - fix: cleanup warnings and fixed test (Ronald Holshausen, Fri Jun 12 10:51:44 2020 +1000)
+* 875d7a1 - refactor: changed date/time parsing to support Java DateTimeFormatter format (Ronald Holshausen, Tue Jun 9 17:56:30 2020 +1000)
+* 4996c0f - feat: make body processing functions public so other language impl can use them (Ronald Holshausen, Thu Jun 4 16:02:55 2020 +1000)
+* f71c57a - bump version to 0.0.7 (Ronald Holshausen, Wed May 27 10:47:48 2020 +1000)
+
 # 0.0.6 - Refactor
 
 * 643ac2f - refactor: moved the multipart handling code into re-usable functions (Ronald Holshausen, Sun May 24 13:48:21 2020 +1000)
