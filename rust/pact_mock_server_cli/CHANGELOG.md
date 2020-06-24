@@ -1,5 +1,9 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.6.2 - Updated XML Matching
+
+* 218239c - chore: update to latest matching crate (Ronald Holshausen, Wed Jun 24 10:53:35 2020 +1000)
+
 # 0.6.1 - Updated crates
 
 * 98d7abb - chore: update GH action to build pact_mock_server_cli (Ronald Holshausen, Wed May 27 14:55:14 2020 +1000)
