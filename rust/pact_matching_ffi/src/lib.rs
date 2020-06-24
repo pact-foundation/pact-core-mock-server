@@ -7,5 +7,5 @@
 
 pub mod error;
 pub mod log;
-pub(crate) mod util;
 pub mod models;
+pub(crate) mod util;
