@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.7.5 - Updated XML Matching
+
+* a15edea - chore: try set the content type on the body if known (Ronald Holshausen, Tue Jun 23 16:53:32 2020 +1000)
+* b4fe61f - bump version to 0.7.5 (Ronald Holshausen, Sun May 24 11:56:22 2020 +1000)
+
 # 0.7.4 - multi-part form post bodies
 
 * ce94df9 - feat: cleaned up the logging of request matches (Ronald Holshausen, Sun May 24 11:17:08 2020 +1000)
