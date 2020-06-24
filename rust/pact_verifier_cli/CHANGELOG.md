@@ -1,5 +1,27 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.7.0 - Updated XML Matching
+
+* 62b0bda - chore: update to latest matching library (Ronald Holshausen, Wed Jun 24 12:17:04 2020 +1000)
+* bea787c - chore: bump matching crate version to 0.6.0 (Ronald Holshausen, Sat May 23 17:56:04 2020 +1000)
+* 76250b5 - chore: correct some clippy warnings (Ronald Holshausen, Wed Apr 29 17:53:40 2020 +1000)
+* 43de9c3 - chore: update matching library to latest (Ronald Holshausen, Fri Apr 24 10:20:55 2020 +1000)
+* bd10d00 - Avoid deprecated Error::description in favor of Display trait (Caleb Stepanian, Mon Mar 30 16:49:13 2020 -0400)
+* 1cf0199 - refactor: moved state change code to a handler (Ronald Holshausen, Wed Mar 11 14:37:07 2020 +1100)
+* 70e6648 - chore: converted verifier to use Reqwest (Ronald Holshausen, Mon Mar 9 12:20:14 2020 +1100)
+* fe74376 - feat: implemented publishing provider tags with verification results #57 (Ronald Holshausen, Sun Mar 8 18:37:21 2020 +1100)
+* a6e0c16 - Fix RequestFilterExecutor w/ verify_provider (Andrew Lilley Brinker, Mon Mar 2 11:43:59 2020 -0800)
+* d944a60 - chore: added callback executors so test code can called during verification (Ronald Holshausen, Sun Feb 23 18:43:49 2020 +1100)
+* f238ca1 - Make pact_verifier_cli actually runnable by using tokio::main (Audun Halland, Sun Jan 19 10:12:17 2020 +0100)
+* 70a33dd - chore: bump minor version of pact_verifier (Ronald Holshausen, Sun Jan 19 11:51:36 2020 +1100)
+* cb4c560 - Upgrade tokio to 0.2.9 (Audun Halland, Fri Jan 10 00:13:02 2020 +0100)
+* deaf4b3 - pact_verifier_cli: Increase type length limit for big generated future type (Audun Halland, Tue Dec 17 01:53:24 2019 +0100)
+* 87d787f - pact_verifier_cli: Block on async function from pact_verifier (Audun Halland, Thu Dec 12 11:15:44 2019 +0100)
+* c168d0b - pact_verifier_cli: Remove extern crate from main.rs (Audun Halland, Sun Nov 17 23:25:17 2019 +0100)
+* 713cd6a - Explicit edition 2018 in Cargo.toml files (Audun Halland, Sat Nov 16 23:55:37 2019 +0100)
+* 9f3ad74 - fix: docker build now requires libclang system library (Ronald Holshausen, Fri Sep 27 17:14:05 2019 +1000)
+* 834a60b - bump version to 0.6.2 (Ronald Holshausen, Fri Sep 27 15:37:03 2019 +1000)
+
 # 0.6.1 - Bugfix + Oniguruma crate for regex matching
 
 * e32350e - chore: use the latest matching lib (Ronald Holshausen, Fri Sep 27 15:22:12 2019 +1000)
