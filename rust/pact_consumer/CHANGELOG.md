@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.6.2 - Updated XML Matching
+
+* 97d8521 - chore: update to latest matching crate (Ronald Holshausen, Wed Jun 24 11:03:24 2020 +1000)
+* a15edea - chore: try set the content type on the body if known (Ronald Holshausen, Tue Jun 23 16:53:32 2020 +1000)
+* 570f405 - chore: correct version in readme (Ronald Holshausen, Wed May 27 16:38:58 2020 +1000)
+* a54dfd0 - bump version to 0.6.2 (Ronald Holshausen, Wed May 27 14:43:24 2020 +1000)
+
 # 0.6.1 - Bugfix Release
 
 * bea787c - chore: bump matching crate version to 0.6.0 (Ronald Holshausen, Sat May 23 17:56:04 2020 +1000)
