@@ -63,7 +63,7 @@ trait ZeroizedWrite: Write {
 }
 
 impl<'a> ZeroizedWrite for &'a mut [u8] {
-    fn zeroized_write<'b>(mut self, buf: &'b [u8]) -> io::Result<()> {
+    fn zeroized_write(mut self, buf: &[u8]) -> io::Result<()> {
         // Write the buffer.
         self.write_all(buf)?;
 

@@ -49,8 +49,9 @@ pub extern "C" fn logger_init() {
 /// Attach an additional sink to the thread-local logger.
 ///
 /// This logger does nothing until `logger_apply` has been called.
+#[allow(clippy::missing_safety_doc)]
 #[no_mangle]
-pub extern "C" fn logger_attach_sink(
+pub unsafe extern "C" fn logger_attach_sink(
     sink_specifier: *const c_char,
     level_filter: LevelFilter,
 ) -> c_int {

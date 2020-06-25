@@ -40,7 +40,7 @@ pub extern "C" fn get_error_message(
     };
 
     // Get the last error, possibly empty if there isn't one.
-    let last_err = get_error_msg().unwrap_or(String::new());
+    let last_err = get_error_msg().unwrap_or_else(String::new);
 
     // Try to write the error to the buffer.
     let status = match write_to_c_buf(&last_err, buffer) {

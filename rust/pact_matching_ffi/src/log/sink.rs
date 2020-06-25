@@ -54,7 +54,7 @@ impl<'a> TryFrom<&'a str> for Sink {
         }
 
         match s.get(pat.len()..) {
-            None => return Err(SinkSpecifierError::MissingFilePath),
+            None => Err(SinkSpecifierError::MissingFilePath),
             Some(remainder) => {
                 match File::create(remainder) {
                     Ok(file) => Ok(Sink::File(file)),
