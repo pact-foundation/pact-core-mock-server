@@ -149,6 +149,9 @@ find_package(Cargo REQUIRED)
 # Uses the finder specified in `cmake/FindCbindgen.cmake`
 find_package(Cbindgen REQUIRED)
 
+# CMake can find Doxygen without a custom finder module.
+find_package(Doxygen)
+
 #################################################################################################
 # VARIABLES
 #
@@ -249,6 +252,24 @@ add_custom_target(generate_header ALL
 
 # Teach CMake to install the header file built by the generate_header target
 install(FILES "${CBINDGEN_HEADER_FILE}" TYPE INCLUDE)
+
+
+#################################################################################################
+# DOXYGEN
+#
+# Generates configuration for Doxygen and runs it to generate documentation.
+#################################################################################################
+
+if(DOXYGEN_FOUND)
+    doxygen_add_docs(
+        generate_docs
+        ${CBINDGEN_HEADER_FILE}
+        ALL
+        USE_STAMP_FILE
+        COMMENT "Generating documentation with doxygen")
+else()
+    message(WARNING "Could not find Doxygen; FFI documentation will not be generated")
+endif()
 
 #################################################################################################
 # PACKAGE FILES
