@@ -11,7 +11,7 @@ To use it, add it to your dependencies in your cargo manifest:
 
 ```toml
 [dependencies]
-pact_matching = "0.4.0"
+pact_matching = "0.6.3"
 ```
 
 This crate provides two functions: `match_request` and `match_response`. These functions take an expected and actual request or response
