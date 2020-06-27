@@ -754,6 +754,24 @@ pub unsafe extern fn check_regex(regex: *const c_char, example: *const c_char) -
   }
 }
 
+
+/// Generates an example string based on the provided regex.
+pub extern fn generate_regex_value_internal(regex: &str) -> Result<String, String> {
+  let mut parser = regex_syntax::ParserBuilder::new().unicode(false).build();
+  match parser.parse(regex) {
+    Ok(hir) => {
+      let mut rnd = rand::thread_rng();
+      let gen = rand_regex::Regex::with_hir(hir, 20).unwrap();
+      let result: String = rnd.sample(gen);
+      Ok(result)
+    },
+    Err(err) => {
+      let error = format!("generate_regex_value: '{}' is not a valid regular expression - {}", regex, err);
+      Err(error)
+    }
+  }
+}
+
 /// Generates an example string based on the provided regex.
 /// NOTE: The memory for the returned string needs to be freed with the free_string function
 ///
@@ -768,20 +786,14 @@ pub unsafe extern fn generate_regex_value(regex: *const c_char) -> StringResult 
   } else {
     let c_str = CStr::from_ptr(regex);
     match c_str.to_str() {
-      Ok(regex) => {
-        let mut parser = regex_syntax::ParserBuilder::new().unicode(false).build();
-        match parser.parse(regex) {
-          Ok(hir) => {
-            let mut rnd = rand::thread_rng();
-            let gen = rand_regex::Regex::with_hir(hir, 20).unwrap();
-            let result: String = rnd.sample(gen);
-            let result_str = CString::new(result.as_str()).unwrap();
-            StringResult::Ok(result_str.into_raw())
-          },
-          Err(err) => {
-            let error = CString::new(format!("generate_regex_value: '{}' is not a valid regular expression - {}", regex, err)).unwrap();
-            StringResult::Failed(error.into_raw())
-          }
+      Ok(regex) => match generate_regex_value_internal(regex) {
+        Ok(val) => {
+          let result_str = CString::new(val.as_str()).unwrap();
+          StringResult::Ok(result_str.into_raw())
+        },
+        Err(err) => {
+          let error = CString::new(err).unwrap();
+          StringResult::Failed(error.into_raw())
         }
       },
       Err(err) => {
