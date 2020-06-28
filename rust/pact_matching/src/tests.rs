@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use maplit::*;
 use expectest::prelude::*;
 use crate::models::{Request, OptionalBody};
+use crate::models::content_types::TEXT;
 
 #[test]
 fn match_method_returns_nothing_if_the_method_matches() {
@@ -661,7 +662,7 @@ fn matching_text_body_be_true_when_bodies_are_equal() {
   let mut mismatches = vec![];
   let expected = request!("body value");
   let actual = request!("body value");
-  compare_bodies(s!("text/plain"), &expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &matchingrules!{});
+  compare_bodies(&TEXT.clone(), &expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &matchingrules!{});
   expect!(mismatches.iter()).to(be_empty());
 }
 
@@ -670,7 +671,7 @@ fn matching_text_body_be_false_when_bodies_are_not_equal() {
   let mut mismatches = vec![];
   let expected = request!("expected body value");
   let actual = request!("actual body value");
-  compare_bodies(s!("text/plain"), &expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &matchingrules!{});
+  compare_bodies(&TEXT.clone(), &expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &matchingrules!{});
   expect!(mismatches.iter()).to_not(be_empty());
   assert_eq!(mismatches[0], Mismatch::BodyMismatch { path: s!("$"),
       expected: Some(expected.body.value()), actual: Some(actual.body.value()),
@@ -682,14 +683,14 @@ fn matching_text_body_must_use_defined_matcher() {
   let mut mismatches = vec![];
   let expected = request!("expected body value");
   let actual = request!("actualbodyvalue");
-  compare_bodies(s!("text/plain"), &expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &matchingrules!{
+  compare_bodies(&TEXT.clone(), &expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &matchingrules!{
     "body" => {
       "$" => [ MatchingRule::Regex(s!("\\w+")) ]
     }
   });
   expect!(mismatches.iter()).to(be_empty());
 
-  compare_bodies(s!("text/plain"), &expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &matchingrules!{
+  compare_bodies(&TEXT.clone(), &expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &matchingrules!{
     "body" => {
       "$" => [ MatchingRule::Regex(s!("\\d+")) ]
     }

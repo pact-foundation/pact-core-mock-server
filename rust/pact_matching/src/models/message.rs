@@ -9,6 +9,7 @@ use super::*;
 use super::body_from_json;
 use crate::models::matchingrules::MatchingRules;
 use crate::models::generators::Generators;
+use crate::models::content_types::{ContentType, JSON};
 
 /// Struct that defines a message.
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq)]
@@ -87,12 +88,21 @@ impl Message {
         }
     }
 
-    /// Determins the content type of the message
+    /// Determine the content type of the message
+    #[deprecated(since = "0.6.4", note = "Use method that returns ContentType struct instead")]
     pub fn mimetype(&self) -> String {
         match self.metadata.get("contentType") {
             Some(v) => v.clone(),
             None => s!("application/json")
         }
+    }
+
+    /// Determine the content type of the message
+    pub fn content_type(&self) -> Option<ContentType> {
+      match self.metadata.get("contentType") {
+        Some(v) => ContentType::parse(v.as_str()).ok(),
+        None => Some(JSON.clone())
+      }
     }
 }
 

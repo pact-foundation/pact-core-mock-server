@@ -12,7 +12,7 @@ use std::str::FromStr;
 use expectest::prelude::*;
 
 /// Content type of a body
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContentType {
   /// Main content type
   pub main_type: String,
@@ -78,7 +78,7 @@ impl ContentType {
 
   /// If it is a JSON type
   pub fn is_json(&self) -> bool {
-    self.main_type == "application" && (self.sub_type == "json" ||
+    self.main_type == "application" && (self.sub_type.starts_with("json") ||
       self.suffix.as_ref().unwrap_or(&String::default()) == "json")
   }
 
@@ -87,26 +87,88 @@ impl ContentType {
     self.main_type == "application" && (self.sub_type == "xml" ||
       self.suffix.as_ref().unwrap_or(&String::default()) == "xml")
   }
-}
 
-impl ToString for ContentType {
-  fn to_string(&self) -> String {
-    if self.attributes.is_empty() {
-      format!("{}/{}", self.main_type, self.sub_type)
-    } else {
-      format!("{}/{};{}", self.main_type, self.sub_type, self.attributes.iter()
-        .map(|(key, value)| format!("{}={}", key, value)).join(";"))
+  /// If it is a text type
+  pub fn is_text(&self) -> bool {
+    self.main_type == "text" || self.is_xml() || self.is_json()
+  }
+
+  /// Returns the base type with no attributes or suffix
+  pub fn base_type(&self) -> ContentType {
+    match self.suffix.as_ref() {
+      Some(suffix) => ContentType {
+        main_type: self.main_type.clone(),
+        sub_type: suffix.clone(),
+        .. ContentType::default()
+      },
+      None => ContentType {
+        main_type: self.main_type.clone(),
+        sub_type: self.sub_type.clone(),
+        .. ContentType::default()
+      }
     }
+  }
+
+  /// If the content type is the default type
+  pub fn is_unknown(&self) -> bool {
+    self.main_type == "*" || self.sub_type == "*"
   }
 }
 
 impl Default for ContentType {
   fn default() -> Self {
     ContentType {
-      main_type: "text".into(),
-      sub_type: "plain".into(),
+      main_type: "*".into(),
+      sub_type: "*".into(),
       attributes: btreemap!{},
       suffix: None
+    }
+  }
+}
+
+impl std::fmt::Display for ContentType {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    if self.attributes.is_empty() {
+      write!(f, "{}/{}", self.main_type, self.sub_type)
+    } else {
+      write!(f, "{}/{};{}", self.main_type, self.sub_type, self.attributes.iter()
+        .map(|(key, value)| format!("{}={}", key, value)).join(";"))
+    }
+  }
+}
+
+impl From<String> for ContentType {
+  fn from(s: String) -> Self {
+    ContentType::parse(s.as_str()).unwrap_or_default()
+  }
+}
+
+impl From<&String> for ContentType {
+  fn from(s: &String) -> Self {
+    ContentType::parse(s.as_str()).unwrap_or_default()
+  }
+}
+
+impl From<&str> for ContentType {
+  fn from(s: &str) -> Self {
+    ContentType::parse(s).unwrap_or_default()
+  }
+}
+
+impl PartialEq<str> for ContentType {
+  fn eq(&self, other: &str) -> bool {
+    match ContentType::parse(other) {
+      Ok(other) => *self == other,
+      Err(_) => false
+    }
+  }
+}
+
+impl PartialEq<&str> for ContentType {
+  fn eq(&self, other: &&str) -> bool {
+    match ContentType::parse(*other) {
+      Ok(other) => *self == other,
+      Err(_) => false
     }
   }
 }
@@ -180,6 +242,13 @@ fn is_json_test() {
     .. ContentType::default()
   };
   expect!(content_type.is_json()).to(be_true());
+
+  let content_type = ContentType {
+    main_type: "application".into(),
+    sub_type: "json-rpc".into(),
+    .. ContentType::default()
+  };
+  expect!(content_type.is_json()).to(be_true());
 }
 
 #[test]
@@ -200,4 +269,37 @@ fn is_xml_test() {
     .. ContentType::default()
   };
   expect!(content_type.is_xml()).to(be_true());
+}
+
+#[test]
+fn base_type_test() {
+  let content_type = ContentType::parse("application/atom+xml").unwrap();
+  expect!(content_type.base_type()).to(be_equal_to(ContentType {
+    main_type: "application".into(),
+    sub_type: "xml".into(),
+    .. ContentType::default()
+  }));
+
+  let content_type = ContentType {
+    main_type: "text".into(),
+    sub_type: "javascript".into(),
+    .. ContentType::default()
+  };
+  expect!(content_type.base_type()).to(be_equal_to(ContentType {
+    main_type: "text".into(),
+    sub_type: "javascript".into(),
+    .. ContentType::default()
+  }));
+
+  let content_type = ContentType {
+    main_type: "application".into(),
+    sub_type: "xml".into(),
+    attributes: btreemap! { "charset".to_string() => "UTF-8".to_string() },
+    .. ContentType::default()
+  };
+  expect!(content_type.base_type()).to(be_equal_to(ContentType {
+    main_type: "application".into(),
+    sub_type: "xml".into(),
+    .. ContentType::default()
+  }));
 }

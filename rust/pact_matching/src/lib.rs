@@ -333,7 +333,6 @@ macro_rules! s {
 
 use std::collections::HashMap;
 use std::iter::FromIterator;
-use onig::Regex;
 use lazy_static::*;
 use ansi_term::*;
 use ansi_term::Colour::*;
@@ -356,19 +355,21 @@ use crate::models::generators::*;
 use crate::matchers::*;
 use std::fmt::Display;
 use nom::lib::std::fmt::Formatter;
+use crate::models::content_types::ContentType;
 
 fn strip_whitespace<'a, T: FromIterator<&'a str>>(val: &'a String, split_by: &'a str) -> T {
   val.split(split_by).map(|v| v.trim()).collect()
 }
 
 lazy_static! {
-    static ref BODY_MATCHERS: [(Regex, fn(expected: &dyn models::HttpPart, actual: &dyn models::HttpPart, config: DiffConfig,
-            mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules)); 5] = [
-        (Regex::new("application/.*json").unwrap(), json::match_json),
-        (Regex::new("application/json.*").unwrap(), json::match_json),
-        (Regex::new("application/.*xml").unwrap(), xml::match_xml),
-        (Regex::new("application/octet-stream").unwrap(), binary_utils::match_octet_stream),
-        (Regex::new("multipart/form-data").unwrap(), binary_utils::match_mime_multipart)
+    static ref BODY_MATCHERS: [
+      (fn(content_type: &ContentType) -> bool,
+      fn(expected: &dyn models::HttpPart, actual: &dyn models::HttpPart, config: DiffConfig, mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules)); 4]
+       = [
+        (|content_type| { content_type.is_json() }, json::match_json),
+        (|content_type| { content_type.is_xml() }, xml::match_xml),
+        (|content_type| { content_type.base_type() == "application/octet-stream" }, binary_utils::match_octet_stream),
+        (|content_type| { content_type.base_type() == "multipart/form-data" }, binary_utils::match_mime_multipart)
     ];
 }
 
@@ -875,9 +876,9 @@ pub fn match_headers(expected: Option<HashMap<String, Vec<String>>>,
   };
 }
 
-fn compare_bodies(content_type: String, expected: &dyn models::HttpPart, actual: &dyn models::HttpPart, config: DiffConfig,
+fn compare_bodies(content_type: &ContentType, expected: &dyn models::HttpPart, actual: &dyn models::HttpPart, config: DiffConfig,
                   mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
-  match BODY_MATCHERS.iter().find(|mt| mt.0.is_match(&content_type)) {
+  match BODY_MATCHERS.iter().find(|mt| mt.0(&content_type)) {
     Some(ref match_fn) => {
       debug!("Using body matcher for content type '{}'", content_type);
       match_fn.1(expected, actual, config, mismatches, matchers)
@@ -889,7 +890,7 @@ fn compare_bodies(content_type: String, expected: &dyn models::HttpPart, actual:
   }
 }
 
-fn match_body_content(content_type: String, expected: &dyn models::HttpPart, actual: &dyn models::HttpPart,
+fn match_body_content(content_type: &ContentType, expected: &dyn models::HttpPart, actual: &dyn models::HttpPart,
     config: DiffConfig, mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
     match (expected.body(), actual.body()) {
         (&models::OptionalBody::Missing, _) => (),
@@ -918,16 +919,21 @@ fn match_body_content(content_type: String, expected: &dyn models::HttpPart, act
 
 /// Matches the actual body to the expected one. This takes into account the content type of each.
 pub fn match_body(expected: &dyn models::HttpPart, actual: &dyn models::HttpPart, config: DiffConfig,
-    mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
-    debug!("expected content type = '{}', actual content type = '{}'", expected.content_type(),
-      actual.content_type());
-    if expected.content_type() == actual.content_type() {
-        match_body_content(expected.content_type(), expected, actual, config, mismatches, matchers)
-    } else if expected.body().is_present() {
-        mismatches.push(Mismatch::BodyTypeMismatch { expected: expected.content_type(),
-            actual: actual.content_type(), mismatch: format!("Expected body with content type {} but was {}",
-                                                             expected.content_type(), actual.content_type()) });
-    }
+                  mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
+  let expected_content_type = expected.content_type_struct().unwrap_or_default();
+  let actual_content_type = actual.content_type_struct().unwrap_or_default();
+  debug!("expected content type = '{}', actual content type = '{}'", expected_content_type,
+         actual_content_type);
+  if expected_content_type.is_unknown() || actual_content_type.is_unknown() || expected_content_type == actual_content_type {
+    match_body_content(&expected_content_type, expected, actual, config, mismatches, matchers)
+  } else if expected.body().is_present() {
+    mismatches.push(Mismatch::BodyTypeMismatch {
+      expected: expected_content_type.to_string(),
+      actual: actual_content_type.to_string(),
+      mismatch: format!("Expected body with content type {} but was {}", expected_content_type,
+                        actual_content_type),
+    });
+  }
 }
 
 /// Matches the expected and actual requests.
@@ -969,14 +975,19 @@ pub fn match_response(expected: models::Response, actual: models::Response) -> V
 
 /// Matches the actual message contents to the expected one. This takes into account the content type of each.
 pub fn match_message_contents(expected: &models::message::Message, actual: &models::message::Message, config: DiffConfig,
-    mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
-    if expected.mimetype() == actual.mimetype() {
-        match_body_content(expected.mimetype(), expected, actual, config, mismatches, matchers)
-    } else if expected.contents.is_present() {
-        mismatches.push(Mismatch::BodyTypeMismatch { expected: expected.mimetype(),
-            actual: actual.mimetype(), mismatch: format!("Expected message with content type {} but was {}",
-                                                         expected.content_type(), actual.content_type()) });
-    }
+                              mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
+  let expected_content_type = expected.content_type().unwrap_or_default();
+  let actual_content_type = actual.content_type().unwrap_or_default();
+  if expected_content_type == actual_content_type {
+    match_body_content(&expected_content_type, expected, actual, config, mismatches, matchers)
+  } else if expected.contents.is_present() {
+    mismatches.push(Mismatch::BodyTypeMismatch {
+      expected: expected_content_type.to_string(),
+      actual: actual_content_type.to_string(),
+      mismatch: format!("Expected message with content type {} but was {}",
+                        expected_content_type, actual_content_type),
+    });
+  }
 }
 
 /// Matches the actual and expected messages.

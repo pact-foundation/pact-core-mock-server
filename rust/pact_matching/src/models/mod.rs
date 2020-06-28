@@ -26,7 +26,7 @@ use std::fmt::{Display, Formatter};
 use crate::models::http_utils::HttpAuth;
 use super::json::value_of;
 use log::*;
-use crate::models::content_types::ContentType;
+use crate::models::content_types::{ContentType, TEXT};
 
 pub mod json_utils;
 pub mod xml_utils;
@@ -250,9 +250,21 @@ lazy_static! {
     static ref HTMLREGEXP: Regex = Regex::new(r"^\s*(<!DOCTYPE)|(<HTML>).*").unwrap();
     static ref JSONREGEXP: Regex = Regex::new(r#"^\s*(true|false|null|[0-9]+|"\w*|\{\s*(}|"\w+)|\[\s*)"#).unwrap();
     static ref XMLREGEXP2: Regex = Regex::new(r#"^\s*<\w+\s*(:\w+=["”][^"”]+["”])?.*"#).unwrap();
+}
 
-    static ref JSON_CONTENT_TYPE: Regex = Regex::new("application/.*json.*").unwrap();
-    static ref XML_CONTENT_TYPE: Regex = Regex::new("application/.*xml").unwrap();
+fn detect_content_type_from_string(s: &String) -> Option<ContentType> {
+  log::debug!("Detecting content type from contents: '{}'", s);
+  if is_match(&XMLREGEXP, s.as_str()) {
+    Some(content_types::XML.clone())
+  } else if is_match(&HTMLREGEXP, s.to_uppercase().as_str()) {
+    Some(content_types::HTML.clone())
+  } else if is_match(&XMLREGEXP2, s.as_str()) {
+    Some(content_types::XML.clone())
+  } else if is_match(&JSONREGEXP, s.as_str()) {
+    Some(content_types::JSON.clone())
+  } else {
+    Some(content_types::TEXT.clone())
+  }
 }
 
 /// Enumeration of general content types
@@ -311,13 +323,7 @@ pub trait HttpPart {
     /// value of that header will be returned. Otherwise, the body will be inspected.
     #[deprecated(since = "0.6.4", note = "Use method that returns ContentType struct instead")]
     fn content_type(&self) -> String {
-      match self.lookup_header_value(&s!("content-type")) {
-        Some(ref h) => match strip_whitespace::<Vec<&str>>(h, ";").first() {
-          Some(v) => s!(*v),
-          None => self.detect_content_type().unwrap_or_default().to_string()
-        },
-        None => self.detect_content_type().unwrap_or_default().to_string()
-      }
+      self.content_type_struct().unwrap_or(TEXT.clone()).to_string()
     }
 
     /// Tries to detect the content type of the body by matching some regular expressions against
@@ -329,34 +335,23 @@ pub trait HttpPart {
             Ok(s) => s.to_string(),
             Err(_) => String::new()
           };
-          log::debug!("Detecting content type from contents: '{}'", s);
-          if is_match(&XMLREGEXP, s.as_str()) {
-            Some(content_types::XML.clone())
-          } else if is_match(&HTMLREGEXP, s.to_uppercase().as_str()) {
-            Some(content_types::HTML.clone())
-          } else if is_match(&XMLREGEXP2, s.as_str()) {
-            Some(content_types::XML.clone())
-          } else if is_match(&JSONREGEXP, s.as_str()) {
-            Some(content_types::JSON.clone())
-          } else {
-            Some(content_types::TEXT.clone())
-          }
-        }
-        _ => Some(content_types::TEXT.clone())
+          detect_content_type_from_string(&s)
+        },
+        _ => None
       }
     }
 
-    /// Returns the general content type (ignoring subtypes)
+  /// Returns the general content type (ignoring subtypes)
     #[deprecated(since = "0.6.4", note = "Use method that returns ContentType struct instead")]
     fn content_type_enum(&self) -> DetectedContentType {
-        let content_type = self.content_type();
-        if JSON_CONTENT_TYPE.is_match(&content_type[..]) {
-            DetectedContentType::Json
-        } else if XML_CONTENT_TYPE.is_match(&content_type[..]) {
-            DetectedContentType::Xml
-        } else {
-            DetectedContentType::Text
-        }
+      let content_type = self.content_type_struct().unwrap_or_default();
+      if content_type.is_json() {
+        DetectedContentType::Json
+      } else if content_type.is_xml() {
+        DetectedContentType::Xml
+      } else {
+        DetectedContentType::Text
+      }
     }
 
   /// Determine the content type of the HTTP part. If a `Content-Type` header is present, the
@@ -550,46 +545,48 @@ enum JsonParsable {
 }
 
 fn body_from_json(request: &Value, fieldname: &str, headers: &Option<HashMap<String, Vec<String>>>) -> OptionalBody {
-    let content_type = match headers {
-      &Some(ref h) => match h.iter().find(|kv| kv.0.to_lowercase() == s!("content-type")) {
-        Some(kv) => {
-          match strip_whitespace::<Vec<&str>>(&kv.1.first().unwrap_or(&s!("")), ";").first() {
-            Some(v) => Some(v.to_lowercase()),
-            None => None
-          }
-        },
-        None => None
+  let content_type = match headers {
+    &Some(ref h) => match h.iter().find(|kv| kv.0.to_lowercase() == s!("content-type")) {
+      Some(kv) => {
+        match ContentType::parse(kv.1[0].as_str()) {
+          Ok(v) => Some(v),
+          Err(_) => None
+        }
       },
-      &None => None
-    };
+      None => None
+    },
+    &None => None
+  };
 
-    match request.get(fieldname) {
-        Some(v) => match *v {
-            Value::String(ref s) => {
-                if s.is_empty() {
-                  OptionalBody::Empty
-                } else {
-                  let content_type = content_type.unwrap_or(s!("text/plain"));
-                  if JSON_CONTENT_TYPE.is_match(&content_type) {
-                    match serde_json::from_str::<JsonParsable>(&s) {
-                      Ok(_) => OptionalBody::Present(s.clone().into(), Some(content_type)),
-                      Err(_) => OptionalBody::Present(format!("\"{}\"", s).into(), Some(content_type))
-                    }
-                  } else if content_type.starts_with("text/") {
-                    OptionalBody::Present(s.clone().into(), Some(content_type))
-                  } else {
-                    match decode(s) {
-                      Ok(bytes) => OptionalBody::Present(bytes.clone(), None),
-                      Err(_) => OptionalBody::Present(s.clone().into(), None)
-                    }
-                  }
-                }
-            },
-            Value::Null => OptionalBody::Null,
-            _ => OptionalBody::Present(v.to_string().into(), None)
-        },
-        None => OptionalBody::Missing
-    }
+  match request.get(fieldname) {
+    Some(v) => match *v {
+      Value::String(ref s) => {
+        if s.is_empty() {
+          OptionalBody::Empty
+        } else {
+          let content_type = content_type.unwrap_or_else(|| {
+            detect_content_type_from_string(s).unwrap_or_default()
+          });
+          if content_type.is_json() {
+            match serde_json::from_str::<JsonParsable>(&s) {
+              Ok(_) => OptionalBody::Present(s.clone().into(), Some(content_type.to_string())),
+              Err(_) => OptionalBody::Present(format!("\"{}\"", s).into(), Some(content_type.to_string()))
+            }
+          } else if content_type.is_text() {
+            OptionalBody::Present(s.clone().into(), Some(content_type.to_string()))
+          } else {
+            match decode(s) {
+              Ok(bytes) => OptionalBody::Present(bytes.clone(), None),
+              Err(_) => OptionalBody::Present(s.clone().into(), None)
+            }
+          }
+        }
+      },
+      Value::Null => OptionalBody::Null,
+      _ => OptionalBody::Present(v.to_string().into(), None)
+    },
+    None => OptionalBody::Missing
+  }
 }
 
 /// Converts a query string map into a query string
