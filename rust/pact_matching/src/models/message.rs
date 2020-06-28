@@ -252,17 +252,17 @@ mod tests {
 
     #[test]
     fn message_mimetype_is_based_on_the_metadata() {
-        let message = Message {
-            metadata: hashmap!{ s!("contentType") => s!("text/plain") },
-            .. Message::default()
-        };
-        expect!(message.mimetype()).to(be_equal_to("text/plain"));
+      let message = Message {
+        metadata: hashmap!{ s!("contentType") => s!("text/plain") },
+        .. Message::default()
+      };
+      expect!(message.content_type().unwrap_or_default().to_string()).to(be_equal_to("text/plain"));
     }
 
     #[test]
     fn message_mimetype_defaults_to_json() {
-        let message = Message::default();
-        expect!(message.mimetype()).to(be_equal_to("application/json"));
+      let message = Message::default();
+      expect!(message.content_type().unwrap_or_default().to_string()).to(be_equal_to("application/json"));
     }
 
     #[test]

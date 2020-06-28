@@ -152,45 +152,45 @@ fn request_content_type_is_based_on_the_content_type_header() {
         body: OptionalBody::Missing,
         ..Request::default()
     };
-    expect!(request.content_type()).to(be_equal_to("text/plain"));
+    expect!(request.content_type_struct().unwrap_or_default().to_string()).to(be_equal_to("*/*"));
     expect!(Request {
-        headers: Some(hashmap!{ s!("Content-Type") => vec![s!("text/html")] }), .. request.clone() }.content_type())
+        headers: Some(hashmap!{ s!("Content-Type") => vec![s!("text/html")] }), .. request.clone() }.content_type_struct().unwrap_or_default().to_string())
       .to(be_equal_to("text/html"));
     expect!(Request {
-        headers: Some(hashmap!{ s!("Content-Type") => vec![s!("application/json; charset=UTF-8")] }), .. request.clone() }.content_type())
+        headers: Some(hashmap!{ s!("Content-Type") => vec![s!("application/json; charset=UTF-8")] }), .. request.clone() }.content_type_struct().unwrap_or_default().to_string())
       .to(be_equal_to("application/json;charset=utf-8"));
     expect!(Request {
-        headers: Some(hashmap!{ s!("Content-Type") => vec![s!("application/json")] }), .. request.clone() }.content_type())
+        headers: Some(hashmap!{ s!("Content-Type") => vec![s!("application/json")] }), .. request.clone() }.content_type_struct().unwrap_or_default().to_string())
       .to(be_equal_to("application/json"));
     expect!(Request {
-        headers: Some(hashmap!{ s!("CONTENT-TYPE") => vec![s!("application/json; charset=UTF-8")] }), .. request.clone() }.content_type())
+        headers: Some(hashmap!{ s!("CONTENT-TYPE") => vec![s!("application/json; charset=UTF-8")] }), .. request.clone() }.content_type_struct().unwrap_or_default().to_string())
       .to(be_equal_to("application/json;charset=utf-8"));
     expect!(Request {
-        body: OptionalBody::Present("{\"json\": true}".into(), None), .. request.clone() }.content_type())
+        body: OptionalBody::Present("{\"json\": true}".into(), None), .. request.clone() }.content_type_struct().unwrap_or_default().to_string())
       .to(be_equal_to("application/json"));
     expect!(Request {
-        body: OptionalBody::Present("{}".into(), None), .. request.clone() }.content_type())
+        body: OptionalBody::Present("{}".into(), None), .. request.clone() }.content_type_struct().unwrap_or_default().to_string())
       .to(be_equal_to("application/json"));
     expect!(Request {
-        body: OptionalBody::Present("[]".into(), None), .. request.clone() }.content_type())
+        body: OptionalBody::Present("[]".into(), None), .. request.clone() }.content_type_struct().unwrap_or_default().to_string())
       .to(be_equal_to("application/json"));
     expect!(Request {
-        body: OptionalBody::Present("[1,2,3]".into(), None), .. request.clone() }.content_type())
+        body: OptionalBody::Present("[1,2,3]".into(), None), .. request.clone() }.content_type_struct().unwrap_or_default().to_string())
       .to(be_equal_to("application/json"));
     expect!(Request {
-        body: OptionalBody::Present("\"string\"".into(), None), .. request.clone() }.content_type())
+        body: OptionalBody::Present("\"string\"".into(), None), .. request.clone() }.content_type_struct().unwrap_or_default().to_string())
       .to(be_equal_to("application/json"));
     expect!(Request {
-        body: OptionalBody::Present("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<json>false</json>".into(), None), .. request.clone() }.content_type())
+        body: OptionalBody::Present("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<json>false</json>".into(), None), .. request.clone() }.content_type_struct().unwrap_or_default().to_string())
       .to(be_equal_to("application/xml"));
     expect!(Request {
-        body: OptionalBody::Present("<json>false</json>".into(), None), .. request.clone() }.content_type())
+        body: OptionalBody::Present("<json>false</json>".into(), None), .. request.clone() }.content_type_struct().unwrap_or_default().to_string())
       .to(be_equal_to("application/xml"));
     expect!(Request {
-        body: OptionalBody::Present("this is not json".into(), None), .. request.clone() }.content_type())
+        body: OptionalBody::Present("this is not json".into(), None), .. request.clone() }.content_type_struct().unwrap_or_default().to_string())
       .to(be_equal_to("text/plain"));
     expect!(Request {
-        body: OptionalBody::Present("<html><body>this is also not json</body></html>".into(), None), .. request.clone() }.content_type())
+        body: OptionalBody::Present("<html><body>this is also not json</body></html>".into(), None), .. request.clone() }.content_type_struct().unwrap_or_default().to_string())
       .to(be_equal_to("text/html"));
 }
 

@@ -7,7 +7,6 @@ use serde_json::{Value, json};
 use maplit::*;
 use lazy_static::*;
 use hex::FromHex;
-use super::strip_whitespace;
 use onig::Regex;
 use semver::Version;
 use itertools::{Itertools, iproduct};
@@ -696,22 +695,19 @@ impl Request {
                 map.insert(s!("headers"), headers_to_json(&self.headers.clone().unwrap()));
             }
             match self.body {
-              OptionalBody::Present(ref body, _) => match self.content_type().as_str() {
-                "application/json" => {
-                  match serde_json::from_slice(body) {
-                    Ok(json_body) => { map.insert(s!("body"), json_body); },
-                    Err(err) => {
-                      log::warn!("Failed to parse json body: {}", err);
-                      map.insert(s!("body"), Value::String(encode(body)));
-                    }
+              OptionalBody::Present(ref body, _) => if self.content_type_struct().unwrap_or_default().is_json() {
+                match serde_json::from_slice(body) {
+                  Ok(json_body) => { map.insert(s!("body"), json_body); },
+                  Err(err) => {
+                    log::warn!("Failed to parse json body: {}", err);
+                    map.insert(s!("body"), Value::String(encode(body)));
                   }
-                },
-                _ => {
-                  match str::from_utf8(body) {
-                    Ok(s) => map.insert(s!("body"), Value::String(s.to_string())),
-                    Err(_) => map.insert(s!("body"), Value::String(encode(body)))
-                  };
                 }
+              } else {
+                match str::from_utf8(body) {
+                  Ok(s) => map.insert(s!("body"), Value::String(s.to_string())),
+                  Err(_) => map.insert(s!("body"), Value::String(encode(body)))
+                };
               },
               OptionalBody::Empty => { map.insert(s!("body"), Value::String(s!(""))); },
               OptionalBody::Missing => (),
@@ -804,46 +800,45 @@ impl Response {
     /// Converts this response to a `Value` struct.
     #[allow(unused_variables)]
     pub fn to_json(&self, spec_version: &PactSpecification) -> Value {
-        let mut json = json!({
-            s!("status") : json!(self.status)
-        });
-        {
-            let map = json.as_object_mut().unwrap();
-            if self.headers.is_some() {
-                map.insert(s!("headers"), headers_to_json(&self.headers.clone().unwrap()));
-            }
-            match self.body {
-                OptionalBody::Present(ref body, _) => {
-                  match self.content_type().as_str() {
-                    "application/json" => match serde_json::from_slice(body) {
-                      Ok(json_body) => { map.insert(s!("body"), json_body); },
-                      Err(err) => {
-                        log::warn!("Failed to parse json body: {}", err);
-                        map.insert(s!("body"), Value::String(encode(body)));
-                      }
-                    },
-                    _ => {
-                      match str::from_utf8(body) {
-                        Ok(s) => map.insert(s!("body"), Value::String(s.to_string())),
-                        Err(_) => map.insert(s!("body"), Value::String(encode(body)))
-                      };
-                    }
-                  }
-                },
-                OptionalBody::Empty => { map.insert(s!("body"), Value::String(s!(""))); },
-                OptionalBody::Missing => (),
-                OptionalBody::Null => { map.insert(s!("body"), Value::Null); }
-            }
-            if self.matching_rules.is_not_empty() {
-                map.insert(s!("matchingRules"), matchingrules::matchers_to_json(
-              &self.matching_rules.clone(), spec_version));
-            }
-            if self.generators.is_not_empty() {
-              map.insert(s!("generators"), generators::generators_to_json(
-                &self.generators.clone(), spec_version));
-            }
+      let mut json = json!({
+        "status" : json!(self.status)
+      });
+      {
+        let map = json.as_object_mut().unwrap();
+        if self.headers.is_some() {
+          map.insert(s!("headers"), headers_to_json(&self.headers.clone().unwrap()));
         }
-        json
+        match self.body {
+          OptionalBody::Present(ref body, _) => {
+            if self.content_type_struct().unwrap_or_default().is_json() {
+              match serde_json::from_slice(body) {
+                Ok(json_body) => { map.insert(s!("body"), json_body); },
+                Err(err) => {
+                  log::warn!("Failed to parse json body: {}", err);
+                  map.insert(s!("body"), Value::String(encode(body)));
+                }
+              }
+            } else {
+              match str::from_utf8(body) {
+                Ok(s) => map.insert(s!("body"), Value::String(s.to_string())),
+                Err(_) => map.insert(s!("body"), Value::String(encode(body)))
+              };
+            }
+          },
+          OptionalBody::Empty => { map.insert(s!("body"), Value::String(s!(""))); },
+          OptionalBody::Missing => (),
+          OptionalBody::Null => { map.insert(s!("body"), Value::Null); }
+        }
+        if self.matching_rules.is_not_empty() {
+          map.insert(s!("matchingRules"), matchingrules::matchers_to_json(
+            &self.matching_rules.clone(), spec_version));
+        }
+        if self.generators.is_not_empty() {
+          map.insert(s!("generators"), generators::generators_to_json(
+            &self.generators.clone(), spec_version));
+        }
+      }
+      json
     }
 
     /// Return a description of all the differences from the other response

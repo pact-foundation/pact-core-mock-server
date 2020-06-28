@@ -237,7 +237,7 @@ fn walkdir(dir: &Path) -> io::Result<Vec<io::Result<Pact>>> {
 }
 
 fn display_body_mismatch(expected: &Response, actual: &Response, path: &str) {
-  if let DetectedContentType::Json = expected.content_type_enum() {
+  if expected.content_type_struct().unwrap_or_default().is_json() {
     println!("{}", pact_matching::json::display_diff(&expected.body.str_value().to_string(),
                                                      &actual.body.str_value().to_string(), path));
   }

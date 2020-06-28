@@ -61,7 +61,7 @@ use rand::prelude::*;
 use serde_json::json;
 use uuid::Uuid;
 
-use pact_matching::models::{DetectedContentType, HttpPart, Interaction, OptionalBody};
+use pact_matching::models::{HttpPart, Interaction, OptionalBody};
 use pact_matching::models::matchingrules::{MatchingRule, RuleLogic};
 use pact_matching::models::provider_states::ProviderState;
 use pact_matching::time_utils::{parse_pattern, to_chrono_pattern};
@@ -619,12 +619,11 @@ pub extern fn with_body(interaction: handles::InteractionHandle, part: Interacti
             }
           }
         }
-        let body = match inner.request.content_type_enum() {
-          DetectedContentType::Json => {
-            let category = inner.request.matching_rules.add_category("body");
-            OptionalBody::from(process_json(body.to_string(), category, &mut inner.request.generators))
-          },
-          _ => OptionalBody::from(body)
+        let body = if inner.request.content_type_struct().unwrap_or_default().is_json() {
+          let category = inner.request.matching_rules.add_category("body");
+          OptionalBody::from(process_json(body.to_string(), category, &mut inner.request.generators))
+        } else {
+          OptionalBody::from(body)
         };
         inner.request.body = body;
       },
@@ -639,12 +638,11 @@ pub extern fn with_body(interaction: handles::InteractionHandle, part: Interacti
             }
           }
         }
-        let body = match inner.response.content_type_enum() {
-          DetectedContentType::Json => {
-            let category = inner.response.matching_rules.add_category("body");
-            OptionalBody::from(process_json(body.to_string(), category, &mut inner.response.generators))
-          },
-          _ => OptionalBody::from(body)
+        let body = if inner.response.content_type_struct().unwrap_or_default().is_json() {
+          let category = inner.response.matching_rules.add_category("body");
+          OptionalBody::from(process_json(body.to_string(), category, &mut inner.response.generators))
+        } else {
+          OptionalBody::from(body)
         };
         inner.response.body = body;
       }
