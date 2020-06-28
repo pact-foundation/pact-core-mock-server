@@ -597,7 +597,8 @@ pub extern fn response_status(interaction: handles::InteractionHandle, status: c
 /// Adds the body for the interaction.
 ///
 /// * `part` - The part of the interaction to add the body to (Request or Response).
-/// * `content_type` - The content type of the body. Defaults to `text/plain`.
+/// * `content_type` - The content type of the body. Defaults to `text/plain`. Will be ignored if a content type
+///   header is already set.
 /// * `body` - The body contents. For JSON payloads, matching rules can be embedded in the body.
 #[no_mangle]
 pub extern fn with_body(interaction: handles::InteractionHandle, part: InteractionPart,

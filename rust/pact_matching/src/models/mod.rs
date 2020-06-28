@@ -26,12 +26,14 @@ use std::fmt::{Display, Formatter};
 use crate::models::http_utils::HttpAuth;
 use super::json::value_of;
 use log::*;
+use crate::models::content_types::ContentType;
 
 pub mod json_utils;
 pub mod xml_utils;
 #[macro_use] pub mod matchingrules;
 #[macro_use] pub mod generators;
 pub mod http_utils;
+pub mod content_types;
 
 /// Version of the library
 pub const VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
@@ -173,6 +175,23 @@ impl OptionalBody {
       _ => ""
     }
   }
+
+  /// If the body has a content type associated to it
+  pub fn has_content_type(&self) -> bool {
+    match self {
+      OptionalBody::Present(_, content_type) => content_type.is_some(),
+      _ => false
+    }
+  }
+
+  /// Parsed content type of the body
+  pub fn content_type(&self) -> Option<ContentType> {
+    match self {
+      OptionalBody::Present(_, content_type) =>
+        content_type.clone().and_then(|ct| ContentType::parse(ct.as_str()).ok()),
+      _ => None
+    }
+  }
 }
 
 impl From<String> for OptionalBody {
@@ -238,6 +257,10 @@ lazy_static! {
 
 /// Enumeration of general content types
 #[derive(PartialEq, Debug, Clone, Eq)]
+#[deprecated(
+since = "0.6.4",
+note = "Use ContentType struct instead"
+)]
 pub enum DetectedContentType {
     /// Json content types
     Json,
@@ -286,43 +309,45 @@ pub trait HttpPart {
 
     /// Determine the content type of the HTTP part. If a `Content-Type` header is present, the
     /// value of that header will be returned. Otherwise, the body will be inspected.
+    #[deprecated(since = "0.6.4", note = "Use method that returns ContentType struct instead")]
     fn content_type(&self) -> String {
-        match self.lookup_header_value(&s!("content-type")) {
-            Some(ref h) => match strip_whitespace::<Vec<&str>>(h, ";").first() {
-                Some(v) => s!(*v),
-                None => self.detect_content_type()
-            },
-            None => self.detect_content_type()
-        }
+      match self.lookup_header_value(&s!("content-type")) {
+        Some(ref h) => match strip_whitespace::<Vec<&str>>(h, ";").first() {
+          Some(v) => s!(*v),
+          None => self.detect_content_type().unwrap_or_default().to_string()
+        },
+        None => self.detect_content_type().unwrap_or_default().to_string()
+      }
     }
 
     /// Tries to detect the content type of the body by matching some regular expressions against
-    /// the first 32 characters. Default to `text/plain` if no match is found.
-    fn detect_content_type(&self) -> String {
-        match *self.body() {
-            OptionalBody::Present(ref body, _) => {
-                let s: String = match str::from_utf8(body) {
-                  Ok(s) => s.to_string(),
-                  Err(_) => String::new()
-                };
-                log::debug!("Detecting content type from contents: '{}'", s);
-                if is_match(&XMLREGEXP, s.as_str()) {
-                    s!("application/xml")
-                } else if is_match(&HTMLREGEXP, s.to_uppercase().as_str()) {
-                    s!("text/html")
-                } else if is_match(&XMLREGEXP2, s.as_str()) {
-                    s!("application/xml")
-                } else if is_match(&JSONREGEXP, s.as_str()) {
-                    s!("application/json")
-                } else {
-                    s!("text/plain")
-                }
-            },
-            _ => s!("text/plain")
+    /// the first 32 characters.
+    fn detect_content_type(&self) -> Option<ContentType> {
+      match *self.body() {
+        OptionalBody::Present(ref body, _) => {
+          let s: String = match str::from_utf8(body) {
+            Ok(s) => s.to_string(),
+            Err(_) => String::new()
+          };
+          log::debug!("Detecting content type from contents: '{}'", s);
+          if is_match(&XMLREGEXP, s.as_str()) {
+            Some(content_types::XML.clone())
+          } else if is_match(&HTMLREGEXP, s.to_uppercase().as_str()) {
+            Some(content_types::HTML.clone())
+          } else if is_match(&XMLREGEXP2, s.as_str()) {
+            Some(content_types::XML.clone())
+          } else if is_match(&JSONREGEXP, s.as_str()) {
+            Some(content_types::JSON.clone())
+          } else {
+            Some(content_types::TEXT.clone())
+          }
         }
+        _ => Some(content_types::TEXT.clone())
+      }
     }
 
     /// Returns the general content type (ignoring subtypes)
+    #[deprecated(since = "0.6.4", note = "Use method that returns ContentType struct instead")]
     fn content_type_enum(&self) -> DetectedContentType {
         let content_type = self.content_type();
         if JSON_CONTENT_TYPE.is_match(&content_type[..]) {
@@ -333,6 +358,23 @@ pub trait HttpPart {
             DetectedContentType::Text
         }
     }
+
+  /// Determine the content type of the HTTP part. If a `Content-Type` header is present, the
+  /// value of that header will be returned. Otherwise, the body will be inspected.
+  fn content_type_struct(&self) -> Option<ContentType> {
+    let body = self.body();
+    if body.has_content_type() {
+      body.content_type()
+    } else {
+      match self.lookup_header_value(&"content-type".to_string()) {
+        Some(ref h) => match ContentType::parse(h.as_str()) {
+          Ok(v) => Some(v),
+          Err(_) => self.detect_content_type()
+        },
+        None => self.detect_content_type()
+      }
+    }
+  }
 
     /// Checks if the HTTP Part has the given header
     fn has_header(&self, header_name: &String) -> bool {

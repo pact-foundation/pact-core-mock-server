@@ -5,10 +5,9 @@ use crate::matchers::{Matches, select_best_matcher, match_values};
 use itertools::Itertools;
 use log::*;
 use crate::models::HttpPart;
-use hyper::header::Headers;
+use hyper::header::{Headers, ContentType};
 use std::collections::HashMap;
 use formdata::FilePart;
-use mime::*;
 use onig::Regex;
 use std::fs;
 
@@ -246,18 +245,28 @@ fn match_file(key: &String, expected: &FilePart, actual: &FilePart, mismatches: 
     debug!("Calling match_values for path $.{}", key);
     match_values("body", &path, matchers.clone(), expected, actual)
   } else {
-    let expected_mime = expected.content_type().unwrap_or(mime!(Text/Plain));
-    let actual_mime = actual.content_type().unwrap_or(mime!(Text/Plain));
-    if expected_mime == actual_mime {
+    let expected_ct: Option<&ContentType> = expected.headers.get();
+    let actual_ct: Option<&ContentType> = actual.headers.get();
+    if expected_ct == actual_ct {
       expected.matches(actual, &MatchingRule::Equality).map_err(|err|
         vec![format!("MIME part '{}': {}", key, err)]
       )
     } else {
+      let expected_str = if expected_ct.is_some() {
+        expected_ct.unwrap().to_string()
+      } else {
+        "None".to_string()
+      };
+      let actual_str = if actual_ct.is_some() {
+        actual_ct.unwrap().to_string()
+      } else {
+        "None".to_string()
+      };
       mismatches.push(Mismatch::BodyTypeMismatch {
-        expected: expected_mime.to_string(),
-        actual: actual_mime.to_string(),
+        expected: expected_str.clone(),
+        actual: actual_str.clone(),
         mismatch: format!("Expected MIME part '{}' with content type '{}' but was '{}'",
-                          key, expected_mime, actual_mime)
+                          key, expected_str, actual_str)
       });
       Ok(())
     }
