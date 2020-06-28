@@ -1,6 +1,6 @@
 # Standalone Pact Verifier
 
-This project provides a command line interface to verify pact files against a running provider. It is a single executable binary. It implements the [V2 Pact specification](https://github.com/pact-foundation/pact-specification/tree/version-2).
+This project provides a command line interface to verify pact files against a running provider. It is a single executable binary. It implements the [V3 Pact specification](https://github.com/pact-foundation/pact-specification/tree/version-3).
 
 [Online rust docs](https://docs.rs/pact_verifier_cli/)
 
