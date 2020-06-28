@@ -1028,7 +1028,7 @@ pub fn generate_request(request: &models::Request, context: &HashMap<String, Val
         None => ()
       }
     });
-    request.body = generators.apply_body_generators(&request.body, request.content_type_enum(),
+    request.body = generators.apply_body_generators(&request.body, request.content_type_struct(),
         context);
     request
 }
@@ -1054,7 +1054,7 @@ pub fn generate_response(response: &models::Response, context: &HashMap<String, 
       None => ()
     }
   });
-  response.body = generators.apply_body_generators(&response.body, response.content_type_enum(),
+  response.body = generators.apply_body_generators(&response.body, response.content_type_struct(),
     context);
   response
 }

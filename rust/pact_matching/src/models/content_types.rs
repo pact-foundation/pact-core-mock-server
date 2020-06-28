@@ -75,6 +75,18 @@ impl ContentType {
       }
     }
   }
+
+  /// If it is a JSON type
+  pub fn is_json(&self) -> bool {
+    self.main_type == "application" && (self.sub_type == "json" ||
+      self.suffix.as_ref().unwrap_or(&String::default()) == "json")
+  }
+
+  /// If it is a XML type
+  pub fn is_xml(&self) -> bool {
+    self.main_type == "application" && (self.sub_type == "xml" ||
+      self.suffix.as_ref().unwrap_or(&String::default()) == "xml")
+  }
 }
 
 impl ToString for ContentType {
@@ -143,4 +155,49 @@ fn to_string_test() {
     suffix: None
   };
   expect!(content_type.to_string()).to(be_equal_to("application/hal+json;b=c;charset=UTF-32".to_string()));
+}
+
+#[test]
+fn is_json_test() {
+  let content_type = ContentType {
+    main_type: "application".into(),
+    sub_type: "hal".into(),
+    suffix: Some("json".to_string()),
+    .. ContentType::default()
+  };
+  expect!(content_type.is_json()).to(be_true());
+
+  let content_type = ContentType {
+    main_type: "text".into(),
+    sub_type: "javascript".into(),
+    .. ContentType::default()
+  };
+  expect!(content_type.is_json()).to(be_false());
+
+  let content_type = ContentType {
+    main_type: "application".into(),
+    sub_type: "json".into(),
+    .. ContentType::default()
+  };
+  expect!(content_type.is_json()).to(be_true());
+}
+
+#[test]
+fn is_xml_test() {
+  let content_type = ContentType::parse("application/atom+xml").unwrap();
+  expect!(content_type.is_xml()).to(be_true());
+
+  let content_type = ContentType {
+    main_type: "text".into(),
+    sub_type: "javascript".into(),
+    .. ContentType::default()
+  };
+  expect!(content_type.is_xml()).to(be_false());
+
+  let content_type = ContentType {
+    main_type: "application".into(),
+    sub_type: "xml".into(),
+    .. ContentType::default()
+  };
+  expect!(content_type.is_xml()).to(be_true());
 }

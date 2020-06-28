@@ -13,7 +13,7 @@ use super::PactSpecification;
 use rand::prelude::*;
 use rand::distributions::Alphanumeric;
 use uuid::Uuid;
-use crate::models::{OptionalBody, DetectedContentType};
+use crate::models::OptionalBody;
 use crate::models::json_utils::{JsonToNum, json_to_string};
 use crate::models::xml_utils::parse_bytes;
 use sxd_document::dom::Document;
@@ -23,6 +23,7 @@ use indextree::{Arena, NodeId};
 use chrono::prelude::*;
 use crate::time_utils::{parse_pattern, to_chrono_pattern};
 use regex_syntax;
+use crate::models::content_types::ContentType;
 
 /// Trait to represent a generator
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash)]
@@ -587,12 +588,12 @@ impl Generators {
   }
 
   /// Applies all the body generators to the body and returns a new body (if anything was applied).
-  pub fn apply_body_generators(&self, body: &OptionalBody, content_type: DetectedContentType, context: &HashMap<String, Value>) -> OptionalBody {
+  pub fn apply_body_generators(&self, body: &OptionalBody, content_type: Option<ContentType>, context: &HashMap<String, Value>) -> OptionalBody {
     if body.is_present() && self.categories.contains_key(&GeneratorCategory::BODY) &&
       !self.categories[&GeneratorCategory::BODY].is_empty() {
       let generators = &self.categories[&GeneratorCategory::BODY];
       match content_type {
-        DetectedContentType::Json => {
+        Some(content_type) => if content_type.is_json() {
           let result: Result<Value, serde_json::Error> = serde_json::from_slice(&body.value());
           match result {
             Ok(val) => {
@@ -604,16 +605,19 @@ impl Generators {
               body.clone()
             }
           }
-        },
-        DetectedContentType::Xml => match parse_bytes(&body.value()) {
-          Ok(val) => {
-            let mut handler = XmlHandler { value: val.as_document() };
-            handler.process_body(&generators, context)
-          },
-          Err(err) => {
-            log::error!("Failed to parse the body, so not applying any generators: {}", err);
-            body.clone()
+        } else if content_type.is_xml() {
+          match parse_bytes(&body.value()) {
+            Ok(val) => {
+              let mut handler = XmlHandler { value: val.as_document() };
+              handler.process_body(&generators, context)
+            },
+            Err(err) => {
+              log::error!("Failed to parse the body, so not applying any generators: {}", err);
+              body.clone()
+            }
           }
+        } else {
+          body.clone()
         },
         _ => body.clone()
       }
