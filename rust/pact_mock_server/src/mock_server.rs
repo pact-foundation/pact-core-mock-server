@@ -168,7 +168,7 @@ impl MockServer {
         // this concurrently?
         let _file_lock = PACT_FILE_MUTEX.lock().unwrap();
 
-        match self.pact.write_pact(filename.as_path(), PactSpecification::V3) {
+        match self.pact.write_pact(filename.as_path(), self.pact.spec_version()) {
             Ok(_) => Ok(()),
             Err(err) => {
                 log::warn!("Failed to write pact to file - {}", err);
