@@ -6,7 +6,7 @@
 use crate::hyper_server;
 use crate::matching::MatchResult;
 
-use pact_matching::models::{Pact, Interaction, PactSpecification};
+use pact_matching::models::{Pact, Interaction};
 use std::ffi::CString;
 use std::path::PathBuf;
 use std::io;

@@ -95,34 +95,26 @@ fn mismatches_to_json(request: &Request, mismatches: &Vec<Mismatch>) -> serde_js
     })
 }
 
-fn method_or_path_mismatch(mismatches: &Vec<Mismatch>) -> bool {
-    mismatches.iter()
-        .map(|mismatch| mismatch.mismatch_type())
-        .any(|mismatch_type| mismatch_type == "MethodMismatch" || mismatch_type == "PathMismatch")
-}
-
 ///
 /// Matches a request against a list of interactions
 ///
 pub fn match_request(req: &Request, interactions: &Vec<Interaction>) -> MatchResult {
-    let mut match_results = interactions
-        .into_iter()
-        .map(|i| (i.clone(), pact_matching::match_request(i.request.clone(), req.clone())))
-        .sorted_by(|i1, i2| {
-            let list1 = i1.1.clone().into_iter().map(|m| m.mismatch_type()).unique().count();
-            let list2 = i2.1.clone().into_iter().map(|m| m.mismatch_type()).unique().count();
-            Ord::cmp(&list1, &list2)
-        });
-    match match_results.next() {
-        Some(res) => {
-            if res.1.is_empty() {
-                MatchResult::RequestMatch(res.0.clone())
-            } else if method_or_path_mismatch(&res.1) {
-                MatchResult::RequestNotFound(req.clone())
-            } else {
-                MatchResult::RequestMismatch(res.0.clone(), res.1.clone())
-            }
-        },
-        None => MatchResult::RequestNotFound(req.clone())
-    }
+  let mut match_results = interactions
+    .into_iter()
+    .map(|i| (i.clone(), pact_matching::match_request_result(i.request.clone(), req.clone())))
+    .sorted_by(|(_, i1), (_, i2)| {
+      Ord::cmp(&i2.score(), &i1.score())
+    });
+  match match_results.next() {
+    Some(res) => {
+      if res.1.all_matched() {
+        MatchResult::RequestMatch(res.0.clone())
+      } else if res.1.method_or_path_mismatch() {
+        MatchResult::RequestNotFound(req.clone())
+      } else {
+        MatchResult::RequestMismatch(res.0.clone(), res.1.mismatches())
+      }
+    },
+    None => MatchResult::RequestNotFound(req.clone())
+  }
 }

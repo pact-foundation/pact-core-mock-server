@@ -3,7 +3,7 @@ use expectest::expect;
 use maplit::*;
 use super::*;
 use crate::matching::{MatchResult, match_request};
-use pact_matching::models::{Interaction, Request, OptionalBody};
+use pact_matching::models::{Interaction, Request, OptionalBody, Response};
 use pact_matching::Mismatch;
 use pact_matching::models::matchingrules::*;
 use pact_matching::matchingrules;
@@ -174,4 +174,31 @@ fn match_request_with_header_with_multiple_values() {
 
   expect!(mismatches).to(be_some().value(vec![]));
   expect!(response.unwrap().status()).to(be_equal_to(200));
+}
+
+#[test]
+fn match_request_with_more_specific_request() {
+  let request1 = Request { path: "/animals/available".into(), .. Request::default() };
+  let request2 = Request { path: "/animals/available".into(), headers: Some(hashmap! {
+      "Authorization".to_string() => vec!["Bearer token".to_string()]
+    }),
+    .. Request::default() };
+  let interaction1 = Interaction {
+    description: s!("test_more_general_request"),
+    request: request1.clone(),
+    response: Response { status: 401, .. Response::default() },
+    .. Interaction::default()
+  };
+  let interaction2 = Interaction {
+    description: s!("test_more_specific_request"),
+    request: request2.clone(),
+    response: Response { status: 200, .. Response::default() },
+    .. Interaction::default()
+  };
+
+  let result1 = match_request(&request1.clone(), &vec![interaction1.clone(), interaction2.clone()]);
+  expect!(result1).to(be_equal_to(MatchResult::RequestMatch(interaction1.clone())));
+
+  let result2 = match_request(&request2.clone(), &vec![interaction1.clone(), interaction2.clone()]);
+  expect!(result2).to(be_equal_to(MatchResult::RequestMatch(interaction2.clone())));
 }
