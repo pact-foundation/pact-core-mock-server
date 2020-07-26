@@ -1,5 +1,16 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.6.4 - Refactor to return the most relevant response from the mock server
+
+* da53bac - fix: return the most relevant response from the mock server #69 (Ronald Holshausen, Tue Jul 21 16:10:54 2020 +1000)
+* b242eb1 - refactor: changed the remaining uses of the old content type methods (Ronald Holshausen, Sun Jun 28 17:11:51 2020 +1000)
+* f531966 - refactor: update body matchers to use content type struct (Ronald Holshausen, Sun Jun 28 16:50:52 2020 +1000)
+* c8913e8 - refactor: convert generators to use the content type struct (Ronald Holshausen, Sun Jun 28 13:55:43 2020 +1000)
+* 5316030 - feat: added a struct for handling content types (Ronald Holshausen, Sun Jun 28 13:31:22 2020 +1000)
+* dc4a1ef - chore: fix link in readme (Ronald Holshausen, Sun Jun 28 10:08:14 2020 +1000)
+* 359a944 - chore: update versions in readmes (Ronald Holshausen, Sat Jun 27 13:21:24 2020 +1000)
+* 876c60d - bump version to 0.6.4 (Ronald Holshausen, Wed Jun 24 10:30:33 2020 +1000)
+
 # 0.6.3 - Updated XML Matching
 
 * a15edea - chore: try set the content type on the body if known (Ronald Holshausen, Tue Jun 23 16:53:32 2020 +1000)
