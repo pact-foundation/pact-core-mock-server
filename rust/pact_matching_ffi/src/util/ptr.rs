@@ -32,3 +32,23 @@ pub(crate) fn null_to<T>() -> *const T {
 pub(crate) fn null_mut_to<T>() -> *mut T {
     ptr::null_mut() as *mut T
 }
+
+/// Get an immutable reference from a raw pointer
+#[macro_export]
+macro_rules! as_ref {
+    ( $name:ident ) => {{
+        $name
+            .as_ref()
+            .ok_or(anyhow!(concat!(stringify!($name), " is null")))?
+    }};
+}
+
+/// Get a mutable reference from a raw pointer
+#[macro_export]
+macro_rules! as_mut {
+    ( $name:ident ) => {{
+        $name
+            .as_mut()
+            .ok_or(anyhow!(concat!(stringify!($name), " is null")))?
+    }};
+}

@@ -56,7 +56,7 @@ pub unsafe extern "C" fn logger_attach_sink(
     level_filter: LevelFilter,
 ) -> c_int {
     // Get the specifier from the raw C string.
-    let sink_specifier = unsafe { CStr::from_ptr(sink_specifier) };
+    let sink_specifier = CStr::from_ptr(sink_specifier);
     let sink_specifier = match sink_specifier.to_str() {
         Ok(sink_specifier) => sink_specifier,
         Err(_) => return Status::SpecifierNotUtf8 as c_int,

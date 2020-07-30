@@ -9,16 +9,15 @@
 #[macro_export]
 macro_rules! ffi {
     ( op: $op:block, fail: $fail:block ) => {{
-        compile_error!("the ffi macro must include a name");
+        compile_error!("the ffi macro must include a name and a list of params");
     }};
 
     ( name: $name:literal, op: $op:block, fail: $fail:block ) => {{
-        ffi! {
-            name: $name,
-            params: [],
-            op: $op,
-            fail: $fail
-        }
+        compile_error!("the ffi macro must include a list of params");
+    }};
+
+    ( params: [ $( $params:ident ),* ], op: $op:block, fail: $fail:block ) => {{
+        compile_error!("the ffi macro must include a name");
     }};
 
     ( name: $name:literal, params: [ $( $params:ident ),* ], op: $op:block, fail: $fail:block ) => {{
@@ -28,7 +27,7 @@ macro_rules! ffi {
 
         $(
             log::trace!(target: TARGET, "@param $params = {:?}", $params);
-        ),*
+        )*
 
         let output = $crate::error::catch_panic(|| $op).unwrap_or($fail);
 
