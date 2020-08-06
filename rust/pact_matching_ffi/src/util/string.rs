@@ -1,6 +1,5 @@
 use libc::c_char;
 use std::ffi::CString;
-use std::mem;
 
 /// Converts the string into a C-compatible null terminated string,
 /// then forgets the container while returning a pointer to the
@@ -8,17 +7,8 @@ use std::mem;
 ///
 /// The returned pointer must be passed to CString::from_raw to
 /// prevent leaking memory.
-pub(crate) fn into_leaked_cstring(
-    t: &str,
-) -> anyhow::Result<*const c_char> {
-    let copy = CString::new(t)?;
-    let ptr = copy.as_ptr();
-
-    // Intentionally leak this memory so that it stays
-    // valid while C is using it.
-    mem::forget(copy);
-
-    Ok(ptr)
+pub(crate) fn to_c(t: &str) -> anyhow::Result<*mut c_char> {
+    Ok(CString::new(t)?.into_raw())
 }
 
 /// Delete a string previously returned by this FFI.
