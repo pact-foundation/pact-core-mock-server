@@ -184,6 +184,22 @@ pub extern fn create_mock_server(pact_str: *const c_char, addr_str: *const c_cha
   }
 }
 
+/// Fetch the CA Certificate used to generate the self-signed certificate for the TLS mock server.
+///
+/// **NOTE:** The string for the result is allocated on the heap, and will have to be freed
+/// by the caller using free_string
+///
+/// # Errors
+///
+/// An empty string indicates an error reading the pem file
+#[no_mangle]
+pub extern fn get_tls_ca_certificate() -> *mut c_char  {
+  let cert_file = include_str!("ca.pem");
+  let cert_str = CString::new(cert_file).unwrap_or_default();
+
+  cert_str.into_raw()
+}
+
 /// External interface to create a mock server. A Pact handle is passed in,
 /// as well as the port for the mock server to run on. A value of 0 for the port will result in a
 /// port being allocated by the operating system. The port of the mock server is returned.
