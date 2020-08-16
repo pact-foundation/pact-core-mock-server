@@ -1053,6 +1053,7 @@ impl Display for Interaction {
 }
 
 pub mod message;
+pub mod message_pact;
 
 /// Struct that represents a pact between the consumer and provider of a service.
 #[derive(Debug, Clone)]
