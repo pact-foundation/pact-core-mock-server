@@ -104,10 +104,9 @@ impl Generator {
       "Time" => Some(Generator::Time(map.get("format").map(|f| json_to_string(f)))),
       "DateTime" => Some(Generator::DateTime(map.get("format").map(|f| json_to_string(f)))),
       "RandomBoolean" => Some(Generator::RandomBoolean),
-      "ProviderState" => Some(Generator::ProviderStateGenerator(
-        map.get("expression").map(|f| json_to_string(f)).unwrap(),
-        map.get("dataType").map(|dt| DataType::from(dt.clone()))
-      )),
+      "ProviderState" => map.get("expression").map(|f|
+        Generator::ProviderStateGenerator(json_to_string(f), map.get("dataType")
+          .map(|dt| DataType::from(dt.clone())))),
       _ => {
         log::warn!("'{}' is not a valid generator type", gen_type);
         None
@@ -889,6 +888,15 @@ mod tests {
   }
 
   #[test]
+  fn provider_state_generator_from_json_test() {
+    expect!(Generator::from_map(&s!("ProviderState"), &serde_json::Map::new())).to(be_none());
+    expect!(Generator::from_map(&s!("ProviderState"), &json!({ "expression": "5" }).as_object().unwrap())).to(
+      be_some().value(Generator::ProviderStateGenerator("5".into(), None)));
+    expect!(Generator::from_map(&s!("ProviderState"), &json!({ "expression": "5", "dataType": "INTEGER" }).as_object().unwrap())).to(
+      be_some().value(Generator::ProviderStateGenerator("5".into(), Some(DataType::INTEGER))));
+  }
+
+  #[test]
   fn generator_to_json_test() {
     expect!(Generator::RandomInt(5, 15).to_json()).to(be_equal_to(json!({
       "type": "RandomInt",
@@ -939,6 +947,15 @@ mod tests {
     expect!(Generator::DateTime(None).to_json()).to(be_equal_to(json!({
       "type": "DateTime"
     })));
+    expect!(Generator::ProviderStateGenerator("$a".into(), Some(DataType::INTEGER)).to_json()).to(be_equal_to(json!({
+      "type": "ProviderState",
+      "expression": "$a",
+      "dataType": "INTEGER"
+    })));
+    expect!(Generator::ProviderStateGenerator("$a".into(), None).to_json()).to(be_equal_to(json!({
+      "type": "ProviderState",
+      "expression": "$a"
+    })));
   }
 
   #[test]
@@ -951,5 +968,11 @@ mod tests {
   fn generate_int_with_max_int_test() {
     assert_that!(Generator::RandomInt(0, i32::max_value()).generate_value(&0,
       &hashmap!{}).unwrap().to_string(), matches_regex(r"^\d+$"));
+  }
+
+  #[test]
+  fn provider_state_generator_test() {
+    expect!(Generator::ProviderStateGenerator("${a}".into(), Some(DataType::INTEGER)).generate_value(&0,
+      &hashmap!{ "a".into() => json!(1234) })).to(be_ok().value(1234));
   }
 }
