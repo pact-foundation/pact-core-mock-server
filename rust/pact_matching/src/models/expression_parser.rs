@@ -4,8 +4,6 @@ use serde_json::{Value, json};
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 use nom::lib::std::convert::TryFrom;
-use maplit::hashmap;
-use nom::error::context;
 use crate::models::json_utils::json_to_string;
 
 /// Data type to cast to for provider state context values
@@ -181,6 +179,7 @@ fn replace_expressions(value: &String, value_resolver: &dyn ValueResolver) -> Re
 mod tests {
   use super::*;
   use expectest::prelude::*;
+  use maplit::hashmap;
 
   struct NullResolver;
 
