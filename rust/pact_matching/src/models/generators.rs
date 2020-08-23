@@ -24,6 +24,8 @@ use chrono::prelude::*;
 use crate::time_utils::{parse_pattern, to_chrono_pattern};
 use regex_syntax;
 use crate::models::content_types::ContentType;
+use crate::models::expression_parser::{contains_expressions, DataType, DataValue, parse_expression, MapValueResolver};
+use std::convert::TryFrom;
 
 /// Trait to represent a generator
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash)]
@@ -49,7 +51,7 @@ pub enum Generator {
   /// Generates a random boolean value
   RandomBoolean,
   /// Generates a value that is looked up from the provider state context
-  ProviderStateGenerator(String)
+  ProviderStateGenerator(String, Option<DataType>)
 }
 
 impl Generator {
@@ -75,7 +77,13 @@ impl Generator {
         &None => json!({ "type": "DateTime" })
       },
       &Generator::RandomBoolean => json!({ "type": "RandomBoolean" }),
-      &Generator::ProviderStateGenerator(ref expression) => json!({"type": "ProviderState", "expression": expression})
+      &Generator::ProviderStateGenerator(ref expression, ref data_type) => {
+        if let Some(data_type) = data_type {
+          json!({"type": "ProviderState", "expression": expression, "dataType": data_type})
+        } else {
+          json!({"type": "ProviderState", "expression": expression})
+        }
+      }
     }
   }
 
@@ -96,7 +104,10 @@ impl Generator {
       "Time" => Some(Generator::Time(map.get("format").map(|f| json_to_string(f)))),
       "DateTime" => Some(Generator::DateTime(map.get("format").map(|f| json_to_string(f)))),
       "RandomBoolean" => Some(Generator::RandomBoolean),
-      "ProviderState" => Some(Generator::ProviderStateGenerator(map.get("expression").map(|f| json_to_string(f)).unwrap())),
+      "ProviderState" => Some(Generator::ProviderStateGenerator(
+        map.get("expression").map(|f| json_to_string(f)).unwrap(),
+        map.get("dataType").map(|dt| DataType::from(dt.clone()))
+      )),
       _ => {
         log::warn!("'{}' is not a valid generator type", gen_type);
         None
@@ -107,17 +118,21 @@ impl Generator {
 
 /// Trait that represents generation of a value based on a source value.
 pub trait GenerateValue<T> {
-  /// Generates a new value based on the source value. `None` will be returned if the value can not
+  /// Generates a new value based on the source value. An error will be returned if the value can not
   /// be generated.
-  fn generate_value(&self, value: &T, context: &HashMap<String, Value>) -> Option<T>;
+  fn generate_value(&self, value: &T, context: &HashMap<String, Value>) -> Result<T, String>;
 }
 
 impl GenerateValue<u16> for Generator {
-  fn generate_value(&self, _: &u16, _context: &HashMap<String, Value>) -> Option<u16> {
+  fn generate_value(&self, value: &u16, context: &HashMap<String, Value>) -> Result<u16, String> {
     match self {
-      &Generator::RandomInt(min, max) => Some(rand::thread_rng().gen_range(min as u16, (max as u16).saturating_add(1))),
-      &Generator::ProviderStateGenerator(ref _exp) => None,
-      _ => None
+      &Generator::RandomInt(min, max) => Ok(rand::thread_rng().gen_range(min as u16, (max as u16).saturating_add(1))),
+      &Generator::ProviderStateGenerator(ref exp, ref dt) =>
+        match generate_value_from_context(exp, context, dt) {
+          Ok(val) => u16::try_from(val),
+          Err(err) => Err(err)
+        },
+      _ => Err(format!("Could not generate a u16 value from {} using {:?}", value, self))
     }
   }
 }
@@ -139,145 +154,153 @@ fn generate_ascii_string(size: usize) -> String {
 }
 
 impl GenerateValue<String> for Generator {
-  fn generate_value(&self, _: &String, _context: &HashMap<String, Value>) -> Option<String> {
+  fn generate_value(&self, _: &String, context: &HashMap<String, Value>) -> Result<String, String> {
     let mut rnd = rand::thread_rng();
     match self {
-      &Generator::RandomInt(min, max) => Some(format!("{}", rnd.gen_range(min, max.saturating_add(1)))),
-      &Generator::Uuid => Some(Uuid::new_v4().simple().to_string()),
-      &Generator::RandomDecimal(digits) => Some(generate_decimal(digits as usize)),
-      &Generator::RandomHexadecimal(digits) => Some(generate_hexadecimal(digits as usize)),
-      &Generator::RandomString(size) => Some(generate_ascii_string(size as usize)),
+      &Generator::RandomInt(min, max) => Ok(format!("{}", rnd.gen_range(min, max.saturating_add(1)))),
+      &Generator::Uuid => Ok(Uuid::new_v4().simple().to_string()),
+      &Generator::RandomDecimal(digits) => Ok(generate_decimal(digits as usize)),
+      &Generator::RandomHexadecimal(digits) => Ok(generate_hexadecimal(digits as usize)),
+      &Generator::RandomString(size) => Ok(generate_ascii_string(size as usize)),
       &Generator::Regex(ref regex) => {
         let mut parser = regex_syntax::ParserBuilder::new().unicode(false).build();
         match parser.parse(regex) {
           Ok(hir) => {
             let gen = rand_regex::Regex::with_hir(hir, 20).unwrap();
-            Some(rnd.sample(gen))
+            Ok(rnd.sample(gen))
           },
           Err(err) => {
             log::warn!("'{}' is not a valid regular expression - {}", regex, err);
-            None
+            Err(format!("'{}' is not a valid regular expression - {}", regex, err))
           }
         }
       },
       &Generator::Date(ref format) => match format {
         Some(pattern) => match parse_pattern(pattern) {
-          Ok(tokens) => Some(Local::now().date().format(&to_chrono_pattern(&tokens)).to_string()),
+          Ok(tokens) => Ok(Local::now().date().format(&to_chrono_pattern(&tokens)).to_string()),
           Err(err) => {
             log::warn!("Date format {} is not valid - {}", pattern, err);
-            None
+            Err(format!("Date format {} is not valid - {}", pattern, err))
           }
         },
-        None => Some(Local::now().naive_local().date().to_string())
+        None => Ok(Local::now().naive_local().date().to_string())
       },
       &Generator::Time(ref format) => match format {
         Some(pattern) => match parse_pattern(pattern) {
-          Ok(tokens) => Some(Local::now().format(&to_chrono_pattern(&tokens)).to_string()),
+          Ok(tokens) => Ok(Local::now().format(&to_chrono_pattern(&tokens)).to_string()),
           Err(err) => {
             log::warn!("Time format {} is not valid - {}", pattern, err);
-            None
+            Err(format!("Time format {} is not valid - {}", pattern, err))
           }
         },
-        None => Some(Local::now().time().format("%H:%M:%S").to_string())
+        None => Ok(Local::now().time().format("%H:%M:%S").to_string())
       },
       &Generator::DateTime(ref format) => match format {
         Some(pattern) => match parse_pattern(pattern) {
-          Ok(tokens) => Some(Local::now().format(&to_chrono_pattern(&tokens)).to_string()),
+          Ok(tokens) => Ok(Local::now().format(&to_chrono_pattern(&tokens)).to_string()),
           Err(err) => {
             log::warn!("DateTime format {} is not valid - {}", pattern, err);
-            None
+            Err(format!("DateTime format {} is not valid - {}", pattern, err))
           }
         },
-        None => Some(Local::now().format("%Y-%m-%dT%H:%M:%S.%3f%z").to_string())
+        None => Ok(Local::now().format("%Y-%m-%dT%H:%M:%S.%3f%z").to_string())
       },
-      &Generator::RandomBoolean => Some(format!("{}", rnd.gen::<bool>())),
-      &Generator::ProviderStateGenerator(ref _exp) => None
+      &Generator::RandomBoolean => Ok(format!("{}", rnd.gen::<bool>())),
+      &Generator::ProviderStateGenerator(ref exp, ref dt) =>
+        match generate_value_from_context(exp, context, dt) {
+          Ok(val) => String::try_from(val),
+          Err(err) => Err(err)
+        }
     }
   }
 }
 
 impl GenerateValue<Vec<String>> for Generator {
-  fn generate_value(&self, vals: &Vec<String>, context: &HashMap<String, Value>) -> Option<Vec<String>> {
+  fn generate_value(&self, vals: &Vec<String>, context: &HashMap<String, Value>) -> Result<Vec<String>, String> {
     self.generate_value(vals.first().unwrap_or(&s!("")), context).map(|v| vec![v])
   }
 }
 
 impl GenerateValue<Value> for Generator {
-  fn generate_value(&self, value: &Value, _context: &HashMap<String, Value>) -> Option<Value> {
+  fn generate_value(&self, value: &Value, context: &HashMap<String, Value>) -> Result<Value, String> {
     match self {
       &Generator::RandomInt(min, max) => {
         let rand_int = rand::thread_rng().gen_range(min, max.saturating_add(1));
         match value {
-          &Value::String(_) => Some(json!(format!("{}", rand_int))),
-          &Value::Number(_) => Some(json!(rand_int)),
-          _ => None
+          &Value::String(_) => Ok(json!(format!("{}", rand_int))),
+          &Value::Number(_) => Ok(json!(rand_int)),
+          _ => Err(format!("Could not generate a random int from {}", value))
         }
       },
       &Generator::Uuid => match value {
-        &Value::String(_) => Some(json!(Uuid::new_v4().simple().to_string())),
-        _ => None
+        &Value::String(_) => Ok(json!(Uuid::new_v4().simple().to_string())),
+        _ => Err(format!("Could not generate a UUID from {}", value))
       },
       &Generator::RandomDecimal(digits) => match value {
-        &Value::String(_) => Some(json!(generate_decimal(digits as usize))),
+        &Value::String(_) => Ok(json!(generate_decimal(digits as usize))),
         &Value::Number(_) => match generate_decimal(digits as usize).parse::<u64>() {
-          Ok(val) => Some(json!(val)),
-          Err(_) => None
+          Ok(val) => Ok(json!(val)),
+          Err(err) => Err(format!("Could not generate a random decimal from {} - {}", value, err))
         },
-        _ => None
+        _ => Err(format!("Could not generate a random decimal from {}", value))
       },
       &Generator::RandomHexadecimal(digits) => match value {
-        &Value::String(_) => Some(json!(generate_hexadecimal(digits as usize))),
-        _ => None
+        &Value::String(_) => Ok(json!(generate_hexadecimal(digits as usize))),
+        _ => Err(format!("Could not generate a random hexadecimal from {}", value))
       },
       &Generator::RandomString(size) => match value {
-        &Value::String(_) => Some(json!(generate_ascii_string(size as usize))),
-        _ => None
+        &Value::String(_) => Ok(json!(generate_ascii_string(size as usize))),
+        _ => Err(format!("Could not generate a random string from {}", value))
       },
       &Generator::Regex(ref regex) => {
         let mut parser = regex_syntax::ParserBuilder::new().unicode(false).build();
         match parser.parse(regex) {
           Ok(hir) => {
             let gen = rand_regex::Regex::with_hir(hir, 20).unwrap();
-            Some(json!(rand::thread_rng().sample::<String, _>(gen)))
+            Ok(json!(rand::thread_rng().sample::<String, _>(gen)))
           },
           Err(err) => {
             log::warn!("'{}' is not a valid regular expression - {}", regex, err);
-            None
+            Err(format!("Could not generate a random string from {} - {}", regex, err))
           }
         }
       },
       &Generator::Date(ref format) => match format {
         Some(pattern) => match parse_pattern(pattern) {
-          Ok(tokens) => Some(json!(Local::now().date().format(&to_chrono_pattern(&tokens)).to_string())),
+          Ok(tokens) => Ok(json!(Local::now().date().format(&to_chrono_pattern(&tokens)).to_string())),
           Err(err) => {
             log::warn!("Date format {} is not valid - {}", pattern, err);
-            None
+            Err(format!("Could not generate a random date from {} - {}", pattern, err))
           }
         },
-        None => Some(json!(Local::now().naive_local().date().to_string()))
+        None => Ok(json!(Local::now().naive_local().date().to_string()))
       },
       &Generator::Time(ref format) => match format {
         Some(pattern) => match parse_pattern(pattern) {
-          Ok(tokens) => Some(json!(Local::now().format(&to_chrono_pattern(&tokens)).to_string())),
+          Ok(tokens) => Ok(json!(Local::now().format(&to_chrono_pattern(&tokens)).to_string())),
           Err(err) => {
             log::warn!("Time format {} is not valid - {}", pattern, err);
-            None
+            Err(format!("Could not generate a random time from {} - {}", pattern, err))
           }
         },
-        None => Some(json!(Local::now().time().format("%H:%M:%S").to_string()))
+        None => Ok(json!(Local::now().time().format("%H:%M:%S").to_string()))
       },
       &Generator::DateTime(ref format) => match format {
         Some(pattern) => match parse_pattern(pattern) {
-          Ok(tokens) => Some(json!(Local::now().format(&to_chrono_pattern(&tokens)).to_string())),
+          Ok(tokens) => Ok(json!(Local::now().format(&to_chrono_pattern(&tokens)).to_string())),
           Err(err) => {
             log::warn!("DateTime format {} is not valid - {}", pattern, err);
-            None
+            Err(format!("Could not generate a random date-time from {} - {}", pattern, err))
           }
         },
-        None => Some(json!(Local::now().format("%Y-%m-%dT%H:%M:%S.%3f%z").to_string()))
+        None => Ok(json!(Local::now().format("%Y-%m-%dT%H:%M:%S.%3f%z").to_string()))
       },
-      &Generator::RandomBoolean => Some(json!(rand::thread_rng().gen::<bool>())),
-      &Generator::ProviderStateGenerator(ref _exp) => None
+      &Generator::RandomBoolean => Ok(json!(rand::thread_rng().gen::<bool>())),
+      &Generator::ProviderStateGenerator(ref exp, ref dt) =>
+        match generate_value_from_context(exp, context, dt) {
+          Ok(val) => val.as_json(),
+          Err(err) => Err(err)
+        }
     }
   }
 }
@@ -449,16 +472,16 @@ impl ContentTypeHandler<Value> for JsonHandler {
           for pointer_str in expanded_paths {
             match self.value.pointer_mut(&pointer_str) {
               Some(json_value) => match generator.generate_value(&json_value.clone(), context) {
-                Some(new_value) => *json_value = new_value,
-                None => ()
+                Ok(new_value) => *json_value = new_value,
+                Err(_) => ()
               },
               None => ()
             }
           }
         } else if path_exp.len() == 1 {
           match generator.generate_value(&self.value.clone(), context) {
-            Some(new_value) => self.value = new_value,
-            None => ()
+            Ok(new_value) => self.value = new_value,
+            Err(_) => ()
           }
         }
       },
@@ -719,6 +742,16 @@ macro_rules! generators {
     )*
     _generators
   }};
+}
+
+fn generate_value_from_context(expression: &String, context: &HashMap<String, Value>, data_type: &Option<DataType>) -> Result<DataValue, String> {
+  let result = if contains_expressions(expression) {
+    parse_expression(expression, &MapValueResolver { context: context.clone() })
+  } else {
+    context.get(expression).map(|v| json_to_string(v))
+      .ok_or(format!("Value '{}' was not found in the provided context", expression))
+  };
+  data_type.clone().unwrap_or(DataType::RAW).wrap(result)
 }
 
 #[cfg(test)]

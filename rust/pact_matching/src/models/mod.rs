@@ -33,6 +33,7 @@ pub mod xml_utils;
 #[macro_use] pub mod generators;
 pub mod http_utils;
 pub mod content_types;
+mod expression_parser;
 
 /// Version of the library
 pub const VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");

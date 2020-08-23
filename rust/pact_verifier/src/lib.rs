@@ -125,10 +125,11 @@ async fn verify_response_from_provider<F: RequestFilterExecutor>(
   provider: &ProviderInfo,
   interaction: &Interaction,
   options: &VerificationOptions<F>,
-  client: &reqwest::Client
+  client: &reqwest::Client,
+  verification_context: HashMap<String, Value>
 ) -> Result<(), MismatchResult> {
   let expected_response = &interaction.response;
-  match make_provider_request(provider, &pact_matching::generate_request(&interaction.request, &hashmap!{}), options, client).await {
+  match make_provider_request(provider, &pact_matching::generate_request(&interaction.request, &verification_context), options, client).await {
     Ok(ref actual_response) => {
       let mismatches = match_response(expected_response.clone(), actual_response.clone());
       if mismatches.is_empty() {
@@ -171,6 +172,7 @@ fn verify_interaction<F: RequestFilterExecutor, S: ProviderStateExecutor>(
 ) -> Result<(), MismatchResult> {
   let client = reqwest::Client::new();
 
+  let mut provider_states_results = hashmap!{};
   if !interaction.provider_states.is_empty() {
     info!("Running provider state change handlers for '{}'", interaction.description);
     let interaction_id = interaction.id.clone();
@@ -182,11 +184,20 @@ fn verify_interaction<F: RequestFilterExecutor, S: ProviderStateExecutor>(
 
     if sc_result.iter().any(|result| result.is_err()) {
       return Err(MismatchResult::Error("One or more of the state change handlers has failed".to_string(), interaction.id))
+    } else {
+      for result in sc_result {
+        if result.is_ok() {
+          for (k, v) in result.unwrap() {
+            provider_states_results.insert(k, v);
+          }
+        }
+      }
     }
   }
 
   info!("Running provider verification for '{}'", interaction.description);
-  let result = block_on(verify_response_from_provider(provider, &interaction, options, &client));
+  let result = block_on(verify_response_from_provider(provider, &interaction,
+                                                      options, &client, provider_states_results));
 
   if !interaction.provider_states.is_empty() {
     info!("Running provider state change handler teardowns for '{}'", interaction.description);

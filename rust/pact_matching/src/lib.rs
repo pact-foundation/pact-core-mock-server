@@ -1266,16 +1266,16 @@ pub fn generate_request(request: &models::Request, context: &HashMap<String, Val
     let mut request = request.clone();
     generators.apply_generator(&GeneratorCategory::PATH, |_, generator| {
         match generator.generate_value(&request.path, context) {
-            Some(v) => request.path = v,
-            None => ()
+            Ok(v) => request.path = v,
+            Err(_) => ()
         }
     });
     generators.apply_generator(&GeneratorCategory::HEADER, |key, generator| {
         match request.headers {
             Some(ref mut headers) => if headers.contains_key(key) {
                 match generator.generate_value(&headers.get(key).unwrap().clone(), context) {
-                    Some(v) => headers.insert(key.clone(), v),
-                    None => None
+                    Ok(v) => headers.insert(key.clone(), v),
+                    Err(_) => None
                 };
             },
             None => ()
@@ -1288,8 +1288,8 @@ pub fn generate_request(request: &models::Request, context: &HashMap<String, Val
             let mut generated = parameter.clone();
             for (index, val) in parameter.iter().enumerate() {
               match generator.generate_value(val, context) {
-                Some(v) => generated[index] = v,
-                None => ()
+                Ok(v) => generated[index] = v,
+                Err(_) => ()
               };
             }
             *parameter = generated;
@@ -1310,16 +1310,16 @@ pub fn generate_response(response: &models::Response, context: &HashMap<String, 
   let mut response = response.clone();
   generators.apply_generator(&GeneratorCategory::STATUS, |_, generator| {
     match generator.generate_value(&response.status, context) {
-      Some(v) => response.status = v,
-      None => ()
+      Ok(v) => response.status = v,
+      Err(_) => ()
     }
   });
   generators.apply_generator(&GeneratorCategory::HEADER, |key, generator| {
     match response.headers {
       Some(ref mut headers) => if headers.contains_key(key) {
         match generator.generate_value(&headers.get(key).unwrap().clone(), context) {
-          Some(v) => headers.insert(key.clone(), v),
-          None => None
+          Ok(v) => headers.insert(key.clone(), v),
+          Err(_) => None
         };
       },
       None => ()
