@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.6.5 - implemented provider state generator
+
+* f2532ee - chore: remove incorrect imports (Ronald Holshausen, Sun Aug 23 14:02:07 2020 +1000)
+* b130cd2 - feat: add tests for serialising Generator::ProviderStateGenerator (Ronald Holshausen, Sun Aug 23 13:53:41 2020 +1000)
+* 76f73c6 - feat: implemented provider state generator (Ronald Holshausen, Sun Aug 23 13:29:55 2020 +1000)
+* 30d5a75 - bump version to 0.6.5 (Ronald Holshausen, Sun Jul 26 12:05:16 2020 +1000)
+
 # 0.6.4 - Refactor to return the most relevant response from the mock server
 
 * da53bac - fix: return the most relevant response from the mock server #69 (Ronald Holshausen, Tue Jul 21 16:10:54 2020 +1000)
