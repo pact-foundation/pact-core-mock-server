@@ -796,7 +796,7 @@ mod tests {
 
     #[tokio::test]
     async fn fetch_link_returns_an_error_if_the_previous_resource_was_not_hal() {
-        init().unwrap_or(());
+      try_init().unwrap_or(());
         let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
             .interaction("a request to a non-hal json resource", |i| {
                 i.request.path("/");
@@ -817,7 +817,7 @@ mod tests {
 
     #[tokio::test]
     async fn fetch_link_returns_an_error_if_the_previous_resource_links_are_not_correctly_formed() {
-        init().unwrap_or(());
+      try_init().unwrap_or(());
         let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
             .interaction("a request to a hal resource with invalid links", |i| {
                 i.request.path("/");
@@ -883,7 +883,7 @@ mod tests {
 
     #[tokio::test]
     async fn fetch_link_returns_handles_absolute_resource_links() {
-        init().unwrap_or(());
+      try_init().unwrap_or(());
         let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
             .interaction("a request to a hal resource with absolute paths", |i| {
                 i.request.path("/");
@@ -909,7 +909,7 @@ mod tests {
 
     #[tokio::test]
     async fn fetch_link_returns_the_resource_for_the_templated_link() {
-        init().unwrap_or(());
+      try_init().unwrap_or(());
         let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
             .interaction("a request to a templated hal resource", |i| {
                 i.request.path("/");
@@ -936,7 +936,7 @@ mod tests {
 
     #[tokio::test]
     async fn fetch_pacts_from_broker_returns_empty_list_if_there_are_no_pacts() {
-        init().unwrap_or(());
+      try_init().unwrap_or(());
         let pact_broker = PactBuilder::new("RustPactVerifier", "PactBroker")
             .interaction("a request to the pact broker root", |i| {
                 i.request
@@ -971,7 +971,7 @@ mod tests {
 
     #[tokio::test]
     async fn fetch_pacts_from_broker_returns_a_list_of_pacts() {
-        init().unwrap_or(());
+      try_init().unwrap_or(());
         let pact = Pact { consumer: Consumer { name: s!("Consumer") },
             provider: Provider { name: s!("happy_provider") },
             .. Pact::default() }

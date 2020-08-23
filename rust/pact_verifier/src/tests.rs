@@ -122,7 +122,7 @@ fn if_a_consumer_filter_is_defined_returns_true_if_the_consumer_name_does_match(
 
 #[tokio::test]
 async fn test_state_change_with_parameters() {
-  init().unwrap_or(());
+  try_init().unwrap_or(());
 
   let server = PactBuilder::new("RustPactVerifier", "SomeRunningProvider")
     .interaction("a state change request", |i| {
@@ -154,7 +154,7 @@ async fn test_state_change_with_parameters() {
 
 #[tokio::test]
 async fn test_state_change_with_parameters_in_query() {
-  init().unwrap_or(());
+  try_init().unwrap_or(());
 
   let server = PactBuilder::new("RustPactVerifier", "SomeRunningProvider")
     .interaction("a state change request with params in the query string", |i| {
@@ -190,7 +190,7 @@ async fn test_state_change_with_parameters_in_query() {
 
 #[tokio::test]
 async fn test_state_change_returning_json_values() {
-  init().unwrap_or(());
+  try_init().unwrap_or(());
 
   let server = PactBuilder::new("RustPactVerifier", "SomeRunningProvider")
     .interaction("a state change request which returns a map of values", |i| {
@@ -224,7 +224,7 @@ async fn test_state_change_returning_json_values() {
 
 #[test]
 fn publish_result_does_nothing_if_not_from_broker() {
-  init().unwrap_or(());
+  try_init().unwrap_or(());
 
   let server_response = catch_unwind(|| {
     let mut runtime = tokio::runtime::Builder::new()
@@ -257,7 +257,7 @@ fn publish_result_does_nothing_if_not_from_broker() {
 
 #[tokio::test]
 async fn publish_successful_result_to_broker() {
-  init().unwrap_or(());
+  try_init().unwrap_or(());
 
   let server = PactBuilder::new("RustPactVerifier", "PactBroker")
     .interaction("publish results", |i| {
