@@ -105,11 +105,8 @@ impl ProviderStateExecutor for HttpRequestProviderStateExecutor {
           }
           state_change_request.query = Some(query);
         }
-        match make_state_change_request(client.unwrap_or(&reqwest::Client::default()), &state_change_url, &state_change_request).await {
-          Ok(_) => Ok(hashmap!{}),
-          Err(err) => Err(ProviderStateError {
-            description: provider_client_error_to_string(err), interaction_id })
-        }
+        make_state_change_request(client.unwrap_or(&reqwest::Client::default()), &state_change_url, &state_change_request).await
+          .map_err(|err| ProviderStateError { description: provider_client_error_to_string(err), interaction_id })
       },
       None => {
         if setup {

@@ -188,6 +188,40 @@ async fn test_state_change_with_parameters_in_query() {
   expect!(result.clone()).to(be_ok());
 }
 
+#[tokio::test]
+async fn test_state_change_returning_json_values() {
+  init().unwrap_or(());
+
+  let server = PactBuilder::new("RustPactVerifier", "SomeRunningProvider")
+    .interaction("a state change request which returns a map of values", |i| {
+      i.request.method("POST");
+      i.request.path("/");
+      i.request.header("Content-Type", "application/json");
+      i.request.body("{\"action\":\"setup\",\"state\":\"TestState\"}");
+      i.response.status(200);
+      i.response.header("Content-Type", "application/json");
+      i.response.body("{\"a\": \"A\", \"b\": 100}");
+    })
+    .start_mock_server();
+
+  let provider_state = ProviderState {
+    name: s!("TestState"),
+    params: hashmap!{}
+  };
+
+  let provider_state_executor = HttpRequestProviderStateExecutor {
+    state_change_url: Some(server.url().to_string()),
+    .. HttpRequestProviderStateExecutor::default()
+  };
+  let client = reqwest::Client::new();
+  let result = execute_state_change(&provider_state, true,
+                                    None, &client, &provider_state_executor).await;
+  expect!(result.clone()).to(be_ok().value(hashmap! {
+    "a".into() => json!("A"),
+    "b".into() => json!(100)
+  }));
+}
+
 #[test]
 fn publish_result_does_nothing_if_not_from_broker() {
   init().unwrap_or(());

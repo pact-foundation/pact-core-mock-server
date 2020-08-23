@@ -5,11 +5,13 @@ use std::collections::hash_map::HashMap;
 use std::convert::TryFrom;
 use futures::future::*;
 use log::*;
-use reqwest::{RequestBuilder, Client};
+use reqwest::{RequestBuilder, Client, Error};
+use http::header::CONTENT_TYPE;
 use itertools::Itertools;
 use http::{Method, HeaderMap, HeaderValue};
 use http::method::InvalidMethod;
 use http::header::{HeaderName, InvalidHeaderName, InvalidHeaderValue};
+use pact_matching::models::content_types::ContentType;
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -20,6 +22,12 @@ pub enum ProviderClientError {
     RequestBodyError(String),
     ResponseError(String),
     ResponseStatusCodeError(u16),
+}
+
+impl From<reqwest::Error> for ProviderClientError {
+  fn from(err: Error) -> Self {
+    ProviderClientError::ResponseError(err.to_string())
+  }
 }
 
 pub fn join_paths(base: &str, path: String) -> String {
@@ -159,11 +167,13 @@ pub async fn make_provider_request<F: RequestFilterExecutor>(
   Ok(response)
 }
 
+/// Make a state change request. If the response returns a JSON body, convert that into a HashMap
+/// and return it
 pub async fn make_state_change_request(
   client: &reqwest::Client,
   state_change_url: &str,
   request: &Request
-) -> Result<(), ProviderClientError> {
+) -> Result<HashMap<String, Value>, ProviderClientError> {
   log::debug!("Sending {} to state change handler", request);
 
   let request = create_native_request(client, state_change_url, request)?;
@@ -173,7 +183,26 @@ pub async fn make_state_change_request(
     Ok(response) => {
       debug!("State change request: {:?}", response);
       if response.status().is_success() {
-        Ok(())
+        if let Some(content_type) = response.headers().get(CONTENT_TYPE) {
+          if let Ok(content_type) = ContentType::parse(content_type.to_str().unwrap_or_default()) {
+            if content_type.is_json() {
+              let body = response.bytes().await?;
+              match serde_json::from_slice::<Value>(&body) {
+                Ok(body) => match body {
+                  Value::Object(map) => Ok(map.iter().map(|(k, v)| (k.clone(), v.clone())).collect()),
+                  _ => Ok(hashmap!{})
+                },
+                Err(_) => Ok(hashmap!{})
+              }
+            } else {
+              Ok(hashmap!{})
+            }
+          } else {
+            Ok(hashmap!{})
+          }
+        } else {
+          Ok(hashmap!{})
+        }
       } else {
         Err(ProviderClientError::ResponseStatusCodeError(response.status().as_u16()))
       }
