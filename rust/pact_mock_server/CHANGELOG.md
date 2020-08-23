@@ -1,5 +1,17 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.7.6 - Implemented provider state generator
+
+* e9955c4 - chore: update to latest matching crate (Ronald Holshausen, Sun Aug 23 14:41:42 2020 +1000)
+* 8499b7d - chore: fix link in readme #72 (Ronald Holshausen, Sat Aug 22 15:38:08 2020 +1000)
+* da53bac - fix: return the most relevant response from the mock server #69 (Ronald Holshausen, Tue Jul 21 16:10:54 2020 +1000)
+* 420f5e2 - Merge pull request #70 from pact-foundation/fix/v2-pacts (Ronald Holshausen, Tue Jul 21 09:46:05 2020 +1000)
+* d7632cb - fix: write_pact_file was always serialising a v3 pact even if the spec version was set to 2 (Matt Fellows, Tue Jul 21 09:42:30 2020 +1000)
+* b242eb1 - refactor: changed the remaining uses of the old content type methods (Ronald Holshausen, Sun Jun 28 17:11:51 2020 +1000)
+* ed207a7 - chore: updated readmes for docs site (Ronald Holshausen, Sun Jun 28 10:04:09 2020 +1000)
+* 3d44484 - bump version to 0.7.6 (Ronald Holshausen, Wed Jun 24 10:48:13 2020 +1000)
+* f123357 - chore: bump to latest matching crate (Ronald Holshausen, Wed Jun 24 10:43:01 2020 +1000)
+
 # 0.7.5 - Updated XML Matching
 
 * a15edea - chore: try set the content type on the body if known (Ronald Holshausen, Tue Jun 23 16:53:32 2020 +1000)
