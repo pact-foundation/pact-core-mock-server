@@ -20,8 +20,12 @@ pub use pact_matching::models::message::Message;
 pub use pact_matching::models::provider_states::ProviderState;
 
 /*===============================================================================================
- * # FFI Functions
+ * # Message
  *---------------------------------------------------------------------------------------------*/
+
+/*-----------------------------------------------------------------------------------------------
+ * ## Constructors / Destructor
+ */
 
 /// Get a mutable pointer to a newly-created default message on the heap.
 #[no_mangle]
@@ -88,6 +92,10 @@ pub unsafe extern "C" fn message_delete(message: *mut Message) -> c_int {
     }
 }
 
+/*-----------------------------------------------------------------------------------------------
+ * ## Description
+ */
+
 /// Get a copy of the description.
 /// The returned string must be deleted with `string_delete`.
 ///
@@ -153,6 +161,10 @@ pub unsafe extern "C" fn message_set_description(
     }
 }
 
+/*-----------------------------------------------------------------------------------------------
+ * ## Provider States
+ */
+
 /// Get a copy of the provider state at the given index from this message.
 /// A pointer to the structure will be written to `out_provider_state`,
 /// only if no errors are encountered.
@@ -194,6 +206,104 @@ pub unsafe extern "C" fn message_get_provider_state(
         }
     }
 }
+
+/// Get an iterator over provider states.
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+#[allow(clippy::or_fun_call)]
+pub unsafe extern "C" fn message_get_provider_state_iter(
+    message: *mut Message,
+) -> *mut ProviderStateIterator {
+    ffi! {
+        name: "message_get_provider_state_iter",
+        params: [message],
+        op: {
+            let message = as_mut!(message);
+
+            let iter = ProviderStateIterator {
+                current: 0,
+                message,
+            };
+
+            Ok(ptr::raw_to(iter))
+        },
+        fail: {
+            ptr::null_mut_to::<ProviderStateIterator>()
+        }
+    }
+}
+
+/// Get the next value from the iterator.
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+#[allow(clippy::or_fun_call)]
+pub unsafe extern "C" fn provider_state_iter_next(
+    iter: *mut ProviderStateIterator,
+) -> *mut ProviderState {
+    ffi! {
+        name: "provider_state_iter_next",
+        params: [iter],
+        op: {
+            // Reconstitute the iterator.
+            let iter = as_mut!(iter);
+
+            // Reconstitute the message.
+            let message = as_mut!(iter.message);
+
+            // Get the current index from the iterator.
+            let index = iter.next();
+
+            // Get the value for the current index.
+            let provider_state = message.provider_states.get_mut(index).ok_or(anyhow::anyhow!("iter past the end of provider states"))?;
+
+            // Leak the value out to the C-side.
+            Ok(provider_state as *mut ProviderState)
+        },
+        fail: {
+            ptr::null_mut_to::<ProviderState>()
+        }
+    }
+}
+
+/// Delete the iterator.
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+#[allow(clippy::or_fun_call)]
+pub unsafe extern "C" fn provider_state_iter_delete(
+    iter: *mut ProviderStateIterator,
+) -> c_int {
+    ffi! {
+        name: "provider_state_iter_delete",
+        params: [iter],
+        op: {
+            ptr::drop_raw(iter);
+            Ok(EXIT_SUCCESS)
+        },
+        fail: {
+            EXIT_FAILURE
+        }
+    }
+}
+
+/// Iterator over individual provider states.
+#[allow(missing_copy_implementations)]
+#[allow(missing_debug_implementations)]
+pub struct ProviderStateIterator {
+    current: usize,
+    message: *mut Message,
+}
+
+impl ProviderStateIterator {
+    fn next(&mut self) -> usize {
+        let idx = self.current;
+        self.current += 1;
+        idx
+    }
+}
+
+/*-----------------------------------------------------------------------------------------------
+ * ## Metadata
+ */
 
 /// Get a copy of the metadata value indexed by `key`.
 /// The returned string must be deleted with `string_delete`.
