@@ -346,7 +346,7 @@ fn filter_interaction(interaction: &dyn Interaction, filter: &FilterInfo) -> boo
 }
 
 fn filter_consumers(consumers: &[String], res: &Result<(Box<dyn Pact>, PactSource), String>) -> bool {
-  consumers.is_empty() || res.is_err() || consumers.contains(&res.clone().as_ref().unwrap().0.consumer().name)
+  consumers.is_empty() || res.is_err() || consumers.contains(&res.as_ref().unwrap().0.consumer().name)
 }
 
 /// Options to use when running the verification
