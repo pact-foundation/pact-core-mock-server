@@ -276,7 +276,7 @@ fn defaults_to_none_if_provider_state_null() {
 #[test]
 fn load_empty_pact() {
     let pact_json = r#"{}"#;
-    let pact = Pact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
+    let pact = RequestResponsePact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
     expect!(pact.provider.name).to(be_equal_to("provider"));
     expect!(pact.consumer.name).to(be_equal_to("consumer"));
     expect!(pact.interactions.iter()).to(have_count(0));
@@ -287,7 +287,7 @@ fn load_empty_pact() {
 #[test]
 fn missing_metadata() {
     let pact_json = r#"{}"#;
-    let pact = Pact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
+    let pact = RequestResponsePact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
     expect!(pact.specification_version).to(be_equal_to(PactSpecification::V3));
 }
 
@@ -297,7 +297,7 @@ fn missing_spec_version() {
         "metadata" : {
         }
     }"#;
-    let pact = Pact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
+    let pact = RequestResponsePact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
     expect!(pact.specification_version).to(be_equal_to(PactSpecification::V3));
 }
 
@@ -310,7 +310,7 @@ fn missing_version_in_spec_version() {
             }
         }
     }"#;
-    let pact = Pact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
+    let pact = RequestResponsePact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
     expect!(pact.specification_version).to(be_equal_to(PactSpecification::V3));
 }
 
@@ -323,7 +323,7 @@ fn empty_version_in_spec_version() {
             }
         }
     }"#;
-    let pact = Pact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
+    let pact = RequestResponsePact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
     expect!(pact.specification_version).to(be_equal_to(PactSpecification::Unknown));
 }
 
@@ -336,7 +336,7 @@ fn correct_version_in_spec_version() {
             }
         }
     }"#;
-    let pact = Pact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
+    let pact = RequestResponsePact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
     expect!(pact.specification_version).to(be_equal_to(PactSpecification::V1));
 }
 
@@ -349,7 +349,7 @@ fn invalid_version_in_spec_version() {
             }
         }
     }"#;
-    let pact = Pact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
+    let pact = RequestResponsePact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
     expect!(pact.specification_version).to(be_equal_to(PactSpecification::Unknown));
 }
 
@@ -383,7 +383,7 @@ fn load_basic_pact() {
         ]
     }
     "#;
-    let pact = Pact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
+    let pact = RequestResponsePact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
     expect!(&pact.provider.name).to(be_equal_to("Alice Service"));
     expect!(&pact.consumer.name).to(be_equal_to("Consumer"));
     expect!(pact.interactions.iter()).to(have_count(1));
@@ -452,7 +452,7 @@ fn load_pact() {
       }
     }
     "#;
-    let pact = Pact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
+    let pact = RequestResponsePact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
     expect!(&pact.provider.name).to(be_equal_to("test_provider"));
     expect!(&pact.consumer.name).to(be_equal_to("test_consumer"));
     expect!(pact.metadata.iter()).to(have_count(2));
@@ -526,7 +526,7 @@ fn load_v3_pact() {
       }
     }
     "#;
-    let pact = Pact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
+    let pact = RequestResponsePact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
     expect!(&pact.provider.name).to(be_equal_to("test_provider"));
     expect!(&pact.consumer.name).to(be_equal_to("test_consumer"));
     expect!(pact.metadata.iter()).to(have_count(2));
@@ -597,7 +597,7 @@ fn load_pact_encoded_query_string() {
       }
     }
     "#;
-    let pact = Pact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
+    let pact = RequestResponsePact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
     expect!(pact.interactions.iter()).to(have_count(1));
     let interaction = pact.interactions[0].clone();
     expect!(interaction.request).to(be_equal_to(Request {
@@ -627,7 +627,7 @@ fn load_pact_converts_methods_to_uppercase() {
       "metadata" : {}
     }
     "#;
-    let pact = Pact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
+    let pact = RequestResponsePact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
     expect!(pact.interactions.iter()).to(have_count(1));
     let interaction = pact.interactions[0].clone();
     expect!(interaction.request).to(be_equal_to(Request {
@@ -833,7 +833,7 @@ fn interaction_from_json_sets_the_id_if_loaded_from_broker() {
 
 #[test]
 fn default_file_name_is_based_in_the_consumer_and_provider() {
-    let pact = Pact { consumer: Consumer { name: s!("consumer") },
+    let pact = RequestResponsePact { consumer: Consumer { name: s!("consumer") },
         provider: Provider { name: s!("provider") },
         interactions: vec![],
         metadata: btreemap!{},
@@ -851,7 +851,7 @@ fn read_pact_file(file: &str) -> io::Result<String> {
 
 #[test]
 fn write_pact_test() {
-    let pact = Pact { consumer: Consumer { name: s!("write_pact_test_consumer") },
+    let pact = RequestResponsePact { consumer: Consumer { name: s!("write_pact_test_consumer") },
         provider: Provider { name: s!("write_pact_test_provider") },
         interactions: vec![
             Interaction {
@@ -860,7 +860,7 @@ fn write_pact_test() {
                 .. Interaction::default()
             }
         ],
-        .. Pact::default() };
+        .. RequestResponsePact::default() };
     let mut dir = env::temp_dir();
     let x = rand::random::<u16>();
     dir.push(format!("pact_test_{}", x));
@@ -905,7 +905,7 @@ fn write_pact_test() {
 
 #[test]
 fn write_pact_test_should_merge_pacts() {
-    let pact = Pact { consumer: Consumer { name: s!("merge_consumer") },
+    let pact = RequestResponsePact { consumer: Consumer { name: s!("merge_consumer") },
         provider: Provider { name: s!("merge_provider") },
         interactions: vec![
             Interaction {
@@ -917,7 +917,7 @@ fn write_pact_test_should_merge_pacts() {
         metadata: btreemap!{},
         specification_version: PactSpecification::V1_1
     };
-    let pact2 = Pact { consumer: Consumer { name: s!("merge_consumer") },
+    let pact2 = RequestResponsePact { consumer: Consumer { name: s!("merge_consumer") },
         provider: Provider { name: s!("merge_provider") },
         interactions: vec![
             Interaction {
@@ -986,7 +986,7 @@ fn write_pact_test_should_merge_pacts() {
 
 #[test]
 fn write_pact_test_should_not_merge_pacts_with_conflicts() {
-    let pact = Pact { consumer: Consumer { name: s!("write_pact_test_consumer") },
+    let pact = RequestResponsePact { consumer: Consumer { name: s!("write_pact_test_consumer") },
         provider: Provider { name: s!("write_pact_test_provider") },
         interactions: vec![
             Interaction {
@@ -998,7 +998,7 @@ fn write_pact_test_should_not_merge_pacts_with_conflicts() {
         metadata: btreemap!{},
         specification_version: PactSpecification::V1_1
     };
-    let pact2 = Pact { consumer: Consumer { name: s!("write_pact_test_consumer") },
+    let pact2 = RequestResponsePact { consumer: Consumer { name: s!("write_pact_test_consumer") },
         provider: Provider { name: s!("write_pact_test_provider") },
         interactions: vec![
             Interaction {
@@ -1057,13 +1057,13 @@ fn write_pact_test_should_not_merge_pacts_with_conflicts() {
 
 #[test]
 fn pact_merge_does_not_merge_different_consumers() {
-    let pact = Pact { consumer: Consumer { name: s!("test_consumer") },
+    let pact = RequestResponsePact { consumer: Consumer { name: s!("test_consumer") },
         provider: Provider { name: s!("test_provider") },
         interactions: vec![],
         metadata: btreemap!{},
         specification_version: PactSpecification::V1
     };
-    let pact2 = Pact { consumer: Consumer { name: s!("test_consumer2") },
+    let pact2 = RequestResponsePact { consumer: Consumer { name: s!("test_consumer2") },
         provider: Provider { name: s!("test_provider") },
         interactions: vec![],
         metadata: btreemap!{},
@@ -1074,13 +1074,13 @@ fn pact_merge_does_not_merge_different_consumers() {
 
 #[test]
 fn pact_merge_does_not_merge_different_providers() {
-    let pact = Pact { consumer: Consumer { name: s!("test_consumer") },
+    let pact = RequestResponsePact { consumer: Consumer { name: s!("test_consumer") },
         provider: Provider { name: s!("test_provider") },
         interactions: vec![],
         metadata: btreemap!{},
         specification_version: PactSpecification::V1_1
     };
-    let pact2 = Pact { consumer: Consumer { name: s!("test_consumer") },
+    let pact2 = RequestResponsePact { consumer: Consumer { name: s!("test_consumer") },
         provider: Provider { name: s!("test_provider2") },
         interactions: vec![],
         metadata: btreemap!{},
@@ -1091,7 +1091,7 @@ fn pact_merge_does_not_merge_different_providers() {
 
 #[test]
 fn pact_merge_does_not_merge_where_there_are_conflicting_interactions() {
-    let pact = Pact { consumer: Consumer { name: s!("test_consumer") },
+    let pact = RequestResponsePact { consumer: Consumer { name: s!("test_consumer") },
         provider: Provider { name: s!("test_provider") },
         interactions: vec![
             Interaction {
@@ -1103,7 +1103,7 @@ fn pact_merge_does_not_merge_where_there_are_conflicting_interactions() {
         metadata: btreemap!{},
         specification_version: PactSpecification::V1_1
     };
-    let pact2 = Pact { consumer: Consumer { name: s!("test_consumer") },
+    let pact2 = RequestResponsePact { consumer: Consumer { name: s!("test_consumer") },
         provider: Provider { name: s!("test_provider") },
         interactions: vec![
             Interaction {
@@ -1121,7 +1121,7 @@ fn pact_merge_does_not_merge_where_there_are_conflicting_interactions() {
 
 #[test]
 fn pact_merge_removes_duplicates() {
-    let pact = Pact { consumer: Consumer { name: s!("test_consumer") },
+    let pact = RequestResponsePact { consumer: Consumer { name: s!("test_consumer") },
         provider: Provider { name: s!("test_provider") },
         interactions: vec![
             Interaction {
@@ -1130,9 +1130,9 @@ fn pact_merge_removes_duplicates() {
                 .. Interaction::default()
             }
         ],
-        .. Pact::default()
+        .. RequestResponsePact::default()
     };
-    let pact2 = Pact { consumer: Consumer { name: s!("test_consumer") },
+    let pact2 = RequestResponsePact { consumer: Consumer { name: s!("test_consumer") },
         provider: Provider { name: s!("test_provider") },
         interactions: vec![
             Interaction {
@@ -1146,7 +1146,7 @@ fn pact_merge_removes_duplicates() {
                 .. Interaction::default()
             }
         ],
-        .. Pact::default()
+        .. RequestResponsePact::default()
     };
 
     let merged_pact = pact.merge(&pact2);
@@ -1378,7 +1378,7 @@ fn matchers_from_json_loads_matchers_from_deprecated_name() {
 
 #[test]
 fn write_pact_test_with_matchers() {
-    let pact = Pact { consumer: Consumer { name: s!("write_pact_test_consumer") },
+    let pact = RequestResponsePact { consumer: Consumer { name: s!("write_pact_test_consumer") },
         provider: Provider { name: s!("write_pact_test_provider") },
         interactions: vec![
             Interaction {
@@ -1395,7 +1395,7 @@ fn write_pact_test_with_matchers() {
                 .. Interaction::default()
             }
         ],
-        .. Pact::default() };
+        .. RequestResponsePact::default() };
     let mut dir = env::temp_dir();
     let x = rand::random::<u16>();
     dir.push(format!("pact_test_{}", x));
@@ -1445,7 +1445,7 @@ fn write_pact_test_with_matchers() {
 
 #[test]
 fn write_pact_v3_test_with_matchers() {
-    let pact = Pact { consumer: Consumer { name: s!("write_pact_test_consumer_v3") },
+    let pact = RequestResponsePact { consumer: Consumer { name: s!("write_pact_test_consumer_v3") },
         provider: Provider { name: s!("write_pact_test_provider_v3") },
         interactions: vec![
         Interaction {
@@ -1465,7 +1465,7 @@ fn write_pact_v3_test_with_matchers() {
             .. Interaction::default()
         }
         ],
-        .. Pact::default() };
+        .. RequestResponsePact::default() };
     let mut dir = env::temp_dir();
     let x = rand::random::<u16>();
     dir.push(format!("pact_test_{}", x));
@@ -1690,7 +1690,7 @@ fn body_from_json_returns_the_body_if_the_content_type_is_json() {
 
 #[test]
 fn write_v3_pact_test() {
-    let pact = Pact { consumer: Consumer { name: s!("write_pact_test_consumer") },
+    let pact = RequestResponsePact { consumer: Consumer { name: s!("write_pact_test_consumer") },
         provider: Provider { name: s!("write_pact_test_provider") },
         interactions: vec![
             Interaction {
@@ -1706,7 +1706,7 @@ fn write_v3_pact_test() {
                 .. Interaction::default()
             }
         ],
-        .. Pact::default() };
+        .. RequestResponsePact::default() };
     let mut dir = env::temp_dir();
     let x = rand::random::<u16>();
     dir.push(format!("pact_test_{}", x));
@@ -1869,7 +1869,7 @@ fn generators_from_json_loads_generators_correctly() {
 
 #[test]
 fn write_pact_test_with_generators() {
-    let pact = Pact { consumer: Consumer { name: s!("write_pact_test_consumer") },
+    let pact = RequestResponsePact { consumer: Consumer { name: s!("write_pact_test_consumer") },
         provider: Provider { name: s!("write_pact_test_provider") },
         interactions: vec![
             Interaction {
@@ -1889,7 +1889,7 @@ fn write_pact_test_with_generators() {
                 .. Interaction::default()
             }
         ],
-        .. Pact::default() };
+        .. RequestResponsePact::default() };
     let mut dir = env::temp_dir();
     let x = rand::random::<u16>();
     dir.push(format!("pact_test_{}", x));

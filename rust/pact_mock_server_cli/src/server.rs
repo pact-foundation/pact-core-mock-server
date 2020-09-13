@@ -1,5 +1,5 @@
 use hyper::server::{Handler, Server, Request, Response};
-use pact_matching::models::Pact;
+use pact_matching::models::RequestResponsePact;
 use pact_matching::s;
 use pact_mock_server::server_manager::ServerManager;
 use uuid::Uuid;
@@ -55,7 +55,7 @@ fn start_provider(
         Some(ref body) if !body.is_empty() => {
             match serde_json::from_str(body) {
                 Ok(ref json) => {
-                    let pact = Pact::from_json(&context.request.request_path, json);
+                    let pact = RequestResponsePact::from_json(&context.request.request_path, json);
                     let mock_server_id = Uuid::new_v4().to_string();
 
                     let mut lock = server_manager.lock().unwrap();

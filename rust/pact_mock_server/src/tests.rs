@@ -147,7 +147,7 @@ fn match_request_supports_v2_matchers_with_xml() {
 
 #[test]
 fn match_request_with_header_with_multiple_values() {
-  let pact = Pact {
+  let pact = RequestResponsePact {
     interactions: vec![
       Interaction {
         request: Request {
@@ -159,7 +159,7 @@ fn match_request_with_header_with_multiple_values() {
         .. Interaction::default()
       }
     ],
-    .. Pact::default()
+    .. RequestResponsePact::default()
   };
   let mut manager = ServerManager::new();
   let id = "match_request_with_header_with_multiple_values".to_string();

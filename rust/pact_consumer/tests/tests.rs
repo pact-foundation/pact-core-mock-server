@@ -9,7 +9,7 @@ use std::{
 use expectest::prelude::*;
 use expectest::expect;
 use reqwest::blocking::Client;
-use pact_matching::models::Pact;
+use pact_matching::models::RequestResponsePact;
 
 /// This is supposed to be a doctest in lib.rs, but it's breaking there, so
 /// we have an executable copy here.
@@ -127,6 +127,6 @@ fn duplicate_interactions() {
   env::remove_var("PACT_OUTPUT_DIR");
 
   let path = output_dir.join("consumer 1-provider 1.json");
-  let written_pact = Pact::read_pact(path.as_path()).unwrap();
+  let written_pact = RequestResponsePact::read_pact(path.as_path()).unwrap();
   expect!(written_pact.interactions.len()).to(be_equal_to(1));
 }

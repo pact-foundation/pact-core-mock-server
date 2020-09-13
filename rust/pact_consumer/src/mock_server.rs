@@ -17,7 +17,7 @@ pub trait StartMockServer {
     fn start_mock_server(&self) -> ValidatingMockServer;
 }
 
-impl StartMockServer for Pact {
+impl StartMockServer for RequestResponsePact {
     fn start_mock_server(&self) -> ValidatingMockServer {
         ValidatingMockServer::start(self.clone())
     }
@@ -43,7 +43,7 @@ pub struct ValidatingMockServer {
 impl ValidatingMockServer {
     /// Create a new mock server which handles requests as described in the
     /// pact, and runs in a background thread
-    pub fn start(pact: Pact) -> ValidatingMockServer {
+    pub fn start(pact: RequestResponsePact) -> ValidatingMockServer {
         // Spawn new runtime in thread to prevent reactor execution context conflict
         let (mock_server, done_rx) = std::thread::spawn(move || {
             let mut runtime = tokio::runtime::Builder::new()

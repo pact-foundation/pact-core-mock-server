@@ -232,7 +232,7 @@ fn display_result(status: u16, status_result: ANSIGenericString<str>,
   println!("      has a matching body ({})", body_result);
 }
 
-fn walkdir(dir: &Path) -> io::Result<Vec<io::Result<Pact>>> {
+fn walkdir(dir: &Path) -> io::Result<Vec<io::Result<RequestResponsePact>>> {
     let mut pacts = vec![];
     log::debug!("Scanning {:?}", dir);
     for entry in fs::read_dir(dir)? {
@@ -241,7 +241,7 @@ fn walkdir(dir: &Path) -> io::Result<Vec<io::Result<Pact>>> {
         if path.is_dir() {
             walkdir(&path)?;
         } else {
-            pacts.push(Pact::read_pact(&path))
+            pacts.push(RequestResponsePact::read_pact(&path))
         }
     }
     Ok(pacts)
@@ -346,7 +346,7 @@ fn filter_interaction(interaction: &Interaction, filter: &FilterInfo) -> bool {
     }
 }
 
-fn filter_consumers(consumers: &[String], res: &Result<(Pact, PactSource), String>) -> bool {
+fn filter_consumers(consumers: &[String], res: &Result<(RequestResponsePact, PactSource), String>) -> bool {
     consumers.is_empty() || res.is_err() || consumers.contains(&res.clone().unwrap().0.consumer.name)
 }
 
@@ -387,6 +387,7 @@ pub async fn verify_provider<F: RequestFilterExecutor, S: ProviderStateExecutor>
     provider_state_executor: &S
 ) -> bool {
     let pact_results = fetch_pacts(source, consumers).await;
+    debug!("Pacts to verify = {:?}", pact_results);
 
     let mut all_errors: Vec<(String, MismatchResult)> = vec![];
     for pact_result in pact_results {
@@ -445,9 +446,9 @@ pub async fn verify_provider<F: RequestFilterExecutor, S: ProviderStateExecutor>
 
 async fn fetch_pact(
     source: PactSource
-) -> Vec<Result<(Pact, PactSource), String>> {
+) -> Vec<Result<(RequestResponsePact, PactSource), String>> {
     match source {
-        PactSource::File(ref file) => vec![Pact::read_pact(Path::new(&file))
+        PactSource::File(ref file) => vec![RequestResponsePact::read_pact(Path::new(&file))
             .map_err(|err| format!("Failed to load pact '{}' - {}", file, err))
             .map(|pact| (pact, source))],
         PactSource::Dir(ref dir) => match walkdir(Path::new(dir)) {
@@ -459,7 +460,7 @@ async fn fetch_pact(
             }).collect(),
             Err(err) => vec![Err(format!("Could not load pacts from directory '{}' - {}", dir, err))]
         },
-        PactSource::URL(ref url, ref auth) => vec![Pact::from_url(url, auth)
+        PactSource::URL(ref url, ref auth) => vec![RequestResponsePact::from_url(url, auth)
             .map_err(|err| format!("Failed to load pact '{}' - {}", url, err))
             .map(|pact| (pact, source))],
         PactSource::BrokerUrl(ref provider_name, ref broker_url, ref auth, _) => {
@@ -489,7 +490,7 @@ async fn fetch_pact(
 async fn fetch_pacts(
     source: Vec<PactSource>,
     consumers: Vec<String>
-) -> Vec<Result<(Pact, PactSource), String>> {
+) -> Vec<Result<(RequestResponsePact, PactSource), String>> {
     futures::stream::iter(source)
         // .map(|pact_source| pact_source.clone())
         .then(|pact_source| async {
@@ -504,7 +505,7 @@ async fn fetch_pacts(
 async fn verify_pact<F: RequestFilterExecutor, S: ProviderStateExecutor>(
   provider_info: &ProviderInfo,
   filter: &FilterInfo,
-  pact: Pact,
+  pact: RequestResponsePact,
   options: &VerificationOptions<F>,
   provider_state_executor: &S
 ) -> Vec<(String, MismatchResult)> {

@@ -13,7 +13,7 @@ pub mod server_manager;
 mod hyper_server;
 mod tls;
 
-use pact_matching::models::Pact;
+use pact_matching::models::RequestResponsePact;
 use pact_matching::s;
 use std::sync::Mutex;
 use serde_json::json;
@@ -56,7 +56,7 @@ lazy_static! {
 /// - If a mock server is not able to be started
 pub fn start_mock_server(
   id: String,
-  pact: Pact,
+  pact: RequestResponsePact,
   addr: std::net::SocketAddr
 ) -> Result<i32, String> {
   MANAGER.lock().unwrap()
@@ -81,7 +81,7 @@ pub fn start_mock_server(
 /// - If a mock server is not able to be started
 pub fn start_tls_mock_server(
   id: String,
-  pact: Pact,
+  pact: RequestResponsePact,
   addr: std::net::SocketAddr,
   tls: &ServerConfig
 ) -> Result<i32, String> {
@@ -103,7 +103,7 @@ pub extern fn create_mock_server(
 ) -> Result<i32, MockServerError> {
   match serde_json::from_str(pact_json) {
     Ok(pact_json) => {
-      let pact = Pact::from_json(&s!("<create_mock_server>"), &pact_json);
+      let pact = RequestResponsePact::from_json(&s!("<create_mock_server>"), &pact_json);
       start_mock_server(Uuid::new_v4().to_string(), pact, addr)
         .map_err(|err| {
           log::error!("Could not start mock server: {}", err);
@@ -131,7 +131,7 @@ pub extern fn create_tls_mock_server(
 ) -> Result<i32, MockServerError> {
   match serde_json::from_str(pact_json) {
     Ok(pact_json) => {
-      let pact = Pact::from_json(&s!("<create_mock_server>"), &pact_json);
+      let pact = RequestResponsePact::from_json(&s!("<create_mock_server>"), &pact_json);
       start_tls_mock_server(Uuid::new_v4().to_string(), pact, addr, tls)
         .map_err(|err| {
           log::error!("Could not start mock server: {}", err);

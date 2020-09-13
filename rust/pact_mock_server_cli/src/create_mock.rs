@@ -5,13 +5,13 @@ use hyper::header::ContentType;
 use hyper::mime::{Mime, TopLevel, SubLevel, Attr, Value};
 use std::io::prelude::*;
 use std::path::Path;
-use pact_matching::models::Pact;
+use pact_matching::models::RequestResponsePact;
 
 pub fn create_mock_server(host: &str, port: u16, matches: &ArgMatches) -> Result<(), i32> {
     let file = matches.value_of("file").unwrap();
     log::info!("Creating mock server from file {}", file);
 
-    match Pact::read_pact(&Path::new(file)) {
+    match RequestResponsePact::read_pact(&Path::new(file)) {
         Ok(ref pact) => {
             let client = Client::new();
             let url = Url::parse(format!("http://{}:{}/", host, port).as_str()).unwrap();

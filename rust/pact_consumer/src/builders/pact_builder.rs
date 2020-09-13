@@ -23,7 +23,7 @@ use crate::prelude::*;
 /// assert_eq!(pact.interactions[0].response.status, 200);
 /// ```
 pub struct PactBuilder {
-    pact: Pact,
+    pact: RequestResponsePact,
 }
 
 impl PactBuilder {
@@ -34,7 +34,7 @@ impl PactBuilder {
         C: Into<String>,
         P: Into<String>,
     {
-        let mut pact = Pact::default();
+        let mut pact = RequestResponsePact::default();
         pact.consumer = Consumer {
             name: consumer.into(),
         };
@@ -63,7 +63,7 @@ impl PactBuilder {
     }
 
     /// Return the `Pact` we've built.
-    pub fn build(&self) -> Pact {
+    pub fn build(&self) -> RequestResponsePact {
         self.pact.clone()
     }
 }

@@ -6,7 +6,7 @@
 use crate::hyper_server;
 use crate::matching::MatchResult;
 
-use pact_matching::models::{Pact, Interaction};
+use pact_matching::models::{RequestResponsePact, Interaction};
 use std::ffi::CString;
 use std::path::PathBuf;
 use std::io;
@@ -29,7 +29,7 @@ pub struct MockServer {
     /// List of resources that need to be cleaned up when the mock server completes
     pub resources: Vec<CString>,
     /// Pact that this mock server is based on
-    pub pact: Pact,
+    pub pact: RequestResponsePact,
     /// Receiver of match results
     matches: Arc<Mutex<Vec<MatchResult>>>,
     /// Shutdown signal
@@ -40,7 +40,7 @@ impl MockServer {
     /// Create a new mock server, consisting of its state (self) and its executable server future.
     pub async fn new(
         id: String,
-        pact: Pact,
+        pact: RequestResponsePact,
         addr: std::net::SocketAddr
     ) -> Result<(MockServer, impl std::future::Future<Output = ()>), String> {
         let (shutdown_tx, shutdown_rx) = futures::channel::oneshot::channel();
@@ -72,7 +72,7 @@ impl MockServer {
   /// Create a new TLS mock server, consisting of its state (self) and its executable server future.
   pub async fn new_tls(
     id: String,
-    pact: Pact,
+    pact: RequestResponsePact,
     addr: std::net::SocketAddr,
     tls: &ServerConfig
   ) -> Result<(MockServer, impl std::future::Future<Output = ()>), String> {

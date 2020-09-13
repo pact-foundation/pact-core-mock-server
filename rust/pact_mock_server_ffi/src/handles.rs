@@ -1,6 +1,6 @@
 //! Handles wrapping Rust models
 
-use pact_matching::models::{Pact, Consumer, Provider, Interaction};
+use pact_matching::models::{RequestResponsePact, Consumer, Provider, Interaction};
 use lazy_static::*;
 use maplit::*;
 use std::sync::Mutex;
@@ -8,7 +8,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 lazy_static! {
-  static ref PACT_HANDLES: Mutex<HashMap<usize, RefCell<Pact>>> = Mutex::new(hashmap![]);
+  static ref PACT_HANDLES: Mutex<HashMap<usize, RefCell<RequestResponsePact>>> = Mutex::new(hashmap![]);
 }
 
 #[repr(C)]
@@ -44,10 +44,10 @@ impl PactHandle {
   pub fn new(consumer: &str, provider: &str) -> Self {
     let mut handles = PACT_HANDLES.lock().unwrap();
     let id = handles.len() + 1;
-    handles.insert(id, RefCell::new(Pact {
+    handles.insert(id, RefCell::new(RequestResponsePact {
       consumer: Consumer { name: consumer.to_string() },
       provider: Provider { name: provider.to_string() },
-      .. Pact::default()
+      .. RequestResponsePact::default()
     }));
     PactHandle {
       pact: id
@@ -55,7 +55,7 @@ impl PactHandle {
   }
 
   /// Invokes the closure with the inner Pact model
-  pub fn with_pact<R>(&self, f: &dyn Fn(usize, &mut Pact) -> R) -> Option<R> {
+  pub fn with_pact<R>(&self, f: &dyn Fn(usize, &mut RequestResponsePact) -> R) -> Option<R> {
     let mut handles = PACT_HANDLES.lock().unwrap();
     handles.get_mut(&self.pact).map(|inner| f(self.pact - 1, &mut inner.borrow_mut()))
   }
@@ -71,7 +71,7 @@ impl InteractionHandle {
   }
 
   /// Invokes the closure with the inner Pact model
-  pub fn with_pact<R>(&self, f: &dyn Fn(usize, &mut Pact) -> R) -> Option<R> {
+  pub fn with_pact<R>(&self, f: &dyn Fn(usize, &mut RequestResponsePact) -> R) -> Option<R> {
     let mut handles = PACT_HANDLES.lock().unwrap();
     handles.get_mut(&self.pact).map(|inner| f(self.pact - 1, &mut inner.borrow_mut()))
   }

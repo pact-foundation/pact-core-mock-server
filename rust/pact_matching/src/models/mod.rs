@@ -1052,12 +1052,17 @@ impl Display for Interaction {
   }
 }
 
+/// Trait for a Pact (request/response or message)
+pub trait Pact {
+
+}
+
 pub mod message;
 pub mod message_pact;
 
 /// Struct that represents a pact between the consumer and provider of a service.
 #[derive(Debug, Clone)]
-pub struct Pact {
+pub struct RequestResponsePact {
     /// Consumer side of the pact
     pub consumer: Consumer,
     /// Provider side of the pact
@@ -1149,7 +1154,7 @@ fn determine_spec_version(file: &String, metadata: &BTreeMap<String, BTreeMap<St
     }
 }
 
-impl Pact {
+impl RequestResponsePact {
 
     /// Returns the specification version of this pact
     pub fn spec_version(&self) -> PactSpecification {
@@ -1157,7 +1162,7 @@ impl Pact {
     }
 
     /// Creates a `Pact` from a `Value` struct.
-    pub fn from_json(file: &String, pact_json: &Value) -> Pact {
+    pub fn from_json(file: &String, pact_json: &Value) -> RequestResponsePact {
         let metadata = parse_meta_data(pact_json);
         let spec_version = determine_spec_version(file, &metadata);
 
@@ -1169,7 +1174,7 @@ impl Pact {
             Some(v) => Provider::from_json(v),
             None => Provider { name: s!("provider") }
         };
-        Pact {
+        RequestResponsePact {
             consumer,
             provider,
             interactions: parse_interactions(pact_json, spec_version.clone()),
@@ -1211,7 +1216,7 @@ impl Pact {
     /// Merges this pact with the other pact, and returns a new Pact with the interactions sorted.
     /// Returns an error if there is a merge conflict, which will occur if any interaction has the
     /// same description and provider state and the requests and responses are different.
-    pub fn merge(&self, pact: &Pact) -> Result<Pact, String> {
+    pub fn merge(&self, pact: &RequestResponsePact) -> Result<RequestResponsePact, String> {
       if self.consumer.name == pact.consumer.name && self.provider.name == pact.provider.name {
           let conflicts = iproduct!(self.interactions.clone(), pact.interactions.clone())
             .map(|i| i.0.conflicts_with(&i.1))
@@ -1229,7 +1234,7 @@ impl Pact {
             Err(format!("Unable to merge pacts, as there were {} conflict(s) between the interactions. Please clean out your pact directory before running the tests.",
                 num_conflicts))
           } else {
-            Ok(Pact {
+            Ok(RequestResponsePact {
               provider: self.provider.clone(),
               consumer: self.consumer.clone(),
               interactions: self.interactions.iter()
@@ -1264,19 +1269,19 @@ impl Pact {
         format!("{}-{}.json", self.consumer.name, self.provider.name)
     }
 
-    /// Reads the pact file and parses the resulting JSON into a `Pact` struct
-    pub fn read_pact(file: &Path) -> io::Result<Pact> {
+    /// Reads the pact file and parses the resulting JSON into a `RequestResponsePact` struct
+    pub fn read_pact(file: &Path) -> io::Result<RequestResponsePact> {
         let mut f = File::open(file)?;
         let pact_json = serde_json::from_reader(&mut f);
         match pact_json {
-            Ok(ref json) => Ok(Pact::from_json(&format!("{:?}", file), json)),
+            Ok(ref json) => Ok(RequestResponsePact::from_json(&format!("{:?}", file), json)),
             Err(err) => Err(Error::new(ErrorKind::Other, format!("Failed to parse Pact JSON - {}", err)))
         }
     }
 
     /// Reads the pact file from a URL and parses the resulting JSON into a `Pact` struct
-    pub fn from_url(url: &String, auth: &Option<HttpAuth>) -> Result<Pact, String> {
-      http_utils::fetch_json_from_url(url, auth).map(|(ref url, ref json)| Pact::from_json(url, json))
+    pub fn from_url(url: &String, auth: &Option<HttpAuth>) -> Result<RequestResponsePact, String> {
+      http_utils::fetch_json_from_url(url, auth).map(|(ref url, ref json)| RequestResponsePact::from_json(url, json))
     }
 
   /// Writes this pact out to the provided file path. All directories in the path will
@@ -1286,7 +1291,7 @@ impl Pact {
       fs::create_dir_all(path.parent().unwrap())?;
       if path.exists() {
         debug!("Merging pact with file {:?}", path);
-        let existing_pact = Pact::read_pact(path)?;
+        let existing_pact = RequestResponsePact::read_pact(path)?;
         match existing_pact.merge(self) {
             Ok(ref merged_pact) => {
                 let mut file = File::create(path)?;
@@ -1303,13 +1308,13 @@ impl Pact {
       }
     }
 
-    /// Returns a default Pact struct
-    pub fn default() -> Pact {
-        Pact {
+    /// Returns a default RequestResponsePact struct
+    pub fn default() -> RequestResponsePact {
+      RequestResponsePact {
             consumer: Consumer { name: s!("default_consumer") },
             provider: Provider { name: s!("default_provider") },
             interactions: Vec::new(),
-            metadata: Pact::default_metadata(),
+            metadata: RequestResponsePact::default_metadata(),
             specification_version: PactSpecification::V3
         }
     }

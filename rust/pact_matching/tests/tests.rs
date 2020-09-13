@@ -23,7 +23,7 @@ fn fixture_path(path: &str) -> PathBuf {
 #[test]
 fn test_load_pact() {
     let pact_file = fixture_path("pact.json");
-    let pact_result = Pact::read_pact(&pact_file);
+    let pact_result = RequestResponsePact::read_pact(&pact_file);
 
     match pact_result {
         Ok(ref pact) => {
@@ -47,7 +47,7 @@ fn test_load_pact() {
 #[test]
 fn test_load_test_pact() {
     let pact_file = fixture_path("test_pact.json");
-    let pact_result = Pact::read_pact(&pact_file);
+    let pact_result = RequestResponsePact::read_pact(&pact_file);
 
     match pact_result {
         Ok(ref pact) => {
@@ -71,7 +71,7 @@ fn test_load_test_pact() {
 #[test]
 fn test_load_pact_encoded_query() {
     let pact_file = fixture_path("test_pact_encoded_query.json");
-    let pact_result = Pact::read_pact(&pact_file);
+    let pact_result = RequestResponsePact::read_pact(&pact_file);
 
     match pact_result {
         Ok(ref pact) => {
@@ -114,7 +114,7 @@ fn test_load_pact_encoded_query() {
 #[test]
 fn test_load_test_pact_lowercase_method() {
     let pact_file = fixture_path("test_pact_lowercase_method.json");
-    let pact_result = Pact::read_pact(&pact_file);
+    let pact_result = RequestResponsePact::read_pact(&pact_file);
 
     match pact_result {
         Ok(ref pact) => {
@@ -156,7 +156,7 @@ fn test_load_test_pact_lowercase_method() {
 #[test]
 fn test_load_test_pact_no_bodies() {
     let pact_file = fixture_path("test_pact_no_bodies.json");
-    let pact_result = Pact::read_pact(&pact_file);
+    let pact_result = RequestResponsePact::read_pact(&pact_file);
 
     match pact_result {
         Ok(ref pact) => {
@@ -185,7 +185,7 @@ fn test_load_test_pact_no_bodies() {
 #[test]
 fn test_load_test_pact_no_metadata() {
     let pact_file = fixture_path("test_pact_no_metadata.json");
-    let pact_result = Pact::read_pact(&pact_file);
+    let pact_result = RequestResponsePact::read_pact(&pact_file);
 
     match pact_result {
         Ok(ref pact) => {
@@ -209,7 +209,7 @@ fn test_load_test_pact_no_metadata() {
 #[test]
 fn test_load_test_pact_no_spec_version() {
     let pact_file = fixture_path("test_pact_no_spec_version.json");
-    let pact_result = Pact::read_pact(&pact_file);
+    let pact_result = RequestResponsePact::read_pact(&pact_file);
 
     match pact_result {
         Ok(ref pact) => {
@@ -233,7 +233,7 @@ fn test_load_test_pact_no_spec_version() {
 #[test]
 fn test_load_test_pact_with_camel_case_spec_version() {
     let pact_file = fixture_path("test_pact_camel_case_spec_version.json");
-    let pact_result = Pact::read_pact(&pact_file);
+    let pact_result = RequestResponsePact::read_pact(&pact_file);
 
     match pact_result {
         Ok(ref pact) => {
@@ -246,7 +246,7 @@ fn test_load_test_pact_with_camel_case_spec_version() {
 #[test]
 fn test_load_test_pact_no_version() {
     let pact_file = fixture_path("test_pact_no_version.json");
-    let pact_result = Pact::read_pact(&pact_file);
+    let pact_result = RequestResponsePact::read_pact(&pact_file);
 
     match pact_result {
         Ok(ref pact) => {
@@ -271,7 +271,7 @@ fn test_load_test_pact_no_version() {
 #[test]
 fn test_load_test_pact_query_old_format() {
     let pact_file = fixture_path("test_pact_query_old_format.json");
-    let pact_result = Pact::read_pact(&pact_file);
+    let pact_result = RequestResponsePact::read_pact(&pact_file);
 
     match pact_result {
         Ok(ref pact) => {
@@ -295,7 +295,7 @@ fn test_load_test_pact_query_old_format() {
 #[test]
 fn test_load_test_pact_root_string_json() {
     let pact_file = fixture_path("test_pact_root_string_json.json");
-    let pact_result = Pact::read_pact(&pact_file);
+    let pact_result = RequestResponsePact::read_pact(&pact_file);
 
     match pact_result {
         Ok(ref pact) => {
@@ -321,7 +321,7 @@ fn test_load_test_pact_root_string_json() {
 #[test]
 fn test_load_test_pact_with_bodies() {
     let pact_file = fixture_path("test_pact_with_bodies.json");
-    let pact_result = Pact::read_pact(&pact_file);
+    let pact_result = RequestResponsePact::read_pact(&pact_file);
 
     match pact_result {
         Ok(ref pact) => {
@@ -345,7 +345,7 @@ fn test_load_test_pact_with_bodies() {
 #[test]
 fn test_load_v2_pact() {
     let pact_file = fixture_path("v2-pact.json");
-    let pact_result = Pact::read_pact(&pact_file);
+    let pact_result = RequestResponsePact::read_pact(&pact_file);
 
     match pact_result {
         Ok(ref pact) => {
@@ -369,7 +369,7 @@ fn test_load_v2_pact() {
 #[test]
 fn test_load_v2_pact_query() {
     let pact_file = fixture_path("v2_pact_query.json");
-    let pact_result = Pact::read_pact(&pact_file);
+    let pact_result = RequestResponsePact::read_pact(&pact_file);
 
     match pact_result {
         Ok(ref pact) => {
@@ -412,7 +412,7 @@ fn test_load_v2_pact_query() {
 #[test]
 fn test_load_test_pact_matchers() {
     let pact_file = fixture_path("test_pact_matchers.json");
-    let pact_result = Pact::read_pact(&pact_file);
+    let pact_result = RequestResponsePact::read_pact(&pact_file);
 
     match pact_result {
         Ok(ref pact) => {
@@ -436,7 +436,7 @@ fn test_load_test_pact_matchers() {
 #[test]
 fn test_load_test_pact_matchers_old_format() {
     let pact_file = fixture_path("test_pact_matchers_old_format.json");
-    let pact_result = Pact::read_pact(&pact_file);
+    let pact_result = RequestResponsePact::read_pact(&pact_file);
 
     match pact_result {
         Ok(ref pact) => {
@@ -490,7 +490,7 @@ fn test_load_pact_with_binary_body() {
   let gif_file = fixture_path("1px.gif");
   File::open(gif_file).unwrap().read_to_end(&mut buffer).unwrap();
 
-  let pact_result = Pact::read_pact(&pact_file);
+  let pact_result = RequestResponsePact::read_pact(&pact_file);
 
   match pact_result {
     Ok(ref pact) => {

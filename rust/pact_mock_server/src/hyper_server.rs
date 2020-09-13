@@ -1,6 +1,6 @@
 use crate::matching::{MatchResult, match_request};
 
-use pact_matching::models::{Pact, Request, OptionalBody, HttpPart};
+use pact_matching::models::{RequestResponsePact, Request, OptionalBody, HttpPart};
 use pact_matching::models::parse_query_string;
 
 use std::collections::HashMap;
@@ -169,7 +169,7 @@ fn match_result_to_hyper_response(request: &Request, match_result: MatchResult) 
 
 async fn handle_request(
     req: hyper::Request<Body>,
-    pact: Arc<Pact>,
+    pact: Arc<RequestResponsePact>,
     matches: Arc<Mutex<Vec<MatchResult>>>
 ) -> Result<Response<Body>, InteractionError> {
     debug!("Creating pact request from hyper request");
@@ -216,7 +216,7 @@ fn handle_mock_request_error(result: Result<Response<Body>, InteractionError>) -
 // The reason that the function itself is still async (even if it performs
 // no async operations) is that it needs a tokio context to be able to call try_bind.
 pub(crate) async fn create_and_bind(
-    pact: Pact,
+    pact: RequestResponsePact,
     addr: std::net::SocketAddr,
     shutdown: impl std::future::Future<Output = ()>,
     matches: Arc<Mutex<Vec<MatchResult>>>,
@@ -258,7 +258,7 @@ pub(crate) async fn create_and_bind(
 }
 
 pub(crate) async fn create_and_bind_tls(
-  pact: Pact,
+  pact: RequestResponsePact,
   addr: std::net::SocketAddr,
   shutdown: impl std::future::Future<Output = ()>,
   matches: Arc<Mutex<Vec<MatchResult>>>,
@@ -314,7 +314,7 @@ mod tests {
         let matches = Arc::new(Mutex::new(vec![]));
 
         let (future, _) = create_and_bind(
-            Pact::default(),
+            RequestResponsePact::default(),
             ([0, 0, 0, 0], 0 as u16).into(),
             async {
                 shutdown_rx.await.ok();

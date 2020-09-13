@@ -1,13 +1,13 @@
 use pact_matching::match_request;
-use pact_matching::models::Pact;
+use pact_matching::models::RequestResponsePact;
 
 /// Check that all requests in `actual` match the patterns provide by
 /// `expected`, and raise an error if anything fails.
 pub(crate) fn check_requests_match(
     actual_label: &str,
-    actual: &Pact,
+    actual: &RequestResponsePact,
     expected_label: &str,
-    expected: &Pact,
+    expected: &RequestResponsePact,
 ) -> Result<(), String> {
     // First make sure we have the same number of interactions.
     if expected.interactions.len() != actual.interactions.len() {

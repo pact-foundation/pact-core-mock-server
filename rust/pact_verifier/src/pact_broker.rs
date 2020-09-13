@@ -1,4 +1,4 @@
-use pact_matching::models::Pact;
+use pact_matching::models::RequestResponsePact;
 use pact_matching::s;
 use crate::MismatchResult;
 use serde_json::{json};
@@ -448,7 +448,7 @@ pub async fn fetch_pacts_from_broker(
     broker_url: String,
     provider_name: String,
     auth: Option<HttpAuth>
-) -> Result<Vec<Result<(Pact, Vec<Link>), PactBrokerError>>, PactBrokerError> {
+) -> Result<Vec<Result<(RequestResponsePact, Vec<Link>), PactBrokerError>>, PactBrokerError> {
     let mut hal_client = HALClient::with_url(broker_url.clone(), auth);
     let template_values = hashmap!{ s!("provider") => provider_name.clone() };
 
@@ -490,7 +490,7 @@ pub async fn fetch_pacts_from_broker(
         })
         .map_ok(|(pact_link, pact_json)| {
             let href = pact_link.href.unwrap();
-            let pact = Pact::from_json(&href, &pact_json);
+            let pact = RequestResponsePact::from_json(&href, &pact_json);
             let links = links_from_json(&pact_json);
 
             (pact, links)
@@ -972,14 +972,14 @@ mod tests {
     #[tokio::test]
     async fn fetch_pacts_from_broker_returns_a_list_of_pacts() {
       try_init().unwrap_or(());
-        let pact = Pact { consumer: Consumer { name: s!("Consumer") },
+        let pact = RequestResponsePact { consumer: Consumer { name: s!("Consumer") },
             provider: Provider { name: s!("happy_provider") },
-            .. Pact::default() }
+            .. RequestResponsePact::default() }
             .to_json(PactSpecification::V3).to_string();
-        let pact2 = Pact { consumer: Consumer { name: s!("Consumer2") },
+        let pact2 = RequestResponsePact { consumer: Consumer { name: s!("Consumer2") },
             provider: Provider { name: s!("happy_provider") },
             interactions: vec![ Interaction { description: s!("a request friends"), .. Interaction::default() } ],
-            .. Pact::default() }
+            .. RequestResponsePact::default() }
             .to_json(PactSpecification::V3).to_string();
         let pact_broker = PactBuilder::new("RustPactVerifier", "PactBroker")
             .interaction("a request to the pact broker root", |i| {
