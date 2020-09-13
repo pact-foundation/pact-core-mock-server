@@ -1,16 +1,14 @@
 use super::*;
 use super::{match_header_value, strip_whitespace};
 use std::collections::HashMap;
-use maplit::*;
 use expectest::prelude::*;
 use crate::models::{Request, OptionalBody};
 use crate::models::content_types::TEXT;
 
 #[test]
 fn match_method_returns_nothing_if_the_method_matches() {
-    let mut mismatches = vec![];
-    match_method(s!("GET"), s!("GET"), &mut mismatches);
-    expect!(mismatches.iter()).to(be_empty());
+  let result = match_method_result(s!("GET"), s!("GET"));
+  expect!(result).to(be_none());
 }
 
 #[test]
@@ -573,39 +571,37 @@ fn match_path_returns_a_mismatch_if_the_path_does_not_match_with_a_matcher() {
 
 #[test]
 fn match_query_returns_no_mismatch_if_the_values_are_not_the_same_but_match_by_a_matcher() {
-    let mut mismatches = vec![];
-    let mut query_map = HashMap::new();
-    query_map.insert(s!("a"), vec![s!("b")]);
-    let expected = Some(query_map);
-    query_map = HashMap::new();
-    query_map.insert(s!("a"), vec![s!("c")]);
-    let actual = Some(query_map);
-    match_query(expected, actual, &mut mismatches, &matchingrules!{
-        "query" => {
-            "a" => [ MatchingRule::Regex(s!("\\w+")) ]
-        }
-    });
-    expect!(mismatches.iter()).to(be_empty());
+  let mut query_map = HashMap::new();
+  query_map.insert(s!("a"), vec![s!("b")]);
+  let expected = Some(query_map);
+  query_map = HashMap::new();
+  query_map.insert(s!("a"), vec![s!("c")]);
+  let actual = Some(query_map);
+  let result = match_query_result(expected, actual, &matchingrules!{
+    "query" => {
+      "a" => [ MatchingRule::Regex(s!("\\w+")) ]
+    }
+  });
+  expect!(result.get("a".into()).unwrap().iter()).to(be_empty());
 }
 
 #[test]
 fn match_query_returns_a_mismatch_if_the_values_do_not_match_by_a_matcher() {
-    let mut mismatches = vec![];
-    let mut query_map = HashMap::new();
-    query_map.insert(s!("a"), vec![s!("b")]);
-    let expected = Some(query_map);
-    query_map = HashMap::new();
-    query_map.insert(s!("a"), vec![s!("b")]);
-    let actual = Some(query_map);
-    match_query(expected, actual, &mut mismatches, &matchingrules!{
-        "query" => {
-            "a" => [ MatchingRule::Regex(s!("\\d+")) ]
-        }
-    });
-    expect!(mismatches.iter()).to_not(be_empty());
-    assert_eq!(mismatches[0], Mismatch::QueryMismatch { parameter: s!("a"),
-        expected: s!("b"), actual: s!("b"),
-        mismatch: s!("") });
+  let mut query_map = HashMap::new();
+  query_map.insert(s!("a"), vec![s!("b")]);
+  let expected = Some(query_map);
+  query_map = HashMap::new();
+  query_map.insert(s!("a"), vec![s!("b")]);
+  let actual = Some(query_map);
+  let result = match_query_result(expected, actual, &matchingrules!{
+    "query" => {
+       "a" => [ MatchingRule::Regex(s!("\\d+")) ]
+    }
+  });
+  expect!(result.iter()).to_not(be_empty());
+  assert_eq!(result.get("a".into()).unwrap()[0], Mismatch::QueryMismatch { parameter: s!("a"),
+    expected: s!("b"), actual: s!("b"),
+    mismatch: s!("") });
 }
 
 #[test]

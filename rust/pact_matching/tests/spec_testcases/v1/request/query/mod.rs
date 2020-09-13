@@ -5,7 +5,7 @@ use pact_matching::models::PactSpecification;
 #[allow(unused_imports)]
 use pact_matching::models::Request;
 #[allow(unused_imports)]
-use pact_matching::match_request;
+use pact_matching::match_request_result;
 #[allow(unused_imports)]
 use expectest::prelude::*;
 #[allow(unused_imports)]
@@ -42,7 +42,7 @@ fn different_param_order() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual);
+    let result = match_request_result(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -82,7 +82,7 @@ fn different_param_values() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual);
+    let result = match_request_result(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -122,7 +122,7 @@ fn trailing_amperand() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual);
+    let result = match_request_result(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -162,7 +162,7 @@ fn matches() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual);
+    let result = match_request_result(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
