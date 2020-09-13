@@ -16,79 +16,79 @@ use crate::callback_executors::HttpRequestProviderStateExecutor;
 
 #[test]
 fn if_no_interaction_filter_is_defined_returns_true() {
-  let interaction = Interaction::default();
+  let interaction = RequestResponseInteraction::default();
   expect!(filter_interaction(&interaction, &FilterInfo::None)).to(be_true());
 }
 
 #[test]
 fn if_an_interaction_filter_is_defined_returns_false_if_the_description_does_not_match() {
-  let interaction = Interaction { description: s!("bob"), .. Interaction::default() };
+  let interaction = RequestResponseInteraction { description: s!("bob"), .. RequestResponseInteraction::default() };
   expect!(filter_interaction(&interaction, &FilterInfo::Description(s!("fred")))).to(be_false());
 }
 
 #[test]
 fn if_an_interaction_filter_is_defined_returns_true_if_the_description_does_match() {
-  let interaction = Interaction { description: s!("bob"), .. Interaction::default() };
+  let interaction = RequestResponseInteraction { description: s!("bob"), .. RequestResponseInteraction::default() };
   expect!(filter_interaction(&interaction, &FilterInfo::Description(s!("bob")))).to(be_true());
 }
 
 #[test]
 fn uses_regexs_to_match_the_description() {
-  let interaction = Interaction { description: s!("bobby"), .. Interaction::default() };
+  let interaction = RequestResponseInteraction { description: s!("bobby"), .. RequestResponseInteraction::default() };
   expect!(filter_interaction(&interaction, &FilterInfo::Description(s!("bob.*")))).to(be_true());
 }
 
 #[test]
 fn if_an_interaction_state_filter_is_defined_returns_false_if_the_state_does_not_match() {
-  let interaction = Interaction { provider_states: vec![ ProviderState::default(&s!("bob")) ], .. Interaction::default() };
+  let interaction = RequestResponseInteraction { provider_states: vec![ ProviderState::default(&s!("bob")) ], .. RequestResponseInteraction::default() };
   expect!(filter_interaction(&interaction, &FilterInfo::State(s!("fred")))).to(be_false());
 }
 
 #[test]
 fn if_an_interaction_state_filter_is_defined_returns_true_if_the_state_does_match() {
-  let interaction = Interaction { provider_states: vec![ ProviderState::default(&s!("bob")) ], .. Interaction::default() };
+  let interaction = RequestResponseInteraction { provider_states: vec![ ProviderState::default(&s!("bob")) ], .. RequestResponseInteraction::default() };
   expect!(filter_interaction(&interaction, &FilterInfo::State(s!("bob")))).to(be_true());
 }
 
 #[test]
 fn uses_regexs_to_match_the_state() {
-  let interaction = Interaction { provider_states: vec![ ProviderState::default(&s!("bobby")) ], .. Interaction::default() };
+  let interaction = RequestResponseInteraction { provider_states: vec![ ProviderState::default(&s!("bobby")) ], .. RequestResponseInteraction::default() };
   expect!(filter_interaction(&interaction, &FilterInfo::State(s!("bob.*")))).to(be_true());
 }
 
 #[test]
 fn if_the_state_filter_is_empty_returns_false_if_the_interaction_state_is_defined() {
-  let interaction = Interaction { provider_states: vec![ ProviderState::default(&s!("bobby")) ], .. Interaction::default() };
+  let interaction = RequestResponseInteraction { provider_states: vec![ ProviderState::default(&s!("bobby")) ], .. RequestResponseInteraction::default() };
   expect!(filter_interaction(&interaction, &FilterInfo::State(s!("")))).to(be_false());
 }
 
 #[test]
 fn if_the_state_filter_is_empty_returns_true_if_the_interaction_state_is_not_defined() {
-  let interaction = Interaction { provider_states: vec![], .. Interaction::default() };
+  let interaction = RequestResponseInteraction { provider_states: vec![], .. RequestResponseInteraction::default() };
   expect!(filter_interaction(&interaction, &FilterInfo::State(s!("")))).to(be_true());
 }
 
 #[test]
 fn if_the_state_filter_and_interaction_filter_is_defined_must_match_both() {
-  let interaction = Interaction { description: s!("freddy"), provider_states: vec![ ProviderState::default(&s!("bobby")) ], .. Interaction::default() };
+  let interaction = RequestResponseInteraction { description: s!("freddy"), provider_states: vec![ ProviderState::default(&s!("bobby")) ], .. RequestResponseInteraction::default() };
   expect!(filter_interaction(&interaction, &FilterInfo::DescriptionAndState(s!(".*ddy"), s!("bob.*")))).to(be_true());
 }
 
 #[test]
 fn if_the_state_filter_and_interaction_filter_is_defined_is_false_if_the_provider_state_does_not_match() {
-  let interaction = Interaction { description: s!("freddy"), provider_states: vec![ ProviderState::default(&s!("boddy")) ], .. Interaction::default() };
+  let interaction = RequestResponseInteraction { description: s!("freddy"), provider_states: vec![ ProviderState::default(&s!("boddy")) ], .. RequestResponseInteraction::default() };
   expect!(filter_interaction(&interaction, &FilterInfo::DescriptionAndState(s!(".*ddy"), s!("bob.*")))).to(be_false());
 }
 
 #[test]
 fn if_the_state_filter_and_interaction_filter_is_defined_is_false_if_the_description_does_not_match() {
-  let interaction = Interaction { description: s!("frebby"), provider_states: vec![ ProviderState::default(&s!("bobby")) ], .. Interaction::default() };
+  let interaction = RequestResponseInteraction { description: s!("frebby"), provider_states: vec![ ProviderState::default(&s!("bobby")) ], .. RequestResponseInteraction::default() };
   expect!(filter_interaction(&interaction, &FilterInfo::DescriptionAndState(s!(".*ddy"), s!("bob.*")))).to(be_false());
 }
 
 #[test]
 fn if_the_state_filter_and_interaction_filter_is_defined_is_false_if_both_do_not_match() {
-  let interaction = Interaction { description: s!("joe"), provider_states: vec![ ProviderState::default(&s!("author")) ], .. Interaction::default() };
+  let interaction = RequestResponseInteraction { description: s!("joe"), provider_states: vec![ ProviderState::default(&s!("author")) ], .. RequestResponseInteraction::default() };
   expect!(filter_interaction(&interaction, &FilterInfo::DescriptionAndState(s!(".*ddy"), s!("bob.*")))).to(be_false());
 }
 
@@ -102,7 +102,7 @@ fn if_no_consumer_filter_is_defined_returns_true() {
 #[test]
 fn if_a_consumer_filter_is_defined_returns_false_if_the_consumer_name_does_not_match() {
   let consumers = vec![s!("fred"), s!("joe")];
-  let result = Ok((RequestResponsePact { consumer: Consumer { name: s!("bob") }, .. RequestResponsePact::default() }, PactSource::Unknown));
+  let result = Ok((Box::new(RequestResponsePact { consumer: Consumer { name: s!("bob") }, .. RequestResponsePact::default() }) as Box<dyn Pact>, PactSource::Unknown));
   expect!(filter_consumers(&consumers, &result)).to(be_false());
 }
 
@@ -116,7 +116,7 @@ fn if_a_consumer_filter_is_defined_returns_true_if_the_result_is_an_error() {
 #[test]
 fn if_a_consumer_filter_is_defined_returns_true_if_the_consumer_name_does_match() {
   let consumers = vec![s!("fred"), s!("joe"), s!("bob")];
-  let result = Ok((RequestResponsePact { consumer: Consumer { name: s!("bob") }, .. RequestResponsePact::default() }, PactSource::Unknown));
+  let result = Ok((Box::new(RequestResponsePact { consumer: Consumer { name: s!("bob") }, .. RequestResponsePact::default() }) as Box<dyn Pact>, PactSource::Unknown));
   expect!(filter_consumers(&consumers, &result)).to(be_true());
 }
 

@@ -239,7 +239,7 @@ fn loading_interaction_from_json() {
         "description": "String",
         "providerState": "provider state"
     }"#;
-    let interaction = Interaction::from_json(0, &serde_json::from_str(interaction_json).unwrap(), &PactSpecification::V1_1);
+    let interaction = RequestResponseInteraction::from_json(0, &serde_json::from_str(interaction_json).unwrap(), &PactSpecification::V1_1);
     expect!(interaction.description).to(be_equal_to("String"));
     expect!(interaction.provider_states).to(be_equal_to(vec![
         ProviderState { name: s!("provider state"), params: hashmap!{} } ]));
@@ -250,7 +250,7 @@ fn defaults_to_number_if_no_description() {
     let interaction_json = r#"{
         "providerState": "provider state"
     }"#;
-    let interaction = Interaction::from_json(0, &serde_json::from_str(interaction_json).unwrap(), &PactSpecification::V1_1);
+    let interaction = RequestResponseInteraction::from_json(0, &serde_json::from_str(interaction_json).unwrap(), &PactSpecification::V1_1);
     expect!(interaction.description).to(be_equal_to("Interaction 0"));
     expect!(interaction.provider_states).to(be_equal_to(vec![
         ProviderState { name: s!("provider state"), params: hashmap!{} } ]));
@@ -260,7 +260,7 @@ fn defaults_to_number_if_no_description() {
 fn defaults_to_empty_if_no_provider_state() {
     let interaction_json = r#"{
     }"#;
-    let interaction = Interaction::from_json(0, &serde_json::from_str(interaction_json).unwrap(), &PactSpecification::V1);
+    let interaction = RequestResponseInteraction::from_json(0, &serde_json::from_str(interaction_json).unwrap(), &PactSpecification::V1);
     expect!(interaction.provider_states.iter()).to(be_empty());
 }
 
@@ -269,7 +269,7 @@ fn defaults_to_none_if_provider_state_null() {
     let interaction_json = r#"{
         "providerState": null
     }"#;
-    let interaction = Interaction::from_json(0, &serde_json::from_str(interaction_json).unwrap(), &PactSpecification::V1);
+    let interaction = RequestResponseInteraction::from_json(0, &serde_json::from_str(interaction_json).unwrap(), &PactSpecification::V1);
     expect!(interaction.provider_states.iter()).to(be_empty());
 }
 
@@ -828,7 +828,7 @@ fn interaction_from_json_sets_the_id_if_loaded_from_broker() {
       "status": 200
     }
   });
-  expect!(Interaction::from_json(0, &json, &PactSpecification::V3).id).to(be_some().value("123456789".to_string()));
+  expect!(RequestResponseInteraction::from_json(0, &json, &PactSpecification::V3).id).to(be_some().value("123456789".to_string()));
 }
 
 #[test]
@@ -854,10 +854,10 @@ fn write_pact_test() {
     let pact = RequestResponsePact { consumer: Consumer { name: s!("write_pact_test_consumer") },
         provider: Provider { name: s!("write_pact_test_provider") },
         interactions: vec![
-            Interaction {
+            RequestResponseInteraction {
                 description: s!("Test Interaction"),
                 provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
-                .. Interaction::default()
+                .. RequestResponseInteraction::default()
             }
         ],
         .. RequestResponsePact::default() };
@@ -908,10 +908,10 @@ fn write_pact_test_should_merge_pacts() {
     let pact = RequestResponsePact { consumer: Consumer { name: s!("merge_consumer") },
         provider: Provider { name: s!("merge_provider") },
         interactions: vec![
-            Interaction {
+            RequestResponseInteraction {
                 description: s!("Test Interaction 2"),
                 provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
-                .. Interaction::default()
+                .. RequestResponseInteraction::default()
             }
         ],
         metadata: btreemap!{},
@@ -920,10 +920,10 @@ fn write_pact_test_should_merge_pacts() {
     let pact2 = RequestResponsePact { consumer: Consumer { name: s!("merge_consumer") },
         provider: Provider { name: s!("merge_provider") },
         interactions: vec![
-            Interaction {
+            RequestResponseInteraction {
                 description: s!("Test Interaction"),
                 provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
-                .. Interaction::default()
+                .. RequestResponseInteraction::default()
             }
         ],
         metadata: btreemap!{},
@@ -989,10 +989,10 @@ fn write_pact_test_should_not_merge_pacts_with_conflicts() {
     let pact = RequestResponsePact { consumer: Consumer { name: s!("write_pact_test_consumer") },
         provider: Provider { name: s!("write_pact_test_provider") },
         interactions: vec![
-            Interaction {
+            RequestResponseInteraction {
                 description: s!("Test Interaction"),
                 provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
-                .. Interaction::default()
+                .. RequestResponseInteraction::default()
             }
         ],
         metadata: btreemap!{},
@@ -1001,11 +1001,11 @@ fn write_pact_test_should_not_merge_pacts_with_conflicts() {
     let pact2 = RequestResponsePact { consumer: Consumer { name: s!("write_pact_test_consumer") },
         provider: Provider { name: s!("write_pact_test_provider") },
         interactions: vec![
-            Interaction {
+            RequestResponseInteraction {
                 description: s!("Test Interaction"),
                 provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
                 response: Response { status: 400, .. Response::default() },
-                .. Interaction::default()
+                .. RequestResponseInteraction::default()
             }
         ],
         metadata: btreemap!{},
@@ -1094,10 +1094,10 @@ fn pact_merge_does_not_merge_where_there_are_conflicting_interactions() {
     let pact = RequestResponsePact { consumer: Consumer { name: s!("test_consumer") },
         provider: Provider { name: s!("test_provider") },
         interactions: vec![
-            Interaction {
+            RequestResponseInteraction {
                 description: s!("Test Interaction"),
                 provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
-                .. Interaction::default()
+                .. RequestResponseInteraction::default()
             }
         ],
         metadata: btreemap!{},
@@ -1106,11 +1106,11 @@ fn pact_merge_does_not_merge_where_there_are_conflicting_interactions() {
     let pact2 = RequestResponsePact { consumer: Consumer { name: s!("test_consumer") },
         provider: Provider { name: s!("test_provider") },
         interactions: vec![
-            Interaction {
+            RequestResponseInteraction {
                 description: s!("Test Interaction"),
                 provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
                 request: Request { path: s!("/other"), .. Request::default() },
-                .. Interaction::default()
+                .. RequestResponseInteraction::default()
             }
         ],
         metadata: btreemap!{},
@@ -1124,10 +1124,10 @@ fn pact_merge_removes_duplicates() {
     let pact = RequestResponsePact { consumer: Consumer { name: s!("test_consumer") },
         provider: Provider { name: s!("test_provider") },
         interactions: vec![
-            Interaction {
+            RequestResponseInteraction {
                 description: s!("Test Interaction"),
                 provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
-                .. Interaction::default()
+                .. RequestResponseInteraction::default()
             }
         ],
         .. RequestResponsePact::default()
@@ -1135,15 +1135,15 @@ fn pact_merge_removes_duplicates() {
     let pact2 = RequestResponsePact { consumer: Consumer { name: s!("test_consumer") },
         provider: Provider { name: s!("test_provider") },
         interactions: vec![
-            Interaction {
+            RequestResponseInteraction {
                 description: s!("Test Interaction"),
                 provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
-                .. Interaction::default()
+                .. RequestResponseInteraction::default()
             },
-            Interaction {
+            RequestResponseInteraction {
                 description: s!("Test Interaction 2"),
                 provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
-                .. Interaction::default()
+                .. RequestResponseInteraction::default()
             }
         ],
         .. RequestResponsePact::default()
@@ -1160,77 +1160,77 @@ fn pact_merge_removes_duplicates() {
 
 #[test]
 fn interactions_do_not_conflict_if_they_have_different_descriptions() {
-    let interaction1 = Interaction {
+    let interaction1 = RequestResponseInteraction {
         description: s!("Test Interaction"),
         provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
-        .. Interaction::default()
+        .. RequestResponseInteraction::default()
     };
-    let interaction2 =Interaction {
+    let interaction2 = RequestResponseInteraction {
         description: s!("Test Interaction 2"),
         provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
-        .. Interaction::default()
+        .. RequestResponseInteraction::default()
     };
     expect!(interaction1.conflicts_with(&interaction2).iter()).to(be_empty());
 }
 
 #[test]
 fn interactions_do_not_conflict_if_they_have_different_provider_states() {
-    let interaction1 = Interaction {
+    let interaction1 = RequestResponseInteraction {
         description: s!("Test Interaction"),
         provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
-        .. Interaction::default()
+        .. RequestResponseInteraction::default()
     };
-    let interaction2 =Interaction {
+    let interaction2 = RequestResponseInteraction {
         description: s!("Test Interaction"),
         provider_states: vec![ProviderState { name: s!("Bad state to be in"), params: hashmap!{} }],
-        .. Interaction::default()
+        .. RequestResponseInteraction::default()
     };
     expect!(interaction1.conflicts_with(&interaction2).iter()).to(be_empty());
 }
 
 #[test]
 fn interactions_do_not_conflict_if_they_have_the_same_requests_and_responses() {
-    let interaction1 = Interaction {
+    let interaction1 = RequestResponseInteraction {
         description: s!("Test Interaction"),
         provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
-        .. Interaction::default()
+        .. RequestResponseInteraction::default()
     };
-    let interaction2 =Interaction {
+    let interaction2 = RequestResponseInteraction {
         description: s!("Test Interaction"),
         provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
-        .. Interaction::default()
+        .. RequestResponseInteraction::default()
     };
     expect!(interaction1.conflicts_with(&interaction2).iter()).to(be_empty());
 }
 
 #[test]
 fn interactions_conflict_if_they_have_different_requests() {
-    let interaction1 = Interaction {
+    let interaction1 = RequestResponseInteraction {
         description: s!("Test Interaction"),
         provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
-        .. Interaction::default()
+        .. RequestResponseInteraction::default()
     };
-    let interaction2 =Interaction {
+    let interaction2 = RequestResponseInteraction {
         description: s!("Test Interaction"),
         provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
         request: Request { method: s!("POST"), .. Request::default() },
-        .. Interaction::default()
+        .. RequestResponseInteraction::default()
     };
     expect!(interaction1.conflicts_with(&interaction2).iter()).to_not(be_empty());
 }
 
 #[test]
 fn interactions_conflict_if_they_have_different_responses() {
-    let interaction1 = Interaction {
+    let interaction1 = RequestResponseInteraction {
         description: s!("Test Interaction"),
         provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
-        .. Interaction::default()
+        .. RequestResponseInteraction::default()
     };
-    let interaction2 = Interaction {
+    let interaction2 = RequestResponseInteraction {
         description: s!("Test Interaction"),
         provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
         response: Response { status: 400, .. Response::default() },
-        .. Interaction::default()
+        .. RequestResponseInteraction::default()
     };
     expect!(interaction1.conflicts_with(&interaction2).iter()).to_not(be_empty());
 }
@@ -1381,7 +1381,7 @@ fn write_pact_test_with_matchers() {
     let pact = RequestResponsePact { consumer: Consumer { name: s!("write_pact_test_consumer") },
         provider: Provider { name: s!("write_pact_test_provider") },
         interactions: vec![
-            Interaction {
+            RequestResponseInteraction {
                 description: s!("Test Interaction"),
                 provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
                 request: Request {
@@ -1392,7 +1392,7 @@ fn write_pact_test_with_matchers() {
                     },
                     .. Request::default()
                 },
-                .. Interaction::default()
+                .. RequestResponseInteraction::default()
             }
         ],
         .. RequestResponsePact::default() };
@@ -1448,7 +1448,7 @@ fn write_pact_v3_test_with_matchers() {
     let pact = RequestResponsePact { consumer: Consumer { name: s!("write_pact_test_consumer_v3") },
         provider: Provider { name: s!("write_pact_test_provider_v3") },
         interactions: vec![
-        Interaction {
+            RequestResponseInteraction {
             description: s!("Test Interaction"),
             provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
             request: Request {
@@ -1462,7 +1462,7 @@ fn write_pact_v3_test_with_matchers() {
                     },
                 .. Request::default()
             },
-            .. Interaction::default()
+            .. RequestResponseInteraction::default()
         }
         ],
         .. RequestResponsePact::default() };
@@ -1693,7 +1693,7 @@ fn write_v3_pact_test() {
     let pact = RequestResponsePact { consumer: Consumer { name: s!("write_pact_test_consumer") },
         provider: Provider { name: s!("write_pact_test_provider") },
         interactions: vec![
-            Interaction {
+            RequestResponseInteraction {
                 description: s!("Test Interaction"),
                 provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
                 request: Request {
@@ -1703,7 +1703,7 @@ fn write_v3_pact_test() {
                     }),
                     .. Request::default()
                 },
-                .. Interaction::default()
+                .. RequestResponseInteraction::default()
             }
         ],
         .. RequestResponsePact::default() };
@@ -1872,7 +1872,7 @@ fn write_pact_test_with_generators() {
     let pact = RequestResponsePact { consumer: Consumer { name: s!("write_pact_test_consumer") },
         provider: Provider { name: s!("write_pact_test_provider") },
         interactions: vec![
-            Interaction {
+            RequestResponseInteraction {
                 description: s!("Test Interaction with generators"),
                 provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
                 request: Request {
@@ -1886,7 +1886,7 @@ fn write_pact_test_with_generators() {
                     },
                     .. Request::default()
                 },
-                .. Interaction::default()
+                .. RequestResponseInteraction::default()
             }
         ],
         .. RequestResponsePact::default() };

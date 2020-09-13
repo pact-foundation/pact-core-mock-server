@@ -57,9 +57,9 @@ impl PactBuilder {
 
     /// Directly add a pre-built `Interaction` to our `Pact`. Normally it's
     /// easier to use `interaction` instead of this function.
-    pub fn push_interaction(&mut self, interaction: Interaction) -> &mut Self {
-        self.pact.interactions.push(interaction);
-        self
+    pub fn push_interaction(&mut self, interaction: RequestResponseInteraction) -> &mut Self {
+      self.pact.interactions.push(interaction);
+      self
     }
 
     /// Return the `Pact` we've built.

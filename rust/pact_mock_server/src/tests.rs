@@ -3,7 +3,7 @@ use expectest::expect;
 use maplit::*;
 use super::*;
 use crate::matching::{MatchResult, match_request};
-use pact_matching::models::{Interaction, Request, OptionalBody, Response};
+use pact_matching::models::{Interaction, Request, OptionalBody, Response, RequestResponseInteraction};
 use pact_matching::Mismatch;
 use pact_matching::models::matchingrules::*;
 use pact_matching::matchingrules;
@@ -12,7 +12,7 @@ use reqwest::header::ACCEPT;
 #[test]
 fn match_request_returns_a_match_for_identical_requests() {
     let request = Request::default();
-    let interaction = Interaction { request: request.clone(), .. Interaction::default() };
+    let interaction = RequestResponseInteraction { request: request.clone(), .. RequestResponseInteraction::default() };
     let interactions = vec![interaction.clone()];
     let result = match_request(&request, &interactions);
     expect!(result).to(be_equal_to(MatchResult::RequestMatch(interaction)));
@@ -29,9 +29,9 @@ fn match_request_returns_a_not_found_for_no_interactions() {
 #[test]
 fn match_request_returns_a_match_for_multiple_identical_requests() {
     let request = Request::default();
-    let interaction = Interaction { request: request.clone(), .. Interaction::default() };
+    let interaction = RequestResponseInteraction { request: request.clone(), .. RequestResponseInteraction::default() };
     let interactions = vec![interaction.clone(),
-      Interaction { description: s!("test2"), request: request.clone(), .. Interaction::default() }];
+      RequestResponseInteraction { description: s!("test2"), request: request.clone(), .. RequestResponseInteraction::default() }];
     let result = match_request(&request, &interactions);
     expect!(result).to(be_equal_to(MatchResult::RequestMatch(interaction)));
 }
@@ -40,9 +40,9 @@ fn match_request_returns_a_match_for_multiple_identical_requests() {
 fn match_request_returns_a_match_for_multiple_requests() {
     let request = Request { method: s!("GET"), .. Request::default() };
     let request2 = Request { method: s!("POST"), path: s!("/post"), .. Request::default() };
-    let interaction = Interaction { request: request.clone(), .. Interaction::default() };
+    let interaction = RequestResponseInteraction { request: request.clone(), .. RequestResponseInteraction::default() };
     let interactions = vec![interaction.clone(),
-        Interaction { description: s!("test2"), request: request2.clone(), .. Interaction::default() }];
+      RequestResponseInteraction { description: s!("test2"), request: request2.clone(), .. RequestResponseInteraction::default() }];
     let result = match_request(&request, &interactions);
     expect!(result).to(be_equal_to(MatchResult::RequestMatch(interaction)));
 }
@@ -52,7 +52,7 @@ fn match_request_returns_a_mismatch_for_incorrect_request() {
     let request = Request::default();
     let expected_request = Request { query: Some(hashmap!{ s!("QueryA") => vec![s!("Value A")] }),
         .. Request::default() };
-    let interactions = vec![Interaction { request: expected_request, .. Interaction::default() }];
+    let interactions = vec![RequestResponseInteraction { request: expected_request, .. RequestResponseInteraction::default() }];
     let result = match_request(&request, &interactions);
     expect!(result.match_key()).to(be_equal_to(s!("Request-Mismatch")));
 }
@@ -62,7 +62,7 @@ fn match_request_returns_request_not_found_if_method_or_path_do_not_match() {
     let request = Request { method: s!("GET"), path: s!("/path"), .. Request::default() };
     let expected_request = Request { method: s!("POST"), path: s!("/otherpath"),
         .. Request::default() };
-    let interactions = vec![Interaction { request: expected_request, .. Interaction::default() }];
+    let interactions = vec![RequestResponseInteraction { request: expected_request, .. RequestResponseInteraction::default() }];
     let result = match_request(&request, &interactions);
     expect!(result).to(be_equal_to(MatchResult::RequestNotFound(request)));
 }
@@ -78,8 +78,8 @@ fn match_request_returns_the_most_appropriate_mismatch_for_multiple_requests() {
     let request3 = Request { method: s!("GET"), path: s!("/"), query: Some(hashmap!{
         s!("QueryA") => vec![s!("Value A")]
         }), body: OptionalBody::Missing, .. Request::default() };
-    let interaction = Interaction { description: s!("test"), request: request.clone(), .. Interaction::default() };
-    let interaction2 = Interaction { description: s!("test2"), request: request2.clone(), .. Interaction::default() };
+    let interaction = RequestResponseInteraction { description: s!("test"), request: request.clone(), .. RequestResponseInteraction::default() };
+    let interaction2 = RequestResponseInteraction { description: s!("test2"), request: request2.clone(), .. RequestResponseInteraction::default() };
     let interactions = vec![interaction.clone(), interaction2.clone()];
     let result = match_request(&request3, &interactions);
     expect!(result).to(be_equal_to(MatchResult::RequestMismatch(interaction2,
@@ -114,7 +114,7 @@ fn match_request_supports_v2_matchers() {
         },
       .. Request::default()
     };
-    let interaction = Interaction { request: expected_request, .. Interaction::default() };
+    let interaction = RequestResponseInteraction { request: expected_request, .. RequestResponseInteraction::default() };
     let result = match_request(&request, &vec![interaction.clone()]);
     expect!(result).to(be_equal_to(MatchResult::RequestMatch(interaction)));
 }
@@ -140,7 +140,7 @@ fn match_request_supports_v2_matchers_with_xml() {
         },
       .. Request::default()
     };
-    let interaction = Interaction { request: expected_request, .. Interaction::default() };
+    let interaction = RequestResponseInteraction { request: expected_request, .. RequestResponseInteraction::default() };
     let result = match_request(&request, &vec![interaction.clone()]);
     expect!(result).to(be_equal_to(MatchResult::RequestMatch(interaction)));
 }
@@ -149,14 +149,14 @@ fn match_request_supports_v2_matchers_with_xml() {
 fn match_request_with_header_with_multiple_values() {
   let pact = RequestResponsePact {
     interactions: vec![
-      Interaction {
+      RequestResponseInteraction {
         request: Request {
           headers: Some(hashmap! {
             "accept".to_string() => vec!["application/hal+json".to_string(), "application/json".to_string()]
           }),
           .. Request::default()
         },
-        .. Interaction::default()
+        .. RequestResponseInteraction::default()
       }
     ],
     .. RequestResponsePact::default()
@@ -183,17 +183,17 @@ fn match_request_with_more_specific_request() {
       "Authorization".to_string() => vec!["Bearer token".to_string()]
     }),
     .. Request::default() };
-  let interaction1 = Interaction {
+  let interaction1 = RequestResponseInteraction {
     description: s!("test_more_general_request"),
     request: request1.clone(),
     response: Response { status: 401, .. Response::default() },
-    .. Interaction::default()
+    .. RequestResponseInteraction::default()
   };
-  let interaction2 = Interaction {
+  let interaction2 = RequestResponseInteraction {
     description: s!("test_more_specific_request"),
     request: request2.clone(),
     response: Response { status: 200, .. Response::default() },
-    .. Interaction::default()
+    .. RequestResponseInteraction::default()
   };
 
   let result1 = match_request(&request1.clone(), &vec![interaction1.clone(), interaction2.clone()]);

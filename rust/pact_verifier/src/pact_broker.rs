@@ -1,7 +1,7 @@
-use pact_matching::models::RequestResponsePact;
+use pact_matching::models::{Pact, RequestResponsePact};
 use pact_matching::s;
 use crate::MismatchResult;
-use serde_json::{json};
+use serde_json::{json, Value};
 use itertools::Itertools;
 use std::collections::HashMap;
 use super::provider_client::join_paths;
@@ -13,6 +13,7 @@ use std::fmt::{Display, Formatter};
 use maplit::*;
 use reqwest::Method;
 use log::*;
+use pact_matching::models::message_pact::MessagePact;
 
 fn is_true(object: &serde_json::Map<String, serde_json::Value>, field: &str) -> bool {
     match object.get(field) {
@@ -445,10 +446,10 @@ fn links_from_json(json: &serde_json::Value) -> Vec<Link> {
 }
 
 pub async fn fetch_pacts_from_broker(
-    broker_url: String,
-    provider_name: String,
-    auth: Option<HttpAuth>
-) -> Result<Vec<Result<(RequestResponsePact, Vec<Link>), PactBrokerError>>, PactBrokerError> {
+  broker_url: String,
+  provider_name: String,
+  auth: Option<HttpAuth>
+) -> Result<Vec<Result<(Box<dyn Pact>, Vec<Link>), PactBrokerError>>, PactBrokerError> {
     let mut hal_client = HALClient::with_url(broker_url.clone(), auth);
     let template_values = hashmap!{ s!("provider") => provider_name.clone() };
 
@@ -482,18 +483,31 @@ pub async fn fetch_pacts_from_broker(
           }
         })
         .and_then(|(hal_client, pact_link)| async {
-            let pact_json = hal_client.fetch_url(
-                &pact_link.clone(),
-                &template_values.clone()
-            ).await?;
-            Ok((pact_link, pact_json))
+          let pact_json = hal_client.fetch_url(
+            &pact_link.clone(),
+            &template_values.clone()
+          ).await?;
+          Ok((pact_link, pact_json))
         })
-        .map_ok(|(pact_link, pact_json)| {
-            let href = pact_link.href.unwrap();
-            let pact = RequestResponsePact::from_json(&href, &pact_json);
-            let links = links_from_json(&pact_json);
-
-            (pact, links)
+        .map(|result| {
+          match result {
+            Ok((pact_link, pact_json)) => {
+              let href = pact_link.href.unwrap_or_default();
+              let links = links_from_json(&pact_json);
+              match pact_json {
+                Value::Object(ref map) => if map.contains_key("messages") {
+                  match MessagePact::from_json(&href, &pact_json) {
+                    Ok(pact) => Ok((Box::new(pact) as Box<dyn Pact>, links)),
+                    Err(err) => Err(PactBrokerError::ContentError(err))
+                  }
+                } else {
+                  Ok((Box::new(RequestResponsePact::from_json(&href, &pact_json)) as Box<dyn Pact>, links))
+                },
+                _ => Err(PactBrokerError::ContentError(format!("Link '{}' does not point to a valid pact file", href)))
+              }
+            },
+            Err(err) => Err(err)
+          }
         })
         .into_stream()
         .collect()
@@ -661,7 +675,7 @@ mod tests {
     use pact_consumer::prelude::*;
     use pact_consumer::*;
     use env_logger::*;
-    use pact_matching::models::{Pact, Consumer, Provider, Interaction, PactSpecification};
+    use pact_matching::models::{Pact, Consumer, Provider, Interaction, PactSpecification, RequestResponseInteraction};
     use pact_matching::Mismatch::MethodMismatch;
 
     #[tokio::test]
@@ -965,8 +979,14 @@ mod tests {
             .start_mock_server();
 
         let result = fetch_pacts_from_broker(pact_broker.url().to_string(), s!("sad_provider"), None).await;
-        expect!(result).to(be_err().value(format!("No pacts for provider 'sad_provider' where found in the pact broker. URL: '{}'",
-            pact_broker.url())));
+        match result {
+          Ok(_) => {
+            panic!("Expected an error result, but got OK");
+          },
+          Err(err) => {
+            expect!(err.to_string().starts_with("NotFound(No pacts for provider \'sad_provider\' where found in the pact broker.")).to(be_true());
+          }
+        }
     }
 
     #[tokio::test]
@@ -978,7 +998,7 @@ mod tests {
             .to_json(PactSpecification::V3).to_string();
         let pact2 = RequestResponsePact { consumer: Consumer { name: s!("Consumer2") },
             provider: Provider { name: s!("happy_provider") },
-            interactions: vec![ Interaction { description: s!("a request friends"), .. Interaction::default() } ],
+            interactions: vec![ RequestResponseInteraction { description: s!("a request friends"), .. RequestResponseInteraction::default() } ],
             .. RequestResponsePact::default() }
             .to_json(PactSpecification::V3).to_string();
         let pact_broker = PactBuilder::new("RustPactVerifier", "PactBroker")
@@ -1038,11 +1058,17 @@ mod tests {
             .start_mock_server();
 
         let result = fetch_pacts_from_broker(pact_broker.url().to_string(), s!("happy_provider"), None).await;
-        expect!(result.clone()).to(be_ok());
-        let pacts = result.unwrap();
+        match &result {
+          Ok(_) => (),
+          Err(err) => panic!(format!("Expected an Ok result, got a error {}", err))
+        }
+        let pacts = &result.unwrap();
         expect!(pacts.len()).to(be_equal_to(2));
         for pact in pacts {
-            expect!(pact).to(be_ok());
+          match pact {
+            Ok(_) => (),
+            Err(err) => panic!(format!("Expected an Ok result, got a error {}", err))
+          }
         }
     }
 

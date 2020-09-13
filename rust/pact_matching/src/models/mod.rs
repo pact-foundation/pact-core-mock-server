@@ -26,6 +26,8 @@ use crate::models::http_utils::HttpAuth;
 use super::json::value_of;
 use log::*;
 use crate::models::content_types::{ContentType, TEXT};
+use crate::models::message_pact::MessagePact;
+use crate::models::provider_states::ProviderState;
 
 pub mod json_utils;
 pub mod xml_utils;
@@ -943,9 +945,24 @@ pub struct PactConflict {
     pub description: String
 }
 
+/// Interaction Trait
+pub trait Interaction {
+  /// If this is a request/response interaction
+  fn is_request_response(&self) -> bool;
+  /// Returns the request/response interaction, panics if it is not one
+  fn as_request_response(&self) -> RequestResponseInteraction;
+  /// Interaction ID. This will only be set if the Pact file was fetched from a Pact Broker
+  fn id(&self) -> Option<String>;
+  /// Description of this interaction. This needs to be unique in the pact file.
+  fn description(&self) -> String;
+  /// Optional provider states for the interaction.
+  /// See https://docs.pact.io/getting_started/provider_states for more info on provider states.
+  fn provider_states(&self) -> Vec<provider_states::ProviderState>;
+}
+
 /// Struct that defines an interaction (request and response pair)
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Interaction {
+pub struct RequestResponseInteraction {
     /// Interaction ID. This will only be set if the Pact file was fetched from a Pact Broker
     pub id: Option<String>,
     /// Description of this interaction. This needs to be unique in the pact file.
@@ -959,9 +976,31 @@ pub struct Interaction {
     pub response: Response
 }
 
-impl Interaction {
+impl Interaction for RequestResponseInteraction {
+  fn is_request_response(&self) -> bool {
+    true
+  }
+
+  fn as_request_response(&self) -> RequestResponseInteraction {
+    self.clone()
+  }
+
+  fn id(&self) -> Option<String> {
+    self.id.clone()
+  }
+
+  fn description(&self) -> String {
+    self.description.clone()
+  }
+
+  fn provider_states(&self) -> Vec<ProviderState> {
+    self.provider_states.clone()
+  }
+}
+
+impl RequestResponseInteraction {
     /// Constructs an `Interaction` from the `Value` struct.
-    pub fn from_json(index: usize, pact_json: &Value, spec_version: &PactSpecification) -> Interaction {
+    pub fn from_json(index: usize, pact_json: &Value, spec_version: &PactSpecification) -> RequestResponseInteraction {
         let id = pact_json.get("_id").map(|id| value_of(id));
         let description = match pact_json.get("description") {
             Some(v) => match *v {
@@ -979,7 +1018,7 @@ impl Interaction {
             Some(v) => Response::from_json(v, spec_version),
             None => Response::default()
         };
-        Interaction {
+      RequestResponseInteraction {
           id,
           description,
           provider_states,
@@ -1011,31 +1050,39 @@ impl Interaction {
     ///
     /// Two interactions conflict if they have the same description and provider state, but they request and
     /// responses are not equal
-    pub fn conflicts_with(&self, other: &Interaction) -> Vec<PactConflict> {
+    pub fn conflicts_with(&self, other: &dyn Interaction) -> Vec<PactConflict> {
+      if other.is_request_response() {
+        let other = other.as_request_response();
         if self.description == other.description && self.provider_states == other.provider_states {
-            let mut conflicts = self.request.differences_from(&other.request).iter()
-                .filter(|difference| match difference.0 {
-                  DifferenceType::MatchingRules | DifferenceType::Body => false,
-                  _ => true
-                })
-                .map(|difference| PactConflict { interaction: self.description.clone(), description: difference.1.clone() } )
-                .collect::<Vec<PactConflict>>();
-            for difference in self.response.differences_from(&other.response) {
-              match difference.0 {
-                DifferenceType::MatchingRules | DifferenceType::Body => (),
-                _ => conflicts.push(PactConflict { interaction: self.description.clone(), description: difference.1.clone() })
-              };
-            }
-            conflicts
+          let mut conflicts = self.request.differences_from(&other.request).iter()
+            .filter(|difference| match difference.0 {
+              DifferenceType::MatchingRules | DifferenceType::Body => false,
+              _ => true
+            })
+            .map(|difference| PactConflict { interaction: self.description.clone(), description: difference.1.clone() })
+            .collect::<Vec<PactConflict>>();
+          for difference in self.response.differences_from(&other.response) {
+            match difference.0 {
+              DifferenceType::MatchingRules | DifferenceType::Body => (),
+              _ => conflicts.push(PactConflict { interaction: self.description.clone(), description: difference.1.clone() })
+            };
+          }
+          conflicts
         } else {
-            vec![]
+          vec![]
         }
+      } else {
+        vec![PactConflict {
+          interaction: self.description.clone(),
+          description: format!("You can not combine message and request/response interactions")
+        }]
+      }
     }
 }
 
-impl Default for Interaction {
+impl Default for RequestResponseInteraction {
   fn default() -> Self {
-    Interaction {
+    RequestResponseInteraction {
       id: None,
       description: s!("Default Interaction"),
       provider_states: vec![],
@@ -1045,7 +1092,7 @@ impl Default for Interaction {
   }
 }
 
-impl Display for Interaction {
+impl Display for RequestResponseInteraction {
   fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
     write!(f, "Interaction ( id: {:?}, description: \"{}\", provider_states: {:?}, request: {}, response: {} )",
            self.id, self.description, self.provider_states, self.request, self.response)
@@ -1054,7 +1101,18 @@ impl Display for Interaction {
 
 /// Trait for a Pact (request/response or message)
 pub trait Pact {
-
+  /// Consumer side of the pact
+  fn consumer(&self) -> Consumer;
+  /// Provider side of the pact
+  fn provider(&self) -> Provider;
+  /// Interactions in the Pact
+  fn interactions(&self) -> Vec<&dyn Interaction>;
+  /// Attempt to downcast to a concrete Pact
+  fn as_request_response_pact(&self) -> Result<RequestResponsePact, String>;
+  /// Attempt to downcast to a concrete Pact
+  fn as_message_pact(&self) -> Result<MessagePact, String>;
+  /// Pact metadata
+  fn metadata(&self) -> BTreeMap<String, BTreeMap<String, String>>;
 }
 
 pub mod message;
@@ -1068,11 +1126,37 @@ pub struct RequestResponsePact {
     /// Provider side of the pact
     pub provider: Provider,
     /// List of interactions between the consumer and provider.
-    pub interactions: Vec<Interaction>,
+    pub interactions: Vec<RequestResponseInteraction>,
     /// Metadata associated with this pact file.
     pub metadata: BTreeMap<String, BTreeMap<String, String>>,
     /// Specification version of this pact
     pub specification_version: PactSpecification
+}
+
+impl Pact for RequestResponsePact {
+  fn consumer(&self) -> Consumer {
+    self.consumer.clone()
+  }
+
+  fn provider(&self) -> Provider {
+    self.provider.clone()
+  }
+
+  fn interactions(&self) -> Vec<&dyn Interaction> {
+    self.interactions.iter().map(|i| i as &dyn Interaction).collect()
+  }
+
+  fn as_request_response_pact(&self) -> Result<RequestResponsePact, String> {
+    Ok(self.clone())
+  }
+
+  fn as_message_pact(&self) -> Result<MessagePact, String> {
+    Err(format!("Can't convert a Request/response Pact to a different type"))
+  }
+
+  fn metadata(&self) -> BTreeMap<String, BTreeMap<String, String>> {
+    self.metadata.clone()
+  }
 }
 
 fn parse_meta_data(pact_json: &Value) -> BTreeMap<String, BTreeMap<String, String>> {
@@ -1101,11 +1185,11 @@ fn parse_meta_data(pact_json: &Value) -> BTreeMap<String, BTreeMap<String, Strin
     }
 }
 
-fn parse_interactions(pact_json: &Value, spec_version: PactSpecification) -> Vec<Interaction> {
+fn parse_interactions(pact_json: &Value, spec_version: PactSpecification) -> Vec<RequestResponseInteraction> {
     match pact_json.get("interactions") {
         Some(v) => match *v {
             Value::Array(ref array) => array.iter().enumerate().map(|(index, ijson)| {
-                Interaction::from_json(index, ijson, &spec_version)
+              RequestResponseInteraction::from_json(index, ijson, &spec_version)
             }).collect(),
             _ => vec![]
         },
@@ -1421,6 +1505,46 @@ pub fn parse_query_string(query: &String) -> Option<HashMap<String, Vec<String>>
     } else {
         None
     }
+}
+
+/// Reads the pact file and parses the resulting JSON into a `Pact` struct
+pub fn read_pact(file: &Path) -> io::Result<Box<dyn Pact>> {
+  let mut f = File::open(file)?;
+  let pact_json = serde_json::from_reader(&mut f);
+  match pact_json {
+    Ok(ref json) => {
+      match json {
+        Value::Object(map) => if map.contains_key("messages") {
+          match MessagePact::from_json(&format!("{:?}", file), json) {
+            Ok(pact) => Ok(Box::new(pact)),
+            Err(err) => Err(Error::new(ErrorKind::Other, format!("Failed to parse Pact JSON - {}", err)))
+          }
+        } else {
+          Ok(Box::new(RequestResponsePact::from_json(&format!("{:?}", file), json)))
+        },
+        _ => Err(Error::new(ErrorKind::Other, format!("Failed to parse Pact JSON - it is not a valid pact file")))
+      }
+    },
+    Err(err) => Err(Error::new(ErrorKind::Other, format!("Failed to parse Pact JSON - {}", err)))
+  }
+}
+
+/// Reads the pact file from a URL and parses the resulting JSON into a `Pact` struct
+pub fn load_pact_from_url<'a>(url: &String, auth: &Option<HttpAuth>) -> Result<Box<dyn Pact>, String> {
+  match http_utils::fetch_json_from_url(url, auth) {
+    Ok((ref url, ref json)) => match json {
+      Value::Object(map) => if map.contains_key("messages") {
+        match MessagePact::from_json(&format!("{:?}", url), json) {
+          Ok(pact) => Ok(Box::new(pact)),
+          Err(err) => Err(err)
+        }
+      } else {
+        Ok(Box::new(RequestResponsePact::from_json(&format!("{:?}", url), json)))
+      },
+      _ => Err(format!("Failed to parse Pact JSON from URL '{}' - it is not a valid pact file", url))
+    },
+    Err(err) => Err(err)
+  }
 }
 
 #[cfg(test)]

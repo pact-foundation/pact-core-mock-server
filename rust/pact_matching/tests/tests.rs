@@ -22,26 +22,26 @@ fn fixture_path(path: &str) -> PathBuf {
 
 #[test]
 fn test_load_pact() {
-    let pact_file = fixture_path("pact.json");
-    let pact_result = RequestResponsePact::read_pact(&pact_file);
+  let pact_file = fixture_path("pact.json");
+  let pact_result = read_pact(&pact_file);
 
-    match pact_result {
-        Ok(ref pact) => {
-            let mut f = File::open(pact_file).unwrap();
-            let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-            let pact_json = pact.to_json(PactSpecification::V2);
-            expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
-            expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
-            expect!(pact_json.get("interactions")).to(be_equal_to(pact_json_from_file.get("interactions")));
+  match pact_result {
+    Ok(pact) => {
+      let mut f = File::open(pact_file).unwrap();
+      let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
+      let pact_json = pact.as_request_response_pact().unwrap().to_json(PactSpecification::V2);
+      expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
+      expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
+      expect!(pact_json.get("interactions")).to(be_equal_to(pact_json_from_file.get("interactions")));
 
-            expect!(pact.metadata.get("pactSpecification")).to(be_none());
-            let metadata = pact_json.get("metadata").unwrap().as_object().unwrap();
-            let expected_keys : Vec<String> = vec![s!("pactRust"), s!("pactSpecification")];
-            expect!(metadata.keys().cloned().collect::<Vec<String>>()).to(be_equal_to(expected_keys));
-            expect!(metadata.get("pactSpecification").unwrap().to_string()).to(be_equal_to(s!("{\"version\":\"2.0.0\"}")));
-        },
-        Err(err) => panic!("Failed to load pact from '{:?}' - {}", pact_file, err)
-    }
+      expect!(pact.metadata().get("pactSpecification")).to(be_none());
+      let metadata = pact_json.get("metadata").unwrap().as_object().unwrap();
+      let expected_keys : Vec<String> = vec![s!("pactRust"), s!("pactSpecification")];
+      expect!(metadata.keys().cloned().collect::<Vec<String>>()).to(be_equal_to(expected_keys));
+      expect!(metadata.get("pactSpecification").unwrap().to_string()).to(be_equal_to(s!("{\"version\":\"2.0.0\"}")));
+    },
+    Err(err) => panic!("Failed to load pact from '{:?}' - {}", pact_file, err)
+  }
 }
 
 #[test]

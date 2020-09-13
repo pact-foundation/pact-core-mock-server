@@ -10,7 +10,7 @@ pub mod callback_executors;
 use std::path::Path;
 use std::io;
 use std::fs;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Display, Formatter, Debug};
 use pact_matching::*;
 use pact_matching::models::*;
 use pact_matching::models::provider_states::*;
@@ -123,7 +123,7 @@ impl From<ProviderStateError> for MismatchResult {
 
 async fn verify_response_from_provider<F: RequestFilterExecutor>(
   provider: &ProviderInfo,
-  interaction: &Interaction,
+  interaction: &RequestResponseInteraction,
   options: &VerificationOptions<F>,
   client: &reqwest::Client,
   verification_context: HashMap<String, Value>
@@ -166,24 +166,24 @@ async fn execute_state_change<S: ProviderStateExecutor>(
 
 fn verify_interaction<F: RequestFilterExecutor, S: ProviderStateExecutor>(
   provider: &ProviderInfo,
-  interaction: Interaction,
+  interaction: &dyn Interaction,
   options: &VerificationOptions<F>,
   provider_state_executor: &S
 ) -> Result<(), MismatchResult> {
   let client = reqwest::Client::new();
 
   let mut provider_states_results = hashmap!{};
-  if !interaction.provider_states.is_empty() {
-    info!("Running provider state change handlers for '{}'", interaction.description);
-    let interaction_id = interaction.id.clone();
+  if !interaction.provider_states().is_empty() {
+    info!("Running provider state change handlers for '{}'", interaction.description());
+    let interaction_id = interaction.id().clone();
     let sc_result: Vec<Result<HashMap<String, Value>, MismatchResult>> = block_on(
-      futures::stream::iter(interaction.provider_states.iter())
+      futures::stream::iter(interaction.provider_states().iter())
         .then(|state| {
           execute_state_change(&state, true, interaction_id.clone(), &client, provider_state_executor)
         }).collect());
 
     if sc_result.iter().any(|result| result.is_err()) {
-      return Err(MismatchResult::Error("One or more of the state change handlers has failed".to_string(), interaction.id))
+      return Err(MismatchResult::Error("One or more of the state change handlers has failed".to_string(), interaction.id()))
     } else {
       for result in sc_result {
         if result.is_ok() {
@@ -195,21 +195,21 @@ fn verify_interaction<F: RequestFilterExecutor, S: ProviderStateExecutor>(
     }
   }
 
-  info!("Running provider verification for '{}'", interaction.description);
-  let result = block_on(verify_response_from_provider(provider, &interaction,
+  info!("Running provider verification for '{}'", interaction.description());
+  let result = block_on(verify_response_from_provider(provider, &interaction.as_request_response(),
                                                       options, &client, provider_states_results));
 
-  if !interaction.provider_states.is_empty() {
-    info!("Running provider state change handler teardowns for '{}'", interaction.description);
-    let interaction_id = interaction.id.clone();
+  if !interaction.provider_states().is_empty() {
+    info!("Running provider state change handler teardowns for '{}'", interaction.description());
+    let interaction_id = interaction.id().clone();
     let sc_teardown_result: Vec<Result<HashMap<String, Value>, MismatchResult>> = block_on(
-      futures::stream::iter(interaction.provider_states.iter())
+      futures::stream::iter(interaction.provider_states().iter())
         .then(|state| {
           execute_state_change(&state, false, interaction_id.clone(), &client, provider_state_executor)
         }).collect());
 
     if sc_teardown_result.iter().any(|result| result.is_err()) {
-      return Err(MismatchResult::Error("One or more of the state change handlers has failed during teardown phase".to_string(), interaction.id))
+      return Err(MismatchResult::Error("One or more of the state change handlers has failed during teardown phase".to_string(), interaction.id()))
     }
   }
 
@@ -232,7 +232,7 @@ fn display_result(status: u16, status_result: ANSIGenericString<str>,
   println!("      has a matching body ({})", body_result);
 }
 
-fn walkdir(dir: &Path) -> io::Result<Vec<io::Result<RequestResponsePact>>> {
+fn walkdir(dir: &Path) -> io::Result<Vec<io::Result<Box<dyn Pact>>>> {
     let mut pacts = vec![];
     log::debug!("Scanning {:?}", dir);
     for entry in fs::read_dir(dir)? {
@@ -241,7 +241,7 @@ fn walkdir(dir: &Path) -> io::Result<Vec<io::Result<RequestResponsePact>>> {
         if path.is_dir() {
             walkdir(&path)?;
         } else {
-            pacts.push(RequestResponsePact::read_pact(&path))
+            pacts.push(read_pact(&path))
         }
     }
     Ok(pacts)
@@ -310,44 +310,43 @@ impl FilterInfo {
     ///
     /// # Panics
     /// If the state filter value can't be parsed as a regular expression
-    pub fn match_state(&self, interaction: &Interaction) -> bool {
-        if !interaction.provider_states.is_empty() {
-            if self.state().is_empty() {
-                false
-            } else {
-                let re = Regex::new(&self.state()).unwrap();
-                interaction.provider_states.iter().any(|state| re.is_match(&state.name))
-            }
+    pub fn match_state(&self, interaction: &dyn Interaction) -> bool {
+      if !interaction.provider_states().is_empty() {
+        if self.state().is_empty() {
+          false
         } else {
-            self.has_state() && self.state().is_empty()
+          let re = Regex::new(&self.state()).unwrap();
+          interaction.provider_states().iter().any(|state| re.is_match(&state.name))
         }
+      } else {
+        self.has_state() && self.state().is_empty()
+      }
     }
 
     /// If the filter matches the interaction description using a regular expression
     ///
     /// # Panics
     /// If the description filter value can't be parsed as a regular expression
-    pub fn match_description(&self, interaction: &Interaction) -> bool {
-        let re = Regex::new(&self.description()).unwrap();
-        re.is_match(&interaction.description)
-    }
-
-}
-
-fn filter_interaction(interaction: &Interaction, filter: &FilterInfo) -> bool {
-    if filter.has_description() && filter.has_state() {
-      filter.match_description(interaction) && filter.match_state(interaction)
-    } else if filter.has_description() {
-      filter.match_description(interaction)
-    } else if filter.has_state() {
-      filter.match_state(interaction)
-    } else {
-      true
+    pub fn match_description(&self, interaction: &dyn Interaction) -> bool {
+      let re = Regex::new(&self.description()).unwrap();
+      re.is_match(&interaction.description())
     }
 }
 
-fn filter_consumers(consumers: &[String], res: &Result<(RequestResponsePact, PactSource), String>) -> bool {
-    consumers.is_empty() || res.is_err() || consumers.contains(&res.clone().unwrap().0.consumer.name)
+fn filter_interaction(interaction: &dyn Interaction, filter: &FilterInfo) -> bool {
+  if filter.has_description() && filter.has_state() {
+    filter.match_description(interaction) && filter.match_state(interaction)
+  } else if filter.has_description() {
+    filter.match_description(interaction)
+  } else if filter.has_state() {
+    filter.match_state(interaction)
+  } else {
+    true
+  }
+}
+
+fn filter_consumers(consumers: &[String], res: &Result<(Box<dyn Pact>, PactSource), String>) -> bool {
+  consumers.is_empty() || res.is_err() || consumers.contains(&res.clone().as_ref().unwrap().0.consumer().name)
 }
 
 /// Options to use when running the verification
@@ -387,34 +386,33 @@ pub async fn verify_provider<F: RequestFilterExecutor, S: ProviderStateExecutor>
     provider_state_executor: &S
 ) -> bool {
     let pact_results = fetch_pacts(source, consumers).await;
-    debug!("Pacts to verify = {:?}", pact_results);
 
     let mut all_errors: Vec<(String, MismatchResult)> = vec![];
     for pact_result in pact_results {
-        match pact_result {
-            Ok((pact, pact_source)) => {
-                println!("\nVerifying a pact between {} and {}",
-                    Style::new().bold().paint(pact.consumer.name.clone()),
-                    Style::new().bold().paint(pact.provider.name.clone()));
+      match pact_result {
+        Ok((pact, pact_source)) => {
+          println!("\nVerifying a pact between {} and {}",
+            Style::new().bold().paint(pact.consumer().name.clone()),
+            Style::new().bold().paint(pact.provider().name.clone()));
 
-                if pact.interactions.is_empty() {
-                    println!("         {}", Yellow.paint("WARNING: Pact file has no interactions"));
-                } else {
-                    let errors = verify_pact(&provider_info, &filter, pact, &options, provider_state_executor).await;
-                    for error in errors.clone() {
-                        all_errors.push(error);
-                    }
-
-                    if options.publish {
-                        publish_result(&errors, &pact_source, &options).await
-                    }
-                }
-            },
-            Err(err) => {
-                log::error!("Failed to load pact - {}", Red.paint(err.to_string()));
-                all_errors.push((s!("Failed to load pact"), MismatchResult::Error(err.to_string(), None)));
+          if pact.interactions().is_empty() {
+            println!("         {}", Yellow.paint("WARNING: Pact file has no interactions"));
+          } else {
+            let errors = verify_pact(&provider_info, &filter, pact, &options, provider_state_executor).await;
+            for error in errors.clone() {
+              all_errors.push(error);
             }
+
+            if options.publish {
+              publish_result(&errors, &pact_source, &options).await
+            }
+          }
+        },
+        Err(err) => {
+          log::error!("Failed to load pact - {}", Red.paint(err.to_string()));
+          all_errors.push((s!("Failed to load pact"), MismatchResult::Error(err.to_string(), None)));
         }
+      }
     };
 
     if !all_errors.is_empty() {
@@ -444,101 +442,105 @@ pub async fn verify_provider<F: RequestFilterExecutor, S: ProviderStateExecutor>
     }
 }
 
-async fn fetch_pact(
-    source: PactSource
-) -> Vec<Result<(RequestResponsePact, PactSource), String>> {
-    match source {
-        PactSource::File(ref file) => vec![RequestResponsePact::read_pact(Path::new(&file))
-            .map_err(|err| format!("Failed to load pact '{}' - {}", file, err))
-            .map(|pact| (pact, source))],
-        PactSource::Dir(ref dir) => match walkdir(Path::new(dir)) {
-            Ok(pact_results) => pact_results.into_iter().map(|pact_result| {
-                match pact_result {
-                    Ok(pact) => Ok((pact, source.clone())),
-                    Err(err) => Err(format!("Failed to load pact from '{}' - {}", dir, err))
-                }
-            }).collect(),
-            Err(err) => vec![Err(format!("Could not load pacts from directory '{}' - {}", dir, err))]
-        },
-        PactSource::URL(ref url, ref auth) => vec![RequestResponsePact::from_url(url, auth)
-            .map_err(|err| format!("Failed to load pact '{}' - {}", url, err))
-            .map(|pact| (pact, source))],
-        PactSource::BrokerUrl(ref provider_name, ref broker_url, ref auth, _) => {
-            let result = pact_broker::fetch_pacts_from_broker(
-                broker_url.clone(),
-                provider_name.clone(),
-                auth.clone()
-            ).await;
+async fn fetch_pact(source: PactSource) -> Vec<Result<(Box<dyn Pact>, PactSource), String>> {
+  match source {
+    PactSource::File(ref file) => vec![read_pact(Path::new(&file))
+      .map_err(|err| format!("Failed to load pact '{}' - {}", file, err))
+      .map(|pact| (pact, source))],
+    PactSource::Dir(ref dir) => match walkdir(Path::new(dir)) {
+      Ok(pact_results) => pact_results.into_iter().map(|pact_result| {
+          match pact_result {
+              Ok(pact) => Ok((pact, source.clone())),
+              Err(err) => Err(format!("Failed to load pact from '{}' - {}", dir, err))
+          }
+      }).collect(),
+      Err(err) => vec![Err(format!("Could not load pacts from directory '{}' - {}", dir, err))]
+    },
+    PactSource::URL(ref url, ref auth) => vec![load_pact_from_url(url, auth)
+      .map_err(|err| format!("Failed to load pact '{}' - {}", url, err))
+      .map(|pact| (pact, source))],
+    PactSource::BrokerUrl(ref provider_name, ref broker_url, ref auth, _) => {
+      let result = pact_broker::fetch_pacts_from_broker(
+        broker_url.clone(),
+        provider_name.clone(),
+        auth.clone()
+      ).await;
 
+      match result {
+        Ok(ref pacts) => {
+          let mut buffer = vec![];
+          for result in pacts.iter() {
             match result {
-                Ok(ref pacts) => pacts.iter().map(|p| {
-                    match *p {
-                        Ok((ref pact, ref links)) => {
-                            log::debug!("Got pact with links {:?}", links);
-                            Ok((pact.clone(), PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone())))
-                        },
-                        Err(ref err) => Err(format!("Failed to load pact from '{}' - {:?}", broker_url, err))
-                    }
-                }).collect(),
-                Err(err) => vec![Err(format!("Could not load pacts from the pact broker '{}' - {:?}", broker_url, err))]
+              Ok((pact, links)) => {
+                log::debug!("Got pact with links {:?}", links);
+                if let Ok(pact) = pact.as_request_response_pact() {
+                  buffer.push(Ok((Box::new(pact) as Box<dyn Pact>, PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))))
+                }
+                if let Ok(pact) = pact.as_message_pact() {
+                  buffer.push(Ok((Box::new(pact) as Box<dyn Pact>, PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))))
+                }
+              },
+              &Err(ref err) => buffer.push(Err(format!("Failed to load pact from '{}' - {:?}", broker_url, err)))
             }
+          }
+          buffer
         },
-        _ => vec![Err("Could not load pacts, unknown pact source".to_string())]
-    }
+        Err(err) => vec![Err(format!("Could not load pacts from the pact broker '{}' - {:?}", broker_url, err))]
+      }
+    },
+    _ => vec![Err("Could not load pacts, unknown pact source".to_string())]
+  }
 }
 
-async fn fetch_pacts(
-    source: Vec<PactSource>,
-    consumers: Vec<String>
-) -> Vec<Result<(RequestResponsePact, PactSource), String>> {
-    futures::stream::iter(source)
-        // .map(|pact_source| pact_source.clone())
-        .then(|pact_source| async {
-            futures::stream::iter(fetch_pact(pact_source).await)
-        })
-        .flatten()
-        .filter(|res| futures::future::ready(filter_consumers(&consumers, res)))
-        .collect()
-        .await
+async fn fetch_pacts(source: Vec<PactSource>, consumers: Vec<String>)
+  -> Vec<Result<(Box<dyn Pact>, PactSource), String>> {
+  futures::stream::iter(source)
+    .then(|pact_source| async {
+      futures::stream::iter(fetch_pact(pact_source).await)
+    })
+    .flatten()
+    .filter(|res| futures::future::ready(filter_consumers(&consumers, res)))
+    .collect()
+    .await
 }
 
-async fn verify_pact<F: RequestFilterExecutor, S: ProviderStateExecutor>(
+async fn verify_pact<'a, F: RequestFilterExecutor, S: ProviderStateExecutor>(
   provider_info: &ProviderInfo,
   filter: &FilterInfo,
-  pact: RequestResponsePact,
+  pact: Box<dyn Pact + 'a>,
   options: &VerificationOptions<F>,
   provider_state_executor: &S
 ) -> Vec<(String, MismatchResult)> {
     let mut errors: Vec<(String, MismatchResult)> = vec![];
 
-    let results: Vec<(Interaction, Result<(), MismatchResult>)> = futures::stream::iter(
-      pact.interactions.clone().into_iter()
+    let results: Vec<(&dyn Interaction, Result<(), MismatchResult>)> = futures::stream::iter(
+      pact.interactions().clone().into_iter()
     )
-      .filter(|interaction| futures::future::ready(filter_interaction(interaction, filter)))
+      .filter(|interaction| futures::future::ready(filter_interaction(*interaction, filter)))
       .then( |interaction| {
-        futures::future::ready((interaction.clone(), verify_interaction(provider_info, interaction, options, provider_state_executor)))
+        futures::future::ready((interaction, verify_interaction(provider_info, interaction, options, provider_state_executor)))
       })
       .collect()
       .await;
 
     for (interaction, match_result) in results {
       let mut description = format!("Verifying a pact between {} and {}",
-                                    pact.consumer.name.clone(), pact.provider.name.clone());
-      if let Some((first, elements)) = interaction.provider_states.split_first() {
+                                    pact.consumer().name.clone(), pact.provider().name.clone());
+      if let Some((first, elements)) = interaction.provider_states().split_first() {
         description.push_str(&format!(" Given {}", first.name));
         for state in elements {
           description.push_str(&format!(" And {}", state.name));
         }
       }
       description.push_str(" - ");
-      description.push_str(&interaction.description);
-      println!("  {}", interaction.description);
+      description.push_str(&interaction.description());
+      println!("  {}", interaction.description());
       match match_result {
         Ok(()) => {
           display_result(
-            interaction.response.status,
+            interaction.as_request_response().response.status,
             Green.paint("OK"),
-            interaction.response.headers.map(|h| h.iter().map(|(k, v)| {
+            interaction.as_request_response().response.headers.map(|h| h.iter().map(|(k, v)| {
               (k.clone(), v.join(", "), Green.paint("OK"))
             }).collect()), Green.paint("OK")
           )
@@ -555,7 +557,7 @@ async fn verify_pact<F: RequestFilterExecutor, S: ProviderStateExecutor>(
             } else {
               Green.paint("OK")
             };
-            let header_results = match interaction.response.headers {
+            let header_results = match interaction.as_request_response().response.headers {
               Some(ref h) => Some(h.iter().map(|(k, v)| {
                 (k.clone(), v.join(", "), if mismatches.iter().any(|m| {
                   match *m {
@@ -577,7 +579,7 @@ async fn verify_pact<F: RequestFilterExecutor, S: ProviderStateExecutor>(
               Green.paint("OK")
             };
 
-            display_result(interaction.response.status, status_result, header_results, body_result);
+            display_result(interaction.as_request_response().response.status, status_result, header_results, body_result);
             errors.push((description.clone(), err.clone()));
           }
         }

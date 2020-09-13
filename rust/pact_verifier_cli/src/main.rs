@@ -219,7 +219,7 @@ use clap::{ErrorKind, ArgMatches};
 use pact_matching::models::PactSpecification;
 use pact_matching::s;
 use pact_verifier::*;
-use log::LevelFilter;
+use log::{LevelFilter, debug};
 use simplelog::{TermLogger, Config, TerminalMode};
 use std::str::FromStr;
 use pact_matching::models::http_utils::HttpAuth;
@@ -337,6 +337,8 @@ async fn handle_command_args() -> Result<(), i32> {
                 provider_tags: matches.values_of("provider-tags")
                   .map_or_else(|| vec![], |tags| tags.map(|tag| tag.to_string()).collect())
             };
+
+            debug!("Pact source to verify = {:?}", source);
 
             if verify_provider(
                 provider,

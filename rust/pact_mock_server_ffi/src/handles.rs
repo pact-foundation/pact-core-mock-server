@@ -1,6 +1,6 @@
 //! Handles wrapping Rust models
 
-use pact_matching::models::{RequestResponsePact, Consumer, Provider, Interaction};
+use pact_matching::models::{RequestResponsePact, Consumer, Provider, RequestResponseInteraction};
 use lazy_static::*;
 use maplit::*;
 use std::sync::Mutex;
@@ -77,7 +77,7 @@ impl InteractionHandle {
   }
 
   /// Invokes the closure with the inner Interaction model
-  pub fn with_interaction<R>(&self, f: &dyn Fn(usize, &mut Interaction) -> R) -> Option<R> {
+  pub fn with_interaction<R>(&self, f: &dyn Fn(usize, &mut RequestResponseInteraction) -> R) -> Option<R> {
     let mut handles = PACT_HANDLES.lock().unwrap();
     handles.get_mut(&self.pact).map(|inner| {
       match inner.borrow_mut().interactions.get_mut(self.interaction - 1) {

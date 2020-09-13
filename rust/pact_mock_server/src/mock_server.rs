@@ -6,7 +6,7 @@
 use crate::hyper_server;
 use crate::matching::MatchResult;
 
-use pact_matching::models::{RequestResponsePact, Interaction};
+use pact_matching::models::{RequestResponsePact, RequestResponseInteraction};
 use std::ffi::CString;
 use std::path::PathBuf;
 use std::io;
@@ -135,7 +135,7 @@ impl MockServer {
         let mismatches = matches.iter()
             .filter(|m| !m.matched())
             .map(|m| m.clone());
-        let interactions: Vec<&Interaction> = matches.iter().map(|m| {
+        let interactions: Vec<&RequestResponseInteraction> = matches.iter().map(|m| {
             match *m {
                 MatchResult::RequestMatch(ref interaction) => Some(interaction),
                 MatchResult::RequestMismatch(ref interaction, _) => Some(interaction),

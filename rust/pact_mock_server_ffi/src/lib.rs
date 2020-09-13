@@ -61,7 +61,7 @@ use rand::prelude::*;
 use serde_json::json;
 use uuid::Uuid;
 
-use pact_matching::models::{HttpPart, Interaction, OptionalBody};
+use pact_matching::models::{HttpPart, RequestResponseInteraction, OptionalBody};
 use pact_matching::models::matchingrules::{MatchingRule, RuleLogic};
 use pact_matching::models::provider_states::ProviderState;
 use pact_matching::time_utils::{parse_pattern, to_chrono_pattern};
@@ -437,9 +437,9 @@ pub extern fn new_pact(consumer_name: *const c_char, provider_name: *const c_cha
 pub extern fn new_interaction(pact: handles::PactHandle, description: *const c_char) -> handles::InteractionHandle {
   if let Some(description) = convert_cstr("description", description) {
     pact.with_pact(&|_, inner| {
-      let interaction = Interaction {
+      let interaction = RequestResponseInteraction {
         description: description.to_string(),
-        ..Interaction::default()
+        ..RequestResponseInteraction::default()
       };
       inner.interactions.push(interaction);
       handles::InteractionHandle::new(pact.clone(), inner.interactions.len())

@@ -14,6 +14,9 @@ use crate::models::content_types::{ContentType, JSON};
 /// Struct that defines a message.
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq)]
 pub struct Message {
+    /// Interaction ID. This will only be set if the Pact file was fetched from a Pact Broker
+    pub id: Option<String>,
+
     /// Description of this message interaction. This needs to be unique in the pact file.
     pub description: String,
 
@@ -41,10 +44,33 @@ pub struct Message {
     pub generators: generators::Generators
 }
 
+impl Interaction for Message {
+  fn is_request_response(&self) -> bool {
+    false
+  }
+
+  fn as_request_response(&self) -> RequestResponseInteraction {
+    panic!("Message interaction cannot be returned as a Request/Response interaction")
+  }
+
+  fn id(&self) -> Option<String> {
+    self.id.clone()
+  }
+
+  fn description(&self) -> String {
+    self.description.clone()
+  }
+
+  fn provider_states(&self) -> Vec<ProviderState> {
+    self.provider_states.clone()
+  }
+}
+
 impl Message {
     /// Returns a default message
     pub fn default() -> Message {
       Message {
+        id: None,
         description: s!("message"),
         provider_states: vec![],
         contents: OptionalBody::Missing,
@@ -76,6 +102,7 @@ impl Message {
                     _ => hashmap!{}
                 };
                 Ok(Message {
+                  id: None,
                   description,
                   provider_states,
                   contents: body_from_json(json, "contents", &None),

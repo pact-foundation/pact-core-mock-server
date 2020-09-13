@@ -3,7 +3,7 @@
 //! against a list of potential interactions.
 //!
 
-use pact_matching::models::{Interaction, Request, PactSpecification};
+use pact_matching::models::{RequestResponseInteraction, Request, PactSpecification};
 use pact_matching::Mismatch;
 use pact_matching::s;
 use serde_json::json;
@@ -14,13 +14,13 @@ use std::fmt::{Display, Formatter};
 #[derive(Debug, Clone, PartialEq)]
 pub enum MatchResult {
     /// Match result where the request was successfully matched
-    RequestMatch(Interaction),
+    RequestMatch(RequestResponseInteraction),
     /// Match result where there were a number of mismatches
-    RequestMismatch(Interaction, Vec<Mismatch>),
+    RequestMismatch(RequestResponseInteraction, Vec<Mismatch>),
     /// Match result where the request was not expected
     RequestNotFound(Request),
     /// Match result where an expected request was not received
-    MissingRequest(Interaction)
+    MissingRequest(RequestResponseInteraction)
 }
 
 impl MatchResult {
@@ -98,7 +98,7 @@ fn mismatches_to_json(request: &Request, mismatches: &Vec<Mismatch>) -> serde_js
 ///
 /// Matches a request against a list of interactions
 ///
-pub fn match_request(req: &Request, interactions: &Vec<Interaction>) -> MatchResult {
+pub fn match_request(req: &Request, interactions: &Vec<RequestResponseInteraction>) -> MatchResult {
   let mut match_results = interactions
     .into_iter()
     .map(|i| (i.clone(), pact_matching::match_request_result(i.request.clone(), req.clone())))

@@ -11,7 +11,7 @@ use log::*;
 use maplit::*;
 use serde_json::{Value, json};
 
-use crate::models::Consumer;
+use crate::models::{Consumer, Pact, Interaction, RequestResponsePact};
 use crate::models::PactSpecification;
 use crate::models::Provider;
 use crate::models::VERSION;
@@ -37,6 +37,32 @@ pub struct MessagePact {
     pub metadata: BTreeMap<String, BTreeMap<String, String>>,
     /// Specification version of this pact
     pub specification_version: PactSpecification,
+}
+
+impl Pact for MessagePact {
+  fn consumer(&self) -> Consumer {
+    self.consumer.clone()
+  }
+
+  fn provider(&self) -> Provider {
+    self.provider.clone()
+  }
+
+  fn interactions(&self) -> Vec<&dyn Interaction> {
+    self.messages.iter().map(|i| i as &dyn Interaction).collect()
+  }
+
+  fn as_request_response_pact(&self) -> Result<RequestResponsePact, String> {
+    Err(format!("Can't convert a Message Pact to a different type"))
+  }
+
+  fn as_message_pact(&self) -> Result<MessagePact, String> {
+    Ok(self.clone())
+  }
+
+  fn metadata(&self) -> BTreeMap<String, BTreeMap<String, String>> {
+    self.metadata.clone()
+  }
 }
 
 impl MessagePact {
