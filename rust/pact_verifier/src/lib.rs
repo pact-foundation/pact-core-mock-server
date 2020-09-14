@@ -6,6 +6,7 @@
 mod provider_client;
 mod pact_broker;
 pub mod callback_executors;
+mod request_response;
 mod messages;
 
 use std::path::Path;
@@ -30,7 +31,9 @@ pub use callback_executors::NullRequestFilterExecutor;
 use crate::callback_executors::{ProviderStateExecutor, ProviderStateError};
 use log::*;
 use futures::executor::block_on;
-use crate::messages::verify_message_from_provider;
+use crate::messages::{verify_message_from_provider, display_message_result};
+use crate::request_response::display_request_response_result;
+use std::fmt;
 
 /// Source for loading pacts
 #[derive(Debug, Clone)]
@@ -90,16 +93,15 @@ impl Default for ProviderInfo {
 }
 
 /// Result of performing a match
-#[derive(Debug, Clone)]
 pub enum MismatchResult {
     /// Response mismatches
     Mismatches {
       /// Mismatches that occurred
       mismatches: Vec<Mismatch>,
-      /// Expected Response
-      expected: Response,
-      /// Actual Response
-      actual: Response,
+      /// Expected Response/Message
+      expected: Box<dyn Interaction>,
+      /// Actual Response/Message
+      actual: Box<dyn Interaction>,
       /// Interaction ID if fetched from a pact broker
       interaction_id: Option<String>
     },
@@ -123,6 +125,69 @@ impl From<ProviderStateError> for MismatchResult {
   }
 }
 
+impl Debug for MismatchResult {
+  fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    match self {
+      MismatchResult::Mismatches { mismatches, expected, actual, interaction_id } => {
+        if let Some(ref expected_reqres) = expected.as_request_response() {
+          f.debug_struct("MismatchResult::Mismatches")
+            .field("mismatches", mismatches)
+            .field("expected", expected_reqres)
+            .field("actual", &actual.as_request_response().unwrap())
+            .field("interaction_id", interaction_id)
+            .finish()
+        } else if let Some(ref expected_message) = expected.as_message() {
+          f.debug_struct("MismatchResult::Mismatches")
+            .field("mismatches", mismatches)
+            .field("expected", expected_message)
+            .field("actual", &actual.as_message().unwrap())
+            .field("interaction_id", interaction_id)
+            .finish()
+        } else {
+          f.debug_struct("MismatchResult::Mismatches")
+            .field("mismatches", mismatches)
+            .field("expected", &"<UKNOWN TYPE>".to_string())
+            .field("actual", &"<UKNOWN TYPE>".to_string())
+            .field("interaction_id", interaction_id)
+            .finish()
+        }
+      },
+      MismatchResult::Error(error, opt) => {
+        f.debug_tuple("MismatchResult::Error").field(error).field(opt).finish()
+      }
+    }
+  }
+}
+
+impl Clone for MismatchResult {
+  fn clone(&self) -> Self {
+    match self {
+      MismatchResult::Mismatches { mismatches, expected, actual, interaction_id } => {
+        if let Some(ref expected_reqres) = expected.as_request_response() {
+          MismatchResult::Mismatches {
+            mismatches: mismatches.clone(),
+            expected: Box::new(expected_reqres.clone()),
+            actual: Box::new(actual.as_request_response().unwrap().clone()),
+            interaction_id: interaction_id.clone()
+          }
+        } else if let Some(ref expected_message) = expected.as_message() {
+          MismatchResult::Mismatches {
+            mismatches: mismatches.clone(),
+            expected: Box::new(expected_message.clone()),
+            actual: Box::new(actual.as_message().unwrap().clone()),
+            interaction_id: interaction_id.clone()
+          }
+        } else {
+          panic!("Cannot clone this MismatchResult::Mismatches as the expected and actual values are an unknown type")
+        }
+      },
+      MismatchResult::Error(error, opt) => {
+        MismatchResult::Error(error.clone(), opt.clone())
+      }
+    }
+  }
+}
+
 async fn verify_response_from_provider<F: RequestFilterExecutor>(
   provider: &ProviderInfo,
   interaction: &RequestResponseInteraction,
@@ -139,8 +204,8 @@ async fn verify_response_from_provider<F: RequestFilterExecutor>(
       } else {
         Err(MismatchResult::Mismatches {
           mismatches,
-          expected: expected_response.clone(),
-          actual: actual_response.clone(),
+          expected: Box::new(interaction.clone()),
+          actual: Box::new(RequestResponseInteraction { response: actual_response.clone(), .. RequestResponseInteraction::default() }),
           interaction_id: interaction.id.clone()
         })
       }
@@ -259,10 +324,12 @@ fn walkdir(dir: &Path) -> io::Result<Vec<io::Result<Box<dyn Pact>>>> {
     Ok(pacts)
 }
 
-fn display_body_mismatch(expected: &Response, actual: &Response, path: &str) {
-  if expected.content_type_struct().unwrap_or_default().is_json() {
-    println!("{}", pact_matching::json::display_diff(&expected.body.str_value().to_string(),
-                                                     &actual.body.str_value().to_string(), path));
+fn display_body_mismatch(expected: &Box<dyn Interaction>, actual: &Box<dyn Interaction>, path: &str) {
+  if expected.content_type().unwrap_or_default().is_json() {
+    println!("{}", pact_matching::json::display_diff(
+      &expected.contents().str_value().to_string(),
+      &actual.contents().str_value().to_string(),
+      path, "    "));
   }
 }
 
@@ -549,70 +616,16 @@ async fn verify_pact<'a, F: RequestFilterExecutor, S: ProviderStateExecutor>(
       println!("  {}", interaction.description());
 
       if let Some(interaction) = interaction.as_request_response() {
-        display_request_response_result(&mut errors, &interaction, match_result, description)
+        display_request_response_result(&mut errors, &interaction, &match_result, &description)
+      }
+      if let Some(interaction) = interaction.as_message() {
+        display_message_result(&mut errors, &interaction, &match_result, &description)
       }
     }
 
     println!();
 
     errors
-}
-
-fn display_request_response_result(
-  errors: &mut Vec<(String, MismatchResult)>,
-  interaction: &RequestResponseInteraction,
-  match_result: Result<(), MismatchResult>,
-  mut description: String
-) {
-  match match_result {
-    Ok(()) => {
-      display_result(
-        interaction.response.status,
-        Green.paint("OK"),
-        interaction.response.headers.clone().map(|h| h.iter().map(|(k, v)| {
-          (k.clone(), v.join(", "), Green.paint("OK"))
-        }).collect()), Green.paint("OK")
-      )
-    },
-    Err(ref err) => match *err {
-      MismatchResult::Error(ref err_des, _) => {
-        println!("      {}", Red.paint(format!("Request Failed - {}", err_des)));
-        errors.push((description, err.clone()));
-      },
-      MismatchResult::Mismatches { ref mismatches, .. } => {
-        description.push_str(" returns a response which ");
-        let status_result = if mismatches.iter().any(|m| m.mismatch_type() == "StatusMismatch") {
-          Red.paint("FAILED")
-        } else {
-          Green.paint("OK")
-        };
-        let header_results = match interaction.response.headers {
-          Some(ref h) => Some(h.iter().map(|(k, v)| {
-            (k.clone(), v.join(", "), if mismatches.iter().any(|m| {
-              match *m {
-                Mismatch::HeaderMismatch { ref key, .. } => k == key,
-                _ => false
-              }
-            }) {
-              Red.paint("FAILED")
-            } else {
-              Green.paint("OK")
-            })
-          }).collect()),
-          None => None
-        };
-        let body_result = if mismatches.iter().any(|m| m.mismatch_type() == "BodyMismatch" ||
-          m.mismatch_type() == "BodyTypeMismatch") {
-          Red.paint("FAILED")
-        } else {
-          Green.paint("OK")
-        };
-
-        display_result(interaction.response.status, status_result, header_results, body_result);
-        errors.push((description.clone(), err.clone()));
-      }
-    }
-  }
 }
 
 async fn publish_result<F: RequestFilterExecutor>(

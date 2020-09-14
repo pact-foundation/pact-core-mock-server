@@ -46,7 +46,7 @@ fn unexpected_index_with_not_null_value() {
     let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
     println!("ACTUAL: {:?}", actual);
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(expected, actual);
+    let result = match_message(&expected, &actual);
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -91,7 +91,7 @@ fn unexpected_key_with_null_value() {
     let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
     println!("ACTUAL: {:?}", actual);
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(expected, actual);
+    let result = match_message(&expected, &actual);
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -135,7 +135,7 @@ fn different_value_found_at_key() {
     let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
     println!("ACTUAL: {:?}", actual);
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(expected, actual);
+    let result = match_message(&expected, &actual);
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -179,7 +179,7 @@ fn not_null_found_at_key_when_null_expected() {
     let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
     println!("ACTUAL: {:?}", actual);
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(expected, actual);
+    let result = match_message(&expected, &actual);
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -256,7 +256,7 @@ fn array_with_regular_expression_in_element() {
     let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
     println!("ACTUAL: {:?}", actual);
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(expected, actual);
+    let result = match_message(&expected, &actual);
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -300,7 +300,7 @@ fn number_found_in_array_when_string_expected() {
     let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
     println!("ACTUAL: {:?}", actual);
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(expected, actual);
+    let result = match_message(&expected, &actual);
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -344,7 +344,7 @@ fn array_in_different_order() {
     let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
     println!("ACTUAL: {:?}", actual);
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(expected, actual);
+    let result = match_message(&expected, &actual);
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -400,7 +400,7 @@ fn matches_with_regex_with_bracket_notation() {
     let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
     println!("ACTUAL: {:?}", actual);
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(expected, actual);
+    let result = match_message(&expected, &actual);
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -477,7 +477,7 @@ fn array_with_regular_expression_that_does_not_match_in_element() {
     let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
     println!("ACTUAL: {:?}", actual);
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(expected, actual);
+    let result = match_message(&expected, &actual);
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -533,7 +533,7 @@ fn array_size_less_than_required() {
     let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
     println!("ACTUAL: {:?}", actual);
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(expected, actual);
+    let result = match_message(&expected, &actual);
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -620,7 +620,7 @@ fn array_with_nested_array_that_does_not_match() {
     let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
     println!("ACTUAL: {:?}", actual);
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(expected, actual);
+    let result = match_message(&expected, &actual);
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -664,7 +664,7 @@ fn string_found_in_array_when_number_expected() {
     let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
     println!("ACTUAL: {:?}", actual);
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(expected, actual);
+    let result = match_message(&expected, &actual);
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -703,7 +703,7 @@ fn no_body() {
     let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
     println!("ACTUAL: {:?}", actual);
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(expected, actual);
+    let result = match_message(&expected, &actual);
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -765,7 +765,7 @@ fn array_at_top_level() {
     let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
     println!("ACTUAL: {:?}", actual);
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(expected, actual);
+    let result = match_message(&expected, &actual);
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -831,7 +831,7 @@ fn matches_with_type() {
     let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
     println!("ACTUAL: {:?}", actual);
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(expected, actual);
+    let result = match_message(&expected, &actual);
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -866,7 +866,7 @@ fn no_body_no_content_type() {
     let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
     println!("ACTUAL: {:?}", actual);
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(expected, actual);
+    let result = match_message(&expected, &actual);
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -910,7 +910,7 @@ fn not_null_found_in_array_when_null_expected() {
     let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
     println!("ACTUAL: {:?}", actual);
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(expected, actual);
+    let result = match_message(&expected, &actual);
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -979,7 +979,7 @@ fn array_with_at_least_one_element_not_matching_example_type() {
     let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
     println!("ACTUAL: {:?}", actual);
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(expected, actual);
+    let result = match_message(&expected, &actual);
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1023,7 +1023,7 @@ fn different_value_found_at_index() {
     let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
     println!("ACTUAL: {:?}", actual);
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(expected, actual);
+    let result = match_message(&expected, &actual);
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1120,7 +1120,7 @@ fn array_with_nested_array_that_matches() {
     let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
     println!("ACTUAL: {:?}", actual);
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(expected, actual);
+    let result = match_message(&expected, &actual);
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1196,7 +1196,7 @@ fn matches_with_regex() {
     let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
     println!("ACTUAL: {:?}", actual);
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(expected, actual);
+    let result = match_message(&expected, &actual);
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1240,7 +1240,7 @@ fn number_found_at_key_when_string_expected() {
     let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
     println!("ACTUAL: {:?}", actual);
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(expected, actual);
+    let result = match_message(&expected, &actual);
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1284,7 +1284,7 @@ fn missing_index() {
     let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
     println!("ACTUAL: {:?}", actual);
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(expected, actual);
+    let result = match_message(&expected, &actual);
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1328,7 +1328,7 @@ fn null_found_in_array_when_not_null_expected() {
     let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
     println!("ACTUAL: {:?}", actual);
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(expected, actual);
+    let result = match_message(&expected, &actual);
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1372,7 +1372,7 @@ fn unexpected_index_with_null_value() {
     let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
     println!("ACTUAL: {:?}", actual);
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(expected, actual);
+    let result = match_message(&expected, &actual);
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1417,7 +1417,7 @@ fn unexpected_key_with_not_null_value() {
     let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
     println!("ACTUAL: {:?}", actual);
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(expected, actual);
+    let result = match_message(&expected, &actual);
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1461,7 +1461,7 @@ fn string_found_at_key_when_number_expected() {
     let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
     println!("ACTUAL: {:?}", actual);
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(expected, actual);
+    let result = match_message(&expected, &actual);
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1506,7 +1506,7 @@ fn missing_key() {
     let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
     println!("ACTUAL: {:?}", actual);
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(expected, actual);
+    let result = match_message(&expected, &actual);
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1575,7 +1575,7 @@ fn array_with_at_least_one_element_matching_by_example() {
     let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
     println!("ACTUAL: {:?}", actual);
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(expected, actual);
+    let result = match_message(&expected, &actual);
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1623,7 +1623,7 @@ fn matches() {
     let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
     println!("ACTUAL: {:?}", actual);
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(expected, actual);
+    let result = match_message(&expected, &actual);
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1667,7 +1667,7 @@ fn null_found_at_key_where_not_null_expected() {
     let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
     println!("ACTUAL: {:?}", actual);
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(expected, actual);
+    let result = match_message(&expected, &actual);
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());

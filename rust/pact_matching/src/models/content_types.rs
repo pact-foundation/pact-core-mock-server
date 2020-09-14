@@ -113,6 +113,15 @@ impl ContentType {
   pub fn is_unknown(&self) -> bool {
     self.main_type == "*" || self.sub_type == "*"
   }
+
+  /// Equals, ignoring attributes if not present on self
+  pub fn is_equivalent_to(&self, other: &ContentType) -> bool {
+    if self.attributes.is_empty() {
+      self.main_type == other.main_type && self.sub_type == other.sub_type
+    } else {
+      self == other
+    }
+  }
 }
 
 impl Default for ContentType {

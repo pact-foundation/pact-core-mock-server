@@ -322,12 +322,8 @@ pub trait HttpPart {
     /// Returns the generators of the HTTP part.
     fn generators(&self) -> &generators::Generators;
 
-    /// Determine the content type of the HTTP part. If a `Content-Type` header is present, the
-    /// value of that header will be returned. Otherwise, the body will be inspected.
-    #[deprecated(since = "0.6.4", note = "Use method that returns ContentType struct instead")]
-    fn content_type(&self) -> String {
-      self.content_type_struct().unwrap_or(TEXT.clone()).to_string()
-    }
+    /// Lookup up the content type for the part
+    fn lookup_content_type(&self) -> Option<String>;
 
     /// Tries to detect the content type of the body by matching some regular expressions against
     /// the first 32 characters.
@@ -344,27 +340,14 @@ pub trait HttpPart {
       }
     }
 
-  /// Returns the general content type (ignoring subtypes)
-    #[deprecated(since = "0.6.4", note = "Use method that returns ContentType struct instead")]
-    fn content_type_enum(&self) -> DetectedContentType {
-      let content_type = self.content_type_struct().unwrap_or_default();
-      if content_type.is_json() {
-        DetectedContentType::Json
-      } else if content_type.is_xml() {
-        DetectedContentType::Xml
-      } else {
-        DetectedContentType::Text
-      }
-    }
-
   /// Determine the content type of the HTTP part. If a `Content-Type` header is present, the
   /// value of that header will be returned. Otherwise, the body will be inspected.
-  fn content_type_struct(&self) -> Option<ContentType> {
+  fn content_type(&self) -> Option<ContentType> {
     let body = self.body();
     if body.has_content_type() {
       body.content_type()
     } else {
-      match self.lookup_header_value(&"content-type".to_string()) {
+      match self.lookup_content_type() {
         Some(ref h) => match ContentType::parse(h.as_str()) {
           Ok(v) => Some(v),
           Err(_) => self.detect_content_type()
@@ -431,7 +414,7 @@ pub struct Request {
 }
 
 impl HttpPart for Request {
-    fn headers(&self) -> &Option<HashMap<String, Vec<String>>> {
+  fn headers(&self) -> &Option<HashMap<String, Vec<String>>> {
         &self.headers
     }
 
@@ -442,17 +425,21 @@ impl HttpPart for Request {
     self.headers.as_mut().unwrap()
   }
 
-    fn body(&self) -> &OptionalBody {
-        &self.body
-    }
+  fn body(&self) -> &OptionalBody {
+      &self.body
+  }
 
-    fn matching_rules(&self) -> &matchingrules::MatchingRules {
-        &self.matching_rules
-    }
+  fn matching_rules(&self) -> &matchingrules::MatchingRules {
+      &self.matching_rules
+  }
 
-    fn generators(&self) -> &generators::Generators {
+  fn generators(&self) -> &generators::Generators {
       &self.generators
     }
+
+  fn lookup_content_type(&self) -> Option<String> {
+    self.lookup_header_value(&"content-type".to_string())
+  }
 }
 
 impl Hash for Request {
@@ -699,7 +686,7 @@ impl Request {
                 map.insert(s!("headers"), headers_to_json(&self.headers.clone().unwrap()));
             }
             match self.body {
-              OptionalBody::Present(ref body, _) => if self.content_type_struct().unwrap_or_default().is_json() {
+              OptionalBody::Present(ref body, _) => if self.content_type().unwrap_or_default().is_json() {
                 match serde_json::from_slice(body) {
                   Ok(json_body) => { map.insert(s!("body"), json_body); },
                   Err(err) => {
@@ -814,7 +801,7 @@ impl Response {
         }
         match self.body {
           OptionalBody::Present(ref body, _) => {
-            if self.content_type_struct().unwrap_or_default().is_json() {
+            if self.content_type().unwrap_or_default().is_json() {
               match serde_json::from_slice(body) {
                 Ok(json_body) => { map.insert(s!("body"), json_body); },
                 Err(err) => {
@@ -865,7 +852,7 @@ impl Response {
 }
 
 impl HttpPart for Response {
-    fn headers(&self) -> &Option<HashMap<String, Vec<String>>> {
+  fn headers(&self) -> &Option<HashMap<String, Vec<String>>> {
         &self.headers
     }
 
@@ -876,17 +863,21 @@ impl HttpPart for Response {
     self.headers.as_mut().unwrap()
   }
 
-    fn body(&self) -> &OptionalBody {
-        &self.body
-    }
+  fn body(&self) -> &OptionalBody {
+      &self.body
+  }
 
-    fn matching_rules(&self) -> &matchingrules::MatchingRules {
-        &self.matching_rules
-    }
+  fn matching_rules(&self) -> &matchingrules::MatchingRules {
+      &self.matching_rules
+  }
 
-    fn generators(&self) -> &generators::Generators {
+  fn generators(&self) -> &generators::Generators {
       &self.generators
     }
+
+  fn lookup_content_type(&self) -> Option<String> {
+    self.lookup_header_value(&"content-type".to_string())
+  }
 }
 
 impl Hash for Response {
@@ -963,6 +954,11 @@ pub trait Interaction {
   /// Optional provider states for the interaction.
   /// See https://docs.pact.io/getting_started/provider_states for more info on provider states.
   fn provider_states(&self) -> Vec<provider_states::ProviderState>;
+  /// Body of the response or message
+  fn contents(&self) -> OptionalBody;
+  /// Determine the content type of the interaction. If a `Content-Type` header or metadata value is present, the
+  /// value of that value will be returned. Otherwise, the contents will be inspected.
+  fn content_type(&self) -> Option<ContentType>;
 }
 
 /// Struct that defines an interaction (request and response pair)
@@ -1008,6 +1004,14 @@ impl Interaction for RequestResponseInteraction {
 
   fn provider_states(&self) -> Vec<ProviderState> {
     self.provider_states.clone()
+  }
+
+  fn contents(&self) -> OptionalBody {
+    self.response.body.clone()
+  }
+
+  fn content_type(&self) -> Option<ContentType> {
+    self.response.content_type()
   }
 }
 

@@ -635,7 +635,7 @@ pub extern fn with_body(interaction: handles::InteractionHandle, part: Interacti
             }
           }
         }
-        let body = if inner.request.content_type_struct().unwrap_or_default().is_json() {
+        let body = if inner.request.content_type().unwrap_or_default().is_json() {
           let category = inner.request.matching_rules.add_category("body");
           OptionalBody::from(process_json(body.to_string(), category, &mut inner.request.generators))
         } else {
@@ -654,7 +654,7 @@ pub extern fn with_body(interaction: handles::InteractionHandle, part: Interacti
             }
           }
         }
-        let body = if inner.response.content_type_struct().unwrap_or_default().is_json() {
+        let body = if inner.response.content_type().unwrap_or_default().is_json() {
           let category = inner.response.matching_rules.add_category("body");
           OptionalBody::from(process_json(body.to_string(), category, &mut inner.response.generators))
         } else {

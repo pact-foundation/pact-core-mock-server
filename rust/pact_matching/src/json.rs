@@ -266,28 +266,37 @@ fn walk_json(json: &Value, path: &mut dyn Iterator<Item=&str>) -> Option<Value> 
 }
 
 /// Returns a diff of the expected versus the actual JSON bodies, focusing on a particular path
-pub fn display_diff(expected: &String, actual: &String, path: &str) -> String {
-    let expected_body = Value::from_str(expected).unwrap();
-    let actual_body = Value::from_str(actual).unwrap();
-    let path = path.split('.').skip(2);
-    let expected_fragment = match walk_json(&expected_body, &mut path.clone()) {
-        Some(json) => format!("{:?}", serde_json::to_string_pretty(&json)),
-        None => s!("")
-    };
-    let actual_fragment = match walk_json(&actual_body, &mut path.clone()) {
-        Some(json) => format!("{:?}", serde_json::to_string_pretty(&json)),
-        None => s!("")
-    };
-    let changeset = Changeset::new(&expected_fragment, &actual_fragment, "\n");
-    let mut output = String::new();
-    for change in changeset.diffs {
-        match change {
-            Difference::Same(ref x) => output.push_str(&format!(" {}\n", x)),
-            Difference::Add(ref x) => output.push_str(&Green.paint(format!("+{}\n", x)).to_string()),
-            Difference::Rem(ref x) => output.push_str(&Red.paint(format!("-{}\n", x)).to_string())
-        }
+pub fn display_diff(expected: &String, actual: &String, path: &str, indent: &str) -> String {
+  let expected_body = Value::from_str(expected).unwrap();
+  let actual_body = Value::from_str(actual).unwrap();
+  let mut path = path.split('.').skip(1);
+  let next = path.next();
+  let expected_fragment = if next.is_none() {
+    serde_json::to_string_pretty(&expected_body).unwrap_or_default()
+  } else {
+    match walk_json(&expected_body, &mut path.clone()) {
+      Some(json) => format!("{:?}", serde_json::to_string_pretty(&json)),
+      None => s!("")
     }
-    output
+  };
+  let actual_fragment = if next.is_none() {
+    serde_json::to_string_pretty(&actual_body).unwrap_or_default()
+  } else {
+    match walk_json(&actual_body, &mut path.clone()) {
+      Some(json) => format!("{:?}", serde_json::to_string_pretty(&json)),
+      None => s!("")
+    }
+  };
+  let changeset = Changeset::new(&expected_fragment, &actual_fragment, "\n");
+  let mut output = String::new();
+  for change in changeset.diffs {
+      match change {
+          Difference::Same(ref x) => output.push_str(&format!("{}{}\n", indent, x)),
+          Difference::Add(ref x) => output.push_str(&Green.paint(format!("{}+{}\n", indent, x)).to_string()),
+          Difference::Rem(ref x) => output.push_str(&Red.paint(format!("{}-{}\n", indent, x)).to_string())
+      }
+  }
+  output
 }
 
 fn compare(path: &Vec<String>, expected: &Value, actual: &Value, config: &DiffConfig,

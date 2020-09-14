@@ -72,6 +72,25 @@ impl Interaction for Message {
   fn provider_states(&self) -> Vec<ProviderState> {
     self.provider_states.clone()
   }
+
+  fn contents(&self) -> OptionalBody {
+    self.contents.clone()
+  }
+
+  fn content_type(&self) -> Option<ContentType> {
+    let body = &self.contents;
+    if body.has_content_type() {
+      body.content_type()
+    } else {
+      match self.metadata.iter().find(|(k, _)| {
+        let key = k.to_ascii_lowercase();
+        key == "contenttype" || key == "content-type"
+      }) {
+        Some((_, v)) => ContentType::parse(v.as_str()).ok(),
+        None => self.detect_content_type()
+      }
+    }
+  }
 }
 
 impl Message {
@@ -82,7 +101,9 @@ impl Message {
         description: s!("message"),
         provider_states: vec![],
         contents: OptionalBody::Missing,
-        metadata: hashmap!{},
+        metadata: hashmap!{
+          "contentType".into() => "application/json".into()
+        },
         matching_rules: matchingrules::MatchingRules::default(),
         generators: Generators::default()
       }
@@ -122,23 +143,6 @@ impl Message {
             _ => Err(s!("Messages require Pact Specification version 3 or later"))
         }
     }
-
-    /// Determine the content type of the message
-    #[deprecated(since = "0.6.4", note = "Use method that returns ContentType struct instead")]
-    pub fn mimetype(&self) -> String {
-        match self.metadata.get("contentType") {
-            Some(v) => v.clone(),
-            None => s!("application/json")
-        }
-    }
-
-    /// Determine the content type of the message
-    pub fn content_type(&self) -> Option<ContentType> {
-      match self.metadata.get("contentType") {
-        Some(v) => ContentType::parse(v.as_str()).ok(),
-        None => Some(JSON.clone())
-      }
-    }
 }
 
 impl HttpPart for Message {
@@ -160,6 +164,13 @@ impl HttpPart for Message {
 
   fn generators(&self) -> &Generators {
     &self.generators
+  }
+
+  fn lookup_content_type(&self) -> Option<String> {
+    self.metadata.iter().find(|(k, _)| {
+      let key = k.to_ascii_lowercase();
+      key == "contenttype" || key == "content-type"
+    }).map(|(k, v)| v.clone())
   }
 }
 
@@ -291,13 +302,13 @@ mod tests {
         metadata: hashmap!{ s!("contentType") => s!("text/plain") },
         .. Message::default()
       };
-      expect!(message.content_type().unwrap_or_default().to_string()).to(be_equal_to("text/plain"));
+      expect!(Interaction::content_type(&message).unwrap_or_default().to_string()).to(be_equal_to("text/plain"));
     }
 
     #[test]
     fn message_mimetype_defaults_to_json() {
       let message = Message::default();
-      expect!(message.content_type().unwrap_or_default().to_string()).to(be_equal_to("application/json"));
+      expect!(Interaction::content_type(&message).unwrap_or_default().to_string()).to(be_equal_to("application/json"));
     }
 
     #[test]

@@ -15,7 +15,9 @@
           "name": "message exists"
         }
       ],
-      "contents": "\"Test Message\"",
+      "contents": {
+        "a": "1234"
+      },
       "generators": {
         "body": {
           "a": {

@@ -69,7 +69,13 @@ impl Default for HttpRequestProviderStateExecutor {
 
 #[async_trait]
 impl ProviderStateExecutor for HttpRequestProviderStateExecutor {
-  async fn call(&self, interaction_id: Option<String>, provider_state: &ProviderState, setup: bool, client: Option<&reqwest::Client>) -> Result<HashMap<String, Value>, ProviderStateError> {
+  async fn call(
+    &self,
+    interaction_id: Option<String>,
+    provider_state: &ProviderState,
+    setup: bool,
+    client: Option<&reqwest::Client>
+  ) -> Result<HashMap<String, Value>, ProviderStateError> {
     match &self.state_change_url {
       Some(state_change_url) => {
         let mut state_change_request = Request { method: "POST".to_string(), .. Request::default() };

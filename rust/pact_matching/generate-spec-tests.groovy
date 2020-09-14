@@ -102,7 +102,7 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
         |    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::$specVersion).unwrap();
         |    println!("ACTUAL: {:?}", actual);
         |    let pact_match = pact.get("match").unwrap();
-        |    let result = match_message(expected, actual);
+        |    let result = match_message(&expected, &actual);
         |    println!("RESULT: {:?}", result);
         |    if pact_match.as_bool().unwrap() {
         |       expect!(result.iter()).to(be_empty());

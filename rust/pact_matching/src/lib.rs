@@ -1145,11 +1145,11 @@ pub fn match_body(expected: &dyn models::HttpPart, actual: &dyn models::HttpPart
 /// Matches the actual body to the expected one. This takes into account the content type of each.
 pub fn match_body_result(expected: &dyn models::HttpPart, actual: &dyn models::HttpPart, config: DiffConfig,
                          matchers: &MatchingRules) -> BodyMatchResult {
-  let expected_content_type = expected.content_type_struct().unwrap_or_default();
-  let actual_content_type = actual.content_type_struct().unwrap_or_default();
+  let expected_content_type = expected.content_type().unwrap_or_default();
+  let actual_content_type = actual.content_type().unwrap_or_default();
   debug!("expected content type = '{}', actual content type = '{}'", expected_content_type,
          actual_content_type);
-  if expected_content_type.is_unknown() || actual_content_type.is_unknown() || expected_content_type == actual_content_type {
+  if expected_content_type.is_unknown() || actual_content_type.is_unknown() || expected_content_type.is_equivalent_to(&actual_content_type) {
     match_body_content(&expected_content_type, expected, actual, config, matchers)
   } else if expected.body().is_present() {
     BodyMatchResult::BodyTypeMismatch(expected_content_type.to_string(),
@@ -1226,7 +1226,9 @@ pub fn match_message_contents(expected: &models::message::Message, actual: &mode
                               mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
   let expected_content_type = expected.content_type().unwrap_or_default();
   let actual_content_type = actual.content_type().unwrap_or_default();
-  if expected_content_type == actual_content_type {
+  debug!("expected content type = '{}', actual content type = '{}'", expected_content_type,
+         actual_content_type);
+  if expected_content_type.is_equivalent_to(&actual_content_type) {
     match match_body_content(&expected_content_type, expected, actual, config, matchers) {
       BodyMatchResult::BodyTypeMismatch(expected, actual, message) => {
         mismatches.push(Mismatch::BodyTypeMismatch {
@@ -1250,12 +1252,19 @@ pub fn match_message_contents(expected: &models::message::Message, actual: &mode
   }
 }
 
+/// Matches the actual message metadata to the expected one.
+pub fn match_message_metadata(expected: &models::message::Message, actual: &models::message::Message, config: DiffConfig,
+                              mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
+
+}
+
 /// Matches the actual and expected messages.
-pub fn match_message(expected: models::message::Message, actual: models::message::Message) -> Vec<Mismatch> {
+pub fn match_message(expected: &models::message::Message, actual: &models::message::Message) -> Vec<Mismatch> {
     let mut mismatches = vec![];
 
     log::info!("comparing to expected message: {:?}", expected);
-    match_message_contents(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &expected.matching_rules);
+    match_message_contents(expected, actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &expected.matching_rules);
+    match_message_metadata(expected, actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &expected.matching_rules);
 
     mismatches
 }
@@ -1299,7 +1308,7 @@ pub fn generate_request(request: &models::Request, context: &HashMap<String, Val
         None => ()
       }
     });
-    request.body = generators.apply_body_generators(&request.body, request.content_type_struct(),
+    request.body = generators.apply_body_generators(&request.body, request.content_type(),
         context);
     request
 }
@@ -1325,7 +1334,7 @@ pub fn generate_response(response: &models::Response, context: &HashMap<String, 
       None => ()
     }
   });
-  response.body = generators.apply_body_generators(&response.body, response.content_type_struct(),
+  response.body = generators.apply_body_generators(&response.body, response.content_type(),
     context);
   response
 }
