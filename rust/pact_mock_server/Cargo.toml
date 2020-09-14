@@ -1,6 +1,6 @@
 [package]
 name = "pact_mock_server"
-version = "0.7.7"
+version = "0.7.8"
 authors = ["Ronald Holshausen <uglyog@gmail.com>"]
 edition = "2018"
 description = "Pact-Rust support library that implements in process mock server"
