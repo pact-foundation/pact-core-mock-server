@@ -6,8 +6,10 @@ use serde_json::{json, Value};
 use pact_matching::models::{Request, OptionalBody};
 use crate::provider_client::{make_provider_request, provider_client_error_to_string};
 use ansi_term::Colour::*;
-use pact_matching::match_message;
-use ansi_term::ANSIGenericString;
+use pact_matching::{match_message, Mismatch};
+use ansi_term::{ANSIGenericString, Style};
+use maplit::*;
+use pact_matching::models::HttpPart;
 
 pub async fn verify_message_from_provider<F: RequestFilterExecutor>(
   provider: &ProviderInfo,
@@ -34,8 +36,12 @@ pub async fn verify_message_from_provider<F: RequestFilterExecutor>(
     Ok(ref actual_response) => {
       let actual = Message {
         contents: actual_response.body.clone(),
+        metadata: hashmap!{
+          "contentType".into() => actual_response.lookup_content_type().unwrap_or_default()
+        },
         .. Message::default()
       };
+      log::debug!("actual message = {:?}", actual);
       let mismatches = match_message(interaction, &actual);
       if mismatches.is_empty() {
         Ok(())
@@ -62,10 +68,9 @@ pub fn display_message_result(
 ) {
   match match_result {
     Ok(()) => {
-      display_result(Green.paint("OK") //,
-        // interaction.response.headers.clone().map(|h| h.iter().map(|(k, v)| {
-        //   (k.clone(), v.join(", "), Green.paint("OK"))
-        // }).collect()), Green.paint("OK")
+      display_result(Green.paint("OK"),
+        interaction.metadata.iter()
+          .map(|(k, v)| (k.clone(), v.clone(), Green.paint("OK"))).collect()
       )
     },
     Err(ref err) => match *err {
@@ -75,21 +80,18 @@ pub fn display_message_result(
       },
       MismatchResult::Mismatches { ref mismatches, .. } => {
         let description = description.to_owned() + " generates a message which ";
-        // let header_results = match interaction.response.headers {
-        //   Some(ref h) => Some(h.iter().map(|(k, v)| {
-        //     (k.clone(), v.join(", "), if mismatches.iter().any(|m| {
-        //       match *m {
-        //         Mismatch::HeaderMismatch { ref key, .. } => k == key,
-        //         _ => false
-        //       }
-        //     }) {
-        //       Red.paint("FAILED")
-        //     } else {
-        //       Green.paint("OK")
-        //     })
-        //   }).collect()),
-        //   None => None
-        // };
+        let metadata_results = interaction.metadata.iter().map(|(k, v)| {
+          (k.clone(), v.clone(), if mismatches.iter().any(|m| {
+            match *m {
+              Mismatch::MetadataMismatch { ref key, .. } => k == key,
+              _ => false
+            }
+          }) {
+            Red.paint("FAILED")
+          } else {
+            Green.paint("OK")
+          })
+        }).collect();
         let body_result = if mismatches.iter().any(|m| m.mismatch_type() == "BodyMismatch" ||
           m.mismatch_type() == "BodyTypeMismatch") {
           Red.paint("FAILED")
@@ -97,21 +99,21 @@ pub fn display_message_result(
           Green.paint("OK")
         };
 
-        display_result(body_result);
+        display_result(body_result, metadata_results);
         errors.push((description.clone(), err.clone()));
       }
     }
   }
 }
 
-fn display_result(body_result: ANSIGenericString<str>) {
+fn display_result(body_result: ANSIGenericString<str>, metadata_result: Vec<(String, String, ANSIGenericString<str>)>) {
   println!("    generates a message which");
-  // if let Some(header_results) = header_results {
-  //   println!("      includes headers");
-  //   for (key, value, result) in header_results {
-  //     println!("        \"{}\" with value \"{}\" ({})", Style::new().bold().paint(key),
-  //              Style::new().bold().paint(value), result);
-  //   }
-  // }
+  if !metadata_result.is_empty() {
+    println!("      includes metadata");
+    for (key, value, result) in metadata_result {
+      println!("        \"{}\" with value \"{}\" ({})", Style::new().bold().paint(key),
+        Style::new().bold().paint(value), result);
+    }
+  }
   println!("      has a matching body ({})", body_result);
 }

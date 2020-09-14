@@ -121,7 +121,7 @@ impl Message {
                     None => format!("Message {}", index)
                 };
                 let provider_states = ProviderState::from_json(json);
-                let metadata = match json.get("metadata") {
+                let metadata = match json.get("metaData") {
                     Some(&Value::Object(ref v)) => v.iter().map(|(k, v)| {
                         (k.clone(), match v {
                             &Value::String(ref s) => s.clone(),
@@ -170,7 +170,7 @@ impl HttpPart for Message {
     self.metadata.iter().find(|(k, _)| {
       let key = k.to_ascii_lowercase();
       key == "contenttype" || key == "content-type"
-    }).map(|(k, v)| v.clone())
+    }).map(|(_, v)| v.clone())
   }
 }
 

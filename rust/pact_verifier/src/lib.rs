@@ -499,12 +499,12 @@ pub async fn verify_provider<F: RequestFilterExecutor, S: ProviderStateExecutor>
 
         for (i, &(ref description, ref mismatch)) in all_errors.iter().enumerate() {
             match *mismatch {
-                MismatchResult::Error(ref err, _) => println!("{}) {} - {}\n", i, description, err),
+                MismatchResult::Error(ref err, _) => println!("{}) {} - {}\n", i + 1, description, err),
                 MismatchResult::Mismatches { ref mismatches, ref expected, ref actual, .. } => {
                     let mismatch = mismatches.first().unwrap();
-                    println!("{}) {}{}", i, description, mismatch.summary());
-                    for mismatch in mismatches {
-                        println!("    {}\n", mismatch.ansi_description());
+                    println!("{}) {}{}", i + 1, description, mismatch.summary());
+                    for (j, mismatch) in mismatches.iter().enumerate() {
+                        println!("    {}. {}", j + 1, mismatch.ansi_description());
                     }
 
                     if let Mismatch::BodyMismatch{ref path, ..} = mismatch {

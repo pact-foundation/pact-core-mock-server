@@ -611,6 +611,11 @@ fn build_payload(result: TestResult, version: String, build_url: Option<String>)
                     "attribute": "body",
                     "identifier": path,
                     "description": mismatch
+                  })),
+                  Mismatch::MetadataMismatch { ref key, ref mismatch, .. } => acc.0.push(json!({
+                    "attribute": "metadata",
+                    "identifier": key,
+                    "description": mismatch
                   }))
                 }
               }
