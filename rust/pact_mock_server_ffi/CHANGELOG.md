@@ -1,5 +1,21 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.0.8 - Supports TLS CA certs + better content type handling
+
+* 6cba6ad - feat: implemented basic message verification with the verifier cli (Ronald Holshausen, Mon Sep 14 13:48:27 2020 +1000)
+* 2d44ffd - chore: bump minor version of the matching crate (Ronald Holshausen, Mon Sep 14 12:06:37 2020 +1000)
+* 814c416 - refactor: added a trait for interactions, renamed Interaction to RequestResponseInteraction (Ronald Holshausen, Sun Sep 13 17:09:41 2020 +1000)
+* a05bcbb - refactor: renamed Pact to RequestResponsePact (Ronald Holshausen, Sun Sep 13 12:45:34 2020 +1000)
+* 1185e4c - chore: update to latest matching and mock server crates (Ronald Holshausen, Sun Aug 23 14:52:47 2020 +1000)
+* 2f16b34 - feat: add function to retrieve the TLS CA cert (Matt Fellows, Sun Aug 9 00:18:22 2020 +1000)
+* b242eb1 - refactor: changed the remaining uses of the old content type methods (Ronald Holshausen, Sun Jun 28 17:11:51 2020 +1000)
+* 5316030 - feat: added a struct for handling content types (Ronald Holshausen, Sun Jun 28 13:31:22 2020 +1000)
+* ed207a7 - chore: updated readmes for docs site (Ronald Holshausen, Sun Jun 28 10:04:09 2020 +1000)
+* 359a944 - chore: update versions in readmes (Ronald Holshausen, Sat Jun 27 13:21:24 2020 +1000)
+* 2ab1a9d - refactor: extract generate_regex_value to a seperate function (Ronald Holshausen, Sat Jun 27 13:17:54 2020 +1000)
+* a6f926e - chore: document conan publish steps (Ronald Holshausen, Wed Jun 24 12:11:10 2020 +1000)
+* 01d6ed2 - bump version to 0.0.8 (Ronald Holshausen, Wed Jun 24 11:25:43 2020 +1000)
+
 # 0.0.7 - Updated XML Matching and Date/Time parsing
 
 * f9b0cae - chore: update to latest matching crate (Ronald Holshausen, Wed Jun 24 11:16:38 2020 +1000)
