@@ -505,12 +505,12 @@ pub async fn verify_provider<F: RequestFilterExecutor, S: ProviderStateExecutor>
                   println!("{}) {}", i + 1, description);
 
                   let mut j = 1;
-                  for (key, mut mismatches) in &mismatches.into_iter().group_by(|m| m.mismatch_type()) {
+                  for (_, mut mismatches) in &mismatches.into_iter().group_by(|m| m.mismatch_type()) {
                     let mismatch = mismatches.next().unwrap();
                     println!("    {}.{}) {}", i + 1, j, mismatch.summary());
                     println!("           {}", mismatch.ansi_description());
                     for mismatch in mismatches {
-                      println!("         {}", mismatch.ansi_description());
+                      println!("           {}", mismatch.ansi_description());
                     }
 
                     if let Mismatch::BodyMismatch{ref path, ..} = mismatch {

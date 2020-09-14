@@ -986,12 +986,12 @@ fn parse_charset_parameters(parameters: &[&str]) -> HashMap<String, String> {
         })
 }
 
-fn match_parameter_header(expected: &String, actual: &String, header: &String) -> Vec<String> {
+fn match_parameter_header(expected: &String, actual: &String, header: &String, value_type: &str) -> Vec<String> {
   let expected_values: Vec<&str> = strip_whitespace(expected, ";");
   let actual_values: Vec<&str> = strip_whitespace(actual, ";");
   let expected_parameters = expected_values.as_slice().split_first().unwrap();
   let actual_parameters = actual_values.as_slice().split_first().unwrap();
-  let header_mismatch = format!("Expected header '{}' to have value '{}' but was '{}'", header, expected, actual);
+  let header_mismatch = format!("Expected {} '{}' to have value '{}' but was '{}'", value_type, header, expected, actual);
 
   let mut mismatches = vec![];
   if expected_parameters.0 == actual_parameters.0 {
@@ -1020,7 +1020,7 @@ fn match_header_value(key: &String, expected: &String, actual: &String, matchers
   let matcher_result = if matchers.matcher_is_defined("header", &path) {
     matchers::match_values("header",&path, matchers.clone(), &expected, &actual)
   } else if PARAMETERISED_HEADER_TYPES.contains(&key.to_lowercase().as_str()) {
-    let result = match_parameter_header(&expected, &actual, &key);
+    let result = match_parameter_header(&expected, &actual, &key, "header");
     if result.is_empty() {
       Ok(())
     } else {
@@ -1294,6 +1294,7 @@ pub fn match_message_metadata(
   config: DiffConfig,
   matchers: &MatchingRules
 ) -> HashMap<String, Vec<Mismatch>> {
+  debug!("Matching message metadata for '{}'", expected.description);
   let mut result = hashmap!{};
   if !expected.metadata.is_empty() || config == DiffConfig::NoUnexpectedKeys {
     for (key, value) in &expected.metadata {
@@ -1304,7 +1305,7 @@ pub fn match_message_metadata(
         },
         None => {
           result.insert(key.clone(), vec![Mismatch::MetadataMismatch { key: key.clone(),
-            expected: format!("{:?}", value),
+            expected: value.clone(),
             actual: "".to_string(),
             mismatch: format!("Expected message metadata '{}' but was missing", key) }]);
         }
@@ -1315,9 +1316,18 @@ pub fn match_message_metadata(
 }
 
 fn match_metadata_value(key: &String, expected: &String, actual: &String, matchers: &MatchingRules) -> Vec<Mismatch> {
+  debug!("Comparing metadata values for key '{}'", key);
   let path = vec![key.clone()];
   let matcher_result = if matchers.matcher_is_defined("metadata", &path) {
     matchers::match_values("metadata",&path, matchers.clone(), expected, actual)
+  } else if key.to_ascii_lowercase() == "contenttype" || key.to_ascii_lowercase() == "content-type" {
+    debug!("Comparing message context type '{}' => '{}'", expected, actual);
+    let match_result= match_parameter_header(expected, actual, key, "metadata");
+    if match_result.is_empty() {
+      Ok(())
+    } else {
+      Err(match_result)
+    }
   } else {
     expected.matches(actual, &MatchingRule::Equality).map_err(|err| vec![err])
   };
