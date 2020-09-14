@@ -34,6 +34,7 @@ use futures::executor::block_on;
 use crate::messages::{verify_message_from_provider, display_message_result};
 use crate::request_response::display_request_response_result;
 use std::fmt;
+use itertools::Itertools;
 
 /// Source for loading pacts
 #[derive(Debug, Clone)]
@@ -501,15 +502,23 @@ pub async fn verify_provider<F: RequestFilterExecutor, S: ProviderStateExecutor>
             match *mismatch {
                 MismatchResult::Error(ref err, _) => println!("{}) {} - {}\n", i + 1, description, err),
                 MismatchResult::Mismatches { ref mismatches, ref expected, ref actual, .. } => {
-                    let mismatch = mismatches.first().unwrap();
-                    println!("{}) {}{}", i + 1, description, mismatch.summary());
-                    for (j, mismatch) in mismatches.iter().enumerate() {
-                        println!("    {}. {}", j + 1, mismatch.ansi_description());
+                  println!("{}) {}", i + 1, description);
+
+                  let mut j = 1;
+                  for (key, mut mismatches) in &mismatches.into_iter().group_by(|m| m.mismatch_type()) {
+                    let mismatch = mismatches.next().unwrap();
+                    println!("    {}.{}) {}", i + 1, j, mismatch.summary());
+                    println!("           {}", mismatch.ansi_description());
+                    for mismatch in mismatches {
+                      println!("         {}", mismatch.ansi_description());
                     }
 
                     if let Mismatch::BodyMismatch{ref path, ..} = mismatch {
                       display_body_mismatch(expected, actual, path);
                     }
+
+                    j += 1;
+                  }
                 }
             }
         }

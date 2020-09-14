@@ -79,7 +79,6 @@ pub fn display_message_result(
         errors.push((description.clone(), err.clone()));
       },
       MismatchResult::Mismatches { ref mismatches, .. } => {
-        let description = description.to_owned() + " generates a message which ";
         let metadata_results = interaction.metadata.iter().map(|(k, v)| {
           (k.clone(), v.clone(), if mismatches.iter().any(|m| {
             match *m {

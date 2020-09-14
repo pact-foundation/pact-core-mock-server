@@ -158,6 +158,7 @@ pub async fn make_provider_request<F: RequestFilterExecutor>(
   info!("Sending request to provider at {}", base_url);
   debug!("Provider details = {:?}", provider);
   debug!("Sending request {}", request);
+  trace!("body: {}", request.body.str_value());
   let request = create_native_request(client, &base_url, &request)?;
 
   let response = request.send()
