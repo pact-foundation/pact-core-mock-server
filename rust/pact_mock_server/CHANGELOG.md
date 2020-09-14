@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.7.7 - Updated to latest pact matching crate
+
+* 6cba6ad - feat: implemented basic message verification with the verifier cli (Ronald Holshausen, Mon Sep 14 13:48:27 2020 +1000)
+* 2d44ffd - chore: bump minor version of the matching crate (Ronald Holshausen, Mon Sep 14 12:06:37 2020 +1000)
+* 814c416 - refactor: added a trait for interactions, renamed Interaction to RequestResponseInteraction (Ronald Holshausen, Sun Sep 13 17:09:41 2020 +1000)
+* a05bcbb - refactor: renamed Pact to RequestResponsePact (Ronald Holshausen, Sun Sep 13 12:45:34 2020 +1000)
+* 1682eda - bump version to 0.7.7 (Ronald Holshausen, Sun Aug 23 14:47:38 2020 +1000)
+
 # 0.7.6 - Implemented provider state generator
 
 * e9955c4 - chore: update to latest matching crate (Ronald Holshausen, Sun Aug 23 14:41:42 2020 +1000)
