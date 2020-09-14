@@ -317,9 +317,10 @@ async fn handle_command_args() -> Result<(), i32> {
             };
             TermLogger::init(log_level, Config::default(), TerminalMode::Mixed).unwrap_or_default();
             let provider = ProviderInfo {
-                host: s!(matches.value_of("hostname").unwrap_or("localhost")),
-                port: matches.value_of("port").map(|port| port.parse::<u16>().unwrap()),
-                .. ProviderInfo::default()
+              host: s!(matches.value_of("hostname").unwrap_or("localhost")),
+              port: matches.value_of("port").map(|port| port.parse::<u16>().unwrap()),
+              path: matches.value_of("base-path").unwrap_or("/").into(),
+              .. ProviderInfo::default()
             };
             let source = pact_source(matches);
             let filter = interaction_filter(matches);

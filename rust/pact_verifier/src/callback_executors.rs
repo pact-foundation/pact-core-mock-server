@@ -110,7 +110,7 @@ impl ProviderStateExecutor for HttpRequestProviderStateExecutor {
       },
       None => {
         if setup {
-          println!("    {}", Yellow.paint("WARNING: State Change ignored as there is no state change URL"));
+          println!("    {}", Yellow.paint("WARNING: State Change ignored as there is no state change URL provided"));
         }
         Ok(hashmap!{})
       }

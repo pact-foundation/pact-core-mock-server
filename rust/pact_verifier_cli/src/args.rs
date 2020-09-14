@@ -169,6 +169,12 @@ pub(crate) fn setup_app<'a, 'b>(program: String, version: &'b str) -> App<'a, 'b
       .use_delimiter(true)
       .empty_values(false)
       .help("Provider tags to use when publishing results. Accepts comma-separated values."))
+    .arg(Arg::with_name("base-path")
+      .long("base-path")
+      .takes_value(true)
+      .use_delimiter(false)
+      .empty_values(false)
+      .help("Base path to add to all requests"))
 }
 
 #[cfg(test)]

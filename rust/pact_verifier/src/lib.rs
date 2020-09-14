@@ -6,6 +6,7 @@
 mod provider_client;
 mod pact_broker;
 pub mod callback_executors;
+mod messages;
 
 use std::path::Path;
 use std::io;
@@ -29,6 +30,7 @@ pub use callback_executors::NullRequestFilterExecutor;
 use crate::callback_executors::{ProviderStateExecutor, ProviderStateError};
 use log::*;
 use futures::executor::block_on;
+use crate::messages::verify_message_from_provider;
 
 /// Source for loading pacts
 #[derive(Debug, Clone)]
@@ -196,8 +198,15 @@ fn verify_interaction<F: RequestFilterExecutor, S: ProviderStateExecutor>(
   }
 
   info!("Running provider verification for '{}'", interaction.description());
-  let result = block_on(verify_response_from_provider(provider, &interaction.as_request_response(),
-                                                      options, &client, provider_states_results));
+  let mut result = Err(MismatchResult::Error("No interaction was verified".into(), None));
+  if let Some(interaction) = interaction.as_request_response() {
+    result = block_on(verify_response_from_provider(provider, &interaction,
+      options, &client, provider_states_results.clone()));
+  }
+  if let Some(interaction) = interaction.as_message() {
+    result = block_on(verify_message_from_provider(provider, &interaction,
+      options, &client, provider_states_results));
+  }
 
   if !interaction.provider_states().is_empty() {
     info!("Running provider state change handler teardowns for '{}'", interaction.description());
@@ -216,9 +225,12 @@ fn verify_interaction<F: RequestFilterExecutor, S: ProviderStateExecutor>(
   result
 }
 
-fn display_result(status: u16, status_result: ANSIGenericString<str>,
+fn display_result(
+  status: u16,
+  status_result: ANSIGenericString<str>,
   header_results: Option<Vec<(String, String, ANSIGenericString<str>)>>,
-  body_result: ANSIGenericString<str>) {
+  body_result: ANSIGenericString<str>
+) {
   println!("    returns a response which");
   println!("      has status code {} ({})", Style::new().bold().paint(format!("{}", status)),
       status_result);
@@ -535,60 +547,72 @@ async fn verify_pact<'a, F: RequestFilterExecutor, S: ProviderStateExecutor>(
       description.push_str(" - ");
       description.push_str(&interaction.description());
       println!("  {}", interaction.description());
-      match match_result {
-        Ok(()) => {
-          display_result(
-            interaction.as_request_response().response.status,
-            Green.paint("OK"),
-            interaction.as_request_response().response.headers.map(|h| h.iter().map(|(k, v)| {
-              (k.clone(), v.join(", "), Green.paint("OK"))
-            }).collect()), Green.paint("OK")
-          )
-        },
-        Err(ref err) => match *err {
-          MismatchResult::Error(ref err_des, _) => {
-            println!("      {}", Red.paint(format!("Request Failed - {}", err_des)));
-            errors.push((description, err.clone()));
-          },
-          MismatchResult::Mismatches { ref mismatches, .. } => {
-            description.push_str(" returns a response which ");
-            let status_result = if mismatches.iter().any(|m| m.mismatch_type() == "StatusMismatch") {
-              Red.paint("FAILED")
-            } else {
-              Green.paint("OK")
-            };
-            let header_results = match interaction.as_request_response().response.headers {
-              Some(ref h) => Some(h.iter().map(|(k, v)| {
-                (k.clone(), v.join(", "), if mismatches.iter().any(|m| {
-                  match *m {
-                    Mismatch::HeaderMismatch { ref key, .. } => k == key,
-                    _ => false
-                  }
-                }) {
-                  Red.paint("FAILED")
-                } else {
-                  Green.paint("OK")
-                })
-              }).collect()),
-              None => None
-            };
-            let body_result = if mismatches.iter().any(|m| m.mismatch_type() == "BodyMismatch" ||
-              m.mismatch_type() == "BodyTypeMismatch") {
-              Red.paint("FAILED")
-            } else {
-              Green.paint("OK")
-            };
 
-            display_result(interaction.as_request_response().response.status, status_result, header_results, body_result);
-            errors.push((description.clone(), err.clone()));
-          }
-        }
+      if let Some(interaction) = interaction.as_request_response() {
+        display_request_response_result(&mut errors, &interaction, match_result, description)
       }
     }
 
     println!();
 
     errors
+}
+
+fn display_request_response_result(
+  errors: &mut Vec<(String, MismatchResult)>,
+  interaction: &RequestResponseInteraction,
+  match_result: Result<(), MismatchResult>,
+  mut description: String
+) {
+  match match_result {
+    Ok(()) => {
+      display_result(
+        interaction.response.status,
+        Green.paint("OK"),
+        interaction.response.headers.clone().map(|h| h.iter().map(|(k, v)| {
+          (k.clone(), v.join(", "), Green.paint("OK"))
+        }).collect()), Green.paint("OK")
+      )
+    },
+    Err(ref err) => match *err {
+      MismatchResult::Error(ref err_des, _) => {
+        println!("      {}", Red.paint(format!("Request Failed - {}", err_des)));
+        errors.push((description, err.clone()));
+      },
+      MismatchResult::Mismatches { ref mismatches, .. } => {
+        description.push_str(" returns a response which ");
+        let status_result = if mismatches.iter().any(|m| m.mismatch_type() == "StatusMismatch") {
+          Red.paint("FAILED")
+        } else {
+          Green.paint("OK")
+        };
+        let header_results = match interaction.response.headers {
+          Some(ref h) => Some(h.iter().map(|(k, v)| {
+            (k.clone(), v.join(", "), if mismatches.iter().any(|m| {
+              match *m {
+                Mismatch::HeaderMismatch { ref key, .. } => k == key,
+                _ => false
+              }
+            }) {
+              Red.paint("FAILED")
+            } else {
+              Green.paint("OK")
+            })
+          }).collect()),
+          None => None
+        };
+        let body_result = if mismatches.iter().any(|m| m.mismatch_type() == "BodyMismatch" ||
+          m.mismatch_type() == "BodyTypeMismatch") {
+          Red.paint("FAILED")
+        } else {
+          Green.paint("OK")
+        };
+
+        display_result(interaction.response.status, status_result, header_results, body_result);
+        errors.push((description.clone(), err.clone()));
+      }
+    }
+  }
 }
 
 async fn publish_result<F: RequestFilterExecutor>(

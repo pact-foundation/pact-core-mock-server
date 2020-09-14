@@ -28,6 +28,7 @@ use log::*;
 use crate::models::content_types::{ContentType, TEXT};
 use crate::models::message_pact::MessagePact;
 use crate::models::provider_states::ProviderState;
+use crate::models::message::Message;
 
 pub mod json_utils;
 pub mod xml_utils;
@@ -949,8 +950,12 @@ pub struct PactConflict {
 pub trait Interaction {
   /// If this is a request/response interaction
   fn is_request_response(&self) -> bool;
-  /// Returns the request/response interaction, panics if it is not one
-  fn as_request_response(&self) -> RequestResponseInteraction;
+  /// Returns the request/response interaction if it is one
+  fn as_request_response(&self) -> Option<RequestResponseInteraction>;
+  /// If this is a message interaction
+  fn is_message(&self) -> bool;
+  /// Returns the message interaction if it is one
+  fn as_message(&self) -> Option<Message>;
   /// Interaction ID. This will only be set if the Pact file was fetched from a Pact Broker
   fn id(&self) -> Option<String>;
   /// Description of this interaction. This needs to be unique in the pact file.
@@ -981,8 +986,16 @@ impl Interaction for RequestResponseInteraction {
     true
   }
 
-  fn as_request_response(&self) -> RequestResponseInteraction {
-    self.clone()
+  fn as_request_response(&self) -> Option<RequestResponseInteraction> {
+    Some(self.clone())
+  }
+
+  fn is_message(&self) -> bool {
+    false
+  }
+
+  fn as_message(&self) -> Option<Message> {
+    None
   }
 
   fn id(&self) -> Option<String> {
@@ -1051,8 +1064,7 @@ impl RequestResponseInteraction {
     /// Two interactions conflict if they have the same description and provider state, but they request and
     /// responses are not equal
     pub fn conflicts_with(&self, other: &dyn Interaction) -> Vec<PactConflict> {
-      if other.is_request_response() {
-        let other = other.as_request_response();
+      if let Some(other) = other.as_request_response() {
         if self.description == other.description && self.provider_states == other.provider_states {
           let mut conflicts = self.request.differences_from(&other.request).iter()
             .filter(|difference| match difference.0 {

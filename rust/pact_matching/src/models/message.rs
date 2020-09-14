@@ -49,8 +49,16 @@ impl Interaction for Message {
     false
   }
 
-  fn as_request_response(&self) -> RequestResponseInteraction {
-    panic!("Message interaction cannot be returned as a Request/Response interaction")
+  fn as_request_response(&self) -> Option<RequestResponseInteraction> {
+    None
+  }
+
+  fn is_message(&self) -> bool {
+    true
+  }
+
+  fn as_message(&self) -> Option<Message> {
+    Some(self.clone())
   }
 
   fn id(&self) -> Option<String> {
