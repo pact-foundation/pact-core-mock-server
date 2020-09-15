@@ -71,7 +71,7 @@ pub(crate) fn setup_app<'a, 'b>(program: String, version: &'b str) -> App<'a, 'b
       .long("port")
       .takes_value(true)
       .use_delimiter(false)
-      .help("Provider port (defaults to 8080)")
+      .help("Provider port (defaults to protocol default 80/443)")
       .validator(integer_value))
     .arg(Arg::with_name("provider-name")
       .short("n")
