@@ -157,7 +157,7 @@ impl GenerateValue<String> for Generator {
     let mut rnd = rand::thread_rng();
     match self {
       &Generator::RandomInt(min, max) => Ok(format!("{}", rnd.gen_range(min, max.saturating_add(1)))),
-      &Generator::Uuid => Ok(Uuid::new_v4().simple().to_string()),
+      &Generator::Uuid => Ok(Uuid::new_v4().hyphenated().to_string()),
       &Generator::RandomDecimal(digits) => Ok(generate_decimal(digits as usize)),
       &Generator::RandomHexadecimal(digits) => Ok(generate_hexadecimal(digits as usize)),
       &Generator::RandomString(size) => Ok(generate_ascii_string(size as usize)),

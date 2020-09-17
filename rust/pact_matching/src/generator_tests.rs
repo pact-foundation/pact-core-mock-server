@@ -335,3 +335,9 @@ fn regex_generator_test() {
   let generated = Generator::Regex(r"\d{4}\w{1,4}".into()).generate_value(&"".to_string(), &hashmap!{});
   assert_that!(generated.unwrap(), matches_regex(r"^\d{4}\w{1,4}$"));
 }
+
+#[test]
+fn uuid_generator_test() {
+  let generated = Generator::Uuid.generate_value(&"".to_string(), &hashmap!{});
+  assert_that!(generated.unwrap(), matches_regex(r"^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"));
+}
