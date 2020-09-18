@@ -165,8 +165,13 @@ impl GenerateValue<String> for Generator {
         let mut parser = regex_syntax::ParserBuilder::new().unicode(false).build();
         match parser.parse(regex) {
           Ok(hir) => {
-            let gen = rand_regex::Regex::with_hir(hir, 20).unwrap();
-            Ok(rnd.sample(gen))
+            match rand_regex::Regex::with_hir(hir, 20) {
+              Ok(gen) => Ok(rnd.sample(gen)),
+              Err(err) => {
+                log::warn!("Failed to generate a value from regular expression - {}", err);
+                Err(format!("Failed to generate a value from regular expression - {}", err))
+              }
+            }
           },
           Err(err) => {
             log::warn!("'{}' is not a valid regular expression - {}", regex, err);

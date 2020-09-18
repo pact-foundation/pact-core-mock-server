@@ -334,6 +334,9 @@ fn datetime_generator_test() {
 fn regex_generator_test() {
   let generated = Generator::Regex(r"\d{4}\w{1,4}".into()).generate_value(&"".to_string(), &hashmap!{});
   assert_that!(generated.unwrap(), matches_regex(r"^\d{4}\w{1,4}$"));
+
+  let generated = Generator::Regex(r"\d{1,2}/\d{1,2}".into()).generate_value(&"".to_string(), &hashmap!{});
+  assert_that!(generated.unwrap(), matches_regex(r"^\d{1,2}/\d{1,2}$"));
 }
 
 #[test]
