@@ -152,6 +152,12 @@ fn generate_ascii_string(size: usize) -> String {
   rand::thread_rng().sample_iter(&Alphanumeric).take(size).collect()
 }
 
+fn strip_anchors(regex: &str) -> &str {
+  regex.clone()
+    .strip_prefix('^').unwrap_or(regex)
+    .strip_suffix('$').unwrap_or(regex)
+}
+
 impl GenerateValue<String> for Generator {
   fn generate_value(&self, _: &String, context: &HashMap<String, Value>) -> Result<String, String> {
     let mut rnd = rand::thread_rng();
@@ -163,7 +169,7 @@ impl GenerateValue<String> for Generator {
       &Generator::RandomString(size) => Ok(generate_ascii_string(size as usize)),
       &Generator::Regex(ref regex) => {
         let mut parser = regex_syntax::ParserBuilder::new().unicode(false).build();
-        match parser.parse(regex) {
+        match parser.parse(strip_anchors(regex)) {
           Ok(hir) => {
             match rand_regex::Regex::with_hir(hir, 20) {
               Ok(gen) => Ok(rnd.sample(gen)),
