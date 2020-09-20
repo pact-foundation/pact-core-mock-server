@@ -12,6 +12,7 @@ use maplit::*;
 use super::PactSpecification;
 use rand::prelude::*;
 use rand::distributions::Alphanumeric;
+use rand::seq::SliceRandom;
 use uuid::Uuid;
 use crate::models::OptionalBody;
 use crate::models::json_utils::{JsonToNum, json_to_string};
@@ -26,6 +27,7 @@ use regex_syntax;
 use crate::models::content_types::ContentType;
 use crate::models::expression_parser::{contains_expressions, DataType, DataValue, parse_expression, MapValueResolver};
 use std::convert::TryFrom;
+use log::trace;
 
 /// Trait to represent a generator
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash)]
@@ -136,17 +138,35 @@ impl GenerateValue<u16> for Generator {
   }
 }
 
+const DIGIT_CHARSET: &'static str = "0123456789";
 fn generate_decimal(digits: usize) -> String {
-  const DIGIT_CHARSET: &'static str = "0123456789";
   let mut rnd = rand::thread_rng();
-  let sample = DIGIT_CHARSET.chars().choose_multiple(&mut rnd, digits + 1).iter().join("");
-  let pos = rnd.gen_range(1, digits - 1);
-  let selected_digits = if pos != 1 && sample.starts_with('0') {
-    &sample[1..(digits + 1)]
-  } else {
-    &sample[..digits]
-  };
-  format!("{}.{}", &selected_digits[..pos], &selected_digits[pos..])
+  let chars: Vec<char> = DIGIT_CHARSET.chars().collect();
+  match digits {
+    0 => "".to_string(),
+    1 => chars.choose(&mut rnd).unwrap().to_string(),
+    2 => format!("{}.{}", chars.choose(&mut rnd).unwrap(), chars.choose(&mut rnd).unwrap()),
+    _ => {
+      let mut sample = String::new();
+      for _ in 0..(digits + 1) {
+        sample.push(*chars.choose(&mut rnd).unwrap());
+      }
+      if sample.starts_with("00") {
+        let chars = DIGIT_CHARSET[1..].chars();
+        sample.insert(0, chars.choose(&mut rnd).unwrap());
+      }
+      let pos = rnd.gen_range(1, digits - 1);
+      let selected_digits = if pos != 1 && sample.starts_with('0') {
+        &sample[1..(digits + 1)]
+      } else {
+        &sample[..digits]
+      };
+      let generated = format!("{}.{}", &selected_digits[..pos], &selected_digits[pos..]);
+      trace!("RandomDecimalGenerator: sample_digits=[{}], pos={}, selected_digits=[{}], generated=[{}]",
+             sample, pos, selected_digits, generated);
+      generated
+    }
+  }
 }
 
 fn generate_hexadecimal(digits: usize) -> String {
@@ -1042,9 +1062,26 @@ mod tests {
   #[test]
   fn random_decimal_generator_test() {
     for _ in 1..100 {
-      let generated = Generator::RandomDecimal(6).generate_value(&"".to_string(), &hashmap! {}).unwrap();
-      expect!(generated.clone().len()).to(be_equal_to(7));
-      assert_that!(generated, matches_regex(r"^\d+\.\d+$"));
+      let generated = Generator::RandomDecimal(10).generate_value(&"".to_string(), &hashmap! {}).unwrap();
+      expect!(generated.clone().len()).to(be_equal_to(11));
+      assert_that!(generated.clone(), matches_regex(r"^\d+\.\d+$"));
+      let mut chars = generated.chars();
+      let first_char = chars.next().unwrap();
+      let second_char = chars.next().unwrap();
+      println!("{}: '{}' != '0' || ('{}' == '0' && '{}' == '.')", generated, first_char, first_char, second_char);
+      expect!(first_char != '0' || (first_char == '0' && second_char == '.')).to(be_true());
     }
+  }
+
+  #[test]
+  fn handle_edge_case_when_digits_is_1() {
+    let generated = Generator::RandomDecimal(1).generate_value(&"".to_string(), &hashmap! {}).unwrap();
+    assert_that!(generated, matches_regex(r"^\d$"));
+  }
+
+  #[test]
+  fn handle_edge_case_when_digits_is_2() {
+    let generated = Generator::RandomDecimal(2).generate_value(&"".to_string(), &hashmap! {}).unwrap();
+    assert_that!(generated, matches_regex(r"^\d\.\d$"));
   }
 }
