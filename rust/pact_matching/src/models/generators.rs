@@ -180,7 +180,7 @@ fn generate_ascii_string(size: usize) -> String {
 }
 
 fn strip_anchors(regex: &str) -> &str {
-  regex.clone()
+  regex
     .strip_prefix('^').unwrap_or(regex)
     .strip_suffix('$').unwrap_or(regex)
 }
