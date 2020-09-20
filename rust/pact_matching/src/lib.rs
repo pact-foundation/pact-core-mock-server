@@ -359,7 +359,7 @@ use nom::lib::std::fmt::Formatter;
 use crate::models::content_types::ContentType;
 use std::hash::Hash;
 
-fn strip_whitespace<'a, T: FromIterator<&'a str>>(val: &'a String, split_by: &'a str) -> T {
+fn strip_whitespace<'a, T: FromIterator<&'a str>>(val: &'a str, split_by: &'a str) -> T {
   val.split(split_by).map(|v| v.trim()).collect()
 }
 
@@ -986,7 +986,7 @@ fn parse_charset_parameters(parameters: &[&str]) -> HashMap<String, String> {
         })
 }
 
-fn match_parameter_header(expected: &String, actual: &String, header: &String, value_type: &str) -> Vec<String> {
+fn match_parameter_header(expected: &str, actual: &str, header: &str, value_type: &str) -> Vec<String> {
   let expected_values: Vec<&str> = strip_whitespace(expected, ";");
   let actual_values: Vec<&str> = strip_whitespace(actual, ";");
   let expected_parameters = expected_values.as_slice().split_first().unwrap();
@@ -1315,11 +1315,11 @@ pub fn match_message_metadata(
   result
 }
 
-fn match_metadata_value(key: &String, expected: &String, actual: &String, matchers: &MatchingRules) -> Vec<Mismatch> {
+fn match_metadata_value(key: &str, expected: &str, actual: &str, matchers: &MatchingRules) -> Vec<Mismatch> {
   debug!("Comparing metadata values for key '{}'", key);
-  let path = vec![key.clone()];
+  let path = vec![key.to_string()];
   let matcher_result = if matchers.matcher_is_defined("metadata", &path) {
-    matchers::match_values("metadata",&path, matchers.clone(), expected, actual)
+    matchers::match_values("metadata", &path, matchers.clone(), &expected.to_string(), &actual.to_string())
   } else if key.to_ascii_lowercase() == "contenttype" || key.to_ascii_lowercase() == "content-type" {
     debug!("Comparing message context type '{}' => '{}'", expected, actual);
     let match_result= match_parameter_header(expected, actual, key, "metadata");
@@ -1329,15 +1329,15 @@ fn match_metadata_value(key: &String, expected: &String, actual: &String, matche
       Err(match_result)
     }
   } else {
-    expected.matches(actual, &MatchingRule::Equality).map_err(|err| vec![err])
+    expected.to_string().matches(&actual.to_string(), &MatchingRule::Equality).map_err(|err| vec![err])
   };
   match matcher_result {
     Err(messages) => messages.iter().map(|message| {
       Mismatch::MetadataMismatch {
-        key: key.clone(),
-        expected: expected.clone(),
-        actual: actual.clone(),
-        mismatch: format!("Expected metadata key '{}' to have value '{}' but was '{}' - {}", key.clone(), expected, actual, message)
+        key: key.to_string(),
+        expected: expected.to_string(),
+        actual: actual.to_string(),
+        mismatch: format!("Expected metadata key '{}' to have value '{}' but was '{}' - {}", key, expected, actual, message)
       }
     }).collect(),
     Ok(_) => vec![]
@@ -1362,38 +1362,30 @@ pub fn generate_request(request: &models::Request, context: &HashMap<String, Val
     let generators = request.generators.clone();
     let mut request = request.clone();
     generators.apply_generator(&GeneratorCategory::PATH, |_, generator| {
-        match generator.generate_value(&request.path, context) {
-            Ok(v) => request.path = v,
-            Err(_) => ()
-        }
+      if let Ok(v) = generator.generate_value(&request.path, context) {
+        request.path = v;
+      }
     });
     generators.apply_generator(&GeneratorCategory::HEADER, |key, generator| {
-        match request.headers {
-            Some(ref mut headers) => if headers.contains_key(key) {
-                match generator.generate_value(&headers.get(key).unwrap().clone(), context) {
-                    Ok(v) => headers.insert(key.clone(), v),
-                    Err(_) => None
-                };
-            },
-            None => ()
+      if let Some(ref mut headers) = request.headers {
+        if headers.contains_key(key) {
+          if let Ok(v) = generator.generate_value(&headers.get(key).unwrap().clone(), context) {
+            headers.insert(key.clone(), v);
+          }
         }
+      }
     });
     generators.apply_generator(&GeneratorCategory::QUERY, |key, generator| {
-      match request.query {
-        Some(ref mut parameters) => match parameters.get_mut(key) {
-          Some(parameter) => {
-            let mut generated = parameter.clone();
-            for (index, val) in parameter.iter().enumerate() {
-              match generator.generate_value(val, context) {
-                Ok(v) => generated[index] = v,
-                Err(_) => ()
-              };
+      if let Some(ref mut parameters) = request.query {
+        if let Some(parameter) = parameters.get_mut(key) {
+          let mut generated = parameter.clone();
+          for (index, val) in parameter.iter().enumerate() {
+            if let Ok(v) = generator.generate_value(val, context) {
+              generated[index] = v;
             }
-            *parameter = generated;
-          },
-          None => ()
-        },
-        None => ()
+          }
+          *parameter = generated;
+        }
       }
     });
     request.body = generators.apply_body_generators(&request.body, request.content_type(),
@@ -1406,20 +1398,18 @@ pub fn generate_response(response: &models::Response, context: &HashMap<String, 
   let generators = response.generators.clone();
   let mut response = response.clone();
   generators.apply_generator(&GeneratorCategory::STATUS, |_, generator| {
-    match generator.generate_value(&response.status, context) {
-      Ok(v) => response.status = v,
-      Err(_) => ()
+    if let Ok(v) = generator.generate_value(&response.status, context) {
+      response.status = v;
     }
   });
   generators.apply_generator(&GeneratorCategory::HEADER, |key, generator| {
-    match response.headers {
-      Some(ref mut headers) => if headers.contains_key(key) {
+    if let Some(ref mut headers) = response.headers {
+      if headers.contains_key(key) {
         match generator.generate_value(&headers.get(key).unwrap().clone(), context) {
           Ok(v) => headers.insert(key.clone(), v),
           Err(_) => None
         };
-      },
-      None => ()
+      }
     }
   });
   response.body = generators.apply_body_generators(&response.body, response.content_type(),

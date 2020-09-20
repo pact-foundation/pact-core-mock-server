@@ -5,76 +5,82 @@ use crate::time_utils::validate_datetime;
 use crate::binary_utils::match_content_type;
 
 pub trait Matches<A> {
-    fn matches(&self, actual: &A, matcher: &MatchingRule) -> Result<(), String>;
+  fn matches(&self, actual: &A, matcher: &MatchingRule) -> Result<(), String>;
 }
 
 impl Matches<String> for String {
-    fn matches(&self, actual: &String, matcher: &MatchingRule) -> Result<(), String> {
-        log::debug!("String -> String: comparing '{}' to '{}' using {:?}", self, actual, matcher);
-        match *matcher {
-          MatchingRule::Regex(ref regex) => {
-            match Regex::new(regex) {
-              Ok(re) => {
-                if re.is_match(actual) {
-                  Ok(())
-                } else {
-                  Err(format!("Expected '{}' to match '{}'", actual, regex))
-                }
-              },
-              Err(err) => Err(format!("'{}' is not a valid regular expression - {}", regex, err))
-            }
-          },
-          MatchingRule::Equality => {
-            if self == actual {
+  fn matches(&self, actual: &String, matcher: &MatchingRule) -> Result<(), String> {
+    self.matches(&actual.as_str(), matcher)
+  }
+}
+
+impl Matches<&str> for String {
+  fn matches(&self, actual: &&str, matcher: &MatchingRule) -> Result<(), String> {
+    log::debug!("String -> String: comparing '{}' to '{}' using {:?}", self, actual, matcher);
+    match *matcher {
+      MatchingRule::Regex(ref regex) => {
+        match Regex::new(regex) {
+          Ok(re) => {
+            if re.is_match(actual) {
               Ok(())
             } else {
-              Err(format!("Expected '{}' to be equal to '{}'", self, actual))
+              Err(format!("Expected '{}' to match '{}'", actual, regex))
             }
           },
-          MatchingRule::Type |
-          MatchingRule::MinType(_) |
-          MatchingRule::MaxType(_)|
-          MatchingRule::MinMaxType(_, _) => Ok(()),
-          MatchingRule::Include(ref substr) => {
-            if actual.contains(substr) {
-              Ok(())
-            } else {
-              Err(format!("Expected '{}' to include '{}'", actual, substr))
-            }
-          },
-          MatchingRule::Number | MatchingRule::Decimal => {
-            match actual.parse::<f64>() {
-              Ok(_) => Ok(()),
-              Err(_) => Err(format!("Expected '{}' to match a number", actual))
-            }
-          },
-          MatchingRule::Integer => {
-            match actual.parse::<u64>() {
-              Ok(_) => Ok(()),
-              Err(_) => Err(format!("Expected '{}' to match an integer number", actual))
-            }
-          },
-          MatchingRule::Date(ref s) => {
-            match validate_datetime(actual, s) {
-              Ok(_) => Ok(()),
-              Err(_) => Err(format!("Expected '{}' to match a date format of '{}'", actual, s))
-            }
-          },
-          MatchingRule::Time(ref s) => {
-            match validate_datetime(actual, s) {
-              Ok(_) => Ok(()),
-              Err(_) => Err(format!("Expected '{}' to match a time format of '{}'", actual, s))
-            }
-          },
-          MatchingRule::Timestamp(ref s) => {
-            match validate_datetime(actual, s) {
-              Ok(_) => Ok(()),
-              Err(_) => Err(format!("Expected '{}' to match a timestamp format of '{}'", actual, s))
-            }
-          },
-          _ => Err(format!("Unable to match '{}' using {:?}", self, matcher))
-       }
+          Err(err) => Err(format!("'{}' is not a valid regular expression - {}", regex, err))
+        }
+      },
+      MatchingRule::Equality => {
+        if self == actual {
+          Ok(())
+        } else {
+          Err(format!("Expected '{}' to be equal to '{}'", self, actual))
+        }
+      },
+      MatchingRule::Type |
+      MatchingRule::MinType(_) |
+      MatchingRule::MaxType(_)|
+      MatchingRule::MinMaxType(_, _) => Ok(()),
+      MatchingRule::Include(ref substr) => {
+        if actual.contains(substr) {
+          Ok(())
+        } else {
+          Err(format!("Expected '{}' to include '{}'", actual, substr))
+        }
+      },
+      MatchingRule::Number | MatchingRule::Decimal => {
+        match actual.parse::<f64>() {
+          Ok(_) => Ok(()),
+          Err(_) => Err(format!("Expected '{}' to match a number", actual))
+        }
+      },
+      MatchingRule::Integer => {
+        match actual.parse::<u64>() {
+          Ok(_) => Ok(()),
+          Err(_) => Err(format!("Expected '{}' to match an integer number", actual))
+        }
+      },
+      MatchingRule::Date(ref s) => {
+        match validate_datetime(&actual.to_string(), s) {
+          Ok(_) => Ok(()),
+          Err(_) => Err(format!("Expected '{}' to match a date format of '{}'", actual, s))
+        }
+      },
+      MatchingRule::Time(ref s) => {
+        match validate_datetime(&actual.to_string(), s) {
+          Ok(_) => Ok(()),
+          Err(_) => Err(format!("Expected '{}' to match a time format of '{}'", actual, s))
+        }
+      },
+      MatchingRule::Timestamp(ref s) => {
+        match validate_datetime(&actual.to_string(), s) {
+          Ok(_) => Ok(()),
+          Err(_) => Err(format!("Expected '{}' to match a timestamp format of '{}'", actual, s))
+        }
+      },
+      _ => Err(format!("Unable to match '{}' using {:?}", self, matcher))
     }
+  }
 }
 
 impl Matches<u64> for String {
