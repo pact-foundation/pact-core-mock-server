@@ -139,7 +139,14 @@ impl GenerateValue<u16> for Generator {
 fn generate_decimal(digits: usize) -> String {
   const DIGIT_CHARSET: &'static str = "0123456789";
   let mut rnd = rand::thread_rng();
-  DIGIT_CHARSET.chars().choose_multiple(&mut rnd, digits).iter().join("")
+  let sample = DIGIT_CHARSET.chars().choose_multiple(&mut rnd, digits + 1).iter().join("");
+  let pos = rnd.gen_range(1, digits - 1);
+  let selected_digits = if pos != 1 && sample.starts_with('0') {
+    &sample[1..(digits + 1)]
+  } else {
+    &sample[..digits]
+  };
+  format!("{}.{}", &selected_digits[..pos], &selected_digits[pos..])
 }
 
 fn generate_hexadecimal(digits: usize) -> String {
@@ -248,7 +255,7 @@ impl GenerateValue<Value> for Generator {
       },
       &Generator::RandomDecimal(digits) => match value {
         &Value::String(_) => Ok(json!(generate_decimal(digits as usize))),
-        &Value::Number(_) => match generate_decimal(digits as usize).parse::<u64>() {
+        &Value::Number(_) => match generate_decimal(digits as usize).parse::<f64>() {
           Ok(val) => Ok(json!(val)),
           Err(err) => Err(format!("Could not generate a random decimal from {} - {}", value, err))
         },
@@ -971,7 +978,7 @@ mod tests {
 
   #[test]
   fn generate_decimal_test() {
-    assert_that!(generate_decimal(4), matches_regex(r"^\d{4}$"));
+    assert_that!(generate_decimal(4), matches_regex(r"^\d{1,3}\.\d{1,3}$"));
     assert_that!(generate_hexadecimal(4), matches_regex(r"^[0-9A-F]{4}$"));
   }
 
@@ -985,5 +992,59 @@ mod tests {
   fn provider_state_generator_test() {
     expect!(Generator::ProviderStateGenerator("${a}".into(), Some(DataType::INTEGER)).generate_value(&0,
       &hashmap!{ "a".into() => json!(1234) })).to(be_ok().value(1234));
+  }
+
+  #[test]
+  fn date_generator_test() {
+    let generated = Generator::Date(None).generate_value(&"".to_string(), &hashmap!{});
+    assert_that!(generated.unwrap(), matches_regex(r"^\d{4}-\d{2}-\d{2}$"));
+
+    let generated2 = Generator::Date(Some("yyyy-MM-ddZ".into())).generate_value(&"".to_string(), &hashmap!{});
+    assert_that!(generated2.unwrap(), matches_regex(r"^\d{4}-\d{2}-\d{2}[-+]\d{4}$"));
+  }
+
+  #[test]
+  fn time_generator_test() {
+    let generated = Generator::Time(None).generate_value(&"".to_string(), &hashmap!{});
+    assert_that!(generated.unwrap(), matches_regex(r"^\d{2}:\d{2}:\d{2}$"));
+
+    let generated2 = Generator::Time(Some("HH:mm:ssZ".into())).generate_value(&"".to_string(), &hashmap!{});
+    assert_that!(generated2.unwrap(), matches_regex(r"^\d{2}:\d{2}:\d{2}[-+]\d+$"));
+  }
+
+  #[test]
+  fn datetime_generator_test() {
+    let generated = Generator::DateTime(None).generate_value(&"".to_string(), &hashmap!{});
+    assert_that!(generated.unwrap(), matches_regex(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}[-+]\d+$"));
+
+    let generated2 = Generator::DateTime(Some("yyyy-MM-dd HH:mm:ssZ".into())).generate_value(&"".to_string(), &hashmap!{});
+    assert_that!(generated2.unwrap(), matches_regex(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[-+]\d+$"));
+  }
+
+  #[test]
+  fn regex_generator_test() {
+    let generated = Generator::Regex(r"\d{4}\w{1,4}".into()).generate_value(&"".to_string(), &hashmap!{});
+    assert_that!(generated.unwrap(), matches_regex(r"^\d{4}\w{1,4}$"));
+
+    let generated = Generator::Regex(r"\d{1,2}/\d{1,2}".into()).generate_value(&"".to_string(), &hashmap!{});
+    assert_that!(generated.unwrap(), matches_regex(r"^\d{1,2}/\d{1,2}$"));
+
+    let generated = Generator::Regex(r"^\d{1,2}/\d{1,2}$".into()).generate_value(&"".to_string(), &hashmap!{});
+    assert_that!(generated.unwrap(), matches_regex(r"^\d{1,2}/\d{1,2}$"));
+  }
+
+  #[test]
+  fn uuid_generator_test() {
+    let generated = Generator::Uuid.generate_value(&"".to_string(), &hashmap!{});
+    assert_that!(generated.unwrap(), matches_regex(r"^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"));
+  }
+
+  #[test]
+  fn random_decimal_generator_test() {
+    for _ in 1..100 {
+      let generated = Generator::RandomDecimal(6).generate_value(&"".to_string(), &hashmap! {}).unwrap();
+      expect!(generated.clone().len()).to(be_equal_to(7));
+      assert_that!(generated, matches_regex(r"^\d+\.\d+$"));
+    }
   }
 }
