@@ -205,7 +205,7 @@ fn mock_server_resource(
                 match verify::validate_id(&paths[0].clone(), server_manager.clone()) {
                     Ok(ms) => {
                         context.metadata.insert(s!("id"), ms.id.clone());
-                        context.metadata.insert(s!("port"), ms.addr.port().to_string());
+                        context.metadata.insert(s!("port"), ms.port.unwrap_or_default().to_string());
                         if paths.len() > 1 {
                             context.metadata.insert(s!("subpath"), paths[1].clone());
                             paths[1] == "verify"

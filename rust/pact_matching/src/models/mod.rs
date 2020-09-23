@@ -59,6 +59,12 @@ pub enum PactSpecification {
     V4
 }
 
+impl Default for PactSpecification {
+  fn default() -> Self {
+    PactSpecification::Unknown
+  }
+}
+
 impl PactSpecification {
     /// Returns the semantic version string of the specification version.
     pub fn version_str(&self) -> String {
@@ -86,7 +92,7 @@ impl PactSpecification {
 }
 
 /// Struct that defines the consumer of the pact.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Consumer {
     /// Each consumer should have a unique name to identify it.
     pub name: String
@@ -112,7 +118,7 @@ impl Consumer {
 }
 
 /// Struct that defines a provider of a pact.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Provider {
     /// Each provider should have a unique name to identify it.
     pub name: String
@@ -1135,7 +1141,7 @@ pub mod message;
 pub mod message_pact;
 
 /// Struct that represents a pact between the consumer and provider of a service.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct RequestResponsePact {
     /// Consumer side of the pact
     pub consumer: Consumer,

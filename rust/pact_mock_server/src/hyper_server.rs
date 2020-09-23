@@ -15,6 +15,7 @@ use serde_json::json;
 use maplit::*;
 use hyper::server::conn::AddrIncoming;
 use rustls::ServerConfig;
+use crate::mock_server::MockServer;
 
 #[derive(Debug, Clone)]
 enum InteractionError {
@@ -134,37 +135,59 @@ fn error_body(request: &Request, error: &String) -> String {
 }
 
 fn match_result_to_hyper_response(request: &Request, match_result: MatchResult) -> Result<Response<Body>, InteractionError> {
-    match match_result {
-        MatchResult::RequestMatch(ref interaction) => {
-            let response = pact_matching::generate_response(&interaction.response, &hashmap!{});
-            info!("Request matched, sending response {}", response);
-            if interaction.response.has_text_body() {
-                debug!("     body: '{}'", interaction.response.body.str_value());
-            }
+  let cors = true;
+  let cors_preflight = true;
 
-            let mut builder = Response::builder()
-                .status(response.status)
-                .header(hyper::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*");
+  match match_result {
+    MatchResult::RequestMatch(ref interaction) => {
+      let response = pact_matching::generate_response(&interaction.response, &hashmap!{});
+      info!("Request matched, sending response {}", response);
+      if interaction.response.has_text_body() {
+        debug!("     body: '{}'", interaction.response.body.str_value());
+      }
 
-            set_hyper_headers(&mut builder, &response.headers)?;
+      let mut builder = Response::builder()
+        .status(response.status)
+        .header(hyper::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*");
 
-            builder.body(match response.body {
-              OptionalBody::Present(ref s, _) => Body::from(s.clone()),
-              _ => Body::empty()
-            })
-                .map_err(|_| InteractionError::ResponseBodyError)
-        },
-        _ => {
-            debug!("Request did not match: {}", match_result);
-            Response::builder()
-                .status(500)
-                .header(hyper::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
-                .header(hyper::header::CONTENT_TYPE, "application/json; charset=utf-8")
-                .header("X-Pact", match_result.match_key())
-                .body(Body::from(error_body(&request, &match_result.match_key())))
-                .map_err(|_| InteractionError::ResponseBodyError)
-        }
+      set_hyper_headers(&mut builder, &response.headers)?;
+
+      builder.body(match response.body {
+        OptionalBody::Present(ref s, _) => Body::from(s.clone()),
+        _ => Body::empty()
+      })
+        .map_err(|_| InteractionError::ResponseBodyError)
+    },
+    _ => {
+      debug!("Request did not match: {}", match_result);
+      if cors_preflight && request.method.to_uppercase() == "OPTIONS" {
+        info!("Responding to CORS pre-flight request");
+        let origin = if cors_preflight {
+          match request.headers {
+            Some(ref h) => h.iter()
+              .find(|kv| kv.0.to_lowercase() == "referer")
+              .map(|kv| kv.1.clone().join(", ")).unwrap_or("*".to_string()),
+            None => "*".to_string()
+          }
+        } else { "*".to_string() };
+        Response::builder()
+          .status(204)
+          .header(hyper::header::ACCESS_CONTROL_ALLOW_ORIGIN, origin)
+          .header(hyper::header::ACCESS_CONTROL_ALLOW_METHODS, "GET, HEAD, POST, PUT, DELETE, CONNECT, OPTIONS, TRACE, PATCH")
+          .header(hyper::header::ACCESS_CONTROL_ALLOW_HEADERS, "*")
+          .body(Body::empty())
+          .map_err(|_| InteractionError::ResponseBodyError)
+      } else {
+        Response::builder()
+          .status(500)
+          .header(hyper::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+          .header(hyper::header::CONTENT_TYPE, "application/json; charset=utf-8")
+          .header("X-Pact", match_result.match_key())
+          .body(Body::from(error_body(&request, &match_result.match_key())))
+          .map_err(|_| InteractionError::ResponseBodyError)
+      }
     }
+  }
 }
 
 async fn handle_request(
@@ -216,10 +239,11 @@ fn handle_mock_request_error(result: Result<Response<Body>, InteractionError>) -
 // The reason that the function itself is still async (even if it performs
 // no async operations) is that it needs a tokio context to be able to call try_bind.
 pub(crate) async fn create_and_bind(
-    pact: RequestResponsePact,
-    addr: std::net::SocketAddr,
-    shutdown: impl std::future::Future<Output = ()>,
-    matches: Arc<Mutex<Vec<MatchResult>>>,
+  pact: RequestResponsePact,
+  addr: std::net::SocketAddr,
+  shutdown: impl std::future::Future<Output = ()>,
+  matches: Arc<Mutex<Vec<MatchResult>>>,
+  mock_server: &MockServer
 ) -> Result<(impl std::future::Future<Output = ()>, std::net::SocketAddr), hyper::Error> {
     let pact = Arc::new(pact);
 
@@ -262,7 +286,8 @@ pub(crate) async fn create_and_bind_tls(
   addr: std::net::SocketAddr,
   shutdown: impl std::future::Future<Output = ()>,
   matches: Arc<Mutex<Vec<MatchResult>>>,
-  tls: &ServerConfig
+  tls: &ServerConfig,
+  mock_server: &MockServer
 ) -> Result<(impl std::future::Future<Output = ()>, std::net::SocketAddr), hyper::Error> {
   let pact = Arc::new(pact);
 
@@ -309,30 +334,31 @@ mod tests {
   use expectest::expect;
 
   #[tokio::test]
-    async fn can_fetch_results_on_current_thread() {
-        let (shutdown_tx, shutdown_rx) = futures::channel::oneshot::channel();
-        let matches = Arc::new(Mutex::new(vec![]));
+  async fn can_fetch_results_on_current_thread() {
+    let (shutdown_tx, shutdown_rx) = futures::channel::oneshot::channel();
+    let matches = Arc::new(Mutex::new(vec![]));
 
-        let (future, _) = create_and_bind(
-            RequestResponsePact::default(),
-            ([0, 0, 0, 0], 0 as u16).into(),
-            async {
-                shutdown_rx.await.ok();
-            },
-            matches.clone()
-        ).await.unwrap();
+    let (future, _) = create_and_bind(
+      RequestResponsePact::default(),
+      ([0, 0, 0, 0], 0 as u16).into(),
+      async {
+          shutdown_rx.await.ok();
+      },
+      matches.clone(),
+      &MockServer::default()
+    ).await.unwrap();
 
-        let join_handle = tokio::task::spawn(future);
+    let join_handle = tokio::task::spawn(future);
 
-        shutdown_tx.send(()).unwrap();
+    shutdown_tx.send(()).unwrap();
 
-        // Server has shut down, now flush the server future from runtime
-        join_handle.await.unwrap();
+    // Server has shut down, now flush the server future from runtime
+    join_handle.await.unwrap();
 
-        // 0 matches have been produced
-        let all_matches = matches.lock().unwrap().clone();
-        assert_eq!(all_matches, vec![]);
-    }
+    // 0 matches have been produced
+    let all_matches = matches.lock().unwrap().clone();
+    assert_eq!(all_matches, vec![]);
+  }
 
   #[test]
   fn handle_hyper_headers_with_multiple_values() {

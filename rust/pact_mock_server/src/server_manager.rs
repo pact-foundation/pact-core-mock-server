@@ -7,6 +7,7 @@ use crate::mock_server::MockServer;
 use pact_matching::models::RequestResponsePact;
 use std::collections::BTreeMap;
 use rustls::ServerConfig;
+use std::net::SocketAddr;
 
 struct ServerEntry {
     mock_server: Box<MockServer>,
@@ -36,49 +37,53 @@ impl ServerManager {
 
     /// Start a new server on the runtime
     pub fn start_mock_server_with_addr(
-        &mut self,
-        id: String,
-        pact: RequestResponsePact,
-        addr: std::net::SocketAddr,
+      &mut self,
+      id: String,
+      pact: RequestResponsePact,
+      addr: std::net::SocketAddr,
     ) -> Result<std::net::SocketAddr, String> {
-        let (mock_server, future) =
-            self.runtime
-                .block_on(MockServer::new(id.clone(), pact, addr))?;
+      let (mock_server, future) =
+        self.runtime.block_on(MockServer::new(id.clone(), pact, addr))?;
 
-        let addr = mock_server.addr;
+      let port = mock_server.port.clone();
+      self.mock_servers.insert(
+        id,
+        ServerEntry {
+            mock_server: Box::new(mock_server),
+            join_handle: self.runtime.spawn(future),
+        },
+      );
 
-        self.mock_servers.insert(
-            id,
-            ServerEntry {
-                mock_server: Box::new(mock_server),
-                join_handle: self.runtime.spawn(future),
-            },
-        );
-        Ok(addr)
+      match port {
+        Some(port) => Ok(SocketAddr::new(addr.ip(), port)),
+        None => Ok(addr)
+      }
     }
 
     /// Start a new TLS server on the runtime
     pub fn start_tls_mock_server_with_addr(
-        &mut self,
-        id: String,
-        pact: RequestResponsePact,
-        addr: std::net::SocketAddr,
-        tls: &ServerConfig
+      &mut self,
+      id: String,
+      pact: RequestResponsePact,
+      addr: std::net::SocketAddr,
+      tls: &ServerConfig
     ) -> Result<std::net::SocketAddr, String> {
-        let (mock_server, future) =
-          self.runtime
-            .block_on(MockServer::new_tls(id.clone(), pact, addr, tls))?;
+      let (mock_server, future) =
+        self.runtime.block_on(MockServer::new_tls(id.clone(), pact, addr, tls))?;
 
-        let addr = mock_server.addr;
+      let port = mock_server.port.clone();
+      self.mock_servers.insert(
+        id,
+        ServerEntry {
+          mock_server: Box::new(mock_server),
+          join_handle: self.runtime.spawn(future),
+        }
+      );
 
-        self.mock_servers.insert(
-            id,
-            ServerEntry {
-                mock_server: Box::new(mock_server),
-                join_handle: self.runtime.spawn(future),
-            },
-        );
-        Ok(addr)
+      match port {
+        Some(port) => Ok(SocketAddr::new(addr.ip(), port)),
+        None => Ok(addr)
+      }
     }
 
     /// Start a new server on the runtime
@@ -109,26 +114,26 @@ impl ServerManager {
 
     /// Shut down a server by its local port number
     pub fn shutdown_mock_server_by_port(&mut self, port: u16) -> bool {
-        log::debug!("Shutting down mock server with port {}", port);
-        let result = self
-            .mock_servers
-            .iter()
-            .find(|(_id, entry)| entry.mock_server.addr.port() == port)
-            .map(|(_id, entry)| entry.mock_server.id.clone());
+      log::debug!("Shutting down mock server with port {}", port);
+      let result = self
+        .mock_servers
+        .iter()
+        .find(|(_id, entry)| entry.mock_server.port.unwrap_or_default() == port)
+        .map(|(_id, entry)| entry.mock_server.id.clone());
 
-        if let Some(id) = result {
-            if let Some(mut entry) = self.mock_servers.remove(&id) {
-                return match entry.mock_server.shutdown() {
-                    Ok(()) => {
-                        self.runtime.block_on(entry.join_handle).unwrap();
-                        true
-                    }
-                    Err(_) => false,
-                };
+      if let Some(id) = result {
+        if let Some(mut entry) = self.mock_servers.remove(&id) {
+          return match entry.mock_server.shutdown() {
+            Ok(()) => {
+              self.runtime.block_on(entry.join_handle).unwrap();
+              true
             }
+            Err(_) => false,
+          };
         }
+      }
 
-        false
+      false
     }
 
     /// Find mock server by id, and map it using supplied function if found
@@ -145,18 +150,18 @@ impl ServerManager {
 
     /// Find a mock server by port number and apply a mutating operation on it if successful
     pub fn find_mock_server_by_port_mut<R>(
-        &mut self,
-        mock_server_port: u16,
-        f: &dyn Fn(&mut MockServer) -> R,
+      &mut self,
+      port: u16,
+      f: &dyn Fn(&mut MockServer) -> R,
     ) -> Option<R> {
-        match self
-            .mock_servers
-            .iter_mut()
-            .find(|(_id, entry)| entry.mock_server.addr.port() == mock_server_port)
-        {
-            Some((_id, entry)) => Some(f(&mut entry.mock_server)),
-            None => None,
-        }
+      match self
+        .mock_servers
+        .iter_mut()
+        .find(|(_id, entry)| entry.mock_server.port.unwrap_or_default() == port)
+      {
+        Some((_id, entry)) => Some(f(&mut entry.mock_server)),
+        None => None,
+      }
     }
 
     /// Map all the running mock servers
