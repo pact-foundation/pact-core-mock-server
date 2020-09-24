@@ -135,7 +135,6 @@ fn error_body(request: &Request, error: &String) -> String {
 }
 
 fn match_result_to_hyper_response(request: &Request, match_result: MatchResult) -> Result<Response<Body>, InteractionError> {
-  let cors = true;
   let cors_preflight = true;
 
   match match_result {

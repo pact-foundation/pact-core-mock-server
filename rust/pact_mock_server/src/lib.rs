@@ -23,6 +23,7 @@ use lazy_static::*;
 use rustls::ServerConfig;
 
 pub use tls::TlsConfigBuilder;
+use crate::mock_server::MockServerConfig;
 
 /// Mock server errors
 pub enum MockServerError {
@@ -59,9 +60,32 @@ pub fn start_mock_server(
   pact: RequestResponsePact,
   addr: std::net::SocketAddr
 ) -> Result<i32, String> {
+  start_mock_server_with_config(id, pact, addr, MockServerConfig::default())
+}
+
+/// Starts a mock server with the given ID, pact and port number. The ID needs to be unique. A port
+/// number of 0 will result in an auto-allocated port by the operating system. Returns the port
+/// that the mock server is running on wrapped in a `Result`.
+///
+/// * `id` - Unique ID for the mock server.
+/// * `pact` - Pact model to use for the mock server.
+/// * `addr` - Socket address that the server should listen on.
+/// * `config` - Configuration for the mock server
+///
+/// # Errors
+///
+/// An error with a message will be returned in the following conditions:
+///
+/// - If a mock server is not able to be started
+pub fn start_mock_server_with_config(
+  id: String,
+  pact: RequestResponsePact,
+  addr: std::net::SocketAddr,
+  config: MockServerConfig
+) -> Result<i32, String> {
   MANAGER.lock().unwrap()
     .get_or_insert_with(ServerManager::new)
-    .start_mock_server_with_addr(id, pact, addr)
+    .start_mock_server_with_addr(id, pact, addr, config)
     .map(|addr| addr.port() as i32)
 }
 
@@ -85,9 +109,34 @@ pub fn start_tls_mock_server(
   addr: std::net::SocketAddr,
   tls: &ServerConfig
 ) -> Result<i32, String> {
+  start_tls_mock_server_with_config(id, pact, addr, tls, MockServerConfig::default())
+}
+
+/// Starts a TLS mock server with the given ID, pact and port number. The ID needs to be unique. A port
+/// number of 0 will result in an auto-allocated port by the operating system. Returns the port
+/// that the mock server is running on wrapped in a `Result`.
+///
+/// * `id` - Unique ID for the mock server.
+/// * `pact` - Pact model to use for the mock server.
+/// * `addr` - Socket address that the server should listen on.
+/// * `tls` - TLS config.
+/// * `config` - Configuration for the mock server
+///
+/// # Errors
+///
+/// An error with a message will be returned in the following conditions:
+///
+/// - If a mock server is not able to be started
+pub fn start_tls_mock_server_with_config(
+  id: String,
+  pact: RequestResponsePact,
+  addr: std::net::SocketAddr,
+  tls: &ServerConfig,
+  config: MockServerConfig
+) -> Result<i32, String> {
   MANAGER.lock().unwrap()
     .get_or_insert_with(ServerManager::new)
-    .start_tls_mock_server_with_addr(id, pact, addr, tls)
+    .start_tls_mock_server_with_addr(id, pact, addr, tls, config)
     .map(|addr| addr.port() as i32)
 }
 

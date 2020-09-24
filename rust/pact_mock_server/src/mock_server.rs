@@ -14,27 +14,35 @@ use std::sync::{Arc, Mutex};
 use serde_json::json;
 use lazy_static::*;
 use rustls::ServerConfig;
-use std::net::SocketAddr;
 
 lazy_static! {
     static ref PACT_FILE_MUTEX: Mutex<()> = Mutex::new(());
 }
 
+/// Mock server configuration
+#[derive(Debug, Default, Clone)]
+pub struct MockServerConfig {
+  /// If CORS Pre-Flight requests should be responded to
+  pub cors_preflight: bool
+}
+
 /// Struct to represent the "foreground" part of mock server
 #[derive(Debug, Default)]
 pub struct MockServer {
-    /// Mock server unique ID
-    pub id: String,
-    /// Address the mock server is running on
-    pub port: Option<u16>,
-    /// List of resources that need to be cleaned up when the mock server completes
-    pub resources: Vec<CString>,
-    /// Pact that this mock server is based on
-    pub pact: RequestResponsePact,
-    /// Receiver of match results
-    matches: Arc<Mutex<Vec<MatchResult>>>,
-    /// Shutdown signal
-    shutdown_tx: Option<futures::channel::oneshot::Sender<()>>
+  /// Mock server unique ID
+  pub id: String,
+  /// Address the mock server is running on
+  pub port: Option<u16>,
+  /// List of resources that need to be cleaned up when the mock server completes
+  pub resources: Vec<CString>,
+  /// Pact that this mock server is based on
+  pub pact: RequestResponsePact,
+  /// Receiver of match results
+  matches: Arc<Mutex<Vec<MatchResult>>>,
+  /// Shutdown signal
+  shutdown_tx: Option<futures::channel::oneshot::Sender<()>>,
+  /// Mock server config
+  pub config: MockServerConfig
 }
 
 impl MockServer {
@@ -42,7 +50,8 @@ impl MockServer {
   pub async fn new(
     id: String,
     pact: RequestResponsePact,
-    addr: std::net::SocketAddr
+    addr: std::net::SocketAddr,
+    config: MockServerConfig
   ) -> Result<(MockServer, impl std::future::Future<Output = ()>), String> {
     let (shutdown_tx, shutdown_rx) = futures::channel::oneshot::channel();
     let matches = Arc::new(Mutex::new(vec![]));
@@ -53,7 +62,8 @@ impl MockServer {
       resources: vec![],
       pact: pact.clone(),
       matches: matches.clone(),
-      shutdown_tx: Some(shutdown_tx)
+      shutdown_tx: Some(shutdown_tx),
+      config: config.clone()
     };
 
     let (future, socket_addr) = hyper_server::create_and_bind(
@@ -78,7 +88,8 @@ impl MockServer {
     id: String,
     pact: RequestResponsePact,
     addr: std::net::SocketAddr,
-    tls: &ServerConfig
+    tls: &ServerConfig,
+    config: MockServerConfig
   ) -> Result<(MockServer, impl std::future::Future<Output = ()>), String> {
     let (shutdown_tx, shutdown_rx) = futures::channel::oneshot::channel();
     let matches = Arc::new(Mutex::new(vec![]));
@@ -88,7 +99,8 @@ impl MockServer {
       resources: vec![],
       pact: pact.clone(),
       matches: matches.clone(),
-      shutdown_tx: Some(shutdown_tx)
+      shutdown_tx: Some(shutdown_tx),
+      config: config.clone()
     };
 
     let (future, addr) = hyper_server::create_and_bind_tls(
@@ -202,7 +214,8 @@ impl Clone for MockServer {
       resources: vec![],
       pact: self.pact.clone(),
       matches: self.matches.clone(),
-      shutdown_tx: None
+      shutdown_tx: None,
+      config: self.config.clone()
     }
   }
 }

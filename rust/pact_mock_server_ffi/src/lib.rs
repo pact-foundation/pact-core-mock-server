@@ -771,7 +771,7 @@ pub unsafe extern fn check_regex(regex: *const c_char, example: *const c_char) -
 
 
 /// Generates an example string based on the provided regex.
-pub extern fn generate_regex_value_internal(regex: &str) -> Result<String, String> {
+pub fn generate_regex_value_internal(regex: &str) -> Result<String, String> {
   let mut parser = regex_syntax::ParserBuilder::new().unicode(false).build();
   match parser.parse(regex) {
     Ok(hir) => {

@@ -3,7 +3,7 @@ use expectest::expect;
 use maplit::*;
 use super::*;
 use crate::matching::{MatchResult, match_request};
-use pact_matching::models::{Interaction, Request, OptionalBody, Response, RequestResponseInteraction};
+use pact_matching::models::{Request, OptionalBody, Response, RequestResponseInteraction};
 use pact_matching::Mismatch;
 use pact_matching::models::matchingrules::*;
 use pact_matching::matchingrules;
@@ -163,7 +163,7 @@ fn match_request_with_header_with_multiple_values() {
   };
   let mut manager = ServerManager::new();
   let id = "match_request_with_header_with_multiple_values".to_string();
-  let port = manager.start_mock_server(id.clone(), pact, 0).unwrap();
+  let port = manager.start_mock_server(id.clone(), pact, 0, MockServerConfig::default()).unwrap();
 
   let client = reqwest::blocking::Client::new();
   let response = client.get(format!("http://127.0.0.1:{}", port).as_str())

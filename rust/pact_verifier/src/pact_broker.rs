@@ -680,7 +680,7 @@ mod tests {
     use pact_consumer::prelude::*;
     use pact_consumer::*;
     use env_logger::*;
-    use pact_matching::models::{Pact, Consumer, Provider, Interaction, PactSpecification, RequestResponseInteraction};
+    use pact_matching::models::{Consumer, Provider, PactSpecification, RequestResponseInteraction};
     use pact_matching::Mismatch::MethodMismatch;
 
     #[tokio::test]

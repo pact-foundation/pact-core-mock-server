@@ -2,7 +2,7 @@
 //! This module defines a manager for holding multiple instances of mock servers.
 //!
 
-use crate::mock_server::MockServer;
+use crate::mock_server::{MockServer, MockServerConfig};
 
 use pact_matching::models::RequestResponsePact;
 use std::collections::BTreeMap;
@@ -41,9 +41,10 @@ impl ServerManager {
       id: String,
       pact: RequestResponsePact,
       addr: std::net::SocketAddr,
+      config: MockServerConfig
     ) -> Result<std::net::SocketAddr, String> {
       let (mock_server, future) =
-        self.runtime.block_on(MockServer::new(id.clone(), pact, addr))?;
+        self.runtime.block_on(MockServer::new(id.clone(), pact, addr, config))?;
 
       let port = mock_server.port.clone();
       self.mock_servers.insert(
@@ -66,10 +67,11 @@ impl ServerManager {
       id: String,
       pact: RequestResponsePact,
       addr: std::net::SocketAddr,
-      tls: &ServerConfig
+      tls: &ServerConfig,
+      config: MockServerConfig
     ) -> Result<std::net::SocketAddr, String> {
       let (mock_server, future) =
-        self.runtime.block_on(MockServer::new_tls(id.clone(), pact, addr, tls))?;
+        self.runtime.block_on(MockServer::new_tls(id.clone(), pact, addr, tls, config))?;
 
       let port = mock_server.port.clone();
       self.mock_servers.insert(
@@ -87,14 +89,27 @@ impl ServerManager {
     }
 
     /// Start a new server on the runtime
-    pub fn start_mock_server(&mut self, id: String, pact: RequestResponsePact, port: u16) -> Result<u16, String> {
-        self.start_mock_server_with_addr(id, pact, ([0, 0, 0, 0], port as u16).into())
+    pub fn start_mock_server(
+      &mut self,
+      id: String,
+      pact: RequestResponsePact,
+      port: u16,
+      config: MockServerConfig
+    ) -> Result<u16, String> {
+        self.start_mock_server_with_addr(id, pact, ([0, 0, 0, 0], port as u16).into(), config)
             .map(|addr| addr.port())
     }
 
     /// Start a new TLS server on the runtime
-    pub fn start_tls_mock_server(&mut self, id: String, pact: RequestResponsePact, port: u16, tls: &ServerConfig) -> Result<u16, String> {
-        self.start_tls_mock_server_with_addr(id, pact, ([0, 0, 0, 0], port as u16).into(), tls)
+    pub fn start_tls_mock_server(
+      &mut self,
+      id: String,
+      pact: RequestResponsePact,
+      port: u16,
+      tls: &ServerConfig,
+      config: MockServerConfig
+    ) -> Result<u16, String> {
+        self.start_tls_mock_server_with_addr(id, pact, ([0, 0, 0, 0], port as u16).into(), tls, config)
           .map(|addr| addr.port())
     }
 
@@ -183,7 +198,8 @@ mod tests {
     #[test]
     fn manager_should_start_and_shutdown_mock_server() {
         let mut manager = ServerManager::new();
-        let start_result = manager.start_mock_server("foobar".into(), RequestResponsePact::default(), 0);
+        let start_result = manager.start_mock_server("foobar".into(), RequestResponsePact::default(),
+                                                     0, MockServerConfig::default());
 
         assert!(start_result.is_ok());
         let server_port = start_result.unwrap();

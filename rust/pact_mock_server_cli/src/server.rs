@@ -20,6 +20,7 @@ use webmachine_rust::headers::*;
 use clap::ArgMatches;
 use rand::{self, Rng};
 use maplit::*;
+use pact_mock_server::mock_server::MockServerConfig;
 
 fn json_error(error: String) -> String {
     let json_response = json!({ s!("error") : json!(error) });
@@ -47,35 +48,36 @@ fn get_next_port(base_port: Option<u16>) -> u16 {
 }
 
 fn start_provider(
-    context: &mut WebmachineContext,
-    base_port: Option<u16>,
-    server_manager: Arc<Mutex<ServerManager>>
+  context: &mut WebmachineContext,
+  base_port: Option<u16>,
+  server_manager: Arc<Mutex<ServerManager>>
 ) -> Result<bool, u16> {
     match context.request.body {
         Some(ref body) if !body.is_empty() => {
             match serde_json::from_str(body) {
                 Ok(ref json) => {
-                    let pact = RequestResponsePact::from_json(&context.request.request_path, json);
-                    let mock_server_id = Uuid::new_v4().to_string();
+                  let pact = RequestResponsePact::from_json(&context.request.request_path, json);
+                  let mock_server_id = Uuid::new_v4().to_string();
+                  let config = MockServerConfig::default();
 
-                    let mut lock = server_manager.lock().unwrap();
-                    match lock.start_mock_server(mock_server_id.clone(), pact, get_next_port(base_port)) {
-                        Ok(mock_server) => {
-                            let mock_server_json = json!({
-                                s!("id") : json!(mock_server_id.clone()),
-                                s!("port") : json!(mock_server as i64),
-                            });
-                            let json_response = json!({ s!("mockServer") : mock_server_json });
-                            context.response.body = Some(json_response.to_string());
-                            context.response.add_header(s!("Location"),
-                                vec![HeaderValue::basic(&format!("/mockserver/{}", mock_server_id))]);
-                            Ok(true)
-                        },
-                        Err(msg) => {
-                            context.response.body = Some(json_error(format!("Failed to start mock server - {}", msg)));
-                            Err(422)
-                        }
+                  let mut lock = server_manager.lock().unwrap();
+                  match lock.start_mock_server(mock_server_id.clone(), pact, get_next_port(base_port), config) {
+                    Ok(mock_server) => {
+                      let mock_server_json = json!({
+                        s!("id") : json!(mock_server_id.clone()),
+                        s!("port") : json!(mock_server as i64),
+                      });
+                      let json_response = json!({ s!("mockServer") : mock_server_json });
+                      context.response.body = Some(json_response.to_string());
+                      context.response.add_header(s!("Location"),
+                          vec![HeaderValue::basic(&format!("/mockserver/{}", mock_server_id))]);
+                      Ok(true)
+                    },
+                    Err(msg) => {
+                      context.response.body = Some(json_error(format!("Failed to start mock server - {}", msg)));
+                      Err(422)
                     }
+                  }
                 },
                 Err(err) => {
                     log::error!("Failed to parse json body - {}", err);

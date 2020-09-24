@@ -10,6 +10,7 @@ use std::{
     thread,
 };
 use url::Url;
+use pact_mock_server::mock_server::MockServerConfig;
 
 /// This trait is implemented by types which allow us to start a mock server.
 pub trait StartMockServer {
@@ -53,9 +54,10 @@ impl ValidatingMockServer {
                 .expect("new runtime");
 
             let (mock_server, server_future) = runtime.block_on(async move {
-                mock_server::MockServer::new("".into(), pact, ([0, 0, 0, 0], 0 as u16).into())
-                    .await
-                    .unwrap()
+              mock_server::MockServer::new("".into(), pact, ([0, 0, 0, 0], 0 as u16).into(),
+                MockServerConfig::default())
+                .await
+                .unwrap()
             });
 
             // Start the actual thread the runtime will run on
