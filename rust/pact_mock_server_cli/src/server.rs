@@ -1,6 +1,5 @@
-use hyper::server::{Handler, Server, Request, Response};
+use hyper::server::Server;
 use pact_matching::models::RequestResponsePact;
-use pact_matching::s;
 use pact_mock_server::server_manager::ServerManager;
 use uuid::Uuid;
 use serde_json::{self, Value, json};
@@ -21,9 +20,22 @@ use clap::ArgMatches;
 use rand::{self, Rng};
 use maplit::*;
 use pact_mock_server::mock_server::MockServerConfig;
+use futures::{Future, Stream};
+use std::net::{SocketAddr, IpAddr};
+use log::*;
+use http::Response;
+use hyper::{Body, Error};
+use hyper::service::{make_service_fn, service_fn};
+use tokio::sync::oneshot::Sender;
+use std::convert::Infallible;
+use lazy_static::*;
+use std::cell::RefCell;
+use crate::{SERVER_MANAGER, SERVER_OPTIONS, ServerOpts};
+use hyper::server::conn::AddrStream;
+use futures::future::ok;
 
 fn json_error(error: String) -> String {
-    let json_response = json!({ s!("error") : json!(error) });
+    let json_response = json!({ "error" : json!(error) });
     json_response.to_string()
 }
 
@@ -47,112 +59,106 @@ fn get_next_port(base_port: Option<u16>) -> u16 {
   }
 }
 
-fn start_provider(
-  context: &mut WebmachineContext,
-  base_port: Option<u16>,
-  server_manager: Arc<Mutex<ServerManager>>
-) -> Result<bool, u16> {
-    match context.request.body {
-        Some(ref body) if !body.is_empty() => {
-            match serde_json::from_str(body) {
-                Ok(ref json) => {
-                  let pact = RequestResponsePact::from_json(&context.request.request_path, json);
-                  let mock_server_id = Uuid::new_v4().to_string();
-                  let config = MockServerConfig::default();
+fn start_provider(context: &mut WebmachineContext) -> Result<bool, u16> {
+  match context.request.body {
+    Some(ref body) if !body.is_empty() => {
+      match serde_json::from_slice(body) {
+        Ok(ref json) => {
+          let pact = RequestResponsePact::from_json(&context.request.request_path, json);
+          let mock_server_id = Uuid::new_v4().to_string();
+          let config = MockServerConfig::default();
 
-                  let mut lock = server_manager.lock().unwrap();
-                  match lock.start_mock_server(mock_server_id.clone(), pact, get_next_port(base_port), config) {
-                    Ok(mock_server) => {
-                      let mock_server_json = json!({
-                        s!("id") : json!(mock_server_id.clone()),
-                        s!("port") : json!(mock_server as i64),
-                      });
-                      let json_response = json!({ s!("mockServer") : mock_server_json });
-                      context.response.body = Some(json_response.to_string());
-                      context.response.add_header(s!("Location"),
-                          vec![HeaderValue::basic(&format!("/mockserver/{}", mock_server_id))]);
-                      Ok(true)
-                    },
-                    Err(msg) => {
-                      context.response.body = Some(json_error(format!("Failed to start mock server - {}", msg)));
-                      Err(422)
-                    }
-                  }
-                },
-                Err(err) => {
-                    log::error!("Failed to parse json body - {}", err);
-                    context.response.body = Some(json_error(format!("Failed to parse json body - {}", err)));
-                    Err(422)
-                }
+          let mut lock = SERVER_MANAGER.lock().unwrap();
+          let inner = SERVER_OPTIONS.lock().unwrap();
+          let options = inner.borrow();
+          match lock.start_mock_server(mock_server_id.clone(), pact, get_next_port(options.base_port), config) {
+            Ok(mock_server) => {
+              let mock_server_json = json!({
+                "id" : json!(mock_server_id.clone()),
+                "port" : json!(mock_server as i64),
+              });
+              let json_response = json!({ "mockServer" : mock_server_json });
+              context.response.body = Some(json_response.to_string().into_bytes());
+              context.response.add_header("Location",
+                vec![HeaderValue::basic(format!("/mockserver/{}", mock_server_id).as_str())]);
+              Ok(true)
+            },
+            Err(msg) => {
+              context.response.body = Some(json_error(format!("Failed to start mock server - {}", msg)).into_bytes());
+              Err(422)
             }
+          }
         },
-        _ => {
-            log::error!("No pact json was supplied");
-            context.response.body = Some(json_error(s!("No pact json was supplied")));
+        Err(err) => {
+            log::error!("Failed to parse json body - {}", err);
+            context.response.body = Some(json_error(format!("Failed to parse json body - {}", err)).into_bytes());
             Err(422)
         }
+      }
+    },
+    _ => {
+      log::error!("No pact json was supplied");
+      context.response.body = Some(json_error("No pact json was supplied".to_string()).into_bytes());
+      Err(422)
     }
+  }
 }
 
-pub fn verify_mock_server_request(
-    context: &mut WebmachineContext,
-    output_path: &Option<String>,
-    server_manager: Arc<Mutex<ServerManager>>
-) -> Result<bool, u16> {
-    let id = context.metadata.get(&s!("id")).unwrap_or(&s!("")).clone();
-    match verify::validate_id(&id, server_manager) {
-        Ok(ms) => {
-            let mut map = btreemap!{ s!("mockServer") => ms.to_json() };
-            let mismatches = ms.mismatches();
-            if !mismatches.is_empty() {
-                map.insert(s!("mismatches"), json!(
-                    Vec::from_iter(mismatches.iter()
-                        .map(|m| m.to_json()))));
-                context.response.body = Some(json!(map).to_string());
-                Err(422)
-            } else {
-                match ms.write_pact(&output_path) {
-                    Ok(_) => Ok(true),
-                    Err(err) => {
-                        map.insert(s!("error"), json!(format!("Failed to write pact to file - {}", err)));
-                        context.response.body = Some(json!(map).to_string());
-                        Err(422)
-                    }
-                }
-            }
-        },
-        Err(_) => Err(422)
-    }
+pub fn verify_mock_server_request(context: &mut WebmachineContext) -> Result<bool, u16> {
+  let id = context.metadata.get("id").cloned().unwrap_or_default();
+  match verify::validate_id(&id, &SERVER_MANAGER) {
+    Ok(ms) => {
+      let mut map = btreemap!{ "mockServer" => ms.to_json() };
+      let mismatches = ms.mismatches();
+      if !mismatches.is_empty() {
+        map.insert("mismatches", json!(
+          Vec::from_iter(mismatches.iter().map(|m| m.to_json()))));
+        context.response.body = Some(json!(map).to_string().into_bytes());
+        Err(422)
+      } else {
+        let inner = SERVER_OPTIONS.lock().unwrap();
+        let options = inner.borrow();
+        match ms.write_pact(&options.output_path) {
+          Ok(_) => Ok(true),
+          Err(err) => {
+            map.insert("error", json!(format!("Failed to write pact to file - {}", err)));
+            context.response.body = Some(json!(map).to_string().into_bytes());
+            Err(422)
+          }
+        }
+      }
+    },
+    Err(_) => Err(422)
+  }
 }
 
-fn main_resource(base_port: Arc<Option<u16>>, server_manager: Arc<Mutex<ServerManager>>) -> WebmachineResource {
-    let server_manager1 = server_manager.clone();
-
-    WebmachineResource {
-        allowed_methods: vec![s!("OPTIONS"), s!("GET"), s!("HEAD"), s!("POST")],
-        resource_exists: Box::new(|context| context.request.request_path == "/"),
-        render_response: Box::new(move |_| {
-            let mock_servers = server_manager.lock().unwrap().map_mock_servers(&|ms| {
-                ms.to_json()
-            });
-            let json_response = json!({ s!("mockServers") : json!(mock_servers) });
-            Some(json_response.to_string())
-        }),
-        process_post: Box::new(move |context| start_provider(context, *base_port.deref(), server_manager1.clone())),
-        .. WebmachineResource::default()
-    }
-}
-
-fn shutdown_resource(server_key: Arc<String>) -> WebmachineResource {
+fn main_resource<'a>() -> WebmachineResource<'a> {
   WebmachineResource {
-    allowed_methods: vec![s!("POST")],
-    forbidden: Box::new(move |context: &mut WebmachineContext| {
-      !context.request.has_header_value(&"Authorization".to_owned(), &format!("Bearer {}", server_key.deref()))
+    allowed_methods: vec!["OPTIONS", "GET", "HEAD", "POST"],
+    resource_exists: callback(&|context, _| context.request.request_path == "/"),
+    render_response: callback(&|_, _| {
+        let mock_servers = SERVER_MANAGER.lock().unwrap().map_mock_servers(&|ms| {
+            ms.to_json()
+        });
+        let json_response = json!({ "mockServers" : json!(mock_servers) });
+        Some(json_response.to_string())
     }),
-    process_post: Box::new(|context| {
+    process_post: callback(&|context, _| start_provider(context)),
+    .. WebmachineResource::default()
+  }
+}
+
+fn shutdown_resource<'a>() -> WebmachineResource<'a> {
+  WebmachineResource {
+    allowed_methods: vec!["POST"],
+    forbidden: callback(&|context, _| {
+      let options = SERVER_OPTIONS.lock().unwrap();
+      !context.request.has_header_value(&"Authorization".to_owned(), &format!("Bearer {}", options.borrow().server_key))
+    }),
+    process_post: callback(&|context, _| {
       let shutdown_period = match context.request.body {
         Some(ref body) if !body.is_empty() => {
-          match serde_json::from_str::<Value>(body) {
+          match serde_json::from_slice::<Value>(body) {
             Ok(ref json) => match json.get("period") {
               Some(val) => match val.clone() {
                 Value::Number(n) => Ok(n.as_u64().unwrap_or(100)),
@@ -161,161 +167,157 @@ fn shutdown_resource(server_key: Arc<String>) -> WebmachineResource {
               None => Ok(100)
             },
             Err(err) => {
-              log::error!("Failed to parse json body - {}", err);
-              context.response.body = Some(json_error(format!("Failed to parse json body - {}", err)));
+              error!("Failed to parse json body - {}", err);
+              context.response.body = Some(json_error(format!("Failed to parse json body - {}", err)).into_bytes());
               Err(422)
             }
           }
-        },
+        }
         _ => Ok(100)
       };
 
       match shutdown_period {
         Ok(period) => {
+          // Need to work out how to do this as the webmachine has to have a static lifetime
+          // shutdown.send(()).unwrap_or_default();
           thread::spawn(move || {
-            log::info!("Scheduling master server to shutdown in {}ms", period);
+            info!("Scheduling master server to shutdown in {}ms", period);
             thread::sleep(Duration::from_millis(period));
-            log::info!("Shutting down");
+            info!("Shutting down");
             process::exit(0);
           });
           Ok(true)
-        },
+        }
         Err(err) => Err(err)
       }
     }),
-    .. WebmachineResource::default()
+    ..WebmachineResource::default()
   }
 }
 
-fn mock_server_resource(
-    output_path: Arc<Option<String>>,
-    server_manager: Arc<Mutex<ServerManager>>
-) -> WebmachineResource {
-    let server_manager1 = server_manager.clone();
-    let server_manager2 = server_manager.clone();
-    let server_manager3 = server_manager.clone();
-
-    WebmachineResource {
-        allowed_methods: vec![s!("OPTIONS"), s!("GET"), s!("HEAD"), s!("POST"), s!("DELETE")],
-        resource_exists: Box::new(move |context| {
-            let paths: Vec<String> = context.request.request_path
-                .split('/')
-                .filter(|p| !p.is_empty())
-                .map(|p| p.to_string())
-                .collect();
-            if !paths.is_empty() && paths.len() <= 2 {
-                match verify::validate_id(&paths[0].clone(), server_manager.clone()) {
-                    Ok(ms) => {
-                        context.metadata.insert(s!("id"), ms.id.clone());
-                        context.metadata.insert(s!("port"), ms.port.unwrap_or_default().to_string());
-                        if paths.len() > 1 {
-                            context.metadata.insert(s!("subpath"), paths[1].clone());
-                            paths[1] == "verify"
-                        } else {
-                            true
-                        }
-                    },
-                    Err(_) => false
-                }
+fn mock_server_resource<'a>() -> WebmachineResource<'a> {
+  WebmachineResource {
+    allowed_methods: vec!["OPTIONS", "GET", "HEAD", "POST", "DELETE"],
+    resource_exists: callback(&|context, _| {
+      let paths: Vec<String> = context.request.request_path
+        .split('/')
+        .filter(|p| !p.is_empty())
+        .map(|p| p.to_string())
+        .collect();
+      if !paths.is_empty() && paths.len() <= 2 {
+        match verify::validate_id(&paths[0].clone(), &SERVER_MANAGER) {
+          Ok(ms) => {
+            context.metadata.insert("id".to_string(), ms.id.clone());
+            context.metadata.insert("port".to_string(), ms.port.unwrap_or_default().to_string());
+            if paths.len() > 1 {
+              context.metadata.insert("subpath".to_string(), paths[1].clone());
+              paths[1] == "verify"
             } else {
-                false
+              true
             }
-        }),
-        render_response: Box::new(move |context| {
-            match context.metadata.get(&s!("subpath")) {
-                None => {
-                    let id = context.metadata.get(&s!("id")).unwrap().clone();
-                    server_manager1.lock().unwrap().find_mock_server_by_id(&id, &|ms| ms.to_json())
-                        .map(|json| json.to_string())
-                },
-                Some(_) => {
-                    context.response.status = 405;
-                    None
-                }
-            }
-        }),
-        process_post: Box::new(move |context| {
-            let subpath = context.metadata.get(&s!("subpath")).unwrap().clone();
-            if subpath == "verify" {
-                verify_mock_server_request(context, output_path.deref(), server_manager2.clone())
-            } else {
-                Err(422)
-            }
-        }),
-        delete_resource: Box::new(move |context| {
-            match context.metadata.get(&s!("subpath")) {
-                None => {
-                    let id = context.metadata.get(&s!("id")).unwrap().clone();
-                    if server_manager3.lock().unwrap().shutdown_mock_server_by_id(id) {
-                        Ok(true)
-                    } else {
-                        Err(404)
-                    }
-                },
-                Some(_) => Err(405)
-            }
-        }),
-        .. WebmachineResource::default()
-    }
-}
-
-struct ServerHandler {
-    output_path: Arc<Option<String>>,
-    base_port: Arc<Option<u16>>,
-    server_key: Arc<String>,
-    server_manager: Arc<Mutex<ServerManager>>
-}
-
-impl ServerHandler {
-    fn new(output_path: Option<String>, base_port: Option<u16>, server_key: String) -> ServerHandler {
-        ServerHandler {
-            output_path: Arc::new(output_path),
-            base_port: Arc::new(base_port),
-            server_key: Arc::new(server_key),
-            server_manager: Arc::new(Mutex::new(ServerManager::new()))
+          }
+          Err(_) => false
         }
-    }
-}
-
-impl Handler for ServerHandler {
-  fn handle(&self, req: Request, res: Response) {
-    let dispatcher = WebmachineDispatcher::new(
-      btreemap! {
-            s!("/") => Arc::new(main_resource(self.base_port.clone(), self.server_manager.clone())),
-            s!("/mockserver") => Arc::new(mock_server_resource(self.output_path.clone(), self.server_manager.clone())),
-            s!("/shutdown") => Arc::new(shutdown_resource(self.server_key.clone()))
+      } else {
+        false
+      }
+    }),
+    render_response: callback(&|context, _| {
+      match context.metadata.get("subpath".into()) {
+        None => {
+          let id = context.metadata.get("id".into()).unwrap().clone();
+          SERVER_MANAGER.lock().unwrap().find_mock_server_by_id(&id, &|ms| ms.to_json())
+            .map(|json| json.to_string())
         }
-    );
-    match dispatcher.dispatch(req, res) {
-      Ok(_) => (),
-      Err(err) => log::warn!("Error generating response - {}", err)
-    };
+        Some(_) => {
+          context.response.status = 405;
+          None
+        }
+      }
+    }),
+    process_post: callback(&|context, _| {
+      let subpath = context.metadata.get("subpath".into()).unwrap().clone();
+      if subpath == "verify" {
+        verify_mock_server_request(context)
+      } else {
+        Err(422)
+      }
+    }),
+    delete_resource: callback(&|context, _| {
+      match context.metadata.get("subpath".into()) {
+        None => {
+          let id = context.metadata.get("id".into()).unwrap().clone();
+          if SERVER_MANAGER.lock().unwrap().shutdown_mock_server_by_id(id) {
+            Ok(true)
+          } else {
+            Err(404)
+          }
+        }
+        Some(_) => Err(405)
+      }
+    }),
+    ..WebmachineResource::default()
   }
 }
 
-pub fn start_server(port: u16, matches: &ArgMatches) -> Result<(), i32> {
-    let output_path = matches.value_of("output").map(|s| s.to_owned());
-    let base_port = matches.value_of("base-port").map(|s| s.parse::<u16>().unwrap_or(0));
-    let server_key = matches.value_of("server-key").map(|s| s.to_owned())
-      .unwrap_or_else(|| rand::thread_rng().gen_ascii_chars().take(16).collect::<String>());
-    match Server::http(format!("0.0.0.0:{}", port).as_str()) {
-        Ok(mut server) => {
-            server.keep_alive(None);
-            match server.handle(ServerHandler::new(output_path, base_port, server_key.clone())) {
-                Ok(listener) => {
-                    log::info!("Master server started on port {}", listener.socket.port());
-                    log::info!("Server key: '{}'", server_key);
-                    Ok(())
-                },
-                Err(err) => {
-                    log::error!("could not bind listener to port: {}", err);
-                    Err(2)
-                }
-            }
-        },
-        Err(err) => {
-            log::error!("could not start master server: {}", err);
-            Err(1)
-        }
+async fn to_http_request(req: hyper::Request<Body>) -> http::Request<Vec<u8>> {
+  let mut builder = http::Request::builder()
+    .method(req.method())
+    .uri(req.uri());
+
+  for (name, value) in req.headers().iter() {
+    builder = builder.header(name, value);
+  }
+
+  match hyper::body::to_bytes(req.into_body()).await {
+    Ok(body) => builder.body(body.to_vec()),
+    Err(_) => builder.body(vec![])
+  }.unwrap_or_default()
+}
+
+fn to_hyper_response(res: Response<Vec<u8>>) -> Result<Response<Body>, http::Error> {
+  let mut builder = hyper::Response::builder()
+    .status(res.status());
+
+  for (name, value) in res.headers().iter() {
+    builder = builder.header(name, value);
+  }
+
+  builder.body(Body::from(res.body().clone()))
+}
+
+lazy_static!{
+  static ref DISPATCHER: WebmachineDispatcher<'static> = WebmachineDispatcher {
+    routes: btreemap! {
+      "/" => main_resource(),
+      "/mockserver" => mock_server_resource(),
+      "/shutdown" => shutdown_resource()
     }
+  };
+}
+
+pub async fn start_server(port: u16) -> Result<(), i32> {
+  let addr = SocketAddr::new(IpAddr::from([0, 0, 0, 0]), port);
+  let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+
+  let make_svc = make_service_fn(|socket: &AddrStream| async {
+    Ok::<_, Infallible>(DISPATCHER.clone())
+  });
+  match Server::try_bind(&addr) {
+    Ok(server) => {
+      let server = server.serve(make_svc);
+      let inner = SERVER_OPTIONS.lock().unwrap();
+      let options = inner.borrow();
+      info!("Master server started on port {}", server.local_addr().port());
+      info!("Server key: '{}'", options.server_key);
+      server.with_graceful_shutdown(async { shutdown_rx.await.unwrap_or_default() }).await.map_err(|err| {
+        error!("Received an error starting master server: {}", err);
+        2
+      })
+    },
+    Err(err) => {
+      error!("could not start master server: {}", err);
+      Err(1)
+    }
+  }
 }

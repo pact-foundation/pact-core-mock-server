@@ -112,10 +112,10 @@ fn quickcheck_parse_query_string() {
     fn prop(s: String) -> TestResult {
         if s.chars().all(|c| c.is_alphanumeric() || c == '+' || c == '&' || c == '%') {
             let result = match parse_query_string(&s) {
-                Some(map) => {
+            Some(map) => {
                     if map.len() == 1 && !s.contains("=") {
                         *map.keys().next().unwrap() == decode_query(&s)
-                    } else {
+                } else {
                         let reconstructed_query = map.iter().map(|(k, v)| {
                             v.iter().map(|qv| format!("{}={}", k, qv)).join("&")
                         }).join("&");

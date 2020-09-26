@@ -9,7 +9,7 @@ use super::*;
 use super::body_from_json;
 use crate::models::matchingrules::MatchingRules;
 use crate::models::generators::Generators;
-use crate::models::content_types::{ContentType, JSON};
+use crate::models::content_types::ContentType;
 
 /// Struct that defines a message.
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq)]

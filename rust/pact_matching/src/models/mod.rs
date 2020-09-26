@@ -25,7 +25,7 @@ use std::fmt::{Display, Formatter};
 use crate::models::http_utils::HttpAuth;
 use super::json::value_of;
 use log::*;
-use crate::models::content_types::{ContentType, TEXT};
+use crate::models::content_types::ContentType;
 use crate::models::message_pact::MessagePact;
 use crate::models::provider_states::ProviderState;
 use crate::models::message::Message;

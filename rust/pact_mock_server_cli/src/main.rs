@@ -9,12 +9,18 @@ use std::env;
 use std::str::FromStr;
 use std::fs::{self, File};
 use std::io;
+use std::sync::Mutex;
 use log::{LevelFilter};
 use simplelog::{CombinedLogger, TermLogger, WriteLogger, SimpleLogger, Config};
 use std::path::PathBuf;
 use std::fs::OpenOptions;
 use uuid::Uuid;
 use pact_matching::models::PactSpecification;
+use rand::Rng;
+use lazy_static::*;
+use std::borrow::BorrowMut;
+use std::cell::RefCell;
+use pact_mock_server::server_manager::ServerManager;
 
 fn display_error(error: String, matches: &ArgMatches) -> ! {
     eprintln!("ERROR: {}", error);
@@ -99,14 +105,31 @@ fn uuid_value(v: String) -> Result<(), String> {
     Uuid::parse_str(v.as_str()).map(|_| ()).map_err(|e| format!("'{}' is not a valid UUID value: {}", v, e) )
 }
 
-fn main() {
-    match handle_command_args() {
-        Ok(_) => (),
-        Err(err) => std::process::exit(err)
-    }
+#[tokio::main]
+async fn main() {
+  match handle_command_args().await {
+    Ok(_) => (),
+    Err(err) => std::process::exit(err)
+  }
 }
 
-fn handle_command_args() -> Result<(), i32> {
+#[derive(Debug, Clone)]
+pub(crate) struct ServerOpts {
+  pub output_path: Option<String>,
+  pub base_port: Option<u16>,
+  pub server_key: String
+}
+
+lazy_static!{
+  pub(crate) static ref SERVER_OPTIONS: Mutex<RefCell<ServerOpts>> = Mutex::new(RefCell::new(ServerOpts {
+    output_path: None,
+    base_port: None,
+    server_key: String::default()
+  }));
+  pub(crate) static ref SERVER_MANAGER: Mutex<ServerManager> = Mutex::new(ServerManager::new());
+}
+
+async fn handle_command_args() -> Result<(), i32> {
     let args: Vec<String> = env::args().collect();
     let program = args[0].clone();
 
@@ -175,15 +198,19 @@ fn handle_command_args() -> Result<(), i32> {
                 .about("Lists all the running mock servers")
                 .setting(AppSettings::ColoredHelp))
         .subcommand(SubCommand::with_name("create")
-                .about("Creates a new mock server from a pact file")
-                .arg(Arg::with_name("file")
-                    .short("f")
-                    .long("file")
-                    .takes_value(true)
-                    .use_delimiter(false)
-                    .required(true)
-                    .help("the pact file to define the mock server"))
-                .setting(AppSettings::ColoredHelp))
+          .about("Creates a new mock server from a pact file")
+          .arg(Arg::with_name("file")
+            .short("f")
+            .long("file")
+            .takes_value(true)
+            .use_delimiter(false)
+            .required(true)
+            .help("the pact file to define the mock server"))
+          .arg(Arg::with_name("cors")
+            .short("c")
+            .long("cors-preflight")
+            .help("Handle CORS pre-flight requests"))
+          .setting(AppSettings::ColoredHelp))
         .subcommand(SubCommand::with_name("verify")
                 .about("Verify the mock server by id or port number, and generate a pact file if all ok")
                 .arg(Arg::with_name("mock-server-id")
@@ -259,7 +286,20 @@ fn handle_command_args() -> Result<(), i32> {
             match port.parse::<u16>() {
                 Ok(p) => {
                     match matches.subcommand() {
-                        ("start", Some(sub_matches)) => server::start_server(p, sub_matches),
+                        ("start", Some(sub_matches)) => {
+                          let output_path = matches.value_of("output").map(|s| s.to_owned());
+                          let base_port = matches.value_of("base-port").map(|s| s.parse::<u16>().unwrap_or(0));
+                          let server_key = matches.value_of("server-key").map(|s| s.to_owned())
+                            .unwrap_or_else(|| rand::thread_rng().gen_ascii_chars().take(16).collect::<String>());
+                          {
+                            let mut inner = (*SERVER_OPTIONS).lock().unwrap();
+                            let mut options = inner.deref().borrow_mut();
+                            options.output_path = output_path;
+                            options.base_port = base_port;
+                            options.server_key = server_key;
+                          }
+                          server::start_server(p).await
+                        },
                         ("list", Some(sub_matches)) => list::list_mock_servers(host, p, sub_matches),
                         ("create", Some(sub_matches)) => create_mock::create_mock_server(host, p, sub_matches),
                         ("verify", Some(sub_matches)) => verify::verify_mock_server(host, p, sub_matches),

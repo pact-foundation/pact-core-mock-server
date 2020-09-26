@@ -185,9 +185,9 @@ checksum = "0e4cec68f03f32e44924783795810fa50a7035d8c8ebe78580ad7e6c703fba38"
 
 [[package]]
 name = "cbindgen"
-version = "0.14.4"
+version = "0.14.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e783d38a7700989e0209d0b0ed224c34ade92d3603da0cf15dc502ebada685a6"
+checksum = "afa64e93023395ee316490cf013f07f753bc88d116eb1aec1bcee7d63fbcca53"
 dependencies = [
  "clap",
  "heck",
@@ -215,16 +215,6 @@ checksum = "4785bdd1c96b2a846b2bd7cc02e86b6b3dbf14e7e53446c4f54c92a361040822"
 
 [[package]]
 name = "chrono"
-version = "0.2.25"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9213f7cd7c27e95c2b57c49f0e69b1ea65b27138da84a170133fd21b07659c00"
-dependencies = [
- "num 0.1.42",
- "time",
-]
-
-[[package]]
-name = "chrono"
 version = "0.4.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "942f72db697d8767c22d46a598e01f2d3b475501ea43d0db4f16d90259182d0b"
@@ -240,7 +230,7 @@ version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aa1878c18b5b01b9978d5f130fe366d434022004d12fb87c182e8459b427c4a3"
 dependencies = [
- "chrono 0.4.15",
+ "chrono",
  "parse-zoneinfo 0.1.1",
 ]
 
@@ -250,7 +240,7 @@ version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2554a3155fec064362507487171dcc4edc3df60cb10f3a1fb10ed8094822b120"
 dependencies = [
- "chrono 0.4.15",
+ "chrono",
  "parse-zoneinfo 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -285,16 +275,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 
 [[package]]
-name = "cookie"
-version = "0.2.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e3d6405328b6edb412158b3b7710e2634e23f3614b9bb1c412df7952489a626"
-dependencies = [
- "time",
- "url 1.7.2",
-]
-
-[[package]]
 name = "core-foundation"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -318,7 +298,7 @@ checksum = "c3c7c73a2d1e9fc0886a08b93e98eb643461230d5f1925e4036204d5f2e261a8"
 dependencies = [
  "autocfg 1.0.1",
  "cfg-if",
- "lazy_static 1.4.0",
+ "lazy_static",
 ]
 
 [[package]]
@@ -710,7 +690,7 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49f837c62de05dc9cc71ff6486cd85de8856a330395ae338a04bfcefe5e91075"
 dependencies = [
- "num 0.2.1",
+ "num",
  "regex 1.3.9",
 ]
 
@@ -731,9 +711,9 @@ dependencies = [
 
 [[package]]
 name = "hermit-abi"
-version = "0.1.15"
+version = "0.1.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3deed196b6e7f9e44a2ae8d94225d80302d81208b1bb673fd21fe634645c85a9"
+checksum = "4c30f6d0bc6b00693347368a67d41b58f2fb851215ff1da49e90fe2c5c667151"
 dependencies = [
  "libc",
 ]
@@ -745,13 +725,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6a22814455d41612f41161581c2883c0c6a1c41852729b17d5ed88f01e153aa"
 
 [[package]]
-name = "hpack"
-version = "0.2.0"
+name = "hex"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d2da7d3a34cf6406d9d700111b8eafafe9a251de41ae71d8052748259343b58"
-dependencies = [
- "log 0.3.9",
-]
+checksum = "644f9158b2f133fd50f5fb3242878846d9eb792e445c893805ff0e3824006e35"
 
 [[package]]
 name = "http"
@@ -781,33 +758,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cd179ae861f0c2e53da70d892f5f3029f9594be0c41dc5269cd371691b1dc2f9"
 
 [[package]]
+name = "httpdate"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "494b4d60369511e7dea41cf646832512a94e542f68bb9c49e54518e0f468eb47"
+
+[[package]]
 name = "humantime"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "df004cfca50ef23c36850aaaa59ad52cc70d0e90243c3c7737a4dd32dc7a3c4f"
 dependencies = [
  "quick-error",
-]
-
-[[package]]
-name = "hyper"
-version = "0.9.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b9bf64f730d6ee4b0528a5f0a316363da9d8104318731509d4ccc86248f82b3"
-dependencies = [
- "cookie",
- "httparse",
- "language-tags",
- "log 0.3.9",
- "mime 0.2.6",
- "num_cpus",
- "rustc-serialize",
- "solicit",
- "time",
- "traitobject 0.0.1",
- "typeable",
- "unicase 1.4.2",
- "url 1.7.2",
 ]
 
 [[package]]
@@ -823,7 +785,7 @@ dependencies = [
  "mime 0.2.6",
  "num_cpus",
  "time",
- "traitobject 0.1.0",
+ "traitobject",
  "typeable",
  "unicase 1.4.2",
  "url 1.7.2",
@@ -831,9 +793,9 @@ dependencies = [
 
 [[package]]
 name = "hyper"
-version = "0.13.7"
+version = "0.13.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3e68a8dd9716185d9e64ea473ea6ef63529252e3e27623295a0378a19665d5eb"
+checksum = "2f3afcfae8af5ad0576a31e768415edb627824129e8e5a29b8bfccb2f234e835"
 dependencies = [
  "bytes 0.5.6",
  "futures-channel",
@@ -843,10 +805,10 @@ dependencies = [
  "http",
  "http-body",
  "httparse",
+ "httpdate",
  "itoa",
  "pin-project",
  "socket2",
- "time",
  "tokio",
  "tower-service",
  "tracing",
@@ -861,7 +823,7 @@ checksum = "37743cc83e8ee85eacfce90f2f4102030d9ff0a95244098d781e9bee4a90abb6"
 dependencies = [
  "bytes 0.5.6",
  "futures-util",
- "hyper 0.13.7",
+ "hyper 0.13.8",
  "log 0.4.11",
  "rustls 0.18.1",
  "tokio",
@@ -876,7 +838,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d979acc56dcb5b8dddba3917601745e877576475aa046df3226eabdecef78eed"
 dependencies = [
  "bytes 0.5.6",
- "hyper 0.13.7",
+ "hyper 0.13.8",
  "native-tls",
  "tokio",
  "tokio-tls",
@@ -937,12 +899,6 @@ checksum = "47be2f14c678be2fdcab04ab1171db51b2762ce6f0a8ee87c8dd4a04ed216135"
 
 [[package]]
 name = "itertools"
-version = "0.4.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4a9b56eb56058f43dc66e58f40a214b2ccbc9f3df51861b63d51dec7b65bc3f"
-
-[[package]]
-name = "itertools"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "284f18f85651fe11e8a991b2adb42cb078325c996ed026d994719efcfca1d54b"
@@ -980,12 +936,6 @@ name = "language-tags"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a91d884b6667cd606bb5a69aa0c99ba811a115fc68915e7056ec08a46e93199a"
-
-[[package]]
-name = "lazy_static"
-version = "0.1.16"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf186d1a8aa5f5bee5fd662bc9c1b949e0259e1bcc379d1f006847b0080c7417"
 
 [[package]]
 name = "lazy_static"
@@ -1159,7 +1109,7 @@ version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b0d88c06fe90d5ee94048ba40409ef1d9315d86f6f38c2efdaad4fb50c58b2d"
 dependencies = [
- "lazy_static 1.4.0",
+ "lazy_static",
  "libc",
  "log 0.4.11",
  "openssl",
@@ -1251,17 +1201,6 @@ dependencies = [
  "proc-macro2 1.0.21",
  "quote 1.0.7",
  "syn 1.0.41",
-]
-
-[[package]]
-name = "num"
-version = "0.1.42"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4703ad64153382334aa8db57c637364c322d3372e097840c72000dabdcf6156e"
-dependencies = [
- "num-integer",
- "num-iter",
- "num-traits 0.2.12",
 ]
 
 [[package]]
@@ -1373,7 +1312,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8518fcb2b1b8c2f45f0ad499df4fda6087fc3475ca69a185c173b8315d2fb383"
 dependencies = [
  "bitflags",
- "lazy_static 1.4.0",
+ "lazy_static",
  "libc",
  "onig_sys",
 ]
@@ -1397,7 +1336,7 @@ dependencies = [
  "bitflags",
  "cfg-if",
  "foreign-types",
- "lazy_static 1.4.0",
+ "lazy_static",
  "libc",
  "openssl-sys",
 ]
@@ -1422,20 +1361,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "p-macro"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2e6ec260ffca4e190641151b2d900ce473300f53de8f298a132ad37168581c9"
-
-[[package]]
 name = "pact_consumer"
 version = "0.6.3"
 dependencies = [
  "env_logger 0.4.3",
  "expectest 0.9.2",
  "futures 0.3.5",
- "itertools 0.9.0",
- "lazy_static 1.4.0",
+ "itertools",
+ "lazy_static",
  "libc",
  "log 0.4.11",
  "maplit 0.1.6",
@@ -1457,19 +1390,19 @@ version = "0.7.1"
 dependencies = [
  "ansi_term 0.9.0",
  "base64 0.12.3",
- "chrono 0.4.15",
+ "chrono",
  "chrono-tz 0.5.3",
  "difference 1.0.0",
  "env_logger 0.7.1",
  "expectest 0.12.0",
  "formdata",
  "hamcrest2",
- "hex",
+ "hex 0.2.0",
  "httparse",
  "hyper 0.10.16",
  "indextree",
- "itertools 0.9.0",
- "lazy_static 1.4.0",
+ "itertools",
+ "lazy_static",
  "log 0.4.11",
  "maplit 0.1.6",
  "mime 0.3.16",
@@ -1500,9 +1433,9 @@ dependencies = [
  "env_logger 0.7.1",
  "expectest 0.9.2",
  "futures 0.3.5",
- "hyper 0.13.7",
- "itertools 0.9.0",
- "lazy_static 1.4.0",
+ "hyper 0.13.8",
+ "itertools",
+ "lazy_static",
  "log 0.4.11",
  "maplit 0.1.6",
  "pact_matching",
@@ -1518,12 +1451,14 @@ dependencies = [
 
 [[package]]
 name = "pact_mock_server_cli"
-version = "0.6.3"
+version = "0.7.0"
 dependencies = [
  "clap",
  "expectest 0.5.1",
- "hyper 0.9.18",
- "lazy_static 0.1.16",
+ "futures 0.3.5",
+ "http",
+ "hyper 0.13.8",
+ "lazy_static",
  "libc",
  "log 0.4.11",
  "maplit 0.1.6",
@@ -1532,8 +1467,11 @@ dependencies = [
  "quickcheck 0.2.27",
  "rand 0.4.6",
  "regex 0.1.80",
+ "reqwest",
  "serde_json",
  "simplelog 0.7.6",
+ "tokio",
+ "url 2.1.1",
  "uuid 0.8.1",
  "webmachine-rust",
 ]
@@ -1543,14 +1481,14 @@ name = "pact_mock_server_ffi"
 version = "0.0.9"
 dependencies = [
  "cbindgen",
- "chrono 0.4.15",
+ "chrono",
  "chrono-tz 0.4.1",
  "env_logger 0.7.1",
  "expectest 0.12.0",
  "formdata",
  "hyper 0.10.16",
- "itertools 0.9.0",
- "lazy_static 1.4.0",
+ "itertools",
+ "lazy_static",
  "libc",
  "log 0.4.11",
  "maplit 1.0.2",
@@ -1578,8 +1516,8 @@ dependencies = [
  "expectest 0.12.0",
  "futures 0.3.5",
  "http",
- "itertools 0.9.0",
- "lazy_static 1.4.0",
+ "itertools",
+ "lazy_static",
  "libc",
  "log 0.4.11",
  "maplit 1.0.2",
@@ -1599,7 +1537,7 @@ version = "0.8.1"
 dependencies = [
  "clap",
  "expectest 0.12.0",
- "lazy_static 1.4.0",
+ "lazy_static",
  "libc",
  "log 0.4.11",
  "maplit 1.0.2",
@@ -2137,12 +2075,12 @@ dependencies = [
  "futures-util",
  "http",
  "http-body",
- "hyper 0.13.7",
+ "hyper 0.13.8",
  "hyper-rustls",
  "hyper-tls",
  "ipnet",
  "js-sys",
- "lazy_static 1.4.0",
+ "lazy_static",
  "log 0.4.11",
  "mime 0.3.16",
  "mime_guess",
@@ -2192,12 +2130,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rustc-serialize"
-version = "0.3.24"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcf128d1287d2ea9d80910b5f1120d0b8eede3fbf1abe91c40d39ea7d51e6fda"
-
-[[package]]
 name = "rustls"
 version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2241,7 +2173,7 @@ version = "0.1.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f05ba609c234e60bee0d547fe94a4c7e9da733d1c962cf6e59efa4cd9c8bc75"
 dependencies = [
- "lazy_static 1.4.0",
+ "lazy_static",
  "winapi 0.3.9",
 ]
 
@@ -2348,7 +2280,7 @@ version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3cf9a002ccce717d066b3ccdb8a28829436249867229291e91b25d99bd723f0d"
 dependencies = [
- "chrono 0.4.15",
+ "chrono",
  "log 0.4.11",
  "term",
 ]
@@ -2359,7 +2291,7 @@ version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b2736f58087298a448859961d3f4a0850b832e72619d75adc69da7993c2cd3c"
 dependencies = [
- "chrono 0.4.15",
+ "chrono",
  "log 0.4.11",
  "termcolor",
 ]
@@ -2396,16 +2328,6 @@ dependencies = [
  "libc",
  "redox_syscall",
  "winapi 0.3.9",
-]
-
-[[package]]
-name = "solicit"
-version = "0.4.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "172382bac9424588d7840732b250faeeef88942e37b6e35317dce98cafdd75b2"
-dependencies = [
- "hpack",
- "log 0.3.9",
 ]
 
 [[package]]
@@ -2532,7 +2454,7 @@ checksum = "dafb35214e317d6c0a72b16d1aa667bbc0fea57e302798e7bc520e0f39988006"
 dependencies = [
  "base64 0.10.1",
  "byteorder",
- "chrono 0.4.15",
+ "chrono",
  "rand 0.6.5",
  "serde",
  "serde_derive",
@@ -2572,7 +2494,7 @@ version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c6b53e329000edc2b34dbe8545fd20e55a333362d0a321909685a19bd28c3f1b"
 dependencies = [
- "lazy_static 1.4.0",
+ "lazy_static",
 ]
 
 [[package]]
@@ -2581,7 +2503,7 @@ version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d40c6d1b69745a6ec6fb1ca717914848da4b44ae29d9b3080cbee91d72a69b14"
 dependencies = [
- "lazy_static 1.4.0",
+ "lazy_static",
 ]
 
 [[package]]
@@ -2611,7 +2533,7 @@ dependencies = [
  "fnv",
  "futures-core",
  "iovec",
- "lazy_static 1.4.0",
+ "lazy_static",
  "memchr 2.3.3",
  "mio",
  "num_cpus",
@@ -2722,14 +2644,8 @@ version = "0.1.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5bcf46c1f1f06aeea2d6b81f3c863d0930a596c86ad1920d4e5bad6dd1d7119a"
 dependencies = [
- "lazy_static 1.4.0",
+ "lazy_static",
 ]
-
-[[package]]
-name = "traitobject"
-version = "0.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07eaeb7689bb7fca7ce15628319635758eda769fed481ecfe6686ddef2600616"
 
 [[package]]
 name = "traitobject"
@@ -2744,7 +2660,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1d99367ce3e553a84738f73bd626ccca541ef90ae757fdcdc4cbe728e6cb629"
 dependencies = [
  "fnv",
- "lazy_static 1.4.0",
+ "lazy_static",
  "nom 3.2.1",
  "parking_lot",
  "petgraph",
@@ -2967,7 +2883,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f22b422e2a757c35a73774860af8e112bff612ce6cb604224e8e47641a9e4f68"
 dependencies = [
  "bumpalo",
- "lazy_static 1.4.0",
+ "lazy_static",
  "log 0.4.11",
  "proc-macro2 1.0.21",
  "quote 1.0.7",
@@ -3028,18 +2944,21 @@ dependencies = [
 
 [[package]]
 name = "webmachine-rust"
-version = "0.0.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "45ebc45a463a24c43e2380dc3db7c886b7b4e3f76b4f5b8bd8ff2b9c4a6abffa"
+checksum = "c61e022470fc38ecc3a826ff961deab758be2bb8a02fd5cf03a4b9a53fdb8a84"
 dependencies = [
- "chrono 0.2.25",
- "hyper 0.9.18",
- "itertools 0.4.19",
- "lazy_static 0.1.16",
- "log 0.3.9",
- "maplit 0.1.6",
- "p-macro",
- "rustc-serialize",
+ "chrono",
+ "futures 0.3.5",
+ "hex 0.4.2",
+ "http",
+ "hyper 0.13.8",
+ "itertools",
+ "lazy_static",
+ "log 0.4.11",
+ "maplit 1.0.2",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
