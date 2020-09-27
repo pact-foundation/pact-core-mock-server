@@ -7,8 +7,10 @@ use pact_mock_server::{
 use pact_matching::s;
 use http::StatusCode;
 use serde_json::Value;
+use crate::handle_error;
+use pact_matching::models::json_utils::json_to_string;
 
-pub fn verify_mock_server(host: &str, port: u16, matches: &ArgMatches) -> Result<(), i32> {
+pub async fn verify_mock_server(host: &str, port: u16, matches: &ArgMatches<'_>) -> Result<(), i32> {
   let mock_server_id = matches.value_of("mock-server-id");
   let mock_server_port = matches.value_of("mock-server-port");
   let id = if let Some(id) = mock_server_id {
@@ -17,10 +19,10 @@ pub fn verify_mock_server(host: &str, port: u16, matches: &ArgMatches) -> Result
     (mock_server_port.unwrap(), "port")
   };
 
-  let client = reqwest::blocking::Client::new();
+  let client = reqwest::Client::new();
   let url = format!("http://{}:{}/mockserver/{}/verify", host, port, id.0);
   let resp = client.post(&url)
-    .send();
+    .send().await;
   match resp {
     Ok(result) => {
       let status = result.status();
@@ -31,13 +33,18 @@ pub fn verify_mock_server(host: &str, port: u16, matches: &ArgMatches) -> Result
             Err(3)
           },
           StatusCode::UNPROCESSABLE_ENTITY => {
-            match result.text() {
+            match result.text().await {
               Ok(body) => {
                 match serde_json::from_str::<Value>(body.as_str()) {
                   Ok(json) => {
-                    let mock_server = json.get("mockServer").unwrap();
-                    let id = mock_server.get("id").unwrap().as_str().unwrap();
-                    let port = mock_server.get("port").unwrap().as_u64().unwrap();
+                    let mock_server = json.get("mockServer")
+                      .ok_or_else(|| handle_error("Invalid JSON received from master server - no mockServer attribute"))?;
+                    let id = mock_server.get("id")
+                      .ok_or_else(|| handle_error("Invalid JSON received from master server - mockServer has no id attribute"))?
+                      .as_str().ok_or_else(|| handle_error("Invalid JSON received from master server - mockServer id attribute is not a string"))?;
+                    let port = mock_server.get("port")
+                      .ok_or_else(|| handle_error("Invalid JSON received from master server - mockServer has no port attribute"))?
+                      .as_u64().ok_or_else(|| handle_error("Invalid JSON received from master server - mockServer port attribute is not a number"))?;
                     display_verification_errors(id, port, &json);
                     Err(2)
                   },
@@ -91,29 +98,29 @@ pub fn validate_id(id: &str, server_manager: &Mutex<ServerManager>) -> Result<Mo
 }
 
 fn display_verification_errors(id: &str, port: u64, json: &serde_json::Value) {
-    let mismatches = json.get("mismatches").unwrap().as_array().unwrap();
-    println!("Mock server {}/{} failed verification with {} errors\n", id, port, mismatches.len());
+  let mismatches = json.get("mismatches").unwrap().as_array().unwrap();
+  println!("Mock server {}/{} failed verification with {} errors\n", id, port, mismatches.len());
 
-    for (i, mismatch) in mismatches.iter().enumerate() {
-        match mismatch.get("type").unwrap().to_string().as_ref() {
-            "missing-request" => {
-                let request = mismatch.get("request").unwrap();
-                println!("{} - Expected request was not received - {}", i, request)
-            },
-            "request-not-found" => {
-                let request = mismatch.get("request").unwrap();
-                println!("{} - Received a request that was not expected - {}", i, request)
-            },
-            "request-mismatch" => {
-                let path = mismatch.get("path").unwrap().to_string();
-                let method = mismatch.get("method").unwrap().to_string();
-                println!("{} - Received a request that did not match with expected - {} {}", i, method, path);
-                let request_mismatches = mismatch.get("mismatches").unwrap().as_array().unwrap();
-                for request_mismatch in request_mismatches {
-                    println!("        {}", request_mismatch.get("mismatch").unwrap().to_string())
-                }
-            },
-            _ => println!("{} - Known failure - {}", i, mismatch),
+  for (i, mismatch) in mismatches.iter().enumerate() {
+    match json_to_string(mismatch.get("type").unwrap()).as_str() {
+      "missing-request" => {
+        let request = mismatch.get("request").unwrap();
+        println!("{} - Expected request was not received - {}", i, request)
+      },
+      "request-not-found" => {
+        let request = mismatch.get("request").unwrap();
+        println!("{} - Received a request that was not expected - {}", i, request)
+      },
+      "request-mismatch" => {
+        let path = mismatch.get("path").unwrap().to_string();
+        let method = mismatch.get("method").unwrap().to_string();
+        println!("{} - Received a request that did not match with expected - {} {}", i, method, path);
+        let request_mismatches = mismatch.get("mismatches").unwrap().as_array().unwrap();
+        for request_mismatch in request_mismatches {
+          println!("        {}", request_mismatch.get("mismatch").unwrap().to_string())
         }
+      },
+      _ => println!("{} - Unknown failure - {}", i, mismatch),
     }
+  }
 }

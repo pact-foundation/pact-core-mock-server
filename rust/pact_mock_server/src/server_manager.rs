@@ -40,9 +40,9 @@ impl ServerManager {
       &mut self,
       id: String,
       pact: RequestResponsePact,
-      addr: std::net::SocketAddr,
+      addr: SocketAddr,
       config: MockServerConfig
-    ) -> Result<std::net::SocketAddr, String> {
+    ) -> Result<SocketAddr, String> {
       let (mock_server, future) =
         self.runtime.block_on(MockServer::new(id.clone(), pact, addr, config))?;
 
@@ -66,10 +66,10 @@ impl ServerManager {
       &mut self,
       id: String,
       pact: RequestResponsePact,
-      addr: std::net::SocketAddr,
+      addr: SocketAddr,
       tls: &ServerConfig,
       config: MockServerConfig
-    ) -> Result<std::net::SocketAddr, String> {
+    ) -> Result<SocketAddr, String> {
       let (mock_server, future) =
         self.runtime.block_on(MockServer::new_tls(id.clone(), pact, addr, tls, config))?;
 
@@ -99,6 +99,29 @@ impl ServerManager {
         self.start_mock_server_with_addr(id, pact, ([0, 0, 0, 0], port as u16).into(), config)
             .map(|addr| addr.port())
     }
+
+  /// Start a new server on the runtime, returning the future
+  pub async fn start_mock_server_nonblocking(
+    &mut self,
+    id: String,
+    pact: RequestResponsePact,
+    port: u16,
+    config: MockServerConfig
+  ) -> Result<u16, String> {
+    let addr= ([0, 0, 0, 0], port as u16).into();
+    let (mock_server, future) = MockServer::new(id.clone(), pact, addr, config).await?;
+
+    let port = mock_server.port.clone();
+    self.mock_servers.insert(
+      id,
+      ServerEntry {
+        mock_server: Box::new(mock_server),
+        join_handle: self.runtime.spawn(future),
+      },
+    );
+
+    port.ok_or_else(|| "Started mock server has no port".to_string())
+  }
 
     /// Start a new TLS server on the runtime
     pub fn start_tls_mock_server(

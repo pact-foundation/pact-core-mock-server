@@ -4,7 +4,7 @@ use pact_mock_server::server_manager::ServerManager;
 use uuid::Uuid;
 use serde_json::{self, Value, json};
 use std::{
-  sync::{Arc, Mutex},
+  sync::{Arc, Mutex, mpsc},
   thread,
   time::Duration,
   iter::FromIterator,
@@ -20,7 +20,7 @@ use clap::ArgMatches;
 use rand::{self, Rng};
 use maplit::*;
 use pact_mock_server::mock_server::MockServerConfig;
-use futures::{Future, Stream};
+use futures::{Future, Stream, TryFutureExt, future::ok};
 use std::net::{SocketAddr, IpAddr};
 use log::*;
 use http::Response;
@@ -32,7 +32,6 @@ use lazy_static::*;
 use std::cell::RefCell;
 use crate::{SERVER_MANAGER, SERVER_OPTIONS, ServerOpts};
 use hyper::server::conn::AddrStream;
-use futures::future::ok;
 
 fn json_error(error: String) -> String {
     let json_response = json!({ "error" : json!(error) });
@@ -59,20 +58,22 @@ fn get_next_port(base_port: Option<u16>) -> u16 {
   }
 }
 
-fn start_provider(context: &mut WebmachineContext) -> Result<bool, u16> {
+fn start_provider(context: &mut WebmachineContext, options: ServerOpts) -> Result<bool, u16> {
+  debug!("start_provider => {}", context.request.request_path);
   match context.request.body {
     Some(ref body) if !body.is_empty() => {
       match serde_json::from_slice(body) {
         Ok(ref json) => {
           let pact = RequestResponsePact::from_json(&context.request.request_path, json);
+          debug!("Loaded pact = {:?}", pact);
           let mock_server_id = Uuid::new_v4().to_string();
           let config = MockServerConfig::default();
 
           let mut lock = SERVER_MANAGER.lock().unwrap();
-          let inner = SERVER_OPTIONS.lock().unwrap();
-          let options = inner.borrow();
+          debug!("starting mock server with id {}", &mock_server_id);
           match lock.start_mock_server(mock_server_id.clone(), pact, get_next_port(options.base_port), config) {
             Ok(mock_server) => {
+              debug!("mock server started on port {}", mock_server);
               let mock_server_json = json!({
                 "id" : json!(mock_server_id.clone()),
                 "port" : json!(mock_server as i64),
@@ -132,22 +133,6 @@ pub fn verify_mock_server_request(context: &mut WebmachineContext) -> Result<boo
   }
 }
 
-fn main_resource<'a>() -> WebmachineResource<'a> {
-  WebmachineResource {
-    allowed_methods: vec!["OPTIONS", "GET", "HEAD", "POST"],
-    resource_exists: callback(&|context, _| context.request.request_path == "/"),
-    render_response: callback(&|_, _| {
-        let mock_servers = SERVER_MANAGER.lock().unwrap().map_mock_servers(&|ms| {
-            ms.to_json()
-        });
-        let json_response = json!({ "mockServers" : json!(mock_servers) });
-        Some(json_response.to_string())
-    }),
-    process_post: callback(&|context, _| start_provider(context)),
-    .. WebmachineResource::default()
-  }
-}
-
 fn shutdown_resource<'a>() -> WebmachineResource<'a> {
   WebmachineResource {
     allowed_methods: vec!["POST"],
@@ -199,6 +184,7 @@ fn mock_server_resource<'a>() -> WebmachineResource<'a> {
   WebmachineResource {
     allowed_methods: vec!["OPTIONS", "GET", "HEAD", "POST", "DELETE"],
     resource_exists: callback(&|context, _| {
+      debug!("mock_server_resource -> resource_exists");
       let paths: Vec<String> = context.request.request_path
         .split('/')
         .filter(|p| !p.is_empty())
@@ -223,6 +209,7 @@ fn mock_server_resource<'a>() -> WebmachineResource<'a> {
       }
     }),
     render_response: callback(&|context, _| {
+      debug!("mock_server_resource -> render_response");
       match context.metadata.get("subpath".into()) {
         None => {
           let id = context.metadata.get("id".into()).unwrap().clone();
@@ -236,6 +223,7 @@ fn mock_server_resource<'a>() -> WebmachineResource<'a> {
       }
     }),
     process_post: callback(&|context, _| {
+      debug!("mock_server_resource -> process_post");
       let subpath = context.metadata.get("subpath".into()).unwrap().clone();
       if subpath == "verify" {
         verify_mock_server_request(context)
@@ -244,14 +232,17 @@ fn mock_server_resource<'a>() -> WebmachineResource<'a> {
       }
     }),
     delete_resource: callback(&|context, _| {
+      debug!("mock_server_resource -> delete_resource");
       match context.metadata.get("subpath".into()) {
         None => {
           let id = context.metadata.get("id".into()).unwrap().clone();
-          if SERVER_MANAGER.lock().unwrap().shutdown_mock_server_by_id(id) {
-            Ok(true)
-          } else {
-            Err(404)
-          }
+          thread::spawn(move || {
+            if SERVER_MANAGER.lock().unwrap().shutdown_mock_server_by_id(id) {
+              Ok(true)
+            } else {
+              Err(404)
+            }
+          }).join().expect("Could not spawn thread to shut down mock server")
         }
         Some(_) => Err(405)
       }
@@ -289,7 +280,53 @@ fn to_hyper_response(res: Response<Vec<u8>>) -> Result<Response<Body>, http::Err
 lazy_static!{
   static ref DISPATCHER: WebmachineDispatcher<'static> = WebmachineDispatcher {
     routes: btreemap! {
-      "/" => main_resource(),
+      "/" => WebmachineResource {
+        allowed_methods: vec!["OPTIONS", "GET", "HEAD", "POST"],
+        resource_exists: callback(&|context, _| {
+          debug!("main_resource -> resource_exists");
+          context.request.request_path == "/"
+        }),
+        render_response: callback(&|_, _| {
+          debug!("main_resource -> render_response");
+          let mock_servers = SERVER_MANAGER.lock().unwrap().map_mock_servers(&|ms| {
+            ms.to_json()
+          });
+          let json_response = json!({ "mockServers" : json!(mock_servers) });
+          Some(json_response.to_string())
+        }),
+        process_post: callback(&|context, _| {
+          debug!("main_resource -> process_post");
+          let (tx, rx) = mpsc::channel();
+          let (tx2, rx2) = mpsc::channel();
+
+          tx.send(context.clone());
+          let start_fn = move || {
+            let handle = thread::current();
+            debug!("starting mock server on thread {}", handle.name().unwrap_or("<unknown>"));
+            let inner = SERVER_OPTIONS.lock().unwrap();
+            let options = inner.borrow().clone();
+            let mut ctx = rx.recv().unwrap();
+            let result = start_provider(&mut ctx, options);
+            debug!("Result of starting mock server: {:?}", result.clone());
+            tx2.send(ctx);
+            result
+          };
+
+          match thread::spawn(start_fn).join() {
+            Ok(res) => {
+              debug!("Result of thread: {:?}", res);
+              let ctx = rx2.recv().unwrap();
+              context.response = ctx.response;
+              res
+            },
+            Err(err) => {
+              error!("Failed to spawn new thread to start new mock server - {:?}", err);
+              Err(500)
+            }
+          }
+        }),
+        .. WebmachineResource::default()
+      },
       "/mockserver" => mock_server_resource(),
       "/shutdown" => shutdown_resource()
     }
@@ -306,10 +343,12 @@ pub async fn start_server(port: u16) -> Result<(), i32> {
   match Server::try_bind(&addr) {
     Ok(server) => {
       let server = server.serve(make_svc);
-      let inner = SERVER_OPTIONS.lock().unwrap();
-      let options = inner.borrow();
-      info!("Master server started on port {}", server.local_addr().port());
-      info!("Server key: '{}'", options.server_key);
+      {
+        let inner = SERVER_OPTIONS.lock().unwrap();
+        let options = inner.borrow();
+        info!("Master server started on port {}", server.local_addr().port());
+        info!("Server key: '{}'", options.server_key);
+      }
       server.with_graceful_shutdown(async { shutdown_rx.await.unwrap_or_default() }).await.map_err(|err| {
         error!("Received an error starting master server: {}", err);
         2

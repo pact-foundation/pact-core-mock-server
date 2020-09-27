@@ -22,11 +22,17 @@ use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use pact_mock_server::server_manager::ServerManager;
 
-fn display_error(error: String, matches: &ArgMatches) -> ! {
+pub(crate) fn display_error(error: String, matches: &ArgMatches) -> ! {
     eprintln!("ERROR: {}", error);
     eprintln!();
     eprintln!("{}", matches.usage());
     panic!("{}", error)
+}
+
+pub(crate) fn handle_error(error: &str) -> i32 {
+  eprintln!("ERROR: {}", error);
+  eprintln!();
+  -100
 }
 
 mod server;
@@ -130,204 +136,204 @@ lazy_static!{
 }
 
 async fn handle_command_args() -> Result<(), i32> {
-    let args: Vec<String> = env::args().collect();
-    let program = args[0].clone();
+  let args: Vec<String> = env::args().collect();
+  let program = args[0].clone();
 
-    let version = format!("v{}", clap::crate_version!());
-    let app = App::new(program)
-        .version(version.as_str())
-        .about("Standalone Pact mock server")
-        .version_short("v")
-        .setting(AppSettings::ArgRequiredElseHelp)
-        .setting(AppSettings::SubcommandRequired)
-        .setting(AppSettings::GlobalVersion)
-        .setting(AppSettings::VersionlessSubcommands)
-        .setting(AppSettings::ColoredHelp)
-        .arg(Arg::with_name("port")
-            .short("p")
-            .long("port")
-            .takes_value(true)
-            .use_delimiter(false)
-            .global(true)
-            .help("port the master mock server runs on (defaults to 8080)"))
-        .arg(Arg::with_name("host")
-            .short("h")
-            .long("host")
-            .takes_value(true)
-            .use_delimiter(false)
-            .global(true)
-            .help("hostname the master mock server runs on (defaults to localhost)"))
-        .arg(Arg::with_name("loglevel")
-            .short("l")
-            .long("loglevel")
-            .takes_value(true)
-            .use_delimiter(false)
-            .global(true)
-            .possible_values(&["error", "warn", "info", "debug", "trace", "none"])
-            .help("Log level for mock servers to write to the log file (defaults to info)"))
-        .arg(Arg::with_name("no-term-log")
-          .long("no-term-log")
+  let version = format!("v{}", clap::crate_version!());
+  let app = App::new(program)
+      .version(version.as_str())
+      .about("Standalone Pact mock server")
+      .version_short("v")
+      .setting(AppSettings::ArgRequiredElseHelp)
+      .setting(AppSettings::SubcommandRequired)
+      .setting(AppSettings::GlobalVersion)
+      .setting(AppSettings::VersionlessSubcommands)
+      .setting(AppSettings::ColoredHelp)
+      .arg(Arg::with_name("port")
+          .short("p")
+          .long("port")
+          .takes_value(true)
+          .use_delimiter(false)
           .global(true)
-          .help("Use a simple logger instead of the term based one"))
-        .arg(Arg::with_name("no-file-log")
-          .long("no-file-log")
+          .help("port the master mock server runs on (defaults to 8080)"))
+      .arg(Arg::with_name("host")
+          .short("h")
+          .long("host")
+          .takes_value(true)
+          .use_delimiter(false)
           .global(true)
-          .help("Do not log to an output file"))
-        .subcommand(SubCommand::with_name("start")
-                .about("Starts the master mock server")
-                .arg(Arg::with_name("output")
-                      .short("o")
-                      .long("output")
-                      .takes_value(true)
-                      .use_delimiter(false)
-                      .help("the directory where to write files to (defaults to current directory)"))
-                .arg(Arg::with_name("base-port")
-                    .long("base-port")
+          .help("hostname the master mock server runs on (defaults to localhost)"))
+      .arg(Arg::with_name("loglevel")
+          .short("l")
+          .long("loglevel")
+          .takes_value(true)
+          .use_delimiter(false)
+          .global(true)
+          .possible_values(&["error", "warn", "info", "debug", "trace", "none"])
+          .help("Log level for mock servers to write to the log file (defaults to info)"))
+      .arg(Arg::with_name("no-term-log")
+        .long("no-term-log")
+        .global(true)
+        .help("Use a simple logger instead of the term based one"))
+      .arg(Arg::with_name("no-file-log")
+        .long("no-file-log")
+        .global(true)
+        .help("Do not log to an output file"))
+      .subcommand(SubCommand::with_name("start")
+              .about("Starts the master mock server")
+              .arg(Arg::with_name("output")
+                    .short("o")
+                    .long("output")
                     .takes_value(true)
                     .use_delimiter(false)
-                    .required(false)
-                    .help("the base port number that mock server ports will be allocated from. If not specified, ports will be randomly assigned by the OS.")
-                    .validator(integer_value))
-                .arg(Arg::with_name("server-key")
-                  .long("server-key")
+                    .help("the directory where to write files to (defaults to current directory)"))
+              .arg(Arg::with_name("base-port")
+                  .long("base-port")
                   .takes_value(true)
                   .use_delimiter(false)
-                  .help("the server key to use to authenticate shutdown requests (defaults to a random generated one)"))
-                .setting(AppSettings::ColoredHelp))
-        .subcommand(SubCommand::with_name("list")
-                .about("Lists all the running mock servers")
-                .setting(AppSettings::ColoredHelp))
-        .subcommand(SubCommand::with_name("create")
-          .about("Creates a new mock server from a pact file")
-          .arg(Arg::with_name("file")
-            .short("f")
-            .long("file")
-            .takes_value(true)
-            .use_delimiter(false)
-            .required(true)
-            .help("the pact file to define the mock server"))
-          .arg(Arg::with_name("cors")
-            .short("c")
-            .long("cors-preflight")
-            .help("Handle CORS pre-flight requests"))
-          .setting(AppSettings::ColoredHelp))
-        .subcommand(SubCommand::with_name("verify")
-                .about("Verify the mock server by id or port number, and generate a pact file if all ok")
-                .arg(Arg::with_name("mock-server-id")
-                    .short("i")
-                    .long("mock-server-id")
-                    .takes_value(true)
-                    .use_delimiter(false)
-                    .required_unless("mock-server-port")
-                    .conflicts_with("mock-server-port")
-                    .help("the ID of the mock server")
-                    .validator(uuid_value))
-                .arg(Arg::with_name("mock-server-port")
-                    .short("m")
-                    .long("mock-server-port")
-                    .takes_value(true)
-                    .use_delimiter(false)
-                    .required_unless("mock-server-host")
-                    .help("the port number of the mock server")
-                    .validator(integer_value))
-                .setting(AppSettings::ColoredHelp))
-        .subcommand(SubCommand::with_name("shutdown")
-                .about("Shutdown the mock server by id or port number, releasing all its resources")
-                .arg(Arg::with_name("mock-server-id")
-                    .short("i")
-                    .long("mock-server-id")
-                    .takes_value(true)
-                    .use_delimiter(false)
-                    .required_unless("mock-server-port")
-                    .conflicts_with("mock-server-port")
-                    .help("the ID of the mock server")
-                    .validator(uuid_value))
-                .arg(Arg::with_name("mock-server-port")
-                    .short("m")
-                    .long("mock-server-port")
-                    .takes_value(true)
-                    .use_delimiter(false)
-                    .required_unless("mock-server-host")
-                    .help("the port number of the mock server")
-                    .validator(integer_value))
-                .setting(AppSettings::ColoredHelp))
-        .subcommand(SubCommand::with_name("shutdown-master")
-          .about("Performs a graceful shutdown of the master server (displayed when it started)")
-          .arg(Arg::with_name("server-key")
-            .short("k")
-            .long("server-key")
-            .takes_value(true)
-            .use_delimiter(false)
-            .required(true)
-            .help("the server key of the master server"))
-          .arg(Arg::with_name("period")
-            .long("period")
-            .takes_value(true)
-            .use_delimiter(false)
-            .help("the period of time in milliseconds to allow the server to shutdown (defaults to 100ms)")
-            .validator(integer_value))
-          .setting(AppSettings::ColoredHelp))
-    ;
+                  .required(false)
+                  .help("the base port number that mock server ports will be allocated from. If not specified, ports will be randomly assigned by the OS.")
+                  .validator(integer_value))
+              .arg(Arg::with_name("server-key")
+                .long("server-key")
+                .takes_value(true)
+                .use_delimiter(false)
+                .help("the server key to use to authenticate shutdown requests (defaults to a random generated one)"))
+              .setting(AppSettings::ColoredHelp))
+      .subcommand(SubCommand::with_name("list")
+              .about("Lists all the running mock servers")
+              .setting(AppSettings::ColoredHelp))
+      .subcommand(SubCommand::with_name("create")
+        .about("Creates a new mock server from a pact file")
+        .arg(Arg::with_name("file")
+          .short("f")
+          .long("file")
+          .takes_value(true)
+          .use_delimiter(false)
+          .required(true)
+          .help("the pact file to define the mock server"))
+        .arg(Arg::with_name("cors")
+          .short("c")
+          .long("cors-preflight")
+          .help("Handle CORS pre-flight requests"))
+        .setting(AppSettings::ColoredHelp))
+      .subcommand(SubCommand::with_name("verify")
+              .about("Verify the mock server by id or port number, and generate a pact file if all ok")
+              .arg(Arg::with_name("mock-server-id")
+                  .short("i")
+                  .long("mock-server-id")
+                  .takes_value(true)
+                  .use_delimiter(false)
+                  .required_unless("mock-server-port")
+                  .conflicts_with("mock-server-port")
+                  .help("the ID of the mock server")
+                  .validator(uuid_value))
+              .arg(Arg::with_name("mock-server-port")
+                  .short("m")
+                  .long("mock-server-port")
+                  .takes_value(true)
+                  .use_delimiter(false)
+                  .required_unless("mock-server-host")
+                  .help("the port number of the mock server")
+                  .validator(integer_value))
+              .setting(AppSettings::ColoredHelp))
+      .subcommand(SubCommand::with_name("shutdown")
+              .about("Shutdown the mock server by id or port number, releasing all its resources")
+              .arg(Arg::with_name("mock-server-id")
+                  .short("i")
+                  .long("mock-server-id")
+                  .takes_value(true)
+                  .use_delimiter(false)
+                  .required_unless("mock-server-port")
+                  .conflicts_with("mock-server-port")
+                  .help("the ID of the mock server")
+                  .validator(uuid_value))
+              .arg(Arg::with_name("mock-server-port")
+                  .short("m")
+                  .long("mock-server-port")
+                  .takes_value(true)
+                  .use_delimiter(false)
+                  .required_unless("mock-server-host")
+                  .help("the port number of the mock server")
+                  .validator(integer_value))
+              .setting(AppSettings::ColoredHelp))
+      .subcommand(SubCommand::with_name("shutdown-master")
+        .about("Performs a graceful shutdown of the master server (displayed when it started)")
+        .arg(Arg::with_name("server-key")
+          .short("k")
+          .long("server-key")
+          .takes_value(true)
+          .use_delimiter(false)
+          .required(true)
+          .help("the server key of the master server"))
+        .arg(Arg::with_name("period")
+          .long("period")
+          .takes_value(true)
+          .use_delimiter(false)
+          .help("the period of time in milliseconds to allow the server to shutdown (defaults to 100ms)")
+          .validator(integer_value))
+        .setting(AppSettings::ColoredHelp))
+  ;
 
-    let matches = app.get_matches_safe();
-    match matches {
-        Ok(ref matches) => {
-            let log_level = matches.value_of("loglevel");
-            if let Err(err) = setup_loggers(log_level.unwrap_or("info"),
-                matches.subcommand_name().unwrap(),
-                matches.subcommand().1.unwrap().value_of("output"),
-                global_option_present("no-file-log", matches),
-                global_option_present("no-term-log", matches)) {
-                eprintln!("WARN: Could not setup loggers: {}", err);
-                eprintln!();
-            }
-            let port = matches.value_of("port").unwrap_or("8080");
-            let host = matches.value_of("host").unwrap_or("localhost");
-            match port.parse::<u16>() {
-                Ok(p) => {
-                    match matches.subcommand() {
-                        ("start", Some(sub_matches)) => {
-                          let output_path = matches.value_of("output").map(|s| s.to_owned());
-                          let base_port = matches.value_of("base-port").map(|s| s.parse::<u16>().unwrap_or(0));
-                          let server_key = matches.value_of("server-key").map(|s| s.to_owned())
-                            .unwrap_or_else(|| rand::thread_rng().gen_ascii_chars().take(16).collect::<String>());
-                          {
-                            let mut inner = (*SERVER_OPTIONS).lock().unwrap();
-                            let mut options = inner.deref().borrow_mut();
-                            options.output_path = output_path;
-                            options.base_port = base_port;
-                            options.server_key = server_key;
-                          }
-                          server::start_server(p).await
-                        },
-                        ("list", Some(sub_matches)) => list::list_mock_servers(host, p, sub_matches),
-                        ("create", Some(sub_matches)) => create_mock::create_mock_server(host, p, sub_matches),
-                        ("verify", Some(sub_matches)) => verify::verify_mock_server(host, p, sub_matches),
-                        ("shutdown", Some(sub_matches)) => shutdown::shutdown_mock_server(host, p, sub_matches),
-                        ("shutdown-master", Some(sub_matches)) => shutdown::shutdown_master_server(host, p, sub_matches),
-                        _ => Err(3)
-                    }
-                },
-                Err(_) => display_error(format!("{} is not a valid port number", port), matches)
-            }
+  let matches = app.get_matches_safe();
+  match matches {
+    Ok(ref matches) => {
+      let log_level = matches.value_of("loglevel");
+      if let Err(err) = setup_loggers(log_level.unwrap_or("info"),
+        matches.subcommand_name().unwrap(),
+        matches.subcommand().1.unwrap().value_of("output"),
+        global_option_present("no-file-log", matches),
+        global_option_present("no-term-log", matches)) {
+        eprintln!("WARN: Could not setup loggers: {}", err);
+        eprintln!();
+      }
+      let port = matches.value_of("port").unwrap_or("8080");
+      let host = matches.value_of("host").unwrap_or("localhost");
+      match port.parse::<u16>() {
+        Ok(p) => {
+          match matches.subcommand() {
+            ("start", Some(sub_matches)) => {
+              let output_path = matches.value_of("output").map(|s| s.to_owned());
+              let base_port = matches.value_of("base-port").map(|s| s.parse::<u16>().unwrap_or(0));
+              let server_key = matches.value_of("server-key").map(|s| s.to_owned())
+                .unwrap_or_else(|| rand::thread_rng().gen_ascii_chars().take(16).collect::<String>());
+              {
+                let mut inner = (*SERVER_OPTIONS).lock().unwrap();
+                let mut options = inner.deref().borrow_mut();
+                options.output_path = output_path;
+                options.base_port = base_port;
+                options.server_key = server_key;
+              }
+              server::start_server(p).await
+            },
+            ("list", Some(sub_matches)) => list::list_mock_servers(host, p, sub_matches).await,
+            ("create", Some(sub_matches)) => create_mock::create_mock_server(host, p, sub_matches).await,
+            ("verify", Some(sub_matches)) => verify::verify_mock_server(host, p, sub_matches).await,
+            ("shutdown", Some(sub_matches)) => shutdown::shutdown_mock_server(host, p, sub_matches).await,
+            ("shutdown-master", Some(sub_matches)) => shutdown::shutdown_master_server(host, p, sub_matches).await,
+            _ => Err(3)
+          }
         },
-        Err(ref err) => {
-            match err.kind {
-                ErrorKind::HelpDisplayed => {
-                    println!("{}", err.message);
-                    Ok(())
-                },
-                ErrorKind::VersionDisplayed => {
-                    print_version();
-                    println!();
-                    Ok(())
-                },
-                _ => {
-                    err.exit()
-                }
-            }
+        Err(_) => display_error(format!("{} is not a valid port number", port), matches)
+      }
+    },
+    Err(ref err) => {
+      match err.kind {
+        ErrorKind::HelpDisplayed => {
+          println!("{}", err.message);
+          Ok(())
+        },
+        ErrorKind::VersionDisplayed => {
+          print_version();
+          println!();
+          Ok(())
+        },
+        _ => {
+          err.exit()
         }
+      }
     }
+  }
 }
 
 #[cfg(test)]

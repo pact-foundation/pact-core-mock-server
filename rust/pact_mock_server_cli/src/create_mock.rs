@@ -2,8 +2,10 @@ use clap::ArgMatches;
 use std::path::Path;
 use pact_matching::models::RequestResponsePact;
 use serde_json::Value;
+use crate::handle_error;
+use log::*;
 
-pub fn create_mock_server(host: &str, port: u16, matches: &ArgMatches) -> Result<(), i32> {
+pub async fn create_mock_server(host: &str, port: u16, matches: &ArgMatches<'_>) -> Result<(), i32> {
   let file = matches.value_of("file").unwrap();
   log::info!("Creating mock server from file {}", file);
 
@@ -15,18 +17,24 @@ pub fn create_mock_server(host: &str, port: u16, matches: &ArgMatches) -> Result
       } else {
         format!("http://{}:{}/", host, port)
       };
-      let client = reqwest::blocking::Client::new();
+      let client = reqwest::Client::new();
       let resp = client.post(url.as_str())
         .json(&pact.to_json(pact.spec_version()))
-        .send();
+        .send().await;
       match resp {
-        Ok(result) => {
-          if result.status().is_success() {
-            match result.json::<Value>() {
+        Ok(response) => {
+          if response.status().is_success() {
+            match response.json::<Value>().await {
               Ok(json) => {
-                let mock_server = json.get("mockServer").unwrap();
-                let id = mock_server.get("id").unwrap().as_str().unwrap();
-                let port = mock_server.get("port").unwrap().as_u64().unwrap();
+                debug!("Got response from master server: {:?}", json);
+                let mock_server = json.get("mockServer")
+                  .ok_or_else(|| handle_error("Invalid JSON received from master server - no mockServer attribute"))?;
+                let id = mock_server.get("id")
+                  .ok_or_else(|| handle_error("Invalid JSON received from master server - mockServer has no id attribute"))?
+                  .as_str().ok_or_else(|| handle_error("Invalid JSON received from master server - mockServer id attribute is not a string"))?;
+                let port = mock_server.get("port")
+                  .ok_or_else(|| handle_error("Invalid JSON received from master server - mockServer has no port attribute"))?
+                  .as_u64().ok_or_else(|| handle_error("Invalid JSON received from master server - mockServer port attribute is not a number"))?;
                 println!("Mock server {} started on port {}", id, port);
                 Ok(())
               },
@@ -37,9 +45,9 @@ pub fn create_mock_server(host: &str, port: u16, matches: &ArgMatches) -> Result
             }
           } else {
             crate::display_error(format!("Master mock server returned an error: {}\n{}",
-                                         result.status(), result.text().unwrap_or_default()), matches);
+              response.status(), response.text().await.unwrap_or_default()), matches);
           }
-        },
+        }
         Err(err) => {
             crate::display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), matches);
         }

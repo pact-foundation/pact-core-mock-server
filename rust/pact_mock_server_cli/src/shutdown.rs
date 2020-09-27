@@ -2,7 +2,7 @@ use clap::ArgMatches;
 use serde_json::json;
 use http::StatusCode;
 
-pub fn shutdown_mock_server(host: &str, port: u16, matches: &ArgMatches) -> Result<(), i32> {
+pub async fn shutdown_mock_server(host: &str, port: u16, matches: &ArgMatches<'_>) -> Result<(), i32> {
   let mock_server_id = matches.value_of("mock-server-id");
   let mock_server_port = matches.value_of("mock-server-port");
   let id = if let Some(id) = mock_server_id {
@@ -11,9 +11,9 @@ pub fn shutdown_mock_server(host: &str, port: u16, matches: &ArgMatches) -> Resu
     (mock_server_port.unwrap(), "port")
   };
 
-  let client = reqwest::blocking::Client::new();
+  let client = reqwest::Client::new();
   let url = format!("http://{}:{}/mockserver/{}", host, port, id.0);
-  let resp = client.delete(&url).send();
+  let resp = client.delete(&url).send().await;
   match resp {
     Ok(result) => {
       if !result.status().is_success() {
@@ -35,20 +35,24 @@ pub fn shutdown_mock_server(host: &str, port: u16, matches: &ArgMatches) -> Resu
   }
 }
 
-pub fn shutdown_master_server(host: &str, port: u16, matches: &ArgMatches) -> Result<(), i32> {
-  let client = reqwest::blocking::Client::new();
+pub async fn shutdown_master_server(host: &str, port: u16, matches: &ArgMatches<'_>) -> Result<(), i32> {
+  let client = reqwest::Client::new();
   let server_key = matches.value_of("server-key").unwrap().to_owned();
   let shutdown_period = matches.value_of("period").map(|val| val.parse::<u16>().unwrap_or(100)).unwrap_or(100);
   let url = format!("http://{}:{}/shutdown", host, port);
   let res = client.post(&url)
     .bearer_auth(server_key)
     .json(&json!({ "period": shutdown_period }))
-    .send();
+    .send().await;
   match res {
     Ok(result) => {
       if !result.status().is_success() {
-        crate::display_error(format!("Unexpected response from master mock server '{}': {}",
-                                     url, result.status()), matches)
+        if result.status() == StatusCode::FORBIDDEN {
+          crate::display_error(format!("Invalid server key: got response {}", result.status()), matches)
+        } else {
+          crate::display_error(format!("Unexpected response from master mock server '{}': {}",
+                                       url, result.status()), matches)
+        }
       } else {
         println!("Master server shutting down ok");
         Ok(())
