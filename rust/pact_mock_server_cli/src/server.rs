@@ -28,7 +28,6 @@ use hyper::{Body, Error};
 use hyper::service::{make_service_fn, service_fn};
 use tokio::sync::oneshot::Sender;
 use std::convert::Infallible;
-use lazy_static::*;
 use std::cell::RefCell;
 use crate::{SERVER_MANAGER, SERVER_OPTIONS, ServerOpts};
 use hyper::server::conn::AddrStream;
@@ -277,8 +276,8 @@ fn to_hyper_response(res: Response<Vec<u8>>) -> Result<Response<Body>, http::Err
   builder.body(Body::from(res.body().clone()))
 }
 
-lazy_static!{
-  static ref DISPATCHER: WebmachineDispatcher<'static> = WebmachineDispatcher {
+fn dispatcher() -> WebmachineDispatcher<'static>  {
+  WebmachineDispatcher {
     routes: btreemap! {
       "/" => WebmachineResource {
         allowed_methods: vec!["OPTIONS", "GET", "HEAD", "POST"],
@@ -330,7 +329,7 @@ lazy_static!{
       "/mockserver" => mock_server_resource(),
       "/shutdown" => shutdown_resource()
     }
-  };
+  }
 }
 
 pub async fn start_server(port: u16) -> Result<(), i32> {
@@ -338,7 +337,7 @@ pub async fn start_server(port: u16) -> Result<(), i32> {
   let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
 
   let make_svc = make_service_fn(|socket: &AddrStream| async {
-    Ok::<_, Infallible>(DISPATCHER.clone())
+    Ok::<_, Infallible>(dispatcher())
   });
   match Server::try_bind(&addr) {
     Ok(server) => {
