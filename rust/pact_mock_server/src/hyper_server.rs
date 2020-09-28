@@ -15,7 +15,7 @@ use serde_json::json;
 use maplit::*;
 use hyper::server::conn::AddrIncoming;
 use rustls::ServerConfig;
-use crate::mock_server::MockServer;
+use crate::mock_server::{MockServer, MockServerConfig};
 
 #[derive(Debug, Clone)]
 enum InteractionError {
@@ -134,8 +134,12 @@ fn error_body(request: &Request, error: &String) -> String {
     body.to_string()
 }
 
-fn match_result_to_hyper_response(request: &Request, match_result: MatchResult) -> Result<Response<Body>, InteractionError> {
-  let cors_preflight = true;
+fn match_result_to_hyper_response(
+  request: &Request,
+  match_result: MatchResult,
+  config: &MockServerConfig
+) -> Result<Response<Body>, InteractionError> {
+  let cors_preflight = config.cors_preflight;
 
   match match_result {
     MatchResult::RequestMatch(ref interaction) => {
@@ -190,9 +194,10 @@ fn match_result_to_hyper_response(request: &Request, match_result: MatchResult) 
 }
 
 async fn handle_request(
-    req: hyper::Request<Body>,
-    pact: Arc<RequestResponsePact>,
-    matches: Arc<Mutex<Vec<MatchResult>>>
+  req: hyper::Request<Body>,
+  pact: Arc<RequestResponsePact>,
+  matches: Arc<Mutex<Vec<MatchResult>>>,
+  config: Arc<MockServerConfig>
 ) -> Result<Response<Body>, InteractionError> {
     debug!("Creating pact request from hyper request");
 
@@ -206,7 +211,7 @@ async fn handle_request(
 
     matches.lock().unwrap().push(match_result.clone());
 
-    match_result_to_hyper_response(&pact_request, match_result)
+    match_result_to_hyper_response(&pact_request, match_result, &config)
 }
 
 // TODO: Should instead use some form of X-Pact headers
@@ -244,40 +249,43 @@ pub(crate) async fn create_and_bind(
   matches: Arc<Mutex<Vec<MatchResult>>>,
   mock_server: &MockServer
 ) -> Result<(impl std::future::Future<Output = ()>, std::net::SocketAddr), hyper::Error> {
-    let pact = Arc::new(pact);
+  let pact = Arc::new(pact);
+  let config = Arc::new(mock_server.config.clone());
 
-    let server = Server::try_bind(&addr)?
-        .serve(make_service_fn(move |_| {
+  let server = Server::try_bind(&addr)?
+    .serve(make_service_fn(move |_| {
+      let pact = pact.clone();
+      let matches = matches.clone();
+      let config = config.clone();
+
+      async {
+        Ok::<_, hyper::Error>(
+          service_fn(move |req| {
             let pact = pact.clone();
             let matches = matches.clone();
+            let config = config.clone();
 
             async {
-                Ok::<_, hyper::Error>(
-                    service_fn(move |req| {
-                        let pact = pact.clone();
-                        let matches = matches.clone();
-
-                        async {
-                            handle_mock_request_error(
-                                handle_request(req, pact, matches).await
-                            )
-                        }
-                    })
-                )
+              handle_mock_request_error(
+                handle_request(req, pact, matches, config).await
+              )
             }
-        }));
+          })
+        )
+      }
+    }));
 
-    let socket_addr = server.local_addr();
+  let socket_addr = server.local_addr();
 
-    Ok((
-        // This is the future that drives the server:
-        async {
-            let _ = server
-                .with_graceful_shutdown(shutdown)
-                .await;
-        },
-        socket_addr
-    ))
+  Ok((
+      // This is the future that drives the server:
+      async {
+          let _ = server
+              .with_graceful_shutdown(shutdown)
+              .await;
+      },
+      socket_addr
+  ))
 }
 
 pub(crate) async fn create_and_bind_tls(
@@ -289,6 +297,7 @@ pub(crate) async fn create_and_bind_tls(
   mock_server: &MockServer
 ) -> Result<(impl std::future::Future<Output = ()>, std::net::SocketAddr), hyper::Error> {
   let pact = Arc::new(pact);
+  let config = Arc::new(mock_server.config.clone());
 
   let incoming = AddrIncoming::bind(&addr)?;
   let socket_addr = incoming.local_addr();
@@ -296,16 +305,18 @@ pub(crate) async fn create_and_bind_tls(
     .serve(make_service_fn(move |_| {
       let pact = pact.clone();
       let matches = matches.clone();
+      let config = config.clone();
 
       async {
         Ok::<_, hyper::Error>(
           service_fn(move |req| {
             let pact = pact.clone();
             let matches = matches.clone();
+            let config = config.clone();
 
             async {
               handle_mock_request_error(
-                handle_request(req, pact, matches).await
+                handle_request(req, pact, matches, config).await
               )
             }
           })

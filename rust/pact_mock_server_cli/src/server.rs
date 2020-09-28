@@ -56,7 +56,12 @@ fn start_provider(context: &mut WebmachineContext, options: ServerOpts) -> Resul
           let pact = RequestResponsePact::from_json(&context.request.request_path, json);
           debug!("Loaded pact = {:?}", pact);
           let mock_server_id = Uuid::new_v4().to_string();
-          let config = MockServerConfig::default();
+          let config = MockServerConfig {
+            cors_preflight: context.request.query.get("cors")
+              .unwrap_or(&vec![]).first().unwrap_or(&String::default())
+              .eq("true")
+          };
+          debug!("Mock server config = {:?}", config);
 
           let mut lock = SERVER_MANAGER.lock().unwrap();
           debug!("starting mock server with id {}", &mock_server_id);
