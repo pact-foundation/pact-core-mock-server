@@ -1,14 +1,12 @@
 use hyper::server::Server;
 use pact_matching::models::RequestResponsePact;
-use pact_mock_server::server_manager::ServerManager;
 use uuid::Uuid;
 use serde_json::{self, Value, json};
 use std::{
-  sync::{Arc, Mutex, mpsc},
+  sync::mpsc,
   thread,
   time::Duration,
   iter::FromIterator,
-  ops::Deref,
   net::TcpListener,
   process
 };
@@ -16,21 +14,13 @@ use crate::verify;
 use webmachine_rust::*;
 use webmachine_rust::context::*;
 use webmachine_rust::headers::*;
-use clap::ArgMatches;
-use rand::{self, Rng};
 use maplit::*;
 use pact_mock_server::mock_server::MockServerConfig;
-use futures::{Future, Stream, TryFutureExt, future::ok};
 use std::net::{SocketAddr, IpAddr};
 use log::*;
-use http::Response;
-use hyper::{Body, Error};
-use hyper::service::{make_service_fn, service_fn};
-use tokio::sync::oneshot::Sender;
+use hyper::service::make_service_fn;
 use std::convert::Infallible;
-use std::cell::RefCell;
 use crate::{SERVER_MANAGER, SERVER_OPTIONS, ServerOpts};
-use hyper::server::conn::AddrStream;
 
 fn json_error(error: String) -> String {
     let json_response = json!({ "error" : json!(error) });
@@ -250,32 +240,6 @@ fn mock_server_resource<'a>() -> WebmachineResource<'a> {
   }
 }
 
-async fn to_http_request(req: hyper::Request<Body>) -> http::Request<Vec<u8>> {
-  let mut builder = http::Request::builder()
-    .method(req.method())
-    .uri(req.uri());
-
-  for (name, value) in req.headers().iter() {
-    builder = builder.header(name, value);
-  }
-
-  match hyper::body::to_bytes(req.into_body()).await {
-    Ok(body) => builder.body(body.to_vec()),
-    Err(_) => builder.body(vec![])
-  }.unwrap_or_default()
-}
-
-fn to_hyper_response(res: Response<Vec<u8>>) -> Result<Response<Body>, http::Error> {
-  let mut builder = hyper::Response::builder()
-    .status(res.status());
-
-  for (name, value) in res.headers().iter() {
-    builder = builder.header(name, value);
-  }
-
-  builder.body(Body::from(res.body().clone()))
-}
-
 fn dispatcher() -> WebmachineDispatcher<'static>  {
   WebmachineDispatcher {
     routes: btreemap! {
@@ -298,7 +262,10 @@ fn dispatcher() -> WebmachineDispatcher<'static>  {
           let (tx, rx) = mpsc::channel();
           let (tx2, rx2) = mpsc::channel();
 
-          tx.send(context.clone());
+          if let Err(err) = tx.send(context.clone()) {
+            error!("Failed to send context to start new mock server - {:?}", err);
+            return Err(500)
+          }
           let start_fn = move || {
             let handle = thread::current();
             debug!("starting mock server on thread {}", handle.name().unwrap_or("<unknown>"));
@@ -307,8 +274,13 @@ fn dispatcher() -> WebmachineDispatcher<'static>  {
             let mut ctx = rx.recv().unwrap();
             let result = start_provider(&mut ctx, options);
             debug!("Result of starting mock server: {:?}", result.clone());
-            tx2.send(ctx);
-            result
+            match tx2.send(ctx) {
+              Ok(_) => result,
+              Err(err) => {
+                error!("Failed to send result back to main resource - {:?}", err);
+                Err(500)
+              }
+            }
           };
 
           match thread::spawn(start_fn).join() {
@@ -336,7 +308,7 @@ pub async fn start_server(port: u16) -> Result<(), i32> {
   let addr = SocketAddr::new(IpAddr::from([0, 0, 0, 0]), port);
   let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
 
-  let make_svc = make_service_fn(|socket: &AddrStream| async {
+  let make_svc = make_service_fn(|_| async {
     Ok::<_, Infallible>(dispatcher())
   });
   match Server::try_bind(&addr) {

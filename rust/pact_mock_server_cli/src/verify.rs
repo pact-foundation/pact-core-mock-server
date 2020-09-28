@@ -1,5 +1,5 @@
 use clap::ArgMatches;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 use pact_mock_server::{
     server_manager::ServerManager,
     mock_server::MockServer
