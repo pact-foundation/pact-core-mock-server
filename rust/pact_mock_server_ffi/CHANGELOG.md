@@ -2,6 +2,13 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 
 # 0.0.9 - CORS pre-flight support
 
+* 1019ed6 - chore: update to the latest mock server and matching crates (Ronald Holshausen, Mon Sep 28 12:30:09 2020 +1000)
+* 625730b - update changelog for release 0.0.9 (Ronald Holshausen, Mon Sep 28 12:25:39 2020 +1000)
+* 29ba743 - feat: add a mock server config struct (Ronald Holshausen, Thu Sep 24 10:30:59 2020 +1000)
+* b64c4eb - bump version to 0.0.9 (Ronald Holshausen, Mon Sep 14 17:06:34 2020 +1000)
+
+# 0.0.9 - CORS pre-flight support
+
 * 29ba743 - feat: add a mock server config struct (Ronald Holshausen, Thu Sep 24 10:30:59 2020 +1000)
 * b64c4eb - bump version to 0.0.9 (Ronald Holshausen, Mon Sep 14 17:06:34 2020 +1000)
 
