@@ -181,7 +181,6 @@ fn match_result_to_hyper_response(
           .header(hyper::header::ACCESS_CONTROL_ALLOW_ORIGIN, origin)
           .header(hyper::header::ACCESS_CONTROL_ALLOW_METHODS, "GET, HEAD, POST, PUT, DELETE, CONNECT, OPTIONS, TRACE, PATCH")
           .header(hyper::header::ACCESS_CONTROL_ALLOW_HEADERS, "*")
-          .header(hyper::header::ACCESS_CONTROL_ALLOW_METHODS, "DELETE, GET, PATCH, POST, PUT")
           .header(hyper::header::ACCESS_CONTROL_EXPOSE_HEADERS, "Location, Link")
           .body(Body::empty())
           .map_err(|_| InteractionError::ResponseBodyError)
