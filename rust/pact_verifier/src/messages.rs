@@ -30,6 +30,9 @@ pub async fn verify_message_from_provider<F: RequestFilterExecutor>(
   let message_request = Request {
     method: "POST".into(),
     body: OptionalBody::Present(request_body.to_string().as_bytes().to_vec(), Some("application/json".into())),
+    headers: Some(hashmap! {
+        "Content-Type".to_string() => vec!["application/json".to_string()]
+    }),
     .. Request::default()
   };
   match make_provider_request(provider, &message_request, options, client).await {
