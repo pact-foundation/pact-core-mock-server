@@ -257,5 +257,13 @@ pub extern fn write_pact_file(mock_server_port: i32, directory: Option<String>) 
     }
 }
 
+/// Shuts down the mock server with the provided port. Returns a boolean value to indicate if
+/// the mock server was successfully shut down.
+pub extern fn shutdown_mock_server(mock_server_port: i32) -> bool {
+  MANAGER.lock().unwrap()
+    .get_or_insert_with(ServerManager::new)
+    .shutdown_mock_server_by_port(mock_server_port as u16)
+}
+
 #[cfg(test)]
 mod tests;

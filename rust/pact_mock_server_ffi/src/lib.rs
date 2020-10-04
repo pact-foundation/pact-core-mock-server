@@ -342,16 +342,10 @@ pub extern fn mock_server_mismatches(mock_server_port: i32) -> *mut c_char {
 /// External interface to cleanup a mock server. This function will try terminate the mock server
 /// with the given port number and cleanup any memory allocated for it. Returns true, unless a
 /// mock server with the given port number does not exist, or the function panics.
-///
-/// **NOTE:** Although `close()` on the listener for the mock server is called, this does not
-/// currently work and the listener will continue handling requests. In this
-/// case, it will always return a 404 once the mock server has been cleaned up.
 #[no_mangle]
 pub extern fn cleanup_mock_server(mock_server_port: i32) -> bool {
   let result = catch_unwind(|| {
-    MANAGER.lock().unwrap()
-      .get_or_insert_with(ServerManager::new)
-      .shutdown_mock_server_by_port(mock_server_port as u16)
+    pact_mock_server::shutdown_mock_server(mock_server_port)
   });
 
   match result {
