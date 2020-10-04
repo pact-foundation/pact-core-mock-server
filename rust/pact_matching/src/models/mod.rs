@@ -1400,16 +1400,18 @@ impl RequestResponsePact {
         let existing_pact = RequestResponsePact::read_pact(path)?;
         match existing_pact.merge(self) {
             Ok(ref merged_pact) => {
-                let mut file = File::create(path)?;
-                file.write_all(format!("{}", serde_json::to_string_pretty(&merged_pact.to_json(pact_spec)).unwrap()).as_bytes())?;
-                Ok(())
+              let mut file = File::create(path)?;
+              let result = serde_json::to_string_pretty(&merged_pact.to_json(pact_spec))?;
+              file.write_all(result.as_bytes())?;
+              Ok(())
             },
             Err(ref message) => Err(Error::new(ErrorKind::Other, message.clone()))
         }
       } else {
         debug!("Writing new pact file to {:?}", path);
         let mut file = File::create(path)?;
-        file.write_all(format!("{}", serde_json::to_string_pretty(&self.to_json(pact_spec)).unwrap()).as_bytes())?;
+        let result = serde_json::to_string_pretty(&self.to_json(pact_spec))?;
+        file.write_all(result.as_bytes())?;
         Ok(())
       }
     }

@@ -615,9 +615,11 @@ impl Generators {
           }
         },
         _ => {
+          let mut generators = serde_json::Map::new();
           for (key, val) in category {
-            map.insert(cat.clone(), json!({ key.as_str(): val.to_json() }));
+            generators.insert(key.clone(), val.to_json());
           }
+          map.insert(cat.clone(), Value::Object(generators));
         }
       }
       map
@@ -799,6 +801,7 @@ mod tests {
   use super::Generator;
   use std::str::FromStr;
   use hamcrest2::*;
+  use crate::models::generators::Generator::{RandomInt, RandomDecimal, Regex};
 
   #[test]
   fn rules_are_empty_when_there_are_no_categories() {
@@ -993,6 +996,38 @@ mod tests {
     expect!(Generator::ProviderStateGenerator("$a".into(), None).to_json()).to(be_equal_to(json!({
       "type": "ProviderState",
       "expression": "$a"
+    })));
+  }
+
+  #[test]
+  fn generators_to_json_test() {
+    let mut generators = Generators::default();
+    generators.add_generator(&GeneratorCategory::STATUS, RandomInt(200, 299));
+    generators.add_generator(&GeneratorCategory::PATH, Regex("\\d+".into()));
+    generators.add_generator(&GeneratorCategory::METHOD, RandomInt(200, 299));
+    generators.add_generator_with_subcategory(&GeneratorCategory::BODY, "$.1", RandomDecimal(4));
+    generators.add_generator_with_subcategory(&GeneratorCategory::BODY, "$.2", RandomDecimal(4));
+    generators.add_generator_with_subcategory(&GeneratorCategory::HEADER, "A", RandomDecimal(4));
+    generators.add_generator_with_subcategory(&GeneratorCategory::HEADER, "B", RandomDecimal(4));
+    generators.add_generator_with_subcategory(&GeneratorCategory::QUERY, "a", RandomDecimal(4));
+    generators.add_generator_with_subcategory(&GeneratorCategory::QUERY, "b", RandomDecimal(4));
+    let json = generators.to_json();
+    expect(json).to(be_equal_to(json!({
+      "body": {
+        "$.1": {"digits": 4, "type": "RandomDecimal"},
+        "$.2": {"digits": 4, "type": "RandomDecimal"}
+      },
+      "header": {
+        "A": {"digits": 4, "type": "RandomDecimal"},
+        "B": {"digits": 4, "type": "RandomDecimal"}
+      },
+      "method": {"max": 299, "min": 200, "type": "RandomInt"},
+      "path": {"regex": "\\d+", "type": "Regex"},
+      "query": {
+        "a": {"digits": 4, "type": "RandomDecimal"},
+        "b": {"digits": 4, "type": "RandomDecimal"}
+      },
+      "status": {"max": 299, "min": 200, "type": "RandomInt"}
     })));
   }
 
