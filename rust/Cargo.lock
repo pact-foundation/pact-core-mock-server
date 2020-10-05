@@ -617,7 +617,7 @@ version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8c9a4820f0ccc8a7afd67c39a0f1a0f4b07ca1725164271a64939d7aeb9af065"
 dependencies = [
- "log 0.4.8",
+ "log 0.4.11",
 ]
 
 [[package]]
@@ -1833,7 +1833,7 @@ dependencies = [
  "anyhow",
  "fern",
  "libc",
- "log 0.4.8",
+ "log 0.4.11",
  "pact_matching",
  "serde_json",
  "thiserror",
@@ -3236,9 +3236,9 @@ version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca972988113b7715266f91250ddb98070d033c62a011fa0fcc57434a649310dd"
 dependencies = [
- "proc-macro2 1.0.18",
+ "proc-macro2 1.0.21",
  "quote 1.0.7",
- "syn 1.0.33",
+ "syn 1.0.41",
 ]
 
 [[package]]
