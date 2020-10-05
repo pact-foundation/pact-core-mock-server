@@ -1,6 +1,7 @@
 use clap::ArgMatches;
 use std::path::Path;
 use pact_matching::models::RequestResponsePact;
+use pact_matching::models::Pact;
 use serde_json::Value;
 use crate::handle_error;
 use log::*;

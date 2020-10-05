@@ -21,6 +21,7 @@ use crate::models::http_utils;
 use crate::models::message::Message;
 use crate::models::message;
 use crate::models::parse_meta_data;
+use crate::models::v4::V4Pact;
 
 /// Struct that represents a pact between the consumer and provider of a service.
 /// It contains a list of Messages instead of Interactions, but is otherwise
@@ -52,6 +53,23 @@ impl Pact for MessagePact {
     self.messages.iter().map(|i| i as &dyn Interaction).collect()
   }
 
+  fn metadata(&self) -> BTreeMap<String, BTreeMap<String, String>> {
+    self.metadata.clone()
+  }
+
+  /// Converts this pact to a `Value` struct.
+  fn to_json(&self, pact_spec: PactSpecification) -> Value {
+    json!({
+      s!("consumer"): self.consumer.to_json(),
+      s!("provider"): self.provider.to_json(),
+      s!("messages"):
+        Value::Array(self.messages.iter().map(
+            |i| serde_json::to_value(i).unwrap())
+            .collect()),
+      s!("metadata"): json!(self.metadata_to_json(&pact_spec))
+    })
+  }
+
   fn as_request_response_pact(&self) -> Result<RequestResponsePact, String> {
     Err(format!("Can't convert a Message Pact to a different type"))
   }
@@ -60,8 +78,8 @@ impl Pact for MessagePact {
     Ok(self.clone())
   }
 
-  fn metadata(&self) -> BTreeMap<String, BTreeMap<String, String>> {
-    self.metadata.clone()
+  fn as_v4_pact(&self) -> Result<V4Pact, String> {
+    Err(format!("Can't convert a Message Pact to a different type"))
   }
 }
 
@@ -109,19 +127,6 @@ impl MessagePact {
             messages,
             metadata,
             specification_version: spec_version.clone(),
-        })
-    }
-
-    /// Converts this pact to a `Value` struct.
-    pub fn to_json(&self, pact_spec: PactSpecification) -> Value {
-        json!({
-            s!("consumer"): self.consumer.to_json(),
-            s!("provider"): self.provider.to_json(),
-            s!("messages"):
-                Value::Array(self.messages.iter().map(
-                    |i| serde_json::to_value(i).unwrap())
-                    .collect()),
-            s!("metadata"): json!(self.metadata_to_json(&pact_spec))
         })
     }
 
