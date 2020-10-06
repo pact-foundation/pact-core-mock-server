@@ -1,0 +1,235 @@
+//! V4 specification models - HTTP parts for SynchronousHttp
+
+use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
+
+use base64::decode;
+use log::*;
+use serde_json::Value;
+
+use crate::json::value_of;
+use crate::models::{
+  generators,
+  headers_from_json,
+  matchingrules,
+  OptionalBody,
+  PactSpecification,
+  v3_query_from_json,
+  detect_content_type_from_bytes
+};
+use crate::models::content_types::ContentType;
+
+/// Struct that defines the HTTP request.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HttpRequest {
+  /// Request method
+  pub method: String,
+  /// Request path
+  pub path: String,
+  /// Request query string
+  pub query: Option<HashMap<String, Vec<String>>>,
+  /// Request headers
+  pub headers: Option<HashMap<String, Vec<String>>>,
+  /// Request body
+  pub body: OptionalBody,
+  /// Request matching rules
+  pub matching_rules: matchingrules::MatchingRules,
+  /// Request generators
+  pub generators: generators::Generators
+}
+
+impl HttpRequest {
+  /// Builds a `HttpRequest` from a JSON `Value` struct.
+  pub fn from_json(request_json: &Value) -> Self {
+    let method_val = match request_json.get("method") {
+      Some(v) => match *v {
+        Value::String(ref s) => s.to_uppercase(),
+        _ => v.to_string().to_uppercase()
+      },
+      None => "GET".to_string()
+    };
+    let path_val = match request_json.get("path") {
+      Some(v) => match *v {
+        Value::String(ref s) => s.clone(),
+        _ => v.to_string()
+      },
+      None => "/".to_string()
+    };
+    let query_val = match request_json.get("query") {
+      Some(v) => v3_query_from_json(v, &PactSpecification::V4),
+      None => None
+    };
+    let headers = headers_from_json(request_json);
+    HttpRequest {
+      method: method_val,
+      path: path_val,
+      query: query_val,
+      headers: headers.clone(),
+      body: body_from_json(request_json, "body", &headers),
+      matching_rules: matchingrules::matchers_from_json(request_json, &None),
+      generators: generators::generators_from_json(request_json)
+    }
+  }
+}
+
+pub(crate) fn body_from_json(json: &Value, attr_name: &str, headers: &Option<HashMap<String, Vec<String>>>) -> OptionalBody {
+  match json.get(attr_name) {
+    Some(body) => match *body {
+      Value::Object(ref body_attrs) => {
+        match body_attrs.get("content") {
+          Some(body_contents) => {
+            let content_type = match body_attrs.get("contentType") {
+              Some(v) => {
+                let content_type_str = value_of(v);
+                match ContentType::parse(&*content_type_str) {
+                  Ok(ct) => Some(ct),
+                  Err(err) => {
+                    warn!("Failed to parse body content type '{}' - {}", content_type_str, err);
+                    None
+                  }
+                }
+              },
+              None => {
+                warn!("Body has no content type set, will default to any headers or metadata");
+                match headers {
+                  Some(ref h) => match h.iter().find(|kv| kv.0.to_lowercase() == "content-type") {
+                    Some((_, v)) => {
+                      match ContentType::parse(v[0].as_str()) {
+                        Ok(v) => Some(v),
+                        Err(err) => {
+                          warn!("Failed to parse body content type '{}' - {}", v[0], err);
+                          None
+                        }
+                      }
+                    },
+                    None => None
+                  },
+                  None => None
+                }
+              }
+            };
+
+            let (encoded, encoding) = match body_attrs.get("encoded") {
+              Some(v) => match *v {
+                Value::String(ref s) => (true, s.clone()),
+                Value::Bool(b) => (b, Default::default()),
+                _ => (true, v.to_string())
+              },
+              None => (false, Default::default())
+            };
+
+            let body_bytes = if encoded {
+              match encoding.as_str() {
+                "base64" => {
+                  match decode(value_of(body_contents)) {
+                    Ok(bytes) => bytes,
+                    Err(err) => {
+                      warn!("Failed to decode base64 encoded body - {}", err);
+                      value_of(body_contents).into()
+                    }
+                  }
+                },
+                "json" => body_contents.to_string().into(),
+                _ => {
+                  warn!("Unrecognised body encoding scheme '{}', will use the raw body", encoding);
+                  value_of(body_contents).into()
+                }
+              }
+            } else {
+              value_of(body_contents).into()
+            };
+
+            if body_bytes.is_empty() {
+              OptionalBody::Empty
+            } else {
+              let content_type = content_type.unwrap_or_else(|| {
+                detect_content_type_from_bytes(&body_bytes).unwrap_or_default()
+              });
+              OptionalBody::Present(body_bytes, Some(content_type.to_string()))
+            }
+          },
+          None => OptionalBody::Missing
+        }
+      },
+      Value::Null => OptionalBody::Null,
+      _ => {
+        warn!("Body in attribute '{}' from JSON file is not formatted correctly, will load it as plain text", attr_name);
+        OptionalBody::Present(body.to_string().into(), None)
+      }
+    },
+    None => OptionalBody::Missing
+  }
+}
+
+impl Display for HttpRequest {
+  fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    write!(f, "HTTP Request ( method: {}, path: {}, query: {:?}, headers: {:?}, body: {} )",
+           self.method, self.path, self.query, self.headers, self.body)
+  }
+}
+
+impl Default for HttpRequest {
+  fn default() -> Self {
+    HttpRequest {
+      method: "GET".into(),
+      path: "/".into(),
+      query: None,
+      headers: None,
+      body: OptionalBody::Missing,
+      matching_rules: matchingrules::MatchingRules::default(),
+      generators: generators::Generators::default()
+    }
+  }
+}
+
+/// Struct that defines the HTTP response.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HttpResponse {
+  /// Response status
+  pub status: u16,
+  /// Response headers
+  pub headers: Option<HashMap<String, Vec<String>>>,
+  /// Response body
+  pub body: OptionalBody,
+  /// Response matching rules
+  pub matching_rules: matchingrules::MatchingRules,
+  /// Response generators
+  pub generators: generators::Generators
+}
+
+impl Display for HttpResponse {
+  fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    write!(f, "HTTP Response ( status: {}, headers: {:?}, body: {} )", self.status, self.headers,
+           self.body)
+  }
+}
+
+impl Default for HttpResponse {
+  fn default() -> Self {
+    HttpResponse {
+      status: 200,
+      headers: None,
+      body: OptionalBody::Missing,
+      matching_rules: matchingrules::MatchingRules::default(),
+      generators: generators::Generators::default()
+    }
+  }
+}
+
+impl HttpResponse {
+  /// Build an `HttpResponse` from a JSON `Value` struct.
+  pub fn from_json(response: &Value) -> Self {
+    let status_val = match response.get("status") {
+      Some(v) => v.as_u64().unwrap() as u16,
+      None => 200
+    };
+    let headers = headers_from_json(response);
+    HttpResponse {
+      status: status_val,
+      headers: headers.clone(),
+      body: body_from_json(response, "body", &headers),
+      matching_rules:  matchingrules::matchers_from_json(response, &None),
+      generators:  generators::generators_from_json(response)
+    }
+  }
+}

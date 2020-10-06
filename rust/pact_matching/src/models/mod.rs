@@ -33,6 +33,7 @@ use crate::models::provider_states::ProviderState;
 use crate::models::v4::V4Pact;
 
 use super::json::value_of;
+use std::str::from_utf8;
 
 pub mod json_utils;
 pub mod xml_utils;
@@ -278,6 +279,31 @@ fn detect_content_type_from_string(s: &String) -> Option<ContentType> {
     Some(content_types::JSON.clone())
   } else {
     Some(content_types::TEXT.clone())
+  }
+}
+
+fn detect_content_type_from_bytes(s: &[u8]) -> Option<ContentType> {
+  log::debug!("Detecting content type from byte contents");
+  let header = if s.len() > 32 {
+    &s[0..32]
+  } else {
+    s
+  };
+  match from_utf8(header) {
+    Ok(s) => {
+      if is_match(&XMLREGEXP, s) {
+        Some(content_types::XML.clone())
+      } else if is_match(&HTMLREGEXP, &*s.to_uppercase()) {
+        Some(content_types::HTML.clone())
+      } else if is_match(&XMLREGEXP2, s) {
+        Some(content_types::XML.clone())
+      } else if is_match(&JSONREGEXP, s) {
+        Some(content_types::JSON.clone())
+      } else {
+        Some(content_types::TEXT.clone())
+      }
+    },
+    Err(_) => None
   }
 }
 
@@ -1156,6 +1182,8 @@ pub trait Pact {
   fn as_message_pact(&self) -> Result<MessagePact, String>;
   /// Attempt to downcast to a concrete V4 Pact
   fn as_v4_pact(&self) -> Result<V4Pact, String>;
+  /// Specification version of this Pact
+  fn specification_version(&self) -> PactSpecification;
 }
 
 pub mod message;
@@ -1214,6 +1242,10 @@ impl Pact for RequestResponsePact {
 
   fn as_v4_pact(&self) -> Result<V4Pact, String> {
     Err(format!("Can't convert a Request/response Pact to a different type"))
+  }
+
+  fn specification_version(&self) -> PactSpecification {
+    self.specification_version.clone()
   }
 }
 

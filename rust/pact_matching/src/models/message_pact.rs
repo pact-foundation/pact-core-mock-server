@@ -81,6 +81,10 @@ impl Pact for MessagePact {
   fn as_v4_pact(&self) -> Result<V4Pact, String> {
     Err(format!("Can't convert a Message Pact to a different type"))
   }
+
+  fn specification_version(&self) -> PactSpecification {
+    self.specification_version.clone()
+  }
 }
 
 impl MessagePact {
