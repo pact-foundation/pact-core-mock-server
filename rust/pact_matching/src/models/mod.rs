@@ -1578,7 +1578,7 @@ pub fn read_pact(file: &Path) -> io::Result<Box<dyn Pact>> {
           let file_str = file.to_string_lossy();
           let spec_version = determine_spec_version(&file_str.to_string(), &metadata);
           match spec_version {
-            PactSpecification::V4 => v4::load_pact(&file_str, json)
+            PactSpecification::V4 => v4::from_json(&file_str, json)
               .map_err(|err| Error::new(ErrorKind::Other, err)),
             _ => Ok(Box::new(RequestResponsePact::from_json(&format!("{:?}", file), json)))
           }
@@ -1603,7 +1603,7 @@ pub fn load_pact_from_url<'a>(url: &String, auth: &Option<HttpAuth>) -> Result<B
         let metadata = parse_meta_data(json);
         let spec_version = determine_spec_version(url, &metadata);
         match spec_version {
-          PactSpecification::V4 => v4::load_pact(&url, json),
+          PactSpecification::V4 => v4::from_json(&url, json),
           _ => Ok(Box::new(RequestResponsePact::from_json(url, json)))
         }
       },
