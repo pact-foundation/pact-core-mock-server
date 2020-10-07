@@ -13,7 +13,7 @@ use crate::models::content_types::ContentType;
 use std::hash::{Hash, Hasher};
 
 /// Struct that defines the HTTP request.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Eq)]
 pub struct HttpRequest {
   /// Request method
   pub method: String,
@@ -98,6 +98,14 @@ impl HttpRequest {
       }
     }
     json
+  }
+}
+
+impl PartialEq for HttpRequest {
+  fn eq(&self, other: &Self) -> bool {
+    self.method == other.method && self.path == other.path && self.query == other.query &&
+      self.headers == other.headers && self.body == other.body &&
+      self.matching_rules == other.matching_rules && self.generators == other.generators
   }
 }
 
@@ -237,7 +245,7 @@ impl Default for HttpRequest {
 }
 
 /// Struct that defines the HTTP response.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Eq)]
 pub struct HttpResponse {
   /// Response status
   pub status: u16,
@@ -267,6 +275,13 @@ impl Default for HttpResponse {
       matching_rules: matchingrules::MatchingRules::default(),
       generators: generators::Generators::default()
     }
+  }
+}
+
+impl PartialEq for HttpResponse {
+  fn eq(&self, other: &Self) -> bool {
+    self.status == other.status && self.headers == other.headers && self.body == other.body &&
+      self.matching_rules == other.matching_rules && self.generators == other.generators
   }
 }
 

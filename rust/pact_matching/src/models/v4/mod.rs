@@ -2,7 +2,7 @@
 
 use std::collections::{BTreeMap, HashMap};
 use std::collections::hash_map::DefaultHasher;
-use std::fmt;
+use std::{fmt, mem};
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use std::string::ToString;
@@ -66,7 +66,7 @@ impl V4InteractionType {
 pub mod http_parts;
 
 /// V4 Interaction Types
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Eq)]
 pub enum V4Interaction {
   /// Synchronous HTTP request/response interaction
   SynchronousHttp {
@@ -172,6 +172,24 @@ impl V4Interaction {
     self.hash(&mut s);
     format!("{:x}", s.finish())
   }
+
+  /// Returns all the field values as a tuple if this is a Synchronous Http interaction, returns a error otherwise
+  pub fn as_synchronous_http(&self) -> Result<(Option<String>, Option<String>, String, Vec<provider_states::ProviderState>, HttpRequest, HttpResponse), String> {
+    match self {
+      V4Interaction::SynchronousHttp { id, key, description, provider_states, request, response } =>
+        Ok((id.clone(), key.clone(), description.clone(), provider_states.clone(), request.clone(), response.clone())),
+      _ => Err("V4 interaction is not a synchronous http interaction".to_string())
+    }
+  }
+
+  /// Returns all the field values as a tuple if this is a Asynchronous Message interaction, returns a error otherwise
+  pub fn as_asynchronous_message(&self) -> Result<(Option<String>, Option<String>, String, Vec<ProviderState>, OptionalBody, HashMap<String, Value>, matchingrules::MatchingRules, generators::Generators), String> {
+    match self {
+      V4Interaction::AsynchronousMessages { id, key, description, provider_states, contents, metadata, matching_rules, generators } =>
+        Ok((id.clone(), key.clone(), description.clone(), provider_states.clone(), contents.clone(), metadata.clone(), matching_rules.clone(), generators.clone() )),
+      _ => Err("V4 interaction is not a asynchronous message interaction".to_string())
+    }
+  }
 }
 
 impl Interaction for V4Interaction {
@@ -236,6 +254,29 @@ impl Default for V4Interaction {
       provider_states: vec![],
       request: HttpRequest::default(),
       response: HttpResponse::default()
+    }
+  }
+}
+
+impl PartialEq for V4Interaction {
+  fn eq(&self, other: &Self) -> bool {
+    if mem::discriminant(self) == mem::discriminant(other) {
+      match self {
+        V4Interaction::SynchronousHttp { description, provider_states, request, response, .. } => {
+          let (_, _, other_desc, other_states, other_request, other_response) = other.as_synchronous_http().unwrap();
+          description.clone() == other_desc && provider_states.clone() == other_states &&
+            request.clone() == other_request && response.clone() == other_response
+        }
+        V4Interaction::AsynchronousMessages { description, provider_states, contents, metadata, matching_rules, generators, .. } => {
+          let (_, _, other_description, other_provider_states, other_contents, other_metadata, other_matching_rules, other_generators) = other.as_asynchronous_message().unwrap();
+          description.clone() == other_description && provider_states.clone() == other_provider_states &&
+            contents.clone() == other_contents && metadata.clone() == other_metadata &&
+            matching_rules.clone() == other_matching_rules &&
+            generators.clone() == other_generators
+        }
+      }
+    } else {
+      false
     }
   }
 }
