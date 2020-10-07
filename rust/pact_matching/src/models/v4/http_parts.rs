@@ -2,15 +2,16 @@
 
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
+use std::hash::{Hash, Hasher};
 
 use base64::decode;
 use log::*;
 use serde_json::{json, Value};
 
 use crate::json::value_of;
-use crate::models::{detect_content_type_from_bytes, generators, headers_from_json, headers_to_json, matchingrules, OptionalBody, PactSpecification, query_to_json, v3_query_from_json};
+use crate::models::{detect_content_type_from_bytes, generators, headers_from_json, matchingrules, OptionalBody, PactSpecification, query_to_json, Request, Response, v3_query_from_json};
 use crate::models::content_types::ContentType;
-use std::hash::{Hash, Hasher};
+use crate::models::v4::calc_content_type;
 
 /// Struct that defines the HTTP request.
 #[derive(Debug, Clone, Eq)]
@@ -98,6 +99,26 @@ impl HttpRequest {
       }
     }
     json
+  }
+
+  /// Convert this request to a V3 request struct
+  pub fn as_v3_request(&self) -> Request {
+    Request {
+      method: self.method.clone(),
+      path: self.path.clone(),
+      query: self.query.clone(),
+      headers: self.headers.clone(),
+      body: self.body.clone(),
+      matching_rules: self.matching_rules.clone(),
+      generators: self.generators.clone()
+    }
+  }
+
+  /// Determine the content type of the request. Returns the content type of the body, otherwise
+  /// if a `Content-Type` header is present, the value of that header will be returned.
+  /// Otherwise, the body will be inspected.
+  pub fn content_type(&self) -> Option<ContentType> {
+    calc_content_type(&self.body, &self.headers)
   }
 }
 
@@ -348,5 +369,23 @@ impl HttpResponse {
       }
     }
     json
+  }
+
+  /// Converts this response to a v3 response struct
+  pub fn as_v3_response(&self) -> Response {
+    Response {
+      status: self.status,
+      headers: self.headers.clone(),
+      body: self.body.clone(),
+      matching_rules: self.matching_rules.clone(),
+      generators: self.generators.clone()
+    }
+  }
+
+  /// Determine the content type of the response. Returns the content type of the body, otherwise
+  /// if a `Content-Type` header is present, the value of that header will be returned.
+  /// Otherwise, the body will be inspected.
+  pub fn content_type(&self) -> Option<ContentType> {
+    calc_content_type(&self.body, &self.headers)
   }
 }

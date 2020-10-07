@@ -3,7 +3,7 @@
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 
-use serde_json::{self, Number, Value};
+use serde_json::{self, Value};
 
 /// Trait to convert a JSON structure to a number
 pub trait JsonToNum<T> {

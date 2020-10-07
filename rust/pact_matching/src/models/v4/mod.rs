@@ -13,7 +13,7 @@ use nom::lib::std::fmt::Formatter;
 use serde_json::{json, Value};
 
 use crate::json::value_of;
-use crate::models::{Consumer, generators, Interaction, matchingrules, OptionalBody, Pact, PactSpecification, Provider, provider_states, RequestResponseInteraction, RequestResponsePact, VERSION};
+use crate::models::{Consumer, generators, Interaction, matchingrules, OptionalBody, Pact, PactSpecification, Provider, provider_states, RequestResponseInteraction, RequestResponsePact, VERSION, detect_content_type_from_bytes};
 use crate::models::content_types::ContentType;
 use crate::models::json_utils::{json_to_string, hash_json};
 use crate::models::message::Message;
@@ -201,7 +201,17 @@ impl Interaction for V4Interaction {
   }
 
   fn as_request_response(&self) -> Option<RequestResponseInteraction> {
-    unimplemented!()
+    match self {
+      V4Interaction::SynchronousHttp { id, description, provider_states, request, response, .. } =>
+        Some(RequestResponseInteraction {
+          id: id.clone(),
+          description: description.clone(),
+          provider_states: provider_states.clone(),
+          request: request.as_v3_request(),
+          response: response.as_v3_response()
+        }),
+      _ => None
+    }
   }
 
   fn is_message(&self) -> bool {
@@ -212,7 +222,19 @@ impl Interaction for V4Interaction {
   }
 
   fn as_message(&self) -> Option<Message> {
-    unimplemented!()
+    match self {
+      V4Interaction::AsynchronousMessages { id, description, provider_states, contents, metadata, matching_rules, generators, .. } =>
+        Some(Message {
+          id: id.clone(),
+          description: description.clone(),
+          provider_states: provider_states.clone(),
+          contents: contents.clone(),
+          metadata: metadata.iter().map(|(k, v)| (k.clone(), json_to_string(v))).collect(),
+          matching_rules: matching_rules.clone(),
+          generators: generators.clone()
+        }),
+      _ => None
+    }
   }
 
   fn id(&self) -> Option<String> {
@@ -237,11 +259,18 @@ impl Interaction for V4Interaction {
   }
 
   fn contents(&self) -> OptionalBody {
-    unimplemented!()
+    match self {
+      V4Interaction::SynchronousHttp { response, .. } => response.body.clone(),
+      V4Interaction::AsynchronousMessages { contents, .. } => contents.clone()
+    }
   }
 
   fn content_type(&self) -> Option<ContentType> {
-    unimplemented!()
+    match self {
+      V4Interaction::SynchronousHttp { response, .. } => response.content_type(),
+      V4Interaction::AsynchronousMessages { contents, metadata, .. } =>
+        calc_content_type(contents, &metadata_to_headers(metadata))
+    }
   }
 }
 
@@ -303,6 +332,21 @@ impl Hash for V4Interaction {
       }
     }
   }
+}
+
+fn calc_content_type(body: &OptionalBody, headers: &Option<HashMap<String, Vec<String>>>) -> Option<ContentType> {
+  body.content_type()
+    .or_else(|| headers.as_ref().map(|h| {
+      match h.iter().find(|kv| kv.0.to_lowercase() == "content-type") {
+        Some((_, v)) => ContentType::parse(v[0].as_str()).ok(),
+        None => None
+      }
+    }).flatten())
+    .or_else(|| if body.is_present() {
+      detect_content_type_from_bytes(&*body.value())
+    } else {
+      None
+    })
 }
 
 /// V4 spec Struct that represents a pact between the consumer and provider of a service.
@@ -455,13 +499,7 @@ fn interaction_from_json(source: &str, index: usize, ijson: &Value) -> Option<V4
               }).collect(),
               _ => hashmap!{}
             };
-            let as_headers = if let Some(content_type) = metadata.get("contentType") {
-              Some(hashmap! {
-                "Content-Type".to_string() => vec![ json_to_string(content_type) ]
-              })
-            } else {
-              None
-            };
+            let as_headers = metadata_to_headers(&metadata);
             Some(V4Interaction::AsynchronousMessages {
               id,
               key,
@@ -488,6 +526,16 @@ fn interaction_from_json(source: &str, index: usize, ijson: &Value) -> Option<V4
       warn!("Interaction {} has no type attribute. It will be ignored. Source: {}", index, source);
       None
     }
+  }
+}
+
+fn metadata_to_headers(metadata: &HashMap<String, Value>) -> Option<HashMap<String, Vec<String>>> {
+  if let Some(content_type) = metadata.get("contentType") {
+    Some(hashmap! {
+      "Content-Type".to_string() => vec![ json_to_string(content_type) ]
+    })
+  } else {
+    None
   }
 }
 
