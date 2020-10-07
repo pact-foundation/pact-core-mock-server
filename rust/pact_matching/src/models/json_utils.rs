@@ -1,7 +1,9 @@
 //! Collection of utilities for working with JSON
 
-use serde_json::{self, Value};
+use std::hash::{Hash, Hasher};
 use std::str::FromStr;
+
+use serde_json::{self, Number, Value};
 
 /// Trait to convert a JSON structure to a number
 pub trait JsonToNum<T> {
@@ -63,12 +65,40 @@ pub fn json_to_num(value: Option<Value>) -> Option<usize> {
   }
 }
 
+/// Hash function for JSON struct
+pub fn hash_json<H: Hasher>(v: &Value, state: &mut H) {
+  match v {
+    Value::Bool(b) => b.hash(state),
+    Value::Number(n) => {
+      if let Some(num) = n.as_u64() {
+        num.hash(state);
+      }
+      if let Some(num) = n.as_f64() {
+        num.to_string().hash(state);
+      }
+      if let Some(num) = n.as_i64() {
+        num.hash(state);
+      }
+    }
+    Value::String(s) => s.hash(state),
+    Value::Array(values) => for value in values {
+      hash_json(value, state);
+    }
+    Value::Object(map) => for (k, v) in map {
+      k.hash(state);
+      hash_json(v, state);
+    }
+    _ => ()
+  }
+}
+
 #[cfg(test)]
 mod tests {
-  use super::*;
-  use expectest::prelude::*;
   use expectest::expect;
+  use expectest::prelude::*;
   use serde_json::json;
+
+  use super::*;
 
   #[test]
   fn json_to_int_test() {

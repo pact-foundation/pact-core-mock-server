@@ -946,6 +946,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
+name = "lenient_semver"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3d08943f465b8087edbb577968d903db4850dd2337a5015427de99fd9e70206d"
+dependencies = [
+ "semver",
+]
+
+[[package]]
 name = "lexical-core"
 version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1405,6 +1414,7 @@ dependencies = [
  "indextree",
  "itertools",
  "lazy_static",
+ "lenient_semver",
  "log 0.4.11",
  "maplit 0.1.6",
  "mime 0.3.16",
@@ -2220,9 +2230,9 @@ dependencies = [
 
 [[package]]
 name = "semver"
-version = "0.7.0"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3fdd61b85a0fa777f7fb7c454b9189b2941b110d1385ce84d7f76efdf1606a85"
+checksum = "394cec28fa623e00903caf7ba4fa6fb9a0e260280bb8cdbbba029611108a0190"
 dependencies = [
  "semver-parser",
 ]

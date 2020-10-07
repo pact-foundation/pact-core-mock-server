@@ -1,15 +1,19 @@
-mod spec_testcases;
+use std::{
+  env,
+  fs::File,
+  io::prelude::*,
+  iter::Iterator,
+  path::PathBuf
+};
+
+use expectest::prelude::*;
+use serde_json::json;
+use maplit::*;
 
 use pact_matching::models::*;
 use pact_matching::s;
-use std::{
-  env,
-  path::PathBuf,
-  fs::File,
-  io::prelude::*,
-  iter::Iterator
-};
-use expectest::prelude::*;
+
+mod spec_testcases;
 
 /// Get the path to one of our sample *.json files.
 fn fixture_path(path: &str) -> PathBuf {
@@ -522,7 +526,7 @@ fn test_load_v4_pact() {
       expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
       expect!(pact_json.get("interactions")).to(be_equal_to(pact_json_from_file.get("interactions")));
 
-      expect!(pact.metadata().get("pactSpecification")).to(be_none());
+      expect!(pact.metadata().get("pactSpecification").clone()).to(be_some().value(&btreemap!("version".to_string() => "4.0".to_string())));
       let metadata = pact_json.get("metadata").unwrap().as_object().unwrap();
       let expected_keys : Vec<String> = vec![s!("pactRust"), s!("pactSpecification")];
       expect!(metadata.keys().cloned().collect::<Vec<String>>()).to(be_equal_to(expected_keys));

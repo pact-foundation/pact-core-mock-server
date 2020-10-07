@@ -93,6 +93,15 @@ impl ContentType {
     self.main_type == "text" || self.is_xml() || self.is_json()
   }
 
+  /// If it is a known binary type
+  pub fn is_binary(&self) -> bool {
+    match self.main_type.as_str() {
+      "audio" | "font" | "image" | "video" => true,
+      "text" => false,
+      _ => false
+    }
+  }
+
   /// Returns the base type with no attributes or suffix
   pub fn base_type(&self) -> ContentType {
     match self.suffix.as_ref() {
@@ -311,4 +320,24 @@ fn base_type_test() {
     sub_type: "xml".into(),
     .. ContentType::default()
   }));
+}
+
+#[test]
+fn is_binary_test() {
+  let content_type = ContentType::parse("application/atom+xml").unwrap();
+  expect!(content_type.is_binary()).to(be_false());
+
+  let content_type = ContentType {
+    main_type: "text".into(),
+    sub_type: "javascript".into(),
+    .. ContentType::default()
+  };
+  expect!(content_type.is_binary()).to(be_false());
+
+  let content_type = ContentType {
+    main_type: "image".into(),
+    sub_type: "jpeg".into(),
+    .. ContentType::default()
+  };
+  expect!(content_type.is_binary()).to(be_true());
 }

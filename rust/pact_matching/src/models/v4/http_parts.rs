@@ -5,19 +5,12 @@ use std::fmt::{Display, Formatter};
 
 use base64::decode;
 use log::*;
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use crate::json::value_of;
-use crate::models::{
-  generators,
-  headers_from_json,
-  matchingrules,
-  OptionalBody,
-  PactSpecification,
-  v3_query_from_json,
-  detect_content_type_from_bytes
-};
+use crate::models::{detect_content_type_from_bytes, generators, headers_from_json, headers_to_json, matchingrules, OptionalBody, PactSpecification, query_to_json, v3_query_from_json};
 use crate::models::content_types::ContentType;
+use std::hash::{Hash, Hasher};
 
 /// Struct that defines the HTTP request.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -69,6 +62,67 @@ impl HttpRequest {
       matching_rules: matchingrules::matchers_from_json(request_json, &None),
       generators: generators::generators_from_json(request_json)
     }
+  }
+
+  /// Converts this `HttpRequest` to a `Value` struct.
+  pub fn to_json(&self) -> Value {
+    let mut json = json!({
+      "method": Value::String(self.method.to_uppercase()),
+      "path": Value::String(self.path.clone())
+    });
+    {
+      let map = json.as_object_mut().unwrap();
+
+      if let Some(ref query) = self.query {
+        map.insert("query".to_string(), query_to_json(query.clone(), &PactSpecification::V4));
+      }
+
+      if let Some(ref headers) = self.headers {
+        map.insert("headers".to_string(), Value::Object(
+          headers.iter().map(|(k, v)| (k.clone(), json!(v))).collect()
+        ));
+      }
+
+      if let Value::Object(body) = self.body.to_v4_json() {
+        map.insert("body".to_string(), Value::Object(body));
+      }
+
+      if self.matching_rules.is_not_empty() {
+        map.insert("matchingRules".to_string(), matchingrules::matchers_to_json(
+          &self.matching_rules.clone(), &PactSpecification::V4));
+      }
+
+      if self.generators.is_not_empty() {
+        map.insert("generators".to_string(), generators::generators_to_json(
+          &self.generators.clone(), &PactSpecification::V4));
+      }
+    }
+    json
+  }
+}
+
+impl Hash for HttpRequest {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    self.method.hash(state);
+    self.path.hash(state);
+
+    if let Some(ref query) = self.query {
+      for (k, v) in query {
+        k.hash(state);
+        v.hash(state);
+      }
+    }
+
+    if let Some(ref headers) = self.headers {
+      for (k, v) in headers {
+        k.hash(state);
+        v.hash(state);
+      }
+    }
+
+    self.body.hash(state);
+    self.matching_rules.hash(state);
+    self.generators.hash(state);
   }
 }
 
@@ -216,6 +270,23 @@ impl Default for HttpResponse {
   }
 }
 
+impl Hash for HttpResponse {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    self.status.hash(state);
+
+    if let Some(ref headers) = self.headers {
+      for (k, v) in headers {
+        k.hash(state);
+        v.hash(state);
+      }
+    }
+
+    self.body.hash(state);
+    self.matching_rules.hash(state);
+    self.generators.hash(state);
+  }
+}
+
 impl HttpResponse {
   /// Build an `HttpResponse` from a JSON `Value` struct.
   pub fn from_json(response: &Value) -> Self {
@@ -231,5 +302,36 @@ impl HttpResponse {
       matching_rules:  matchingrules::matchers_from_json(response, &None),
       generators:  generators::generators_from_json(response)
     }
+  }
+
+  /// Converts this response to a `Value` struct.
+  pub fn to_json(&self) -> Value {
+    let mut json = json!({
+      "status" : self.status
+    });
+    {
+      let map = json.as_object_mut().unwrap();
+
+      if let Some(ref headers) = self.headers {
+        map.insert("headers".to_string(), Value::Object(
+          headers.iter().map(|(k, v)| (k.clone(), json!(v))).collect()
+        ));
+      }
+
+      if let Value::Object(body) = self.body.to_v4_json() {
+        map.insert("body".to_string(), Value::Object(body));
+      }
+
+      if self.matching_rules.is_not_empty() {
+        map.insert("matchingRules".to_string(), matchingrules::matchers_to_json(
+          &self.matching_rules.clone(), &PactSpecification::V4));
+      }
+
+      if self.generators.is_not_empty() {
+        map.insert("generators".to_string(), generators::generators_to_json(
+          &self.generators.clone(), &PactSpecification::V4));
+      }
+    }
+    json
   }
 }

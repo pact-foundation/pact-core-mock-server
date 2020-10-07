@@ -710,7 +710,7 @@ pub fn matchers_from_json(value: &Value, deprecated_name: &Option<String>) -> Ma
 /// Generates a Value structure for the provided matching rules
 pub fn matchers_to_json(matchers: &MatchingRules, spec_version: &PactSpecification) -> Value {
    match spec_version {
-     &PactSpecification::V3 => matchers.to_v3_json(),
+     &PactSpecification::V3 | &PactSpecification::V4 => matchers.to_v3_json(),
      _ => matchers.to_v2_json()
    }
 }

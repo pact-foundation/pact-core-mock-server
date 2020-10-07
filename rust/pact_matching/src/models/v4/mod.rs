@@ -1,23 +1,27 @@
 //! V4 specification models
 
-use std::fmt;
 use std::collections::{BTreeMap, HashMap};
+use std::collections::hash_map::DefaultHasher;
+use std::fmt;
 use std::fmt::Display;
+use std::hash::{Hash, Hasher};
 use std::string::ToString;
 
 use log::*;
 use maplit::*;
 use nom::lib::std::fmt::Formatter;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
-use crate::models::{Consumer, Interaction, Pact, PactSpecification, Provider, RequestResponsePact, OptionalBody, RequestResponseInteraction, provider_states, matchingrules, generators};
-use crate::models::json_utils::json_to_string;
-use crate::models::message_pact::MessagePact;
-use crate::models::message::Message;
-use crate::models::content_types::ContentType;
-use crate::models::provider_states::ProviderState;
 use crate::json::value_of;
+use crate::models::{Consumer, generators, Interaction, matchingrules, OptionalBody, Pact, PactSpecification, Provider, provider_states, RequestResponseInteraction, RequestResponsePact, VERSION};
+use crate::models::content_types::ContentType;
+use crate::models::json_utils::{json_to_string, hash_json};
+use crate::models::message::Message;
+use crate::models::message_pact::MessagePact;
+use crate::models::provider_states::ProviderState;
 use crate::models::v4::http_parts::{HttpRequest, HttpResponse};
+use crate::models::matchingrules::matchers_to_json;
+use crate::models::generators::generators_to_json;
 
 /// V4 Interaction Type
 #[derive(Debug, Clone)]
@@ -62,12 +66,14 @@ impl V4InteractionType {
 pub mod http_parts;
 
 /// V4 Interaction Types
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum V4Interaction {
   /// Synchronous HTTP request/response interaction
   SynchronousHttp {
     /// Interaction ID. This will only be set if the Pact file was fetched from a Pact Broker
     id: Option<String>,
+    /// Unique key for this interaction
+    key: Option<String>,
     /// A description for the interaction. Must be unique within the Pact file
     description: String,
     /// Optional provider states for the interaction.
@@ -83,6 +89,8 @@ pub enum V4Interaction {
   AsynchronousMessages {
     /// Interaction ID. This will only be set if the Pact file was fetched from a Pact Broker
     id: Option<String>,
+    /// Unique key for this interaction
+    key: Option<String>,
     /// A description for the interaction. Must be unique within the Pact file
     description: String,
     /// Optional provider state for the interaction.
@@ -96,6 +104,73 @@ pub enum V4Interaction {
     matching_rules: matchingrules::MatchingRules,
     /// Generators
     generators: generators::Generators
+  }
+}
+
+impl V4Interaction {
+  /// Convert the interaction to a JSON Value
+  pub fn to_json(&self) -> Value {
+    match self {
+      V4Interaction::SynchronousHttp { key, description, provider_states, request, response, .. } => {
+        let mut json = json!({
+          "type": V4InteractionType::Synchronous_HTTP.to_string(),
+          "key": key.clone().unwrap_or_else(|| self.calc_hash()),
+          "description": description.clone(),
+          "request": request.to_json(),
+          "response": response.to_json()
+        });
+
+        if !provider_states.is_empty() {
+          let map = json.as_object_mut().unwrap();
+          map.insert("providerStates".to_string(), Value::Array(provider_states.iter().map(|p| p.to_json()).collect()));
+        }
+
+        json
+      },
+
+      V4Interaction::AsynchronousMessages { key, description, provider_states, contents, metadata, matching_rules, generators, .. } => {
+        let mut json = json!({
+          "type": V4InteractionType::Asynchronous_Messages.to_string(),
+          "key": key.clone().unwrap_or_else(|| self.calc_hash()),
+          "description": description.clone()
+        });
+
+        if let Value::Object(body) = contents.to_v4_json() {
+          let map = json.as_object_mut().unwrap();
+          map.insert("body".to_string(), Value::Object(body));
+        }
+
+        if !metadata.is_empty() {
+          let map = json.as_object_mut().unwrap();
+          map.insert("metadata".to_string(), Value::Object(
+            metadata.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
+          ));
+        }
+
+        if !provider_states.is_empty() {
+          let map = json.as_object_mut().unwrap();
+          map.insert("providerStates".to_string(), Value::Array(provider_states.iter().map(|p| p.to_json()).collect()));
+        }
+
+        if !matching_rules.is_empty() {
+          let map = json.as_object_mut().unwrap();
+          map.insert("matchingRules".to_string(), matchers_to_json(matching_rules, &PactSpecification::V4));
+        }
+
+        if !generators.is_empty() {
+          let map = json.as_object_mut().unwrap();
+          map.insert("generators".to_string(), generators_to_json(generators, &PactSpecification::V4));
+        }
+
+        json
+      }
+    }
+  }
+
+  fn calc_hash(&self) -> String {
+    let mut s = DefaultHasher::new();
+    self.hash(&mut s);
+    format!("{:x}", s.finish())
   }
 }
 
@@ -156,10 +231,35 @@ impl Default for V4Interaction {
   fn default() -> Self {
     V4Interaction::SynchronousHttp {
       id: None,
+      key: None,
       description: "Synchronous/HTTP Interaction".to_string(),
       provider_states: vec![],
       request: HttpRequest::default(),
       response: HttpResponse::default()
+    }
+  }
+}
+
+impl Hash for V4Interaction {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    match self {
+      V4Interaction::SynchronousHttp { description, provider_states, request, response, .. } => {
+        description.hash(state);
+        provider_states.hash(state);
+        request.hash(state);
+        response.hash(state);
+      }
+      V4Interaction::AsynchronousMessages { description, provider_states, contents, metadata, matching_rules, generators, .. } => {
+        description.hash(state);
+        provider_states.hash(state);
+        contents.hash(state);
+        for (k, v) in metadata {
+          k.hash(state);
+          hash_json(v, state);
+        }
+        matching_rules.hash(state);
+        generators.hash(state);
+      }
     }
   }
 }
@@ -175,6 +275,25 @@ pub struct V4Pact {
   pub interactions: Vec<V4Interaction>,
   /// Metadata associated with this pact.
   pub metadata: BTreeMap<String, Value>
+}
+
+impl V4Pact {
+  fn metadata_to_json(&self) -> Value {
+    let mut md_map: serde_json::Map<String, Value> = self.metadata.iter()
+      .map(|(k, v)| {
+        let key = match k.as_str() {
+          "pact-specification" => "pactSpecification".to_string(),
+          "pact-rust" => "pactRust".to_string(),
+          _ => k.clone()
+        };
+        (key, v.clone())
+      })
+      .collect();
+
+    md_map.insert("pactSpecification".to_string(), json!({"version" : PactSpecification::V4.version_str()}));
+    md_map.insert("pactRust".to_string(), json!({"version" : VERSION.unwrap_or("unknown")}));
+    Value::Object(md_map)
+  }
 }
 
 impl Pact for V4Pact {
@@ -203,7 +322,12 @@ impl Pact for V4Pact {
   }
 
   fn to_json(&self, _: PactSpecification) -> Value {
-    unimplemented!()
+    json!({
+      "consumer": self.consumer.to_json(),
+      "provider": self.provider.to_json(),
+      "interactions": Value::Array(self.interactions.iter().map(|i| i.to_json()).collect()),
+      "metadata": self.metadata_to_json()
+    })
   }
 
   fn as_request_response_pact(&self) -> Result<RequestResponsePact, String> {
@@ -261,6 +385,7 @@ fn interaction_from_json(source: &str, index: usize, ijson: &Value) -> Option<V4
     Some(i_type) => match V4InteractionType::from_str(json_to_string(i_type).as_str()) {
       Ok(i_type) => {
         let id = ijson.get("_id").map(|id| value_of(id));
+        let key = ijson.get("key").map(|id| value_of(id));
         let description = match ijson.get("description") {
           Some(v) => match *v {
             Value::String(ref s) => s.clone(),
@@ -275,6 +400,7 @@ fn interaction_from_json(source: &str, index: usize, ijson: &Value) -> Option<V4
             let response = ijson.get("response").cloned().unwrap_or_default();
             Some(V4Interaction::SynchronousHttp {
               id,
+              key,
               description,
               provider_states,
               request: HttpRequest::from_json(&request),
@@ -284,6 +410,7 @@ fn interaction_from_json(source: &str, index: usize, ijson: &Value) -> Option<V4
           V4InteractionType::Asynchronous_Messages => {
             Some(V4Interaction::AsynchronousMessages {
               id,
+              key,
               description,
               provider_states,
               contents: OptionalBody::Missing,

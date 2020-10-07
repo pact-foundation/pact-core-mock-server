@@ -21,7 +21,7 @@
       "contents": {
         "contentType": "application/json",
         "encoded": false,
-        "contents": {
+        "content": {
           "a": "1234-1234"
         }
       },

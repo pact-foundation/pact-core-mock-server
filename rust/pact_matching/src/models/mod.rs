@@ -1,17 +1,18 @@
 //! The `models` module provides all the structures required to model a Pact.
 
+use std::{fmt, fs};
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::default::Default;
-use std::fmt::{Display, Formatter, Debug};
-use std::{fs, fmt};
+use std::fmt::{Debug, Display, Formatter};
 use std::fs::File;
 use std::hash::{Hash, Hasher};
 use std::io::{self, Error, ErrorKind};
 use std::io::prelude::*;
 use std::path::Path;
 use std::str;
+use std::str::from_utf8;
 
 use base64::{decode, encode};
 use hex::FromHex;
@@ -21,9 +22,10 @@ use lazy_static::*;
 use log::*;
 use maplit::*;
 use onig::Regex;
-use semver::Version;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+
+use semver::Version;
 
 use crate::models::content_types::ContentType;
 use crate::models::http_utils::HttpAuth;
@@ -33,7 +35,6 @@ use crate::models::provider_states::ProviderState;
 use crate::models::v4::V4Pact;
 
 use super::json::value_of;
-use std::str::from_utf8;
 
 pub mod json_utils;
 pub mod xml_utils;
@@ -204,6 +205,38 @@ impl OptionalBody {
       OptionalBody::Present(_, content_type) =>
         content_type.clone().and_then(|ct| ContentType::parse(ct.as_str()).ok()),
       _ => None
+    }
+  }
+
+  /// Converts this body into a V4 Pact file JSON format
+  pub fn to_v4_json(&self) -> Value {
+    match self {
+      OptionalBody::Present(bytes, _) => {
+        let content_type = self.content_type().unwrap_or_default();
+        let (contents, encoded) = if content_type.is_json() {
+          match serde_json::from_slice(bytes) {
+            Ok(json_body) => (json_body, Value::Bool(false)),
+            Err(err) => {
+              warn!("Failed to parse json body: {}", err);
+              (Value::String(encode(bytes)), Value::String("base64".to_string()))
+            }
+          }
+        } else if content_type.is_binary() {
+          (Value::String(encode(bytes)), Value::String("base64".to_string()))
+        } else {
+          match str::from_utf8(bytes) {
+            Ok(s) => (Value::String(s.to_string()), Value::Bool(false)),
+            Err(_) => (Value::String(encode(bytes)), Value::String("base64".to_string()))
+          }
+        };
+        json!({
+          "content": contents,
+          "contentType": content_type.to_string(),
+          "encoded": encoded
+        })
+      },
+      OptionalBody::Empty => json!({"contents": ""}),
+      _ => Value::Null
     }
   }
 }
@@ -664,12 +697,12 @@ fn v3_query_from_json(query_json: &Value, spec_version: &PactSpecification) -> O
 }
 
 fn query_to_json(query: HashMap<String, Vec<String>>, spec_version: &PactSpecification) -> Value {
-    match spec_version {
-        &PactSpecification::V3 => Value::Object(query.iter().map(|(k, v)| {
-            (k.clone(), Value::Array(v.iter().map(|q| Value::String(q.clone())).collect()))}
-        ).collect()),
-        _ => Value::String(build_query_string(query))
-    }
+  match spec_version {
+    &PactSpecification::V3 | &PactSpecification::V4 => Value::Object(query.iter().map(|(k, v)| {
+      (k.clone(), Value::Array(v.iter().map(|q| Value::String(q.clone())).collect()))}
+    ).collect()),
+    _ => Value::String(build_query_string(query))
+  }
 }
 
 impl Request {
@@ -1288,15 +1321,15 @@ fn parse_interactions(pact_json: &Value, spec_version: PactSpecification) -> Vec
 }
 
 fn determine_spec_version(file: &String, metadata: &BTreeMap<String, BTreeMap<String, String>>) -> PactSpecification {
-  let specification = if metadata.get("pact-specification").is_none() {
-    metadata.get("pactSpecification")
-  } else {
+  let specification = if metadata.contains_key("pact-specification") {
     metadata.get("pact-specification")
+  } else {
+    metadata.get("pactSpecification")
   };
   match specification {
     Some(spec) => {
       match spec.get("version") {
-        Some(ver) => match Version::parse(ver) {
+        Some(ver) => match lenient_semver::parse::<Version>(ver) {
           Ok(ver) => match ver.major {
             1 => match ver.minor {
               0 => PactSpecification::V1,

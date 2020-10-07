@@ -22,7 +22,7 @@
         "body": {
           "contentType": "image/gif",
           "encoded": "base64",
-          "contents": "R0lGODdhAQABAIAAAP///////ywAAAAAAQABAAACAkQBADs="
+          "content": "R0lGODdhAQABAIAAAP///////ywAAAAAAQABAAACAkQBADs="
         }
       }
     }, {
@@ -40,7 +40,7 @@
       "contents": {
         "contentType": "application/json",
         "encoded": false,
-        "contents": {
+        "content": {
           "a": "1234-1234"
         }
       },

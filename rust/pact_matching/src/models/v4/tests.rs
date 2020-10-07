@@ -1174,36 +1174,21 @@ fn body_from_json_returns_the_a_json_formatted_body_if_the_body_is_a_string_and_
   expect!(body).to(be_equal_to(OptionalBody::Present("\"This is actually a JSON string\"".into(), Some("application/json".into()))));
 }
 
-// #[test]
-// fn body_from_json_returns_the_a_json_formatted_body_if_the_body_is_a_valid_json_string_and_the_content_type_is_json() {
-//   let json : serde_json::Value = serde_json::from_str(r#"
-//       {
-//           "path": "/",
-//           "query": "",
-//           "headers": {"Content-Type": "application/json"},
-//           "body": "\"This is actually a JSON string\""
-//       }
-//      "#).unwrap();
-//   let headers = headers_from_json(&json);
-//   let body = body_from_json(&json, "body", &headers);
-//   expect!(body).to(be_equal_to(OptionalBody::Present("\"This is actually a JSON string\"".into(), Some("application/json".into()))));
-// }
-//
-// #[test]
-// fn body_from_json_returns_the_body_if_the_content_type_is_json() {
-//   let json : serde_json::Value = serde_json::from_str(r#"
-//       {
-//           "path": "/",
-//           "query": "",
-//           "headers": {"Content-Type": "application/json"},
-//           "body": "{\"test\":true}"
-//       }
-//      "#).unwrap();
-//   let headers = headers_from_json(&json);
-//   let body = body_from_json(&json, "body", &headers);
-//   expect!(body).to(be_equal_to(OptionalBody::Present("{\"test\":true}".into(), Some("application/json".into()))));
-// }
-//
+#[test]
+fn body_from_json_returns_the_raw_body_if_there_is_no_encoded_value() {
+  let json = json!({
+    "path": "/",
+    "query": "",
+    "headers": {"Content-Type": "application/json"},
+    "body": {
+      "content": "{\"test\":true}"
+    }
+  });
+  let headers = headers_from_json(&json);
+  let body = body_from_json(&json, "body", &headers);
+  expect!(body).to(be_equal_to(OptionalBody::Present("{\"test\":true}".into(), Some("application/json".into()))));
+}
+
 // #[test]
 // fn write_v3_pact_test() {
 //   let pact = RequestResponsePact { consumer: Consumer { name: s!("write_pact_test_consumer") },
@@ -1278,109 +1263,6 @@ fn body_from_json_returns_the_a_json_formatted_body_if_the_body_is_a_string_and_
 //     "name": "write_pact_test_provider"
 //   }}
 // }}"#, super::VERSION.unwrap())));
-// }
-//
-// #[test]
-// fn generators_from_json_handles_missing_generators() {
-//   let json : serde_json::Value = serde_json::from_str(r#"
-//       {
-//           "path": "/",
-//           "query": "",
-//           "headers": {}
-//       }
-//      "#).unwrap();
-//   let generators = generators_from_json(&json);
-//   expect!(generators.categories.iter()).to(be_empty());
-// }
-//
-// #[test]
-// fn generators_from_json_handles_empty_generators() {
-//   let json : serde_json::Value = serde_json::from_str(r#"
-//       {
-//           "path": "/",
-//           "query": "",
-//           "headers": {},
-//           "generators": {}
-//       }
-//      "#).unwrap();
-//   let generators = generators_from_json(&json);
-//   expect!(generators.categories.iter()).to(be_empty());
-// }
-//
-// #[test]
-// fn generators_from_json_handles_generator_with_no_rules() {
-//   let json : serde_json::Value = serde_json::from_str(r#"
-//       {
-//           "path": "/",
-//           "query": "",
-//           "headers": {},
-//           "generators": {
-//             "body": {
-//                 "$.*.path": {}
-//             }
-//           }
-//       }
-//      "#).unwrap();
-//   let generators = generators_from_json(&json);
-//   expect!(generators).to(be_equal_to(Generators::default()));
-// }
-//
-// #[test]
-// fn generators_from_json_ignores_invalid_generators() {
-//   let json : serde_json::Value = serde_json::from_str(r#"
-//       {
-//           "path": "/",
-//           "query": "",
-//           "headers": {},
-//           "generators": {
-//             "body": {
-//                 "$.*.path": {
-//                   "type": "invalid"
-//                 },
-//                 "$.invalid": {
-//                   "type": 100
-//                 },
-//                 "$.other": null
-//             },
-//             "invalid": {
-//                 "path": "path"
-//             },
-//             "more_invalid": 100
-//           }
-//       }
-//      "#).unwrap();
-//   let generators = generators_from_json(&json);
-//   expect!(generators).to(be_equal_to(Generators::default()));
-// }
-//
-// #[test]
-// fn generators_from_json_loads_generators_correctly() {
-//   let json : serde_json::Value = serde_json::from_str(r#"
-//       {
-//         "path": "/",
-//         "query": "",
-//         "headers": {},
-//         "generators": {
-//           "body": {
-//               "$.*.path": {
-//                   "type": "RandomInt",
-//                   "min": 1,
-//                   "max": 10
-//               }
-//           },
-//           "path": {
-//             "type": "RandomString"
-//           }
-//         }
-//       }
-//      "#).unwrap();
-//   let generators = generators_from_json(&json);
-//   expect!(generators).to(be_equal_to(generators!{
-//         "BODY" => {
-//             "$.*.path" => Generator::RandomInt(1, 10)
-//         },
-//         "PATH" => { "" => Generator::RandomString(10) }
-//     }));
 // }
 //
 // #[test]
