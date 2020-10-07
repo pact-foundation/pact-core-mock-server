@@ -19,7 +19,7 @@ use crate::models::json_utils::{json_to_string, hash_json};
 use crate::models::message::Message;
 use crate::models::message_pact::MessagePact;
 use crate::models::provider_states::ProviderState;
-use crate::models::v4::http_parts::{HttpRequest, HttpResponse};
+use crate::models::v4::http_parts::{HttpRequest, HttpResponse, body_from_json};
 use crate::models::matchingrules::matchers_to_json;
 use crate::models::generators::generators_to_json;
 
@@ -137,7 +137,7 @@ impl V4Interaction {
 
         if let Value::Object(body) = contents.to_v4_json() {
           let map = json.as_object_mut().unwrap();
-          map.insert("body".to_string(), Value::Object(body));
+          map.insert("contents".to_string(), Value::Object(body));
         }
 
         if !metadata.is_empty() {
@@ -408,13 +408,26 @@ fn interaction_from_json(source: &str, index: usize, ijson: &Value) -> Option<V4
             })
           }
           V4InteractionType::Asynchronous_Messages => {
+            let metadata = match ijson.get("metadata") {
+              Some(&Value::Object(ref v)) => v.iter().map(|(k, v)| {
+                (k.clone(), v.clone())
+              }).collect(),
+              _ => hashmap!{}
+            };
+            let as_headers = if let Some(content_type) = metadata.get("contentType") {
+              Some(hashmap! {
+                "Content-Type".to_string() => vec![ json_to_string(content_type) ]
+              })
+            } else {
+              None
+            };
             Some(V4Interaction::AsynchronousMessages {
               id,
               key,
               description,
               provider_states,
-              contents: OptionalBody::Missing,
-              metadata: hashmap! {},
+              metadata,
+              contents: body_from_json(ijson, "contents", &as_headers),
               matching_rules: matchingrules::matchers_from_json(ijson, &None),
               generators: generators::generators_from_json(ijson)
             })
