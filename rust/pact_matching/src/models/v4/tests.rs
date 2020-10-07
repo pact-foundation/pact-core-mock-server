@@ -7,6 +7,8 @@ use crate::models::v4::{V4Interaction, interaction_from_json, from_json};
 use crate::models::v4::http_parts::body_from_json;
 use crate::models::provider_states::ProviderState;
 use crate::models::{Interaction, PactSpecification, OptionalBody, headers_from_json};
+use std::hash::{Hash, Hasher};
+use std::collections::hash_map::DefaultHasher;
 
 #[test]
 fn synchronous_http_request_from_json_defaults_to_get() {
@@ -280,197 +282,150 @@ fn load_pact_converts_methods_to_uppercase() {
   }
 }
 
-// #[test]
-// fn request_to_json_with_defaults() {
-//   let request = Request::default();
-//   expect!(request.to_json(&PactSpecification::V3).to_string()).to(
-//     be_equal_to("{\"method\":\"GET\",\"path\":\"/\"}"));
-// }
-//
-// #[test]
-// fn request_to_json_converts_methods_to_upper_case() {
-//   let request = Request { method: s!("post"), .. Request::default() };
-//   expect!(request.to_json(&PactSpecification::V3).to_string()).to(be_equal_to("{\"method\":\"POST\",\"path\":\"/\"}"));
-// }
-//
-// #[test]
-// fn request_to_json_with_a_query() {
-//   let request = Request { query: Some(hashmap!{
-//         s!("a") => vec![s!("1"), s!("2")],
-//         s!("b") => vec![s!("3")]
-//     }), .. Request::default() };
-//   expect!(request.to_json(&PactSpecification::V2).to_string()).to(
-//     be_equal_to(r#"{"method":"GET","path":"/","query":"a=1&a=2&b=3"}"#)
-//   );
-// }
-//
-// #[test]
-// fn request_to_json_with_a_query_must_encode_the_query() {
-//   let request = Request { query: Some(hashmap!{
-//         s!("datetime") => vec![s!("2011-12-03T10:15:30+01:00")],
-//         s!("description") => vec![s!("hello world!")] }), .. Request::default() };
-//   expect!(request.to_json(&PactSpecification::V2).to_string()).to(
-//     be_equal_to(r#"{"method":"GET","path":"/","query":"datetime=2011-12-03T10%3a15%3a30%2b01%3a00&description=hello+world%21"}"#)
-//   );
-// }
-//
-// #[test]
-// fn request_to_json_with_a_query_must_encode_the_query_with_utf8_chars() {
-//   let request = Request { query: Some(hashmap!{
-//         s!("a") => vec![s!("b=c&d❤")]
-//     }), .. Request::default() };
-//   expect!(request.to_json(&PactSpecification::V2).to_string()).to(
-//     be_equal_to(r#"{"method":"GET","path":"/","query":"a=b%3dc%26d%27%64"}"#)
-//   );
-// }
-//
-// #[test]
-// fn request_to_json_with_a_query_v3() {
-//   let request = Request { query: Some(hashmap!{
-//         s!("a") => vec![s!("1"), s!("2")],
-//         s!("b") => vec![s!("3")]
-//     }), .. Request::default() };
-//   expect!(request.to_json(&PactSpecification::V3).to_string()).to(
-//     be_equal_to(r#"{"method":"GET","path":"/","query":{"a":["1","2"],"b":["3"]}}"#)
-//   );
-// }
-//
-// #[test]
-// fn request_to_json_with_a_query_v3_must_not_encode_the_query() {
-//   let request = Request { query: Some(hashmap!{
-//         s!("datetime") => vec![s!("2011-12-03T10:15:30+01:00")],
-//         s!("description") => vec![s!("hello world!")] }), .. Request::default() };
-//   expect!(request.to_json(&PactSpecification::V3).to_string()).to(
-//     be_equal_to(r#"{"method":"GET","path":"/","query":{"datetime":["2011-12-03T10:15:30+01:00"],"description":["hello world!"]}}"#)
-//   );
-// }
-//
-// #[test]
-// fn request_to_json_with_a_query_v3_must_not_encode_the_query_with_utf8_chars() {
-//   let request = Request { query: Some(hashmap!{
-//         s!("a") => vec![s!("b=c&d❤")]
-//     }), .. Request::default() };
-//   expect!(request.to_json(&PactSpecification::V3).to_string()).to(
-//     be_equal_to(r#"{"method":"GET","path":"/","query":{"a":["b=c&d❤"]}}"#)
-//   );
-// }
-//
-// #[test]
-// fn request_to_json_with_headers() {
-//   let request = Request { headers: Some(hashmap!{
-//         s!("HEADERA") => vec![s!("VALUEA")],
-//         s!("HEADERB") => vec![s!("VALUEB1, VALUEB2")]
-//     }), .. Request::default() };
-//   expect!(request.to_json(&PactSpecification::V3).to_string()).to(
-//     be_equal_to(r#"{"headers":{"HEADERA":"VALUEA","HEADERB":"VALUEB1, VALUEB2"},"method":"GET","path":"/"}"#)
-//   );
-// }
-//
-// #[test]
-// fn request_to_json_with_json_body() {
-//   let request = Request { headers: Some(hashmap!{
-//         s!("Content-Type") => vec![s!("application/json")]
-//     }), body: OptionalBody::Present(r#"{"key": "value"}"#.into(), None), .. Request::default() };
-//   expect!(request.to_json(&PactSpecification::V3).to_string()).to(
-//     be_equal_to(r#"{"body":{"key":"value"},"headers":{"Content-Type":"application/json"},"method":"GET","path":"/"}"#)
-//   );
-// }
-//
-//
-// #[test]
-// fn request_to_json_with_non_json_body() {
-//   let request = Request { headers: Some(hashmap!{ s!("Content-Type") => vec![s!("text/plain")] }),
-//     body: OptionalBody::Present("This is some text".into(), None), .. Request::default() };
-//   expect!(request.to_json(&PactSpecification::V3).to_string()).to(
-//     be_equal_to(r#"{"body":"This is some text","headers":{"Content-Type":"text/plain"},"method":"GET","path":"/"}"#)
-//   );
-// }
-//
-// #[test]
-// fn request_to_json_with_empty_body() {
-//   let request = Request { body: OptionalBody::Empty, .. Request::default() };
-//   expect!(request.to_json(&PactSpecification::V3).to_string()).to(
-//     be_equal_to(r#"{"body":"","method":"GET","path":"/"}"#)
-//   );
-// }
-//
-// #[test]
-// fn request_to_json_with_null_body() {
-//   let request = Request { body: OptionalBody::Null, .. Request::default() };
-//   expect!(request.to_json(&PactSpecification::V3).to_string()).to(
-//     be_equal_to(r#"{"body":null,"method":"GET","path":"/"}"#)
-//   );
-// }
-//
-// #[test]
-// fn response_to_json_with_defaults() {
-//   let response = Response::default();
-//   expect!(response.to_json(&PactSpecification::V3).to_string()).to(be_equal_to("{\"status\":200}"));
-// }
-//
-// #[test]
-// fn response_to_json_with_headers() {
-//   let response = Response { headers: Some(hashmap!{
-//         s!("HEADERA") => vec![s!("VALUEA")],
-//         s!("HEADERB") => vec![s!("VALUEB1, VALUEB2")]
-//     }), .. Response::default() };
-//   expect!(response.to_json(&PactSpecification::V3).to_string()).to(
-//     be_equal_to(r#"{"headers":{"HEADERA":"VALUEA","HEADERB":"VALUEB1, VALUEB2"},"status":200}"#)
-//   );
-// }
-//
-// #[test]
-// fn response_to_json_with_json_body() {
-//   let response = Response { headers: Some(hashmap!{
-//         s!("Content-Type") => vec![s!("application/json")]
-//     }), body: OptionalBody::Present(r#"{"key": "value"}"#.into(), None), .. Response::default() };
-//   expect!(response.to_json(&PactSpecification::V3).to_string()).to(
-//     be_equal_to(r#"{"body":{"key":"value"},"headers":{"Content-Type":"application/json"},"status":200}"#)
-//   );
-// }
-//
-// #[test]
-// fn response_to_json_with_non_json_body() {
-//   let response = Response { headers: Some(hashmap!{ s!("Content-Type") => vec![s!("text/plain")] }),
-//     body: OptionalBody::Present("This is some text".into(), None), .. Response::default() };
-//   expect!(response.to_json(&PactSpecification::V3).to_string()).to(
-//     be_equal_to(r#"{"body":"This is some text","headers":{"Content-Type":"text/plain"},"status":200}"#)
-//   );
-// }
-//
-// #[test]
-// fn response_to_json_with_empty_body() {
-//   let response = Response { body: OptionalBody::Empty, .. Response::default() };
-//   expect!(response.to_json(&PactSpecification::V3).to_string()).to(
-//     be_equal_to(r#"{"body":"","status":200}"#)
-//   );
-// }
-//
-// #[test]
-// fn response_to_json_with_null_body() {
-//   let response = Response { body: OptionalBody::Null, .. Response::default() };
-//   expect!(response.to_json(&PactSpecification::V3).to_string()).to(
-//     be_equal_to(r#"{"body":null,"status":200}"#)
-//   );
-// }
-//
-// #[test]
-// fn interaction_from_json_sets_the_id_if_loaded_from_broker() {
-//   let json = json!({
-//     "_id": "123456789",
-//     "description": "Test Interaction",
-//     "providerState": "Good state to be in",
-//     "request": {
-//       "method": "GET",
-//       "path": "/"
-//     },
-//     "response": {
-//       "status": 200
-//     }
-//   });
-//   expect!(RequestResponseInteraction::from_json(0, &json, &PactSpecification::V3).id).to(be_some().value("123456789".to_string()));
-// }
-//
+#[test]
+fn http_request_to_json_with_defaults() {
+  let request = HttpRequest::default();
+  expect!(request.to_json().to_string()).to(
+    be_equal_to("{\"method\":\"GET\",\"path\":\"/\"}"));
+}
+
+#[test]
+fn http_request_to_json_converts_methods_to_upper_case() {
+  let request = HttpRequest { method: "post".into(), .. HttpRequest::default() };
+  expect!(request.to_json().to_string()).to(be_equal_to("{\"method\":\"POST\",\"path\":\"/\"}"));
+}
+
+#[test]
+fn http_request_to_json_with_a_query() {
+  let request = HttpRequest { query: Some(hashmap!{
+        s!("a") => vec![s!("1"), s!("2")],
+        s!("b") => vec![s!("3")]
+    }), .. HttpRequest::default() };
+  expect!(request.to_json().to_string()).to(
+    be_equal_to(r#"{"method":"GET","path":"/","query":{"a":["1","2"],"b":["3"]}}"#)
+  );
+}
+
+#[test]
+fn http_request_to_json_with_headers() {
+  let request = HttpRequest { headers: Some(hashmap!{
+    s!("HEADERA") => vec![s!("VALUEA")],
+    s!("HEADERB") => vec![s!("VALUEB1, VALUEB2")]
+  }), .. HttpRequest::default() };
+  expect!(request.to_json().to_string()).to(
+    be_equal_to(r#"{"headers":{"HEADERA":["VALUEA"],"HEADERB":["VALUEB1, VALUEB2"]},"method":"GET","path":"/"}"#)
+  );
+}
+
+#[test]
+fn http_request_to_json_with_json_body() {
+  let request = HttpRequest { headers: Some(hashmap!{
+    s!("Content-Type") => vec![s!("application/json")]
+  }), body: OptionalBody::Present(r#"{"key": "value"}"#.into(), Some("application/json".into())), .. HttpRequest::default() };
+  expect!(request.to_json().to_string()).to(
+    be_equal_to(r#"{"body":{"content":{"key":"value"},"contentType":"application/json","encoded":false},"headers":{"Content-Type":["application/json"]},"method":"GET","path":"/"}"#)
+  );
+}
+
+#[test]
+fn http_request_to_json_with_non_json_body() {
+  let request = HttpRequest { headers: Some(hashmap!{ s!("Content-Type") => vec![s!("text/plain")] }),
+    body: OptionalBody::Present("This is some text".into(), Some("text/plain".into())), .. HttpRequest::default() };
+  expect!(request.to_json().to_string()).to(
+    be_equal_to(r#"{"body":{"content":"This is some text","contentType":"text/plain","encoded":false},"headers":{"Content-Type":["text/plain"]},"method":"GET","path":"/"}"#)
+  );
+}
+
+#[test]
+fn http_request_to_json_with_empty_body() {
+  let request = HttpRequest { body: OptionalBody::Empty, .. HttpRequest::default() };
+  expect!(request.to_json().to_string()).to(
+    be_equal_to(r#"{"body":{"content":""},"method":"GET","path":"/"}"#)
+  );
+}
+
+#[test]
+fn http_request_to_json_with_null_body() {
+  let request = HttpRequest { body: OptionalBody::Null, .. HttpRequest::default() };
+  expect!(request.to_json().to_string()).to(
+    be_equal_to(r#"{"method":"GET","path":"/"}"#)
+  );
+}
+
+#[test]
+fn http_response_to_json_with_defaults() {
+  let response = HttpResponse::default();
+  expect!(response.to_json().to_string()).to(be_equal_to("{\"status\":200}"));
+}
+
+#[test]
+fn http_response_to_json_with_headers() {
+  let response = HttpResponse { headers: Some(hashmap!{
+      s!("HEADERA") => vec![s!("VALUEA")],
+      s!("HEADERB") => vec![s!("VALUEB1, VALUEB2")]
+  }), .. HttpResponse::default() };
+  expect!(response.to_json().to_string()).to(
+    be_equal_to(r#"{"headers":{"HEADERA":["VALUEA"],"HEADERB":["VALUEB1, VALUEB2"]},"status":200}"#)
+  );
+}
+
+#[test]
+fn http_response_to_json_with_json_body() {
+  let response = HttpResponse { headers: Some(hashmap!{
+        s!("Content-Type") => vec![s!("application/json")]
+    }), body: OptionalBody::Present(r#"{"key": "value"}"#.into(), Some("application/json".into())), .. HttpResponse::default() };
+  expect!(response.to_json().to_string()).to(
+    be_equal_to(r#"{"body":{"content":{"key":"value"},"contentType":"application/json","encoded":false},"headers":{"Content-Type":["application/json"]},"status":200}"#)
+  );
+}
+
+#[test]
+fn http_response_to_json_with_non_json_body() {
+  let response = HttpResponse { headers: Some(hashmap!{ s!("Content-Type") => vec![s!("text/plain")] }),
+    body: OptionalBody::Present("This is some text".into(), Some("text/plain".to_string())), .. HttpResponse::default() };
+  expect!(response.to_json().to_string()).to(
+    be_equal_to(r#"{"body":{"content":"This is some text","contentType":"text/plain","encoded":false},"headers":{"Content-Type":["text/plain"]},"status":200}"#)
+  );
+}
+
+#[test]
+fn http_response_to_json_with_empty_body() {
+  let response = HttpResponse { body: OptionalBody::Empty, .. HttpResponse::default() };
+  expect!(response.to_json().to_string()).to(
+    be_equal_to(r#"{"body":{"content":""},"status":200}"#)
+  );
+}
+
+#[test]
+fn http_response_to_json_with_null_body() {
+  let response = HttpResponse { body: OptionalBody::Null, .. HttpResponse::default() };
+  expect!(response.to_json().to_string()).to(
+    be_equal_to(r#"{"status":200}"#)
+  );
+}
+
+#[test]
+fn interaction_from_json_sets_the_id_if_loaded_from_broker() {
+  let json = json!({
+    "type": "Synchronous/HTTP",
+    "_id": "123456789",
+    "description": "Test Interaction",
+    "request": {
+      "method": "GET",
+      "path": "/"
+    },
+    "response": {
+      "status": 200
+    }
+  });
+  let interaction = interaction_from_json("", 0, &json).unwrap();
+  let id = match interaction {
+    V4Interaction::SynchronousHttp { id, .. } => id,
+    V4Interaction::AsynchronousMessages { id, .. } => id
+  };
+  expect!(id).to(be_some().value("123456789".to_string()));
+}
+
 // fn read_pact_file(file: &str) -> io::Result<String> {
 //   let mut f = File::open(file)?;
 //   let mut buffer = String::new();
@@ -863,45 +818,45 @@ fn load_pact_converts_methods_to_uppercase() {
 //   };
 //   expect!(interaction1.conflicts_with(&interaction2).iter()).to_not(be_empty());
 // }
-//
-// fn hash<T: Hash>(t: &T) -> u64 {
-//   let mut s = DefaultHasher::new();
-//   t.hash(&mut s);
-//   s.finish()
-// }
-//
-// #[test]
-// fn hash_for_request() {
-//   let request1 = Request::default();
-//   let request2 = Request { method: s!("POST"), .. Request::default() };
-//   let request3 = Request { headers: Some(hashmap!{
-//         s!("H1") => vec![s!("A")]
-//     }), .. Request::default() };
-//   let request4 = Request { headers: Some(hashmap!{
-//         s!("H1") => vec![s!("B")]
-//     }), .. Request::default() };
-//   expect!(hash(&request1)).to(be_equal_to(hash(&request1)));
-//   expect!(hash(&request3)).to(be_equal_to(hash(&request3)));
-//   expect!(hash(&request1)).to_not(be_equal_to(hash(&request2)));
-//   expect!(hash(&request3)).to_not(be_equal_to(hash(&request4)));
-// }
-//
-// #[test]
-// fn hash_for_response() {
-//   let response1 = Response::default();
-//   let response2 = Response { status: 400, .. Response::default() };
-//   let response3 = Response { headers: Some(hashmap!{
-//         s!("H1") => vec![s!("A")]
-//     }), .. Response::default() };
-//   let response4 = Response { headers: Some(hashmap!{
-//         s!("H1") => vec![s!("B")]
-//     }), .. Response::default() };
-//   expect!(hash(&response1)).to(be_equal_to(hash(&response1)));
-//   expect!(hash(&response3)).to(be_equal_to(hash(&response3)));
-//   expect!(hash(&response1)).to_not(be_equal_to(hash(&response2)));
-//   expect!(hash(&response3)).to_not(be_equal_to(hash(&response4)));
-// }
-//
+
+fn hash<T: Hash>(t: &T) -> u64 {
+  let mut s = DefaultHasher::new();
+  t.hash(&mut s);
+  s.finish()
+}
+
+#[test]
+fn hash_for_http_request() {
+  let request1 = HttpRequest::default();
+  let request2 = HttpRequest { method: s!("POST"), .. HttpRequest::default() };
+  let request3 = HttpRequest { headers: Some(hashmap!{
+        s!("H1") => vec![s!("A")]
+    }), .. HttpRequest::default() };
+  let request4 = HttpRequest { headers: Some(hashmap!{
+        s!("H1") => vec![s!("B")]
+    }), .. HttpRequest::default() };
+  expect!(hash(&request1)).to(be_equal_to(hash(&request1)));
+  expect!(hash(&request3)).to(be_equal_to(hash(&request3)));
+  expect!(hash(&request1)).to_not(be_equal_to(hash(&request2)));
+  expect!(hash(&request3)).to_not(be_equal_to(hash(&request4)));
+}
+
+#[test]
+fn hash_for_http_response() {
+  let response1 = HttpResponse::default();
+  let response2 = HttpResponse { status: 400, .. HttpResponse::default() };
+  let response3 = HttpResponse { headers: Some(hashmap!{
+        s!("H1") => vec![s!("A")]
+    }), .. HttpResponse::default() };
+  let response4 = HttpResponse { headers: Some(hashmap!{
+        s!("H1") => vec![s!("B")]
+    }), .. HttpResponse::default() };
+  expect!(hash(&response1)).to(be_equal_to(hash(&response1)));
+  expect!(hash(&response3)).to(be_equal_to(hash(&response3)));
+  expect!(hash(&response1)).to_not(be_equal_to(hash(&response2)));
+  expect!(hash(&response3)).to_not(be_equal_to(hash(&response4)));
+}
+
 // #[test]
 // fn write_pact_test_with_matchers() {
 //   let pact = RequestResponsePact { consumer: Consumer { name: s!("write_pact_test_consumer") },

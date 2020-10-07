@@ -8,7 +8,6 @@ use std::{
 
 use expectest::prelude::*;
 use maplit::*;
-use serde_json::json;
 
 use pact_matching::models::*;
 use pact_matching::s;

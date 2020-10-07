@@ -235,7 +235,7 @@ impl OptionalBody {
           "encoded": encoded
         })
       },
-      OptionalBody::Empty => json!({"contents": ""}),
+      OptionalBody::Empty => json!({"content": ""}),
       _ => Value::Null
     }
   }
