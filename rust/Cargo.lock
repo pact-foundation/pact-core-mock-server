@@ -243,7 +243,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2554a3155fec064362507487171dcc4edc3df60cb10f3a1fb10ed8094822b120"
 dependencies = [
  "chrono",
- "parse-zoneinfo 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parse-zoneinfo 0.3.0",
 ]
 
 [[package]]
@@ -1397,7 +1397,7 @@ dependencies = [
 
 [[package]]
 name = "pact_matching"
-version = "0.7.2"
+version = "0.8.0"
 dependencies = [
  "ansi_term 0.9.0",
  "base64 0.12.3",
@@ -1421,7 +1421,7 @@ dependencies = [
  "nom 5.1.2",
  "ntest",
  "onig",
- "parse-zoneinfo 0.3.0 (git+https://github.com/chronotope/parse-zoneinfo.git)",
+ "parse-zoneinfo 0.3.0",
  "quickcheck 0.9.2",
  "rand 0.7.3",
  "rand_regex 0.14.2",
@@ -1600,14 +1600,6 @@ name = "parse-zoneinfo"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c705f256449c60da65e11ff6626e0c16a0a0b96aaa348de61376b249bc340f41"
-dependencies = [
- "regex 1.3.9",
-]
-
-[[package]]
-name = "parse-zoneinfo"
-version = "0.3.0"
-source = "git+https://github.com/chronotope/parse-zoneinfo.git#95f488543b3a093890c004c615c74717a76bc8a1"
 dependencies = [
  "regex 1.3.9",
 ]
