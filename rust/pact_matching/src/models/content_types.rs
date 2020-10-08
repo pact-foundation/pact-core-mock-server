@@ -84,7 +84,7 @@ impl ContentType {
 
   /// If it is a XML type
   pub fn is_xml(&self) -> bool {
-    self.main_type == "application" && (self.sub_type == "xml" ||
+    (self.main_type == "application" || self.main_type == "text") && (self.sub_type == "xml" ||
       self.suffix.as_ref().unwrap_or(&String::default()) == "xml")
   }
 
@@ -283,6 +283,13 @@ fn is_xml_test() {
 
   let content_type = ContentType {
     main_type: "application".into(),
+    sub_type: "xml".into(),
+    .. ContentType::default()
+  };
+  expect!(content_type.is_xml()).to(be_true());
+
+  let content_type = ContentType {
+    main_type: "text".into(),
     sub_type: "xml".into(),
     .. ContentType::default()
   };
