@@ -813,15 +813,15 @@ pub fn match_text(expected: &Vec<u8>, actual: &Vec<u8>, mismatches: &mut Vec<Mis
   note = "Use the version that returns a match result (match_method_result)"
 )]
 pub fn match_method(expected: String, actual: String, mismatches: &mut Vec<Mismatch>) {
-  if let Err(mismatch) = match_method_result(expected, actual) {
+  if let Err(mismatch) = match_method_result(&expected, &actual) {
     mismatches.push(mismatch);
   }
 }
 
 /// Matches the actual request method to the expected one.
-pub fn match_method_result(expected: String, actual: String) -> Result<(), Mismatch> {
+pub fn match_method_result(expected: &String, actual: &String) -> Result<(), Mismatch> {
   if expected.to_lowercase() != actual.to_lowercase() {
-    Err(Mismatch::MethodMismatch { expected, actual })
+    Err(Mismatch::MethodMismatch { expected: expected.clone(), actual: actual.clone() })
   } else {
     Ok(())
   }
@@ -834,7 +834,7 @@ pub fn match_method_result(expected: String, actual: String) -> Result<(), Misma
 )]
 pub fn match_path(expected: String, actual: String, mismatches: &mut Vec<Mismatch>,
                   matchers: &MatchingRules) {
-  if let Some(result) = match_path_result(expected, actual, matchers) {
+  if let Err(result) = match_path_result(&expected, &actual, matchers) {
     for mismatch in result {
       mismatches.push(mismatch);
     }
@@ -842,14 +842,14 @@ pub fn match_path(expected: String, actual: String, mismatches: &mut Vec<Mismatc
 }
 
 /// Matches the actual request path to the expected one.
-pub fn match_path_result(expected: String, actual: String, matchers: &MatchingRules) -> Option<Vec<Mismatch>> {
+pub fn match_path_result(expected: &String, actual: &String, matchers: &MatchingRules) -> Result<(), Vec<Mismatch>> {
   let path = vec![];
   let matcher_result = if matchers.matcher_is_defined("path", &path) {
-    matchers::match_values("path", &path, matchers.clone(), &expected, &actual)
+    matchers::match_values("path", &path, matchers.clone(), expected, actual)
   } else {
-    expected.matches(&actual, &MatchingRule::Equality).map_err(|err| vec![err])
+    expected.matches(actual, &MatchingRule::Equality).map_err(|err| vec![err])
   };
-  matcher_result.err().map(|messages| messages.iter().map(|message| {
+  matcher_result.map_err(|messages| messages.iter().map(|message| {
     Mismatch::PathMismatch {
       expected: expected.clone(),
       actual: actual.clone(), mismatch: message.clone()
@@ -1203,10 +1203,12 @@ pub fn match_request(expected: models::Request, actual: models::Request) -> Vec<
     log::debug!("     body: '{}'", expected.body.str_value());
     log::debug!("     matching_rules: {:?}", expected.matching_rules);
     log::debug!("     generators: {:?}", expected.generators);
-    if let Err(mismatch) = match_method_result(expected.method.clone(), actual.method.clone()) {
+    if let Err(mismatch) = match_method_result(&expected.method, &actual.method) {
       mismatches.push(mismatch);
     }
-    match_path(expected.path.clone(), actual.path.clone(), &mut mismatches, &expected.matching_rules);
+    if let Err(errors) = match_path_result(&expected.path, &actual.path, &expected.matching_rules) {
+      mismatches.extend_from_slice(&*errors);
+    }
     match_body(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &expected.matching_rules);
     match_query(expected.query, actual.query, &mut mismatches, &expected.matching_rules);
     match_headers(expected.headers, actual.headers, &mut mismatches, &expected.matching_rules);
@@ -1223,8 +1225,8 @@ pub fn match_request_result(expected: models::Request, actual: models::Request) 
   log::debug!("     generators: {:?}", expected.generators);
 
   let result = RequestMatchResult {
-    method: match_method_result(expected.method.clone(), actual.method.clone()).err(),
-    path: match_path_result(expected.path.clone(), actual.path.clone(), &expected.matching_rules),
+    method: match_method_result(&expected.method, &actual.method).err(),
+    path: match_path_result(&expected.path, &actual.path, &expected.matching_rules).err(),
     body: match_body_result(&expected, &actual, DiffConfig::NoUnexpectedKeys, &expected.matching_rules),
     query: match_query_result(expected.query, actual.query, &expected.matching_rules),
     headers: match_headers_result(expected.headers, actual.headers, &expected.matching_rules)
