@@ -1598,7 +1598,8 @@ dependencies = [
 [[package]]
 name = "parse-zoneinfo"
 version = "0.3.0"
-source = "git+https://github.com/chronotope/parse-zoneinfo.git#95f488543b3a093890c004c615c74717a76bc8a1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c705f256449c60da65e11ff6626e0c16a0a0b96aaa348de61376b249bc340f41"
 dependencies = [
  "regex 1.3.9",
 ]
@@ -1606,8 +1607,7 @@ dependencies = [
 [[package]]
 name = "parse-zoneinfo"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c705f256449c60da65e11ff6626e0c16a0a0b96aaa348de61376b249bc340f41"
+source = "git+https://github.com/chronotope/parse-zoneinfo.git#95f488543b3a093890c004c615c74717a76bc8a1"
 dependencies = [
  "regex 1.3.9",
 ]

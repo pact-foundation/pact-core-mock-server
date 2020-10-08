@@ -365,15 +365,15 @@ fn strip_whitespace<'a, T: FromIterator<&'a str>>(val: &'a str, split_by: &'a st
 }
 
 lazy_static! {
-    static ref BODY_MATCHERS: [
-      (fn(content_type: &ContentType) -> bool,
-      fn(expected: &dyn models::HttpPart, actual: &dyn models::HttpPart, config: DiffConfig, mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules)); 4]
-       = [
-        (|content_type| { content_type.is_json() }, json::match_json),
-        (|content_type| { content_type.is_xml() }, xml::match_xml),
-        (|content_type| { content_type.base_type() == "application/octet-stream" }, binary_utils::match_octet_stream),
-        (|content_type| { content_type.base_type() == "multipart/form-data" }, binary_utils::match_mime_multipart)
-    ];
+  static ref BODY_MATCHERS: [
+    (fn(content_type: &ContentType) -> bool,
+    fn(expected: &dyn models::HttpPart, actual: &dyn models::HttpPart, config: DiffConfig, matchers: &MatchingRules) -> Result<(), Vec<Mismatch>>); 4]
+     = [
+      (|content_type| { content_type.is_json() }, json::match_json),
+      (|content_type| { content_type.is_xml() }, xml::match_xml),
+      (|content_type| { content_type.base_type() == "application/octet-stream" }, binary_utils::match_octet_stream),
+      (|content_type| { content_type.base_type() == "multipart/form-data" }, binary_utils::match_mime_multipart)
+  ];
 }
 
 static PARAMETERISED_HEADER_TYPES: [&'static str; 2] = ["accept", "content-type"];
@@ -1118,7 +1118,9 @@ fn compare_bodies(content_type: &ContentType, expected: &dyn models::HttpPart, a
   match BODY_MATCHERS.iter().find(|mt| mt.0(&content_type)) {
     Some(ref match_fn) => {
       debug!("Using body matcher for content type '{}'", content_type);
-      match_fn.1(expected, actual, config, &mut mismatches, matchers);
+      if let Err(m) = match_fn.1(expected, actual, config, matchers) {
+        mismatches.extend_from_slice(&*m);
+      }
     },
     None => {
       debug!("No body matcher defined for content type '{}', using plain text matcher", content_type);
