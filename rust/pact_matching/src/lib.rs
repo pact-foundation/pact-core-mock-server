@@ -325,21 +325,31 @@
 
 #![warn(missing_docs)]
 
+use std::collections::HashMap;
+use std::fmt::Display;
+use std::hash::Hash;
+use std::iter::FromIterator;
+use std::str;
+
+use ansi_term::*;
+use ansi_term::Colour::*;
+use lazy_static::*;
+use log::*;
+use maplit::hashmap;
+use nom::lib::std::fmt::Formatter;
+use serde_json::{Value, json};
+
+use crate::matchers::*;
+use crate::models::content_types::ContentType;
+use crate::models::generators::*;
+use crate::models::HttpPart;
+use crate::models::matchingrules::*;
+
 /// Simple macro to convert a string slice to a `String` struct.
 #[macro_export]
 macro_rules! s {
     ($e:expr) => ($e.to_string())
 }
-
-use std::collections::HashMap;
-use std::iter::FromIterator;
-use lazy_static::*;
-use ansi_term::*;
-use ansi_term::Colour::*;
-use std::str;
-use serde_json::*;
-use log::*;
-use maplit::hashmap;
 
 #[macro_use] pub mod models;
 mod path_exp;
@@ -349,15 +359,6 @@ mod matchers;
 pub mod json;
 mod xml;
 mod binary_utils;
-
-use crate::models::HttpPart;
-use crate::models::matchingrules::*;
-use crate::models::generators::*;
-use crate::matchers::*;
-use std::fmt::Display;
-use nom::lib::std::fmt::Formatter;
-use crate::models::content_types::ContentType;
-use std::hash::Hash;
 
 fn strip_whitespace<'a, T: FromIterator<&'a str>>(val: &'a str, split_by: &'a str) -> T {
   val.split(split_by).map(|v| v.trim()).collect()
@@ -812,17 +813,17 @@ pub fn match_text(expected: &Vec<u8>, actual: &Vec<u8>, mismatches: &mut Vec<Mis
   note = "Use the version that returns a match result (match_method_result)"
 )]
 pub fn match_method(expected: String, actual: String, mismatches: &mut Vec<Mismatch>) {
-  if let Some(mismatch) = match_method_result(expected, actual) {
+  if let Err(mismatch) = match_method_result(expected, actual) {
     mismatches.push(mismatch);
   }
 }
 
 /// Matches the actual request method to the expected one.
-pub fn match_method_result(expected: String, actual: String) -> Option<Mismatch> {
+pub fn match_method_result(expected: String, actual: String) -> Result<(), Mismatch> {
   if expected.to_lowercase() != actual.to_lowercase() {
-    Some(Mismatch::MethodMismatch { expected, actual })
+    Err(Mismatch::MethodMismatch { expected, actual })
   } else {
-    None
+    Ok(())
   }
 }
 
@@ -1202,7 +1203,9 @@ pub fn match_request(expected: models::Request, actual: models::Request) -> Vec<
     log::debug!("     body: '{}'", expected.body.str_value());
     log::debug!("     matching_rules: {:?}", expected.matching_rules);
     log::debug!("     generators: {:?}", expected.generators);
-    match_method(expected.method.clone(), actual.method.clone(), &mut mismatches);
+    if let Err(mismatch) = match_method_result(expected.method.clone(), actual.method.clone()) {
+      mismatches.push(mismatch);
+    }
     match_path(expected.path.clone(), actual.path.clone(), &mut mismatches, &expected.matching_rules);
     match_body(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &expected.matching_rules);
     match_query(expected.query, actual.query, &mut mismatches, &expected.matching_rules);
@@ -1220,7 +1223,7 @@ pub fn match_request_result(expected: models::Request, actual: models::Request) 
   log::debug!("     generators: {:?}", expected.generators);
 
   let result = RequestMatchResult {
-    method: match_method_result(expected.method.clone(), actual.method.clone()),
+    method: match_method_result(expected.method.clone(), actual.method.clone()).err(),
     path: match_path_result(expected.path.clone(), actual.path.clone(), &expected.matching_rules),
     body: match_body_result(&expected, &actual, DiffConfig::NoUnexpectedKeys, &expected.matching_rules),
     query: match_query_result(expected.query, actual.query, &expected.matching_rules),
@@ -1232,9 +1235,22 @@ pub fn match_request_result(expected: models::Request, actual: models::Request) 
 }
 
 /// Matches the actual response status to the expected one.
+#[deprecated(
+  since = "0.7.0",
+  note = "Use the version that returns a match result (match_status_result)"
+)]
 pub fn match_status(expected: u16, actual: u16, mismatches: &mut Vec<Mismatch>) {
   if expected != actual {
     mismatches.push(Mismatch::StatusMismatch { expected, actual });
+  }
+}
+
+/// Matches the actual response status to the expected one.
+pub fn match_status_result(expected: u16, actual: u16) -> Result<(), Mismatch> {
+  if expected != actual {
+    Err(Mismatch::StatusMismatch { expected, actual })
+  } else {
+    Ok(())
   }
 }
 

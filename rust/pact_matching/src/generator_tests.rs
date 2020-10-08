@@ -5,7 +5,6 @@ use crate::models::{Request, Response, OptionalBody};
 use crate::models::generators::{JsonHandler, ContentTypeHandler};
 use std::str::FromStr;
 use serde_json::Value;
-use maplit::*;
 use hamcrest2::prelude::*;
 
 #[test]

@@ -7,23 +7,18 @@ use crate::models::content_types::TEXT;
 
 #[test]
 fn match_method_returns_nothing_if_the_method_matches() {
-  let result = match_method_result(s!("GET"), s!("GET"));
-  expect!(result).to(be_none());
+  expect!(match_method_result(s!("GET"), s!("GET"))).to(be_ok());
 }
 
 #[test]
 fn match_method_returns_a_mismatch_if_the_method_does_not_match() {
-    let mut mismatches = vec![];
-    match_method(s!("GET"), s!("POST"), &mut mismatches);
-    expect!(mismatches.iter()).to_not(be_empty());
-    assert_eq!(mismatches[0], Mismatch::MethodMismatch { expected: s!("GET"), actual: s!("POST") });
+  expect!(match_method_result(s!("GET"), s!("POST"))).to(
+    be_err().value(Mismatch::MethodMismatch { expected: s!("GET"), actual: s!("POST") }));
 }
 
 #[test]
-fn match_method_returns_nothing_if_the_method_matches_with_differnt_case() {
-    let mut mismatches = vec![];
-    match_method(s!("POST"), s!("post"), &mut mismatches);
-    expect!(mismatches.iter()).to(be_empty());
+fn match_method_returns_nothing_if_the_method_matches_with_different_case() {
+    expect!(match_method_result(s!("POST"), s!("post"))).to(be_ok());
 }
 
 #[test]
