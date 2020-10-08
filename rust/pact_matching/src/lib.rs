@@ -1199,22 +1199,29 @@ pub fn match_body_result(expected: &dyn models::HttpPart, actual: &dyn models::H
 pub fn match_request(expected: models::Request, actual: models::Request) -> Vec<Mismatch> {
     let mut mismatches = vec![];
 
-    log::info!("comparing to expected {}", expected);
-    log::debug!("     body: '{}'", expected.body.str_value());
-    log::debug!("     matching_rules: {:?}", expected.matching_rules);
-    log::debug!("     generators: {:?}", expected.generators);
-    if let Err(mismatch) = match_method_result(&expected.method, &actual.method) {
-      mismatches.push(mismatch);
-    }
-    if let Err(errors) = match_path_result(&expected.path, &actual.path, &expected.matching_rules) {
-      mismatches.extend_from_slice(&*errors);
-    }
-    match_body(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &expected.matching_rules);
-    match_query(expected.query, actual.query, &mut mismatches, &expected.matching_rules);
-    match_headers(expected.headers, actual.headers, &mut mismatches, &expected.matching_rules);
+  log::info!("comparing to expected {}", expected);
+  log::debug!("     body: '{}'", expected.body.str_value());
+  log::debug!("     matching_rules: {:?}", expected.matching_rules);
+  log::debug!("     generators: {:?}", expected.generators);
+  if let Err(mismatch) = match_method_result(&expected.method, &actual.method) {
+    mismatches.push(mismatch);
+  }
+  if let Err(errors) = match_path_result(&expected.path, &actual.path, &expected.matching_rules) {
+    mismatches.extend_from_slice(&*errors);
+  }
+  mismatches.extend_from_slice(match_body_result(&expected, &actual, DiffConfig::NoUnexpectedKeys, &expected.matching_rules)
+    .mismatches().as_slice());
+  let result = match_query_result(expected.query, actual.query, &expected.matching_rules);
+  for values in result.values() {
+    mismatches.extend_from_slice(values.as_slice());
+  }
+  let result = match_headers_result(expected.headers, actual.headers, &expected.matching_rules);
+  for values in result.values() {
+    mismatches.extend_from_slice(values.as_slice());
+  }
 
-    log::debug!("--> Mismatches: {:?}", mismatches);
-    mismatches
+  log::debug!("--> Mismatches: {:?}", mismatches);
+  mismatches
 }
 
 /// Matches the expected and actual requests
@@ -1258,14 +1265,20 @@ pub fn match_status_result(expected: u16, actual: u16) -> Result<(), Mismatch> {
 
 /// Matches the actual and expected responses.
 pub fn match_response(expected: models::Response, actual: models::Response) -> Vec<Mismatch> {
-    let mut mismatches = vec![];
+  let mut mismatches = vec![];
 
-    log::info!("comparing to expected response: {}", expected);
-    match_body(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &mut mismatches, &expected.matching_rules);
-    match_status(expected.status, actual.status, &mut mismatches);
-    match_headers(expected.headers, actual.headers, &mut mismatches, &expected.matching_rules);
+  log::info!("comparing to expected response: {}", expected);
+  mismatches.extend_from_slice(match_body_result(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &expected.matching_rules)
+    .mismatches().as_slice());
+  if let Err(mismatch) = match_status_result(expected.status, actual.status) {
+    mismatches.push(mismatch);
+  }
+  let result = match_headers_result(expected.headers, actual.headers, &expected.matching_rules);
+  for values in result.values() {
+    mismatches.extend_from_slice(values.as_slice());
+  }
 
-    mismatches
+  mismatches
 }
 
 /// Matches the actual message contents to the expected one. This takes into account the content type of each.
