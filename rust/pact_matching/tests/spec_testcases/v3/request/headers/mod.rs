@@ -5,7 +5,7 @@ use pact_matching::models::PactSpecification;
 #[allow(unused_imports)]
 use pact_matching::models::Request;
 #[allow(unused_imports)]
-use pact_matching::match_request_result;
+use pact_matching::match_request;
 #[allow(unused_imports)]
 use expectest::prelude::*;
 #[allow(unused_imports)]
@@ -44,7 +44,7 @@ fn order_of_comma_separated_header_values_different() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -86,7 +86,7 @@ fn whitespace_after_comma_different() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -128,7 +128,7 @@ fn header_value_is_different_case() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -170,7 +170,7 @@ fn matches_content_type_with_parameters_in_different_order() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -212,7 +212,7 @@ fn header_name_is_different_case() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -266,7 +266,7 @@ fn matches_with_regex() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -306,7 +306,7 @@ fn unexpected_header_found() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -348,7 +348,7 @@ fn content_type_parameters_do_not_match() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -392,7 +392,7 @@ fn matches() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -434,7 +434,7 @@ fn matches_content_type_with_charset() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -473,7 +473,7 @@ fn empty_headers() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());

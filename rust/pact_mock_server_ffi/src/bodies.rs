@@ -1,6 +1,6 @@
 //! Functions to support processing request/response bodies
 
-use pact_matching::models::matchingrules::{Category, MatchingRule, RuleLogic};
+use pact_matching::models::matchingrules::{MatchingRuleCategory, MatchingRule, RuleLogic};
 use pact_matching::models::generators::{Generators, Generator, GeneratorCategory};
 use serde_json::{Value, Map};
 use pact_matching::models::json_utils::json_to_string;
@@ -14,7 +14,7 @@ use log::*;
 const CONTENT_TYPE_HEADER: &str = "Content-Type";
 
 /// Process an array with embedded matching rules and generators
-pub fn process_array(array: &[Value], matching_rules: &mut Category, generators: &mut Generators, path: &str, type_matcher: bool) -> Value {
+pub fn process_array(array: &[Value], matching_rules: &mut MatchingRuleCategory, generators: &mut Generators, path: &str, type_matcher: bool) -> Value {
   Value::Array(array.iter().enumerate().map(|(index, val)| {
     let updated_path = if type_matcher {
       path.to_owned() + "[*]"
@@ -30,7 +30,7 @@ pub fn process_array(array: &[Value], matching_rules: &mut Category, generators:
 }
 
 /// Process an object (map) with embedded matching rules and generators
-pub fn process_object(obj: &Map<String, Value>, matching_rules: &mut Category, generators: &mut Generators, path: &str, type_matcher: bool) -> Value {
+pub fn process_object(obj: &Map<String, Value>, matching_rules: &mut MatchingRuleCategory, generators: &mut Generators, path: &str, type_matcher: bool) -> Value {
   if obj.contains_key("pact:matcher:type") {
     if let Some(rule) = MatchingRule::from_integration_json(obj) {
       matching_rules.add_rule(&path.to_string(), rule, &RuleLogic::And);
@@ -65,7 +65,7 @@ pub fn process_object(obj: &Map<String, Value>, matching_rules: &mut Category, g
 }
 
 /// Process a JSON body with embedded matching rules and generators
-pub fn process_json(body: String, matching_rules: &mut Category, generators: &mut Generators) -> String {
+pub fn process_json(body: String, matching_rules: &mut MatchingRuleCategory, generators: &mut Generators) -> String {
   match serde_json::from_str(&body) {
     Ok(json) => match json {
       Value::Object(ref map) => process_object(map, matching_rules, generators, &"$".to_string(), false).to_string(),
@@ -77,7 +77,7 @@ pub fn process_json(body: String, matching_rules: &mut Category, generators: &mu
 }
 
 /// Process a JSON body with embedded matching rules and generators
-pub fn process_json_value(body: &Value, matching_rules: &mut Category, generators: &mut Generators) -> String {
+pub fn process_json_value(body: &Value, matching_rules: &mut MatchingRuleCategory, generators: &mut Generators) -> String {
   match body {
     Value::Object(ref map) => process_object(map, matching_rules, generators, &"$".to_string(), false).to_string(),
     Value::Array(ref array) => process_array(array, matching_rules, generators, &"$".to_string(), false).to_string(),

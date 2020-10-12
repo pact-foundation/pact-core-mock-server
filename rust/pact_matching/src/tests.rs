@@ -7,59 +7,61 @@ use crate::models::content_types::TEXT;
 
 #[test]
 fn match_method_returns_nothing_if_the_method_matches() {
-  expect!(match_method_result(&"GET".to_string(), &"GET".to_string())).to(be_ok());
+  expect!(match_method(&"GET".to_string(), &"GET".to_string())).to(be_ok());
 }
 
 #[test]
 fn match_method_returns_a_mismatch_if_the_method_does_not_match() {
-  expect!(match_method_result(&"GET".to_string(), &"POST".to_string())).to(
+  expect!(match_method(&"GET".to_string(), &"POST".to_string())).to(
     be_err().value(Mismatch::MethodMismatch { expected: s!("GET"), actual: s!("POST") }));
 }
 
 #[test]
 fn match_method_returns_nothing_if_the_method_matches_with_different_case() {
-  expect!(match_method_result(&"POST".to_string(), &"post".to_string())).to(be_ok());
+  expect!(match_method(&"POST".to_string(), &"post".to_string())).to(be_ok());
 }
 
 #[test]
 fn match_status_returns_nothing_if_the_status_matches() {
-  expect!(match_status_result(200, 200)).to(be_ok());
+  expect!(match_status(200, 200)).to(be_ok());
 }
 
 #[test]
 fn match_status_returns_a_mismatch_if_the_status_does_not_match() {
-  expect!(match_status_result(200, 300)).to(be_err().value(Mismatch::StatusMismatch { expected: 200, actual: 300 }));
+  expect!(match_status(200, 300)).to(be_err().value(Mismatch::StatusMismatch { expected: 200, actual: 300 }));
 }
 
 #[test]
 fn match_query_returns_nothing_if_there_are_no_query_strings() {
-  let mut mismatches = vec![];
   let expected = None;
   let actual = None;
-  match_query(expected, actual, &mut mismatches, &matchingrules! {});
-  expect!(mismatches.iter()).to(be_empty());
+  let result = match_query(expected, actual, &MatchingContext::default());
+  expect!(result.values()).to(be_empty());
 }
 
 #[test]
 fn match_query_applies_matching_rules_when_param_has_an_underscore() {
-  let mut mismatches = vec![];
   let expected = hashmap! { s!("user_id") => vec![s!("1")] };
   let actual = hashmap! { s!("user_id") => vec![s!("2")] };
   let rules = matchingrules! {
-        "query" => { "user_id" => [ MatchingRule::Regex(s!("^[0-9]+$")) ] }
-    };
-  match_query(Some(expected), Some(actual), &mut mismatches, &rules);
-  assert_eq!(mismatches, vec![]);
+    "query" => { "user_id" => [ MatchingRule::Regex(s!("^[0-9]+$")) ] }
+  };
+  let context = MatchingContext::new(
+    DiffConfig::AllowUnexpectedKeys,
+    &rules.rules_for_category("query").unwrap_or_default()
+  );
+  let result = match_query(Some(expected), Some(actual), &context);
+  expect!(result.values()).to(be_empty());
 }
 
 #[test]
 fn match_query_returns_a_mismatch_if_there_is_no_expected_query_string() {
-  let mut mismatches = vec![];
   let expected = None;
   let mut query_map = HashMap::new();
   query_map.insert(s!("a"), vec![s!("b")]);
   let actual = Some(query_map);
-  match_query(expected, actual, &mut mismatches, &matchingrules! {});
+  let result = match_query(expected, actual, &MatchingContext::default());
+  let mismatches: Vec<Mismatch> = result.values().flatten().cloned().collect();
   expect!(mismatches.iter()).to_not(be_empty());
   assert_eq!(mismatches[0], Mismatch::QueryMismatch {
     parameter: s!("a"),
@@ -71,12 +73,12 @@ fn match_query_returns_a_mismatch_if_there_is_no_expected_query_string() {
 
 #[test]
 fn match_query_returns_a_mismatch_if_there_is_no_actual_query_string() {
-  let mut mismatches = vec![];
   let mut query_map = HashMap::new();
   query_map.insert(s!("a"), vec![s!("b")]);
   let expected = Some(query_map);
   let actual = None;
-  match_query(expected, actual, &mut mismatches, &matchingrules! {});
+  let result = match_query(expected, actual, &MatchingContext::default());
+  let mismatches: Vec<Mismatch> = result.values().flatten().cloned().collect();
   expect!(mismatches.iter()).to_not(be_empty());
   assert_eq!(mismatches[0], Mismatch::QueryMismatch {
     parameter: s!("a"),
@@ -88,7 +90,6 @@ fn match_query_returns_a_mismatch_if_there_is_no_actual_query_string() {
 
 #[test]
 fn match_query_returns_a_mismatch_if_there_is_an_actual_query_parameter_that_is_not_expected() {
-  let mut mismatches = vec![];
   let mut query_map = HashMap::new();
   query_map.insert(s!("a"), vec![s!("b")]);
   let expected = Some(query_map);
@@ -96,7 +97,8 @@ fn match_query_returns_a_mismatch_if_there_is_an_actual_query_parameter_that_is_
   query_map.insert(s!("a"), vec![s!("b")]);
   query_map.insert(s!("c"), vec![s!("d")]);
   let actual = Some(query_map);
-  match_query(expected, actual, &mut mismatches, &matchingrules! {});
+  let result = match_query(expected, actual, &MatchingContext::default());
+  let mismatches: Vec<Mismatch> = result.values().flatten().cloned().collect();
   expect!(mismatches.iter()).to_not(be_empty());
   assert_eq!(mismatches[0], Mismatch::QueryMismatch {
     parameter: s!("c"),
@@ -108,7 +110,6 @@ fn match_query_returns_a_mismatch_if_there_is_an_actual_query_parameter_that_is_
 
 #[test]
 fn match_query_returns_a_mismatch_if_there_is_an_expected_query_parameter_that_is_not_received() {
-  let mut mismatches = vec![];
   let mut query_map = HashMap::new();
   query_map.insert(s!("a"), vec![s!("b")]);
   query_map.insert(s!("c"), vec![s!("d")]);
@@ -116,7 +117,8 @@ fn match_query_returns_a_mismatch_if_there_is_an_expected_query_parameter_that_i
   query_map = HashMap::new();
   query_map.insert(s!("a"), vec![s!("b")]);
   let actual = Some(query_map);
-  match_query(expected, actual, &mut mismatches, &matchingrules! {});
+  let result = match_query(expected, actual, &MatchingContext::default());
+  let mismatches: Vec<Mismatch> = result.values().flatten().cloned().collect();
   expect!(mismatches.iter()).to_not(be_empty());
   assert_eq!(mismatches[0], Mismatch::QueryMismatch {
     parameter: s!("c"),
@@ -128,7 +130,6 @@ fn match_query_returns_a_mismatch_if_there_is_an_expected_query_parameter_that_i
 
 #[test]
 fn match_query_returns_a_mismatch_if_there_is_an_empty_expected_query_parameter_and_a_non_empty_actual() {
-  let mut mismatches = vec![];
   let mut query_map = HashMap::new();
   query_map.insert(s!("a"), vec![s!("b")]);
   query_map.insert(s!("c"), vec![]);
@@ -137,7 +138,8 @@ fn match_query_returns_a_mismatch_if_there_is_an_empty_expected_query_parameter_
   query_map.insert(s!("a"), vec![s!("b")]);
   query_map.insert(s!("c"), vec![s!("d")]);
   let actual = Some(query_map);
-  match_query(expected, actual, &mut mismatches, &matchingrules! {});
+  let result = match_query(expected, actual, &MatchingContext::default());
+  let mismatches: Vec<Mismatch> = result.values().flatten().cloned().collect();
   expect!(mismatches.iter()).to_not(be_empty());
   assert_eq!(mismatches[0], Mismatch::QueryMismatch {
     parameter: s!("c"),
@@ -149,7 +151,6 @@ fn match_query_returns_a_mismatch_if_there_is_an_empty_expected_query_parameter_
 
 #[test]
 fn match_query_returns_a_mismatch_if_the_query_values_have_different_lengths() {
-  let mut mismatches = vec![];
   let mut query_map = HashMap::new();
   query_map.insert(s!("a"), vec![s!("b")]);
   query_map.insert(s!("c"), vec![s!("d"), s!("e")]);
@@ -158,7 +159,8 @@ fn match_query_returns_a_mismatch_if_the_query_values_have_different_lengths() {
   query_map.insert(s!("a"), vec![s!("b")]);
   query_map.insert(s!("c"), vec![s!("d")]);
   let actual = Some(query_map);
-  match_query(expected, actual, &mut mismatches, &matchingrules! {});
+  let result = match_query(expected, actual, &MatchingContext::default());
+  let mismatches: Vec<Mismatch> = result.values().flatten().cloned().collect();
   assert_eq!(mismatches.len(), 2);
   assert_eq!(mismatches[0], Mismatch::QueryMismatch {
     parameter: s!("c"),
@@ -176,34 +178,34 @@ fn match_query_returns_a_mismatch_if_the_query_values_have_different_lengths() {
 
 #[test]
 fn match_query_returns_a_mismatch_if_the_values_are_not_the_same() {
-  let mut mismatches = vec![];
   let mut query_map = HashMap::new();
   query_map.insert(s!("a"), vec![s!("b")]);
   let expected = Some(query_map);
   query_map = HashMap::new();
   query_map.insert(s!("a"), vec![s!("c")]);
   let actual = Some(query_map);
-  match_query(expected, actual, &mut mismatches, &matchingrules! {});
+  let result = match_query(expected, actual, &MatchingContext::default());
+  let mismatches: Vec<Mismatch> = result.values().flatten().cloned().collect();
   expect!(mismatches.iter()).to_not(be_empty());
-  assert_eq!(mismatches[0], Mismatch::QueryMismatch {
+  assert_eq!(mismatches.first().unwrap(), &Mismatch::QueryMismatch {
     parameter: s!("a"),
     expected: s!("b"),
     actual: s!("c"),
-    mismatch: s!("Expected 'b' but received 'c' for query parameter 'a'"),
+    mismatch: s!("Expected 'b' but received 'c' for query parameter 'a'")
   });
 }
 
 #[test]
 fn matching_headers_be_true_when_headers_are_equal() {
   let mismatches = match_header_value(&s!("HEADER"), &s!("HEADER"), &s!("HEADER"),
-                                      &matchingrules! {});
+                                      &MatchingContext::default());
   expect!(mismatches.iter()).to(be_empty());
 }
 
 #[test]
 fn matching_headers_be_false_when_headers_are_not_equal() {
   let mismatches = match_header_value(&s!("HEADER"), &s!("HEADER"), &s!("HEADER2"),
-                                      &matchingrules! {});
+                                      &MatchingContext::default()).unwrap_err();
   expect!(mismatches.iter()).to_not(be_empty());
   assert_eq!(mismatches[0], Mismatch::HeaderMismatch {
     key: s!("HEADER"),
@@ -216,9 +218,9 @@ fn matching_headers_be_false_when_headers_are_not_equal() {
 #[test]
 fn mismatch_message_generated_when_headers_are_not_equal() {
   let mismatches = match_header_value(&s!("HEADER"), &s!("HEADER_VALUE"), &s!("HEADER2"),
-                                      &matchingrules! {});
+                                      &MatchingContext::default());
 
-  match mismatches[0] {
+  match mismatches.unwrap_err()[0] {
     Mismatch::HeaderMismatch { ref mismatch, .. } =>
       assert_eq!(mismatch, "Mismatch with header 'HEADER': Expected 'HEADER_VALUE' to be equal to 'HEADER2'"),
     _ => panic!("Unexpected mismatch response")
@@ -228,72 +230,72 @@ fn mismatch_message_generated_when_headers_are_not_equal() {
 #[test]
 fn matching_headers_exclude_whitespaces() {
   let mismatches = match_header_value(&s!("HEADER"), &s!("HEADER1, HEADER2,   3"),
-                                      &s!("HEADER1,HEADER2,3"), &matchingrules! {});
-  expect!(mismatches.iter()).to(be_empty());
+                                      &s!("HEADER1,HEADER2,3"), &MatchingContext::default());
+  expect!(mismatches).to(be_ok());
 }
 
 #[test]
 fn matching_headers_includes_whitespaces_within_a_value() {
   let mismatches = match_header_value(&s!("HEADER"), &s!("HEADER 1, \tHEADER 2,\n3"),
-                                      &s!("HEADER 1,HEADER 2,3"), &matchingrules! {});
-  expect!(mismatches.iter()).to(be_empty());
+                                      &s!("HEADER 1,HEADER 2,3"), &MatchingContext::default());
+  expect!(mismatches).to(be_ok());
 }
 
 #[test]
 fn content_type_header_matches_when_headers_are_equal() {
   let mismatches = match_header_value(&s!("CONTENT-TYPE"), &s!("application/json;charset=UTF-8"),
-                                      &s!("application/json; charset=UTF-8"), &matchingrules! {});
-  expect!(mismatches.iter()).to(be_empty());
+                                      &s!("application/json; charset=UTF-8"), &MatchingContext::default());
+  expect!(mismatches).to(be_ok());
 }
 
 #[test]
 fn content_type_header_does_not_match_when_headers_are_not_equal() {
   let mismatches = match_header_value(&s!("CONTENT-TYPE"), &s!("application/pdf;charset=UTF-8"),
-                                      &s!("application/json;charset=UTF-8"), &matchingrules! {});
-  expect!(mismatches.iter()).to_not(be_empty());
+                                      &s!("application/json;charset=UTF-8"), &MatchingContext::default());
+  expect!(mismatches).to(be_ok());
 }
 
 #[test]
 fn content_type_header_does_not_match_when_expected_is_empty() {
   let mismatches = match_header_value(&s!("CONTENT-TYPE"), &s!(""),
-                                      &s!("application/json;charset=UTF-8"), &matchingrules! {});
-  expect!(mismatches.iter()).to_not(be_empty());
+                                      &s!("application/json;charset=UTF-8"), &MatchingContext::default());
+  expect!(mismatches).to(be_ok());
 }
 
 #[test]
 fn content_type_header_does_not_match_when_actual_is_empty() {
   let mismatches = match_header_value(&s!("CONTENT-TYPE"), &s!("application/pdf;charset=UTF-8"),
-                                      &s!(""), &matchingrules! {});
-  expect!(mismatches.iter()).to_not(be_empty());
+                                      &s!(""), &MatchingContext::default());
+  expect!(mismatches).to(be_ok());
 }
 
 #[test]
 fn content_type_header_does_not_match_when_charsets_are_not_equal() {
   let mismatches = match_header_value(&s!("CONTENT-TYPE"), &s!("application/json;charset=UTF-8"),
-                                      &s!("application/json;charset=UTF-16"), &matchingrules! {});
-  expect!(mismatches.iter()).to_not(be_empty());
+                                      &s!("application/json;charset=UTF-16"), &MatchingContext::default());
+  expect!(mismatches).to(be_ok());
 }
 
 #[test]
 fn content_type_header_does_not_match_when_charsets_other_parameters_not_equal() {
   let mismatches = match_header_value(&s!("CONTENT-TYPE"), &s!("application/json;declaration=\"<950118.AEB0@XIson.com>\""),
-                                      &s!("application/json;charset=UTF-8"), &matchingrules! {});
-  expect!(mismatches.iter()).to_not(be_empty());
+                                      &s!("application/json;charset=UTF-8"), &MatchingContext::default());
+  expect!(mismatches).to(be_ok());
 }
 
 #[test]
 fn content_type_header_does_match_when_charsets_is_missing_from_expected_header() {
   let mismatches = match_header_value(&s!("CONTENT-TYPE"), &s!("application/json"),
-                                      &s!("application/json;charset=UTF-8"), &matchingrules! {});
-  expect!(mismatches.iter()).to(be_empty());
+                                      &s!("application/json;charset=UTF-8"), &MatchingContext::default());
+  expect!(mismatches).to(be_ok());
 }
 
 #[test]
 fn mismatched_header_description_reports_content_type_mismatches_correctly() {
   let mismatches = match_header_value(&s!("CONTENT-TYPE"), &s!("CONTENT-TYPE-VALUE"), &s!("HEADER2"),
-                                      &matchingrules! {});
+                                      &MatchingContext::default());
 
-  match mismatches[0] {
+  match mismatches.unwrap_err()[0] {
     Mismatch::HeaderMismatch { ref mismatch, .. } =>
       assert_eq!(mismatch, "Mismatch with header 'CONTENT-TYPE': Expected header 'CONTENT-TYPE' to have value 'CONTENT-TYPE-VALUE' but was 'HEADER2'"),
     _ => panic!("Unexpected mismatch response")
@@ -303,36 +305,36 @@ fn mismatched_header_description_reports_content_type_mismatches_correctly() {
 #[test]
 fn accept_header_matches_when_headers_are_equal() {
   let mismatches = match_header_value(&s!("ACCEPT"), &s!("application/hal+json;charset=utf-8"),
-                                      &s!("application/hal+json;charset=utf-8"), &matchingrules! {});
-  expect!(mismatches.iter()).to(be_empty());
+                                      &s!("application/hal+json;charset=utf-8"), &MatchingContext::default());
+  expect!(mismatches).to(be_ok());
 }
 
 #[test]
 fn accept_header_does_not_match_when_actual_is_empty() {
   let mismatches = match_header_value(&s!("ACCEPT"), &s!("application/hal+json"),
-                                      &s!(""), &matchingrules! {});
-  expect!(mismatches.iter()).to_not(be_empty());
+                                      &s!(""), &MatchingContext::default());
+  expect!(mismatches).to(be_ok());
 }
 
 #[test]
 fn accept_header_does_match_when_charset_is_missing_from_expected_header() {
   let mismatches = match_header_value(&s!("ACCEPT"), &s!("application/hal+json"),
-                                      &s!("application/hal+json;charset=utf-8"), &matchingrules! {});
-  expect!(mismatches.iter()).to(be_empty());
+                                      &s!("application/hal+json;charset=utf-8"), &MatchingContext::default());
+  expect!(mismatches).to(be_ok());
 }
 
 #[test]
 fn accept_header_does_not_match_when_charsets_are_not_equal() {
   let mismatches = match_header_value(&s!("ACCEPT"), &s!("application/hal+json;charset=utf-8"),
-                                      &s!("application/hal+json;charset=utf-16"), &matchingrules! {});
-  expect!(mismatches.iter()).to_not(be_empty());
+                                      &s!("application/hal+json;charset=utf-16"), &MatchingContext::default());
+  expect!(mismatches).to(be_ok());
 }
 
 #[test]
 fn mismatched_header_description_reports_accept_header_mismatches_correctly() {
   let mismatches = match_header_value(&s!("ACCEPT"), &s!("ACCEPT-VALUE"), &s!("HEADER2"),
-                                      &matchingrules! {});
-  match mismatches[0] {
+                                      &MatchingContext::default());
+  match mismatches.unwrap_err()[0] {
     Mismatch::HeaderMismatch { ref mismatch, .. } =>
       assert_eq!(mismatch, "Mismatch with header 'ACCEPT': Expected header 'ACCEPT' to have value 'ACCEPT-VALUE' but was 'HEADER2'"),
     _ => panic!("Unexpected mismatch response")
@@ -343,14 +345,12 @@ fn mismatched_header_description_reports_accept_header_mismatches_correctly() {
 fn accept_header_matching_with_multiple_values() {
   let expected = Some(hashmap! { "accept".to_string() => vec!["application/json".to_string(), "application/hal+json".to_string()] });
   let actual = Some(hashmap! { "accept".to_string() => vec!["application/json".to_string(), "application/hal+json".to_string()] });
-  let mut mismatches = vec![];
-  match_headers(expected, actual, &mut mismatches, &matchingrules! {});
-  expect!(mismatches.iter()).to(be_empty());
+  let result = match_headers(expected, actual, &MatchingContext::default());
+  expect!(result.values().flatten()).to(be_empty());
 }
 
 #[test]
 fn body_does_not_match_if_different_content_types() {
-  let mut mismatches = vec![];
   let expected = Request {
     method: s!("GET"),
     path: s!("/"),
@@ -367,7 +367,8 @@ fn body_does_not_match_if_different_content_types() {
     body: OptionalBody::Missing,
     ..Request::default()
   };
-  match_body(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &matchingrules! {});
+  let result = match_body(&expected, &actual, &MatchingContext::default());
+  let mismatches = result.mismatches();
   expect!(mismatches.iter()).to_not(be_empty());
   expect!(mismatches[0].clone()).to(be_equal_to(Mismatch::BodyTypeMismatch {
     expected: s!("application/json"),
@@ -378,7 +379,6 @@ fn body_does_not_match_if_different_content_types() {
 
 #[test]
 fn body_matches_if_expected_is_missing() {
-  let mut mismatches = vec![];
   let expected = Request {
     method: s!("GET"),
     path: s!("/"),
@@ -395,13 +395,12 @@ fn body_matches_if_expected_is_missing() {
     body: OptionalBody::Present("{}".into(), None),
     ..Request::default()
   };
-  match_body(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &matchingrules! {});
-  expect!(mismatches.iter()).to(be_empty());
+  let result = match_body(&expected, &actual, &MatchingContext::default());
+  expect!(result.mismatches().iter()).to(be_empty());
 }
 
 #[test]
 fn body_matches_with_extended_mime_types() {
-  let mut mismatches = vec![];
   let expected = Request {
     method: s!("GET"),
     path: s!("/"),
@@ -418,8 +417,8 @@ fn body_matches_with_extended_mime_types() {
     body: OptionalBody::Present(r#"{"test": true}"#.into(), None),
     ..Request::default()
   };
-  match_body(&expected, &actual, DiffConfig::NoUnexpectedKeys, &mut mismatches, &matchingrules! {});
-  expect!(mismatches.iter()).to(be_empty());
+  let result = match_body(&expected, &actual, &MatchingContext::default());
+  expect!(result.mismatches().iter()).to(be_empty());
 }
 
 #[test]
@@ -585,75 +584,87 @@ fn strip_whitespace_quickcheck() {
 
 #[test]
 fn match_path_returns_nothing_if_the_path_matches() {
-  let mut mismatches = vec![];
-  match_path(s!("/path/one"), s!("/path/one"), &mut mismatches, &matchingrules! {});
-  expect!(mismatches.iter()).to(be_empty());
+  let context = MatchingContext::default();
+  let result = match_path(&"/path/one".to_string(), &"/path/one".to_string(), &context);
+  expect!(result).to(be_ok());
 }
 
 #[test]
 fn match_path_returns_a_mismatch_if_the_path_does_not_match() {
-  let mut mismatches = vec![];
-  match_path(s!("/path/one"), s!("/path/two"), &mut mismatches, &matchingrules! {});
-  expect!(mismatches.iter()).to_not(be_empty());
-  expect!(mismatches[0].clone()).to(be_equal_to(Mismatch::PathMismatch {
+  let context = MatchingContext::default();
+  let result = match_path(&"/path/one".to_string(), &"/path/two".to_string(), &context);
+  expect!(result).to(be_err().value(vec![ Mismatch::PathMismatch {
     expected: s!("/path/one"),
     actual: s!("/path/two"),
     mismatch: s!(""),
-  }));
+  } ]));
 }
 
 #[test]
 fn match_path_returns_nothing_if_the_path_matches_with_a_matcher() {
-  let mut mismatches = vec![];
-  match_path(s!("/path/1234"), s!("/path/5678"), &mut mismatches, &matchingrules! {
+  let context = MatchingContext::new(
+    DiffConfig::AllowUnexpectedKeys,
+    &matchingrules! {
         "path" => { "" => [ MatchingRule::Regex(s!("/path/\\d+")) ] }
-    });
-  expect!(mismatches.iter()).to(be_empty());
+    }.rules_for_category("path").unwrap_or_default()
+  );
+  let result = match_path(&"/path/1234".to_string(), &"/path/5678".to_string(), &context);
+  expect!(result).to(be_ok());
 }
 
 #[test]
 fn match_path_returns_a_mismatch_if_the_path_does_not_match_with_a_matcher() {
-  let mut mismatches = vec![];
-  match_path(s!("/path/1234"), s!("/path/abc"), &mut mismatches, &matchingrules! {
+  let context = MatchingContext::new(
+    DiffConfig::AllowUnexpectedKeys,
+    &matchingrules! {
         "path" => { "" => [ MatchingRule::Regex(s!("/path/\\d+")) ] }
-    });
-  expect!(mismatches.iter()).to_not(be_empty());
-  expect!(mismatches[0].clone()).to(be_equal_to(Mismatch::PathMismatch {
+    }.rules_for_category("path").unwrap_or_default()
+  );
+  let result = match_path(&"/path/1234".to_string(), &"/path/abc".to_string(), &context);
+  expect!(result).to(be_err().value(vec![ Mismatch::PathMismatch {
     expected: s!("/path/1234"),
     actual: s!("/path/abc"),
     mismatch: s!(""),
-  }));
+  }]));
 }
 
 #[test]
 fn match_query_returns_no_mismatch_if_the_values_are_not_the_same_but_match_by_a_matcher() {
+  let context = MatchingContext::new(
+    DiffConfig::AllowUnexpectedKeys,
+    &matchingrules! {
+      "query" => {
+        "a" => [ MatchingRule::Regex(s!("\\w+")) ]
+      }
+    }.rules_for_category("query").unwrap_or_default()
+  );
   let mut query_map = HashMap::new();
   query_map.insert(s!("a"), vec![s!("b")]);
   let expected = Some(query_map);
   query_map = HashMap::new();
   query_map.insert(s!("a"), vec![s!("c")]);
   let actual = Some(query_map);
-  let result = match_query_result(expected, actual, &matchingrules! {
-    "query" => {
-      "a" => [ MatchingRule::Regex(s!("\\w+")) ]
-    }
-  });
+  let result = match_query(expected, actual, &context);
   expect!(result.get("a".into()).unwrap().iter()).to(be_empty());
 }
 
 #[test]
 fn match_query_returns_a_mismatch_if_the_values_do_not_match_by_a_matcher() {
+  let context = MatchingContext::new(
+    DiffConfig::AllowUnexpectedKeys,
+    &matchingrules! {
+      "query" => {
+        "a" => [ MatchingRule::Regex(s!("\\d+")) ]
+      }
+    }.rules_for_category("query").unwrap_or_default()
+  );
   let mut query_map = HashMap::new();
   query_map.insert(s!("a"), vec![s!("b")]);
   let expected = Some(query_map);
   query_map = HashMap::new();
   query_map.insert(s!("a"), vec![s!("b")]);
   let actual = Some(query_map);
-  let result = match_query_result(expected, actual, &matchingrules! {
-    "query" => {
-       "a" => [ MatchingRule::Regex(s!("\\d+")) ]
-    }
-  });
+  let result = match_query(expected, actual, &context);
   expect!(result.iter()).to_not(be_empty());
   assert_eq!(result.get("a".into()).unwrap()[0], Mismatch::QueryMismatch {
     parameter: s!("a"),
@@ -665,30 +676,35 @@ fn match_query_returns_a_mismatch_if_the_values_do_not_match_by_a_matcher() {
 
 #[test]
 fn matching_headers_be_true_when_headers_match_by_matcher() {
-  let mismatches = match_header_value(&s!("HEADER"), &s!("HEADERX"), &s!("HEADERY"),
-                                      &matchingrules! {
+  let context = MatchingContext::new(
+    DiffConfig::AllowUnexpectedKeys,
+    &matchingrules! {
           "header" => {
               "HEADER" => [ MatchingRule::Regex(s!("\\w+")) ]
           }
-      });
+      }.rules_for_category("header").unwrap_or_default()
+  );
+  let mismatches = match_header_value(&s!("HEADER"), &s!("HEADERX"), &s!("HEADERY"), &context);
   expect!(mismatches.iter()).to(be_empty());
 }
 
 #[test]
 fn matching_headers_be_false_when_headers_do_not_match_by_matcher() {
-  let mismatches = match_header_value(&s!("HEADER"), &s!("HEADER"), &s!("HEADER"),
-                                      &matchingrules! {
+  let context = MatchingContext::new(
+    DiffConfig::AllowUnexpectedKeys,
+    &matchingrules! {
           "header" => {
               "HEADER" => [ MatchingRule::Regex(s!("\\d+")) ]
           }
-      });
-  expect!(mismatches.iter()).to_not(be_empty());
-  assert_eq!(mismatches[0], Mismatch::HeaderMismatch {
+      }.rules_for_category("header").unwrap_or_default()
+  );
+  let mismatches = match_header_value(&s!("HEADER"), &s!("HEADER"), &s!("HEADER"), &context);
+  expect!(mismatches).to(be_err().value(vec![ Mismatch::HeaderMismatch {
     key: s!("HEADER"),
     expected: s!("HEADER"),
     actual: s!("HEADER"),
     mismatch: s!(""),
-  });
+  } ]));
 }
 
 macro_rules! request {
@@ -700,7 +716,7 @@ fn matching_text_body_be_true_when_bodies_are_equal() {
   let expected = request!("body value");
   let actual = request!("body value");
   let mismatches = compare_bodies(&TEXT.clone(), &expected, &actual,
-                                  DiffConfig::AllowUnexpectedKeys, &matchingrules! {});
+    &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
   expect!(mismatches.mismatches().iter()).to(be_empty());
 }
 
@@ -709,7 +725,7 @@ fn matching_text_body_be_false_when_bodies_are_not_equal() {
   let expected = request!("expected body value");
   let actual = request!("actual body value");
   let mismatches = compare_bodies(&TEXT.clone(), &expected, &actual,
-                                  DiffConfig::AllowUnexpectedKeys, &matchingrules! {}).mismatches();
+    &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys)).mismatches();
   expect!(mismatches.iter()).to_not(be_empty());
   assert_eq!(mismatches[0], Mismatch::BodyMismatch {
     path: s!("$"),
@@ -723,19 +739,26 @@ fn matching_text_body_be_false_when_bodies_are_not_equal() {
 fn matching_text_body_must_use_defined_matcher() {
   let expected = request!("expected body value");
   let actual = request!("actualbodyvalue");
-  let mismatches = compare_bodies(&TEXT.clone(), &expected, &actual,
-                                  DiffConfig::AllowUnexpectedKeys, &matchingrules! {
-    "body" => {
-      "$" => [ MatchingRule::Regex(s!("\\w+")) ]
-    }
-  });
+
+  let context = MatchingContext::new(
+    DiffConfig::AllowUnexpectedKeys,
+    &matchingrules! {
+      "body" => {
+        "$" => [ MatchingRule::Regex(s!("\\d+")) ]
+      }
+    }.rules_for_category("body").unwrap_or_default()
+  );
+  let mismatches = compare_bodies(&TEXT.clone(), &expected, &actual, &context);
   expect!(mismatches.mismatches().iter()).to(be_empty());
 
-  let mismatches = compare_bodies(&TEXT.clone(), &expected, &actual,
-                                  DiffConfig::AllowUnexpectedKeys, &matchingrules! {
-    "body" => {
-      "$" => [ MatchingRule::Regex(s!("\\d+")) ]
-    }
-  });
+  let context = MatchingContext::new(
+    DiffConfig::AllowUnexpectedKeys,
+    &matchingrules! {
+      "body" => {
+        "$" => [ MatchingRule::Regex(s!("\\d+")) ]
+      }
+    }.rules_for_category("body").unwrap_or_default()
+  );
+  let mismatches = compare_bodies(&TEXT.clone(), &expected, &actual, &context);
   expect!(mismatches.mismatches().iter()).to_not(be_empty());
 }

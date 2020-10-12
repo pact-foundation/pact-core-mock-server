@@ -330,7 +330,7 @@ fn additional_property_with_type_matcher() {
           "body": {
             "myPerson": {
               "name": "Jon Peterson",
-              "age": "39",
+              "age": 39,
               "nationality": "Australian"
             }
           }    

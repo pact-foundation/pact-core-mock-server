@@ -1,4 +1,4 @@
-use pact_matching::match_request_result;
+use pact_matching::match_request;
 use pact_matching::models::RequestResponsePact;
 
 /// Check that all requests in `actual` match the patterns provide by
@@ -22,7 +22,7 @@ pub(crate) fn check_requests_match(
 
     // Next, check each interaction to see if it matches.
     for (e, a) in expected.interactions.iter().zip(&actual.interactions) {
-        let mismatches = match_request_result(e.request.clone(), a.request.clone());
+        let mismatches = match_request(e.request.clone(), a.request.clone());
         if !mismatches.all_matched() {
           let mut reasons = String::new();
           for mismatch in mismatches.mismatches() {

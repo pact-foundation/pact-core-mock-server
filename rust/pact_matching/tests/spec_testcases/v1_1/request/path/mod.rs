@@ -5,7 +5,7 @@ use pact_matching::models::PactSpecification;
 #[allow(unused_imports)]
 use pact_matching::models::Request;
 #[allow(unused_imports)]
-use pact_matching::match_request_result;
+use pact_matching::match_request;
 #[allow(unused_imports)]
 use expectest::prelude::*;
 #[allow(unused_imports)]
@@ -42,7 +42,7 @@ fn empty_path_found_when_forward_slash_expected() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -82,7 +82,7 @@ fn unexpected_trailing_slash_in_path() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -122,7 +122,7 @@ fn forward_slash_found_when_empty_path_expected() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -162,7 +162,7 @@ fn incorrect_path() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -202,7 +202,7 @@ fn missing_trailing_slash_in_path() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -242,7 +242,7 @@ fn matches() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());

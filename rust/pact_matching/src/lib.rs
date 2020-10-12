@@ -364,10 +364,71 @@ fn strip_whitespace<'a, T: FromIterator<&'a str>>(val: &'a str, split_by: &'a st
   val.split(split_by).map(|v| v.trim()).collect()
 }
 
+#[derive(Debug, Clone)]
+pub struct MatchingContext {
+  pub matchers: MatchingRuleCategory,
+  pub config: DiffConfig
+}
+
+impl MatchingContext {
+  pub fn new(config: DiffConfig, matchers: &MatchingRuleCategory) -> Self {
+    MatchingContext {
+      matchers: matchers.clone(),
+      config: config.clone()
+    }
+  }
+
+  pub fn with_config(config: DiffConfig) -> Self {
+    MatchingContext {
+      matchers: Default::default(),
+      config: config.clone()
+    }
+  }
+
+  pub fn matcher_is_defined(&self, path: &Vec<&str>) -> bool {
+    self.matchers.matcher_is_defined(path)
+  }
+
+  pub fn select_best_matcher(&self, path: &Vec<&str>) -> Option<RuleList> {
+    self.matchers.select_best_matcher(path)
+  }
+
+  pub fn wildcard_matcher_is_defined(&self, path: &Vec<&str>) -> bool {
+    self.resolve_wildcard_matchers(path).filter(|&(val, _)| val.ends_with(".*")).is_empty()
+  }
+
+  fn resolve_wildcard_matchers(&self, path: &Vec<&str>) -> MatchingRuleCategory {
+    if self.matchers.name == "body" {
+      self.matchers.filter(|&(val, _)| {
+        calc_path_weight(val, path).0 > 0 && path_length(val) == path.len()
+      })
+    } else if self.matchers.name == "header" || self.matchers.name == "query" {
+      self.matchers.filter(|&(val, _)| {
+        path.len() == 1 && path[0] == *val
+      })
+    } else {
+      self.matchers.clone()
+    }
+  }
+
+  pub fn type_matcher_defined(&self, path: &Vec<&str>) -> bool {
+    self.matchers.resolve_matchers_for_path(path).type_matcher_defined()
+  }
+}
+
+impl Default for MatchingContext {
+  fn default() -> Self {
+    MatchingContext {
+      matchers: Default::default(),
+      config: DiffConfig::AllowUnexpectedKeys
+    }
+  }
+}
+
 lazy_static! {
   static ref BODY_MATCHERS: [
     (fn(content_type: &ContentType) -> bool,
-    fn(expected: &dyn models::HttpPart, actual: &dyn models::HttpPart, config: DiffConfig, matchers: &MatchingRules) -> Result<(), Vec<Mismatch>>); 4]
+    fn(expected: &dyn models::HttpPart, actual: &dyn models::HttpPart, context: &MatchingContext) -> Result<(), Vec<Mismatch>>); 4]
      = [
       (|content_type| { content_type.is_json() }, json::match_json),
       (|content_type| { content_type.is_xml() }, xml::match_xml),
@@ -644,6 +705,19 @@ impl Display for Mismatch {
   }
 }
 
+fn merge_result(res1: Result<(), Vec<Mismatch>>, res2: Result<(), Vec<Mismatch>>) -> Result<(), Vec<Mismatch>> {
+  match (&res1, &res2) {
+    (Ok(_), Ok(_)) => res1.clone(),
+    (Err(_), Ok(_)) => res1.clone(),
+    (Ok(_), Err(_)) => res2.clone(),
+    (Err(m1), Err(m2)) => {
+      let mut mismatches = m1.clone();
+      mismatches.extend_from_slice(&*m2);
+      Err(mismatches)
+    }
+  }
+}
+
 /// Result of matching a request body
 #[derive(Debug, Clone, PartialEq)]
 pub enum BodyMatchResult {
@@ -787,10 +861,11 @@ pub enum DiffConfig {
 }
 
 /// Matches the actual text body to the expected one.
-pub fn match_text(expected: &Vec<u8>, actual: &Vec<u8>, mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
-  let path = vec![s!("$")];
-  if matchers.matcher_is_defined("body", &path) {
-    if let Err(messages) = match_values("body", &path, matchers.clone(), expected, actual) {
+pub fn match_text(expected: &Vec<u8>, actual: &Vec<u8>, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
+  let path = vec!["$"];
+  if context.matcher_is_defined(&path) {
+    match_values(&path, context, expected, actual).map_err(|messages| {
+      let mut mismatches = vec![];
       for message in messages {
         mismatches.push(Mismatch::BodyMismatch {
           path: s!("$"),
@@ -799,27 +874,19 @@ pub fn match_text(expected: &Vec<u8>, actual: &Vec<u8>, mismatches: &mut Vec<Mis
           mismatch: message.clone()
         })
       }
-    }
+      mismatches
+    })
   } else if expected != actual {
-    mismatches.push(Mismatch::BodyMismatch { path: s!("$"), expected: Some(expected.clone()),
+    Err(vec![ Mismatch::BodyMismatch { path: s!("$"), expected: Some(expected.clone()),
       actual: Some(actual.clone()),
-      mismatch: format!("Expected text '{:?}' but received '{:?}'", expected, actual) });
-  };
-}
-
-/// Matches the actual request method to the expected one.
-#[deprecated(
-  since = "0.6.4",
-  note = "Use the version that returns a match result (match_method_result)"
-)]
-pub fn match_method(expected: String, actual: String, mismatches: &mut Vec<Mismatch>) {
-  if let Err(mismatch) = match_method_result(&expected, &actual) {
-    mismatches.push(mismatch);
+      mismatch: format!("Expected text '{:?}' but received '{:?}'", expected, actual) } ])
+  } else {
+    Ok(())
   }
 }
 
 /// Matches the actual request method to the expected one.
-pub fn match_method_result(expected: &String, actual: &String) -> Result<(), Mismatch> {
+pub fn match_method(expected: &String, actual: &String) -> Result<(), Mismatch> {
   if expected.to_lowercase() != actual.to_lowercase() {
     Err(Mismatch::MethodMismatch { expected: expected.clone(), actual: actual.clone() })
   } else {
@@ -828,103 +895,96 @@ pub fn match_method_result(expected: &String, actual: &String) -> Result<(), Mis
 }
 
 /// Matches the actual request path to the expected one.
-#[deprecated(
-  since = "0.6.4",
-  note = "Use the version that returns a match result (match_path_result)"
-)]
-pub fn match_path(expected: String, actual: String, mismatches: &mut Vec<Mismatch>,
-                  matchers: &MatchingRules) {
-  if let Err(result) = match_path_result(&expected, &actual, matchers) {
-    for mismatch in result {
-      mismatches.push(mismatch);
-    }
-  }
-}
-
-/// Matches the actual request path to the expected one.
-pub fn match_path_result(expected: &String, actual: &String, matchers: &MatchingRules) -> Result<(), Vec<Mismatch>> {
+pub fn match_path(expected: &String, actual: &String, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
   let path = vec![];
-  let matcher_result = if matchers.matcher_is_defined("path", &path) {
-    matchers::match_values("path", &path, matchers.clone(), expected, actual)
+  let matcher_result = if context.matcher_is_defined(&path) {
+    match_values(&path, context, &expected.to_string(), &actual.to_string())
   } else {
     expected.matches(actual, &MatchingRule::Equality).map_err(|err| vec![err])
   };
   matcher_result.map_err(|messages| messages.iter().map(|message| {
     Mismatch::PathMismatch {
-      expected: expected.clone(),
-      actual: actual.clone(), mismatch: message.clone()
+      expected: expected.to_string(),
+      actual: actual.to_string(), mismatch: message.clone()
     }
   }).collect())
 }
 
 fn compare_query_parameter_value(key: &String, expected: &String, actual: &String, index: usize,
-    mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
-    let path = vec![s!("$"), key.clone(), format!("{}", index)];
-    let matcher_result = if matchers.matcher_is_defined("query", &path) {
-      matchers::match_values("query", &path, matchers.clone(), expected, actual)
-    } else {
-      expected.matches(actual, &MatchingRule::Equality).map_err(|err| vec![err])
-    };
-    match matcher_result {
-        Err(messages) => {
-          for message in messages {
-            mismatches.push(Mismatch::QueryMismatch {
-              parameter: key.clone(),
-              expected: expected.clone(),
-              actual: actual.clone(),
-              mismatch: message
-            })
-          }
-        },
-        Ok(_) => ()
-    }
+                                 context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
+  let index = index.to_string();
+  let path = vec!["$", key.as_str(), index.as_str()];
+  let matcher_result = if context.matcher_is_defined(&path) {
+    matchers::match_values(&path, context, expected, actual)
+  } else {
+    expected.matches(actual, &MatchingRule::Equality).map_err(|err| vec![err])
+  };
+  matcher_result.map_err(|messages| {
+    messages.iter().map(|message| {
+      Mismatch::QueryMismatch {
+        parameter: key.clone(),
+        expected: expected.clone(),
+        actual: actual.clone(),
+        mismatch: message.clone(),
+      }
+    }).collect()
+  })
 }
 
 fn compare_query_parameter_values(key: &String, expected: &Vec<String>, actual: &Vec<String>,
-    mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
-    for (index, val) in expected.iter().enumerate() {
-        if index < actual.len() {
-            compare_query_parameter_value(key, val, &actual[index], index, mismatches, matchers);
-        } else {
-            mismatches.push(Mismatch::QueryMismatch { parameter: key.clone(),
-                expected: format!("{:?}", expected),
-                actual: format!("{:?}", actual),
-                mismatch: format!("Expected query parameter '{}' value '{}' but was missing", key, val) });
-        }
+                                  context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
+  let result: Vec<Mismatch> = expected.iter().enumerate().flat_map(|(index, val)| {
+    if index < actual.len() {
+      match compare_query_parameter_value(key, val, &actual[index], index, context) {
+        Ok(_) => vec![],
+        Err(errors) => errors
+      }
+    } else {
+      vec![ Mismatch::QueryMismatch {
+        parameter: key.clone(),
+        expected: format!("{:?}", expected),
+        actual: format!("{:?}", actual),
+        mismatch: format!("Expected query parameter '{}' value '{}' but was missing", key, val)
+      } ]
     }
+  }).collect();
+
+  if result.is_empty() {
+    Ok(())
+  } else {
+    Err(result)
+  }
 }
 
-fn match_query_values(key: &String, expected: &Vec<String>, actual: &Vec<String>,
-                      matchers: &MatchingRules) -> Vec<Mismatch> {
-  let mut mismatches = vec![];
+fn match_query_values(key: &String, expected: &Vec<String>, actual: &Vec<String>, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
   if expected.is_empty() && !actual.is_empty() {
-    mismatches.push(Mismatch::QueryMismatch { parameter: key.clone(),
+    Err(vec![ Mismatch::QueryMismatch { parameter: key.clone(),
       expected: format!("{:?}", expected),
       actual: format!("{:?}", actual),
-      mismatch: format!("Expected an empty parameter list for '{}' but received {:?}", key, actual) });
+      mismatch: format!("Expected an empty parameter list for '{}' but received {:?}", key, actual) } ])
   } else {
-    if expected.len() != actual.len() {
-      mismatches.push(Mismatch::QueryMismatch { parameter: key.clone(),
+    let mismatch = if expected.len() != actual.len() {
+      Err(vec![ Mismatch::QueryMismatch { parameter: key.clone(),
         expected: format!("{:?}", expected),
         actual: format!("{:?}", actual),
         mismatch: format!(
           "Expected query parameter '{}' with {} value(s) but received {} value(s)",
-          key, expected.len(), actual.len()) });
-    }
-    compare_query_parameter_values(key, expected, actual, &mut mismatches, matchers);
-  };
-  mismatches
+          key, expected.len(), actual.len()) } ])
+    } else {
+      Ok(())
+    };
+    merge_result(compare_query_parameter_values(key, expected, actual, context), mismatch)
+  }
 }
 
-fn match_query_maps(expected: HashMap<String, Vec<String>>, actual: HashMap<String, Vec<String>>,
-  matchers: &MatchingRules) -> HashMap<String, Vec<Mismatch>> {
+fn match_query_maps(expected: HashMap<String, Vec<String>>, actual: HashMap<String, Vec<String>>, context: &MatchingContext) -> HashMap<String, Vec<Mismatch>> {
   let mut result: HashMap<String, Vec<Mismatch>> = hashmap!{};
   for (key, value) in &expected {
     match actual.get(key) {
       Some(actual_value) => {
-        let matches = match_query_values(key, value, actual_value, matchers);
+        let matches = match_query_values(key, value, actual_value, context);
         let v = result.entry(key.clone()).or_default();
-        v.extend(matches);
+        v.extend(matches.err().unwrap_or_default());
       },
       None => result.entry(key.clone()).or_default().push(Mismatch::QueryMismatch { parameter: key.clone(),
         expected: format!("{:?}", value),
@@ -945,24 +1005,9 @@ fn match_query_maps(expected: HashMap<String, Vec<String>>, actual: HashMap<Stri
 }
 
 /// Matches the actual query parameters to the expected ones.
-#[deprecated(
-  since = "0.6.4",
-  note = "Use the version that returns a match result (match_query_result)"
-)]
-pub fn match_query(expected: Option<HashMap<String, Vec<String>>>,
-                   actual: Option<HashMap<String, Vec<String>>>, mismatches: &mut Vec<Mismatch>,
-                   matchers: &MatchingRules) {
-  let result = match_query_result(expected, actual, matchers);
-  for values in result.values() {
-    mismatches.extend_from_slice(values.as_slice());
-  }
-}
-
-/// Matches the actual query parameters to the expected ones.
-pub fn match_query_result(expected: Option<HashMap<String, Vec<String>>>,
-  actual: Option<HashMap<String, Vec<String>>>, matchers: &MatchingRules) -> HashMap<String, Vec<Mismatch>> {
+pub fn match_query(expected: Option<HashMap<String, Vec<String>>>, actual: Option<HashMap<String, Vec<String>>>, context: &MatchingContext) -> HashMap<String, Vec<Mismatch>> {
   match (actual, expected) {
-    (Some(aqm), Some(eqm)) => match_query_maps(eqm, aqm, matchers),
+    (Some(aqm), Some(eqm)) => match_query_maps(eqm, aqm, context),
     (Some(aqm), None) => aqm.iter().map(|(key, value)| {
       (key.clone(), vec![Mismatch::QueryMismatch { parameter: key.clone(),
         expected: "".to_string(),
@@ -987,7 +1032,7 @@ fn parse_charset_parameters(parameters: &[&str]) -> HashMap<String, String> {
         })
 }
 
-fn match_parameter_header(expected: &str, actual: &str, header: &str, value_type: &str) -> Vec<String> {
+fn match_parameter_header(expected: &str, actual: &str, header: &str, value_type: &str) -> Result<(), Vec<String>> {
   let expected_values: Vec<&str> = strip_whitespace(expected, ";");
   let actual_values: Vec<&str> = strip_whitespace(actual, ";");
   let expected_parameters = expected_values.as_slice().split_first().unwrap();
@@ -1010,37 +1055,36 @@ fn match_parameter_header(expected: &str, actual: &str, header: &str, value_type
   } else {
     mismatches.push(header_mismatch.clone());
   }
-  mismatches
+
+  if mismatches.is_empty() {
+    Ok(())
+  } else {
+    Err(mismatches)
+  }
 }
 
-fn match_header_value(key: &String, expected: &String, actual: &String, matchers: &MatchingRules) -> Vec<Mismatch> {
-  let path = vec![s!("$"), key.clone()];
+fn match_header_value(key: &String, expected: &String, actual: &String, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
+  let path = vec!["$", key.as_str()];
   let expected = strip_whitespace::<String>(expected, ",");
   let actual = strip_whitespace::<String>(actual, ",");
 
-  let matcher_result = if matchers.matcher_is_defined("header", &path) {
-    matchers::match_values("header",&path, matchers.clone(), &expected, &actual)
+  let matcher_result = if context.matcher_is_defined(&path) {
+    matchers::match_values(&path, context, &expected, &actual)
   } else if PARAMETERISED_HEADER_TYPES.contains(&key.to_lowercase().as_str()) {
-    let result = match_parameter_header(&expected, &actual, &key, "header");
-    if result.is_empty() {
-      Ok(())
-    } else {
-      Err(result)
-    }
+    match_parameter_header(&expected, &actual, &key, "header")
   } else {
     expected.matches(&actual, &MatchingRule::Equality).map_err(|err| vec![err])
   };
-  match matcher_result {
-    Err(messages) => messages.iter().map(|message| {
+  matcher_result.map_err(|messages| {
+    messages.iter().map(|message| {
       Mismatch::HeaderMismatch {
         key: key.clone(),
         expected: expected.clone(),
         actual: actual.clone(),
         mismatch: format!("Mismatch with header '{}': {}", key.clone(), message)
       }
-    }).collect(),
-    Ok(_) => vec![]
-  }
+    }).collect()
+  })
 }
 
 fn find_entry<T>(map: &HashMap<String, T>, key: &String) -> Option<(String, T)> where T: Clone {
@@ -1050,14 +1094,13 @@ fn find_entry<T>(map: &HashMap<String, T>, key: &String) -> Option<(String, T)> 
     }
 }
 
-fn match_header_maps(expected: HashMap<String, Vec<String>>, actual: HashMap<String, Vec<String>>,
-  matchers: &MatchingRules) -> HashMap<String, Vec<Mismatch>> {
+fn match_header_maps(expected: HashMap<String, Vec<String>>, actual: HashMap<String, Vec<String>>, context: &MatchingContext) -> HashMap<String, Vec<Mismatch>> {
   let mut result = hashmap!{};
   for (key, value) in &expected {
     match find_entry(&actual, key) {
       Some((_, actual_value)) => for (index, val) in value.iter().enumerate() {
         result.insert(key.clone(), match_header_value(key, val,
-          actual_value.get(index).unwrap_or(&s!("")), matchers));
+          actual_value.get(index).unwrap_or(&String::default()), context).err().unwrap_or_default());
       },
       None => {
         result.insert(key.clone(), vec![Mismatch::HeaderMismatch { key: key.clone(),
@@ -1071,25 +1114,11 @@ fn match_header_maps(expected: HashMap<String, Vec<String>>, actual: HashMap<Str
 }
 
 /// Matches the actual headers to the expected ones.
-#[deprecated(
-  since = "0.6.4",
-  note = "Use the version that returns a match result (match_headers_result)"
-)]
 pub fn match_headers(expected: Option<HashMap<String, Vec<String>>>,
-  actual: Option<HashMap<String, Vec<String>>>, mismatches: &mut Vec<Mismatch>,
-  matchers: &MatchingRules) {
-  let result = match_headers_result(expected, actual, matchers);
-  for values in result.values() {
-    mismatches.extend_from_slice(values.as_slice());
-  }
-}
-
-/// Matches the actual headers to the expected ones.
-pub fn match_headers_result(expected: Option<HashMap<String, Vec<String>>>,
-                            actual: Option<HashMap<String, Vec<String>>>,
-                            matchers: &MatchingRules) -> HashMap<String, Vec<Mismatch>> {
+                     actual: Option<HashMap<String, Vec<String>>>,
+                     context: &MatchingContext) -> HashMap<String, Vec<Mismatch>> {
   match (actual, expected) {
-    (Some(aqm), Some(eqm)) => match_header_maps(eqm, aqm, matchers),
+    (Some(aqm), Some(eqm)) => match_header_maps(eqm, aqm, context),
     (Some(_), None) => hashmap!{},
     (None, Some(eqm)) => eqm.iter().map(|(key, value)| {
       (key.clone(), vec![Mismatch::HeaderMismatch { key: key.clone(),
@@ -1112,19 +1141,18 @@ fn group_by<I, F, K>(items: I, f: F) -> HashMap<K, Vec<I::Item>>
   m
 }
 
-fn compare_bodies(content_type: &ContentType, expected: &dyn models::HttpPart, actual: &dyn models::HttpPart, config: DiffConfig,
-                  matchers: &MatchingRules) -> BodyMatchResult {
+fn compare_bodies(content_type: &ContentType, expected: &dyn models::HttpPart, actual: &dyn models::HttpPart, context: &MatchingContext) -> BodyMatchResult {
   let mut mismatches = vec![];
   match BODY_MATCHERS.iter().find(|mt| mt.0(&content_type)) {
     Some(ref match_fn) => {
       debug!("Using body matcher for content type '{}'", content_type);
-      if let Err(m) = match_fn.1(expected, actual, config, matchers) {
+      if let Err(m) = match_fn.1(expected, actual, &context) {
         mismatches.extend_from_slice(&*m);
       }
     },
     None => {
       debug!("No body matcher defined for content type '{}', using plain text matcher", content_type);
-      match_text(&expected.body().value(), &actual.body().value(), &mut mismatches, matchers);
+      match_text(&expected.body().value(), &actual.body().value(), &context);
     }
   };
   if mismatches.is_empty() {
@@ -1137,8 +1165,7 @@ fn compare_bodies(content_type: &ContentType, expected: &dyn models::HttpPart, a
   }
 }
 
-fn match_body_content(content_type: &ContentType, expected: &dyn models::HttpPart, actual: &dyn models::HttpPart,
-  config: DiffConfig, matchers: &MatchingRules) -> BodyMatchResult {
+fn match_body_content(content_type: &ContentType, expected: &dyn models::HttpPart, actual: &dyn models::HttpPart, context: &MatchingContext) -> BodyMatchResult {
   match (expected.body(), actual.body()) {
     (&models::OptionalBody::Missing, _) => BodyMatchResult::Ok,
     (&models::OptionalBody::Null, &models::OptionalBody::Present(ref b, _)) => {
@@ -1158,31 +1185,18 @@ fn match_body_content(content_type: &ContentType, expected: &dyn models::HttpPar
         mismatch: format!("Expected body '{:?}' but was missing", e.value()),
         path: s!("/")}]})
     },
-    (_, _) => {
-      compare_bodies(content_type, expected, actual, config, matchers)
-    }
+    (_, _) => compare_bodies(content_type, expected, actual, context)
   }
 }
 
 /// Matches the actual body to the expected one. This takes into account the content type of each.
-#[deprecated(
-  since = "0.6.4",
-  note = "Use the version that returns a match result (match_body_result)"
-)]
-pub fn match_body(expected: &dyn models::HttpPart, actual: &dyn models::HttpPart, config: DiffConfig,
-                  mismatches: &mut Vec<Mismatch>, matchers: &MatchingRules) {
-  mismatches.extend_from_slice(match_body_result(expected, actual, config, matchers).mismatches().as_slice());
-}
-
-/// Matches the actual body to the expected one. This takes into account the content type of each.
-pub fn match_body_result(expected: &dyn models::HttpPart, actual: &dyn models::HttpPart, config: DiffConfig,
-                         matchers: &MatchingRules) -> BodyMatchResult {
+pub fn match_body(expected: &dyn models::HttpPart, actual: &dyn models::HttpPart, context: &MatchingContext) -> BodyMatchResult {
   let expected_content_type = expected.content_type().unwrap_or_default();
   let actual_content_type = actual.content_type().unwrap_or_default();
   debug!("expected content type = '{}', actual content type = '{}'", expected_content_type,
          actual_content_type);
   if expected_content_type.is_unknown() || actual_content_type.is_unknown() || expected_content_type.is_equivalent_to(&actual_content_type) {
-    match_body_content(&expected_content_type, expected, actual, config, matchers)
+    match_body_content(&expected_content_type, expected, actual, context)
   } else if expected.body().is_present() {
     BodyMatchResult::BodyTypeMismatch(expected_content_type.to_string(),
       actual_content_type.to_string(),
@@ -1193,52 +1207,27 @@ pub fn match_body_result(expected: &dyn models::HttpPart, actual: &dyn models::H
   }
 }
 
-/// Matches the expected and actual requests.
-#[deprecated(
-  since = "0.6.4",
-  note = "Use the version that returns a match result (match_request_result)"
-)]
-pub fn match_request(expected: models::Request, actual: models::Request) -> Vec<Mismatch> {
-    let mut mismatches = vec![];
-
-  log::info!("comparing to expected {}", expected);
-  log::debug!("     body: '{}'", expected.body.str_value());
-  log::debug!("     matching_rules: {:?}", expected.matching_rules);
-  log::debug!("     generators: {:?}", expected.generators);
-  if let Err(mismatch) = match_method_result(&expected.method, &actual.method) {
-    mismatches.push(mismatch);
-  }
-  if let Err(errors) = match_path_result(&expected.path, &actual.path, &expected.matching_rules) {
-    mismatches.extend_from_slice(&*errors);
-  }
-  mismatches.extend_from_slice(match_body_result(&expected, &actual, DiffConfig::NoUnexpectedKeys, &expected.matching_rules)
-    .mismatches().as_slice());
-  let result = match_query_result(expected.query, actual.query, &expected.matching_rules);
-  for values in result.values() {
-    mismatches.extend_from_slice(values.as_slice());
-  }
-  let result = match_headers_result(expected.headers, actual.headers, &expected.matching_rules);
-  for values in result.values() {
-    mismatches.extend_from_slice(values.as_slice());
-  }
-
-  log::debug!("--> Mismatches: {:?}", mismatches);
-  mismatches
-}
-
 /// Matches the expected and actual requests
-pub fn match_request_result(expected: models::Request, actual: models::Request) -> RequestMatchResult {
+pub fn match_request(expected: models::Request, actual: models::Request) -> RequestMatchResult {
   log::info!("comparing to expected {}", expected);
   log::debug!("     body: '{}'", expected.body.str_value());
   log::debug!("     matching_rules: {:?}", expected.matching_rules);
   log::debug!("     generators: {:?}", expected.generators);
 
+  let path_context = MatchingContext::new(DiffConfig::NoUnexpectedKeys,
+                                          &expected.matching_rules.rules_for_category("path").unwrap_or_default());
+  let body_context = MatchingContext::new(DiffConfig::NoUnexpectedKeys,
+                                          &expected.matching_rules.rules_for_category("body").unwrap_or_default());
+  let query_context = MatchingContext::new(DiffConfig::NoUnexpectedKeys,
+                                          &expected.matching_rules.rules_for_category("query").unwrap_or_default());
+  let header_context = MatchingContext::new(DiffConfig::NoUnexpectedKeys,
+                                          &expected.matching_rules.rules_for_category("header").unwrap_or_default());
   let result = RequestMatchResult {
-    method: match_method_result(&expected.method, &actual.method).err(),
-    path: match_path_result(&expected.path, &actual.path, &expected.matching_rules).err(),
-    body: match_body_result(&expected, &actual, DiffConfig::NoUnexpectedKeys, &expected.matching_rules),
-    query: match_query_result(expected.query, actual.query, &expected.matching_rules),
-    headers: match_headers_result(expected.headers, actual.headers, &expected.matching_rules)
+    method: match_method(&expected.method, &actual.method).err(),
+    path: match_path(&expected.path, &actual.path, &path_context).err(),
+    body: match_body(&expected, &actual, &body_context),
+    query: match_query(expected.query, actual.query, &query_context),
+    headers: match_headers(expected.headers, actual.headers, &header_context)
   };
 
   log::debug!("--> Mismatches: {:?}", result.mismatches());
@@ -1246,18 +1235,7 @@ pub fn match_request_result(expected: models::Request, actual: models::Request) 
 }
 
 /// Matches the actual response status to the expected one.
-#[deprecated(
-  since = "0.7.0",
-  note = "Use the version that returns a match result (match_status_result)"
-)]
-pub fn match_status(expected: u16, actual: u16, mismatches: &mut Vec<Mismatch>) {
-  if expected != actual {
-    mismatches.push(Mismatch::StatusMismatch { expected, actual });
-  }
-}
-
-/// Matches the actual response status to the expected one.
-pub fn match_status_result(expected: u16, actual: u16) -> Result<(), Mismatch> {
+pub fn match_status(expected: u16, actual: u16) -> Result<(), Mismatch> {
   if expected != actual {
     Err(Mismatch::StatusMismatch { expected, actual })
   } else {
@@ -1270,12 +1248,18 @@ pub fn match_response(expected: models::Response, actual: models::Response) -> V
   let mut mismatches = vec![];
 
   log::info!("comparing to expected response: {}", expected);
-  mismatches.extend_from_slice(match_body_result(&expected, &actual, DiffConfig::AllowUnexpectedKeys, &expected.matching_rules)
+
+  let body_context = MatchingContext::new(DiffConfig::NoUnexpectedKeys,
+                                          &expected.matching_rules.rules_for_category("body").unwrap_or_default());
+  let header_context = MatchingContext::new(DiffConfig::NoUnexpectedKeys,
+                                            &expected.matching_rules.rules_for_category("header").unwrap_or_default());
+
+  mismatches.extend_from_slice(match_body(&expected, &actual, &body_context)
     .mismatches().as_slice());
-  if let Err(mismatch) = match_status_result(expected.status, actual.status) {
+  if let Err(mismatch) = match_status(expected.status, actual.status) {
     mismatches.push(mismatch);
   }
-  let result = match_headers_result(expected.headers, actual.headers, &expected.matching_rules);
+  let result = match_headers(expected.headers, actual.headers, &header_context);
   for values in result.values() {
     mismatches.extend_from_slice(values.as_slice());
   }
@@ -1287,54 +1271,50 @@ pub fn match_response(expected: models::Response, actual: models::Response) -> V
 pub fn match_message_contents(
   expected: &models::message::Message,
   actual: &models::message::Message,
-  config: DiffConfig,
-  matchers: &MatchingRules
-) -> Vec<Mismatch> {
-  let mut mismatches = vec![];
+  context: &MatchingContext
+) -> Result<(), Vec<Mismatch>> {
   let expected_content_type = expected.content_type().unwrap_or_default();
   let actual_content_type = actual.content_type().unwrap_or_default();
   debug!("expected content type = '{}', actual content type = '{}'", expected_content_type,
          actual_content_type);
   if expected_content_type.is_equivalent_to(&actual_content_type) {
-    match match_body_content(&expected_content_type, expected, actual, config, matchers) {
+    match match_body_content(&expected_content_type, expected, actual, context) {
       BodyMatchResult::BodyTypeMismatch(expected, actual, message) => {
-        mismatches.push(Mismatch::BodyTypeMismatch {
+        Err(vec![ Mismatch::BodyTypeMismatch {
           expected, actual, mismatch: message,
-        });
+        } ])
       },
       BodyMatchResult::BodyMismatches(results) => {
-        for values in results.values() {
-          mismatches.extend_from_slice(values.as_slice());
-        }
+        Err(results.values().flat_map(|values| values.iter().cloned()).collect())
       },
-      _ => ()
-    };
+      _ => Ok(())
+    }
   } else if expected.contents.is_present() {
-    mismatches.push(Mismatch::BodyTypeMismatch {
+    Err(vec![ Mismatch::BodyTypeMismatch {
       expected: expected_content_type.to_string(),
       actual: actual_content_type.to_string(),
       mismatch: format!("Expected message with content type {} but was {}",
                         expected_content_type, actual_content_type),
-    });
+    } ])
+  } else {
+    Ok(())
   }
-  mismatches
 }
 
 /// Matches the actual message metadata to the expected one.
 pub fn match_message_metadata(
   expected: &models::message::Message,
   actual: &models::message::Message,
-  config: DiffConfig,
-  matchers: &MatchingRules
+  context: &MatchingContext
 ) -> HashMap<String, Vec<Mismatch>> {
   debug!("Matching message metadata for '{}'", expected.description);
   let mut result = hashmap!{};
-  if !expected.metadata.is_empty() || config == DiffConfig::NoUnexpectedKeys {
+  if !expected.metadata.is_empty() || context.config == DiffConfig::NoUnexpectedKeys {
     for (key, value) in &expected.metadata {
       match actual.metadata.get(key) {
         Some(actual_value) => {
           result.insert(key.clone(), match_metadata_value(key, value,
-            actual_value, matchers));
+            actual_value, context).err().unwrap_or_default());
         },
         None => {
           result.insert(key.clone(), vec![Mismatch::MetadataMismatch { key: key.clone(),
@@ -1348,33 +1328,27 @@ pub fn match_message_metadata(
   result
 }
 
-fn match_metadata_value(key: &str, expected: &str, actual: &str, matchers: &MatchingRules) -> Vec<Mismatch> {
+fn match_metadata_value(key: &str, expected: &str, actual: &str, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
   debug!("Comparing metadata values for key '{}'", key);
-  let path = vec![key.to_string()];
-  let matcher_result = if matchers.matcher_is_defined("metadata", &path) {
-    matchers::match_values("metadata", &path, matchers.clone(), &expected.to_string(), &actual.to_string())
+  let path = vec![key];
+  let matcher_result = if context.matcher_is_defined(&path) {
+    matchers::match_values(&path, context, &expected.to_string(), &actual.to_string())
   } else if key.to_ascii_lowercase() == "contenttype" || key.to_ascii_lowercase() == "content-type" {
     debug!("Comparing message context type '{}' => '{}'", expected, actual);
-    let match_result= match_parameter_header(expected, actual, key, "metadata");
-    if match_result.is_empty() {
-      Ok(())
-    } else {
-      Err(match_result)
-    }
+    match_parameter_header(expected, actual, key, "metadata")
   } else {
     expected.to_string().matches(&actual.to_string(), &MatchingRule::Equality).map_err(|err| vec![err])
   };
-  match matcher_result {
-    Err(messages) => messages.iter().map(|message| {
+  matcher_result.map_err(|messages| {
+    messages.iter().map(|message| {
       Mismatch::MetadataMismatch {
         key: key.to_string(),
         expected: expected.to_string(),
         actual: actual.to_string(),
         mismatch: format!("Expected metadata key '{}' to have value '{}' but was '{}' - {}", key, expected, actual, message)
       }
-    }).collect(),
-    Ok(_) => vec![]
-  }
+    }).collect()
+  })
 }
 
 /// Matches the actual and expected messages.
@@ -1382,8 +1356,12 @@ pub fn match_message(expected: &models::message::Message, actual: &models::messa
   let mut mismatches = vec![];
 
   log::info!("comparing to expected message: {:?}", expected);
-  mismatches.extend_from_slice(match_message_contents(expected, actual, DiffConfig::AllowUnexpectedKeys, &expected.matching_rules).as_slice());
-  for values in match_message_metadata(expected, actual, DiffConfig::AllowUnexpectedKeys, &expected.matching_rules).values() {
+  let body_context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
+                                          &expected.matching_rules.rules_for_category("body").unwrap_or_default());
+  let metadata_context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
+                                            &expected.matching_rules.rules_for_category("metadata").unwrap_or_default());
+  mismatches.extend_from_slice(match_message_contents(expected, actual, &body_context).err().unwrap_or_default().as_slice());
+  for values in match_message_metadata(expected, actual, &metadata_context).values() {
     mismatches.extend_from_slice(values.as_slice());
   }
 

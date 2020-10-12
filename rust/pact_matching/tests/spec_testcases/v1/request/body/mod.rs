@@ -5,7 +5,7 @@ use pact_matching::models::PactSpecification;
 #[allow(unused_imports)]
 use pact_matching::models::Request;
 #[allow(unused_imports)]
-use pact_matching::match_request_result;
+use pact_matching::match_request;
 #[allow(unused_imports)]
 use expectest::prelude::*;
 #[allow(unused_imports)]
@@ -50,7 +50,7 @@ fn unexpected_index_with_not_null_value() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -99,7 +99,7 @@ fn unexpected_key_with_null_value() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -147,7 +147,7 @@ fn different_value_found_at_key() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -195,7 +195,7 @@ fn not_null_found_at_key_when_null_expected() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -243,7 +243,7 @@ fn number_found_in_array_when_string_expected() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -291,7 +291,7 @@ fn array_in_different_order() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -331,7 +331,7 @@ fn plain_text_that_matches() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -379,7 +379,7 @@ fn string_found_in_array_when_number_expected() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -427,7 +427,7 @@ fn not_null_found_in_array_when_null_expected() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -475,7 +475,7 @@ fn different_value_found_at_index() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -523,7 +523,7 @@ fn number_found_at_key_when_string_expected() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -571,7 +571,7 @@ fn missing_index() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -619,7 +619,7 @@ fn null_found_in_array_when_not_null_expected() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -667,7 +667,7 @@ fn unexpected_index_with_null_value() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -716,7 +716,7 @@ fn unexpected_key_with_not_null_value() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -764,7 +764,7 @@ fn string_found_at_key_when_number_expected() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -813,7 +813,7 @@ fn missing_key() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -865,7 +865,7 @@ fn matches() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -913,7 +913,7 @@ fn null_found_at_key_where_not_null_expected() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -953,7 +953,7 @@ fn plain_text_that_does_not_match() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());

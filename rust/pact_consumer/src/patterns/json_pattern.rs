@@ -1,6 +1,6 @@
 //! Our `JsonPattern` type and supporting code.
 
-use pact_matching::models::matchingrules::Category;
+use pact_matching::models::matchingrules::MatchingRuleCategory;
 use std::borrow::Cow;
 use std::collections::HashMap as Map;
 use std::iter::FromIterator;
@@ -72,7 +72,7 @@ impl Pattern for JsonPattern {
         }
     }
 
-    fn extract_matching_rules(&self, path: &str, rules_out: &mut Category) {
+    fn extract_matching_rules(&self, path: &str, rules_out: &mut MatchingRuleCategory) {
         match *self {
             JsonPattern::Json(_) => {}
             JsonPattern::Array(ref arr) => {
@@ -125,7 +125,7 @@ fn json_pattern_is_pattern() {
         s!("$.body.simple") => json!({ "match": "type" }),
         s!("$.body.array[0]") => json!({ "match": "type" })
     );
-    let mut rules = Category::default("body");
+    let mut rules = MatchingRuleCategory::default("body");
     pattern.extract_matching_rules("$", &mut rules);
     assert_eq!(rules.to_v2_json(), expected_rules);
 }

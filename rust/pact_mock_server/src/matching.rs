@@ -101,7 +101,7 @@ fn mismatches_to_json(request: &Request, mismatches: &Vec<Mismatch>) -> serde_js
 pub fn match_request(req: &Request, interactions: &Vec<RequestResponseInteraction>) -> MatchResult {
   let mut match_results = interactions
     .into_iter()
-    .map(|i| (i.clone(), pact_matching::match_request_result(i.request.clone(), req.clone())))
+    .map(|i| (i.clone(), pact_matching::match_request(i.request.clone(), req.clone())))
     .sorted_by(|(_, i1), (_, i2)| {
       Ord::cmp(&i2.score(), &i1.score())
     });

@@ -8,10 +8,10 @@ use base64::decode;
 use log::*;
 use serde_json::{json, Value};
 
-use crate::json::value_of;
 use crate::models::{detect_content_type_from_bytes, generators, headers_from_json, matchingrules, OptionalBody, PactSpecification, query_to_json, Request, Response, v3_query_from_json};
 use crate::models::content_types::ContentType;
 use crate::models::v4::calc_content_type;
+use crate::models::json_utils::json_to_string;
 
 /// Struct that defines the HTTP request.
 #[derive(Debug, Clone, Eq)]
@@ -163,7 +163,7 @@ pub(crate) fn body_from_json(json: &Value, attr_name: &str, headers: &Option<Has
           Some(body_contents) => {
             let content_type = match body_attrs.get("contentType") {
               Some(v) => {
-                let content_type_str = value_of(v);
+                let content_type_str = json_to_string(v);
                 match ContentType::parse(&*content_type_str) {
                   Ok(ct) => Some(ct),
                   Err(err) => {
@@ -204,22 +204,22 @@ pub(crate) fn body_from_json(json: &Value, attr_name: &str, headers: &Option<Has
             let body_bytes = if encoded {
               match encoding.as_str() {
                 "base64" => {
-                  match decode(value_of(body_contents)) {
+                  match decode(json_to_string(body_contents)) {
                     Ok(bytes) => bytes,
                     Err(err) => {
                       warn!("Failed to decode base64 encoded body - {}", err);
-                      value_of(body_contents).into()
+                      json_to_string(body_contents).into()
                     }
                   }
                 },
                 "json" => body_contents.to_string().into(),
                 _ => {
                   warn!("Unrecognised body encoding scheme '{}', will use the raw body", encoding);
-                  value_of(body_contents).into()
+                  json_to_string(body_contents).into()
                 }
               }
             } else {
-              value_of(body_contents).into()
+              json_to_string(body_contents).into()
             };
 
             if body_bytes.is_empty() {

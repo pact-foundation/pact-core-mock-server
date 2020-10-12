@@ -12,7 +12,6 @@ use maplit::*;
 use nom::lib::std::fmt::Formatter;
 use serde_json::{json, Value};
 
-use crate::json::value_of;
 use crate::models::{Consumer, generators, Interaction, matchingrules, OptionalBody, Pact, PactSpecification, Provider, provider_states, RequestResponseInteraction, RequestResponsePact, VERSION, detect_content_type_from_bytes};
 use crate::models::content_types::ContentType;
 use crate::models::json_utils::{json_to_string, hash_json};
@@ -469,8 +468,8 @@ fn interaction_from_json(source: &str, index: usize, ijson: &Value) -> Option<V4
   match ijson.get("type") {
     Some(i_type) => match V4InteractionType::from_str(json_to_string(i_type).as_str()) {
       Ok(i_type) => {
-        let id = ijson.get("_id").map(|id| value_of(id));
-        let key = ijson.get("key").map(|id| value_of(id));
+        let id = ijson.get("_id").map(|id| json_to_string(id));
+        let key = ijson.get("key").map(|id| json_to_string(id));
         let description = match ijson.get("description") {
           Some(v) => match *v {
             Value::String(ref s) => s.clone(),

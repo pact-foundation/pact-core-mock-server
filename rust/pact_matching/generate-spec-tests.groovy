@@ -20,7 +20,7 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
       pw.println('#[allow(unused_imports)]')
       pw.println('use pact_matching::models::Request;')
       pw.println('#[allow(unused_imports)]')
-      pw.println('use pact_matching::match_request_result;')
+      pw.println('use pact_matching::match_request;')
       pw.println('#[allow(unused_imports)]')
       pw.println('use expectest::prelude::*;')
       pw.println('#[allow(unused_imports)]')
@@ -70,7 +70,7 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
         |    println!("ACTUAL: {}", actual);
         |    println!("BODY: {}", actual.body.str_value());
         |    let pact_match = pact.get("match").unwrap();
-        |    let result = match_request_result(expected, actual).mismatches();
+        |    let result = match_request(expected, actual).mismatches();
         |    println!("RESULT: {:?}", result);
         |    if pact_match.as_bool().unwrap() {
         |       expect!(result.iter()).to(be_empty());

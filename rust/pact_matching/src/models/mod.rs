@@ -33,8 +33,7 @@ use crate::models::message::Message;
 use crate::models::message_pact::MessagePact;
 use crate::models::provider_states::ProviderState;
 use crate::models::v4::V4Pact;
-
-use super::json::value_of;
+use crate::models::json_utils::json_to_string;
 
 pub mod json_utils;
 pub mod xml_utils;
@@ -1100,7 +1099,7 @@ impl Interaction for RequestResponseInteraction {
 impl RequestResponseInteraction {
     /// Constructs an `Interaction` from the `Value` struct.
     pub fn from_json(index: usize, pact_json: &Value, spec_version: &PactSpecification) -> RequestResponseInteraction {
-        let id = pact_json.get("_id").map(|id| value_of(id));
+        let id = pact_json.get("_id").map(|id| json_to_string(id));
         let description = match pact_json.get("description") {
             Some(v) => match *v {
                 Value::String(ref s) => s.clone(),

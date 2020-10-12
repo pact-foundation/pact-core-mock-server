@@ -5,7 +5,7 @@ use pact_matching::models::PactSpecification;
 #[allow(unused_imports)]
 use pact_matching::models::Request;
 #[allow(unused_imports)]
-use pact_matching::match_request_result;
+use pact_matching::match_request;
 #[allow(unused_imports)]
 use expectest::prelude::*;
 #[allow(unused_imports)]
@@ -42,7 +42,7 @@ fn trailing_ampersand() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -82,7 +82,7 @@ fn unexpected_param() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -122,7 +122,7 @@ fn different_params() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -162,7 +162,7 @@ fn same_parameter_different_values() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -202,7 +202,7 @@ fn matches_with_equals_in_the_query_value() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -242,7 +242,7 @@ fn missing_params() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -281,7 +281,7 @@ fn same_parameter_multiple_times_in_different_order() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -321,7 +321,7 @@ fn different_order() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -360,7 +360,7 @@ fn same_parameter_multiple_times() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -400,7 +400,7 @@ fn matches() {
     println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_request(expected, actual).mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());

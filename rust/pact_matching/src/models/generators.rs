@@ -489,7 +489,7 @@ impl ContentTypeHandler<Value> for JsonHandler {
   }
 
   fn apply_key(&mut self, key: &String, generator: &Generator, context: &HashMap<String, Value>) {
-    match parse_path_exp(key.clone()) {
+    match parse_path_exp(key) {
       Ok(path_exp) => {
         let mut tree = Arena::new();
         let root = tree.new_node("".into());
