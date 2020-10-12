@@ -15,6 +15,12 @@ impl Matches<String> for String {
   }
 }
 
+impl Matches<&str> for &str {
+  fn matches(&self, actual: &&str, matcher: &MatchingRule) -> Result<(), String> {
+    self.to_string().matches(actual, matcher)
+  }
+}
+
 impl Matches<&str> for String {
   fn matches(&self, actual: &&str, matcher: &MatchingRule) -> Result<(), String> {
     log::debug!("String -> String: comparing '{}' to '{}' using {:?}", self, actual, matcher);
@@ -315,7 +321,9 @@ pub fn match_values<E, A>(path: &Vec<&str>, context: &MatchingContext, expected:
     match matching_rules {
         None => Err(vec![format!("No matcher found for path '{}'", path.iter().join("."))]),
         Some(ref rulelist) => {
-          let results = rulelist.rules.iter().map(|rule| expected.matches(actual, rule)).collect::<Vec<Result<(), String>>>();
+          let results = rulelist.rules.iter().map(|rule| {
+            expected.matches(actual, rule)
+          }).collect::<Vec<Result<(), String>>>();
           match rulelist.rule_logic {
             RuleLogic::And => {
               if results.iter().all(|result| result.is_ok()) {

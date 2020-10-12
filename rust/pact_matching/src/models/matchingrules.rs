@@ -4,23 +4,23 @@ use std::{
   collections::{BTreeSet, HashMap, HashSet},
   hash::{Hash, Hasher}
 };
+use std::fmt::{Debug, Display};
 #[allow(unused_imports)] // FromStr is actually used
 use std::str::FromStr;
 
 use log::*;
 use maplit::*;
+use onig::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{self, json, Value};
 use serde_json::map::Map;
 
+use crate::{MatchingContext, merge_result, Mismatch, DiffConfig};
+use crate::matchers::{match_values, Matches};
 use crate::models::json_utils::{json_to_num, json_to_string};
 use crate::path_exp::*;
 
 use super::PactSpecification;
-use crate::{MatchingContext, Mismatch, merge_result};
-use std::fmt::{Display, Debug};
-use crate::matchers::{match_values, Matches};
-use onig::Regex;
 
 fn matches_token(path_fragment: &str, path_token: &PathToken) -> usize {
   match path_token {
@@ -72,9 +72,22 @@ pub(crate) fn path_length(path_exp: &str) -> usize {
   }
 }
 
-impl <T: Debug + PartialEq> Matches<Vec<T>> for Vec<T> {
+impl <T: Debug + Display + PartialEq> Matches<Vec<T>> for Vec<T> {
   fn matches(&self, actual: &Vec<T>, matcher: &MatchingRule) -> Result<(), String> {
     let result = match *matcher {
+      MatchingRule::Regex(ref regex) => {
+        match Regex::new(regex) {
+          Ok(re) => {
+            let text: String = actual.iter().map(|v| v.to_string()).collect();
+            if re.is_match(text.as_str()) {
+              Ok(())
+            } else {
+              Err(format!("Expected '{}' to match '{}'", text, regex))
+            }
+          }
+          Err(err) => Err(format!("'{}' is not a valid regular expression - {}", regex, err))
+        }
+      }
       MatchingRule::Type => Ok(()),
       MatchingRule::MinType(min) => {
         if actual.len() < min {
@@ -113,7 +126,7 @@ impl <T: Debug + PartialEq> Matches<Vec<T>> for Vec<T> {
   }
 }
 
-trait DisplayForMismatch {
+pub trait DisplayForMismatch {
   fn for_mismatch(&self) -> String;
 }
 
@@ -351,6 +364,7 @@ impl MatchingRule {
         }
       }
     } else {
+      result = merge_result(result, context.match_keys(path, &expected, &actual));
       for (key, value) in expected.iter() {
         if actual.contains_key(key) {
           let mut p = path.to_vec();

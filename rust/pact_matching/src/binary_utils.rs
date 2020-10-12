@@ -502,7 +502,8 @@ mod tests {
       body: OptionalBody::Present(actual_body.as_bytes().to_vec(), None),
       ..Request::default()
     };
-    let context = MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys);
+    let context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
+      &expected.matching_rules.rules_for_category("body").unwrap());
 
     let result = match_mime_multipart(&expected, &actual, &context);
 
@@ -601,7 +602,8 @@ mod tests {
       body: OptionalBody::Present(actual_body, None),
       ..Request::default()
     };
-    let context = MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys);
+    let context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
+      &expected.matching_rules.rules_for_category("body").unwrap());
 
     let result = match_mime_multipart(&expected, &actual, &context);
 
@@ -649,13 +651,14 @@ mod tests {
       body: OptionalBody::Present(actual_body.as_bytes().to_vec(), None),
       ..Request::default()
     };
-    let context = MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys);
+    let context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
+      &expected.matching_rules.rules_for_category("body").unwrap());
 
     let result = match_mime_multipart(&expected, &actual, &context);
 
     let mismatches = result.unwrap_err();
     expect!(mismatches.iter().map(|m| mismatch(m)).collect::<Vec<&str>>()).to(be_equal_to(vec![
-      "Expected binary contents to have content type 'application/jpeg' but detected contents was 'text/plain'"
+      "MIME part \'file\': Expected binary contents to have content type \'application/jpeg\' but detected contents was \'text/plain\'"
     ]));
   }
 }

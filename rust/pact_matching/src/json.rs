@@ -338,48 +338,27 @@ fn compare_maps(path: &Vec<&str>, expected: &serde_json::Map<String, Value>, act
       mismatch: format!("Expected an empty Map but received {}", json_to_string(&json!(actual))),
     } ])
   } else {
-    let expected_keys: Vec<String> = expected.keys().cloned().collect();
-    let actual_keys: Vec<String> = actual.keys().cloned().collect();
-    let missing_keys: Vec<String> = expected.keys().filter(|key| !actual.contains_key(*key)).cloned().collect();
-    let mut result = match &context.config {
-      DiffConfig::AllowUnexpectedKeys if !missing_keys.is_empty() => {
-        Err(vec![ Mismatch::BodyMismatch {
-          path: path.join("."),
-          expected: Some(json_to_string(&json!(expected)).into()),
-          actual: Some(json_to_string(&json!(&actual)).into()),
-          mismatch: format!("Actual map is missing the following keys: {}", missing_keys.join(", ")),
-        }])
-      }
-      DiffConfig::NoUnexpectedKeys if expected_keys != actual_keys => {
-        Err(vec![ Mismatch::BodyMismatch {
-          path: path.join("."),
-          expected: Some(json_to_string(&json!(expected)).into()),
-          actual: Some(json_to_string(&json!(&actual)).into()),
-          mismatch: format!("Expected a Map with {} keys but received one with {} keys",
-                            expected_keys.join(", "), actual_keys.join(", ")),
-        }])
-      }
-      _ => Ok(())
-    };
+    let mut result = Ok(());
+    let expected = expected.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+    let actual = actual.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
 
     if context.matcher_is_defined(path) {
       for matcher in context.select_best_matcher(path).unwrap().rules {
         let matcher_context = matcher.matcher_context(path, &context);
         context_stack.push(context.clone());
-        let expected = expected.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
-        let actual = actual.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
         result = merge_result(result,matcher.compare_maps(path, &expected, &actual, &matcher_context, &mut |p, expected, actual| {
           compare(&p, expected, actual, &matcher_context, context_stack)
         }));
         context_stack.pop();
       }
     } else {
+      result = merge_result(result, context.match_keys(path, &expected, &actual));
       for (key, value) in expected.iter() {
+        let mut p = path.to_vec();
+        p.push(key.as_str());
         if actual.contains_key(key) {
-          let mut p = path.to_vec();
-          p.push(key.as_str());
           result = merge_result(result, compare(&p, value, &actual[key], context, context_stack));
-        } else {
+        } else if !context.wildcard_matcher_is_defined(&p) {
           result = merge_result(result, Err(vec![ Mismatch::BodyMismatch {
             path: path.join("."),
             expected: Some(json_to_string(&json!(expected)).into()),
@@ -694,10 +673,11 @@ mod tests {
     expect!(result).to(be_ok());
 
     let result = match_json(&val2.clone(), &val4.clone(), &MatchingContext::with_config(DiffConfig::NoUnexpectedKeys));
-    expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected a Map with 2 elements but received 3 elements")));
+    expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected a Map with keys a, b but received one with keys a, b, c")));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch { path: s!("$"),
-        expected: Some("{\"a\":1,\"b\":2}".into()),
-        actual: Some("{\"a\":1,\"b\":2,\"c\":3}".into()), mismatch: s!("") } ]));
+        expected: Some("{\"a\":\"1\",\"b\":\"2\"}".into()),
+        actual: Some("{\"a\":\"1\",\"b\":\"2\",\"c\":\"3\"}".into()), mismatch: "Expected a Map with keys a, b but received one with keys a, b, c".to_string()
+    } ]));
 
     let result = match_json(&val3.clone(), &val4.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected '3' to be equal to '2'")));
@@ -710,9 +690,9 @@ mod tests {
     expect!(mismatches.iter()).to(have_count(2));
     let mismatch = mismatches[0].clone();
     expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$"),
-        expected: Some("{\"a\":1,\"b\":3}".into()),
-        actual: Some("{\"a\":1,\"b\":2,\"c\":3}".into()), mismatch: s!("")}));
-    expect!(mismatch.description()).to(be_equal_to(s!("$ -> Expected a Map with keys 'a', 'b' elements but received 'a', 'b', 'c' keys")));
+        expected: Some("{\"a\":\"1\",\"b\":\"3\"}".into()),
+        actual: Some("{\"a\":\"1\",\"b\":\"2\",\"c\":\"3\"}".into()), mismatch: s!("")}));
+    expect!(mismatch.description()).to(be_equal_to(s!("$ -> Expected a Map with keys a, b but received one with keys a, b, c")));
     let mismatch = mismatches[1].clone();
     expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.b"),
         expected: Some("3".into()),
@@ -724,9 +704,9 @@ mod tests {
     expect!(mismatches.iter()).to(have_count(2));
     let mismatch = mismatches[0].clone();
     expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$"),
-        expected: Some("{\"a\":1,\"b\":2,\"c\":3}".into()),
-        actual: Some("{\"a\":1,\"b\":2}".into()), mismatch: s!("")}));
-    expect!(mismatch.description()).to(be_equal_to(s!("$ -> Expected a Map with at least 'a', 'b', 'c' keys but received 'a', 'b' keys")));
+        expected: Some("{\"a\":\"1\",\"b\":\"2\",\"c\":\"3\"}".into()),
+        actual: Some("{\"a\":\"1\",\"b\":\"2\"}".into()), mismatch: s!("")}));
+    expect!(mismatch.description()).to(be_equal_to(s!("$ -> Actual map is missing the following keys: c")));
     let mismatch = mismatches[1].clone();
     expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$"),
         expected: Some("{\"a\":1,\"b\":2,\"c\":3}".into()),
@@ -845,44 +825,44 @@ mod tests {
   fn compare_maps_handles_wildcard_matchers() {
     let val1 = request!(r#"
     {
-        "articles": [
-            {
-                "variants": {
-                    "001": {
-                        "bundles": {
-                            "001-A": {
-                                "description": "someDescription",
-                                "referencedArticles": [
-                                    {
-                                        "bundleId": "someId"
-                                    }
-                                ]
-                            }
-                        }
+      "articles": [
+        {
+          "variants": {
+            "001": {
+              "bundles": {
+                "001-A": {
+                  "description": "someDescription",
+                  "referencedArticles": [
+                    {
+                        "bundleId": "someId"
                     }
+                  ]
                 }
+              }
             }
-        ]
+          }
+        }
+      ]
     }"#);
     let val2 = request!(r#"{
-        "articles": [
-            {
-                "variants": {
-                    "002": {
-                        "bundles": {
-                            "002-A": {
-                                "description": "someDescription",
-                                "referencedArticles": [
-                                    {
-                                        "bundleId": "someId"
-                                    }
-                                ]
-                            }
-                        }
+      "articles": [
+        {
+          "variants": {
+            "002": {
+              "bundles": {
+                "002-A": {
+                  "description": "someDescription",
+                  "referencedArticles": [
+                    {
+                        "bundleId": "someId"
                     }
+                  ]
                 }
+              }
             }
-        ]
+          }
+        }
+      ]
     }"#);
 
     let result = match_json(&val1, &val2, &MatchingContext::new(DiffConfig::AllowUnexpectedKeys, &matchingrules!{

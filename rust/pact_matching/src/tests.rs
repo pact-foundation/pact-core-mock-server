@@ -36,7 +36,7 @@ fn match_query_returns_nothing_if_there_are_no_query_strings() {
   let expected = None;
   let actual = None;
   let result = match_query(expected, actual, &MatchingContext::default());
-  expect!(result.values()).to(be_empty());
+  expect!(result.values().flatten()).to(be_empty());
 }
 
 #[test]
@@ -51,7 +51,7 @@ fn match_query_applies_matching_rules_when_param_has_an_underscore() {
     &rules.rules_for_category("query").unwrap_or_default()
   );
   let result = match_query(Some(expected), Some(actual), &context);
-  expect!(result.values()).to(be_empty());
+  expect!(result.values().flatten()).to(be_empty());
 }
 
 #[test]
@@ -197,14 +197,14 @@ fn match_query_returns_a_mismatch_if_the_values_are_not_the_same() {
 
 #[test]
 fn matching_headers_be_true_when_headers_are_equal() {
-  let mismatches = match_header_value(&s!("HEADER"), &s!("HEADER"), &s!("HEADER"),
+  let mismatches = match_header_value("HEADER", "HEADER", "HEADER",
                                       &MatchingContext::default());
-  expect!(mismatches.iter()).to(be_empty());
+  expect!(mismatches).to(be_ok());
 }
 
 #[test]
 fn matching_headers_be_false_when_headers_are_not_equal() {
-  let mismatches = match_header_value(&s!("HEADER"), &s!("HEADER"), &s!("HEADER2"),
+  let mismatches = match_header_value("HEADER", "HEADER", "HEADER2",
                                       &MatchingContext::default()).unwrap_err();
   expect!(mismatches.iter()).to_not(be_empty());
   assert_eq!(mismatches[0], Mismatch::HeaderMismatch {
@@ -217,7 +217,7 @@ fn matching_headers_be_false_when_headers_are_not_equal() {
 
 #[test]
 fn mismatch_message_generated_when_headers_are_not_equal() {
-  let mismatches = match_header_value(&s!("HEADER"), &s!("HEADER_VALUE"), &s!("HEADER2"),
+  let mismatches = match_header_value("HEADER", "HEADER_VALUE", "HEADER2",
                                       &MatchingContext::default());
 
   match mismatches.unwrap_err()[0] {
@@ -229,70 +229,70 @@ fn mismatch_message_generated_when_headers_are_not_equal() {
 
 #[test]
 fn matching_headers_exclude_whitespaces() {
-  let mismatches = match_header_value(&s!("HEADER"), &s!("HEADER1, HEADER2,   3"),
-                                      &s!("HEADER1,HEADER2,3"), &MatchingContext::default());
+  let mismatches = match_header_value("HEADER", "HEADER1, HEADER2,   3",
+                                      "HEADER1,HEADER2,3", &MatchingContext::default());
   expect!(mismatches).to(be_ok());
 }
 
 #[test]
 fn matching_headers_includes_whitespaces_within_a_value() {
-  let mismatches = match_header_value(&s!("HEADER"), &s!("HEADER 1, \tHEADER 2,\n3"),
-                                      &s!("HEADER 1,HEADER 2,3"), &MatchingContext::default());
+  let mismatches = match_header_value("HEADER", "HEADER 1, \tHEADER 2,\n3",
+                                      "HEADER 1,HEADER 2,3", &MatchingContext::default());
   expect!(mismatches).to(be_ok());
 }
 
 #[test]
 fn content_type_header_matches_when_headers_are_equal() {
-  let mismatches = match_header_value(&s!("CONTENT-TYPE"), &s!("application/json;charset=UTF-8"),
-                                      &s!("application/json; charset=UTF-8"), &MatchingContext::default());
+  let mismatches = match_header_value("CONTENT-TYPE", "application/json;charset=UTF-8",
+                                      "application/json; charset=UTF-8", &MatchingContext::default());
   expect!(mismatches).to(be_ok());
 }
 
 #[test]
 fn content_type_header_does_not_match_when_headers_are_not_equal() {
-  let mismatches = match_header_value(&s!("CONTENT-TYPE"), &s!("application/pdf;charset=UTF-8"),
-                                      &s!("application/json;charset=UTF-8"), &MatchingContext::default());
-  expect!(mismatches).to(be_ok());
+  let mismatches = match_header_value("CONTENT-TYPE", "application/pdf;charset=UTF-8",
+                                      "application/json;charset=UTF-8", &MatchingContext::default());
+  expect!(mismatches).to(be_err());
 }
 
 #[test]
 fn content_type_header_does_not_match_when_expected_is_empty() {
-  let mismatches = match_header_value(&s!("CONTENT-TYPE"), &s!(""),
-                                      &s!("application/json;charset=UTF-8"), &MatchingContext::default());
-  expect!(mismatches).to(be_ok());
+  let mismatches = match_header_value("CONTENT-TYPE", "",
+                                      "application/json;charset=UTF-8", &MatchingContext::default());
+  expect!(mismatches).to(be_err());
 }
 
 #[test]
 fn content_type_header_does_not_match_when_actual_is_empty() {
-  let mismatches = match_header_value(&s!("CONTENT-TYPE"), &s!("application/pdf;charset=UTF-8"),
-                                      &s!(""), &MatchingContext::default());
-  expect!(mismatches).to(be_ok());
+  let mismatches = match_header_value("CONTENT-TYPE", "application/pdf;charset=UTF-8",
+                                      "", &MatchingContext::default());
+  expect!(mismatches).to(be_err());
 }
 
 #[test]
 fn content_type_header_does_not_match_when_charsets_are_not_equal() {
-  let mismatches = match_header_value(&s!("CONTENT-TYPE"), &s!("application/json;charset=UTF-8"),
-                                      &s!("application/json;charset=UTF-16"), &MatchingContext::default());
-  expect!(mismatches).to(be_ok());
+  let mismatches = match_header_value("CONTENT-TYPE", "application/json;charset=UTF-8",
+                                      "application/json;charset=UTF-16", &MatchingContext::default());
+  expect!(mismatches).to(be_err());
 }
 
 #[test]
 fn content_type_header_does_not_match_when_charsets_other_parameters_not_equal() {
-  let mismatches = match_header_value(&s!("CONTENT-TYPE"), &s!("application/json;declaration=\"<950118.AEB0@XIson.com>\""),
-                                      &s!("application/json;charset=UTF-8"), &MatchingContext::default());
-  expect!(mismatches).to(be_ok());
+  let mismatches = match_header_value("CONTENT-TYPE", "application/json;declaration=\"<950118.AEB0@XIson.com>\"",
+                                      "application/json;charset=UTF-8", &MatchingContext::default());
+  expect!(mismatches).to(be_err());
 }
 
 #[test]
 fn content_type_header_does_match_when_charsets_is_missing_from_expected_header() {
-  let mismatches = match_header_value(&s!("CONTENT-TYPE"), &s!("application/json"),
-                                      &s!("application/json;charset=UTF-8"), &MatchingContext::default());
+  let mismatches = match_header_value("CONTENT-TYPE", "application/json",
+                                      "application/json;charset=UTF-8", &MatchingContext::default());
   expect!(mismatches).to(be_ok());
 }
 
 #[test]
 fn mismatched_header_description_reports_content_type_mismatches_correctly() {
-  let mismatches = match_header_value(&s!("CONTENT-TYPE"), &s!("CONTENT-TYPE-VALUE"), &s!("HEADER2"),
+  let mismatches = match_header_value("CONTENT-TYPE", "CONTENT-TYPE-VALUE", "HEADER2",
                                       &MatchingContext::default());
 
   match mismatches.unwrap_err()[0] {
@@ -304,35 +304,35 @@ fn mismatched_header_description_reports_content_type_mismatches_correctly() {
 
 #[test]
 fn accept_header_matches_when_headers_are_equal() {
-  let mismatches = match_header_value(&s!("ACCEPT"), &s!("application/hal+json;charset=utf-8"),
-                                      &s!("application/hal+json;charset=utf-8"), &MatchingContext::default());
+  let mismatches = match_header_value("ACCEPT", "application/hal+json;charset=utf-8",
+                                      "application/hal+json;charset=utf-8", &MatchingContext::default());
   expect!(mismatches).to(be_ok());
 }
 
 #[test]
 fn accept_header_does_not_match_when_actual_is_empty() {
-  let mismatches = match_header_value(&s!("ACCEPT"), &s!("application/hal+json"),
-                                      &s!(""), &MatchingContext::default());
-  expect!(mismatches).to(be_ok());
+  let mismatches = match_header_value("ACCEPT", "application/hal+json",
+                                      "", &MatchingContext::default());
+  expect!(mismatches).to(be_err());
 }
 
 #[test]
 fn accept_header_does_match_when_charset_is_missing_from_expected_header() {
-  let mismatches = match_header_value(&s!("ACCEPT"), &s!("application/hal+json"),
-                                      &s!("application/hal+json;charset=utf-8"), &MatchingContext::default());
+  let mismatches = match_header_value("ACCEPT", "application/hal+json",
+                                      "application/hal+json;charset=utf-8", &MatchingContext::default());
   expect!(mismatches).to(be_ok());
 }
 
 #[test]
 fn accept_header_does_not_match_when_charsets_are_not_equal() {
-  let mismatches = match_header_value(&s!("ACCEPT"), &s!("application/hal+json;charset=utf-8"),
-                                      &s!("application/hal+json;charset=utf-16"), &MatchingContext::default());
-  expect!(mismatches).to(be_ok());
+  let mismatches = match_header_value("ACCEPT", "application/hal+json;charset=utf-8",
+                                      "application/hal+json;charset=utf-16", &MatchingContext::default());
+  expect!(mismatches).to(be_err());
 }
 
 #[test]
 fn mismatched_header_description_reports_accept_header_mismatches_correctly() {
-  let mismatches = match_header_value(&s!("ACCEPT"), &s!("ACCEPT-VALUE"), &s!("HEADER2"),
+  let mismatches = match_header_value("ACCEPT", "ACCEPT-VALUE", "HEADER2",
                                       &MatchingContext::default());
   match mismatches.unwrap_err()[0] {
     Mismatch::HeaderMismatch { ref mismatch, .. } =>
@@ -679,13 +679,13 @@ fn matching_headers_be_true_when_headers_match_by_matcher() {
   let context = MatchingContext::new(
     DiffConfig::AllowUnexpectedKeys,
     &matchingrules! {
-          "header" => {
-              "HEADER" => [ MatchingRule::Regex(s!("\\w+")) ]
-          }
-      }.rules_for_category("header").unwrap_or_default()
+      "header" => {
+        "HEADER" => [ MatchingRule::Regex(s!("\\w+")) ]
+      }
+    }.rules_for_category("header").unwrap_or_default()
   );
-  let mismatches = match_header_value(&s!("HEADER"), &s!("HEADERX"), &s!("HEADERY"), &context);
-  expect!(mismatches.iter()).to(be_empty());
+  let mismatches = match_header_value("HEADER", "HEADERX", "HEADERY", &context);
+  expect!(mismatches).to(be_ok());
 }
 
 #[test]
@@ -744,7 +744,7 @@ fn matching_text_body_must_use_defined_matcher() {
     DiffConfig::AllowUnexpectedKeys,
     &matchingrules! {
       "body" => {
-        "$" => [ MatchingRule::Regex(s!("\\d+")) ]
+        "$" => [ MatchingRule::Regex(s!("\\w+")) ]
       }
     }.rules_for_category("body").unwrap_or_default()
   );

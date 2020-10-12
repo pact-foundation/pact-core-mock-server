@@ -963,7 +963,8 @@ mod tests {
     let matching_rules = matchingrules! {
       "body" => { "$.foo['@urn:ns:something']" => [ MatchingRule::Regex(s!("^[0-9]+$")) ] }
     };
-    let result = match_xml(&expected, &actual, &MatchingContext::with_config(DiffConfig::NoUnexpectedKeys));
+    let result = match_xml(&expected, &actual, &MatchingContext::new(DiffConfig::NoUnexpectedKeys,
+                                                                     &matching_rules.rules_for_category("body").unwrap()));
     expect!(result).to(be_ok());
   }
 
@@ -974,7 +975,8 @@ mod tests {
     let matching_rules = matchingrules! {
       "body" => { "$['urn:ns:foo']['urn:ns:something'].#text" => [ MatchingRule::Regex(s!("^[0-9]+$")) ] }
     };
-    let result = match_xml(&expected, &actual, &MatchingContext::with_config(DiffConfig::NoUnexpectedKeys));
+    let result = match_xml(&expected, &actual, &MatchingContext::new(DiffConfig::NoUnexpectedKeys,
+      &matching_rules.rules_for_category("body").unwrap()));
     expect!(result).to(be_ok());
   }
 

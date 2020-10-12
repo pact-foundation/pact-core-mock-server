@@ -326,7 +326,7 @@
 #![warn(missing_docs)]
 
 use std::collections::HashMap;
-use std::fmt::Display;
+use std::fmt::{Display, Debug};
 use std::hash::Hash;
 use std::iter::FromIterator;
 use std::str;
@@ -344,6 +344,8 @@ use crate::models::content_types::ContentType;
 use crate::models::generators::*;
 use crate::models::HttpPart;
 use crate::models::matchingrules::*;
+use std::str::from_utf8;
+use nom::lib::std::str::Utf8Error;
 
 /// Simple macro to convert a string slice to a `String` struct.
 #[macro_export]
@@ -394,10 +396,10 @@ impl MatchingContext {
   }
 
   pub fn wildcard_matcher_is_defined(&self, path: &Vec<&str>) -> bool {
-    self.resolve_wildcard_matchers(path).filter(|&(val, _)| val.ends_with(".*")).is_empty()
+    !self.matchers_for_exact_path(path).filter(|&(val, _)| val.ends_with(".*")).is_empty()
   }
 
-  fn resolve_wildcard_matchers(&self, path: &Vec<&str>) -> MatchingRuleCategory {
+  fn matchers_for_exact_path(&self, path: &Vec<&str>) -> MatchingRuleCategory {
     if self.matchers.name == "body" {
       self.matchers.filter(|&(val, _)| {
         calc_path_weight(val, path).0 > 0 && path_length(val) == path.len()
@@ -407,12 +409,46 @@ impl MatchingContext {
         path.len() == 1 && path[0] == *val
       })
     } else {
-      self.matchers.clone()
+      self.matchers.filter(|_| false)
     }
   }
 
   pub fn type_matcher_defined(&self, path: &Vec<&str>) -> bool {
     self.matchers.resolve_matchers_for_path(path).type_matcher_defined()
+  }
+
+  pub fn match_keys<T: Display + Debug>(&self, path: &Vec<&str>, expected: &HashMap<String, T>, actual: &HashMap<String, T>) -> Result<(), Vec<Mismatch>> {
+    let mut p = path.to_vec();
+    p.push("any");
+    if !self.wildcard_matcher_is_defined(&p) {
+      let mut expected_keys = expected.keys().cloned().collect::<Vec<String>>();
+      expected_keys.sort();
+      let mut actual_keys = actual.keys().cloned().collect::<Vec<String>>();
+      actual_keys.sort();
+      let missing_keys: Vec<String> = expected.keys().filter(|key| !actual.contains_key(*key)).cloned().collect();
+      match self.config {
+        DiffConfig::AllowUnexpectedKeys if !missing_keys.is_empty() => {
+          Err(vec![Mismatch::BodyMismatch {
+            path: path.join("."),
+            expected: Some(expected.for_mismatch().into()),
+            actual: Some(actual.for_mismatch().into()),
+            mismatch: format!("Actual map is missing the following keys: {}", missing_keys.join(", ")),
+          }])
+        }
+        DiffConfig::NoUnexpectedKeys if expected_keys != actual_keys => {
+          Err(vec![Mismatch::BodyMismatch {
+            path: path.join("."),
+            expected: Some(expected.for_mismatch().into()),
+            actual: Some(actual.for_mismatch().into()),
+            mismatch: format!("Expected a Map with keys {} but received one with keys {}",
+                              expected_keys.join(", "), actual_keys.join(", ")),
+          }])
+        }
+        _ => Ok(())
+      }
+    } else {
+      Ok(())
+    }
   }
 }
 
@@ -864,8 +900,32 @@ pub enum DiffConfig {
 pub fn match_text(expected: &Vec<u8>, actual: &Vec<u8>, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
   let path = vec!["$"];
   if context.matcher_is_defined(&path) {
-    match_values(&path, context, expected, actual).map_err(|messages| {
-      let mut mismatches = vec![];
+    let mut mismatches = vec![];
+    let expected_str = match from_utf8(expected) {
+      Ok(expected) => expected,
+      Err(err) => {
+        mismatches.push(Mismatch::BodyMismatch {
+          path: s!("$"),
+          expected: Some(expected.clone()),
+          actual: Some(actual.clone()),
+          mismatch: format!("Could not parse expected value as UTF-8 text: {}", err)
+        });
+        ""
+      }
+    };
+    let actual_str = match from_utf8(actual) {
+      Ok(actual) => actual,
+      Err(err) => {
+        mismatches.push(Mismatch::BodyMismatch {
+          path: s!("$"),
+          expected: Some(expected.clone()),
+          actual: Some(actual.clone()),
+          mismatch: format!("Could not parse actual value as UTF-8 text: {}", err)
+        });
+        ""
+      }
+    };
+    if let Err(messages) = match_values(&path, context, &expected_str, &actual_str) {
       for message in messages {
         mismatches.push(Mismatch::BodyMismatch {
           path: s!("$"),
@@ -874,8 +934,12 @@ pub fn match_text(expected: &Vec<u8>, actual: &Vec<u8>, context: &MatchingContex
           mismatch: message.clone()
         })
       }
-      mismatches
-    })
+    };
+    if mismatches.is_empty() {
+      Ok(())
+    } else {
+      Err(mismatches)
+    }
   } else if expected != actual {
     Err(vec![ Mismatch::BodyMismatch { path: s!("$"), expected: Some(expected.clone()),
       actual: Some(actual.clone()),
@@ -1063,24 +1127,24 @@ fn match_parameter_header(expected: &str, actual: &str, header: &str, value_type
   }
 }
 
-fn match_header_value(key: &String, expected: &String, actual: &String, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
-  let path = vec!["$", key.as_str()];
-  let expected = strip_whitespace::<String>(expected, ",");
-  let actual = strip_whitespace::<String>(actual, ",");
+fn match_header_value(key: &str, expected: &str, actual: &str, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
+  let path = vec!["$", key];
+  let expected: String = strip_whitespace(expected, ",");
+  let actual: String = strip_whitespace(actual, ",");
 
   let matcher_result = if context.matcher_is_defined(&path) {
     matchers::match_values(&path, context, &expected, &actual)
   } else if PARAMETERISED_HEADER_TYPES.contains(&key.to_lowercase().as_str()) {
-    match_parameter_header(&expected, &actual, &key, "header")
+    match_parameter_header(expected.as_str(), actual.as_str(), key, "header")
   } else {
-    expected.matches(&actual, &MatchingRule::Equality).map_err(|err| vec![err])
+    expected.to_string().matches(&actual, &MatchingRule::Equality).map_err(|err| vec![err])
   };
   matcher_result.map_err(|messages| {
     messages.iter().map(|message| {
       Mismatch::HeaderMismatch {
-        key: key.clone(),
-        expected: expected.clone(),
-        actual: actual.clone(),
+        key: key.to_string(),
+        expected: expected.to_string(),
+        actual: actual.to_string(),
         mismatch: format!("Mismatch with header '{}': {}", key.clone(), message)
       }
     }).collect()
@@ -1152,7 +1216,9 @@ fn compare_bodies(content_type: &ContentType, expected: &dyn models::HttpPart, a
     },
     None => {
       debug!("No body matcher defined for content type '{}', using plain text matcher", content_type);
-      match_text(&expected.body().value(), &actual.body().value(), &context);
+      if let Err(m) = match_text(&expected.body().value(), &actual.body().value(), &context) {
+        mismatches.extend_from_slice(&*m);
+      }
     }
   };
   if mismatches.is_empty() {
