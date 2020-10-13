@@ -406,7 +406,7 @@ impl MatchingRule {
     let mut expected_list = Vec::new();
     expected_list.resize(actual.len(), expected_example);
 
-    for (index, value) in expected.iter().enumerate() {
+    for (index, value) in expected_list.iter().enumerate() {
       let ps = index.to_string();
       log::debug!("Comparing list item {} with value '{:?}' to '{:?}'", index, actual.get(index), value);
       let mut p = path.to_vec();

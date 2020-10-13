@@ -1315,9 +1315,9 @@ pub fn match_response(expected: models::Response, actual: models::Response) -> V
 
   log::info!("comparing to expected response: {}", expected);
 
-  let body_context = MatchingContext::new(DiffConfig::NoUnexpectedKeys,
+  let body_context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
                                           &expected.matching_rules.rules_for_category("body").unwrap_or_default());
-  let header_context = MatchingContext::new(DiffConfig::NoUnexpectedKeys,
+  let header_context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
                                             &expected.matching_rules.rules_for_category("header").unwrap_or_default());
 
   mismatches.extend_from_slice(match_body(&expected, &actual, &body_context)
