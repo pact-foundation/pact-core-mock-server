@@ -2,31 +2,32 @@
 //! that contains Messages instead of Interactions.
 
 use std::collections::BTreeMap;
-use std::fs::File;
 use std::fs;
+use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 
 use log::*;
 use maplit::*;
-use serde_json::{Value, json};
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 
-use crate::models::{Consumer, Pact, Interaction, RequestResponsePact};
-use crate::models::PactSpecification;
-use crate::models::Provider;
-use crate::models::VERSION;
+use crate::models::{Consumer, Interaction, Pact, RequestResponsePact};
 use crate::models::determine_spec_version;
-use crate::models::http_utils::HttpAuth;
 use crate::models::http_utils;
-use crate::models::message::Message;
+use crate::models::http_utils::HttpAuth;
 use crate::models::message;
+use crate::models::message::Message;
+use crate::models::PactSpecification;
 use crate::models::parse_meta_data;
+use crate::models::Provider;
 use crate::models::v4::V4Pact;
+use crate::models::VERSION;
 
 /// Struct that represents a pact between the consumer and provider of a service.
 /// It contains a list of Messages instead of Interactions, but is otherwise
 /// identical to `struct Pact`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MessagePact {
     /// Consumer side of the pact
     pub consumer: Consumer,

@@ -367,21 +367,23 @@ mod headers;
 #[derive(Debug, Clone)]
 pub struct MatchingContext {
   pub matchers: MatchingRuleCategory,
-  pub config: DiffConfig
+  pub config: DiffConfig,
+  pub matching_spec: PactSpecification
 }
 
 impl MatchingContext {
   pub fn new(config: DiffConfig, matchers: &MatchingRuleCategory) -> Self {
     MatchingContext {
       matchers: matchers.clone(),
-      config: config.clone()
+      config: config.clone(),
+      .. MatchingContext::default()
     }
   }
 
   pub fn with_config(config: DiffConfig) -> Self {
     MatchingContext {
-      matchers: Default::default(),
-      config: config.clone()
+      config: config.clone(),
+      .. MatchingContext::default()
     }
   }
 
@@ -454,7 +456,8 @@ impl Default for MatchingContext {
   fn default() -> Self {
     MatchingContext {
       matchers: Default::default(),
-      config: DiffConfig::AllowUnexpectedKeys
+      config: DiffConfig::AllowUnexpectedKeys,
+      matching_spec: PactSpecification::V3
     }
   }
 }

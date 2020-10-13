@@ -1,20 +1,23 @@
 //! The `json` module provides functions to compare and display the differences between JSON bodies
 
-use serde_json::{Value, json};
-use super::Mismatch;
-use super::DiffConfig;
-use difference::*;
-use ansi_term::Colour::*;
 use std::str::FromStr;
-use crate::models::matchingrules::*;
-use crate::matchers::*;
-use onig::Regex;
+
+use ansi_term::Colour::*;
+use difference::*;
 use log::*;
-use crate::time_utils::validate_datetime;
-use crate::binary_utils::{match_content_type, convert_data};
-use crate::models::HttpPart;
+use onig::Regex;
+use serde_json::{json, Value};
+
 use crate::{MatchingContext, merge_result};
+use crate::binary_utils::{convert_data, match_content_type};
+use crate::matchers::*;
+use crate::models::HttpPart;
 use crate::models::json_utils::json_to_string;
+use crate::models::matchingrules::*;
+use crate::time_utils::validate_datetime;
+
+use super::DiffConfig;
+use super::Mismatch;
 
 fn type_of(json: &Value) -> String {
   match json {
@@ -162,60 +165,6 @@ impl Matches<Value> for Value {
     result
   }
 }
-
-// impl Matches<Vec<Value>> for Vec<Value> {
-//   fn matches(&self, actual: &Vec<Value>, matcher: &MatchingRule) -> Result<(), String> {
-//     let result = match *matcher {
-//       MatchingRule::Regex(ref regex) => {
-//         match Regex::new(regex) {
-//           Ok(re) => {
-//             if re.is_match(&Value::Array(actual.clone()).to_string()) {
-//               Ok(())
-//             } else {
-//               Err(format!("Expected '{:?}' to match '{}'", json_to_string(&Value::Array(actual.clone())), regex))
-//             }
-//           }
-//           Err(err) => Err(format!("'{}' is not a valid regular expression - {}", regex, err))
-//         }
-//       }
-//       MatchingRule::Type => Ok(()),
-//       MatchingRule::MinType(min) => {
-//         if actual.len() < min {
-//           Err(format!("Expected '{}' to have a minimum length of {}", json_to_string(&Value::Array(actual.clone())), min))
-//         } else {
-//           Ok(())
-//         }
-//       }
-//       MatchingRule::MaxType(max) => {
-//         if actual.len() > max {
-//           Err(format!("Expected '{}' to have a maximum length of {}", json_to_string(&Value::Array(actual.clone())), max))
-//         } else {
-//           Ok(())
-//         }
-//       }
-//       MatchingRule::MinMaxType(min, max) => {
-//         if actual.len() < min {
-//           Err(format!("Expected '{}' to have a minimum length of {}", json_to_string(&Value::Array(actual.clone())), min))
-//         } else if actual.len() > max {
-//           Err(format!("Expected '{}' to have a maximum length of {}", json_to_string(&Value::Array(actual.clone())), max))
-//         } else {
-//           Ok(())
-//         }
-//       }
-//       MatchingRule::Equality => {
-//         if self == actual {
-//           Ok(())
-//         } else {
-//           Err(format!("Expected '{}' to be equal to '{}'", json_to_string(&Value::Array(self.clone())),
-//                       json_to_string(&&Value::Array(actual.clone()))))
-//         }
-//       }
-//       _ => Err(format!("Unable to match {:?} using {:?}", self, matcher))
-//     };
-//     log::debug!("Comparing '{:?}' to '{:?}' using {:?} -> {:?}", self, actual, matcher, result);
-//     result
-//   }
-// }
 
 /// Matches the expected JSON to the actual, and populates the mismatches vector with any differences
 pub fn match_json(expected: &dyn HttpPart, actual: &dyn HttpPart, context: &MatchingContext) -> Result<(), Vec<super::Mismatch>> {
@@ -454,12 +403,14 @@ fn compare_values(path: &Vec<&str>, expected: &Value, actual: &Value, context: &
 
 #[cfg(test)]
 mod tests {
-  use super::*;
-  use expectest::prelude::*;
   use expectest::expect;
-  use crate::Mismatch;
+  use expectest::prelude::*;
+
   use crate::DiffConfig;
-  use crate::models::{Request, OptionalBody};
+  use crate::Mismatch;
+  use crate::models::{OptionalBody, Request};
+
+  use super::*;
 
   macro_rules! request {
     ($e:expr) => (Request { body: OptionalBody::Present($e.as_bytes().to_vec(), None), .. Request::default() })
@@ -823,6 +774,59 @@ mod tests {
 
   #[test]
   fn compare_maps_handles_wildcard_matchers() {
+    let val1 = request!(r#"
+    {
+      "articles": [
+        {
+          "variants": {
+            "001": {
+              "bundles": {
+                "001-A": {
+                  "description": "someDescription",
+                  "referencedArticles": [
+                    {
+                        "bundleId": "someId"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    }"#);
+    let val2 = request!(r#"{
+      "articles": [
+        {
+          "variants": {
+            "002": {
+              "bundles": {
+                "002-A": {
+                  "description": "someDescription",
+                  "referencedArticles": [
+                    {
+                        "bundleId": "someId"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    }"#);
+
+    let result = match_json(&val1, &val2, &MatchingContext::new(DiffConfig::AllowUnexpectedKeys, &matchingrules!{
+      "body" => {
+        "$.articles[*].variants.*" => [ MatchingRule::Type ],
+        "$.articles[*].variants.*.bundles.*" => [ MatchingRule::Type ]
+      }
+    }.rules_for_category("body").unwrap()));
+    expect!(result).to(be_ok());
+  }
+
+  #[test]
+  fn compare_lists_with_array_contains_matcher() {
     let val1 = request!(r#"
     {
       "articles": [

@@ -1,14 +1,16 @@
-use expectest::prelude::*;
-use serde_json::json;
-use maplit::*;
-
-use crate::models::v4::http_parts::{HttpRequest, HttpResponse};
-use crate::models::v4::{V4Interaction, interaction_from_json, from_json};
-use crate::models::v4::http_parts::body_from_json;
-use crate::models::provider_states::ProviderState;
-use crate::models::{Interaction, PactSpecification, OptionalBody, headers_from_json};
-use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+
+use expectest::prelude::*;
+use maplit::*;
+use serde_json::json;
+
+use crate::models::{headers_from_json, Interaction, OptionalBody, PactSpecification};
+use crate::models::content_types::{ContentType, JSON};
+use crate::models::provider_states::ProviderState;
+use crate::models::v4::{from_json, interaction_from_json, V4Interaction};
+use crate::models::v4::http_parts::{HttpRequest, HttpResponse};
+use crate::models::v4::http_parts::body_from_json;
 
 #[test]
 fn synchronous_http_request_from_json_defaults_to_get() {
@@ -382,7 +384,7 @@ fn http_response_to_json_with_json_body() {
 #[test]
 fn http_response_to_json_with_non_json_body() {
   let response = HttpResponse { headers: Some(hashmap!{ s!("Content-Type") => vec![s!("text/plain")] }),
-    body: OptionalBody::Present("This is some text".into(), Some("text/plain".to_string())), .. HttpResponse::default() };
+    body: OptionalBody::Present("This is some text".into(), "text/plain".parse().ok()), .. HttpResponse::default() };
   expect!(response.to_json().to_string()).to(
     be_equal_to(r#"{"body":{"content":"This is some text","contentType":"text/plain","encoded":false},"headers":{"Content-Type":["text/plain"]},"status":200}"#)
   );
@@ -1053,7 +1055,7 @@ fn body_from_json_returns_json_string_if_the_body_is_json_but_not_a_string() {
   });
   let body = body_from_json(&json, "body", &None);
   expect!(body).to(be_equal_to(OptionalBody::Present("{\"test\":true}".into(),
-                                                     Some("application/json".to_string()))));
+                                                     Some(JSON.clone()))));
 }
 
 #[test]

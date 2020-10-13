@@ -228,7 +228,7 @@ pub(crate) fn body_from_json(json: &Value, attr_name: &str, headers: &Option<Has
               let content_type = content_type.unwrap_or_else(|| {
                 detect_content_type_from_bytes(&body_bytes).unwrap_or_default()
               });
-              OptionalBody::Present(body_bytes, Some(content_type.to_string()))
+              OptionalBody::Present(body_bytes, Some(content_type))
             }
           },
           None => OptionalBody::Missing

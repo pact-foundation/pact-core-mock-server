@@ -22,18 +22,17 @@ use lazy_static::*;
 use log::*;
 use maplit::*;
 use onig::Regex;
+use semver::Version;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use semver::Version;
-
 use crate::models::content_types::ContentType;
 use crate::models::http_utils::HttpAuth;
+use crate::models::json_utils::json_to_string;
 use crate::models::message::Message;
 use crate::models::message_pact::MessagePact;
 use crate::models::provider_states::ProviderState;
-use crate::models::v4::{V4Pact, V4Interaction, interaction_from_json};
-use crate::models::json_utils::json_to_string;
+use crate::models::v4::{interaction_from_json, V4Interaction, V4Pact};
 
 pub mod json_utils;
 pub mod xml_utils;
@@ -47,7 +46,7 @@ mod expression_parser;
 pub const VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
 
 /// Enum defining the pact specification versions supported by the library
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[allow(non_camel_case_types)]
 pub enum PactSpecification {
     /// Unknown or unsupported specification version
@@ -97,7 +96,7 @@ impl PactSpecification {
 }
 
 /// Struct that defines the consumer of the pact.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct Consumer {
     /// Each consumer should have a unique name to identify it.
     pub name: String
@@ -123,7 +122,7 @@ impl Consumer {
 }
 
 /// Struct that defines a provider of a pact.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct Provider {
     /// Each provider should have a unique name to identify it.
     pub name: String
@@ -150,7 +149,7 @@ impl Provider {
 
 /// Enum that defines the four main states that a body of a request and response can be in a pact
 /// file.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum OptionalBody {
     /// A body is missing if it is not present in the pact file
@@ -161,7 +160,7 @@ pub enum OptionalBody {
     /// from null values. It is treated as `Empty`.
     Null,
     /// A non-empty body that is present in the pact file.
-    Present(Vec<u8>, Option<String>)
+    Present(Vec<u8>, Option<ContentType>)
 }
 
 impl OptionalBody {
@@ -202,7 +201,7 @@ impl OptionalBody {
   pub fn content_type(&self) -> Option<ContentType> {
     match self {
       OptionalBody::Present(_, content_type) =>
-        content_type.clone().and_then(|ct| ContentType::parse(ct.as_str()).ok()),
+        content_type.clone(),
       _ => None
     }
   }
@@ -280,6 +279,7 @@ impl Display for OptionalBody {
 #[cfg(test)]
 mod body_tests {
   use expectest::prelude::*;
+  use super::content_types::JSON;
 
   use super::*;
 
@@ -289,6 +289,7 @@ mod body_tests {
     expect!(format!("{}", OptionalBody::Empty)).to(be_equal_to("Empty"));
     expect!(format!("{}", OptionalBody::Null)).to(be_equal_to("Null"));
     expect!(format!("{}", OptionalBody::Present("hello".into(), None))).to(be_equal_to("Present(5 bytes)"));
+    expect!(format!("{}", OptionalBody::Present("\"hello\"".into(), Some(JSON.clone())))).to(be_equal_to("Present(7 bytes, application/json)"));
   }
 }
 
@@ -337,21 +338,6 @@ fn detect_content_type_from_bytes(s: &[u8]) -> Option<ContentType> {
     },
     Err(_) => None
   }
-}
-
-/// Enumeration of general content types
-#[derive(PartialEq, Debug, Clone, Eq)]
-#[deprecated(
-since = "0.6.4",
-note = "Use ContentType struct instead"
-)]
-pub enum DetectedContentType {
-    /// Json content types
-    Json,
-    /// XML content types
-    Xml,
-    /// All other content types
-    Text
 }
 
 /// Enumeration of the types of differences between requests and responses
@@ -628,11 +614,11 @@ fn body_from_json(request: &Value, fieldname: &str, headers: &Option<HashMap<Str
           });
           if content_type.is_json() {
             match serde_json::from_str::<JsonParsable>(&s) {
-              Ok(_) => OptionalBody::Present(s.clone().into(), Some(content_type.to_string())),
-              Err(_) => OptionalBody::Present(format!("\"{}\"", s).into(), Some(content_type.to_string()))
+              Ok(_) => OptionalBody::Present(s.clone().into(), Some(content_type)),
+              Err(_) => OptionalBody::Present(format!("\"{}\"", s).into(), Some(content_type))
             }
           } else if content_type.is_text() {
-            OptionalBody::Present(s.clone().into(), Some(content_type.to_string()))
+            OptionalBody::Present(s.clone().into(), Some(content_type))
           } else {
             match decode(s) {
               Ok(bytes) => OptionalBody::Present(bytes.clone(), None),

@@ -1,18 +1,21 @@
 //! The `message` module provides all functionality to deal with messages.
 
 use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
-use serde_json::Value;
+
 use maplit::*;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+
+use crate::models::content_types::ContentType;
+use crate::models::generators::Generators;
+use crate::models::matchingrules::MatchingRules;
 use crate::models::provider_states::ProviderState;
+
 use super::*;
 use super::body_from_json;
-use crate::models::matchingrules::MatchingRules;
-use crate::models::generators::Generators;
-use crate::models::content_types::ContentType;
 
 /// Struct that defines a message.
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq)]
+#[derive(PartialEq, Debug, Clone, Eq, Deserialize, Serialize)]
 pub struct Message {
     /// Interaction ID. This will only be set if the Pact file was fetched from a Pact Broker
     pub id: Option<String>,
@@ -184,12 +187,13 @@ fn missing_body() -> OptionalBody {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use expectest::prelude::*;
-    use expectest::expect;
-    use serde_json;
+  use expectest::expect;
+  use expectest::prelude::*;
+  use serde_json;
 
-    #[test]
+  use super::*;
+
+  #[test]
     fn loading_message_from_json() {
         let message_json = r#"{
             "description": "String",
