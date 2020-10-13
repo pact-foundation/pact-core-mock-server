@@ -866,7 +866,7 @@ fn write_pact_test() {
     dir.push(format!("pact_test_{}", x));
     dir.push(pact.default_file_name());
 
-    let result = pact.write_pact(dir.as_path(), PactSpecification::V2);
+    let result = write_pact(&pact, dir.as_path(), PactSpecification::V2);
 
     let pact_file = read_pact_file(dir.as_path().to_str().unwrap()).unwrap_or(s!(""));
     fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());
@@ -934,8 +934,8 @@ fn write_pact_test_should_merge_pacts() {
     dir.push(format!("pact_test_{}", x));
     dir.push(pact.default_file_name());
 
-    let result = pact.write_pact(dir.as_path(), PactSpecification::V2);
-    let result2 = pact2.write_pact(dir.as_path(), PactSpecification::V2);
+    let result = write_pact(&pact, dir.as_path(), PactSpecification::V2);
+    let result2 = write_pact(&pact2, dir.as_path(), PactSpecification::V2);
 
     let pact_file = read_pact_file(dir.as_path().to_str().unwrap()).unwrap_or(s!(""));
     fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());
@@ -1016,8 +1016,8 @@ fn write_pact_test_should_not_merge_pacts_with_conflicts() {
     dir.push(format!("pact_test_{}", x));
     dir.push(pact.default_file_name());
 
-    let result = pact.write_pact(dir.as_path(), PactSpecification::V2);
-    let result2 = pact2.write_pact(dir.as_path(), PactSpecification::V2);
+    let result = write_pact(&pact, dir.as_path(), PactSpecification::V2);
+    let result2 = write_pact(&pact2, dir.as_path(), PactSpecification::V2);
 
     let pact_file = read_pact_file(dir.as_path().to_str().unwrap()).unwrap_or(s!(""));
     fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());
@@ -1401,7 +1401,7 @@ fn write_pact_test_with_matchers() {
     dir.push(format!("pact_test_{}", x));
     dir.push(pact.default_file_name());
 
-    let result = pact.write_pact(dir.as_path(), PactSpecification::V2);
+    let result = write_pact(&pact, dir.as_path(), PactSpecification::V2);
 
     let pact_file = read_pact_file(dir.as_path().to_str().unwrap()).unwrap_or(s!(""));
     fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());
@@ -1471,7 +1471,7 @@ fn write_pact_v3_test_with_matchers() {
     dir.push(format!("pact_test_{}", x));
     dir.push(pact.default_file_name());
 
-    let result = pact.write_pact(dir.as_path(), PactSpecification::V3);
+    let result = write_pact(&pact, dir.as_path(), PactSpecification::V3);
 
     let pact_file = read_pact_file(dir.as_path().to_str().unwrap()).unwrap_or(s!(""));
     fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());
@@ -1712,7 +1712,7 @@ fn write_v3_pact_test() {
     dir.push(format!("pact_test_{}", x));
     dir.push(pact.default_file_name());
 
-    let result = pact.write_pact(dir.as_path(), PactSpecification::V3);
+    let result = write_pact(&pact, dir.as_path(), PactSpecification::V3);
 
     let pact_file = read_pact_file(dir.as_path().to_str().unwrap()).unwrap_or(s!(""));
     fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());
@@ -1895,7 +1895,7 @@ fn write_pact_test_with_generators() {
     dir.push(format!("pact_test_{}", x));
     dir.push(pact.default_file_name());
 
-    let result = pact.write_pact(dir.as_path(), PactSpecification::V3);
+    let result = write_pact(&pact, dir.as_path(), PactSpecification::V3);
 
     let pact_file = read_pact_file(dir.as_path().to_str().unwrap()).unwrap_or(s!(""));
     fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());

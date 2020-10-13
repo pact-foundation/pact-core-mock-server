@@ -1405,101 +1405,9 @@ impl RequestResponsePact {
         md_map
     }
 
-    /// Merges this pact with the other pact, and returns a new Pact with the interactions sorted.
-    /// Returns an error if there is a merge conflict, which will occur if any interaction has the
-    /// same description and provider state and the requests and responses are different.
-    pub fn merge(&self, pact: &RequestResponsePact) -> Result<RequestResponsePact, String> {
-      if self.consumer.name == pact.consumer.name && self.provider.name == pact.provider.name {
-          let conflicts = iproduct!(self.interactions.clone(), pact.interactions.clone())
-            .map(|i| i.0.conflicts_with(&i.1))
-            .filter(|conflicts| !conflicts.is_empty())
-            .collect::<Vec<Vec<PactConflict>>>();
-          let num_conflicts = conflicts.len();
-          if num_conflicts > 0 {
-            warn!("The following conflicting interactions where found:");
-            for interaction_conflicts in conflicts {
-                warn!(" Interaction '{}':", interaction_conflicts.first().unwrap().interaction);
-                for conflict in interaction_conflicts {
-                    warn!("   {}", conflict.description);
-                }
-            }
-            Err(format!("Unable to merge pacts, as there were {} conflict(s) between the interactions. Please clean out your pact directory before running the tests.",
-                num_conflicts))
-          } else {
-            Ok(RequestResponsePact {
-              provider: self.provider.clone(),
-              consumer: self.consumer.clone(),
-              interactions: self.interactions.iter()
-                .merge_join_by(pact.interactions.iter(), |a, b| {
-                  let cmp = Ord::cmp(&a.provider_states.iter().map(|p| p.name.clone()).collect::<Vec<String>>(),
-                    &b.provider_states.iter().map(|p| p.name.clone()).collect::<Vec<String>>());
-                  if cmp == Ordering::Equal {
-                    Ord::cmp(&a.description, &b.description)
-                  } else {
-                    cmp
-                  }
-                })
-                .map(|either| match either {
-                  Left(i) => i,
-                  Right(i) => i,
-                  Both(i, _) => i
-                })
-                .cloned()
-                .collect(),
-              metadata: self.metadata.clone(),
-              specification_version: self.specification_version.clone()
-            })
-          }
-      } else {
-        Err(s!("Unable to merge pacts, as they have different consumers or providers"))
-      }
-    }
-
-    /// Determines the default file name for the pact. This is based on the consumer and
-    /// provider names.
-    pub fn default_file_name(&self) -> String {
-        format!("{}-{}.json", self.consumer.name, self.provider.name)
-    }
-
-    /// Reads the pact file and parses the resulting JSON into a `RequestResponsePact` struct
-    pub fn read_pact(file: &Path) -> io::Result<RequestResponsePact> {
-        let mut f = File::open(file)?;
-        let pact_json = serde_json::from_reader(&mut f);
-        match pact_json {
-            Ok(ref json) => Ok(RequestResponsePact::from_json(&format!("{:?}", file), json)),
-            Err(err) => Err(Error::new(ErrorKind::Other, format!("Failed to parse Pact JSON - {}", err)))
-        }
-    }
-
     /// Reads the pact file from a URL and parses the resulting JSON into a `Pact` struct
     pub fn from_url(url: &String, auth: &Option<HttpAuth>) -> Result<RequestResponsePact, String> {
       http_utils::fetch_json_from_url(url, auth).map(|(ref url, ref json)| RequestResponsePact::from_json(url, json))
-    }
-
-  /// Writes this pact out to the provided file path. All directories in the path will
-  /// automatically created. If an existing pact is found at the path, this pact will be
-  /// merged into the pact file.
-    pub fn write_pact(&self, path: &Path, pact_spec: PactSpecification) -> io::Result<()> {
-      fs::create_dir_all(path.parent().unwrap())?;
-      if path.exists() {
-        debug!("Merging pact with file {:?}", path);
-        let existing_pact = RequestResponsePact::read_pact(path)?;
-        match existing_pact.merge(self) {
-            Ok(ref merged_pact) => {
-              let mut file = File::create(path)?;
-              let result = serde_json::to_string_pretty(&merged_pact.to_json(pact_spec))?;
-              file.write_all(result.as_bytes())?;
-              Ok(())
-            },
-            Err(ref message) => Err(Error::new(ErrorKind::Other, message.clone()))
-        }
-      } else {
-        debug!("Writing new pact file to {:?}", path);
-        let mut file = File::create(path)?;
-        let result = serde_json::to_string_pretty(&self.to_json(pact_spec))?;
-        file.write_all(result.as_bytes())?;
-        Ok(())
-      }
     }
 
     /// Returns a default RequestResponsePact struct
@@ -1519,6 +1427,68 @@ impl RequestResponsePact {
       s!("pact-specification") => btreemap!{ s!("version") => PactSpecification::V3.version_str() },
       s!("pact-rust") => btreemap!{ s!("version") => s!(VERSION.unwrap_or("unknown")) }
     }
+  }
+}
+
+impl ReadWritePact for RequestResponsePact {
+  fn read_pact(path: &Path) -> io::Result<RequestResponsePact> {
+    let mut f = File::open(path)?;
+    let pact_json = serde_json::from_reader(&mut f);
+    match pact_json {
+      Ok(ref json) => Ok(RequestResponsePact::from_json(&format!("{:?}", path), json)),
+      Err(err) => Err(Error::new(ErrorKind::Other, format!("Failed to parse Pact JSON - {}", err)))
+    }
+  }
+
+  fn merge(&self, pact: &RequestResponsePact) -> Result<RequestResponsePact, String> {
+    if self.consumer.name == pact.consumer.name && self.provider.name == pact.provider.name {
+      let conflicts = iproduct!(self.interactions.clone(), pact.interactions.clone())
+        .map(|i| i.0.conflicts_with(&i.1))
+        .filter(|conflicts| !conflicts.is_empty())
+        .collect::<Vec<Vec<PactConflict>>>();
+      let num_conflicts = conflicts.len();
+      if num_conflicts > 0 {
+        warn!("The following conflicting interactions where found:");
+        for interaction_conflicts in conflicts {
+          warn!(" Interaction '{}':", interaction_conflicts.first().unwrap().interaction);
+          for conflict in interaction_conflicts {
+            warn!("   {}", conflict.description);
+          }
+        }
+        Err(format!("Unable to merge pacts, as there were {} conflict(s) between the interactions. Please clean out your pact directory before running the tests.",
+                    num_conflicts))
+      } else {
+        Ok(RequestResponsePact {
+          provider: self.provider.clone(),
+          consumer: self.consumer.clone(),
+          interactions: self.interactions.iter()
+            .merge_join_by(pact.interactions.iter(), |a, b| {
+              let cmp = Ord::cmp(&a.provider_states.iter().map(|p| p.name.clone()).collect::<Vec<String>>(),
+                                 &b.provider_states.iter().map(|p| p.name.clone()).collect::<Vec<String>>());
+              if cmp == Ordering::Equal {
+                Ord::cmp(&a.description, &b.description)
+              } else {
+                cmp
+              }
+            })
+            .map(|either| match either {
+              Left(i) => i,
+              Right(i) => i,
+              Both(i, _) => i
+            })
+            .cloned()
+            .collect(),
+          metadata: self.metadata.clone(),
+          specification_version: self.specification_version.clone()
+        })
+      }
+    } else {
+      Err(s!("Unable to merge pacts, as they have different consumers or providers"))
+    }
+  }
+
+  fn default_file_name(&self) -> String {
+    format!("{}-{}.json", self.consumer.name, self.provider.name)
   }
 }
 
@@ -1685,6 +1655,44 @@ pub fn load_pact_from_url<'a>(url: &String, auth: &Option<HttpAuth>) -> Result<B
       _ => Err(format!("Failed to parse Pact JSON from URL '{}' - it is not a valid pact file", url))
     },
     Err(err) => Err(err)
+  }
+}
+
+pub trait ReadWritePact {
+  /// Reads the pact file and parses the resulting JSON into a `Pact` struct
+  fn read_pact(path: &Path) -> io::Result<Self> where Self: std::marker::Sized;
+
+  /// Merges this pact with the other pact, and returns a new Pact with the interactions sorted.
+  /// Returns an error if there is a merge conflict, which will occur if the other pact is a different
+  /// type, or if a V3 Pact then if any interaction has the
+  /// same description and provider state and the requests and responses are different.
+  fn merge(&self, other: &Self) -> Result<Self, String> where Self: std::marker::Sized;
+
+  /// Determines the default file name for the pact. This is based on the consumer and
+  /// provider names.
+  fn default_file_name(&self) -> String;
+}
+
+pub fn write_pact<T: ReadWritePact + Pact>(pact: &T, path: &Path, pact_spec: PactSpecification) -> io::Result<()> {
+  fs::create_dir_all(path.parent().unwrap())?;
+  if path.exists() {
+    debug!("Merging pact with file {:?}", path);
+    let existing_pact = T::read_pact(path)?;
+    match existing_pact.merge(pact) {
+      Ok(ref merged_pact) => {
+        let mut file = File::create(path)?;
+        let result = serde_json::to_string_pretty(&merged_pact.to_json(pact_spec))?;
+        file.write_all(result.as_bytes())?;
+        Ok(())
+      },
+      Err(ref message) => Err(Error::new(ErrorKind::Other, message.clone()))
+    }
+  } else {
+    debug!("Writing new pact file to {:?}", path);
+    let mut file = File::create(path)?;
+    let result = serde_json::to_string_pretty(&pact.to_json(pact_spec))?;
+    file.write_all(result.as_bytes())?;
+    Ok(())
   }
 }
 

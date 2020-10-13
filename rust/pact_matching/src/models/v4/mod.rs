@@ -1,26 +1,33 @@
 //! V4 specification models
 
+use std::{fmt, io, mem};
+use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap};
 use std::collections::hash_map::DefaultHasher;
-use std::{fmt, mem};
 use std::fmt::Display;
+use std::fs::File;
 use std::hash::{Hash, Hasher};
+use std::io::{Error, ErrorKind};
+use std::path::Path;
 use std::string::ToString;
 
+use itertools::EitherOrBoth::{Both, Left, Right};
+use itertools::Itertools;
 use log::*;
 use maplit::*;
 use nom::lib::std::fmt::Formatter;
 use serde_json::{json, Value};
 
-use crate::models::{Consumer, generators, Interaction, matchingrules, OptionalBody, Pact, PactSpecification, Provider, provider_states, RequestResponseInteraction, RequestResponsePact, VERSION, detect_content_type_from_bytes};
+use crate::models::{Consumer, detect_content_type_from_bytes, generators, Interaction, matchingrules, OptionalBody, Pact, PactSpecification, Provider, provider_states, ReadWritePact, RequestResponseInteraction, RequestResponsePact, VERSION};
 use crate::models::content_types::ContentType;
-use crate::models::json_utils::{json_to_string, hash_json};
+use crate::models::generators::generators_to_json;
+use crate::models::json_utils::{hash_json, json_to_string};
+use crate::models::matchingrules::matchers_to_json;
 use crate::models::message::Message;
 use crate::models::message_pact::MessagePact;
 use crate::models::provider_states::ProviderState;
-use crate::models::v4::http_parts::{HttpRequest, HttpResponse, body_from_json};
-use crate::models::matchingrules::matchers_to_json;
-use crate::models::generators::generators_to_json;
+use crate::models::v4::http_parts::{body_from_json, HttpRequest, HttpResponse};
+use std::any::Any;
 
 /// V4 Interaction Type
 #[derive(Debug, Clone)]
@@ -187,6 +194,13 @@ impl V4Interaction {
       V4Interaction::AsynchronousMessages { id, key, description, provider_states, contents, metadata, matching_rules, generators } =>
         Ok((id.clone(), key.clone(), description.clone(), provider_states.clone(), contents.clone(), metadata.clone(), matching_rules.clone(), generators.clone() )),
       _ => Err("V4 interaction is not a asynchronous message interaction".to_string())
+    }
+  }
+
+  pub fn key(&self) -> Option<String> {
+    match self {
+      V4Interaction::SynchronousHttp { key, .. } => key.clone(),
+      V4Interaction::AsynchronousMessages { key, .. } => key.clone()
     }
   }
 }
@@ -435,6 +449,83 @@ impl Pact for V4Pact {
 
   fn specification_version(&self) -> PactSpecification {
     PactSpecification::V4
+  }
+}
+
+impl Default for V4Pact {
+  fn default() -> Self {
+    V4Pact {
+      consumer: Default::default(),
+      provider: Default::default(),
+      interactions: vec![],
+      metadata: Default::default()
+    }
+  }
+}
+
+impl ReadWritePact for V4Pact {
+  fn read_pact(path: &Path) -> io::Result<V4Pact> {
+    let mut f = File::open(path)?;
+    let pact_json = serde_json::from_reader(&mut f);
+    match pact_json {
+      Ok(ref json) => {
+        let metadata = meta_data_from_json(json);
+        let consumer = match json.get("consumer") {
+          Some(v) => Consumer::from_json(v),
+          None => Consumer { name: "consumer".into() }
+        };
+        let provider = match json.get("provider") {
+          Some(v) => Provider::from_json(v),
+          None => Provider { name: "provider".into() }
+        };
+        Ok(V4Pact {
+          consumer,
+          provider,
+          interactions: interactions_from_json(json, &*path.to_string_lossy()),
+          metadata
+        })
+      },
+      Err(err) => Err(Error::new(ErrorKind::Other, format!("Failed to parse Pact JSON - {}", err)))
+    }
+  }
+
+  fn merge(&self, other: &V4Pact) -> Result<V4Pact, String> {
+    Ok(V4Pact {
+      consumer: self.consumer.clone(),
+      provider: self.provider.clone(),
+      interactions: self.interactions.iter()
+        .merge_join_by(other.interactions.iter(), |a, b| {
+          match (a.key(), b.key()) {
+            (Some(key_a), Some(key_b)) => Ord::cmp(&key_a, &key_b),
+            (_, _) => {
+              let cmp = Ord::cmp(&a.clone().type_id(), &b.clone().type_id());
+              if cmp == Ordering::Equal {
+                let cmp = Ord::cmp(&a.provider_states().iter().map(|p| p.name.clone()).collect::<Vec<String>>(),
+                                   &b.provider_states().iter().map(|p| p.name.clone()).collect::<Vec<String>>());
+                if cmp == Ordering::Equal {
+                  Ord::cmp(&a.description(), &b.description())
+                } else {
+                  cmp
+                }
+              } else {
+                cmp
+              }
+            }
+          }
+        })
+        .map(|either| match either {
+          Left(i) => i,
+          Right(i) => i,
+          Both(i, _) => i
+        })
+        .cloned()
+        .collect(),
+      metadata: self.metadata.clone()
+    })
+  }
+
+  fn default_file_name(&self) -> String {
+    format!("{}-{}.json", self.consumer.name, self.provider.name)
   }
 }
 

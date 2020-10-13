@@ -5,12 +5,15 @@ use expectest::prelude::*;
 use maplit::*;
 use serde_json::json;
 
-use crate::models::{headers_from_json, Interaction, OptionalBody, PactSpecification};
+use crate::models::{headers_from_json, Interaction, OptionalBody, PactSpecification, RequestResponseInteraction, Consumer, Provider, ReadWritePact, write_pact};
 use crate::models::content_types::{ContentType, JSON};
 use crate::models::provider_states::ProviderState;
-use crate::models::v4::{from_json, interaction_from_json, V4Interaction};
+use crate::models::v4::{from_json, interaction_from_json, V4Interaction, V4Pact};
 use crate::models::v4::http_parts::{HttpRequest, HttpResponse};
 use crate::models::v4::http_parts::body_from_json;
+use std::{io, env, fs};
+use std::fs::File;
+use std::io::Read;
 
 #[test]
 fn synchronous_http_request_from_json_defaults_to_get() {
@@ -428,67 +431,76 @@ fn interaction_from_json_sets_the_id_if_loaded_from_broker() {
   expect!(id).to(be_some().value("123456789".to_string()));
 }
 
-// fn read_pact_file(file: &str) -> io::Result<String> {
-//   let mut f = File::open(file)?;
-//   let mut buffer = String::new();
-//   f.read_to_string(&mut buffer)?;
-//   Ok(buffer)
-// }
-//
-// #[test]
-// fn write_pact_test() {
-//   let pact = RequestResponsePact { consumer: Consumer { name: s!("write_pact_test_consumer") },
-//     provider: Provider { name: s!("write_pact_test_provider") },
-//     interactions: vec![
-//       RequestResponseInteraction {
-//         description: s!("Test Interaction"),
-//         provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
-//         .. RequestResponseInteraction::default()
-//       }
-//     ],
-//     .. RequestResponsePact::default() };
-//   let mut dir = env::temp_dir();
-//   let x = rand::random::<u16>();
-//   dir.push(format!("pact_test_{}", x));
-//   dir.push(pact.default_file_name());
-//
-//   let result = pact.write_pact(dir.as_path(), PactSpecification::V2);
-//
-//   let pact_file = read_pact_file(dir.as_path().to_str().unwrap()).unwrap_or(s!(""));
-//   fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());
-//
-//   expect!(result).to(be_ok());
-//   expect!(pact_file).to(be_equal_to(format!(r#"{{
-//   "consumer": {{
-//     "name": "write_pact_test_consumer"
-//   }},
-//   "interactions": [
-//     {{
-//       "description": "Test Interaction",
-//       "providerState": "Good state to be in",
-//       "request": {{
-//         "method": "GET",
-//         "path": "/"
-//       }},
-//       "response": {{
-//         "status": 200
-//       }}
-//     }}
-//   ],
-//   "metadata": {{
-//     "pactRust": {{
-//       "version": "{}"
-//     }},
-//     "pactSpecification": {{
-//       "version": "2.0.0"
-//     }}
-//   }},
-//   "provider": {{
-//     "name": "write_pact_test_provider"
-//   }}
-// }}"#, super::VERSION.unwrap())));
-// }
-//
+fn read_pact_file(file: &str) -> io::Result<String> {
+  let mut f = File::open(file)?;
+  let mut buffer = String::new();
+  f.read_to_string(&mut buffer)?;
+  Ok(buffer)
+}
+
+#[test]
+fn write_pact_test() {
+  let pact = V4Pact { consumer: Consumer { name: s!("write_pact_test_consumer") },
+    provider: Provider { name: s!("write_pact_test_provider") },
+    interactions: vec![
+      V4Interaction::SynchronousHttp {
+        id: None,
+        key: None,
+        description: s!("Test Interaction"),
+        provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
+        request: Default::default(),
+        response: Default::default()
+      }
+    ],
+    .. V4Pact::default() };
+  let mut dir = env::temp_dir();
+  let x = rand::random::<u16>();
+  dir.push(format!("pact_test_{}", x));
+  dir.push(pact.default_file_name());
+
+  let result = write_pact(&pact, &dir, PactSpecification::V4);
+
+  let pact_file = read_pact_file(dir.as_path().to_str().unwrap()).unwrap_or_default();
+  fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());
+
+  expect!(result).to(be_ok());
+  expect!(pact_file).to(be_equal_to(format!(r#"{{
+  "consumer": {{
+    "name": "write_pact_test_consumer"
+  }},
+  "interactions": [
+    {{
+      "description": "Test Interaction",
+      "key": "53d3170820ad2160",
+      "providerStates": [
+        {{
+          "name": "Good state to be in"
+        }}
+      ],
+      "request": {{
+        "method": "GET",
+        "path": "/"
+      }},
+      "response": {{
+        "status": 200
+      }},
+      "type": "Synchronous/HTTP"
+    }}
+  ],
+  "metadata": {{
+    "pactRust": {{
+      "version": "{}"
+    }},
+    "pactSpecification": {{
+      "version": "4.0"
+    }}
+  }},
+  "provider": {{
+    "name": "write_pact_test_provider"
+  }}
+}}"#, super::VERSION.unwrap())));
+}
+
 // #[test]
 // fn write_pact_test_should_merge_pacts() {
 //   let pact = RequestResponsePact { consumer: Consumer { name: s!("merge_consumer") },
