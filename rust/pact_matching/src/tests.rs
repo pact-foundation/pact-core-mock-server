@@ -1,9 +1,11 @@
-use super::*;
-use super::{match_header_value, strip_whitespace};
 use std::collections::HashMap;
+
 use expectest::prelude::*;
-use crate::models::{Request, OptionalBody};
+
+use crate::models::{OptionalBody, Request};
 use crate::models::content_types::TEXT;
+
+use super::*;
 
 #[test]
 fn match_method_returns_nothing_if_the_method_matches() {
@@ -193,160 +195,6 @@ fn match_query_returns_a_mismatch_if_the_values_are_not_the_same() {
     actual: s!("c"),
     mismatch: s!("Expected 'b' but received 'c' for query parameter 'a'")
   });
-}
-
-#[test]
-fn matching_headers_be_true_when_headers_are_equal() {
-  let mismatches = match_header_value("HEADER", "HEADER", "HEADER",
-                                      &MatchingContext::default());
-  expect!(mismatches).to(be_ok());
-}
-
-#[test]
-fn matching_headers_be_false_when_headers_are_not_equal() {
-  let mismatches = match_header_value("HEADER", "HEADER", "HEADER2",
-                                      &MatchingContext::default()).unwrap_err();
-  expect!(mismatches.iter()).to_not(be_empty());
-  assert_eq!(mismatches[0], Mismatch::HeaderMismatch {
-    key: s!("HEADER"),
-    expected: s!("HEADER"),
-    actual: s!("HEADER2"),
-    mismatch: s!(""),
-  });
-}
-
-#[test]
-fn mismatch_message_generated_when_headers_are_not_equal() {
-  let mismatches = match_header_value("HEADER", "HEADER_VALUE", "HEADER2",
-                                      &MatchingContext::default());
-
-  match mismatches.unwrap_err()[0] {
-    Mismatch::HeaderMismatch { ref mismatch, .. } =>
-      assert_eq!(mismatch, "Mismatch with header 'HEADER': Expected 'HEADER_VALUE' to be equal to 'HEADER2'"),
-    _ => panic!("Unexpected mismatch response")
-  }
-}
-
-#[test]
-fn matching_headers_exclude_whitespaces() {
-  let mismatches = match_header_value("HEADER", "HEADER1, HEADER2,   3",
-                                      "HEADER1,HEADER2,3", &MatchingContext::default());
-  expect!(mismatches).to(be_ok());
-}
-
-#[test]
-fn matching_headers_includes_whitespaces_within_a_value() {
-  let mismatches = match_header_value("HEADER", "HEADER 1, \tHEADER 2,\n3",
-                                      "HEADER 1,HEADER 2,3", &MatchingContext::default());
-  expect!(mismatches).to(be_ok());
-}
-
-#[test]
-fn content_type_header_matches_when_headers_are_equal() {
-  let mismatches = match_header_value("CONTENT-TYPE", "application/json;charset=UTF-8",
-                                      "application/json; charset=UTF-8", &MatchingContext::default());
-  expect!(mismatches).to(be_ok());
-}
-
-#[test]
-fn content_type_header_does_not_match_when_headers_are_not_equal() {
-  let mismatches = match_header_value("CONTENT-TYPE", "application/pdf;charset=UTF-8",
-                                      "application/json;charset=UTF-8", &MatchingContext::default());
-  expect!(mismatches).to(be_err());
-}
-
-#[test]
-fn content_type_header_does_not_match_when_expected_is_empty() {
-  let mismatches = match_header_value("CONTENT-TYPE", "",
-                                      "application/json;charset=UTF-8", &MatchingContext::default());
-  expect!(mismatches).to(be_err());
-}
-
-#[test]
-fn content_type_header_does_not_match_when_actual_is_empty() {
-  let mismatches = match_header_value("CONTENT-TYPE", "application/pdf;charset=UTF-8",
-                                      "", &MatchingContext::default());
-  expect!(mismatches).to(be_err());
-}
-
-#[test]
-fn content_type_header_does_not_match_when_charsets_are_not_equal() {
-  let mismatches = match_header_value("CONTENT-TYPE", "application/json;charset=UTF-8",
-                                      "application/json;charset=UTF-16", &MatchingContext::default());
-  expect!(mismatches).to(be_err());
-}
-
-#[test]
-fn content_type_header_does_not_match_when_charsets_other_parameters_not_equal() {
-  let mismatches = match_header_value("CONTENT-TYPE", "application/json;declaration=\"<950118.AEB0@XIson.com>\"",
-                                      "application/json;charset=UTF-8", &MatchingContext::default());
-  expect!(mismatches).to(be_err());
-}
-
-#[test]
-fn content_type_header_does_match_when_charsets_is_missing_from_expected_header() {
-  let mismatches = match_header_value("CONTENT-TYPE", "application/json",
-                                      "application/json;charset=UTF-8", &MatchingContext::default());
-  expect!(mismatches).to(be_ok());
-}
-
-#[test]
-fn mismatched_header_description_reports_content_type_mismatches_correctly() {
-  let mismatches = match_header_value("CONTENT-TYPE", "CONTENT-TYPE-VALUE", "HEADER2",
-                                      &MatchingContext::default());
-
-  match mismatches.unwrap_err()[0] {
-    Mismatch::HeaderMismatch { ref mismatch, .. } =>
-      assert_eq!(mismatch, "Mismatch with header 'CONTENT-TYPE': Expected header 'CONTENT-TYPE' to have value 'CONTENT-TYPE-VALUE' but was 'HEADER2'"),
-    _ => panic!("Unexpected mismatch response")
-  }
-}
-
-#[test]
-fn accept_header_matches_when_headers_are_equal() {
-  let mismatches = match_header_value("ACCEPT", "application/hal+json;charset=utf-8",
-                                      "application/hal+json;charset=utf-8", &MatchingContext::default());
-  expect!(mismatches).to(be_ok());
-}
-
-#[test]
-fn accept_header_does_not_match_when_actual_is_empty() {
-  let mismatches = match_header_value("ACCEPT", "application/hal+json",
-                                      "", &MatchingContext::default());
-  expect!(mismatches).to(be_err());
-}
-
-#[test]
-fn accept_header_does_match_when_charset_is_missing_from_expected_header() {
-  let mismatches = match_header_value("ACCEPT", "application/hal+json",
-                                      "application/hal+json;charset=utf-8", &MatchingContext::default());
-  expect!(mismatches).to(be_ok());
-}
-
-#[test]
-fn accept_header_does_not_match_when_charsets_are_not_equal() {
-  let mismatches = match_header_value("ACCEPT", "application/hal+json;charset=utf-8",
-                                      "application/hal+json;charset=utf-16", &MatchingContext::default());
-  expect!(mismatches).to(be_err());
-}
-
-#[test]
-fn mismatched_header_description_reports_accept_header_mismatches_correctly() {
-  let mismatches = match_header_value("ACCEPT", "ACCEPT-VALUE", "HEADER2",
-                                      &MatchingContext::default());
-  match mismatches.unwrap_err()[0] {
-    Mismatch::HeaderMismatch { ref mismatch, .. } =>
-      assert_eq!(mismatch, "Mismatch with header 'ACCEPT': Expected header 'ACCEPT' to have value 'ACCEPT-VALUE' but was 'HEADER2'"),
-    _ => panic!("Unexpected mismatch response")
-  }
-}
-
-#[test]
-fn accept_header_matching_with_multiple_values() {
-  let expected = Some(hashmap! { "accept".to_string() => vec!["application/json".to_string(), "application/hal+json".to_string()] });
-  let actual = Some(hashmap! { "accept".to_string() => vec!["application/json".to_string(), "application/hal+json".to_string()] });
-  let result = match_headers(expected, actual, &MatchingContext::default());
-  expect!(result.values().flatten()).to(be_empty());
 }
 
 #[test]
@@ -560,29 +408,6 @@ fn partial_equal_for_body_mismatch() {
 }
 
 #[test]
-#[ignore]
-fn strip_whitespace_quickcheck() {
-  use quickcheck::{TestResult, quickcheck};
-  fn prop(s: String, c: String) -> TestResult {
-    if c.is_empty() || c.chars().any(|ch| !ch.is_alphanumeric()) {
-      TestResult::discard()
-    } else {
-      let cs = c.as_str();
-      let stripped: Vec<&str> = strip_whitespace(&s, cs);
-      let result = s.trim() == stripped.join(cs).to_string();
-      // if !result {
-      //     dbg!(s.trim());
-      //     dbg!(c);
-      //     dbg!(stripped);
-      //     dbg!(stripped.join(cs).to_string());
-      // }
-      TestResult::from_bool(result)
-    }
-  }
-  quickcheck(prop as fn(_, _) -> _);
-}
-
-#[test]
 fn match_path_returns_nothing_if_the_path_matches() {
   let context = MatchingContext::default();
   let result = match_path(&"/path/one".to_string(), &"/path/one".to_string(), &context);
@@ -672,39 +497,6 @@ fn match_query_returns_a_mismatch_if_the_values_do_not_match_by_a_matcher() {
     actual: s!("b"),
     mismatch: s!(""),
   });
-}
-
-#[test]
-fn matching_headers_be_true_when_headers_match_by_matcher() {
-  let context = MatchingContext::new(
-    DiffConfig::AllowUnexpectedKeys,
-    &matchingrules! {
-      "header" => {
-        "HEADER" => [ MatchingRule::Regex(s!("\\w+")) ]
-      }
-    }.rules_for_category("header").unwrap_or_default()
-  );
-  let mismatches = match_header_value("HEADER", "HEADERX", "HEADERY", &context);
-  expect!(mismatches).to(be_ok());
-}
-
-#[test]
-fn matching_headers_be_false_when_headers_do_not_match_by_matcher() {
-  let context = MatchingContext::new(
-    DiffConfig::AllowUnexpectedKeys,
-    &matchingrules! {
-          "header" => {
-              "HEADER" => [ MatchingRule::Regex(s!("\\d+")) ]
-          }
-      }.rules_for_category("header").unwrap_or_default()
-  );
-  let mismatches = match_header_value(&s!("HEADER"), &s!("HEADER"), &s!("HEADER"), &context);
-  expect!(mismatches).to(be_err().value(vec![ Mismatch::HeaderMismatch {
-    key: s!("HEADER"),
-    expected: s!("HEADER"),
-    actual: s!("HEADER"),
-    mismatch: s!(""),
-  } ]));
 }
 
 macro_rules! request {

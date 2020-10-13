@@ -326,10 +326,11 @@
 #![warn(missing_docs)]
 
 use std::collections::HashMap;
-use std::fmt::{Display, Debug};
+use std::fmt::{Debug, Display};
 use std::hash::Hash;
 use std::iter::FromIterator;
 use std::str;
+use std::str::from_utf8;
 
 use ansi_term::*;
 use ansi_term::Colour::*;
@@ -337,15 +338,15 @@ use lazy_static::*;
 use log::*;
 use maplit::hashmap;
 use nom::lib::std::fmt::Formatter;
-use serde_json::{Value, json};
+use nom::lib::std::str::Utf8Error;
+use serde_json::{json, Value};
 
 use crate::matchers::*;
+use crate::models::{HttpPart, Interaction, PactSpecification};
 use crate::models::content_types::ContentType;
 use crate::models::generators::*;
-use crate::models::{HttpPart, Interaction, PactSpecification};
 use crate::models::matchingrules::*;
-use std::str::from_utf8;
-use nom::lib::std::str::Utf8Error;
+use crate::headers::match_headers;
 
 /// Simple macro to convert a string slice to a `String` struct.
 #[macro_export]
@@ -361,10 +362,7 @@ mod matchers;
 pub mod json;
 mod xml;
 mod binary_utils;
-
-fn strip_whitespace<'a, T: FromIterator<&'a str>>(val: &'a str, split_by: &'a str) -> T {
-  val.split(split_by).map(|v| v.trim()).collect()
-}
+mod headers;
 
 #[derive(Debug, Clone)]
 pub struct MatchingContext {
@@ -472,8 +470,6 @@ lazy_static! {
       (|content_type| { content_type.base_type() == "multipart/form-data" }, binary_utils::match_mime_multipart)
   ];
 }
-
-static PARAMETERISED_HEADER_TYPES: [&'static str; 2] = ["accept", "content-type"];
 
 /// Enum that defines the different types of mismatches that can occur.
 #[derive(Debug, Clone)]
@@ -1088,112 +1084,6 @@ pub fn match_query(expected: Option<HashMap<String, Vec<String>>>, actual: Optio
   }
 }
 
-fn parse_charset_parameters(parameters: &[&str]) -> HashMap<String, String> {
-    parameters.iter().map(|v| v.split("=").map(|p| p.trim()).collect::<Vec<&str>>())
-        .fold(HashMap::new(), |mut map, name_value| {
-            map.insert(name_value[0].to_string(), name_value[1].to_string());
-            map
-        })
-}
-
-fn match_parameter_header(expected: &str, actual: &str, header: &str, value_type: &str) -> Result<(), Vec<String>> {
-  let expected_values: Vec<&str> = strip_whitespace(expected, ";");
-  let actual_values: Vec<&str> = strip_whitespace(actual, ";");
-  let expected_parameters = expected_values.as_slice().split_first().unwrap();
-  let actual_parameters = actual_values.as_slice().split_first().unwrap();
-  let header_mismatch = format!("Expected {} '{}' to have value '{}' but was '{}'", value_type, header, expected, actual);
-
-  let mut mismatches = vec![];
-  if expected_parameters.0 == actual_parameters.0 {
-    let expected_parameter_map = parse_charset_parameters(expected_parameters.1);
-    let actual_parameter_map = parse_charset_parameters(actual_parameters.1);
-    for (k, v) in expected_parameter_map {
-      if actual_parameter_map.contains_key(&k) {
-        if v != *actual_parameter_map.get(&k).unwrap() {
-          mismatches.push(header_mismatch.clone());
-        }
-      } else {
-        mismatches.push(header_mismatch.clone());
-      }
-    }
-  } else {
-    mismatches.push(header_mismatch.clone());
-  }
-
-  if mismatches.is_empty() {
-    Ok(())
-  } else {
-    Err(mismatches)
-  }
-}
-
-fn match_header_value(key: &str, expected: &str, actual: &str, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
-  let path = vec!["$", key];
-  let expected: String = strip_whitespace(expected, ",");
-  let actual: String = strip_whitespace(actual, ",");
-
-  let matcher_result = if context.matcher_is_defined(&path) {
-    matchers::match_values(&path, context, &expected, &actual)
-  } else if PARAMETERISED_HEADER_TYPES.contains(&key.to_lowercase().as_str()) {
-    match_parameter_header(expected.as_str(), actual.as_str(), key, "header")
-  } else {
-    expected.to_string().matches(&actual, &MatchingRule::Equality).map_err(|err| vec![err])
-  };
-  matcher_result.map_err(|messages| {
-    messages.iter().map(|message| {
-      Mismatch::HeaderMismatch {
-        key: key.to_string(),
-        expected: expected.to_string(),
-        actual: actual.to_string(),
-        mismatch: format!("Mismatch with header '{}': {}", key.clone(), message)
-      }
-    }).collect()
-  })
-}
-
-fn find_entry<T>(map: &HashMap<String, T>, key: &String) -> Option<(String, T)> where T: Clone {
-    match map.keys().find(|k| k.to_lowercase() == key.to_lowercase() ) {
-        Some(k) => map.get(k).map(|v| (key.clone(), v.clone()) ),
-        None => None
-    }
-}
-
-fn match_header_maps(expected: HashMap<String, Vec<String>>, actual: HashMap<String, Vec<String>>, context: &MatchingContext) -> HashMap<String, Vec<Mismatch>> {
-  let mut result = hashmap!{};
-  for (key, value) in &expected {
-    match find_entry(&actual, key) {
-      Some((_, actual_value)) => for (index, val) in value.iter().enumerate() {
-        result.insert(key.clone(), match_header_value(key, val,
-          actual_value.get(index).unwrap_or(&String::default()), context).err().unwrap_or_default());
-      },
-      None => {
-        result.insert(key.clone(), vec![Mismatch::HeaderMismatch { key: key.clone(),
-          expected: format!("{:?}", value.join(", ")),
-          actual: "".to_string(),
-          mismatch: format!("Expected header '{}' but was missing", key) }]);
-      }
-    }
-  }
-  result
-}
-
-/// Matches the actual headers to the expected ones.
-pub fn match_headers(expected: Option<HashMap<String, Vec<String>>>,
-                     actual: Option<HashMap<String, Vec<String>>>,
-                     context: &MatchingContext) -> HashMap<String, Vec<Mismatch>> {
-  match (actual, expected) {
-    (Some(aqm), Some(eqm)) => match_header_maps(eqm, aqm, context),
-    (Some(_), None) => hashmap!{},
-    (None, Some(eqm)) => eqm.iter().map(|(key, value)| {
-      (key.clone(), vec![Mismatch::HeaderMismatch { key: key.clone(),
-        expected: format!("{:?}", value.join(", ")),
-        actual: "".to_string(),
-        mismatch: format!("Expected header '{}' but was missing", key) }])
-    }).collect(),
-    (None, None) => hashmap!{}
-  }
-}
-
 fn group_by<I, F, K>(items: I, f: F) -> HashMap<K, Vec<I::Item>>
   where I: IntoIterator, F: Fn(&I::Item) -> K, K: Eq + Hash {
   let mut m = hashmap!{};
@@ -1401,7 +1291,7 @@ fn match_metadata_value(key: &str, expected: &str, actual: &str, context: &Match
     matchers::match_values(&path, context, &expected.to_string(), &actual.to_string())
   } else if key.to_ascii_lowercase() == "contenttype" || key.to_ascii_lowercase() == "content-type" {
     debug!("Comparing message context type '{}' => '{}'", expected, actual);
-    match_parameter_header(expected, actual, key, "metadata")
+    headers::match_parameter_header(expected, actual, key, "metadata")
   } else {
     expected.to_string().matches(&actual.to_string(), &MatchingRule::Equality).map_err(|err| vec![err])
   };

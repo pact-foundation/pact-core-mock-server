@@ -56,6 +56,46 @@ fn order_of_comma_separated_header_values_different() {
 }
 
 #[test]
+fn matches_content_type_with_charset_with_different_case() {
+    println!("FILE: tests/spec_testcases/v3/request/headers/matches content type with charset with different case.json");
+    let pact : serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": true,
+        "comment": "Content-Type and Accept Headers match when the charset differs in case",
+        "expected" : {
+          "headers": {
+            "Accept": "application/json;charset=utf-8",
+            "Content-Type": "application/json;charset=utf-8"
+          }
+        },
+        "actual": {
+          "headers": {
+            "Accept": "application/json; charset=UTF-8",
+            "Content-Type": "application/json; charset=UTF-8"
+          }
+        }
+      }
+    "#).unwrap();
+
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v3/request/headers/matches content type with charset with different case.json", &interaction_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v3/request/headers/matches content type with charset with different case.json", &interaction_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.contents().str_value());
+    let pact_match = pact.get("match").unwrap();
+    let result = match_interaction_request(expected, actual, &PactSpecification::V3).unwrap().mismatches();
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[test]
 fn whitespace_after_comma_different() {
     println!("FILE: tests/spec_testcases/v3/request/headers/whitespace after comma different.json");
     let pact : serde_json::Value = serde_json::from_str(r#"
