@@ -181,6 +181,13 @@ impl HttpPart for Message {
   }
 }
 
+impl Display for Message {
+  fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    write!(f, "Message ( id: {:?}, description: \"{}\", provider_states: {:?}, contents: {}, metadata: {:?} )",
+           self.id, self.description, self.provider_states, self.contents, self.metadata)
+  }
+}
+
 fn missing_body() -> OptionalBody {
     OptionalBody::Missing
 }

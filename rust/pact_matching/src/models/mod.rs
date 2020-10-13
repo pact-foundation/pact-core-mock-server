@@ -1030,6 +1030,18 @@ impl Debug for dyn Interaction {
   }
 }
 
+impl Display for dyn Interaction {
+  fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    if let Some(req_res) = self.as_request_response() {
+      std::fmt::Display::fmt(&req_res, f)
+    } else if let Some(mp) = self.as_message() {
+      std::fmt::Display::fmt(&mp, f)
+    } else {
+      Err(fmt::Error)
+    }
+  }
+}
+
 /// Struct that defines an interaction (request and response pair)
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RequestResponseInteraction {
