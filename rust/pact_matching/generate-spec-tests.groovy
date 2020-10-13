@@ -16,33 +16,20 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
     pw.println('use test_env_log::test;')
     pw.println('#[allow(unused_imports)]')
     pw.println('use pact_matching::models::PactSpecification;')
-    if (requestResponsePath == 'request') {
+    pw.println('#[allow(unused_imports)]')
+    pw.println('use serde_json;')
+    pw.println('#[allow(unused_imports)]')
+    pw.println('use expectest::prelude::*;')
+    if (requestResponsePath == 'request' || requestResponsePath == 'response') {
       pw.println('#[allow(unused_imports)]')
-      pw.println('use pact_matching::models::Request;')
+      pw.println('use pact_matching::models::{Interaction, http_interaction_from_json};')
       pw.println('#[allow(unused_imports)]')
-      pw.println('use pact_matching::match_request;')
-      pw.println('#[allow(unused_imports)]')
-      pw.println('use expectest::prelude::*;')
-      pw.println('#[allow(unused_imports)]')
-      pw.println('use serde_json;')
-    } else if (requestResponsePath == 'response') {
-      pw.println('#[allow(unused_imports)]')
-      pw.println('use pact_matching::models::Response;')
-      pw.println('#[allow(unused_imports)]')
-      pw.println('use pact_matching::match_response;')
-      pw.println('#[allow(unused_imports)]')
-      pw.println('use expectest::prelude::*;')
-      pw.println('#[allow(unused_imports)]')
-      pw.println('use serde_json;')
+      pw.println('use pact_matching::{match_interaction_request, match_interaction_response};')
     } else if (requestResponsePath == 'message') {
       pw.println('#[allow(unused_imports)]')
       pw.println('use pact_matching::models::message::Message;')
       pw.println('#[allow(unused_imports)]')
       pw.println('use pact_matching::match_message;')
-      pw.println('#[allow(unused_imports)]')
-      pw.println('use expectest::prelude::*;')
-      pw.println('#[allow(unused_imports)]')
-      pw.println('use serde_json;')
     }
 
     dir.eachDir {
@@ -63,14 +50,16 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
       testBody += '|    "#).unwrap();' + '\n'
       if (requestResponsePath == 'request') {
         testBody += """
-        |    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::$specVersion);
-        |    println!("EXPECTED: {}", expected);
-        |    println!("BODY: {}", expected.body.str_value());
-        |    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::$specVersion);
-        |    println!("ACTUAL: {}", actual);
-        |    println!("BODY: {}", actual.body.str_value());
+        |    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("expected").unwrap()});
+        |    let expected = http_interaction_from_json("$it", &interaction_json, &PactSpecification::$specVersion).unwrap();
+        |    println!("EXPECTED: {:?}", expected);
+        |    println!("BODY: {}", expected.contents().str_value());
+        |    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("actual").unwrap()});
+        |    let actual = http_interaction_from_json("$it", &interaction_json, &PactSpecification::$specVersion).unwrap();
+        |    println!("ACTUAL: {:?}", actual);
+        |    println!("BODY: {}", actual.contents().str_value());
         |    let pact_match = pact.get("match").unwrap();
-        |    let result = match_request(expected, actual).mismatches();
+        |    let result = match_interaction_request(expected, actual, &PactSpecification::$specVersion).unwrap().mismatches();
         |    println!("RESULT: {:?}", result);
         |    if pact_match.as_bool().unwrap() {
         |       expect!(result.iter()).to(be_empty());
@@ -80,14 +69,16 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
         """
       } else if (requestResponsePath == 'response') {
         testBody += """
-        |    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::$specVersion);
-        |    println!("EXPECTED: {}", expected);
-        |    println!("BODY: {}", expected.body.str_value());
-        |    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::$specVersion);
-        |    println!("ACTUAL: {}", actual);
-        |    println!("BODY: {}", actual.body.str_value());
+        |    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
+        |    let expected = http_interaction_from_json("$it", &interaction_json, &PactSpecification::$specVersion).unwrap();
+        |    println!("EXPECTED: {:?}", expected);
+        |    println!("BODY: {}", expected.contents().str_value());
+        |    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
+        |    let actual = http_interaction_from_json("$it", &interaction_json, &PactSpecification::$specVersion).unwrap();
+        |    println!("ACTUAL: {:?}", actual);
+        |    println!("BODY: {}", actual.contents().str_value());
         |    let pact_match = pact.get("match").unwrap();
-        |    let result = match_response(expected, actual);
+        |    let result = match_interaction_response(expected, actual, &PactSpecification::$specVersion).unwrap();
         |    println!("RESULT: {:?}", result);
         |    if pact_match.as_bool().unwrap() {
         |       expect!(result.iter()).to(be_empty());

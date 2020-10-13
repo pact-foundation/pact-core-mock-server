@@ -45,6 +45,10 @@ pub struct Message {
 }
 
 impl Interaction for Message {
+  fn type_of(&self) -> String {
+    "V3 Asynchronous/Messages".into()
+  }
+
   fn is_request_response(&self) -> bool {
     false
   }
@@ -140,7 +144,7 @@ impl Message {
                   generators: Generators::default()
                 })
             },
-            _ => Err(s!("Messages require Pact Specification version 3 or later"))
+            _ => Err(s!("Messages require Pact Specification version 3"))
         }
     }
 }

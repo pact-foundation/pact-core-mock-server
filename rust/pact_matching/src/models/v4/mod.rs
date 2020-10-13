@@ -192,6 +192,13 @@ impl V4Interaction {
 }
 
 impl Interaction for V4Interaction {
+  fn type_of(&self) -> String {
+    match self {
+      V4Interaction::SynchronousHttp { .. } => format!("V4 {}", V4InteractionType::Synchronous_HTTP),
+      V4Interaction::AsynchronousMessages { .. } => format!("V4 {}", V4InteractionType::Asynchronous_Messages)
+    }
+  }
+
   fn is_request_response(&self) -> bool {
     match self {
       V4Interaction::SynchronousHttp { .. } => true,
@@ -464,7 +471,8 @@ fn interactions_from_json(json: &Value, source: &str) -> Vec<V4Interaction> {
   }
 }
 
-fn interaction_from_json(source: &str, index: usize, ijson: &Value) -> Option<V4Interaction> {
+/// Create an interaction from a JSON struct
+pub fn interaction_from_json(source: &str, index: usize, ijson: &Value) -> Option<V4Interaction> {
   match ijson.get("type") {
     Some(i_type) => match V4InteractionType::from_str(json_to_string(i_type).as_str()) {
       Ok(i_type) => {

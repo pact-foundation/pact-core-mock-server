@@ -342,7 +342,7 @@ use serde_json::{Value, json};
 use crate::matchers::*;
 use crate::models::content_types::ContentType;
 use crate::models::generators::*;
-use crate::models::HttpPart;
+use crate::models::{HttpPart, Interaction, PactSpecification};
 use crate::models::matchingrules::*;
 use std::str::from_utf8;
 use nom::lib::std::str::Utf8Error;
@@ -1339,8 +1339,8 @@ pub fn match_message_contents(
   actual: &models::message::Message,
   context: &MatchingContext
 ) -> Result<(), Vec<Mismatch>> {
-  let expected_content_type = expected.content_type().unwrap_or_default();
-  let actual_content_type = actual.content_type().unwrap_or_default();
+  let expected_content_type = models::Interaction::content_type(expected).unwrap_or_default();
+  let actual_content_type = models::Interaction::content_type(actual).unwrap_or_default();
   debug!("expected content type = '{}', actual content type = '{}'", expected_content_type,
          actual_content_type);
   if expected_content_type.is_equivalent_to(&actual_content_type) {
@@ -1492,6 +1492,24 @@ pub fn generate_response(response: &models::Response, context: &HashMap<String, 
   response.body = generators.apply_body_generators(&response.body, response.content_type(),
     context);
   response
+}
+
+/// Matches the request part of the interaction
+pub fn match_interaction_request(expected: Box<dyn Interaction>, actual: Box<dyn Interaction>, spec_version: &PactSpecification) -> Result<RequestMatchResult, String> {
+  if let Some(expected) = expected.as_request_response() {
+    Ok(match_request(expected.request, actual.as_request_response().unwrap().request))
+  } else {
+    Err(format!("match_interaction_request must be called with HTTP request/response interactions, got {}", expected.type_of()))
+  }
+}
+
+/// Matches the response part of the interaction
+pub fn match_interaction_response(expected: Box<dyn Interaction>, actual: Box<dyn Interaction>, spec_version: &PactSpecification) -> Result<Vec<Mismatch>, String> {
+  if let Some(expected) = expected.as_request_response() {
+    Ok(match_response(expected.response, actual.as_request_response().unwrap().response))
+  } else {
+    Err(format!("match_interaction_response must be called with HTTP request/response interactions, got {}", expected.type_of()))
+  }
 }
 
 #[cfg(test)]

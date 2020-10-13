@@ -3,13 +3,13 @@ use test_env_log::test;
 #[allow(unused_imports)]
 use pact_matching::models::PactSpecification;
 #[allow(unused_imports)]
-use pact_matching::models::Request;
-#[allow(unused_imports)]
-use pact_matching::match_request;
+use serde_json;
 #[allow(unused_imports)]
 use expectest::prelude::*;
 #[allow(unused_imports)]
-use serde_json;
+use pact_matching::models::{Interaction, http_interaction_from_json};
+#[allow(unused_imports)]
+use pact_matching::{match_interaction_request, match_interaction_response};
 
 #[test]
 fn empty_path_found_when_forward_slash_expected() {
@@ -35,14 +35,16 @@ fn empty_path_found_when_forward_slash_expected() {
       }
     "#).unwrap();
 
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1);
-    println!("EXPECTED: {}", expected);
-    println!("BODY: {}", expected.body.str_value());
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1);
-    println!("ACTUAL: {}", actual);
-    println!("BODY: {}", actual.body.str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1/request/path/empty path found when forward slash expected.json", &interaction_json, &PactSpecification::V1).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1/request/path/empty path found when forward slash expected.json", &interaction_json, &PactSpecification::V1).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual).mismatches();
+    let result = match_interaction_request(expected, actual, &PactSpecification::V1).unwrap().mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -75,14 +77,16 @@ fn unexpected_trailing_slash_in_path() {
       }
     "#).unwrap();
 
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1);
-    println!("EXPECTED: {}", expected);
-    println!("BODY: {}", expected.body.str_value());
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1);
-    println!("ACTUAL: {}", actual);
-    println!("BODY: {}", actual.body.str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1/request/path/unexpected trailing slash in path.json", &interaction_json, &PactSpecification::V1).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1/request/path/unexpected trailing slash in path.json", &interaction_json, &PactSpecification::V1).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual).mismatches();
+    let result = match_interaction_request(expected, actual, &PactSpecification::V1).unwrap().mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -115,14 +119,16 @@ fn forward_slash_found_when_empty_path_expected() {
       }
     "#).unwrap();
 
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1);
-    println!("EXPECTED: {}", expected);
-    println!("BODY: {}", expected.body.str_value());
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1);
-    println!("ACTUAL: {}", actual);
-    println!("BODY: {}", actual.body.str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1/request/path/forward slash found when empty path expected.json", &interaction_json, &PactSpecification::V1).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1/request/path/forward slash found when empty path expected.json", &interaction_json, &PactSpecification::V1).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual).mismatches();
+    let result = match_interaction_request(expected, actual, &PactSpecification::V1).unwrap().mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -155,14 +161,16 @@ fn incorrect_path() {
       }
     "#).unwrap();
 
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1);
-    println!("EXPECTED: {}", expected);
-    println!("BODY: {}", expected.body.str_value());
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1);
-    println!("ACTUAL: {}", actual);
-    println!("BODY: {}", actual.body.str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1/request/path/incorrect path.json", &interaction_json, &PactSpecification::V1).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1/request/path/incorrect path.json", &interaction_json, &PactSpecification::V1).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual).mismatches();
+    let result = match_interaction_request(expected, actual, &PactSpecification::V1).unwrap().mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -195,14 +203,16 @@ fn missing_trailing_slash_in_path() {
       }
     "#).unwrap();
 
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1);
-    println!("EXPECTED: {}", expected);
-    println!("BODY: {}", expected.body.str_value());
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1);
-    println!("ACTUAL: {}", actual);
-    println!("BODY: {}", actual.body.str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1/request/path/missing trailing slash in path.json", &interaction_json, &PactSpecification::V1).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1/request/path/missing trailing slash in path.json", &interaction_json, &PactSpecification::V1).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual).mismatches();
+    let result = match_interaction_request(expected, actual, &PactSpecification::V1).unwrap().mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -235,14 +245,16 @@ fn matches() {
       }
     "#).unwrap();
 
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1);
-    println!("EXPECTED: {}", expected);
-    println!("BODY: {}", expected.body.str_value());
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1);
-    println!("ACTUAL: {}", actual);
-    println!("BODY: {}", actual.body.str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1/request/path/matches.json", &interaction_json, &PactSpecification::V1).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1/request/path/matches.json", &interaction_json, &PactSpecification::V1).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual).mismatches();
+    let result = match_interaction_request(expected, actual, &PactSpecification::V1).unwrap().mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());

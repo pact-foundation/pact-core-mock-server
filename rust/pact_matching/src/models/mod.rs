@@ -32,7 +32,7 @@ use crate::models::http_utils::HttpAuth;
 use crate::models::message::Message;
 use crate::models::message_pact::MessagePact;
 use crate::models::provider_states::ProviderState;
-use crate::models::v4::V4Pact;
+use crate::models::v4::{V4Pact, V4Interaction, interaction_from_json};
 use crate::models::json_utils::json_to_string;
 
 pub mod json_utils;
@@ -1008,6 +1008,8 @@ pub struct PactConflict {
 
 /// Interaction Trait
 pub trait Interaction {
+  /// The type of the interaction
+  fn type_of(&self) -> String;
   /// If this is a request/response interaction
   fn is_request_response(&self) -> bool;
   /// Returns the request/response interaction if it is one
@@ -1059,6 +1061,10 @@ pub struct RequestResponseInteraction {
 }
 
 impl Interaction for RequestResponseInteraction {
+  fn type_of(&self) -> String {
+    "V3 Synchronous/HTTP".into()
+  }
+
   fn is_request_response(&self) -> bool {
     true
   }
@@ -1623,6 +1629,16 @@ pub fn parse_query_string(query: &String) -> Option<HashMap<String, Vec<String>>
     } else {
         None
     }
+}
+
+/// Converts the JSON struct into an HTTP Interaction
+pub fn http_interaction_from_json(source: &str, json: &Value, spec: &PactSpecification) -> Result<Box<dyn Interaction>, String> {
+  match spec {
+    PactSpecification::V4 => interaction_from_json(source, 0, json)
+      .map(|i| Box::new(i) as Box<dyn Interaction>)
+      .ok_or(format!("Could not create a V4 interaction from the provided JSON")),
+    _ => Ok(Box::new(RequestResponseInteraction::from_json(0, json, spec)))
+  }
 }
 
 /// Reads the pact file and parses the resulting JSON into a `Pact` struct

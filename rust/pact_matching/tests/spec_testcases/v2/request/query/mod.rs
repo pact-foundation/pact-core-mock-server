@@ -3,13 +3,13 @@ use test_env_log::test;
 #[allow(unused_imports)]
 use pact_matching::models::PactSpecification;
 #[allow(unused_imports)]
-use pact_matching::models::Request;
-#[allow(unused_imports)]
-use pact_matching::match_request;
+use serde_json;
 #[allow(unused_imports)]
 use expectest::prelude::*;
 #[allow(unused_imports)]
-use serde_json;
+use pact_matching::models::{Interaction, http_interaction_from_json};
+#[allow(unused_imports)]
+use pact_matching::{match_interaction_request, match_interaction_response};
 
 #[test]
 fn trailing_ampersand() {
@@ -35,14 +35,16 @@ fn trailing_ampersand() {
       }
     "#).unwrap();
 
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
-    println!("EXPECTED: {}", expected);
-    println!("BODY: {}", expected.body.str_value());
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
-    println!("ACTUAL: {}", actual);
-    println!("BODY: {}", actual.body.str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v2/request/query/trailing ampersand.json", &interaction_json, &PactSpecification::V2).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v2/request/query/trailing ampersand.json", &interaction_json, &PactSpecification::V2).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual).mismatches();
+    let result = match_interaction_request(expected, actual, &PactSpecification::V2).unwrap().mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -75,14 +77,16 @@ fn unexpected_param() {
       }
     "#).unwrap();
 
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
-    println!("EXPECTED: {}", expected);
-    println!("BODY: {}", expected.body.str_value());
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
-    println!("ACTUAL: {}", actual);
-    println!("BODY: {}", actual.body.str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v2/request/query/unexpected param.json", &interaction_json, &PactSpecification::V2).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v2/request/query/unexpected param.json", &interaction_json, &PactSpecification::V2).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual).mismatches();
+    let result = match_interaction_request(expected, actual, &PactSpecification::V2).unwrap().mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -115,14 +119,16 @@ fn different_params() {
       }
     "#).unwrap();
 
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
-    println!("EXPECTED: {}", expected);
-    println!("BODY: {}", expected.body.str_value());
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
-    println!("ACTUAL: {}", actual);
-    println!("BODY: {}", actual.body.str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v2/request/query/different params.json", &interaction_json, &PactSpecification::V2).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v2/request/query/different params.json", &interaction_json, &PactSpecification::V2).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual).mismatches();
+    let result = match_interaction_request(expected, actual, &PactSpecification::V2).unwrap().mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -155,14 +161,16 @@ fn same_parameter_different_values() {
       }
     "#).unwrap();
 
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
-    println!("EXPECTED: {}", expected);
-    println!("BODY: {}", expected.body.str_value());
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
-    println!("ACTUAL: {}", actual);
-    println!("BODY: {}", actual.body.str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v2/request/query/same parameter different values.json", &interaction_json, &PactSpecification::V2).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v2/request/query/same parameter different values.json", &interaction_json, &PactSpecification::V2).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual).mismatches();
+    let result = match_interaction_request(expected, actual, &PactSpecification::V2).unwrap().mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -195,14 +203,16 @@ fn matches_with_equals_in_the_query_value() {
       }
     "#).unwrap();
 
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
-    println!("EXPECTED: {}", expected);
-    println!("BODY: {}", expected.body.str_value());
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
-    println!("ACTUAL: {}", actual);
-    println!("BODY: {}", actual.body.str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v2/request/query/matches with equals in the query value.json", &interaction_json, &PactSpecification::V2).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v2/request/query/matches with equals in the query value.json", &interaction_json, &PactSpecification::V2).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual).mismatches();
+    let result = match_interaction_request(expected, actual, &PactSpecification::V2).unwrap().mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -235,14 +245,16 @@ fn missing_params() {
       }
     "#).unwrap();
 
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
-    println!("EXPECTED: {}", expected);
-    println!("BODY: {}", expected.body.str_value());
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
-    println!("ACTUAL: {}", actual);
-    println!("BODY: {}", actual.body.str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v2/request/query/missing params.json", &interaction_json, &PactSpecification::V2).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v2/request/query/missing params.json", &interaction_json, &PactSpecification::V2).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual).mismatches();
+    let result = match_interaction_request(expected, actual, &PactSpecification::V2).unwrap().mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -274,14 +286,16 @@ fn same_parameter_multiple_times_in_different_order() {
       }
     "#).unwrap();
 
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
-    println!("EXPECTED: {}", expected);
-    println!("BODY: {}", expected.body.str_value());
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
-    println!("ACTUAL: {}", actual);
-    println!("BODY: {}", actual.body.str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v2/request/query/same parameter multiple times in different order.json", &interaction_json, &PactSpecification::V2).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v2/request/query/same parameter multiple times in different order.json", &interaction_json, &PactSpecification::V2).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual).mismatches();
+    let result = match_interaction_request(expected, actual, &PactSpecification::V2).unwrap().mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -314,14 +328,16 @@ fn different_order() {
       }
     "#).unwrap();
 
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
-    println!("EXPECTED: {}", expected);
-    println!("BODY: {}", expected.body.str_value());
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
-    println!("ACTUAL: {}", actual);
-    println!("BODY: {}", actual.body.str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v2/request/query/different order.json", &interaction_json, &PactSpecification::V2).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v2/request/query/different order.json", &interaction_json, &PactSpecification::V2).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual).mismatches();
+    let result = match_interaction_request(expected, actual, &PactSpecification::V2).unwrap().mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -353,14 +369,16 @@ fn same_parameter_multiple_times() {
       }
     "#).unwrap();
 
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
-    println!("EXPECTED: {}", expected);
-    println!("BODY: {}", expected.body.str_value());
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
-    println!("ACTUAL: {}", actual);
-    println!("BODY: {}", actual.body.str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v2/request/query/same parameter multiple times.json", &interaction_json, &PactSpecification::V2).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v2/request/query/same parameter multiple times.json", &interaction_json, &PactSpecification::V2).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual).mismatches();
+    let result = match_interaction_request(expected, actual, &PactSpecification::V2).unwrap().mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -393,14 +411,16 @@ fn matches() {
       }
     "#).unwrap();
 
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V2);
-    println!("EXPECTED: {}", expected);
-    println!("BODY: {}", expected.body.str_value());
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V2);
-    println!("ACTUAL: {}", actual);
-    println!("BODY: {}", actual.body.str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v2/request/query/matches.json", &interaction_json, &PactSpecification::V2).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v2/request/query/matches.json", &interaction_json, &PactSpecification::V2).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request(expected, actual).mismatches();
+    let result = match_interaction_request(expected, actual, &PactSpecification::V2).unwrap().mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
