@@ -15,26 +15,34 @@
         }
       }
     },
-    "body": [
-      {
-        "product": {
+    "body": {
+      "contentType": "application/json",
+      "encoded": false,
+      "content": [
+        {
+          "product": {
             "id": 123,
             "description": "Television",
             "price": 500.55
+          }
         }
-      }
-    ]
+      ]
+    }
   },
   "actual": {
     "headers": {"Content-Type": "application/json"},
-    "body": [
-      {
-        "product": {
+    "body": {
+      "contentType": "application/json",
+      "encoded": false,
+      "content": [
+        {
+          "product": {
             "id": 123,
             "description": "Television",
             "price": 500.55
+          }
         }
-      }
-    ]
+      ]
+    }
   }
 }

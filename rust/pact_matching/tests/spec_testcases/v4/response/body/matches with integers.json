@@ -19,10 +19,17 @@
       }
     },
     "body": {
-      "alligator":{
-        "name": "Mary",
-        "feet": 4,
-        "favouriteColours": ["red","blue"]
+      "contentType": "application/json",
+      "encoded": false,
+      "content": {
+        "alligator": {
+          "name": "Mary",
+          "feet": 4,
+          "favouriteColours": [
+            "red",
+            "blue"
+          ]
+        }
       }
     }
   },
@@ -32,10 +39,17 @@
     "query": {},
     "headers": {"Content-Type": "application/json"},
     "body": {
-      "alligator":{
-        "feet": 4,
-        "name": "Mary",
-       "favouriteColours": ["red","blue"]
+      "contentType": "application/json",
+      "encoded": false,
+      "content": {
+        "alligator": {
+          "feet": 4,
+          "name": "Mary",
+          "favouriteColours": [
+            "red",
+            "blue"
+          ]
+        }
       }
     }
   }

@@ -4,9 +4,13 @@
   "expected": {
     "headers": {},
     "body" : {
-      "myDates": [
-        "29/10/2015"
-      ]
+      "contentType": "application/json",
+      "encoded": false,
+      "content": {
+        "myDates": [
+          "29/10/2015"
+        ]
+      }
     },
     "matchingRules" : {
       "body": {
@@ -31,11 +35,15 @@
   "actual": {
     "headers": {},
     "body": {
-      "myDates": [
-        "01/11/2010",
-        "15/12/2014",
-        "30/06/2015"
-      ]
+      "contentType": "application/json",
+      "encoded": false,
+      "content": {
+        "myDates": [
+          "01/11/2010",
+          "15/12/2014",
+          "30/06/2015"
+        ]
+      }
     }    
   }
 }

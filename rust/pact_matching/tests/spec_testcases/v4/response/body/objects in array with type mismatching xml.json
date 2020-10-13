@@ -3,7 +3,11 @@
   "comment": "XML objects in array with type mismatching",
   "expected": {
     "headers": {},
-    "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person name=\"John Smith\" age=\"50\"/></people>",
+    "body": {
+      "contentType": "application/xml",
+      "encoded": false,
+      "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person name=\"John Smith\" age=\"50\"/></people>"
+    },
     "matchingRules": {
       "body": {
         "$[*]": {
@@ -25,6 +29,10 @@
   },
   "actual": {
     "headers": {},
-    "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person name=\"Peter Peterson\" age=\"22\" gender=\"Male\"/><person/></people>"
+    "body": {
+      "contentType": "application/xml",
+      "encoded": false,
+      "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person name=\"Peter Peterson\" age=\"22\" gender=\"Male\"/><person/></people>"
+    }
   }
 }

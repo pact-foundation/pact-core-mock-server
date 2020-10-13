@@ -21,9 +21,13 @@ fn array_with_regex_matcher() {
         "expected": {
           "headers": {},
           "body" : {
-            "myDates": [
-              "29/10/2015"
-            ]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "myDates": [
+                "29/10/2015"
+              ]
+            }
           },
           "matchingRules" : {
             "body": {
@@ -48,11 +52,15 @@ fn array_with_regex_matcher() {
         "actual": {
           "headers": {},
           "body": {
-            "myDates": [
-              "01/11/2010",
-              "15/12/2014",
-              "30/06/2015"
-            ]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "myDates": [
+                "01/11/2010",
+                "15/12/2014",
+                "30/06/2015"
+              ]
+            }
           }    
         }
       }
@@ -85,11 +93,19 @@ fn unexpected_xml_namespace() {
         "comment": "XML namespaces not expected",
         "expected" : {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator/>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator/>"
+          }
         },
         "actual": {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator xmlns=\"urn:alligators\"/>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator xmlns=\"urn:alligators\"/>"
+          }
         }
       }
     "#).unwrap();
@@ -121,11 +137,19 @@ fn different_value_found_at_index_xml() {
         "comment": "XML Incorrect favourite colour",
         "expected" : {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><favouriteColour>red</favouriteColour><favouriteColour>blue</favouriteColour></favouriteColours></alligator>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><favouriteColour>red</favouriteColour><favouriteColour>blue</favouriteColour></favouriteColours></alligator>"
+          }
         },
         "actual": {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><favouriteColour>red</favouriteColour><favouriteColour>purple</favouriteColour></favouriteColours></alligator>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><favouriteColour>red</favouriteColour><favouriteColour>purple</favouriteColour></favouriteColours></alligator>"
+          }
         }
       }
     "#).unwrap();
@@ -158,16 +182,31 @@ fn unexpected_index_with_not_null_value() {
         "expected" : {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "favouriteColours": ["red","blue"]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "favouriteColours": [
+                  "red",
+                  "blue"
+                ]
+              }
             }
           }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "favouriteColours": ["red","blue","taupe"]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "favouriteColours": [
+                  "red",
+                  "blue",
+                  "taupe"
+                ]
+              }
             }
           }
         }
@@ -205,10 +244,17 @@ fn missing_body() {
         "actual": {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "feet": 4,
-              "name": "Mary",
-              "favouriteColours": ["red","blue"]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "feet": 4,
+                "name": "Mary",
+                "favouriteColours": [
+                  "red",
+                  "blue"
+                ]
+              }
             }
           }
         }
@@ -243,17 +289,25 @@ fn unexpected_key_with_null_value() {
         "expected" : {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "name": "Mary"
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "name": "Mary"
+              }
             }
           }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "name": "Mary",
-              "phoneNumber": null
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "name": "Mary",
+                "phoneNumber": null
+              }
             }
           }
         }
@@ -288,16 +342,24 @@ fn different_value_found_at_key() {
         "expected" : {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "name": "Mary"
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "name": "Mary"
+              }
             }
           }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "name": "Fred"
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "name": "Fred"
+              }
             }
           }
         }
@@ -332,16 +394,24 @@ fn not_null_found_at_key_when_null_expected() {
         "expected" : {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "name": null
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "name": null
+              }
             }
           }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "name": "Fred"
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "name": "Fred"
+              }
             }
           }
         }
@@ -376,8 +446,12 @@ fn additional_property_with_type_matcher() {
         "expected": {
           "headers": {},
           "body" : {
-            "myPerson": {
-              "name": "Any name"
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "myPerson": {
+                "name": "Any name"
+              }
             }
           },
           "matchingRules" : {
@@ -395,10 +469,14 @@ fn additional_property_with_type_matcher() {
         "actual": {
           "headers": {},
           "body": {
-            "myPerson": {
-              "name": "Jon Peterson",
-              "age": "39",
-              "nationality": "Australian"
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "myPerson": {
+                "name": "Jon Peterson",
+                "age": "39",
+                "nationality": "Australian"
+              }
             }
           }    
         }
@@ -448,10 +526,17 @@ fn matches_with_integers() {
             }
           },
           "body": {
-            "alligator":{
-              "name": "Mary",
-              "feet": 4,
-              "favouriteColours": ["red","blue"]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "name": "Mary",
+                "feet": 4,
+                "favouriteColours": [
+                  "red",
+                  "blue"
+                ]
+              }
             }
           }
         },
@@ -461,10 +546,17 @@ fn matches_with_integers() {
           "query": {},
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "feet": 4,
-              "name": "Mary",
-             "favouriteColours": ["red","blue"]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "feet": 4,
+                "name": "Mary",
+                "favouriteColours": [
+                  "red",
+                  "blue"
+                ]
+              }
             }
           }
         }
@@ -498,11 +590,19 @@ fn different_value_found_at_key_xml() {
         "comment": "XML Incorrect value at alligator name",
         "expected" : {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\"/>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\"/>"
+          }
         },
         "actual": {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Fred\"/>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Fred\"/>"
+          }
         }
       }
     "#).unwrap();
@@ -535,16 +635,32 @@ fn number_found_in_array_when_string_expected() {
         "expected" : {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "favouriteNumbers": ["1","2","3"]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "favouriteNumbers": [
+                  "1",
+                  "2",
+                  "3"
+                ]
+              }
             }
           }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "favouriteNumbers": ["1",2,"3"]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "favouriteNumbers": [
+                  "1",
+                  2,
+                  "3"
+                ]
+              }
             }
           }
         }
@@ -580,7 +696,11 @@ fn no_body_no_content_type_xml() {
         },
         "actual": {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\"/>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\"/>"
+          }
         }
       }
     "#).unwrap();
@@ -613,16 +733,24 @@ fn property_name_is_different_case() {
         "expected" : {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "FavouriteColour": "red"
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "FavouriteColour": "red"
+              }
             }
           }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "favouritecolour": "red"
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "favouritecolour": "red"
+              }
             }
           }
         }
@@ -656,7 +784,11 @@ fn array_with_type_matcher_mismatch_xml() {
         "comment": "XML array with type matcher mismatch",
         "expected": {
           "headers": {},
-          "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person>Fred</person></people>",
+          "body" : {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person>Fred</person></people>"
+          },
           "matchingRules" : {
             "body": {
               "$.people": {
@@ -671,7 +803,11 @@ fn array_with_type_matcher_mismatch_xml() {
         },
         "actual": {
           "headers": {},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person>Fred</person><person>Fred</person><cat>Fred</cat></people>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person>Fred</person><person>Fred</person><cat>Fred</cat></people>"
+          }
         }
       }
     "#).unwrap();
@@ -704,16 +840,30 @@ fn array_in_different_order() {
         "expected" : {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "favouriteColours": ["red","blue"]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "favouriteColours": [
+                  "red",
+                  "blue"
+                ]
+              }
             }
           }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "favouriteColours": ["blue", "red"]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "favouriteColours": [
+                  "blue",
+                  "red"
+                ]
+              }
             }
           }
         }
@@ -747,7 +897,11 @@ fn plain_text_regex_matching() {
         "comment": "Plain text that matches",
         "expected" : {
           "headers": { "Content-Type": "text/plain" },
-          "body": "alligator named mary",
+          "body": {
+            "contentType": "text/plain",
+            "encoded": false,
+            "content": "alligator named mary"
+          },
           "matchingRules": {
             "body": {
               "$": {
@@ -763,7 +917,11 @@ fn plain_text_regex_matching() {
         },
         "actual": {
           "headers": { "Content-Type": "text/plain" },
-          "body": "alligator named brent"
+          "body": {
+            "contentType": "text/plain",
+            "encoded": false,
+            "content": "alligator named brent"
+          }
         }
       }
     "#).unwrap();
@@ -795,7 +953,11 @@ fn plain_text_regex_matching_that_does_not_match() {
         "comment": "Plain text that matches",
         "expected" : {
           "headers": { "Content-Type": "text/plain" },
-          "body": "alligator named mary",
+          "body": {
+            "contentType": "text/plain",
+            "encoded": false,
+            "content": "alligator named mary"
+          },
           "matchingRules": {
             "body": {
               "$": {
@@ -811,7 +973,11 @@ fn plain_text_regex_matching_that_does_not_match() {
         },
         "actual": {
           "headers": { "Content-Type": "text/plain" },
-          "body": "alligator named brent"
+          "body": {
+            "contentType": "text/plain",
+            "encoded": false,
+            "content": "alligator named brent"
+          }
         }
       }
     "#).unwrap();
@@ -855,27 +1021,35 @@ fn matches_with_floats() {
               }
             }
           },
-          "body": [
-            {
-              "product": {
+          "body": {
+            "contentType": "application/json",
+            "encoded": false,
+            "content": [
+              {
+                "product": {
                   "id": 123,
                   "description": "Television",
                   "price": 500.55
+                }
               }
-            }
-          ]
+            ]
+          }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
-          "body": [
-            {
-              "product": {
+          "body": {
+            "contentType": "application/json",
+            "encoded": false,
+            "content": [
+              {
+                "product": {
                   "id": 123,
                   "description": "Television",
                   "price": 500.55
+                }
               }
-            }
-          ]
+            ]
+          }
         }
       }
     "#).unwrap();
@@ -906,11 +1080,15 @@ fn empty_body_no_content_type() {
         "match": true,
         "comment": "Empty body, no content-type",
         "expected" : {
-          "body": ""
+          "body": {
+            "content": ""
+          }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
-          "body": ""
+          "body": {
+            "content": ""
+          }
         }
       }
     "#).unwrap();
@@ -942,11 +1120,19 @@ fn objects_in_array_second_matches_xml() {
         "comment": "XML Property of second object matches, but unexpected element received",
         "expected" : {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person favouriteColour=\"red\"/></people>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person favouriteColour=\"red\"/></people>"
+          }
         },
         "actual": {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person favouriteColour=\"blue\" favouriteNumber=\"4\"/><person favouriteColour=\"red\" favouriteNumber=\"2\"/></people>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person favouriteColour=\"blue\" favouriteNumber=\"4\"/><person favouriteColour=\"red\" favouriteNumber=\"2\"/></people>"
+          }
         }
       }
     "#).unwrap();
@@ -979,9 +1165,13 @@ fn array_with_type_matcher_mismatch() {
         "expected": {
           "headers": {},
           "body" : {
-            "myDates": [
-              10
-            ]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "myDates": [
+                10
+              ]
+            }
           },
           "matchingRules" : {
             "body": {
@@ -998,11 +1188,15 @@ fn array_with_type_matcher_mismatch() {
         "actual": {
           "headers": {},
           "body": {
-            "myDates": [
-              20,
-              5,
-              "100299"
-            ]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "myDates": [
+                20,
+                5,
+                "100299"
+              ]
+            }
           }    
         }
       }   
@@ -1035,11 +1229,19 @@ fn plain_text_that_matches() {
         "comment": "Plain text that matches",
         "expected" : {
           "headers": { "Content-Type": "text/plain" },
-          "body": "alligator named mary"
+          "body": {
+            "contentType": "text/plain",
+            "encoded": false,
+            "content": "alligator named mary"
+          }
         },
         "actual": {
           "headers": { "Content-Type": "text/plain" },
-          "body": "alligator named mary"
+          "body": {
+            "contentType": "text/plain",
+            "encoded": false,
+            "content": "alligator named mary"
+          }
         }
       }
     "#).unwrap();
@@ -1072,9 +1274,13 @@ fn array_with_type_matcher() {
         "expected": {
           "headers": {},
           "body" : {
-            "myDates": [
-              10
-            ]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "myDates": [
+                10
+              ]
+            }
           },
           "matchingRules" : {
             "body": {
@@ -1098,11 +1304,15 @@ fn array_with_type_matcher() {
         "actual": {
           "headers": {},
           "body": {
-            "myDates": [
-              20,
-              5,
-              1910
-            ]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "myDates": [
+                20,
+                5,
+                1910
+              ]
+            }
           }    
         }
       }
@@ -1138,10 +1348,17 @@ fn missing_body_no_content_type() {
         "actual": {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "feet": 4,
-              "name": "Mary",
-              "favouriteColours": ["red","blue"]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "feet": 4,
+                "name": "Mary",
+                "favouriteColours": [
+                  "red",
+                  "blue"
+                ]
+              }
             }
           }
         }
@@ -1175,7 +1392,11 @@ fn objects_in_array_type_matching_xml() {
         "comment": "XML objects in array type matching",
         "expected": {
           "headers": {},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person name=\"John Smith\" age=\"50\"/></people>",
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person name=\"John Smith\" age=\"50\"/></people>"
+          },
           "matchingRules": {
             "body": {
               "$": {
@@ -1204,7 +1425,11 @@ fn objects_in_array_type_matching_xml() {
         },
         "actual": {
           "headers": {},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person name=\"Peter Peterson\" age=\"22\" gender=\"Male\"/><person name=\"John Johnston\" age=\"64\"/></people>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person name=\"Peter Peterson\" age=\"22\" gender=\"Male\"/><person name=\"John Johnston\" age=\"64\"/></people>"
+          }
         }
       }
     "#).unwrap();
@@ -1236,11 +1461,15 @@ fn empty_body() {
         "comment": "Empty body",
         "expected" : {
           "headers": {"Content-Type": "application/json"},
-          "body": ""
+          "body": {
+            "content": ""
+          }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
-          "body": ""
+          "body": {
+            "content": ""
+          }
         }
       }
     "#).unwrap();
@@ -1273,16 +1502,32 @@ fn string_found_in_array_when_number_expected() {
         "expected" : {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "favouriteNumbers": [1,2,3]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "favouriteNumbers": [
+                  1,
+                  2,
+                  3
+                ]
+              }
             }
           }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "favouriteNumbers": [1,"2",3]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "favouriteNumbers": [
+                  1,
+                  "2",
+                  3
+                ]
+              }
             }
           }
         }
@@ -1316,11 +1561,19 @@ fn array_at_top_level_xml() {
         "comment": "XML top level array matches",
         "expected": {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><rogger dob=\"06/10/2015\" name=\"Rogger the Dogger\" id=\"1014753708\" timestamp=\"2015-06-10T20:41:37\"/><cat dob=\"06/10/2015\" name=\"Cat in the Hat\" id=\"8858030303\" timestamp=\"2015-06-10T20:41:37\"/></people>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><rogger dob=\"06/10/2015\" name=\"Rogger the Dogger\" id=\"1014753708\" timestamp=\"2015-06-10T20:41:37\"/><cat dob=\"06/10/2015\" name=\"Cat in the Hat\" id=\"8858030303\" timestamp=\"2015-06-10T20:41:37\"/></people>"
+          }
         },
         "actual": {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><rogger dob=\"06/10/2015\" name=\"Rogger the Dogger\" id=\"1014753708\" timestamp=\"2015-06-10T20:41:37\"/><cat dob=\"06/10/2015\" name=\"Cat in the Hat\" id=\"8858030303\" timestamp=\"2015-06-10T20:41:37\"/></people>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><rogger dob=\"06/10/2015\" name=\"Rogger the Dogger\" id=\"1014753708\" timestamp=\"2015-06-10T20:41:37\"/><cat dob=\"06/10/2015\" name=\"Cat in the Hat\" id=\"8858030303\" timestamp=\"2015-06-10T20:41:37\"/></people>"
+          }
         }
       }
     "#).unwrap();
@@ -1352,24 +1605,32 @@ fn objects_in_array_first_matches() {
         "comment": "Properties match but unexpected element received",
         "expected": {
           "headers": {"Content-Type": "application/json"},
-          "body": [
-            {
-              "favouriteColor": "red"
-            }
-          ]
+          "body": {
+            "contentType": "application/json",
+            "encoded": false,
+            "content": [
+              {
+                "favouriteColor": "red"
+              }
+            ]
+          }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
-          "body": [
-            {
-              "favouriteColor": "red",
-              "favouriteNumber": 2
-            },
-            {
-              "favouriteColor": "blue",
-              "favouriteNumber": 2
-            }
-          ]
+          "body": {
+            "contentType": "application/json",
+            "encoded": false,
+            "content": [
+              {
+                "favouriteColor": "red",
+                "favouriteNumber": 2
+              },
+              {
+                "favouriteColor": "blue",
+                "favouriteNumber": 2
+              }
+            ]
+          }
         }
       }
     "#).unwrap();
@@ -1401,11 +1662,19 @@ fn keys_out_of_order_match_xml() {
         "comment": "XML Favourite number and favourite colours out of order",
         "expected" : {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator favouriteNumber=\"7\" favouriteColours=\"red, blue\" />"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator favouriteNumber=\"7\" favouriteColours=\"red, blue\" />"
+          }
         },
         "actual": {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator favouriteColours=\"red, blue\" favouriteNumber=\"7\" />"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator favouriteColours=\"red, blue\" favouriteNumber=\"7\" />"
+          }
         }
       }
     "#).unwrap();
@@ -1437,37 +1706,45 @@ fn array_at_top_level() {
         "comment": "top level array matches",
         "expected": {
           "headers": {"Content-Type": "application/json"},
-          "body": [
-            {
-              "dob": "06/10/2015",
-              "name": "Rogger the Dogger",
-              "id": 1014753708,
-              "timestamp": "2015-06-10T20:41:37"
-            },
-            {
-              "dob": "06/10/2015",
-              "name": "Cat in the Hat",
-              "id": 8858030303,
-              "timestamp": "2015-06-10T20:41:37"
-            }
-          ]
+          "body": {
+            "contentType": "application/json",
+            "encoded": false,
+            "content": [
+              {
+                "dob": "06/10/2015",
+                "name": "Rogger the Dogger",
+                "id": 1014753708,
+                "timestamp": "2015-06-10T20:41:37"
+              },
+              {
+                "dob": "06/10/2015",
+                "name": "Cat in the Hat",
+                "id": 8858030303,
+                "timestamp": "2015-06-10T20:41:37"
+              }
+            ]
+          }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
-          "body": [
-            {
-              "dob": "06/10/2015",
-              "name": "Rogger the Dogger",
-              "id": 1014753708,
-              "timestamp": "2015-06-10T20:41:37"
-            },
-            {
-              "dob": "06/10/2015",
-              "name": "Cat in the Hat",
-              "id": 8858030303,
-              "timestamp": "2015-06-10T20:41:37"
-            }
-          ]
+          "body": {
+            "contentType": "application/json",
+            "encoded": false,
+            "content": [
+              {
+                "dob": "06/10/2015",
+                "name": "Rogger the Dogger",
+                "id": 1014753708,
+                "timestamp": "2015-06-10T20:41:37"
+              },
+              {
+                "dob": "06/10/2015",
+                "name": "Cat in the Hat",
+                "id": 8858030303,
+                "timestamp": "2015-06-10T20:41:37"
+              }
+            ]
+          }
         }
       }
     "#).unwrap();
@@ -1518,20 +1795,34 @@ fn matches_with_type() {
             }
           },
           "body": {
-            "alligator":{
-              "name": "Mary",
-              "feet": 4,
-              "favouriteColours": ["red","blue"]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "name": "Mary",
+                "feet": 4,
+                "favouriteColours": [
+                  "red",
+                  "blue"
+                ]
+              }
             }
           }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "feet": 5,
-              "name": "Harry the very hungry alligator with an extra foot",
-              "favouriteColours": ["red","blue"]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "feet": 5,
+                "name": "Harry the very hungry alligator with an extra foot",
+                "favouriteColours": [
+                  "red",
+                  "blue"
+                ]
+              }
             }
           }
         }
@@ -1565,11 +1856,19 @@ fn different_xml_namespaces() {
         "comment": "XML namespaces do not match",
         "expected" : {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><a:alligator xmlns:a=\"urn:alligators\"/>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><a:alligator xmlns:a=\"urn:alligators\"/>"
+          }
         },
         "actual": {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><a:alligator xmlns:a=\"urn:crocodiles\"/>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><a:alligator xmlns:a=\"urn:crocodiles\"/>"
+          }
         }
       }
     "#).unwrap();
@@ -1601,11 +1900,19 @@ fn different_xml_namespace_prefixes() {
         "comment": "different XML namespace declarations/prefixes",
         "expected" : {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator xmlns=\"urn:alligators\" xmlns:names=\"urn:names\" names:name=\"Mary\"><favouriteNumbers xmlns:fn=\"urn:favourite:numbers\"><fn:favouriteNumber>1</fn:favouriteNumber></favouriteNumbers></alligator>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator xmlns=\"urn:alligators\" xmlns:names=\"urn:names\" names:name=\"Mary\"><favouriteNumbers xmlns:fn=\"urn:favourite:numbers\"><fn:favouriteNumber>1</fn:favouriteNumber></favouriteNumbers></alligator>"
+          }
         },
         "actual": {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><a:alligator xmlns:a=\"urn:alligators\" xmlns:n=\"urn:names\" n:name=\"Mary\"><a:favouriteNumbers><favouriteNumber xmlns=\"urn:favourite:numbers\">1</favouriteNumber></a:favouriteNumbers></a:alligator>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><a:alligator xmlns:a=\"urn:alligators\" xmlns:n=\"urn:names\" n:name=\"Mary\"><a:favouriteNumbers><favouriteNumber xmlns=\"urn:favourite:numbers\">1</favouriteNumber></a:favouriteNumbers></a:alligator>"
+          }
         }
       }
     "#).unwrap();
@@ -1636,11 +1943,15 @@ fn null_body_no_content_type() {
         "match": true,
         "comment": "NULL body, no content-type",
         "expected" : {
-          "body": null
+          "body": {
+            "content": null
+          }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
-          "body": null
+          "body": {
+            "content": null
+          }
         }
       }
     "#).unwrap();
@@ -1672,7 +1983,11 @@ fn array_with_type_matcher_xml() {
         "comment": "array with type matcher",
         "expected": {
           "headers": {},
-          "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person>Fred</person></people>",
+          "body" : {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person>Fred</person></people>"
+          },
           "matchingRules" : {
             "body": {
               "$.people": {
@@ -1694,7 +2009,11 @@ fn array_with_type_matcher_xml() {
         },
         "actual": {
           "headers": {},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person>Fred</person><person>George</person><person>Cat</person></people>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person>Fred</person><person>George</person><person>Cat</person></people>"
+          }
         }
       }
     "#).unwrap();
@@ -1726,11 +2045,19 @@ fn missing_index_xml() {
         "comment": "Missing favorite colour",
         "expected" : {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><favouriteColour>red</favouriteColour><favouriteColour>blue</favouriteColour></favouriteColours></alligator>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><favouriteColour>red</favouriteColour><favouriteColour>blue</favouriteColour></favouriteColours></alligator>"
+          }
         },
         "actual": {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><favouriteColour>red</favouriteColour></favouriteColours></alligator>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><favouriteColour>red</favouriteColour></favouriteColours></alligator>"
+          }
         }
       }
     "#).unwrap();
@@ -1762,11 +2089,19 @@ fn objects_in_array_no_matches_xml() {
         "comment": "XML Array of objects, properties match on incorrect objects",
         "expected" : {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person favouriteColour=\"red\" favouriteNumber=\"2\"/></people>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person favouriteColour=\"red\" favouriteNumber=\"2\"/></people>"
+          }
         },
         "actual": {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person favouriteColour=\"blue\" favouriteNumber=\"4\"/><person favouriteColour=\"red\" favouriteNumber=\"2\"/></people>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person favouriteColour=\"blue\" favouriteNumber=\"4\"/><person favouriteColour=\"red\" favouriteNumber=\"2\"/></people>"
+          }
         }
       }
     "#).unwrap();
@@ -1801,10 +2136,17 @@ fn no_body_no_content_type() {
         "actual": {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "feet": 4,
-              "name": "Mary",
-              "favouriteColours": ["red","blue"]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "feet": 4,
+                "name": "Mary",
+                "favouriteColours": [
+                  "red",
+                  "blue"
+                ]
+              }
             }
           }
         }
@@ -1838,15 +2180,26 @@ fn non_empty_body_found_when_empty_expected() {
         "comment": "Non empty body found, when an empty body was expected",
         "expected" : {
           "headers": {"Content-Type": "application/json"},
-          "body": null
+          "body": {
+            "contentType": "application/json",
+            "encoded": false,
+            "content": null
+          }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "feet": 4,
-              "name": "Mary",
-              "favouriteColours": ["red","blue"]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "feet": 4,
+                "name": "Mary",
+                "favouriteColours": [
+                  "red",
+                  "blue"
+                ]
+              }
             }
           }
         }
@@ -1881,15 +2234,22 @@ fn deeply_nested_objects() {
       	"expected" : {
       		"headers": {"Content-Type": "application/json"},
       		"body": {
-      			"object1": {
-      				"object2": {
-      					"object4": {
-      						"object5": {
-      							"name": "Mary",
-      							"friends": ["Fred", "John"]
-      						},
-      						"object6": {
-      							"phoneNumber": 1234567890
+      			"contentType": "application/json",
+      			"encoded": false,
+      			"content": {
+      				"object1": {
+      					"object2": {
+      						"object4": {
+      							"object5": {
+      								"name": "Mary",
+      								"friends": [
+      									"Fred",
+      									"John"
+      								]
+      							},
+      							"object6": {
+      								"phoneNumber": 1234567890
+      							}
       						}
       					}
       				}
@@ -1899,20 +2259,27 @@ fn deeply_nested_objects() {
       	"actual": {
       		"headers": {"Content-Type": "application/json"},
       		"body": {
-      			"object1":{
-      				"object2": {
-      					"object4":{
-      						"object5": {
-      							"name": "Mary",
-      							"friends": ["Fred", "John"],
-      							"gender": "F"
-      						},
-      						"object6": {
-      							"phoneNumber": 1234567890
+      			"contentType": "application/json",
+      			"encoded": false,
+      			"content": {
+      				"object1": {
+      					"object2": {
+      						"object4": {
+      							"object5": {
+      								"name": "Mary",
+      								"friends": [
+      									"Fred",
+      									"John"
+      								],
+      								"gender": "F"
+      							},
+      							"object6": {
+      								"phoneNumber": 1234567890
+      							}
       						}
-      					}
-      				},
-      				"color": "red"
+      					},
+      					"color": "red"
+      				}
       			}
       		}
       	}
@@ -1946,11 +2313,19 @@ fn missing_key_xml() {
         "comment": "XML Missing key alligator name",
         "expected" : {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\" age=\"3\"></alligator>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\" age=\"3\"></alligator>"
+          }
         },
         "actual": {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator age=\"3\"></alligator>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator age=\"3\"></alligator>"
+          }
         }
       }
     "#).unwrap();
@@ -1982,19 +2357,35 @@ fn objects_in_array_no_matches() {
         "comment": "Array of objects, properties match on incorrect objects",
         "expected" : {
           "headers": {"Content-Type": "application/json"},
-          "body": [
-      		{"favouriteColor": "red"},
-      		{"favouriteNumber": 2}
-      	]
+          "body": {
+            "contentType": "application/json",
+            "encoded": false,
+            "content": [
+              {
+                "favouriteColor": "red"
+              },
+              {
+                "favouriteNumber": 2
+              }
+            ]
+          }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
-          "body": [
-      		{"favouriteColor": "blue",
-      		"favouriteNumber": 4},
-      		{"favouriteColor": "red",
-      		"favouriteNumber": 2}
-      	]
+          "body": {
+            "contentType": "application/json",
+            "encoded": false,
+            "content": [
+              {
+                "favouriteColor": "blue",
+                "favouriteNumber": 4
+              },
+              {
+                "favouriteColor": "red",
+                "favouriteNumber": 2
+              }
+            ]
+          }
         }
       }
     "#).unwrap();
@@ -2026,10 +2417,16 @@ fn objects_in_array_type_matching() {
         "comment": "objects in array type matching",
         "expected": {
           "headers": {},
-          "body": [{
-            "name": "John Smith",
-            "age": 50
-          }],
+          "body": {
+            "contentType": "application/json",
+            "encoded": false,
+            "content": [
+              {
+                "name": "John Smith",
+                "age": 50
+              }
+            ]
+          },
           "matchingRules": {
             "body": {
               "$": {
@@ -2051,14 +2448,21 @@ fn objects_in_array_type_matching() {
         },
         "actual": {
           "headers": {},
-          "body": [{
-            "name": "Peter Peterson",
-            "age": 22,
-            "gender": "Male"
-          }, {
-            "name": "John Johnston",
-            "age": 64
-          }]
+          "body": {
+            "contentType": "application/json",
+            "encoded": false,
+            "content": [
+              {
+                "name": "Peter Peterson",
+                "age": 22,
+                "gender": "Male"
+              },
+              {
+                "name": "John Johnston",
+                "age": 64
+              }
+            ]
+          }
         }
       }
     "#).unwrap();
@@ -2091,16 +2495,32 @@ fn not_null_found_in_array_when_null_expected() {
         "expected" : {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "favouriteNumbers": ["1",null,"3"]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "favouriteNumbers": [
+                  "1",
+                  null,
+                  "3"
+                ]
+              }
             }
           }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "favouriteNumbers": ["1","2","3"]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "favouriteNumbers": [
+                  "1",
+                  "2",
+                  "3"
+                ]
+              }
             }
           }
         }
@@ -2134,12 +2554,19 @@ fn plain_text_empty_body() {
         "comment": "Plain text that matches",
         "expected" : {
           "headers": { "Content-Type": "text/plain" },
-          "body": ""
+          "body": {
+            "contentType": "text/plain",
+            "encoded": false,
+            "content": ""
+          }
         },
         "actual": {
           "headers": { "Content-Type": "text/plain" },
-          "body": ""
-      
+          "body": {
+            "contentType": "text/plain",
+            "encoded": false,
+            "content": ""
+          }
         }
       }
     "#).unwrap();
@@ -2171,7 +2598,11 @@ fn array_at_top_level_with_matchers_xml() {
         "comment": "XML top level array matches",
         "expected": {
           "headers": {"Content-Type": "application/xml"},
-          "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person dob=\"06/10/2015\" name=\"Rogger the Dogger\" id=\"1014753708\" timestamp=\"2015-06-10T20:41:37\"/><cat dob=\"06/10/2015\" name=\"Cat in the Hat\" id=\"8858030303\" timestamp=\"2015-06-10T20:41:37\"/></people>",
+          "body" : {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person dob=\"06/10/2015\" name=\"Rogger the Dogger\" id=\"1014753708\" timestamp=\"2015-06-10T20:41:37\"/><cat dob=\"06/10/2015\" name=\"Cat in the Hat\" id=\"8858030303\" timestamp=\"2015-06-10T20:41:37\"/></people>"
+          },
           "matchingRules" : {
             "body": {
               "$.people.*['@id']": {
@@ -2209,7 +2640,11 @@ fn array_at_top_level_with_matchers_xml() {
         },
         "actual": {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person dob=\"11/06/2015\" name=\"Bob The Builder\" id=\"1234567890\" timestamp=\"2000-06-10T20:41:37\"/><cat dob=\"12/10/2000\" name=\"Slinky Malinky\" id=\"6677889900\" timestamp=\"2015-06-10T22:98:78\"/></people>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person dob=\"11/06/2015\" name=\"Bob The Builder\" id=\"1234567890\" timestamp=\"2000-06-10T20:41:37\"/><cat dob=\"12/10/2000\" name=\"Slinky Malinky\" id=\"6677889900\" timestamp=\"2015-06-10T22:98:78\"/></people>"
+          }
         }
       }
     "#).unwrap();
@@ -2242,16 +2677,30 @@ fn different_value_found_at_index() {
         "expected" : {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "favouriteColours": ["red","blue"]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "favouriteColours": [
+                  "red",
+                  "blue"
+                ]
+              }
             }
           }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "favouriteColours": ["red","taupe"]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "favouriteColours": [
+                  "red",
+                  "taupe"
+                ]
+              }
             }
           }
         }
@@ -2298,20 +2747,34 @@ fn matches_with_regex() {
             }
           },
           "body": {
-            "alligator":{
-              "name": "Mary",
-              "feet": 4,
-              "favouriteColours": ["red","blue"]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "name": "Mary",
+                "feet": 4,
+                "favouriteColours": [
+                  "red",
+                  "blue"
+                ]
+              }
             }
           }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "feet": 4,
-              "name": "Harry",
-              "favouriteColours": ["red","blue"]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "feet": 4,
+                "name": "Harry",
+                "favouriteColours": [
+                  "red",
+                  "blue"
+                ]
+              }
             }
           }
         }
@@ -2345,10 +2808,16 @@ fn objects_in_array_with_type_mismatching() {
         "comment": "objects in array with type mismatching",
         "expected": {
           "headers": {},
-          "body": [{
-            "Name": "John Smith",
-            "Age": 50
-          }],
+          "body": {
+            "contentType": "application/json",
+            "encoded": false,
+            "content": [
+              {
+                "Name": "John Smith",
+                "Age": 50
+              }
+            ]
+          },
           "matchingRules": {
             "body": {
               "$[*]": {
@@ -2407,16 +2876,24 @@ fn number_found_at_key_when_string_expected() {
         "expected" : {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "feet": "4"
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "feet": "4"
+              }
             }
           }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "feet": 4
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "feet": 4
+              }
             }
           }
         }
@@ -2450,18 +2927,32 @@ fn objects_in_array_second_matches() {
         "comment": "Property of second object matches, but unexpected element recieved",
         "expected" : {
           "headers": {"Content-Type": "application/json"},
-          "body": [
-      		{"favouriteColor": "red"}
-      	]
+          "body": {
+            "contentType": "application/json",
+            "encoded": false,
+            "content": [
+              {
+                "favouriteColor": "red"
+              }
+            ]
+          }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
-          "body": [
-      		{"favouriteColor": "blue",
-      		"favouriteNumber": 4},
-      		{"favouriteColor": "red",
-      		"favouriteNumber": 2}
-      	]
+          "body": {
+            "contentType": "application/json",
+            "encoded": false,
+            "content": [
+              {
+                "favouriteColor": "blue",
+                "favouriteNumber": 4
+              },
+              {
+                "favouriteColor": "red",
+                "favouriteNumber": 2
+              }
+            ]
+          }
         }
       }
     "#).unwrap();
@@ -2493,11 +2984,19 @@ fn array_in_different_order_xml() {
         "comment": "XML Favourite colours in wrong order",
         "expected" : {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><red/><blue/></favouriteColours></alligator>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><red/><blue/></favouriteColours></alligator>"
+          }
         },
         "actual": {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><blue/><red/></favouriteColours></alligator>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><blue/><red/></favouriteColours></alligator>"
+          }
         }
       }
     "#).unwrap();
@@ -2541,11 +3040,19 @@ fn matches_with_regex_xml() {
               }
             }
           },
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\" feet=\"4\" favouriteNumber=\"7\" favouriteColours=\"red, blue\" />"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\" feet=\"4\" favouriteNumber=\"7\" favouriteColours=\"red, blue\" />"
+          }
         },
         "actual": {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Harry\" feet=\"4\" favouriteNumber=\"7\" favouriteColours=\"red, blue\" />"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Harry\" feet=\"4\" favouriteNumber=\"7\" favouriteColours=\"red, blue\" />"
+          }
         }
       }
     "#).unwrap();
@@ -2577,11 +3084,19 @@ fn value_found_in_array_when_empty_expected_xml() {
         "comment": "XML Favourite numbers expected to contain empty, but non-empty found",
         "expected" : {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteNumbers><favouriteNumber>1</favouriteNumber><favouriteNumber></favouriteNumber><favouriteNumber>3</favouriteNumber></favouriteNumbers></alligator>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteNumbers><favouriteNumber>1</favouriteNumber><favouriteNumber></favouriteNumber><favouriteNumber>3</favouriteNumber></favouriteNumbers></alligator>"
+          }
         },
         "actual": {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteNumbers><favouriteNumber>1</favouriteNumber><favouriteNumber>2</favouriteNumber><favouriteNumber>3</favouriteNumber></favouriteNumbers></alligator>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteNumbers><favouriteNumber>1</favouriteNumber><favouriteNumber>2</favouriteNumber><favouriteNumber>3</favouriteNumber></favouriteNumbers></alligator>"
+          }
         }
       }
     "#).unwrap();
@@ -2614,16 +3129,29 @@ fn missing_index() {
         "expected" : {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "favouriteColours": ["red","blue"]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "favouriteColours": [
+                  "red",
+                  "blue"
+                ]
+              }
             }
           }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator": {
-              "favouriteColours": ["red"]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "favouriteColours": [
+                  "red"
+                ]
+              }
             }
           }
         }
@@ -2658,15 +3186,29 @@ fn keys_out_of_order_match() {
         "expected" : {
           "headers": {"Content-Type": "application/json"},
           "body": {
-      		"favouriteNumber": 7,
-              "favouriteColours": ["red","blue"]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "favouriteNumber": 7,
+              "favouriteColours": [
+                "red",
+                "blue"
+              ]
+            }
           }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
           "body": {
-              "favouriteColours": ["red","blue"],
-      		"favouriteNumber": 7
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "favouriteColours": [
+                "red",
+                "blue"
+              ],
+              "favouriteNumber": 7
+            }
           }
         }
       }
@@ -2699,11 +3241,15 @@ fn null_body() {
         "comment": "NULL body",
         "expected" : {
           "headers": {"Content-Type": "application/json"},
-          "body": null
+          "body": {
+            "content": null
+          }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
-          "body": null
+          "body": {
+            "content": null
+          }
         }
       }
     "#).unwrap();
@@ -2735,11 +3281,19 @@ fn unexpected_key_with_non_empty_value_xml() {
         "comment": "XML Unexpected phone number",
         "expected" : {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\"/>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\"/>"
+          }
         },
         "actual": {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\" phoneNumber=\"12345678\"/>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\" phoneNumber=\"12345678\"/>"
+          }
         }
       }
     "#).unwrap();
@@ -2774,7 +3328,11 @@ fn missing_body_xml() {
         },
         "actual": {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\"/>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\"/>"
+          }
         }
       }
     "#).unwrap();
@@ -2807,16 +3365,32 @@ fn null_found_in_array_when_not_null_expected() {
         "expected" : {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "favouriteNumbers": ["1","2","3"]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "favouriteNumbers": [
+                  "1",
+                  "2",
+                  "3"
+                ]
+              }
             }
           }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "favouriteNumbers": ["1",null,"3"]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "favouriteNumbers": [
+                  "1",
+                  null,
+                  "3"
+                ]
+              }
             }
           }
         }
@@ -2851,8 +3425,12 @@ fn additional_property_with_type_matcher_that_does_not_match() {
         "expected": {
           "headers": {},
           "body" : {
-            "myPerson": {
-              "name": "Any name"
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "myPerson": {
+                "name": "Any name"
+              }
             }
           },
           "matchingRules" : {
@@ -2870,10 +3448,14 @@ fn additional_property_with_type_matcher_that_does_not_match() {
         "actual": {
           "headers": {},
           "body": {
-            "myPerson": {
-              "name": 39,
-              "age": 39,
-              "nationality": "Australian"
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "myPerson": {
+                "name": 39,
+                "age": 39,
+                "nationality": "Australian"
+              }
             }
           }    
         }
@@ -2908,16 +3490,31 @@ fn unexpected_index_with_null_value() {
         "expected" : {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "favouriteColours": ["red","blue"]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "favouriteColours": [
+                  "red",
+                  "blue"
+                ]
+              }
             }
           }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "favouriteColours": ["red","blue", null]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "favouriteColours": [
+                  "red",
+                  "blue",
+                  null
+                ]
+              }
             }
           }
         }
@@ -2952,17 +3549,25 @@ fn unexpected_key_with_not_null_value() {
         "expected" : {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "name": "Mary"
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "name": "Mary"
+              }
             }
           }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "name": "Mary",
-              "phoneNumber": "12345678"
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "name": "Mary",
+                "phoneNumber": "12345678"
+              }
             }
           }
         }
@@ -3030,16 +3635,24 @@ fn string_found_at_key_when_number_expected() {
         "expected" : {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "feet": 4
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "feet": 4
+              }
             }
           }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "feet": "4"
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "feet": "4"
+              }
             }
           }
         }
@@ -3073,11 +3686,19 @@ fn unexpected_key_with_empty_value_xml() {
         "comment": "XML Unexpected phone number with empty value",
         "expected" : {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\"/>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\"/>"
+          }
         },
         "actual": {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\" phoneNumber=\"\"/>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\" phoneNumber=\"\"/>"
+          }
         }
       }
     "#).unwrap();
@@ -3110,17 +3731,25 @@ fn missing_key() {
         "expected" : {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "name": "Mary",
-              "age": 3
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "name": "Mary",
+                "age": 3
+              }
             }
           }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator": {
-              "age": 3
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "age": 3
+              }
             }
           }
         }
@@ -3154,7 +3783,11 @@ fn plain_text_regex_matching_missing_body() {
         "comment": "Plain text that matches",
         "expected" : {
           "headers": { "Content-Type": "text/plain" },
-          "body": "alligator named mary",
+          "body": {
+            "contentType": "text/plain",
+            "encoded": false,
+            "content": "alligator named mary"
+          },
           "matchingRules": {
             "body": {
               "$": {
@@ -3201,11 +3834,19 @@ fn objects_in_array_first_matches_xml() {
         "comment": "XML Properties match but unexpected element received",
         "expected": {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person favouriteColour=\"red\"/></people>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person favouriteColour=\"red\"/></people>"
+          }
         },
         "actual": {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person favouriteColour=\"blue\" favouriteNumber=\"4\"/><person favouriteColour=\"red\" favouriteNumber=\"2\"/></people>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person favouriteColour=\"blue\" favouriteNumber=\"4\"/><person favouriteColour=\"red\" favouriteNumber=\"2\"/></people>"
+          }
         }
       }
     "#).unwrap();
@@ -3237,11 +3878,19 @@ fn matches_xml() {
         "comment": "Responses match",
         "expected" : {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\" feet=\"4\"><favouriteColours><favouriteColour>red</favouriteColour><favouriteColour>blue</favouriteColour></favouriteColours></alligator>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator name=\"Mary\" feet=\"4\"><favouriteColours><favouriteColour>red</favouriteColour><favouriteColour>blue</favouriteColour></favouriteColours></alligator>"
+          }
         },
         "actual": {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator feet=\"4\" name=\"Mary\"><favouriteColours><favouriteColour>red</favouriteColour><favouriteColour>blue</favouriteColour></favouriteColours></alligator>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator feet=\"4\" name=\"Mary\"><favouriteColours><favouriteColour>red</favouriteColour><favouriteColour>blue</favouriteColour></favouriteColours></alligator>"
+          }
         }
       }
     "#).unwrap();
@@ -3273,11 +3922,19 @@ fn deeply_nested_objects_xml() {
       	"comment": "XML Comparisons should work even on nested objects",
       	"expected" : {
       		"headers": {"Content-Type": "application/xml"},
-      		"body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><object1><object2><object4><object5 name=\"Mary\"><friends><friend>Fred</friend><friend>John</friend></friends></object5><object6 phoneNumber=\"1234567890\"/></object4></object2></object1>"
+      		"body": {
+      			"contentType": "application/xml",
+      			"encoded": false,
+      			"content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><object1><object2><object4><object5 name=\"Mary\"><friends><friend>Fred</friend><friend>John</friend></friends></object5><object6 phoneNumber=\"1234567890\"/></object4></object2></object1>"
+      		}
       	},
       	"actual": {
       		"headers": {"Content-Type": "application/xml"},
-      		"body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><object1 color=\"red\"><object2><object4><object5 name=\"Mary\" gender=\"F\"><friends><friend>Fred</friend><friend>John</friend></friends></object5><object6 phoneNumber=\"1234567890\"/></object4></object2></object1>"
+      		"body": {
+      			"contentType": "application/xml",
+      			"encoded": false,
+      			"content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><object1 color=\"red\"><object2><object4><object5 name=\"Mary\" gender=\"F\"><friends><friend>Fred</friend><friend>John</friend></friends></object5><object6 phoneNumber=\"1234567890\"/></object4></object2></object1>"
+      		}
       	}
       }
     "#).unwrap();
@@ -3309,11 +3966,19 @@ fn property_name_is_different_case_xml() {
         "comment": "XML Property names on objects are case sensitive",
         "expected" : {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator FavouriteColour=\"red\"/>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator FavouriteColour=\"red\"/>"
+          }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator favouritecolour=\"red\"/>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator favouritecolour=\"red\"/>"
+          }
         }
       }
     "#).unwrap();
@@ -3348,9 +4013,9 @@ fn plain_text_missing_body() {
         },
         "actual": {
           "headers": { "Content-Type": "text/plain" }
-      
         }
       }
+      
     "#).unwrap();
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
@@ -3381,20 +4046,34 @@ fn matches() {
         "expected" : {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "name": "Mary",
-              "feet": 4,
-              "favouriteColours": ["red","blue"]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "name": "Mary",
+                "feet": 4,
+                "favouriteColours": [
+                  "red",
+                  "blue"
+                ]
+              }
             }
           }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "feet": 4,
-              "name": "Mary",
-              "favouriteColours": ["red","blue"]
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "feet": 4,
+                "name": "Mary",
+                "favouriteColours": [
+                  "red",
+                  "blue"
+                ]
+              }
             }
           }
         }
@@ -3428,17 +4107,24 @@ fn array_at_top_level_with_matchers() {
         "comment": "top level array matches",
         "expected": {
           "headers": {"Content-Type": "application/json"},
-          "body" : [ {
-            "dob" : "06/11/2015",
-            "name" : "Rogger the Dogger",
-            "id" : 3380634027,
-            "timestamp" : "2015-06-11T13:17:29"
-          }, {
-            "dob" : "06/11/2015",
-            "name" : "Cat in the Hat",
-            "id" : 1284270029,
-            "timestamp" : "2015-06-11T13:17:29"
-          } ],
+          "body" : {
+            "contentType": "application/json",
+            "encoded": false,
+            "content": [
+              {
+                "dob": "06/11/2015",
+                "name": "Rogger the Dogger",
+                "id": 3380634027,
+                "timestamp": "2015-06-11T13:17:29"
+              },
+              {
+                "dob": "06/11/2015",
+                "name": "Cat in the Hat",
+                "id": 1284270029,
+                "timestamp": "2015-06-11T13:17:29"
+              }
+            ]
+          },
           "matchingRules" : {
             "body": {
               "$[0].id": {
@@ -3506,20 +4192,24 @@ fn array_at_top_level_with_matchers() {
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
-          "body": [
-            {
-              "dob": "11/06/2015",
-              "name": "Bob The Builder",
-              "id": 1234567890,
-              "timestamp": "2000-06-10T20:41:37"
-            },
-            {
-              "dob": "12/10/2000",
-              "name": "Slinky Malinky",
-              "id": 6677889900,
-              "timestamp": "2015-06-10T22:98:78"
-            }
-          ]
+          "body": {
+            "contentType": "application/json",
+            "encoded": false,
+            "content": [
+              {
+                "dob": "11/06/2015",
+                "name": "Bob The Builder",
+                "id": 1234567890,
+                "timestamp": "2000-06-10T20:41:37"
+              },
+              {
+                "dob": "12/10/2000",
+                "name": "Slinky Malinky",
+                "id": 6677889900,
+                "timestamp": "2015-06-10T22:98:78"
+              }
+            ]
+          }
         }
       }
     "#).unwrap();
@@ -3552,16 +4242,24 @@ fn null_found_at_key_where_not_null_expected() {
         "expected" : {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "name": "Mary"
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "name": "Mary"
+              }
             }
           }
         },
         "actual": {
           "headers": {"Content-Type": "application/json"},
           "body": {
-            "alligator":{
-              "name": null
+            "contentType": "application/json",
+            "encoded": false,
+            "content": {
+              "alligator": {
+                "name": null
+              }
             }
           }
         }
@@ -3595,11 +4293,19 @@ fn unexpected_index_with_non_empty_value_xml() {
         "comment": "XML Unexpected favourite colour",
         "expected" : {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><favouriteColour>red</favouriteColour><favouriteColour>blue</favouriteColour></favouriteColours></alligator>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><favouriteColour>red</favouriteColour><favouriteColour>blue</favouriteColour></favouriteColours></alligator>"
+          }
         },
         "actual": {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><favouriteColour>red</favouriteColour><favouriteColour>blue</favouriteColour><favouriteColour>taupe</favouriteColour></favouriteColours></alligator>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><favouriteColour>red</favouriteColour><favouriteColour>blue</favouriteColour><favouriteColour>taupe</favouriteColour></favouriteColours></alligator>"
+          }
         }
       }
     "#).unwrap();
@@ -3631,7 +4337,11 @@ fn objects_in_array_with_type_mismatching_xml() {
         "comment": "XML objects in array with type mismatching",
         "expected": {
           "headers": {},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person name=\"John Smith\" age=\"50\"/></people>",
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person name=\"John Smith\" age=\"50\"/></people>"
+          },
           "matchingRules": {
             "body": {
               "$[*]": {
@@ -3653,7 +4363,11 @@ fn objects_in_array_with_type_mismatching_xml() {
         },
         "actual": {
           "headers": {},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person name=\"Peter Peterson\" age=\"22\" gender=\"Male\"/><person/></people>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><people><person name=\"Peter Peterson\" age=\"22\" gender=\"Male\"/><person/></people>"
+          }
         }
       }
     "#).unwrap();
@@ -3685,11 +4399,19 @@ fn plain_text_that_does_not_match() {
         "comment": "Plain text that does not match",
         "expected" : {
           "headers": { "Content-Type": "text/plain" },
-          "body": "alligator named mary"
+          "body": {
+            "contentType": "text/plain",
+            "encoded": false,
+            "content": "alligator named mary"
+          }
         },
         "actual": {
           "headers": { "Content-Type": "text/plain" },
-          "body": "alligator named fred"
+          "body": {
+            "contentType": "text/plain",
+            "encoded": false,
+            "content": "alligator named fred"
+          }
         }
       }
     "#).unwrap();
@@ -3721,7 +4443,11 @@ fn array_with_regex_matcher_xml() {
         "comment": "XML array with regex matcher",
         "expected": {
           "headers": {},
-          "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><myDates><date>29/10/2015</date></myDates>",
+          "body" : {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><myDates><date>29/10/2015</date></myDates>"
+          },
           "matchingRules" : {
             "body": {
               "$.myDates": {
@@ -3744,7 +4470,11 @@ fn array_with_regex_matcher_xml() {
         },
         "actual": {
           "headers": {},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><myDates><date>01/11/2010</date><date>15/12/2014</date><date>30/06/2015</date></myDates>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><myDates><date>01/11/2010</date><date>15/12/2014</date><date>30/06/2015</date></myDates>"
+          }
         }
       }
     "#).unwrap();
@@ -3776,11 +4506,19 @@ fn unexpected_index_with_missing_value_xml() {
         "comment": "XML Unexpected favourite colour with missing value",
         "expected" : {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><favouriteColour>red</favouriteColour><favouriteColour>blue</favouriteColour></favouriteColours></alligator>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><favouriteColour>red</favouriteColour><favouriteColour>blue</favouriteColour></favouriteColours></alligator>"
+          }
         },
         "actual": {
           "headers": {"Content-Type": "application/xml"},
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><favouriteColour>red</favouriteColour><favouriteColour>blue</favouriteColour><favouriteColour></favouriteColour></favouriteColours></alligator>"
+          "body": {
+            "contentType": "application/xml",
+            "encoded": false,
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><alligator><favouriteColours><favouriteColour>red</favouriteColour><favouriteColour>blue</favouriteColour><favouriteColour></favouriteColour></favouriteColours></alligator>"
+          }
         }
       }
     "#).unwrap();

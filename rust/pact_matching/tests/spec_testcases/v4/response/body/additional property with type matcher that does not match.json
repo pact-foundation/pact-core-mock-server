@@ -4,8 +4,12 @@
   "expected": {
     "headers": {},
     "body" : {
-      "myPerson": {
-        "name": "Any name"
+      "contentType": "application/json",
+      "encoded": false,
+      "content": {
+        "myPerson": {
+          "name": "Any name"
+        }
       }
     },
     "matchingRules" : {
@@ -23,10 +27,14 @@
   "actual": {
     "headers": {},
     "body": {
-      "myPerson": {
-        "name": 39,
-        "age": 39,
-        "nationality": "Australian"
+      "contentType": "application/json",
+      "encoded": false,
+      "content": {
+        "myPerson": {
+          "name": 39,
+          "age": 39,
+          "nationality": "Australian"
+        }
       }
     }    
   }

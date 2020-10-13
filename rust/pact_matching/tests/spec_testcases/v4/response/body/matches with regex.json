@@ -16,20 +16,34 @@
       }
     },
     "body": {
-      "alligator":{
-        "name": "Mary",
-        "feet": 4,
-        "favouriteColours": ["red","blue"]
+      "contentType": "application/json",
+      "encoded": false,
+      "content": {
+        "alligator": {
+          "name": "Mary",
+          "feet": 4,
+          "favouriteColours": [
+            "red",
+            "blue"
+          ]
+        }
       }
     }
   },
   "actual": {
     "headers": {"Content-Type": "application/json"},
     "body": {
-      "alligator":{
-        "feet": 4,
-        "name": "Harry",
-        "favouriteColours": ["red","blue"]
+      "contentType": "application/json",
+      "encoded": false,
+      "content": {
+        "alligator": {
+          "feet": 4,
+          "name": "Harry",
+          "favouriteColours": [
+            "red",
+            "blue"
+          ]
+        }
       }
     }
   }

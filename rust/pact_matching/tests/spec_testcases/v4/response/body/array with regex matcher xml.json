@@ -3,7 +3,11 @@
   "comment": "XML array with regex matcher",
   "expected": {
     "headers": {},
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><myDates><date>29/10/2015</date></myDates>",
+    "body" : {
+      "contentType": "application/xml",
+      "encoded": false,
+      "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><myDates><date>29/10/2015</date></myDates>"
+    },
     "matchingRules" : {
       "body": {
         "$.myDates": {
@@ -26,6 +30,10 @@
   },
   "actual": {
     "headers": {},
-    "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><myDates><date>01/11/2010</date><date>15/12/2014</date><date>30/06/2015</date></myDates>"
+    "body": {
+      "contentType": "application/xml",
+      "encoded": false,
+      "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><myDates><date>01/11/2010</date><date>15/12/2014</date><date>30/06/2015</date></myDates>"
+    }
   }
 }
