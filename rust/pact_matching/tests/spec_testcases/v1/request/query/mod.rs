@@ -14,7 +14,8 @@ use pact_matching::{match_interaction_request, match_interaction_response};
 #[test]
 fn different_param_order() {
     println!("FILE: tests/spec_testcases/v1/request/query/different param order.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Query strings are matched using basic string equality, these are not equal. (Not supported)",
@@ -56,7 +57,8 @@ fn different_param_order() {
 #[test]
 fn different_param_values() {
     println!("FILE: tests/spec_testcases/v1/request/query/different param values.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Queries are not the same - hippo is Fred instead of John",
@@ -98,7 +100,8 @@ fn different_param_values() {
 #[test]
 fn trailing_amperand() {
     println!("FILE: tests/spec_testcases/v1/request/query/trailing amperand.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Query strings are matched using basic string equality, these are not equal. (not supported)",
@@ -140,7 +143,8 @@ fn trailing_amperand() {
 #[test]
 fn matches() {
     println!("FILE: tests/spec_testcases/v1/request/query/matches.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Queries are the same",

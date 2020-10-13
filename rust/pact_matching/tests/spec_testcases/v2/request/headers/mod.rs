@@ -14,7 +14,8 @@ use pact_matching::{match_interaction_request, match_interaction_response};
 #[test]
 fn order_of_comma_separated_header_values_different() {
     println!("FILE: tests/spec_testcases/v2/request/headers/order of comma separated header values different.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Comma separated headers out of order, order can matter http://tools.ietf.org/html/rfc2616",
@@ -58,7 +59,8 @@ fn order_of_comma_separated_header_values_different() {
 #[test]
 fn whitespace_after_comma_different() {
     println!("FILE: tests/spec_testcases/v2/request/headers/whitespace after comma different.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Whitespace between comma separated headers does not matter",
@@ -102,7 +104,8 @@ fn whitespace_after_comma_different() {
 #[test]
 fn header_value_is_different_case() {
     println!("FILE: tests/spec_testcases/v2/request/headers/header value is different case.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Headers values are case sensitive",
@@ -146,7 +149,8 @@ fn header_value_is_different_case() {
 #[test]
 fn header_name_is_different_case() {
     println!("FILE: tests/spec_testcases/v2/request/headers/header name is different case.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Header name is case insensitive",
@@ -190,7 +194,8 @@ fn header_name_is_different_case() {
 #[test]
 fn matches_with_regex() {
     println!("FILE: tests/spec_testcases/v2/request/headers/matches with regex.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Headers match with regexp",
@@ -237,7 +242,8 @@ fn matches_with_regex() {
 #[test]
 fn unexpected_header_found() {
     println!("FILE: tests/spec_testcases/v2/request/headers/unexpected header found.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Extra headers allowed",
@@ -279,7 +285,8 @@ fn unexpected_header_found() {
 #[test]
 fn matches() {
     println!("FILE: tests/spec_testcases/v2/request/headers/matches.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Headers match",
@@ -325,7 +332,8 @@ fn matches() {
 #[test]
 fn empty_headers() {
     println!("FILE: tests/spec_testcases/v2/request/headers/empty headers.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Empty headers match",

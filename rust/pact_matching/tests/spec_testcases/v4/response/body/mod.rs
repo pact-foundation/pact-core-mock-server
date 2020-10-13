@@ -14,7 +14,8 @@ use pact_matching::{match_interaction_request, match_interaction_response};
 #[test]
 fn array_with_regex_matcher() {
     println!("FILE: tests/spec_testcases/v4/response/body/array with regex matcher.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "array with regex matcher",
@@ -87,7 +88,8 @@ fn array_with_regex_matcher() {
 #[test]
 fn unexpected_xml_namespace() {
     println!("FILE: tests/spec_testcases/v4/response/body/unexpected xml namespace.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "XML namespaces not expected",
@@ -131,7 +133,8 @@ fn unexpected_xml_namespace() {
 #[test]
 fn different_value_found_at_index_xml() {
     println!("FILE: tests/spec_testcases/v4/response/body/different value found at index xml.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "XML Incorrect favourite colour",
@@ -175,7 +178,8 @@ fn different_value_found_at_index_xml() {
 #[test]
 fn unexpected_index_with_not_null_value() {
     println!("FILE: tests/spec_testcases/v4/response/body/unexpected index with not null value.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Unexpected favourite colour",
@@ -234,7 +238,8 @@ fn unexpected_index_with_not_null_value() {
 #[test]
 fn missing_body() {
     println!("FILE: tests/spec_testcases/v4/response/body/missing body.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Missing body",
@@ -282,7 +287,8 @@ fn missing_body() {
 #[test]
 fn unexpected_key_with_null_value() {
     println!("FILE: tests/spec_testcases/v4/response/body/unexpected key with null value.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Unexpected phone number with null value",
@@ -335,7 +341,8 @@ fn unexpected_key_with_null_value() {
 #[test]
 fn different_value_found_at_key() {
     println!("FILE: tests/spec_testcases/v4/response/body/different value found at key.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Incorrect value at alligator name",
@@ -387,7 +394,8 @@ fn different_value_found_at_key() {
 #[test]
 fn not_null_found_at_key_when_null_expected() {
     println!("FILE: tests/spec_testcases/v4/response/body/not null found at key when null expected.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Name should be null",
@@ -439,7 +447,8 @@ fn not_null_found_at_key_when_null_expected() {
 #[test]
 fn additional_property_with_type_matcher() {
     println!("FILE: tests/spec_testcases/v4/response/body/additional property with type matcher.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "additional property with type matcher wildcards",
@@ -504,7 +513,8 @@ fn additional_property_with_type_matcher() {
 #[test]
 fn matches_with_integers() {
     println!("FILE: tests/spec_testcases/v4/response/body/matches with integers.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Response match with integers",
@@ -584,7 +594,8 @@ fn matches_with_integers() {
 #[test]
 fn different_value_found_at_key_xml() {
     println!("FILE: tests/spec_testcases/v4/response/body/different value found at key xml.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "XML Incorrect value at alligator name",
@@ -628,7 +639,8 @@ fn different_value_found_at_key_xml() {
 #[test]
 fn number_found_in_array_when_string_expected() {
     println!("FILE: tests/spec_testcases/v4/response/body/number found in array when string expected.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Favourite numbers expected to be strings found a number",
@@ -688,7 +700,8 @@ fn number_found_in_array_when_string_expected() {
 #[test]
 fn no_body_no_content_type_xml() {
     println!("FILE: tests/spec_testcases/v4/response/body/no body no content type xml.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "XML No body, no content-type",
@@ -726,7 +739,8 @@ fn no_body_no_content_type_xml() {
 #[test]
 fn property_name_is_different_case() {
     println!("FILE: tests/spec_testcases/v4/response/body/property name is different case.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Property names on objects are case sensitive",
@@ -778,7 +792,8 @@ fn property_name_is_different_case() {
 #[test]
 fn array_with_type_matcher_mismatch_xml() {
     println!("FILE: tests/spec_testcases/v4/response/body/array with type matcher mismatch xml.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "XML array with type matcher mismatch",
@@ -833,7 +848,8 @@ fn array_with_type_matcher_mismatch_xml() {
 #[test]
 fn array_in_different_order() {
     println!("FILE: tests/spec_testcases/v4/response/body/array in different order.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Favourite colours in wrong order",
@@ -891,7 +907,8 @@ fn array_in_different_order() {
 #[test]
 fn plain_text_regex_matching() {
     println!("FILE: tests/spec_testcases/v4/response/body/plain text regex matching.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Plain text that matches",
@@ -947,7 +964,8 @@ fn plain_text_regex_matching() {
 #[test]
 fn plain_text_regex_matching_that_does_not_match() {
     println!("FILE: tests/spec_testcases/v4/response/body/plain text regex matching that does not match.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Plain text that matches",
@@ -1003,7 +1021,8 @@ fn plain_text_regex_matching_that_does_not_match() {
 #[test]
 fn matches_with_floats() {
     println!("FILE: tests/spec_testcases/v4/response/body/matches with floats.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Response match with floats",
@@ -1075,7 +1094,8 @@ fn matches_with_floats() {
 #[test]
 fn empty_body_no_content_type() {
     println!("FILE: tests/spec_testcases/v4/response/body/empty body no content type.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Empty body, no content-type",
@@ -1114,7 +1134,8 @@ fn empty_body_no_content_type() {
 #[test]
 fn objects_in_array_second_matches_xml() {
     println!("FILE: tests/spec_testcases/v4/response/body/objects in array second matches xml.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "XML Property of second object matches, but unexpected element received",
@@ -1158,7 +1179,8 @@ fn objects_in_array_second_matches_xml() {
 #[test]
 fn array_with_type_matcher_mismatch() {
     println!("FILE: tests/spec_testcases/v4/response/body/array with type matcher mismatch.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "array with type matcher mismatch",
@@ -1223,7 +1245,8 @@ fn array_with_type_matcher_mismatch() {
 #[test]
 fn plain_text_that_matches() {
     println!("FILE: tests/spec_testcases/v4/response/body/plain text that matches.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Plain text that matches",
@@ -1267,7 +1290,8 @@ fn plain_text_that_matches() {
 #[test]
 fn array_with_type_matcher() {
     println!("FILE: tests/spec_testcases/v4/response/body/array with type matcher.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "array with type matcher",
@@ -1339,7 +1363,8 @@ fn array_with_type_matcher() {
 #[test]
 fn missing_body_no_content_type() {
     println!("FILE: tests/spec_testcases/v4/response/body/missing body no content type.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Missing body, no content-type",
@@ -1386,7 +1411,8 @@ fn missing_body_no_content_type() {
 #[test]
 fn objects_in_array_type_matching_xml() {
     println!("FILE: tests/spec_testcases/v4/response/body/objects in array type matching xml.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "XML objects in array type matching",
@@ -1455,7 +1481,8 @@ fn objects_in_array_type_matching_xml() {
 #[test]
 fn empty_body() {
     println!("FILE: tests/spec_testcases/v4/response/body/empty body.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Empty body",
@@ -1495,7 +1522,8 @@ fn empty_body() {
 #[test]
 fn string_found_in_array_when_number_expected() {
     println!("FILE: tests/spec_testcases/v4/response/body/string found in array when number expected.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Favourite Numbers expected to be numbers, but 2 is a string",
@@ -1555,7 +1583,8 @@ fn string_found_in_array_when_number_expected() {
 #[test]
 fn array_at_top_level_xml() {
     println!("FILE: tests/spec_testcases/v4/response/body/array at top level xml.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "XML top level array matches",
@@ -1599,7 +1628,8 @@ fn array_at_top_level_xml() {
 #[test]
 fn objects_in_array_first_matches() {
     println!("FILE: tests/spec_testcases/v4/response/body/objects in array first matches.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Properties match but unexpected element received",
@@ -1656,7 +1686,8 @@ fn objects_in_array_first_matches() {
 #[test]
 fn keys_out_of_order_match_xml() {
     println!("FILE: tests/spec_testcases/v4/response/body/keys out of order match xml.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "XML Favourite number and favourite colours out of order",
@@ -1700,7 +1731,8 @@ fn keys_out_of_order_match_xml() {
 #[test]
 fn array_at_top_level() {
     println!("FILE: tests/spec_testcases/v4/response/body/array at top level.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "top level array matches",
@@ -1770,7 +1802,8 @@ fn array_at_top_level() {
 #[test]
 fn matches_with_type() {
     println!("FILE: tests/spec_testcases/v4/response/body/matches with type.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Response match with same type",
@@ -1850,7 +1883,8 @@ fn matches_with_type() {
 #[test]
 fn different_xml_namespaces() {
     println!("FILE: tests/spec_testcases/v4/response/body/different xml namespaces.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "XML namespaces do not match",
@@ -1894,7 +1928,8 @@ fn different_xml_namespaces() {
 #[test]
 fn different_xml_namespace_prefixes() {
     println!("FILE: tests/spec_testcases/v4/response/body/different xml namespace prefixes.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "different XML namespace declarations/prefixes",
@@ -1938,7 +1973,8 @@ fn different_xml_namespace_prefixes() {
 #[test]
 fn null_body_no_content_type() {
     println!("FILE: tests/spec_testcases/v4/response/body/null body no content type.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "NULL body, no content-type",
@@ -1977,7 +2013,8 @@ fn null_body_no_content_type() {
 #[test]
 fn array_with_type_matcher_xml() {
     println!("FILE: tests/spec_testcases/v4/response/body/array with type matcher xml.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "array with type matcher",
@@ -2039,7 +2076,8 @@ fn array_with_type_matcher_xml() {
 #[test]
 fn missing_index_xml() {
     println!("FILE: tests/spec_testcases/v4/response/body/missing index xml.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Missing favorite colour",
@@ -2083,7 +2121,8 @@ fn missing_index_xml() {
 #[test]
 fn objects_in_array_no_matches_xml() {
     println!("FILE: tests/spec_testcases/v4/response/body/objects in array no matches xml.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "XML Array of objects, properties match on incorrect objects",
@@ -2127,7 +2166,8 @@ fn objects_in_array_no_matches_xml() {
 #[test]
 fn no_body_no_content_type() {
     println!("FILE: tests/spec_testcases/v4/response/body/no body no content type.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "No body, no content-type",
@@ -2174,7 +2214,8 @@ fn no_body_no_content_type() {
 #[test]
 fn non_empty_body_found_when_empty_expected() {
     println!("FILE: tests/spec_testcases/v4/response/body/non empty body found when empty expected.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Non empty body found, when an empty body was expected",
@@ -2227,7 +2268,8 @@ fn non_empty_body_found_when_empty_expected() {
 #[test]
 fn deeply_nested_objects() {
     println!("FILE: tests/spec_testcases/v4/response/body/deeply nested objects.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
       	"match": true,
       	"comment": "Comparisons should work even on nested objects",
@@ -2307,7 +2349,8 @@ fn deeply_nested_objects() {
 #[test]
 fn missing_key_xml() {
     println!("FILE: tests/spec_testcases/v4/response/body/missing key xml.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "XML Missing key alligator name",
@@ -2351,7 +2394,8 @@ fn missing_key_xml() {
 #[test]
 fn objects_in_array_no_matches() {
     println!("FILE: tests/spec_testcases/v4/response/body/objects in array no matches.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Array of objects, properties match on incorrect objects",
@@ -2411,7 +2455,8 @@ fn objects_in_array_no_matches() {
 #[test]
 fn objects_in_array_type_matching() {
     println!("FILE: tests/spec_testcases/v4/response/body/objects in array type matching.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "objects in array type matching",
@@ -2488,7 +2533,8 @@ fn objects_in_array_type_matching() {
 #[test]
 fn not_null_found_in_array_when_null_expected() {
     println!("FILE: tests/spec_testcases/v4/response/body/not null found in array when null expected.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Favourite numbers expected to contain null, but not null found",
@@ -2548,7 +2594,8 @@ fn not_null_found_in_array_when_null_expected() {
 #[test]
 fn plain_text_empty_body() {
     println!("FILE: tests/spec_testcases/v4/response/body/plain text empty body.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Plain text that matches",
@@ -2592,7 +2639,8 @@ fn plain_text_empty_body() {
 #[test]
 fn array_at_top_level_with_matchers_xml() {
     println!("FILE: tests/spec_testcases/v4/response/body/array at top level with matchers xml.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "XML top level array matches",
@@ -2670,7 +2718,8 @@ fn array_at_top_level_with_matchers_xml() {
 #[test]
 fn different_value_found_at_index() {
     println!("FILE: tests/spec_testcases/v4/response/body/different value found at index.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Incorrect favourite colour",
@@ -2728,7 +2777,8 @@ fn different_value_found_at_index() {
 #[test]
 fn matches_with_regex() {
     println!("FILE: tests/spec_testcases/v4/response/body/matches with regex.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Requests match with regex",
@@ -2802,7 +2852,8 @@ fn matches_with_regex() {
 #[test]
 fn objects_in_array_with_type_mismatching() {
     println!("FILE: tests/spec_testcases/v4/response/body/objects in array with type mismatching.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "objects in array with type mismatching",
@@ -2869,7 +2920,8 @@ fn objects_in_array_with_type_mismatching() {
 #[test]
 fn number_found_at_key_when_string_expected() {
     println!("FILE: tests/spec_testcases/v4/response/body/number found at key when string expected.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Number of feet expected to be string but was number",
@@ -2921,7 +2973,8 @@ fn number_found_at_key_when_string_expected() {
 #[test]
 fn objects_in_array_second_matches() {
     println!("FILE: tests/spec_testcases/v4/response/body/objects in array second matches.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Property of second object matches, but unexpected element recieved",
@@ -2978,7 +3031,8 @@ fn objects_in_array_second_matches() {
 #[test]
 fn array_in_different_order_xml() {
     println!("FILE: tests/spec_testcases/v4/response/body/array in different order xml.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "XML Favourite colours in wrong order",
@@ -3022,7 +3076,8 @@ fn array_in_different_order_xml() {
 #[test]
 fn matches_with_regex_xml() {
     println!("FILE: tests/spec_testcases/v4/response/body/matches with regex xml.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "XML Requests match with regex",
@@ -3078,7 +3133,8 @@ fn matches_with_regex_xml() {
 #[test]
 fn value_found_in_array_when_empty_expected_xml() {
     println!("FILE: tests/spec_testcases/v4/response/body/value found in array when empty expected xml.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "XML Favourite numbers expected to contain empty, but non-empty found",
@@ -3122,7 +3178,8 @@ fn value_found_in_array_when_empty_expected_xml() {
 #[test]
 fn missing_index() {
     println!("FILE: tests/spec_testcases/v4/response/body/missing index.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Missing favorite colour",
@@ -3179,7 +3236,8 @@ fn missing_index() {
 #[test]
 fn keys_out_of_order_match() {
     println!("FILE: tests/spec_testcases/v4/response/body/keys out of order match.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Favourite number and favourite colours out of order",
@@ -3235,7 +3293,8 @@ fn keys_out_of_order_match() {
 #[test]
 fn null_body() {
     println!("FILE: tests/spec_testcases/v4/response/body/null body.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "NULL body",
@@ -3275,7 +3334,8 @@ fn null_body() {
 #[test]
 fn unexpected_key_with_non_empty_value_xml() {
     println!("FILE: tests/spec_testcases/v4/response/body/unexpected key with non-empty value xml.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "XML Unexpected phone number",
@@ -3319,7 +3379,8 @@ fn unexpected_key_with_non_empty_value_xml() {
 #[test]
 fn missing_body_xml() {
     println!("FILE: tests/spec_testcases/v4/response/body/missing body xml.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "XML Missing body",
@@ -3358,7 +3419,8 @@ fn missing_body_xml() {
 #[test]
 fn null_found_in_array_when_not_null_expected() {
     println!("FILE: tests/spec_testcases/v4/response/body/null found in array when not null expected.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Favourite numbers expected to be strings found a null",
@@ -3418,7 +3480,8 @@ fn null_found_in_array_when_not_null_expected() {
 #[test]
 fn additional_property_with_type_matcher_that_does_not_match() {
     println!("FILE: tests/spec_testcases/v4/response/body/additional property with type matcher that does not match.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "additional property with type matcher wildcards that don't match",
@@ -3483,7 +3546,8 @@ fn additional_property_with_type_matcher_that_does_not_match() {
 #[test]
 fn unexpected_index_with_null_value() {
     println!("FILE: tests/spec_testcases/v4/response/body/unexpected index with null value.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Unexpected favourite colour with null value",
@@ -3542,7 +3606,8 @@ fn unexpected_index_with_null_value() {
 #[test]
 fn unexpected_key_with_not_null_value() {
     println!("FILE: tests/spec_testcases/v4/response/body/unexpected key with not null value.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Unexpected phone number",
@@ -3595,7 +3660,8 @@ fn unexpected_key_with_not_null_value() {
 #[test]
 fn missing_body_found_when_empty_expected() {
     println!("FILE: tests/spec_testcases/v4/response/body/missing body found when empty expected.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Missing body found, when an empty body was expected",
@@ -3628,7 +3694,8 @@ fn missing_body_found_when_empty_expected() {
 #[test]
 fn string_found_at_key_when_number_expected() {
     println!("FILE: tests/spec_testcases/v4/response/body/string found at key when number expected.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Number of feet expected to be number but was string",
@@ -3680,7 +3747,8 @@ fn string_found_at_key_when_number_expected() {
 #[test]
 fn unexpected_key_with_empty_value_xml() {
     println!("FILE: tests/spec_testcases/v4/response/body/unexpected key with empty value xml.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "XML Unexpected phone number with empty value",
@@ -3724,7 +3792,8 @@ fn unexpected_key_with_empty_value_xml() {
 #[test]
 fn missing_key() {
     println!("FILE: tests/spec_testcases/v4/response/body/missing key.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Missing key alligator name",
@@ -3777,7 +3846,8 @@ fn missing_key() {
 #[test]
 fn plain_text_regex_matching_missing_body() {
     println!("FILE: tests/spec_testcases/v4/response/body/plain text regex matching missing body.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Plain text that matches",
@@ -3828,7 +3898,8 @@ fn plain_text_regex_matching_missing_body() {
 #[test]
 fn objects_in_array_first_matches_xml() {
     println!("FILE: tests/spec_testcases/v4/response/body/objects in array first matches xml.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "XML Properties match but unexpected element received",
@@ -3872,7 +3943,8 @@ fn objects_in_array_first_matches_xml() {
 #[test]
 fn matches_xml() {
     println!("FILE: tests/spec_testcases/v4/response/body/matches xml.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Responses match",
@@ -3916,7 +3988,8 @@ fn matches_xml() {
 #[test]
 fn deeply_nested_objects_xml() {
     println!("FILE: tests/spec_testcases/v4/response/body/deeply nested objects xml.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
       	"match": true,
       	"comment": "XML Comparisons should work even on nested objects",
@@ -3960,7 +4033,8 @@ fn deeply_nested_objects_xml() {
 #[test]
 fn property_name_is_different_case_xml() {
     println!("FILE: tests/spec_testcases/v4/response/body/property name is different case xml.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "XML Property names on objects are case sensitive",
@@ -4004,7 +4078,8 @@ fn property_name_is_different_case_xml() {
 #[test]
 fn plain_text_missing_body() {
     println!("FILE: tests/spec_testcases/v4/response/body/plain text missing body.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Plain text that matches",
@@ -4039,7 +4114,8 @@ fn plain_text_missing_body() {
 #[test]
 fn matches() {
     println!("FILE: tests/spec_testcases/v4/response/body/matches.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Responses match",
@@ -4101,7 +4177,8 @@ fn matches() {
 #[test]
 fn array_at_top_level_with_matchers() {
     println!("FILE: tests/spec_testcases/v4/response/body/array at top level with matchers.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "top level array matches",
@@ -4235,7 +4312,8 @@ fn array_at_top_level_with_matchers() {
 #[test]
 fn null_found_at_key_where_not_null_expected() {
     println!("FILE: tests/spec_testcases/v4/response/body/null found at key where not null expected.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Name should not be null",
@@ -4287,7 +4365,8 @@ fn null_found_at_key_where_not_null_expected() {
 #[test]
 fn unexpected_index_with_non_empty_value_xml() {
     println!("FILE: tests/spec_testcases/v4/response/body/unexpected index with non-empty value xml.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "XML Unexpected favourite colour",
@@ -4331,7 +4410,8 @@ fn unexpected_index_with_non_empty_value_xml() {
 #[test]
 fn objects_in_array_with_type_mismatching_xml() {
     println!("FILE: tests/spec_testcases/v4/response/body/objects in array with type mismatching xml.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "XML objects in array with type mismatching",
@@ -4393,7 +4473,8 @@ fn objects_in_array_with_type_mismatching_xml() {
 #[test]
 fn plain_text_that_does_not_match() {
     println!("FILE: tests/spec_testcases/v4/response/body/plain text that does not match.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Plain text that does not match",
@@ -4437,7 +4518,8 @@ fn plain_text_that_does_not_match() {
 #[test]
 fn array_with_regex_matcher_xml() {
     println!("FILE: tests/spec_testcases/v4/response/body/array with regex matcher xml.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "XML array with regex matcher",
@@ -4500,7 +4582,8 @@ fn array_with_regex_matcher_xml() {
 #[test]
 fn unexpected_index_with_missing_value_xml() {
     println!("FILE: tests/spec_testcases/v4/response/body/unexpected index with missing value xml.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "XML Unexpected favourite colour with missing value",

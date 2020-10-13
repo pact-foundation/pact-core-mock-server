@@ -27,9 +27,9 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
       pw.println('use pact_matching::{match_interaction_request, match_interaction_response};')
     } else if (requestResponsePath == 'message') {
       pw.println('#[allow(unused_imports)]')
-      pw.println('use pact_matching::models::message::Message;')
+      pw.println('use pact_matching::models::{Interaction, message_interaction_from_json};')
       pw.println('#[allow(unused_imports)]')
-      pw.println('use pact_matching::match_message;')
+      pw.println('use pact_matching::match_interaction;')
     }
 
     dir.eachDir {
@@ -42,7 +42,8 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
         |#[test]
         |fn ${it.name.replaceAll(' ', '_').replaceAll('-', '_').replaceAll('\\.json', '')}() {
         |    println!("FILE: ${it}");
-        |    let pact : serde_json::Value = serde_json::from_str(r#"
+        |    #[allow(unused_mut)]
+        |    let mut pact: serde_json::Value = serde_json::from_str(r#"
       """
       it.text.eachLine { line ->
         testBody += '|      ' + line + '\n'
@@ -88,12 +89,20 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
         """
       } else if (requestResponsePath == 'message') {
         testBody += """
-        |    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::$specVersion).unwrap();
+        |    let expected_json = pact.get_mut("expected").unwrap();
+        |    let interaction_json = expected_json.as_object_mut().unwrap();
+        |    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+        |    let expected = message_interaction_from_json("$it", &expected_json, &PactSpecification::$specVersion).unwrap();
         |    println!("EXPECTED: {:?}", expected);
-        |    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::$specVersion).unwrap();
+        |    println!("BODY: {}", expected.contents().str_value());
+        |    let actual_json = pact.get_mut("actual").unwrap();
+        |    let interaction_json = actual_json.as_object_mut().unwrap();
+        |    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+        |    let actual = message_interaction_from_json("$it", &actual_json, &PactSpecification::$specVersion).unwrap();
         |    println!("ACTUAL: {:?}", actual);
+        |    println!("BODY: {}", actual.contents().str_value());
         |    let pact_match = pact.get("match").unwrap();
-        |    let result = match_message(&expected, &actual);
+        |    let result = match_interaction(expected, actual, &PactSpecification::$specVersion).unwrap();
         |    println!("RESULT: {:?}", result);
         |    if pact_match.as_bool().unwrap() {
         |       expect!(result.iter()).to(be_empty());

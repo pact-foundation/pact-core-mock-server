@@ -14,7 +14,8 @@ use pact_matching::{match_interaction_request, match_interaction_response};
 #[test]
 fn empty_path_found_when_forward_slash_expected() {
     println!("FILE: tests/spec_testcases/v3/request/path/empty path found when forward slash expected.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Empty path found when forward slash expected",
@@ -54,7 +55,8 @@ fn empty_path_found_when_forward_slash_expected() {
 #[test]
 fn matches_with_regex() {
     println!("FILE: tests/spec_testcases/v3/request/path/matches with regex.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Paths match with regex",
@@ -104,7 +106,8 @@ fn matches_with_regex() {
 #[test]
 fn unexpected_trailing_slash_in_path() {
     println!("FILE: tests/spec_testcases/v3/request/path/unexpected trailing slash in path.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Path has unexpected trailing slash, trailing slashes can matter",
@@ -144,7 +147,8 @@ fn unexpected_trailing_slash_in_path() {
 #[test]
 fn forward_slash_found_when_empty_path_expected() {
     println!("FILE: tests/spec_testcases/v3/request/path/forward slash found when empty path expected.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Foward slash found when empty path expected",
@@ -184,7 +188,8 @@ fn forward_slash_found_when_empty_path_expected() {
 #[test]
 fn incorrect_path() {
     println!("FILE: tests/spec_testcases/v3/request/path/incorrect path.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Paths do not match",
@@ -224,7 +229,8 @@ fn incorrect_path() {
 #[test]
 fn missing_trailing_slash_in_path() {
     println!("FILE: tests/spec_testcases/v3/request/path/missing trailing slash in path.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Path is missing trailing slash, trailing slashes can matter",
@@ -264,7 +270,8 @@ fn missing_trailing_slash_in_path() {
 #[test]
 fn matches() {
     println!("FILE: tests/spec_testcases/v3/request/path/matches.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Paths match",

@@ -14,7 +14,8 @@ use pact_matching::{match_interaction_request, match_interaction_response};
 #[test]
 fn unexpected_param() {
     println!("FILE: tests/spec_testcases/v4/request/query/unexpected param.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Queries are not the same - elephant is not expected",
@@ -61,7 +62,8 @@ fn unexpected_param() {
 #[test]
 fn different_params() {
     println!("FILE: tests/spec_testcases/v4/request/query/different params.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Queries are not the same - hippo is Fred instead of John",
@@ -107,7 +109,8 @@ fn different_params() {
 #[test]
 fn same_parameter_different_values() {
     println!("FILE: tests/spec_testcases/v4/request/query/same parameter different values.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Queries are not the same - animals are alligator, hippo versus alligator, elephant",
@@ -151,7 +154,8 @@ fn same_parameter_different_values() {
 #[test]
 fn matches_with_equals_in_the_query_value() {
     println!("FILE: tests/spec_testcases/v4/request/query/matches with equals in the query value.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Queries are equivalent",
@@ -197,7 +201,8 @@ fn matches_with_equals_in_the_query_value() {
 #[test]
 fn missing_params() {
     println!("FILE: tests/spec_testcases/v4/request/query/missing params.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Queries are not the same - elephant is missing",
@@ -244,7 +249,8 @@ fn missing_params() {
 #[test]
 fn same_parameter_multiple_times_in_different_order() {
     println!("FILE: tests/spec_testcases/v4/request/query/same parameter multiple times in different order.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Queries are not the same - values are in different order",
@@ -288,7 +294,8 @@ fn same_parameter_multiple_times_in_different_order() {
 #[test]
 fn matches_with_regex() {
     println!("FILE: tests/spec_testcases/v4/request/query/matches with regex.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Queries match with regex",
@@ -346,7 +353,8 @@ fn matches_with_regex() {
 #[test]
 fn different_order() {
     println!("FILE: tests/spec_testcases/v4/request/query/different order.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Queries are the same but in different key order",
@@ -392,7 +400,8 @@ fn different_order() {
 #[test]
 fn same_parameter_multiple_times() {
     println!("FILE: tests/spec_testcases/v4/request/query/same parameter multiple times.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Queries are the same - multiple values are in same order",
@@ -438,7 +447,8 @@ fn same_parameter_multiple_times() {
 #[test]
 fn matches() {
     println!("FILE: tests/spec_testcases/v4/request/query/matches.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Queries are the same",

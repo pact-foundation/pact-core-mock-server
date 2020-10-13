@@ -1402,6 +1402,21 @@ pub fn match_interaction_response(expected: Box<dyn Interaction>, actual: Box<dy
   }
 }
 
+/// Matches an interaction
+pub fn match_interaction(expected: Box<dyn Interaction>, actual: Box<dyn Interaction>, spec_version: &PactSpecification) -> Result<Vec<Mismatch>, String> {
+  if let Some(expected) = expected.as_request_response() {
+    let request_result = match_request(expected.request, actual.as_request_response().unwrap().request);
+    let response_result = match_response(expected.response, actual.as_request_response().unwrap().response);
+    let mut mismatches = request_result.mismatches();
+    mismatches.extend_from_slice(&*response_result);
+    Ok(mismatches)
+  } else if let Some(expected) = expected.as_message() {
+    Ok(match_message(&expected, &actual.as_message().unwrap()))
+  } else {
+    Err(format!("match_interaction must be called with either an HTTP request/response interaction or a Message, got {}", expected.type_of()))
+  }
+}
+
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

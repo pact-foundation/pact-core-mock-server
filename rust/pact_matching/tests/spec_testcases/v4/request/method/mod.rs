@@ -14,7 +14,8 @@ use pact_matching::{match_interaction_request, match_interaction_response};
 #[test]
 fn different_method() {
     println!("FILE: tests/spec_testcases/v4/request/method/different method.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Methods is incorrect",
@@ -55,7 +56,8 @@ fn different_method() {
 #[test]
 fn method_is_different_case() {
     println!("FILE: tests/spec_testcases/v4/request/method/method is different case.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Methods case does not matter",
@@ -96,7 +98,8 @@ fn method_is_different_case() {
 #[test]
 fn matches() {
     println!("FILE: tests/spec_testcases/v4/request/method/matches.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Methods match",

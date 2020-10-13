@@ -7,7 +7,7 @@ use serde_json;
 #[allow(unused_imports)]
 use expectest::prelude::*;
 #[allow(unused_imports)]
-use pact_matching::models::message::Message;
+use pact_matching::models::{Interaction, message_interaction_from_json};
 #[allow(unused_imports)]
-use pact_matching::match_message;
+use pact_matching::match_interaction;
 mod body;

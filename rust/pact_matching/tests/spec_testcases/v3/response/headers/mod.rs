@@ -14,7 +14,8 @@ use pact_matching::{match_interaction_request, match_interaction_response};
 #[test]
 fn order_of_comma_separated_header_values_different() {
     println!("FILE: tests/spec_testcases/v3/response/headers/order of comma separated header values different.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Comma separated headers out of order, order can matter http://tools.ietf.org/html/rfc2616",
@@ -52,7 +53,8 @@ fn order_of_comma_separated_header_values_different() {
 #[test]
 fn matches_content_type_with_charset_with_different_case() {
     println!("FILE: tests/spec_testcases/v3/response/headers/matches content type with charset with different case.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Content-Type and Accept Headers match when the charset differs in case",
@@ -92,7 +94,8 @@ fn matches_content_type_with_charset_with_different_case() {
 #[test]
 fn whitespace_after_comma_different() {
     println!("FILE: tests/spec_testcases/v3/response/headers/whitespace after comma different.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Whitespace between comma separated headers does not matter",
@@ -130,7 +133,8 @@ fn whitespace_after_comma_different() {
 #[test]
 fn header_value_is_different_case() {
     println!("FILE: tests/spec_testcases/v3/response/headers/header value is different case.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Headers values are case sensitive",
@@ -168,7 +172,8 @@ fn header_value_is_different_case() {
 #[test]
 fn matches_content_type_with_parameters_in_different_order() {
     println!("FILE: tests/spec_testcases/v3/response/headers/matches content type with parameters in different order.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Headers match when the content type parameters are in a different order",
@@ -206,7 +211,8 @@ fn matches_content_type_with_parameters_in_different_order() {
 #[test]
 fn header_name_is_different_case() {
     println!("FILE: tests/spec_testcases/v3/response/headers/header name is different case.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Header name is case insensitive",
@@ -244,7 +250,8 @@ fn header_name_is_different_case() {
 #[test]
 fn matches_with_regex() {
     println!("FILE: tests/spec_testcases/v3/response/headers/matches with regex.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Headers match with regex",
@@ -296,7 +303,8 @@ fn matches_with_regex() {
 #[test]
 fn unexpected_header_found() {
     println!("FILE: tests/spec_testcases/v3/response/headers/unexpected header found.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Extra headers allowed",
@@ -332,7 +340,8 @@ fn unexpected_header_found() {
 #[test]
 fn content_type_parameters_do_not_match() {
     println!("FILE: tests/spec_testcases/v3/response/headers/content type parameters do not match.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Headers don't match when the parameters are different",
@@ -370,7 +379,8 @@ fn content_type_parameters_do_not_match() {
 #[test]
 fn matches() {
     println!("FILE: tests/spec_testcases/v3/response/headers/matches.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Headers match",
@@ -410,7 +420,8 @@ fn matches() {
 #[test]
 fn matches_content_type_with_charset() {
     println!("FILE: tests/spec_testcases/v3/response/headers/matches content type with charset.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Headers match when the actual includes additional parameters",
@@ -448,7 +459,8 @@ fn matches_content_type_with_charset() {
 #[test]
 fn empty_headers() {
     println!("FILE: tests/spec_testcases/v3/response/headers/empty headers.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
         {
         "match": true,
         "comment": "Empty headers match",

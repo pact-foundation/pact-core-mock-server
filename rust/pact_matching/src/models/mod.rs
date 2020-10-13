@@ -1635,9 +1635,18 @@ pub fn parse_query_string(query: &String) -> Option<HashMap<String, Vec<String>>
 pub fn http_interaction_from_json(source: &str, json: &Value, spec: &PactSpecification) -> Result<Box<dyn Interaction>, String> {
   match spec {
     PactSpecification::V4 => interaction_from_json(source, 0, json)
-      .map(|i| Box::new(i) as Box<dyn Interaction>)
-      .ok_or(format!("Could not create a V4 interaction from the provided JSON")),
+      .map(|i| Box::new(i) as Box<dyn Interaction>),
     _ => Ok(Box::new(RequestResponseInteraction::from_json(0, json, spec)))
+  }
+}
+
+/// Converts the JSON struct into a Message Interaction
+pub fn message_interaction_from_json(source: &str, json: &Value, spec: &PactSpecification) -> Result<Box<dyn Interaction>, String> {
+  match spec {
+    PactSpecification::V4 => interaction_from_json(source, 0, json)
+      .map(|i| Box::new(i) as Box<dyn Interaction>),
+    _ => Message::from_json(0, json, spec)
+      .map(|i| Box::new(i) as Box<dyn Interaction>)
   }
 }
 

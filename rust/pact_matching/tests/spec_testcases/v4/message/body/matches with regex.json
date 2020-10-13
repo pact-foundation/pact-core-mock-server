@@ -2,14 +2,18 @@
   "match": true,
   "comment": "Messages match with regex",
   "expected": {
-    "metaData": {
-      "contentType": "application/json"
-    },
     "contents": {
-      "alligator":{
-        "name": "Mary",
-        "feet": 4,
-        "favouriteColours": ["red","blue"]
+      "contentType": "application/json",
+      "encoded": false,
+      "content": {
+        "alligator": {
+          "name": "Mary",
+          "feet": 4,
+          "favouriteColours": [
+            "red",
+            "blue"
+          ]
+        }
       }
     },
     "matchingRules": {
@@ -42,14 +46,18 @@
     }
   },
   "actual": {
-    "metaData": {
-      "contentType": "application/json"
-    },
     "contents": {
-      "alligator":{
-        "feet": 4,
-        "name": "Harry",
-        "favouriteColours": ["blue", "red"]
+      "contentType": "application/json",
+      "encoded": false,
+      "content": {
+        "alligator": {
+          "feet": 4,
+          "name": "Harry",
+          "favouriteColours": [
+            "blue",
+            "red"
+          ]
+        }
       }
     }
   }

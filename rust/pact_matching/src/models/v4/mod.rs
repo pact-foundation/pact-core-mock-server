@@ -461,7 +461,7 @@ fn interactions_from_json(json: &Value, source: &str) -> Vec<V4Interaction> {
   match json.get("interactions") {
     Some(v) => match *v {
       Value::Array(ref array) => array.iter().enumerate().map(|(index, ijson)| {
-        interaction_from_json(source, index, ijson)
+        interaction_from_json(source, index, ijson).ok()
       }).filter(|i| i.is_some())
         .map(|i| i.unwrap())
         .collect(),
@@ -472,7 +472,7 @@ fn interactions_from_json(json: &Value, source: &str) -> Vec<V4Interaction> {
 }
 
 /// Create an interaction from a JSON struct
-pub fn interaction_from_json(source: &str, index: usize, ijson: &Value) -> Option<V4Interaction> {
+pub fn interaction_from_json(source: &str, index: usize, ijson: &Value) -> Result<V4Interaction, String> {
   match ijson.get("type") {
     Some(i_type) => match V4InteractionType::from_str(json_to_string(i_type).as_str()) {
       Ok(i_type) => {
@@ -490,7 +490,7 @@ pub fn interaction_from_json(source: &str, index: usize, ijson: &Value) -> Optio
           V4InteractionType::Synchronous_HTTP => {
             let request = ijson.get("request").cloned().unwrap_or_default();
             let response = ijson.get("response").cloned().unwrap_or_default();
-            Some(V4Interaction::SynchronousHttp {
+            Ok(V4Interaction::SynchronousHttp {
               id,
               key,
               description,
@@ -507,7 +507,7 @@ pub fn interaction_from_json(source: &str, index: usize, ijson: &Value) -> Optio
               _ => hashmap!{}
             };
             let as_headers = metadata_to_headers(&metadata);
-            Some(V4Interaction::AsynchronousMessages {
+            Ok(V4Interaction::AsynchronousMessages {
               id,
               key,
               description,
@@ -520,18 +520,18 @@ pub fn interaction_from_json(source: &str, index: usize, ijson: &Value) -> Optio
           }
           V4InteractionType::Synchronous_Messages => {
             warn!("Interaction type '{}' is currently unimplemented. It will be ignored. Source: {}", i_type, source);
-            None
+            Err(format!("Interaction type '{}' is currently unimplemented. It will be ignored. Source: {}", i_type, source))
           }
         }
       },
       Err(_) => {
         warn!("Interaction {} has an incorrect type attribute '{}'. It will be ignored. Source: {}", index, i_type, source);
-        None
+        Err(format!("Interaction {} has an incorrect type attribute '{}'. It will be ignored. Source: {}", index, i_type, source))
       }
     },
     None => {
       warn!("Interaction {} has no type attribute. It will be ignored. Source: {}", index, source);
-      None
+      Err(format!("Interaction {} has no type attribute. It will be ignored. Source: {}", index, source))
     }
   }
 }

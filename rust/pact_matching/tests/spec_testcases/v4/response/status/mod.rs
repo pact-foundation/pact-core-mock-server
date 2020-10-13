@@ -14,7 +14,8 @@ use pact_matching::{match_interaction_request, match_interaction_response};
 #[test]
 fn different_status() {
     println!("FILE: tests/spec_testcases/v4/response/status/different status.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Status is incorrect",
@@ -48,7 +49,8 @@ fn different_status() {
 #[test]
 fn matches() {
     println!("FILE: tests/spec_testcases/v4/response/status/matches.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
       	"match": true,
       	"comment": "Status matches",
