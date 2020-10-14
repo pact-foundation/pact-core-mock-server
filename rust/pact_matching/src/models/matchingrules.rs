@@ -381,7 +381,7 @@ impl MatchingRule {
     result
   }
 
-  pub fn compare_lists<T: Display + Debug + PartialEq>(
+  pub fn compare_lists<T: Display + Debug + PartialEq + Clone>(
     &self,
     path: &Vec<&str>,
     expected: &Vec<T>,
@@ -402,9 +402,10 @@ impl MatchingRule {
         } ]));
       }
     }
-    let expected_example = expected.first().unwrap().clone();
     let mut expected_list = Vec::new();
-    expected_list.resize(actual.len(), expected_example);
+    if let Some(expected_example) = expected.first() {
+      expected_list.resize(actual.len(), (*expected_example).clone());
+    }
 
     for (index, value) in expected_list.iter().enumerate() {
       let ps = index.to_string();

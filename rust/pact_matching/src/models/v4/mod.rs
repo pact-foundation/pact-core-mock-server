@@ -498,7 +498,9 @@ impl ReadWritePact for V4Pact {
           match (a.key(), b.key()) {
             (Some(key_a), Some(key_b)) => Ord::cmp(&key_a, &key_b),
             (_, _) => {
-              let cmp = Ord::cmp(&a.clone().type_id(), &b.clone().type_id());
+              let type_a = a.type_of();
+              let type_b = b.type_of();
+              let cmp = Ord::cmp(&type_a, &type_b);
               if cmp == Ordering::Equal {
                 let cmp = Ord::cmp(&a.provider_states().iter().map(|p| p.name.clone()).collect::<Vec<String>>(),
                                    &b.provider_states().iter().map(|p| p.name.clone()).collect::<Vec<String>>());

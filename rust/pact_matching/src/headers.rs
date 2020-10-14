@@ -72,7 +72,7 @@ fn match_header_value(key: &str, expected: &str, actual: &str, context: &Matchin
         key: key.to_string(),
         expected: expected.to_string(),
         actual: actual.to_string(),
-        mismatch: format!("Mismatch with header '{}': {}", key.clone(), message)
+        mismatch: format!("Mismatch with header '{}': {}", key, message)
       }
     }).collect()
   })
