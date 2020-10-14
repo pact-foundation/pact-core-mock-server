@@ -38,11 +38,11 @@ fn different_param_order() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v1/request/query/different param order.json", &interaction_json, &PactSpecification::V1).unwrap();
-    println!("EXPECTED: {:?}", expected);
+    println!("EXPECTED: {}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v1/request/query/different param order.json", &interaction_json, &PactSpecification::V1).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_request(expected, actual, &PactSpecification::V1).unwrap().mismatches();
@@ -81,11 +81,11 @@ fn different_param_values() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v1/request/query/different param values.json", &interaction_json, &PactSpecification::V1).unwrap();
-    println!("EXPECTED: {:?}", expected);
+    println!("EXPECTED: {}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v1/request/query/different param values.json", &interaction_json, &PactSpecification::V1).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_request(expected, actual, &PactSpecification::V1).unwrap().mismatches();
@@ -124,11 +124,11 @@ fn trailing_amperand() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v1/request/query/trailing amperand.json", &interaction_json, &PactSpecification::V1).unwrap();
-    println!("EXPECTED: {:?}", expected);
+    println!("EXPECTED: {}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v1/request/query/trailing amperand.json", &interaction_json, &PactSpecification::V1).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_request(expected, actual, &PactSpecification::V1).unwrap().mismatches();
@@ -167,11 +167,11 @@ fn matches() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v1/request/query/matches.json", &interaction_json, &PactSpecification::V1).unwrap();
-    println!("EXPECTED: {:?}", expected);
+    println!("EXPECTED: {}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v1/request/query/matches.json", &interaction_json, &PactSpecification::V1).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    println!("ACTUAL: {}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_request(expected, actual, &PactSpecification::V1).unwrap().mismatches();
