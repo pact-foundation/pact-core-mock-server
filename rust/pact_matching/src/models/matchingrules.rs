@@ -21,6 +21,7 @@ use crate::models::json_utils::{json_to_num, json_to_string};
 use crate::path_exp::*;
 
 use super::PactSpecification;
+use nom::lib::std::cmp::Ordering;
 
 fn matches_token(path_fragment: &str, path_token: &PathToken) -> usize {
   match path_token {
@@ -174,7 +175,9 @@ pub enum MatchingRule {
   /// Match if the value is a null value (this is content specific, for JSON will match a JSON null)
   Null,
   /// Match binary data by its content type (magic file check)
-  ContentType(String)
+  ContentType(String),
+  /// Match array items in any order against a list of variants
+  ArrayContains(Vec<(usize, MatchingRuleCategory)>)
 }
 
 impl MatchingRule {
@@ -230,6 +233,23 @@ impl MatchingRule {
               Some(s) => Some(MatchingRule::ContentType(json_to_string(s))),
               None => None
             },
+            "arrayContains" => match m.get("variants") {
+              Some(variants) => match variants {
+                Value::Array(variants) => {
+                  let values = variants.iter().map(|variant| {
+                    let index = json_to_num(variant.get("index").cloned()).unwrap_or_default();
+                    let mut category = MatchingRuleCategory::default(format!("variant {}", index));
+                    if let Some(rules) = variant.get("rules") {
+                      category.add_rules_from_json(rules);
+                    }
+                    (index, category)
+                  }).collect();
+                  Some(MatchingRule::ArrayContains(values))
+                }
+                _ => None
+              }
+              None => None
+            }
             _ => None
           }
         },
@@ -303,6 +323,23 @@ impl MatchingRule {
             Some(s) => Some(MatchingRule::ContentType(json_to_string(s))),
             None => None
           }
+          "arrayContains" => match m.get("variants") {
+            Some(variants) => match variants {
+              Value::Array(variants) => {
+                let values = variants.iter().map(|variant| {
+                  let index = json_to_num(variant.get("index").cloned()).unwrap_or_default();
+                  let mut category = MatchingRuleCategory::default(format!("variant {}", index));
+                  if let Some(rules) = variant.get("rules") {
+                    category.add_rules_from_json(rules);
+                  }
+                  (index, category)
+                }).collect();
+                Some(MatchingRule::ArrayContains(values))
+              }
+              _ => None
+            }
+            None => None
+          }
           _ => None
         }
       },
@@ -312,17 +349,17 @@ impl MatchingRule {
 
   /// Converts this `MatchingRule` to a `Value` struct
   pub fn to_json(&self) -> Value {
-    match *self {
+    match self {
       MatchingRule::Equality => json!({ "match": Value::String(s!("equality")) }),
       MatchingRule::Regex(ref r) => json!({ "match": Value::String(s!("regex")),
         "regex": Value::String(r.clone()) }),
       MatchingRule::Type => json!({ "match": Value::String(s!("type")) }),
       MatchingRule::MinType(min) => json!({ "match": Value::String(s!("type")),
-        "min": json!(min as u64) }),
+        "min": json!(*min as u64) }),
       MatchingRule::MaxType(max) => json!({ "match": Value::String(s!("type")),
-        "max": json!(max as u64) }),
+        "max": json!(*max as u64) }),
       MatchingRule::MinMaxType(min, max) => json!({ "match": Value::String(s!("type")),
-        "min": json!(min as u64), "max": json!(max as u64) }),
+        "min": json!(*min as u64), "max": json!(*max as u64) }),
       MatchingRule::Timestamp(ref t) => json!({ "match": Value::String(s!("timestamp")),
         "timestamp": Value::String(t.clone()) }),
       MatchingRule::Time(ref t) => json!({ s!("match"): Value::String(s!("time")),
@@ -336,7 +373,15 @@ impl MatchingRule {
       MatchingRule::Decimal => json!({ "match": Value::String(s!("decimal")) }),
       MatchingRule::Null => json!({ "match": Value::String(s!("null")) }),
       MatchingRule::ContentType(ref r) => json!({ "match": Value::String(s!("contentType")),
-        "value": Value::String(r.clone()) })
+        "value": Value::String(r.clone()) }),
+      MatchingRule::ArrayContains(variants) => json!({
+        "variants": variants.iter().map(|(index, rules)| {
+          json!({
+            "index": index,
+            "rules": rules.to_v3_json()
+          })
+        }).collect::<Vec<Value>>()
+      })
     }
   }
 
@@ -392,41 +437,74 @@ impl MatchingRule {
   ) -> Result<(), Vec<Mismatch>> {
     let mut result = Ok(());
 
-    if let Err(messages) = match_values(path, context, expected, actual) {
-      for message in messages {
-        result = merge_result(result,Err(vec![ Mismatch::BodyMismatch {
-          path: path.join("."),
-          expected: Some(expected.for_mismatch().into()),
-          actual: Some(actual.for_mismatch().into()),
-          mismatch: message.clone()
-        } ]));
+    match self {
+      MatchingRule::ArrayContains(variants) => {
+        for (index, variant_rules) in variants {
+          match expected.get(*index) {
+            Some(expected_value) => {
+              if actual.iter().enumerate().find(|(actual_index, value)| {
+                debug!("Comparing list item {} with value '{:?}' to '{:?}'", actual_index, value, expected_value);
+                callback(&vec![], value, &actual[*index], context_stack).is_ok()
+              }).is_none() {
+                result = merge_result(result,Err(vec![ Mismatch::BodyMismatch {
+                  path: path.join("."),
+                  expected: Some(expected_value.to_string().into()),
+                  actual: Some(actual.for_mismatch().into()),
+                  mismatch: format!("Variant {} ({}) was not found in the actual list", index, expected_value)
+                } ]));
+              }
+            },
+            None => {
+              result = merge_result(result,Err(vec![ Mismatch::BodyMismatch {
+                path: path.join("."),
+                expected: Some(expected.for_mismatch().into()),
+                actual: Some(actual.for_mismatch().into()),
+                mismatch: format!("ArrayContains: variant {} is missing from the expected list, which has {} items",
+                                  index, expected.len())
+              } ]));
+            }
+          }
+        }
       }
-    }
-    let mut expected_list = Vec::new();
-    if let Some(expected_example) = expected.first() {
-      expected_list.resize(actual.len(), (*expected_example).clone());
+      _ => {
+        if let Err(messages) = match_values(path, context, expected, actual) {
+          for message in messages {
+            result = merge_result(result,Err(vec![ Mismatch::BodyMismatch {
+              path: path.join("."),
+              expected: Some(expected.for_mismatch().into()),
+              actual: Some(actual.for_mismatch().into()),
+              mismatch: message.clone()
+            } ]));
+          }
+        }
+        let mut expected_list = Vec::new();
+        if let Some(expected_example) = expected.first() {
+          expected_list.resize(actual.len(), (*expected_example).clone());
+        }
+
+        for (index, value) in expected_list.iter().enumerate() {
+          let ps = index.to_string();
+          log::debug!("Comparing list item {} with value '{:?}' to '{:?}'", index, actual.get(index), value);
+          let mut p = path.to_vec();
+          p.push(ps.as_str());
+          if index < actual.len() {
+            result = merge_result(result, callback(&p, value, &actual[index], context_stack));
+          } else if !context.matcher_is_defined(&p) {
+            result = merge_result(result,Err(vec![ Mismatch::BodyMismatch { path: path.join("."),
+              expected: Some(expected.for_mismatch().into()),
+              actual: Some(actual.for_mismatch().into()),
+              mismatch: format!("Expected {} but was missing", value) } ]))
+          }
+        }
+      }
     }
 
-    for (index, value) in expected_list.iter().enumerate() {
-      let ps = index.to_string();
-      log::debug!("Comparing list item {} with value '{:?}' to '{:?}'", index, actual.get(index), value);
-      let mut p = path.to_vec();
-      p.push(ps.as_str());
-      if index < actual.len() {
-        result = merge_result(result, callback(&p, value, &actual[index], context_stack));
-      } else if !context.matcher_is_defined(&p) {
-        result = merge_result(result,Err(vec![ Mismatch::BodyMismatch { path: path.join("."),
-          expected: Some(expected.for_mismatch().into()),
-          actual: Some(actual.for_mismatch().into()),
-          mismatch: format!("Expected {} but was missing", value) } ]))
-      }
-    }
     result
   }
 }
 
 /// Enumeration to define how to combine rules
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash, PartialOrd, Ord)]
 pub enum RuleLogic {
   /// All rules must match
   And,
@@ -446,7 +524,7 @@ impl RuleLogic {
 }
 
 /// Data structure for representing a list of rules and the logic needed to combine them
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash, PartialOrd, Ord)]
 pub struct RuleList {
   /// List of rules to apply
   pub rules: BTreeSet<MatchingRule>,
@@ -496,6 +574,10 @@ impl RuleList {
       _ => false
     })
   }
+
+  pub fn add_rule(&mut self, rule: &MatchingRule) -> bool {
+    self.rules.insert(rule.clone())
+  }
 }
 
 /// Data structure for representing a category of matching rules
@@ -529,10 +611,10 @@ impl MatchingRuleCategory {
   }
 
   /// Adds a rule from the Value representation
-  pub fn rule_from_json(&mut self, key: &String, matcher_json: &Value, rule_logic: &RuleLogic) {
+  pub fn rule_from_json(&mut self, key: &str, matcher_json: &Value, rule_logic: &RuleLogic) {
     match MatchingRule::from_json(matcher_json) {
       Some(matching_rule) => {
-        let rules = self.rules.entry(key.clone()).or_insert(RuleList::default(rule_logic));
+        let rules = self.rules.entry(key.to_string()).or_insert(RuleList::default(rule_logic));
         rules.rules.insert(matching_rule);
       },
       None => log::warn!("Could not parse matcher {:?}", matcher_json)
@@ -625,6 +707,53 @@ impl MatchingRuleCategory {
   pub fn as_rule_list(&self) -> Option<RuleList> {
     self.rules.values().next().cloned()
   }
+
+  pub fn add_rules_from_json(&mut self, rules: &Value) {
+    if self.name == "path" && rules.get("matchers").is_some() {
+      let rule_logic = match rules.get("combine") {
+        Some(val) => if json_to_string(val).to_uppercase() == "OR" {
+          RuleLogic::Or
+        } else {
+          RuleLogic::And
+        },
+        None => RuleLogic::And
+      };
+      match rules.get("matchers") {
+        Some(matchers) => match matchers {
+          &Value::Array(ref array) => for matcher in array {
+            self.rule_from_json("", &matcher, &rule_logic)
+          },
+          _ => ()
+        },
+        None => ()
+      }
+    } else {
+      match rules {
+        &Value::Object(ref m) => {
+          for (k, v) in m {
+            let rule_logic = match v.get("combine") {
+              Some(val) => if json_to_string(val).to_uppercase() == "OR" {
+                RuleLogic::Or
+              } else {
+                RuleLogic::And
+              },
+              None => RuleLogic::And
+            };
+            match v.get("matchers") {
+              Some(matchers) => match matchers {
+                &Value::Array(ref array) => for matcher in array {
+                  self.rule_from_json(k.as_str(), &matcher, &rule_logic)
+                },
+                _ => ()
+              },
+              None => ()
+            }
+          }
+        },
+        _ => ()
+      }
+    }
+  }
 }
 
 impl Hash for MatchingRuleCategory {
@@ -644,6 +773,18 @@ impl PartialEq for MatchingRuleCategory {
 
   fn ne(&self, other: &Self) -> bool {
     self.name != other.name || self.rules != other.rules
+  }
+}
+
+impl PartialOrd for MatchingRuleCategory {
+  fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+    self.name.partial_cmp(&other.name)
+  }
+}
+
+impl Ord for MatchingRuleCategory {
+  fn cmp(&self, other: &Self) -> Ordering {
+    self.name.cmp(&other.name)
   }
 }
 
@@ -769,55 +910,12 @@ impl MatchingRules {
 
     fn add_rules(&mut self, category_name: &String, rules: &Value) {
       let category = self.add_category(category_name.clone());
-      if category_name == "path" && rules.get("matchers").is_some() {
-        let rule_logic = match rules.get("combine") {
-          Some(val) => if json_to_string(val).to_uppercase() == "OR" {
-              RuleLogic::Or
-            } else {
-              RuleLogic::And
-            },
-          None => RuleLogic::And
-        };
-        match rules.get("matchers") {
-          Some(matchers) => match matchers {
-            &Value::Array(ref array) => for matcher in array {
-              category.rule_from_json(&s!(""), &matcher, &rule_logic)
-            },
-            _ => ()
-          },
-          None => ()
-        }
-      } else {
-        match rules {
-          &Value::Object(ref m) => {
-            for (k, v) in m {
-              let rule_logic = match v.get("combine") {
-                Some(val) => if json_to_string(val).to_uppercase() == "OR" {
-                  RuleLogic::Or
-                } else {
-                  RuleLogic::And
-                },
-                None => RuleLogic::And
-              };
-              match v.get("matchers") {
-                Some(matchers) => match matchers {
-                  &Value::Array(ref array) => for matcher in array {
-                    category.rule_from_json(k, &matcher, &rule_logic)
-                  },
-                  _ => ()
-                },
-                None => ()
-              }
-            }
-          },
-          _ => ()
-        }
-      }
+      category.add_rules_from_json(rules)
     }
 
   fn add_v2_rule(&mut self, category_name: String, sub_category: String, rule: &Value) {
     let category = self.add_category(category_name);
-    category.rule_from_json(&sub_category, rule, &RuleLogic::And);
+    category.rule_from_json(sub_category.as_str(), rule, &RuleLogic::And);
   }
 
   fn to_v3_json(&self) -> Value {
@@ -925,6 +1023,26 @@ macro_rules! matchingrules {
             })*
         })*
         _rules
+    }};
+}
+
+/// Macro to ease constructing matching rules
+/// Example usage:
+/// ```ignore
+/// matchingrules_list! {
+///   "user_id" => [ MatchingRule::Regex(s!("^[0-9]+$")) ]
+/// }
+/// ```
+#[macro_export]
+macro_rules! matchingrules_list {
+    ( $( $name:expr => [ $( $matcher:expr ), * ] ),* ) => {{
+        let mut _category = MatchingRuleCategory::default("from macro");
+        $({
+          $({
+            _category.add_rule($name, $matcher, &RuleLogic::And);
+          })*
+        })*
+        _category
     }};
 }
 

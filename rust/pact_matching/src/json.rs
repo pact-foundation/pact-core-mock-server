@@ -160,6 +160,7 @@ impl Matches<Value> for Value {
         match_content_type(&convert_data(actual), expected_content_type)
           .map_err(|err| format!("Expected data to have a content type of '{}' but was {}", expected_content_type, err))
       }
+      _ => Ok(())
     };
     debug!("JSON -> JSON: Comparing '{}' to '{}' using {:?} -> {:?}", self, actual, matcher, result);
     result
