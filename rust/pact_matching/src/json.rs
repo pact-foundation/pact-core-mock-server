@@ -329,13 +329,10 @@ fn compare_lists(path: &Vec<&str>, expected: &Vec<Value>, actual: &Vec<Value>,
     log::debug!("compare_lists: matcher defined for path '{}'", spath);
     let mut result = Ok(());
     for matcher in context.select_best_matcher(path).unwrap().rules {
-      let matcher_context = matcher.matcher_context(path, context);
-      context_stack.push(context.clone());
-      let values_result = matcher.compare_lists(path, expected, actual, &matcher_context, context_stack, &|p, expected, actual, context_stack| {
-        compare(&p, expected, actual, &matcher_context, context_stack)
+      let values_result = matcher.compare_lists(path, expected, actual, context, context_stack, &|p, expected, actual, context, context_stack| {
+        compare(&p, expected, actual, context, context_stack)
       });
       result = merge_result(result, values_result);
-      context_stack.pop();
     }
     result
   } else {
@@ -412,6 +409,7 @@ mod tests {
   use crate::models::{OptionalBody, Request};
 
   use super::*;
+  use crate::Mismatch::BodyMismatch;
 
   macro_rules! request {
     ($e:expr) => (Request { body: OptionalBody::Present($e.as_bytes().to_vec(), None), .. Request::default() })
@@ -829,53 +827,54 @@ mod tests {
   #[test]
   fn compare_lists_with_array_contains_matcher() {
     let val1 = request!(r#"
-    {
-      "articles": [
-        {
-          "variants": {
-            "001": {
-              "bundles": {
-                "001-A": {
-                  "description": "someDescription",
-                  "referencedArticles": [
-                    {
-                        "bundleId": "someId"
-                    }
-                  ]
-                }
-              }
-            }
-          }
-        }
-      ]
-    }"#);
-    let val2 = request!(r#"{
-      "articles": [
-        {
-          "variants": {
-            "002": {
-              "bundles": {
-                "002-A": {
-                  "description": "someDescription",
-                  "referencedArticles": [
-                    {
-                        "bundleId": "someId"
-                    }
-                  ]
-                }
-              }
-            }
-          }
-        }
-      ]
-    }"#);
+    [1, 2, 3]
+    "#);
+    let val2 = request!(r#"
+    [10, 22, 6, 1, 5, 3, 2]
+    "#);
 
     let result = match_json(&val1, &val2, &MatchingContext::new(DiffConfig::AllowUnexpectedKeys, &matchingrules!{
       "body" => {
-        "$.articles[*].variants.*" => [ MatchingRule::Type ],
-        "$.articles[*].variants.*.bundles.*" => [ MatchingRule::Type ]
+        "$" => [ MatchingRule::ArrayContains(vec![]) ]
       }
     }.rules_for_category("body").unwrap()));
     expect!(result).to(be_ok());
+  }
+
+  #[test]
+  fn compare_lists_without_array_contains_matcher_fails() {
+    let val1 = request!(r#"
+    [1, 2, 3]
+    "#);
+    let val2 = request!(r#"
+    [10, 22, 6, 1, 5, 3, 2]
+    "#);
+
+    let result = match_json(&val1, &val2, &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    expect!(result).to(be_err());
+  }
+
+  #[test]
+  fn compare_lists_with_array_contains_matcher_fails() {
+    let val1 = request!(r#"
+    [1, 2, 3]
+    "#);
+    let val2 = request!(r#"
+    [10, 22, 6, 1, 5, 2]
+    "#);
+
+    let result = match_json(&val1, &val2, &MatchingContext::new(DiffConfig::AllowUnexpectedKeys, &matchingrules!{
+      "body" => {
+        "$" => [ MatchingRule::ArrayContains(vec![]) ]
+      }
+    }.rules_for_category("body").unwrap()));
+    expect!(result).to(be_err().value(vec![
+      BodyMismatch {
+        path: "$".to_string(),
+        expected: Some("3".into()),
+        actual: Some("[\"10\",\"22\",\"6\",\"1\",\"5\",\"2\"]".into()),
+        mismatch: "Variant at index 2 (3) was not found in the actual list".to_string()
+      }
+    ]));
   }
 }

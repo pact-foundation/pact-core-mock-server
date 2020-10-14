@@ -387,6 +387,14 @@ impl MatchingContext {
     }
   }
 
+  pub fn clone_with(&self, matchers: &MatchingRuleCategory) -> Self {
+    MatchingContext {
+      matchers: matchers.clone(),
+      config: self.config.clone(),
+      matching_spec: self.matching_spec.clone()
+    }
+  }
+
   pub fn matcher_is_defined(&self, path: &Vec<&str>) -> bool {
     self.matchers.matcher_is_defined(path)
   }

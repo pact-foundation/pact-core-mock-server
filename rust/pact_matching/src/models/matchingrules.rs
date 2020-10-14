@@ -238,9 +238,11 @@ impl MatchingRule {
                 Value::Array(variants) => {
                   let values = variants.iter().map(|variant| {
                     let index = json_to_num(variant.get("index").cloned()).unwrap_or_default();
-                    let mut category = MatchingRuleCategory::default(format!("variant {}", index));
+                    let mut category = MatchingRuleCategory::empty(format!("variant {}", index));
                     if let Some(rules) = variant.get("rules") {
                       category.add_rules_from_json(rules);
+                    } else {
+                      category.add_rule("", MatchingRule::Equality, &RuleLogic::And);
                     }
                     (index, category)
                   }).collect();
@@ -328,9 +330,11 @@ impl MatchingRule {
               Value::Array(variants) => {
                 let values = variants.iter().map(|variant| {
                   let index = json_to_num(variant.get("index").cloned()).unwrap_or_default();
-                  let mut category = MatchingRuleCategory::default(format!("variant {}", index));
+                  let mut category = MatchingRuleCategory::empty(format!("variant {}", index));
                   if let Some(rules) = variant.get("rules") {
                     category.add_rules_from_json(rules);
+                  } else {
+                    category.add_rule("", MatchingRule::Equality, &RuleLogic::And);
                   }
                   (index, category)
                 }).collect();
@@ -433,26 +437,35 @@ impl MatchingRule {
     actual: &Vec<T>,
     context: &MatchingContext,
     context_stack: &mut Vec<MatchingContext>,
-    callback: &dyn Fn(&Vec<&str>, &T, &T, &mut Vec<MatchingContext>) -> Result<(), Vec<Mismatch>>
+    callback: &dyn Fn(&Vec<&str>, &T, &T, &MatchingContext, &mut Vec<MatchingContext>) -> Result<(), Vec<Mismatch>>
   ) -> Result<(), Vec<Mismatch>> {
     let mut result = Ok(());
-
     match self {
       MatchingRule::ArrayContains(variants) => {
-        for (index, variant_rules) in variants {
-          match expected.get(*index) {
+        let variants = if variants.is_empty() {
+          expected.iter().enumerate().map(|(index, _)| {
+            (index, MatchingRuleCategory::equality(format!("variant {}", index)))
+          }).collect()
+        } else {
+          variants.clone()
+        };
+        for (index, rules) in variants {
+          match expected.get(index) {
             Some(expected_value) => {
+              context_stack.push(context.clone());
+              let context = context.clone_with(&rules);
               if actual.iter().enumerate().find(|(actual_index, value)| {
                 debug!("Comparing list item {} with value '{:?}' to '{:?}'", actual_index, value, expected_value);
-                callback(&vec![], value, &actual[*index], context_stack).is_ok()
+                callback(&vec![], expected_value, value, &context, context_stack).is_ok()
               }).is_none() {
                 result = merge_result(result,Err(vec![ Mismatch::BodyMismatch {
                   path: path.join("."),
                   expected: Some(expected_value.to_string().into()),
                   actual: Some(actual.for_mismatch().into()),
-                  mismatch: format!("Variant {} ({}) was not found in the actual list", index, expected_value)
+                  mismatch: format!("Variant at index {} ({}) was not found in the actual list", index, expected_value)
                 } ]));
-              }
+              };
+              context_stack.pop();
             },
             None => {
               result = merge_result(result,Err(vec![ Mismatch::BodyMismatch {
@@ -488,7 +501,7 @@ impl MatchingRule {
           let mut p = path.to_vec();
           p.push(ps.as_str());
           if index < actual.len() {
-            result = merge_result(result, callback(&p, value, &actual[index], context_stack));
+            result = merge_result(result, callback(&p, value, &actual[index], context, context_stack));
           } else if !context.matcher_is_defined(&p) {
             result = merge_result(result,Err(vec![ Mismatch::BodyMismatch { path: path.join("."),
               expected: Some(expected.for_mismatch().into()),
@@ -535,10 +548,18 @@ pub struct RuleList {
 impl RuleList {
 
   /// Creates a new empty rule list
-  pub fn default(rule_logic: &RuleLogic) -> RuleList {
+  pub fn empty(rule_logic: &RuleLogic) -> RuleList {
     RuleList {
       rules: BTreeSet::new(),
       rule_logic: rule_logic.clone()
+    }
+  }
+
+  /// Creates a default rule list with an equality matcher
+  pub fn equality() -> RuleList {
+    RuleList {
+      rules: btreeset!{ MatchingRule::Equality },
+      rule_logic: RuleLogic::And
     }
   }
 
@@ -590,13 +611,25 @@ pub struct MatchingRuleCategory {
 }
 
 impl MatchingRuleCategory {
-  /// Creates a default empty category
-  pub fn default<S>(name: S) -> MatchingRuleCategory
+  /// Creates an empty category
+  pub fn empty<S>(name: S) -> MatchingRuleCategory
     where S: Into<String>
   {
     MatchingRuleCategory {
       name: name.into(),
       rules: hashmap! {},
+    }
+  }
+
+  /// Creates a default category
+  pub fn equality<S>(name: S) -> MatchingRuleCategory
+    where S: Into<String>
+  {
+    MatchingRuleCategory {
+      name: name.into(),
+      rules: hashmap! {
+        "".to_string() => RuleList::equality()
+      }
     }
   }
 
@@ -614,7 +647,7 @@ impl MatchingRuleCategory {
   pub fn rule_from_json(&mut self, key: &str, matcher_json: &Value, rule_logic: &RuleLogic) {
     match MatchingRule::from_json(matcher_json) {
       Some(matching_rule) => {
-        let rules = self.rules.entry(key.to_string()).or_insert(RuleList::default(rule_logic));
+        let rules = self.rules.entry(key.to_string()).or_insert(RuleList::empty(rule_logic));
         rules.rules.insert(matching_rule);
       },
       None => log::warn!("Could not parse matcher {:?}", matcher_json)
@@ -624,7 +657,7 @@ impl MatchingRuleCategory {
   /// Adds a rule to this category
   pub fn add_rule<S>(&mut self, key: S, matcher: MatchingRule, rule_logic: &RuleLogic)
     where S: Into<String> {
-    let rules = self.rules.entry(key.into()).or_insert(RuleList::default(rule_logic));
+    let rules = self.rules.entry(key.into()).or_insert(RuleList::empty(rule_logic));
     rules.rules.insert(matcher);
   }
 
@@ -720,7 +753,7 @@ impl MatchingRuleCategory {
       };
       match rules.get("matchers") {
         Some(matchers) => match matchers {
-          &Value::Array(ref array) => for matcher in array {
+          Value::Array(array) => for matcher in array {
             self.rule_from_json("", &matcher, &rule_logic)
           },
           _ => ()
@@ -729,29 +762,37 @@ impl MatchingRuleCategory {
       }
     } else {
       match rules {
-        &Value::Object(ref m) => {
-          for (k, v) in m {
-            let rule_logic = match v.get("combine") {
-              Some(val) => if json_to_string(val).to_uppercase() == "OR" {
-                RuleLogic::Or
-              } else {
-                RuleLogic::And
-              },
-              None => RuleLogic::And
-            };
-            match v.get("matchers") {
-              Some(matchers) => match matchers {
-                &Value::Array(ref array) => for matcher in array {
-                  self.rule_from_json(k.as_str(), &matcher, &rule_logic)
-                },
-                _ => ()
-              },
-              None => ()
+        Value::Object(m) => {
+          if m.contains_key("matchers") {
+            self.add_rule_list("", rules);
+          } else {
+            for (k, v) in m {
+              self.add_rule_list(k, v);
             }
           }
         },
         _ => ()
       }
+    }
+  }
+
+  fn add_rule_list(&mut self, k: &str, v: &Value) {
+    let rule_logic = match v.get("combine") {
+      Some(val) => if json_to_string(val).to_uppercase() == "OR" {
+        RuleLogic::Or
+      } else {
+        RuleLogic::And
+      },
+      None => RuleLogic::And
+    };
+    match v.get("matchers") {
+      Some(matchers) => match matchers {
+        &Value::Array(ref array) => for matcher in array {
+          self.rule_from_json(k, &matcher, &rule_logic)
+        },
+        _ => ()
+      },
+      None => ()
     }
   }
 }
@@ -814,7 +855,7 @@ impl MatchingRules {
     {
       let category = category.into();
       if !self.rules.contains_key(&category) {
-          self.rules.insert(category.clone(), MatchingRuleCategory::default(category.clone()));
+          self.rules.insert(category.clone(), MatchingRuleCategory::empty(category.clone()));
       }
       self.rules.get_mut(&category).unwrap()
     }
@@ -1030,20 +1071,27 @@ macro_rules! matchingrules {
 /// Example usage:
 /// ```ignore
 /// matchingrules_list! {
-///   "user_id" => [ MatchingRule::Regex(s!("^[0-9]+$")) ]
+///   "variant 0", "user_id" => [ MatchingRule::Regex(s!("^[0-9]+$")) ]
 /// }
 /// ```
 #[macro_export]
 macro_rules! matchingrules_list {
-    ( $( $name:expr => [ $( $matcher:expr ), * ] ),* ) => {{
-        let mut _category = MatchingRuleCategory::default("from macro");
-        $({
-          $({
-            _category.add_rule($name, $matcher, &RuleLogic::And);
-          })*
-        })*
-        _category
-    }};
+  ( $name:expr , ( $( $subname:expr => [ $( $matcher:expr ), * ] ),* ) ) => {{
+    let mut _category = MatchingRuleCategory::empty($name);
+    $({
+      $({
+        _category.add_rule($subname, $matcher, &RuleLogic::And);
+      })*
+    })*
+    _category
+  }};
+  ( $name:expr , [ $( $matcher:expr ), * ] ) => {{
+    let mut _category = MatchingRuleCategory::empty($name);
+    $({
+      _category.add_rule("", $matcher, &RuleLogic::And);
+    })*
+    _category
+  }};
 }
 
 #[cfg(test)]
@@ -1057,39 +1105,39 @@ mod tests {
   use super::{calc_path_weight, matches_token};
 
   #[test]
-    fn rules_are_empty_when_there_are_no_categories() {
-        expect!(MatchingRules::default().is_empty()).to(be_true());
-    }
+  fn rules_are_empty_when_there_are_no_categories() {
+    expect!(MatchingRules::default().is_empty()).to(be_true());
+  }
 
-    #[test]
-    fn rules_are_empty_when_there_are_only_empty_categories() {
-        expect!(MatchingRules {
-            rules: hashmap!{
-                s!("body") => MatchingRuleCategory::default(s!("body")),
-                s!("header") => MatchingRuleCategory::default(s!("header")),
-                s!("query") => MatchingRuleCategory::default(s!("query")),
-            }
-        }.is_empty()).to(be_true());
-    }
+  #[test]
+  fn rules_are_empty_when_there_are_only_empty_categories() {
+    expect!(MatchingRules {
+      rules: hashmap!{
+        s!("body") => MatchingRuleCategory::empty("body"),
+        s!("header") => MatchingRuleCategory::empty("header"),
+        s!("query") => MatchingRuleCategory::empty("query")
+      }
+    }.is_empty()).to(be_true());
+  }
 
-    #[test]
-    fn rules_are_not_empty_when_there_is_a_nonempty_category() {
-        expect!(MatchingRules {
+  #[test]
+  fn rules_are_not_empty_when_there_is_a_nonempty_category() {
+    expect!(MatchingRules {
+      rules: hashmap!{
+        "body".into() => MatchingRuleCategory::empty("body"),
+        "header".into() => MatchingRuleCategory::empty("headers"),
+        "query".into() => MatchingRuleCategory {
+            name: "query".into(),
             rules: hashmap!{
-                s!("body") => MatchingRuleCategory::default(s!("body")),
-                s!("header") => MatchingRuleCategory::default(s!("headers")),
-                s!("query") => MatchingRuleCategory {
-                    name: s!("query"),
-                    rules: hashmap!{
-                      s!("") => RuleList {
-                        rules: btreeset![ MatchingRule::Equality ],
-                        rule_logic: RuleLogic::And
-                      }
-                    }
-                },
+              "".into() => RuleList {
+                rules: btreeset![ MatchingRule::Equality ],
+                rule_logic: RuleLogic::And
+              }
             }
-        }.is_empty()).to(be_false());
-    }
+        },
+      }
+    }.is_empty()).to(be_false());
+  }
 
   #[test]
   fn matchers_from_json_test() {
@@ -1339,6 +1387,27 @@ mod tests {
 
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"null\"}").unwrap())).to(
       be_some().value(MatchingRule::Null));
+
+    let json = json!({
+      "match": "arrayContains",
+      "variants": []
+    });
+    expect!(MatchingRule::from_json(&json)).to(be_some().value(MatchingRule::ArrayContains(vec![])));
+
+    let json = json!({
+      "match": "arrayContains",
+      "variants": [
+        {
+          "index": 0,
+          "rules": {
+            "matchers": [ { "match": "equality" } ]
+          }
+        }
+      ]
+    });
+    expect!(MatchingRule::from_json(&json)).to(be_some().value(
+      MatchingRule::ArrayContains(vec![(0, matchingrules_list! { "variant 0", [ MatchingRule::Equality ] })])
+    ));
   }
 
   #[test]
@@ -1350,9 +1419,8 @@ mod tests {
   #[test]
   fn matcher_is_defined_returns_false_when_the_path_does_not_have_a_matcher_entry() {
     let matchers = matchingrules!{
-            "body" => {
-            }
-        };
+      "body" => { }
+    };
     expect!(matchers.matcher_is_defined("body", &vec!["$", "a", "b"])).to(be_false());
   }
 
