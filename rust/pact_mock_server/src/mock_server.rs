@@ -3,17 +3,20 @@
 //! instance of a mock server.
 //!
 
-use crate::hyper_server;
-use crate::matching::MatchResult;
-
-use pact_matching::models::{RequestResponsePact, RequestResponseInteraction};
 use std::ffi::CString;
-use std::path::PathBuf;
 use std::io;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use serde_json::json;
+
 use lazy_static::*;
 use rustls::ServerConfig;
+use serde_json::json;
+
+use pact_matching::models::{RequestResponseInteraction, RequestResponsePact, write_pact};
+use pact_matching::models::ReadWritePact;
+
+use crate::hyper_server;
+use crate::matching::MatchResult;
 
 lazy_static! {
     static ref PACT_FILE_MUTEX: Mutex<()> = Mutex::new(());
@@ -186,7 +189,7 @@ impl MockServer {
         // this concurrently?
         let _file_lock = PACT_FILE_MUTEX.lock().unwrap();
 
-        match self.pact.write_pact(filename.as_path(), self.pact.spec_version()) {
+        match write_pact(&self.pact, filename.as_path(), self.pact.spec_version()) {
             Ok(_) => Ok(()),
             Err(err) => {
                 log::warn!("Failed to write pact to file - {}", err);

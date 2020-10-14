@@ -1,10 +1,12 @@
-use clap::ArgMatches;
 use std::path::Path;
-use pact_matching::models::RequestResponsePact;
-use pact_matching::models::Pact;
-use serde_json::Value;
-use crate::handle_error;
+
+use clap::ArgMatches;
 use log::*;
+use serde_json::Value;
+
+use pact_matching::models::{ReadWritePact, Pact, RequestResponsePact};
+
+use crate::handle_error;
 
 pub async fn create_mock_server(host: &str, port: u16, matches: &ArgMatches<'_>) -> Result<(), i32> {
   let file = matches.value_of("file").unwrap();
