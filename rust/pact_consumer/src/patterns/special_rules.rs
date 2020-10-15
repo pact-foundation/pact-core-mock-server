@@ -56,7 +56,7 @@ fn like_is_pattern() {
 
     let matchable = Like::<JsonPattern>::new(json_pattern!("hello"));
     assert_eq!(matchable.to_example(), json!("hello"));
-    let mut rules = MatchingRuleCategory::default("body");
+    let mut rules = MatchingRuleCategory::empty("body");
     matchable.extract_matching_rules("$", &mut rules);
     assert_eq!(rules.to_v2_json(), hashmap!(s!("$.body") => json!({"match": "type"})));
 }
@@ -156,7 +156,7 @@ fn each_like_is_pattern() {
     let matchable = EachLike::new(json_pattern!(elem)).with_min_len(2);
     assert_eq!(matchable.to_example(), json!(["hello", "hello"]));
 
-    let mut rules = MatchingRuleCategory::default("body");
+    let mut rules = MatchingRuleCategory::empty("body");
     matchable.extract_matching_rules("$", &mut rules);
     let expected_rules = hashmap!(
         // Ruby omits the `type` here, but the Rust `pact_matching` library
@@ -319,7 +319,7 @@ fn term_is_pattern() {
     let matchable = Term::<JsonPattern>::new(Regex::new("[Hh]ello").unwrap(), "hello");
     assert_eq!(matchable.to_example(), json!("hello"));
 
-    let mut rules = MatchingRuleCategory::default("body");
+    let mut rules = MatchingRuleCategory::empty("body");
     matchable.extract_matching_rules("$", &mut rules);
     let expected_rules = hashmap!(
         s!("$.body") => json!({ "match": "regex", "regex": "[Hh]ello" })

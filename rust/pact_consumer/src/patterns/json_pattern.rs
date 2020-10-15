@@ -125,7 +125,7 @@ fn json_pattern_is_pattern() {
         s!("$.body.simple") => json!({ "match": "type" }),
         s!("$.body.array[0]") => json!({ "match": "type" })
     );
-    let mut rules = MatchingRuleCategory::default("body");
+    let mut rules = MatchingRuleCategory::empty("body");
     pattern.extract_matching_rules("$", &mut rules);
     assert_eq!(rules.to_v2_json(), expected_rules);
 }

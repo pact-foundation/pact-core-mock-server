@@ -66,7 +66,7 @@ fn string_pattern_is_pattern() {
     let expected_rules = hashmap!(
         s!("$.query.val") => json!({ "match": "regex", "regex": "^[0-9]+$" })
     );
-    let mut rules = MatchingRuleCategory::default("query");
+    let mut rules = MatchingRuleCategory::empty("query");
     pattern.extract_matching_rules("val", &mut rules);
     assert_eq!(rules.to_v2_json(), expected_rules);
 }
