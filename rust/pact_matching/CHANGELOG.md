@@ -1,5 +1,42 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.8.0 - V4 models + arrayContains matcher
+
+* b668d81 - chore: cleanup warnings and add missing doc comments (Ronald Holshausen, Thu Oct 15 16:57:57 2020 +1100)
+* c686ce0 - fix: arrayContains matcher JSON was missing match attribute (Ronald Holshausen, Thu Oct 15 15:55:50 2020 +1100)
+* f090323 - feat: updated integration JSON to handle array contains matcher (Ronald Holshausen, Thu Oct 15 15:31:47 2020 +1100)
+* 7110ab1 - feat: array contains working with Siren example (Ronald Holshausen, Thu Oct 15 11:47:01 2020 +1100)
+* d79beb4 - feat: basic array contains matcher working (Ronald Holshausen, Wed Oct 14 17:04:08 2020 +1100)
+* 03f43d4 - feat: initail implementation of array contains matcher (Ronald Holshausen, Wed Oct 14 14:43:05 2020 +1100)
+* cbc7812 - fix: clippy erros (Ronald Holshausen, Wed Oct 14 11:39:37 2020 +1100)
+* a16250a - chore: update spec test cases (Ronald Holshausen, Wed Oct 14 11:25:36 2020 +1100)
+* 831ba3d - fix: implement display for Interaction and Message (Ronald Holshausen, Wed Oct 14 10:09:32 2020 +1100)
+* 013fbaf - feat: implemented writing pact for V4 pacts (Ronald Holshausen, Tue Oct 13 18:56:03 2020 +1100)
+* d4ff696 - refactor: store the content type class with the body, not the string value (Ronald Holshausen, Tue Oct 13 17:23:25 2020 +1100)
+* fa62520 - refactor: V4 message spec test cases passing (Ronald Holshausen, Tue Oct 13 16:05:57 2020 +1100)
+* 9d0f05c - refactor: V4 request and response spec tests passing (Ronald Holshausen, Tue Oct 13 14:41:42 2020 +1100)
+* a151bcc - fix: Charsets in headers should be compared ignoring case (Ronald Holshausen, Tue Oct 13 14:12:15 2020 +1100)
+* 50aa09b - refactor: got spec tests passing; added V4 spec tests (Ronald Holshausen, Tue Oct 13 13:38:05 2020 +1100)
+* 6e3ffd7 - refactor: fix remaining failing tests after refactor (Ronald Holshausen, Tue Oct 13 11:13:47 2020 +1100)
+* 41126a7 - refactor: got all unit tests passing after big refactor (Ronald Holshausen, Mon Oct 12 17:32:58 2020 +1100)
+* f334a4f - refactor: introduce a MatchingContext into all matching functions + delgate to matchers for collections (Ronald Holshausen, Mon Oct 12 14:06:00 2020 +1100)
+* 7fbc731 - chore: bump minor version of matching lib (Ronald Holshausen, Fri Oct 9 10:42:33 2020 +1100)
+* 32f112b - refactor: change matching methods to return a result (Ronald Holshausen, Fri Oct 9 10:39:01 2020 +1100)
+* dd2ffa7 - feat: support text/xml as an XML content type (Ronald Holshausen, Thu Oct 8 15:49:23 2020 +1100)
+* 356de26 - chore: cleanup some deprecation warnings (Ronald Holshausen, Thu Oct 8 15:41:33 2020 +1100)
+* 2fdba73 - chore: cleanup some deprecation warnings (Ronald Holshausen, Thu Oct 8 15:15:45 2020 +1100)
+* 172f505 - chore: cleaned up some compiler warnings (Ronald Holshausen, Thu Oct 8 15:02:49 2020 +1100)
+* 02fa83d - chore: implemented the remaining unimplemented integration methods (Ronald Holshausen, Wed Oct 7 16:36:59 2020 +1100)
+* ce2ab5e - chore: fix clippy errors (Ronald Holshausen, Wed Oct 7 15:44:52 2020 +1100)
+* d0d7380 - feat: enabled some more tests for V4 models (Ronald Holshausen, Wed Oct 7 14:38:07 2020 +1100)
+* 5d8f744 - feat: loading V4 pact tests passing (Ronald Holshausen, Wed Oct 7 13:51:13 2020 +1100)
+* 511272a - feat: got V4 Synchronous/HTTP pact loading (Ronald Holshausen, Wed Oct 7 12:56:48 2020 +1100)
+* 7be8de6 - feat: Implemented V4 interactions + loading from JSON (Ronald Holshausen, Tue Oct 6 17:16:40 2020 +1100)
+* b2725dd - feat: added V4 interaction types (Ronald Holshausen, Tue Oct 6 12:03:03 2020 +1100)
+* 7232e89 - feat: Add initial V4 models and example pact files (Ronald Holshausen, Tue Oct 6 09:13:21 2020 +1100)
+* cbb6e20 - fix: generators to_json was only writing the first one for bodies, headers and queries (Ronald Holshausen, Sun Oct 4 12:52:24 2020 +1100)
+* 3131237 - bump version to 0.7.2 (Ronald Holshausen, Mon Sep 28 11:54:03 2020 +1000)
+
 # 0.7.1 - CORS pre-flight + fixes
 
 * 7fd4dd2 - refactor: update the mock server CLI to use webmachine 0.2 and hyper 0.13 (Ronald Holshausen, Sun Sep 27 09:39:23 2020 +1000)
