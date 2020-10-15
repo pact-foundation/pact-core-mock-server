@@ -3,18 +3,19 @@ use test_env_log::test;
 #[allow(unused_imports)]
 use pact_matching::models::PactSpecification;
 #[allow(unused_imports)]
-use pact_matching::models::Response;
-#[allow(unused_imports)]
-use pact_matching::match_response;
+use serde_json;
 #[allow(unused_imports)]
 use expectest::prelude::*;
 #[allow(unused_imports)]
-use serde_json;
+use pact_matching::models::{Interaction, http_interaction_from_json};
+#[allow(unused_imports)]
+use pact_matching::{match_interaction_request, match_interaction_response};
 
 #[test]
 fn order_of_comma_separated_header_values_different() {
     println!("FILE: tests/spec_testcases/v1_1/response/headers/order of comma separated header values different.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Comma separated headers out of order, order can matter http://tools.ietf.org/html/rfc2616",
@@ -31,14 +32,16 @@ fn order_of_comma_separated_header_values_different() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/headers/order of comma separated header values different.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("EXPECTED: {}", expected);
-    println!("BODY: {}", expected.body.str_value());
-    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
+    println!("BODY: {}", expected.contents().str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/headers/order of comma separated header values different.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("ACTUAL: {}", actual);
-    println!("BODY: {}", actual.body.str_value());
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_response(expected, actual);
+    let result = match_interaction_response(expected, actual, &PactSpecification::V1_1).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -50,7 +53,8 @@ fn order_of_comma_separated_header_values_different() {
 #[test]
 fn whitespace_after_comma_different() {
     println!("FILE: tests/spec_testcases/v1_1/response/headers/whitespace after comma different.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Whitespace between comma separated headers does not matter",
@@ -67,14 +71,16 @@ fn whitespace_after_comma_different() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/headers/whitespace after comma different.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("EXPECTED: {}", expected);
-    println!("BODY: {}", expected.body.str_value());
-    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
+    println!("BODY: {}", expected.contents().str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/headers/whitespace after comma different.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("ACTUAL: {}", actual);
-    println!("BODY: {}", actual.body.str_value());
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_response(expected, actual);
+    let result = match_interaction_response(expected, actual, &PactSpecification::V1_1).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -86,7 +92,8 @@ fn whitespace_after_comma_different() {
 #[test]
 fn header_value_is_different_case() {
     println!("FILE: tests/spec_testcases/v1_1/response/headers/header value is different case.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Headers values are case sensitive",
@@ -103,14 +110,16 @@ fn header_value_is_different_case() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/headers/header value is different case.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("EXPECTED: {}", expected);
-    println!("BODY: {}", expected.body.str_value());
-    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
+    println!("BODY: {}", expected.contents().str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/headers/header value is different case.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("ACTUAL: {}", actual);
-    println!("BODY: {}", actual.body.str_value());
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_response(expected, actual);
+    let result = match_interaction_response(expected, actual, &PactSpecification::V1_1).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -122,7 +131,8 @@ fn header_value_is_different_case() {
 #[test]
 fn header_name_is_different_case() {
     println!("FILE: tests/spec_testcases/v1_1/response/headers/header name is different case.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Header name is case insensitive",
@@ -139,14 +149,16 @@ fn header_name_is_different_case() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/headers/header name is different case.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("EXPECTED: {}", expected);
-    println!("BODY: {}", expected.body.str_value());
-    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
+    println!("BODY: {}", expected.contents().str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/headers/header name is different case.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("ACTUAL: {}", actual);
-    println!("BODY: {}", actual.body.str_value());
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_response(expected, actual);
+    let result = match_interaction_response(expected, actual, &PactSpecification::V1_1).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -158,7 +170,8 @@ fn header_name_is_different_case() {
 #[test]
 fn unexpected_header_found() {
     println!("FILE: tests/spec_testcases/v1_1/response/headers/unexpected header found.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Extra headers allowed",
@@ -173,14 +186,16 @@ fn unexpected_header_found() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/headers/unexpected header found.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("EXPECTED: {}", expected);
-    println!("BODY: {}", expected.body.str_value());
-    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
+    println!("BODY: {}", expected.contents().str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/headers/unexpected header found.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("ACTUAL: {}", actual);
-    println!("BODY: {}", actual.body.str_value());
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_response(expected, actual);
+    let result = match_interaction_response(expected, actual, &PactSpecification::V1_1).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -192,7 +207,8 @@ fn unexpected_header_found() {
 #[test]
 fn matches() {
     println!("FILE: tests/spec_testcases/v1_1/response/headers/matches.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Headers match",
@@ -211,14 +227,16 @@ fn matches() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/headers/matches.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("EXPECTED: {}", expected);
-    println!("BODY: {}", expected.body.str_value());
-    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
+    println!("BODY: {}", expected.contents().str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/headers/matches.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("ACTUAL: {}", actual);
-    println!("BODY: {}", actual.body.str_value());
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_response(expected, actual);
+    let result = match_interaction_response(expected, actual, &PactSpecification::V1_1).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -230,7 +248,8 @@ fn matches() {
 #[test]
 fn empty_headers() {
     println!("FILE: tests/spec_testcases/v1_1/response/headers/empty headers.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Empty headers match",
@@ -244,14 +263,16 @@ fn empty_headers() {
       }
     "#).unwrap();
 
-    let expected = Response::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1_1);
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/headers/empty headers.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("EXPECTED: {}", expected);
-    println!("BODY: {}", expected.body.str_value());
-    let actual = Response::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1_1);
+    println!("BODY: {}", expected.contents().str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/headers/empty headers.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("ACTUAL: {}", actual);
-    println!("BODY: {}", actual.body.str_value());
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_response(expected, actual);
+    let result = match_interaction_response(expected, actual, &PactSpecification::V1_1).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());

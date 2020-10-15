@@ -3,18 +3,19 @@ use test_env_log::test;
 #[allow(unused_imports)]
 use pact_matching::models::PactSpecification;
 #[allow(unused_imports)]
-use pact_matching::models::Request;
-#[allow(unused_imports)]
-use pact_matching::match_request_result;
+use serde_json;
 #[allow(unused_imports)]
 use expectest::prelude::*;
 #[allow(unused_imports)]
-use serde_json;
+use pact_matching::models::{Interaction, http_interaction_from_json};
+#[allow(unused_imports)]
+use pact_matching::{match_interaction_request, match_interaction_response};
 
 #[test]
 fn different_param_order() {
     println!("FILE: tests/spec_testcases/v1/request/query/different param order.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Query strings are matched using basic string equality, these are not equal. (Not supported)",
@@ -35,14 +36,16 @@ fn different_param_order() {
       }
     "#).unwrap();
 
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1);
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1/request/query/different param order.json", &interaction_json, &PactSpecification::V1).unwrap();
     println!("EXPECTED: {}", expected);
-    println!("BODY: {}", expected.body.str_value());
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1);
+    println!("BODY: {}", expected.contents().str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1/request/query/different param order.json", &interaction_json, &PactSpecification::V1).unwrap();
     println!("ACTUAL: {}", actual);
-    println!("BODY: {}", actual.body.str_value());
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_interaction_request(expected, actual, &PactSpecification::V1).unwrap().mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -54,7 +57,8 @@ fn different_param_order() {
 #[test]
 fn different_param_values() {
     println!("FILE: tests/spec_testcases/v1/request/query/different param values.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Queries are not the same - hippo is Fred instead of John",
@@ -75,14 +79,16 @@ fn different_param_values() {
       }
     "#).unwrap();
 
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1);
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1/request/query/different param values.json", &interaction_json, &PactSpecification::V1).unwrap();
     println!("EXPECTED: {}", expected);
-    println!("BODY: {}", expected.body.str_value());
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1);
+    println!("BODY: {}", expected.contents().str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1/request/query/different param values.json", &interaction_json, &PactSpecification::V1).unwrap();
     println!("ACTUAL: {}", actual);
-    println!("BODY: {}", actual.body.str_value());
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_interaction_request(expected, actual, &PactSpecification::V1).unwrap().mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -94,7 +100,8 @@ fn different_param_values() {
 #[test]
 fn trailing_amperand() {
     println!("FILE: tests/spec_testcases/v1/request/query/trailing amperand.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Query strings are matched using basic string equality, these are not equal. (not supported)",
@@ -115,14 +122,16 @@ fn trailing_amperand() {
       }
     "#).unwrap();
 
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1);
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1/request/query/trailing amperand.json", &interaction_json, &PactSpecification::V1).unwrap();
     println!("EXPECTED: {}", expected);
-    println!("BODY: {}", expected.body.str_value());
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1);
+    println!("BODY: {}", expected.contents().str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1/request/query/trailing amperand.json", &interaction_json, &PactSpecification::V1).unwrap();
     println!("ACTUAL: {}", actual);
-    println!("BODY: {}", actual.body.str_value());
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_interaction_request(expected, actual, &PactSpecification::V1).unwrap().mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -134,7 +143,8 @@ fn trailing_amperand() {
 #[test]
 fn matches() {
     println!("FILE: tests/spec_testcases/v1/request/query/matches.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Queries are the same",
@@ -155,14 +165,16 @@ fn matches() {
       }
     "#).unwrap();
 
-    let expected = Request::from_json(&pact.get("expected").unwrap(), &PactSpecification::V1);
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1/request/query/matches.json", &interaction_json, &PactSpecification::V1).unwrap();
     println!("EXPECTED: {}", expected);
-    println!("BODY: {}", expected.body.str_value());
-    let actual = Request::from_json(&pact.get("actual").unwrap(), &PactSpecification::V1);
+    println!("BODY: {}", expected.contents().str_value());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1/request/query/matches.json", &interaction_json, &PactSpecification::V1).unwrap();
     println!("ACTUAL: {}", actual);
-    println!("BODY: {}", actual.body.str_value());
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_request_result(expected, actual).mismatches();
+    let result = match_interaction_request(expected, actual, &PactSpecification::V1).unwrap().mismatches();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());

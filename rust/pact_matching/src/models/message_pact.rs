@@ -1,31 +1,37 @@
 //! The `message_pact` module defines a Pact
 //! that contains Messages instead of Interactions.
 
+use std::{fs, io};
+use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::fs::File;
-use std::fs;
+use std::io::{Error, ErrorKind};
 use std::io::prelude::*;
 use std::path::Path;
 
+use itertools::EitherOrBoth::{Both, Left, Right};
+use itertools::Itertools;
 use log::*;
 use maplit::*;
-use serde_json::{Value, json};
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 
-use crate::models::{Consumer, Pact, Interaction, RequestResponsePact};
-use crate::models::PactSpecification;
-use crate::models::Provider;
-use crate::models::VERSION;
+use crate::models::{Consumer, Interaction, Pact, RequestResponsePact, ReadWritePact};
 use crate::models::determine_spec_version;
-use crate::models::http_utils::HttpAuth;
 use crate::models::http_utils;
-use crate::models::message::Message;
+use crate::models::http_utils::HttpAuth;
 use crate::models::message;
+use crate::models::message::Message;
+use crate::models::PactSpecification;
 use crate::models::parse_meta_data;
+use crate::models::Provider;
+use crate::models::v4::V4Pact;
+use crate::models::VERSION;
 
 /// Struct that represents a pact between the consumer and provider of a service.
 /// It contains a list of Messages instead of Interactions, but is otherwise
 /// identical to `struct Pact`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MessagePact {
     /// Consumer side of the pact
     pub consumer: Consumer,
@@ -52,6 +58,23 @@ impl Pact for MessagePact {
     self.messages.iter().map(|i| i as &dyn Interaction).collect()
   }
 
+  fn metadata(&self) -> BTreeMap<String, BTreeMap<String, String>> {
+    self.metadata.clone()
+  }
+
+  /// Converts this pact to a `Value` struct.
+  fn to_json(&self, pact_spec: PactSpecification) -> Value {
+    json!({
+      s!("consumer"): self.consumer.to_json(),
+      s!("provider"): self.provider.to_json(),
+      s!("messages"):
+        Value::Array(self.messages.iter().map(
+            |i| serde_json::to_value(i).unwrap())
+            .collect()),
+      s!("metadata"): json!(self.metadata_to_json(&pact_spec))
+    })
+  }
+
   fn as_request_response_pact(&self) -> Result<RequestResponsePact, String> {
     Err(format!("Can't convert a Message Pact to a different type"))
   }
@@ -60,9 +83,14 @@ impl Pact for MessagePact {
     Ok(self.clone())
   }
 
-  fn metadata(&self) -> BTreeMap<String, BTreeMap<String, String>> {
-    self.metadata.clone()
+  fn as_v4_pact(&self) -> Result<V4Pact, String> {
+    Err(format!("Can't convert a Message Pact to a different type"))
   }
+
+  fn specification_version(&self) -> PactSpecification {
+    self.specification_version.clone()
+  }
+
 }
 
 impl MessagePact {
@@ -112,19 +140,6 @@ impl MessagePact {
         })
     }
 
-    /// Converts this pact to a `Value` struct.
-    pub fn to_json(&self, pact_spec: PactSpecification) -> Value {
-        json!({
-            s!("consumer"): self.consumer.to_json(),
-            s!("provider"): self.provider.to_json(),
-            s!("messages"):
-                Value::Array(self.messages.iter().map(
-                    |i| serde_json::to_value(i).unwrap())
-                    .collect()),
-            s!("metadata"): json!(self.metadata_to_json(&pact_spec))
-        })
-    }
-
     /// Creates a BTreeMap of the metadata of this pact.
     pub fn metadata_to_json(&self, pact_spec: &PactSpecification)
     -> BTreeMap<String, Value> {
@@ -154,16 +169,6 @@ impl MessagePact {
     /// This is based on the consumer and provider names.
     pub fn default_file_name(&self) -> String {
         format!("{}-{}.json", self.consumer.name, self.provider.name)
-    }
-
-    /// Reads the pact file and parses the resulting JSON
-    /// into a `MessagePact` struct
-    pub fn read_pact(file: &Path) -> Result<MessagePact, String> {
-        let mut f = File::open(file)
-            .map_err(|e| format!("{:?}", e))?;
-        let pact_json: Value = serde_json::from_reader(&mut f)
-            .map_err(|e| format!("Failed to parse MessagePact JSON - {}", e))?;
-        MessagePact::from_json(&format!("{:?}", file), &pact_json)
     }
 
     /// Reads the pact file from a URL and parses the resulting JSON
@@ -224,14 +229,57 @@ impl MessagePact {
     }
 }
 
+impl ReadWritePact for MessagePact {
+  fn read_pact(path: &Path) -> io::Result<MessagePact> {
+    let mut f = File::open(path)?;
+    let pact_json: Value = serde_json::from_reader(&mut f)?;
+    MessagePact::from_json(&format!("{:?}", path), &pact_json)
+      .map_err(|err| Error::new(ErrorKind::Other, err.clone()))
+  }
+
+  fn merge(&self, pact: &MessagePact) -> Result<MessagePact, String> {
+    if self.consumer.name == pact.consumer.name && self.provider.name == pact.provider.name {
+      Ok(MessagePact {
+        provider: self.provider.clone(),
+        consumer: self.consumer.clone(),
+        messages: self.messages.iter()
+          .merge_join_by(pact.messages.iter(), |a, b| {
+            let cmp = Ord::cmp(&a.description, &b.description);
+            if cmp == Ordering::Equal {
+              Ord::cmp(&a.provider_states.iter().map(|p| p.name.clone()).collect::<Vec<String>>(),
+                       &b.provider_states.iter().map(|p| p.name.clone()).collect::<Vec<String>>())
+            } else {
+              cmp
+            }
+          })
+          .map(|either| match either {
+            Left(i) => i,
+            Right(i) => i,
+            Both(i, _) => i
+          })
+          .cloned()
+          .collect(),
+        metadata: self.metadata.clone(),
+        specification_version: self.specification_version.clone()
+      })
+    } else {
+      Err(s!("Unable to merge pacts, as they have different consumers or providers"))
+    }
+  }
+
+  fn default_file_name(&self) -> String {
+    format!("{}-{}.json", self.consumer.name, self.provider.name)
+  }
+}
+
 #[cfg(test)]
 mod tests {
-    use expectest::expect;
-    use expectest::prelude::*;
+  use expectest::expect;
+  use expectest::prelude::*;
 
-    use super::*;
+  use super::*;
 
-    #[test]
+  #[test]
     fn default_file_name_is_based_in_the_consumer_and_provider() {
         let pact = MessagePact { consumer: Consumer { name: s!("consumer") },
             provider: Provider { name: s!("provider") },

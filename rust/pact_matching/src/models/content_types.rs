@@ -1,18 +1,16 @@
 //! Module for handling content types
 
 use std::collections::BTreeMap;
-use mime::Mime;
-use log::*;
-use maplit::btreemap;
-use itertools::Itertools;
-use lazy_static::*;
 use std::str::FromStr;
 
-#[cfg(test)]
-use expectest::prelude::*;
+use itertools::Itertools;
+use lazy_static::*;
+use log::*;
+use mime::Mime;
+use serde::{Deserialize, Serialize};
 
 /// Content type of a body
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, Hash)]
 pub struct ContentType {
   /// Main content type
   pub main_type: String,
@@ -84,13 +82,22 @@ impl ContentType {
 
   /// If it is a XML type
   pub fn is_xml(&self) -> bool {
-    self.main_type == "application" && (self.sub_type == "xml" ||
+    (self.main_type == "application" || self.main_type == "text") && (self.sub_type == "xml" ||
       self.suffix.as_ref().unwrap_or(&String::default()) == "xml")
   }
 
   /// If it is a text type
   pub fn is_text(&self) -> bool {
     self.main_type == "text" || self.is_xml() || self.is_json()
+  }
+
+  /// If it is a known binary type
+  pub fn is_binary(&self) -> bool {
+    match self.main_type.as_str() {
+      "audio" | "font" | "image" | "video" => true,
+      "text" => false,
+      _ => false
+    }
   }
 
   /// Returns the base type with no attributes or suffix
@@ -129,7 +136,7 @@ impl Default for ContentType {
     ContentType {
       main_type: "*".into(),
       sub_type: "*".into(),
-      attributes: btreemap!{},
+      attributes: BTreeMap::new(),
       suffix: None
     }
   }
@@ -164,6 +171,14 @@ impl From<&str> for ContentType {
   }
 }
 
+impl FromStr for ContentType {
+  type Err = String;
+
+  fn from_str(s: &str) -> Result<Self, Self::Err> {
+    ContentType::parse(s)
+  }
+}
+
 impl PartialEq<str> for ContentType {
   fn eq(&self, other: &str) -> bool {
     match ContentType::parse(other) {
@@ -182,133 +197,168 @@ impl PartialEq<&str> for ContentType {
   }
 }
 
-#[test]
-fn parse_test() {
-  let content_type = &ContentType::parse("application/json").unwrap();
-  expect!(&content_type.main_type).to(be_equal_to(&"application".to_string()));
-  expect!(&content_type.sub_type).to(be_equal_to(&"json".to_string()));
-  expect!(content_type.attributes.iter()).to(be_empty());
-  expect!(content_type.clone().suffix).to(be_none());
+#[cfg(test)]
+mod tests {
+  use expectest::prelude::*;
+  use maplit::btreemap;
 
-  let content_type = &ContentType::parse("application/json;charset=UTF-16").unwrap();
-  expect!(&content_type.main_type).to(be_equal_to(&"application".to_string()));
-  expect!(&content_type.sub_type).to(be_equal_to(&"json".to_string()));
-  expect!(content_type.clone().attributes).to(be_equal_to(btreemap!{
+  use super::ContentType;
+
+  #[test]
+  fn parse_test() {
+    let content_type = &ContentType::parse("application/json").unwrap();
+    expect!(&content_type.main_type).to(be_equal_to(&"application".to_string()));
+    expect!(&content_type.sub_type).to(be_equal_to(&"json".to_string()));
+    expect!(content_type.attributes.iter()).to(be_empty());
+    expect!(content_type.clone().suffix).to(be_none());
+
+    let content_type = &ContentType::parse("application/json;charset=UTF-16").unwrap();
+    expect!(&content_type.main_type).to(be_equal_to(&"application".to_string()));
+    expect!(&content_type.sub_type).to(be_equal_to(&"json".to_string()));
+    expect!(content_type.clone().attributes).to(be_equal_to(btreemap! {
     "charset".to_string() => "utf-16".to_string()
   }));
-  expect!(content_type.clone().suffix).to(be_none());
+    expect!(content_type.clone().suffix).to(be_none());
 
-  let content_type = &ContentType::parse("application/hal+json; charset=UTF-8").unwrap();
-  expect!(&content_type.main_type).to(be_equal_to(&"application".to_string()));
-  expect!(&content_type.sub_type).to(be_equal_to(&"hal".to_string()));
-  expect!(content_type.clone().attributes).to(be_equal_to(btreemap!{
+    let content_type = &ContentType::parse("application/hal+json; charset=UTF-8").unwrap();
+    expect!(&content_type.main_type).to(be_equal_to(&"application".to_string()));
+    expect!(&content_type.sub_type).to(be_equal_to(&"hal".to_string()));
+    expect!(content_type.clone().attributes).to(be_equal_to(btreemap! {
     "charset".to_string() => "utf-8".to_string()
   }));
-  expect!(content_type.clone().suffix).to(be_some().value("json".to_string()));
-}
+    expect!(content_type.clone().suffix).to(be_some().value("json".to_string()));
+  }
 
-#[test]
-fn to_string_test() {
-  let content_type = ContentType {
-    main_type: "application".into(),
-    sub_type: "hal+json".into(),
-    .. ContentType::default()
-  };
-  expect!(content_type.to_string()).to(be_equal_to("application/hal+json".to_string()));
+  #[test]
+  fn to_string_test() {
+    let content_type = ContentType {
+      main_type: "application".into(),
+      sub_type: "hal+json".into(),
+      ..ContentType::default()
+    };
+    expect!(content_type.to_string()).to(be_equal_to("application/hal+json".to_string()));
 
-  let content_type = ContentType {
-    main_type: "application".into(),
-    sub_type: "hal+json".into(),
-    attributes: btreemap! {
+    let content_type = ContentType {
+      main_type: "application".into(),
+      sub_type: "hal+json".into(),
+      attributes: btreemap! {
       "charset".to_string() => "UTF-32".to_string(),
       "b".to_string() => "c".to_string()
     },
-    suffix: None
-  };
-  expect!(content_type.to_string()).to(be_equal_to("application/hal+json;b=c;charset=UTF-32".to_string()));
-}
+      suffix: None
+    };
+    expect!(content_type.to_string()).to(be_equal_to("application/hal+json;b=c;charset=UTF-32".to_string()));
+  }
 
-#[test]
-fn is_json_test() {
-  let content_type = ContentType {
-    main_type: "application".into(),
-    sub_type: "hal".into(),
-    suffix: Some("json".to_string()),
-    .. ContentType::default()
-  };
-  expect!(content_type.is_json()).to(be_true());
+  #[test]
+  fn is_json_test() {
+    let content_type = ContentType {
+      main_type: "application".into(),
+      sub_type: "hal".into(),
+      suffix: Some("json".to_string()),
+      ..ContentType::default()
+    };
+    expect!(content_type.is_json()).to(be_true());
 
-  let content_type = ContentType {
-    main_type: "text".into(),
-    sub_type: "javascript".into(),
-    .. ContentType::default()
-  };
-  expect!(content_type.is_json()).to(be_false());
+    let content_type = ContentType {
+      main_type: "text".into(),
+      sub_type: "javascript".into(),
+      ..ContentType::default()
+    };
+    expect!(content_type.is_json()).to(be_false());
 
-  let content_type = ContentType {
-    main_type: "application".into(),
-    sub_type: "json".into(),
-    .. ContentType::default()
-  };
-  expect!(content_type.is_json()).to(be_true());
+    let content_type = ContentType {
+      main_type: "application".into(),
+      sub_type: "json".into(),
+      ..ContentType::default()
+    };
+    expect!(content_type.is_json()).to(be_true());
 
-  let content_type = ContentType {
-    main_type: "application".into(),
-    sub_type: "json-rpc".into(),
-    .. ContentType::default()
-  };
-  expect!(content_type.is_json()).to(be_true());
-}
+    let content_type = ContentType {
+      main_type: "application".into(),
+      sub_type: "json-rpc".into(),
+      ..ContentType::default()
+    };
+    expect!(content_type.is_json()).to(be_true());
+  }
 
-#[test]
-fn is_xml_test() {
-  let content_type = ContentType::parse("application/atom+xml").unwrap();
-  expect!(content_type.is_xml()).to(be_true());
+  #[test]
+  fn is_xml_test() {
+    let content_type = ContentType::parse("application/atom+xml").unwrap();
+    expect!(content_type.is_xml()).to(be_true());
 
-  let content_type = ContentType {
-    main_type: "text".into(),
-    sub_type: "javascript".into(),
-    .. ContentType::default()
-  };
-  expect!(content_type.is_xml()).to(be_false());
+    let content_type = ContentType {
+      main_type: "text".into(),
+      sub_type: "javascript".into(),
+      ..ContentType::default()
+    };
+    expect!(content_type.is_xml()).to(be_false());
 
-  let content_type = ContentType {
-    main_type: "application".into(),
-    sub_type: "xml".into(),
-    .. ContentType::default()
-  };
-  expect!(content_type.is_xml()).to(be_true());
-}
+    let content_type = ContentType {
+      main_type: "application".into(),
+      sub_type: "xml".into(),
+      ..ContentType::default()
+    };
+    expect!(content_type.is_xml()).to(be_true());
 
-#[test]
-fn base_type_test() {
-  let content_type = ContentType::parse("application/atom+xml").unwrap();
-  expect!(content_type.base_type()).to(be_equal_to(ContentType {
-    main_type: "application".into(),
-    sub_type: "xml".into(),
-    .. ContentType::default()
-  }));
+    let content_type = ContentType {
+      main_type: "text".into(),
+      sub_type: "xml".into(),
+      ..ContentType::default()
+    };
+    expect!(content_type.is_xml()).to(be_true());
+  }
 
-  let content_type = ContentType {
-    main_type: "text".into(),
-    sub_type: "javascript".into(),
-    .. ContentType::default()
-  };
-  expect!(content_type.base_type()).to(be_equal_to(ContentType {
-    main_type: "text".into(),
-    sub_type: "javascript".into(),
-    .. ContentType::default()
-  }));
+  #[test]
+  fn base_type_test() {
+    let content_type = ContentType::parse("application/atom+xml").unwrap();
+    expect!(content_type.base_type()).to(be_equal_to(ContentType {
+      main_type: "application".into(),
+      sub_type: "xml".into(),
+      ..ContentType::default()
+    }));
 
-  let content_type = ContentType {
-    main_type: "application".into(),
-    sub_type: "xml".into(),
-    attributes: btreemap! { "charset".to_string() => "UTF-8".to_string() },
-    .. ContentType::default()
-  };
-  expect!(content_type.base_type()).to(be_equal_to(ContentType {
-    main_type: "application".into(),
-    sub_type: "xml".into(),
-    .. ContentType::default()
-  }));
+    let content_type = ContentType {
+      main_type: "text".into(),
+      sub_type: "javascript".into(),
+      ..ContentType::default()
+    };
+    expect!(content_type.base_type()).to(be_equal_to(ContentType {
+      main_type: "text".into(),
+      sub_type: "javascript".into(),
+      ..ContentType::default()
+    }));
+
+    let content_type = ContentType {
+      main_type: "application".into(),
+      sub_type: "xml".into(),
+      attributes: btreemap! { "charset".to_string() => "UTF-8".to_string() },
+      ..ContentType::default()
+    };
+    expect!(content_type.base_type()).to(be_equal_to(ContentType {
+      main_type: "application".into(),
+      sub_type: "xml".into(),
+      ..ContentType::default()
+    }));
+  }
+
+  #[test]
+  fn is_binary_test() {
+    let content_type = ContentType::parse("application/atom+xml").unwrap();
+    expect!(content_type.is_binary()).to(be_false());
+
+    let content_type = ContentType {
+      main_type: "text".into(),
+      sub_type: "javascript".into(),
+      ..ContentType::default()
+    };
+    expect!(content_type.is_binary()).to(be_false());
+
+    let content_type = ContentType {
+      main_type: "image".into(),
+      sub_type: "jpeg".into(),
+      ..ContentType::default()
+    };
+    expect!(content_type.is_binary()).to(be_true());
+  }
 }

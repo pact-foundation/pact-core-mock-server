@@ -1,9 +1,9 @@
 //! Functions to support processing request/response bodies
 
-use pact_matching::models::matchingrules::{Category, MatchingRule, RuleLogic};
+use pact_matching::models::matchingrules::{MatchingRuleCategory, MatchingRule, RuleLogic};
 use pact_matching::models::generators::{Generators, Generator, GeneratorCategory};
 use serde_json::{Value, Map};
-use pact_matching::models::json_utils::json_to_string;
+use pact_matching::models::json_utils::{json_to_string, json_to_num};
 use pact_matching::models::{Request, OptionalBody, Response};
 use maplit::*;
 use hyper::header::Headers;
@@ -14,62 +14,175 @@ use log::*;
 const CONTENT_TYPE_HEADER: &str = "Content-Type";
 
 /// Process an array with embedded matching rules and generators
-pub fn process_array(array: &[Value], matching_rules: &mut Category, generators: &mut Generators, path: &str, type_matcher: bool) -> Value {
+pub fn process_array(
+  array: &[Value],
+  matching_rules: &mut MatchingRuleCategory,
+  generators: &mut Generators,
+  path: &str,
+  type_matcher: bool,
+  skip_matchers: bool
+) -> Value {
   Value::Array(array.iter().enumerate().map(|(index, val)| {
     let updated_path = if type_matcher {
-      path.to_owned() + "[*]"
+      format!("{}[*]", path)
     } else {
-      path.to_owned() + "[" + &index.to_string() + "]"
+      format!("{}[{}]", path, index)
     };
     match val {
-      Value::Object(ref map) => process_object(map, matching_rules, generators, &updated_path, false),
-      Value::Array(ref array) => process_array(array, matching_rules, generators, &updated_path, false),
+      Value::Object(ref map) => process_object(map, matching_rules, generators, &updated_path, false, skip_matchers),
+      Value::Array(ref array) => process_array(array, matching_rules, generators, &updated_path, false, skip_matchers),
       _ => val.clone()
     }
   }).collect())
 }
 
 /// Process an object (map) with embedded matching rules and generators
-pub fn process_object(obj: &Map<String, Value>, matching_rules: &mut Category, generators: &mut Generators, path: &str, type_matcher: bool) -> Value {
+pub fn process_object(
+  obj: &Map<String, Value>,
+  matching_rules: &mut MatchingRuleCategory,
+  generators: &mut Generators,
+  path: &str,
+  type_matcher: bool,
+  skip_matchers: bool
+) -> Value {
   if obj.contains_key("pact:matcher:type") {
-    if let Some(rule) = MatchingRule::from_integration_json(obj) {
-      matching_rules.add_rule(&path.to_string(), rule, &RuleLogic::And);
-    }
-    if let Some(gen) = obj.get("pact:generator:type") {
-      if let Some(generator) = Generator::from_map(&json_to_string(gen), obj) {
-        generators.add_generator_with_subcategory(&GeneratorCategory::BODY, path, generator);
+    if !skip_matchers {
+      let matching_rule = from_integration_json(obj);
+      if let Some(rule) = &matching_rule {
+        matching_rules.add_rule(&path.to_string(), rule.clone(), &RuleLogic::And);
+      }
+      if let Some(gen) = obj.get("pact:generator:type") {
+        if let Some(generator) = Generator::from_map(&json_to_string(gen), obj) {
+          generators.add_generator_with_subcategory(&GeneratorCategory::BODY, path, generator);
+        }
+      }
+      let (value, skip_matchers) = if let Some(rule) = matching_rule {
+        match rule {
+          MatchingRule::ArrayContains(_) => (obj.get("variants"), true),
+          _ => (obj.get("value"), false)
+        }
+      } else {
+        (obj.get("value"), false)
+      };
+      match value {
+        Some(val) => match val {
+          Value::Object(ref map) => process_object(map, matching_rules, generators, path, true, skip_matchers),
+          Value::Array(array) => process_array(array, matching_rules, generators, path, true, skip_matchers),
+          _ => val.clone()
+        },
+        None => Value::Null
+      }
+    } else {
+      match obj.get("value") {
+        Some(val) => match val {
+          Value::Object(ref map) => process_object(map, matching_rules, generators, path, false, skip_matchers),
+          Value::Array(array) => process_array(array, matching_rules, generators, path, false, skip_matchers),
+          _ => val.clone()
+        },
+        None => Value::Null
       }
     }
-    match obj.get("value") {
-      Some(val) => match val {
-        Value::Object(ref map) => process_object(map, matching_rules, generators, path, true),
-        Value::Array(array) => process_array(array, matching_rules, generators, path, true),
-        _ => val.clone()
-      },
-      None => Value::Null
-    }
   } else {
-    Value::Object(obj.iter().map(|(key, val)| {
+    Value::Object(obj.iter()
+      .filter(|(key, _)| !key.starts_with("pact:"))
+      .map(|(key, val)| {
       let updated_path = if type_matcher {
-        path.to_owned() + ".*"
+        format!("{}.*", path)
       } else {
-        path.to_owned() + "." + key
+        format!("{}.{}", path, key)
       };
       (key.clone(), match val {
-        Value::Object(ref map) => process_object(map, matching_rules, generators, &updated_path, false),
-        Value::Array(ref array) => process_array(array, matching_rules, generators, &updated_path, false),
+        Value::Object(ref map) => process_object(map, matching_rules, generators, &updated_path, false, skip_matchers),
+        Value::Array(ref array) => process_array(array, matching_rules, generators, &updated_path, false, skip_matchers),
         _ => val.clone()
       })
     }).collect())
   }
 }
 
+/// Builds a `MatchingRule` from a `Value` struct used by language integrations
+pub fn from_integration_json(m: &Map<String, Value>) -> Option<MatchingRule> {
+  match m.get("pact:matcher:type") {
+    Some(value) => {
+      let val = json_to_string(value);
+      match val.as_str() {
+        "regex" => match m.get(&val) {
+          Some(s) => Some(MatchingRule::Regex(json_to_string(s))),
+          None => None
+        },
+        "equality" => Some(MatchingRule::Equality),
+        "include" => match m.get("value") {
+          Some(s) => Some(MatchingRule::Include(json_to_string(s))),
+          None => None
+        },
+        "type" => match (json_to_num(m.get("min").cloned()), json_to_num(m.get("max").cloned())) {
+          (Some(min), Some(max)) => Some(MatchingRule::MinMaxType(min, max)),
+          (Some(min), None) => Some(MatchingRule::MinType(min)),
+          (None, Some(max)) => Some(MatchingRule::MaxType(max)),
+          _ => Some(MatchingRule::Type)
+        },
+        "number" => Some(MatchingRule::Number),
+        "integer" => Some(MatchingRule::Integer),
+        "decimal" => Some(MatchingRule::Decimal),
+        "real" => Some(MatchingRule::Decimal),
+        "min" => match json_to_num(m.get(&val).cloned()) {
+          Some(min) => Some(MatchingRule::MinType(min)),
+          None => None
+        },
+        "max" => match json_to_num(m.get(&val).cloned()) {
+          Some(max) => Some(MatchingRule::MaxType(max)),
+          None => None
+        },
+        "timestamp" => match m.get("format").or_else(|| m.get(&val)) {
+          Some(s) => Some(MatchingRule::Timestamp(json_to_string(s))),
+          None => None
+        },
+        "date" => match m.get("format").or_else(|| m.get(&val)) {
+          Some(s) => Some(MatchingRule::Date(json_to_string(s))),
+          None => None
+        },
+        "time" => match m.get("format").or_else(|| m.get(&val)) {
+          Some(s) => Some(MatchingRule::Time(json_to_string(s))),
+          None => None
+        },
+        "null" => Some(MatchingRule::Null),
+        "contentType" => match m.get("value") {
+          Some(s) => Some(MatchingRule::ContentType(json_to_string(s))),
+          None => None
+        }
+        "arrayContains" => match m.get("variants") {
+          Some(variants) => match variants {
+            Value::Array(variants) => {
+              let values = variants.iter().enumerate().map(|(index, variant)| {
+                let mut category = MatchingRuleCategory::empty("body");
+                let mut generators = Generators::default();
+                match variant {
+                  Value::Object(map) => {
+                    process_object(map, &mut category, &mut generators, "$", false, false);
+                  }
+                  _ => warn!("arrayContains: JSON for variant {} is not correctly formed: {}", index, variant)
+                }
+                (index, category)
+              }).collect();
+              Some(MatchingRule::ArrayContains(values))
+            }
+            _ => None
+          }
+          None => None
+        }
+        _ => None
+      }
+    },
+    _ => None
+  }
+}
+
 /// Process a JSON body with embedded matching rules and generators
-pub fn process_json(body: String, matching_rules: &mut Category, generators: &mut Generators) -> String {
+pub fn process_json(body: String, matching_rules: &mut MatchingRuleCategory, generators: &mut Generators) -> String {
   match serde_json::from_str(&body) {
     Ok(json) => match json {
-      Value::Object(ref map) => process_object(map, matching_rules, generators, &"$".to_string(), false).to_string(),
-      Value::Array(ref array) => process_array(array, matching_rules, generators, &"$".to_string(), false).to_string(),
+      Value::Object(ref map) => process_object(map, matching_rules, generators, &"$".to_string(), false, false).to_string(),
+      Value::Array(ref array) => process_array(array, matching_rules, generators, &"$".to_string(), false, false).to_string(),
       _ => body
     },
     Err(_) => body
@@ -77,10 +190,10 @@ pub fn process_json(body: String, matching_rules: &mut Category, generators: &mu
 }
 
 /// Process a JSON body with embedded matching rules and generators
-pub fn process_json_value(body: &Value, matching_rules: &mut Category, generators: &mut Generators) -> String {
+pub fn process_json_value(body: &Value, matching_rules: &mut MatchingRuleCategory, generators: &mut Generators) -> String {
   match body {
-    Value::Object(ref map) => process_object(map, matching_rules, generators, &"$".to_string(), false).to_string(),
-    Value::Array(ref array) => process_array(array, matching_rules, generators, &"$".to_string(), false).to_string(),
+    Value::Object(ref map) => process_object(map, matching_rules, generators, &"$".to_string(), false, false).to_string(),
+    Value::Array(ref array) => process_array(array, matching_rules, generators, &"$".to_string(), false, false).to_string(),
     _ => body.to_string()
   }
 }

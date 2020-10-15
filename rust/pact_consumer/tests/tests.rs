@@ -1,14 +1,17 @@
-use pact_consumer::prelude::*;
-use pact_consumer::{json_pattern, json_pattern_internal};
 use std::{
-  io::prelude::*,
   env,
-  path::Path,
-  fs
+  fs,
+  io::prelude::*,
+  path::Path
 };
-use expectest::prelude::*;
+
 use expectest::expect;
+use expectest::prelude::*;
 use reqwest::blocking::Client;
+
+use pact_consumer::{json_pattern, json_pattern_internal};
+use pact_consumer::prelude::*;
+use pact_matching::models::ReadWritePact;
 use pact_matching::models::RequestResponsePact;
 
 /// This is supposed to be a doctest in lib.rs, but it's breaking there, so

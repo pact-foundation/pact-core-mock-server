@@ -146,7 +146,7 @@ pub fn start_tls_mock_server_with_config(
 ///
 /// * `pact_json` - Pact in JSON format
 /// * `addr` - Socket address to listen on
-pub extern fn create_mock_server(
+pub fn create_mock_server(
   pact_json: &str,
   addr: std::net::SocketAddr
 ) -> Result<i32, MockServerError> {
@@ -173,7 +173,7 @@ pub extern fn create_mock_server(
 /// * `pact_json` - Pact in JSON format
 /// * `addr` - Socket address to listen on
 /// * `tls` - TLS config
-pub extern fn create_tls_mock_server(
+pub fn create_tls_mock_server(
   pact_json: &str,
   addr: std::net::SocketAddr,
   tls: &ServerConfig
@@ -197,7 +197,7 @@ pub extern fn create_tls_mock_server(
 /// Function to check if a mock server has matched all its requests. The port number is
 /// passed in, and if all requests have been matched, true is returned. False is returned if there
 /// is no mock server on the given port, or if any request has not been successfully matched.
-pub extern fn mock_server_matched(mock_server_port: i32) -> bool {
+pub fn mock_server_matched(mock_server_port: i32) -> bool {
     MANAGER.lock().unwrap()
         .get_or_insert_with(ServerManager::new)
         .find_mock_server_by_port_mut(mock_server_port as u16, &|mock_server| {
@@ -211,7 +211,7 @@ pub extern fn mock_server_matched(mock_server_port: i32) -> bool {
 ///
 /// If there is no mock server with the provided port number, `None` is returned.
 ///
-pub extern fn mock_server_mismatches(mock_server_port: i32) -> Option<std::string::String> {
+pub fn mock_server_mismatches(mock_server_port: i32) -> Option<std::string::String> {
     MANAGER.lock().unwrap()
         .get_or_insert_with(ServerManager::new)
         .find_mock_server_by_port_mut(mock_server_port as u16, &|mock_server| {
@@ -236,7 +236,7 @@ pub enum WritePactFileErr {
 ///
 /// Returns `Ok` if the pact file was successfully written. Returns an `Err` if the file can
 /// not be written, or there is no mock server running on that port.
-pub extern fn write_pact_file(mock_server_port: i32, directory: Option<String>) -> Result<(), WritePactFileErr> {
+pub fn write_pact_file(mock_server_port: i32, directory: Option<String>) -> Result<(), WritePactFileErr> {
     let opt_result = MANAGER.lock().unwrap()
         .get_or_insert_with(ServerManager::new)
         .find_mock_server_by_port_mut(mock_server_port as u16, &|mock_server| {
@@ -259,7 +259,7 @@ pub extern fn write_pact_file(mock_server_port: i32, directory: Option<String>) 
 
 /// Shuts down the mock server with the provided port. Returns a boolean value to indicate if
 /// the mock server was successfully shut down.
-pub extern fn shutdown_mock_server(mock_server_port: i32) -> bool {
+pub fn shutdown_mock_server(mock_server_port: i32) -> bool {
   MANAGER.lock().unwrap()
     .get_or_insert_with(ServerManager::new)
     .shutdown_mock_server_by_port(mock_server_port as u16)

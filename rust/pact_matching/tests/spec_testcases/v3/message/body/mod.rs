@@ -3,18 +3,19 @@ use test_env_log::test;
 #[allow(unused_imports)]
 use pact_matching::models::PactSpecification;
 #[allow(unused_imports)]
-use pact_matching::models::message::Message;
-#[allow(unused_imports)]
-use pact_matching::match_message;
+use serde_json;
 #[allow(unused_imports)]
 use expectest::prelude::*;
 #[allow(unused_imports)]
-use serde_json;
+use pact_matching::models::{Interaction, message_interaction_from_json};
+#[allow(unused_imports)]
+use pact_matching::match_interaction;
 
 #[test]
 fn unexpected_index_with_not_null_value() {
     println!("FILE: tests/spec_testcases/v3/message/body/unexpected index with not null value.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Unexpected favourite colour",
@@ -41,12 +42,20 @@ fn unexpected_index_with_not_null_value() {
       }
     "#).unwrap();
 
-    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    let expected_json = pact.get_mut("expected").unwrap();
+    let interaction_json = expected_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let expected = message_interaction_from_json("tests/spec_testcases/v3/message/body/unexpected index with not null value.json", &expected_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let actual_json = pact.get_mut("actual").unwrap();
+    let interaction_json = actual_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let actual = message_interaction_from_json("tests/spec_testcases/v3/message/body/unexpected index with not null value.json", &actual_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(&expected, &actual);
+    let result = match_interaction(expected, actual, &PactSpecification::V3).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -58,7 +67,8 @@ fn unexpected_index_with_not_null_value() {
 #[test]
 fn unexpected_key_with_null_value() {
     println!("FILE: tests/spec_testcases/v3/message/body/unexpected key with null value.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Unexpected phone number with null value",
@@ -86,12 +96,20 @@ fn unexpected_key_with_null_value() {
       }
     "#).unwrap();
 
-    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    let expected_json = pact.get_mut("expected").unwrap();
+    let interaction_json = expected_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let expected = message_interaction_from_json("tests/spec_testcases/v3/message/body/unexpected key with null value.json", &expected_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let actual_json = pact.get_mut("actual").unwrap();
+    let interaction_json = actual_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let actual = message_interaction_from_json("tests/spec_testcases/v3/message/body/unexpected key with null value.json", &actual_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(&expected, &actual);
+    let result = match_interaction(expected, actual, &PactSpecification::V3).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -103,7 +121,8 @@ fn unexpected_key_with_null_value() {
 #[test]
 fn different_value_found_at_key() {
     println!("FILE: tests/spec_testcases/v3/message/body/different value found at key.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Incorrect value at alligator name",
@@ -130,12 +149,20 @@ fn different_value_found_at_key() {
       }
     "#).unwrap();
 
-    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    let expected_json = pact.get_mut("expected").unwrap();
+    let interaction_json = expected_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let expected = message_interaction_from_json("tests/spec_testcases/v3/message/body/different value found at key.json", &expected_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let actual_json = pact.get_mut("actual").unwrap();
+    let interaction_json = actual_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let actual = message_interaction_from_json("tests/spec_testcases/v3/message/body/different value found at key.json", &actual_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(&expected, &actual);
+    let result = match_interaction(expected, actual, &PactSpecification::V3).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -147,7 +174,8 @@ fn different_value_found_at_key() {
 #[test]
 fn not_null_found_at_key_when_null_expected() {
     println!("FILE: tests/spec_testcases/v3/message/body/not null found at key when null expected.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Name should be null",
@@ -174,12 +202,20 @@ fn not_null_found_at_key_when_null_expected() {
       }
     "#).unwrap();
 
-    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    let expected_json = pact.get_mut("expected").unwrap();
+    let interaction_json = expected_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let expected = message_interaction_from_json("tests/spec_testcases/v3/message/body/not null found at key when null expected.json", &expected_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let actual_json = pact.get_mut("actual").unwrap();
+    let interaction_json = actual_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let actual = message_interaction_from_json("tests/spec_testcases/v3/message/body/not null found at key when null expected.json", &actual_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(&expected, &actual);
+    let result = match_interaction(expected, actual, &PactSpecification::V3).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -191,7 +227,8 @@ fn not_null_found_at_key_when_null_expected() {
 #[test]
 fn array_with_regular_expression_in_element() {
     println!("FILE: tests/spec_testcases/v3/message/body/array with regular expression in element.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Types and regular expressions match",
@@ -251,12 +288,20 @@ fn array_with_regular_expression_in_element() {
       }
     "#).unwrap();
 
-    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    let expected_json = pact.get_mut("expected").unwrap();
+    let interaction_json = expected_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let expected = message_interaction_from_json("tests/spec_testcases/v3/message/body/array with regular expression in element.json", &expected_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let actual_json = pact.get_mut("actual").unwrap();
+    let interaction_json = actual_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let actual = message_interaction_from_json("tests/spec_testcases/v3/message/body/array with regular expression in element.json", &actual_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(&expected, &actual);
+    let result = match_interaction(expected, actual, &PactSpecification::V3).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -268,7 +313,8 @@ fn array_with_regular_expression_in_element() {
 #[test]
 fn number_found_in_array_when_string_expected() {
     println!("FILE: tests/spec_testcases/v3/message/body/number found in array when string expected.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Favourite colours expected to be strings found a number",
@@ -295,12 +341,20 @@ fn number_found_in_array_when_string_expected() {
       }
     "#).unwrap();
 
-    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    let expected_json = pact.get_mut("expected").unwrap();
+    let interaction_json = expected_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let expected = message_interaction_from_json("tests/spec_testcases/v3/message/body/number found in array when string expected.json", &expected_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let actual_json = pact.get_mut("actual").unwrap();
+    let interaction_json = actual_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let actual = message_interaction_from_json("tests/spec_testcases/v3/message/body/number found in array when string expected.json", &actual_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(&expected, &actual);
+    let result = match_interaction(expected, actual, &PactSpecification::V3).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -312,7 +366,8 @@ fn number_found_in_array_when_string_expected() {
 #[test]
 fn array_in_different_order() {
     println!("FILE: tests/spec_testcases/v3/message/body/array in different order.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Favourite colours in wrong order",
@@ -339,12 +394,20 @@ fn array_in_different_order() {
       }
     "#).unwrap();
 
-    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    let expected_json = pact.get_mut("expected").unwrap();
+    let interaction_json = expected_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let expected = message_interaction_from_json("tests/spec_testcases/v3/message/body/array in different order.json", &expected_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let actual_json = pact.get_mut("actual").unwrap();
+    let interaction_json = actual_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let actual = message_interaction_from_json("tests/spec_testcases/v3/message/body/array in different order.json", &actual_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(&expected, &actual);
+    let result = match_interaction(expected, actual, &PactSpecification::V3).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -356,7 +419,8 @@ fn array_in_different_order() {
 #[test]
 fn matches_with_regex_with_bracket_notation() {
     println!("FILE: tests/spec_testcases/v3/message/body/matches with regex with bracket notation.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Messages match with regex with bracket notation",
@@ -395,12 +459,20 @@ fn matches_with_regex_with_bracket_notation() {
       }
     "#).unwrap();
 
-    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    let expected_json = pact.get_mut("expected").unwrap();
+    let interaction_json = expected_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let expected = message_interaction_from_json("tests/spec_testcases/v3/message/body/matches with regex with bracket notation.json", &expected_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let actual_json = pact.get_mut("actual").unwrap();
+    let interaction_json = actual_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let actual = message_interaction_from_json("tests/spec_testcases/v3/message/body/matches with regex with bracket notation.json", &actual_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(&expected, &actual);
+    let result = match_interaction(expected, actual, &PactSpecification::V3).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -412,7 +484,8 @@ fn matches_with_regex_with_bracket_notation() {
 #[test]
 fn array_with_regular_expression_that_does_not_match_in_element() {
     println!("FILE: tests/spec_testcases/v3/message/body/array with regular expression that does not match in element.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Types and regular expressions don't match",
@@ -472,12 +545,20 @@ fn array_with_regular_expression_that_does_not_match_in_element() {
       }
     "#).unwrap();
 
-    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    let expected_json = pact.get_mut("expected").unwrap();
+    let interaction_json = expected_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let expected = message_interaction_from_json("tests/spec_testcases/v3/message/body/array with regular expression that does not match in element.json", &expected_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let actual_json = pact.get_mut("actual").unwrap();
+    let interaction_json = actual_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let actual = message_interaction_from_json("tests/spec_testcases/v3/message/body/array with regular expression that does not match in element.json", &actual_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(&expected, &actual);
+    let result = match_interaction(expected, actual, &PactSpecification::V3).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -489,7 +570,8 @@ fn array_with_regular_expression_that_does_not_match_in_element() {
 #[test]
 fn array_size_less_than_required() {
     println!("FILE: tests/spec_testcases/v3/message/body/array size less than required.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Empty array",
@@ -528,12 +610,20 @@ fn array_size_less_than_required() {
       }
     "#).unwrap();
 
-    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    let expected_json = pact.get_mut("expected").unwrap();
+    let interaction_json = expected_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let expected = message_interaction_from_json("tests/spec_testcases/v3/message/body/array size less than required.json", &expected_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let actual_json = pact.get_mut("actual").unwrap();
+    let interaction_json = actual_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let actual = message_interaction_from_json("tests/spec_testcases/v3/message/body/array size less than required.json", &actual_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(&expected, &actual);
+    let result = match_interaction(expected, actual, &PactSpecification::V3).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -545,7 +635,8 @@ fn array_size_less_than_required() {
 #[test]
 fn array_with_nested_array_that_does_not_match() {
     println!("FILE: tests/spec_testcases/v3/message/body/array with nested array that does not match.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Nested arrays do not match, age is wrong type",
@@ -615,12 +706,20 @@ fn array_with_nested_array_that_does_not_match() {
       }
     "#).unwrap();
 
-    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    let expected_json = pact.get_mut("expected").unwrap();
+    let interaction_json = expected_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let expected = message_interaction_from_json("tests/spec_testcases/v3/message/body/array with nested array that does not match.json", &expected_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let actual_json = pact.get_mut("actual").unwrap();
+    let interaction_json = actual_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let actual = message_interaction_from_json("tests/spec_testcases/v3/message/body/array with nested array that does not match.json", &actual_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(&expected, &actual);
+    let result = match_interaction(expected, actual, &PactSpecification::V3).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -632,7 +731,8 @@ fn array_with_nested_array_that_does_not_match() {
 #[test]
 fn string_found_in_array_when_number_expected() {
     println!("FILE: tests/spec_testcases/v3/message/body/string found in array when number expected.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Favourite Numbers expected to be numbers, but 2 is a string",
@@ -659,12 +759,20 @@ fn string_found_in_array_when_number_expected() {
       }
     "#).unwrap();
 
-    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    let expected_json = pact.get_mut("expected").unwrap();
+    let interaction_json = expected_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let expected = message_interaction_from_json("tests/spec_testcases/v3/message/body/string found in array when number expected.json", &expected_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let actual_json = pact.get_mut("actual").unwrap();
+    let interaction_json = actual_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let actual = message_interaction_from_json("tests/spec_testcases/v3/message/body/string found in array when number expected.json", &actual_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(&expected, &actual);
+    let result = match_interaction(expected, actual, &PactSpecification::V3).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -676,7 +784,8 @@ fn string_found_in_array_when_number_expected() {
 #[test]
 fn no_body() {
     println!("FILE: tests/spec_testcases/v3/message/body/no body.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Missing body",
@@ -698,12 +807,20 @@ fn no_body() {
       }
     "#).unwrap();
 
-    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    let expected_json = pact.get_mut("expected").unwrap();
+    let interaction_json = expected_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let expected = message_interaction_from_json("tests/spec_testcases/v3/message/body/no body.json", &expected_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let actual_json = pact.get_mut("actual").unwrap();
+    let interaction_json = actual_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let actual = message_interaction_from_json("tests/spec_testcases/v3/message/body/no body.json", &actual_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(&expected, &actual);
+    let result = match_interaction(expected, actual, &PactSpecification::V3).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -715,7 +832,8 @@ fn no_body() {
 #[test]
 fn array_at_top_level() {
     println!("FILE: tests/spec_testcases/v3/message/body/array at top level.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "top level array matches",
@@ -760,12 +878,20 @@ fn array_at_top_level() {
       }
     "#).unwrap();
 
-    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    let expected_json = pact.get_mut("expected").unwrap();
+    let interaction_json = expected_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let expected = message_interaction_from_json("tests/spec_testcases/v3/message/body/array at top level.json", &expected_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let actual_json = pact.get_mut("actual").unwrap();
+    let interaction_json = actual_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let actual = message_interaction_from_json("tests/spec_testcases/v3/message/body/array at top level.json", &actual_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(&expected, &actual);
+    let result = match_interaction(expected, actual, &PactSpecification::V3).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -777,7 +903,8 @@ fn array_at_top_level() {
 #[test]
 fn matches_with_type() {
     println!("FILE: tests/spec_testcases/v3/message/body/matches with type.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Messages match with same type",
@@ -826,12 +953,20 @@ fn matches_with_type() {
       }
     "#).unwrap();
 
-    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    let expected_json = pact.get_mut("expected").unwrap();
+    let interaction_json = expected_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let expected = message_interaction_from_json("tests/spec_testcases/v3/message/body/matches with type.json", &expected_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let actual_json = pact.get_mut("actual").unwrap();
+    let interaction_json = actual_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let actual = message_interaction_from_json("tests/spec_testcases/v3/message/body/matches with type.json", &actual_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(&expected, &actual);
+    let result = match_interaction(expected, actual, &PactSpecification::V3).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -843,7 +978,8 @@ fn matches_with_type() {
 #[test]
 fn no_body_no_content_type() {
     println!("FILE: tests/spec_testcases/v3/message/body/no body no content type.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "No body, no content-type",
@@ -861,12 +997,20 @@ fn no_body_no_content_type() {
       }
     "#).unwrap();
 
-    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    let expected_json = pact.get_mut("expected").unwrap();
+    let interaction_json = expected_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let expected = message_interaction_from_json("tests/spec_testcases/v3/message/body/no body no content type.json", &expected_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let actual_json = pact.get_mut("actual").unwrap();
+    let interaction_json = actual_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let actual = message_interaction_from_json("tests/spec_testcases/v3/message/body/no body no content type.json", &actual_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(&expected, &actual);
+    let result = match_interaction(expected, actual, &PactSpecification::V3).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -878,7 +1022,8 @@ fn no_body_no_content_type() {
 #[test]
 fn not_null_found_in_array_when_null_expected() {
     println!("FILE: tests/spec_testcases/v3/message/body/not null found in array when null expected.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Favourite colours expected to contain null, but not null found",
@@ -905,12 +1050,20 @@ fn not_null_found_in_array_when_null_expected() {
       }
     "#).unwrap();
 
-    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    let expected_json = pact.get_mut("expected").unwrap();
+    let interaction_json = expected_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let expected = message_interaction_from_json("tests/spec_testcases/v3/message/body/not null found in array when null expected.json", &expected_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let actual_json = pact.get_mut("actual").unwrap();
+    let interaction_json = actual_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let actual = message_interaction_from_json("tests/spec_testcases/v3/message/body/not null found in array when null expected.json", &actual_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(&expected, &actual);
+    let result = match_interaction(expected, actual, &PactSpecification::V3).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -922,7 +1075,8 @@ fn not_null_found_in_array_when_null_expected() {
 #[test]
 fn array_with_at_least_one_element_not_matching_example_type() {
     println!("FILE: tests/spec_testcases/v3/message/body/array with at least one element not matching example type.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Wrong type for name key",
@@ -974,12 +1128,20 @@ fn array_with_at_least_one_element_not_matching_example_type() {
       }
     "#).unwrap();
 
-    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    let expected_json = pact.get_mut("expected").unwrap();
+    let interaction_json = expected_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let expected = message_interaction_from_json("tests/spec_testcases/v3/message/body/array with at least one element not matching example type.json", &expected_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let actual_json = pact.get_mut("actual").unwrap();
+    let interaction_json = actual_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let actual = message_interaction_from_json("tests/spec_testcases/v3/message/body/array with at least one element not matching example type.json", &actual_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(&expected, &actual);
+    let result = match_interaction(expected, actual, &PactSpecification::V3).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -991,7 +1153,8 @@ fn array_with_at_least_one_element_not_matching_example_type() {
 #[test]
 fn different_value_found_at_index() {
     println!("FILE: tests/spec_testcases/v3/message/body/different value found at index.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Incorrect favourite colour",
@@ -1018,12 +1181,20 @@ fn different_value_found_at_index() {
       }
     "#).unwrap();
 
-    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    let expected_json = pact.get_mut("expected").unwrap();
+    let interaction_json = expected_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let expected = message_interaction_from_json("tests/spec_testcases/v3/message/body/different value found at index.json", &expected_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let actual_json = pact.get_mut("actual").unwrap();
+    let interaction_json = actual_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let actual = message_interaction_from_json("tests/spec_testcases/v3/message/body/different value found at index.json", &actual_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(&expected, &actual);
+    let result = match_interaction(expected, actual, &PactSpecification::V3).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1035,7 +1206,8 @@ fn different_value_found_at_index() {
 #[test]
 fn array_with_nested_array_that_matches() {
     println!("FILE: tests/spec_testcases/v3/message/body/array with nested array that matches.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Nested arrays match",
@@ -1115,12 +1287,20 @@ fn array_with_nested_array_that_matches() {
       }
     "#).unwrap();
 
-    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    let expected_json = pact.get_mut("expected").unwrap();
+    let interaction_json = expected_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let expected = message_interaction_from_json("tests/spec_testcases/v3/message/body/array with nested array that matches.json", &expected_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let actual_json = pact.get_mut("actual").unwrap();
+    let interaction_json = actual_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let actual = message_interaction_from_json("tests/spec_testcases/v3/message/body/array with nested array that matches.json", &actual_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(&expected, &actual);
+    let result = match_interaction(expected, actual, &PactSpecification::V3).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1132,7 +1312,8 @@ fn array_with_nested_array_that_matches() {
 #[test]
 fn matches_with_regex() {
     println!("FILE: tests/spec_testcases/v3/message/body/matches with regex.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Messages match with regex",
@@ -1191,12 +1372,20 @@ fn matches_with_regex() {
       }
     "#).unwrap();
 
-    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    let expected_json = pact.get_mut("expected").unwrap();
+    let interaction_json = expected_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let expected = message_interaction_from_json("tests/spec_testcases/v3/message/body/matches with regex.json", &expected_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let actual_json = pact.get_mut("actual").unwrap();
+    let interaction_json = actual_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let actual = message_interaction_from_json("tests/spec_testcases/v3/message/body/matches with regex.json", &actual_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(&expected, &actual);
+    let result = match_interaction(expected, actual, &PactSpecification::V3).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1208,7 +1397,8 @@ fn matches_with_regex() {
 #[test]
 fn number_found_at_key_when_string_expected() {
     println!("FILE: tests/spec_testcases/v3/message/body/number found at key when string expected.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Number of feet expected to be string but was number",
@@ -1235,12 +1425,20 @@ fn number_found_at_key_when_string_expected() {
       }
     "#).unwrap();
 
-    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    let expected_json = pact.get_mut("expected").unwrap();
+    let interaction_json = expected_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let expected = message_interaction_from_json("tests/spec_testcases/v3/message/body/number found at key when string expected.json", &expected_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let actual_json = pact.get_mut("actual").unwrap();
+    let interaction_json = actual_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let actual = message_interaction_from_json("tests/spec_testcases/v3/message/body/number found at key when string expected.json", &actual_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(&expected, &actual);
+    let result = match_interaction(expected, actual, &PactSpecification::V3).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1252,7 +1450,8 @@ fn number_found_at_key_when_string_expected() {
 #[test]
 fn missing_index() {
     println!("FILE: tests/spec_testcases/v3/message/body/missing index.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Missing favorite colour",
@@ -1279,12 +1478,20 @@ fn missing_index() {
       }
     "#).unwrap();
 
-    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    let expected_json = pact.get_mut("expected").unwrap();
+    let interaction_json = expected_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let expected = message_interaction_from_json("tests/spec_testcases/v3/message/body/missing index.json", &expected_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let actual_json = pact.get_mut("actual").unwrap();
+    let interaction_json = actual_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let actual = message_interaction_from_json("tests/spec_testcases/v3/message/body/missing index.json", &actual_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(&expected, &actual);
+    let result = match_interaction(expected, actual, &PactSpecification::V3).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1296,7 +1503,8 @@ fn missing_index() {
 #[test]
 fn null_found_in_array_when_not_null_expected() {
     println!("FILE: tests/spec_testcases/v3/message/body/null found in array when not null expected.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Favourite colours expected to be strings found a null",
@@ -1323,12 +1531,20 @@ fn null_found_in_array_when_not_null_expected() {
       }
     "#).unwrap();
 
-    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    let expected_json = pact.get_mut("expected").unwrap();
+    let interaction_json = expected_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let expected = message_interaction_from_json("tests/spec_testcases/v3/message/body/null found in array when not null expected.json", &expected_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let actual_json = pact.get_mut("actual").unwrap();
+    let interaction_json = actual_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let actual = message_interaction_from_json("tests/spec_testcases/v3/message/body/null found in array when not null expected.json", &actual_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(&expected, &actual);
+    let result = match_interaction(expected, actual, &PactSpecification::V3).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1340,7 +1556,8 @@ fn null_found_in_array_when_not_null_expected() {
 #[test]
 fn unexpected_index_with_null_value() {
     println!("FILE: tests/spec_testcases/v3/message/body/unexpected index with null value.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Unexpected favourite colour with null value",
@@ -1367,12 +1584,20 @@ fn unexpected_index_with_null_value() {
       }
     "#).unwrap();
 
-    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    let expected_json = pact.get_mut("expected").unwrap();
+    let interaction_json = expected_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let expected = message_interaction_from_json("tests/spec_testcases/v3/message/body/unexpected index with null value.json", &expected_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let actual_json = pact.get_mut("actual").unwrap();
+    let interaction_json = actual_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let actual = message_interaction_from_json("tests/spec_testcases/v3/message/body/unexpected index with null value.json", &actual_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(&expected, &actual);
+    let result = match_interaction(expected, actual, &PactSpecification::V3).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1384,7 +1609,8 @@ fn unexpected_index_with_null_value() {
 #[test]
 fn unexpected_key_with_not_null_value() {
     println!("FILE: tests/spec_testcases/v3/message/body/unexpected key with not null value.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Unexpected phone number",
@@ -1412,12 +1638,20 @@ fn unexpected_key_with_not_null_value() {
       }
     "#).unwrap();
 
-    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    let expected_json = pact.get_mut("expected").unwrap();
+    let interaction_json = expected_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let expected = message_interaction_from_json("tests/spec_testcases/v3/message/body/unexpected key with not null value.json", &expected_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let actual_json = pact.get_mut("actual").unwrap();
+    let interaction_json = actual_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let actual = message_interaction_from_json("tests/spec_testcases/v3/message/body/unexpected key with not null value.json", &actual_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(&expected, &actual);
+    let result = match_interaction(expected, actual, &PactSpecification::V3).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1429,7 +1663,8 @@ fn unexpected_key_with_not_null_value() {
 #[test]
 fn string_found_at_key_when_number_expected() {
     println!("FILE: tests/spec_testcases/v3/message/body/string found at key when number expected.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Number of feet expected to be number but was string",
@@ -1456,12 +1691,20 @@ fn string_found_at_key_when_number_expected() {
       }
     "#).unwrap();
 
-    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    let expected_json = pact.get_mut("expected").unwrap();
+    let interaction_json = expected_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let expected = message_interaction_from_json("tests/spec_testcases/v3/message/body/string found at key when number expected.json", &expected_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let actual_json = pact.get_mut("actual").unwrap();
+    let interaction_json = actual_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let actual = message_interaction_from_json("tests/spec_testcases/v3/message/body/string found at key when number expected.json", &actual_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(&expected, &actual);
+    let result = match_interaction(expected, actual, &PactSpecification::V3).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1473,7 +1716,8 @@ fn string_found_at_key_when_number_expected() {
 #[test]
 fn missing_key() {
     println!("FILE: tests/spec_testcases/v3/message/body/missing key.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Missing key alligator name",
@@ -1501,12 +1745,20 @@ fn missing_key() {
       }
     "#).unwrap();
 
-    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    let expected_json = pact.get_mut("expected").unwrap();
+    let interaction_json = expected_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let expected = message_interaction_from_json("tests/spec_testcases/v3/message/body/missing key.json", &expected_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let actual_json = pact.get_mut("actual").unwrap();
+    let interaction_json = actual_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let actual = message_interaction_from_json("tests/spec_testcases/v3/message/body/missing key.json", &actual_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(&expected, &actual);
+    let result = match_interaction(expected, actual, &PactSpecification::V3).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1518,7 +1770,8 @@ fn missing_key() {
 #[test]
 fn array_with_at_least_one_element_matching_by_example() {
     println!("FILE: tests/spec_testcases/v3/message/body/array with at least one element matching by example.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Types and regular expressions match",
@@ -1570,12 +1823,20 @@ fn array_with_at_least_one_element_matching_by_example() {
       }
     "#).unwrap();
 
-    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    let expected_json = pact.get_mut("expected").unwrap();
+    let interaction_json = expected_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let expected = message_interaction_from_json("tests/spec_testcases/v3/message/body/array with at least one element matching by example.json", &expected_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let actual_json = pact.get_mut("actual").unwrap();
+    let interaction_json = actual_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let actual = message_interaction_from_json("tests/spec_testcases/v3/message/body/array with at least one element matching by example.json", &actual_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(&expected, &actual);
+    let result = match_interaction(expected, actual, &PactSpecification::V3).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1587,7 +1848,8 @@ fn array_with_at_least_one_element_matching_by_example() {
 #[test]
 fn matches() {
     println!("FILE: tests/spec_testcases/v3/message/body/matches.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
         "comment": "Messages match",
@@ -1618,12 +1880,20 @@ fn matches() {
       }
     "#).unwrap();
 
-    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    let expected_json = pact.get_mut("expected").unwrap();
+    let interaction_json = expected_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let expected = message_interaction_from_json("tests/spec_testcases/v3/message/body/matches.json", &expected_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let actual_json = pact.get_mut("actual").unwrap();
+    let interaction_json = actual_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let actual = message_interaction_from_json("tests/spec_testcases/v3/message/body/matches.json", &actual_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(&expected, &actual);
+    let result = match_interaction(expected, actual, &PactSpecification::V3).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1635,7 +1905,8 @@ fn matches() {
 #[test]
 fn null_found_at_key_where_not_null_expected() {
     println!("FILE: tests/spec_testcases/v3/message/body/null found at key where not null expected.json");
-    let pact : serde_json::Value = serde_json::from_str(r#"
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
         "comment": "Name should not be null",
@@ -1662,12 +1933,20 @@ fn null_found_at_key_where_not_null_expected() {
       }
     "#).unwrap();
 
-    let expected = Message::from_json(0, &pact.get("expected").unwrap(), &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    let actual = Message::from_json(0, &pact.get("actual").unwrap(), &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {:?}", actual);
+    let expected_json = pact.get_mut("expected").unwrap();
+    let interaction_json = expected_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let expected = message_interaction_from_json("tests/spec_testcases/v3/message/body/null found at key where not null expected.json", &expected_json, &PactSpecification::V3).unwrap();
+    println!("EXPECTED: {}", expected);
+    println!("BODY: {}", expected.contents().str_value());
+    let actual_json = pact.get_mut("actual").unwrap();
+    let interaction_json = actual_json.as_object_mut().unwrap();
+    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
+    let actual = message_interaction_from_json("tests/spec_testcases/v3/message/body/null found at key where not null expected.json", &actual_json, &PactSpecification::V3).unwrap();
+    println!("ACTUAL: {}", actual);
+    println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_message(&expected, &actual);
+    let result = match_interaction(expected, actual, &PactSpecification::V3).unwrap();
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());

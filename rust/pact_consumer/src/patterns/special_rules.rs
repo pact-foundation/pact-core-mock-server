@@ -1,6 +1,6 @@
 //! Special matching rules, including `Like`, `Term`, etc.
 
-use pact_matching::models::matchingrules::{MatchingRule, Category, RuleLogic};
+use pact_matching::models::matchingrules::{MatchingRule, MatchingRuleCategory, RuleLogic};
 use regex::Regex;
 use std::iter::repeat;
 use std::marker::PhantomData;
@@ -39,7 +39,7 @@ impl<Nested: Pattern> Pattern for Like<Nested> {
         self.example.to_example()
     }
 
-    fn extract_matching_rules(&self, path: &str, rules_out: &mut Category) {
+    fn extract_matching_rules(&self, path: &str, rules_out: &mut MatchingRuleCategory) {
         rules_out.add_rule(&path.to_string(), MatchingRule::Type, &RuleLogic::And);
         self.example.extract_matching_rules(path, rules_out);
     }
@@ -56,7 +56,7 @@ fn like_is_pattern() {
 
     let matchable = Like::<JsonPattern>::new(json_pattern!("hello"));
     assert_eq!(matchable.to_example(), json!("hello"));
-    let mut rules = Category::default("body");
+    let mut rules = MatchingRuleCategory::empty("body");
     matchable.extract_matching_rules("$", &mut rules);
     assert_eq!(rules.to_v2_json(), hashmap!(s!("$.body") => json!({"match": "type"})));
 }
@@ -127,7 +127,7 @@ impl Pattern for EachLike {
         serde_json::Value::Array(repeat(element).take(self.min_len).collect())
     }
 
-    fn extract_matching_rules(&self, path: &str, rules_out: &mut Category) {
+    fn extract_matching_rules(&self, path: &str, rules_out: &mut MatchingRuleCategory) {
         rules_out.add_rule(
             &path.to_string(),
             MatchingRule::MinType(self.min_len),
@@ -156,7 +156,7 @@ fn each_like_is_pattern() {
     let matchable = EachLike::new(json_pattern!(elem)).with_min_len(2);
     assert_eq!(matchable.to_example(), json!(["hello", "hello"]));
 
-    let mut rules = Category::default("body");
+    let mut rules = MatchingRuleCategory::empty("body");
     matchable.extract_matching_rules("$", &mut rules);
     let expected_rules = hashmap!(
         // Ruby omits the `type` here, but the Rust `pact_matching` library
@@ -298,7 +298,7 @@ where
         From::from(self.example.clone())
     }
 
-    fn extract_matching_rules(&self, path: &str, rules_out: &mut Category) {
+    fn extract_matching_rules(&self, path: &str, rules_out: &mut MatchingRuleCategory) {
         rules_out.add_rule(
             &path.to_string(),
             MatchingRule::Regex(self.regex.to_string()),
@@ -319,7 +319,7 @@ fn term_is_pattern() {
     let matchable = Term::<JsonPattern>::new(Regex::new("[Hh]ello").unwrap(), "hello");
     assert_eq!(matchable.to_example(), json!("hello"));
 
-    let mut rules = Category::default("body");
+    let mut rules = MatchingRuleCategory::empty("body");
     matchable.extract_matching_rules("$", &mut rules);
     let expected_rules = hashmap!(
         s!("$.body") => json!({ "match": "regex", "regex": "[Hh]ello" })

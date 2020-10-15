@@ -489,7 +489,7 @@ impl ContentTypeHandler<Value> for JsonHandler {
   }
 
   fn apply_key(&mut self, key: &String, generator: &Generator, context: &HashMap<String, Value>) {
-    match parse_path_exp(key.clone()) {
+    match parse_path_exp(key) {
       Ok(path_exp) => {
         let mut tree = Arena::new();
         let root = tree.new_node("".into());
@@ -738,7 +738,7 @@ pub fn generators_from_json(value: &Value) -> Generators {
 /// Generates a Value structure for the provided generators
 pub fn generators_to_json(generators: &Generators, spec_version: &PactSpecification) -> Value {
   match spec_version {
-    &PactSpecification::V3 => generators.to_json(),
+    &PactSpecification::V3 | &PactSpecification::V4 => generators.to_json(),
     _ => Value::Null
   }
 }

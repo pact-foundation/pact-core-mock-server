@@ -71,7 +71,7 @@ fn extract_headers(headers: &hyper::HeaderMap) -> Result<Option<HashMap<String, 
 
 fn extract_body(bytes: bytes::Bytes, request: &Request) -> OptionalBody {
     if bytes.len() > 0 {
-      OptionalBody::Present(bytes.to_vec(), request.content_type().map(|c| c.to_string()))
+      OptionalBody::Present(bytes.to_vec(), request.content_type())
     } else {
       OptionalBody::Empty
     }

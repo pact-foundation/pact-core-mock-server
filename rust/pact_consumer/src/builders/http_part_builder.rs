@@ -121,7 +121,7 @@ pub trait HttpPartBuilder {
     let body = body.into();
     {
       let (body_ref, _) = self.body_and_matching_rules_mut();
-      *body_ref = OptionalBody::Present(body.into(), Some(content_type.into()));
+      *body_ref = OptionalBody::Present(body.into(), content_type.into().parse().ok());
     }
     self
   }

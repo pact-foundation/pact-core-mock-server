@@ -2,6 +2,7 @@
 
 use pact_matching::models::{Request, OptionalBody};
 use pact_matching::models::provider_states::ProviderState;
+use pact_matching::models::content_types::JSON;
 use crate::provider_client::{make_state_change_request, provider_client_error_to_string};
 use std::collections::HashMap;
 use serde_json::{Value, json};
@@ -94,7 +95,7 @@ impl ProviderStateExecutor for HttpRequestProviderStateExecutor {
               json_body_mut.insert(k, v);
             }
           }
-          state_change_request.body = OptionalBody::Present(json_body.to_string().into(), Some("application/json".to_string()));
+          state_change_request.body = OptionalBody::Present(json_body.to_string().into(), Some(JSON.clone()));
           state_change_request.headers = Some(hashmap!{ "Content-Type".to_string() => vec!["application/json".to_string()] });
         } else {
           let mut query = hashmap!{ "state".to_string() => vec![provider_state.name.clone()] };

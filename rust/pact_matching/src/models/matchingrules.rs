@@ -1,26 +1,33 @@
 //! `matchingrules` module includes all the classes to deal with V3 format matchers
 
-use serde::{Serialize, Deserialize};
-use serde_json::{self, Value, json};
-use serde_json::map::Map;
-use maplit::*;
 use std::{
-  collections::{HashMap, HashSet, BTreeSet},
+  collections::{BTreeSet, HashMap, HashSet},
   hash::{Hash, Hasher}
 };
+use std::fmt::{Debug, Display};
 #[allow(unused_imports)] // FromStr is actually used
 use std::str::FromStr;
-use crate::models::json_utils::{json_to_string, json_to_num};
-use crate::path_exp::*;
-use super::PactSpecification;
-use log::*;
 
-fn matches_token(path_fragment: &String, path_token: &PathToken) -> usize {
-  match *path_token {
+use log::*;
+use maplit::*;
+use onig::Regex;
+use serde::{Deserialize, Serialize};
+use serde_json::{self, json, Value};
+
+use crate::{MatchingContext, merge_result, Mismatch};
+use crate::matchers::{match_values, Matches};
+use crate::models::json_utils::{json_to_num, json_to_string};
+use crate::path_exp::*;
+
+use super::PactSpecification;
+use nom::lib::std::cmp::Ordering;
+
+fn matches_token(path_fragment: &str, path_token: &PathToken) -> usize {
+  match path_token {
     PathToken::Root if path_fragment == "$" => 2,
-    PathToken::Field(ref name) if *path_fragment == name.clone() => 2,
-    PathToken::Index(ref index) => match path_fragment.parse::<usize>() {
-      Ok(ref i) if index == i => 2,
+    PathToken::Field(name) if path_fragment == name => 2,
+    PathToken::Index(index) => match path_fragment.parse::<usize>() {
+      Ok(i) if *index == i => 2,
       _ => 0
     },
     PathToken::StarIndex => match path_fragment.parse::<usize>() {
@@ -32,8 +39,8 @@ fn matches_token(path_fragment: &String, path_token: &PathToken) -> usize {
   }
 }
 
-fn calc_path_weight(path_exp: String, path: &Vec<String>) -> (usize, usize) {
-  let weight = match parse_path_exp(path_exp.clone()) {
+pub(crate) fn calc_path_weight(path_exp: &str, path: &Vec<&str>) -> (usize, usize) {
+  let weight = match parse_path_exp(path_exp) {
     Ok(path_tokens) => {
       trace!("Calculating weight for path tokens '{:?}' and path '{:?}'", path_tokens, path);
       if path.len() >= path_tokens.len() {
@@ -55,13 +62,85 @@ fn calc_path_weight(path_exp: String, path: &Vec<String>) -> (usize, usize) {
   weight
 }
 
-fn path_length(path_exp: String) -> usize {
-  match parse_path_exp(path_exp.clone()) {
+pub(crate) fn path_length(path_exp: &str) -> usize {
+  match parse_path_exp(path_exp) {
     Ok(path_tokens) => path_tokens.len(),
     Err(err) => {
       warn!("Failed to parse path expression - {}", err);
       0
     }
+  }
+}
+
+impl <T: Debug + Display + PartialEq> Matches<Vec<T>> for Vec<T> {
+  fn matches(&self, actual: &Vec<T>, matcher: &MatchingRule) -> Result<(), String> {
+    let result = match *matcher {
+      MatchingRule::Regex(ref regex) => {
+        match Regex::new(regex) {
+          Ok(re) => {
+            let text: String = actual.iter().map(|v| v.to_string()).collect();
+            if re.is_match(text.as_str()) {
+              Ok(())
+            } else {
+              Err(format!("Expected '{}' to match '{}'", text, regex))
+            }
+          }
+          Err(err) => Err(format!("'{}' is not a valid regular expression - {}", regex, err))
+        }
+      }
+      MatchingRule::Type => Ok(()),
+      MatchingRule::MinType(min) => {
+        if actual.len() < min {
+          Err(format!("Expected list with length {} to have a minimum length of {}", actual.len(), min))
+        } else {
+          Ok(())
+        }
+      }
+      MatchingRule::MaxType(max) => {
+        if actual.len() > max {
+          Err(format!("Expected list with length {} to have a maximum length of {}", actual.len(), max))
+        } else {
+          Ok(())
+        }
+      }
+      MatchingRule::MinMaxType(min, max) => {
+        if actual.len() < min {
+          Err(format!("Expected list with length {} to have a minimum length of {}", actual.len(), min))
+        } else if actual.len() > max {
+          Err(format!("Expected list with length {} to have a maximum length of {}", actual.len(), max))
+        } else {
+          Ok(())
+        }
+      }
+      MatchingRule::Equality => {
+        if self == actual {
+          Ok(())
+        } else {
+          Err(format!("Expected {:?} to be equal to {:?}", actual, self))
+        }
+      }
+      _ => Err(format!("Unable to match {:?} using {:?}", self, matcher))
+    };
+    log::debug!("Comparing '{:?}' to '{:?}' using {:?} -> {:?}", self, actual, matcher, result);
+    result
+  }
+}
+
+/// Trait to convert a expected or actual complex object into a string that can be used for a mismatch
+pub trait DisplayForMismatch {
+  /// Return a string representation that can be used in a mismatch to display to the user
+  fn for_mismatch(&self) -> String;
+}
+
+impl <T: Display> DisplayForMismatch for HashMap<String, T> {
+  fn for_mismatch(&self) -> String {
+    Value::Object(self.iter().map(|(k, v)| (k.clone(), json!(v.to_string()))).collect()).to_string()
+  }
+}
+
+impl <T: Display> DisplayForMismatch for Vec<T> {
+  fn for_mismatch(&self) -> String {
+    Value::Array(self.iter().map(|v| json!(v.to_string())).collect()).to_string()
   }
 }
 
@@ -97,7 +176,9 @@ pub enum MatchingRule {
   /// Match if the value is a null value (this is content specific, for JSON will match a JSON null)
   Null,
   /// Match binary data by its content type (magic file check)
-  ContentType(String)
+  ContentType(String),
+  /// Match array items in any order against a list of variants
+  ArrayContains(Vec<(usize, MatchingRuleCategory)>)
 }
 
 impl MatchingRule {
@@ -153,6 +234,25 @@ impl MatchingRule {
               Some(s) => Some(MatchingRule::ContentType(json_to_string(s))),
               None => None
             },
+            "arrayContains" => match m.get("variants") {
+              Some(variants) => match variants {
+                Value::Array(variants) => {
+                  let values = variants.iter().map(|variant| {
+                    let index = json_to_num(variant.get("index").cloned()).unwrap_or_default();
+                    let mut category = MatchingRuleCategory::empty("body");
+                    if let Some(rules) = variant.get("rules") {
+                      category.add_rules_from_json(rules);
+                    } else {
+                      category.add_rule("", MatchingRule::Equality, &RuleLogic::And);
+                    }
+                    (index, category)
+                  }).collect();
+                  Some(MatchingRule::ArrayContains(values))
+                }
+                _ => None
+              }
+              None => None
+            }
             _ => None
           }
         },
@@ -176,96 +276,166 @@ impl MatchingRule {
     }
   }
 
-  /// Builds a `MatchingRule` from a `Value` struct used by language integrations
-  pub fn from_integration_json(m: &Map<String, Value>) -> Option<MatchingRule> {
-    match m.get("pact:matcher:type") {
-      Some(value) => {
-        let val = json_to_string(value);
-        match val.as_str() {
-          "regex" => match m.get(&val) {
-            Some(s) => Some(MatchingRule::Regex(json_to_string(s))),
-            None => None
-          },
-          "equality" => Some(MatchingRule::Equality),
-          "include" => match m.get("value") {
-            Some(s) => Some(MatchingRule::Include(json_to_string(s))),
-            None => None
-          },
-          "type" => match (json_to_num(m.get("min").cloned()), json_to_num(m.get("max").cloned())) {
-            (Some(min), Some(max)) => Some(MatchingRule::MinMaxType(min, max)),
-            (Some(min), None) => Some(MatchingRule::MinType(min)),
-            (None, Some(max)) => Some(MatchingRule::MaxType(max)),
-            _ => Some(MatchingRule::Type)
-          },
-          "number" => Some(MatchingRule::Number),
-          "integer" => Some(MatchingRule::Integer),
-          "decimal" => Some(MatchingRule::Decimal),
-          "real" => Some(MatchingRule::Decimal),
-          "min" => match json_to_num(m.get(&val).cloned()) {
-            Some(min) => Some(MatchingRule::MinType(min)),
-            None => None
-          },
-          "max" => match json_to_num(m.get(&val).cloned()) {
-            Some(max) => Some(MatchingRule::MaxType(max)),
-            None => None
-          },
-          "timestamp" => match m.get("format").or_else(|| m.get(&val)) {
-            Some(s) => Some(MatchingRule::Timestamp(json_to_string(s))),
-            None => None
-          },
-          "date" => match m.get("format").or_else(|| m.get(&val)) {
-            Some(s) => Some(MatchingRule::Date(json_to_string(s))),
-            None => None
-          },
-          "time" => match m.get("format").or_else(|| m.get(&val)) {
-            Some(s) => Some(MatchingRule::Time(json_to_string(s))),
-            None => None
-          },
-          "null" => Some(MatchingRule::Null),
-          "contentType" => match m.get("value") {
-            Some(s) => Some(MatchingRule::ContentType(json_to_string(s))),
-            None => None
-          }
-          _ => None
-        }
-      },
-      _ => None
+  /// Converts this `MatchingRule` to a `Value` struct
+  pub fn to_json(&self) -> Value {
+    match self {
+      MatchingRule::Equality => json!({ "match": "equality" }),
+      MatchingRule::Regex(ref r) => json!({ "match": "regex",
+        "regex": r.clone() }),
+      MatchingRule::Type => json!({ "match": "type" }),
+      MatchingRule::MinType(min) => json!({ "match": "type",
+        "min": json!(*min as u64) }),
+      MatchingRule::MaxType(max) => json!({ "match": "type",
+        "max": json!(*max as u64) }),
+      MatchingRule::MinMaxType(min, max) => json!({ "match": "type",
+        "min": json!(*min as u64), "max": json!(*max as u64) }),
+      MatchingRule::Timestamp(ref t) => json!({ "match": "timestamp",
+        "timestamp": Value::String(t.clone()) }),
+      MatchingRule::Time(ref t) => json!({ "match": "time",
+        "time": Value::String(t.clone()) }),
+      MatchingRule::Date(ref d) => json!({ "match": "date",
+        "date": Value::String(d.clone()) }),
+      MatchingRule::Include(ref s) => json!({ "match": "include",
+        "value": Value::String(s.clone()) }),
+      MatchingRule::Number => json!({ "match": "number" }),
+      MatchingRule::Integer => json!({ "match": "integer" }),
+      MatchingRule::Decimal => json!({ "match": "decimal" }),
+      MatchingRule::Null => json!({ "match": "null" }),
+      MatchingRule::ContentType(ref r) => json!({ "match": "contentType",
+        "value": Value::String(r.clone()) }),
+      MatchingRule::ArrayContains(variants) => json!({
+        "match": "arrayContains",
+        "variants": variants.iter().map(|(index, rules)| {
+          json!({
+            "index": index,
+            "rules": rules.to_v3_json()
+          })
+        }).collect::<Vec<Value>>()
+      })
     }
   }
 
-  /// Converts this `MatchingRule` to a `Value` struct
-  pub fn to_json(&self) -> Value {
-    match *self {
-      MatchingRule::Equality => json!({ "match": Value::String(s!("equality")) }),
-      MatchingRule::Regex(ref r) => json!({ "match": Value::String(s!("regex")),
-        "regex": Value::String(r.clone()) }),
-      MatchingRule::Type => json!({ "match": Value::String(s!("type")) }),
-      MatchingRule::MinType(min) => json!({ "match": Value::String(s!("type")),
-        "min": json!(min as u64) }),
-      MatchingRule::MaxType(max) => json!({ "match": Value::String(s!("type")),
-        "max": json!(max as u64) }),
-      MatchingRule::MinMaxType(min, max) => json!({ "match": Value::String(s!("type")),
-        "min": json!(min as u64), "max": json!(max as u64) }),
-      MatchingRule::Timestamp(ref t) => json!({ "match": Value::String(s!("timestamp")),
-        "timestamp": Value::String(t.clone()) }),
-      MatchingRule::Time(ref t) => json!({ s!("match"): Value::String(s!("time")),
-        s!("time"): Value::String(t.clone()) }),
-      MatchingRule::Date(ref d) => json!({ s!("match"): Value::String(s!("date")),
-        s!("date"): Value::String(d.clone()) }),
-      MatchingRule::Include(ref s) => json!({ "match": Value::String(s!("include")),
-        "value": Value::String(s.clone()) }),
-      MatchingRule::Number => json!({ "match": Value::String(s!("number")) }),
-      MatchingRule::Integer => json!({ "match": Value::String(s!("integer")) }),
-      MatchingRule::Decimal => json!({ "match": Value::String(s!("decimal")) }),
-      MatchingRule::Null => json!({ "match": Value::String(s!("null")) }),
-      MatchingRule::ContentType(ref r) => json!({ "match": Value::String(s!("contentType")),
-        "value": Value::String(r.clone()) })
+  /// Delegate to the matching rule define at the given path to compare the key/value maps.
+  pub fn compare_maps<T: Display + Debug>(&self, path: &Vec<&str>, expected: &HashMap<String, T>, actual: &HashMap<String, T>,
+                                  context: &MatchingContext,
+                                  callback: &mut dyn FnMut(&Vec<&str>, &T, &T) -> Result<(), Vec<Mismatch>>) -> Result<(), Vec<Mismatch>> {
+    let mut p = path.to_vec();
+    p.push("any");
+    let mut result = Ok(());
+    if context.wildcard_matcher_is_defined(&p) {
+      for (key, value) in actual.iter() {
+        let mut p = path.to_vec();
+        p.push(key);
+        if expected.contains_key(key) {
+          result = merge_result(result, callback(&p, &expected[key], value));
+        } else if !expected.is_empty() {
+          result = merge_result(result, callback(&p, &expected.values().next().unwrap(), value));
+        }
+      }
+    } else {
+      result = merge_result(result, context.match_keys(path, &expected, &actual));
+      for (key, value) in expected.iter() {
+        if actual.contains_key(key) {
+          let mut p = path.to_vec();
+          p.push(key);
+          result = merge_result(result, callback(&p, value, &actual[key]));
+        } else {
+          result = merge_result(result, Err(vec![ Mismatch::BodyMismatch { path: path.join("."),
+            expected: Some(expected.for_mismatch().into()),
+            actual: Some(actual.for_mismatch().into()),
+            mismatch: format!("Expected entry {}={} but was missing", key, value.to_string())} ]));
+        }
+      }
     }
+    result
+  }
+
+  /// Compare the expected and actual lists using the matching rule's logic
+  pub fn compare_lists<T: Display + Debug + PartialEq + Clone>(
+    &self,
+    path: &Vec<&str>,
+    expected: &Vec<T>,
+    actual: &Vec<T>,
+    context: &MatchingContext,
+    callback: &dyn Fn(&Vec<&str>, &T, &T, &MatchingContext) -> Result<(), Vec<Mismatch>>
+  ) -> Result<(), Vec<Mismatch>> {
+    let mut result = Ok(());
+    match self {
+      MatchingRule::ArrayContains(variants) => {
+        let variants = if variants.is_empty() {
+          expected.iter().enumerate().map(|(index, _)| {
+            (index, MatchingRuleCategory::equality("body"))
+          }).collect()
+        } else {
+          variants.clone()
+        };
+        for (index, rules) in variants {
+          match expected.get(index) {
+            Some(expected_value) => {
+              let context = context.clone_with(&rules);
+              if actual.iter().enumerate().find(|(actual_index, value)| {
+                debug!("Comparing list item {} with value '{:?}' to '{:?}'", actual_index, value, expected_value);
+                callback(&vec!["$"], expected_value, value, &context).is_ok()
+              }).is_none() {
+                result = merge_result(result,Err(vec![ Mismatch::BodyMismatch {
+                  path: path.join("."),
+                  expected: Some(expected_value.to_string().into()),
+                  actual: Some(actual.for_mismatch().into()),
+                  mismatch: format!("Variant at index {} ({}) was not found in the actual list", index, expected_value)
+                } ]));
+              };
+            },
+            None => {
+              result = merge_result(result,Err(vec![ Mismatch::BodyMismatch {
+                path: path.join("."),
+                expected: Some(expected.for_mismatch().into()),
+                actual: Some(actual.for_mismatch().into()),
+                mismatch: format!("ArrayContains: variant {} is missing from the expected list, which has {} items",
+                                  index, expected.len())
+              } ]));
+            }
+          }
+        }
+      }
+      _ => {
+        if let Err(messages) = match_values(path, context, expected, actual) {
+          for message in messages {
+            result = merge_result(result,Err(vec![ Mismatch::BodyMismatch {
+              path: path.join("."),
+              expected: Some(expected.for_mismatch().into()),
+              actual: Some(actual.for_mismatch().into()),
+              mismatch: message.clone()
+            } ]));
+          }
+        }
+        let mut expected_list = Vec::new();
+        if let Some(expected_example) = expected.first() {
+          expected_list.resize(actual.len(), (*expected_example).clone());
+        }
+
+        for (index, value) in expected_list.iter().enumerate() {
+          let ps = index.to_string();
+          log::debug!("Comparing list item {} with value '{:?}' to '{:?}'", index, actual.get(index), value);
+          let mut p = path.to_vec();
+          p.push(ps.as_str());
+          if index < actual.len() {
+            result = merge_result(result, callback(&p, value, &actual[index], context));
+          } else if !context.matcher_is_defined(&p) {
+            result = merge_result(result,Err(vec![ Mismatch::BodyMismatch { path: path.join("."),
+              expected: Some(expected.for_mismatch().into()),
+              actual: Some(actual.for_mismatch().into()),
+              mismatch: format!("Expected {} but was missing", value) } ]))
+          }
+        }
+      }
+    }
+
+    result
   }
 }
 
 /// Enumeration to define how to combine rules
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash, PartialOrd, Ord)]
 pub enum RuleLogic {
   /// All rules must match
   And,
@@ -285,7 +455,7 @@ impl RuleLogic {
 }
 
 /// Data structure for representing a list of rules and the logic needed to combine them
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash, PartialOrd, Ord)]
 pub struct RuleList {
   /// List of rules to apply
   pub rules: BTreeSet<MatchingRule>,
@@ -296,10 +466,18 @@ pub struct RuleList {
 impl RuleList {
 
   /// Creates a new empty rule list
-  pub fn default(rule_logic: &RuleLogic) -> RuleList {
+  pub fn empty(rule_logic: &RuleLogic) -> RuleList {
     RuleList {
       rules: BTreeSet::new(),
       rule_logic: rule_logic.clone()
+    }
+  }
+
+  /// Creates a default rule list with an equality matcher
+  pub fn equality() -> RuleList {
+    RuleList {
+      rules: btreeset!{ MatchingRule::Equality },
+      rule_logic: RuleLogic::And
     }
   }
 
@@ -335,27 +513,43 @@ impl RuleList {
       _ => false
     })
   }
+
+  /// Add a matching rule to the rule list
+  pub fn add_rule(&mut self, rule: &MatchingRule) -> bool {
+    self.rules.insert(rule.clone())
+  }
 }
 
 /// Data structure for representing a category of matching rules
-#[derive(Serialize, Deserialize, Debug, Clone, Eq)]
-pub struct Category {
-    /// Name of the category
-    pub name: String,
-    /// Matching rules for this category
-    pub rules: HashMap<String, RuleList>
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, Default)]
+pub struct MatchingRuleCategory {
+  /// Name of the category
+  pub name: String,
+  /// Matching rules for this category
+  pub rules: HashMap<String, RuleList>
 }
 
-impl Category {
-
-  /// Creates a default empty category
-  pub fn default<S>(name: S) -> Category
+impl MatchingRuleCategory {
+  /// Creates an empty category
+  pub fn empty<S>(name: S) -> MatchingRuleCategory
     where S: Into<String>
   {
-      Category {
-          name: name.into(),
-          rules: hashmap!{}
+    MatchingRuleCategory {
+      name: name.into(),
+      rules: hashmap! {},
+    }
+  }
+
+  /// Creates a default category
+  pub fn equality<S>(name: S) -> MatchingRuleCategory
+    where S: Into<String>
+  {
+    MatchingRuleCategory {
+      name: name.into(),
+      rules: hashmap! {
+        "".to_string() => RuleList::equality()
       }
+    }
   }
 
   /// If the matching rules in the category are empty
@@ -369,10 +563,10 @@ impl Category {
   }
 
   /// Adds a rule from the Value representation
-  pub fn rule_from_json(&mut self, key: &String, matcher_json: &Value, rule_logic: &RuleLogic) {
+  pub fn rule_from_json(&mut self, key: &str, matcher_json: &Value, rule_logic: &RuleLogic) {
     match MatchingRule::from_json(matcher_json) {
       Some(matching_rule) => {
-        let rules = self.rules.entry(key.clone()).or_insert(RuleList::default(rule_logic));
+        let rules = self.rules.entry(key.to_string()).or_insert(RuleList::empty(rule_logic));
         rules.rules.insert(matching_rule);
       },
       None => log::warn!("Could not parse matcher {:?}", matcher_json)
@@ -382,22 +576,22 @@ impl Category {
   /// Adds a rule to this category
   pub fn add_rule<S>(&mut self, key: S, matcher: MatchingRule, rule_logic: &RuleLogic)
     where S: Into<String> {
-    let rules = self.rules.entry(key.into()).or_insert(RuleList::default(rule_logic));
+    let rules = self.rules.entry(key.into()).or_insert(RuleList::empty(rule_logic));
     rules.rules.insert(matcher);
   }
 
   /// Filters the matchers in the category by the predicate, and returns a new category
-  pub fn filter<F>(&self, predicate: F) -> Category
+  pub fn filter<F>(&self, predicate: F) -> MatchingRuleCategory
     where F : Fn(&(&String, &RuleList)) -> bool {
-    Category {
+    MatchingRuleCategory {
       name: self.name.clone(),
       rules: self.rules.iter().filter(predicate)
         .map(|(path, rules)| (path.clone(), rules.clone())).collect()
     }
   }
 
-  fn max_by_path(&self, path: &Vec<String>) -> Option<RuleList> {
-    self.rules.iter().map(|(k, v)| (k, v, calc_path_weight(k.clone(), path)))
+  fn max_by_path(&self, path: &Vec<&str>) -> Option<RuleList> {
+    self.rules.iter().map(|(k, v)| (k, v, calc_path_weight(k.as_str(), path)))
       .filter(|&(_, _, w)| w.0 > 0)
       .max_by_key(|&(_, _, w)| w.0 * w.1)
       .map(|(_, v, _)| v.clone())
@@ -432,9 +626,98 @@ impl Category {
   pub fn type_matcher_defined(&self) -> bool {
     self.rules.values().any(|rule_list| rule_list.type_matcher_defined())
   }
+
+  /// If there is a matcher defined for the path
+  pub fn matcher_is_defined(&self, path: &Vec<&str>) -> bool {
+    let result = !self.resolve_matchers_for_path(path).is_empty();
+    trace!("matcher_is_defined for category {} and path {:?} -> {}", self.name, path, result);
+    result
+  }
+
+  /// filters this category with all rules that match the given path for categories that contain
+  /// collections (bodies, headers, query parameters). Returns self otherwise.
+  pub fn resolve_matchers_for_path(&self, path: &Vec<&str>) -> MatchingRuleCategory {
+    if self.name == "body" || self.name == "header" || self.name == "query" {
+      self.filter(|(val, _)| {
+        calc_path_weight(val, path).0 > 0
+      })
+    } else {
+      self.clone()
+    }
+  }
+
+  /// Selects the best matcher for the given path by calculating a weighting for each one
+  pub fn select_best_matcher(&self, path: &Vec<&str>) -> Option<RuleList> {
+    if self.name == "body" {
+      self.max_by_path(path)
+    } else {
+      self.resolve_matchers_for_path(path).as_rule_list()
+    }
+  }
+
+  /// Returns this category as a matching rule list. Returns a None if there are no rules
+  pub fn as_rule_list(&self) -> Option<RuleList> {
+    self.rules.values().next().cloned()
+  }
+
+  /// Adds the rules to the category from the provided JSON
+  pub fn add_rules_from_json(&mut self, rules: &Value) {
+    if self.name == "path" && rules.get("matchers").is_some() {
+      let rule_logic = match rules.get("combine") {
+        Some(val) => if json_to_string(val).to_uppercase() == "OR" {
+          RuleLogic::Or
+        } else {
+          RuleLogic::And
+        },
+        None => RuleLogic::And
+      };
+      match rules.get("matchers") {
+        Some(matchers) => match matchers {
+          Value::Array(array) => for matcher in array {
+            self.rule_from_json("", &matcher, &rule_logic)
+          },
+          _ => ()
+        },
+        None => ()
+      }
+    } else {
+      match rules {
+        Value::Object(m) => {
+          if m.contains_key("matchers") {
+            self.add_rule_list("", rules);
+          } else {
+            for (k, v) in m {
+              self.add_rule_list(k, v);
+            }
+          }
+        },
+        _ => ()
+      }
+    }
+  }
+
+  fn add_rule_list(&mut self, k: &str, v: &Value) {
+    let rule_logic = match v.get("combine") {
+      Some(val) => if json_to_string(val).to_uppercase() == "OR" {
+        RuleLogic::Or
+      } else {
+        RuleLogic::And
+      },
+      None => RuleLogic::And
+    };
+    match v.get("matchers") {
+      Some(matchers) => match matchers {
+        &Value::Array(ref array) => for matcher in array {
+          self.rule_from_json(k, &matcher, &rule_logic)
+        },
+        _ => ()
+      },
+      None => ()
+    }
+  }
 }
 
-impl Hash for Category {
+impl Hash for MatchingRuleCategory {
   fn hash<H: Hasher>(&self, state: &mut H) {
     self.name.hash(state);
     for (k, v) in self.rules.clone() {
@@ -444,7 +727,7 @@ impl Hash for Category {
   }
 }
 
-impl PartialEq for Category {
+impl PartialEq for MatchingRuleCategory {
   fn eq(&self, other: &Self) -> bool {
     self.name == other.name && self.rules == other.rules
   }
@@ -454,12 +737,24 @@ impl PartialEq for Category {
   }
 }
 
+impl PartialOrd for MatchingRuleCategory {
+  fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+    self.name.partial_cmp(&other.name)
+  }
+}
+
+impl Ord for MatchingRuleCategory {
+  fn cmp(&self, other: &Self) -> Ordering {
+    self.name.cmp(&other.name)
+  }
+}
+
 /// Data structure for representing a collection of matchers
 #[derive(Serialize, Deserialize, Debug, Clone, Eq)]
 #[serde(transparent)]
 pub struct MatchingRules {
     /// Categories of matching rules
-    pub rules: HashMap<String, Category>
+    pub rules: HashMap<String, MatchingRuleCategory>
 }
 
 impl MatchingRules {
@@ -475,12 +770,12 @@ impl MatchingRules {
     }
 
     /// Adds the category to the map of rules
-    pub fn add_category<S>(&mut self, category: S) -> &mut Category
+    pub fn add_category<S>(&mut self, category: S) -> &mut MatchingRuleCategory
       where S: Into<String>
     {
       let category = category.into();
       if !self.rules.contains_key(&category) {
-          self.rules.insert(category.clone(), Category::default(category.clone()));
+          self.rules.insert(category.clone(), MatchingRuleCategory::empty(category.clone()));
       }
       self.rules.get_mut(&category).unwrap()
     }
@@ -491,12 +786,12 @@ impl MatchingRules {
     }
 
     /// Returns the category of rules for a given category name
-    pub fn rules_for_category(&self, category: &String) -> Option<Category> {
+    pub fn rules_for_category(&self, category: &str) -> Option<MatchingRuleCategory> {
       self.rules.get(category).cloned()
     }
 
     /// If there is a matcher defined for the category and path
-    pub fn matcher_is_defined(&self, category: &str, path: &Vec<String>) -> bool {
+    pub fn matcher_is_defined(&self, category: &str, path: &Vec<&str>) -> bool {
       let result = match self.resolve_matchers(category, path) {
         Some(ref category) => !category.is_empty(),
         None => false
@@ -506,7 +801,7 @@ impl MatchingRules {
     }
 
     /// If there is a wildcard matcher defined for the category and path
-    pub fn wildcard_matcher_is_defined(&self, category: &str, path: &Vec<String>) -> bool {
+    pub fn wildcard_matcher_is_defined(&self, category: &str, path: &Vec<&str>) -> bool {
       match self.resolve_wildcard_matchers(category, path) {
         Some(ref category) => !category.filter(|&(val, _)| val.ends_with(".*")).is_empty(),
         None => false
@@ -514,7 +809,7 @@ impl MatchingRules {
     }
 
   /// If there is a type matcher defined for the category and path
-  pub fn type_matcher_defined(&self, category: &str, path: &Vec<String>) -> bool {
+  pub fn type_matcher_defined(&self, category: &str, path: &Vec<&str>) -> bool {
     let result = match self.resolve_matchers(category, path) {
       Some(ref category) => category.type_matcher_defined(),
       None => false
@@ -523,36 +818,31 @@ impl MatchingRules {
     result
   }
 
-    /// Returns a `Category` filtered with all rules that match the given path.
-    pub fn resolve_matchers(&self, category: &str, path: &Vec<String>) -> Option<Category> {
-      if category == "body" || category == "header" || category == "query" {
-        self.rules_for_category(&s!(category)).map(|category| category.filter(|&(val, _)| {
-          calc_path_weight(val.clone(), path).0 > 0
-        }))
-      } else {
-        self.rules_for_category(&s!(category))
-      }
-    }
+  /// Returns a `Category` filtered with all rules that match the given path.
+  pub fn resolve_matchers(&self, category: &str, path: &Vec<&str>) -> Option<MatchingRuleCategory> {
+    self.rules_for_category(category)
+      .map(|category| category.resolve_matchers_for_path(path))
+  }
 
     /// Returns a list of rules from the body category that match the given path
-    pub fn resolve_body_matchers_by_path(&self, path: &Vec<String>) -> Option<RuleList> {
+    pub fn resolve_body_matchers_by_path(&self, path: &Vec<&str>) -> Option<RuleList> {
       match self.rules_for_category(&s!("body")) {
         Some(category) => category.max_by_path(path),
         None => None
       }
     }
 
-    fn resolve_wildcard_matchers(&self, category: &str, path: &Vec<String>) -> Option<Category> {
+    fn resolve_wildcard_matchers(&self, category: &str, path: &Vec<&str>) -> Option<MatchingRuleCategory> {
       if category == "body" {
-        self.rules_for_category(&s!(category)).map(|category| category.filter(|&(val, _)| {
-          calc_path_weight(val.clone(), path).0 > 0 && path_length(val.clone()) == path.len()
+        self.rules_for_category(category).map(|category| category.filter(|&(val, _)| {
+          calc_path_weight(val, path).0 > 0 && path_length(val) == path.len()
         }))
       } else if category == "header" || category == "query" {
-        self.rules_for_category(&s!(category)).map(|category| category.filter(|&(val, _)| {
+        self.rules_for_category(category).map(|category| category.filter(|&(val, _)| {
           path.len() == 1 && path[0] == *val
         }))
       } else {
-        self.rules_for_category(&s!(category))
+        self.rules_for_category(category)
       }
     }
 
@@ -581,55 +871,12 @@ impl MatchingRules {
 
     fn add_rules(&mut self, category_name: &String, rules: &Value) {
       let category = self.add_category(category_name.clone());
-      if category_name == "path" && rules.get("matchers").is_some() {
-        let rule_logic = match rules.get("combine") {
-          Some(val) => if json_to_string(val).to_uppercase() == "OR" {
-              RuleLogic::Or
-            } else {
-              RuleLogic::And
-            },
-          None => RuleLogic::And
-        };
-        match rules.get("matchers") {
-          Some(matchers) => match matchers {
-            &Value::Array(ref array) => for matcher in array {
-              category.rule_from_json(&s!(""), &matcher, &rule_logic)
-            },
-            _ => ()
-          },
-          None => ()
-        }
-      } else {
-        match rules {
-          &Value::Object(ref m) => {
-            for (k, v) in m {
-              let rule_logic = match v.get("combine") {
-                Some(val) => if json_to_string(val).to_uppercase() == "OR" {
-                  RuleLogic::Or
-                } else {
-                  RuleLogic::And
-                },
-                None => RuleLogic::And
-              };
-              match v.get("matchers") {
-                Some(matchers) => match matchers {
-                  &Value::Array(ref array) => for matcher in array {
-                    category.rule_from_json(k, &matcher, &rule_logic)
-                  },
-                  _ => ()
-                },
-                None => ()
-              }
-            }
-          },
-          _ => ()
-        }
-      }
+      category.add_rules_from_json(rules)
     }
 
   fn add_v2_rule(&mut self, category_name: String, sub_category: String, rule: &Value) {
     let category = self.add_category(category_name);
-    category.rule_from_json(&sub_category, rule, &RuleLogic::And);
+    category.rule_from_json(sub_category.as_str(), rule, &RuleLogic::And);
   }
 
   fn to_v3_json(&self) -> Value {
@@ -710,7 +957,7 @@ pub fn matchers_from_json(value: &Value, deprecated_name: &Option<String>) -> Ma
 /// Generates a Value structure for the provided matching rules
 pub fn matchers_to_json(matchers: &MatchingRules, spec_version: &PactSpecification) -> Value {
    match spec_version {
-     &PactSpecification::V3 => matchers.to_v3_json(),
+     &PactSpecification::V3 | &PactSpecification::V4 => matchers.to_v3_json(),
      _ => matchers.to_v2_json()
    }
 }
@@ -740,49 +987,78 @@ macro_rules! matchingrules {
     }};
 }
 
+/// Macro to ease constructing matching rules
+/// Example usage:
+/// ```ignore
+/// matchingrules_list! {
+///   "body"; "user_id" => [ MatchingRule::Regex(s!("^[0-9]+$")) ]
+/// }
+/// ```
+#[macro_export]
+macro_rules! matchingrules_list {
+  ( $name:expr ; $( $subname:expr => [ $( $matcher:expr ), * ] ),* ) => {{
+    let mut _category = MatchingRuleCategory::empty($name);
+    $(
+      $(
+        _category.add_rule($subname, $matcher, &RuleLogic::And);
+      )*
+    )*
+    _category
+  }};
+
+  ( $name:expr ; [ $( $matcher:expr ), * ] ) => {{
+    let mut _category = MatchingRuleCategory::empty($name);
+    $(
+      _category.add_rule("", $matcher, &RuleLogic::And);
+    )*
+    _category
+  }};
+}
+
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use super::{calc_path_weight, matches_token};
-    use expectest::prelude::*;
-    use expectest::expect;
-    use serde_json::Value;
-    use speculate::speculate;
+  use expectest::expect;
+  use expectest::prelude::*;
+  use serde_json::Value;
+  use speculate::speculate;
 
-    #[test]
-    fn rules_are_empty_when_there_are_no_categories() {
-        expect!(MatchingRules::default().is_empty()).to(be_true());
-    }
+  use super::*;
+  use super::{calc_path_weight, matches_token};
 
-    #[test]
-    fn rules_are_empty_when_there_are_only_empty_categories() {
-        expect!(MatchingRules {
+  #[test]
+  fn rules_are_empty_when_there_are_no_categories() {
+    expect!(MatchingRules::default().is_empty()).to(be_true());
+  }
+
+  #[test]
+  fn rules_are_empty_when_there_are_only_empty_categories() {
+    expect!(MatchingRules {
+      rules: hashmap!{
+        s!("body") => MatchingRuleCategory::empty("body"),
+        s!("header") => MatchingRuleCategory::empty("header"),
+        s!("query") => MatchingRuleCategory::empty("query")
+      }
+    }.is_empty()).to(be_true());
+  }
+
+  #[test]
+  fn rules_are_not_empty_when_there_is_a_nonempty_category() {
+    expect!(MatchingRules {
+      rules: hashmap!{
+        "body".into() => MatchingRuleCategory::empty("body"),
+        "header".into() => MatchingRuleCategory::empty("headers"),
+        "query".into() => MatchingRuleCategory {
+            name: "query".into(),
             rules: hashmap!{
-                s!("body") => Category::default(s!("body")),
-                s!("header") => Category::default(s!("header")),
-                s!("query") => Category::default(s!("query")),
+              "".into() => RuleList {
+                rules: btreeset![ MatchingRule::Equality ],
+                rule_logic: RuleLogic::And
+              }
             }
-        }.is_empty()).to(be_true());
-    }
-
-    #[test]
-    fn rules_are_not_empty_when_there_is_a_nonempty_category() {
-        expect!(MatchingRules {
-            rules: hashmap!{
-                s!("body") => Category::default(s!("body")),
-                s!("header") => Category::default(s!("headers")),
-                s!("query") => Category {
-                    name: s!("query"),
-                    rules: hashmap!{
-                      s!("") => RuleList {
-                        rules: btreeset![ MatchingRule::Equality ],
-                        rule_logic: RuleLogic::And
-                      }
-                    }
-                },
-            }
-        }.is_empty()).to(be_false());
-    }
+        },
+      }
+    }.is_empty()).to(be_false());
+  }
 
   #[test]
   fn matchers_from_json_test() {
@@ -805,20 +1081,20 @@ mod tests {
 
     expect!(matching_rules.rules.iter()).to_not(be_empty());
     expect!(matching_rules.categories()).to(be_equal_to(hashset!{ s!("path"), s!("query"), s!("header"), s!("body") }));
-    expect!(matching_rules.rules_for_category(&s!("path"))).to(be_some().value(Category {
+    expect!(matching_rules.rules_for_category(&s!("path"))).to(be_some().value(MatchingRuleCategory {
       name: s!("path"),
       rules: hashmap! { s!("") => RuleList { rules: btreeset![ MatchingRule::Regex(s!("\\w+")) ], rule_logic: RuleLogic::And } }
     }));
-    expect!(matching_rules.rules_for_category(&s!("query"))).to(be_some().value(Category {
+    expect!(matching_rules.rules_for_category(&s!("query"))).to(be_some().value(MatchingRuleCategory {
       name: s!("query"),
       rules: hashmap!{ s!("Q1") => RuleList { rules: btreeset![ MatchingRule::Regex(s!("\\d+")) ], rule_logic: RuleLogic::And } }
     }));
-    expect!(matching_rules.rules_for_category(&s!("header"))).to(be_some().value(Category {
+    expect!(matching_rules.rules_for_category(&s!("header"))).to(be_some().value(MatchingRuleCategory {
       name: s!("header"),
       rules: hashmap!{ s!("HEADERY") => RuleList { rules: btreeset![
         MatchingRule::Include(s!("ValueA")) ], rule_logic: RuleLogic::And } }
     }));
-    expect!(matching_rules.rules_for_category(&s!("body"))).to(be_some().value(Category {
+    expect!(matching_rules.rules_for_category(&s!("body"))).to(be_some().value(MatchingRuleCategory {
       name: s!("body"),
       rules: hashmap!{
         s!("$.animals") => RuleList { rules: btreeset![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
@@ -873,21 +1149,21 @@ mod tests {
 
     expect!(matching_rules.rules.iter()).to_not(be_empty());
     expect!(matching_rules.categories()).to(be_equal_to(hashset!{ s!("path"), s!("query"), s!("header"), s!("body") }));
-    expect!(matching_rules.rules_for_category(&s!("path"))).to(be_some().value(Category {
+    expect!(matching_rules.rules_for_category(&s!("path"))).to(be_some().value(MatchingRuleCategory {
       name: s!("path"),
       rules: hashmap! { s!("") => RuleList { rules: btreeset![ MatchingRule::Regex(s!("\\w+")) ], rule_logic: RuleLogic::And } }
     }));
-    expect!(matching_rules.rules_for_category(&s!("query"))).to(be_some().value(Category {
+    expect!(matching_rules.rules_for_category(&s!("query"))).to(be_some().value(MatchingRuleCategory {
       name: s!("query"),
       rules: hashmap!{ s!("Q1") => RuleList { rules: btreeset![ MatchingRule::Regex(s!("\\d+")) ], rule_logic: RuleLogic::And } }
     }));
-    expect!(matching_rules.rules_for_category(&s!("header"))).to(be_some().value(Category {
+    expect!(matching_rules.rules_for_category(&s!("header"))).to(be_some().value(MatchingRuleCategory {
       name: s!("header"),
       rules: hashmap!{ s!("HEADERY") => RuleList { rules: btreeset![
         MatchingRule::Include(s!("ValueA")),
         MatchingRule::Include(s!("ValueB")) ], rule_logic: RuleLogic::Or } }
     }));
-    expect!(matching_rules.rules_for_category(&s!("body"))).to(be_some().value(Category {
+    expect!(matching_rules.rules_for_category(&s!("body"))).to(be_some().value(MatchingRuleCategory {
       name: s!("body"),
       rules: hashmap!{
         s!("$.animals") => RuleList { rules: btreeset![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
@@ -914,7 +1190,7 @@ mod tests {
 
     expect!(matching_rules.rules.iter()).to_not(be_empty());
     expect!(matching_rules.categories()).to(be_equal_to(hashset!{ s!("path") }));
-    expect!(matching_rules.rules_for_category(&s!("path"))).to(be_some().value(Category {
+    expect!(matching_rules.rules_for_category(&s!("path"))).to(be_some().value(MatchingRuleCategory {
       name: s!("path"),
       rules: hashmap! { s!("") => RuleList { rules: btreeset![ MatchingRule::Regex(s!("\\w+")) ], rule_logic: RuleLogic::And } }
     }));
@@ -1032,31 +1308,61 @@ mod tests {
 
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"null\"}").unwrap())).to(
       be_some().value(MatchingRule::Null));
+
+    let json = json!({
+      "match": "arrayContains",
+      "variants": []
+    });
+    expect!(MatchingRule::from_json(&json)).to(be_some().value(MatchingRule::ArrayContains(vec![])));
+
+    let json = json!({
+      "match": "arrayContains",
+      "variants": [
+        {
+          "index": 0,
+          "rules": {
+            "matchers": [ { "match": "equality" } ]
+          }
+        }
+      ]
+    });
+    expect!(MatchingRule::from_json(&json)).to(be_some().value(
+      MatchingRule::ArrayContains(vec![(0, matchingrules_list! { "body"; [ MatchingRule::Equality ] })])
+    ));
   }
 
   #[test]
   fn matcher_is_defined_returns_false_when_there_are_no_matchers() {
     let matchers = matchingrules!{};
-    expect!(matchers.matcher_is_defined("body", &vec![s!("$"), s!("a"), s!("b")])).to(be_false());
+    expect!(matchers.matcher_is_defined("body", &vec!["$", "a", "b"])).to(be_false());
   }
 
   #[test]
   fn matcher_is_defined_returns_false_when_the_path_does_not_have_a_matcher_entry() {
     let matchers = matchingrules!{
-            "body" => {
-            }
-        };
-    expect!(matchers.matcher_is_defined("body", &vec![s!("$"), s!("a"), s!("b")])).to(be_false());
+      "body" => { }
+    };
+    expect!(matchers.matcher_is_defined("body", &vec!["$", "a", "b"])).to(be_false());
   }
 
   #[test]
   fn matcher_is_defined_returns_true_when_the_path_does_have_a_matcher_entry() {
-    let matchers = matchingrules!{
-            "body" => {
-                "$.a.b" => [ MatchingRule::Type ]
-            }
-        };
-    expect!(matchers.matcher_is_defined("body", &vec![s!("$"), s!("a"), s!("b")])).to(be_true());
+    let matchers = matchingrules! {
+      "body" => {
+        "$.a.b" => [ MatchingRule::Type ]
+      }
+    };
+    expect!(matchers.matcher_is_defined("body", &vec!["$", "a", "b"])).to(be_true());
+  }
+
+  #[test]
+  fn matcher_is_defined_returns_false_when_the_path_is_empty() {
+    let matchers = matchingrules! {
+      "body" => {
+        "$.a.b" => [ MatchingRule::Type ]
+      }
+    };
+    expect!(matchers.matcher_is_defined("body", &vec![])).to(be_false());
   }
 
   #[test]
@@ -1066,23 +1372,21 @@ mod tests {
                 "$.a.b" => [ MatchingRule::Type ]
             }
         };
-    expect!(matchers.matcher_is_defined("body", &vec![s!("$"), s!("a"), s!("b"), s!("c")])).to(be_true());
+    expect!(matchers.matcher_is_defined("body", &vec!["$", "a", "b", "c"])).to(be_true());
   }
 
   #[test]
   fn wildcard_matcher_is_defined_returns_false_when_there_are_no_matchers() {
     let matchers = matchingrules!{};
-    expect!(matchers.wildcard_matcher_is_defined("body", &vec![s!("$"), s!("a"), s!("b")])).to(be_false());
+    expect!(matchers.wildcard_matcher_is_defined("body", &vec!["$", "a", "b"])).to(be_false());
   }
 
   #[test]
   fn wildcard_matcher_is_defined_returns_false_when_the_path_does_not_have_a_matcher_entry() {
     let matchers = matchingrules!{
-            "body" => {
-
-            }
-        };
-    expect!(matchers.wildcard_matcher_is_defined("body", &vec![s!("$"), s!("a"), s!("b")])).to(be_false());
+      "body" => { }
+    };
+    expect!(matchers.wildcard_matcher_is_defined("body", &vec!["$", "a", "b"])).to(be_false());
   }
 
   #[test]
@@ -1093,7 +1397,7 @@ mod tests {
                 "$.*" => [ MatchingRule::Type ]
             }
         };
-    expect!(matchers.wildcard_matcher_is_defined("body", &vec![s!("$"), s!("a"), s!("b")])).to(be_false());
+    expect!(matchers.wildcard_matcher_is_defined("body", &vec!["$", "a", "b"])).to(be_false());
   }
 
   #[test]
@@ -1103,7 +1407,7 @@ mod tests {
                 "$.a.*" => [ MatchingRule::Type ]
             }
         };
-    expect!(matchers.wildcard_matcher_is_defined("body", &vec![s!("$"), s!("a"), s!("b")])).to(be_true());
+    expect!(matchers.wildcard_matcher_is_defined("body", &vec!["$", "a", "b"])).to(be_true());
   }
 
   #[test]
@@ -1113,82 +1417,82 @@ mod tests {
                 "$.a.*" => [ MatchingRule::Type ]
             }
         };
-    expect!(matchers.wildcard_matcher_is_defined("body", &vec![s!("$"), s!("a"), s!("b"), s!("c")])).to(be_false());
+    expect!(matchers.wildcard_matcher_is_defined("body", &vec!["$", "a", "b", "c"])).to(be_false());
   }
 
   #[test]
   fn matches_token_test_with_root() {
-    expect!(matches_token(&s!("$"), &PathToken::Root)).to(be_equal_to(2));
-    expect!(matches_token(&s!("path"), &PathToken::Root)).to(be_equal_to(0));
-    expect!(matches_token(&s!("*"), &PathToken::Root)).to(be_equal_to(0));
+    expect!(matches_token("$", &PathToken::Root)).to(be_equal_to(2));
+    expect!(matches_token("path", &PathToken::Root)).to(be_equal_to(0));
+    expect!(matches_token("*", &PathToken::Root)).to(be_equal_to(0));
   }
 
   #[test]
   fn matches_token_test_with_field() {
-    expect!(matches_token(&s!("$"), &PathToken::Field(s!("path")))).to(be_equal_to(0));
-    expect!(matches_token(&s!("path"), &PathToken::Field(s!("path")))).to(be_equal_to(2));
+    expect!(matches_token("$", &PathToken::Field(s!("path")))).to(be_equal_to(0));
+    expect!(matches_token("path", &PathToken::Field(s!("path")))).to(be_equal_to(2));
   }
 
   #[test]
   fn matches_token_test_with_index() {
-    expect!(matches_token(&s!("$"), &PathToken::Index(2))).to(be_equal_to(0));
-    expect!(matches_token(&s!("path"), &PathToken::Index(2))).to(be_equal_to(0));
-    expect!(matches_token(&s!("*"), &PathToken::Index(2))).to(be_equal_to(0));
-    expect!(matches_token(&s!("1"), &PathToken::Index(2))).to(be_equal_to(0));
-    expect!(matches_token(&s!("2"), &PathToken::Index(2))).to(be_equal_to(2));
+    expect!(matches_token("$", &PathToken::Index(2))).to(be_equal_to(0));
+    expect!(matches_token("path", &PathToken::Index(2))).to(be_equal_to(0));
+    expect!(matches_token("*", &PathToken::Index(2))).to(be_equal_to(0));
+    expect!(matches_token("1", &PathToken::Index(2))).to(be_equal_to(0));
+    expect!(matches_token("2", &PathToken::Index(2))).to(be_equal_to(2));
   }
 
   #[test]
   fn matches_token_test_with_index_wildcard() {
-    expect!(matches_token(&s!("$"), &PathToken::StarIndex)).to(be_equal_to(0));
-    expect!(matches_token(&s!("path"), &PathToken::StarIndex)).to(be_equal_to(0));
-    expect!(matches_token(&s!("*"), &PathToken::StarIndex)).to(be_equal_to(0));
-    expect!(matches_token(&s!("1"), &PathToken::StarIndex)).to(be_equal_to(1));
+    expect!(matches_token("$", &PathToken::StarIndex)).to(be_equal_to(0));
+    expect!(matches_token("path", &PathToken::StarIndex)).to(be_equal_to(0));
+    expect!(matches_token("*", &PathToken::StarIndex)).to(be_equal_to(0));
+    expect!(matches_token("1", &PathToken::StarIndex)).to(be_equal_to(1));
   }
 
   #[test]
   fn matches_token_test_with_wildcard() {
-    expect!(matches_token(&s!("$"), &PathToken::Star)).to(be_equal_to(1));
-    expect!(matches_token(&s!("path"), &PathToken::Star)).to(be_equal_to(1));
-    expect!(matches_token(&s!("*"), &PathToken::Star)).to(be_equal_to(1));
-    expect!(matches_token(&s!("1"), &PathToken::Star)).to(be_equal_to(1));
+    expect!(matches_token("$", &PathToken::Star)).to(be_equal_to(1));
+    expect!(matches_token("path", &PathToken::Star)).to(be_equal_to(1));
+    expect!(matches_token("*", &PathToken::Star)).to(be_equal_to(1));
+    expect!(matches_token("1", &PathToken::Star)).to(be_equal_to(1));
   }
 
   #[test]
   fn matches_path_matches_root_path_element() {
-    expect!(calc_path_weight(s!("$"), &vec![s!("$")]).0 > 0).to(be_true());
-    expect!(calc_path_weight(s!("$"), &vec![]).0 > 0).to(be_false());
+    expect!(calc_path_weight("$", &vec!["$"]).0 > 0).to(be_true());
+    expect!(calc_path_weight("$", &vec![]).0 > 0).to(be_false());
   }
 
   #[test]
   fn matches_path_matches_field_name() {
-    expect!(calc_path_weight(s!("$.name"), &vec![s!("$"), s!("name")]).0 > 0).to(be_true());
-    expect!(calc_path_weight(s!("$['name']"), &vec![s!("$"), s!("name")]).0 > 0).to(be_true());
-    expect!(calc_path_weight(s!("$.name.other"), &vec![s!("$"), s!("name"), s!("other")]).0 > 0).to(be_true());
-    expect!(calc_path_weight(s!("$['name'].other"), &vec![s!("$"), s!("name"), s!("other")]).0 > 0).to(be_true());
-    expect!(calc_path_weight(s!("$.name"), &vec![s!("$"), s!("other")]).0 > 0).to(be_false());
-    expect!(calc_path_weight(s!("$.name"), &vec![s!("$"), s!("name"), s!("other")]).0 > 0).to(be_true());
-    expect!(calc_path_weight(s!("$.other"), &vec![s!("$"), s!("name"), s!("other")]).0 > 0).to(be_false());
-    expect!(calc_path_weight(s!("$.name.other"), &vec![s!("$"), s!("name")]).0 > 0).to(be_false());
+    expect!(calc_path_weight("$.name", &vec!["$", "name"]).0 > 0).to(be_true());
+    expect!(calc_path_weight("$['name']", &vec!["$", "name"]).0 > 0).to(be_true());
+    expect!(calc_path_weight("$.name.other", &vec!["$", "name", "other"]).0 > 0).to(be_true());
+    expect!(calc_path_weight("$['name'].other", &vec!["$", "name", "other"]).0 > 0).to(be_true());
+    expect!(calc_path_weight("$.name", &vec!["$", "other"]).0 > 0).to(be_false());
+    expect!(calc_path_weight("$.name", &vec!["$", "name", "other"]).0 > 0).to(be_true());
+    expect!(calc_path_weight("$.other", &vec!["$", "name", "other"]).0 > 0).to(be_false());
+    expect!(calc_path_weight("$.name.other", &vec!["$", "name"]).0 > 0).to(be_false());
   }
 
   #[test]
   fn matches_path_matches_array_indices() {
-    expect!(calc_path_weight(s!("$[0]"), &vec![s!("$"), s!("0")]).0 > 0).to(be_true());
-    expect!(calc_path_weight(s!("$.name[1]"), &vec![s!("$"), s!("name"), s!("1")]).0 > 0).to(be_true());
-    expect!(calc_path_weight(s!("$.name"), &vec![s!("$"), s!("0")]).0 > 0).to(be_false());
-    expect!(calc_path_weight(s!("$.name[1]"), &vec![s!("$"), s!("name"), s!("0")]).0 > 0).to(be_false());
-    expect!(calc_path_weight(s!("$[1].name"), &vec![s!("$"), s!("name"), s!("1")]).0 > 0).to(be_false());
+    expect!(calc_path_weight("$[0]", &vec!["$", "0"]).0 > 0).to(be_true());
+    expect!(calc_path_weight("$.name[1]", &vec!["$", "name", "1"]).0 > 0).to(be_true());
+    expect!(calc_path_weight("$.name", &vec!["$", "0"]).0 > 0).to(be_false());
+    expect!(calc_path_weight("$.name[1]", &vec!["$", "name", "0"]).0 > 0).to(be_false());
+    expect!(calc_path_weight("$[1].name", &vec!["$", "name", "1"]).0 > 0).to(be_false());
   }
 
   #[test]
   fn matches_path_matches_with_wildcard() {
-    expect!(calc_path_weight(s!("$[*]"), &vec![s!("$"), s!("0")]).0 > 0).to(be_true());
-    expect!(calc_path_weight(s!("$.*"), &vec![s!("$"), s!("name")]).0 > 0).to(be_true());
-    expect!(calc_path_weight(s!("$.*.name"), &vec![s!("$"), s!("some"), s!("name")]).0 > 0).to(be_true());
-    expect!(calc_path_weight(s!("$.name[*]"), &vec![s!("$"), s!("name"), s!("0")]).0 > 0).to(be_true());
-    expect!(calc_path_weight(s!("$.name[*].name"), &vec![s!("$"), s!("name"), s!("1"), s!("name")]).0 > 0).to(be_true());
-    expect!(calc_path_weight(s!("$[*]"), &vec![s!("$"), s!("name")]).0 > 0).to(be_false());
+    expect!(calc_path_weight("$[*]", &vec!["$", "0"]).0 > 0).to(be_true());
+    expect!(calc_path_weight("$.*", &vec!["$", "name"]).0 > 0).to(be_true());
+    expect!(calc_path_weight("$.*.name", &vec!["$", "some", "name"]).0 > 0).to(be_true());
+    expect!(calc_path_weight("$.name[*]", &vec!["$", "name", "0"]).0 > 0).to(be_true());
+    expect!(calc_path_weight("$.name[*].name", &vec!["$", "name", "1", "name"]).0 > 0).to(be_true());
+    expect!(calc_path_weight("$[*]", &vec!["$", "name"]).0 > 0).to(be_false());
   }
 
   #[test]
