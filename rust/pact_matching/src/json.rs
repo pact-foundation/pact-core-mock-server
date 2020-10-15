@@ -16,7 +16,6 @@ use crate::models::json_utils::json_to_string;
 use crate::models::matchingrules::*;
 use crate::time_utils::validate_datetime;
 
-use super::DiffConfig;
 use super::Mismatch;
 
 fn type_of(json: &Value) -> String {
@@ -198,8 +197,7 @@ pub fn match_json(expected: &dyn HttpPart, actual: &dyn HttpPart, context: &Matc
     }
     Err(mismatches.clone())
   } else {
-    let mut context_stack = vec![];
-    compare(&vec!["$"], &expected_json.unwrap(), &actual_json.unwrap(), context, &mut context_stack)
+    compare(&vec!["$"], &expected_json.unwrap(), &actual_json.unwrap(), context)
   }
 }
 
@@ -251,10 +249,10 @@ pub fn display_diff(expected: &String, actual: &String, path: &str, indent: &str
   output
 }
 
-fn compare(path: &Vec<&str>, expected: &Value, actual: &Value, context: &MatchingContext, context_stack: &mut Vec<MatchingContext>) -> Result<(), Vec<Mismatch>> {
+fn compare(path: &Vec<&str>, expected: &Value, actual: &Value, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
   log::debug!("Comparing path {}", path.join("."));
   match (expected, actual) {
-    (&Value::Object(ref emap), &Value::Object(ref amap)) => compare_maps(path, emap, amap, context, context_stack),
+    (&Value::Object(ref emap), &Value::Object(ref amap)) => compare_maps(path, emap, amap, context),
     (&Value::Object(_), _) => {
       Err(vec![ Mismatch::BodyMismatch {
         path: path.join("."),
@@ -264,7 +262,7 @@ fn compare(path: &Vec<&str>, expected: &Value, actual: &Value, context: &Matchin
                           type_of(expected), expected, type_of(actual), actual),
       } ])
     }
-    (&Value::Array(ref elist), &Value::Array(ref alist)) => compare_lists(path, elist, alist, context, context_stack),
+    (&Value::Array(ref elist), &Value::Array(ref alist)) => compare_lists(path, elist, alist, context),
     (&Value::Array(_), _) => {
       Err(vec![ Mismatch::BodyMismatch {
         path: path.join("."),
@@ -279,7 +277,7 @@ fn compare(path: &Vec<&str>, expected: &Value, actual: &Value, context: &Matchin
 }
 
 fn compare_maps(path: &Vec<&str>, expected: &serde_json::Map<String, Value>, actual: &serde_json::Map<String, Value>,
-                context: &MatchingContext, context_stack: &mut Vec<MatchingContext>) -> Result<(), Vec<Mismatch>> {
+                context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
   if expected.is_empty() && !actual.is_empty() {
     Err(vec![ Mismatch::BodyMismatch {
       path: path.join("."),
@@ -294,12 +292,9 @@ fn compare_maps(path: &Vec<&str>, expected: &serde_json::Map<String, Value>, act
 
     if context.matcher_is_defined(path) {
       for matcher in context.select_best_matcher(path).unwrap().rules {
-        let matcher_context = matcher.matcher_context(path, &context);
-        context_stack.push(context.clone());
-        result = merge_result(result,matcher.compare_maps(path, &expected, &actual, &matcher_context, &mut |p, expected, actual| {
-          compare(&p, expected, actual, &matcher_context, context_stack)
+        result = merge_result(result,matcher.compare_maps(path, &expected, &actual, &context, &mut |p, expected, actual| {
+          compare(&p, expected, actual, context)
         }));
-        context_stack.pop();
       }
     } else {
       result = merge_result(result, context.match_keys(path, &expected, &actual));
@@ -307,7 +302,7 @@ fn compare_maps(path: &Vec<&str>, expected: &serde_json::Map<String, Value>, act
         let mut p = path.to_vec();
         p.push(key.as_str());
         if actual.contains_key(key) {
-          result = merge_result(result, compare(&p, value, &actual[key], context, context_stack));
+          result = merge_result(result, compare(&p, value, &actual[key], context));
         } else if !context.wildcard_matcher_is_defined(&p) {
           result = merge_result(result, Err(vec![ Mismatch::BodyMismatch {
             path: path.join("."),
@@ -323,14 +318,14 @@ fn compare_maps(path: &Vec<&str>, expected: &serde_json::Map<String, Value>, act
 }
 
 fn compare_lists(path: &Vec<&str>, expected: &Vec<Value>, actual: &Vec<Value>,
-                 context: &MatchingContext, context_stack: &mut Vec<MatchingContext>) -> Result<(), Vec<Mismatch>> {
+                 context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
   let spath = path.join(".");
   if context.matcher_is_defined(&path) {
     log::debug!("compare_lists: matcher defined for path '{}'", spath);
     let mut result = Ok(());
     for matcher in context.select_best_matcher(path).unwrap().rules {
-      let values_result = matcher.compare_lists(path, expected, actual, context, context_stack, &|p, expected, actual, context, context_stack| {
-        compare(&p, expected, actual, context, context_stack)
+      let values_result = matcher.compare_lists(path, expected, actual, context, &|p, expected, actual, context| {
+        compare(&p, expected, actual, context)
       });
       result = merge_result(result, values_result);
     }
@@ -344,7 +339,7 @@ fn compare_lists(path: &Vec<&str>, expected: &Vec<Value>, actual: &Vec<Value>,
         mismatch: format!("Expected an empty List but received {}", json_to_string(&json!(actual))),
       } ])
     } else {
-      let result = compare_list_content(path, expected, actual, context, context_stack);
+      let result = compare_list_content(path, expected, actual, context);
       if expected.len() != actual.len() {
         merge_result(result, Err(vec![ Mismatch::BodyMismatch {
           path: spath,
@@ -360,7 +355,7 @@ fn compare_lists(path: &Vec<&str>, expected: &Vec<Value>, actual: &Vec<Value>,
   }
 }
 
-fn compare_list_content(path: &Vec<&str>, expected: &Vec<Value>, actual: &Vec<Value>, context: &MatchingContext, context_stack: &mut Vec<MatchingContext>) -> Result<(), Vec<Mismatch>> {
+fn compare_list_content(path: &Vec<&str>, expected: &Vec<Value>, actual: &Vec<Value>, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
   let mut result = Ok(());
   for (index, value) in expected.iter().enumerate() {
     let ps = index.to_string();
@@ -368,7 +363,7 @@ fn compare_list_content(path: &Vec<&str>, expected: &Vec<Value>, actual: &Vec<Va
     let mut p = path.to_vec();
     p.push(ps.as_str());
     if index < actual.len() {
-      result = merge_result(result, compare(&p, value, &actual[index], context, context_stack));
+      result = merge_result(result, compare(&p, value, &actual[index], context));
     } else if !context.matcher_is_defined(&p) {
       result = merge_result(result,Err(vec![ Mismatch::BodyMismatch { path: path.join("."),
         expected: Some(json_to_string(&json!(expected)).into()),

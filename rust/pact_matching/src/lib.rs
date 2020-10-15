@@ -321,14 +321,23 @@
 //! | MinType | `{ "match": "type", "min": 2 }` | This executes a type based match against the values, that is, they are equal if they are the same type. In addition, if the values represent a collection, the length of the actual value is compared against the minimum. |
 //! | MaxType | `{ "match": "type", "max": 10 }` | This executes a type based match against the values, that is, they are equal if they are the same type. In addition, if the values represent a collection, the length of the actual value is compared against the maximum. |
 //! | MinMaxType | `{ "match": "type", "min": 1, "max": 10 }` | This executes a type based match against the values, that is, they are equal if they are the same type. In addition, if the values represent a collection, the length of the actual value is compared against the minimum and maximum. |
-//!
+//! | Timestamp | `{ "match": "timestamp", "timestamp": "yyyy-MM-dd HH:mm:ssZZZZZ" }` | Matches a string value against a Date/Time pattern. |
+//! | Time | `{ "match": "time", "time": "HH:mm:ssZZZZZ" }` | Matches a string value against a Time pattern. |
+//! | Date | `{ "match": "date", "date": "yyyy-MM-dd" }` | Matches a string value against a Date pattern. |
+//! | Include | `{ "match": "include", "value": "ello" }` | Checks if a string value contains the given sub-string. |
+//! | Number | `{ "match": "number" }` | Matches any numeric type. |
+//! | Integer | `{ "match": "integer" }` | Matches a number if it has no digits after the decimal point. |
+//! | Decimal | `{ "match": "decimal" }` | Matches a number if it has at least one digit after the decimal point. |
+//! | Null | `{ "match": "null" }` | Matches a JSON NULL value. This only makes sense to use with JSON. |
+//! | ContentType | `{ "match": "contentType", "value": "image/jpeg" }` | Checks if the value has the content type of the privided value. This is done by performing a magic test on the first few bytes of the value. |
+//! | ArrayContains | `{ "match": "arrayContains", "variants": [...] }` | Checks if all the variants are present in an array. |
 
 #![warn(missing_docs)]
 
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
+use std::fmt::Formatter;
 use std::hash::Hash;
-use std::iter::FromIterator;
 use std::str;
 use std::str::from_utf8;
 
@@ -337,16 +346,14 @@ use ansi_term::Colour::*;
 use lazy_static::*;
 use log::*;
 use maplit::hashmap;
-use nom::lib::std::fmt::Formatter;
-use nom::lib::std::str::Utf8Error;
 use serde_json::{json, Value};
 
+use crate::headers::match_headers;
 use crate::matchers::*;
 use crate::models::{HttpPart, Interaction, PactSpecification};
 use crate::models::content_types::ContentType;
 use crate::models::generators::*;
 use crate::models::matchingrules::*;
-use crate::headers::match_headers;
 
 /// Simple macro to convert a string slice to a `String` struct.
 #[macro_export]
@@ -365,13 +372,18 @@ mod binary_utils;
 mod headers;
 
 #[derive(Debug, Clone)]
+/// Context used to apply matching logic
 pub struct MatchingContext {
+  /// Matching rules that apply when matching with the context
   pub matchers: MatchingRuleCategory,
+  /// Configuration to apply when matching with the context
   pub config: DiffConfig,
+  /// Specification version to apply when matching with the context
   pub matching_spec: PactSpecification
 }
 
 impl MatchingContext {
+  /// Creates a new context with the given config and matching rules
   pub fn new(config: DiffConfig, matchers: &MatchingRuleCategory) -> Self {
     MatchingContext {
       matchers: matchers.clone(),
@@ -380,6 +392,7 @@ impl MatchingContext {
     }
   }
 
+  /// Creates a new empty context with the given config
   pub fn with_config(config: DiffConfig) -> Self {
     MatchingContext {
       config: config.clone(),
@@ -387,6 +400,7 @@ impl MatchingContext {
     }
   }
 
+  /// Clones the current context with the provided matching rules
   pub fn clone_with(&self, matchers: &MatchingRuleCategory) -> Self {
     MatchingContext {
       matchers: matchers.clone(),
@@ -395,14 +409,17 @@ impl MatchingContext {
     }
   }
 
+  /// If there is a matcher defined at the path in this context
   pub fn matcher_is_defined(&self, path: &Vec<&str>) -> bool {
     self.matchers.matcher_is_defined(path)
   }
 
+  /// Selected the best matcher from the context for the given path
   pub fn select_best_matcher(&self, path: &Vec<&str>) -> Option<RuleList> {
     self.matchers.select_best_matcher(path)
   }
 
+  /// If there is a wildcard matcher defined at the path in this context
   pub fn wildcard_matcher_is_defined(&self, path: &Vec<&str>) -> bool {
     !self.matchers_for_exact_path(path).filter(|&(val, _)| val.ends_with(".*")).is_empty()
   }
@@ -421,10 +438,12 @@ impl MatchingContext {
     }
   }
 
+  /// If there is a type matcher defined at the path in this context
   pub fn type_matcher_defined(&self, path: &Vec<&str>) -> bool {
     self.matchers.resolve_matchers_for_path(path).type_matcher_defined()
   }
 
+  /// Matches the keys of the expected and actual maps
   pub fn match_keys<T: Display + Debug>(&self, path: &Vec<&str>, expected: &HashMap<String, T>, actual: &HashMap<String, T>) -> Result<(), Vec<Mismatch>> {
     let mut p = path.to_vec();
     p.push("any");
@@ -1396,7 +1415,7 @@ pub fn generate_response(response: &models::Response, context: &HashMap<String, 
 }
 
 /// Matches the request part of the interaction
-pub fn match_interaction_request(expected: Box<dyn Interaction>, actual: Box<dyn Interaction>, spec_version: &PactSpecification) -> Result<RequestMatchResult, String> {
+pub fn match_interaction_request(expected: Box<dyn Interaction>, actual: Box<dyn Interaction>, _spec_version: &PactSpecification) -> Result<RequestMatchResult, String> {
   if let Some(expected) = expected.as_request_response() {
     Ok(match_request(expected.request, actual.as_request_response().unwrap().request))
   } else {
@@ -1405,7 +1424,7 @@ pub fn match_interaction_request(expected: Box<dyn Interaction>, actual: Box<dyn
 }
 
 /// Matches the response part of the interaction
-pub fn match_interaction_response(expected: Box<dyn Interaction>, actual: Box<dyn Interaction>, spec_version: &PactSpecification) -> Result<Vec<Mismatch>, String> {
+pub fn match_interaction_response(expected: Box<dyn Interaction>, actual: Box<dyn Interaction>, _spec_version: &PactSpecification) -> Result<Vec<Mismatch>, String> {
   if let Some(expected) = expected.as_request_response() {
     Ok(match_response(expected.response, actual.as_request_response().unwrap().response))
   } else {
@@ -1414,7 +1433,7 @@ pub fn match_interaction_response(expected: Box<dyn Interaction>, actual: Box<dy
 }
 
 /// Matches an interaction
-pub fn match_interaction(expected: Box<dyn Interaction>, actual: Box<dyn Interaction>, spec_version: &PactSpecification) -> Result<Vec<Mismatch>, String> {
+pub fn match_interaction(expected: Box<dyn Interaction>, actual: Box<dyn Interaction>, _spec_version: &PactSpecification) -> Result<Vec<Mismatch>, String> {
   if let Some(expected) = expected.as_request_response() {
     let request_result = match_request(expected.request, actual.as_request_response().unwrap().request);
     let response_result = match_response(expected.response, actual.as_request_response().unwrap().response);

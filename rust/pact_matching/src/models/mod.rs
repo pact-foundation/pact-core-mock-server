@@ -32,7 +32,7 @@ use crate::models::json_utils::json_to_string;
 use crate::models::message::Message;
 use crate::models::message_pact::MessagePact;
 use crate::models::provider_states::ProviderState;
-use crate::models::v4::{interaction_from_json, V4Interaction, V4Pact};
+use crate::models::v4::{interaction_from_json, V4Pact};
 
 pub mod json_utils;
 pub mod xml_utils;
@@ -1670,6 +1670,7 @@ pub fn load_pact_from_url<'a>(url: &String, auth: &Option<HttpAuth>) -> Result<B
   }
 }
 
+/// Trait for objects that can represent Pacts and can be read and written
 pub trait ReadWritePact {
   /// Reads the pact file and parses the resulting JSON into a `Pact` struct
   fn read_pact(path: &Path) -> io::Result<Self> where Self: std::marker::Sized;
@@ -1685,6 +1686,9 @@ pub trait ReadWritePact {
   fn default_file_name(&self) -> String;
 }
 
+/// Writes the pact out to the provided path. If there is an existing pact at the path, the two
+/// pacts will be merged together. Returns an error if the file can not be written or the pacts
+/// can no be merged.
 pub fn write_pact<T: ReadWritePact + Pact>(pact: &T, path: &Path, pact_spec: PactSpecification) -> io::Result<()> {
   fs::create_dir_all(path.parent().unwrap())?;
   if path.exists() {

@@ -27,7 +27,6 @@ use crate::models::message::Message;
 use crate::models::message_pact::MessagePact;
 use crate::models::provider_states::ProviderState;
 use crate::models::v4::http_parts::{body_from_json, HttpRequest, HttpResponse};
-use std::any::Any;
 
 /// V4 Interaction Type
 #[derive(Debug, Clone)]
@@ -197,6 +196,7 @@ impl V4Interaction {
     }
   }
 
+  /// Returns the distinct key value for this interaction.
   pub fn key(&self) -> Option<String> {
     match self {
       V4Interaction::SynchronousHttp { key, .. } => key.clone(),

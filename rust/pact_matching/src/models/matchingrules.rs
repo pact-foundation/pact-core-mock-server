@@ -13,9 +13,8 @@ use maplit::*;
 use onig::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{self, json, Value};
-use serde_json::map::Map;
 
-use crate::{MatchingContext, merge_result, Mismatch, DiffConfig};
+use crate::{MatchingContext, merge_result, Mismatch};
 use crate::matchers::{match_values, Matches};
 use crate::models::json_utils::{json_to_num, json_to_string};
 use crate::path_exp::*;
@@ -127,7 +126,9 @@ impl <T: Debug + Display + PartialEq> Matches<Vec<T>> for Vec<T> {
   }
 }
 
+/// Trait to convert a expected or actual complex object into a string that can be used for a mismatch
 pub trait DisplayForMismatch {
+  /// Return a string representation that can be used in a mismatch to display to the user
   fn for_mismatch(&self) -> String;
 }
 
@@ -314,12 +315,6 @@ impl MatchingRule {
     }
   }
 
-  /// Create a new matching context for the matching rule defined at the given path. May just return
-  /// a clone of the current context.
-  pub fn matcher_context(&self, path: &Vec<&str>, current_context: &MatchingContext) -> MatchingContext {
-    current_context.clone()
-  }
-
   /// Delegate to the matching rule define at the given path to compare the key/value maps.
   pub fn compare_maps<T: Display + Debug>(&self, path: &Vec<&str>, expected: &HashMap<String, T>, actual: &HashMap<String, T>,
                                   context: &MatchingContext,
@@ -355,14 +350,14 @@ impl MatchingRule {
     result
   }
 
+  /// Compare the expected and actual lists using the matching rule's logic
   pub fn compare_lists<T: Display + Debug + PartialEq + Clone>(
     &self,
     path: &Vec<&str>,
     expected: &Vec<T>,
     actual: &Vec<T>,
     context: &MatchingContext,
-    context_stack: &mut Vec<MatchingContext>,
-    callback: &dyn Fn(&Vec<&str>, &T, &T, &MatchingContext, &mut Vec<MatchingContext>) -> Result<(), Vec<Mismatch>>
+    callback: &dyn Fn(&Vec<&str>, &T, &T, &MatchingContext) -> Result<(), Vec<Mismatch>>
   ) -> Result<(), Vec<Mismatch>> {
     let mut result = Ok(());
     match self {
@@ -377,11 +372,10 @@ impl MatchingRule {
         for (index, rules) in variants {
           match expected.get(index) {
             Some(expected_value) => {
-              context_stack.push(context.clone());
               let context = context.clone_with(&rules);
               if actual.iter().enumerate().find(|(actual_index, value)| {
                 debug!("Comparing list item {} with value '{:?}' to '{:?}'", actual_index, value, expected_value);
-                callback(&vec!["$"], expected_value, value, &context, context_stack).is_ok()
+                callback(&vec!["$"], expected_value, value, &context).is_ok()
               }).is_none() {
                 result = merge_result(result,Err(vec![ Mismatch::BodyMismatch {
                   path: path.join("."),
@@ -390,7 +384,6 @@ impl MatchingRule {
                   mismatch: format!("Variant at index {} ({}) was not found in the actual list", index, expected_value)
                 } ]));
               };
-              context_stack.pop();
             },
             None => {
               result = merge_result(result,Err(vec![ Mismatch::BodyMismatch {
@@ -426,7 +419,7 @@ impl MatchingRule {
           let mut p = path.to_vec();
           p.push(ps.as_str());
           if index < actual.len() {
-            result = merge_result(result, callback(&p, value, &actual[index], context, context_stack));
+            result = merge_result(result, callback(&p, value, &actual[index], context));
           } else if !context.matcher_is_defined(&p) {
             result = merge_result(result,Err(vec![ Mismatch::BodyMismatch { path: path.join("."),
               expected: Some(expected.for_mismatch().into()),
@@ -521,6 +514,7 @@ impl RuleList {
     })
   }
 
+  /// Add a matching rule to the rule list
   pub fn add_rule(&mut self, rule: &MatchingRule) -> bool {
     self.rules.insert(rule.clone())
   }
@@ -666,6 +660,7 @@ impl MatchingRuleCategory {
     self.rules.values().next().cloned()
   }
 
+  /// Adds the rules to the category from the provided JSON
   pub fn add_rules_from_json(&mut self, rules: &Value) {
     if self.name == "path" && rules.get("matchers").is_some() {
       let rule_logic = match rules.get("combine") {

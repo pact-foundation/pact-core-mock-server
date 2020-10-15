@@ -2,7 +2,6 @@ use crate::models::matchingrules::*;
 use itertools::Itertools;
 use onig::Regex;
 use crate::time_utils::validate_datetime;
-use crate::binary_utils::match_content_type;
 use crate::MatchingContext;
 
 pub trait Matches<A> {
@@ -281,17 +280,6 @@ impl Matches<u64> for f64 {
     }
 }
 
-pub fn select_best_matcher(category: &str, path: &Vec<&str>, matchers: &MatchingRules) -> Option<RuleList> {
-  if category == "body" {
-    matchers.resolve_body_matchers_by_path(path)
-  } else {
-    match matchers.resolve_matchers(category, path) {
-      Some(category) => category.rules.values().next().cloned(),
-      None => None
-    }
-  }
-}
-
 pub fn match_values<E, A>(path: &Vec<&str>, context: &MatchingContext, expected: &E, actual: &A) -> Result<(), Vec<String>>
     where E: Matches<A> {
     let matching_rules = context.select_best_matcher(path);
@@ -324,7 +312,6 @@ pub fn match_values<E, A>(path: &Vec<&str>, context: &MatchingContext, expected:
 #[cfg(test)]
 mod tests {
   use super::*;
-  use super::select_best_matcher;
   use expectest::prelude::*;
   use expectest::expect;
 
@@ -348,41 +335,43 @@ mod tests {
         "item1" => [ MatchingRule::Regex(s!("5")) ]
       }
     };
+    let body_matchers = matchers.rules_for_category("body").unwrap();
+    let header_matchers = matchers.rules_for_category("header").unwrap();
 
-    expect!(select_best_matcher("body", &vec!["$"], &matchers)).to(
+    expect!(body_matchers.select_best_matcher(&vec!["$"])).to(
       be_some().value(RuleList::new(MatchingRule::Regex(s!("1")))));
-    expect!(select_best_matcher("body", &vec!["$", "a"], &matchers)).to(
+    expect!(body_matchers.select_best_matcher(&vec!["$", "a"])).to(
       be_some().value(RuleList::new(MatchingRule::Regex(s!("1")))));
 
-    expect!(select_best_matcher("body", &vec!["$", "item1"], &matchers)).to(
+    expect!(body_matchers.select_best_matcher(&vec!["$", "item1"])).to(
       be_some().value(RuleList::new(MatchingRule::Regex(s!("3")))));
-    expect!(select_best_matcher("body", &vec!["$", "item2"], &matchers)).to(
+    expect!(body_matchers.select_best_matcher(&vec!["$", "item2"])).to(
       be_some().value(RuleList::new(MatchingRule::Regex(s!("4")))));
-    expect!(select_best_matcher("body", &vec!["$", "item3"], &matchers)).to(
+    expect!(body_matchers.select_best_matcher(&vec!["$", "item3"])).to(
       be_some().value(RuleList::new(MatchingRule::Regex(s!("1")))));
 
-    expect!(select_best_matcher("header", &vec!["$", "item1"], &matchers)).to(
+    expect!(header_matchers.select_best_matcher(&vec!["$", "item1"])).to(
       be_some().value(RuleList::new(MatchingRule::Regex(s!("5")))));
 
-    expect!(select_best_matcher("body", &vec!["$", "item1", "level"], &matchers)).to(
+    expect!(body_matchers.select_best_matcher(&vec!["$", "item1", "level"])).to(
       be_some().value(RuleList::new(MatchingRule::Regex(s!("6")))));
-    expect!(select_best_matcher("body", &vec!["$", "item1", "level", "1"], &matchers)).to(
+    expect!(body_matchers.select_best_matcher(&vec!["$", "item1", "level", "1"])).to(
       be_some().value(RuleList::new(MatchingRule::Regex(s!("7")))));
-    expect!(select_best_matcher("body", &vec!["$", "item1", "level", "2"], &matchers)).to(
+    expect!(body_matchers.select_best_matcher(&vec!["$", "item1", "level", "2"])).to(
       be_some().value(RuleList::new(MatchingRule::Regex(s!("10")))));
-    expect!(select_best_matcher("body", &vec!["$", "item1", "level", "1", "id"], &matchers)).to(
+    expect!(body_matchers.select_best_matcher(&vec!["$", "item1", "level", "1", "id"])).to(
       be_some().value(RuleList::new(MatchingRule::Regex(s!("8")))));
-    expect!(select_best_matcher("body", &vec!["$", "item1", "level", "1", "name"], &matchers)).to(
+    expect!(body_matchers.select_best_matcher(&vec!["$", "item1", "level", "1", "name"])).to(
       be_some().value(RuleList::new(MatchingRule::Regex(s!("9")))));
-    expect!(select_best_matcher("body", &vec!["$", "item1", "level", "1", "other"], &matchers)).to(
+    expect!(body_matchers.select_best_matcher(&vec!["$", "item1", "level", "1", "other"])).to(
       be_some().value(RuleList::new(MatchingRule::Regex(s!("7")))));
-    expect!(select_best_matcher("body", &vec!["$", "item1", "level", "2", "id"], &matchers)).to(
+    expect!(body_matchers.select_best_matcher(&vec!["$", "item1", "level", "2", "id"])).to(
       be_some().value(RuleList::new(MatchingRule::Regex(s!("11")))));
-    expect!(select_best_matcher("body", &vec!["$", "item1", "level", "3", "id"], &matchers)).to(
+    expect!(body_matchers.select_best_matcher(&vec!["$", "item1", "level", "3", "id"])).to(
       be_some().value(RuleList::new(MatchingRule::Regex(s!("12")))));
-    expect!(select_best_matcher("body", &vec!["$", "item2", "level", "1", "id"], &matchers)).to(
+    expect!(body_matchers.select_best_matcher(&vec!["$", "item2", "level", "1", "id"])).to(
       be_some().value(RuleList::new(MatchingRule::Regex(s!("13")))));
-    expect!(select_best_matcher("body", &vec!["$", "item2", "level", "3", "id"], &matchers)).to(
+    expect!(body_matchers.select_best_matcher(&vec!["$", "item2", "level", "3", "id"])).to(
       be_some().value(RuleList::new(MatchingRule::Regex(s!("13")))));
   }
 
@@ -398,29 +387,29 @@ mod tests {
           "item1" => [ MatchingRule::Regex(s!("5")) ]
       }
     };
+    let body_matchers = matchers.rules_for_category("body").unwrap();
 
-    expect!(select_best_matcher("body", &vec!["$", "animals", "0"], &matchers)).to(
+    expect!(body_matchers.select_best_matcher(&vec!["$", "animals", "0"])).to(
       be_some().value(RuleList::new(MatchingRule::Regex(s!("2")))));
   }
 
     #[test]
     fn select_best_matcher_selects_handles_missing_type_attribute() {
-        let matchers = matchingrules!{
-            "body" => {
-                "$.item1" => [ MatchingRule::Regex(s!("3")) ],
-                "$.item2" => [ MatchingRule::MinType(4) ],
-                "$.item3" => [ MatchingRule::MaxType(4) ],
-                "$.item4" => [ ]
-            }
-        };
+      let matchers = matchingrules_list! {
+        "body";
+        "$.item1" => [ MatchingRule::Regex(s!("3")) ],
+        "$.item2" => [ MatchingRule::MinType(4) ],
+        "$.item3" => [ MatchingRule::MaxType(4) ],
+        "$.item4" => [ ]
+      };
 
-        expect!(select_best_matcher("body", &vec!["$", "item1"], &matchers)).to(
-          be_some().value(RuleList::new(MatchingRule::Regex(s!("3")))));
-        expect!(select_best_matcher("body", &vec!["$", "item2"], &matchers)).to(
-          be_some().value(RuleList::new(MatchingRule::MinType(4))));
-        expect!(select_best_matcher("body", &vec!["$", "item3"], &matchers)).to(
-          be_some().value(RuleList::new(MatchingRule::MaxType(4))));
-        expect!(select_best_matcher("body", &vec!["$", "item4"], &matchers)).to(be_none());
+      expect!(matchers.select_best_matcher(&vec!["$", "item1"])).to(
+        be_some().value(RuleList::new(MatchingRule::Regex(s!("3")))));
+      expect!(matchers.select_best_matcher(&vec!["$", "item2"])).to(
+        be_some().value(RuleList::new(MatchingRule::MinType(4))));
+      expect!(matchers.select_best_matcher(&vec!["$", "item3"])).to(
+        be_some().value(RuleList::new(MatchingRule::MaxType(4))));
+      expect!(matchers.select_best_matcher(&vec!["$", "item4"])).to(be_none());
     }
 
     #[test]

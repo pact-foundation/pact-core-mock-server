@@ -1,7 +1,7 @@
 use serde_json::Value;
-use crate::{DiffConfig, Mismatch, MatchingContext};
-use crate::models::matchingrules::{MatchingRules, RuleLogic, MatchingRule};
-use crate::matchers::{Matches, select_best_matcher, match_values};
+use crate::{Mismatch, MatchingContext};
+use crate::models::matchingrules::{RuleLogic, MatchingRule};
+use crate::matchers::{Matches, match_values};
 use itertools::Itertools;
 use log::*;
 use crate::models::HttpPart;
@@ -300,7 +300,7 @@ fn match_file(key: &String, expected: &FilePart, actual: &FilePart, context: &Ma
 
 #[cfg(test)]
 mod tests {
-  use crate::models::{Request, OptionalBody, HttpPart};
+  use crate::models::{Request, OptionalBody};
   use crate::models::matchingrules::*;
   use crate::binary_utils::match_mime_multipart;
   use expectest::prelude::*;

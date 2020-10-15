@@ -5,8 +5,8 @@ use expectest::prelude::*;
 use maplit::*;
 use serde_json::json;
 
-use crate::models::{headers_from_json, Interaction, OptionalBody, PactSpecification, RequestResponseInteraction, Consumer, Provider, ReadWritePact, write_pact};
-use crate::models::content_types::{ContentType, JSON};
+use crate::models::{headers_from_json, Interaction, OptionalBody, PactSpecification, Consumer, Provider, ReadWritePact, write_pact};
+use crate::models::content_types::JSON;
 use crate::models::provider_states::ProviderState;
 use crate::models::v4::{from_json, interaction_from_json, V4Interaction, V4Pact};
 use crate::models::v4::http_parts::{HttpRequest, HttpResponse};
