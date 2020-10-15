@@ -877,4 +877,124 @@ mod tests {
       }
     ]));
   }
+
+  #[test]
+  fn compare_lists_with_array_contains_matcher_with_more_complex_object() {
+    let expected = request!(r#"
+    {
+      "class": [ "order" ],
+      "properties": {
+          "orderNumber": 42,
+          "itemCount": 3,
+          "status": "pending"
+      },
+      "entities": [
+        {
+          "class": [ "info", "customer" ],
+          "properties": {
+            "customerId": "pj123",
+            "name": "Peter Joseph"
+          }
+        }
+      ],
+      "actions": [
+        {
+          "name": "add-item",
+          "title": "Add Item",
+          "method": "POST",
+          "href": "http://api.x.io/orders/42/items"
+        }
+      ],
+      "links": [
+        { "rel": [ "next" ], "href": "http://api.x.io/orders/43" }
+      ]
+    }
+    "#);
+    let actual = request!(r#"
+    {
+      "class": [ "order" ],
+      "properties": {
+          "orderNumber": 12,
+          "itemCount": 6,
+          "status": "pending"
+      },
+      "entities": [
+        {
+          "class": [ "items", "collection" ],
+          "rel": [ "http://x.io/rels/order-items" ],
+          "href": "http://api.x.io/orders/12/items"
+        },
+        {
+          "class": [ "info", "customer" ],
+          "rel": [ "http://x.io/rels/customer" ],
+          "properties": {
+            "customerId": "rh565421",
+            "name": "Ron Haich"
+          },
+          "links": [
+            { "rel": [ "self" ], "href": "http://api.x.io/customers/rh565421" }
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "name": "add-item",
+          "title": "Add Item",
+          "method": "POST",
+          "href": "http://api.x.io/orders/12/items",
+          "type": "application/x-www-form-urlencoded",
+          "fields": [
+            { "name": "orderNumber", "type": "hidden", "value": "12" },
+            { "name": "productCode", "type": "text" },
+            { "name": "quantity", "type": "number" }
+          ]
+        },
+        {
+          "name": "delete-order",
+          "title": "Delete Order",
+          "method": "DELETE",
+          "href": "http://api.x.io/orders/12"
+        },
+        {
+          "name": "update-order",
+          "title": "Update Order",
+          "method": "POST",
+          "href": "http://api.x.io/orders/12"
+        }
+      ],
+      "links": [
+        { "rel": [ "self" ], "href": "http://api.x.io/orders/12" },
+        { "rel": [ "previous" ], "href": "http://api.x.io/orders/11" },
+        { "rel": [ "next" ], "href": "http://api.x.io/orders/13" }
+      ]
+    }
+    "#);
+
+    let context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys, &matchingrules! {
+      "body" => {
+        "$.entities" => [
+          MatchingRule::ArrayContains(vec![(0, matchingrules_list! {
+            "body";
+            "$.properties.customerId" => [ MatchingRule::Type ], "$.properties.name" => [ MatchingRule::Type ]
+          })])
+        ],
+        "$.properties.orderNumber" => [ MatchingRule::Integer ],
+        "$.properties.itemCount" => [ MatchingRule::Integer ],
+        "$.actions" => [
+          MatchingRule::ArrayContains(vec![(0, matchingrules_list! {
+            "body";
+            "$.href" => [ MatchingRule::Regex(".*/orders/\\d+/items".to_string()) ]
+          })])
+        ],
+        "$.links" => [
+          MatchingRule::ArrayContains(vec![(0, matchingrules_list! {
+            "body";
+            "$.href" => [ MatchingRule::Regex(".*/orders/\\d+".to_string()) ]
+          })])
+        ]
+      }
+    }.rules_for_category("body").unwrap());
+    let result = match_json(&expected, &actual, &context);
+    expect!(result).to(be_ok());
+  }
 }

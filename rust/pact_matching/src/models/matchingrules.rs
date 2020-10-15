@@ -238,7 +238,7 @@ impl MatchingRule {
                 Value::Array(variants) => {
                   let values = variants.iter().map(|variant| {
                     let index = json_to_num(variant.get("index").cloned()).unwrap_or_default();
-                    let mut category = MatchingRuleCategory::empty(format!("variant {}", index));
+                    let mut category = MatchingRuleCategory::empty("body");
                     if let Some(rules) = variant.get("rules") {
                       category.add_rules_from_json(rules);
                     } else {
@@ -444,7 +444,7 @@ impl MatchingRule {
       MatchingRule::ArrayContains(variants) => {
         let variants = if variants.is_empty() {
           expected.iter().enumerate().map(|(index, _)| {
-            (index, MatchingRuleCategory::equality(format!("variant {}", index)))
+            (index, MatchingRuleCategory::equality("body"))
           }).collect()
         } else {
           variants.clone()
@@ -456,7 +456,7 @@ impl MatchingRule {
               let context = context.clone_with(&rules);
               if actual.iter().enumerate().find(|(actual_index, value)| {
                 debug!("Comparing list item {} with value '{:?}' to '{:?}'", actual_index, value, expected_value);
-                callback(&vec![], expected_value, value, &context, context_stack).is_ok()
+                callback(&vec!["$"], expected_value, value, &context, context_stack).is_ok()
               }).is_none() {
                 result = merge_result(result,Err(vec![ Mismatch::BodyMismatch {
                   path: path.join("."),
@@ -1071,25 +1071,26 @@ macro_rules! matchingrules {
 /// Example usage:
 /// ```ignore
 /// matchingrules_list! {
-///   "variant 0", "user_id" => [ MatchingRule::Regex(s!("^[0-9]+$")) ]
+///   "body"; "user_id" => [ MatchingRule::Regex(s!("^[0-9]+$")) ]
 /// }
 /// ```
 #[macro_export]
 macro_rules! matchingrules_list {
-  ( $name:expr , ( $( $subname:expr => [ $( $matcher:expr ), * ] ),* ) ) => {{
+  ( $name:expr ; $( $subname:expr => [ $( $matcher:expr ), * ] ),* ) => {{
     let mut _category = MatchingRuleCategory::empty($name);
-    $({
-      $({
+    $(
+      $(
         _category.add_rule($subname, $matcher, &RuleLogic::And);
-      })*
-    })*
+      )*
+    )*
     _category
   }};
-  ( $name:expr , [ $( $matcher:expr ), * ] ) => {{
+
+  ( $name:expr ; [ $( $matcher:expr ), * ] ) => {{
     let mut _category = MatchingRuleCategory::empty($name);
-    $({
+    $(
       _category.add_rule("", $matcher, &RuleLogic::And);
-    })*
+    )*
     _category
   }};
 }
@@ -1406,7 +1407,7 @@ mod tests {
       ]
     });
     expect!(MatchingRule::from_json(&json)).to(be_some().value(
-      MatchingRule::ArrayContains(vec![(0, matchingrules_list! { "variant 0", [ MatchingRule::Equality ] })])
+      MatchingRule::ArrayContains(vec![(0, matchingrules_list! { "body"; [ MatchingRule::Equality ] })])
     ));
   }
 
@@ -1435,6 +1436,16 @@ mod tests {
   }
 
   #[test]
+  fn matcher_is_defined_returns_false_when_the_path_is_empty() {
+    let matchers = matchingrules! {
+      "body" => {
+        "$.a.b" => [ MatchingRule::Type ]
+      }
+    };
+    expect!(matchers.matcher_is_defined("body", &vec![])).to(be_false());
+  }
+
+  #[test]
   fn matcher_is_defined_returns_true_when_the_parent_of_the_path_does_have_a_matcher_entry() {
     let matchers = matchingrules!{
             "body" => {
@@ -1453,10 +1464,8 @@ mod tests {
   #[test]
   fn wildcard_matcher_is_defined_returns_false_when_the_path_does_not_have_a_matcher_entry() {
     let matchers = matchingrules!{
-            "body" => {
-
-            }
-        };
+      "body" => { }
+    };
     expect!(matchers.wildcard_matcher_is_defined("body", &vec!["$", "a", "b"])).to(be_false());
   }
 
