@@ -1,5 +1,16 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.7.9 - arrayContains matcher
+
+* 2fb0c6e - fix: fix the build after refactoring the pact write function (Ronald Holshausen, Wed Oct 14 11:07:57 2020 +1100)
+* f334a4f - refactor: introduce a MatchingContext into all matching functions + delgate to matchers for collections (Ronald Holshausen, Mon Oct 12 14:06:00 2020 +1100)
+* 7fbc731 - chore: bump minor version of matching lib (Ronald Holshausen, Fri Oct 9 10:42:33 2020 +1100)
+* 172f505 - chore: cleaned up some compiler warnings (Ronald Holshausen, Thu Oct 8 15:02:49 2020 +1100)
+* facc898 - refactor: moved the shutdown code to a method in mock server crate (Ronald Holshausen, Sun Oct 4 11:56:10 2020 +1100)
+* 44e7414 - fix: access-control-allow-methods header was duplicated (Ronald Holshausen, Thu Oct 1 15:29:14 2020 +1000)
+* d3c5cf2 - feat: add all the CORS headers (Ronald Holshausen, Wed Sep 30 13:19:31 2020 +1000)
+* 584aa08 - bump version to 0.7.9 (Ronald Holshausen, Mon Sep 28 12:06:28 2020 +1000)
+
 # 0.7.8 - CORS pre-flight requests
 
 * 7e68e4c - feat: enable CORS behaviour based on the mock server config (Ronald Holshausen, Mon Sep 28 11:42:23 2020 +1000)
