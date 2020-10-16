@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.8.1 - Bugfix Release
+
+* d24cfe3 - fix: matching binary data was broken after refactor (Ronald Holshausen, Fri Oct 16 16:05:26 2020 +1100)
+* aa287ed - bump version to 0.8.1 (Ronald Holshausen, Fri Oct 16 11:08:30 2020 +1100)
+
 # 0.8.0 - V4 models + arrayContains matcher
 
 * b668d81 - chore: cleanup warnings and add missing doc comments (Ronald Holshausen, Thu Oct 15 16:57:57 2020 +1100)
