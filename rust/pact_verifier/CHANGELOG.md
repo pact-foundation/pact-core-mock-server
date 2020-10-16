@@ -1,5 +1,14 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.9.1 - arrayContains matcher + text/xml content type
+
+* 4ef2db6 - Merge branch 'feat/v4-spec' (Ronald Holshausen, Thu Oct 15 17:02:44 2020 +1100)
+* 2fb0c6e - fix: fix the build after refactoring the pact write function (Ronald Holshausen, Wed Oct 14 11:07:57 2020 +1100)
+* 7fbc731 - chore: bump minor version of matching lib (Ronald Holshausen, Fri Oct 9 10:42:33 2020 +1100)
+* 3e943b1 - fix: set content-type header in message request (Marco Dallagiacoma, Thu Oct 1 23:58:14 2020 +0200)
+* 29ba743 - feat: add a mock server config struct (Ronald Holshausen, Thu Sep 24 10:30:59 2020 +1000)
+* 0b03551 - bump version to 0.9.1 (Ronald Holshausen, Mon Sep 14 17:21:57 2020 +1000)
+
 # 0.9.0 - Verifying Message Pacts
 
 * ef5f88c - chore: bump minor version of the pact_verifier crate (Ronald Holshausen, Mon Sep 14 17:13:45 2020 +1000)
