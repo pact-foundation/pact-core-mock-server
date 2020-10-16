@@ -1518,7 +1518,7 @@ dependencies = [
 
 [[package]]
 name = "pact_verifier"
-version = "0.9.1"
+version = "0.9.2"
 dependencies = [
  "ansi_term 0.12.1",
  "async-trait",
@@ -1545,7 +1545,7 @@ dependencies = [
 
 [[package]]
 name = "pact_verifier_cli"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "clap",
  "expectest 0.12.0",
