@@ -47,7 +47,7 @@ pub fn match_octet_stream(expected: &dyn HttpPart, actual: &dyn HttpPart, contex
         actual: Some(actual.clone()),
         mismatch: format!("No matcher found for category 'body' and path '{}'", path.iter().join("."))}),
       Some(ref rulelist) => {
-        let results = rulelist.rules.iter().map(|rule| expected.matches(&actual, rule)).collect::<Vec<Result<(), String>>>();
+        let results = rulelist.rules.iter().map(|rule| expected.matches(&actual.as_slice(), rule)).collect::<Vec<Result<(), String>>>();
         match rulelist.rule_logic {
           RuleLogic::And => for result in results {
             if let Err(err) = result {

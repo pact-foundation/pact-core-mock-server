@@ -6,7 +6,7 @@ use std::{
 };
 use std::fmt::{Debug, Display};
 #[allow(unused_imports)] // FromStr is actually used
-use std::str::FromStr;
+use std::str::{self, FromStr, from_utf8};
 
 use log::*;
 use maplit::*;
@@ -21,6 +21,7 @@ use crate::path_exp::*;
 
 use super::PactSpecification;
 use nom::lib::std::cmp::Ordering;
+use crate::binary_utils::match_content_type;
 
 fn matches_token(path_fragment: &str, path_token: &PathToken) -> usize {
   match path_token {
@@ -122,6 +123,64 @@ impl <T: Debug + Display + PartialEq> Matches<Vec<T>> for Vec<T> {
       _ => Err(format!("Unable to match {:?} using {:?}", self, matcher))
     };
     log::debug!("Comparing '{:?}' to '{:?}' using {:?} -> {:?}", self, actual, matcher, result);
+    result
+  }
+}
+
+impl Matches<&[u8]> for Vec<u8> {
+  fn matches(&self, actual: &&[u8], matcher: &MatchingRule) -> Result<(), String> {
+    let result = match *matcher {
+      MatchingRule::Regex(ref regex) => {
+        match Regex::new(regex) {
+          Ok(re) => {
+            let text = from_utf8(actual).unwrap_or_default();
+            if re.is_match(text) {
+              Ok(())
+            } else {
+              Err(format!("Expected '{}' to match '{}'", text, regex))
+            }
+          }
+          Err(err) => Err(format!("'{}' is not a valid regular expression - {}", regex, err))
+        }
+      }
+      MatchingRule::Type => Ok(()),
+      MatchingRule::MinType(min) => {
+        if actual.len() < min {
+          Err(format!("Expected list with length {} to have a minimum length of {}", actual.len(), min))
+        } else {
+          Ok(())
+        }
+      }
+      MatchingRule::MaxType(max) => {
+        if actual.len() > max {
+          Err(format!("Expected list with length {} to have a maximum length of {}", actual.len(), max))
+        } else {
+          Ok(())
+        }
+      }
+      MatchingRule::MinMaxType(min, max) => {
+        if actual.len() < min {
+          Err(format!("Expected list with length {} to have a minimum length of {}", actual.len(), min))
+        } else if actual.len() > max {
+          Err(format!("Expected list with length {} to have a maximum length of {}", actual.len(), max))
+        } else {
+          Ok(())
+        }
+      }
+      MatchingRule::Equality => {
+        if self == actual {
+          Ok(())
+        } else {
+          Err(format!("Expected {:?} to be equal to {:?}", actual, self))
+        }
+      }
+      MatchingRule::ContentType(ref expected_content_type) => {
+        match_content_type(&actual, expected_content_type)
+          .map_err(|err| format!("Expected data to have a content type of '{}' but was {}", expected_content_type, err))
+      }
+      _ => Err(format!("Unable to match {:?} using {:?}", self, matcher))
+    };
+    debug!("Comparing list with {} items to one with {} items using {:?} -> {:?}", self.len(), actual.len(), matcher, result);
     result
   }
 }
