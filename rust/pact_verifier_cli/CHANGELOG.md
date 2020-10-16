@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.8.1 - arrayContains matcher + text/xml content type
+
+* 7fbc731 - chore: bump minor version of matching lib (Ronald Holshausen, Fri Oct 9 10:42:33 2020 +1100)
+* c2fda15 - chore: update readme on verifying message pacts (Ronald Holshausen, Tue Sep 15 11:13:16 2020 +1000)
+* 0dbcda9 - bump version to 0.8.1 (Ronald Holshausen, Mon Sep 14 17:34:25 2020 +1000)
+
 # 0.8.0 - Supports verifying Message Pacts
 
 * ef5f88c - chore: bump minor version of the pact_verifier crate (Ronald Holshausen, Mon Sep 14 17:13:45 2020 +1000)
