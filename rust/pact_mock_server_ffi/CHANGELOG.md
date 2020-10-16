@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.0.10 - arrayContains matcher + text/xml content type
+
+* f090323 - feat: updated integration JSON to handle array contains matcher (Ronald Holshausen, Thu Oct 15 15:31:47 2020 +1100)
+* f334a4f - refactor: introduce a MatchingContext into all matching functions + delgate to matchers for collections (Ronald Holshausen, Mon Oct 12 14:06:00 2020 +1100)
+* 7fbc731 - chore: bump minor version of matching lib (Ronald Holshausen, Fri Oct 9 10:42:33 2020 +1100)
+* facc898 - refactor: moved the shutdown code to a method in mock server crate (Ronald Holshausen, Sun Oct 4 11:56:10 2020 +1100)
+* 6f530a1 - bump version to 0.0.10 (Ronald Holshausen, Mon Sep 28 12:38:44 2020 +1000)
+
 # 0.0.9 - CORS pre-flight support
 
 * 1019ed6 - chore: update to the latest mock server and matching crates (Ronald Holshausen, Mon Sep 28 12:30:09 2020 +1000)
