@@ -96,7 +96,7 @@ impl PactSpecification {
 }
 
 /// Struct that defines the consumer of the pact.
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
 pub struct Consumer {
     /// Each consumer should have a unique name to identify it.
     pub name: String
@@ -122,7 +122,7 @@ impl Consumer {
 }
 
 /// Struct that defines a provider of a pact.
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
 pub struct Provider {
     /// Each provider should have a unique name to identify it.
     pub name: String
@@ -1227,7 +1227,7 @@ pub mod message_pact;
 pub mod v4;
 
 /// Struct that represents a pact between the consumer and provider of a service.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct RequestResponsePact {
     /// Consumer side of the pact
     pub consumer: Consumer,
@@ -1486,7 +1486,7 @@ impl ReadWritePact for RequestResponsePact {
             .map(|either| match either {
               Left(i) => i,
               Right(i) => i,
-              Both(i, _) => i
+              Both(_, i) => i
             })
             .cloned()
             .collect(),

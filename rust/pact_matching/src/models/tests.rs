@@ -1950,3 +1950,43 @@ fn write_pact_test_with_generators() {
   }}
 }}"#, super::VERSION.unwrap())));
 }
+
+#[test]
+fn merge_pact_test() {
+  let pact = RequestResponsePact {
+    interactions: vec![
+      RequestResponseInteraction {
+        description: s!("Test Interaction with matcher"),
+        request: Request {
+          body: OptionalBody::Present(json!({ "related": [1, 2, 3] }).to_string().as_bytes().to_vec(), Some(JSON.clone())),
+          matching_rules: matchingrules!{
+            "body" => {
+              "$.related" => [ MatchingRule::MinMaxType(0, 5) ]
+            }
+          },
+          .. Request::default()
+        },
+        .. RequestResponseInteraction::default()
+      }
+    ],
+    .. RequestResponsePact::default() };
+  let updated_pact = RequestResponsePact {
+    interactions: vec![
+      RequestResponseInteraction {
+        description: s!("Test Interaction with matcher"),
+        request: Request {
+          body: OptionalBody::Present(json!({ "related": [1, 2, 3] }).to_string().as_bytes().to_vec(), Some(JSON.clone())),
+          matching_rules: matchingrules!{
+            "body" => {
+              "$.related" => [ MatchingRule::MinMaxType(1, 10) ]
+            }
+          },
+          .. Request::default()
+        },
+        .. RequestResponseInteraction::default()
+      }
+    ],
+    .. RequestResponsePact::default() };
+  let merged_pact = pact.merge(&updated_pact);
+  expect(merged_pact).to(be_ok().value(updated_pact));
+}
