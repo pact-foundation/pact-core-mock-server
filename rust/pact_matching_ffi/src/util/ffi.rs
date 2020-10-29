@@ -1,38 +1,31 @@
 //! Provides a convenience macro for wrapping FFI code.
 
-/// Makes sure FFI code is always wrapped in `catch_unwind` and sets its error.
-///
-/// This convenience macro is intended to make it easier to write _correct_ FFI code
-/// which catches panics before they cross the language boundary, and reports its error
-/// out for the C caller to read if they want.
 #[doc(hidden)]
 #[macro_export]
-macro_rules! ffi {
-    ( op: $op:block, fail: $fail:block ) => {{
-        compile_error!("the ffi macro must include a name and a list of params");
-    }};
+macro_rules! ffi_fn {
+    ($(#[$doc:meta])* fn $name:ident($($arg:ident: $arg_ty:ty),*) -> $ret:ty $body:block $fail:block ) => {
+        $(#[$doc])*
+        #[no_mangle]
+        #[allow(clippy::or_fun_call)]
+        pub extern fn $name($($arg: $arg_ty),*) -> $ret {
+            use $crate::log::TARGET;
+            use $crate::error::catch_panic;
 
-    ( name: $name:literal, op: $op:block, fail: $fail:block ) => {{
-        compile_error!("the ffi macro must include a list of params");
-    }};
+            log::debug!(target: TARGET, "{}::{}", module_path!(), stringify!($name));
 
-    ( params: [ $( $params:ident ),* ], op: $op:block, fail: $fail:block ) => {{
-        compile_error!("the ffi macro must include a name");
-    }};
+            $(
+                log::trace!(target: TARGET, "@param {} = {:?}", stringify!($arg), $arg);
+            )*
 
-    ( name: $name:literal, params: [ $( $params:ident ),* ], op: $op:block, fail: $fail:block ) => {{
-        use $crate::log::TARGET;
+            let output = catch_panic(|| Ok($body)).unwrap_or($fail);
 
-        log::debug!(target: TARGET, "{}::{}", module_path!(), $name);
+            log::trace!(target: TARGET, "@return {:?}", output);
 
-        $(
-            log::trace!(target: TARGET, "@param $params = {:?}", $params);
-        )*
+            output
+        }
+    };
 
-        let output = $crate::error::catch_panic(|| $op).unwrap_or($fail);
-
-        log::trace!(target: TARGET, "@return {:?}", output);
-
-        output
-    }};
+    ($(#[$doc:meta])* fn $name:ident($($arg:ident: $arg_ty:ty),*) $body:block ) => {
+        ffi_fn!($(#[$doc])* fn $name($($arg: $arg_ty),*) -> () $body {});
+    };
 }

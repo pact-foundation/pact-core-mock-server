@@ -1,5 +1,7 @@
+use crate::ffi_fn;
 use libc::c_char;
 use std::ffi::CString;
+use std::ops::Not;
 
 /// Converts the string into a C-compatible null terminated string,
 /// then forgets the container while returning a pointer to the
@@ -11,25 +13,15 @@ pub(crate) fn to_c(t: &str) -> anyhow::Result<*mut c_char> {
     Ok(CString::new(t)?.into_raw())
 }
 
-/// Delete a string previously returned by this FFI.
-///
-/// It is explicitly allowed to pass a null pointer to this function;
-/// in that case the function will do nothing.
-#[no_mangle]
-pub extern "C" fn string_delete(string: *mut c_char) {
-    ffi! {
-        name: "string_delete",
-        params: [string],
-        op: {
-            if string.is_null() {
-                return Ok(());
-            }
-
+ffi_fn! {
+    /// Delete a string previously returned by this FFI.
+    ///
+    /// It is explicitly allowed to pass a null pointer to this function;
+    /// in that case the function will do nothing.
+    fn string_delete(string: *mut c_char) {
+        if string.is_null().not() {
             let string = unsafe { CString::from_raw(string) };
             std::mem::drop(string);
-            Ok(())
-        },
-        fail: {
         }
     }
 }
@@ -44,7 +36,7 @@ macro_rules! cstr {
             anyhow::bail!(concat!(stringify!($name), " is null"));
         }
 
-        CStr::from_ptr($name)
+        unsafe { CStr::from_ptr($name) }
     }};
 }
 
