@@ -168,19 +168,24 @@ fn match_result_to_hyper_response(
       debug!("Request did not match: {}", match_result);
       if cors_preflight && request.method.to_uppercase() == "OPTIONS" {
         info!("Responding to CORS pre-flight request");
-        let origin = if cors_preflight {
-          match request.headers {
-            Some(ref h) => h.iter()
-              .find(|kv| kv.0.to_lowercase() == "referer")
-              .map(|kv| kv.1.clone().join(", ")).unwrap_or("*".to_string()),
-            None => "*".to_string()
-          }
-        } else { "*".to_string() };
+        let origin = match request.headers.clone() {
+          Some(ref h) => h.iter()
+            .find(|kv| kv.0.to_lowercase() == "referer")
+            .map(|kv| kv.1.clone().join(", ")).unwrap_or("*".to_string()),
+          None => "*".to_string()
+        };
+        let cors_headers = match request.headers.clone() {
+          Some(ref h) => h.iter()
+            .find(|kv| kv.0.to_lowercase() == "access-control-request-headers")
+            .map(|kv| kv.1.clone().join(", ") + ", *").unwrap_or("*".to_string()),
+          None => "*".to_string()
+        };
+
         Response::builder()
           .status(204)
           .header(hyper::header::ACCESS_CONTROL_ALLOW_ORIGIN, origin)
           .header(hyper::header::ACCESS_CONTROL_ALLOW_METHODS, "GET, HEAD, POST, PUT, DELETE, CONNECT, OPTIONS, TRACE, PATCH")
-          .header(hyper::header::ACCESS_CONTROL_ALLOW_HEADERS, "*")
+          .header(hyper::header::ACCESS_CONTROL_ALLOW_HEADERS, cors_headers)
           .header(hyper::header::ACCESS_CONTROL_EXPOSE_HEADERS, "Location, Link")
           .body(Body::empty())
           .map_err(|_| InteractionError::ResponseBodyError)

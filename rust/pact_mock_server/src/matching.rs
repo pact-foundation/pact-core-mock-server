@@ -42,6 +42,14 @@ impl MatchResult {
         }
     }
 
+    /// Returns true if this is an unexpected OPTIONS request
+    pub fn cors_preflight(&self) -> bool {
+      match self {
+        MatchResult::RequestNotFound(req) => req.method == "OPTIONS",
+        _ => false
+      }
+    }
+
     /// Converts this match result to a `Value` struct
     pub fn to_json(&self) -> serde_json::Value {
         match self {

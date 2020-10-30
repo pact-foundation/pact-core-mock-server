@@ -154,8 +154,8 @@ impl MockServer {
     pub fn mismatches(&self) -> Vec<MatchResult> {
         let matches = self.matches();
         let mismatches = matches.iter()
-            .filter(|m| !m.matched())
-            .map(|m| m.clone());
+          .filter(|m| !m.matched() && !m.cors_preflight())
+          .map(|m| m.clone());
         let interactions: Vec<&RequestResponseInteraction> = matches.iter().map(|m| {
             match *m {
                 MatchResult::RequestMatch(ref interaction) => Some(interaction),
