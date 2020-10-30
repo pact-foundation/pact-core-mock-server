@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.7.10 - Bugfix Release
+
+* 326d02d - fix: jsdom does not support access-control-allow-headers: * for CORS pre-flight responses (Ronald Holshausen, Fri Oct 30 11:54:03 2020 +1100)
+* a732c41 - bump version to 0.7.10 (Ronald Holshausen, Fri Oct 16 11:25:56 2020 +1100)
+
 # 0.7.9 - arrayContains matcher
 
 * 2fb0c6e - fix: fix the build after refactoring the pact write function (Ronald Holshausen, Wed Oct 14 11:07:57 2020 +1100)
