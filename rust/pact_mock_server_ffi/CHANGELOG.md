@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.0.11 - Bugfix Release
+
+* b4c4de8 - chore: upgrade to latest Onig crate (Ronald Holshausen, Wed Oct 28 09:59:36 2020 +1100)
+* 2be4f8c - bump version to 0.0.11 (Ronald Holshausen, Fri Oct 16 11:39:33 2020 +1100)
+
 # 0.0.10 - arrayContains matcher + text/xml content type
 
 * f090323 - feat: updated integration JSON to handle array contains matcher (Ronald Holshausen, Thu Oct 15 15:31:47 2020 +1100)
