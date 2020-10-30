@@ -1,5 +1,8 @@
 ## Publishing the FFI libs to conan repo
 
+You're obviously going to replace the versions below with the actual versions you're releasing, and not
+just copy it verbatim and expect magical things to happen.
+
 ### For lib conan package
 
 ```
