@@ -4,6 +4,7 @@ use crate::util::*;
 use crate::{as_mut, as_ref, cstr, ffi_fn, safe_str};
 use anyhow::{anyhow, Context};
 use libc::c_char;
+use std::iter::{self, Iterator};
 
 // Necessary to make 'cbindgen' generate an opaque struct on the C side.
 pub use pact_matching::models::message_pact::MessagePact;
@@ -105,5 +106,152 @@ ffi_fn! {
         value_ptr as *const c_char
     } {
         ptr::null_to::<c_char>()
+    }
+}
+
+ffi_fn! {
+    /// Get an iterator over the metadata of a message pact.
+    ///
+    /// This iterator carries a pointer to the message pact, and must
+    /// not outlive the message pact.
+    ///
+    /// The message pact metadata also must not be modified during iteration. If it is,
+    /// the old iterator must be deleted and a new iterator created.
+    ///
+    /// # Errors
+    ///
+    /// On failure, this function will return a NULL pointer.
+    ///
+    /// This function may fail if any of the Rust strings contain
+    /// embedded null ('\0') bytes.
+    fn message_pact_get_metadata_iter(message_pact: *mut MessagePact) -> *mut MessagePactMetadataIterator {
+        let message_pact = as_mut!(message_pact);
+
+        let keys = message_pact
+            .metadata
+            .iter()
+            .flat_map(|(outer_key, sub_tree)| {
+                let outer_key_repeater = iter::repeat(outer_key.clone());
+                let inner_keys = sub_tree.keys().cloned();
+
+                Iterator::zip(outer_key_repeater, inner_keys)
+            })
+            .collect();
+
+        let iter = MessagePactMetadataIterator {
+            keys,
+            current: 0,
+            message_pact: message_pact as *const MessagePact,
+        };
+
+        ptr::raw_to(iter)
+    } {
+        ptr::null_mut_to::<MessagePactMetadataIterator>()
+    }
+}
+
+ffi_fn! {
+    /// Get the next triple out of the iterator, if possible
+    fn message_pact_metadata_iter_next(iter: *mut MessagePactMetadataIterator) -> *mut MessagePactMetadataTriple {
+        let iter = as_mut!(iter);
+        let message_pact = as_ref!(iter.message_pact);
+        let (outer_key, inner_key) = iter.next().ok_or(anyhow::anyhow!("iter past the end of metadata"))?;
+
+        let (outer_key, sub_tree) = message_pact
+            .metadata
+            .get_key_value(outer_key)
+            .ok_or(anyhow::anyhow!("iter provided invalid metadata key"))?;
+
+        let (inner_key, value) = sub_tree
+            .get_key_value(inner_key)
+            .ok_or(anyhow::anyhow!("iter provided invalid metadata key"))?;
+
+        let triple = MessagePactMetadataTriple::new(outer_key, inner_key, value)?;
+
+        ptr::raw_to(triple)
+    } {
+        ptr::null_mut_to::<MessagePactMetadataTriple>()
+    }
+}
+
+ffi_fn! {
+    /// Free the metadata iterator when you're done using it.
+    fn message_pact_metadata_iter_delete(iter: *mut MessagePactMetadataIterator) {
+        ptr::drop_raw(iter);
+    }
+}
+
+ffi_fn! {
+    /// Free a triple returned from `message_pact_metadata_iter_next`.
+    fn message_pact_metadata_triple_delete(triple: *mut MessagePactMetadataTriple) {
+        ptr::drop_raw(triple);
+    }
+}
+
+/// An iterator that enables FFI iteration over metadata by putting all the keys on the heap
+/// and tracking which one we're currently at.
+///
+/// This assumes no mutation of the underlying metadata happens while the iterator is live.
+#[derive(Debug)]
+pub struct MessagePactMetadataIterator {
+    /// The metadata keys
+    keys: Vec<(String, String)>,
+    /// The current key
+    current: usize,
+    /// Pointer to the message.
+    message_pact: *const MessagePact,
+}
+
+impl MessagePactMetadataIterator {
+    fn next(&mut self) -> Option<(&str, &str)> {
+        let idx = self.current;
+        self.current += 1;
+        self.keys.get(idx).map(|(outer_key, inner_key)| {
+            (outer_key.as_ref(), inner_key.as_ref())
+        })
+    }
+}
+
+/// A triple, containing the outer key, inner key, and value, exported to the C-side.
+#[derive(Debug)]
+#[repr(C)]
+#[allow(missing_copy_implementations)]
+pub struct MessagePactMetadataTriple {
+    outer_key: *const c_char,
+    inner_key: *const c_char,
+    value: *const c_char,
+}
+
+impl MessagePactMetadataTriple {
+    fn new(
+        outer_key: &str,
+        inner_key: &str,
+        value: &str,
+    ) -> anyhow::Result<MessagePactMetadataTriple> {
+        Ok(MessagePactMetadataTriple {
+            outer_key: string::to_c(outer_key)? as *const c_char,
+            inner_key: string::to_c(inner_key)? as *const c_char,
+            value: string::to_c(value)? as *const c_char,
+        })
+    }
+}
+
+// Ensure that the owned strings are freed when the triple is dropped.
+//
+// Notice that we're casting from a `*const c_char` to a `*mut c_char`.
+// This may seem wrong, but is safe so long as it doesn't violate Rust's
+// guarantees around immutable references, which this doesn't. In this case,
+// the underlying data came from `CString::into_raw` which takes ownership
+// of the `CString` and hands it off via a `*mut pointer`. We cast that pointer
+// back to `*const` to limit the C-side from doing any shenanigans, since the
+// pointed-to values live inside of the `Message` metadata `HashMap`, but
+// cast back to `*mut` here so we can free the memory.
+//
+// The discussion here helps explain: https://github.com/rust-lang/rust-clippy/issues/4774
+impl Drop for MessagePactMetadataTriple {
+    fn drop(&mut self) {
+        string::string_delete(self.outer_key as *mut c_char);
+        string::string_delete(self.inner_key as *mut c_char);
+        string::string_delete(self.value as *mut c_char);
     }
 }

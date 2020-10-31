@@ -309,10 +309,10 @@ ffi_fn! {
     ///
     /// This function may fail if any of the Rust strings contain
     /// embedded null ('\0') bytes.
-    fn message_get_metadata_iter(message: *mut Message) -> *mut MetadataIterator {
+    fn message_get_metadata_iter(message: *mut Message) -> *mut MessageMetadataIterator {
         let message = as_mut!(message);
 
-        let iter = MetadataIterator {
+        let iter = MessageMetadataIterator {
             keys:  message.metadata.keys().cloned().collect(),
             current: 0,
             message: message as *const Message,
@@ -320,18 +320,13 @@ ffi_fn! {
 
         ptr::raw_to(iter)
     } {
-        ptr::null_mut_to::<MetadataIterator>()
+        ptr::null_mut_to::<MessageMetadataIterator>()
     }
 }
 
 ffi_fn! {
     /// Get the next key and value out of the iterator, if possible
-    ///
-    /// Returns a pointer to a heap allocated array of 2 elements, the pointer to the
-    /// key string on the heap, and the pointer to the value string on the heap.
-    ///
-    /// The user needs to free both the contained strings and the array.
-    fn metadata_iter_next(iter: *mut MetadataIterator) -> *mut MetadataPair {
+    fn message_metadata_iter_next(iter: *mut MessageMetadataIterator) -> *mut MessageMetadataPair {
         let iter = as_mut!(iter);
         let message = as_ref!(iter.message);
         let key = iter.next().ok_or(anyhow::anyhow!("iter past the end of metadata"))?;
@@ -339,23 +334,23 @@ ffi_fn! {
             .metadata
             .get_key_value(key)
             .ok_or(anyhow::anyhow!("iter provided invalid metadata key"))?;
-        let pair = MetadataPair::new(key, value)?;
+        let pair = MessageMetadataPair::new(key, value)?;
         ptr::raw_to(pair)
     } {
-        ptr::null_mut_to::<MetadataPair>()
+        ptr::null_mut_to::<MessageMetadataPair>()
     }
 }
 
 ffi_fn! {
     /// Free the metadata iterator when you're done using it.
-    fn metadata_iter_delete(iter: *mut MetadataIterator) {
+    fn message_metadata_iter_delete(iter: *mut MessageMetadataIterator) {
         ptr::drop_raw(iter);
     }
 }
 
 ffi_fn! {
-    /// Free a pair of key and value returned from `metadata_iter_next`.
-    fn metadata_pair_delete(pair: *mut MetadataPair) {
+    /// Free a pair of key and value returned from `message_metadata_iter_next`.
+    fn message_metadata_pair_delete(pair: *mut MessageMetadataPair) {
         ptr::drop_raw(pair);
     }
 }
@@ -365,7 +360,7 @@ ffi_fn! {
 ///
 /// This assumes no mutation of the underlying metadata happens while the iterator is live.
 #[derive(Debug)]
-pub struct MetadataIterator {
+pub struct MessageMetadataIterator {
     /// The metadata keys
     keys: Vec<String>,
     /// The current key
@@ -374,7 +369,7 @@ pub struct MetadataIterator {
     message: *const Message,
 }
 
-impl MetadataIterator {
+impl MessageMetadataIterator {
     fn next(&mut self) -> Option<&String> {
         let idx = self.current;
         self.current += 1;
@@ -386,14 +381,17 @@ impl MetadataIterator {
 #[derive(Debug)]
 #[repr(C)]
 #[allow(missing_copy_implementations)]
-pub struct MetadataPair {
+pub struct MessageMetadataPair {
     key: *const c_char,
     value: *const c_char,
 }
 
-impl MetadataPair {
-    fn new(key: &str, value: &str) -> anyhow::Result<MetadataPair> {
-        Ok(MetadataPair {
+impl MessageMetadataPair {
+    fn new(
+        key: &str,
+        value: &str,
+    ) -> anyhow::Result<MessageMetadataPair> {
+        Ok(MessageMetadataPair {
             key: string::to_c(key)? as *const c_char,
             value: string::to_c(value)? as *const c_char,
         })
@@ -412,7 +410,7 @@ impl MetadataPair {
 // cast back to `*mut` here so we can free the memory.
 //
 // The discussion here helps explain: https://github.com/rust-lang/rust-clippy/issues/4774
-impl Drop for MetadataPair {
+impl Drop for MessageMetadataPair {
     fn drop(&mut self) {
         string::string_delete(self.key as *mut c_char);
         string::string_delete(self.value as *mut c_char);
