@@ -303,13 +303,6 @@ fn compare_maps(path: &Vec<&str>, expected: &serde_json::Map<String, Value>, act
         p.push(key.as_str());
         if actual.contains_key(key) {
           result = merge_result(result, compare(&p, value, &actual[key], context));
-        } else if !context.wildcard_matcher_is_defined(&p) {
-          result = merge_result(result, Err(vec![ Mismatch::BodyMismatch {
-            path: path.join("."),
-            expected: Some(json_to_string(&json!(expected)).into()),
-            actual: Some(json_to_string(&json!(&actual)).into()),
-            mismatch: format!("Expected entry {}={} but was missing", key, json_to_string(value)),
-          }]));
         }
       }
     };
@@ -646,17 +639,12 @@ mod tests {
 
     let result = match_json(&val4.clone(), &val2.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     let mismatches = result.unwrap_err();
-    expect!(mismatches.iter()).to(have_count(2));
+    expect!(mismatches.iter()).to(have_count(1));
     let mismatch = mismatches[0].clone();
     expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$"),
         expected: Some("{\"a\":\"1\",\"b\":\"2\",\"c\":\"3\"}".into()),
         actual: Some("{\"a\":\"1\",\"b\":\"2\"}".into()), mismatch: s!("")}));
     expect!(mismatch.description()).to(be_equal_to(s!("$ -> Actual map is missing the following keys: c")));
-    let mismatch = mismatches[1].clone();
-    expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$"),
-        expected: Some("{\"a\":1,\"b\":2,\"c\":3}".into()),
-        actual: Some("{\"a\":1,\"b\":2}".into()), mismatch: s!("")}));
-    expect!(mismatch.description()).to(be_equal_to(s!("$ -> Expected entry c=3 but was missing")));
 
     let result = match_json(&val3, &val2, &MatchingContext::new(DiffConfig::AllowUnexpectedKeys, &matchingrules!{
       "body" => {

@@ -14,7 +14,7 @@ use onig::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{self, json, Value};
 
-use crate::{MatchingContext, merge_result, Mismatch};
+use crate::{MatchingContext, merge_result, Mismatch, DiffConfig};
 use crate::matchers::{match_values, Matches};
 use crate::models::json_utils::{json_to_num, json_to_string};
 use crate::path_exp::*;
@@ -374,7 +374,7 @@ impl MatchingRule {
     }
   }
 
-  /// Delegate to the matching rule define at the given path to compare the key/value maps.
+  /// Delegate to the matching rule defined at the given path to compare the key/value maps.
   pub fn compare_maps<T: Display + Debug>(&self, path: &Vec<&str>, expected: &HashMap<String, T>, actual: &HashMap<String, T>,
                                   context: &MatchingContext,
                                   callback: &mut dyn FnMut(&Vec<&str>, &T, &T) -> Result<(), Vec<Mismatch>>) -> Result<(), Vec<Mismatch>> {
@@ -398,11 +398,6 @@ impl MatchingRule {
           let mut p = path.to_vec();
           p.push(key);
           result = merge_result(result, callback(&p, value, &actual[key]));
-        } else {
-          result = merge_result(result, Err(vec![ Mismatch::BodyMismatch { path: path.join("."),
-            expected: Some(expected.for_mismatch().into()),
-            actual: Some(actual.for_mismatch().into()),
-            mismatch: format!("Expected entry {}={} but was missing", key, value.to_string())} ]));
         }
       }
     }
