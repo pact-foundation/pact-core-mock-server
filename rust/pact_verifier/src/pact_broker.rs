@@ -2,6 +2,7 @@ use pact_matching::models::{Pact, RequestResponsePact};
 use pact_matching::s;
 use crate::MismatchResult;
 use serde_json::{json, Value};
+use serde::{Deserialize, Serialize};
 use itertools::Itertools;
 use std::collections::HashMap;
 use super::provider_client::join_paths;
@@ -106,7 +107,8 @@ impl Display for PactBrokerError {
   }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 /// Structure to represent a HAL link
 pub struct Link {
   /// Link name
@@ -380,15 +382,15 @@ impl HALClient {
         }
     }
 
-  async fn post_json(self, url: String, body: String) -> Result<(), PactBrokerError> {
+  async fn post_json(self, url: String, body: String) -> Result<serde_json::Value, PactBrokerError> {
     self.send_document(url, body, Method::POST).await
   }
 
-  async fn put_json(self, url: String, body: String) -> Result<(), PactBrokerError> {
+  async fn put_json(self, url: String, body: String) -> Result<serde_json::Value, PactBrokerError> {
     self.send_document(url, body, Method::PUT).await
   }
 
-  async fn send_document(self, url: String, body: String, method: Method) -> Result<(), PactBrokerError> {
+  async fn send_document(self, url: String, body: String, method: Method) -> Result<serde_json::Value, PactBrokerError> {
     log::debug!("Sending JSON to {} using {}: {}", url, method, body);
 
     let url = url.parse::<reqwest::Url>()
@@ -408,7 +410,7 @@ impl HALClient {
       .header("Content-Type", "application/json")
       .body(body);
 
-    request_builder.send()
+    let response = request_builder.send()
       .await
       .map_err(|err| PactBrokerError::IoError(
         format!("Failed to send JSON to the pact broker URL '{}' - {}", url, err)
@@ -416,8 +418,16 @@ impl HALClient {
       .error_for_status()
       .map_err(|err| PactBrokerError::ContentError(
         format!("Request to pact broker URL '{}' failed - {}",  url, err)
-      ))
-      .map(|_| ())
+      ));
+
+      // TODO: use the future API above
+      match response {
+        Ok(res) => {
+          let res = self.parse_broker_response(url.path().to_string(), res).await;
+          Ok(res.unwrap_or_default())
+        },
+        Err(err) => Err(err)
+      }
   }
 
   fn with_doc_context(self, doc_attributes: &[Link]) -> Result<HALClient, PactBrokerError> {
@@ -516,6 +526,129 @@ pub async fn fetch_pacts_from_broker(
     Ok(results)
 }
 
+// TODO: instead of returning links, return something else "verification contexts" to be able to log notices etc??
+pub async fn fetch_pacts_dynamically_from_broker(
+  broker_url: String,
+  provider_name: String,
+  pending: bool,
+  include_wip_pacts_since: String,
+  consumer_version_selectors: Vec<ConsumerVersionSelector>,
+  auth: Option<HttpAuth>
+) -> Result<Vec<Result<(Box<dyn Pact>, Vec<Link>), PactBrokerError>>, PactBrokerError> {
+    let mut hal_client = HALClient::with_url(broker_url.clone(), auth);
+    let template_values = hashmap!{ s!("provider") => provider_name.clone() };
+
+    // Construct the Pacts for verification payload
+
+    // If consumer_version_selectors given - use them
+    // If tags given, construct a "default" consumer version selector payload
+    // set pending to "false" by default (or don't send if it's false?)
+    // don't send "wip" pacts if empty string
+    // If nothing given, send an empty payload
+
+    let template_values = hashmap!{ s!("provider") => provider_name.clone() };
+
+    hal_client = hal_client.navigate("pb:provider-pacts-for-verification", &template_values)
+    .await
+    .map_err(move |err| {
+      match err {
+        PactBrokerError::NotFound(_) =>
+        PactBrokerError::NotFound(
+          format!("No pacts for provider '{}' were found in the pact broker. URL: '{}'",
+          provider_name.clone(), broker_url.clone())),
+          _ => err
+        }
+      })?;
+
+    // Fetch self ref
+    let response = match hal_client.find_link("self") {
+      Ok(link) => {
+        // TODO: make this an async stream to make error handling less shit
+        match hal_client.clone().post_json(hal_client.clone().parse_link_url(&link, &hashmap!{})?, "{}".to_string()).await {
+          Ok(res) => Some(res),
+          Err(err) => {
+            debug!("error Response for pacts for verification {:?} ", err);
+            return Err(err)
+          }
+        }
+      },
+      Err(e) => return Err(e)
+    };
+
+    let pact_links = match response {
+      Some(v) => {
+        let pfv: PactsForVerificationResponse = serde_json::from_value(v).unwrap();
+        // let links: Vec<Result<(HALClient, Link), PactBrokerError>> = pfv.embedded.pacts.iter().map(| p| {
+        let links: Result<Vec<Link>, PactBrokerError> = pfv.embedded.pacts.iter().map(| p| {
+          match p.links.get("self") {
+            Some(l) => Ok(l.clone()),
+            None => Err(
+              PactBrokerError::LinkError(
+                format!(
+                  "Expected a HAL+JSON response from the pact broker, but got a link with no HREF. URL: '{}', PATH: '{:?}'",
+                  &hal_client.url,
+                  &p.links,
+                )
+              )
+            )
+          }
+        }).collect();
+
+        links
+      },
+      None => Err(PactBrokerError::NotFound(format!("No pacts were found for this provider")))
+    }?;
+
+    let results: Vec<_> = futures::stream::iter(pact_links)
+        // TODO: this first branch is a dupe of the above, I think
+        .map(|ref pact_link| {
+          match pact_link.href {
+            Some(_) => Ok((hal_client.clone(), pact_link.clone())),
+            None => Err(
+              PactBrokerError::LinkError(
+                format!(
+                  "Expected a HAL+JSON response from the pact broker, but got a link with no HREF. URL: '{}', LINK: '{:?}'",
+                  &hal_client.url,
+                  pact_link
+                )
+              )
+            )
+          }
+        })
+        .and_then(|(hal_client, pact_link)| async {
+          let pact_json = hal_client.fetch_url(
+            &pact_link.clone(),
+            &template_values.clone()
+          ).await?;
+          Ok((pact_link, pact_json))
+        })
+        .map(|result| {
+          match result {
+            Ok((pact_link, pact_json)) => {
+              let href = pact_link.href.unwrap_or_default();
+              let links = links_from_json(&pact_json);
+              match pact_json {
+                Value::Object(ref map) => if map.contains_key("messages") {
+                  match MessagePact::from_json(&href, &pact_json) {
+                    Ok(pact) => Ok((Box::new(pact) as Box<dyn Pact>, links)),
+                    Err(err) => Err(PactBrokerError::ContentError(err))
+                  }
+                } else {
+                  Ok((Box::new(RequestResponsePact::from_json(&href, &pact_json)) as Box<dyn Pact>, links))
+                },
+                _ => Err(PactBrokerError::ContentError(format!("Link '{}' does not point to a valid pact file", href)))
+              }
+            },
+            Err(err) => Err(err)
+          }
+        })
+        .into_stream()
+        .collect()
+        .await;
+
+    Ok(results)
+}
+
 pub enum TestResult {
   Ok,
   Failed(Vec<(String, MismatchResult)>)
@@ -539,7 +672,7 @@ pub async fn publish_verification_results(
   version: String,
   build_url: Option<String>,
   provider_tags: Vec<String>
-) -> Result<(), PactBrokerError> {
+) -> Result<serde_json::Value, PactBrokerError> {
   let hal_client = HALClient::with_url(broker_url.clone(), auth.clone());
 
   if !provider_tags.is_empty() {
@@ -669,6 +802,41 @@ async fn publish_provider_tags(
     },
     Err(_) => Err(PactBrokerError::LinkError("Can't publish provider tags as there is no 'pb:version-tag' link".to_string()))
   }
+}
+
+#[derive(Debug, Clone)]
+/// Structure to represent a HAL link
+pub struct ConsumerVersionSelector {
+  /// Application name to filter the results on
+  pub consumer: String,
+  /// Tag
+  pub tag: String,
+  /// Fallback tag if Tag doesn't exist
+  pub fallback_tag: String,
+  /// Only select the latest (if false, this selects all pacts for a tag)
+  pub latest: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+struct PactsForVerificationResponse {
+  #[serde(rename(deserialize = "_embedded"))]
+  pub embedded: PactsForVerificationBody
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+struct PactsForVerificationBody {
+  pub pacts: Vec<PactForVerification>
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+struct PactForVerification {
+  pub short_description: String,
+  // pub verification_properties: String,
+  #[serde(rename(deserialize = "_links"))]
+  pub links: HashMap<String, Link>
 }
 
 #[cfg(test)]

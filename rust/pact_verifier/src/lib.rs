@@ -23,7 +23,7 @@ use std::collections::HashMap;
 use crate::provider_client::{make_provider_request, provider_client_error_to_string};
 use regex::Regex;
 use serde_json::Value;
-use crate::pact_broker::{publish_verification_results, TestResult, Link};
+use crate::pact_broker::{publish_verification_results, TestResult, Link, ConsumerVersionSelector};
 use maplit::*;
 use futures::stream::*;
 use callback_executors::RequestFilterExecutor;
@@ -48,7 +48,9 @@ pub enum PactSource {
     /// Load the pact from a URL
     URL(String, Option<HttpAuth>),
     /// Load all pacts with the provider name from the pact broker url
-    BrokerUrl(String, String, Option<HttpAuth>, Vec<Link>)
+    BrokerUrl(String, String, Option<HttpAuth>, Vec<Link>),
+    /// Load pacts with the newer pacts for verification
+    BrokerWithDynamicConfiguration(String, String, bool, String, Vec<ConsumerVersionSelector>, Option<HttpAuth>, Vec<Link>)
 }
 
 impl Display for PactSource {
@@ -59,6 +61,9 @@ impl Display for PactSource {
       PactSource::URL(ref url, _) => write!(f, "URL({})", url),
       PactSource::BrokerUrl(ref provider_name, ref broker_url, _, _) => {
           write!(f, "PactBroker({}, provider_name='{}')", broker_url, provider_name)
+      }
+      PactSource::BrokerWithDynamicConfiguration(ref provider_name, ref broker_url,ref enable_pending, ref include_wip_since, ref selectors, _, _) => {
+          write!(f, "PactBroker({}, provider_name='{}', enable_ending={}, include_wip_since={}, consumer_version_selectors='{:?}')", broker_url, provider_name, enable_pending, include_wip_since, selectors)
       }
       _ => write!(f, "Unknown")
     }
@@ -553,6 +558,43 @@ async fn fetch_pact(source: PactSource) -> Vec<Result<(Box<dyn Pact>, PactSource
         provider_name.clone(),
         auth.clone()
       ).await;
+
+      match result {
+        Ok(ref pacts) => {
+          let mut buffer = vec![];
+          for result in pacts.iter() {
+            match result {
+              Ok((pact, links)) => {
+                log::debug!("Got pact with links {:?}", links);
+                if let Ok(pact) = pact.as_request_response_pact() {
+                  buffer.push(Ok((Box::new(pact) as Box<dyn Pact>, PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))))
+                }
+                if let Ok(pact) = pact.as_message_pact() {
+                  buffer.push(Ok((Box::new(pact) as Box<dyn Pact>, PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))))
+                }
+              },
+              &Err(ref err) => buffer.push(Err(format!("Failed to load pact from '{}' - {:?}", broker_url, err)))
+            }
+          }
+          buffer
+        },
+        Err(err) => vec![Err(format!("Could not load pacts from the pact broker '{}' - {:?}", broker_url, err))]
+      }
+    },
+    PactSource::BrokerWithDynamicConfiguration(ref provider_name, ref broker_url,ref enable_pending, ref include_wip_since, ref selectors, ref auth, _) => {
+      let result = pact_broker::fetch_pacts_dynamically_from_broker(
+        broker_url.clone(),
+        provider_name.clone(),
+        false,
+        "".to_string(),
+        vec![],
+        auth.clone()
+      ).await;
+      // let result = pact_broker::fetch_pacts_from_broker(
+      //   broker_url.clone(),
+      //   provider_name.clone(),
+      //   auth.clone()
+      // ).await;
 
       match result {
         Ok(ref pacts) => {

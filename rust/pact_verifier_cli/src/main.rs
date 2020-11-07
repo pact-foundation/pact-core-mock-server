@@ -268,9 +268,18 @@ fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
           let auth = matches.value_of("user").map(|user| {
             HttpAuth::User(user.to_string(), matches.value_of("password").map(|p| p.to_string()))
           });
-          PactSource::BrokerUrl(name, s!(v), auth, vec![])
+          let pending = matches.is_present("enable-pending");
+          let wip = matches.value_of("include-wip-pacts-since").unwrap_or_default();
+          // let consumer_version_selectors = matches.value_of("consumer-version-selectors").unwrap_or(vec![]);
+
+          PactSource::BrokerWithDynamicConfiguration(name, s!(v), pending, wip.to_string(), vec![], auth, vec![])
         } else if matches.is_present("token") {
-          PactSource::BrokerUrl(s!(matches.value_of("provider-name").unwrap()), s!(v),
+          let name = matches.value_of("provider-name").unwrap().to_string();
+          let pending = matches.is_present("enable-pending");
+          let wip = matches.value_of("include-wip-pacts-since").unwrap_or_default();
+          // let consumer_version_selectors = matches.value_of("consumer-version-selectors").unwrap_or(vec![]);
+
+          PactSource::BrokerWithDynamicConfiguration(name, s!(v), pending, wip.to_string(), vec![],
             matches.value_of("token").map(|token| HttpAuth::Token(token.to_string())),
             vec![])
         } else {
