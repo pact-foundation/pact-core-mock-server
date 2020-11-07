@@ -2,6 +2,7 @@ use pact_matching::models::{Pact, RequestResponsePact};
 use pact_matching::s;
 use crate::MismatchResult;
 use serde_json::{json, Value};
+use serde_with::skip_serializing_none;
 use serde::{Deserialize, Serialize};
 use itertools::Itertools;
 use std::collections::HashMap;
@@ -531,20 +532,12 @@ pub async fn fetch_pacts_dynamically_from_broker(
   broker_url: String,
   provider_name: String,
   pending: bool,
-  include_wip_pacts_since: String,
+  include_wip_pacts_since: Option<String>,
+  provider_tags: Vec<String>,
   consumer_version_selectors: Vec<ConsumerVersionSelector>,
   auth: Option<HttpAuth>
 ) -> Result<Vec<Result<(Box<dyn Pact>, Vec<Link>), PactBrokerError>>, PactBrokerError> {
     let mut hal_client = HALClient::with_url(broker_url.clone(), auth);
-    let template_values = hashmap!{ s!("provider") => provider_name.clone() };
-
-    // Construct the Pacts for verification payload
-
-    // If consumer_version_selectors given - use them
-    // If tags given, construct a "default" consumer version selector payload
-    // set pending to "false" by default (or don't send if it's false?)
-    // don't send "wip" pacts if empty string
-    // If nothing given, send an empty payload
 
     let template_values = hashmap!{ s!("provider") => provider_name.clone() };
 
@@ -560,11 +553,27 @@ pub async fn fetch_pacts_dynamically_from_broker(
         }
       })?;
 
-    // Fetch self ref
+      // Construct the Pacts for verification payload
+
+      // If consumer_version_selectors given - use them
+      // If tags given, construct a "default" consumer version selector payload
+      // set pending to "false" by default (or don't send if it's false?)
+      // don't send "wip" pacts if empty string
+      // If nothing given, send an empty payload
+
+      let pacts_for_verification = PactsForVerificationRequest {
+        provider_version_tags: provider_tags,
+        include_wip_pacts_since: include_wip_pacts_since,
+        consumer_version_selectors: consumer_version_selectors,
+      include_pending_status: pending,
+    };
+    let request_body = serde_json::to_string(&pacts_for_verification).unwrap();
+
+    // Post the verification request
     let response = match hal_client.find_link("self") {
       Ok(link) => {
         // TODO: make this an async stream to make error handling less shit
-        match hal_client.clone().post_json(hal_client.clone().parse_link_url(&link, &hashmap!{})?, "{}".to_string()).await {
+        match hal_client.clone().post_json(hal_client.clone().parse_link_url(&link, &hashmap!{})?, request_body).await {
           Ok(res) => Some(res),
           Err(err) => {
             debug!("error Response for pacts for verification {:?} ", err);
@@ -575,10 +584,11 @@ pub async fn fetch_pacts_dynamically_from_broker(
       Err(e) => return Err(e)
     };
 
+    // Find all of the Pact links
+    // TODO: refactor this to pass along the the  verification context (notices etc.)
     let pact_links = match response {
       Some(v) => {
         let pfv: PactsForVerificationResponse = serde_json::from_value(v).unwrap();
-        // let links: Vec<Result<(HALClient, Link), PactBrokerError>> = pfv.embedded.pacts.iter().map(| p| {
         let links: Result<Vec<Link>, PactBrokerError> = pfv.embedded.pacts.iter().map(| p| {
           match p.links.get("self") {
             Some(l) => Ok(l.clone()),
@@ -804,17 +814,18 @@ async fn publish_provider_tags(
   }
 }
 
-#[derive(Debug, Clone)]
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 /// Structure to represent a HAL link
 pub struct ConsumerVersionSelector {
   /// Application name to filter the results on
-  pub consumer: String,
+  pub consumer: Option<String>,
   /// Tag
   pub tag: String,
   /// Fallback tag if Tag doesn't exist
-  pub fallback_tag: String,
+  pub fallback_tag: Option<String>,
   /// Only select the latest (if false, this selects all pacts for a tag)
-  pub latest: bool,
+  pub latest: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -837,6 +848,16 @@ struct PactForVerification {
   // pub verification_properties: String,
   #[serde(rename(deserialize = "_links"))]
   pub links: HashMap<String, Link>
+}
+
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PactsForVerificationRequest {
+  pub provider_version_tags: Vec<String>,
+  pub include_pending_status: bool,
+  pub include_wip_pacts_since: Option<String>,
+  pub consumer_version_selectors: Vec<ConsumerVersionSelector>
 }
 
 #[cfg(test)]
@@ -1357,5 +1378,89 @@ mod tests {
     let json = link.as_json();
     expect!(json.to_string()).to(be_equal_to(
       "{\"href\":\"1234\",\"templated\":true}"));
+  }
+
+  #[test]
+  fn test_serde() {
+    let json = r#"
+    {
+      "_embedded": {
+          "pacts": [
+              {
+                  "shortDescription": "latest master",
+                  "verificationProperties": {
+                      "pending": true,
+                      "notices": [
+                          {
+                              "when": "before_verification",
+                              "text": "The pact at https://testdemo.pactflow.io/pacts/provider/pactflow-example-provider/consumer/pactflow-example-consumer/pact-version/762b7f99b848e6fd7537d20725940f35eaa5a258 is being verified because it matches the following configured selection criterion: latest pact for a consumer version tagged 'master'"
+                          },
+                          {
+                              "when": "before_verification",
+                              "text": "This pact is in pending state for this version of pactflow-example-provider because a successful verification result for a version of pactflow-example-provider with tag 'master' has not yet been published. If this verification fails, it will not cause the overall build to fail. Read more at https://pact.io/pending"
+                          },
+                          {
+                              "when": "after_verification:success_true_published_false",
+                              "text": "This pact is still in pending state for any version of pactflow-example-provider with tag 'master' as the successful verification results with this tag have not yet been published."
+                          },
+                          {
+                              "when": "after_verification:success_false_published_false",
+                              "text": "This pact is still in pending state for any version of pactflow-example-provider with tag 'master' as a successful verification result with this tag has not yet been published"
+                          },
+                          {
+                              "when": "after_verification:success_true_published_true",
+                              "text": "This pact is no longer in pending state for any version of pactflow-example-provider with tag 'master', as a successful verification result with this tag has been published. If a verification for a version with  fails in the future, it will fail the build. Read more at https://pact.io/pending"
+                          },
+                          {
+                              "when": "after_verification:success_false_published_true",
+                              "text": "This pact is still in pending state for any version of pactflow-example-provider with tag 'master' as a successful verification result with this tag has not yet been published"
+                          }
+                      ]
+                  },
+                  "_links": {
+                      "self": {
+                          "href": "https://testdemo.pactflow.io/pacts/provider/pactflow-example-provider/consumer/pactflow-example-consumer/pact-version/762b7f99b848e6fd7537d20725940f35eaa5a258",
+                          "name": "Pact between pactflow-example-consumer (c5dbc7f+1603346163) and pactflow-example-provider"
+                      }
+                  }
+              },
+              {
+                  "shortDescription": "latest master",
+                  "verificationProperties": {
+                      "pending": false,
+                      "notices": [
+                          {
+                              "when": "before_verification",
+                              "text": "The pact at https://testdemo.pactflow.io/pacts/provider/pactflow-example-provider/consumer/example-cypress-consumer/pact-version/3546fa80bcf053c6f464079713dbbb40aea8c6a2 is being verified because it matches the following configured selection criterion: latest pact for a consumer version tagged 'master'"
+                          },
+                          {
+                              "when": "before_verification",
+                              "text": "This pact has previously been successfully verified by a version of pactflow-example-provider with tag 'master'. If this verification fails, it will fail the build. Read more at https://pact.io/pending"
+                          }
+                      ]
+                  },
+                  "_links": {
+                      "self": {
+                          "href": "https://testdemo.pactflow.io/pacts/provider/pactflow-example-provider/consumer/example-cypress-consumer/pact-version/3546fa80bcf053c6f464079713dbbb40aea8c6a2",
+                          "name": "Pact between example-cypress-consumer (15d4b7db0c396e15e96df35c848171b9f699e84a) and pactflow-example-provider"
+                      }
+                  }
+              }
+          ]
+      },
+      "_links": {
+          "self": {
+              "href": "https://testdemo.pactflow.io/pacts/provider/pactflow-example-provider/for-verification",
+              "title": "Pacts to be verified"
+          }
+      }
+  }
+"#;
+
+    let pfv: PactsForVerificationResponse = serde_json::from_str(json).unwrap();
+
+    println!("{:?}", pfv);
+
+
   }
 }

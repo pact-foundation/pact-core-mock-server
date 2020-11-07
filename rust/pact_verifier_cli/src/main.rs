@@ -269,17 +269,29 @@ fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
             HttpAuth::User(user.to_string(), matches.value_of("password").map(|p| p.to_string()))
           });
           let pending = matches.is_present("enable-pending");
-          let wip = matches.value_of("include-wip-pacts-since").unwrap_or_default();
-          // let consumer_version_selectors = matches.value_of("consumer-version-selectors").unwrap_or(vec![]);
+          let wip = match matches.value_of("include-wip-pacts-since") {
+            Some(wip) => Some(wip.to_string()),
+            None => None,
+          };
+          let consumer_version_tags = matches.values_of("consumer-version-tags")
+            .map_or_else(|| vec![], |tags| consumer_tags_to_selectors(tags.map(|tag| tag).collect()));
+          let provider_tags = matches.values_of("provider-tags")
+            .map_or_else(|| vec![], |tags| tags.map(|tag| tag.to_string()).collect());
 
-          PactSource::BrokerWithDynamicConfiguration(name, s!(v), pending, wip.to_string(), vec![], auth, vec![])
+          PactSource::BrokerWithDynamicConfiguration(name, s!(v), pending, wip, provider_tags, consumer_version_tags, auth, vec![])
         } else if matches.is_present("token") {
           let name = matches.value_of("provider-name").unwrap().to_string();
           let pending = matches.is_present("enable-pending");
-          let wip = matches.value_of("include-wip-pacts-since").unwrap_or_default();
-          // let consumer_version_selectors = matches.value_of("consumer-version-selectors").unwrap_or(vec![]);
+          let wip = match matches.value_of("include-wip-pacts-since") {
+            Some(wip) => Some(wip.to_string()),
+            None => None,
+          };
+          let consumer_version_tags = matches.values_of("consumer-version-tags")
+          .map_or_else(|| vec![], |tags| consumer_tags_to_selectors(tags.map(|tag| tag).collect()));
+          let provider_tags = matches.values_of("provider-tags")
+            .map_or_else(|| vec![], |tags| tags.map(|tag| tag.to_string()).collect());
 
-          PactSource::BrokerWithDynamicConfiguration(name, s!(v), pending, wip.to_string(), vec![],
+          PactSource::BrokerWithDynamicConfiguration(name, s!(v), pending, wip, provider_tags, consumer_version_tags,
             matches.value_of("token").map(|token| HttpAuth::Token(token.to_string())),
             vec![])
         } else {
@@ -288,6 +300,17 @@ fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
       }).collect::<Vec<PactSource>>());
     };
     sources
+}
+
+fn consumer_tags_to_selectors(tags: Vec<&str>) -> Vec<pact_verifier::ConsumerVersionSelector> {
+  tags.iter().map(|t| {
+    pact_verifier::ConsumerVersionSelector {
+      consumer: None,
+      fallback_tag: None,
+      tag: t.to_string(),
+      latest: Some(true),
+    }
+  }).collect()
 }
 
 fn interaction_filter(matches: &ArgMatches) -> FilterInfo {
