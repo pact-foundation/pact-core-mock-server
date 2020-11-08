@@ -460,7 +460,7 @@ pub async fn fetch_pacts_from_broker(
   broker_url: String,
   provider_name: String,
   auth: Option<HttpAuth>
-) -> Result<Vec<Result<(Box<dyn Pact>, Vec<Link>), PactBrokerError>>, PactBrokerError> {
+) -> Result<Vec<Result<(Box<dyn Pact>, Option<PactVerificationContext>, Vec<Link>), PactBrokerError>>, PactBrokerError> {
     let mut hal_client = HALClient::with_url(broker_url.clone(), auth);
     let template_values = hashmap!{ s!("provider") => provider_name.clone() };
 
@@ -508,11 +508,11 @@ pub async fn fetch_pacts_from_broker(
               match pact_json {
                 Value::Object(ref map) => if map.contains_key("messages") {
                   match MessagePact::from_json(&href, &pact_json) {
-                    Ok(pact) => Ok((Box::new(pact) as Box<dyn Pact>, links)),
+                    Ok(pact) => Ok((Box::new(pact) as Box<dyn Pact>, None, links)),
                     Err(err) => Err(PactBrokerError::ContentError(err))
                   }
                 } else {
-                  Ok((Box::new(RequestResponsePact::from_json(&href, &pact_json)) as Box<dyn Pact>, links))
+                  Ok((Box::new(RequestResponsePact::from_json(&href, &pact_json)) as Box<dyn Pact>, None, links))
                 },
                 _ => Err(PactBrokerError::ContentError(format!("Link '{}' does not point to a valid pact file", href)))
               }
@@ -536,7 +536,7 @@ pub async fn fetch_pacts_dynamically_from_broker(
   provider_tags: Vec<String>,
   consumer_version_selectors: Vec<ConsumerVersionSelector>,
   auth: Option<HttpAuth>
-) -> Result<Vec<Result<(Box<dyn Pact>, Vec<Link>), PactBrokerError>>, PactBrokerError> {
+) -> Result<Vec<Result<(Box<dyn Pact>, Option<PactVerificationContext>, Vec<Link>), PactBrokerError>>, PactBrokerError> {
     let mut hal_client = HALClient::with_url(broker_url.clone(), auth);
 
     let template_values = hashmap!{ s!("provider") => provider_name.clone() };
@@ -589,9 +589,15 @@ pub async fn fetch_pacts_dynamically_from_broker(
     let pact_links = match response {
       Some(v) => {
         let pfv: PactsForVerificationResponse = serde_json::from_value(v).unwrap();
-        let links: Result<Vec<Link>, PactBrokerError> = pfv.embedded.pacts.iter().map(| p| {
+        let links: Result<Vec<(Link, PactVerificationContext)>, PactBrokerError> = pfv.embedded.pacts.iter().map(| p| {
           match p.links.get("self") {
-            Some(l) => Ok(l.clone()),
+            Some(l) => Ok((l.clone(), PactVerificationContext{
+              short_description: "fake verification context notice".to_string(),
+              verification_properties: PactVerificationProperties {
+                pending: false,
+                notices: None,
+              }
+            })),
             None => Err(
               PactBrokerError::LinkError(
                 format!(
@@ -604,6 +610,23 @@ pub async fn fetch_pacts_dynamically_from_broker(
           }
         }).collect();
 
+        // TODO: collect the verification contexts from the Pacts for Verification response
+        // and thread that through the result
+        // let contexts: Result<Vec<Link>, PactBrokerError> = pfv.embedded.pacts.iter().map(| p| {
+        //   match p.links.get("self") {
+        //     Some(l) => Ok(l.clone()),
+        //     None => Err(
+        //       PactBrokerError::LinkError(
+        //         format!(
+        //           "Expected a HAL+JSON response from the pact broker, but got a link with no HREF. URL: '{}', PATH: '{:?}'",
+        //           &hal_client.url,
+        //           &p.links,
+        //         )
+        //       )
+        //     )
+        //   }
+        // }).collect();
+
         links
       },
       None => Err(PactBrokerError::NotFound(format!("No pacts were found for this provider")))
@@ -611,9 +634,9 @@ pub async fn fetch_pacts_dynamically_from_broker(
 
     let results: Vec<_> = futures::stream::iter(pact_links)
         // TODO: this first branch is a dupe of the above, I think
-        .map(|ref pact_link| {
+        .map(|(ref pact_link, ref context)| {
           match pact_link.href {
-            Some(_) => Ok((hal_client.clone(), pact_link.clone())),
+            Some(_) => Ok((hal_client.clone(), pact_link.clone(), context.clone())),
             None => Err(
               PactBrokerError::LinkError(
                 format!(
@@ -625,26 +648,26 @@ pub async fn fetch_pacts_dynamically_from_broker(
             )
           }
         })
-        .and_then(|(hal_client, pact_link)| async {
+        .and_then(|(hal_client, pact_link, context)| async {
           let pact_json = hal_client.fetch_url(
             &pact_link.clone(),
             &template_values.clone()
           ).await?;
-          Ok((pact_link, pact_json))
+          Ok((pact_link, pact_json, context))
         })
         .map(|result| {
           match result {
-            Ok((pact_link, pact_json)) => {
+            Ok((pact_link, pact_json, context)) => {
               let href = pact_link.href.unwrap_or_default();
               let links = links_from_json(&pact_json);
               match pact_json {
                 Value::Object(ref map) => if map.contains_key("messages") {
                   match MessagePact::from_json(&href, &pact_json) {
-                    Ok(pact) => Ok((Box::new(pact) as Box<dyn Pact>, links)),
+                    Ok(pact) => Ok((Box::new(pact) as Box<dyn Pact>, Some(context), links)),
                     Err(err) => Err(PactBrokerError::ContentError(err))
                   }
                 } else {
-                  Ok((Box::new(RequestResponsePact::from_json(&href, &pact_json)) as Box<dyn Pact>, links))
+                  Ok((Box::new(RequestResponsePact::from_json(&href, &pact_json)) as Box<dyn Pact>, Some(context), links))
                 },
                 _ => Err(PactBrokerError::ContentError(format!("Link '{}' does not point to a valid pact file", href)))
               }
@@ -858,6 +881,22 @@ pub struct PactsForVerificationRequest {
   pub include_pending_status: bool,
   pub include_wip_pacts_since: Option<String>,
   pub consumer_version_selectors: Vec<ConsumerVersionSelector>
+}
+
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PactVerificationContext {
+  pub short_description: String,
+  pub verification_properties: PactVerificationProperties,
+}
+
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PactVerificationProperties {
+  pub pending: bool,
+  pub notices: Option<Vec<HashMap<String, String>>>,
 }
 
 #[cfg(test)]
@@ -1378,89 +1417,5 @@ mod tests {
     let json = link.as_json();
     expect!(json.to_string()).to(be_equal_to(
       "{\"href\":\"1234\",\"templated\":true}"));
-  }
-
-  #[test]
-  fn test_serde() {
-    let json = r#"
-    {
-      "_embedded": {
-          "pacts": [
-              {
-                  "shortDescription": "latest master",
-                  "verificationProperties": {
-                      "pending": true,
-                      "notices": [
-                          {
-                              "when": "before_verification",
-                              "text": "The pact at https://testdemo.pactflow.io/pacts/provider/pactflow-example-provider/consumer/pactflow-example-consumer/pact-version/762b7f99b848e6fd7537d20725940f35eaa5a258 is being verified because it matches the following configured selection criterion: latest pact for a consumer version tagged 'master'"
-                          },
-                          {
-                              "when": "before_verification",
-                              "text": "This pact is in pending state for this version of pactflow-example-provider because a successful verification result for a version of pactflow-example-provider with tag 'master' has not yet been published. If this verification fails, it will not cause the overall build to fail. Read more at https://pact.io/pending"
-                          },
-                          {
-                              "when": "after_verification:success_true_published_false",
-                              "text": "This pact is still in pending state for any version of pactflow-example-provider with tag 'master' as the successful verification results with this tag have not yet been published."
-                          },
-                          {
-                              "when": "after_verification:success_false_published_false",
-                              "text": "This pact is still in pending state for any version of pactflow-example-provider with tag 'master' as a successful verification result with this tag has not yet been published"
-                          },
-                          {
-                              "when": "after_verification:success_true_published_true",
-                              "text": "This pact is no longer in pending state for any version of pactflow-example-provider with tag 'master', as a successful verification result with this tag has been published. If a verification for a version with  fails in the future, it will fail the build. Read more at https://pact.io/pending"
-                          },
-                          {
-                              "when": "after_verification:success_false_published_true",
-                              "text": "This pact is still in pending state for any version of pactflow-example-provider with tag 'master' as a successful verification result with this tag has not yet been published"
-                          }
-                      ]
-                  },
-                  "_links": {
-                      "self": {
-                          "href": "https://testdemo.pactflow.io/pacts/provider/pactflow-example-provider/consumer/pactflow-example-consumer/pact-version/762b7f99b848e6fd7537d20725940f35eaa5a258",
-                          "name": "Pact between pactflow-example-consumer (c5dbc7f+1603346163) and pactflow-example-provider"
-                      }
-                  }
-              },
-              {
-                  "shortDescription": "latest master",
-                  "verificationProperties": {
-                      "pending": false,
-                      "notices": [
-                          {
-                              "when": "before_verification",
-                              "text": "The pact at https://testdemo.pactflow.io/pacts/provider/pactflow-example-provider/consumer/example-cypress-consumer/pact-version/3546fa80bcf053c6f464079713dbbb40aea8c6a2 is being verified because it matches the following configured selection criterion: latest pact for a consumer version tagged 'master'"
-                          },
-                          {
-                              "when": "before_verification",
-                              "text": "This pact has previously been successfully verified by a version of pactflow-example-provider with tag 'master'. If this verification fails, it will fail the build. Read more at https://pact.io/pending"
-                          }
-                      ]
-                  },
-                  "_links": {
-                      "self": {
-                          "href": "https://testdemo.pactflow.io/pacts/provider/pactflow-example-provider/consumer/example-cypress-consumer/pact-version/3546fa80bcf053c6f464079713dbbb40aea8c6a2",
-                          "name": "Pact between example-cypress-consumer (15d4b7db0c396e15e96df35c848171b9f699e84a) and pactflow-example-provider"
-                      }
-                  }
-              }
-          ]
-      },
-      "_links": {
-          "self": {
-              "href": "https://testdemo.pactflow.io/pacts/provider/pactflow-example-provider/for-verification",
-              "title": "Pacts to be verified"
-          }
-      }
-  }
-"#;
-
-    let pfv: PactsForVerificationResponse = serde_json::from_str(json).unwrap();
-
-    println!("{:?}", pfv);
-
-
   }
 }

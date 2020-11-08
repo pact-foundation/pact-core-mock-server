@@ -23,7 +23,7 @@ use std::collections::HashMap;
 use crate::provider_client::{make_provider_request, provider_client_error_to_string};
 use regex::Regex;
 use serde_json::Value;
-use crate::pact_broker::{publish_verification_results, TestResult, Link};
+use crate::pact_broker::{publish_verification_results, TestResult, Link, PactVerificationContext, PactVerificationProperties};
 pub use crate::pact_broker::{PactsForVerificationRequest, ConsumerVersionSelector};
 use maplit::*;
 use futures::stream::*;
@@ -431,7 +431,7 @@ fn filter_interaction(interaction: &dyn Interaction, filter: &FilterInfo) -> boo
   }
 }
 
-fn filter_consumers(consumers: &[String], res: &Result<(Box<dyn Pact>, PactSource), String>) -> bool {
+fn filter_consumers(consumers: &[String], res: &Result<(Box<dyn Pact>, Option<PactVerificationContext>, PactSource), String>) -> bool {
   consumers.is_empty() || res.is_err() || consumers.contains(&res.as_ref().unwrap().0.consumer().name)
 }
 
@@ -476,7 +476,10 @@ pub async fn verify_provider<F: RequestFilterExecutor, S: ProviderStateExecutor>
     let mut all_errors: Vec<(String, MismatchResult)> = vec![];
     for pact_result in pact_results {
       match pact_result {
-        Ok((pact, pact_source)) => {
+        Ok((pact, context, pact_source)) => {
+          if let Some(c) = context {
+            println!(">>>>>> Verificaton context: {}", c.short_description);
+          };
           println!("\nVerifying a pact between {} and {}",
             Style::new().bold().paint(pact.consumer().name.clone()),
             Style::new().bold().paint(pact.provider().name.clone()));
@@ -536,15 +539,15 @@ pub async fn verify_provider<F: RequestFilterExecutor, S: ProviderStateExecutor>
     }
 }
 
-async fn fetch_pact(source: PactSource) -> Vec<Result<(Box<dyn Pact>, PactSource), String>> {
+async fn fetch_pact(source: PactSource) -> Vec<Result<(Box<dyn Pact>, Option<PactVerificationContext>, PactSource), String>> {
   match source {
     PactSource::File(ref file) => vec![read_pact(Path::new(&file))
       .map_err(|err| format!("Failed to load pact '{}' - {}", file, err))
-      .map(|pact| (pact, source))],
+      .map(|pact| (pact, None, source))],
     PactSource::Dir(ref dir) => match walkdir(Path::new(dir)) {
       Ok(pact_results) => pact_results.into_iter().map(|pact_result| {
           match pact_result {
-              Ok(pact) => Ok((pact, source.clone())),
+              Ok(pact) => Ok((pact, None, source.clone())),
               Err(err) => Err(format!("Failed to load pact from '{}' - {}", dir, err))
           }
       }).collect(),
@@ -552,7 +555,7 @@ async fn fetch_pact(source: PactSource) -> Vec<Result<(Box<dyn Pact>, PactSource
     },
     PactSource::URL(ref url, ref auth) => vec![load_pact_from_url(url, auth)
       .map_err(|err| format!("Failed to load pact '{}' - {}", url, err))
-      .map(|pact| (pact, source))],
+      .map(|pact| (pact, None, source))],
     PactSource::BrokerUrl(ref provider_name, ref broker_url, ref auth, _) => {
       let result = pact_broker::fetch_pacts_from_broker(
         broker_url.clone(),
@@ -565,13 +568,13 @@ async fn fetch_pact(source: PactSource) -> Vec<Result<(Box<dyn Pact>, PactSource
           let mut buffer = vec![];
           for result in pacts.iter() {
             match result {
-              Ok((pact, links)) => {
+              Ok((pact, _, links)) => {
                 log::debug!("Got pact with links {:?}", links);
                 if let Ok(pact) = pact.as_request_response_pact() {
-                  buffer.push(Ok((Box::new(pact) as Box<dyn Pact>, PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))))
+                  buffer.push(Ok((Box::new(pact) as Box<dyn Pact>, None, PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))))
                 }
                 if let Ok(pact) = pact.as_message_pact() {
-                  buffer.push(Ok((Box::new(pact) as Box<dyn Pact>, PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))))
+                  buffer.push(Ok((Box::new(pact) as Box<dyn Pact>, None, PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))))
                 }
               },
               &Err(ref err) => buffer.push(Err(format!("Failed to load pact from '{}' - {:?}", broker_url, err)))
@@ -598,13 +601,14 @@ async fn fetch_pact(source: PactSource) -> Vec<Result<(Box<dyn Pact>, PactSource
           let mut buffer = vec![];
           for result in pacts.iter() {
             match result {
-              Ok((pact, links)) => {
+              Ok((pact, context, links)) => {
                 log::debug!("Got pact with links {:?}", links);
                 if let Ok(pact) = pact.as_request_response_pact() {
-                  buffer.push(Ok((Box::new(pact) as Box<dyn Pact>, PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))))
+
+                  buffer.push(Ok((Box::new(pact) as Box<dyn Pact>, context.clone(), PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))))
                 }
                 if let Ok(pact) = pact.as_message_pact() {
-                  buffer.push(Ok((Box::new(pact) as Box<dyn Pact>, PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))))
+                  buffer.push(Ok((Box::new(pact) as Box<dyn Pact>, context.clone(), PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))))
                 }
               },
               &Err(ref err) => buffer.push(Err(format!("Failed to load pact from '{}' - {:?}", broker_url, err)))
@@ -620,7 +624,7 @@ async fn fetch_pact(source: PactSource) -> Vec<Result<(Box<dyn Pact>, PactSource
 }
 
 async fn fetch_pacts(source: Vec<PactSource>, consumers: Vec<String>)
-  -> Vec<Result<(Box<dyn Pact>, PactSource), String>> {
+  -> Vec<Result<(Box<dyn Pact>, Option<PactVerificationContext>, PactSource), String>> {
   futures::stream::iter(source)
     .then(|pact_source| async {
       futures::stream::iter(fetch_pact(pact_source).await)
