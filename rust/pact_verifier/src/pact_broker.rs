@@ -527,7 +527,6 @@ pub async fn fetch_pacts_from_broker(
     Ok(results)
 }
 
-// TODO: instead of returning links, return something else "verification contexts" to be able to log notices etc??
 pub async fn fetch_pacts_dynamically_from_broker(
   broker_url: String,
   provider_name: String,
@@ -538,7 +537,6 @@ pub async fn fetch_pacts_dynamically_from_broker(
   auth: Option<HttpAuth>
 ) -> Result<Vec<Result<(Box<dyn Pact>, Option<PactVerificationContext>, Vec<Link>), PactBrokerError>>, PactBrokerError> {
     let mut hal_client = HALClient::with_url(broker_url.clone(), auth);
-
     let template_values = hashmap!{ s!("provider") => provider_name.clone() };
 
     hal_client = hal_client.navigate("pb:provider-pacts-for-verification", &template_values)
@@ -553,18 +551,11 @@ pub async fn fetch_pacts_dynamically_from_broker(
         }
       })?;
 
-      // Construct the Pacts for verification payload
-
-      // If consumer_version_selectors given - use them
-      // If tags given, construct a "default" consumer version selector payload
-      // set pending to "false" by default (or don't send if it's false?)
-      // don't send "wip" pacts if empty string
-      // If nothing given, send an empty payload
-
-      let pacts_for_verification = PactsForVerificationRequest {
-        provider_version_tags: provider_tags,
-        include_wip_pacts_since: include_wip_pacts_since,
-        consumer_version_selectors: consumer_version_selectors,
+    // Construct the Pacts for verification payload
+    let pacts_for_verification = PactsForVerificationRequest {
+      provider_version_tags: provider_tags,
+      include_wip_pacts_since: include_wip_pacts_since,
+      consumer_version_selectors: consumer_version_selectors,
       include_pending_status: pending,
     };
     let request_body = serde_json::to_string(&pacts_for_verification).unwrap();
@@ -585,17 +576,17 @@ pub async fn fetch_pacts_dynamically_from_broker(
     };
 
     // Find all of the Pact links
-    // TODO: refactor this to pass along the the  verification context (notices etc.)
     let pact_links = match response {
       Some(v) => {
         let pfv: PactsForVerificationResponse = serde_json::from_value(v).unwrap();
+
         let links: Result<Vec<(Link, PactVerificationContext)>, PactBrokerError> = pfv.embedded.pacts.iter().map(| p| {
           match p.links.get("self") {
             Some(l) => Ok((l.clone(), PactVerificationContext{
-              short_description: "fake verification context notice".to_string(),
+              short_description: p.short_description.clone(),
               verification_properties: PactVerificationProperties {
-                pending: false,
-                notices: None,
+                pending: p.verification_properties.pending,
+                notices: p.verification_properties.notices.clone(),
               }
             })),
             None => Err(
@@ -609,23 +600,6 @@ pub async fn fetch_pacts_dynamically_from_broker(
             )
           }
         }).collect();
-
-        // TODO: collect the verification contexts from the Pacts for Verification response
-        // and thread that through the result
-        // let contexts: Result<Vec<Link>, PactBrokerError> = pfv.embedded.pacts.iter().map(| p| {
-        //   match p.links.get("self") {
-        //     Some(l) => Ok(l.clone()),
-        //     None => Err(
-        //       PactBrokerError::LinkError(
-        //         format!(
-        //           "Expected a HAL+JSON response from the pact broker, but got a link with no HREF. URL: '{}', PATH: '{:?}'",
-        //           &hal_client.url,
-        //           &p.links,
-        //         )
-        //       )
-        //     )
-        //   }
-        // }).collect();
 
         links
       },
@@ -868,18 +842,23 @@ struct PactsForVerificationBody {
 #[serde(rename_all = "camelCase")]
 struct PactForVerification {
   pub short_description: String,
-  // pub verification_properties: String,
   #[serde(rename(deserialize = "_links"))]
-  pub links: HashMap<String, Link>
+  pub links: HashMap<String, Link>,
+  pub verification_properties: PactVerificationProperties,
 }
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+/// Request to send
 pub struct PactsForVerificationRequest {
+  /// Provider tags to use for determining pending pacts (if enabled)
   pub provider_version_tags: Vec<String>,
+  /// Enable pending pacts feature
   pub include_pending_status: bool,
+  /// Find WIP pacts after given date
   pub include_wip_pacts_since: Option<String>,
+  /// Detailed pact selection criteria , see https://docs.pact.io/pact_broker/advanced_topics/consumer_version_selectors/
   pub consumer_version_selectors: Vec<ConsumerVersionSelector>
 }
 
@@ -896,7 +875,7 @@ pub struct PactVerificationContext {
 #[serde(rename_all = "camelCase")]
 pub struct PactVerificationProperties {
   pub pending: bool,
-  pub notices: Option<Vec<HashMap<String, String>>>,
+  pub notices: Vec<HashMap<String, String>>,
 }
 
 #[cfg(test)]

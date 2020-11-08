@@ -462,6 +462,21 @@ impl <F: RequestFilterExecutor> Default for VerificationOptions<F> {
   }
 }
 
+const VERIFICATION_NOTICE_BEFORE: &str = "before_verification";
+const VERIFICATION_NOTICE_AFTER: &str = "after_verification";
+
+fn display_notices(context: &Option<PactVerificationContext>, stage: &str) {
+  if let Some(c) = context {
+    for notice in &c.verification_properties.notices {
+      if let Some(when) = notice.get("when") {
+        if when.as_str() == stage {
+          println!("{}", notice.get("text").unwrap_or(&"".to_string()));
+        }
+      }
+    }
+  }
+}
+
 /// Verify the provider with the given pact sources
 pub async fn verify_provider<F: RequestFilterExecutor, S: ProviderStateExecutor>(
     provider_info: ProviderInfo,
@@ -477,17 +492,15 @@ pub async fn verify_provider<F: RequestFilterExecutor, S: ProviderStateExecutor>
     for pact_result in pact_results {
       match pact_result {
         Ok((pact, context, pact_source)) => {
-          if let Some(c) = context {
-            println!(">>>>>> Verificaton context: {}", c.short_description);
-          };
+          display_notices(&context, VERIFICATION_NOTICE_BEFORE);
           println!("\nVerifying a pact between {} and {}",
             Style::new().bold().paint(pact.consumer().name.clone()),
             Style::new().bold().paint(pact.provider().name.clone()));
 
-          if pact.interactions().is_empty() {
-            println!("         {}", Yellow.paint("WARNING: Pact file has no interactions"));
-          } else {
-            let errors = verify_pact(&provider_info, &filter, pact, &options, provider_state_executor).await;
+            if pact.interactions().is_empty() {
+              println!("         {}", Yellow.paint("WARNING: Pact file has no interactions"));
+            } else {
+              let errors = verify_pact(&provider_info, &filter, pact, &options, provider_state_executor).await;
             for error in errors.clone() {
               all_errors.push(error);
             }
@@ -496,6 +509,7 @@ pub async fn verify_provider<F: RequestFilterExecutor, S: ProviderStateExecutor>
               publish_result(&errors, &pact_source, &options).await
             }
           }
+          display_notices(&context, VERIFICATION_NOTICE_AFTER);
         },
         Err(err) => {
           log::error!("Failed to load pact - {}", Red.paint(err.to_string()));
