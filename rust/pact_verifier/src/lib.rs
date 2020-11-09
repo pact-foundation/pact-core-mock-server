@@ -23,7 +23,7 @@ use std::collections::HashMap;
 use crate::provider_client::{make_provider_request, provider_client_error_to_string};
 use regex::Regex;
 use serde_json::Value;
-use crate::pact_broker::{publish_verification_results, TestResult, Link, PactVerificationContext, PactVerificationProperties};
+use crate::pact_broker::{publish_verification_results, TestResult, Link, PactVerificationContext};
 pub use crate::pact_broker::{PactsForVerificationRequest, ConsumerVersionSelector};
 use maplit::*;
 use futures::stream::*;
@@ -50,8 +50,25 @@ pub enum PactSource {
     URL(String, Option<HttpAuth>),
     /// Load all pacts with the provider name from the pact broker url
     BrokerUrl(String, String, Option<HttpAuth>, Vec<Link>),
-    /// Load pacts with the newer pacts for verification
-    BrokerWithDynamicConfiguration(String, String, bool, Option<String>, Vec<String>, Vec<ConsumerVersionSelector>, Option<HttpAuth>, Vec<Link>)
+    /// Load pacts with the newer pacts for verification API
+    BrokerWithDynamicConfiguration {
+      /// Name of the provider as named in the Pact Broker
+      provider_name: String,
+      ///Base URL of the Pact Broker from which to retrieve the pacts
+      broker_url: String,
+      /// Allow pacts which are in pending state to be verified without causing the overall task to fail. For more information, see https://pact.io/pending
+      enable_pending: bool,
+      /// Allow pacts that don't match given consumer selectors (or tags) to  be verified, without causing the overall task to fail. For more information, see https://pact.io/wip
+      include_wip_pacts_since: Option<String>,
+      /// Provider tags to use in determining pending status for return pacts
+      provider_tags: Vec<String>,
+      /// The set of selectors that identifies which pacts to verify
+      selectors: Vec<ConsumerVersionSelector>,
+      /// HTTP authentication details for accessing the Pact Broker
+      auth: Option<HttpAuth>,
+      /// Links to the specific Pact resources. Internal field
+      links: Vec<Link>
+    }
 }
 
 impl Display for PactSource {
@@ -63,8 +80,8 @@ impl Display for PactSource {
       PactSource::BrokerUrl(ref provider_name, ref broker_url, _, _) => {
           write!(f, "PactBroker({}, provider_name='{}')", broker_url, provider_name)
       }
-      PactSource::BrokerWithDynamicConfiguration(ref provider_name, ref broker_url,ref enable_pending, ref include_wip_since, ref provider_tags, ref selectors, _, _) => {
-          write!(f, "PactBroker({}, provider_name='{}', enable_ending={}, include_wip_since={:?}, provider_tagcs={:?}, consumer_version_selectors='{:?}')", broker_url, provider_name, enable_pending, include_wip_since, provider_tags, selectors)
+      PactSource::BrokerWithDynamicConfiguration { ref provider_name, ref broker_url,ref enable_pending, ref include_wip_pacts_since, ref provider_tags, ref selectors, auth: _, links: _ } => {
+          write!(f, "PactBroker({}, provider_name='{}', enable_ending={}, include_wip_since={:?}, provider_tagcs={:?}, consumer_version_selectors='{:?}')", broker_url, provider_name, enable_pending, include_wip_pacts_since, provider_tags, selectors)
       }
       _ => write!(f, "Unknown")
     }
@@ -599,12 +616,12 @@ async fn fetch_pact(source: PactSource) -> Vec<Result<(Box<dyn Pact>, Option<Pac
         Err(err) => vec![Err(format!("Could not load pacts from the pact broker '{}' - {:?}", broker_url, err))]
       }
     },
-    PactSource::BrokerWithDynamicConfiguration(provider_name, broker_url,enable_pending, include_wip_since, provider_tags, selectors, auth, _) => {
+    PactSource::BrokerWithDynamicConfiguration { provider_name, broker_url, enable_pending, include_wip_pacts_since, provider_tags, selectors, auth, links: _ } => {
       let result = pact_broker::fetch_pacts_dynamically_from_broker(
         broker_url.clone(),
         provider_name.clone(),
         enable_pending,
-        include_wip_since,
+        include_wip_pacts_since,
         provider_tags,
         selectors,
         auth.clone()

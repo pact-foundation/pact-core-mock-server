@@ -278,7 +278,7 @@ fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
           let provider_tags = matches.values_of("provider-tags")
             .map_or_else(|| vec![], |tags| tags.map(|tag| tag.to_string()).collect());
 
-          PactSource::BrokerWithDynamicConfiguration(name, s!(v), pending, wip, provider_tags, consumer_version_tags, auth, vec![])
+          PactSource::BrokerWithDynamicConfiguration { provider_name: name, broker_url: s!(v), enable_pending: pending, include_wip_pacts_since: wip, provider_tags: provider_tags, selectors: consumer_version_tags, auth: auth, links: vec![] }
         } else if matches.is_present("token") {
           let name = matches.value_of("provider-name").unwrap().to_string();
           let pending = matches.is_present("enable-pending");
@@ -287,13 +287,12 @@ fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
             None => None,
           };
           let consumer_version_tags = matches.values_of("consumer-version-tags")
-          .map_or_else(|| vec![], |tags| consumer_tags_to_selectors(tags.map(|tag| tag).collect()));
+            .map_or_else(|| vec![], |tags| consumer_tags_to_selectors(tags.map(|tag| tag).collect()));
           let provider_tags = matches.values_of("provider-tags")
             .map_or_else(|| vec![], |tags| tags.map(|tag| tag.to_string()).collect());
 
-          PactSource::BrokerWithDynamicConfiguration(name, s!(v), pending, wip, provider_tags, consumer_version_tags,
-            matches.value_of("token").map(|token| HttpAuth::Token(token.to_string())),
-            vec![])
+          PactSource::BrokerWithDynamicConfiguration { provider_name: name, broker_url: s!(v), enable_pending: pending, include_wip_pacts_since: wip, provider_tags: provider_tags, selectors: consumer_version_tags,
+            auth: matches.value_of("token").map(|token| HttpAuth::Token(token.to_string())), links: vec![] }
         } else {
           PactSource::BrokerUrl(s!(matches.value_of("provider-name").unwrap()), s!(v), None, vec![])
         }

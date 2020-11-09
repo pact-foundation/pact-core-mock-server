@@ -207,7 +207,7 @@ pub(crate) fn setup_app<'a, 'b>(program: String, version: &'b str) -> App<'a, 'b
       .number_of_values(1)
       .empty_values(false)
       .requires("broker-url")
-      .help("Includes WIP pacts created after given date."))
+      .help("Allow pacts that don't match given consumer selectors (or tags) to  be verified, without causing the overall task to fail. For more information, see https://pact.io/wip"))
     }
 
 #[cfg(test)]

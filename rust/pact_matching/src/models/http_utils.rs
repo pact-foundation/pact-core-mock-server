@@ -15,7 +15,6 @@ pub enum HttpAuth {
 
 /// Fetches the JSON from a URL
 pub fn fetch_json_from_url(url: &String, auth: &Option<HttpAuth>) -> Result<(String, Value), String> {
-  dbg!("url", url);
   let client = Client::new();
   let request = match auth {
     &Some(ref auth) => {
