@@ -563,12 +563,12 @@ pub async fn fetch_pacts_dynamically_from_broker(
     // Post the verification request
     let response = match hal_client.find_link("self") {
       Ok(link) => {
-        // TODO: make this an async stream to make error handling less shit
-        match hal_client.clone().post_json(hal_client.clone().parse_link_url(&link, &hashmap!{})?, request_body).await {
+        let link = hal_client.parse_link_url(&link, &hashmap!{})?;
+        match &hal_client.post_json(link, request_body).await {
           Ok(res) => Some(res),
           Err(err) => {
             debug!("error Response for pacts for verification {:?} ", err);
-            return Err(err)
+            return Err(*err)
           }
         }
       },
