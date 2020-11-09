@@ -578,6 +578,7 @@ pub async fn fetch_pacts_dynamically_from_broker(
     // Find all of the Pact links
     let pact_links = match response {
       Some(v) => {
+        // TODO: follow up this borrowing / move issues
         let pfv: PactsForVerificationResponse = serde_json::from_value(v).unwrap();
 
         let links: Result<Vec<(Link, PactVerificationContext)>, PactBrokerError> = pfv.embedded.pacts.iter().map(| p| {

@@ -269,12 +269,9 @@ fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
             HttpAuth::User(user.to_string(), matches.value_of("password").map(|p| p.to_string()))
           });
           let pending = matches.is_present("enable-pending");
-          let wip = match matches.value_of("include-wip-pacts-since") {
-            Some(wip) => Some(wip.to_string()),
-            None => None,
-          };
+          let wip = matches.value_of("include-wip-pacts-since").map(|wip| wip.to_string());
           let consumer_version_tags = matches.values_of("consumer-version-tags")
-            .map_or_else(|| vec![], |tags| consumer_tags_to_selectors(tags.map(|tag| tag).collect()));
+            .map_or_else(|| vec![], |tags| consumer_tags_to_selectors(tags.collect::<Vec<_>>()));
           let provider_tags = matches.values_of("provider-tags")
             .map_or_else(|| vec![], |tags| tags.map(|tag| tag.to_string()).collect());
 
@@ -282,12 +279,9 @@ fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
         } else if matches.is_present("token") {
           let name = matches.value_of("provider-name").unwrap().to_string();
           let pending = matches.is_present("enable-pending");
-          let wip = match matches.value_of("include-wip-pacts-since") {
-            Some(wip) => Some(wip.to_string()),
-            None => None,
-          };
+          let wip = matches.value_of("include-wip-pacts-since").map(|wip| wip.to_string());
           let consumer_version_tags = matches.values_of("consumer-version-tags")
-            .map_or_else(|| vec![], |tags| consumer_tags_to_selectors(tags.map(|tag| tag).collect()));
+            .map_or_else(|| vec![], |tags| consumer_tags_to_selectors(tags.collect::<Vec<_>>()));
           let provider_tags = matches.values_of("provider-tags")
             .map_or_else(|| vec![], |tags| tags.map(|tag| tag.to_string()).collect());
 
