@@ -397,6 +397,12 @@ impl HALClient {
     let url = url.parse::<reqwest::Url>()
       .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?;
 
+    let base_url = self.url.parse::<reqwest::Url>()
+      .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?;
+
+    let url = base_url.join(&url.path())
+      .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?;
+
     let request_builder = match self.auth {
       Some(ref auth) => match auth {
         HttpAuth::User(username, password) => self.client
@@ -409,6 +415,8 @@ impl HALClient {
       None => self.client.request(method, url.clone())
     }
       .header("Content-Type", "application/json")
+      .header("Accept", "application/hal+json")
+      .header("Accept", "application/json")
       .body(body);
 
     let response = request_builder.send()
@@ -421,7 +429,6 @@ impl HALClient {
         format!("Request to pact broker URL '{}' failed - {}",  url, err)
       ));
 
-      // TODO: use the future API above
       match response {
         Ok(res) => {
           let res = self.parse_broker_response(url.path().to_string(), res).await;
@@ -849,7 +856,7 @@ struct PactForVerification {
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-/// Request to send
+/// Request to send to determine the pacts to verify
 pub struct PactsForVerificationRequest {
   /// Provider tags to use for determining pending pacts (if enabled)
   pub provider_version_tags: Vec<String>,
@@ -1282,6 +1289,136 @@ mod tests {
           }
         }
     }
+
+    #[tokio::test]
+    async fn fetch_pacts_for_verification_from_broker_returns_a_list_of_pacts() {
+      try_init().unwrap_or(());
+
+      let pact = RequestResponsePact { consumer: Consumer { name: s!("Consumer") },
+        provider: Provider { name: s!("happy_provider") },
+        .. RequestResponsePact::default() }
+        .to_json(PactSpecification::V3).to_string();
+
+      let pact_broker = PactBuilder::new("RustPactVerifier", "PactBroker")
+          .interaction("a request to the pact broker root", |i| {
+            i.given("Pacts for verification is enabled");
+            i.request
+              .path("/")
+              .header("Accept", "application/hal+json")
+              .header("Accept", "application/json");
+            i.response
+              .header("Content-Type", "application/hal+json")
+              .json_body(json_pattern!({
+                  "_links": {
+                    "pb:provider-pacts-for-verification": {
+                      "href": like!("http://localhost/pacts/provider/{provider}/for-verification"),
+                      "title": like!("Pact versions to be verified for the specified provider"),
+                      "templated": like!(true)
+                    }
+                  }
+              }));
+          })
+          .interaction("a request to the pacts for verification endpoint", |i| {
+            i.given("There are pacts to be verified");
+            i.request
+              .get()
+              .path("/pacts/provider/happy_provider/for-verification")
+              .header("Accept", "application/hal+json")
+              .header("Accept", "application/json");
+            i.response
+              .header("Content-Type", "application/hal+json")
+              .json_body(json_pattern!({
+                "_links": {
+                    "self": {
+                      "href": like!("http://localhost/pacts/provider/happy_provider/for-verification"),
+                      "title": like!("Pacts to be verified")
+                    }
+                }
+            }));
+          })
+          .interaction("a request to fetch pacts to be verified", |i| {
+            i.given("There are pacts to be verified");
+            i.request
+              .post()
+              .path("/pacts/provider/happy_provider/for-verification")
+              .header("Accept", "application/hal+json")
+              .header("Accept", "application/json")
+              .json_body(json_pattern!({
+                "consumerVersionSelectors": each_like!({
+                    "tag": "prod"
+                }),
+                "providerVersionTags": each_like!("master"),
+                "includePendingStatus": like!(false),
+              }));
+            i.response
+              .header("Content-Type", "application/hal+json")
+              .json_body(json_pattern!({
+                "_embedded": {
+                  "pacts": each_like!({
+                    "shortDescription": "latest prod",
+                    "verificationProperties": {
+                      "pending": false,
+                      "notices": [
+                        {
+                          "when": "before_verification",
+                          "text": "The pact at http://localhost/pacts/provider/happy_provider/consumer/Consumer/pact-version/12345678 is being verified because it matches the following configured selection criterion: latest pact for a consumer version tagged 'prod'"
+                        },
+                        {
+                          "when": "before_verification",
+                          "text": "This pact has previously been successfully verified by a version of happy_provider with tag 'master'. If this verification fails, it will fail the build. Read more at https://pact.io/pending"
+                        }
+                      ]
+                    },
+                    "_links": {
+                      "self": {
+                        "href": "http://localhost/pacts/provider/happy_provider/consumer/Consumer/pact-version/12345678",
+                        "name": "Pact between Consumer (239aa5048a7de54fe5f231116c6d603eab0c6fde) and happy_provider"
+                      }
+                    }
+                  })
+                },
+                "_links": {
+                  "self": {
+                    "href": like!("http://localhost/pacts/provider/happy_provider/for-verification"),
+                    "title":like!("Pacts to be verified")
+                  }
+                }
+              }));
+        })
+        .interaction("a request for a pact by version", |i| {
+          i.given("There is a pact with version 12345678");
+          i.request
+            .path("/pacts/provider/happy_provider/consumer/Consumer/pact-version/12345678")
+            .header("Accept", "application/hal+json")
+            .header("Accept", "application/json");
+          i.response
+            .header("Content-Type", "application/json")
+            .body(pact.clone());
+      })
+      .start_mock_server();
+
+    let result = fetch_pacts_dynamically_from_broker(pact_broker.url().to_string(), s!("happy_provider"), false, None, vec!("master".to_string()), vec!(ConsumerVersionSelector {
+      consumer: None,
+      tag: "prod".to_string(),
+      fallback_tag: None,
+      latest: None
+    }), None).await;
+
+    match &result {
+      Ok(_) => (),
+      Err(err) => panic!(format!("Expected an Ok result, got a error {}", err))
+    }
+
+    let pacts = &result.unwrap();
+    expect!(pacts.len()).to(be_equal_to(1));
+
+    for pact in pacts {
+      match pact {
+        Ok(_) => (),
+        Err(err) => panic!(format!("Expected an Ok result, got a error {}", err))
+      }
+    }
+  }
 
   #[test]
   fn test_build_payload_with_success() {

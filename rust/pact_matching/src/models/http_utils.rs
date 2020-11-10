@@ -52,7 +52,6 @@ impl Display for HttpAuth {
           write!(f, "User({}, [no password])", u)
         }
       },
-      _ => write!(f, "Unknown")
     }
   }
 }
