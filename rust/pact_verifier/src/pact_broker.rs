@@ -563,12 +563,12 @@ pub async fn fetch_pacts_dynamically_from_broker(
     // Post the verification request
     let response = match hal_client.find_link("self") {
       Ok(link) => {
-        let link = hal_client.parse_link_url(&link, &hashmap!{})?;
-        match &hal_client.post_json(link, request_body).await {
+        let link = hal_client.clone().parse_link_url(&link, &hashmap!{})?;
+        match hal_client.clone().post_json(link, request_body).await {
           Ok(res) => Some(res),
           Err(err) => {
             debug!("error Response for pacts for verification {:?} ", err);
-            return Err(*err)
+            return Err(err)
           }
         }
       },
@@ -578,7 +578,6 @@ pub async fn fetch_pacts_dynamically_from_broker(
     // Find all of the Pact links
     let pact_links = match response {
       Some(v) => {
-        // TODO: follow up this borrowing / move issues
         let pfv: PactsForVerificationResponse = serde_json::from_value(v).unwrap();
 
         let links: Result<Vec<(Link, PactVerificationContext)>, PactBrokerError> = pfv.embedded.pacts.iter().map(| p| {
@@ -608,51 +607,50 @@ pub async fn fetch_pacts_dynamically_from_broker(
     }?;
 
     let results: Vec<_> = futures::stream::iter(pact_links)
-        // TODO: this first branch is a dupe of the above, I think
-        .map(|(ref pact_link, ref context)| {
-          match pact_link.href {
-            Some(_) => Ok((hal_client.clone(), pact_link.clone(), context.clone())),
-            None => Err(
-              PactBrokerError::LinkError(
-                format!(
-                  "Expected a HAL+JSON response from the pact broker, but got a link with no HREF. URL: '{}', LINK: '{:?}'",
-                  &hal_client.url,
-                  pact_link
-                )
+      .map(|(ref pact_link, ref context)| {
+        match pact_link.href {
+          Some(_) => Ok((hal_client.clone(), pact_link.clone(), context.clone())),
+          None => Err(
+            PactBrokerError::LinkError(
+              format!(
+                "Expected a HAL+JSON response from the pact broker, but got a link with no HREF. URL: '{}', LINK: '{:?}'",
+                &hal_client.url,
+                pact_link
               )
             )
-          }
-        })
-        .and_then(|(hal_client, pact_link, context)| async {
-          let pact_json = hal_client.fetch_url(
-            &pact_link.clone(),
-            &template_values.clone()
-          ).await?;
-          Ok((pact_link, pact_json, context))
-        })
-        .map(|result| {
-          match result {
-            Ok((pact_link, pact_json, context)) => {
-              let href = pact_link.href.unwrap_or_default();
-              let links = links_from_json(&pact_json);
-              match pact_json {
-                Value::Object(ref map) => if map.contains_key("messages") {
-                  match MessagePact::from_json(&href, &pact_json) {
-                    Ok(pact) => Ok((Box::new(pact) as Box<dyn Pact>, Some(context), links)),
-                    Err(err) => Err(PactBrokerError::ContentError(err))
-                  }
-                } else {
-                  Ok((Box::new(RequestResponsePact::from_json(&href, &pact_json)) as Box<dyn Pact>, Some(context), links))
-                },
-                _ => Err(PactBrokerError::ContentError(format!("Link '{}' does not point to a valid pact file", href)))
-              }
-            },
-            Err(err) => Err(err)
-          }
-        })
-        .into_stream()
-        .collect()
-        .await;
+          )
+        }
+      })
+      .and_then(|(hal_client, pact_link, context)| async {
+        let pact_json = hal_client.fetch_url(
+          &pact_link.clone(),
+          &template_values.clone()
+        ).await?;
+        Ok((pact_link, pact_json, context))
+      })
+      .map(|result| {
+        match result {
+          Ok((pact_link, pact_json, context)) => {
+            let href = pact_link.href.unwrap_or_default();
+            let links = links_from_json(&pact_json);
+            match pact_json {
+              Value::Object(ref map) => if map.contains_key("messages") {
+                match MessagePact::from_json(&href, &pact_json) {
+                  Ok(pact) => Ok((Box::new(pact) as Box<dyn Pact>, Some(context), links)),
+                  Err(err) => Err(PactBrokerError::ContentError(err))
+                }
+              } else {
+                Ok((Box::new(RequestResponsePact::from_json(&href, &pact_json)) as Box<dyn Pact>, Some(context), links))
+              },
+              _ => Err(PactBrokerError::ContentError(format!("Link '{}' does not point to a valid pact file", href)))
+            }
+          },
+          Err(err) => Err(err)
+        }
+      })
+      .into_stream()
+      .collect()
+      .await;
 
     Ok(results)
 }

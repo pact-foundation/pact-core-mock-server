@@ -80,8 +80,13 @@ impl Display for PactSource {
       PactSource::BrokerUrl(ref provider_name, ref broker_url, _, _) => {
           write!(f, "PactBroker({}, provider_name='{}')", broker_url, provider_name)
       }
-      PactSource::BrokerWithDynamicConfiguration { ref provider_name, ref broker_url,ref enable_pending, ref include_wip_pacts_since, ref provider_tags, ref selectors, auth: _, links: _ } => {
-          write!(f, "PactBroker({}, provider_name='{}', enable_ending={}, include_wip_since={:?}, provider_tagcs={:?}, consumer_version_selectors='{:?}')", broker_url, provider_name, enable_pending, include_wip_pacts_since, provider_tags, selectors)
+      PactSource::BrokerWithDynamicConfiguration { ref provider_name, ref broker_url,ref enable_pending, ref include_wip_pacts_since, ref provider_tags, ref selectors, ref auth, links: _ } => {
+        if let Some(auth) = auth {
+          write!(f, "PactBrokerWithDynamicConfiguration({}, provider_name='{}', enable_ending={}, include_wip_since={:?}, provider_tagcs={:?}, consumer_version_selectors='{:?}, auth={}')", broker_url, provider_name, enable_pending, include_wip_pacts_since, provider_tags, selectors, auth)
+        } else {
+          write!(f, "PactBrokerWithDynamicConfiguration({}, provider_name='{}', enable_ending={}, include_wip_since={:?}, provider_tagcs={:?}, consumer_version_selectors='{:?}, auth=None')", broker_url, provider_name, enable_pending, include_wip_pacts_since, provider_tags, selectors)
+
+        }
       }
       _ => write!(f, "Unknown")
     }
