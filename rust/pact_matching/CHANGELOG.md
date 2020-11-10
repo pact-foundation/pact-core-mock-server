@@ -1,5 +1,15 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.8.3 - Bugfix Release
+
+* 8dccd1a - Merge pull request #79 from pact-foundation/feat/pacts-for-verification (Ronald Holshausen, Wed Nov 11 09:43:37 2020 +1100)
+* b3cca0d - test: add basic pact test for pacts for verification feature (Matt Fellows, Wed Nov 11 00:30:45 2020 +1100)
+* e7f729d - wip: further cleanup, and obfuscate auth details (Matt Fellows, Tue Nov 10 13:56:02 2020 +1100)
+* 80f4e98 - wip: refactor BrokerWithDynamicConfiguration into a struct enum for better readability (Matt Fellows, Mon Nov 9 22:40:24 2020 +1100)
+* 60eb190 - wip: map tags to consumer version selectors (Matt Fellows, Sat Nov 7 23:35:36 2020 +1100)
+* 6633575 - fix: ported matching logic fixes from Pact-JVM (Ronald Holshausen, Mon Nov 2 18:20:22 2020 +1100)
+* 6cddd4c - bump version to 0.8.3 (Ronald Holshausen, Fri Oct 30 12:10:23 2020 +1100)
+
 # 0.8.2 - Bugfix Release
 
 * b4c4de8 - chore: upgrade to latest Onig crate (Ronald Holshausen, Wed Oct 28 09:59:36 2020 +1100)
