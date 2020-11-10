@@ -23,7 +23,8 @@ use std::collections::HashMap;
 use crate::provider_client::{make_provider_request, provider_client_error_to_string};
 use regex::Regex;
 use serde_json::Value;
-use crate::pact_broker::{publish_verification_results, TestResult, Link};
+use crate::pact_broker::{publish_verification_results, TestResult, Link, PactVerificationContext};
+pub use crate::pact_broker::{PactsForVerificationRequest, ConsumerVersionSelector};
 use maplit::*;
 use futures::stream::*;
 use callback_executors::RequestFilterExecutor;
@@ -48,7 +49,26 @@ pub enum PactSource {
     /// Load the pact from a URL
     URL(String, Option<HttpAuth>),
     /// Load all pacts with the provider name from the pact broker url
-    BrokerUrl(String, String, Option<HttpAuth>, Vec<Link>)
+    BrokerUrl(String, String, Option<HttpAuth>, Vec<Link>),
+    /// Load pacts with the newer pacts for verification API
+    BrokerWithDynamicConfiguration {
+      /// Name of the provider as named in the Pact Broker
+      provider_name: String,
+      ///Base URL of the Pact Broker from which to retrieve the pacts
+      broker_url: String,
+      /// Allow pacts which are in pending state to be verified without causing the overall task to fail. For more information, see https://pact.io/pending
+      enable_pending: bool,
+      /// Allow pacts that don't match given consumer selectors (or tags) to  be verified, without causing the overall task to fail. For more information, see https://pact.io/wip
+      include_wip_pacts_since: Option<String>,
+      /// Provider tags to use in determining pending status for return pacts
+      provider_tags: Vec<String>,
+      /// The set of selectors that identifies which pacts to verify
+      selectors: Vec<ConsumerVersionSelector>,
+      /// HTTP authentication details for accessing the Pact Broker
+      auth: Option<HttpAuth>,
+      /// Links to the specific Pact resources. Internal field
+      links: Vec<Link>
+    }
 }
 
 impl Display for PactSource {
@@ -59,6 +79,14 @@ impl Display for PactSource {
       PactSource::URL(ref url, _) => write!(f, "URL({})", url),
       PactSource::BrokerUrl(ref provider_name, ref broker_url, _, _) => {
           write!(f, "PactBroker({}, provider_name='{}')", broker_url, provider_name)
+      }
+      PactSource::BrokerWithDynamicConfiguration { ref provider_name, ref broker_url,ref enable_pending, ref include_wip_pacts_since, ref provider_tags, ref selectors, ref auth, links: _ } => {
+        if let Some(auth) = auth {
+          write!(f, "PactBrokerWithDynamicConfiguration({}, provider_name='{}', enable_ending={}, include_wip_since={:?}, provider_tagcs={:?}, consumer_version_selectors='{:?}, auth={}')", broker_url, provider_name, enable_pending, include_wip_pacts_since, provider_tags, selectors, auth)
+        } else {
+          write!(f, "PactBrokerWithDynamicConfiguration({}, provider_name='{}', enable_ending={}, include_wip_since={:?}, provider_tagcs={:?}, consumer_version_selectors='{:?}, auth=None')", broker_url, provider_name, enable_pending, include_wip_pacts_since, provider_tags, selectors)
+
+        }
       }
       _ => write!(f, "Unknown")
     }
@@ -425,7 +453,7 @@ fn filter_interaction(interaction: &dyn Interaction, filter: &FilterInfo) -> boo
   }
 }
 
-fn filter_consumers(consumers: &[String], res: &Result<(Box<dyn Pact>, PactSource), String>) -> bool {
+fn filter_consumers(consumers: &[String], res: &Result<(Box<dyn Pact>, Option<PactVerificationContext>, PactSource), String>) -> bool {
   consumers.is_empty() || res.is_err() || consumers.contains(&res.as_ref().unwrap().0.consumer().name)
 }
 
@@ -456,6 +484,21 @@ impl <F: RequestFilterExecutor> Default for VerificationOptions<F> {
   }
 }
 
+const VERIFICATION_NOTICE_BEFORE: &str = "before_verification";
+const VERIFICATION_NOTICE_AFTER: &str = "after_verification";
+
+fn display_notices(context: &Option<PactVerificationContext>, stage: &str) {
+  if let Some(c) = context {
+    for notice in &c.verification_properties.notices {
+      if let Some(when) = notice.get("when") {
+        if when.as_str() == stage {
+          println!("{}", notice.get("text").unwrap_or(&"".to_string()));
+        }
+      }
+    }
+  }
+}
+
 /// Verify the provider with the given pact sources
 pub async fn verify_provider<F: RequestFilterExecutor, S: ProviderStateExecutor>(
     provider_info: ProviderInfo,
@@ -470,15 +513,16 @@ pub async fn verify_provider<F: RequestFilterExecutor, S: ProviderStateExecutor>
     let mut all_errors: Vec<(String, MismatchResult)> = vec![];
     for pact_result in pact_results {
       match pact_result {
-        Ok((pact, pact_source)) => {
+        Ok((pact, context, pact_source)) => {
+          display_notices(&context, VERIFICATION_NOTICE_BEFORE);
           println!("\nVerifying a pact between {} and {}",
             Style::new().bold().paint(pact.consumer().name.clone()),
             Style::new().bold().paint(pact.provider().name.clone()));
 
-          if pact.interactions().is_empty() {
-            println!("         {}", Yellow.paint("WARNING: Pact file has no interactions"));
-          } else {
-            let errors = verify_pact(&provider_info, &filter, pact, &options, provider_state_executor).await;
+            if pact.interactions().is_empty() {
+              println!("         {}", Yellow.paint("WARNING: Pact file has no interactions"));
+            } else {
+              let errors = verify_pact(&provider_info, &filter, pact, &options, provider_state_executor).await;
             for error in errors.clone() {
               all_errors.push(error);
             }
@@ -487,6 +531,7 @@ pub async fn verify_provider<F: RequestFilterExecutor, S: ProviderStateExecutor>
               publish_result(&errors, &pact_source, &options).await
             }
           }
+          display_notices(&context, VERIFICATION_NOTICE_AFTER);
         },
         Err(err) => {
           log::error!("Failed to load pact - {}", Red.paint(err.to_string()));
@@ -530,15 +575,15 @@ pub async fn verify_provider<F: RequestFilterExecutor, S: ProviderStateExecutor>
     }
 }
 
-async fn fetch_pact(source: PactSource) -> Vec<Result<(Box<dyn Pact>, PactSource), String>> {
+async fn fetch_pact(source: PactSource) -> Vec<Result<(Box<dyn Pact>, Option<PactVerificationContext>, PactSource), String>> {
   match source {
     PactSource::File(ref file) => vec![read_pact(Path::new(&file))
       .map_err(|err| format!("Failed to load pact '{}' - {}", file, err))
-      .map(|pact| (pact, source))],
+      .map(|pact| (pact, None, source))],
     PactSource::Dir(ref dir) => match walkdir(Path::new(dir)) {
       Ok(pact_results) => pact_results.into_iter().map(|pact_result| {
           match pact_result {
-              Ok(pact) => Ok((pact, source.clone())),
+              Ok(pact) => Ok((pact, None, source.clone())),
               Err(err) => Err(format!("Failed to load pact from '{}' - {}", dir, err))
           }
       }).collect(),
@@ -546,7 +591,7 @@ async fn fetch_pact(source: PactSource) -> Vec<Result<(Box<dyn Pact>, PactSource
     },
     PactSource::URL(ref url, ref auth) => vec![load_pact_from_url(url, auth)
       .map_err(|err| format!("Failed to load pact '{}' - {}", url, err))
-      .map(|pact| (pact, source))],
+      .map(|pact| (pact, None, source))],
     PactSource::BrokerUrl(ref provider_name, ref broker_url, ref auth, _) => {
       let result = pact_broker::fetch_pacts_from_broker(
         broker_url.clone(),
@@ -559,13 +604,47 @@ async fn fetch_pact(source: PactSource) -> Vec<Result<(Box<dyn Pact>, PactSource
           let mut buffer = vec![];
           for result in pacts.iter() {
             match result {
-              Ok((pact, links)) => {
+              Ok((pact, _, links)) => {
                 log::debug!("Got pact with links {:?}", links);
                 if let Ok(pact) = pact.as_request_response_pact() {
-                  buffer.push(Ok((Box::new(pact) as Box<dyn Pact>, PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))))
+                  buffer.push(Ok((Box::new(pact) as Box<dyn Pact>, None, PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))))
                 }
                 if let Ok(pact) = pact.as_message_pact() {
-                  buffer.push(Ok((Box::new(pact) as Box<dyn Pact>, PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))))
+                  buffer.push(Ok((Box::new(pact) as Box<dyn Pact>, None, PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))))
+                }
+              },
+              &Err(ref err) => buffer.push(Err(format!("Failed to load pact from '{}' - {:?}", broker_url, err)))
+            }
+          }
+          buffer
+        },
+        Err(err) => vec![Err(format!("Could not load pacts from the pact broker '{}' - {:?}", broker_url, err))]
+      }
+    },
+    PactSource::BrokerWithDynamicConfiguration { provider_name, broker_url, enable_pending, include_wip_pacts_since, provider_tags, selectors, auth, links: _ } => {
+      let result = pact_broker::fetch_pacts_dynamically_from_broker(
+        broker_url.clone(),
+        provider_name.clone(),
+        enable_pending,
+        include_wip_pacts_since,
+        provider_tags,
+        selectors,
+        auth.clone()
+      ).await;
+
+      match result {
+        Ok(ref pacts) => {
+          let mut buffer = vec![];
+          for result in pacts.iter() {
+            match result {
+              Ok((pact, context, links)) => {
+                log::debug!("Got pact with links {:?}", links);
+                if let Ok(pact) = pact.as_request_response_pact() {
+
+                  buffer.push(Ok((Box::new(pact) as Box<dyn Pact>, context.clone(), PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))))
+                }
+                if let Ok(pact) = pact.as_message_pact() {
+                  buffer.push(Ok((Box::new(pact) as Box<dyn Pact>, context.clone(), PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))))
                 }
               },
               &Err(ref err) => buffer.push(Err(format!("Failed to load pact from '{}' - {:?}", broker_url, err)))
@@ -581,7 +660,7 @@ async fn fetch_pact(source: PactSource) -> Vec<Result<(Box<dyn Pact>, PactSource
 }
 
 async fn fetch_pacts(source: Vec<PactSource>, consumers: Vec<String>)
-  -> Vec<Result<(Box<dyn Pact>, PactSource), String>> {
+  -> Vec<Result<(Box<dyn Pact>, Option<PactVerificationContext>, PactSource), String>> {
   futures::stream::iter(source)
     .then(|pact_source| async {
       futures::stream::iter(fetch_pact(pact_source).await)

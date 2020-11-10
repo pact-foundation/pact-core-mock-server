@@ -102,7 +102,7 @@ fn if_no_consumer_filter_is_defined_returns_true() {
 #[test]
 fn if_a_consumer_filter_is_defined_returns_false_if_the_consumer_name_does_not_match() {
   let consumers = vec![s!("fred"), s!("joe")];
-  let result = Ok((Box::new(RequestResponsePact { consumer: Consumer { name: s!("bob") }, .. RequestResponsePact::default() }) as Box<dyn Pact>, PactSource::Unknown));
+  let result = Ok((Box::new(RequestResponsePact { consumer: Consumer { name: s!("bob") }, .. RequestResponsePact::default() }) as Box<dyn Pact>, None, PactSource::Unknown));
   expect!(filter_consumers(&consumers, &result)).to(be_false());
 }
 
@@ -116,7 +116,7 @@ fn if_a_consumer_filter_is_defined_returns_true_if_the_result_is_an_error() {
 #[test]
 fn if_a_consumer_filter_is_defined_returns_true_if_the_consumer_name_does_match() {
   let consumers = vec![s!("fred"), s!("joe"), s!("bob")];
-  let result = Ok((Box::new(RequestResponsePact { consumer: Consumer { name: s!("bob") }, .. RequestResponsePact::default() }) as Box<dyn Pact>, PactSource::Unknown));
+  let result = Ok((Box::new(RequestResponsePact { consumer: Consumer { name: s!("bob") }, .. RequestResponsePact::default() }) as Box<dyn Pact>, None, PactSource::Unknown));
   expect!(filter_consumers(&consumers, &result)).to(be_true());
 }
 

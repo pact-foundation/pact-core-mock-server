@@ -263,22 +263,41 @@ fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
     };
     if let Some(values) = matches.values_of("broker-url") {
       sources.extend(values.map(|v| {
-        if matches.is_present("user") {
+        if matches.is_present("user") || matches.is_present("token") {
           let name = matches.value_of("provider-name").unwrap().to_string();
+          let pending = matches.is_present("enable-pending");
+          let wip = matches.value_of("include-wip-pacts-since").map(|wip| wip.to_string());
+          let consumer_version_tags = matches.values_of("consumer-version-tags")
+            .map_or_else(|| vec![], |tags| consumer_tags_to_selectors(tags.collect::<Vec<_>>()));
+          let provider_tags = matches.values_of("provider-tags")
+            .map_or_else(|| vec![], |tags| tags.map(|tag| tag.to_string()).collect());
+
+          if matches.is_present("token") {
+            PactSource::BrokerWithDynamicConfiguration { provider_name: name, broker_url: s!(v), enable_pending: pending, include_wip_pacts_since: wip, provider_tags: provider_tags, selectors: consumer_version_tags,
+              auth: matches.value_of("token").map(|token| HttpAuth::Token(token.to_string())), links: vec![] }
+          } else {
           let auth = matches.value_of("user").map(|user| {
             HttpAuth::User(user.to_string(), matches.value_of("password").map(|p| p.to_string()))
           });
-          PactSource::BrokerUrl(name, s!(v), auth, vec![])
-        } else if matches.is_present("token") {
-          PactSource::BrokerUrl(s!(matches.value_of("provider-name").unwrap()), s!(v),
-            matches.value_of("token").map(|token| HttpAuth::Token(token.to_string())),
-            vec![])
+            PactSource::BrokerWithDynamicConfiguration { provider_name: name, broker_url: s!(v), enable_pending: pending, include_wip_pacts_since: wip, provider_tags: provider_tags, selectors: consumer_version_tags, auth: auth, links: vec![] }
+          }
         } else {
           PactSource::BrokerUrl(s!(matches.value_of("provider-name").unwrap()), s!(v), None, vec![])
         }
       }).collect::<Vec<PactSource>>());
     };
     sources
+}
+
+fn consumer_tags_to_selectors(tags: Vec<&str>) -> Vec<pact_verifier::ConsumerVersionSelector> {
+  tags.iter().map(|t| {
+    pact_verifier::ConsumerVersionSelector {
+      consumer: None,
+      fallback_tag: None,
+      tag: t.to_string(),
+      latest: Some(true),
+    }
+  }).collect()
 }
 
 fn interaction_filter(matches: &ArgMatches) -> FilterInfo {
@@ -339,7 +358,9 @@ async fn handle_command_args() -> Result<(), i32> {
                   .map_or_else(|| vec![], |tags| tags.map(|tag| tag.to_string()).collect())
             };
 
-            debug!("Pact source to verify = {:?}", source);
+            for s in &source {
+              debug!("Pact source to verify = {}", s);
+            };
 
             if verify_provider(
                 provider,

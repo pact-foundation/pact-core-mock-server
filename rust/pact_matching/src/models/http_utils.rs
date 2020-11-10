@@ -3,6 +3,7 @@
 use reqwest::Error;
 use reqwest::blocking::Client;
 use serde_json::Value;
+use std::fmt::{Display, Formatter};
 
 /// Type of authentication to use
 #[derive(Debug, Clone)]
@@ -37,5 +38,20 @@ pub fn fetch_json_from_url(url: &String, auth: &Option<HttpAuth>) -> Result<(Str
       Err(format!("Request failed with status - {}", res.status()))
     },
     Err(err) => Err(format!("Request failed - {}", err))
+  }
+}
+
+impl Display for HttpAuth {
+  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    match *self {
+      HttpAuth::Token(ref t) => write!(f, "Token({}****)", t.get(0..5).unwrap_or("****")),
+      HttpAuth::User(ref u, ref p) => {
+        if let Some(pass) = p {
+          write!(f, "User({}, {}****)", u, pass.get(0..5).unwrap_or("****"))
+        } else {
+          write!(f, "User({}, [no password])", u)
+        }
+      },
+    }
   }
 }
