@@ -585,7 +585,11 @@ pub async fn fetch_pacts_dynamically_from_broker(
     // Find all of the Pact links
     let pact_links = match response {
       Some(v) => {
-        let pfv: PactsForVerificationResponse = serde_json::from_value(v).unwrap();
+        let pfv: PactsForVerificationResponse = serde_json::from_value(v).unwrap_or(PactsForVerificationResponse { embedded: PactsForVerificationBody { pacts: vec!() } });
+
+        if pfv.embedded.pacts.len() == 0 {
+          return Err(PactBrokerError::NotFound(format!("No pacts were found for this provider")))
+        };
 
         let links: Result<Vec<(Link, PactVerificationContext)>, PactBrokerError> = pfv.embedded.pacts.iter().map(| p| {
           match p.links.get("self") {
@@ -1416,6 +1420,87 @@ mod tests {
       match pact {
         Ok(_) => (),
         Err(err) => panic!(format!("Expected an Ok result, got a error {}", err))
+      }
+    }
+  }
+
+  #[tokio::test]
+  async fn fetch_pacts_for_verification_from_broker_returns_empty_list_if_there_are_no_pacts() {
+    try_init().unwrap_or(());
+
+    let pact_broker = PactBuilder::new("RustPactVerifier", "PactBroker")
+      .interaction("a request to the pact broker root", |i| {
+        i.given("Pacts for verification is enabled");
+        i.request
+          .path("/")
+          .header("Accept", "application/hal+json")
+          .header("Accept", "application/json");
+        i.response
+          .header("Content-Type", "application/hal+json")
+          .json_body(json_pattern!({
+              "_links": {
+                "pb:provider-pacts-for-verification": {
+                  "href": like!("http://localhost/pacts/provider/{provider}/for-verification"),
+                  "title": like!("Pact versions to be verified for the specified provider"),
+                  "templated": like!(true)
+                }
+              }
+          }));
+      })
+      .interaction("a request to the pacts for verification endpoint", |i| {
+        i.request
+          .get()
+          .path("/pacts/provider/sad_provider/for-verification")
+          .header("Accept", "application/hal+json")
+          .header("Accept", "application/json");
+        i.response
+          .header("Content-Type", "application/hal+json")
+          .json_body(json_pattern!({
+            "_links": {
+                "self": {
+                  "href": like!("http://localhost/pacts/provider/sad_provider/for-verification"),
+                  "title": like!("Pacts to be verified")
+                }
+            }
+        }));
+      })
+      .interaction("a request to fetch pacts to be verified", |i| {
+        i.given("There are no pacts to be verified");
+        i.request
+          .post()
+          .path("/pacts/provider/sad_provider/for-verification")
+          .header("Accept", "application/hal+json")
+          .header("Accept", "application/json")
+          .json_body(json_pattern!({
+            "consumerVersionSelectors": each_like!({
+                "tag": "prod"
+            }),
+            "providerVersionTags": each_like!("master"),
+            "includePendingStatus": like!(false),
+          }));
+        i.response
+          .json_body(json_pattern!({
+              "_embedded": {
+                "pacts": []
+              }
+            }));
+      })
+    .start_mock_server();
+
+    let result = fetch_pacts_dynamically_from_broker(pact_broker.url().to_string(), s!("sad_provider"), false, None, vec!("master".to_string()), vec!(ConsumerVersionSelector {
+      consumer: None,
+      tag: "prod".to_string(),
+      fallback_tag: None,
+      latest: None
+    }), None).await;
+
+    match result {
+      Ok(_) => {
+        panic!("Expected an error result, but got OK");
+      },
+      Err(err) => {
+        println!("err: {}", err);
+        expect!(err.to_string().starts_with("NotFound(No pacts were found for this provider")).to(be_true());
       }
     }
   }
