@@ -17,6 +17,7 @@ use pact_matching::*;
 use pact_matching::models::*;
 use pact_matching::models::provider_states::*;
 use pact_matching::models::http_utils::HttpAuth;
+use pact_matching::models::generators::GeneratorTestMode;
 use ansi_term::*;
 use ansi_term::Colour::*;
 use std::collections::HashMap;
@@ -225,7 +226,7 @@ async fn verify_response_from_provider<F: RequestFilterExecutor>(
   verification_context: HashMap<String, Value>
 ) -> Result<(), MismatchResult> {
   let expected_response = &interaction.response;
-  match make_provider_request(provider, &pact_matching::generate_request(&interaction.request, &verification_context), options, client).await {
+  match make_provider_request(provider, &pact_matching::generate_request(&interaction.request, &GeneratorTestMode::Provider, &verification_context), options, client).await {
     Ok(ref actual_response) => {
       let mismatches = match_response(expected_response.clone(), actual_response.clone());
       if mismatches.is_empty() {

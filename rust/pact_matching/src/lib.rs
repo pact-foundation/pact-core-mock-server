@@ -1355,15 +1355,15 @@ pub fn match_message(expected: &models::message::Message, actual: &models::messa
 }
 
 /// Generates the request by applying any defined generators
-pub fn generate_request(request: &models::Request, context: &HashMap<String, Value>) -> models::Request {
+pub fn generate_request(request: &models::Request, mode: &GeneratorTestMode, context: &HashMap<String, Value>) -> models::Request {
     let generators = request.generators.clone();
     let mut request = request.clone();
-    generators.apply_generator(&GeneratorCategory::PATH, |_, generator| {
+    generators.apply_generator(mode, &GeneratorCategory::PATH, |_, generator| {
       if let Ok(v) = generator.generate_value(&request.path, context) {
         request.path = v;
       }
     });
-    generators.apply_generator(&GeneratorCategory::HEADER, |key, generator| {
+    generators.apply_generator(mode, &GeneratorCategory::HEADER, |key, generator| {
       if let Some(ref mut headers) = request.headers {
         if headers.contains_key(key) {
           if let Ok(v) = generator.generate_value(&headers.get(key).unwrap().clone(), context) {
@@ -1372,7 +1372,7 @@ pub fn generate_request(request: &models::Request, context: &HashMap<String, Val
         }
       }
     });
-    generators.apply_generator(&GeneratorCategory::QUERY, |key, generator| {
+    generators.apply_generator(mode, &GeneratorCategory::QUERY, |key, generator| {
       if let Some(ref mut parameters) = request.query {
         if let Some(parameter) = parameters.get_mut(key) {
           let mut generated = parameter.clone();
@@ -1385,31 +1385,35 @@ pub fn generate_request(request: &models::Request, context: &HashMap<String, Val
         }
       }
     });
-    request.body = generators.apply_body_generators(&request.body, request.content_type(),
+    request.body = generators.apply_body_generators(mode, &request.body, request.content_type(),
         context);
     request
 }
 
 /// Generates the response by applying any defined generators
-pub fn generate_response(response: &models::Response, context: &HashMap<String, Value>) -> models::Response {
+pub fn generate_response(response: &models::Response, mode: &GeneratorTestMode, context: &HashMap<String, Value>) -> models::Response {
   let generators = response.generators.clone();
   let mut response = response.clone();
-  generators.apply_generator(&GeneratorCategory::STATUS, |_, generator| {
+  generators.apply_generator(mode, &GeneratorCategory::STATUS, |_, generator| {
     if let Ok(v) = generator.generate_value(&response.status, context) {
+      debug!("Generated value for status: {}", v);
       response.status = v;
     }
   });
-  generators.apply_generator(&GeneratorCategory::HEADER, |key, generator| {
+  generators.apply_generator(mode, &GeneratorCategory::HEADER, |key, generator| {
     if let Some(ref mut headers) = response.headers {
       if headers.contains_key(key) {
         match generator.generate_value(&headers.get(key).unwrap().clone(), context) {
-          Ok(v) => headers.insert(key.clone(), v),
+          Ok(v) => {
+            debug!("Generated value for header: {} -> {:?}", key, v);
+            headers.insert(key.clone(), v)
+          },
           Err(_) => None
         };
       }
     }
   });
-  response.body = generators.apply_body_generators(&response.body, response.content_type(),
+  response.body = generators.apply_body_generators(mode, &response.body, response.content_type(),
     context);
   response
 }

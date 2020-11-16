@@ -14,7 +14,7 @@ use onig::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{self, json, Value};
 
-use crate::{MatchingContext, merge_result, Mismatch, DiffConfig};
+use crate::{MatchingContext, merge_result, Mismatch};
 use crate::matchers::{match_values, Matches};
 use crate::models::json_utils::{json_to_num, json_to_string};
 use crate::path_exp::*;

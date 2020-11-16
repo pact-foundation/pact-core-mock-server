@@ -2,6 +2,7 @@ use crate::matching::{MatchResult, match_request};
 
 use pact_matching::models::{RequestResponsePact, Request, OptionalBody, HttpPart};
 use pact_matching::models::parse_query_string;
+use pact_matching::models::generators::GeneratorTestMode;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -143,7 +144,7 @@ fn match_result_to_hyper_response(
 
   match match_result {
     MatchResult::RequestMatch(ref interaction) => {
-      let response = pact_matching::generate_response(&interaction.response, &hashmap!{});
+      let response = pact_matching::generate_response(&interaction.response, &GeneratorTestMode::Consumer, &hashmap!{});
       info!("Request matched, sending response {}", response);
       if interaction.response.has_text_body() {
         debug!("     body: '{}'", interaction.response.body.str_value());

@@ -115,6 +115,13 @@ impl Generator {
       }
     }
   }
+
+  pub(crate) fn corresponds_to_mode(&self, mode: &GeneratorTestMode) -> bool {
+    match self {
+      Generator::ProviderStateGenerator(_, _) => mode == &GeneratorTestMode::Provider,
+      _ => true
+    }
+  }
 }
 
 /// Trait that represents generation of a value based on a source value.
@@ -398,7 +405,7 @@ impl Into<String> for GeneratorCategory {
 /// Trait to define a handler for applying generators to data of a particular content type.
 pub trait ContentTypeHandler<T> {
   /// Processes the body using the map of generators, returning a (possibly) updated body.
-  fn process_body(&mut self, generators: &HashMap<String, Generator>, context: &HashMap<String, Value>) -> OptionalBody;
+  fn process_body(&mut self, generators: &HashMap<String, Generator>, mode: &GeneratorTestMode, context: &HashMap<String, Value>) -> OptionalBody;
   /// Applies the generator to the key in the body.
   fn apply_key(&mut self, key: &String, generator: &Generator, context: &HashMap<String, Value>);
 }
@@ -481,9 +488,11 @@ impl JsonHandler {
 }
 
 impl ContentTypeHandler<Value> for JsonHandler {
-  fn process_body(&mut self, generators: &HashMap<String, Generator>, context: &HashMap<String, Value>) -> OptionalBody {
+  fn process_body(&mut self, generators: &HashMap<String, Generator>, mode: &GeneratorTestMode, context: &HashMap<String, Value>) -> OptionalBody {
     for (key, generator) in generators {
-      self.apply_key(key, generator, context);
+      if generator.corresponds_to_mode(mode) {
+        self.apply_key(key, generator, context);
+      }
     };
     OptionalBody::Present(self.value.to_string().into(), Some("application/json".into()))
   }
@@ -534,13 +543,22 @@ pub struct XmlHandler<'a> {
 }
 
 impl <'a> ContentTypeHandler<Document<'a>> for XmlHandler<'a> {
-  fn process_body(&mut self, _generators: &HashMap<String, Generator>, _context: &HashMap<String, Value>) -> OptionalBody {
+  fn process_body(&mut self, _generators: &HashMap<String, Generator>, _mode: &GeneratorTestMode, _context: &HashMap<String, Value>) -> OptionalBody {
     unimplemented!()
   }
 
   fn apply_key(&mut self, _key: &String, _generator: &Generator, _context: &HashMap<String, Value>) {
     unimplemented!()
   }
+}
+
+/// If the generators are being applied in the context of a consumer or provider
+#[derive(Debug, Clone, PartialEq)]
+pub enum GeneratorTestMode {
+  /// Generate values in the context of the consumer
+  Consumer,
+  /// Generate values in the context of the provider
+  Provider
 }
 
 /// Data structure for representing a collection of generators
@@ -640,17 +658,19 @@ impl Generators {
 
   /// If there are generators for the provided category, invokes the closure for all keys and values
   /// in the category.
-  pub fn apply_generator<F>(&self, category: &GeneratorCategory, mut closure: F)
+  pub fn apply_generator<F>(&self, mode: &GeneratorTestMode, category: &GeneratorCategory, mut closure: F)
     where F: FnMut(&String, &Generator) {
     if self.categories.contains_key(category) && !self.categories[category].is_empty() {
       for (key, value) in self.categories[category].clone() {
-        closure(&key, &value)
+        if value.corresponds_to_mode(mode) {
+          closure(&key, &value)
+        }
       }
     }
   }
 
   /// Applies all the body generators to the body and returns a new body (if anything was applied).
-  pub fn apply_body_generators(&self, body: &OptionalBody, content_type: Option<ContentType>, context: &HashMap<String, Value>) -> OptionalBody {
+  pub fn apply_body_generators(&self, mode: &GeneratorTestMode, body: &OptionalBody, content_type: Option<ContentType>, context: &HashMap<String, Value>) -> OptionalBody {
     if body.is_present() && self.categories.contains_key(&GeneratorCategory::BODY) &&
       !self.categories[&GeneratorCategory::BODY].is_empty() {
       let generators = &self.categories[&GeneratorCategory::BODY];
@@ -660,7 +680,7 @@ impl Generators {
           match result {
             Ok(val) => {
               let mut handler = JsonHandler { value: val };
-              handler.process_body(&generators, context)
+              handler.process_body(&generators, mode, context)
             },
             Err(err) => {
               log::error!("Failed to parse the body, so not applying any generators: {}", err);
@@ -671,7 +691,7 @@ impl Generators {
           match parse_bytes(&body.value()) {
             Ok(val) => {
               let mut handler = XmlHandler { value: val.as_document() };
-              handler.process_body(&generators, context)
+              handler.process_body(&generators, mode, context)
             },
             Err(err) => {
               log::error!("Failed to parse the body, so not applying any generators: {}", err);
