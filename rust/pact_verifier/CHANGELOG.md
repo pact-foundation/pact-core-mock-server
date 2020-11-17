@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.9.2 - Support provider state injected values
+
+* 850282d - fix: times with millisecond precision less 3 caused chronos to panic (Ronald Holshausen, Tue Nov 17 16:29:47 2020 +1100)
+* 13ce2f2 - fix: introduce GeneratorTestMode and restrict provider state generator to the provider side (Ronald Holshausen, Mon Nov 16 15:00:01 2020 +1100)
+
 # 0.9.2 - Support Pacts for Verification API
 
 * bbd5364 - test: add negative test case for pacts for verification api (Matt Fellows, Wed Nov 11 08:42:47 2020 +1100)
