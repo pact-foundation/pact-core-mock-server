@@ -217,8 +217,16 @@ fn walk_json(json: &Value, path: &mut dyn Iterator<Item=&str>) -> Option<Value> 
 
 /// Returns a diff of the expected versus the actual JSON bodies, focusing on a particular path
 pub fn display_diff(expected: &String, actual: &String, path: &str, indent: &str) -> String {
-  let expected_body = Value::from_str(expected).unwrap();
-  let actual_body = Value::from_str(actual).unwrap();
+  let expected_body = if expected.is_empty() {
+    Value::String("".into())
+  } else {
+    Value::from_str(expected).unwrap_or_default()
+  };
+  let actual_body = if actual.is_empty() {
+    Value::String("".into())
+  } else {
+    Value::from_str(actual).unwrap_or_default()
+  };
   let mut path = path.split('.').skip(1);
   let next = path.next();
   let expected_fragment = if next.is_none() {

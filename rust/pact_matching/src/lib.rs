@@ -1152,23 +1152,30 @@ fn compare_bodies(content_type: &ContentType, expected: &dyn models::HttpPart, a
 }
 
 fn match_body_content(content_type: &ContentType, expected: &dyn models::HttpPart, actual: &dyn models::HttpPart, context: &MatchingContext) -> BodyMatchResult {
-  match (expected.body(), actual.body()) {
+  let expected_body = expected.body();
+  let actual_body = actual.body();
+  match (expected_body, actual_body) {
     (&models::OptionalBody::Missing, _) => BodyMatchResult::Ok,
     (&models::OptionalBody::Null, &models::OptionalBody::Present(ref b, _)) => {
       BodyMatchResult::BodyMismatches(hashmap!{ "$".into() => vec![Mismatch::BodyMismatch { expected: None, actual: Some(b.clone()),
-        mismatch: format!("Expected empty body but received '{:?}'", b.clone()),
+        mismatch: format!("Expected empty body but received {}", actual_body),
         path: s!("/")}]})
     },
     (&models::OptionalBody::Empty, &models::OptionalBody::Present(ref b, _)) => {
       BodyMatchResult::BodyMismatches(hashmap!{ "$".into() => vec![Mismatch::BodyMismatch { expected: None, actual: Some(b.clone()),
-        mismatch: format!("Expected empty body but received '{:?}'", b.clone()),
+        mismatch: format!("Expected empty body but received {}", actual_body),
         path: s!("/")}]})
     },
     (&models::OptionalBody::Null, _) => BodyMatchResult::Ok,
     (&models::OptionalBody::Empty, _) => BodyMatchResult::Ok,
     (e, &models::OptionalBody::Missing) => {
       BodyMatchResult::BodyMismatches(hashmap!{ "$".into() => vec![Mismatch::BodyMismatch { expected: Some(e.value()), actual: None,
-        mismatch: format!("Expected body '{:?}' but was missing", e.value()),
+        mismatch: format!("Expected body {} but was missing", e),
+        path: s!("/")}]})
+    },
+    (e, &models::OptionalBody::Empty) => {
+      BodyMatchResult::BodyMismatches(hashmap!{ "$".into() => vec![Mismatch::BodyMismatch { expected: Some(e.value()), actual: None,
+        mismatch: format!("Expected body {} but was empty", e),
         path: s!("/")}]})
     },
     (_, _) => compare_bodies(content_type, expected, actual, context)
