@@ -113,7 +113,7 @@ async fn extract_body(response: reqwest::Response, pact_response: &Response) -> 
 async fn native_response_to_pact_response(
     native_response: reqwest::Response
 ) -> Result<Response, reqwest::Error> {
-  debug!("Received response: {:?}", native_response);
+  debug!("Received native response: {:?}", native_response);
 
   let status = native_response.status().as_u16();
   let headers = extract_headers(native_response.headers());
@@ -126,8 +126,7 @@ async fn native_response_to_pact_response(
   let body = extract_body(native_response, &response).await?;
 
   let response = Response {
-    body,
-    .. response.clone()
+    body, .. response.clone()
   };
   info!("Received response: {}", response);
   Ok(response)

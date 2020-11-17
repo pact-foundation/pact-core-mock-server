@@ -827,40 +827,39 @@ pub fn to_chrono_pattern(tokens: &Vec<DateTimePatternToken>) -> String {
   let mut buffer = String::new();
 
   for token in tokens {
-    buffer.push_str(match token {
-      DateTimePatternToken::Era(_count) => "AD".into(),
-      DateTimePatternToken::Year(d) => if *d == 2 { "%y".into() } else { "%Y".into() },
-      DateTimePatternToken::WeekInYear => "%U".into(),
-      DateTimePatternToken::WeekInMonth(_) => {
-        log::warn!("Chono does not support week in month");
-        "".into()
+    match token {
+      DateTimePatternToken::Era(_count) => buffer.push_str("AD"),
+      DateTimePatternToken::Year(d) => buffer.push_str(if *d == 2 { "%y" } else { "%Y" }),
+      DateTimePatternToken::WeekInYear => buffer.push_str("%U"),
+      DateTimePatternToken::WeekInMonth(_) => log::warn!("Chono does not support week in month"),
+      DateTimePatternToken::DayInYear => buffer.push_str("%j"),
+      DateTimePatternToken::DayInMonth => buffer.push_str("%d"),
+      DateTimePatternToken::Month(d) => buffer.push_str(if *d <= 2 { "%m" } else if *d > 3 { "%B" } else { "%b" }),
+      DateTimePatternToken::MonthNum(_d) => buffer.push_str("%m"),
+      DateTimePatternToken::Text(t) => buffer.push_str(&str::replace(t, "%", "%%")),
+      DateTimePatternToken::DayName(d) => buffer.push_str(if *d > 3 { "%A" } else { "%a" }),
+      DateTimePatternToken::DayOfWeek(_d) => buffer.push_str("%u"),
+      DateTimePatternToken::Hour24 => buffer.push_str("%H"),
+      DateTimePatternToken::Hour24ZeroBased => buffer.push_str("%H"),
+      DateTimePatternToken::Hour12 => buffer.push_str("%I"),
+      DateTimePatternToken::Hour12ZeroBased => buffer.push_str("%I"),
+      DateTimePatternToken::Minute => buffer.push_str("%M"),
+      DateTimePatternToken::Second => buffer.push_str("%S"),
+      DateTimePatternToken::Millisecond(d) => if *d < 3 {
+        // something in chrono panics
+        buffer.push_str("%3f")
+      } else {
+        buffer.push_str(&format!("%{}f", *d))
       },
-      DateTimePatternToken::DayInYear => "%j".into(),
-      DateTimePatternToken::DayInMonth => "%d".into(),
-      DateTimePatternToken::Month(d) => if *d <= 2 { "%m".into() } else if *d > 3 { "%B".into() } else { "%b".into() },
-      DateTimePatternToken::MonthNum(_d) => "%m".into(),
-      DateTimePatternToken::Text(t) => t.replace("%", "%%").to_owned(),
-      DateTimePatternToken::DayName(d) => if *d > 3 { "%A".into() } else { "%a".into() },
-      DateTimePatternToken::DayOfWeek(_d) => "%u".into(),
-      DateTimePatternToken::Hour24 => "%H".into(),
-      DateTimePatternToken::Hour24ZeroBased => "%H".into(),
-      DateTimePatternToken::Hour12 => "%I".into(),
-      DateTimePatternToken::Hour12ZeroBased => "%I".into(),
-      DateTimePatternToken::Minute => "%M".into(),
-      DateTimePatternToken::Second => "%S".into(),
-      DateTimePatternToken::Millisecond(d) => format!("%{}f", *d),
-      DateTimePatternToken::Nanosecond(_d) => "%f".into(),
-      DateTimePatternToken::TimezoneName(_d) => "%Z".into(),
-      DateTimePatternToken::TimezoneId(_d) => "%Z".into(),
-      DateTimePatternToken::TimezoneOffset(_d) => "%z".into(),
-      DateTimePatternToken::TimezoneOffsetX(_d) => "%:z".into(),
-      DateTimePatternToken::TimezoneOffsetXZZero(_d) => "%:z".into(),
-      DateTimePatternToken::AmPm => "%p".into(),
-      _ => {
-        log::warn!("Chono does not support {:?}", token);
-        "".into()
-      }
-    }.as_str());
+      DateTimePatternToken::Nanosecond(_d) => buffer.push_str("%f"),
+      DateTimePatternToken::TimezoneName(_d) => buffer.push_str("%Z"),
+      DateTimePatternToken::TimezoneId(_d) => buffer.push_str("%Z"),
+      DateTimePatternToken::TimezoneOffset(_d) => buffer.push_str("%z"),
+      DateTimePatternToken::TimezoneOffsetX(_d) => buffer.push_str("%:z"),
+      DateTimePatternToken::TimezoneOffsetXZZero(_d) => buffer.push_str("%:z"),
+      DateTimePatternToken::AmPm => buffer.push_str("%p"),
+      _ => log::warn!("Chono does not support {:?}", token)
+    };
   }
 
   buffer
@@ -868,10 +867,18 @@ pub fn to_chrono_pattern(tokens: &Vec<DateTimePatternToken>) -> String {
 
 /// Generates a date/time string from the current system clock using the provided format string
 pub fn generate_string(format: &String) -> Result<String, String> {
+  trace!("generating date/time from '{}'", format);
   match parse_pattern(format.as_str()) {
-    Ok(pattern_tokens) => Ok(Local::now().format(
-      to_chrono_pattern(&pattern_tokens).as_str()).to_string()),
-    Err(err) => Err(format!("Error parsing '{}': {:?}", format, err))
+    Ok(pattern_tokens) => {
+      trace!("parsed date/time patterns: {:?}", pattern_tokens);
+      let chrono_pattern = to_chrono_pattern(&pattern_tokens);
+      trace!("Chrono pattern: {}", chrono_pattern);
+      Ok(Local::now().format(chrono_pattern.as_str()).to_string())
+    },
+    Err(err) => {
+      error!("Error parsing '{}': {:?}", format, err);
+      Err(format!("Error parsing '{}': {:?}", format, err))
+    }
   }
 }
 
