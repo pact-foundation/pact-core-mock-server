@@ -54,7 +54,7 @@ pub(crate) fn match_parameter_header(expected: &str, actual: &str, header: &str,
   }
 }
 
-fn match_header_value(key: &str, expected: &str, actual: &str, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
+pub(crate) fn match_header_value(key: &str, expected: &str, actual: &str, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
   let path = vec!["$", key];
   let expected: String = strip_whitespace(expected, ",");
   let actual: String = strip_whitespace(actual, ",");

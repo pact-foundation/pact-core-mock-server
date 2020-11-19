@@ -144,10 +144,15 @@ impl Default for ContentType {
 
 impl std::fmt::Display for ContentType {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    if self.attributes.is_empty() {
-      write!(f, "{}/{}", self.main_type, self.sub_type)
+    let base = if let Some(suffix) = &self.suffix {
+      format!("{}/{}+{}", self.main_type, self.sub_type, suffix)
     } else {
-      write!(f, "{}/{};{}", self.main_type, self.sub_type, self.attributes.iter()
+      format!("{}/{}", self.main_type, self.sub_type)
+    };
+    if self.attributes.is_empty() {
+      write!(f, "{}", base)
+    } else {
+      write!(f, "{};{}", base, self.attributes.iter()
         .map(|(key, value)| format!("{}={}", key, value)).join(";"))
     }
   }

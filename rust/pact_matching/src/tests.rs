@@ -215,7 +215,8 @@ fn body_does_not_match_if_different_content_types() {
     body: OptionalBody::Missing,
     ..Request::default()
   };
-  let result = match_body(&expected, &actual, &MatchingContext::default());
+  let result = match_body(&expected, &actual, &MatchingContext::default(),
+                          &MatchingContext::default());
   let mismatches = result.mismatches();
   expect!(mismatches.iter()).to_not(be_empty());
   expect!(mismatches[0].clone()).to(be_equal_to(Mismatch::BodyTypeMismatch {
@@ -223,6 +224,35 @@ fn body_does_not_match_if_different_content_types() {
     actual: s!("text/plain"),
     mismatch: s!(""),
   }));
+}
+
+#[test]
+fn body_matching_uses_any_matcher_for_content_type_header() {
+  let expected = Request {
+    method: s!("GET"),
+    path: s!("/"),
+    query: None,
+    headers: Some(hashmap! { s!("Content-Type") => vec![s!("application/json")] }),
+    body: OptionalBody::Present(Vec::from("100"), None),
+    ..Request::default()
+  };
+  let actual = Request {
+    method: s!("GET"),
+    path: s!("/"),
+    query: None,
+    headers: Some(hashmap! { s!("Content-Type") => vec![s!("application/hal+json")] }),
+    body: OptionalBody::Present(Vec::from("100"), None),
+    ..Request::default()
+  };
+  let header_context = MatchingContext::new(
+    DiffConfig::AllowUnexpectedKeys,
+    &matchingrules! {
+        "header" => { "Content-Type" => [ MatchingRule::Regex("application/.*json".into()) ] }
+    }.rules_for_category("header").unwrap_or_default()
+  );
+  let result = match_body(&expected, &actual, &MatchingContext::default(), &header_context);
+  let mismatches = result.mismatches();
+  expect!(mismatches.iter()).to(be_empty());
 }
 
 #[test]
@@ -243,7 +273,7 @@ fn body_matches_if_expected_is_missing() {
     body: OptionalBody::Present("{}".into(), None),
     ..Request::default()
   };
-  let result = match_body(&expected, &actual, &MatchingContext::default());
+  let result = match_body(&expected, &actual, &MatchingContext::default(), &MatchingContext::default());
   expect!(result.mismatches().iter()).to(be_empty());
 }
 
@@ -265,7 +295,7 @@ fn body_matches_with_extended_mime_types() {
     body: OptionalBody::Present(r#"{"test": true}"#.into(), None),
     ..Request::default()
   };
-  let result = match_body(&expected, &actual, &MatchingContext::default());
+  let result = match_body(&expected, &actual, &MatchingContext::default(), &MatchingContext::default());
   expect!(result.mismatches().iter()).to(be_empty());
 }
 

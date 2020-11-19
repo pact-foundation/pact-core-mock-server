@@ -348,7 +348,7 @@ use log::*;
 use maplit::hashmap;
 use serde_json::{json, Value};
 
-use crate::headers::match_headers;
+use crate::headers::{match_headers, match_header_value};
 use crate::matchers::*;
 use crate::models::{HttpPart, Interaction, PactSpecification};
 use crate::models::content_types::ContentType;
@@ -1183,12 +1183,23 @@ fn match_body_content(content_type: &ContentType, expected: &dyn models::HttpPar
 }
 
 /// Matches the actual body to the expected one. This takes into account the content type of each.
-pub fn match_body(expected: &dyn models::HttpPart, actual: &dyn models::HttpPart, context: &MatchingContext) -> BodyMatchResult {
+pub fn match_body(
+  expected: &dyn models::HttpPart,
+  actual: &dyn models::HttpPart,
+  context: &MatchingContext,
+  header_context: &MatchingContext
+) -> BodyMatchResult {
   let expected_content_type = expected.content_type().unwrap_or_default();
   let actual_content_type = actual.content_type().unwrap_or_default();
   debug!("expected content type = '{}', actual content type = '{}'", expected_content_type,
          actual_content_type);
-  if expected_content_type.is_unknown() || actual_content_type.is_unknown() || expected_content_type.is_equivalent_to(&actual_content_type) {
+  let content_type_matcher = header_context.select_best_matcher(&vec!["$", "Content-Type"]);
+  debug!("content type header matcher = '{:?}'", content_type_matcher);
+  if expected_content_type.is_unknown() || actual_content_type.is_unknown() ||
+    expected_content_type.is_equivalent_to(&actual_content_type) ||
+    (content_type_matcher.is_some() &&
+      match_header_value("Content-Type", expected_content_type.to_string().as_str(),
+                         actual_content_type.to_string().as_str(), header_context).is_ok()) {
     match_body_content(&expected_content_type, expected, actual, context)
   } else if expected.body().is_present() {
     BodyMatchResult::BodyTypeMismatch(expected_content_type.to_string(),
@@ -1218,7 +1229,7 @@ pub fn match_request(expected: models::Request, actual: models::Request) -> Requ
   let result = RequestMatchResult {
     method: match_method(&expected.method, &actual.method).err(),
     path: match_path(&expected.path, &actual.path, &path_context).err(),
-    body: match_body(&expected, &actual, &body_context),
+    body: match_body(&expected, &actual, &body_context, &header_context),
     query: match_query(expected.query, actual.query, &query_context),
     headers: match_headers(expected.headers, actual.headers, &header_context)
   };
@@ -1247,12 +1258,13 @@ pub fn match_response(expected: models::Response, actual: models::Response) -> V
   let header_context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
                                             &expected.matching_rules.rules_for_category("header").unwrap_or_default());
 
-  mismatches.extend_from_slice(match_body(&expected, &actual, &body_context)
+  mismatches.extend_from_slice(match_body(&expected, &actual, &body_context, &header_context)
     .mismatches().as_slice());
   if let Err(mismatch) = match_status(expected.status, actual.status) {
     mismatches.push(mismatch);
   }
-  let result = match_headers(expected.headers, actual.headers, &header_context);
+  let result = match_headers(expected.headers, actual.headers,
+                             &header_context);
   for values in result.values() {
     mismatches.extend_from_slice(values.as_slice());
   }
