@@ -17,6 +17,7 @@ use std::str::FromStr;
 use serde_json::json;
 #[allow(unused_imports)] use env_logger;
 use super::content_types::*;
+use crate::models::v4::V4Interaction;
 
 #[test]
 fn request_from_json_defaults_to_get() {
@@ -1051,6 +1052,193 @@ fn write_pact_test_should_not_merge_pacts_with_conflicts() {
   }},
   "provider": {{
     "name": "write_pact_test_provider"
+  }}
+}}"#, super::VERSION.unwrap())));
+}
+
+#[test]
+fn write_pact_test_should_upgrade_older_pacts_when_merging() {
+    let pact = RequestResponsePact { consumer: Consumer { name: s!("merge_consumer") },
+        provider: Provider { name: s!("merge_provider") },
+        interactions: vec![
+            RequestResponseInteraction {
+                description: s!("Test Interaction 2"),
+                provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
+                .. RequestResponseInteraction::default()
+            }
+        ],
+        metadata: btreemap!{},
+        specification_version: PactSpecification::V1_1
+    };
+    let pact2 = RequestResponsePact { consumer: Consumer { name: s!("merge_consumer") },
+        provider: Provider { name: s!("merge_provider") },
+        interactions: vec![
+            RequestResponseInteraction {
+                description: s!("Test Interaction"),
+                provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
+                .. RequestResponseInteraction::default()
+            }
+        ],
+        metadata: btreemap!{},
+        specification_version: PactSpecification::V3
+    };
+    let mut dir = env::temp_dir();
+    let x = rand::random::<u16>();
+    dir.push(format!("pact_test_{}", x));
+    dir.push(pact.default_file_name());
+
+    let result = write_pact(&pact, dir.as_path(), PactSpecification::V2);
+    let result2 = write_pact(&pact2, dir.as_path(), PactSpecification::V3);
+
+    let pact_file = read_pact_file(dir.as_path().to_str().unwrap()).unwrap_or(s!(""));
+    fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());
+
+    expect!(result).to(be_ok());
+    expect!(result2).to(be_ok());
+    expect!(pact_file).to(be_equal_to(format!(r#"{{
+  "consumer": {{
+    "name": "merge_consumer"
+  }},
+  "interactions": [
+    {{
+      "description": "Test Interaction",
+      "providerStates": [
+        {{
+          "name": "Good state to be in"
+        }}
+      ],
+      "request": {{
+        "method": "GET",
+        "path": "/"
+      }},
+      "response": {{
+        "status": 200
+      }}
+    }},
+    {{
+      "description": "Test Interaction 2",
+      "providerStates": [
+        {{
+          "name": "Good state to be in"
+        }}
+      ],
+      "request": {{
+        "method": "GET",
+        "path": "/"
+      }},
+      "response": {{
+        "status": 200
+      }}
+    }}
+  ],
+  "metadata": {{
+    "pactRust": {{
+      "version": "{}"
+    }},
+    "pactSpecification": {{
+      "version": "3.0.0"
+    }}
+  }},
+  "provider": {{
+    "name": "merge_provider"
+  }}
+}}"#, super::VERSION.unwrap())));
+}
+
+#[test]
+fn write_pact_test_upgrades_older_pacts_to_v4_when_merging() {
+  env_logger::try_init().unwrap_or_default();
+  let pact = RequestResponsePact {
+    consumer: Consumer { name: s!("merge_consumer") },
+    provider: Provider { name: s!("merge_provider") },
+    interactions: vec![
+      RequestResponseInteraction {
+        description: s!("Test Interaction 2"),
+        provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap! {} }],
+        ..RequestResponseInteraction::default()
+      }
+    ],
+    metadata: btreemap! {},
+    specification_version: PactSpecification::V1_1,
+  };
+  let pact2 = V4Pact {
+    consumer: Consumer { name: s!("merge_consumer") },
+    provider: Provider { name: s!("merge_provider") },
+    interactions: vec![
+      V4Interaction::SynchronousHttp {
+        id: None,
+        key: None,
+        description: s!("Test Interaction"),
+        provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap! {} }],
+        request: Default::default(),
+        response: Default::default(),
+      }
+    ],
+    metadata: btreemap! {},
+  };
+  let mut dir = env::temp_dir();
+  let x = rand::random::<u16>();
+  dir.push(format!("pact_test_{}", x));
+  dir.push(pact.default_file_name());
+
+  let result = write_pact(&pact, dir.as_path(), PactSpecification::V3);
+  let result2 = write_pact(&pact2, dir.as_path(), PactSpecification::V4);
+
+  let pact_file = read_pact_file(dir.as_path().to_str().unwrap()).unwrap_or(s!(""));
+  fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());
+
+  expect!(result).to(be_ok());
+  expect!(result2).to(be_ok());
+  expect!(pact_file).to(be_equal_to(format!(r#"{{
+  "consumer": {{
+    "name": "merge_consumer"
+  }},
+  "interactions": [
+    {{
+      "description": "Test Interaction",
+      "key": "53d3170820ad2160",
+      "providerStates": [
+        {{
+          "name": "Good state to be in"
+        }}
+      ],
+      "request": {{
+        "method": "GET",
+        "path": "/"
+      }},
+      "response": {{
+        "status": 200
+      }},
+      "type": "Synchronous/HTTP"
+    }},
+    {{
+      "description": "Test Interaction 2",
+      "key": "4da93913a351bb8c",
+      "providerStates": [
+        {{
+          "name": "Good state to be in"
+        }}
+      ],
+      "request": {{
+        "method": "GET",
+        "path": "/"
+      }},
+      "response": {{
+        "status": 200
+      }},
+      "type": "Synchronous/HTTP"
+    }}
+  ],
+  "metadata": {{
+    "pactRust": {{
+      "version": "{}"
+    }},
+    "pactSpecification": {{
+      "version": "4.0"
+    }}
+  }},
+  "provider": {{
+    "name": "merge_provider"
   }}
 }}"#, super::VERSION.unwrap())));
 }

@@ -203,6 +203,30 @@ impl V4Interaction {
       V4Interaction::AsynchronousMessages { key, .. } => key.clone()
     }
   }
+
+  /// Creates a new version with a calculated key
+  pub fn with_key(&self) -> V4Interaction {
+    match self {
+      V4Interaction::SynchronousHttp { id, description, provider_states, request, response, .. } => V4Interaction::SynchronousHttp {
+        id: id.clone(),
+        key: Some(self.calc_hash()),
+        description: description.clone(),
+        provider_states: provider_states.clone(),
+        request: request.clone(),
+        response: response.clone()
+      },
+      V4Interaction::AsynchronousMessages { id, description, provider_states, contents, metadata, matching_rules, generators, .. } => V4Interaction::AsynchronousMessages {
+        id: id.clone(),
+        key: Some(self.calc_hash()),
+        description: description.clone(),
+        provider_states: provider_states.clone(),
+        contents: contents.clone(),
+        metadata: metadata.clone(),
+        matching_rules: matching_rules.clone(),
+        generators: generators.clone()
+      }
+    }
+  }
 }
 
 impl Interaction for V4Interaction {
@@ -291,6 +315,10 @@ impl Interaction for V4Interaction {
       V4Interaction::AsynchronousMessages { contents, metadata, .. } =>
         calc_content_type(contents, &metadata_to_headers(metadata))
     }
+  }
+
+  fn as_v4(&self) -> V4Interaction {
+    self.clone()
   }
 }
 
@@ -489,41 +517,44 @@ impl ReadWritePact for V4Pact {
     }
   }
 
-  fn merge(&self, other: &V4Pact) -> Result<V4Pact, String> {
-    Ok(V4Pact {
-      consumer: self.consumer.clone(),
-      provider: self.provider.clone(),
-      interactions: self.interactions.iter()
-        .merge_join_by(other.interactions.iter(), |a, b| {
-          match (a.key(), b.key()) {
-            (Some(key_a), Some(key_b)) => Ord::cmp(&key_a, &key_b),
-            (_, _) => {
-              let type_a = a.type_of();
-              let type_b = b.type_of();
-              let cmp = Ord::cmp(&type_a, &type_b);
-              if cmp == Ordering::Equal {
-                let cmp = Ord::cmp(&a.provider_states().iter().map(|p| p.name.clone()).collect::<Vec<String>>(),
-                                   &b.provider_states().iter().map(|p| p.name.clone()).collect::<Vec<String>>());
+  fn merge(&self, other: &dyn Pact) -> Result<V4Pact, String> {
+    if self.consumer.name == other.consumer().name && self.provider.name == other.provider().name {
+      Ok(V4Pact {
+        consumer: self.consumer.clone(),
+        provider: self.provider.clone(),
+        interactions: self.interactions.iter()
+          .merge_join_by(other.interactions().iter().map(|i| i.as_v4()), |a, b| {
+            match (a.key(), b.key()) {
+              (Some(key_a), Some(key_b)) => Ord::cmp(&key_a, &key_b),
+              (_, _) => {
+                let type_a = dbg!(a.type_of());
+                let type_b = dbg!(b.type_of());
+                let cmp = Ord::cmp(&type_a, &type_b);
                 if cmp == Ordering::Equal {
-                  Ord::cmp(&a.description(), &b.description())
+                  let cmp = Ord::cmp(&a.provider_states().iter().map(|p| p.name.clone()).collect::<Vec<String>>(),
+                                     &b.provider_states().iter().map(|p| p.name.clone()).collect::<Vec<String>>());
+                  if cmp == Ordering::Equal {
+                    Ord::cmp(&a.description(), &b.description())
+                  } else {
+                    cmp
+                  }
                 } else {
                   cmp
                 }
-              } else {
-                cmp
               }
             }
-          }
-        })
-        .map(|either| match either {
-          Left(i) => i,
-          Right(i) => i,
-          Both(i, _) => i
-        })
-        .cloned()
-        .collect(),
-      metadata: self.metadata.clone()
-    })
+          })
+          .map(|either| match either {
+            Left(i) => i.clone(),
+            Right(i) => i,
+            Both(_, i) => i.clone()
+          })
+          .collect(),
+        metadata: self.metadata.clone()
+      })
+    } else {
+      Err(s!("Unable to merge pacts, as they have different consumers or providers"))
+    }
   }
 
   fn default_file_name(&self) -> String {

@@ -32,7 +32,9 @@ use crate::models::json_utils::json_to_string;
 use crate::models::message::Message;
 use crate::models::message_pact::MessagePact;
 use crate::models::provider_states::ProviderState;
-use crate::models::v4::{interaction_from_json, V4Pact};
+use crate::models::v4::{interaction_from_json, V4Pact, V4Interaction};
+use crate::models::v4::http_parts::{HttpRequest, HttpResponse};
+use std::borrow::Borrow;
 
 pub mod json_utils;
 pub mod xml_utils;
@@ -46,7 +48,7 @@ mod expression_parser;
 pub const VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
 
 /// Enum defining the pact specification versions supported by the library
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize, Serialize)]
 #[allow(non_camel_case_types)]
 pub enum PactSpecification {
     /// Unknown or unsupported specification version
@@ -802,6 +804,19 @@ impl Request {
         }
         differences
     }
+
+  /// Convert this interaction to V4 format
+  pub fn as_v4_request(&self) -> HttpRequest {
+    HttpRequest {
+      method: self.method.clone(),
+      path: self.path.clone(),
+      query: self.query.clone(),
+      headers: self.headers.clone(),
+      body: self.body.clone(),
+      matching_rules: self.matching_rules.clone(),
+      generators: self.generators.clone()
+    }
+  }
 }
 
 /// Struct that defines the response.
@@ -904,6 +919,16 @@ impl Response {
         }
         differences
     }
+
+  pub fn as_v4_response(&self) -> HttpResponse {
+    HttpResponse {
+      status: self.status,
+      headers: self.headers.clone(),
+      body: self.body.clone(),
+      matching_rules: self.matching_rules.clone(),
+      generators: self.generators.clone()
+    }
+  }
 }
 
 impl HttpPart for Response {
@@ -1016,6 +1041,8 @@ pub trait Interaction {
   /// Determine the content type of the interaction. If a `Content-Type` header or metadata value is present, the
   /// value of that value will be returned. Otherwise, the contents will be inspected.
   fn content_type(&self) -> Option<ContentType>;
+  /// Returns the interaction in V4 format
+  fn as_v4(&self) -> V4Interaction;
 }
 
 impl Debug for dyn Interaction {
@@ -1097,6 +1124,17 @@ impl Interaction for RequestResponseInteraction {
 
   fn content_type(&self) -> Option<ContentType> {
     self.response.content_type()
+  }
+
+  fn as_v4(&self) -> V4Interaction {
+    V4Interaction::SynchronousHttp {
+      id: self.id.clone(),
+      key: None,
+      description: self.description.clone(),
+      provider_states: self.provider_states.clone(),
+      request: self.request.as_v4_request(),
+      response: self.response.as_v4_response()
+    }.with_key()
   }
 }
 
@@ -1452,10 +1490,10 @@ impl ReadWritePact for RequestResponsePact {
     }
   }
 
-  fn merge(&self, pact: &RequestResponsePact) -> Result<RequestResponsePact, String> {
-    if self.consumer.name == pact.consumer.name && self.provider.name == pact.provider.name {
-      let conflicts = iproduct!(self.interactions.clone(), pact.interactions.clone())
-        .map(|i| i.0.conflicts_with(&i.1))
+  fn merge(&self, pact: &dyn Pact) -> Result<RequestResponsePact, String> {
+    if self.consumer.name == pact.consumer().name && self.provider.name == pact.provider().name {
+      let conflicts = iproduct!(self.interactions.clone(), pact.interactions().clone())
+        .map(|i| i.0.conflicts_with(i.1))
         .filter(|conflicts| !conflicts.is_empty())
         .collect::<Vec<Vec<PactConflict>>>();
       let num_conflicts = conflicts.len();
@@ -1470,29 +1508,42 @@ impl ReadWritePact for RequestResponsePact {
         Err(format!("Unable to merge pacts, as there were {} conflict(s) between the interactions. Please clean out your pact directory before running the tests.",
                     num_conflicts))
       } else {
-        Ok(RequestResponsePact {
-          provider: self.provider.clone(),
-          consumer: self.consumer.clone(),
-          interactions: self.interactions.iter()
-            .merge_join_by(pact.interactions.iter(), |a, b| {
-              let cmp = Ord::cmp(&a.provider_states.iter().map(|p| p.name.clone()).collect::<Vec<String>>(),
-                                 &b.provider_states.iter().map(|p| p.name.clone()).collect::<Vec<String>>());
-              if cmp == Ordering::Equal {
-                Ord::cmp(&a.description, &b.description)
-              } else {
-                cmp
-              }
-            })
-            .map(|either| match either {
-              Left(i) => i,
-              Right(i) => i,
-              Both(_, i) => i
-            })
-            .cloned()
-            .collect(),
-          metadata: self.metadata.clone(),
-          specification_version: self.specification_version.clone()
-        })
+        let interactions: Vec<Result<RequestResponseInteraction, String>> = self.interactions.iter()
+          .merge_join_by(pact.interactions().iter(), |a, b| {
+            let cmp = Ord::cmp(&a.provider_states.iter().map(|p| p.name.clone()).collect::<Vec<String>>(),
+                               &b.provider_states().iter().map(|p| p.name.clone()).collect::<Vec<String>>());
+            if cmp == Ordering::Equal {
+              Ord::cmp(&a.description, &b.description())
+            } else {
+              cmp
+            }
+          })
+          .map(|either| match either {
+            Left(i) => Ok(i.clone()),
+            Right(i) => i.as_request_response()
+              .ok_or(format!("Can't convert interaction of type {} to V3 Synchronous/HTTP", i.type_of())),
+            Both(_, i) => i.as_request_response()
+              .ok_or(format!("Can't convert interaction of type {} to V3 Synchronous/HTTP", i.type_of()))
+          })
+          .collect();
+
+        let errors: Vec<String> = interactions.iter()
+          .filter(|i| i.is_err())
+          .map(|i| i.as_ref().unwrap_err().to_string())
+          .collect();
+        if errors.is_empty() {
+          Ok(RequestResponsePact {
+            provider: self.provider.clone(),
+            consumer: self.consumer.clone(),
+            interactions: interactions.iter()
+              .filter(|i| i.is_ok())
+              .map(|i| i.as_ref().unwrap().clone()).collect(),
+            metadata: self.metadata.clone(),
+            specification_version: self.specification_version.clone()
+          })
+        } else {
+          Err(format!("Unable to merge pacts: {}", errors.join(", ")))
+        }
       }
     } else {
       Err(s!("Unable to merge pacts, as they have different consumers or providers"))
@@ -1679,7 +1730,7 @@ pub trait ReadWritePact {
   /// Returns an error if there is a merge conflict, which will occur if the other pact is a different
   /// type, or if a V3 Pact then if any interaction has the
   /// same description and provider state and the requests and responses are different.
-  fn merge(&self, other: &Self) -> Result<Self, String> where Self: std::marker::Sized;
+  fn merge(&self, other: &dyn Pact) -> Result<Self, String> where Self: std::marker::Sized;
 
   /// Determines the default file name for the pact. This is based on the consumer and
   /// provider names.
@@ -1689,12 +1740,18 @@ pub trait ReadWritePact {
 /// Writes the pact out to the provided path. If there is an existing pact at the path, the two
 /// pacts will be merged together. Returns an error if the file can not be written or the pacts
 /// can no be merged.
-pub fn write_pact<T: ReadWritePact + Pact>(pact: &T, path: &Path, pact_spec: PactSpecification) -> io::Result<()> {
+pub fn write_pact<T: ReadWritePact + Pact + Debug>(pact: &T, path: &Path, pact_spec: PactSpecification) -> io::Result<()> {
   fs::create_dir_all(path.parent().unwrap())?;
   if path.exists() {
     debug!("Merging pact with file {:?}", path);
-    let existing_pact = T::read_pact(path)?;
-    match existing_pact.merge(pact) {
+    let existing_pact = read_pact(path)?;
+
+    if existing_pact.specification_version() < pact.specification_version() {
+      warn!("Note: Existing pact is an older specification version ({:?}), and will be upgraded",
+        existing_pact.specification_version());
+    }
+
+    match pact.merge(existing_pact.borrow()) {
       Ok(ref merged_pact) => {
         let mut file = File::create(path)?;
         let result = serde_json::to_string_pretty(&merged_pact.to_json(pact_spec))?;

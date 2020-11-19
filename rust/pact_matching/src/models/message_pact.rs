@@ -237,31 +237,43 @@ impl ReadWritePact for MessagePact {
       .map_err(|err| Error::new(ErrorKind::Other, err.clone()))
   }
 
-  fn merge(&self, pact: &MessagePact) -> Result<MessagePact, String> {
-    if self.consumer.name == pact.consumer.name && self.provider.name == pact.provider.name {
-      Ok(MessagePact {
-        provider: self.provider.clone(),
-        consumer: self.consumer.clone(),
-        messages: self.messages.iter()
-          .merge_join_by(pact.messages.iter(), |a, b| {
-            let cmp = Ord::cmp(&a.description, &b.description);
-            if cmp == Ordering::Equal {
-              Ord::cmp(&a.provider_states.iter().map(|p| p.name.clone()).collect::<Vec<String>>(),
-                       &b.provider_states.iter().map(|p| p.name.clone()).collect::<Vec<String>>())
-            } else {
-              cmp
-            }
-          })
-          .map(|either| match either {
-            Left(i) => i,
-            Right(i) => i,
-            Both(i, _) => i
-          })
-          .cloned()
-          .collect(),
-        metadata: self.metadata.clone(),
-        specification_version: self.specification_version.clone()
-      })
+  fn merge(&self, pact: &dyn Pact) -> Result<MessagePact, String> {
+    if self.consumer.name == pact.consumer().name && self.provider.name == pact.provider().name {
+      let messages: Vec<Result<Message, String>> = self.messages.iter()
+        .merge_join_by(pact.interactions().iter(), |a, b| {
+          let cmp = Ord::cmp(&a.description, &b.description());
+          if cmp == Ordering::Equal {
+            Ord::cmp(&a.provider_states.iter().map(|p| p.name.clone()).collect::<Vec<String>>(),
+                     &b.provider_states().iter().map(|p| p.name.clone()).collect::<Vec<String>>())
+          } else {
+            cmp
+          }
+        })
+        .map(|either| match either {
+          Left(i) => Ok(i.clone()),
+          Right(i) => i.as_message()
+            .ok_or(format!("Can't convert interaction of type {} to V3 Asynchronous/Messages", i.type_of())),
+          Both(_, i) => i.as_message()
+            .ok_or(format!("Can't convert interaction of type {} to V3 Asynchronous/Messages", i.type_of()))
+        })
+        .collect();
+      let errors: Vec<String> = messages.iter()
+        .filter(|i| i.is_err())
+        .map(|i| i.as_ref().unwrap_err().to_string())
+        .collect();
+      if errors.is_empty() {
+        Ok(MessagePact {
+          provider: self.provider.clone(),
+          consumer: self.consumer.clone(),
+          messages: messages.iter()
+            .filter(|i| i.is_ok())
+            .map(|i| i.as_ref().unwrap().clone()).collect(),
+          metadata: self.metadata.clone(),
+          specification_version: self.specification_version.clone()
+        })
+      } else {
+        Err(format!("Unable to merge pacts: {}", errors.join(", ")))
+      }
     } else {
       Err(s!("Unable to merge pacts, as they have different consumers or providers"))
     }

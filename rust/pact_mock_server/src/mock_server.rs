@@ -187,6 +187,7 @@ impl MockServer {
         // Lock so that no two threads can read/write pact file at the same time.
         // TODO: Could use a fs-based lock in case multiple processes are doing
         // this concurrently?
+        // Pact-JVM uses a file lock
         let _file_lock = PACT_FILE_MUTEX.lock().unwrap();
 
         match write_pact(&self.pact, filename.as_path(), self.pact.spec_version()) {

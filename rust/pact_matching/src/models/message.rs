@@ -98,6 +98,21 @@ impl Interaction for Message {
       }
     }
   }
+
+  fn as_v4(&self) -> V4Interaction {
+    V4Interaction::AsynchronousMessages {
+      id: self.id.clone(),
+      key: None,
+      description: self.description.clone(),
+      provider_states: self.provider_states.clone(),
+      contents: self.contents.clone(),
+      metadata: self.metadata.iter()
+        .map(|(k, v)| (k.clone(), Value::String(v.clone())))
+        .collect(),
+      matching_rules: self.matching_rules.clone(),
+      generators: self.generators.clone()
+    }
+  }
 }
 
 impl Message {
