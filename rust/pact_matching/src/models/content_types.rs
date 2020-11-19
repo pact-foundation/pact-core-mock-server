@@ -86,6 +86,11 @@ impl ContentType {
       self.suffix.as_ref().unwrap_or(&String::default()) == "xml")
   }
 
+  /// If it is a XML type (not including ones with suffixes like atom+xml)
+  pub fn is_strict_xml(&self) -> bool {
+    (self.main_type == "application" || self.main_type == "text") && self.sub_type == "xml"
+  }
+
   /// If it is a text type
   pub fn is_text(&self) -> bool {
     self.main_type == "text" || self.is_xml() || self.is_json()
@@ -123,7 +128,10 @@ impl ContentType {
 
   /// Equals, ignoring attributes if not present on self
   pub fn is_equivalent_to(&self, other: &ContentType) -> bool {
-    if self.attributes.is_empty() {
+    if self.is_strict_xml() && other.is_strict_xml() {
+      self.attributes.is_empty() || self.attributes == other.attributes
+    }
+    else if self.attributes.is_empty() {
       self.main_type == other.main_type && self.sub_type == other.sub_type
     } else {
       self == other
@@ -239,6 +247,14 @@ mod tests {
     let content_type = ContentType {
       main_type: "application".into(),
       sub_type: "hal+json".into(),
+      ..ContentType::default()
+    };
+    expect!(content_type.to_string()).to(be_equal_to("application/hal+json".to_string()));
+
+    let content_type = ContentType {
+      main_type: "application".into(),
+      sub_type: "hal".into(),
+      suffix: Some("json".into()),
       ..ContentType::default()
     };
     expect!(content_type.to_string()).to(be_equal_to("application/hal+json".to_string()));
@@ -365,5 +381,18 @@ mod tests {
       ..ContentType::default()
     };
     expect!(content_type.is_binary()).to(be_true());
+  }
+
+  #[test]
+  fn xml_equivalent_test() {
+    let content_type = ContentType::parse("application/atom+xml").unwrap();
+    let content_type2 = ContentType::parse("application/xml").unwrap();
+    let content_type3 = ContentType::parse("text/xml").unwrap();
+    let content_type4 = ContentType::parse("application/json").unwrap();
+
+    expect!(content_type.is_equivalent_to(&content_type)).to(be_true());
+    expect!(content_type.is_equivalent_to(&content_type2)).to(be_false());
+    expect!(content_type2.is_equivalent_to(&content_type3)).to(be_true());
+    expect!(content_type2.is_equivalent_to(&content_type4)).to(be_false());
   }
 }
