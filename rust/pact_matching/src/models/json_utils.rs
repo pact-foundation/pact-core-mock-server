@@ -3,7 +3,7 @@
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 
-use serde_json::{self, Value};
+use serde_json::{self, Value, Map};
 
 /// Trait to convert a JSON structure to a number
 pub trait JsonToNum<T> {
@@ -90,6 +90,11 @@ pub fn hash_json<H: Hasher>(v: &Value, state: &mut H) {
     }
     _ => ()
   }
+}
+
+/// Look up a field and return it as a string value
+pub(crate) fn get_field_as_string(field: &str, map: &Map<String, Value>) -> Option<String> {
+  map.get(field).map(|f| json_to_string(f))
 }
 
 #[cfg(test)]

@@ -15,7 +15,7 @@ use rand::distributions::Alphanumeric;
 use rand::seq::SliceRandom;
 use uuid::Uuid;
 use crate::models::OptionalBody;
-use crate::models::json_utils::{JsonToNum, json_to_string};
+use crate::models::json_utils::{JsonToNum, json_to_string, get_field_as_string};
 use crate::models::xml_utils::parse_bytes;
 use sxd_document::dom::Document;
 use crate::path_exp::*;
@@ -28,6 +28,7 @@ use crate::models::content_types::ContentType;
 use crate::models::expression_parser::{contains_expressions, DataType, DataValue, parse_expression, MapValueResolver};
 use std::convert::TryFrom;
 use log::trace;
+use onig::{Regex, Captures};
 
 /// Trait to represent a generator
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash)]
@@ -53,39 +54,42 @@ pub enum Generator {
   /// Generates a random boolean value
   RandomBoolean,
   /// Generates a value that is looked up from the provider state context
-  ProviderStateGenerator(String, Option<DataType>)
+  ProviderStateGenerator(String, Option<DataType>),
+  /// Generates a URL with the mock server as the base URL
+  MockServerURL(String, String)
 }
 
 impl Generator {
   /// Convert this generator to a JSON struct
   pub fn to_json(&self) -> Value {
     match self {
-      &Generator::RandomInt(min, max) => json!({ "type": "RandomInt", "min": min, "max": max }),
-      &Generator::Uuid => json!({ "type": "Uuid" }),
-      &Generator::RandomDecimal(digits) => json!({ "type": "RandomDecimal", "digits": digits }),
-      &Generator::RandomHexadecimal(digits) => json!({ "type": "RandomHexadecimal", "digits": digits }),
-      &Generator::RandomString(size) => json!({ "type": "RandomString", "size": size }),
-      &Generator::Regex(ref regex) => json!({ "type": "Regex", "regex": regex }),
-      &Generator::Date(ref format) => match format {
-        &Some(ref format) => json!({ "type": "Date", "format": format }),
-        &None => json!({ "type": "Date" })
+      Generator::RandomInt(min, max) => json!({ "type": "RandomInt", "min": min, "max": max }),
+      Generator::Uuid => json!({ "type": "Uuid" }),
+      Generator::RandomDecimal(digits) => json!({ "type": "RandomDecimal", "digits": digits }),
+      Generator::RandomHexadecimal(digits) => json!({ "type": "RandomHexadecimal", "digits": digits }),
+      Generator::RandomString(size) => json!({ "type": "RandomString", "size": size }),
+      Generator::Regex(ref regex) => json!({ "type": "Regex", "regex": regex }),
+      Generator::Date(ref format) => match format {
+        Some(ref format) => json!({ "type": "Date", "format": format }),
+        None => json!({ "type": "Date" })
       },
-      &Generator::Time(ref format) => match format {
-        &Some(ref format) => json!({ "type": "Time", "format": format }),
-        &None => json!({ "type": "Time" })
+      Generator::Time(ref format) => match format {
+        Some(ref format) => json!({ "type": "Time", "format": format }),
+        None => json!({ "type": "Time" })
       },
-      &Generator::DateTime(ref format) => match format {
-        &Some(ref format) => json!({ "type": "DateTime", "format": format }),
-        &None => json!({ "type": "DateTime" })
+      Generator::DateTime(ref format) => match format {
+        Some(ref format) => json!({ "type": "DateTime", "format": format }),
+        None => json!({ "type": "DateTime" })
       },
-      &Generator::RandomBoolean => json!({ "type": "RandomBoolean" }),
-      &Generator::ProviderStateGenerator(ref expression, ref data_type) => {
+      Generator::RandomBoolean => json!({ "type": "RandomBoolean" }),
+      Generator::ProviderStateGenerator(ref expression, ref data_type) => {
         if let Some(data_type) = data_type {
           json!({"type": "ProviderState", "expression": expression, "dataType": data_type})
         } else {
           json!({"type": "ProviderState", "expression": expression})
         }
       }
+      Generator::MockServerURL(example, regex) => json!({ "type": "MockServerURL", "example": example, "regex": regex }),
     }
   }
 
@@ -102,13 +106,15 @@ impl Generator {
       "RandomHexadecimal" => Some(Generator::RandomHexadecimal(<u16>::json_to_number(map, "digits", 10))),
       "RandomString" => Some(Generator::RandomString(<u16>::json_to_number(map, "size", 10))),
       "Regex" => map.get("regex").map(|val| Generator::Regex(json_to_string(val))),
-      "Date" => Some(Generator::Date(map.get("format").map(|f| json_to_string(f)))),
-      "Time" => Some(Generator::Time(map.get("format").map(|f| json_to_string(f)))),
-      "DateTime" => Some(Generator::DateTime(map.get("format").map(|f| json_to_string(f)))),
+      "Date" => Some(Generator::Date(get_field_as_string("format", map))),
+      "Time" => Some(Generator::Time(get_field_as_string("format", map))),
+      "DateTime" => Some(Generator::DateTime(get_field_as_string("format", map))),
       "RandomBoolean" => Some(Generator::RandomBoolean),
       "ProviderState" => map.get("expression").map(|f|
         Generator::ProviderStateGenerator(json_to_string(f), map.get("dataType")
           .map(|dt| DataType::from(dt.clone())))),
+      "MockServerURL" => Some(Generator::MockServerURL(get_field_as_string("example", map).unwrap_or_default(),
+                                                       get_field_as_string("regex", map).unwrap_or_default())),
       _ => {
         log::warn!("'{}' is not a valid generator type", gen_type);
         None
@@ -119,6 +125,7 @@ impl Generator {
   pub(crate) fn corresponds_to_mode(&self, mode: &GeneratorTestMode) -> bool {
     match self {
       Generator::ProviderStateGenerator(_, _) => mode == &GeneratorTestMode::Provider,
+      Generator::MockServerURL(_, _) => mode == &GeneratorTestMode::Consumer,
       _ => true
     }
   }
@@ -196,12 +203,12 @@ impl GenerateValue<String> for Generator {
   fn generate_value(&self, _: &String, context: &HashMap<String, Value>) -> Result<String, String> {
     let mut rnd = rand::thread_rng();
     match self {
-      &Generator::RandomInt(min, max) => Ok(format!("{}", rnd.gen_range(min, max.saturating_add(1)))),
-      &Generator::Uuid => Ok(Uuid::new_v4().hyphenated().to_string()),
-      &Generator::RandomDecimal(digits) => Ok(generate_decimal(digits as usize)),
-      &Generator::RandomHexadecimal(digits) => Ok(generate_hexadecimal(digits as usize)),
-      &Generator::RandomString(size) => Ok(generate_ascii_string(size as usize)),
-      &Generator::Regex(ref regex) => {
+      Generator::RandomInt(min, max) => Ok(format!("{}", rnd.gen_range(min, max.saturating_add(1)))),
+      Generator::Uuid => Ok(Uuid::new_v4().hyphenated().to_string()),
+      Generator::RandomDecimal(digits) => Ok(generate_decimal(*digits as usize)),
+      Generator::RandomHexadecimal(digits) => Ok(generate_hexadecimal(*digits as usize)),
+      Generator::RandomString(size) => Ok(generate_ascii_string(*size as usize)),
+      Generator::Regex(ref regex) => {
         let mut parser = regex_syntax::ParserBuilder::new().unicode(false).build();
         match parser.parse(strip_anchors(regex)) {
           Ok(hir) => {
@@ -219,7 +226,7 @@ impl GenerateValue<String> for Generator {
           }
         }
       },
-      &Generator::Date(ref format) => match format {
+      Generator::Date(ref format) => match format {
         Some(pattern) => match parse_pattern(pattern) {
           Ok(tokens) => Ok(Local::now().date().format(&to_chrono_pattern(&tokens)).to_string()),
           Err(err) => {
@@ -229,7 +236,7 @@ impl GenerateValue<String> for Generator {
         },
         None => Ok(Local::now().naive_local().date().to_string())
       },
-      &Generator::Time(ref format) => match format {
+      Generator::Time(ref format) => match format {
         Some(pattern) => match parse_pattern(pattern) {
           Ok(tokens) => Ok(Local::now().format(&to_chrono_pattern(&tokens)).to_string()),
           Err(err) => {
@@ -239,7 +246,7 @@ impl GenerateValue<String> for Generator {
         },
         None => Ok(Local::now().time().format("%H:%M:%S").to_string())
       },
-      &Generator::DateTime(ref format) => match format {
+      Generator::DateTime(ref format) => match format {
         Some(pattern) => match parse_pattern(pattern) {
           Ok(tokens) => Ok(Local::now().format(&to_chrono_pattern(&tokens)).to_string()),
           Err(err) => {
@@ -249,12 +256,30 @@ impl GenerateValue<String> for Generator {
         },
         None => Ok(Local::now().format("%Y-%m-%dT%H:%M:%S.%3f%z").to_string())
       },
-      &Generator::RandomBoolean => Ok(format!("{}", rnd.gen::<bool>())),
-      &Generator::ProviderStateGenerator(ref exp, ref dt) =>
+      Generator::RandomBoolean => Ok(format!("{}", rnd.gen::<bool>())),
+      Generator::ProviderStateGenerator(ref exp, ref dt) =>
         match generate_value_from_context(exp, context, dt) {
           Ok(val) => String::try_from(val),
           Err(err) => Err(err)
+        },
+      Generator::MockServerURL(example, regex) => if let Some(mock_server_details) = context.get("mockServer") {
+        match mock_server_details.as_object() {
+          Some(mock_server_details) => {
+            match get_field_as_string("url", mock_server_details) {
+              Some(url) => match Regex::new(regex) {
+                Ok(re) => Ok(re.replace(example, |caps: &Captures| {
+                  format!("{}{}", url, caps.at(1).unwrap())
+                })),
+                Err(err) => Err(format!("MockServerURL: Failed to generate value: {}", err))
+              },
+              None => Err("MockServerURL: can not generate a value as there is no mock server URL in the test context".to_string())
+            }
+          },
+          None => Err("MockServerURL: can not generate a value as there is no mock server details in the test context".to_string())
         }
+      } else {
+        Err("MockServerURL: can not generate a value as there is no mock server details in the test context".to_string())
+      }
     }
   }
 }
@@ -268,35 +293,35 @@ impl GenerateValue<Vec<String>> for Generator {
 impl GenerateValue<Value> for Generator {
   fn generate_value(&self, value: &Value, context: &HashMap<String, Value>) -> Result<Value, String> {
     match self {
-      &Generator::RandomInt(min, max) => {
+      Generator::RandomInt(min, max) => {
         let rand_int = rand::thread_rng().gen_range(min, max.saturating_add(1));
         match value {
-          &Value::String(_) => Ok(json!(format!("{}", rand_int))),
-          &Value::Number(_) => Ok(json!(rand_int)),
+          Value::String(_) => Ok(json!(format!("{}", rand_int))),
+          Value::Number(_) => Ok(json!(rand_int)),
           _ => Err(format!("Could not generate a random int from {}", value))
         }
       },
-      &Generator::Uuid => match value {
-        &Value::String(_) => Ok(json!(Uuid::new_v4().simple().to_string())),
+      Generator::Uuid => match value {
+        Value::String(_) => Ok(json!(Uuid::new_v4().simple().to_string())),
         _ => Err(format!("Could not generate a UUID from {}", value))
       },
-      &Generator::RandomDecimal(digits) => match value {
-        &Value::String(_) => Ok(json!(generate_decimal(digits as usize))),
-        &Value::Number(_) => match generate_decimal(digits as usize).parse::<f64>() {
+      Generator::RandomDecimal(digits) => match value {
+        Value::String(_) => Ok(json!(generate_decimal(*digits as usize))),
+        Value::Number(_) => match generate_decimal(*digits as usize).parse::<f64>() {
           Ok(val) => Ok(json!(val)),
           Err(err) => Err(format!("Could not generate a random decimal from {} - {}", value, err))
         },
         _ => Err(format!("Could not generate a random decimal from {}", value))
       },
-      &Generator::RandomHexadecimal(digits) => match value {
-        &Value::String(_) => Ok(json!(generate_hexadecimal(digits as usize))),
+      Generator::RandomHexadecimal(digits) => match value {
+        Value::String(_) => Ok(json!(generate_hexadecimal(*digits as usize))),
         _ => Err(format!("Could not generate a random hexadecimal from {}", value))
       },
-      &Generator::RandomString(size) => match value {
-        &Value::String(_) => Ok(json!(generate_ascii_string(size as usize))),
+      Generator::RandomString(size) => match value {
+        Value::String(_) => Ok(json!(generate_ascii_string(*size as usize))),
         _ => Err(format!("Could not generate a random string from {}", value))
       },
-      &Generator::Regex(ref regex) => {
+      Generator::Regex(ref regex) => {
         let mut parser = regex_syntax::ParserBuilder::new().unicode(false).build();
         match parser.parse(regex) {
           Ok(hir) => {
@@ -309,7 +334,7 @@ impl GenerateValue<Value> for Generator {
           }
         }
       },
-      &Generator::Date(ref format) => match format {
+      Generator::Date(ref format) => match format {
         Some(pattern) => match parse_pattern(pattern) {
           Ok(tokens) => Ok(json!(Local::now().date().format(&to_chrono_pattern(&tokens)).to_string())),
           Err(err) => {
@@ -319,7 +344,7 @@ impl GenerateValue<Value> for Generator {
         },
         None => Ok(json!(Local::now().naive_local().date().to_string()))
       },
-      &Generator::Time(ref format) => match format {
+      Generator::Time(ref format) => match format {
         Some(pattern) => match parse_pattern(pattern) {
           Ok(tokens) => Ok(json!(Local::now().format(&to_chrono_pattern(&tokens)).to_string())),
           Err(err) => {
@@ -329,7 +354,7 @@ impl GenerateValue<Value> for Generator {
         },
         None => Ok(json!(Local::now().time().format("%H:%M:%S").to_string()))
       },
-      &Generator::DateTime(ref format) => match format {
+      Generator::DateTime(ref format) => match format {
         Some(pattern) => match parse_pattern(pattern) {
           Ok(tokens) => Ok(json!(Local::now().format(&to_chrono_pattern(&tokens)).to_string())),
           Err(err) => {
@@ -339,12 +364,30 @@ impl GenerateValue<Value> for Generator {
         },
         None => Ok(json!(Local::now().format("%Y-%m-%dT%H:%M:%S.%3f%z").to_string()))
       },
-      &Generator::RandomBoolean => Ok(json!(rand::thread_rng().gen::<bool>())),
-      &Generator::ProviderStateGenerator(ref exp, ref dt) =>
+      Generator::RandomBoolean => Ok(json!(rand::thread_rng().gen::<bool>())),
+      Generator::ProviderStateGenerator(ref exp, ref dt) =>
         match generate_value_from_context(exp, context, dt) {
           Ok(val) => val.as_json(),
           Err(err) => Err(err)
+        },
+      Generator::MockServerURL(example, regex) => if let Some(mock_server_details) = context.get("mockServer") {
+        match mock_server_details.as_object() {
+          Some(mock_server_details) => {
+            match get_field_as_string("url", mock_server_details) {
+              Some(url) => match Regex::new(regex) {
+                Ok(re) => Ok(Value::String(re.replace(example, |caps: &Captures| {
+                  format!("{}{}", url, caps.at(1).unwrap())
+                }))),
+                Err(err) => Err(format!("MockServerURL: Failed to generate value: {}", err))
+              },
+              None => Err("MockServerURL: can not generate a value as there is no mock server URL in the test context".to_string())
+            }
+          },
+          None => Err("MockServerURL: can not generate a value as there is no mock server details in the test context".to_string())
         }
+      } else {
+        Err("MockServerURL: can not generate a value as there is no mock server details in the test context".to_string())
+      }
     }
   }
 }
@@ -1017,6 +1060,11 @@ mod tests {
       "type": "ProviderState",
       "expression": "$a"
     })));
+    expect!(Generator::MockServerURL("http://localhost:1234/path".into(), "(.*)/path".into()).to_json()).to(be_equal_to(json!({
+      "type": "MockServerURL",
+      "example": "http://localhost:1234/path",
+      "regex": "(.*)/path"
+    })));
   }
 
   #[test]
@@ -1138,5 +1186,19 @@ mod tests {
   fn handle_edge_case_when_digits_is_2() {
     let generated = Generator::RandomDecimal(2).generate_value(&"".to_string(), &hashmap! {}).unwrap();
     assert_that!(generated, matches_regex(r"^\d\.\d$"));
+  }
+
+  #[test]
+  fn mock_server_url_generator_test() {
+    let generator = Generator::MockServerURL("http://localhost:1234/path".into(), ".*(/path)$".into());
+    let generated = generator.generate_value(&"".to_string(), &hashmap!{
+        "mockServer".to_string() => json!({
+          "url": "http://192.168.2.1:2345/p",
+          "port": 2345
+        })
+      });
+    expect!(generated.unwrap()).to(be_equal_to("http://192.168.2.1:2345/p/path"));
+    let generated = generator.generate_value(&"".to_string(), &hashmap!{});
+    expect!(generated).to(be_err());
   }
 }
