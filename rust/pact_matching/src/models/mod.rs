@@ -920,6 +920,7 @@ impl Response {
         differences
     }
 
+  /// Convert this response to V4 format
   pub fn as_v4_response(&self) -> HttpResponse {
     HttpResponse {
       status: self.status,

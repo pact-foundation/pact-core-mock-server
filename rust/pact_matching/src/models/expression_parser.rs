@@ -130,34 +130,34 @@ pub trait ValueResolver {
 
 /// Value resolver that looks a value up from a Map
 #[derive(PartialEq, Debug, Clone)]
-pub struct MapValueResolver {
+pub struct MapValueResolver<'a> {
   /// Map to resolve values from
-  pub context: HashMap<String, Value>
+  pub context: HashMap<&'a str, Value>
 }
 
-impl ValueResolver for MapValueResolver {
+impl ValueResolver for MapValueResolver<'_> {
   fn resolve_value(&self, name: &str) -> Option<String> {
     self.context.get(name.into()).map(|val| json_to_string(val))
   }
 }
 
 /// If the String value contains any expression within it
-pub fn contains_expressions(value: &String) -> bool {
+pub fn contains_expressions(value: &str) -> bool {
   value.contains("${")
 }
 
 /// Parse the expressions and return the generated value
-pub fn parse_expression(value: &String, value_resolver: &dyn ValueResolver) -> Result<String, String> {
+pub fn parse_expression(value: &str, value_resolver: &dyn ValueResolver) -> Result<String, String> {
   if contains_expressions(value) {
     replace_expressions(value, value_resolver)
   } else {
-    Ok(value.clone())
+    Ok(value.to_string())
   }
 }
 
-fn replace_expressions(value: &String, value_resolver: &dyn ValueResolver) -> Result<String, String> {
+fn replace_expressions(value: &str, value_resolver: &dyn ValueResolver) -> Result<String, String> {
   let mut result = String::default();
-  let mut buffer = value.as_str();
+  let mut buffer = value;
   let mut position = buffer.find("${");
   while let Some(index) = position {
     result.push_str(&buffer[0..index]);
@@ -198,7 +198,7 @@ mod tests {
 
   #[test]
   fn parse_expression_with_an_expression() {
-    let resolver = MapValueResolver { context: hashmap!{ "a".into() => json!("A") } };
+    let resolver = MapValueResolver { context: hashmap!{ "a" => json!("A") } };
     expect!(parse_expression(&"${a}".to_string(), &resolver)).to(be_ok().value("A".to_string()));
   }
 
@@ -225,7 +225,7 @@ mod tests {
 
   #[test]
   fn replaces_the_expression_with_resolved_value() {
-    let resolver = MapValueResolver { context: hashmap!{ "value".into() => json!("[value]") } };
+    let resolver = MapValueResolver { context: hashmap!{ "value" => json!("[value]") } };
     expect!(parse_expression(&"${value}".to_string(), &resolver)).to(be_ok().value("[value]".to_string()));
     expect!(parse_expression(&" ${value}".to_string(), &resolver)).to(be_ok().value(" [value]".to_string()));
     expect!(parse_expression(&"${value} ".to_string(), &resolver)).to(be_ok().value("[value] ".to_string()));

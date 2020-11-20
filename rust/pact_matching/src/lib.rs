@@ -1374,7 +1374,7 @@ pub fn match_message(expected: &models::message::Message, actual: &models::messa
 }
 
 /// Generates the request by applying any defined generators
-pub fn generate_request(request: &models::Request, mode: &GeneratorTestMode, context: &HashMap<String, Value>) -> models::Request {
+pub fn generate_request(request: &models::Request, mode: &GeneratorTestMode, context: &HashMap<&str, Value>) -> models::Request {
     let generators = request.generators.clone();
     let mut request = request.clone();
     generators.apply_generator(mode, &GeneratorCategory::PATH, |_, generator| {
@@ -1410,7 +1410,7 @@ pub fn generate_request(request: &models::Request, mode: &GeneratorTestMode, con
 }
 
 /// Generates the response by applying any defined generators
-pub fn generate_response(response: &models::Response, mode: &GeneratorTestMode, context: &HashMap<String, Value>) -> models::Response {
+pub fn generate_response(response: &models::Response, mode: &GeneratorTestMode, context: &HashMap<&str, Value>) -> models::Response {
   let generators = response.generators.clone();
   let mut response = response.clone();
   generators.apply_generator(mode, &GeneratorCategory::STATUS, |_, generator| {

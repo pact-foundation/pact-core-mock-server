@@ -16,7 +16,7 @@ pub async fn verify_message_from_provider<F: RequestFilterExecutor>(
   interaction: &Message,
   options: &VerificationOptions<F>,
   client: &reqwest::Client,
-  verification_context: HashMap<String, Value>
+  verification_context: &HashMap<&str, Value>
 ) -> Result<(), MismatchResult> {
   let mut request_body = json!({
     "description": interaction.description

@@ -223,7 +223,7 @@ async fn verify_response_from_provider<F: RequestFilterExecutor>(
   interaction: &RequestResponseInteraction,
   options: &VerificationOptions<F>,
   client: &reqwest::Client,
-  verification_context: HashMap<String, Value>
+  verification_context: &HashMap<&str, Value>
 ) -> Result<(), MismatchResult> {
   let expected_response = &interaction.response;
   match make_provider_request(provider, &pact_matching::generate_request(&interaction.request, &GeneratorTestMode::Provider, &verification_context), options, client).await {
@@ -294,13 +294,15 @@ fn verify_interaction<F: RequestFilterExecutor, S: ProviderStateExecutor>(
 
   info!("Running provider verification for '{}'", interaction.description());
   let mut result = Err(MismatchResult::Error("No interaction was verified".into(), None));
+  let context = provider_states_results.iter()
+    .map(|(k, v)| (k.as_str(), v.clone())).collect();
   if let Some(interaction) = interaction.as_request_response() {
     result = block_on(verify_response_from_provider(provider, &interaction,
-      options, &client, provider_states_results.clone()));
+                                                    options, &client, &context));
   }
   if let Some(interaction) = interaction.as_message() {
     result = block_on(verify_message_from_provider(provider, &interaction,
-      options, &client, provider_states_results));
+      options, &client, &context));
   }
 
   if !interaction.provider_states().is_empty() {

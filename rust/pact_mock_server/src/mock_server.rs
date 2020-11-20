@@ -19,7 +19,7 @@ use crate::hyper_server;
 use crate::matching::MatchResult;
 
 lazy_static! {
-    static ref PACT_FILE_MUTEX: Mutex<()> = Mutex::new(());
+  static ref PACT_FILE_MUTEX: Mutex<()> = Mutex::new(());
 }
 
 /// Mock server configuration
@@ -29,13 +29,41 @@ pub struct MockServerConfig {
   pub cors_preflight: bool
 }
 
+/// Mock server scheme
+#[derive(Debug, Clone)]
+pub enum MockServerScheme {
+  /// HTTP
+  HTTP,
+  /// HTTPS
+  HTTPS
+}
+
+impl Default for MockServerScheme {
+  fn default() -> Self {
+    MockServerScheme::HTTP
+  }
+}
+
+impl ToString for MockServerScheme {
+  fn to_string(&self) -> String {
+    match self {
+      MockServerScheme::HTTP => "http".into(),
+      MockServerScheme::HTTPS => "https".into()
+    }
+  }
+}
+
 /// Struct to represent the "foreground" part of mock server
 #[derive(Debug, Default)]
 pub struct MockServer {
   /// Mock server unique ID
   pub id: String,
-  /// Address the mock server is running on
+  /// Scheme the mock server is using
+  pub scheme: MockServerScheme,
+  /// Port the mock server is running on
   pub port: Option<u16>,
+  /// Address the mock server is bound to
+  pub address: Option<String>,
   /// List of resources that need to be cleaned up when the mock server completes
   pub resources: Vec<CString>,
   /// Pact that this mock server is based on
@@ -62,6 +90,8 @@ impl MockServer {
     let mut mock_server = MockServer {
       id: id.clone(),
       port: None,
+      address: None,
+      scheme: MockServerScheme::HTTP,
       resources: vec![],
       pact: pact.clone(),
       matches: matches.clone(),
@@ -73,15 +103,16 @@ impl MockServer {
       pact,
       addr,
       async {
-          shutdown_rx.await.ok();
+        shutdown_rx.await.ok();
       },
       matches,
-      &mock_server
+      Arc::new(Mutex::new(mock_server.clone()))
     )
       .await
       .map_err(|err| format!("Could not start server: {}", err))?;
 
     mock_server.port = Some(socket_addr.port());
+    mock_server.address = Some(socket_addr.ip().to_string());
 
     Ok((mock_server, future))
   }
@@ -99,6 +130,8 @@ impl MockServer {
     let mut mock_server = MockServer {
       id: id.clone(),
       port: None,
+      address: None,
+      scheme: MockServerScheme::HTTPS,
       resources: vec![],
       pact: pact.clone(),
       matches: matches.clone(),
@@ -114,10 +147,11 @@ impl MockServer {
       },
       matches,
       tls,
-      &mock_server
+      Arc::new(Mutex::new(mock_server.clone()))
     ).await.map_err(|err| format!("Could not start server: {}", err))?;
 
     mock_server.port = Some(addr.port());
+    mock_server.address = Some(addr.ip().to_string());
 
     Ok((mock_server, future))
   }
@@ -137,12 +171,14 @@ impl MockServer {
 
     /// Converts this mock server to a `Value` struct
     pub fn to_json(&self) -> serde_json::Value {
-        json!({
-            "id" : json!(self.id.clone()),
-            "port" : json!(self.port.unwrap_or_default() as u64),
-            "provider" : json!(self.pact.provider.name.clone()),
-            "status" : json!(if self.mismatches().is_empty() { "ok" } else { "error" })
-        })
+      json!({
+        "id" : self.id.clone(),
+        "port" : self.port.unwrap_or_default() as u64,
+        "address" : self.address.clone().unwrap_or_default(),
+        "scheme" : self.scheme.to_string(),
+        "provider" : self.pact.provider.name.clone(),
+        "status" : if self.mismatches().is_empty() { "ok" } else { "error" }
+      })
     }
 
     /// Returns all collected matches
@@ -202,7 +238,8 @@ impl MockServer {
     /// Returns the URL of the mock server
     pub fn url(&self) -> String {
       match self.port {
-        Some(port) => format!("http://localhost:{}", port),
+        Some(port) => format!("{}://{}:{}", self.scheme.to_string(),
+                              self.address.clone().unwrap_or_else(|| "localhost".to_string()), port),
         None => "error(port is not set)".to_string()
       }
     }
@@ -215,6 +252,8 @@ impl Clone for MockServer {
     MockServer {
       id: self.id.clone(),
       port: self.port,
+      address: self.address.clone(),
+      scheme: self.scheme.clone(),
       resources: vec![],
       pact: self.pact.clone(),
       matches: self.matches.clone(),

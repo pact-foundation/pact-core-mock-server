@@ -16,7 +16,7 @@ use serde_json::json;
 use maplit::*;
 use hyper::server::conn::AddrIncoming;
 use rustls::ServerConfig;
-use crate::mock_server::{MockServer, MockServerConfig};
+use crate::mock_server::MockServer;
 
 #[derive(Debug, Clone)]
 enum InteractionError {
@@ -138,13 +138,22 @@ fn error_body(request: &Request, error: &String) -> String {
 fn match_result_to_hyper_response(
   request: &Request,
   match_result: MatchResult,
-  config: &MockServerConfig
+  mock_server: &Mutex<MockServer>
 ) -> Result<Response<Body>, InteractionError> {
-  let cors_preflight = config.cors_preflight;
+  let cors_preflight = {
+    mock_server.lock().unwrap().config.cors_preflight
+  };
 
   match match_result {
     MatchResult::RequestMatch(ref interaction) => {
-      let response = pact_matching::generate_response(&interaction.response, &GeneratorTestMode::Consumer, &hashmap!{});
+      let ms = mock_server.lock().unwrap();
+      let context = hashmap!{
+        "mockServer" => json!({
+          "href": ms.url(),
+          "port": ms.port
+        })
+      };
+      let response = pact_matching::generate_response(&interaction.response, &GeneratorTestMode::Consumer, &context);
       info!("Request matched, sending response {}", response);
       if interaction.response.has_text_body() {
         debug!("     body: '{}'", interaction.response.body.str_value());
@@ -207,7 +216,7 @@ async fn handle_request(
   req: hyper::Request<Body>,
   pact: Arc<RequestResponsePact>,
   matches: Arc<Mutex<Vec<MatchResult>>>,
-  config: Arc<MockServerConfig>
+  mock_server: Arc<Mutex<MockServer>>
 ) -> Result<Response<Body>, InteractionError> {
     debug!("Creating pact request from hyper request");
 
@@ -221,7 +230,7 @@ async fn handle_request(
 
     matches.lock().unwrap().push(match_result.clone());
 
-    match_result_to_hyper_response(&pact_request, match_result, &config)
+    match_result_to_hyper_response(&pact_request, match_result, &mock_server)
 }
 
 // TODO: Should instead use some form of X-Pact headers
@@ -257,27 +266,26 @@ pub(crate) async fn create_and_bind(
   addr: std::net::SocketAddr,
   shutdown: impl std::future::Future<Output = ()>,
   matches: Arc<Mutex<Vec<MatchResult>>>,
-  mock_server: &MockServer
+  mock_server: Arc<Mutex<MockServer>>
 ) -> Result<(impl std::future::Future<Output = ()>, std::net::SocketAddr), hyper::Error> {
   let pact = Arc::new(pact);
-  let config = Arc::new(mock_server.config.clone());
 
   let server = Server::try_bind(&addr)?
     .serve(make_service_fn(move |_| {
       let pact = pact.clone();
       let matches = matches.clone();
-      let config = config.clone();
+      let mock_server = mock_server.clone();
 
       async {
         Ok::<_, hyper::Error>(
           service_fn(move |req| {
             let pact = pact.clone();
             let matches = matches.clone();
-            let config = config.clone();
+            let mock_server = mock_server.clone();
 
             async {
               handle_mock_request_error(
-                handle_request(req, pact, matches, config).await
+                handle_request(req, pact, matches, mock_server).await
               )
             }
           })
@@ -304,10 +312,9 @@ pub(crate) async fn create_and_bind_tls(
   shutdown: impl std::future::Future<Output = ()>,
   matches: Arc<Mutex<Vec<MatchResult>>>,
   tls: &ServerConfig,
-  mock_server: &MockServer
+  mock_server: Arc<Mutex<MockServer>>
 ) -> Result<(impl std::future::Future<Output = ()>, std::net::SocketAddr), hyper::Error> {
   let pact = Arc::new(pact);
-  let config = Arc::new(mock_server.config.clone());
 
   let incoming = AddrIncoming::bind(&addr)?;
   let socket_addr = incoming.local_addr();
@@ -315,18 +322,18 @@ pub(crate) async fn create_and_bind_tls(
     .serve(make_service_fn(move |_| {
       let pact = pact.clone();
       let matches = matches.clone();
-      let config = config.clone();
+      let mock_server = mock_server.clone();
 
       async {
         Ok::<_, hyper::Error>(
           service_fn(move |req| {
             let pact = pact.clone();
             let matches = matches.clone();
-            let config = config.clone();
+            let mock_server = mock_server.clone();
 
             async {
               handle_mock_request_error(
-                handle_request(req, pact, matches, config).await
+                handle_request(req, pact, matches, mock_server).await
               )
             }
           })
@@ -365,7 +372,7 @@ mod tests {
           shutdown_rx.await.ok();
       },
       matches.clone(),
-      &MockServer::default()
+      Arc::new(Mutex::new(MockServer::default()))
     ).await.unwrap();
 
     let join_handle = tokio::task::spawn(future);

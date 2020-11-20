@@ -135,11 +135,11 @@ impl Generator {
 pub trait GenerateValue<T> {
   /// Generates a new value based on the source value. An error will be returned if the value can not
   /// be generated.
-  fn generate_value(&self, value: &T, context: &HashMap<String, Value>) -> Result<T, String>;
+  fn generate_value(&self, value: &T, context: &HashMap<&str, Value>) -> Result<T, String>;
 }
 
 impl GenerateValue<u16> for Generator {
-  fn generate_value(&self, value: &u16, context: &HashMap<String, Value>) -> Result<u16, String> {
+  fn generate_value(&self, value: &u16, context: &HashMap<&str, Value>) -> Result<u16, String> {
     match self {
       &Generator::RandomInt(min, max) => Ok(rand::thread_rng().gen_range(min as u16, (max as u16).saturating_add(1))),
       &Generator::ProviderStateGenerator(ref exp, ref dt) =>
@@ -200,7 +200,7 @@ fn strip_anchors(regex: &str) -> &str {
 }
 
 impl GenerateValue<String> for Generator {
-  fn generate_value(&self, _: &String, context: &HashMap<String, Value>) -> Result<String, String> {
+  fn generate_value(&self, _: &String, context: &HashMap<&str, Value>) -> Result<String, String> {
     let mut rnd = rand::thread_rng();
     match self {
       Generator::RandomInt(min, max) => Ok(format!("{}", rnd.gen_range(min, max.saturating_add(1)))),
@@ -285,13 +285,13 @@ impl GenerateValue<String> for Generator {
 }
 
 impl GenerateValue<Vec<String>> for Generator {
-  fn generate_value(&self, vals: &Vec<String>, context: &HashMap<String, Value>) -> Result<Vec<String>, String> {
+  fn generate_value(&self, vals: &Vec<String>, context: &HashMap<&str, Value>) -> Result<Vec<String>, String> {
     self.generate_value(vals.first().unwrap_or(&s!("")), context).map(|v| vec![v])
   }
 }
 
 impl GenerateValue<Value> for Generator {
-  fn generate_value(&self, value: &Value, context: &HashMap<String, Value>) -> Result<Value, String> {
+  fn generate_value(&self, value: &Value, context: &HashMap<&str, Value>) -> Result<Value, String> {
     match self {
       Generator::RandomInt(min, max) => {
         let rand_int = rand::thread_rng().gen_range(min, max.saturating_add(1));
@@ -448,9 +448,9 @@ impl Into<String> for GeneratorCategory {
 /// Trait to define a handler for applying generators to data of a particular content type.
 pub trait ContentTypeHandler<T> {
   /// Processes the body using the map of generators, returning a (possibly) updated body.
-  fn process_body(&mut self, generators: &HashMap<String, Generator>, mode: &GeneratorTestMode, context: &HashMap<String, Value>) -> OptionalBody;
+  fn process_body(&mut self, generators: &HashMap<String, Generator>, mode: &GeneratorTestMode, context: &HashMap<&str, Value>) -> OptionalBody;
   /// Applies the generator to the key in the body.
-  fn apply_key(&mut self, key: &String, generator: &Generator, context: &HashMap<String, Value>);
+  fn apply_key(&mut self, key: &String, generator: &Generator, context: &HashMap<&str, Value>);
 }
 
 /// Implementation of a content type handler for JSON
@@ -531,7 +531,7 @@ impl JsonHandler {
 }
 
 impl ContentTypeHandler<Value> for JsonHandler {
-  fn process_body(&mut self, generators: &HashMap<String, Generator>, mode: &GeneratorTestMode, context: &HashMap<String, Value>) -> OptionalBody {
+  fn process_body(&mut self, generators: &HashMap<String, Generator>, mode: &GeneratorTestMode, context: &HashMap<&str, Value>) -> OptionalBody {
     for (key, generator) in generators {
       if generator.corresponds_to_mode(mode) {
         self.apply_key(key, generator, context);
@@ -540,7 +540,7 @@ impl ContentTypeHandler<Value> for JsonHandler {
     OptionalBody::Present(self.value.to_string().into(), Some("application/json".into()))
   }
 
-  fn apply_key(&mut self, key: &String, generator: &Generator, context: &HashMap<String, Value>) {
+  fn apply_key(&mut self, key: &String, generator: &Generator, context: &HashMap<&str, Value>) {
     match parse_path_exp(key) {
       Ok(path_exp) => {
         let mut tree = Arena::new();
@@ -586,11 +586,11 @@ pub struct XmlHandler<'a> {
 }
 
 impl <'a> ContentTypeHandler<Document<'a>> for XmlHandler<'a> {
-  fn process_body(&mut self, _generators: &HashMap<String, Generator>, _mode: &GeneratorTestMode, _context: &HashMap<String, Value>) -> OptionalBody {
+  fn process_body(&mut self, _generators: &HashMap<String, Generator>, _mode: &GeneratorTestMode, _context: &HashMap<&str, Value>) -> OptionalBody {
     unimplemented!()
   }
 
-  fn apply_key(&mut self, _key: &String, _generator: &Generator, _context: &HashMap<String, Value>) {
+  fn apply_key(&mut self, _key: &String, _generator: &Generator, _context: &HashMap<&str, Value>) {
     unimplemented!()
   }
 }
@@ -713,7 +713,7 @@ impl Generators {
   }
 
   /// Applies all the body generators to the body and returns a new body (if anything was applied).
-  pub fn apply_body_generators(&self, mode: &GeneratorTestMode, body: &OptionalBody, content_type: Option<ContentType>, context: &HashMap<String, Value>) -> OptionalBody {
+  pub fn apply_body_generators(&self, mode: &GeneratorTestMode, body: &OptionalBody, content_type: Option<ContentType>, context: &HashMap<&str, Value>) -> OptionalBody {
     if body.is_present() && self.categories.contains_key(&GeneratorCategory::BODY) &&
       !self.categories[&GeneratorCategory::BODY].is_empty() {
       let generators = &self.categories[&GeneratorCategory::BODY];
@@ -846,7 +846,7 @@ macro_rules! generators {
   }};
 }
 
-fn generate_value_from_context(expression: &String, context: &HashMap<String, Value>, data_type: &Option<DataType>) -> Result<DataValue, String> {
+fn generate_value_from_context(expression: &str, context: &HashMap<&str, Value>, data_type: &Option<DataType>) -> Result<DataValue, String> {
   let result = if contains_expressions(expression) {
     parse_expression(expression, &MapValueResolver { context: context.clone() })
   } else {
@@ -1192,7 +1192,7 @@ mod tests {
   fn mock_server_url_generator_test() {
     let generator = Generator::MockServerURL("http://localhost:1234/path".into(), ".*(/path)$".into());
     let generated = generator.generate_value(&"".to_string(), &hashmap!{
-        "mockServer".to_string() => json!({
+        "mockServer" => json!({
           "url": "http://192.168.2.1:2345/p",
           "port": 2345
         })
