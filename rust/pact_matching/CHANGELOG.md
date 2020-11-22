@@ -1,5 +1,14 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.8.5 - Bugfix Release
+
+* 5058a2d - feat: include the mockserver URL and port in the verification context (Ronald Holshausen, Fri Nov 20 16:43:10 2020 +1100)
+* 09b197d - feat: add a mock server URL generator (Ronald Holshausen, Fri Nov 20 13:24:09 2020 +1100)
+* 118daa1 - feat: when merging pact files, upcast to the higher spec version (Ronald Holshausen, Thu Nov 19 18:09:13 2020 +1100)
+* 6995298 - fix: make application/xml equivalent to text/xml (Ronald Holshausen, Thu Nov 19 14:33:58 2020 +1100)
+* 88eff15 - fix: when matching bodies, use any content type header matcher (Ronald Holshausen, Thu Nov 19 14:19:08 2020 +1100)
+* 12a3c43 - bump version to 0.8.5 (Ronald Holshausen, Tue Nov 17 16:36:15 2020 +1100)
+
 # 0.8.4 - Support provider state injected values
 
 * 850282d - fix: times with millisecond precision less 3 caused chronos to panic (Ronald Holshausen, Tue Nov 17 16:29:47 2020 +1100)
