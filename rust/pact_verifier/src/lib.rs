@@ -488,7 +488,10 @@ impl <F: RequestFilterExecutor> Default for VerificationOptions<F> {
 }
 
 const VERIFICATION_NOTICE_BEFORE: &str = "before_verification";
-const VERIFICATION_NOTICE_AFTER: &str = "after_verification";
+const VERIFICATION_NOTICE_AFTER_SUCCESSFUL_RESULT_AND_PUBLISH: &str = "after_verification:success_true_published_true";
+const VERIFICATION_NOTICE_AFTER_SUCCESSFUL_RESULT_AND_NO_PUBLISH: &str = "after_verification:success_true_published_false";
+const VERIFICATION_NOTICE_AFTER_ERROR_RESULT_AND_PUBLISH: &str = "after_verification:success_false_published_true";
+const VERIFICATION_NOTICE_AFTER_ERROR_RESULT_AND_NO_PUBLISH: &str = "after_verification:success_false_published_false";
 
 fn display_notices(context: &Option<PactVerificationContext>, stage: &str) {
   if let Some(c) = context {
@@ -513,28 +516,49 @@ pub async fn verify_provider<F: RequestFilterExecutor, S: ProviderStateExecutor>
 ) -> bool {
     let pact_results = fetch_pacts(source, consumers).await;
 
+    let mut pending_errors: Vec<(String, MismatchResult)> = vec![];
     let mut all_errors: Vec<(String, MismatchResult)> = vec![];
     for pact_result in pact_results {
       match pact_result {
         Ok((pact, context, pact_source)) => {
+          let pending = match &context {
+            Some(context) => context.verification_properties.pending,
+            None => false
+          };
+
           display_notices(&context, VERIFICATION_NOTICE_BEFORE);
           println!("\nVerifying a pact between {} and {}",
-            Style::new().bold().paint(pact.consumer().name.clone()),
-            Style::new().bold().paint(pact.provider().name.clone()));
+          Style::new().bold().paint(pact.consumer().name.clone()),
+          Style::new().bold().paint(pact.provider().name.clone()));
 
-            if pact.interactions().is_empty() {
-              println!("         {}", Yellow.paint("WARNING: Pact file has no interactions"));
-            } else {
-              let errors = verify_pact(&provider_info, &filter, pact, &options, provider_state_executor).await;
+          if pact.interactions().is_empty() {
+            println!("         {}", Yellow.paint("WARNING: Pact file has no interactions"));
+          } else {
+            let errors = verify_pact(&provider_info, &filter, pact, &options, provider_state_executor).await;
             for error in errors.clone() {
-              all_errors.push(error);
+              if pending {
+                pending_errors.push(error);
+              } else {
+                all_errors.push(error);
+              }
             }
 
             if options.publish {
-              publish_result(&errors, &pact_source, &options).await
+              publish_result(&errors, &pact_source, &options).await;
+
+              if !all_errors.is_empty() || !pending_errors.is_empty() {
+                display_notices(&context, VERIFICATION_NOTICE_AFTER_ERROR_RESULT_AND_PUBLISH);
+              } else {
+                display_notices(&context, VERIFICATION_NOTICE_AFTER_SUCCESSFUL_RESULT_AND_PUBLISH);
+              }
+            } else {
+              if !all_errors.is_empty() || pending_errors.is_empty() {
+                display_notices(&context, VERIFICATION_NOTICE_AFTER_ERROR_RESULT_AND_NO_PUBLISH);
+              } else {
+                display_notices(&context, VERIFICATION_NOTICE_AFTER_SUCCESSFUL_RESULT_AND_NO_PUBLISH);
+              }
             }
           }
-          display_notices(&context, VERIFICATION_NOTICE_AFTER);
         },
         Err(err) => {
           log::error!("Failed to load pact - {}", Red.paint(err.to_string()));
@@ -543,39 +567,46 @@ pub async fn verify_provider<F: RequestFilterExecutor, S: ProviderStateExecutor>
       }
     };
 
+    if !pending_errors.is_empty() {
+      println!("\nPending Failures:\n");
+      print_errors(&pending_errors);
+      println!("\nThere were {} non-fatal pact failures on pending pacts (see docs.pact.io/pending for more)\n", pending_errors.len());
+    }
     if !all_errors.is_empty() {
         println!("\nFailures:\n");
-
-        for (i, &(ref description, ref mismatch)) in all_errors.iter().enumerate() {
-            match *mismatch {
-                MismatchResult::Error(ref err, _) => println!("{}) {} - {}\n", i + 1, description, err),
-                MismatchResult::Mismatches { ref mismatches, ref expected, ref actual, .. } => {
-                  println!("{}) {}", i + 1, description);
-
-                  let mut j = 1;
-                  for (_, mut mismatches) in &mismatches.into_iter().group_by(|m| m.mismatch_type()) {
-                    let mismatch = mismatches.next().unwrap();
-                    println!("    {}.{}) {}", i + 1, j, mismatch.summary());
-                    println!("           {}", mismatch.ansi_description());
-                    for mismatch in mismatches {
-                      println!("           {}", mismatch.ansi_description());
-                    }
-
-                    if let Mismatch::BodyMismatch{ref path, ..} = mismatch {
-                      display_body_mismatch(expected, actual, path);
-                    }
-
-                    j += 1;
-                  }
-                }
-            }
-        }
-
+        print_errors(&all_errors);
         println!("\nThere were {} pact failures\n", all_errors.len());
         false
     } else {
         true
     }
+}
+
+fn print_errors(errors: &Vec<(String, MismatchResult)>) {
+  for (i, &(ref description, ref mismatch)) in errors.iter().enumerate() {
+    match *mismatch {
+        MismatchResult::Error(ref err, _) => println!("{}) {} - {}\n", i + 1, description, err),
+        MismatchResult::Mismatches { ref mismatches, ref expected, ref actual, .. } => {
+          println!("{}) {}", i + 1, description);
+
+          let mut j = 1;
+          for (_, mut mismatches) in &mismatches.into_iter().group_by(|m| m.mismatch_type()) {
+            let mismatch = mismatches.next().unwrap();
+            println!("    {}.{}) {}", i + 1, j, mismatch.summary());
+            println!("           {}", mismatch.ansi_description());
+            for mismatch in mismatches {
+              println!("           {}", mismatch.ansi_description());
+            }
+
+            if let Mismatch::BodyMismatch{ref path, ..} = mismatch {
+              display_body_mismatch(expected, actual, path);
+            }
+
+            j += 1;
+          }
+        }
+    }
+  }
 }
 
 async fn fetch_pact(source: PactSource) -> Vec<Result<(Box<dyn Pact>, Option<PactVerificationContext>, PactSource), String>> {
