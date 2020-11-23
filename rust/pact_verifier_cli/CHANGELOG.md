@@ -1,5 +1,9 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.8.3 - Bugfix Release
+
+* 280c066 - bump version to 0.8.3 (Matt Fellows, Wed Nov 11 13:30:12 2020 +1100)
+
 # 0.8.2 - Support Pacts for Verification API
 
 * 087fee2 - docs: update verifier docs with new pacts for verification properties (Matt Fellows, Wed Nov 11 10:16:57 2020 +1100)
