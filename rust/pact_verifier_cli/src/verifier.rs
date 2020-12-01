@@ -98,7 +98,10 @@ pub async fn handle_cli() -> Result<(), i32> {
   let program = args[0].clone();
   let version = format!("v{}", clap::crate_version!()).as_str().to_owned();
   let app = args::setup_app(program, &version);
-  let matches = app.get_matches_safe();
+  let matches = app
+                  .setting(AppSettings::ArgRequiredElseHelp)
+                  .setting(AppSettings::ColoredHelp)
+                  .get_matches_safe();
 
   match matches {
     Ok(results) => handle_matches_only(&results).await,
@@ -121,24 +124,22 @@ pub async fn handle_cli() -> Result<(), i32> {
   }
 }
 
+// TODO: return a clap::Error or wrapped error type, so that the caller can determine how to respond?
+// Alternatively, just let clap print things out as if it were a CLI call
 pub async fn handle_args(args: Vec<String>) -> Result<(), i32> {
   let program = "pact_verifier_cli".to_string();
   let version = format!("v{}", clap::crate_version!()).as_str().to_owned();
   let app = args::setup_app(program, &version);
-  let matches = app.setting(AppSettings::NoBinaryName).get_matches_from_safe(args);
+  let matches = app
+                  .setting(AppSettings::NoBinaryName)
+                  .setting(AppSettings::ColorNever)
+                  .get_matches_from_safe(args);
 
   match matches {
     Ok(results) => handle_matches_only(&results).await,
     Err(ref err) => {
-      // it doesn't appear as much useful comes back - just a "message" that isn't structured
-      // err.exit()
-      match err.kind {
-        e => {
-
-          println!("send back structured data here instead of printing to console? {:?}", e.message);
-          Err(1)
-          }
-      }
+      log::error!("error verifying Pact: {:?} {:?}", err.message, err);
+      Err(1)
     }
   }
 }

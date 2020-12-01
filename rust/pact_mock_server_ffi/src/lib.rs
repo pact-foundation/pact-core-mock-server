@@ -74,20 +74,17 @@ use crate::handles::InteractionPart;
 pub mod handles;
 pub mod bodies;
 
-const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+/// Package version
+pub static VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "\0");
 
 /// Get the current library version
-///
-/// **NOTE:** The string for the result is allocated on the heap, and will have to be freed
-/// by the caller using free_string
 ///
 /// # Errors
 ///
 /// An empty string indicates an error determining the current crate version
 #[no_mangle]
-pub extern fn version() -> *mut c_char {
-  let s = CString::new(VERSION).unwrap_or_default();
-  s.into_raw()
+pub extern "C" fn get_version() -> *const c_char {
+    VERSION.as_ptr() as *const c_char
 }
 
 /// Initialise the mock server library, can provide an environment variable name to use to

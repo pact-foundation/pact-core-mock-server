@@ -55,21 +55,17 @@ use env_logger::Builder;
 mod args;
 mod verifier;
 
-
-const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+/// Package version
+pub static VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "\0");
 
 /// Get the current library version
-///
-/// **NOTE:** The string for the result is allocated on the heap, and will have to be freed
-/// by the caller using free_string
 ///
 /// # Errors
 ///
 /// An empty string indicates an error determining the current crate version
 #[no_mangle]
-pub extern fn version() -> *mut c_char {
-  let s = CString::new(VERSION).unwrap_or_default();
-  s.into_raw()
+pub extern "C" fn version() -> *const c_char {
+    VERSION.as_ptr() as *const c_char
 }
 
 /// Initialise the mock server library, can provide an environment variable name to use to
@@ -112,13 +108,6 @@ pub unsafe extern fn free_string(s: *mut c_char) {
 }
 
 
-/// Runs the verification process
-///
-/// # Safety
-///
-/// Exported functions are inherently unsafe.
-#[no_mangle]
-
 /// External interface to verifier a provider
 ///
 /// * `args` - the same as the CLI interface, except newline delimited
@@ -130,45 +119,36 @@ pub unsafe extern fn free_string(s: *mut c_char) {
 /// | Error | Description |
 /// |-------|-------------|
 /// | -1 | A null pointer was received |
-/// | -2 | The pact JSON could not be parsed |
-/// | -3 | The mock server could not be started |
+/// | -2 | ? |
+/// | -3 | ? |
 /// | -4 | The method panicked |
-/// | -5 | The address is not valid |
-/// | -6 | Could not create the TLS configuration with the self-signed certificate |
 ///
 #[no_mangle]
 pub unsafe extern fn verify(args: *const c_char) -> i32 {
-  let mut runtime = tokio::runtime::Builder::new()
-    .basic_scheduler()
-    .enable_all()
-    .build()
-    .expect("new runtime");
-
   if args.is_null() {
     return -1;
   }
 
-  if args.is_null() {
-    log::error!("Got a null pointer instead of verifier arguments");
-    return -1;
-  }
+  let result = catch_unwind(|| {
+    let mut runtime = tokio::runtime::Runtime::new().unwrap();
 
-  let args_raw = CStr::from_ptr(args).to_string_lossy().into_owned();
-  let args: Vec<String> = args_raw.lines().map(|s| s.to_string()).collect();
-  log::info!("args {:?}", args);
+    runtime.block_on(async {
+      let args_raw = CStr::from_ptr(args).to_string_lossy().into_owned();
+      let args: Vec<String> = args_raw.lines().map(|s| s.to_string()).collect();
+      let result = verifier::handle_args(args).await;
 
-  let result = runtime.block_on(verifier::handle_args(args));
+      match result {
+        Ok(_) => 0,
+        Err(cause) => cause
+      }
+    })
+  });
 
   match result {
-    Ok(_) => 0,
+    Ok(val) => val,
     Err(cause) => {
       log::error!("Caught a general panic: {:?}", cause);
-      cause
+      -4
     }
   }
 }
-
-
-// Option 1: lots of function flags -> this will be painful, because no rust safety for things like optionals, argument ordering will be messy
-// Option 2: array of strings to pass to clap -> aka treat the interface the same as the CLI, except via an FFI? potential re-use of CLI code, or at least logic
-// Option 3: pass in big JSON string key/value -> marshal/unmarshalling from JSON should be fairly easy
