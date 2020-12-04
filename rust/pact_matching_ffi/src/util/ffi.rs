@@ -11,15 +11,15 @@ macro_rules! ffi_fn {
             use $crate::log::TARGET;
             use $crate::error::catch_panic;
 
-            log::debug!(target: TARGET, "{}::{}", module_path!(), stringify!($name));
+            ::log::debug!(target: TARGET, "{}::{}", module_path!(), stringify!($name));
 
             $(
-                log::trace!(target: TARGET, "@param {} = {:?}", stringify!($arg), $arg);
+                ::log::trace!(target: TARGET, "@param {} = {:?}", stringify!($arg), $arg);
             )*
 
             let output = catch_panic(|| Ok($body)).unwrap_or($fail);
 
-            log::trace!(target: TARGET, "@return {:?}", output);
+            ::log::trace!(target: TARGET, "@return {:?}", output);
 
             output
         }
