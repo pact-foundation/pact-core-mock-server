@@ -115,7 +115,9 @@ impl ProviderStateParamIterator {
 #[repr(C)]
 #[allow(missing_copy_implementations)]
 pub struct ProviderStateParamPair {
+    /// The key of the `ProviderState` parameter.
     key: *const c_char,
+    /// The value of the `ProviderState` parameter.
     value: *const c_char,
 }
 

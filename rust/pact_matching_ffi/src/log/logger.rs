@@ -5,7 +5,8 @@ use log::SetLoggerError;
 use std::cell::RefCell;
 
 thread_local! {
-    /// The thread-local logger. This is only populated during setup of the logger.
+    // The thread-local logger. This is only populated during setup of the logger.
+    /// cbindgen:ignore
     pub(crate) static LOGGER: RefCell<Option<Dispatch>> = RefCell::new(None);
 }
 

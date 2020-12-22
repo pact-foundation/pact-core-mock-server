@@ -382,7 +382,9 @@ impl MessageMetadataIterator {
 #[repr(C)]
 #[allow(missing_copy_implementations)]
 pub struct MessageMetadataPair {
+    /// The metadata key.
     key: *const c_char,
+    /// The metadata value.
     value: *const c_char,
 }
 

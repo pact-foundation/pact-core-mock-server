@@ -217,8 +217,11 @@ impl MessagePactMetadataIterator {
 #[repr(C)]
 #[allow(missing_copy_implementations)]
 pub struct MessagePactMetadataTriple {
+    /// The outer key of the `MessagePact` metadata.
     outer_key: *const c_char,
+    /// The inner key of the `MessagePact` metadata.
     inner_key: *const c_char,
+    /// The value of the `MessagePact` metadata.
     value: *const c_char,
 }
 
