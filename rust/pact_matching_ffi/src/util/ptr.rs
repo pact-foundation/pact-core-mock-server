@@ -37,7 +37,7 @@ pub(crate) fn null_mut_to<T>() -> *mut T {
 #[macro_export]
 macro_rules! as_ref {
     ( $name:expr ) => {{
-        unsafe { $name.as_ref() }.ok_or(anyhow::anyhow!(concat!(
+        unsafe { $name.as_ref() }.ok_or(::anyhow::anyhow!(concat!(
             stringify!($name),
             " is null"
         )))?
@@ -48,7 +48,7 @@ macro_rules! as_ref {
 #[macro_export]
 macro_rules! as_mut {
     ( $name:expr ) => {{
-        unsafe { $name.as_mut() }.ok_or(anyhow::anyhow!(concat!(
+        unsafe { $name.as_mut() }.ok_or(::anyhow::anyhow!(concat!(
             stringify!($name),
             " is null"
         )))?

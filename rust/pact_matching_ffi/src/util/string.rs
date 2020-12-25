@@ -30,10 +30,10 @@ ffi_fn! {
 #[macro_export]
 macro_rules! cstr {
     ( $name:ident ) => {{
-        use std::ffi::CStr;
+        use ::std::ffi::CStr;
 
         if $name.is_null() {
-            anyhow::bail!(concat!(stringify!($name), " is null"));
+            ::anyhow::bail!(concat!(stringify!($name), " is null"));
         }
 
         unsafe { CStr::from_ptr($name) }
@@ -44,7 +44,7 @@ macro_rules! cstr {
 #[macro_export]
 macro_rules! safe_str {
     ( $name:ident ) => {{
-        cstr!($name).to_str().context(concat!(
+        $crate::cstr!($name).to_str().context(concat!(
             "error parsing ",
             stringify!($name),
             " as UTF-8"

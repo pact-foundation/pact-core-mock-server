@@ -1,7 +1,7 @@
 //! FFI wrapper for `MessagePact` from pact_matching.
 
 use crate::util::*;
-use crate::{as_mut, as_ref, cstr, ffi_fn, safe_str};
+use crate::{as_mut, as_ref, ffi_fn, safe_str};
 use anyhow::{anyhow, Context};
 use libc::c_char;
 use std::iter::{self, Iterator};

@@ -6,7 +6,7 @@
 
 use crate::models::pact_specification::PactSpecification;
 use crate::util::*;
-use crate::{as_mut, as_ref, cstr, ffi_fn, safe_str};
+use crate::{as_mut, as_ref, ffi_fn, safe_str};
 use anyhow::{anyhow, Context};
 use libc::{c_char, c_int, c_uint, EXIT_FAILURE, EXIT_SUCCESS};
 use pact_matching::models::OptionalBody;
