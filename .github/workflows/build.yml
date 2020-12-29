@@ -20,12 +20,15 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
           components: clippy
-      - uses: actions-rs/cargo@v1
+      - uses: marcopolo/cargo@master # TODO: - use actions-rs/cargo@v1 when PR merged https://github.com/actions-rs/cargo/pull/59
         with:
+          working-directory: rust
           command: test
-      - uses: actions-rs/cargo@v1
+      - uses: marcopolo/cargo@master
         with:
+          working-directory: rust
           command: build
-      - uses: actions-rs/cargo@v1
+      - uses: marcopolo/cargo@master
         with:
+          working-directory: rust
           command: clippy
