@@ -252,8 +252,8 @@ mod tests {
         // The tokio runtime is now out of tasks
         drop(manager);
 
-        let ten_millis = time::Duration::from_millis(200);
-        thread::sleep(ten_millis);
+        let millis = time::Duration::from_millis(500);
+        thread::sleep(millis);
 
         // Server should be down
         assert!(TcpStream::connect(("127.0.0.1", server_port)).is_err());
