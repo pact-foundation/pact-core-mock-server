@@ -1389,7 +1389,7 @@ fn determine_spec_version(file: &String, metadata: &BTreeMap<String, BTreeMap<St
   match specification {
     Some(spec) => {
       match spec.get("version") {
-        Some(ver) => match lenient_semver::parse::<Version>(ver) {
+        Some(ver) => match lenient_semver::parse(ver) {
           Ok(ver) => match ver.major {
             1 => match ver.minor {
               0 => PactSpecification::V1,
