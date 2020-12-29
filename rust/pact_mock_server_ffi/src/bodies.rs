@@ -162,7 +162,7 @@ pub fn from_integration_json(m: &Map<String, Value>) -> Option<MatchingRule> {
                   }
                   _ => warn!("arrayContains: JSON for variant {} is not correctly formed: {}", index, variant)
                 }
-                (index, category)
+                (index, category, generators.categories.get(&GeneratorCategory::BODY).cloned().unwrap_or_default())
               }).collect();
               Some(MatchingRule::ArrayContains(values))
             }

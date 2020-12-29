@@ -12,7 +12,7 @@ use std::io::{self, Error, ErrorKind};
 use std::io::prelude::*;
 use std::path::Path;
 use std::str;
-use std::str::from_utf8;
+use std::str::{from_utf8, FromStr};
 
 use base64::{decode, encode};
 use hex::FromHex;
@@ -35,6 +35,8 @@ use crate::models::provider_states::ProviderState;
 use crate::models::v4::{interaction_from_json, V4Pact, V4Interaction};
 use crate::models::v4::http_parts::{HttpRequest, HttpResponse};
 use std::borrow::Borrow;
+use crate::models::generators::{Generators, GeneratorCategory, Generator};
+use nom::lib::std::collections::hash_map::RandomState;
 
 pub mod json_utils;
 pub mod xml_utils;
@@ -440,6 +442,22 @@ pub trait HttpPart {
   fn add_header(&mut self, key: &str, val: Vec<&str>) {
     let headers = self.headers_mut();
     headers.insert(key.to_string(), val.iter().map(|v| v.to_string()).collect());
+  }
+
+  /// Builds a map of generators from the generators and matching rules
+  fn build_generators(&self, category: &GeneratorCategory) -> HashMap<String, Generator> {
+    let mut generators = hashmap!{};
+    if let Some(generators_for_category) = self.generators().categories.get(category) {
+      for (path, generator) in generators_for_category {
+        generators.insert(path.clone(), generator.clone());
+      }
+    }
+    if let Some(rules) = self.matching_rules().rules_for_category(category.clone().into()) {
+      for (path, generator) in rules.generators() {
+        generators.insert(path.clone(), generator.clone());
+      }
+    }
+    generators
   }
 }
 

@@ -406,6 +406,8 @@ mod tests {
 
   use super::*;
   use crate::Mismatch::BodyMismatch;
+  use crate::models::generators::Generators;
+  use nom::lib::std::collections::HashMap;
 
   macro_rules! request {
     ($e:expr) => (Request { body: OptionalBody::Present($e.as_bytes().to_vec(), None), .. Request::default() })
@@ -967,7 +969,7 @@ mod tests {
           MatchingRule::ArrayContains(vec![(0, matchingrules_list! {
             "body";
             "$.properties.customerId" => [ MatchingRule::Type ], "$.properties.name" => [ MatchingRule::Type ]
-          })])
+          }, HashMap::default())])
         ],
         "$.properties.orderNumber" => [ MatchingRule::Integer ],
         "$.properties.itemCount" => [ MatchingRule::Integer ],
@@ -975,13 +977,13 @@ mod tests {
           MatchingRule::ArrayContains(vec![(0, matchingrules_list! {
             "body";
             "$.href" => [ MatchingRule::Regex(".*/orders/\\d+/items".to_string()) ]
-          })])
+          }, HashMap::default())])
         ],
         "$.links" => [
           MatchingRule::ArrayContains(vec![(0, matchingrules_list! {
             "body";
             "$.href" => [ MatchingRule::Regex(".*/orders/\\d+".to_string()) ]
-          })])
+          }, HashMap::default())])
         ]
       }
     }.rules_for_category("body").unwrap());

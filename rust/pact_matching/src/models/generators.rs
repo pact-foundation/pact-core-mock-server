@@ -27,8 +27,9 @@ use regex_syntax;
 use crate::models::content_types::ContentType;
 use crate::models::expression_parser::{contains_expressions, DataType, DataValue, parse_expression, MapValueResolver};
 use std::convert::TryFrom;
-use log::trace;
+use log::*;
 use onig::{Regex, Captures};
+use crate::models::matchingrules::MatchingRuleCategory;
 
 /// Trait to represent a generator
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash)]
@@ -56,40 +57,43 @@ pub enum Generator {
   /// Generates a value that is looked up from the provider state context
   ProviderStateGenerator(String, Option<DataType>),
   /// Generates a URL with the mock server as the base URL
-  MockServerURL(String, String)
+  MockServerURL(String, String),
+  /// List of variants which can have embedded generators
+  ArrayContains(Vec<(usize, MatchingRuleCategory, Generators)>)
 }
 
 impl Generator {
   /// Convert this generator to a JSON struct
-  pub fn to_json(&self) -> Value {
+  pub fn to_json(&self) -> Option<Value> {
     match self {
-      Generator::RandomInt(min, max) => json!({ "type": "RandomInt", "min": min, "max": max }),
-      Generator::Uuid => json!({ "type": "Uuid" }),
-      Generator::RandomDecimal(digits) => json!({ "type": "RandomDecimal", "digits": digits }),
-      Generator::RandomHexadecimal(digits) => json!({ "type": "RandomHexadecimal", "digits": digits }),
-      Generator::RandomString(size) => json!({ "type": "RandomString", "size": size }),
-      Generator::Regex(ref regex) => json!({ "type": "Regex", "regex": regex }),
+      Generator::RandomInt(min, max) => Some(json!({ "type": "RandomInt", "min": min, "max": max })),
+      Generator::Uuid => Some(json!({ "type": "Uuid" })),
+      Generator::RandomDecimal(digits) => Some(json!({ "type": "RandomDecimal", "digits": digits })),
+      Generator::RandomHexadecimal(digits) => Some(json!({ "type": "RandomHexadecimal", "digits": digits })),
+      Generator::RandomString(size) => Some(json!({ "type": "RandomString", "size": size })),
+      Generator::Regex(ref regex) => Some(json!({ "type": "Regex", "regex": regex })),
       Generator::Date(ref format) => match format {
-        Some(ref format) => json!({ "type": "Date", "format": format }),
-        None => json!({ "type": "Date" })
+        Some(ref format) => Some(json!({ "type": "Date", "format": format })),
+        None => Some(json!({ "type": "Date" }))
       },
       Generator::Time(ref format) => match format {
-        Some(ref format) => json!({ "type": "Time", "format": format }),
-        None => json!({ "type": "Time" })
+        Some(ref format) => Some(json!({ "type": "Time", "format": format })),
+        None => Some(json!({ "type": "Time" }))
       },
       Generator::DateTime(ref format) => match format {
-        Some(ref format) => json!({ "type": "DateTime", "format": format }),
-        None => json!({ "type": "DateTime" })
+        Some(ref format) => Some(json!({ "type": "DateTime", "format": format })),
+        None => Some(json!({ "type": "DateTime" }))
       },
-      Generator::RandomBoolean => json!({ "type": "RandomBoolean" }),
+      Generator::RandomBoolean => Some(json!({ "type": "RandomBoolean" })),
       Generator::ProviderStateGenerator(ref expression, ref data_type) => {
         if let Some(data_type) = data_type {
-          json!({"type": "ProviderState", "expression": expression, "dataType": data_type})
+          Some(json!({"type": "ProviderState", "expression": expression, "dataType": data_type}))
         } else {
-          json!({"type": "ProviderState", "expression": expression})
+          Some(json!({"type": "ProviderState", "expression": expression}))
         }
       }
-      Generator::MockServerURL(example, regex) => json!({ "type": "MockServerURL", "example": example, "regex": regex }),
+      Generator::MockServerURL(example, regex) => Some(json!({ "type": "MockServerURL", "example": example, "regex": regex })),
+      _ => None
     }
   }
 
@@ -113,7 +117,7 @@ impl Generator {
       "ProviderState" => map.get("expression").map(|f|
         Generator::ProviderStateGenerator(json_to_string(f), map.get("dataType")
           .map(|dt| DataType::from(dt.clone())))),
-      "MockServerURL" => Some(Generator::MockServerURL(get_field_as_string("example", map).unwrap_or_default(),
+      "MockServerURL" => Some(Generator::MockServerURL(get_field_as_string("value", map).unwrap_or_default(),
                                                        get_field_as_string("regex", map).unwrap_or_default())),
       _ => {
         log::warn!("'{}' is not a valid generator type", gen_type);
@@ -122,7 +126,8 @@ impl Generator {
     }
   }
 
-  pub(crate) fn corresponds_to_mode(&self, mode: &GeneratorTestMode) -> bool {
+  /// If this generator is compatible with the given generator mode
+  fn corresponds_to_mode(&self, mode: &GeneratorTestMode) -> bool {
     match self {
       Generator::ProviderStateGenerator(_, _) => mode == &GeneratorTestMode::Provider,
       Generator::MockServerURL(_, _) => mode == &GeneratorTestMode::Consumer,
@@ -131,7 +136,7 @@ impl Generator {
   }
 }
 
-/// Trait that represents generation of a value based on a source value.
+/// Trait for something that can generate a value based on a source value.
 pub trait GenerateValue<T> {
   /// Generates a new value based on the source value. An error will be returned if the value can not
   /// be generated.
@@ -202,7 +207,7 @@ fn strip_anchors(regex: &str) -> &str {
 impl GenerateValue<String> for Generator {
   fn generate_value(&self, _: &String, context: &HashMap<&str, Value>) -> Result<String, String> {
     let mut rnd = rand::thread_rng();
-    match self {
+    let result = match self {
       Generator::RandomInt(min, max) => Ok(format!("{}", rnd.gen_range(min, max.saturating_add(1)))),
       Generator::Uuid => Ok(Uuid::new_v4().hyphenated().to_string()),
       Generator::RandomDecimal(digits) => Ok(generate_decimal(*digits as usize)),
@@ -263,6 +268,7 @@ impl GenerateValue<String> for Generator {
           Err(err) => Err(err)
         },
       Generator::MockServerURL(example, regex) => if let Some(mock_server_details) = context.get("mockServer") {
+        debug!("Generating URL from Mock Server details");
         match mock_server_details.as_object() {
           Some(mock_server_details) => {
             match get_field_as_string("url", mock_server_details) {
@@ -279,8 +285,11 @@ impl GenerateValue<String> for Generator {
         }
       } else {
         Err("MockServerURL: can not generate a value as there is no mock server details in the test context".to_string())
-      }
-    }
+      },
+      Generator::ArrayContains(_) => unimplemented!()
+    };
+    debug!("Generator = {:?}, Generated value = {:?}", self, result);
+    result
   }
 }
 
@@ -292,7 +301,8 @@ impl GenerateValue<Vec<String>> for Generator {
 
 impl GenerateValue<Value> for Generator {
   fn generate_value(&self, value: &Value, context: &HashMap<&str, Value>) -> Result<Value, String> {
-    match self {
+    debug!("Generating value from {:?} with context {:?}", self, context);
+    let result = match self {
       Generator::RandomInt(min, max) => {
         let rand_int = rand::thread_rng().gen_range(min, max.saturating_add(1));
         match value {
@@ -370,25 +380,31 @@ impl GenerateValue<Value> for Generator {
           Ok(val) => val.as_json(),
           Err(err) => Err(err)
         },
-      Generator::MockServerURL(example, regex) => if let Some(mock_server_details) = context.get("mockServer") {
-        match mock_server_details.as_object() {
-          Some(mock_server_details) => {
-            match get_field_as_string("url", mock_server_details) {
-              Some(url) => match Regex::new(regex) {
-                Ok(re) => Ok(Value::String(re.replace(example, |caps: &Captures| {
-                  format!("{}{}", url, caps.at(1).unwrap())
-                }))),
-                Err(err) => Err(format!("MockServerURL: Failed to generate value: {}", err))
-              },
-              None => Err("MockServerURL: can not generate a value as there is no mock server URL in the test context".to_string())
-            }
-          },
-          None => Err("MockServerURL: can not generate a value as there is no mock server details in the test context".to_string())
+      Generator::MockServerURL(example, regex) => {
+        debug!("context = {:?}", context);
+        if let Some(mock_server_details) = context.get("mockServer") {
+          match mock_server_details.as_object() {
+            Some(mock_server_details) => {
+              match get_field_as_string("href", mock_server_details) {
+                Some(url) => match Regex::new(regex) {
+                  Ok(re) => Ok(Value::String(re.replace(example, |caps: &Captures| {
+                    format!("{}{}", url, caps.at(1).unwrap())
+                  }))),
+                  Err(err) => Err(format!("MockServerURL: Failed to generate value: {}", err))
+                },
+                None => Err("MockServerURL: can not generate a value as there is no mock server URL in the test context".to_string())
+              }
+            },
+            None => Err("MockServerURL: can not generate a value as the mock server details in the test context is not an Object".to_string())
+          }
+        } else {
+          Err("MockServerURL: can not generate a value as there is no mock server details in the test context".to_string())
         }
-      } else {
-        Err("MockServerURL: can not generate a value as there is no mock server details in the test context".to_string())
       }
-    }
+      Generator::ArrayContains(_) => unimplemented!()
+    };
+    debug!("Generated value = {:?}", result);
+    result
   }
 }
 
@@ -450,7 +466,7 @@ pub trait ContentTypeHandler<T> {
   /// Processes the body using the map of generators, returning a (possibly) updated body.
   fn process_body(&mut self, generators: &HashMap<String, Generator>, mode: &GeneratorTestMode, context: &HashMap<&str, Value>) -> OptionalBody;
   /// Applies the generator to the key in the body.
-  fn apply_key(&mut self, key: &String, generator: &Generator, context: &HashMap<&str, Value>);
+  fn apply_key(&mut self, key: &String, generator: &dyn GenerateValue<T>, context: &HashMap<&str, Value>);
 }
 
 /// Implementation of a content type handler for JSON
@@ -531,7 +547,12 @@ impl JsonHandler {
 }
 
 impl ContentTypeHandler<Value> for JsonHandler {
-  fn process_body(&mut self, generators: &HashMap<String, Generator>, mode: &GeneratorTestMode, context: &HashMap<&str, Value>) -> OptionalBody {
+  fn process_body(
+    &mut self,
+    generators: &HashMap<String, Generator>,
+    mode: &GeneratorTestMode,
+    context: &HashMap<&str, Value>
+  ) -> OptionalBody {
     for (key, generator) in generators {
       if generator.corresponds_to_mode(mode) {
         self.apply_key(key, generator, context);
@@ -540,7 +561,7 @@ impl ContentTypeHandler<Value> for JsonHandler {
     OptionalBody::Present(self.value.to_string().into(), Some("application/json".into()))
   }
 
-  fn apply_key(&mut self, key: &String, generator: &Generator, context: &HashMap<&str, Value>) {
+  fn apply_key(&mut self, key: &String, generator: &dyn GenerateValue<Value>, context: &HashMap<&str, Value>) {
     match parse_path_exp(key) {
       Ok(path_exp) => {
         let mut tree = Arena::new();
@@ -590,7 +611,7 @@ impl <'a> ContentTypeHandler<Document<'a>> for XmlHandler<'a> {
     unimplemented!()
   }
 
-  fn apply_key(&mut self, _key: &String, _generator: &Generator, _context: &HashMap<&str, Value>) {
+  fn apply_key(&mut self, _key: &String, _generator: &dyn GenerateValue<Document<'a>>, _context: &HashMap<&str, Value>) {
     unimplemented!()
   }
 }
@@ -646,7 +667,7 @@ impl Generators {
     }
   }
 
-  fn parse_generator_from_map(&mut self, category: &GeneratorCategory,
+  pub(crate) fn parse_generator_from_map(&mut self, category: &GeneratorCategory,
                               map: &serde_json::Map<String, Value>, subcat: Option<String>) {
     match map.get("type") {
       Some(gen_type) => match gen_type {
@@ -670,7 +691,10 @@ impl Generators {
         &GeneratorCategory::PATH | &GeneratorCategory::METHOD | &GeneratorCategory::STATUS => {
           match category.get("") {
             Some(generator) => {
-              map.insert(cat.clone(), generator.to_json());
+              let json = generator.to_json();
+              if let Some(json) = json {
+                map.insert(cat.clone(), json);
+              }
             },
             None => ()
           }
@@ -678,7 +702,10 @@ impl Generators {
         _ => {
           let mut generators = serde_json::Map::new();
           for (key, val) in category {
-            generators.insert(key.clone(), val.to_json());
+            let json = val.to_json();
+            if let Some(json) = json {
+              generators.insert(key.clone(), json);
+            }
           }
           map.insert(cat.clone(), Value::Object(generators));
         }
@@ -704,11 +731,7 @@ impl Generators {
   pub fn apply_generator<F>(&self, mode: &GeneratorTestMode, category: &GeneratorCategory, mut closure: F)
     where F: FnMut(&String, &Generator) {
     if self.categories.contains_key(category) && !self.categories[category].is_empty() {
-      for (key, value) in self.categories[category].clone() {
-        if value.corresponds_to_mode(mode) {
-          closure(&key, &value)
-        }
-      }
+      apply_generators(mode, &self.categories[category], &mut closure)
     }
   }
 
@@ -717,35 +740,7 @@ impl Generators {
     if body.is_present() && self.categories.contains_key(&GeneratorCategory::BODY) &&
       !self.categories[&GeneratorCategory::BODY].is_empty() {
       let generators = &self.categories[&GeneratorCategory::BODY];
-      match content_type {
-        Some(content_type) => if content_type.is_json() {
-          let result: Result<Value, serde_json::Error> = serde_json::from_slice(&body.value());
-          match result {
-            Ok(val) => {
-              let mut handler = JsonHandler { value: val };
-              handler.process_body(&generators, mode, context)
-            },
-            Err(err) => {
-              log::error!("Failed to parse the body, so not applying any generators: {}", err);
-              body.clone()
-            }
-          }
-        } else if content_type.is_xml() {
-          match parse_bytes(&body.value()) {
-            Ok(val) => {
-              let mut handler = XmlHandler { value: val.as_document() };
-              handler.process_body(&generators, mode, context)
-            },
-            Err(err) => {
-              log::error!("Failed to parse the body, so not applying any generators: {}", err);
-              body.clone()
-            }
-          }
-        } else {
-          body.clone()
-        },
-        _ => body.clone()
-      }
+      apply_body_generators(mode, &body, content_type, context, &generators)
     } else {
       body.clone()
     }
@@ -779,6 +774,57 @@ impl Default for Generators {
     Generators {
       categories: hashmap!{}
     }
+  }
+}
+
+pub fn apply_generators<F>(
+  mode: &GeneratorTestMode,
+  generators: &HashMap<String, Generator>,
+  closure: &mut F
+) where F: FnMut(&String, &Generator) {
+  for (key, value) in generators {
+    if value.corresponds_to_mode(mode) {
+      closure(&key, &value)
+    }
+  }
+}
+
+pub fn apply_body_generators(
+  mode: &GeneratorTestMode,
+  body: &OptionalBody,
+  content_type: Option<ContentType>,
+  context: &HashMap<&str, Value>,
+  generators: &HashMap<String, Generator>
+) -> OptionalBody {
+  match content_type {
+    Some(content_type) => if content_type.is_json() {
+      let result: Result<Value, serde_json::Error> = serde_json::from_slice(&body.value());
+      match result {
+        Ok(val) => {
+          let mut handler = JsonHandler { value: val };
+          handler.process_body(&generators, mode, context)
+        },
+        Err(err) => {
+          error!("Failed to parse the body, so not applying any generators: {}", err);
+          body.clone()
+        }
+      }
+    } else if content_type.is_xml() {
+      match parse_bytes(&body.value()) {
+        Ok(val) => {
+          let mut handler = XmlHandler { value: val.as_document() };
+          handler.process_body(&generators, mode, context)
+        },
+        Err(err) => {
+          error!("Failed to parse the body, so not applying any generators: {}", err);
+          body.clone()
+        }
+      }
+    } else {
+      warn!("Unsupported content type {} - Generators only support JSON and XML", content_type);
+      body.clone()
+    },
+    _ => body.clone()
   }
 }
 
@@ -1002,65 +1048,65 @@ mod tests {
 
   #[test]
   fn generator_to_json_test() {
-    expect!(Generator::RandomInt(5, 15).to_json()).to(be_equal_to(json!({
+    expect!(Generator::RandomInt(5, 15).to_json().unwrap()).to(be_equal_to(json!({
       "type": "RandomInt",
       "min": 5,
       "max": 15
     })));
-    expect!(Generator::Uuid.to_json()).to(be_equal_to(json!({
+    expect!(Generator::Uuid.to_json().unwrap()).to(be_equal_to(json!({
       "type": "Uuid"
     })));
-    expect!(Generator::RandomDecimal(5).to_json()).to(be_equal_to(json!({
+    expect!(Generator::RandomDecimal(5).to_json().unwrap()).to(be_equal_to(json!({
       "type": "RandomDecimal",
       "digits": 5
     })));
-    expect!(Generator::RandomHexadecimal(5).to_json()).to(be_equal_to(json!({
+    expect!(Generator::RandomHexadecimal(5).to_json().unwrap()).to(be_equal_to(json!({
       "type": "RandomHexadecimal",
       "digits": 5
     })));
-    expect!(Generator::RandomString(5).to_json()).to(be_equal_to(json!({
+    expect!(Generator::RandomString(5).to_json().unwrap()).to(be_equal_to(json!({
       "type": "RandomString",
       "size": 5
     })));
-    expect!(Generator::Regex(s!("\\d+")).to_json()).to(be_equal_to(json!({
+    expect!(Generator::Regex(s!("\\d+")).to_json().unwrap()).to(be_equal_to(json!({
       "type": "Regex",
       "regex": "\\d+"
     })));
-    expect!(Generator::RandomBoolean.to_json()).to(be_equal_to(json!({
+    expect!(Generator::RandomBoolean.to_json().unwrap()).to(be_equal_to(json!({
       "type": "RandomBoolean"
     })));
 
-    expect!(Generator::Date(Some(s!("yyyyMMdd"))).to_json()).to(be_equal_to(json!({
+    expect!(Generator::Date(Some(s!("yyyyMMdd"))).to_json().unwrap()).to(be_equal_to(json!({
       "type": "Date",
       "format": "yyyyMMdd"
     })));
-    expect!(Generator::Date(None).to_json()).to(be_equal_to(json!({
+    expect!(Generator::Date(None).to_json().unwrap()).to(be_equal_to(json!({
       "type": "Date"
     })));
-    expect!(Generator::Time(Some(s!("yyyyMMdd"))).to_json()).to(be_equal_to(json!({
+    expect!(Generator::Time(Some(s!("yyyyMMdd"))).to_json().unwrap()).to(be_equal_to(json!({
       "type": "Time",
       "format": "yyyyMMdd"
     })));
-    expect!(Generator::Time(None).to_json()).to(be_equal_to(json!({
+    expect!(Generator::Time(None).to_json().unwrap()).to(be_equal_to(json!({
       "type": "Time"
     })));
-    expect!(Generator::DateTime(Some(s!("yyyyMMdd"))).to_json()).to(be_equal_to(json!({
+    expect!(Generator::DateTime(Some(s!("yyyyMMdd"))).to_json().unwrap()).to(be_equal_to(json!({
       "type": "DateTime",
       "format": "yyyyMMdd"
     })));
-    expect!(Generator::DateTime(None).to_json()).to(be_equal_to(json!({
+    expect!(Generator::DateTime(None).to_json().unwrap()).to(be_equal_to(json!({
       "type": "DateTime"
     })));
-    expect!(Generator::ProviderStateGenerator("$a".into(), Some(DataType::INTEGER)).to_json()).to(be_equal_to(json!({
+    expect!(Generator::ProviderStateGenerator("$a".into(), Some(DataType::INTEGER)).to_json().unwrap()).to(be_equal_to(json!({
       "type": "ProviderState",
       "expression": "$a",
       "dataType": "INTEGER"
     })));
-    expect!(Generator::ProviderStateGenerator("$a".into(), None).to_json()).to(be_equal_to(json!({
+    expect!(Generator::ProviderStateGenerator("$a".into(), None).to_json().unwrap()).to(be_equal_to(json!({
       "type": "ProviderState",
       "expression": "$a"
     })));
-    expect!(Generator::MockServerURL("http://localhost:1234/path".into(), "(.*)/path".into()).to_json()).to(be_equal_to(json!({
+    expect!(Generator::MockServerURL("http://localhost:1234/path".into(), "(.*)/path".into()).to_json().unwrap()).to(be_equal_to(json!({
       "type": "MockServerURL",
       "example": "http://localhost:1234/path",
       "regex": "(.*)/path"

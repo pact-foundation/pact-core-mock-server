@@ -1,9 +1,6 @@
 //! `matchingrules` module includes all the classes to deal with V3 format matchers
 
-use std::{
-  collections::{BTreeSet, HashMap, HashSet},
-  hash::{Hash, Hasher}
-};
+use std::{collections::{HashMap, HashSet}, hash::{Hash, Hasher}, mem};
 use std::fmt::{Debug, Display};
 #[allow(unused_imports)] // FromStr is actually used
 use std::str::{self, FromStr, from_utf8};
@@ -22,6 +19,7 @@ use crate::path_exp::*;
 use super::PactSpecification;
 use nom::lib::std::cmp::Ordering;
 use crate::binary_utils::match_content_type;
+use crate::models::generators::{Generators, GeneratorCategory, Generator, GeneratorTestMode, GenerateValue};
 
 fn matches_token(path_fragment: &str, path_token: &PathToken) -> usize {
   match path_token {
@@ -204,7 +202,7 @@ impl <T: Display> DisplayForMismatch for Vec<T> {
 }
 
 /// Set of all matching rules
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash, PartialOrd, Ord)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq)]
 pub enum MatchingRule {
   /// Matcher using equals
   Equality,
@@ -237,7 +235,7 @@ pub enum MatchingRule {
   /// Match binary data by its content type (magic file check)
   ContentType(String),
   /// Match array items in any order against a list of variants
-  ArrayContains(Vec<(usize, MatchingRuleCategory)>)
+  ArrayContains(Vec<(usize, MatchingRuleCategory, HashMap<String, Generator>)>)
 }
 
 impl MatchingRule {
@@ -304,7 +302,21 @@ impl MatchingRule {
                     } else {
                       category.add_rule("", MatchingRule::Equality, &RuleLogic::And);
                     }
-                    (index, category)
+                    let generators = if let Some(generators_json) = variant.get("generators") {
+                      let mut g = Generators::default();
+                      let cat = GeneratorCategory::BODY;
+                      if let Value::Object(map) = generators_json {
+                        for (k, v) in map {
+                          if let Value::Object(ref map) = v {
+                            g.parse_generator_from_map(&cat, map, Some(k.clone()));
+                          }
+                        }
+                      }
+                      g.categories.get(&cat).cloned().unwrap_or_default()
+                    } else {
+                      HashMap::default()
+                    };
+                    (index, category, generators)
                   }).collect();
                   Some(MatchingRule::ArrayContains(values))
                 }
@@ -364,11 +376,25 @@ impl MatchingRule {
         "value": Value::String(r.clone()) }),
       MatchingRule::ArrayContains(variants) => json!({
         "match": "arrayContains",
-        "variants": variants.iter().map(|(index, rules)| {
-          json!({
+        "variants": variants.iter().map(|(index, rules, generators)| {
+          let mut json = json!({
             "index": index,
             "rules": rules.to_v3_json()
-          })
+          });
+          if !generators.is_empty() {
+            json["generators"] = Value::Object(generators.iter()
+              .map(|(k, gen)| {
+                if let Some(json) = gen.to_json() {
+                  Some((k.clone(), json))
+                } else {
+                  None
+                }
+              })
+              .filter(|item| item.is_some())
+              .map(|item| item.unwrap())
+              .collect())
+          }
+          json
         }).collect::<Vec<Value>>()
       })
     }
@@ -418,12 +444,12 @@ impl MatchingRule {
       MatchingRule::ArrayContains(variants) => {
         let variants = if variants.is_empty() {
           expected.iter().enumerate().map(|(index, _)| {
-            (index, MatchingRuleCategory::equality("body"))
+            (index, MatchingRuleCategory::equality("body"), HashMap::default())
           }).collect()
         } else {
           variants.clone()
         };
-        for (index, rules) in variants {
+        for (index, rules, _) in variants {
           match expected.get(index) {
             Some(expected_value) => {
               let context = context.clone_with(&rules);
@@ -486,6 +512,55 @@ impl MatchingRule {
 
     result
   }
+
+  /// If there are any generators associated with this matching rule
+  pub fn has_generators(&self) -> bool {
+    match self {
+      MatchingRule::ArrayContains(variants) => variants.iter()
+        .any(|(_, _, generators)| !generators.is_empty()),
+      _ => false
+    }
+  }
+
+  /// Return the generators for this rule
+  pub fn generators(&self) -> HashMap<String, Generator> {
+    match self {
+      // TODO
+      // MatchingRule::ArrayContains(variants) => Some(&ArrayContainsGenerator { variants: variants.clone() }),
+      _ => hashmap!{}
+    }
+  }
+}
+
+impl Hash for MatchingRule {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    mem::discriminant(self).hash(state);
+    match self {
+      MatchingRule::Regex(s) => s.hash(state),
+      MatchingRule::MinType(min) => min.hash(state),
+      MatchingRule::MaxType(max) => max.hash(state),
+      MatchingRule::MinMaxType(min, max) => {
+        min.hash(state);
+        max.hash(state);
+      }
+      MatchingRule::Timestamp(format) => format.hash(state),
+      MatchingRule::Time(format) => format.hash(state),
+      MatchingRule::Date(format) => format.hash(state),
+      MatchingRule::Include(str) => str.hash(state),
+      MatchingRule::ContentType(str) => str.hash(state),
+      MatchingRule::ArrayContains(variants) => {
+        for (index, rules, generators) in variants {
+          index.hash(state);
+          rules.hash(state);
+          for (s, g) in generators {
+            s.hash(state);
+            g.hash(state);
+          }
+        }
+      }
+      _ => ()
+    }
+  }
 }
 
 /// Enumeration to define how to combine rules
@@ -509,10 +584,10 @@ impl RuleLogic {
 }
 
 /// Data structure for representing a list of rules and the logic needed to combine them
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash, PartialOrd, Ord)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq)]
 pub struct RuleList {
   /// List of rules to apply
-  pub rules: BTreeSet<MatchingRule>,
+  pub rules: HashSet<MatchingRule>,
   /// Rule logic to use to evaluate multiple rules
   pub rule_logic: RuleLogic
 }
@@ -522,7 +597,7 @@ impl RuleList {
   /// Creates a new empty rule list
   pub fn empty(rule_logic: &RuleLogic) -> RuleList {
     RuleList {
-      rules: BTreeSet::new(),
+      rules: HashSet::new(),
       rule_logic: rule_logic.clone()
     }
   }
@@ -530,7 +605,7 @@ impl RuleList {
   /// Creates a default rule list with an equality matcher
   pub fn equality() -> RuleList {
     RuleList {
-      rules: btreeset!{ MatchingRule::Equality },
+      rules: hashset![ MatchingRule::Equality ],
       rule_logic: RuleLogic::And
     }
   }
@@ -538,7 +613,7 @@ impl RuleList {
   /// Creates a new rule list with the single matching rule
   pub fn new(rule: MatchingRule) -> RuleList {
     RuleList {
-      rules: btreeset![ rule ],
+      rules: hashset![ rule ],
       rule_logic: RuleLogic::And
     }
   }
@@ -571,6 +646,15 @@ impl RuleList {
   /// Add a matching rule to the rule list
   pub fn add_rule(&mut self, rule: &MatchingRule) -> bool {
     self.rules.insert(rule.clone())
+  }
+}
+
+impl Hash for RuleList {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    self.rule_logic.hash(state);
+    for rule in &self.rules {
+      rule.hash(state);
+    }
   }
 }
 
@@ -768,6 +852,21 @@ impl MatchingRuleCategory {
       },
       None => ()
     }
+  }
+
+  /// Returns any generators associated with these matching rules
+  pub fn generators(&self) -> HashMap<String, Generator> {
+    let mut generators = hashmap!{};
+    for (base_path, rules) in &self.rules {
+      for rule in &rules.rules {
+        if rule.has_generators() {
+          for (path, generator) in rule.generators() {
+            generators.insert(base_path.to_owned() + "." + path.as_str(), generator);
+          }
+        }
+      }
+    }
+    generators
   }
 }
 
@@ -1077,7 +1176,8 @@ mod tests {
   use speculate::speculate;
 
   use super::*;
-  use super::{calc_path_weight, matches_token};
+  use super::super::*;
+  use crate::models::generators::*;
 
   #[test]
   fn rules_are_empty_when_there_are_no_categories() {
@@ -1105,7 +1205,7 @@ mod tests {
             name: "query".into(),
             rules: hashmap!{
               "".into() => RuleList {
-                rules: btreeset![ MatchingRule::Equality ],
+                rules: hashset![ MatchingRule::Equality ],
                 rule_logic: RuleLogic::And
               }
             }
@@ -1137,24 +1237,24 @@ mod tests {
     expect!(matching_rules.categories()).to(be_equal_to(hashset!{ s!("path"), s!("query"), s!("header"), s!("body") }));
     expect!(matching_rules.rules_for_category(&s!("path"))).to(be_some().value(MatchingRuleCategory {
       name: s!("path"),
-      rules: hashmap! { s!("") => RuleList { rules: btreeset![ MatchingRule::Regex(s!("\\w+")) ], rule_logic: RuleLogic::And } }
+      rules: hashmap! { s!("") => RuleList { rules: hashset![ MatchingRule::Regex(s!("\\w+")) ], rule_logic: RuleLogic::And } }
     }));
     expect!(matching_rules.rules_for_category(&s!("query"))).to(be_some().value(MatchingRuleCategory {
       name: s!("query"),
-      rules: hashmap!{ s!("Q1") => RuleList { rules: btreeset![ MatchingRule::Regex(s!("\\d+")) ], rule_logic: RuleLogic::And } }
+      rules: hashmap!{ s!("Q1") => RuleList { rules: hashset![ MatchingRule::Regex(s!("\\d+")) ], rule_logic: RuleLogic::And } }
     }));
     expect!(matching_rules.rules_for_category(&s!("header"))).to(be_some().value(MatchingRuleCategory {
       name: s!("header"),
-      rules: hashmap!{ s!("HEADERY") => RuleList { rules: btreeset![
+      rules: hashmap!{ s!("HEADERY") => RuleList { rules: hashset![
         MatchingRule::Include(s!("ValueA")) ], rule_logic: RuleLogic::And } }
     }));
     expect!(matching_rules.rules_for_category(&s!("body"))).to(be_some().value(MatchingRuleCategory {
       name: s!("body"),
       rules: hashmap!{
-        s!("$.animals") => RuleList { rules: btreeset![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
-        s!("$.animals[*].*") => RuleList { rules: btreeset![ MatchingRule::Type ], rule_logic: RuleLogic::And },
-        s!("$.animals[*].children") => RuleList { rules: btreeset![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
-        s!("$.animals[*].children[*].*") => RuleList { rules: btreeset![ MatchingRule::Type ], rule_logic: RuleLogic::And }
+        s!("$.animals") => RuleList { rules: hashset![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
+        s!("$.animals[*].*") => RuleList { rules: hashset![ MatchingRule::Type ], rule_logic: RuleLogic::And },
+        s!("$.animals[*].children") => RuleList { rules: hashset![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
+        s!("$.animals[*].children[*].*") => RuleList { rules: hashset![ MatchingRule::Type ], rule_logic: RuleLogic::And }
       }
     }));
   }
@@ -1205,25 +1305,25 @@ mod tests {
     expect!(matching_rules.categories()).to(be_equal_to(hashset!{ s!("path"), s!("query"), s!("header"), s!("body") }));
     expect!(matching_rules.rules_for_category(&s!("path"))).to(be_some().value(MatchingRuleCategory {
       name: s!("path"),
-      rules: hashmap! { s!("") => RuleList { rules: btreeset![ MatchingRule::Regex(s!("\\w+")) ], rule_logic: RuleLogic::And } }
+      rules: hashmap! { s!("") => RuleList { rules: hashset![ MatchingRule::Regex(s!("\\w+")) ], rule_logic: RuleLogic::And } }
     }));
     expect!(matching_rules.rules_for_category(&s!("query"))).to(be_some().value(MatchingRuleCategory {
       name: s!("query"),
-      rules: hashmap!{ s!("Q1") => RuleList { rules: btreeset![ MatchingRule::Regex(s!("\\d+")) ], rule_logic: RuleLogic::And } }
+      rules: hashmap!{ s!("Q1") => RuleList { rules: hashset![ MatchingRule::Regex(s!("\\d+")) ], rule_logic: RuleLogic::And } }
     }));
     expect!(matching_rules.rules_for_category(&s!("header"))).to(be_some().value(MatchingRuleCategory {
       name: s!("header"),
-      rules: hashmap!{ s!("HEADERY") => RuleList { rules: btreeset![
+      rules: hashmap!{ s!("HEADERY") => RuleList { rules: hashset![
         MatchingRule::Include(s!("ValueA")),
         MatchingRule::Include(s!("ValueB")) ], rule_logic: RuleLogic::Or } }
     }));
     expect!(matching_rules.rules_for_category(&s!("body"))).to(be_some().value(MatchingRuleCategory {
       name: s!("body"),
       rules: hashmap!{
-        s!("$.animals") => RuleList { rules: btreeset![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
-        s!("$.animals[*].*") => RuleList { rules: btreeset![ MatchingRule::Type ], rule_logic: RuleLogic::And },
-        s!("$.animals[*].children") => RuleList { rules: btreeset![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
-        s!("$.animals[*].children[*].*") => RuleList { rules: btreeset![ MatchingRule::Type ], rule_logic: RuleLogic::And }
+        s!("$.animals") => RuleList { rules: hashset![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
+        s!("$.animals[*].*") => RuleList { rules: hashset![ MatchingRule::Type ], rule_logic: RuleLogic::And },
+        s!("$.animals[*].children") => RuleList { rules: hashset![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
+        s!("$.animals[*].children[*].*") => RuleList { rules: hashset![ MatchingRule::Type ], rule_logic: RuleLogic::And }
       }
     }));
   }
@@ -1246,7 +1346,7 @@ mod tests {
     expect!(matching_rules.categories()).to(be_equal_to(hashset!{ s!("path") }));
     expect!(matching_rules.rules_for_category(&s!("path"))).to(be_some().value(MatchingRuleCategory {
       name: s!("path"),
-      rules: hashmap! { s!("") => RuleList { rules: btreeset![ MatchingRule::Regex(s!("\\w+")) ], rule_logic: RuleLogic::And } }
+      rules: hashmap! { s!("") => RuleList { rules: hashset![ MatchingRule::Regex(s!("\\w+")) ], rule_logic: RuleLogic::And } }
     }));
   }
 
@@ -1381,7 +1481,32 @@ mod tests {
       ]
     });
     expect!(MatchingRule::from_json(&json)).to(be_some().value(
-      MatchingRule::ArrayContains(vec![(0, matchingrules_list! { "body"; [ MatchingRule::Equality ] })])
+      MatchingRule::ArrayContains(
+        vec![
+          (0, matchingrules_list! { "body"; [ MatchingRule::Equality ] }, HashMap::default())
+        ])
+    ));
+
+    let json = json!({
+      "match": "arrayContains",
+      "variants": [
+        {
+          "index": 0,
+          "rules": {
+            "matchers": [ { "match": "equality" } ]
+          },
+          "generators": {
+            "a": { "type": "Uuid" }
+          }
+        }
+      ]
+    });
+    let generators = hashmap!{ "a".to_string() => Generator::Uuid };
+    expect!(MatchingRule::from_json(&json)).to(be_some().value(
+      MatchingRule::ArrayContains(
+        vec![
+          (0, matchingrules_list! { "body"; [ MatchingRule::Equality ] }, generators)
+        ])
     ));
   }
 

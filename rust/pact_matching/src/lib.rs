@@ -1411,29 +1411,36 @@ pub fn generate_request(request: &models::Request, mode: &GeneratorTestMode, con
 
 /// Generates the response by applying any defined generators
 pub fn generate_response(response: &models::Response, mode: &GeneratorTestMode, context: &HashMap<&str, Value>) -> models::Response {
-  let generators = response.generators.clone();
   let mut response = response.clone();
-  generators.apply_generator(mode, &GeneratorCategory::STATUS, |_, generator| {
-    if let Ok(v) = generator.generate_value(&response.status, context) {
-      debug!("Generated value for status: {}", v);
-      response.status = v;
-    }
-  });
-  generators.apply_generator(mode, &GeneratorCategory::HEADER, |key, generator| {
-    if let Some(ref mut headers) = response.headers {
-      if headers.contains_key(key) {
-        match generator.generate_value(&headers.get(key).unwrap().clone(), context) {
-          Ok(v) => {
-            debug!("Generated value for header: {} -> {:?}", key, v);
-            headers.insert(key.clone(), v)
-          },
-          Err(_) => None
-        };
+  let generators = response.build_generators(&GeneratorCategory::STATUS);
+  if !generators.is_empty() {
+    apply_generators(mode, &generators, &mut |_, generator| {
+      if let Ok(v) = generator.generate_value(&response.status, context) {
+        debug!("Generated value for status: {}", v);
+        response.status = v;
       }
-    }
-  });
-  response.body = generators.apply_body_generators(mode, &response.body, response.content_type(),
-    context);
+    });
+  }
+  let generators = response.build_generators(&GeneratorCategory::HEADER);
+  if !generators.is_empty() {
+    apply_generators(mode, &generators, &mut |key, generator| {
+      if let Some(ref mut headers) = response.headers {
+        if headers.contains_key(key) {
+          match generator.generate_value(&headers.get(key).unwrap().clone(), context) {
+            Ok(v) => {
+              debug!("Generated value for header: {} -> {:?}", key, v);
+              headers.insert(key.clone(), v)
+            },
+            Err(_) => None
+          };
+        }
+      }
+    });
+  }
+  let generators = response.build_generators(&GeneratorCategory::BODY);
+  if !generators.is_empty() && response.body.is_present() {
+    response.body = apply_body_generators(mode, &response.body, response.content_type(), context, &generators);
+  }
   response
 }
 
