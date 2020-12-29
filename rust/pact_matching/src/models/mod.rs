@@ -47,7 +47,7 @@ pub mod content_types;
 mod expression_parser;
 
 /// Version of the library
-pub const VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
+pub const PACT_RUST_VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
 
 /// Enum defining the pact specification versions supported by the library
 #[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize, Serialize)]
@@ -1470,7 +1470,7 @@ impl RequestResponsePact {
             .collect();
 
         md_map.insert(s!("pactSpecification"), json!({"version" : pact_spec.version_str()}));
-        md_map.insert(s!("pactRust"), json!({"version" : s!(VERSION.unwrap_or("unknown"))}));
+        md_map.insert(s!("pactRust"), json!({"version" : s!(PACT_RUST_VERSION.unwrap_or("unknown"))}));
         md_map
     }
 
@@ -1494,7 +1494,7 @@ impl RequestResponsePact {
   pub fn default_metadata() -> BTreeMap<String, BTreeMap<String, String>> {
     btreemap!{
       s!("pact-specification") => btreemap!{ s!("version") => PactSpecification::V3.version_str() },
-      s!("pact-rust") => btreemap!{ s!("version") => s!(VERSION.unwrap_or("unknown")) }
+      s!("pact-rust") => btreemap!{ s!("version") => s!(PACT_RUST_VERSION.unwrap_or("unknown")) }
     }
   }
 }

@@ -1,4 +1,5 @@
-use pact_matching::models::{Pact, RequestResponsePact};
+use pact_matching::models::{Pact, RequestResponsePact, PACT_RUST_VERSION};
+use pact_matching::models::message_pact::MessagePact;
 use pact_matching::s;
 use crate::MismatchResult;
 use serde_json::{json, Value};
@@ -15,7 +16,6 @@ use std::fmt::{Display, Formatter};
 use maplit::*;
 use reqwest::Method;
 use log::*;
-use pact_matching::models::message_pact::MessagePact;
 
 fn is_true(object: &serde_json::Map<String, serde_json::Value>, field: &str) -> bool {
     match object.get(field) {
@@ -561,8 +561,8 @@ pub async fn fetch_pacts_dynamically_from_broker(
     // Construct the Pacts for verification payload
     let pacts_for_verification = PactsForVerificationRequest {
       provider_version_tags: provider_tags,
-      include_wip_pacts_since: include_wip_pacts_since,
-      consumer_version_selectors: consumer_version_selectors,
+      include_wip_pacts_since,
+      consumer_version_selectors,
       include_pending_status: pending,
     };
     let request_body = serde_json::to_string(&pacts_for_verification).unwrap();
@@ -711,7 +711,11 @@ pub async fn publish_verification_results(
 fn build_payload(result: TestResult, version: String, build_url: Option<String>) -> serde_json::Value {
   let mut json = json!({
     "success": result.to_bool(),
-    "providerApplicationVersion": version
+    "providerApplicationVersion": version,
+    "verifiedBy": {
+      "implementation": "Pact-Rust",
+      "version": PACT_RUST_VERSION
+    }
   });
   let json_obj = json.as_object_mut().unwrap();
 
@@ -1511,7 +1515,12 @@ mod tests {
     let result = TestResult::Ok;
     let payload = super::build_payload(result, "1".to_string(), None);
     expect!(payload).to(be_equal_to(json!({
-      "providerApplicationVersion": "1", "success": true
+      "providerApplicationVersion": "1",
+      "success": true,
+      "verifiedBy": {
+        "implementation": "Pact-Rust",
+        "version": PACT_RUST_VERSION
+      }
     })));
   }
 
@@ -1522,7 +1531,11 @@ mod tests {
     expect!(payload).to(be_equal_to(json!({
       "providerApplicationVersion": "1",
       "success": true,
-      "buildUrl": "http://build-url"
+      "buildUrl": "http://build-url",
+      "verifiedBy": {
+        "implementation": "Pact-Rust",
+        "version": PACT_RUST_VERSION
+      }
     })));
   }
 
@@ -1531,7 +1544,13 @@ mod tests {
     let result = TestResult::Failed(vec![]);
     let payload = super::build_payload(result, "1".to_string(), None);
     expect!(payload).to(be_equal_to(json!({
-      "providerApplicationVersion": "1", "success": false, "testResults": []
+      "providerApplicationVersion": "1",
+      "success": false,
+      "testResults": [],
+      "verifiedBy": {
+        "implementation": "Pact-Rust",
+        "version": PACT_RUST_VERSION
+      }
     })));
   }
 
@@ -1561,7 +1580,11 @@ mod tests {
           ],
           "success": false
         }
-      ]
+      ],
+      "verifiedBy": {
+        "implementation": "Pact-Rust",
+        "version": PACT_RUST_VERSION
+      }
     })));
   }
 
@@ -1585,7 +1608,11 @@ mod tests {
           "mismatches": [],
           "success": false
         }
-      ]
+      ],
+      "verifiedBy": {
+        "implementation": "Pact-Rust",
+        "version": PACT_RUST_VERSION
+      }
     })));
   }
 

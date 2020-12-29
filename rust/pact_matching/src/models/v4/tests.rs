@@ -498,7 +498,7 @@ fn write_pact_test() {
   "provider": {{
     "name": "write_pact_test_provider"
   }}
-}}"#, super::VERSION.unwrap())));
+}}"#, super::PACT_RUST_VERSION.unwrap())));
 }
 
 // #[test]

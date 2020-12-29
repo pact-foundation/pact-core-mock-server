@@ -26,7 +26,7 @@ use crate::models::PactSpecification;
 use crate::models::parse_meta_data;
 use crate::models::Provider;
 use crate::models::v4::V4Pact;
-use crate::models::VERSION;
+use crate::models::PACT_RUST_VERSION;
 
 /// Struct that represents a pact between the consumer and provider of a service.
 /// It contains a list of Messages instead of Interactions, but is otherwise
@@ -161,7 +161,7 @@ impl MessagePact {
             json!({"version" : pact_spec.version_str()}));
         md_map.insert(
             s!("pactRust"),
-            json!({"version" : s!(VERSION.unwrap_or("unknown"))}));
+            json!({"version" : s!(PACT_RUST_VERSION.unwrap_or("unknown"))}));
         md_map
     }
 
@@ -224,7 +224,7 @@ impl MessagePact {
                     PactSpecification::V3.version_str() },
             s!("pact-rust") =>
                 btreemap!{ s!("version") =>
-                    s!(VERSION.unwrap_or("unknown")) },
+                    s!(PACT_RUST_VERSION.unwrap_or("unknown")) },
         }
     }
 }

@@ -18,7 +18,7 @@ use maplit::*;
 use nom::lib::std::fmt::Formatter;
 use serde_json::{json, Value};
 
-use crate::models::{Consumer, detect_content_type_from_bytes, generators, Interaction, matchingrules, OptionalBody, Pact, PactSpecification, Provider, provider_states, ReadWritePact, RequestResponseInteraction, RequestResponsePact, VERSION};
+use crate::models::{Consumer, detect_content_type_from_bytes, generators, Interaction, matchingrules, OptionalBody, Pact, PactSpecification, Provider, provider_states, ReadWritePact, RequestResponseInteraction, RequestResponsePact, PACT_RUST_VERSION};
 use crate::models::content_types::ContentType;
 use crate::models::generators::generators_to_json;
 use crate::models::json_utils::{hash_json, json_to_string};
@@ -424,7 +424,7 @@ impl V4Pact {
       .collect();
 
     md_map.insert("pactSpecification".to_string(), json!({"version" : PactSpecification::V4.version_str()}));
-    md_map.insert("pactRust".to_string(), json!({"version" : VERSION.unwrap_or("unknown")}));
+    md_map.insert("pactRust".to_string(), json!({"version" : PACT_RUST_VERSION.unwrap_or("unknown")}));
     Value::Object(md_map)
   }
 }

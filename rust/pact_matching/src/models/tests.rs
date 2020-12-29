@@ -901,7 +901,7 @@ fn write_pact_test() {
   "provider": {{
     "name": "write_pact_test_provider"
   }}
-}}"#, super::VERSION.unwrap())));
+}}"#, super::PACT_RUST_VERSION.unwrap())));
 }
 
 #[test]
@@ -982,7 +982,7 @@ fn write_pact_test_should_merge_pacts() {
   "provider": {{
     "name": "merge_provider"
   }}
-}}"#, super::VERSION.unwrap())));
+}}"#, super::PACT_RUST_VERSION.unwrap())));
 }
 
 #[test]
@@ -1053,7 +1053,7 @@ fn write_pact_test_should_not_merge_pacts_with_conflicts() {
   "provider": {{
     "name": "write_pact_test_provider"
   }}
-}}"#, super::VERSION.unwrap())));
+}}"#, super::PACT_RUST_VERSION.unwrap())));
 }
 
 #[test]
@@ -1142,7 +1142,7 @@ fn write_pact_test_should_upgrade_older_pacts_when_merging() {
   "provider": {{
     "name": "merge_provider"
   }}
-}}"#, super::VERSION.unwrap())));
+}}"#, super::PACT_RUST_VERSION.unwrap())));
 }
 
 #[test]
@@ -1240,7 +1240,7 @@ fn write_pact_test_upgrades_older_pacts_to_v4_when_merging() {
   "provider": {{
     "name": "merge_provider"
   }}
-}}"#, super::VERSION.unwrap())));
+}}"#, super::PACT_RUST_VERSION.unwrap())));
 }
 
 #[test]
@@ -1628,7 +1628,7 @@ fn write_pact_test_with_matchers() {
   "provider": {{
     "name": "write_pact_test_provider"
   }}
-}}"#, super::VERSION.unwrap())));
+}}"#, super::PACT_RUST_VERSION.unwrap())));
 }
 
 #[test]
@@ -1724,7 +1724,7 @@ fn write_pact_v3_test_with_matchers() {
   "provider": {{
     "name": "write_pact_test_provider_v3"
   }}
-}}"#, super::VERSION.unwrap())));
+}}"#, super::PACT_RUST_VERSION.unwrap())));
 }
 
 #[test]
@@ -1949,7 +1949,7 @@ fn write_v3_pact_test() {
   "provider": {{
     "name": "write_pact_test_provider"
   }}
-}}"#, super::VERSION.unwrap())));
+}}"#, super::PACT_RUST_VERSION.unwrap())));
 }
 
 #[test]
@@ -2136,7 +2136,7 @@ fn write_pact_test_with_generators() {
   "provider": {{
     "name": "write_pact_test_provider"
   }}
-}}"#, super::VERSION.unwrap())));
+}}"#, super::PACT_RUST_VERSION.unwrap())));
 }
 
 #[test]
