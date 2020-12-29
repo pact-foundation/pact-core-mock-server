@@ -20,15 +20,21 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
           components: clippy
-      - uses: marcopolo/cargo@master # TODO: - use actions-rs/cargo@v1 when PR merged https://github.com/actions-rs/cargo/pull/59
+      - name: Tests
+        uses: marcopolo/cargo@master # TODO: - use actions-rs/cargo@v1 when PR merged https://github.com/actions-rs/cargo/pull/59
         with:
           working-directory: rust
           command: test
-      - uses: marcopolo/cargo@master
+      - name: Build Components
+        uses: marcopolo/cargo@master
         with:
           working-directory: rust
           command: build
-      - uses: marcopolo/cargo@master
+      - name: Clippy
+        uses: marcopolo/cargo@master
         with:
           working-directory: rust
           command: clippy
+
+# <"{\n  \"consumer\": {\n    \"name\": \"write_pact_test_consumer_v3\"\n  },\n  \"interactions\": [\n    {\n      \"description\": \"Test Interaction\",\n      \"providerStates\": [\n        {\n          \"name\": \"Good state to be in\"\n        }\n      ],\n      \"request\": {\n        \"matchingRules\": {\n          \"body\": {\n            \"$\": {\n              \"combine\": \"AND\",\n              \"matchers\": [\n                {\n                  \"match\": \"type\"\n                }\n              ]\n            }\n          },\n          \"header\": {\n            \"HEADER_A\": {\n              \"combine\": \"AND\",\n              \"matchers\": [\n                {\n                  \"match\": \"include\",\n                  \"value\": \"ValA\"\n                },\n                {\n                  \"match\": \"include\",\n                  \"value\": \"ValB\"\n                }\n              ]\n            }\n          }\n        },\n        \"method\": \"GET\",\n        \"path\": \"/\"\n      },\n      \"response\": {\n        \"status\": 200\n      }\n    }\n  ],\n  \"metadata\": {\n    \"pactRust\": {\n      \"version\": \"0.8.6\"\n    },\n    \"pactSpecification\": {\n      \"version\": \"3.0.0\"\n    }\n  },\n  \"provider\": {\n    \"name\": \"write_pact_test_provider_v3\"\n  }\n}">
+# <"{\n  \"consumer\": {\n    \"name\": \"write_pact_test_consumer_v3\"\n  },\n  \"interactions\": [\n    {\n      \"description\": \"Test Interaction\",\n      \"providerStates\": [\n        {\n          \"name\": \"Good state to be in\"\n        }\n      ],\n      \"request\": {\n        \"matchingRules\": {\n          \"body\": {\n            \"$\": {\n              \"combine\": \"AND\",\n              \"matchers\": [\n                {\n                  \"match\": \"type\"\n                }\n              ]\n            }\n          },\n          \"header\": {\n            \"HEADER_A\": {\n              \"combine\": \"AND\",\n              \"matchers\": [\n                {\n                  \"match\": \"include\",\n                  \"value\": \"ValB\"\n                },\n                {\n                  \"match\": \"include\",\n                  \"value\": \"ValA\"\n                }\n              ]\n            }\n          }\n        },\n        \"method\": \"GET\",\n        \"path\": \"/\"\n      },\n      \"response\": {\n        \"status\": 200\n      }\n    }\n  ],\n  \"metadata\": {\n    \"pactRust\": {\n      \"version\": \"0.8.6\"\n    },\n    \"pactSpecification\": {\n      \"version\": \"3.0.0\"\n    }\n  },\n  \"provider\": {\n    \"name\": \"write_pact_test_provider_v3\"\n  }\n}">
