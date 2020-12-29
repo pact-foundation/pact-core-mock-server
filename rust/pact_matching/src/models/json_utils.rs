@@ -15,7 +15,7 @@ impl JsonToNum<i32> for i32 {
   fn json_to_number(map: &serde_json::Map<String, Value>, field: &str, default: i32) -> i32 {
     match map.get(field) {
       Some(val) => match val {
-        &Value::Number(ref num) => match num.as_i64() {
+        Value::Number(num) => match num.as_i64() {
           Some(num) => num as i32,
           None => default
         },
@@ -30,7 +30,7 @@ impl JsonToNum<u16> for u16 {
   fn json_to_number(map: &serde_json::Map<String, Value>, field: &str, default: u16) -> u16 {
     match map.get(field) {
       Some(val) => match val {
-        &Value::Number(ref num) => match num.as_u64() {
+        Value::Number(num) => match num.as_u64() {
           Some(num) => num as u16,
           None => default
         },
@@ -44,7 +44,7 @@ impl JsonToNum<u16> for u16 {
 /// Converts the JSON struct to a String, first checking if it is a JSON String
 pub fn json_to_string(value: &Value) -> String {
   match value {
-    &Value::String(ref s) => s.clone(),
+    Value::String(s) => s.clone(),
     _ => value.to_string()
   }
 }

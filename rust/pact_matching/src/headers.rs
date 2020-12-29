@@ -9,7 +9,7 @@ use crate::{matchers, MatchingContext, Mismatch};
 use crate::matchers::Matches;
 use crate::models::matchingrules::MatchingRule;
 
-static PARAMETERISED_HEADER_TYPES: [&'static str; 2] = ["accept", "content-type"];
+static PARAMETERISED_HEADER_TYPES: [&str; 2] = ["accept", "content-type"];
 
 fn strip_whitespace<'a, T: FromIterator<&'a str>>(val: &'a str, split_by: &'a str) -> T {
   val.split(split_by).map(|v| v.trim()).collect()

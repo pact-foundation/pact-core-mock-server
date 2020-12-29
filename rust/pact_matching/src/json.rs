@@ -262,7 +262,7 @@ pub fn display_diff(expected: &String, actual: &String, path: &str, indent: &str
   output
 }
 
-fn compare(path: &Vec<&str>, expected: &Value, actual: &Value, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
+fn compare(path: &[&str], expected: &Value, actual: &Value, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
   log::debug!("Comparing path {}", path.join("."));
   match (expected, actual) {
     (&Value::Object(ref emap), &Value::Object(ref amap)) => compare_maps(path, emap, amap, context),
@@ -289,7 +289,7 @@ fn compare(path: &Vec<&str>, expected: &Value, actual: &Value, context: &Matchin
   }
 }
 
-fn compare_maps(path: &Vec<&str>, expected: &serde_json::Map<String, Value>, actual: &serde_json::Map<String, Value>,
+fn compare_maps(path: &[&str], expected: &serde_json::Map<String, Value>, actual: &serde_json::Map<String, Value>,
                 context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
   if expected.is_empty() && !actual.is_empty() {
     Err(vec![ Mismatch::BodyMismatch {
@@ -323,45 +323,43 @@ fn compare_maps(path: &Vec<&str>, expected: &serde_json::Map<String, Value>, act
   }
 }
 
-fn compare_lists(path: &Vec<&str>, expected: &Vec<Value>, actual: &Vec<Value>,
+fn compare_lists(path: &[&str], expected: &Vec<Value>, actual: &Vec<Value>,
                  context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
   let spath = path.join(".");
-  if context.matcher_is_defined(&path) {
+  if context.matcher_is_defined(path) {
     log::debug!("compare_lists: matcher defined for path '{}'", spath);
     let mut result = Ok(());
     for matcher in context.select_best_matcher(path).unwrap().rules {
       let values_result = matcher.compare_lists(path, expected, actual, context, &|p, expected, actual, context| {
-        compare(&p, expected, actual, context)
+        compare(p, expected, actual, context)
       });
       result = merge_result(result, values_result);
     }
     result
+  } else if expected.is_empty() && !actual.is_empty() {
+    Err(vec![ Mismatch::BodyMismatch {
+      path: spath,
+      expected: Some(json_to_string(&json!(expected)).into()),
+      actual: Some(json_to_string(&json!(actual)).into()),
+      mismatch: format!("Expected an empty List but received {}", json_to_string(&json!(actual))),
+    } ])
   } else {
-    if expected.is_empty() && !actual.is_empty() {
-      Err(vec![ Mismatch::BodyMismatch {
+    let result = compare_list_content(path, expected, actual, context);
+    if expected.len() != actual.len() {
+      merge_result(result, Err(vec![ Mismatch::BodyMismatch {
         path: spath,
         expected: Some(json_to_string(&json!(expected)).into()),
         actual: Some(json_to_string(&json!(actual)).into()),
-        mismatch: format!("Expected an empty List but received {}", json_to_string(&json!(actual))),
-      } ])
+        mismatch: format!("Expected a List with {} elements but received {} elements",
+                          expected.len(), actual.len()),
+      } ]))
     } else {
-      let result = compare_list_content(path, expected, actual, context);
-      if expected.len() != actual.len() {
-        merge_result(result, Err(vec![ Mismatch::BodyMismatch {
-          path: spath,
-          expected: Some(json_to_string(&json!(expected)).into()),
-          actual: Some(json_to_string(&json!(actual)).into()),
-          mismatch: format!("Expected a List with {} elements but received {} elements",
-                            expected.len(), actual.len()),
-        } ]))
-      } else {
-        result
-      }
+      result
     }
   }
 }
 
-fn compare_list_content(path: &Vec<&str>, expected: &Vec<Value>, actual: &Vec<Value>, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
+fn compare_list_content(path: &[&str], expected: &Vec<Value>, actual: &Vec<Value>, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
   let mut result = Ok(());
   for (index, value) in expected.iter().enumerate() {
     let ps = index.to_string();
@@ -380,7 +378,7 @@ fn compare_list_content(path: &Vec<&str>, expected: &Vec<Value>, actual: &Vec<Va
   result
 }
 
-fn compare_values(path: &Vec<&str>, expected: &Value, actual: &Value, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
+fn compare_values(path: &[&str], expected: &Value, actual: &Value, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
   let matcher_result = if context.matcher_is_defined(&path) {
     debug!("Calling match_values for path {}", path.join("."));
     match_values(path, context, expected, actual)

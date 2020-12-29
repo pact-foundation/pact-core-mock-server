@@ -17,7 +17,6 @@ use onig::{Captures, Regex};
 use rand::distributions::Alphanumeric;
 use rand::prelude::*;
 use rand::seq::SliceRandom;
-use regex_syntax;
 use serde::{Deserialize, Serialize};
 use serde_json::{self, json, Value};
 use sxd_document::dom::Document;
@@ -161,7 +160,7 @@ impl GenerateValue<u16> for Generator {
   }
 }
 
-const DIGIT_CHARSET: &'static str = "0123456789";
+const DIGIT_CHARSET: &str = "0123456789";
 pub(crate) fn generate_decimal(digits: usize) -> String {
   let mut rnd = rand::thread_rng();
   let chars: Vec<char> = DIGIT_CHARSET.chars().collect();
@@ -192,8 +191,8 @@ pub(crate) fn generate_decimal(digits: usize) -> String {
   }
 }
 
+const HEX_CHARSET: &str = "0123456789ABCDEF";
 pub(crate) fn generate_hexadecimal(digits: usize) -> String {
-  const HEX_CHARSET: &'static str = "0123456789ABCDEF";
   let mut rnd = rand::thread_rng();
   HEX_CHARSET.chars().choose_multiple(&mut rnd, digits).iter().join("")
 }

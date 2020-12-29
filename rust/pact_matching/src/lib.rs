@@ -410,21 +410,21 @@ impl MatchingContext {
   }
 
   /// If there is a matcher defined at the path in this context
-  pub fn matcher_is_defined(&self, path: &Vec<&str>) -> bool {
+  pub fn matcher_is_defined(&self, path: &[&str]) -> bool {
     self.matchers.matcher_is_defined(path)
   }
 
   /// Selected the best matcher from the context for the given path
-  pub fn select_best_matcher(&self, path: &Vec<&str>) -> Option<RuleList> {
+  pub fn select_best_matcher(&self, path: &[&str]) -> Option<RuleList> {
     self.matchers.select_best_matcher(path)
   }
 
   /// If there is a wildcard matcher defined at the path in this context
-  pub fn wildcard_matcher_is_defined(&self, path: &Vec<&str>) -> bool {
+  pub fn wildcard_matcher_is_defined(&self, path: &[&str]) -> bool {
     !self.matchers_for_exact_path(path).filter(|&(val, _)| val.ends_with(".*")).is_empty()
   }
 
-  fn matchers_for_exact_path(&self, path: &Vec<&str>) -> MatchingRuleCategory {
+  fn matchers_for_exact_path(&self, path: &[&str]) -> MatchingRuleCategory {
     if self.matchers.name == "body" {
       self.matchers.filter(|&(val, _)| {
         calc_path_weight(val, path).0 > 0 && path_length(val) == path.len()
@@ -439,12 +439,12 @@ impl MatchingContext {
   }
 
   /// If there is a type matcher defined at the path in this context
-  pub fn type_matcher_defined(&self, path: &Vec<&str>) -> bool {
+  pub fn type_matcher_defined(&self, path: &[&str]) -> bool {
     self.matchers.resolve_matchers_for_path(path).type_matcher_defined()
   }
 
   /// Matches the keys of the expected and actual maps
-  pub fn match_keys<T: Display + Debug>(&self, path: &Vec<&str>, expected: &HashMap<String, T>, actual: &HashMap<String, T>) -> Result<(), Vec<Mismatch>> {
+  pub fn match_keys<T: Display + Debug>(&self, path: &[&str], expected: &HashMap<String, T>, actual: &HashMap<String, T>) -> Result<(), Vec<Mismatch>> {
     let mut p = path.to_vec();
     p.push("any");
     if !self.wildcard_matcher_is_defined(&p) {
@@ -634,21 +634,21 @@ impl Mismatch {
                     s!("mismatch") : json!(m)
                 })
             },
-            &Mismatch::BodyMismatch { path: ref p, expected: ref e, actual: ref a, mismatch: ref m } => {
-                 json!({
-                    s!("type") : json!("BodyMismatch"),
-                    s!("path") : json!(p),
-                    s!("expected") : match e {
-                        &Some(ref v) => json!(str::from_utf8(v).unwrap_or("ERROR: could not convert from bytes")),
-                        &None => serde_json::Value::Null
-                    },
-                    s!("actual") : match a {
-                        &Some(ref v) => json!(str::from_utf8(v).unwrap_or("ERROR: could not convert from bytes")),
-                        &None => serde_json::Value::Null
-                    },
-                    s!("mismatch") : json!(m)
-                })
-            },
+            &Mismatch::BodyMismatch { ref path, ref expected, ref actual, ref mismatch } => {
+              json!({
+                "type" : "BodyMismatch",
+                "path" : path,
+                "expected" : match expected {
+                  Some(v) => serde_json::Value::String(str::from_utf8(v).unwrap_or("ERROR: could not convert from bytes").into()),
+                  None => serde_json::Value::Null
+                },
+                "actual" : match actual {
+                  Some(v) => serde_json::Value::String(str::from_utf8(v).unwrap_or("ERROR: could not convert from bytes").into()),
+                  None => serde_json::Value::Null
+                },
+                "mismatch" : mismatch
+              })
+            }
             &Mismatch::MetadataMismatch { key: ref k, expected: ref e, actual: ref a, mismatch: ref m } => {
               json!({
                 s!("type") : json!("MetadataMismatch"),

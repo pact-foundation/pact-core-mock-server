@@ -43,7 +43,7 @@ fn matches_token(path_fragment: &str, path_token: &PathToken) -> usize {
   }
 }
 
-pub(crate) fn calc_path_weight(path_exp: &str, path: &Vec<&str>) -> (usize, usize) {
+pub(crate) fn calc_path_weight(path_exp: &str, path: &[&str]) -> (usize, usize) {
   let weight = match parse_path_exp(path_exp) {
     Ok(path_tokens) => {
       trace!("Calculating weight for path tokens '{:?}' and path '{:?}'", path_tokens, path);
@@ -206,6 +206,12 @@ impl <T: Display> DisplayForMismatch for Vec<T> {
   }
 }
 
+impl <T: Display> DisplayForMismatch for &[T] {
+  fn for_mismatch(&self) -> String {
+    Value::Array(self.iter().map(|v| json!(v.to_string())).collect()).to_string()
+  }
+}
+
 /// Set of all matching rules
 #[derive(Serialize, Deserialize, Debug, Clone, Eq)]
 pub enum MatchingRule {
@@ -248,7 +254,7 @@ impl MatchingRule {
   /// Builds a `MatchingRule` from a `Value` struct
   pub fn from_json(value: &Value) -> Option<MatchingRule> {
     match value {
-      &Value::Object(ref m) => match m.get("match") {
+     Value::Object(m) => match m.get("match") {
         Some(value) => {
           let val = json_to_string(value);
           match val.as_str() {
@@ -406,7 +412,7 @@ impl MatchingRule {
   }
 
   /// Delegate to the matching rule defined at the given path to compare the key/value maps.
-  pub fn compare_maps<T: Display + Debug>(&self, path: &Vec<&str>, expected: &HashMap<String, T>, actual: &HashMap<String, T>,
+  pub fn compare_maps<T: Display + Debug>(&self, path: &[&str], expected: &HashMap<String, T>, actual: &HashMap<String, T>,
                                   context: &MatchingContext,
                                   callback: &mut dyn FnMut(&Vec<&str>, &T, &T) -> Result<(), Vec<Mismatch>>) -> Result<(), Vec<Mismatch>> {
     let mut p = path.to_vec();
@@ -436,13 +442,13 @@ impl MatchingRule {
   }
 
   /// Compare the expected and actual lists using the matching rule's logic
-  pub fn compare_lists<T: Display + Debug + PartialEq + Clone>(
+  pub fn compare_lists<T: Display + Debug + PartialEq + Clone + Sized>(
     &self,
-    path: &Vec<&str>,
+    path: &[&str],
     expected: &Vec<T>,
     actual: &Vec<T>,
     context: &MatchingContext,
-    callback: &dyn Fn(&Vec<&str>, &T, &T, &MatchingContext) -> Result<(), Vec<Mismatch>>
+    callback: &dyn Fn(&[&str], &T, &T, &MatchingContext) -> Result<(), Vec<Mismatch>>
   ) -> Result<(), Vec<Mismatch>> {
     let mut result = Ok(());
     match self {
@@ -458,10 +464,11 @@ impl MatchingRule {
           match expected.get(index) {
             Some(expected_value) => {
               let context = context.clone_with(&rules);
-              if actual.iter().enumerate().find(|(actual_index, value)| {
+              let predicate: &dyn Fn(&(usize, &T)) -> bool = &|&(actual_index, value)| {
                 debug!("Comparing list item {} with value '{:?}' to '{:?}'", actual_index, value, expected_value);
                 callback(&vec!["$"], expected_value, value, &context).is_ok()
-              }).is_none() {
+              };
+              if actual.iter().enumerate().find(predicate).is_none() {
                 result = merge_result(result,Err(vec![ Mismatch::BodyMismatch {
                   path: path.join("."),
                   expected: Some(expected_value.to_string().into()),
@@ -811,14 +818,12 @@ pub enum RuleLogic {
 }
 
 impl RuleLogic {
-
   fn to_json(&self) -> Value {
     Value::String(match self {
-      &RuleLogic::And => s!("AND"),
-      &RuleLogic::Or => s!("OR")
-    })
+      RuleLogic::And => "AND",
+      RuleLogic::Or => "OR"
+    }.into())
   }
-
 }
 
 /// Data structure for representing a list of rules and the logic needed to combine them
@@ -864,7 +869,7 @@ impl RuleList {
   }
 
   fn to_v2_json(&self) -> Value {
-    match self.rules.iter().next() {
+    match self.rules.get(0) {
       Some(rule) => rule.to_json(),
       None => json!({})
     }
@@ -949,7 +954,7 @@ impl MatchingRuleCategory {
   pub fn rule_from_json(&mut self, key: &str, matcher_json: &Value, rule_logic: &RuleLogic) {
     match MatchingRule::from_json(matcher_json) {
       Some(matching_rule) => {
-        let rules = self.rules.entry(key.to_string()).or_insert(RuleList::empty(rule_logic));
+        let rules = self.rules.entry(key.to_string()).or_insert_with(|| RuleList::empty(rule_logic));
         rules.rules.push(matching_rule);
       },
       None => log::warn!("Could not parse matcher {:?}", matcher_json)
@@ -959,7 +964,7 @@ impl MatchingRuleCategory {
   /// Adds a rule to this category
   pub fn add_rule<S>(&mut self, key: S, matcher: MatchingRule, rule_logic: &RuleLogic)
     where S: Into<String> {
-    let rules = self.rules.entry(key.into()).or_insert(RuleList::empty(rule_logic));
+    let rules = self.rules.entry(key.into()).or_insert_with(|| RuleList::empty(rule_logic));
     rules.rules.push(matcher);
   }
 
@@ -973,7 +978,7 @@ impl MatchingRuleCategory {
     }
   }
 
-  fn max_by_path(&self, path: &Vec<&str>) -> Option<RuleList> {
+  fn max_by_path(&self, path: &[&str]) -> Option<RuleList> {
     self.rules.iter().map(|(k, v)| (k, v, calc_path_weight(k.as_str(), path)))
       .filter(|&(_, _, w)| w.0 > 0)
       .max_by_key(|&(_, _, w)| w.0 * w.1)
@@ -1011,7 +1016,7 @@ impl MatchingRuleCategory {
   }
 
   /// If there is a matcher defined for the path
-  pub fn matcher_is_defined(&self, path: &Vec<&str>) -> bool {
+  pub fn matcher_is_defined(&self, path: &[&str]) -> bool {
     let result = !self.resolve_matchers_for_path(path).is_empty();
     trace!("matcher_is_defined for category {} and path {:?} -> {}", self.name, path, result);
     result
@@ -1019,7 +1024,7 @@ impl MatchingRuleCategory {
 
   /// filters this category with all rules that match the given path for categories that contain
   /// collections (bodies, headers, query parameters). Returns self otherwise.
-  pub fn resolve_matchers_for_path(&self, path: &Vec<&str>) -> MatchingRuleCategory {
+  pub fn resolve_matchers_for_path(&self, path: &[&str]) -> MatchingRuleCategory {
     if self.name == "body" || self.name == "header" || self.name == "query" {
       self.filter(|(val, _)| {
         calc_path_weight(val, path).0 > 0
@@ -1030,7 +1035,7 @@ impl MatchingRuleCategory {
   }
 
   /// Selects the best matcher for the given path by calculating a weighting for each one
-  pub fn select_best_matcher(&self, path: &Vec<&str>) -> Option<RuleList> {
+  pub fn select_best_matcher(&self, path: &[&str]) -> Option<RuleList> {
     if self.name == "body" {
       self.max_by_path(path)
     } else {
@@ -1054,27 +1059,20 @@ impl MatchingRuleCategory {
         },
         None => RuleLogic::And
       };
-      match rules.get("matchers") {
-        Some(matchers) => match matchers {
-          Value::Array(array) => for matcher in array {
+      if let Some(matchers) = rules.get("matchers") {
+        if let Value::Array(array) = matchers {
+          for matcher in array {
             self.rule_from_json("", &matcher, &rule_logic)
-          },
-          _ => ()
-        },
-        None => ()
-      }
-    } else {
-      match rules {
-        Value::Object(m) => {
-          if m.contains_key("matchers") {
-            self.add_rule_list("", rules);
-          } else {
-            for (k, v) in m {
-              self.add_rule_list(k, v);
-            }
           }
-        },
-        _ => ()
+        }
+      }
+    } else if let Value::Object(m) = rules {
+      if m.contains_key("matchers") {
+        self.add_rule_list("", rules);
+      } else {
+        for (k, v) in m {
+          self.add_rule_list(k, v);
+        }
       }
     }
   }
