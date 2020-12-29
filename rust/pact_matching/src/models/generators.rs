@@ -314,7 +314,8 @@ pub(crate) fn find_matching_variants<T>(
     let context = MatchingContext::new(DiffConfig::NoUnexpectedKeys, rules);
     callback(&vec!["$"], value, &context)
   }).map(|((index, _, generators), value)| {
-    (*index, value.clone().clone(), generators.clone())
+    let value = *value;
+    (*index, value.clone(), generators.clone())
   }).collect()
 }
 
