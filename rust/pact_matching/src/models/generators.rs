@@ -3,33 +3,37 @@
 use std::{
   collections::HashMap,
   hash::{Hash, Hasher},
-  str::FromStr,
-  ops::Index
+  ops::Index,
+  str::FromStr
 };
-use serde::{Serialize, Deserialize};
-use serde_json::{self, Value, json};
-use maplit::*;
-use super::PactSpecification;
-use rand::prelude::*;
-use rand::distributions::Alphanumeric;
-use rand::seq::SliceRandom;
-use uuid::Uuid;
-use crate::models::OptionalBody;
-use crate::models::json_utils::{JsonToNum, json_to_string, get_field_as_string};
-use crate::models::xml_utils::parse_bytes;
-use sxd_document::dom::Document;
-use crate::path_exp::*;
-use itertools::Itertools;
-use indextree::{Arena, NodeId};
-use chrono::prelude::*;
-use crate::time_utils::{parse_pattern, to_chrono_pattern};
-use regex_syntax;
-use crate::models::content_types::ContentType;
-use crate::models::expression_parser::{contains_expressions, DataType, DataValue, parse_expression, MapValueResolver};
 use std::convert::TryFrom;
+
+use chrono::prelude::*;
+use indextree::{Arena, NodeId};
+use itertools::Itertools;
 use log::*;
-use onig::{Regex, Captures};
+use maplit::*;
+use onig::{Captures, Regex};
+use rand::distributions::Alphanumeric;
+use rand::prelude::*;
+use rand::seq::SliceRandom;
+use regex_syntax;
+use serde::{Deserialize, Serialize};
+use serde_json::{self, json, Value};
+use sxd_document::dom::Document;
+use uuid::Uuid;
+
+use crate::{DiffConfig, MatchingContext};
+use crate::models::content_types::ContentType;
+use crate::models::expression_parser::{contains_expressions, DataType, DataValue, MapValueResolver, parse_expression};
+use crate::models::json_utils::{get_field_as_string, json_to_string, JsonToNum};
 use crate::models::matchingrules::MatchingRuleCategory;
+use crate::models::OptionalBody;
+use crate::models::xml_utils::parse_bytes;
+use crate::path_exp::*;
+use crate::time_utils::{parse_pattern, to_chrono_pattern};
+
+use super::PactSpecification;
 
 /// Trait to represent a generator
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash)]
@@ -158,7 +162,7 @@ impl GenerateValue<u16> for Generator {
 }
 
 const DIGIT_CHARSET: &'static str = "0123456789";
-fn generate_decimal(digits: usize) -> String {
+pub(crate) fn generate_decimal(digits: usize) -> String {
   let mut rnd = rand::thread_rng();
   let chars: Vec<char> = DIGIT_CHARSET.chars().collect();
   match digits {
@@ -188,13 +192,13 @@ fn generate_decimal(digits: usize) -> String {
   }
 }
 
-fn generate_hexadecimal(digits: usize) -> String {
+pub(crate) fn generate_hexadecimal(digits: usize) -> String {
   const HEX_CHARSET: &'static str = "0123456789ABCDEF";
   let mut rnd = rand::thread_rng();
   HEX_CHARSET.chars().choose_multiple(&mut rnd, digits).iter().join("")
 }
 
-fn generate_ascii_string(size: usize) -> String {
+pub(crate) fn generate_ascii_string(size: usize) -> String {
   rand::thread_rng().sample_iter(&Alphanumeric).take(size).collect()
 }
 
@@ -286,10 +290,7 @@ impl GenerateValue<String> for Generator {
       } else {
         Err("MockServerURL: can not generate a value as there is no mock server details in the test context".to_string())
       },
-      Generator::ArrayContains(variants) => {
-
-        unimplemented!()
-      }
+      Generator::ArrayContains(_) => Err("can only use ArrayContains with lists".to_string())
     };
     debug!("Generator = {:?}, Generated value = {:?}", self, result);
     result
@@ -302,111 +303,31 @@ impl GenerateValue<Vec<String>> for Generator {
   }
 }
 
-impl GenerateValue<Value> for Generator {
-  fn generate_value(&self, value: &Value, context: &HashMap<&str, Value>) -> Result<Value, String> {
-    debug!("Generating value from {:?} with context {:?}", self, context);
-    let result = match self {
-      Generator::RandomInt(min, max) => {
-        let rand_int = rand::thread_rng().gen_range(min, max.saturating_add(1));
-        match value {
-          Value::String(_) => Ok(json!(format!("{}", rand_int))),
-          Value::Number(_) => Ok(json!(rand_int)),
-          _ => Err(format!("Could not generate a random int from {}", value))
-        }
-      },
-      Generator::Uuid => match value {
-        Value::String(_) => Ok(json!(Uuid::new_v4().simple().to_string())),
-        _ => Err(format!("Could not generate a UUID from {}", value))
-      },
-      Generator::RandomDecimal(digits) => match value {
-        Value::String(_) => Ok(json!(generate_decimal(*digits as usize))),
-        Value::Number(_) => match generate_decimal(*digits as usize).parse::<f64>() {
-          Ok(val) => Ok(json!(val)),
-          Err(err) => Err(format!("Could not generate a random decimal from {} - {}", value, err))
-        },
-        _ => Err(format!("Could not generate a random decimal from {}", value))
-      },
-      Generator::RandomHexadecimal(digits) => match value {
-        Value::String(_) => Ok(json!(generate_hexadecimal(*digits as usize))),
-        _ => Err(format!("Could not generate a random hexadecimal from {}", value))
-      },
-      Generator::RandomString(size) => match value {
-        Value::String(_) => Ok(json!(generate_ascii_string(*size as usize))),
-        _ => Err(format!("Could not generate a random string from {}", value))
-      },
-      Generator::Regex(ref regex) => {
-        let mut parser = regex_syntax::ParserBuilder::new().unicode(false).build();
-        match parser.parse(regex) {
-          Ok(hir) => {
-            let gen = rand_regex::Regex::with_hir(hir, 20).unwrap();
-            Ok(json!(rand::thread_rng().sample::<String, _>(gen)))
-          },
-          Err(err) => {
-            log::warn!("'{}' is not a valid regular expression - {}", regex, err);
-            Err(format!("Could not generate a random string from {} - {}", regex, err))
-          }
-        }
-      },
-      Generator::Date(ref format) => match format {
-        Some(pattern) => match parse_pattern(pattern) {
-          Ok(tokens) => Ok(json!(Local::now().date().format(&to_chrono_pattern(&tokens)).to_string())),
-          Err(err) => {
-            log::warn!("Date format {} is not valid - {}", pattern, err);
-            Err(format!("Could not generate a random date from {} - {}", pattern, err))
-          }
-        },
-        None => Ok(json!(Local::now().naive_local().date().to_string()))
-      },
-      Generator::Time(ref format) => match format {
-        Some(pattern) => match parse_pattern(pattern) {
-          Ok(tokens) => Ok(json!(Local::now().format(&to_chrono_pattern(&tokens)).to_string())),
-          Err(err) => {
-            log::warn!("Time format {} is not valid - {}", pattern, err);
-            Err(format!("Could not generate a random time from {} - {}", pattern, err))
-          }
-        },
-        None => Ok(json!(Local::now().time().format("%H:%M:%S").to_string()))
-      },
-      Generator::DateTime(ref format) => match format {
-        Some(pattern) => match parse_pattern(pattern) {
-          Ok(tokens) => Ok(json!(Local::now().format(&to_chrono_pattern(&tokens)).to_string())),
-          Err(err) => {
-            log::warn!("DateTime format {} is not valid - {}", pattern, err);
-            Err(format!("Could not generate a random date-time from {} - {}", pattern, err))
-          }
-        },
-        None => Ok(json!(Local::now().format("%Y-%m-%dT%H:%M:%S.%3f%z").to_string()))
-      },
-      Generator::RandomBoolean => Ok(json!(rand::thread_rng().gen::<bool>())),
-      Generator::ProviderStateGenerator(ref exp, ref dt) =>
-        match generate_value_from_context(exp, context, dt) {
-          Ok(val) => val.as_json(),
-          Err(err) => Err(err)
-        },
-      Generator::MockServerURL(example, regex) => {
-        debug!("context = {:?}", context);
-        if let Some(mock_server_details) = context.get("mockServer") {
-          match mock_server_details.as_object() {
-            Some(mock_server_details) => {
-              match get_field_as_string("href", mock_server_details) {
-                Some(url) => match Regex::new(regex) {
-                  Ok(re) => Ok(Value::String(re.replace(example, |caps: &Captures| {
-                    format!("{}{}", url, caps.at(1).unwrap())
-                  }))),
-                  Err(err) => Err(format!("MockServerURL: Failed to generate value: {}", err))
-                },
-                None => Err("MockServerURL: can not generate a value as there is no mock server URL in the test context".to_string())
-              }
-            },
-            None => Err("MockServerURL: can not generate a value as the mock server details in the test context is not an Object".to_string())
-          }
-        } else {
-          Err("MockServerURL: can not generate a value as there is no mock server details in the test context".to_string())
-        }
+pub(crate) fn find_matching_variants<T>(
+  values: &Vec<T>,
+  variants: &Vec<(usize, MatchingRuleCategory, Generators)>,
+  callback: &dyn Fn(&Vec<&str>, &T, &MatchingContext) -> bool
+) -> Vec<(usize, T, Generators)>
+  where T: Clone + std::fmt::Debug {
+  permutations(variants, values).iter().filter(|((index, rules, _), value)| {
+    debug!("find_matching_variant: Comparing list item {} with value '{:?}'", index, value);
+    let context = MatchingContext::new(DiffConfig::NoUnexpectedKeys, rules);
+    callback(&vec!["$"], value, &context)
+  }).map(|((index, _, generators), value)| {
+    (*index, value.clone().clone(), generators.clone())
+  }).collect()
+}
+
+fn permutations<'a, A, B>(p0: &'a Vec<A>, p1: &'a Vec<B>) -> Vec<(&'a A, &'a B)> {
+  if p0.is_empty() || p1.is_empty() {
+    vec![]
+  } else {
+    let mut result = vec![];
+    for item1 in p0 {
+      for item2 in p1 {
+        result.push((item1, item2))
       }
-      Generator::ArrayContains(_) => unimplemented!()
-    };
-    debug!("Generated value = {:?}", result);
+    }
     result
   }
 }
@@ -897,7 +818,7 @@ macro_rules! generators {
   }};
 }
 
-fn generate_value_from_context(expression: &str, context: &HashMap<&str, Value>, data_type: &Option<DataType>) -> Result<DataValue, String> {
+pub(crate) fn generate_value_from_context(expression: &str, context: &HashMap<&str, Value>, data_type: &Option<DataType>) -> Result<DataValue, String> {
   let result = if contains_expressions(expression) {
     parse_expression(expression, &MapValueResolver { context: context.clone() })
   } else {
@@ -909,13 +830,16 @@ fn generate_value_from_context(expression: &str, context: &HashMap<&str, Value>,
 
 #[cfg(test)]
 mod tests {
-  use super::*;
-  use expectest::prelude::*;
-  use expectest::expect;
-  use super::Generator;
   use std::str::FromStr;
+
+  use expectest::expect;
+  use expectest::prelude::*;
   use hamcrest2::*;
-  use crate::models::generators::Generator::{RandomInt, RandomDecimal, Regex};
+
+  use crate::models::generators::Generator::{RandomDecimal, RandomInt, Regex};
+
+  use super::*;
+  use super::Generator;
 
   #[test]
   fn rules_are_empty_when_there_are_no_categories() {
