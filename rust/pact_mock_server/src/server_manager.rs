@@ -229,6 +229,7 @@ mod tests {
     use env_logger;
 
     #[test]
+    #[cfg(not(target_os = "windows"))]
     fn manager_should_start_and_shutdown_mock_server() {
         env_logger::try_init().unwrap_or(());
         let mut manager = ServerManager::new();
@@ -252,7 +253,7 @@ mod tests {
         // The tokio runtime is now out of tasks
         drop(manager);
 
-        let millis = time::Duration::from_millis(500);
+        let millis = time::Duration::from_millis(100);
         thread::sleep(millis);
 
         // Server should be down
