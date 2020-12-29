@@ -12,7 +12,7 @@ use std::io::{self, Error, ErrorKind};
 use std::io::prelude::*;
 use std::path::Path;
 use std::str;
-use std::str::{from_utf8, FromStr};
+use std::str::from_utf8;
 
 use base64::{decode, encode};
 use hex::FromHex;
@@ -22,7 +22,6 @@ use lazy_static::*;
 use log::*;
 use maplit::*;
 use onig::Regex;
-use semver::Version;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -35,8 +34,7 @@ use crate::models::provider_states::ProviderState;
 use crate::models::v4::{interaction_from_json, V4Pact, V4Interaction};
 use crate::models::v4::http_parts::{HttpRequest, HttpResponse};
 use std::borrow::Borrow;
-use crate::models::generators::{Generators, GeneratorCategory, Generator};
-use nom::lib::std::collections::hash_map::RandomState;
+use crate::models::generators::{GeneratorCategory, Generator};
 
 pub mod json_utils;
 pub mod xml_utils;

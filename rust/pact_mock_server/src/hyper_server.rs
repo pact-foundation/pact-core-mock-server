@@ -17,7 +17,6 @@ use maplit::*;
 use hyper::server::conn::AddrIncoming;
 use rustls::ServerConfig;
 use crate::mock_server::MockServer;
-use std::cell::RefCell;
 
 #[derive(Debug, Clone)]
 enum InteractionError {

@@ -8,8 +8,6 @@ use pact_matching::models::RequestResponsePact;
 use std::collections::BTreeMap;
 use rustls::ServerConfig;
 use std::net::SocketAddr;
-use std::cell::RefCell;
-use std::ops::Deref;
 use std::sync::{Mutex, Arc};
 
 struct ServerEntry {
@@ -144,7 +142,7 @@ impl ServerManager {
     /// Shut down a server by its id
     pub fn shutdown_mock_server_by_id(&mut self, id: String) -> bool {
       match self.mock_servers.remove(&id) {
-        Some(mut entry) => {
+        Some(entry) => {
           let mut ms = entry.mock_server.lock().unwrap();
           match ms.shutdown() {
             Ok(()) => {
@@ -168,7 +166,7 @@ impl ServerManager {
         .map(|(_id, entry)| entry.mock_server.lock().unwrap().id.clone());
 
       if let Some(id) = result {
-        if let Some(mut entry) = self.mock_servers.remove(&id) {
+        if let Some(entry) = self.mock_servers.remove(&id) {
           let mut ms = entry.mock_server.lock().unwrap();
           return match ms.shutdown() {
             Ok(()) => {

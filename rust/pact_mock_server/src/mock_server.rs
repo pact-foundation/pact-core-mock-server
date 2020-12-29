@@ -20,7 +20,6 @@ use crate::matching::MatchResult;
 use std::cell::RefCell;
 use std::ops::DerefMut;
 use log::*;
-use std::borrow::BorrowMut;
 
 lazy_static! {
   static ref PACT_FILE_MUTEX: Mutex<()> = Mutex::new(());
@@ -172,7 +171,7 @@ impl MockServer {
 
   /// Send the shutdown signal to the server
   pub fn shutdown(&mut self) -> Result<(), String> {
-    let mut shutdown_future = &mut *self.shutdown_tx.borrow_mut();
+    let shutdown_future = &mut *self.shutdown_tx.borrow_mut();
     match shutdown_future.take() {
       Some(sender) => {
         match sender.send(()) {

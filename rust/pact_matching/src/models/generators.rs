@@ -286,7 +286,10 @@ impl GenerateValue<String> for Generator {
       } else {
         Err("MockServerURL: can not generate a value as there is no mock server details in the test context".to_string())
       },
-      Generator::ArrayContains(_) => unimplemented!()
+      Generator::ArrayContains(variants) => {
+
+        unimplemented!()
+      }
     };
     debug!("Generator = {:?}, Generated value = {:?}", self, result);
     result
@@ -489,7 +492,7 @@ impl JsonHandler {
                 Some(map) => match map.get(name) {
                   Some(val) => {
                     let node = tree.new_node(name.clone());
-                    node_cursor.append(node, tree);
+                    node_cursor.append(node, tree).unwrap();
                     body_cursor = val.clone();
                     node_cursor = node;
                   },
@@ -502,7 +505,7 @@ impl JsonHandler {
               match body_cursor.clone().as_array() {
                 Some(list) => if list.len() > index {
                   let node = tree.new_node(format!("{}", index));
-                  node_cursor.append(node, tree);
+                  node_cursor.append(node, tree).unwrap();
                   body_cursor = list[index].clone();
                   node_cursor = node;
                 },
@@ -515,7 +518,7 @@ impl JsonHandler {
                   let remaining = it.by_ref().cloned().collect();
                   for (key, val) in map {
                     let node = tree.new_node(key.clone());
-                    node_cursor.append(node, tree);
+                    node_cursor.append(node, tree).unwrap();
                     body_cursor = val.clone();
                     self.query_object_graph(&remaining, tree, node, val.clone());
                   }
@@ -529,7 +532,7 @@ impl JsonHandler {
                   let remaining = it.by_ref().cloned().collect();
                   for (index, val) in list.iter().enumerate() {
                     let node = tree.new_node(format!("{}", index));
-                    node_cursor.append(node, tree);
+                    node_cursor.append(node, tree).unwrap();
                     body_cursor = val.clone();
                     self.query_object_graph(&remaining, tree, node,val.clone());
                   }
@@ -777,6 +780,7 @@ impl Default for Generators {
   }
 }
 
+/// If the mode applies, invoke the callback for each of the generators
 pub fn apply_generators<F>(
   mode: &GeneratorTestMode,
   generators: &HashMap<String, Generator>,
@@ -789,6 +793,7 @@ pub fn apply_generators<F>(
   }
 }
 
+/// Apply the generators to the body, returning a new body
 pub fn apply_body_generators(
   mode: &GeneratorTestMode,
   body: &OptionalBody,

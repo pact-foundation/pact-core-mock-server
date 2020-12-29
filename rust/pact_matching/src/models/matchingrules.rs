@@ -19,7 +19,7 @@ use crate::path_exp::*;
 use super::PactSpecification;
 use nom::lib::std::cmp::Ordering;
 use crate::binary_utils::match_content_type;
-use crate::models::generators::{Generators, GeneratorCategory, Generator, GeneratorTestMode, GenerateValue};
+use crate::models::generators::{Generators, GeneratorCategory, Generator};
 
 #[cfg(test)]
 use expectest::prelude::*;
