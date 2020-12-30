@@ -74,6 +74,14 @@ use crate::handles::InteractionPart;
 pub mod handles;
 pub mod bodies;
 
+const VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "\0");
+
+/// Get the current library version
+#[no_mangle]
+pub extern "C" fn version() -> *const c_char {
+  VERSION.as_ptr() as *const c_char
+}
+
 /// Initialise the mock server library, can provide an environment variable name to use to
 /// set the log levels.
 ///
