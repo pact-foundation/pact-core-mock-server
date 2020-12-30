@@ -1,37 +1,41 @@
 //! `generators` module includes all the classes to deal with V3 format generators
 
-use std::{
-  collections::HashMap,
-  hash::{Hash, Hasher},
-  str::FromStr,
-  ops::Index
-};
-use serde::{Serialize, Deserialize};
-use serde_json::{self, Value, json};
-use maplit::*;
-use super::PactSpecification;
-use rand::prelude::*;
-use rand::distributions::Alphanumeric;
-use rand::seq::SliceRandom;
-use uuid::Uuid;
-use crate::models::OptionalBody;
-use crate::models::json_utils::{JsonToNum, json_to_string, get_field_as_string};
-use crate::models::xml_utils::parse_bytes;
-use sxd_document::dom::Document;
-use crate::path_exp::*;
-use itertools::Itertools;
-use indextree::{Arena, NodeId};
-use chrono::prelude::*;
-use crate::time_utils::{parse_pattern, to_chrono_pattern};
-use regex_syntax;
-use crate::models::content_types::ContentType;
-use crate::models::expression_parser::{contains_expressions, DataType, DataValue, parse_expression, MapValueResolver};
+use std::{collections::HashMap, hash::{Hash, Hasher}, ops::Index, str::FromStr, mem};
 use std::convert::TryFrom;
-use log::trace;
-use onig::{Regex, Captures};
+
+use chrono::prelude::*;
+use indextree::{Arena, NodeId};
+use itertools::Itertools;
+use log::*;
+use maplit::*;
+use onig::{Captures, Regex};
+use rand::distributions::Alphanumeric;
+use rand::prelude::*;
+use rand::seq::SliceRandom;
+use serde::{Deserialize, Serialize};
+use serde_json::{self, json, Value};
+use sxd_document::dom::Document;
+use uuid::Uuid;
+
+use crate::{DiffConfig, MatchingContext};
+use crate::models::content_types::ContentType;
+use crate::models::expression_parser::{contains_expressions, DataType, DataValue, MapValueResolver, parse_expression};
+use crate::models::json_utils::{get_field_as_string, json_to_string, JsonToNum};
+use crate::models::matchingrules::MatchingRuleCategory;
+use crate::models::OptionalBody;
+use crate::models::xml_utils::parse_bytes;
+use crate::path_exp::*;
+use crate::time_utils::{parse_pattern, to_chrono_pattern};
+
+use super::PactSpecification;
+
+#[cfg(test)]
+use expectest::prelude::*;
+#[cfg(test)]
+use std::collections::hash_map::DefaultHasher;
 
 /// Trait to represent a generator
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq)]
 pub enum Generator {
   /// Generates a random integer between the min and max values
   RandomInt(i32, i32),
@@ -56,40 +60,43 @@ pub enum Generator {
   /// Generates a value that is looked up from the provider state context
   ProviderStateGenerator(String, Option<DataType>),
   /// Generates a URL with the mock server as the base URL
-  MockServerURL(String, String)
+  MockServerURL(String, String),
+  /// List of variants which can have embedded generators
+  ArrayContains(Vec<(usize, MatchingRuleCategory, HashMap<String, Generator>)>)
 }
 
 impl Generator {
   /// Convert this generator to a JSON struct
-  pub fn to_json(&self) -> Value {
+  pub fn to_json(&self) -> Option<Value> {
     match self {
-      Generator::RandomInt(min, max) => json!({ "type": "RandomInt", "min": min, "max": max }),
-      Generator::Uuid => json!({ "type": "Uuid" }),
-      Generator::RandomDecimal(digits) => json!({ "type": "RandomDecimal", "digits": digits }),
-      Generator::RandomHexadecimal(digits) => json!({ "type": "RandomHexadecimal", "digits": digits }),
-      Generator::RandomString(size) => json!({ "type": "RandomString", "size": size }),
-      Generator::Regex(ref regex) => json!({ "type": "Regex", "regex": regex }),
+      Generator::RandomInt(min, max) => Some(json!({ "type": "RandomInt", "min": min, "max": max })),
+      Generator::Uuid => Some(json!({ "type": "Uuid" })),
+      Generator::RandomDecimal(digits) => Some(json!({ "type": "RandomDecimal", "digits": digits })),
+      Generator::RandomHexadecimal(digits) => Some(json!({ "type": "RandomHexadecimal", "digits": digits })),
+      Generator::RandomString(size) => Some(json!({ "type": "RandomString", "size": size })),
+      Generator::Regex(ref regex) => Some(json!({ "type": "Regex", "regex": regex })),
       Generator::Date(ref format) => match format {
-        Some(ref format) => json!({ "type": "Date", "format": format }),
-        None => json!({ "type": "Date" })
+        Some(ref format) => Some(json!({ "type": "Date", "format": format })),
+        None => Some(json!({ "type": "Date" }))
       },
       Generator::Time(ref format) => match format {
-        Some(ref format) => json!({ "type": "Time", "format": format }),
-        None => json!({ "type": "Time" })
+        Some(ref format) => Some(json!({ "type": "Time", "format": format })),
+        None => Some(json!({ "type": "Time" }))
       },
       Generator::DateTime(ref format) => match format {
-        Some(ref format) => json!({ "type": "DateTime", "format": format }),
-        None => json!({ "type": "DateTime" })
+        Some(ref format) => Some(json!({ "type": "DateTime", "format": format })),
+        None => Some(json!({ "type": "DateTime" }))
       },
-      Generator::RandomBoolean => json!({ "type": "RandomBoolean" }),
+      Generator::RandomBoolean => Some(json!({ "type": "RandomBoolean" })),
       Generator::ProviderStateGenerator(ref expression, ref data_type) => {
         if let Some(data_type) = data_type {
-          json!({"type": "ProviderState", "expression": expression, "dataType": data_type})
+          Some(json!({"type": "ProviderState", "expression": expression, "dataType": data_type}))
         } else {
-          json!({"type": "ProviderState", "expression": expression})
+          Some(json!({"type": "ProviderState", "expression": expression}))
         }
       }
-      Generator::MockServerURL(example, regex) => json!({ "type": "MockServerURL", "example": example, "regex": regex }),
+      Generator::MockServerURL(example, regex) => Some(json!({ "type": "MockServerURL", "example": example, "regex": regex })),
+      _ => None
     }
   }
 
@@ -113,7 +120,7 @@ impl Generator {
       "ProviderState" => map.get("expression").map(|f|
         Generator::ProviderStateGenerator(json_to_string(f), map.get("dataType")
           .map(|dt| DataType::from(dt.clone())))),
-      "MockServerURL" => Some(Generator::MockServerURL(get_field_as_string("example", map).unwrap_or_default(),
+      "MockServerURL" => Some(Generator::MockServerURL(get_field_as_string("value", map).unwrap_or_default(),
                                                        get_field_as_string("regex", map).unwrap_or_default())),
       _ => {
         log::warn!("'{}' is not a valid generator type", gen_type);
@@ -122,7 +129,8 @@ impl Generator {
     }
   }
 
-  pub(crate) fn corresponds_to_mode(&self, mode: &GeneratorTestMode) -> bool {
+  /// If this generator is compatible with the given generator mode
+  fn corresponds_to_mode(&self, mode: &GeneratorTestMode) -> bool {
     match self {
       Generator::ProviderStateGenerator(_, _) => mode == &GeneratorTestMode::Provider,
       Generator::MockServerURL(_, _) => mode == &GeneratorTestMode::Consumer,
@@ -131,7 +139,281 @@ impl Generator {
   }
 }
 
-/// Trait that represents generation of a value based on a source value.
+impl Hash for Generator {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    mem::discriminant(self).hash(state);
+    match self {
+      Generator::RandomInt(min, max) => {
+        min.hash(state);
+        max.hash(state);
+      },
+      Generator::RandomDecimal(digits) => digits.hash(state),
+      Generator::RandomHexadecimal(digits) => digits.hash(state),
+      Generator::RandomString(size) => size.hash(state),
+      Generator::Regex(re) => re.hash(state),
+      Generator::DateTime(format) => format.hash(state),
+      Generator::Time(format) => format.hash(state),
+      Generator::Date(format) => format.hash(state),
+      Generator::ProviderStateGenerator(str, datatype) => {
+        str.hash(state);
+        datatype.hash(state);
+      },
+      Generator::MockServerURL(str1, str2) => {
+        str1.hash(state);
+        str2.hash(state);
+      },
+      Generator::ArrayContains(variants) => {
+        for (index, rules, generators) in variants {
+          index.hash(state);
+          rules.hash(state);
+          for (s, g) in generators {
+            s.hash(state);
+            g.hash(state);
+          }
+        }
+      }
+      _ => ()
+    }
+  }
+}
+
+impl PartialEq for Generator {
+  fn eq(&self, other: &Self) -> bool {
+    match (self, other) {
+      (Generator::RandomInt(min1, max1), Generator::RandomInt(min2, max2)) => min1 == min2 && max1 == max2,
+      (Generator::RandomDecimal(digits1), Generator::RandomDecimal(digits2)) => digits1 == digits2,
+      (Generator::RandomHexadecimal(digits1), Generator::RandomHexadecimal(digits2)) => digits1 == digits2,
+      (Generator::RandomString(size1), Generator::RandomString(size2)) => size1 == size2,
+      (Generator::Regex(re1), Generator::Regex(re2)) => re1 == re2,
+      (Generator::DateTime(format1), Generator::DateTime(format2)) => format1 == format2,
+      (Generator::Time(format1), Generator::Time(format2)) => format1 == format2,
+      (Generator::Date(format1), Generator::Date(format2)) => format1 == format2,
+      (Generator::ProviderStateGenerator(str1, data1), Generator::ProviderStateGenerator(str2, data2)) => str1 == str2 && data1 == data2,
+      (Generator::MockServerURL(ex1, re1), Generator::MockServerURL(ex2, re2)) => ex1 == ex2 && re1 == re2,
+      (Generator::ArrayContains(variants1), Generator::ArrayContains(variants2)) => variants1 == variants2,
+      _ => mem::discriminant(self) == mem::discriminant(other)
+    }
+  }
+}
+
+#[cfg(test)]
+fn h(rule: &Generator) -> u64 {
+  let mut hasher = DefaultHasher::new();
+  rule.hash(&mut hasher);
+  hasher.finish()
+}
+
+#[test]
+fn hash_and_partial_eq_for_matching_rule() {
+  expect!(h(&Generator::Uuid)).to(be_equal_to(h(&Generator::Uuid)));
+  expect!(Generator::Uuid).to(be_equal_to(Generator::Uuid));
+  expect!(Generator::Uuid).to_not(be_equal_to(Generator::RandomBoolean));
+
+  expect!(h(&Generator::RandomBoolean)).to(be_equal_to(h(&Generator::RandomBoolean)));
+  expect!(Generator::RandomBoolean).to(be_equal_to(Generator::RandomBoolean));
+
+  let randint1 = Generator::RandomInt(100, 200);
+  let randint2 = Generator::RandomInt(200, 200);
+
+  expect!(h(&randint1)).to(be_equal_to(h(&randint1)));
+  expect!(&randint1).to(be_equal_to(&randint1));
+  expect!(h(&randint1)).to_not(be_equal_to(h(&randint2)));
+  expect!(&randint1).to_not(be_equal_to(&randint2));
+
+  let dec1 = Generator::RandomDecimal(100);
+  let dec2 = Generator::RandomDecimal(200);
+
+  expect!(h(&dec1)).to(be_equal_to(h(&dec1)));
+  expect!(&dec1).to(be_equal_to(&dec1));
+  expect!(h(&dec1)).to_not(be_equal_to(h(&dec2)));
+  expect!(&dec1).to_not(be_equal_to(&dec2));
+
+  let hexdec1 = Generator::RandomHexadecimal(100);
+  let hexdec2 = Generator::RandomHexadecimal(200);
+
+  expect!(h(&hexdec1)).to(be_equal_to(h(&hexdec1)));
+  expect!(&hexdec1).to(be_equal_to(&hexdec1));
+  expect!(h(&hexdec1)).to_not(be_equal_to(h(&hexdec2)));
+  expect!(&hexdec1).to_not(be_equal_to(&hexdec2));
+
+  let str1 = Generator::RandomString(100);
+  let str2 = Generator::RandomString(200);
+
+  expect!(h(&str1)).to(be_equal_to(h(&str1)));
+  expect!(&str1).to(be_equal_to(&str1));
+  expect!(h(&str1)).to_not(be_equal_to(h(&str2)));
+  expect!(&str1).to_not(be_equal_to(&str2));
+
+  let regex1 = Generator::Regex("\\d+".into());
+  let regex2 = Generator::Regex("\\w+".into());
+
+  expect!(h(&regex1)).to(be_equal_to(h(&regex1)));
+  expect!(&regex1).to(be_equal_to(&regex1));
+  expect!(h(&regex1)).to_not(be_equal_to(h(&regex2)));
+  expect!(&regex1).to_not(be_equal_to(&regex2));
+
+  let datetime1 = Generator::DateTime(Some("yyyy-MM-dd HH:mm:ss".into()));
+  let datetime2 = Generator::DateTime(Some("yyyy-MM-ddTHH:mm:ss".into()));
+
+  expect!(h(&datetime1)).to(be_equal_to(h(&datetime1)));
+  expect!(&datetime1).to(be_equal_to(&datetime1));
+  expect!(h(&datetime1)).to_not(be_equal_to(h(&datetime2)));
+  expect!(&datetime1).to_not(be_equal_to(&datetime2));
+
+  let date1 = Generator::Date(Some("yyyy-MM-dd".into()));
+  let date2 = Generator::Date(Some("yy-MM-dd".into()));
+
+  expect!(h(&date1)).to(be_equal_to(h(&date1)));
+  expect!(&date1).to(be_equal_to(&date1));
+  expect!(h(&date1)).to_not(be_equal_to(h(&date2)));
+  expect!(&date1).to_not(be_equal_to(&date2));
+
+  let time1 = Generator::Time(Some("HH:mm:ss".into()));
+  let time2 = Generator::Time(Some("hh:mm:ss".into()));
+
+  expect!(h(&time1)).to(be_equal_to(h(&time1)));
+  expect!(&time1).to(be_equal_to(&time1));
+  expect!(h(&time1)).to_not(be_equal_to(h(&time2)));
+  expect!(&time1).to_not(be_equal_to(&time2));
+
+  let psg1 = Generator::ProviderStateGenerator("string one".into(), Some(DataType::BOOLEAN));
+  let psg2 = Generator::ProviderStateGenerator("string two".into(), None);
+  let psg3 = Generator::ProviderStateGenerator("string one".into(), None);
+
+  expect!(h(&psg1)).to(be_equal_to(h(&psg1)));
+  expect!(&psg1).to(be_equal_to(&psg1));
+  expect!(h(&psg1)).to_not(be_equal_to(h(&psg2)));
+  expect!(h(&psg1)).to_not(be_equal_to(h(&psg3)));
+  expect!(&psg1).to_not(be_equal_to(&psg2));
+  expect!(&psg1).to_not(be_equal_to(&psg3));
+
+  let msu1 = Generator::MockServerURL("string one".into(), "\\d+".into());
+  let msu2 = Generator::MockServerURL("string two".into(), "\\d+".into());
+  let msu3 = Generator::MockServerURL("string one".into(), "\\w+".into());
+
+  expect!(h(&msu1)).to(be_equal_to(h(&msu1)));
+  expect!(&msu1).to(be_equal_to(&msu1));
+  expect!(h(&msu1)).to_not(be_equal_to(h(&msu2)));
+  expect!(h(&msu1)).to_not(be_equal_to(h(&msu3)));
+  expect!(&msu1).to_not(be_equal_to(&msu2));
+  expect!(&msu1).to_not(be_equal_to(&msu3));
+
+  let ac1 = Generator::ArrayContains(vec![]);
+  let ac2 = Generator::ArrayContains(vec![(0, MatchingRuleCategory::empty("body"), hashmap!{})]);
+  let ac3 = Generator::ArrayContains(vec![(1, MatchingRuleCategory::empty("body"), hashmap!{})]);
+  let ac4 = Generator::ArrayContains(vec![(0, MatchingRuleCategory::equality("body"), hashmap!{})]);
+  let ac5 = Generator::ArrayContains(vec![(0, MatchingRuleCategory::empty("body"), hashmap!{ "A".to_string() => Generator::RandomBoolean })]);
+  let ac6 = Generator::ArrayContains(vec![
+    (0, MatchingRuleCategory::empty("body"), hashmap!{ "A".to_string() => Generator::RandomBoolean }),
+    (1, MatchingRuleCategory::empty("body"), hashmap!{ "A".to_string() => Generator::RandomDecimal(10) })
+  ]);
+  let ac7 = Generator::ArrayContains(vec![
+    (0, MatchingRuleCategory::empty("body"), hashmap!{ "A".to_string() => Generator::RandomBoolean }),
+    (1, MatchingRuleCategory::equality("body"), hashmap!{ "A".to_string() => Generator::RandomDecimal(10) })
+  ]);
+
+  expect!(h(&ac1)).to(be_equal_to(h(&ac1)));
+  expect!(h(&ac1)).to_not(be_equal_to(h(&ac2)));
+  expect!(h(&ac1)).to_not(be_equal_to(h(&ac3)));
+  expect!(h(&ac1)).to_not(be_equal_to(h(&ac4)));
+  expect!(h(&ac1)).to_not(be_equal_to(h(&ac5)));
+  expect!(h(&ac1)).to_not(be_equal_to(h(&ac6)));
+  expect!(h(&ac1)).to_not(be_equal_to(h(&ac7)));
+  expect!(h(&ac2)).to(be_equal_to(h(&ac2)));
+  expect!(h(&ac2)).to_not(be_equal_to(h(&ac1)));
+  expect!(h(&ac2)).to_not(be_equal_to(h(&ac3)));
+  expect!(h(&ac2)).to_not(be_equal_to(h(&ac4)));
+  expect!(h(&ac2)).to_not(be_equal_to(h(&ac5)));
+  expect!(h(&ac2)).to_not(be_equal_to(h(&ac6)));
+  expect!(h(&ac2)).to_not(be_equal_to(h(&ac7)));
+  expect!(h(&ac3)).to(be_equal_to(h(&ac3)));
+  expect!(h(&ac3)).to_not(be_equal_to(h(&ac2)));
+  expect!(h(&ac3)).to_not(be_equal_to(h(&ac1)));
+  expect!(h(&ac3)).to_not(be_equal_to(h(&ac4)));
+  expect!(h(&ac3)).to_not(be_equal_to(h(&ac5)));
+  expect!(h(&ac3)).to_not(be_equal_to(h(&ac6)));
+  expect!(h(&ac3)).to_not(be_equal_to(h(&ac7)));
+  expect!(h(&ac4)).to(be_equal_to(h(&ac4)));
+  expect!(h(&ac4)).to_not(be_equal_to(h(&ac2)));
+  expect!(h(&ac4)).to_not(be_equal_to(h(&ac3)));
+  expect!(h(&ac4)).to_not(be_equal_to(h(&ac1)));
+  expect!(h(&ac4)).to_not(be_equal_to(h(&ac5)));
+  expect!(h(&ac4)).to_not(be_equal_to(h(&ac6)));
+  expect!(h(&ac4)).to_not(be_equal_to(h(&ac7)));
+  expect!(h(&ac5)).to(be_equal_to(h(&ac5)));
+  expect!(h(&ac5)).to_not(be_equal_to(h(&ac2)));
+  expect!(h(&ac5)).to_not(be_equal_to(h(&ac3)));
+  expect!(h(&ac5)).to_not(be_equal_to(h(&ac4)));
+  expect!(h(&ac5)).to_not(be_equal_to(h(&ac1)));
+  expect!(h(&ac5)).to_not(be_equal_to(h(&ac6)));
+  expect!(h(&ac5)).to_not(be_equal_to(h(&ac7)));
+  expect!(h(&ac6)).to(be_equal_to(h(&ac6)));
+  expect!(h(&ac6)).to_not(be_equal_to(h(&ac2)));
+  expect!(h(&ac6)).to_not(be_equal_to(h(&ac3)));
+  expect!(h(&ac6)).to_not(be_equal_to(h(&ac4)));
+  expect!(h(&ac6)).to_not(be_equal_to(h(&ac5)));
+  expect!(h(&ac6)).to_not(be_equal_to(h(&ac1)));
+  expect!(h(&ac6)).to_not(be_equal_to(h(&ac7)));
+  expect!(h(&ac7)).to(be_equal_to(h(&ac7)));
+  expect!(h(&ac7)).to_not(be_equal_to(h(&ac2)));
+  expect!(h(&ac7)).to_not(be_equal_to(h(&ac3)));
+  expect!(h(&ac7)).to_not(be_equal_to(h(&ac4)));
+  expect!(h(&ac7)).to_not(be_equal_to(h(&ac5)));
+  expect!(h(&ac7)).to_not(be_equal_to(h(&ac6)));
+  expect!(h(&ac7)).to_not(be_equal_to(h(&ac1)));
+
+  expect!(&ac1).to(be_equal_to(&ac1));
+  expect!(&ac1).to_not(be_equal_to(&ac2));
+  expect!(&ac1).to_not(be_equal_to(&ac3));
+  expect!(&ac1).to_not(be_equal_to(&ac4));
+  expect!(&ac1).to_not(be_equal_to(&ac5));
+  expect!(&ac1).to_not(be_equal_to(&ac6));
+  expect!(&ac1).to_not(be_equal_to(&ac7));
+  expect!(&ac2).to(be_equal_to(&ac2));
+  expect!(&ac2).to_not(be_equal_to(&ac1));
+  expect!(&ac2).to_not(be_equal_to(&ac3));
+  expect!(&ac2).to_not(be_equal_to(&ac4));
+  expect!(&ac2).to_not(be_equal_to(&ac5));
+  expect!(&ac2).to_not(be_equal_to(&ac6));
+  expect!(&ac2).to_not(be_equal_to(&ac7));
+  expect!(&ac3).to(be_equal_to(&ac3));
+  expect!(&ac3).to_not(be_equal_to(&ac2));
+  expect!(&ac3).to_not(be_equal_to(&ac1));
+  expect!(&ac3).to_not(be_equal_to(&ac4));
+  expect!(&ac3).to_not(be_equal_to(&ac5));
+  expect!(&ac3).to_not(be_equal_to(&ac6));
+  expect!(&ac3).to_not(be_equal_to(&ac7));
+  expect!(&ac4).to(be_equal_to(&ac4));
+  expect!(&ac4).to_not(be_equal_to(&ac2));
+  expect!(&ac4).to_not(be_equal_to(&ac3));
+  expect!(&ac4).to_not(be_equal_to(&ac1));
+  expect!(&ac4).to_not(be_equal_to(&ac5));
+  expect!(&ac4).to_not(be_equal_to(&ac6));
+  expect!(&ac4).to_not(be_equal_to(&ac7));
+  expect!(&ac5).to(be_equal_to(&ac5));
+  expect!(&ac5).to_not(be_equal_to(&ac2));
+  expect!(&ac5).to_not(be_equal_to(&ac3));
+  expect!(&ac5).to_not(be_equal_to(&ac4));
+  expect!(&ac5).to_not(be_equal_to(&ac1));
+  expect!(&ac5).to_not(be_equal_to(&ac6));
+  expect!(&ac5).to_not(be_equal_to(&ac7));
+  expect!(&ac6).to(be_equal_to(&ac6));
+  expect!(&ac6).to_not(be_equal_to(&ac2));
+  expect!(&ac6).to_not(be_equal_to(&ac3));
+  expect!(&ac6).to_not(be_equal_to(&ac4));
+  expect!(&ac6).to_not(be_equal_to(&ac5));
+  expect!(&ac6).to_not(be_equal_to(&ac1));
+  expect!(&ac6).to_not(be_equal_to(&ac7));
+  expect!(&ac7).to(be_equal_to(&ac7));
+  expect!(&ac7).to_not(be_equal_to(&ac2));
+  expect!(&ac7).to_not(be_equal_to(&ac3));
+  expect!(&ac7).to_not(be_equal_to(&ac4));
+  expect!(&ac7).to_not(be_equal_to(&ac5));
+  expect!(&ac7).to_not(be_equal_to(&ac6));
+  expect!(&ac7).to_not(be_equal_to(&ac1));
+}
+
+/// Trait for something that can generate a value based on a source value.
 pub trait GenerateValue<T> {
   /// Generates a new value based on the source value. An error will be returned if the value can not
   /// be generated.
@@ -152,8 +434,8 @@ impl GenerateValue<u16> for Generator {
   }
 }
 
-const DIGIT_CHARSET: &'static str = "0123456789";
-fn generate_decimal(digits: usize) -> String {
+const DIGIT_CHARSET: &str = "0123456789";
+pub(crate) fn generate_decimal(digits: usize) -> String {
   let mut rnd = rand::thread_rng();
   let chars: Vec<char> = DIGIT_CHARSET.chars().collect();
   match digits {
@@ -183,13 +465,13 @@ fn generate_decimal(digits: usize) -> String {
   }
 }
 
-fn generate_hexadecimal(digits: usize) -> String {
-  const HEX_CHARSET: &'static str = "0123456789ABCDEF";
+const HEX_CHARSET: &str = "0123456789ABCDEF";
+pub(crate) fn generate_hexadecimal(digits: usize) -> String {
   let mut rnd = rand::thread_rng();
   HEX_CHARSET.chars().choose_multiple(&mut rnd, digits).iter().join("")
 }
 
-fn generate_ascii_string(size: usize) -> String {
+pub(crate) fn generate_ascii_string(size: usize) -> String {
   rand::thread_rng().sample_iter(&Alphanumeric).take(size).collect()
 }
 
@@ -202,7 +484,7 @@ fn strip_anchors(regex: &str) -> &str {
 impl GenerateValue<String> for Generator {
   fn generate_value(&self, _: &String, context: &HashMap<&str, Value>) -> Result<String, String> {
     let mut rnd = rand::thread_rng();
-    match self {
+    let result = match self {
       Generator::RandomInt(min, max) => Ok(format!("{}", rnd.gen_range(min, max.saturating_add(1)))),
       Generator::Uuid => Ok(Uuid::new_v4().hyphenated().to_string()),
       Generator::RandomDecimal(digits) => Ok(generate_decimal(*digits as usize)),
@@ -263,6 +545,7 @@ impl GenerateValue<String> for Generator {
           Err(err) => Err(err)
         },
       Generator::MockServerURL(example, regex) => if let Some(mock_server_details) = context.get("mockServer") {
+        debug!("Generating URL from Mock Server details");
         match mock_server_details.as_object() {
           Some(mock_server_details) => {
             match get_field_as_string("url", mock_server_details) {
@@ -279,8 +562,11 @@ impl GenerateValue<String> for Generator {
         }
       } else {
         Err("MockServerURL: can not generate a value as there is no mock server details in the test context".to_string())
-      }
-    }
+      },
+      Generator::ArrayContains(_) => Err("can only use ArrayContains with lists".to_string())
+    };
+    debug!("Generator = {:?}, Generated value = {:?}", self, result);
+    result
   }
 }
 
@@ -290,106 +576,22 @@ impl GenerateValue<Vec<String>> for Generator {
   }
 }
 
-impl GenerateValue<Value> for Generator {
-  fn generate_value(&self, value: &Value, context: &HashMap<&str, Value>) -> Result<Value, String> {
-    match self {
-      Generator::RandomInt(min, max) => {
-        let rand_int = rand::thread_rng().gen_range(min, max.saturating_add(1));
-        match value {
-          Value::String(_) => Ok(json!(format!("{}", rand_int))),
-          Value::Number(_) => Ok(json!(rand_int)),
-          _ => Err(format!("Could not generate a random int from {}", value))
-        }
-      },
-      Generator::Uuid => match value {
-        Value::String(_) => Ok(json!(Uuid::new_v4().simple().to_string())),
-        _ => Err(format!("Could not generate a UUID from {}", value))
-      },
-      Generator::RandomDecimal(digits) => match value {
-        Value::String(_) => Ok(json!(generate_decimal(*digits as usize))),
-        Value::Number(_) => match generate_decimal(*digits as usize).parse::<f64>() {
-          Ok(val) => Ok(json!(val)),
-          Err(err) => Err(format!("Could not generate a random decimal from {} - {}", value, err))
-        },
-        _ => Err(format!("Could not generate a random decimal from {}", value))
-      },
-      Generator::RandomHexadecimal(digits) => match value {
-        Value::String(_) => Ok(json!(generate_hexadecimal(*digits as usize))),
-        _ => Err(format!("Could not generate a random hexadecimal from {}", value))
-      },
-      Generator::RandomString(size) => match value {
-        Value::String(_) => Ok(json!(generate_ascii_string(*size as usize))),
-        _ => Err(format!("Could not generate a random string from {}", value))
-      },
-      Generator::Regex(ref regex) => {
-        let mut parser = regex_syntax::ParserBuilder::new().unicode(false).build();
-        match parser.parse(regex) {
-          Ok(hir) => {
-            let gen = rand_regex::Regex::with_hir(hir, 20).unwrap();
-            Ok(json!(rand::thread_rng().sample::<String, _>(gen)))
-          },
-          Err(err) => {
-            log::warn!("'{}' is not a valid regular expression - {}", regex, err);
-            Err(format!("Could not generate a random string from {} - {}", regex, err))
-          }
-        }
-      },
-      Generator::Date(ref format) => match format {
-        Some(pattern) => match parse_pattern(pattern) {
-          Ok(tokens) => Ok(json!(Local::now().date().format(&to_chrono_pattern(&tokens)).to_string())),
-          Err(err) => {
-            log::warn!("Date format {} is not valid - {}", pattern, err);
-            Err(format!("Could not generate a random date from {} - {}", pattern, err))
-          }
-        },
-        None => Ok(json!(Local::now().naive_local().date().to_string()))
-      },
-      Generator::Time(ref format) => match format {
-        Some(pattern) => match parse_pattern(pattern) {
-          Ok(tokens) => Ok(json!(Local::now().format(&to_chrono_pattern(&tokens)).to_string())),
-          Err(err) => {
-            log::warn!("Time format {} is not valid - {}", pattern, err);
-            Err(format!("Could not generate a random time from {} - {}", pattern, err))
-          }
-        },
-        None => Ok(json!(Local::now().time().format("%H:%M:%S").to_string()))
-      },
-      Generator::DateTime(ref format) => match format {
-        Some(pattern) => match parse_pattern(pattern) {
-          Ok(tokens) => Ok(json!(Local::now().format(&to_chrono_pattern(&tokens)).to_string())),
-          Err(err) => {
-            log::warn!("DateTime format {} is not valid - {}", pattern, err);
-            Err(format!("Could not generate a random date-time from {} - {}", pattern, err))
-          }
-        },
-        None => Ok(json!(Local::now().format("%Y-%m-%dT%H:%M:%S.%3f%z").to_string()))
-      },
-      Generator::RandomBoolean => Ok(json!(rand::thread_rng().gen::<bool>())),
-      Generator::ProviderStateGenerator(ref exp, ref dt) =>
-        match generate_value_from_context(exp, context, dt) {
-          Ok(val) => val.as_json(),
-          Err(err) => Err(err)
-        },
-      Generator::MockServerURL(example, regex) => if let Some(mock_server_details) = context.get("mockServer") {
-        match mock_server_details.as_object() {
-          Some(mock_server_details) => {
-            match get_field_as_string("url", mock_server_details) {
-              Some(url) => match Regex::new(regex) {
-                Ok(re) => Ok(Value::String(re.replace(example, |caps: &Captures| {
-                  format!("{}{}", url, caps.at(1).unwrap())
-                }))),
-                Err(err) => Err(format!("MockServerURL: Failed to generate value: {}", err))
-              },
-              None => Err("MockServerURL: can not generate a value as there is no mock server URL in the test context".to_string())
-            }
-          },
-          None => Err("MockServerURL: can not generate a value as there is no mock server details in the test context".to_string())
-        }
-      } else {
-        Err("MockServerURL: can not generate a value as there is no mock server details in the test context".to_string())
-      }
-    }
-  }
+pub(crate) fn find_matching_variant<T>(
+  value: &T,
+  variants: &Vec<(usize, MatchingRuleCategory, HashMap<String, Generator>)>,
+  callback: &dyn Fn(&Vec<&str>, &T, &MatchingContext) -> bool
+) -> Option<(usize, HashMap<String, Generator>)>
+  where T: Clone + std::fmt::Debug {
+  let result = variants.iter()
+    .find(|(index, rules, _)| {
+      debug!("find_matching_variant: Comparing variant {} with value '{:?}'", index, value);
+      let context = MatchingContext::new(DiffConfig::NoUnexpectedKeys, rules);
+      let matches = callback(&vec!["$"], value, &context);
+      debug!("find_matching_variant: Comparing variant {} => {}", index, matches);
+      matches
+    });
+  debug!("find_matching_variant: result = {:?}", result);
+  result.map(|(index, _, generators)| (*index, generators.clone()))
 }
 
 /// Category that the generator is applied to
@@ -450,7 +652,7 @@ pub trait ContentTypeHandler<T> {
   /// Processes the body using the map of generators, returning a (possibly) updated body.
   fn process_body(&mut self, generators: &HashMap<String, Generator>, mode: &GeneratorTestMode, context: &HashMap<&str, Value>) -> OptionalBody;
   /// Applies the generator to the key in the body.
-  fn apply_key(&mut self, key: &String, generator: &Generator, context: &HashMap<&str, Value>);
+  fn apply_key(&mut self, key: &String, generator: &dyn GenerateValue<T>, context: &HashMap<&str, Value>);
 }
 
 /// Implementation of a content type handler for JSON
@@ -473,7 +675,7 @@ impl JsonHandler {
                 Some(map) => match map.get(name) {
                   Some(val) => {
                     let node = tree.new_node(name.clone());
-                    node_cursor.append(node, tree);
+                    node_cursor.append(node, tree).unwrap();
                     body_cursor = val.clone();
                     node_cursor = node;
                   },
@@ -486,7 +688,7 @@ impl JsonHandler {
               match body_cursor.clone().as_array() {
                 Some(list) => if list.len() > index {
                   let node = tree.new_node(format!("{}", index));
-                  node_cursor.append(node, tree);
+                  node_cursor.append(node, tree).unwrap();
                   body_cursor = list[index].clone();
                   node_cursor = node;
                 },
@@ -499,7 +701,7 @@ impl JsonHandler {
                   let remaining = it.by_ref().cloned().collect();
                   for (key, val) in map {
                     let node = tree.new_node(key.clone());
-                    node_cursor.append(node, tree);
+                    node_cursor.append(node, tree).unwrap();
                     body_cursor = val.clone();
                     self.query_object_graph(&remaining, tree, node, val.clone());
                   }
@@ -513,7 +715,7 @@ impl JsonHandler {
                   let remaining = it.by_ref().cloned().collect();
                   for (index, val) in list.iter().enumerate() {
                     let node = tree.new_node(format!("{}", index));
-                    node_cursor.append(node, tree);
+                    node_cursor.append(node, tree).unwrap();
                     body_cursor = val.clone();
                     self.query_object_graph(&remaining, tree, node,val.clone());
                   }
@@ -531,7 +733,12 @@ impl JsonHandler {
 }
 
 impl ContentTypeHandler<Value> for JsonHandler {
-  fn process_body(&mut self, generators: &HashMap<String, Generator>, mode: &GeneratorTestMode, context: &HashMap<&str, Value>) -> OptionalBody {
+  fn process_body(
+    &mut self,
+    generators: &HashMap<String, Generator>,
+    mode: &GeneratorTestMode,
+    context: &HashMap<&str, Value>
+  ) -> OptionalBody {
     for (key, generator) in generators {
       if generator.corresponds_to_mode(mode) {
         self.apply_key(key, generator, context);
@@ -540,7 +747,7 @@ impl ContentTypeHandler<Value> for JsonHandler {
     OptionalBody::Present(self.value.to_string().into(), Some("application/json".into()))
   }
 
-  fn apply_key(&mut self, key: &String, generator: &Generator, context: &HashMap<&str, Value>) {
+  fn apply_key(&mut self, key: &String, generator: &dyn GenerateValue<Value>, context: &HashMap<&str, Value>) {
     match parse_path_exp(key) {
       Ok(path_exp) => {
         let mut tree = Arena::new();
@@ -590,7 +797,7 @@ impl <'a> ContentTypeHandler<Document<'a>> for XmlHandler<'a> {
     unimplemented!()
   }
 
-  fn apply_key(&mut self, _key: &String, _generator: &Generator, _context: &HashMap<&str, Value>) {
+  fn apply_key(&mut self, _key: &String, _generator: &dyn GenerateValue<Document<'a>>, _context: &HashMap<&str, Value>) {
     unimplemented!()
   }
 }
@@ -646,7 +853,7 @@ impl Generators {
     }
   }
 
-  fn parse_generator_from_map(&mut self, category: &GeneratorCategory,
+  pub(crate) fn parse_generator_from_map(&mut self, category: &GeneratorCategory,
                               map: &serde_json::Map<String, Value>, subcat: Option<String>) {
     match map.get("type") {
       Some(gen_type) => match gen_type {
@@ -670,7 +877,10 @@ impl Generators {
         &GeneratorCategory::PATH | &GeneratorCategory::METHOD | &GeneratorCategory::STATUS => {
           match category.get("") {
             Some(generator) => {
-              map.insert(cat.clone(), generator.to_json());
+              let json = generator.to_json();
+              if let Some(json) = json {
+                map.insert(cat.clone(), json);
+              }
             },
             None => ()
           }
@@ -678,7 +888,10 @@ impl Generators {
         _ => {
           let mut generators = serde_json::Map::new();
           for (key, val) in category {
-            generators.insert(key.clone(), val.to_json());
+            let json = val.to_json();
+            if let Some(json) = json {
+              generators.insert(key.clone(), json);
+            }
           }
           map.insert(cat.clone(), Value::Object(generators));
         }
@@ -704,11 +917,7 @@ impl Generators {
   pub fn apply_generator<F>(&self, mode: &GeneratorTestMode, category: &GeneratorCategory, mut closure: F)
     where F: FnMut(&String, &Generator) {
     if self.categories.contains_key(category) && !self.categories[category].is_empty() {
-      for (key, value) in self.categories[category].clone() {
-        if value.corresponds_to_mode(mode) {
-          closure(&key, &value)
-        }
-      }
+      apply_generators(mode, &self.categories[category], &mut closure)
     }
   }
 
@@ -717,35 +926,7 @@ impl Generators {
     if body.is_present() && self.categories.contains_key(&GeneratorCategory::BODY) &&
       !self.categories[&GeneratorCategory::BODY].is_empty() {
       let generators = &self.categories[&GeneratorCategory::BODY];
-      match content_type {
-        Some(content_type) => if content_type.is_json() {
-          let result: Result<Value, serde_json::Error> = serde_json::from_slice(&body.value());
-          match result {
-            Ok(val) => {
-              let mut handler = JsonHandler { value: val };
-              handler.process_body(&generators, mode, context)
-            },
-            Err(err) => {
-              log::error!("Failed to parse the body, so not applying any generators: {}", err);
-              body.clone()
-            }
-          }
-        } else if content_type.is_xml() {
-          match parse_bytes(&body.value()) {
-            Ok(val) => {
-              let mut handler = XmlHandler { value: val.as_document() };
-              handler.process_body(&generators, mode, context)
-            },
-            Err(err) => {
-              log::error!("Failed to parse the body, so not applying any generators: {}", err);
-              body.clone()
-            }
-          }
-        } else {
-          body.clone()
-        },
-        _ => body.clone()
-      }
+      apply_body_generators(mode, &body, content_type, context, &generators)
     } else {
       body.clone()
     }
@@ -779,6 +960,59 @@ impl Default for Generators {
     Generators {
       categories: hashmap!{}
     }
+  }
+}
+
+/// If the mode applies, invoke the callback for each of the generators
+pub fn apply_generators<F>(
+  mode: &GeneratorTestMode,
+  generators: &HashMap<String, Generator>,
+  closure: &mut F
+) where F: FnMut(&String, &Generator) {
+  for (key, value) in generators {
+    if value.corresponds_to_mode(mode) {
+      closure(&key, &value)
+    }
+  }
+}
+
+/// Apply the generators to the body, returning a new body
+pub fn apply_body_generators(
+  mode: &GeneratorTestMode,
+  body: &OptionalBody,
+  content_type: Option<ContentType>,
+  context: &HashMap<&str, Value>,
+  generators: &HashMap<String, Generator>
+) -> OptionalBody {
+  match content_type {
+    Some(content_type) => if content_type.is_json() {
+      let result: Result<Value, serde_json::Error> = serde_json::from_slice(&body.value());
+      match result {
+        Ok(val) => {
+          let mut handler = JsonHandler { value: val };
+          handler.process_body(&generators, mode, context)
+        },
+        Err(err) => {
+          error!("Failed to parse the body, so not applying any generators: {}", err);
+          body.clone()
+        }
+      }
+    } else if content_type.is_xml() {
+      match parse_bytes(&body.value()) {
+        Ok(val) => {
+          let mut handler = XmlHandler { value: val.as_document() };
+          handler.process_body(&generators, mode, context)
+        },
+        Err(err) => {
+          error!("Failed to parse the body, so not applying any generators: {}", err);
+          body.clone()
+        }
+      }
+    } else {
+      warn!("Unsupported content type {} - Generators only support JSON and XML", content_type);
+      body.clone()
+    },
+    _ => body.clone()
   }
 }
 
@@ -846,7 +1080,7 @@ macro_rules! generators {
   }};
 }
 
-fn generate_value_from_context(expression: &str, context: &HashMap<&str, Value>, data_type: &Option<DataType>) -> Result<DataValue, String> {
+pub(crate) fn generate_value_from_context(expression: &str, context: &HashMap<&str, Value>, data_type: &Option<DataType>) -> Result<DataValue, String> {
   let result = if contains_expressions(expression) {
     parse_expression(expression, &MapValueResolver { context: context.clone() })
   } else {
@@ -858,13 +1092,19 @@ fn generate_value_from_context(expression: &str, context: &HashMap<&str, Value>,
 
 #[cfg(test)]
 mod tests {
-  use super::*;
-  use expectest::prelude::*;
-  use expectest::expect;
-  use super::Generator;
   use std::str::FromStr;
+
+  use expectest::expect;
+  use expectest::prelude::*;
   use hamcrest2::*;
-  use crate::models::generators::Generator::{RandomInt, RandomDecimal, Regex};
+  use pretty_assertions::assert_eq;
+  use test_env_log::test;
+
+  use crate::models::generators::Generator::{RandomDecimal, RandomInt, Regex};
+
+  use super::*;
+  use super::Generator;
+  use crate::models::matchingrules::MatchingRule;
 
   #[test]
   fn rules_are_empty_when_there_are_no_categories() {
@@ -1002,65 +1242,65 @@ mod tests {
 
   #[test]
   fn generator_to_json_test() {
-    expect!(Generator::RandomInt(5, 15).to_json()).to(be_equal_to(json!({
+    expect!(Generator::RandomInt(5, 15).to_json().unwrap()).to(be_equal_to(json!({
       "type": "RandomInt",
       "min": 5,
       "max": 15
     })));
-    expect!(Generator::Uuid.to_json()).to(be_equal_to(json!({
+    expect!(Generator::Uuid.to_json().unwrap()).to(be_equal_to(json!({
       "type": "Uuid"
     })));
-    expect!(Generator::RandomDecimal(5).to_json()).to(be_equal_to(json!({
+    expect!(Generator::RandomDecimal(5).to_json().unwrap()).to(be_equal_to(json!({
       "type": "RandomDecimal",
       "digits": 5
     })));
-    expect!(Generator::RandomHexadecimal(5).to_json()).to(be_equal_to(json!({
+    expect!(Generator::RandomHexadecimal(5).to_json().unwrap()).to(be_equal_to(json!({
       "type": "RandomHexadecimal",
       "digits": 5
     })));
-    expect!(Generator::RandomString(5).to_json()).to(be_equal_to(json!({
+    expect!(Generator::RandomString(5).to_json().unwrap()).to(be_equal_to(json!({
       "type": "RandomString",
       "size": 5
     })));
-    expect!(Generator::Regex(s!("\\d+")).to_json()).to(be_equal_to(json!({
+    expect!(Generator::Regex(s!("\\d+")).to_json().unwrap()).to(be_equal_to(json!({
       "type": "Regex",
       "regex": "\\d+"
     })));
-    expect!(Generator::RandomBoolean.to_json()).to(be_equal_to(json!({
+    expect!(Generator::RandomBoolean.to_json().unwrap()).to(be_equal_to(json!({
       "type": "RandomBoolean"
     })));
 
-    expect!(Generator::Date(Some(s!("yyyyMMdd"))).to_json()).to(be_equal_to(json!({
+    expect!(Generator::Date(Some(s!("yyyyMMdd"))).to_json().unwrap()).to(be_equal_to(json!({
       "type": "Date",
       "format": "yyyyMMdd"
     })));
-    expect!(Generator::Date(None).to_json()).to(be_equal_to(json!({
+    expect!(Generator::Date(None).to_json().unwrap()).to(be_equal_to(json!({
       "type": "Date"
     })));
-    expect!(Generator::Time(Some(s!("yyyyMMdd"))).to_json()).to(be_equal_to(json!({
+    expect!(Generator::Time(Some(s!("yyyyMMdd"))).to_json().unwrap()).to(be_equal_to(json!({
       "type": "Time",
       "format": "yyyyMMdd"
     })));
-    expect!(Generator::Time(None).to_json()).to(be_equal_to(json!({
+    expect!(Generator::Time(None).to_json().unwrap()).to(be_equal_to(json!({
       "type": "Time"
     })));
-    expect!(Generator::DateTime(Some(s!("yyyyMMdd"))).to_json()).to(be_equal_to(json!({
+    expect!(Generator::DateTime(Some(s!("yyyyMMdd"))).to_json().unwrap()).to(be_equal_to(json!({
       "type": "DateTime",
       "format": "yyyyMMdd"
     })));
-    expect!(Generator::DateTime(None).to_json()).to(be_equal_to(json!({
+    expect!(Generator::DateTime(None).to_json().unwrap()).to(be_equal_to(json!({
       "type": "DateTime"
     })));
-    expect!(Generator::ProviderStateGenerator("$a".into(), Some(DataType::INTEGER)).to_json()).to(be_equal_to(json!({
+    expect!(Generator::ProviderStateGenerator("$a".into(), Some(DataType::INTEGER)).to_json().unwrap()).to(be_equal_to(json!({
       "type": "ProviderState",
       "expression": "$a",
       "dataType": "INTEGER"
     })));
-    expect!(Generator::ProviderStateGenerator("$a".into(), None).to_json()).to(be_equal_to(json!({
+    expect!(Generator::ProviderStateGenerator("$a".into(), None).to_json().unwrap()).to(be_equal_to(json!({
       "type": "ProviderState",
       "expression": "$a"
     })));
-    expect!(Generator::MockServerURL("http://localhost:1234/path".into(), "(.*)/path".into()).to_json()).to(be_equal_to(json!({
+    expect!(Generator::MockServerURL("http://localhost:1234/path".into(), "(.*)/path".into()).to_json().unwrap()).to(be_equal_to(json!({
       "type": "MockServerURL",
       "example": "http://localhost:1234/path",
       "regex": "(.*)/path"
@@ -1164,7 +1404,7 @@ mod tests {
 
   #[test]
   fn random_decimal_generator_test() {
-    for _ in 1..100 {
+    for _ in 1..10 {
       let generated = Generator::RandomDecimal(10).generate_value(&"".to_string(), &hashmap! {}).unwrap();
       expect!(generated.clone().len()).to(be_equal_to(11));
       assert_that!(generated.clone(), matches_regex(r"^\d+\.\d+$"));
@@ -1200,5 +1440,53 @@ mod tests {
     expect!(generated.unwrap()).to(be_equal_to("http://192.168.2.1:2345/p/path"));
     let generated = generator.generate_value(&"".to_string(), &hashmap!{});
     expect!(generated).to(be_err());
+  }
+
+  #[test]
+  fn array_contains_generator_test() {
+    let generator = Generator::ArrayContains(vec![
+      (0, matchingrules_list! {
+        "body"; "$.href" => [ MatchingRule::Regex(".*(\\/orders\\/\\d+)$".into()) ]
+      }, hashmap! {
+        "$.href".to_string() => Generator::MockServerURL("http://localhost:8080/orders/1234".into(), ".*(\\/orders\\/\\d+)$".into())
+      }),
+      (1, matchingrules_list! {
+        "body"; "$.href" => [ MatchingRule::Regex(".*(\\/orders\\/\\d+)$".into()) ]
+      }, hashmap! {
+        "$.href".to_string() => Generator::MockServerURL("http://localhost:8080/orders/1234".into(), ".*(\\/orders\\/\\d+)$".into())
+      })
+    ]);
+    let value = json!([
+      {
+        "href": "http://localhost:9000/orders/1234",
+        "method": "PUT",
+        "name": "update"
+      },
+      {
+        "href": "http://localhost:9000/orders/1234",
+        "method": "DELETE",
+        "name": "delete"
+      }
+    ]);
+    let context = hashmap!{
+      "mockServer" => json!({
+        "href": "https://somewhere.else:1234/subpath"
+      })
+    };
+    let generated = generator.generate_value(&value, &context);
+    expect!(generated.clone()).to(be_ok());
+    let generated_value = generated.unwrap();
+    assert_eq!(generated_value, json!([
+      {
+        "href": "https://somewhere.else:1234/subpath/orders/1234",
+        "method": "PUT",
+        "name": "update"
+      },
+      {
+        "href": "https://somewhere.else:1234/subpath/orders/1234",
+        "method": "DELETE",
+        "name": "delete"
+      }
+    ]));
   }
 }

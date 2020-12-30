@@ -299,15 +299,15 @@
 //! | $.item1 | $(2).item1(2) | 4 |
 //! | $.item2 | $(2).item2(0) | 0 |
 //! | $.item1.level | $(2).item1(2).level(2) | 8 |
-//! | $.item1.level[1] | $(2).item1(2).level(2)[1(2)] | 16 |
-//! | $.item1.level[1].id | $(2).item1(2).level(2)[1(2)].id(2) | 32 |
-//! | $.item1.level[1].name | $(2).item1(2).level(2)[1(2)].name(0) | 0 |
-//! | $.item1.level[2] | $(2).item1(2).level(2)[2(0)] | 0 |
-//! | $.item1.level[2].id | $(2).item1(2).level(2)[2(0)].id(2) | 0 |
-//! | $.item1.level[*].id | $(2).item1(2).level(2)[*(1)].id(2) | 16 |
-//! | $.\*.level[\*].id | $(2).*(1).level(2)[*(1)].id(2) | 8 |
+//! | $.item1.level\[1\] | $(2).item1(2).level(2)\[1(2)\] | 16 |
+//! | $.item1.level\[1\].id | $(2).item1(2).level(2)\[1(2)\].id(2) | 32 |
+//! | $.item1.level\[1\].name | $(2).item1(2).level(2)\[1(2)\].name(0) | 0 |
+//! | $.item1.level\[2\] | $(2).item1(2).level(2)\[2(0)\] | 0 |
+//! | $.item1.level\[2\].id | $(2).item1(2).level(2)\[2(0)\].id(2) | 0 |
+//! | $.item1.level\[*\].id | $(2).item1(2).level(2)\[*(1)\].id(2) | 16 |
+//! | $.\*.level\[\*\].id | $(2).*(1).level(2)\[*(1)\].id(2) | 8 |
 //!
-//! So for the item with id 102, the matcher with path `$.item1.level[1].id` and weighting 32 will be selected.
+//! So for the item with id 102, the matcher with path `$.item1.level\[1\].id` and weighting 32 will be selected.
 //!
 //! ## Supported matchers
 //!
@@ -410,21 +410,21 @@ impl MatchingContext {
   }
 
   /// If there is a matcher defined at the path in this context
-  pub fn matcher_is_defined(&self, path: &Vec<&str>) -> bool {
+  pub fn matcher_is_defined(&self, path: &[&str]) -> bool {
     self.matchers.matcher_is_defined(path)
   }
 
   /// Selected the best matcher from the context for the given path
-  pub fn select_best_matcher(&self, path: &Vec<&str>) -> Option<RuleList> {
+  pub fn select_best_matcher(&self, path: &[&str]) -> Option<RuleList> {
     self.matchers.select_best_matcher(path)
   }
 
   /// If there is a wildcard matcher defined at the path in this context
-  pub fn wildcard_matcher_is_defined(&self, path: &Vec<&str>) -> bool {
+  pub fn wildcard_matcher_is_defined(&self, path: &[&str]) -> bool {
     !self.matchers_for_exact_path(path).filter(|&(val, _)| val.ends_with(".*")).is_empty()
   }
 
-  fn matchers_for_exact_path(&self, path: &Vec<&str>) -> MatchingRuleCategory {
+  fn matchers_for_exact_path(&self, path: &[&str]) -> MatchingRuleCategory {
     if self.matchers.name == "body" {
       self.matchers.filter(|&(val, _)| {
         calc_path_weight(val, path).0 > 0 && path_length(val) == path.len()
@@ -439,12 +439,12 @@ impl MatchingContext {
   }
 
   /// If there is a type matcher defined at the path in this context
-  pub fn type_matcher_defined(&self, path: &Vec<&str>) -> bool {
+  pub fn type_matcher_defined(&self, path: &[&str]) -> bool {
     self.matchers.resolve_matchers_for_path(path).type_matcher_defined()
   }
 
   /// Matches the keys of the expected and actual maps
-  pub fn match_keys<T: Display + Debug>(&self, path: &Vec<&str>, expected: &HashMap<String, T>, actual: &HashMap<String, T>) -> Result<(), Vec<Mismatch>> {
+  pub fn match_keys<T: Display + Debug>(&self, path: &[&str], expected: &HashMap<String, T>, actual: &HashMap<String, T>) -> Result<(), Vec<Mismatch>> {
     let mut p = path.to_vec();
     p.push("any");
     if !self.wildcard_matcher_is_defined(&p) {
@@ -634,21 +634,21 @@ impl Mismatch {
                     s!("mismatch") : json!(m)
                 })
             },
-            &Mismatch::BodyMismatch { path: ref p, expected: ref e, actual: ref a, mismatch: ref m } => {
-                 json!({
-                    s!("type") : json!("BodyMismatch"),
-                    s!("path") : json!(p),
-                    s!("expected") : match e {
-                        &Some(ref v) => json!(str::from_utf8(v).unwrap_or("ERROR: could not convert from bytes")),
-                        &None => serde_json::Value::Null
-                    },
-                    s!("actual") : match a {
-                        &Some(ref v) => json!(str::from_utf8(v).unwrap_or("ERROR: could not convert from bytes")),
-                        &None => serde_json::Value::Null
-                    },
-                    s!("mismatch") : json!(m)
-                })
-            },
+            &Mismatch::BodyMismatch { ref path, ref expected, ref actual, ref mismatch } => {
+              json!({
+                "type" : "BodyMismatch",
+                "path" : path,
+                "expected" : match expected {
+                  Some(v) => serde_json::Value::String(str::from_utf8(v).unwrap_or("ERROR: could not convert from bytes").into()),
+                  None => serde_json::Value::Null
+                },
+                "actual" : match actual {
+                  Some(v) => serde_json::Value::String(str::from_utf8(v).unwrap_or("ERROR: could not convert from bytes").into()),
+                  None => serde_json::Value::Null
+                },
+                "mismatch" : mismatch
+              })
+            }
             &Mismatch::MetadataMismatch { key: ref k, expected: ref e, actual: ref a, mismatch: ref m } => {
               json!({
                 s!("type") : json!("MetadataMismatch"),
@@ -1411,29 +1411,36 @@ pub fn generate_request(request: &models::Request, mode: &GeneratorTestMode, con
 
 /// Generates the response by applying any defined generators
 pub fn generate_response(response: &models::Response, mode: &GeneratorTestMode, context: &HashMap<&str, Value>) -> models::Response {
-  let generators = response.generators.clone();
   let mut response = response.clone();
-  generators.apply_generator(mode, &GeneratorCategory::STATUS, |_, generator| {
-    if let Ok(v) = generator.generate_value(&response.status, context) {
-      debug!("Generated value for status: {}", v);
-      response.status = v;
-    }
-  });
-  generators.apply_generator(mode, &GeneratorCategory::HEADER, |key, generator| {
-    if let Some(ref mut headers) = response.headers {
-      if headers.contains_key(key) {
-        match generator.generate_value(&headers.get(key).unwrap().clone(), context) {
-          Ok(v) => {
-            debug!("Generated value for header: {} -> {:?}", key, v);
-            headers.insert(key.clone(), v)
-          },
-          Err(_) => None
-        };
+  let generators = response.build_generators(&GeneratorCategory::STATUS);
+  if !generators.is_empty() {
+    apply_generators(mode, &generators, &mut |_, generator| {
+      if let Ok(v) = generator.generate_value(&response.status, context) {
+        debug!("Generated value for status: {}", v);
+        response.status = v;
       }
-    }
-  });
-  response.body = generators.apply_body_generators(mode, &response.body, response.content_type(),
-    context);
+    });
+  }
+  let generators = response.build_generators(&GeneratorCategory::HEADER);
+  if !generators.is_empty() {
+    apply_generators(mode, &generators, &mut |key, generator| {
+      if let Some(ref mut headers) = response.headers {
+        if headers.contains_key(key) {
+          match generator.generate_value(&headers.get(key).unwrap().clone(), context) {
+            Ok(v) => {
+              debug!("Generated value for header: {} -> {:?}", key, v);
+              headers.insert(key.clone(), v)
+            },
+            Err(_) => None
+          };
+        }
+      }
+    });
+  }
+  let generators = response.build_generators(&GeneratorCategory::BODY);
+  if !generators.is_empty() && response.body.is_present() {
+    response.body = apply_body_generators(mode, &response.body, response.content_type(), context, &generators);
+  }
   response
 }
 

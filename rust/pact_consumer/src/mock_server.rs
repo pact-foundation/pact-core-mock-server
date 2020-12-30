@@ -11,6 +11,8 @@ use std::{
 };
 use url::Url;
 use pact_mock_server::mock_server::MockServerConfig;
+use std::cell::RefCell;
+use std::sync::{Mutex, Arc};
 
 /// This trait is implemented by types which allow us to start a mock server.
 pub trait StartMockServer {
@@ -36,7 +38,7 @@ pub struct ValidatingMockServer {
     // The URL of our mock server.
     url: Url,
     // The mock server instance
-    mock_server: mock_server::MockServer,
+    mock_server: Arc<Mutex<mock_server::MockServer>>,
     // Signal received when the server thread is done executing
     done_rx: std::sync::mpsc::Receiver<()>,
 }
@@ -79,16 +81,18 @@ impl ValidatingMockServer {
         .join()
         .unwrap();
 
-        let description = format!(
-            "{}/{}",
-            mock_server.pact.consumer.name, mock_server.pact.provider.name
-        );
-        let url_str = mock_server.url();
+        let (description, url_str) = {
+          let ms = mock_server.lock().unwrap();
+          let description = format!(
+            "{}/{}", ms.pact.consumer.name, ms.pact.provider.name
+          );
+          (description, ms.url())
+        };
         ValidatingMockServer {
-            description,
-            url: url_str.parse().expect("invalid mock server URL"),
-            mock_server,
-            done_rx,
+          description,
+          url: url_str.parse().expect("invalid mock server URL"),
+          mock_server,
+          done_rx,
         }
     }
 
@@ -111,7 +115,7 @@ impl ValidatingMockServer {
 
     /// Returns the current status of the mock server
     pub fn status(&self) -> Vec<MatchResult> {
-        self.mock_server.mismatches()
+      self.mock_server.lock().unwrap().mismatches()
     }
 
     /// Helper function called by our `drop` implementation. This basically exists
@@ -119,7 +123,8 @@ impl ValidatingMockServer {
     /// flow control in `drop` ultra-complex.
     fn drop_helper(&mut self) -> Result<(), String> {
         // Kill the server
-        self.mock_server.shutdown()?;
+        let mut ms = self.mock_server.lock().unwrap();
+        ms.shutdown()?;
 
         if ::std::thread::panicking() {
             return Ok(());
@@ -131,15 +136,14 @@ impl ValidatingMockServer {
             .expect("mock server thread should not panic");
 
         // Look up any mismatches which occurred.
-        let mismatches = self.mock_server.mismatches();
+        let mismatches = ms.mismatches();
 
         if mismatches.is_empty() {
             // Success! Write out the generated pact file.
-            self.mock_server
-                .write_pact(&Some(
-                    env::var("PACT_OUTPUT_DIR").unwrap_or_else(|_| "target/pacts".to_owned()),
-                ))
-                .map_err(|err| format!("error writing pact: {}", err))?;
+            ms.write_pact(&Some(
+                env::var("PACT_OUTPUT_DIR").unwrap_or_else(|_| "target/pacts".to_owned()),
+            ))
+            .map_err(|err| format!("error writing pact: {}", err))?;
             Ok(())
         } else {
             // Failure. Format our errors.

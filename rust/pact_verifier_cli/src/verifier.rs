@@ -104,7 +104,7 @@ pub async fn handle_cli() -> Result<(), i32> {
                   .get_matches_safe();
 
   match matches {
-    Ok(results) => handle_matches_only(&results).await,
+    Ok(results) => handle_matches(&results).await,
     Err(ref err) => {
       match err.kind {
           ErrorKind::HelpDisplayed => {
@@ -124,8 +124,10 @@ pub async fn handle_cli() -> Result<(), i32> {
   }
 }
 
-// TODO: return a clap::Error or wrapped error type, so that the caller can determine how to respond?
-// Alternatively, just let clap print things out as if it were a CLI call
+// TODO: it's possible to introspect the clap::Error and return it or wrapped error type
+// so that the caller could have more control over the error output.
+//
+// Currently, clap prints things out as if it were a CLI call
 pub async fn handle_args(args: Vec<String>) -> Result<(), i32> {
   let program = "pact_verifier_cli".to_string();
   let version = format!("v{}", clap::crate_version!()).as_str().to_owned();
@@ -136,7 +138,7 @@ pub async fn handle_args(args: Vec<String>) -> Result<(), i32> {
                   .get_matches_from_safe(args);
 
   match matches {
-    Ok(results) => handle_matches_only(&results).await,
+    Ok(results) => handle_matches(&results).await,
     Err(ref err) => {
       log::error!("error verifying Pact: {:?} {:?}", err.message, err);
       Err(1)
@@ -144,7 +146,7 @@ pub async fn handle_args(args: Vec<String>) -> Result<(), i32> {
   }
 }
 
-async fn handle_matches_only(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
+async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
     let level = matches.value_of("loglevel").unwrap_or("warn");
     let log_level = match level {
         "none" => LevelFilter::Off,
@@ -188,75 +190,8 @@ async fn handle_matches_only(matches: &clap::ArgMatches<'_>) -> Result<(), i32> 
     ).await {
         Ok(())
     } else {
-        Err(2)
+        Err(1)
     }
-}
-async fn handle_matches(matches: Result<clap::ArgMatches<'_>, clap::Error>) -> Result<(), i32> {
-  match matches {
-      Ok(ref matches) => {
-          let level = matches.value_of("loglevel").unwrap_or("warn");
-          let log_level = match level {
-              "none" => LevelFilter::Off,
-              _ => LevelFilter::from_str(level).unwrap()
-          };
-          TermLogger::init(log_level, Config::default(), TerminalMode::Mixed).unwrap_or_default();
-          let provider = ProviderInfo {
-            host: s!(matches.value_of("hostname").unwrap_or("localhost")),
-            port: matches.value_of("port").map(|port| port.parse::<u16>().unwrap()),
-            path: matches.value_of("base-path").unwrap_or("/").into(),
-            .. ProviderInfo::default()
-          };
-          let source = pact_source(matches);
-          let filter = interaction_filter(matches);
-          let provider_state_executor = HttpRequestProviderStateExecutor {
-            state_change_url: matches.value_of("state-change-url").map(|s| s.to_string()),
-            state_change_body: !matches.is_present("state-change-as-query"),
-            state_change_teardown: matches.is_present("state-change-teardown")
-          };
-
-          let options = VerificationOptions {
-              publish: matches.is_present("publish"),
-              provider_version: matches.value_of("provider-version").map(|v| v.to_string()),
-              build_url: matches.value_of("build-url").map(|v| v.to_string()),
-              request_filter: None::<Box<NullRequestFilterExecutor>>,
-              provider_tags: matches.values_of("provider-tags")
-                .map_or_else(|| vec![], |tags| tags.map(|tag| tag.to_string()).collect())
-          };
-
-          for s in &source {
-            debug!("Pact source to verify = {}", s);
-          };
-
-          if verify_provider(
-              provider,
-              source,
-              filter,
-              matches.values_of_lossy("filter-consumer").unwrap_or_default(),
-              options,
-              &provider_state_executor
-          ).await {
-              Ok(())
-          } else {
-              Err(2)
-          }
-      },
-      Err(ref err) => {
-          match err.kind {
-              ErrorKind::HelpDisplayed => {
-                  println!("{}", err.message);
-                  Ok(())
-              },
-              ErrorKind::VersionDisplayed => {
-                  print_version();
-                  println!();
-                  Ok(())
-              },
-              _ => {
-                  err.exit()
-              }
-          }
-      }
-  }
 }
 
 fn print_version() {

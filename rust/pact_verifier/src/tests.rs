@@ -265,7 +265,11 @@ async fn publish_successful_result_to_broker() {
       i.request.path("/path/to/pact/verification");
       i.request.json_body(json_pattern!({
         "providerApplicationVersion": "1",
-        "success": true
+        "success": true,
+        "verifiedBy": json!({
+          "implementation": "Pact-Rust",
+          "version": PACT_RUST_VERSION
+        })
       }));
       i.response.status(201);
     })

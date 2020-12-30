@@ -280,7 +280,7 @@ impl Matches<u64> for f64 {
     }
 }
 
-pub fn match_values<E, A>(path: &Vec<&str>, context: &MatchingContext, expected: &E, actual: &A) -> Result<(), Vec<String>>
+pub fn match_values<E, A>(path: &[&str], context: &MatchingContext, expected: &E, actual: &A) -> Result<(), Vec<String>>
     where E: Matches<A> {
     let matching_rules = context.select_best_matcher(path);
     match matching_rules {

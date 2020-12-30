@@ -22,7 +22,6 @@ use lazy_static::*;
 use log::*;
 use maplit::*;
 use onig::Regex;
-use semver::Version;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -35,6 +34,7 @@ use crate::models::provider_states::ProviderState;
 use crate::models::v4::{interaction_from_json, V4Pact, V4Interaction};
 use crate::models::v4::http_parts::{HttpRequest, HttpResponse};
 use std::borrow::Borrow;
+use crate::models::generators::{GeneratorCategory, Generator};
 
 pub mod json_utils;
 pub mod xml_utils;
@@ -45,7 +45,7 @@ pub mod content_types;
 mod expression_parser;
 
 /// Version of the library
-pub const VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
+pub const PACT_RUST_VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
 
 /// Enum defining the pact specification versions supported by the library
 #[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize, Serialize)]
@@ -440,6 +440,22 @@ pub trait HttpPart {
   fn add_header(&mut self, key: &str, val: Vec<&str>) {
     let headers = self.headers_mut();
     headers.insert(key.to_string(), val.iter().map(|v| v.to_string()).collect());
+  }
+
+  /// Builds a map of generators from the generators and matching rules
+  fn build_generators(&self, category: &GeneratorCategory) -> HashMap<String, Generator> {
+    let mut generators = hashmap!{};
+    if let Some(generators_for_category) = self.generators().categories.get(category) {
+      for (path, generator) in generators_for_category {
+        generators.insert(path.clone(), generator.clone());
+      }
+    }
+    if let Some(rules) = self.matching_rules().rules_for_category(category.clone().into()) {
+      for (path, generator) in rules.generators() {
+        generators.insert(path.clone(), generator.clone());
+      }
+    }
+    generators
   }
 }
 
@@ -1371,7 +1387,7 @@ fn determine_spec_version(file: &String, metadata: &BTreeMap<String, BTreeMap<St
   match specification {
     Some(spec) => {
       match spec.get("version") {
-        Some(ver) => match lenient_semver::parse::<Version>(ver) {
+        Some(ver) => match lenient_semver::parse(ver) {
           Ok(ver) => match ver.major {
             1 => match ver.minor {
               0 => PactSpecification::V1,
@@ -1452,7 +1468,7 @@ impl RequestResponsePact {
             .collect();
 
         md_map.insert(s!("pactSpecification"), json!({"version" : pact_spec.version_str()}));
-        md_map.insert(s!("pactRust"), json!({"version" : s!(VERSION.unwrap_or("unknown"))}));
+        md_map.insert(s!("pactRust"), json!({"version" : s!(PACT_RUST_VERSION.unwrap_or("unknown"))}));
         md_map
     }
 
@@ -1476,7 +1492,7 @@ impl RequestResponsePact {
   pub fn default_metadata() -> BTreeMap<String, BTreeMap<String, String>> {
     btreemap!{
       s!("pact-specification") => btreemap!{ s!("version") => PactSpecification::V3.version_str() },
-      s!("pact-rust") => btreemap!{ s!("version") => s!(VERSION.unwrap_or("unknown")) }
+      s!("pact-rust") => btreemap!{ s!("version") => s!(PACT_RUST_VERSION.unwrap_or("unknown")) }
     }
   }
 }

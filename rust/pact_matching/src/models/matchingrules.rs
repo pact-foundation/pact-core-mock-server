@@ -1,9 +1,6 @@
 //! `matchingrules` module includes all the classes to deal with V3 format matchers
 
-use std::{
-  collections::{BTreeSet, HashMap, HashSet},
-  hash::{Hash, Hasher}
-};
+use std::{collections::{HashMap, HashSet}, hash::{Hash, Hasher}, mem};
 use std::fmt::{Debug, Display};
 #[allow(unused_imports)] // FromStr is actually used
 use std::str::{self, FromStr, from_utf8};
@@ -22,6 +19,12 @@ use crate::path_exp::*;
 use super::PactSpecification;
 use nom::lib::std::cmp::Ordering;
 use crate::binary_utils::match_content_type;
+use crate::models::generators::{Generators, GeneratorCategory, Generator};
+
+#[cfg(test)]
+use expectest::prelude::*;
+#[cfg(test)]
+use std::collections::hash_map::DefaultHasher;
 
 fn matches_token(path_fragment: &str, path_token: &PathToken) -> usize {
   match path_token {
@@ -40,7 +43,7 @@ fn matches_token(path_fragment: &str, path_token: &PathToken) -> usize {
   }
 }
 
-pub(crate) fn calc_path_weight(path_exp: &str, path: &Vec<&str>) -> (usize, usize) {
+pub(crate) fn calc_path_weight(path_exp: &str, path: &[&str]) -> (usize, usize) {
   let weight = match parse_path_exp(path_exp) {
     Ok(path_tokens) => {
       trace!("Calculating weight for path tokens '{:?}' and path '{:?}'", path_tokens, path);
@@ -203,8 +206,14 @@ impl <T: Display> DisplayForMismatch for Vec<T> {
   }
 }
 
+impl <T: Display> DisplayForMismatch for &[T] {
+  fn for_mismatch(&self) -> String {
+    Value::Array(self.iter().map(|v| json!(v.to_string())).collect()).to_string()
+  }
+}
+
 /// Set of all matching rules
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash, PartialOrd, Ord)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq)]
 pub enum MatchingRule {
   /// Matcher using equals
   Equality,
@@ -237,7 +246,7 @@ pub enum MatchingRule {
   /// Match binary data by its content type (magic file check)
   ContentType(String),
   /// Match array items in any order against a list of variants
-  ArrayContains(Vec<(usize, MatchingRuleCategory)>)
+  ArrayContains(Vec<(usize, MatchingRuleCategory, HashMap<String, Generator>)>)
 }
 
 impl MatchingRule {
@@ -245,7 +254,7 @@ impl MatchingRule {
   /// Builds a `MatchingRule` from a `Value` struct
   pub fn from_json(value: &Value) -> Option<MatchingRule> {
     match value {
-      &Value::Object(ref m) => match m.get("match") {
+     Value::Object(m) => match m.get("match") {
         Some(value) => {
           let val = json_to_string(value);
           match val.as_str() {
@@ -304,7 +313,21 @@ impl MatchingRule {
                     } else {
                       category.add_rule("", MatchingRule::Equality, &RuleLogic::And);
                     }
-                    (index, category)
+                    let generators = if let Some(generators_json) = variant.get("generators") {
+                      let mut g = Generators::default();
+                      let cat = GeneratorCategory::BODY;
+                      if let Value::Object(map) = generators_json {
+                        for (k, v) in map {
+                          if let Value::Object(ref map) = v {
+                            g.parse_generator_from_map(&cat, map, Some(k.clone()));
+                          }
+                        }
+                      }
+                      g.categories.get(&cat).cloned().unwrap_or_default()
+                    } else {
+                      HashMap::default()
+                    };
+                    (index, category, generators)
                   }).collect();
                   Some(MatchingRule::ArrayContains(values))
                 }
@@ -364,18 +387,32 @@ impl MatchingRule {
         "value": Value::String(r.clone()) }),
       MatchingRule::ArrayContains(variants) => json!({
         "match": "arrayContains",
-        "variants": variants.iter().map(|(index, rules)| {
-          json!({
+        "variants": variants.iter().map(|(index, rules, generators)| {
+          let mut json = json!({
             "index": index,
             "rules": rules.to_v3_json()
-          })
+          });
+          if !generators.is_empty() {
+            json["generators"] = Value::Object(generators.iter()
+              .map(|(k, gen)| {
+                if let Some(json) = gen.to_json() {
+                  Some((k.clone(), json))
+                } else {
+                  None
+                }
+              })
+              .filter(|item| item.is_some())
+              .map(|item| item.unwrap())
+              .collect())
+          }
+          json
         }).collect::<Vec<Value>>()
       })
     }
   }
 
   /// Delegate to the matching rule defined at the given path to compare the key/value maps.
-  pub fn compare_maps<T: Display + Debug>(&self, path: &Vec<&str>, expected: &HashMap<String, T>, actual: &HashMap<String, T>,
+  pub fn compare_maps<T: Display + Debug>(&self, path: &[&str], expected: &HashMap<String, T>, actual: &HashMap<String, T>,
                                   context: &MatchingContext,
                                   callback: &mut dyn FnMut(&Vec<&str>, &T, &T) -> Result<(), Vec<Mismatch>>) -> Result<(), Vec<Mismatch>> {
     let mut p = path.to_vec();
@@ -405,32 +442,33 @@ impl MatchingRule {
   }
 
   /// Compare the expected and actual lists using the matching rule's logic
-  pub fn compare_lists<T: Display + Debug + PartialEq + Clone>(
+  pub fn compare_lists<T: Display + Debug + PartialEq + Clone + Sized>(
     &self,
-    path: &Vec<&str>,
+    path: &[&str],
     expected: &Vec<T>,
     actual: &Vec<T>,
     context: &MatchingContext,
-    callback: &dyn Fn(&Vec<&str>, &T, &T, &MatchingContext) -> Result<(), Vec<Mismatch>>
+    callback: &dyn Fn(&[&str], &T, &T, &MatchingContext) -> Result<(), Vec<Mismatch>>
   ) -> Result<(), Vec<Mismatch>> {
     let mut result = Ok(());
     match self {
       MatchingRule::ArrayContains(variants) => {
         let variants = if variants.is_empty() {
           expected.iter().enumerate().map(|(index, _)| {
-            (index, MatchingRuleCategory::equality("body"))
+            (index, MatchingRuleCategory::equality("body"), HashMap::default())
           }).collect()
         } else {
           variants.clone()
         };
-        for (index, rules) in variants {
+        for (index, rules, _) in variants {
           match expected.get(index) {
             Some(expected_value) => {
               let context = context.clone_with(&rules);
-              if actual.iter().enumerate().find(|(actual_index, value)| {
+              let predicate: &dyn Fn(&(usize, &T)) -> bool = &|&(actual_index, value)| {
                 debug!("Comparing list item {} with value '{:?}' to '{:?}'", actual_index, value, expected_value);
                 callback(&vec!["$"], expected_value, value, &context).is_ok()
-              }).is_none() {
+              };
+              if actual.iter().enumerate().find(predicate).is_none() {
                 result = merge_result(result,Err(vec![ Mismatch::BodyMismatch {
                   path: path.join("."),
                   expected: Some(expected_value.to_string().into()),
@@ -486,6 +524,287 @@ impl MatchingRule {
 
     result
   }
+
+  /// If there are any generators associated with this matching rule
+  pub fn has_generators(&self) -> bool {
+    match self {
+      MatchingRule::ArrayContains(variants) => variants.iter()
+        .any(|(_, _, generators)| !generators.is_empty()),
+      _ => false
+    }
+  }
+
+  /// Return the generators for this rule
+  pub fn generators(&self) -> Vec<Generator> {
+    match self {
+      MatchingRule::ArrayContains(variants) => vec![Generator::ArrayContains(variants.clone())],
+      _ => vec![]
+    }
+  }
+}
+
+impl Hash for MatchingRule {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    mem::discriminant(self).hash(state);
+    match self {
+      MatchingRule::Regex(s) => s.hash(state),
+      MatchingRule::MinType(min) => min.hash(state),
+      MatchingRule::MaxType(max) => max.hash(state),
+      MatchingRule::MinMaxType(min, max) => {
+        min.hash(state);
+        max.hash(state);
+      }
+      MatchingRule::Timestamp(format) => format.hash(state),
+      MatchingRule::Time(format) => format.hash(state),
+      MatchingRule::Date(format) => format.hash(state),
+      MatchingRule::Include(str) => str.hash(state),
+      MatchingRule::ContentType(str) => str.hash(state),
+      MatchingRule::ArrayContains(variants) => {
+        for (index, rules, generators) in variants {
+          index.hash(state);
+          rules.hash(state);
+          for (s, g) in generators {
+            s.hash(state);
+            g.hash(state);
+          }
+        }
+      }
+      _ => ()
+    }
+  }
+}
+
+impl PartialEq for MatchingRule {
+  fn eq(&self, other: &Self) -> bool {
+    match (self, other) {
+      (MatchingRule::Regex(s1), MatchingRule::Regex(s2)) => s1 == s2,
+      (MatchingRule::MinType(min1), MatchingRule::MinType(min2)) => min1 == min2,
+      (MatchingRule::MaxType(max1), MatchingRule::MaxType(max2)) => max1 == max2,
+      (MatchingRule::MinMaxType(min1, max1), MatchingRule::MinMaxType(min2, max2)) => min1 == min2 && max1 == max2,
+      (MatchingRule::Timestamp(format1), MatchingRule::Timestamp(format2)) => format1 == format2,
+      (MatchingRule::Time(format1), MatchingRule::Time(format2)) => format1 == format2,
+      (MatchingRule::Date(format1), MatchingRule::Date(format2)) => format1 == format2,
+      (MatchingRule::Include(str1), MatchingRule::Include(str2)) => str1 == str2,
+      (MatchingRule::ContentType(str1), MatchingRule::ContentType(str2)) => str1 == str2,
+      (MatchingRule::ArrayContains(variants1), MatchingRule::ArrayContains(variants2)) => variants1 == variants2,
+      _ => mem::discriminant(self) == mem::discriminant(other)
+    }
+  }
+}
+
+#[cfg(test)]
+fn h(rule: &MatchingRule) -> u64 {
+  let mut hasher = DefaultHasher::new();
+  rule.hash(&mut hasher);
+  hasher.finish()
+}
+
+#[test]
+fn hash_and_partial_eq_for_matching_rule() {
+  expect!(h(&MatchingRule::Equality)).to(be_equal_to(h(&MatchingRule::Equality)));
+  expect!(MatchingRule::Equality).to(be_equal_to(MatchingRule::Equality));
+  expect!(MatchingRule::Equality).to_not(be_equal_to(MatchingRule::Type));
+
+  expect!(h(&MatchingRule::Type)).to(be_equal_to(h(&MatchingRule::Type)));
+  expect!(MatchingRule::Type).to(be_equal_to(MatchingRule::Type));
+
+  expect!(h(&MatchingRule::Number)).to(be_equal_to(h(&MatchingRule::Number)));
+  expect!(MatchingRule::Number).to(be_equal_to(MatchingRule::Number));
+
+  expect!(h(&MatchingRule::Integer)).to(be_equal_to(h(&MatchingRule::Integer)));
+  expect!(MatchingRule::Integer).to(be_equal_to(MatchingRule::Integer));
+
+  expect!(h(&MatchingRule::Decimal)).to(be_equal_to(h(&MatchingRule::Decimal)));
+  expect!(MatchingRule::Decimal).to(be_equal_to(MatchingRule::Decimal));
+
+  expect!(h(&MatchingRule::Null)).to(be_equal_to(h(&MatchingRule::Null)));
+  expect!(MatchingRule::Null).to(be_equal_to(MatchingRule::Null));
+
+  let regex1 = MatchingRule::Regex("\\d+".into());
+  let regex2 = MatchingRule::Regex("\\w+".into());
+
+  expect!(h(&regex1)).to(be_equal_to(h(&regex1)));
+  expect!(&regex1).to(be_equal_to(&regex1));
+  expect!(h(&regex1)).to_not(be_equal_to(h(&regex2)));
+  expect!(&regex1).to_not(be_equal_to(&regex2));
+
+  let min1 = MatchingRule::MinType(100);
+  let min2 = MatchingRule::MinType(200);
+
+  expect!(h(&min1)).to(be_equal_to(h(&min1)));
+  expect!(&min1).to(be_equal_to(&min1));
+  expect!(h(&min1)).to_not(be_equal_to(h(&min2)));
+  expect!(&min1).to_not(be_equal_to(&min2));
+
+  let max1 = MatchingRule::MaxType(100);
+  let max2 = MatchingRule::MaxType(200);
+
+  expect!(h(&max1)).to(be_equal_to(h(&max1)));
+  expect!(&max1).to(be_equal_to(&max1));
+  expect!(h(&max1)).to_not(be_equal_to(h(&max2)));
+  expect!(&max1).to_not(be_equal_to(&max2));
+
+  let minmax1 = MatchingRule::MinMaxType(100, 200);
+  let minmax2 = MatchingRule::MinMaxType(200, 200);
+
+  expect!(h(&minmax1)).to(be_equal_to(h(&minmax1)));
+  expect!(&minmax1).to(be_equal_to(&minmax1));
+  expect!(h(&minmax1)).to_not(be_equal_to(h(&minmax2)));
+  expect!(&minmax1).to_not(be_equal_to(&minmax2));
+
+  let datetime1 = MatchingRule::Timestamp("yyyy-MM-dd HH:mm:ss".into());
+  let datetime2 = MatchingRule::Timestamp("yyyy-MM-ddTHH:mm:ss".into());
+
+  expect!(h(&datetime1)).to(be_equal_to(h(&datetime1)));
+  expect!(&datetime1).to(be_equal_to(&datetime1));
+  expect!(h(&datetime1)).to_not(be_equal_to(h(&datetime2)));
+  expect!(&datetime1).to_not(be_equal_to(&datetime2));
+
+  let date1 = MatchingRule::Date("yyyy-MM-dd".into());
+  let date2 = MatchingRule::Date("yy-MM-dd".into());
+
+  expect!(h(&date1)).to(be_equal_to(h(&date1)));
+  expect!(&date1).to(be_equal_to(&date1));
+  expect!(h(&date1)).to_not(be_equal_to(h(&date2)));
+  expect!(&date1).to_not(be_equal_to(&date2));
+
+  let time1 = MatchingRule::Time("HH:mm:ss".into());
+  let time2 = MatchingRule::Time("hh:mm:ss".into());
+
+  expect!(h(&time1)).to(be_equal_to(h(&time1)));
+  expect!(&time1).to(be_equal_to(&time1));
+  expect!(h(&time1)).to_not(be_equal_to(h(&time2)));
+  expect!(&time1).to_not(be_equal_to(&time2));
+
+  let inc1 = MatchingRule::Include("string one".into());
+  let inc2 = MatchingRule::Include("string two".into());
+
+  expect!(h(&inc1)).to(be_equal_to(h(&inc1)));
+  expect!(&inc1).to(be_equal_to(&inc1));
+  expect!(h(&inc1)).to_not(be_equal_to(h(&inc2)));
+  expect!(&inc1).to_not(be_equal_to(&inc2));
+
+  let content1 = MatchingRule::ContentType("one".into());
+  let content2 = MatchingRule::ContentType("two".into());
+
+  expect!(h(&content1)).to(be_equal_to(h(&content1)));
+  expect!(&content1).to(be_equal_to(&content1));
+  expect!(h(&content1)).to_not(be_equal_to(h(&content2)));
+  expect!(&content1).to_not(be_equal_to(&content2));
+
+  let ac1 = MatchingRule::ArrayContains(vec![]);
+  let ac2 = MatchingRule::ArrayContains(vec![(0, MatchingRuleCategory::empty("body"), hashmap!{})]);
+  let ac3 = MatchingRule::ArrayContains(vec![(1, MatchingRuleCategory::empty("body"), hashmap!{})]);
+  let ac4 = MatchingRule::ArrayContains(vec![(0, MatchingRuleCategory::equality("body"), hashmap!{})]);
+  let ac5 = MatchingRule::ArrayContains(vec![(0, MatchingRuleCategory::empty("body"), hashmap!{ "A".to_string() => Generator::RandomBoolean })]);
+  let ac6 = MatchingRule::ArrayContains(vec![
+    (0, MatchingRuleCategory::empty("body"), hashmap!{ "A".to_string() => Generator::RandomBoolean }),
+    (1, MatchingRuleCategory::empty("body"), hashmap!{ "A".to_string() => Generator::RandomDecimal(10) })
+  ]);
+  let ac7 = MatchingRule::ArrayContains(vec![
+    (0, MatchingRuleCategory::empty("body"), hashmap!{ "A".to_string() => Generator::RandomBoolean }),
+    (1, MatchingRuleCategory::equality("body"), hashmap!{ "A".to_string() => Generator::RandomDecimal(10) })
+  ]);
+
+  expect!(h(&ac1)).to(be_equal_to(h(&ac1)));
+  expect!(h(&ac1)).to_not(be_equal_to(h(&ac2)));
+  expect!(h(&ac1)).to_not(be_equal_to(h(&ac3)));
+  expect!(h(&ac1)).to_not(be_equal_to(h(&ac4)));
+  expect!(h(&ac1)).to_not(be_equal_to(h(&ac5)));
+  expect!(h(&ac1)).to_not(be_equal_to(h(&ac6)));
+  expect!(h(&ac1)).to_not(be_equal_to(h(&ac7)));
+  expect!(h(&ac2)).to(be_equal_to(h(&ac2)));
+  expect!(h(&ac2)).to_not(be_equal_to(h(&ac1)));
+  expect!(h(&ac2)).to_not(be_equal_to(h(&ac3)));
+  expect!(h(&ac2)).to_not(be_equal_to(h(&ac4)));
+  expect!(h(&ac2)).to_not(be_equal_to(h(&ac5)));
+  expect!(h(&ac2)).to_not(be_equal_to(h(&ac6)));
+  expect!(h(&ac2)).to_not(be_equal_to(h(&ac7)));
+  expect!(h(&ac3)).to(be_equal_to(h(&ac3)));
+  expect!(h(&ac3)).to_not(be_equal_to(h(&ac2)));
+  expect!(h(&ac3)).to_not(be_equal_to(h(&ac1)));
+  expect!(h(&ac3)).to_not(be_equal_to(h(&ac4)));
+  expect!(h(&ac3)).to_not(be_equal_to(h(&ac5)));
+  expect!(h(&ac3)).to_not(be_equal_to(h(&ac6)));
+  expect!(h(&ac3)).to_not(be_equal_to(h(&ac7)));
+  expect!(h(&ac4)).to(be_equal_to(h(&ac4)));
+  expect!(h(&ac4)).to_not(be_equal_to(h(&ac2)));
+  expect!(h(&ac4)).to_not(be_equal_to(h(&ac3)));
+  expect!(h(&ac4)).to_not(be_equal_to(h(&ac1)));
+  expect!(h(&ac4)).to_not(be_equal_to(h(&ac5)));
+  expect!(h(&ac4)).to_not(be_equal_to(h(&ac6)));
+  expect!(h(&ac4)).to_not(be_equal_to(h(&ac7)));
+  expect!(h(&ac5)).to(be_equal_to(h(&ac5)));
+  expect!(h(&ac5)).to_not(be_equal_to(h(&ac2)));
+  expect!(h(&ac5)).to_not(be_equal_to(h(&ac3)));
+  expect!(h(&ac5)).to_not(be_equal_to(h(&ac4)));
+  expect!(h(&ac5)).to_not(be_equal_to(h(&ac1)));
+  expect!(h(&ac5)).to_not(be_equal_to(h(&ac6)));
+  expect!(h(&ac5)).to_not(be_equal_to(h(&ac7)));
+  expect!(h(&ac6)).to(be_equal_to(h(&ac6)));
+  expect!(h(&ac6)).to_not(be_equal_to(h(&ac2)));
+  expect!(h(&ac6)).to_not(be_equal_to(h(&ac3)));
+  expect!(h(&ac6)).to_not(be_equal_to(h(&ac4)));
+  expect!(h(&ac6)).to_not(be_equal_to(h(&ac5)));
+  expect!(h(&ac6)).to_not(be_equal_to(h(&ac1)));
+  expect!(h(&ac6)).to_not(be_equal_to(h(&ac7)));
+  expect!(h(&ac7)).to(be_equal_to(h(&ac7)));
+  expect!(h(&ac7)).to_not(be_equal_to(h(&ac2)));
+  expect!(h(&ac7)).to_not(be_equal_to(h(&ac3)));
+  expect!(h(&ac7)).to_not(be_equal_to(h(&ac4)));
+  expect!(h(&ac7)).to_not(be_equal_to(h(&ac5)));
+  expect!(h(&ac7)).to_not(be_equal_to(h(&ac6)));
+  expect!(h(&ac7)).to_not(be_equal_to(h(&ac1)));
+
+  expect!(&ac1).to(be_equal_to(&ac1));
+  expect!(&ac1).to_not(be_equal_to(&ac2));
+  expect!(&ac1).to_not(be_equal_to(&ac3));
+  expect!(&ac1).to_not(be_equal_to(&ac4));
+  expect!(&ac1).to_not(be_equal_to(&ac5));
+  expect!(&ac1).to_not(be_equal_to(&ac6));
+  expect!(&ac1).to_not(be_equal_to(&ac7));
+  expect!(&ac2).to(be_equal_to(&ac2));
+  expect!(&ac2).to_not(be_equal_to(&ac1));
+  expect!(&ac2).to_not(be_equal_to(&ac3));
+  expect!(&ac2).to_not(be_equal_to(&ac4));
+  expect!(&ac2).to_not(be_equal_to(&ac5));
+  expect!(&ac2).to_not(be_equal_to(&ac6));
+  expect!(&ac2).to_not(be_equal_to(&ac7));
+  expect!(&ac3).to(be_equal_to(&ac3));
+  expect!(&ac3).to_not(be_equal_to(&ac2));
+  expect!(&ac3).to_not(be_equal_to(&ac1));
+  expect!(&ac3).to_not(be_equal_to(&ac4));
+  expect!(&ac3).to_not(be_equal_to(&ac5));
+  expect!(&ac3).to_not(be_equal_to(&ac6));
+  expect!(&ac3).to_not(be_equal_to(&ac7));
+  expect!(&ac4).to(be_equal_to(&ac4));
+  expect!(&ac4).to_not(be_equal_to(&ac2));
+  expect!(&ac4).to_not(be_equal_to(&ac3));
+  expect!(&ac4).to_not(be_equal_to(&ac1));
+  expect!(&ac4).to_not(be_equal_to(&ac5));
+  expect!(&ac4).to_not(be_equal_to(&ac6));
+  expect!(&ac4).to_not(be_equal_to(&ac7));
+  expect!(&ac5).to(be_equal_to(&ac5));
+  expect!(&ac5).to_not(be_equal_to(&ac2));
+  expect!(&ac5).to_not(be_equal_to(&ac3));
+  expect!(&ac5).to_not(be_equal_to(&ac4));
+  expect!(&ac5).to_not(be_equal_to(&ac1));
+  expect!(&ac5).to_not(be_equal_to(&ac6));
+  expect!(&ac5).to_not(be_equal_to(&ac7));
+  expect!(&ac6).to(be_equal_to(&ac6));
+  expect!(&ac6).to_not(be_equal_to(&ac2));
+  expect!(&ac6).to_not(be_equal_to(&ac3));
+  expect!(&ac6).to_not(be_equal_to(&ac4));
+  expect!(&ac6).to_not(be_equal_to(&ac5));
+  expect!(&ac6).to_not(be_equal_to(&ac1));
+  expect!(&ac6).to_not(be_equal_to(&ac7));
+  expect!(&ac7).to(be_equal_to(&ac7));
+  expect!(&ac7).to_not(be_equal_to(&ac2));
+  expect!(&ac7).to_not(be_equal_to(&ac3));
+  expect!(&ac7).to_not(be_equal_to(&ac4));
+  expect!(&ac7).to_not(be_equal_to(&ac5));
+  expect!(&ac7).to_not(be_equal_to(&ac6));
+  expect!(&ac7).to_not(be_equal_to(&ac1));
 }
 
 /// Enumeration to define how to combine rules
@@ -498,21 +817,19 @@ pub enum RuleLogic {
 }
 
 impl RuleLogic {
-
   fn to_json(&self) -> Value {
     Value::String(match self {
-      &RuleLogic::And => s!("AND"),
-      &RuleLogic::Or => s!("OR")
-    })
+      RuleLogic::And => "AND",
+      RuleLogic::Or => "OR"
+    }.into())
   }
-
 }
 
 /// Data structure for representing a list of rules and the logic needed to combine them
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash, PartialOrd, Ord)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq)]
 pub struct RuleList {
   /// List of rules to apply
-  pub rules: BTreeSet<MatchingRule>,
+  pub rules: Vec<MatchingRule>,
   /// Rule logic to use to evaluate multiple rules
   pub rule_logic: RuleLogic
 }
@@ -522,7 +839,7 @@ impl RuleList {
   /// Creates a new empty rule list
   pub fn empty(rule_logic: &RuleLogic) -> RuleList {
     RuleList {
-      rules: BTreeSet::new(),
+      rules: Vec::new(),
       rule_logic: rule_logic.clone()
     }
   }
@@ -530,7 +847,7 @@ impl RuleList {
   /// Creates a default rule list with an equality matcher
   pub fn equality() -> RuleList {
     RuleList {
-      rules: btreeset!{ MatchingRule::Equality },
+      rules: vec![ MatchingRule::Equality ],
       rule_logic: RuleLogic::And
     }
   }
@@ -538,7 +855,7 @@ impl RuleList {
   /// Creates a new rule list with the single matching rule
   pub fn new(rule: MatchingRule) -> RuleList {
     RuleList {
-      rules: btreeset![ rule ],
+      rules: vec![ rule ],
       rule_logic: RuleLogic::And
     }
   }
@@ -551,7 +868,7 @@ impl RuleList {
   }
 
   fn to_v2_json(&self) -> Value {
-    match self.rules.iter().next() {
+    match self.rules.get(0) {
       Some(rule) => rule.to_json(),
       None => json!({})
     }
@@ -569,8 +886,24 @@ impl RuleList {
   }
 
   /// Add a matching rule to the rule list
-  pub fn add_rule(&mut self, rule: &MatchingRule) -> bool {
-    self.rules.insert(rule.clone())
+  pub fn add_rule(&mut self, rule: &MatchingRule) {
+    self.rules.push(rule.clone())
+  }
+}
+
+impl Hash for RuleList {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    self.rule_logic.hash(state);
+    for rule in &self.rules {
+      rule.hash(state);
+    }
+  }
+}
+
+impl PartialEq for RuleList {
+  fn eq(&self, other: &Self) -> bool {
+    self.rule_logic == other.rule_logic &&
+      self.rules == other.rules
   }
 }
 
@@ -620,8 +953,8 @@ impl MatchingRuleCategory {
   pub fn rule_from_json(&mut self, key: &str, matcher_json: &Value, rule_logic: &RuleLogic) {
     match MatchingRule::from_json(matcher_json) {
       Some(matching_rule) => {
-        let rules = self.rules.entry(key.to_string()).or_insert(RuleList::empty(rule_logic));
-        rules.rules.insert(matching_rule);
+        let rules = self.rules.entry(key.to_string()).or_insert_with(|| RuleList::empty(rule_logic));
+        rules.rules.push(matching_rule);
       },
       None => log::warn!("Could not parse matcher {:?}", matcher_json)
     }
@@ -630,8 +963,8 @@ impl MatchingRuleCategory {
   /// Adds a rule to this category
   pub fn add_rule<S>(&mut self, key: S, matcher: MatchingRule, rule_logic: &RuleLogic)
     where S: Into<String> {
-    let rules = self.rules.entry(key.into()).or_insert(RuleList::empty(rule_logic));
-    rules.rules.insert(matcher);
+    let rules = self.rules.entry(key.into()).or_insert_with(|| RuleList::empty(rule_logic));
+    rules.rules.push(matcher);
   }
 
   /// Filters the matchers in the category by the predicate, and returns a new category
@@ -644,7 +977,7 @@ impl MatchingRuleCategory {
     }
   }
 
-  fn max_by_path(&self, path: &Vec<&str>) -> Option<RuleList> {
+  fn max_by_path(&self, path: &[&str]) -> Option<RuleList> {
     self.rules.iter().map(|(k, v)| (k, v, calc_path_weight(k.as_str(), path)))
       .filter(|&(_, _, w)| w.0 > 0)
       .max_by_key(|&(_, _, w)| w.0 * w.1)
@@ -682,7 +1015,7 @@ impl MatchingRuleCategory {
   }
 
   /// If there is a matcher defined for the path
-  pub fn matcher_is_defined(&self, path: &Vec<&str>) -> bool {
+  pub fn matcher_is_defined(&self, path: &[&str]) -> bool {
     let result = !self.resolve_matchers_for_path(path).is_empty();
     trace!("matcher_is_defined for category {} and path {:?} -> {}", self.name, path, result);
     result
@@ -690,7 +1023,7 @@ impl MatchingRuleCategory {
 
   /// filters this category with all rules that match the given path for categories that contain
   /// collections (bodies, headers, query parameters). Returns self otherwise.
-  pub fn resolve_matchers_for_path(&self, path: &Vec<&str>) -> MatchingRuleCategory {
+  pub fn resolve_matchers_for_path(&self, path: &[&str]) -> MatchingRuleCategory {
     if self.name == "body" || self.name == "header" || self.name == "query" {
       self.filter(|(val, _)| {
         calc_path_weight(val, path).0 > 0
@@ -701,7 +1034,7 @@ impl MatchingRuleCategory {
   }
 
   /// Selects the best matcher for the given path by calculating a weighting for each one
-  pub fn select_best_matcher(&self, path: &Vec<&str>) -> Option<RuleList> {
+  pub fn select_best_matcher(&self, path: &[&str]) -> Option<RuleList> {
     if self.name == "body" {
       self.max_by_path(path)
     } else {
@@ -725,27 +1058,20 @@ impl MatchingRuleCategory {
         },
         None => RuleLogic::And
       };
-      match rules.get("matchers") {
-        Some(matchers) => match matchers {
-          Value::Array(array) => for matcher in array {
+      if let Some(matchers) = rules.get("matchers") {
+        if let Value::Array(array) = matchers {
+          for matcher in array {
             self.rule_from_json("", &matcher, &rule_logic)
-          },
-          _ => ()
-        },
-        None => ()
-      }
-    } else {
-      match rules {
-        Value::Object(m) => {
-          if m.contains_key("matchers") {
-            self.add_rule_list("", rules);
-          } else {
-            for (k, v) in m {
-              self.add_rule_list(k, v);
-            }
           }
-        },
-        _ => ()
+        }
+      }
+    } else if let Value::Object(m) = rules {
+      if m.contains_key("matchers") {
+        self.add_rule_list("", rules);
+      } else {
+        for (k, v) in m {
+          self.add_rule_list(k, v);
+        }
       }
     }
   }
@@ -768,6 +1094,21 @@ impl MatchingRuleCategory {
       },
       None => ()
     }
+  }
+
+  /// Returns any generators associated with these matching rules
+  pub fn generators(&self) -> HashMap<String, Generator> {
+    let mut generators = hashmap!{};
+    for (base_path, rules) in &self.rules {
+      for rule in &rules.rules {
+        if rule.has_generators() {
+          for generator in rule.generators() {
+            generators.insert(base_path.to_owned(), generator);
+          }
+        }
+      }
+    }
+    generators
   }
 }
 
@@ -1051,19 +1392,19 @@ macro_rules! matchingrules {
 #[macro_export]
 macro_rules! matchingrules_list {
   ( $name:expr ; $( $subname:expr => [ $( $matcher:expr ), * ] ),* ) => {{
-    let mut _category = MatchingRuleCategory::empty($name);
+    let mut _category = $crate::MatchingRuleCategory::empty($name);
     $(
       $(
-        _category.add_rule($subname, $matcher, &RuleLogic::And);
+        _category.add_rule($subname, $matcher, &$crate::RuleLogic::And);
       )*
     )*
     _category
   }};
 
   ( $name:expr ; [ $( $matcher:expr ), * ] ) => {{
-    let mut _category = MatchingRuleCategory::empty($name);
+    let mut _category = $crate::MatchingRuleCategory::empty($name);
     $(
-      _category.add_rule("", $matcher, &RuleLogic::And);
+      _category.add_rule("", $matcher, &$crate::RuleLogic::And);
     )*
     _category
   }};
@@ -1077,7 +1418,8 @@ mod tests {
   use speculate::speculate;
 
   use super::*;
-  use super::{calc_path_weight, matches_token};
+  use super::super::*;
+  use crate::models::generators::*;
 
   #[test]
   fn rules_are_empty_when_there_are_no_categories() {
@@ -1105,7 +1447,7 @@ mod tests {
             name: "query".into(),
             rules: hashmap!{
               "".into() => RuleList {
-                rules: btreeset![ MatchingRule::Equality ],
+                rules: vec![ MatchingRule::Equality ],
                 rule_logic: RuleLogic::And
               }
             }
@@ -1137,24 +1479,24 @@ mod tests {
     expect!(matching_rules.categories()).to(be_equal_to(hashset!{ s!("path"), s!("query"), s!("header"), s!("body") }));
     expect!(matching_rules.rules_for_category(&s!("path"))).to(be_some().value(MatchingRuleCategory {
       name: s!("path"),
-      rules: hashmap! { s!("") => RuleList { rules: btreeset![ MatchingRule::Regex(s!("\\w+")) ], rule_logic: RuleLogic::And } }
+      rules: hashmap! { s!("") => RuleList { rules: vec![ MatchingRule::Regex(s!("\\w+")) ], rule_logic: RuleLogic::And } }
     }));
     expect!(matching_rules.rules_for_category(&s!("query"))).to(be_some().value(MatchingRuleCategory {
       name: s!("query"),
-      rules: hashmap!{ s!("Q1") => RuleList { rules: btreeset![ MatchingRule::Regex(s!("\\d+")) ], rule_logic: RuleLogic::And } }
+      rules: hashmap!{ s!("Q1") => RuleList { rules: vec![ MatchingRule::Regex(s!("\\d+")) ], rule_logic: RuleLogic::And } }
     }));
     expect!(matching_rules.rules_for_category(&s!("header"))).to(be_some().value(MatchingRuleCategory {
       name: s!("header"),
-      rules: hashmap!{ s!("HEADERY") => RuleList { rules: btreeset![
+      rules: hashmap!{ s!("HEADERY") => RuleList { rules: vec![
         MatchingRule::Include(s!("ValueA")) ], rule_logic: RuleLogic::And } }
     }));
     expect!(matching_rules.rules_for_category(&s!("body"))).to(be_some().value(MatchingRuleCategory {
       name: s!("body"),
       rules: hashmap!{
-        s!("$.animals") => RuleList { rules: btreeset![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
-        s!("$.animals[*].*") => RuleList { rules: btreeset![ MatchingRule::Type ], rule_logic: RuleLogic::And },
-        s!("$.animals[*].children") => RuleList { rules: btreeset![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
-        s!("$.animals[*].children[*].*") => RuleList { rules: btreeset![ MatchingRule::Type ], rule_logic: RuleLogic::And }
+        s!("$.animals") => RuleList { rules: vec![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
+        s!("$.animals[*].*") => RuleList { rules: vec![ MatchingRule::Type ], rule_logic: RuleLogic::And },
+        s!("$.animals[*].children") => RuleList { rules: vec![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
+        s!("$.animals[*].children[*].*") => RuleList { rules: vec![ MatchingRule::Type ], rule_logic: RuleLogic::And }
       }
     }));
   }
@@ -1205,25 +1547,25 @@ mod tests {
     expect!(matching_rules.categories()).to(be_equal_to(hashset!{ s!("path"), s!("query"), s!("header"), s!("body") }));
     expect!(matching_rules.rules_for_category(&s!("path"))).to(be_some().value(MatchingRuleCategory {
       name: s!("path"),
-      rules: hashmap! { s!("") => RuleList { rules: btreeset![ MatchingRule::Regex(s!("\\w+")) ], rule_logic: RuleLogic::And } }
+      rules: hashmap! { s!("") => RuleList { rules: vec![ MatchingRule::Regex(s!("\\w+")) ], rule_logic: RuleLogic::And } }
     }));
     expect!(matching_rules.rules_for_category(&s!("query"))).to(be_some().value(MatchingRuleCategory {
       name: s!("query"),
-      rules: hashmap!{ s!("Q1") => RuleList { rules: btreeset![ MatchingRule::Regex(s!("\\d+")) ], rule_logic: RuleLogic::And } }
+      rules: hashmap!{ s!("Q1") => RuleList { rules: vec![ MatchingRule::Regex(s!("\\d+")) ], rule_logic: RuleLogic::And } }
     }));
     expect!(matching_rules.rules_for_category(&s!("header"))).to(be_some().value(MatchingRuleCategory {
       name: s!("header"),
-      rules: hashmap!{ s!("HEADERY") => RuleList { rules: btreeset![
+      rules: hashmap!{ s!("HEADERY") => RuleList { rules: vec![
         MatchingRule::Include(s!("ValueA")),
         MatchingRule::Include(s!("ValueB")) ], rule_logic: RuleLogic::Or } }
     }));
     expect!(matching_rules.rules_for_category(&s!("body"))).to(be_some().value(MatchingRuleCategory {
       name: s!("body"),
       rules: hashmap!{
-        s!("$.animals") => RuleList { rules: btreeset![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
-        s!("$.animals[*].*") => RuleList { rules: btreeset![ MatchingRule::Type ], rule_logic: RuleLogic::And },
-        s!("$.animals[*].children") => RuleList { rules: btreeset![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
-        s!("$.animals[*].children[*].*") => RuleList { rules: btreeset![ MatchingRule::Type ], rule_logic: RuleLogic::And }
+        s!("$.animals") => RuleList { rules: vec![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
+        s!("$.animals[*].*") => RuleList { rules: vec![ MatchingRule::Type ], rule_logic: RuleLogic::And },
+        s!("$.animals[*].children") => RuleList { rules: vec![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
+        s!("$.animals[*].children[*].*") => RuleList { rules: vec![ MatchingRule::Type ], rule_logic: RuleLogic::And }
       }
     }));
   }
@@ -1246,7 +1588,7 @@ mod tests {
     expect!(matching_rules.categories()).to(be_equal_to(hashset!{ s!("path") }));
     expect!(matching_rules.rules_for_category(&s!("path"))).to(be_some().value(MatchingRuleCategory {
       name: s!("path"),
-      rules: hashmap! { s!("") => RuleList { rules: btreeset![ MatchingRule::Regex(s!("\\w+")) ], rule_logic: RuleLogic::And } }
+      rules: hashmap! { s!("") => RuleList { rules: vec![ MatchingRule::Regex(s!("\\w+")) ], rule_logic: RuleLogic::And } }
     }));
   }
 
@@ -1381,7 +1723,32 @@ mod tests {
       ]
     });
     expect!(MatchingRule::from_json(&json)).to(be_some().value(
-      MatchingRule::ArrayContains(vec![(0, matchingrules_list! { "body"; [ MatchingRule::Equality ] })])
+      MatchingRule::ArrayContains(
+        vec![
+          (0, matchingrules_list! { "body"; [ MatchingRule::Equality ] }, HashMap::default())
+        ])
+    ));
+
+    let json = json!({
+      "match": "arrayContains",
+      "variants": [
+        {
+          "index": 0,
+          "rules": {
+            "matchers": [ { "match": "equality" } ]
+          },
+          "generators": {
+            "a": { "type": "Uuid" }
+          }
+        }
+      ]
+    });
+    let generators = hashmap!{ "a".to_string() => Generator::Uuid };
+    expect!(MatchingRule::from_json(&json)).to(be_some().value(
+      MatchingRule::ArrayContains(
+        vec![
+          (0, matchingrules_list! { "body"; [ MatchingRule::Equality ] }, generators)
+        ])
     ));
   }
 

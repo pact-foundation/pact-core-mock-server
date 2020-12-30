@@ -138,10 +138,11 @@ fn error_body(request: &Request, error: &String) -> String {
 fn match_result_to_hyper_response(
   request: &Request,
   match_result: MatchResult,
-  mock_server: &Mutex<MockServer>
+  mock_server: Arc<Mutex<MockServer>>
 ) -> Result<Response<Body>, InteractionError> {
   let cors_preflight = {
-    mock_server.lock().unwrap().config.cors_preflight
+    let ms = mock_server.lock().unwrap();
+    ms.config.cors_preflight
   };
 
   match match_result {
@@ -153,10 +154,11 @@ fn match_result_to_hyper_response(
           "port": ms.port
         })
       };
+      debug!("Test context = {:?}", context);
       let response = pact_matching::generate_response(&interaction.response, &GeneratorTestMode::Consumer, &context);
       info!("Request matched, sending response {}", response);
-      if interaction.response.has_text_body() {
-        debug!("     body: '{}'", interaction.response.body.str_value());
+      if response.has_text_body() {
+        debug!("     body: '{}'", response.body.str_value());
       }
 
       let mut builder = Response::builder()
@@ -230,7 +232,7 @@ async fn handle_request(
 
     matches.lock().unwrap().push(match_result.clone());
 
-    match_result_to_hyper_response(&pact_request, match_result, &mock_server)
+    match_result_to_hyper_response(&pact_request, match_result, mock_server)
 }
 
 // TODO: Should instead use some form of X-Pact headers

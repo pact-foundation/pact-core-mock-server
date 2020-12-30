@@ -901,7 +901,7 @@ fn write_pact_test() {
   "provider": {{
     "name": "write_pact_test_provider"
   }}
-}}"#, super::VERSION.unwrap())));
+}}"#, super::PACT_RUST_VERSION.unwrap())));
 }
 
 #[test]
@@ -982,7 +982,7 @@ fn write_pact_test_should_merge_pacts() {
   "provider": {{
     "name": "merge_provider"
   }}
-}}"#, super::VERSION.unwrap())));
+}}"#, super::PACT_RUST_VERSION.unwrap())));
 }
 
 #[test]
@@ -1053,7 +1053,7 @@ fn write_pact_test_should_not_merge_pacts_with_conflicts() {
   "provider": {{
     "name": "write_pact_test_provider"
   }}
-}}"#, super::VERSION.unwrap())));
+}}"#, super::PACT_RUST_VERSION.unwrap())));
 }
 
 #[test]
@@ -1142,7 +1142,7 @@ fn write_pact_test_should_upgrade_older_pacts_when_merging() {
   "provider": {{
     "name": "merge_provider"
   }}
-}}"#, super::VERSION.unwrap())));
+}}"#, super::PACT_RUST_VERSION.unwrap())));
 }
 
 #[test]
@@ -1240,7 +1240,7 @@ fn write_pact_test_upgrades_older_pacts_to_v4_when_merging() {
   "provider": {{
     "name": "merge_provider"
   }}
-}}"#, super::VERSION.unwrap())));
+}}"#, super::PACT_RUST_VERSION.unwrap())));
 }
 
 #[test]
@@ -1628,7 +1628,7 @@ fn write_pact_test_with_matchers() {
   "provider": {{
     "name": "write_pact_test_provider"
   }}
-}}"#, super::VERSION.unwrap())));
+}}"#, super::PACT_RUST_VERSION.unwrap())));
 }
 
 #[test]
@@ -1665,66 +1665,66 @@ fn write_pact_v3_test_with_matchers() {
     fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());
 
     expect!(result).to(be_ok());
-    expect!(pact_file).to(be_equal_to(format!(r#"{{
-  "consumer": {{
-    "name": "write_pact_test_consumer_v3"
-  }},
-  "interactions": [
-    {{
-      "description": "Test Interaction",
-      "providerStates": [
-        {{
-          "name": "Good state to be in"
-        }}
+    expect!(pact_file.parse::<Value>().unwrap()).to(be_equal_to(json!({
+      "consumer": {
+        "name": "write_pact_test_consumer_v3"
+      },
+      "interactions": [
+        {
+          "description": "Test Interaction",
+          "providerStates": [
+            {
+              "name": "Good state to be in"
+            }
+          ],
+          "request": {
+            "matchingRules": {
+              "body": {
+                "$": {
+                  "combine": "AND",
+                  "matchers": [
+                    {
+                      "match": "type"
+                    }
+                  ]
+                }
+              },
+              "header": {
+                "HEADER_A": {
+                  "combine": "AND",
+                  "matchers": [
+                    {
+                      "match": "include",
+                      "value": "ValA"
+                    },
+                    {
+                      "match": "include",
+                      "value": "ValB"
+                    }
+                  ]
+                }
+              }
+            },
+            "method": "GET",
+            "path": "/"
+          },
+          "response": {
+            "status": 200
+          }
+        }
       ],
-      "request": {{
-        "matchingRules": {{
-          "body": {{
-            "$": {{
-              "combine": "AND",
-              "matchers": [
-                {{
-                  "match": "type"
-                }}
-              ]
-            }}
-          }},
-          "header": {{
-            "HEADER_A": {{
-              "combine": "AND",
-              "matchers": [
-                {{
-                  "match": "include",
-                  "value": "ValA"
-                }},
-                {{
-                  "match": "include",
-                  "value": "ValB"
-                }}
-              ]
-            }}
-          }}
-        }},
-        "method": "GET",
-        "path": "/"
-      }},
-      "response": {{
-        "status": 200
-      }}
-    }}
-  ],
-  "metadata": {{
-    "pactRust": {{
-      "version": "{}"
-    }},
-    "pactSpecification": {{
-      "version": "3.0.0"
-    }}
-  }},
-  "provider": {{
-    "name": "write_pact_test_provider_v3"
-  }}
-}}"#, super::VERSION.unwrap())));
+      "metadata": {
+        "pactRust": {
+          "version": super::PACT_RUST_VERSION
+        },
+        "pactSpecification": {
+          "version": "3.0.0"
+        }
+      },
+      "provider": {
+        "name": "write_pact_test_provider_v3"
+      }
+    })));
 }
 
 #[test]
@@ -1949,7 +1949,7 @@ fn write_v3_pact_test() {
   "provider": {{
     "name": "write_pact_test_provider"
   }}
-}}"#, super::VERSION.unwrap())));
+}}"#, super::PACT_RUST_VERSION.unwrap())));
 }
 
 #[test]
@@ -2136,7 +2136,7 @@ fn write_pact_test_with_generators() {
   "provider": {{
     "name": "write_pact_test_provider"
   }}
-}}"#, super::VERSION.unwrap())));
+}}"#, super::PACT_RUST_VERSION.unwrap())));
 }
 
 #[test]

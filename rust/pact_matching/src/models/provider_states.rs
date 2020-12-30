@@ -51,7 +51,7 @@ impl ProviderState {
         };
         ProviderState{
             name: state,
-            params: params
+            params
         }
     }
 
