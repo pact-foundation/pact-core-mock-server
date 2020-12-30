@@ -302,34 +302,22 @@ impl GenerateValue<Vec<String>> for Generator {
   }
 }
 
-pub(crate) fn find_matching_variants<T>(
-  values: &Vec<T>,
+pub(crate) fn find_matching_variant<T>(
+  value: &T,
   variants: &Vec<(usize, MatchingRuleCategory, Generators)>,
   callback: &dyn Fn(&Vec<&str>, &T, &MatchingContext) -> bool
-) -> Vec<(usize, T, Generators)>
+) -> Option<(usize, Generators)>
   where T: Clone + std::fmt::Debug {
-  permutations(variants, values).iter().filter(|((index, rules, _), value)| {
-    debug!("find_matching_variant: Comparing list item {} with value '{:?}'", index, value);
-    let context = MatchingContext::new(DiffConfig::NoUnexpectedKeys, rules);
-    callback(&vec!["$"], value, &context)
-  }).map(|((index, _, generators), value)| {
-    let value = *value;
-    (*index, value.clone(), generators.clone())
-  }).collect()
-}
-
-fn permutations<'a, A, B>(p0: &'a Vec<A>, p1: &'a Vec<B>) -> Vec<(&'a A, &'a B)> {
-  if p0.is_empty() || p1.is_empty() {
-    vec![]
-  } else {
-    let mut result = vec![];
-    for item1 in p0 {
-      for item2 in p1 {
-        result.push((item1, item2))
-      }
-    }
-    result
-  }
+  let result = variants.iter()
+    .find(|(index, rules, _)| {
+      debug!("find_matching_variant: Comparing variant {} with value '{:?}'", index, value);
+      let context = MatchingContext::new(DiffConfig::NoUnexpectedKeys, rules);
+      let matches = callback(&vec!["$"], value, &context);
+      debug!("find_matching_variant: Comparing variant {} => {}", index, matches);
+      matches
+    });
+  debug!("find_matching_variant: result = {:?}", result);
+  result.map(|(index, _, generators)| (*index, generators.clone()))
 }
 
 /// Category that the generator is applied to
@@ -835,11 +823,14 @@ mod tests {
   use expectest::expect;
   use expectest::prelude::*;
   use hamcrest2::*;
+  use pretty_assertions::assert_eq;
+  use test_env_log::test;
 
   use crate::models::generators::Generator::{RandomDecimal, RandomInt, Regex};
 
   use super::*;
   use super::Generator;
+  use crate::models::matchingrules::MatchingRule;
 
   #[test]
   fn rules_are_empty_when_there_are_no_categories() {
@@ -1139,7 +1130,7 @@ mod tests {
 
   #[test]
   fn random_decimal_generator_test() {
-    for _ in 1..100 {
+    for _ in 1..10 {
       let generated = Generator::RandomDecimal(10).generate_value(&"".to_string(), &hashmap! {}).unwrap();
       expect!(generated.clone().len()).to(be_equal_to(11));
       assert_that!(generated.clone(), matches_regex(r"^\d+\.\d+$"));
@@ -1175,5 +1166,57 @@ mod tests {
     expect!(generated.unwrap()).to(be_equal_to("http://192.168.2.1:2345/p/path"));
     let generated = generator.generate_value(&"".to_string(), &hashmap!{});
     expect!(generated).to(be_err());
+  }
+
+  #[test]
+  fn array_contains_generator_test() {
+    let generator = Generator::ArrayContains(vec![
+      (0, matchingrules_list! {
+        "body"; "$.href" => [ MatchingRule::Regex(".*(\\/orders\\/\\d+)$".into()) ]
+      }, generators! {
+        "BODY" => {
+          "$.href" => Generator::MockServerURL("http://localhost:8080/orders/1234".into(), ".*(\\/orders\\/\\d+)$".into())
+        }
+      }),
+      (1, matchingrules_list! {
+        "body"; "$.href" => [ MatchingRule::Regex(".*(\\/orders\\/\\d+)$".into()) ]
+      }, generators! {
+        "BODY" => {
+          "$.href" => Generator::MockServerURL("http://localhost:8080/orders/1234".into(), ".*(\\/orders\\/\\d+)$".into())
+        }
+      })
+    ]);
+    let value = json!([
+      {
+        "href": "http://localhost:9000/orders/1234",
+        "method": "PUT",
+        "name": "update"
+      },
+      {
+        "href": "http://localhost:9000/orders/1234",
+        "method": "DELETE",
+        "name": "delete"
+      }
+    ]);
+    let context = hashmap!{
+      "mockServer" => json!({
+        "href": "https://somewhere.else:1234/subpath"
+      })
+    };
+    let generated = generator.generate_value(&value, &context);
+    expect!(generated.clone()).to(be_ok());
+    let generated_value = generated.unwrap();
+    assert_eq!(generated_value, json!([
+      {
+        "href": "https://somewhere.else:1234/subpath/orders/1234",
+        "method": "PUT",
+        "name": "update"
+      },
+      {
+        "href": "https://somewhere.else:1234/subpath/orders/1234",
+        "method": "DELETE",
+        "name": "delete"
+      }
+    ]));
   }
 }

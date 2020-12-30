@@ -15,7 +15,7 @@ use chrono::prelude::*;
 use crate::{MatchingContext, merge_result};
 use crate::binary_utils::{convert_data, match_content_type};
 use crate::matchers::*;
-use crate::models::generators::{find_matching_variants, GenerateValue, Generator, generate_decimal, generate_hexadecimal, generate_ascii_string, generate_value_from_context, JsonHandler, ContentTypeHandler, GeneratorCategory};
+use crate::models::generators::{find_matching_variant, GenerateValue, Generator, generate_decimal, generate_hexadecimal, generate_ascii_string, generate_value_from_context, JsonHandler, ContentTypeHandler, GeneratorCategory};
 use crate::models::HttpPart;
 use crate::models::json_utils::{get_field_as_string, json_to_string};
 use crate::models::matchingrules::*;
@@ -506,13 +506,16 @@ impl GenerateValue<Value> for Generator {
             compare(path, value, value, context).is_ok()
           };
           let mut result = vec.clone();
-          for (index, value, generators) in find_matching_variants(vec, variants, &callback) {
-            debug!("Generating values for variant {}", index);
-            let mut handler = JsonHandler { value };
-            for (key, generator) in generators.categories.get(&GeneratorCategory::BODY).cloned().unwrap_or_default() {
-              handler.apply_key(&key, &generator, context);
-            };
-            result.insert(index, handler.value.clone());
+          for (index, value) in vec.iter().enumerate() {
+            if let Some((variant, generators)) = find_matching_variant(value, variants, &callback) {
+              debug!("Generating values for variant {} and value {}", variant, value);
+              let mut handler = JsonHandler { value: value.clone() };
+              for (key, generator) in generators.categories.get(&GeneratorCategory::BODY).cloned().unwrap_or_default() {
+                handler.apply_key(&key, &generator, context);
+              };
+              debug!("Generated value {}", handler.value);
+              result[index] = handler.value.clone();
+            }
           }
           Ok(Value::Array(result))
         }
