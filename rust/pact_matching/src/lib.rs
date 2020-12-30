@@ -299,15 +299,15 @@
 //! | $.item1 | $(2).item1(2) | 4 |
 //! | $.item2 | $(2).item2(0) | 0 |
 //! | $.item1.level | $(2).item1(2).level(2) | 8 |
-//! | $.item1.level[1] | $(2).item1(2).level(2)[1(2)] | 16 |
-//! | $.item1.level[1].id | $(2).item1(2).level(2)[1(2)].id(2) | 32 |
-//! | $.item1.level[1].name | $(2).item1(2).level(2)[1(2)].name(0) | 0 |
-//! | $.item1.level[2] | $(2).item1(2).level(2)[2(0)] | 0 |
-//! | $.item1.level[2].id | $(2).item1(2).level(2)[2(0)].id(2) | 0 |
-//! | $.item1.level[*].id | $(2).item1(2).level(2)[*(1)].id(2) | 16 |
-//! | $.\*.level[\*].id | $(2).*(1).level(2)[*(1)].id(2) | 8 |
+//! | $.item1.level\[1\] | $(2).item1(2).level(2)\[1(2)\] | 16 |
+//! | $.item1.level\[1\].id | $(2).item1(2).level(2)\[1(2)\].id(2) | 32 |
+//! | $.item1.level\[1\].name | $(2).item1(2).level(2)\[1(2)\].name(0) | 0 |
+//! | $.item1.level\[2\] | $(2).item1(2).level(2)\[2(0)\] | 0 |
+//! | $.item1.level\[2\].id | $(2).item1(2).level(2)\[2(0)\].id(2) | 0 |
+//! | $.item1.level\[*\].id | $(2).item1(2).level(2)\[*(1)\].id(2) | 16 |
+//! | $.\*.level\[\*\].id | $(2).*(1).level(2)\[*(1)\].id(2) | 8 |
 //!
-//! So for the item with id 102, the matcher with path `$.item1.level[1].id` and weighting 32 will be selected.
+//! So for the item with id 102, the matcher with path `$.item1.level\[1\].id` and weighting 32 will be selected.
 //!
 //! ## Supported matchers
 //!
