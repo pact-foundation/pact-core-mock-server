@@ -1,5 +1,21 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.8.6 - support generators associated with array contains matcher variants
+
+* c180d2c - chore: Implement Hash and PartialEq for Generator (Ronald Holshausen, Wed Dec 30 14:31:13 2020 +1100)
+* 5556b32 - feat: added test for array contains as a generator (Ronald Holshausen, Wed Dec 30 13:47:31 2020 +1100)
+* bb73fd7 - fix(clippy) cleaned up some clippy warnings (Ronald Holshausen, Wed Dec 30 10:32:19 2020 +1100)
+* 0a70d64 - fix(clippy): using `clone` on a double-reference; this will copy the reference instead of cloning the inner type (Ronald Holshausen, Wed Dec 30 09:41:12 2020 +1100)
+* 1ed95ae - feat: implemented using ArrayContains as a generator for JSON (Ronald Holshausen, Tue Dec 29 17:52:25 2020 +1100)
+* f2086d8 - chore: cleanup warnings (Ronald Holshausen, Tue Dec 29 15:46:46 2020 +1100)
+* f83804c - chore: upgrade crates in pact_matching (Ronald Holshausen, Tue Dec 29 15:21:50 2020 +1100)
+* 9852811 - fix(clippy): you are implementing `Hash` explicitly but have derived `PartialEq` (Ronald Holshausen, Tue Dec 29 14:28:22 2020 +1100)
+* 42f0a39 - fix: use Vec instead of HashSet to maintain order of matching rules on OSX (Ronald Holshausen, Tue Dec 29 13:22:57 2020 +1100)
+* c8ad6d4 - fix: matchers in Pact file can have a different order on OSX (Ronald Holshausen, Tue Dec 29 12:49:19 2020 +1100)
+* 09513de - feat: add verifiedBy to the verified results (Ronald Holshausen, Tue Dec 29 12:05:07 2020 +1100)
+* 5e56ecb - refactor: support generators associated with array contains matcher variants (Ronald Holshausen, Tue Dec 29 11:46:56 2020 +1100)
+* ab16c08 - bump version to 0.8.6 (Matt Fellows, Sun Nov 22 23:52:51 2020 +1100)
+
 # 0.8.5 - Bugfix Release
 
 * 5058a2d - feat: include the mockserver URL and port in the verification context (Ronald Holshausen, Fri Nov 20 16:43:10 2020 +1100)
