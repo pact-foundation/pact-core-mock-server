@@ -1,11 +1,6 @@
 //! `generators` module includes all the classes to deal with V3 format generators
 
-use std::{
-  collections::HashMap,
-  hash::{Hash, Hasher},
-  ops::Index,
-  str::FromStr
-};
+use std::{collections::HashMap, hash::{Hash, Hasher}, ops::Index, str::FromStr, mem};
 use std::convert::TryFrom;
 
 use chrono::prelude::*;
@@ -34,8 +29,13 @@ use crate::time_utils::{parse_pattern, to_chrono_pattern};
 
 use super::PactSpecification;
 
+#[cfg(test)]
+use expectest::prelude::*;
+#[cfg(test)]
+use std::collections::hash_map::DefaultHasher;
+
 /// Trait to represent a generator
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq)]
 pub enum Generator {
   /// Generates a random integer between the min and max values
   RandomInt(i32, i32),
@@ -62,7 +62,7 @@ pub enum Generator {
   /// Generates a URL with the mock server as the base URL
   MockServerURL(String, String),
   /// List of variants which can have embedded generators
-  ArrayContains(Vec<(usize, MatchingRuleCategory, Generators)>)
+  ArrayContains(Vec<(usize, MatchingRuleCategory, HashMap<String, Generator>)>)
 }
 
 impl Generator {
@@ -137,6 +137,280 @@ impl Generator {
       _ => true
     }
   }
+}
+
+impl Hash for Generator {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    mem::discriminant(self).hash(state);
+    match self {
+      Generator::RandomInt(min, max) => {
+        min.hash(state);
+        max.hash(state);
+      },
+      Generator::RandomDecimal(digits) => digits.hash(state),
+      Generator::RandomHexadecimal(digits) => digits.hash(state),
+      Generator::RandomString(size) => size.hash(state),
+      Generator::Regex(re) => re.hash(state),
+      Generator::DateTime(format) => format.hash(state),
+      Generator::Time(format) => format.hash(state),
+      Generator::Date(format) => format.hash(state),
+      Generator::ProviderStateGenerator(str, datatype) => {
+        str.hash(state);
+        datatype.hash(state);
+      },
+      Generator::MockServerURL(str1, str2) => {
+        str1.hash(state);
+        str2.hash(state);
+      },
+      Generator::ArrayContains(variants) => {
+        for (index, rules, generators) in variants {
+          index.hash(state);
+          rules.hash(state);
+          for (s, g) in generators {
+            s.hash(state);
+            g.hash(state);
+          }
+        }
+      }
+      _ => ()
+    }
+  }
+}
+
+impl PartialEq for Generator {
+  fn eq(&self, other: &Self) -> bool {
+    match (self, other) {
+      (Generator::RandomInt(min1, max1), Generator::RandomInt(min2, max2)) => min1 == min2 && max1 == max2,
+      (Generator::RandomDecimal(digits1), Generator::RandomDecimal(digits2)) => digits1 == digits2,
+      (Generator::RandomHexadecimal(digits1), Generator::RandomHexadecimal(digits2)) => digits1 == digits2,
+      (Generator::RandomString(size1), Generator::RandomString(size2)) => size1 == size2,
+      (Generator::Regex(re1), Generator::Regex(re2)) => re1 == re2,
+      (Generator::DateTime(format1), Generator::DateTime(format2)) => format1 == format2,
+      (Generator::Time(format1), Generator::Time(format2)) => format1 == format2,
+      (Generator::Date(format1), Generator::Date(format2)) => format1 == format2,
+      (Generator::ProviderStateGenerator(str1, data1), Generator::ProviderStateGenerator(str2, data2)) => str1 == str2 && data1 == data2,
+      (Generator::MockServerURL(ex1, re1), Generator::MockServerURL(ex2, re2)) => ex1 == ex2 && re1 == re2,
+      (Generator::ArrayContains(variants1), Generator::ArrayContains(variants2)) => variants1 == variants2,
+      _ => mem::discriminant(self) == mem::discriminant(other)
+    }
+  }
+}
+
+#[cfg(test)]
+fn h(rule: &Generator) -> u64 {
+  let mut hasher = DefaultHasher::new();
+  rule.hash(&mut hasher);
+  hasher.finish()
+}
+
+#[test]
+fn hash_and_partial_eq_for_matching_rule() {
+  expect!(h(&Generator::Uuid)).to(be_equal_to(h(&Generator::Uuid)));
+  expect!(Generator::Uuid).to(be_equal_to(Generator::Uuid));
+  expect!(Generator::Uuid).to_not(be_equal_to(Generator::RandomBoolean));
+
+  expect!(h(&Generator::RandomBoolean)).to(be_equal_to(h(&Generator::RandomBoolean)));
+  expect!(Generator::RandomBoolean).to(be_equal_to(Generator::RandomBoolean));
+
+  let randint1 = Generator::RandomInt(100, 200);
+  let randint2 = Generator::RandomInt(200, 200);
+
+  expect!(h(&randint1)).to(be_equal_to(h(&randint1)));
+  expect!(&randint1).to(be_equal_to(&randint1));
+  expect!(h(&randint1)).to_not(be_equal_to(h(&randint2)));
+  expect!(&randint1).to_not(be_equal_to(&randint2));
+
+  let dec1 = Generator::RandomDecimal(100);
+  let dec2 = Generator::RandomDecimal(200);
+
+  expect!(h(&dec1)).to(be_equal_to(h(&dec1)));
+  expect!(&dec1).to(be_equal_to(&dec1));
+  expect!(h(&dec1)).to_not(be_equal_to(h(&dec2)));
+  expect!(&dec1).to_not(be_equal_to(&dec2));
+
+  let hexdec1 = Generator::RandomHexadecimal(100);
+  let hexdec2 = Generator::RandomHexadecimal(200);
+
+  expect!(h(&hexdec1)).to(be_equal_to(h(&hexdec1)));
+  expect!(&hexdec1).to(be_equal_to(&hexdec1));
+  expect!(h(&hexdec1)).to_not(be_equal_to(h(&hexdec2)));
+  expect!(&hexdec1).to_not(be_equal_to(&hexdec2));
+
+  let str1 = Generator::RandomString(100);
+  let str2 = Generator::RandomString(200);
+
+  expect!(h(&str1)).to(be_equal_to(h(&str1)));
+  expect!(&str1).to(be_equal_to(&str1));
+  expect!(h(&str1)).to_not(be_equal_to(h(&str2)));
+  expect!(&str1).to_not(be_equal_to(&str2));
+
+  let regex1 = Generator::Regex("\\d+".into());
+  let regex2 = Generator::Regex("\\w+".into());
+
+  expect!(h(&regex1)).to(be_equal_to(h(&regex1)));
+  expect!(&regex1).to(be_equal_to(&regex1));
+  expect!(h(&regex1)).to_not(be_equal_to(h(&regex2)));
+  expect!(&regex1).to_not(be_equal_to(&regex2));
+
+  let datetime1 = Generator::DateTime(Some("yyyy-MM-dd HH:mm:ss".into()));
+  let datetime2 = Generator::DateTime(Some("yyyy-MM-ddTHH:mm:ss".into()));
+
+  expect!(h(&datetime1)).to(be_equal_to(h(&datetime1)));
+  expect!(&datetime1).to(be_equal_to(&datetime1));
+  expect!(h(&datetime1)).to_not(be_equal_to(h(&datetime2)));
+  expect!(&datetime1).to_not(be_equal_to(&datetime2));
+
+  let date1 = Generator::Date(Some("yyyy-MM-dd".into()));
+  let date2 = Generator::Date(Some("yy-MM-dd".into()));
+
+  expect!(h(&date1)).to(be_equal_to(h(&date1)));
+  expect!(&date1).to(be_equal_to(&date1));
+  expect!(h(&date1)).to_not(be_equal_to(h(&date2)));
+  expect!(&date1).to_not(be_equal_to(&date2));
+
+  let time1 = Generator::Time(Some("HH:mm:ss".into()));
+  let time2 = Generator::Time(Some("hh:mm:ss".into()));
+
+  expect!(h(&time1)).to(be_equal_to(h(&time1)));
+  expect!(&time1).to(be_equal_to(&time1));
+  expect!(h(&time1)).to_not(be_equal_to(h(&time2)));
+  expect!(&time1).to_not(be_equal_to(&time2));
+
+  let psg1 = Generator::ProviderStateGenerator("string one".into(), Some(DataType::BOOLEAN));
+  let psg2 = Generator::ProviderStateGenerator("string two".into(), None);
+  let psg3 = Generator::ProviderStateGenerator("string one".into(), None);
+
+  expect!(h(&psg1)).to(be_equal_to(h(&psg1)));
+  expect!(&psg1).to(be_equal_to(&psg1));
+  expect!(h(&psg1)).to_not(be_equal_to(h(&psg2)));
+  expect!(h(&psg1)).to_not(be_equal_to(h(&psg3)));
+  expect!(&psg1).to_not(be_equal_to(&psg2));
+  expect!(&psg1).to_not(be_equal_to(&psg3));
+
+  let msu1 = Generator::MockServerURL("string one".into(), "\\d+".into());
+  let msu2 = Generator::MockServerURL("string two".into(), "\\d+".into());
+  let msu3 = Generator::MockServerURL("string one".into(), "\\w+".into());
+
+  expect!(h(&msu1)).to(be_equal_to(h(&msu1)));
+  expect!(&msu1).to(be_equal_to(&msu1));
+  expect!(h(&msu1)).to_not(be_equal_to(h(&msu2)));
+  expect!(h(&msu1)).to_not(be_equal_to(h(&msu3)));
+  expect!(&msu1).to_not(be_equal_to(&msu2));
+  expect!(&msu1).to_not(be_equal_to(&msu3));
+
+  let ac1 = Generator::ArrayContains(vec![]);
+  let ac2 = Generator::ArrayContains(vec![(0, MatchingRuleCategory::empty("body"), hashmap!{})]);
+  let ac3 = Generator::ArrayContains(vec![(1, MatchingRuleCategory::empty("body"), hashmap!{})]);
+  let ac4 = Generator::ArrayContains(vec![(0, MatchingRuleCategory::equality("body"), hashmap!{})]);
+  let ac5 = Generator::ArrayContains(vec![(0, MatchingRuleCategory::empty("body"), hashmap!{ "A".to_string() => Generator::RandomBoolean })]);
+  let ac6 = Generator::ArrayContains(vec![
+    (0, MatchingRuleCategory::empty("body"), hashmap!{ "A".to_string() => Generator::RandomBoolean }),
+    (1, MatchingRuleCategory::empty("body"), hashmap!{ "A".to_string() => Generator::RandomDecimal(10) })
+  ]);
+  let ac7 = Generator::ArrayContains(vec![
+    (0, MatchingRuleCategory::empty("body"), hashmap!{ "A".to_string() => Generator::RandomBoolean }),
+    (1, MatchingRuleCategory::equality("body"), hashmap!{ "A".to_string() => Generator::RandomDecimal(10) })
+  ]);
+
+  expect!(h(&ac1)).to(be_equal_to(h(&ac1)));
+  expect!(h(&ac1)).to_not(be_equal_to(h(&ac2)));
+  expect!(h(&ac1)).to_not(be_equal_to(h(&ac3)));
+  expect!(h(&ac1)).to_not(be_equal_to(h(&ac4)));
+  expect!(h(&ac1)).to_not(be_equal_to(h(&ac5)));
+  expect!(h(&ac1)).to_not(be_equal_to(h(&ac6)));
+  expect!(h(&ac1)).to_not(be_equal_to(h(&ac7)));
+  expect!(h(&ac2)).to(be_equal_to(h(&ac2)));
+  expect!(h(&ac2)).to_not(be_equal_to(h(&ac1)));
+  expect!(h(&ac2)).to_not(be_equal_to(h(&ac3)));
+  expect!(h(&ac2)).to_not(be_equal_to(h(&ac4)));
+  expect!(h(&ac2)).to_not(be_equal_to(h(&ac5)));
+  expect!(h(&ac2)).to_not(be_equal_to(h(&ac6)));
+  expect!(h(&ac2)).to_not(be_equal_to(h(&ac7)));
+  expect!(h(&ac3)).to(be_equal_to(h(&ac3)));
+  expect!(h(&ac3)).to_not(be_equal_to(h(&ac2)));
+  expect!(h(&ac3)).to_not(be_equal_to(h(&ac1)));
+  expect!(h(&ac3)).to_not(be_equal_to(h(&ac4)));
+  expect!(h(&ac3)).to_not(be_equal_to(h(&ac5)));
+  expect!(h(&ac3)).to_not(be_equal_to(h(&ac6)));
+  expect!(h(&ac3)).to_not(be_equal_to(h(&ac7)));
+  expect!(h(&ac4)).to(be_equal_to(h(&ac4)));
+  expect!(h(&ac4)).to_not(be_equal_to(h(&ac2)));
+  expect!(h(&ac4)).to_not(be_equal_to(h(&ac3)));
+  expect!(h(&ac4)).to_not(be_equal_to(h(&ac1)));
+  expect!(h(&ac4)).to_not(be_equal_to(h(&ac5)));
+  expect!(h(&ac4)).to_not(be_equal_to(h(&ac6)));
+  expect!(h(&ac4)).to_not(be_equal_to(h(&ac7)));
+  expect!(h(&ac5)).to(be_equal_to(h(&ac5)));
+  expect!(h(&ac5)).to_not(be_equal_to(h(&ac2)));
+  expect!(h(&ac5)).to_not(be_equal_to(h(&ac3)));
+  expect!(h(&ac5)).to_not(be_equal_to(h(&ac4)));
+  expect!(h(&ac5)).to_not(be_equal_to(h(&ac1)));
+  expect!(h(&ac5)).to_not(be_equal_to(h(&ac6)));
+  expect!(h(&ac5)).to_not(be_equal_to(h(&ac7)));
+  expect!(h(&ac6)).to(be_equal_to(h(&ac6)));
+  expect!(h(&ac6)).to_not(be_equal_to(h(&ac2)));
+  expect!(h(&ac6)).to_not(be_equal_to(h(&ac3)));
+  expect!(h(&ac6)).to_not(be_equal_to(h(&ac4)));
+  expect!(h(&ac6)).to_not(be_equal_to(h(&ac5)));
+  expect!(h(&ac6)).to_not(be_equal_to(h(&ac1)));
+  expect!(h(&ac6)).to_not(be_equal_to(h(&ac7)));
+  expect!(h(&ac7)).to(be_equal_to(h(&ac7)));
+  expect!(h(&ac7)).to_not(be_equal_to(h(&ac2)));
+  expect!(h(&ac7)).to_not(be_equal_to(h(&ac3)));
+  expect!(h(&ac7)).to_not(be_equal_to(h(&ac4)));
+  expect!(h(&ac7)).to_not(be_equal_to(h(&ac5)));
+  expect!(h(&ac7)).to_not(be_equal_to(h(&ac6)));
+  expect!(h(&ac7)).to_not(be_equal_to(h(&ac1)));
+
+  expect!(&ac1).to(be_equal_to(&ac1));
+  expect!(&ac1).to_not(be_equal_to(&ac2));
+  expect!(&ac1).to_not(be_equal_to(&ac3));
+  expect!(&ac1).to_not(be_equal_to(&ac4));
+  expect!(&ac1).to_not(be_equal_to(&ac5));
+  expect!(&ac1).to_not(be_equal_to(&ac6));
+  expect!(&ac1).to_not(be_equal_to(&ac7));
+  expect!(&ac2).to(be_equal_to(&ac2));
+  expect!(&ac2).to_not(be_equal_to(&ac1));
+  expect!(&ac2).to_not(be_equal_to(&ac3));
+  expect!(&ac2).to_not(be_equal_to(&ac4));
+  expect!(&ac2).to_not(be_equal_to(&ac5));
+  expect!(&ac2).to_not(be_equal_to(&ac6));
+  expect!(&ac2).to_not(be_equal_to(&ac7));
+  expect!(&ac3).to(be_equal_to(&ac3));
+  expect!(&ac3).to_not(be_equal_to(&ac2));
+  expect!(&ac3).to_not(be_equal_to(&ac1));
+  expect!(&ac3).to_not(be_equal_to(&ac4));
+  expect!(&ac3).to_not(be_equal_to(&ac5));
+  expect!(&ac3).to_not(be_equal_to(&ac6));
+  expect!(&ac3).to_not(be_equal_to(&ac7));
+  expect!(&ac4).to(be_equal_to(&ac4));
+  expect!(&ac4).to_not(be_equal_to(&ac2));
+  expect!(&ac4).to_not(be_equal_to(&ac3));
+  expect!(&ac4).to_not(be_equal_to(&ac1));
+  expect!(&ac4).to_not(be_equal_to(&ac5));
+  expect!(&ac4).to_not(be_equal_to(&ac6));
+  expect!(&ac4).to_not(be_equal_to(&ac7));
+  expect!(&ac5).to(be_equal_to(&ac5));
+  expect!(&ac5).to_not(be_equal_to(&ac2));
+  expect!(&ac5).to_not(be_equal_to(&ac3));
+  expect!(&ac5).to_not(be_equal_to(&ac4));
+  expect!(&ac5).to_not(be_equal_to(&ac1));
+  expect!(&ac5).to_not(be_equal_to(&ac6));
+  expect!(&ac5).to_not(be_equal_to(&ac7));
+  expect!(&ac6).to(be_equal_to(&ac6));
+  expect!(&ac6).to_not(be_equal_to(&ac2));
+  expect!(&ac6).to_not(be_equal_to(&ac3));
+  expect!(&ac6).to_not(be_equal_to(&ac4));
+  expect!(&ac6).to_not(be_equal_to(&ac5));
+  expect!(&ac6).to_not(be_equal_to(&ac1));
+  expect!(&ac6).to_not(be_equal_to(&ac7));
+  expect!(&ac7).to(be_equal_to(&ac7));
+  expect!(&ac7).to_not(be_equal_to(&ac2));
+  expect!(&ac7).to_not(be_equal_to(&ac3));
+  expect!(&ac7).to_not(be_equal_to(&ac4));
+  expect!(&ac7).to_not(be_equal_to(&ac5));
+  expect!(&ac7).to_not(be_equal_to(&ac6));
+  expect!(&ac7).to_not(be_equal_to(&ac1));
 }
 
 /// Trait for something that can generate a value based on a source value.
@@ -304,9 +578,9 @@ impl GenerateValue<Vec<String>> for Generator {
 
 pub(crate) fn find_matching_variant<T>(
   value: &T,
-  variants: &Vec<(usize, MatchingRuleCategory, Generators)>,
+  variants: &Vec<(usize, MatchingRuleCategory, HashMap<String, Generator>)>,
   callback: &dyn Fn(&Vec<&str>, &T, &MatchingContext) -> bool
-) -> Option<(usize, Generators)>
+) -> Option<(usize, HashMap<String, Generator>)>
   where T: Clone + std::fmt::Debug {
   let result = variants.iter()
     .find(|(index, rules, _)| {
@@ -1173,17 +1447,13 @@ mod tests {
     let generator = Generator::ArrayContains(vec![
       (0, matchingrules_list! {
         "body"; "$.href" => [ MatchingRule::Regex(".*(\\/orders\\/\\d+)$".into()) ]
-      }, generators! {
-        "BODY" => {
-          "$.href" => Generator::MockServerURL("http://localhost:8080/orders/1234".into(), ".*(\\/orders\\/\\d+)$".into())
-        }
+      }, hashmap! {
+        "$.href".to_string() => Generator::MockServerURL("http://localhost:8080/orders/1234".into(), ".*(\\/orders\\/\\d+)$".into())
       }),
       (1, matchingrules_list! {
         "body"; "$.href" => [ MatchingRule::Regex(".*(\\/orders\\/\\d+)$".into()) ]
-      }, generators! {
-        "BODY" => {
-          "$.href" => Generator::MockServerURL("http://localhost:8080/orders/1234".into(), ".*(\\/orders\\/\\d+)$".into())
-        }
+      }, hashmap! {
+        "$.href".to_string() => Generator::MockServerURL("http://localhost:8080/orders/1234".into(), ".*(\\/orders\\/\\d+)$".into())
       })
     ]);
     let value = json!([

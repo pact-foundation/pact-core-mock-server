@@ -535,11 +535,10 @@ impl MatchingRule {
   }
 
   /// Return the generators for this rule
-  pub fn generators(&self) -> HashMap<String, Generator> {
+  pub fn generators(&self) -> Vec<Generator> {
     match self {
-      // TODO
-      // MatchingRule::ArrayContains(variants) => Some(&ArrayContainsGenerator { variants: variants.clone() }),
-      _ => hashmap!{}
+      MatchingRule::ArrayContains(variants) => vec![Generator::ArrayContains(variants.clone())],
+      _ => vec![]
     }
   }
 }
@@ -1103,8 +1102,8 @@ impl MatchingRuleCategory {
     for (base_path, rules) in &self.rules {
       for rule in &rules.rules {
         if rule.has_generators() {
-          for (path, generator) in rule.generators() {
-            generators.insert(base_path.to_owned() + "." + path.as_str(), generator);
+          for generator in rule.generators() {
+            generators.insert(base_path.to_owned(), generator);
           }
         }
       }
