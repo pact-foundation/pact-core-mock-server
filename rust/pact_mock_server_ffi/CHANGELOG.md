@@ -1,5 +1,15 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.0.12 - Supports generators associated with array contains matcher variants
+
+* fe06178 - chore: update pact_matching and pact_mock_server crates to latest (Ronald Holshausen, Thu Dec 31 13:47:43 2020 +1100)
+* 329c1d7 - Merge branch 'feat/add-version-to-ffi' (Ronald Holshausen, Wed Dec 30 15:01:19 2020 +1100)
+* 51eef86 - fix: return version of the mock server via FFI without heap allocation #80 (Ronald Holshausen, Wed Dec 30 14:55:08 2020 +1100)
+* 5e56ecb - refactor: support generators associated with array contains matcher variants (Ronald Holshausen, Tue Dec 29 11:46:56 2020 +1100)
+* 638059d - feat: return version of the mock server via FFI (Matt Fellows, Mon Nov 30 18:06:55 2020 +1100)
+* 7d4cd5b - chore: update publish.md (Ronald Holshausen, Fri Oct 30 13:28:19 2020 +1100)
+* be35049 - bump version to 0.0.12 (Ronald Holshausen, Fri Oct 30 12:28:20 2020 +1100)
+
 # 0.0.11 - Bugfix Release
 
 * b4c4de8 - chore: upgrade to latest Onig crate (Ronald Holshausen, Wed Oct 28 09:59:36 2020 +1100)
