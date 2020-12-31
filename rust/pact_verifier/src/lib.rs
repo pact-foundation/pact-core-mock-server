@@ -267,7 +267,10 @@ fn verify_interaction<F: RequestFilterExecutor, S: ProviderStateExecutor>(
   options: &VerificationOptions<F>,
   provider_state_executor: &S
 ) -> Result<(), MismatchResult> {
-  let client = reqwest::Client::new();
+  let client = reqwest::Client::builder()
+                .danger_accept_invalid_certs(options.disable_ssl_verification)
+                .build()
+                .unwrap_or(reqwest::Client::new());
 
   let mut provider_states_results = hashmap!{};
   if !interaction.provider_states().is_empty() {
@@ -472,7 +475,9 @@ pub struct VerificationOptions<F> where F: RequestFilterExecutor {
     /// Request filter callback
     pub request_filter: Option<Box<F>>,
     /// Tags to use when publishing results
-    pub provider_tags: Vec<String>
+    pub provider_tags: Vec<String>,
+    /// Ignore invalid/self-signed SSL certificates
+    pub disable_ssl_verification: bool
 }
 
 impl <F: RequestFilterExecutor> Default for VerificationOptions<F> {
@@ -482,7 +487,8 @@ impl <F: RequestFilterExecutor> Default for VerificationOptions<F> {
       provider_version: None,
       build_url: None,
       request_filter: None,
-      provider_tags: vec![]
+      provider_tags: vec![],
+      disable_ssl_verification: false
     }
   }
 }
