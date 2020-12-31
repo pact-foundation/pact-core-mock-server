@@ -11,7 +11,6 @@ use std::{
 };
 use url::Url;
 use pact_mock_server::mock_server::MockServerConfig;
-use std::cell::RefCell;
 use std::sync::{Mutex, Arc};
 
 /// This trait is implemented by types which allow us to start a mock server.
