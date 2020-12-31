@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.7.1 - support generators associated with array contains matcher variants
+
+* beb1c03 - fix: cleanup compiler warning (Ronald Holshausen, Thu Dec 31 14:41:09 2020 +1100)
+* 335e921 - chore: update pact_matching and pact_mock_server crates to latest (Ronald Holshausen, Thu Dec 31 14:39:50 2020 +1100)
+* 5e56ecb - refactor: support generators associated with array contains matcher variants (Ronald Holshausen, Tue Dec 29 11:46:56 2020 +1100)
+* 6182b56 - bump version to 0.7.1 (Ronald Holshausen, Fri Oct 16 13:25:59 2020 +1100)
+
 # 0.7.0 - Update to latest matching and mock server crates
 
 * 5e0e470 - chore: bump minor version of pact_consumer crate (Ronald Holshausen, Fri Oct 16 13:22:12 2020 +1100)
