@@ -2,6 +2,7 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 
 # 0.7.2 - support generators associated with array contains matcher variants
 
+* 56a13d3: update pact_matching and pact_mock_server crates to latest
 * bfba4bd - bump version to 0.7.2 (Ronald Holshausen, Fri Oct 16 11:50:58 2020 +1100)
 
 # 0.7.1 - arrayContains matcher + text/xml content type
