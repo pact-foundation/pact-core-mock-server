@@ -1,4 +1,4 @@
-use clap::{App, AppSettings, Arg};
+use clap::{App, Arg};
 use regex::Regex;
 
 fn integer_value(v: String) -> Result<(), String> {
@@ -10,8 +10,6 @@ pub(crate) fn setup_app<'a, 'b>(program: String, version: &'b str) -> App<'a, 'b
     .version(version)
     .about("Standalone Pact verifier")
     .version_short("v")
-    .setting(AppSettings::ArgRequiredElseHelp)
-    .setting(AppSettings::ColoredHelp)
     .arg(Arg::with_name("loglevel")
       .short("l")
       .long("loglevel")

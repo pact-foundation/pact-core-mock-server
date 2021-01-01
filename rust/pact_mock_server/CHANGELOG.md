@@ -1,5 +1,15 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.7.12 - Mockserver URL and array contains generators
+
+* f2086d8 - chore: cleanup warnings (Ronald Holshausen, Tue Dec 29 15:46:46 2020 +1100)
+* 528c9b5 - chore: skip test that fails intermittently on Windows (Ronald Holshausen, Tue Dec 29 14:52:38 2020 +1100)
+* 6491ce9 - chore: add longer sleep for test failing on windows (Ronald Holshausen, Tue Dec 29 14:38:45 2020 +1100)
+* 5e56ecb - refactor: support generators associated with array contains matcher variants (Ronald Holshausen, Tue Dec 29 11:46:56 2020 +1100)
+* 5058a2d - feat: include the mockserver URL and port in the verification context (Ronald Holshausen, Fri Nov 20 16:43:10 2020 +1100)
+* 118daa1 - feat: when merging pact files, upcast to the higher spec version (Ronald Holshausen, Thu Nov 19 18:09:13 2020 +1100)
+* 08852e4 - bump version to 0.7.12 (Ronald Holshausen, Tue Nov 17 16:45:35 2020 +1100)
+
 # 0.7.11 - Support provider state injected values
 
 * 13ce2f2 - fix: introduce GeneratorTestMode and restrict provider state generator to the provider side (Ronald Holshausen, Mon Nov 16 15:00:01 2020 +1100)

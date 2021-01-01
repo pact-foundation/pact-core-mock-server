@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.9.5 - Supports generators associated with array contains matcher variants
+
+* 144b6aa - chore: upgrade dependencies to latest (Ronald Holshausen, Thu Dec 31 14:58:09 2020 +1100)
+* 09513de - feat: add verifiedBy to the verified results (Ronald Holshausen, Tue Dec 29 12:05:07 2020 +1100)
+* 12c42c3 - bump version to 0.9.5 (Matt Fellows, Mon Nov 23 07:44:42 2020 +1100)
+* 71a5847 - chore: update rust deps (Matt Fellows, Sun Nov 22 23:59:29 2020 +1100)
+
 # 0.9.4 - Bugfix Release
 
 * 52aa549 - chore: improve mismatch output + notices for pacts for verification (Matt Fellows, Sun Nov 22 23:23:15 2020 +1100)

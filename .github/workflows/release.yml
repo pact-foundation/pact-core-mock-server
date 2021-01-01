@@ -59,3 +59,11 @@ jobs:
         with:
           name: release-artifacts
           path: rust/target/artifacts
+      - name: Upload Release Assets
+        id: upload-release-asset
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: rust/target/artifacts/*
+          file_glob: true
+          tag: ${{ github.ref }}
