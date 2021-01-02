@@ -39,8 +39,8 @@ chrono-tz = "0.5.1"
 rand_regex = "0.14.2"
 regex-syntax = "0.6.21"
 tree_magic = "0.2.3"
-formdata = "0.12.3"
-hyper = "0.10.16"
+multipart = { version = "0.17", default-features = false, features = ["server"] }
+http = "0.2"
 httparse = "1.3.4"
 mime = "0.3.16"
 
