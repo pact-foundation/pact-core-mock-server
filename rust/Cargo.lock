@@ -1425,7 +1425,6 @@ dependencies = [
  "hamcrest2",
  "hex",
  "http",
- "httparse",
  "indextree",
  "itertools 0.10.0",
  "lazy_static",
