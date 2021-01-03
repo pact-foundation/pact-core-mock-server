@@ -28,10 +28,10 @@ use futures::task::{Context, Poll};
 use hyper::server::accept::{self, from_stream, Accept};
 use hyper::server::conn::{AddrIncoming, AddrStream};
 use itertools::unfold;
-use futures::stream::Unfold;
+use futures::stream::{Unfold};
 use std::borrow::BorrowMut;
 use std::ops::{Deref, DerefMut};
-use futures::StreamExt;
+use futures::{StreamExt, FutureExt};
 
 #[derive(Debug, Clone)]
 enum InteractionError {
@@ -325,7 +325,7 @@ pub(crate) async fn create_and_bind(
 
 // Taken from https://github.com/ctz/hyper-rustls/blob/master/examples/server.rs
 struct HyperAcceptor {
-  stream: Pin<Arc<Mutex<dyn Stream<Item = Result<TlsStream<TcpStream>, io::Error>> + Send + Sync>>>
+  stream: Pin<Box<dyn Stream<Item = Result<TlsStream<TcpStream>, io::Error>> + Send>>
 }
 
 impl hyper::server::accept::Accept for HyperAcceptor {
@@ -336,9 +336,7 @@ impl hyper::server::accept::Accept for HyperAcceptor {
     mut self: Pin<&mut Self>,
     cx: &mut Context,
   ) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
-    let mut guard = self.stream.lock().unwrap();
-    let mut stream = Pin::new(guard.deref_mut());
-    stream.poll_next_unpin(cx)
+    self.as_mut().stream.poll_next_unpin(cx)
   }
 }
 
@@ -367,7 +365,7 @@ pub(crate) async fn create_and_bind_tls(
   });
 
   let server = Server::builder(HyperAcceptor {
-    stream: Arc::pin(Mutex::new(tls_stream))
+    stream: tls_stream.boxed()
   })
     .serve(make_service_fn(move |stream| {
       let pact = pact.clone();
