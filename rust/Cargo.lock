@@ -185,16 +185,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "buf_redux"
-version = "0.8.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b953a6887648bb07a535631f2bc00fbdb2a2216f135552cb3f534ed136b9c07f"
-dependencies = [
- "memchr 2.3.4",
- "safemem",
-]
-
-[[package]]
 name = "bumpalo"
 version = "3.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1289,24 +1279,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "multipart"
-version = "0.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8209c33c951f07387a8497841122fc6f712165e3f9bda3e6be4645b58188f676"
-dependencies = [
- "buf_redux",
- "httparse",
- "log 0.4.11",
- "mime 0.3.16",
- "mime_guess",
- "quick-error",
- "rand 0.6.5",
- "safemem",
- "tempfile",
- "twoway",
-]
-
-[[package]]
 name = "native-tls"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1613,10 +1585,11 @@ dependencies = [
  "difference",
  "env_logger 0.8.2",
  "expectest 0.12.0",
+ "formdata",
  "hamcrest2",
  "hex",
- "http",
  "httparse",
+ "hyper 0.10.16",
  "indextree",
  "itertools 0.10.0",
  "lazy_static",
@@ -1624,7 +1597,6 @@ dependencies = [
  "log 0.4.11",
  "maplit 1.0.2",
  "mime 0.3.16",
- "multipart",
  "nom 5.1.2",
  "ntest",
  "onig",
@@ -3004,15 +2976,6 @@ name = "try-lock"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59547bce71d9c38b83d9c0e92b6066c4253371f15005def0c30d9657f50c7642"
-
-[[package]]
-name = "twoway"
-version = "0.1.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59b11b2b5241ba34be09c3cc85a36e56e48f9888862e19cedf23336d35316ed1"
-dependencies = [
- "memchr 2.3.4",
-]
 
 [[package]]
 name = "typeable"

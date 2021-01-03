@@ -96,8 +96,20 @@ fn create_multipart_file() {
   with_multipart_file(interaction.clone(), InteractionPart::Request, content_type.as_ptr(), file.as_ptr(), part_name.as_ptr());
 
   interaction.with_interaction(&|_, i| {
+    let boundary = match &i.request.headers {
+      Some(hashmap) => {
+        hashmap.get("Content-Type")
+          .map(|vec| vec[0].as_str())
+          // Sorry for awful mime parsing..
+          .map(|content_type: &str| content_type.split("boundary=").collect::<Vec<_>>())
+          .map(|split| split[1])
+          .unwrap_or("")
+      },
+      None => ""
+    };
+
     expect!(i.request.headers.as_ref()).to(be_some().value(&hashmap!{
-      "Content-Type".to_string() => vec!["multipart/form-data; boundary=create_multipart_file".to_string()],
+      "Content-Type".to_string() => vec![format!("multipart/form-data; boundary={}", boundary)],
     }));
 
     let actual_req_body_str = match &i.request.body {
@@ -105,9 +117,11 @@ fn create_multipart_file() {
       _ => None,
     };
 
-    let expected_req_body_str =
-      "--create_multipart_file\r\nContent-Disposition: form-data; name=\"file\"; filename=\"multipart-test-file.json\"\r\n\r\ntrue\n\r\n--create_multipart_file--";
+    let expected_req_body = format!(
+      "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"multipart-test-file.json\"\r\nContent-Type: application/json\r\n\r\ntrue\n\r\n--{boundary}--\r\n",
+      boundary = boundary
+    );
 
-    expect!(actual_req_body_str).to(be_equal_to(Some(expected_req_body_str.to_string())));
+    expect!(actual_req_body_str).to(be_equal_to(Some(expected_req_body)));
   });
 }

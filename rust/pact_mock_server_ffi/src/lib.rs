@@ -68,7 +68,7 @@ use pact_matching::time_utils::{parse_pattern, to_chrono_pattern};
 use pact_mock_server::{MANAGER, MockServerError, TlsConfigBuilder, WritePactFileErr};
 use pact_mock_server::server_manager::ServerManager;
 
-use crate::bodies::{file_as_multipart_body, process_json, request_multipart, response_multipart};
+use crate::bodies::{file_as_multipart_body, empty_multipart_body, process_json, request_multipart, response_multipart, MultipartBody};
 use crate::handles::InteractionPart;
 
 pub mod handles;
@@ -904,12 +904,11 @@ pub extern fn with_multipart_file(
   match convert_cstr("content_type", content_type) {
     Some(content_type) => {
       match interaction.with_interaction(&|_, inner| {
-        let boundary = inner.description.replace(" ", "_");
-        match convert_ptr_to_mime_part_body(file, part_name, boundary.as_str()) {
+        match convert_ptr_to_mime_part_body(file, part_name) {
           Ok(body) => {
             match part {
-              InteractionPart::Request => request_multipart(&mut inner.request, &boundary, body, &content_type, part_name),
-              InteractionPart::Response => response_multipart(&mut inner.response, &boundary, body, &content_type, part_name)
+              InteractionPart::Request => request_multipart(&mut inner.request, &body.boundary, body.body, &content_type, part_name),
+              InteractionPart::Response => response_multipart(&mut inner.response, &body.boundary, body.body, &content_type, part_name)
             };
             Ok(())
           },
@@ -947,9 +946,9 @@ fn convert_ptr_to_body(body: *const c_char, size: size_t) -> OptionalBody {
   }
 }
 
-fn convert_ptr_to_mime_part_body(file: *const c_char, part_name: &str, boundary: &str) -> Result<OptionalBody, String> {
+fn convert_ptr_to_mime_part_body(file: *const c_char, part_name: &str) -> Result<MultipartBody, String> {
   if file.is_null() {
-    Ok(OptionalBody::Null)
+    empty_multipart_body()
   } else {
     let c_str = unsafe { CStr::from_ptr(file) };
     let file = match c_str.to_str() {
@@ -959,6 +958,6 @@ fn convert_ptr_to_mime_part_body(file: *const c_char, part_name: &str, boundary:
         Err(format!("convert_ptr_to_mime_part_body: Failed to parse file name as a UTF-8 string: {}", err))
       }
     }?;
-    file_as_multipart_body(file, part_name, boundary)
+    file_as_multipart_body(file, part_name)
   }
 }
