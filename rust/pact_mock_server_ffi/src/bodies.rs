@@ -6,8 +6,6 @@ use serde_json::{Value, Map};
 use pact_matching::models::json_utils::{json_to_string, json_to_num};
 use pact_matching::models::{Request, OptionalBody, Response};
 use maplit::*;
-use hyper::header::Headers;
-use formdata::{FormData, FilePart};
 use std::path::Path;
 use log::*;
 
@@ -236,19 +234,39 @@ pub fn response_multipart(response: &mut Response, boundary: &str, body: Optiona
     .add_rule("Content-Type", MatchingRule::Regex(r"multipart/form-data;(\s*charset=[^;]*;)?\s*boundary=.*".into()), &RuleLogic::And);
 }
 
+/// Representation of a multipart body
+pub struct MultipartBody {
+  /// The actual body
+  pub body: OptionalBody,
+
+  /// The boundary used in the multipart encoding
+  pub boundary: String,
+}
+
 /// Loads an example file as a MIME Multipart body
-pub fn file_as_multipart_body(file: &str, part_name: &str, boundary: &str) -> Result<OptionalBody, String> {
-  let headers = Headers::new();
-  let formdata = FormData {
-    fields: vec![],
-    files: vec![(part_name.to_string(), FilePart::new(headers, Path::new(file)))]
-  };
-  let mut buffer: Vec<u8> = vec![];
-  match formdata::write_formdata(&mut buffer, &boundary.as_bytes().to_vec(), &formdata) {
-    Ok(_) => Ok(OptionalBody::Present(buffer.clone(), Some("multipart/form-data".into()))),
-    Err(err) => {
-      warn!("convert_ptr_to_mime_part_body: Failed to generate multipart body: {}", err);
-      Err(format!("convert_ptr_to_mime_part_body: Failed to generate multipart body: {}", err))
-    }
-  }
+pub fn file_as_multipart_body(file: &str, part_name: &str) -> Result<MultipartBody, String> {
+  let mut multipart = multipart::client::Multipart::from_request(multipart::mock::ClientRequest::default()).unwrap();
+
+  multipart.write_file(part_name, Path::new(file)).map_err(format_multipart_error)?;
+  let http_buffer = multipart.send().map_err(format_multipart_error)?;
+
+  Ok(MultipartBody {
+    body: OptionalBody::Present(http_buffer.buf, Some("multipart/form-data".into())),
+    boundary: http_buffer.boundary
+  })
+}
+
+/// Create an empty MIME Multipart body
+pub fn empty_multipart_body() -> Result<MultipartBody, String> {
+  let multipart = multipart::client::Multipart::from_request(multipart::mock::ClientRequest::default()).unwrap();
+  let http_buffer = multipart.send().map_err(format_multipart_error)?;
+
+  Ok(MultipartBody {
+    body: OptionalBody::Present(http_buffer.buf, Some("multipart/form-data".into())),
+    boundary: http_buffer.boundary
+  })
+}
+
+fn format_multipart_error(e: std::io::Error) -> String {
+  format!("convert_ptr_to_mime_part_body: Failed to generate multipart body: {}", e)
 }

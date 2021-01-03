@@ -1,5 +1,6 @@
 use std::ffi::{CString, CStr};
 use expectest::prelude::*;
+use pact_matching::models::OptionalBody;
 use reqwest::blocking::Client;
 use reqwest::header::CONTENT_TYPE;
 use std::panic::catch_unwind;
@@ -11,7 +12,8 @@ use pact_mock_server_ffi::{
   new_interaction,
   with_header,
   handles::InteractionPart,
-  with_query_parameter
+  with_query_parameter,
+  with_multipart_file
 };
 use maplit::*;
 
@@ -77,5 +79,49 @@ fn create_query_parameter_with_multiple_values() {
     expect!(i.request.query.as_ref()).to(be_some().value(&hashmap!{
       "q".to_string() => vec!["1".to_string(), "2".to_string(), "3".to_string()]
     }));
+  });
+}
+
+#[test]
+fn create_multipart_file() {
+  let consumer_name = CString::new("consumer").unwrap();
+  let provider_name = CString::new("provider").unwrap();
+  let pact_handle = new_pact(consumer_name.as_ptr(), provider_name.as_ptr());
+  let description = CString::new("create_multipart_file").unwrap();
+  let interaction = new_interaction(pact_handle, description.as_ptr());
+  let content_type = CString::new("application/json").unwrap();
+  let file = CString::new("tests/multipart-test-file.json").unwrap();
+  let part_name = CString::new("file").unwrap();
+
+  with_multipart_file(interaction.clone(), InteractionPart::Request, content_type.as_ptr(), file.as_ptr(), part_name.as_ptr());
+
+  interaction.with_interaction(&|_, i| {
+    let boundary = match &i.request.headers {
+      Some(hashmap) => {
+        hashmap.get("Content-Type")
+          .map(|vec| vec[0].as_str())
+          // Sorry for awful mime parsing..
+          .map(|content_type: &str| content_type.split("boundary=").collect::<Vec<_>>())
+          .map(|split| split[1])
+          .unwrap_or("")
+      },
+      None => ""
+    };
+
+    expect!(i.request.headers.as_ref()).to(be_some().value(&hashmap!{
+      "Content-Type".to_string() => vec![format!("multipart/form-data; boundary={}", boundary)],
+    }));
+
+    let actual_req_body_str = match &i.request.body {
+      OptionalBody::Present(body, _) => Some(String::from_utf8(body.clone()).unwrap()),
+      _ => None,
+    };
+
+    let expected_req_body = format!(
+      "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"multipart-test-file.json\"\r\nContent-Type: application/json\r\n\r\ntrue\r\n--{boundary}--\r\n",
+      boundary = boundary
+    );
+
+    expect!(actual_req_body_str).to(be_equal_to(Some(expected_req_body)));
   });
 }

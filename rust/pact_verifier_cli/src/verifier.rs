@@ -157,6 +157,7 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
       host: s!(matches.value_of("hostname").unwrap_or("localhost")),
       port: matches.value_of("port").map(|port| port.parse::<u16>().unwrap()),
       path: matches.value_of("base-path").unwrap_or("/").into(),
+      protocol: s!(matches.value_of("scheme").unwrap_or("http")),
       .. ProviderInfo::default()
     };
     let source = pact_source(matches);
@@ -173,7 +174,8 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
         build_url: matches.value_of("build-url").map(|v| v.to_string()),
         request_filter: None::<Box<NullRequestFilterExecutor>>,
         provider_tags: matches.values_of("provider-tags")
-          .map_or_else(|| vec![], |tags| tags.map(|tag| tag.to_string()).collect())
+          .map_or_else(|| vec![], |tags| tags.map(|tag| tag.to_string()).collect()),
+        disable_ssl_verification: matches.is_present("disable-ssl-verification")
     };
 
     for s in &source {
