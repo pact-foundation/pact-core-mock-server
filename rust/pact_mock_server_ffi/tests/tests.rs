@@ -118,7 +118,7 @@ fn create_multipart_file() {
     };
 
     let expected_req_body = format!(
-      "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"multipart-test-file.json\"\r\nContent-Type: application/json\r\n\r\ntrue\n\r\n--{boundary}--\r\n",
+      "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"multipart-test-file.json\"\r\nContent-Type: application/json\r\n\r\ntrue\r\n--{boundary}--\r\n",
       boundary = boundary
     );
 
