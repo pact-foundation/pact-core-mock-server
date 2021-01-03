@@ -1,22 +1,37 @@
-use crate::matching::{MatchResult, match_request};
-
-use pact_matching::models::{RequestResponsePact, Request, OptionalBody, HttpPart};
-use pact_matching::models::parse_query_string;
-use pact_matching::models::generators::GeneratorTestMode;
-
 use std::collections::HashMap;
+use std::io;
+use std::net::SocketAddr;
+use std::pin::Pin;
 use std::sync::{Arc, Mutex};
-use log::{error, warn, info, debug};
-use hyper::{Body, Response, Server, Error};
-use hyper::http::response::{Builder as ResponseBuilder};
+
+use futures::prelude::*;
+use hyper::{Body, Error, Response, Server};
 use hyper::http::header::{HeaderName, HeaderValue};
-use hyper::service::service_fn;
+use hyper::http::response::Builder as ResponseBuilder;
 use hyper::service::make_service_fn;
-use serde_json::json;
+use hyper::service::service_fn;
+use log::{debug, error, info, warn};
 use maplit::*;
-use hyper::server::conn::AddrIncoming;
 use rustls::ServerConfig;
+use serde_json::json;
+use tokio::net::{TcpListener, TcpStream};
+use tokio_rustls::server::TlsStream;
+use tokio_rustls::{TlsAcceptor};
+
+use pact_matching::models::{HttpPart, OptionalBody, Request, RequestResponsePact};
+use pact_matching::models::generators::GeneratorTestMode;
+use pact_matching::models::parse_query_string;
+
+use crate::matching::{match_request, MatchResult};
 use crate::mock_server::MockServer;
+use futures::task::{Context, Poll};
+use hyper::server::accept::{self, from_stream, Accept};
+use hyper::server::conn::{AddrIncoming, AddrStream};
+use itertools::unfold;
+use futures::stream::Unfold;
+use std::borrow::BorrowMut;
+use std::ops::{Deref, DerefMut};
+use futures::StreamExt;
 
 #[derive(Debug, Clone)]
 enum InteractionError {
@@ -265,11 +280,11 @@ fn handle_mock_request_error(result: Result<Response<Body>, InteractionError>) -
 // no async operations) is that it needs a tokio context to be able to call try_bind.
 pub(crate) async fn create_and_bind(
   pact: RequestResponsePact,
-  addr: std::net::SocketAddr,
+  addr: SocketAddr,
   shutdown: impl std::future::Future<Output = ()>,
   matches: Arc<Mutex<Vec<MatchResult>>>,
   mock_server: Arc<Mutex<MockServer>>
-) -> Result<(impl std::future::Future<Output = ()>, std::net::SocketAddr), hyper::Error> {
+) -> Result<(impl std::future::Future<Output = ()>, SocketAddr), hyper::Error> {
   let pact = Arc::new(pact);
 
   let server = Server::try_bind(&addr)?
@@ -308,20 +323,53 @@ pub(crate) async fn create_and_bind(
   ))
 }
 
+// Taken from https://github.com/ctz/hyper-rustls/blob/master/examples/server.rs
+struct HyperAcceptor {
+  stream: Pin<Arc<Mutex<dyn Stream<Item = Result<TlsStream<TcpStream>, io::Error>> + Send + Sync>>>
+}
+
+impl hyper::server::accept::Accept for HyperAcceptor {
+  type Conn = TlsStream<TcpStream>;
+  type Error = io::Error;
+
+  fn poll_accept(
+    mut self: Pin<&mut Self>,
+    cx: &mut Context,
+  ) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
+    let mut guard = self.stream.lock().unwrap();
+    let mut stream = Pin::new(guard.deref_mut());
+    stream.poll_next_unpin(cx)
+  }
+}
+
 pub(crate) async fn create_and_bind_tls(
   pact: RequestResponsePact,
-  addr: std::net::SocketAddr,
+  addr: SocketAddr,
   shutdown: impl std::future::Future<Output = ()>,
   matches: Arc<Mutex<Vec<MatchResult>>>,
-  tls: &ServerConfig,
+  tls_cfg: ServerConfig,
   mock_server: Arc<Mutex<MockServer>>
-) -> Result<(impl std::future::Future<Output = ()>, std::net::SocketAddr), hyper::Error> {
+) -> Result<(impl std::future::Future<Output = ()>, SocketAddr), io::Error> {
   let pact = Arc::new(pact);
 
-  let incoming = AddrIncoming::bind(&addr)?;
-  let socket_addr = incoming.local_addr();
-  let server = Server::builder(crate::tls::TlsAcceptor::new(tls.clone(), incoming))
-    .serve(make_service_fn(move |_| {
+  let tcp = TcpListener::bind(&addr).await?;
+  let socket_addr = tcp.local_addr()?;
+  let tls_acceptor = Arc::new(TlsAcceptor::from(Arc::new(tls_cfg)));
+  let tls_stream = stream::unfold((Arc::new(tcp), tls_acceptor.clone()), |(listener, acceptor)| {
+    async move {
+      let (socket, _) = listener.accept().await.map_err(|err| {
+        error!("Failed to accept TLS connection - {:?}", err);
+        err
+      }).ok()?;
+      let stream = acceptor.accept(socket);
+      Some((stream.await, (listener.clone(), acceptor.clone())))
+    }
+  });
+
+  let server = Server::builder(HyperAcceptor {
+    stream: Arc::pin(Mutex::new(tls_stream))
+  })
+    .serve(make_service_fn(move |stream| {
       let pact = pact.clone();
       let matches = matches.clone();
       let mock_server = mock_server.clone();
@@ -356,11 +404,12 @@ pub(crate) async fn create_and_bind_tls(
 
 #[cfg(test)]
 mod tests {
-  use super::*;
-  use hyper::HeaderMap;
-  use hyper::header::{ACCEPT, USER_AGENT, CONTENT_TYPE};
-  use expectest::prelude::*;
   use expectest::expect;
+  use expectest::prelude::*;
+  use hyper::header::{ACCEPT, CONTENT_TYPE, USER_AGENT};
+  use hyper::HeaderMap;
+
+  use super::*;
 
   #[tokio::test]
   async fn can_fetch_results_on_current_thread() {

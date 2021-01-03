@@ -154,7 +154,7 @@ impl MockServer {
         shutdown_rx.await.ok();
       },
       matches,
-      tls,
+      tls.clone(),
       mock_server.clone()
     ).await.map_err(|err| format!("Could not start server: {}", err))?;
 
