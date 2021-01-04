@@ -11,6 +11,7 @@ pub mod matching;
 pub mod mock_server;
 pub mod server_manager;
 mod hyper_server;
+pub mod tls;
 
 use pact_matching::models::RequestResponsePact;
 use pact_matching::s;
@@ -21,7 +22,6 @@ use crate::server_manager::ServerManager;
 use lazy_static::*;
 use rustls::ServerConfig;
 
-// pub use tls::TlsConfigBuilder;
 use crate::mock_server::MockServerConfig;
 
 /// Mock server errors

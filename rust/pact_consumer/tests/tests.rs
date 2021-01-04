@@ -83,8 +83,8 @@ fn mock_server_failing_validation() {
     let _ = reqwest::blocking::get(url);
 }
 
-#[test]
-fn duplicate_interactions() {
+#[tokio::test]
+async fn duplicate_interactions() {
   let _ = env_logger::init();
 
   let output_dir = Path::new("/tmp/duplicate_interactions");

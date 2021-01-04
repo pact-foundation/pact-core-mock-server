@@ -65,7 +65,7 @@ use pact_matching::models::{HttpPart, RequestResponseInteraction, OptionalBody};
 use pact_matching::models::matchingrules::{MatchingRule, RuleLogic};
 use pact_matching::models::provider_states::ProviderState;
 use pact_matching::time_utils::{parse_pattern, to_chrono_pattern};
-use pact_mock_server::{MANAGER, MockServerError, TlsConfigBuilder, WritePactFileErr};
+use pact_mock_server::{MANAGER, MockServerError, tls::TlsConfigBuilder, WritePactFileErr};
 use pact_mock_server::server_manager::ServerManager;
 
 use crate::bodies::{file_as_multipart_body, empty_multipart_body, process_json, request_multipart, response_multipart, MultipartBody};
