@@ -182,7 +182,7 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
       debug!("Pact source to verify = {}", s);
     };
 
-    if verify_provider(
+    if verify_provider_async(
         provider,
         source,
         filter,
