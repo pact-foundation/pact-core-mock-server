@@ -348,7 +348,7 @@ use log::*;
 use maplit::hashmap;
 use serde_json::{json, Value};
 
-use crate::headers::{match_headers, match_header_value};
+use crate::headers::{match_header_value, match_headers};
 use crate::matchers::*;
 use crate::models::{HttpPart, Interaction, PactSpecification};
 use crate::models::content_types::ContentType;
@@ -1414,6 +1414,7 @@ pub fn generate_response(response: &models::Response, mode: &GeneratorTestMode, 
   let mut response = response.clone();
   let generators = response.build_generators(&GeneratorCategory::STATUS);
   if !generators.is_empty() {
+    debug!("Applying status generator...");
     apply_generators(mode, &generators, &mut |_, generator| {
       if let Ok(v) = generator.generate_value(&response.status, context) {
         debug!("Generated value for status: {}", v);
@@ -1423,6 +1424,7 @@ pub fn generate_response(response: &models::Response, mode: &GeneratorTestMode, 
   }
   let generators = response.build_generators(&GeneratorCategory::HEADER);
   if !generators.is_empty() {
+    debug!("Applying headers generators...");
     apply_generators(mode, &generators, &mut |key, generator| {
       if let Some(ref mut headers) = response.headers {
         if headers.contains_key(key) {
@@ -1439,6 +1441,7 @@ pub fn generate_response(response: &models::Response, mode: &GeneratorTestMode, 
   }
   let generators = response.build_generators(&GeneratorCategory::BODY);
   if !generators.is_empty() && response.body.is_present() {
+    debug!("Applying body generators...");
     response.body = apply_body_generators(mode, &response.body, response.content_type(), context, &generators);
   }
   response
