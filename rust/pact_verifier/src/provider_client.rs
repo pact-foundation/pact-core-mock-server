@@ -1,17 +1,20 @@
-use super::*;
-use pact_matching::models::*;
-use pact_matching::s;
 use std::collections::hash_map::HashMap;
 use std::convert::TryFrom;
+
 use futures::future::*;
-use log::*;
-use reqwest::{RequestBuilder, Client, Error};
-use http::header::CONTENT_TYPE;
-use itertools::Itertools;
-use http::{Method, HeaderMap, HeaderValue};
-use http::method::InvalidMethod;
+use http::{HeaderMap, HeaderValue, Method};
 use http::header::{HeaderName, InvalidHeaderName, InvalidHeaderValue};
+use http::header::CONTENT_TYPE;
+use http::method::InvalidMethod;
+use itertools::Itertools;
+use log::*;
+use reqwest::{Client, Error, RequestBuilder};
+
+use pact_matching::models::*;
 use pact_matching::models::content_types::ContentType;
+use pact_matching::s;
+
+use super::*;
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -234,13 +237,15 @@ pub fn provider_client_error_to_string(err: ProviderClientError) -> String {
 
 #[cfg(test)]
 mod tests {
-  use expectest::prelude::*;
   use expectest::expect;
-  use super::{join_paths, create_native_request};
-  use pact_matching::s;
-  use pact_matching::models::{Request, OptionalBody};
-  use maplit::*;
+  use expectest::prelude::*;
   use itertools::Itertools;
+  use maplit::*;
+
+  use pact_matching::models::{OptionalBody, Request};
+  use pact_matching::s;
+
+  use super::{create_native_request, join_paths};
 
   #[test]
   fn join_paths_test() {

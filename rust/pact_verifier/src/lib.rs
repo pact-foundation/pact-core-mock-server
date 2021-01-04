@@ -3,40 +3,44 @@
 #![type_length_limit="4776643"]
 #![warn(missing_docs)]
 
+use std::collections::HashMap;
+use std::fmt::{Debug, Display, Formatter};
+use std::fmt;
+use std::fs;
+use std::io;
+use std::path::Path;
+
+use ansi_term::*;
+use ansi_term::Colour::*;
+use futures::prelude::*;
+use futures::stream::StreamExt;
+use itertools::Itertools;
+use log::*;
+use maplit::*;
+use regex::Regex;
+use serde_json::Value;
+
+pub use callback_executors::NullRequestFilterExecutor;
+use callback_executors::RequestFilterExecutor;
+use pact_matching::*;
+use pact_matching::models::*;
+use pact_matching::models::generators::GeneratorTestMode;
+use pact_matching::models::http_utils::HttpAuth;
+use pact_matching::models::provider_states::*;
+
+use crate::callback_executors::{ProviderStateError, ProviderStateExecutor};
+use crate::messages::{display_message_result, verify_message_from_provider};
+use crate::pact_broker::{Link, PactVerificationContext, publish_verification_results, TestResult};
+pub use crate::pact_broker::{ConsumerVersionSelector, PactsForVerificationRequest};
+use crate::provider_client::{make_provider_request, provider_client_error_to_string};
+use crate::request_response::display_request_response_result;
+use std::sync::Arc;
+
 mod provider_client;
 mod pact_broker;
 pub mod callback_executors;
 mod request_response;
 mod messages;
-
-use std::path::Path;
-use std::io;
-use std::fs;
-use std::fmt::{Display, Formatter, Debug};
-use pact_matching::*;
-use pact_matching::models::*;
-use pact_matching::models::provider_states::*;
-use pact_matching::models::http_utils::HttpAuth;
-use pact_matching::models::generators::GeneratorTestMode;
-use ansi_term::*;
-use ansi_term::Colour::*;
-use std::collections::HashMap;
-use crate::provider_client::{make_provider_request, provider_client_error_to_string};
-use regex::Regex;
-use serde_json::Value;
-use crate::pact_broker::{publish_verification_results, TestResult, Link, PactVerificationContext};
-pub use crate::pact_broker::{PactsForVerificationRequest, ConsumerVersionSelector};
-use maplit::*;
-use futures::stream::*;
-use callback_executors::RequestFilterExecutor;
-pub use callback_executors::NullRequestFilterExecutor;
-use crate::callback_executors::{ProviderStateExecutor, ProviderStateError};
-use log::*;
-use futures::executor::block_on;
-use crate::messages::{verify_message_from_provider, display_message_result};
-use crate::request_response::display_request_response_result;
-use std::fmt;
-use itertools::Itertools;
 
 /// Source for loading pacts
 #[derive(Debug, Clone)]
@@ -261,61 +265,69 @@ async fn execute_state_change<S: ProviderStateExecutor>(
     result.map_err(|err| MismatchResult::Error(err.description, err.interaction_id))
 }
 
-fn verify_interaction<F: RequestFilterExecutor, S: ProviderStateExecutor>(
+async fn verify_interaction<F: RequestFilterExecutor, S: ProviderStateExecutor>(
   provider: &ProviderInfo,
   interaction: &dyn Interaction,
   options: &VerificationOptions<F>,
   provider_state_executor: &S
 ) -> Result<(), MismatchResult> {
-  let client = reqwest::Client::builder()
+  let client = Arc::new(reqwest::Client::builder()
                 .danger_accept_invalid_certs(options.disable_ssl_verification)
                 .build()
-                .unwrap_or(reqwest::Client::new());
+                .unwrap_or(reqwest::Client::new()));
 
   let mut provider_states_results = hashmap!{};
-  if !interaction.provider_states().is_empty() {
-    info!("Running provider state change handlers for '{}'", interaction.description());
-    let interaction_id = interaction.id().clone();
-    let sc_result: Vec<Result<HashMap<String, Value>, MismatchResult>> = block_on(
-      futures::stream::iter(interaction.provider_states().iter())
-        .then(|state| {
-          execute_state_change(&state, true, interaction_id.clone(), &client, provider_state_executor)
-        }).collect());
-
-    if sc_result.iter().any(|result| result.is_err()) {
-      return Err(MismatchResult::Error("One or more of the state change handlers has failed".to_string(), interaction.id()))
-    } else {
-      for result in sc_result {
-        if result.is_ok() {
-          for (k, v) in result.unwrap() {
-            provider_states_results.insert(k, v);
-          }
+  let sc_results = futures::stream::iter(
+    interaction.provider_states().iter().map(|state| (state, client.clone())))
+    .then(|(state, client)| {
+      let state_name = state.name.clone();
+      info!("Running provider state change handler '{}' for '{}'", state_name, interaction.description());
+      async move {
+        execute_state_change(&state, true, interaction.id(), &client, provider_state_executor)
+          .map_err(|err| {
+            error!("Provider state change for '{}' has failed - {:?}", state_name, err);
+            err
+          }).await
+      }
+    }).collect::<Vec<Result<HashMap<String, Value>, MismatchResult>>>().await;
+  if sc_results.iter().any(|result| result.is_err()) {
+    return Err(MismatchResult::Error("One or more of the state change handlers has failed".to_string(), interaction.id()))
+  } else {
+    for result in sc_results {
+      if result.is_ok() {
+        for (k, v) in result.unwrap() {
+          provider_states_results.insert(k, v);
         }
       }
     }
-  }
+  };
 
   info!("Running provider verification for '{}'", interaction.description());
-  let mut result = Err(MismatchResult::Error("No interaction was verified".into(), None));
-  let context = provider_states_results.iter()
-    .map(|(k, v)| (k.as_str(), v.clone())).collect();
-  if let Some(interaction) = interaction.as_request_response() {
-    result = block_on(verify_response_from_provider(provider, &interaction,
-                                                    options, &client, &context));
-  }
-  if let Some(interaction) = interaction.as_message() {
-    result = block_on(verify_message_from_provider(provider, &interaction,
-      options, &client, &context));
-  }
+  let result = futures::future::ready((provider_states_results.iter()
+    .map(|(k, v)| (k.as_str(), v.clone())).collect(), client.clone()))
+    .then(|(context, client)| async move {
+    let mut result = Err(MismatchResult::Error("No interaction was verified".into(), None));
+    if let Some(interaction) = interaction.as_request_response() {
+      result = verify_response_from_provider(provider, &interaction, options, &client, &context).await;
+    }
+    if let Some(interaction) = interaction.as_message() {
+      result = verify_message_from_provider(provider, &interaction, options, &client, &context).await;
+    }
+    result
+  }).await;
 
   if !interaction.provider_states().is_empty() {
-    info!("Running provider state change handler teardowns for '{}'", interaction.description());
-    let interaction_id = interaction.id().clone();
-    let sc_teardown_result: Vec<Result<HashMap<String, Value>, MismatchResult>> = block_on(
-      futures::stream::iter(interaction.provider_states().iter())
-        .then(|state| {
-          execute_state_change(&state, false, interaction_id.clone(), &client, provider_state_executor)
-        }).collect());
+    let sc_teardown_result = futures::stream::iter(
+      interaction.provider_states().iter().map(|state| (state, client.clone())))
+      .then(|(state, client)| async move {
+        let state_name = state.name.clone();
+        info!("Running provider state change handler '{}' for '{}'", state_name, interaction.description());
+        execute_state_change(&state, false, interaction.id(), &client, provider_state_executor)
+          .map_err(|err| {
+            error!("Provider state change teardown for '{}' has failed - {:?}", state.name, err);
+            err
+          }).await
+      }).collect::<Vec<Result<HashMap<String, Value>, MismatchResult>>>().await;
 
     if sc_teardown_result.iter().any(|result| result.is_err()) {
       return Err(MismatchResult::Error("One or more of the state change handlers has failed during teardown phase".to_string(), interaction.id()))
@@ -511,8 +523,27 @@ fn display_notices(context: &Option<PactVerificationContext>, stage: &str) {
   }
 }
 
-/// Verify the provider with the given pact sources
-pub async fn verify_provider<F: RequestFilterExecutor, S: ProviderStateExecutor>(
+/// Verify the provider with the given pact sources.
+pub fn verify_provider<F: RequestFilterExecutor, S: ProviderStateExecutor>(
+  provider_info: ProviderInfo,
+  source: Vec<PactSource>,
+  filter: FilterInfo,
+  consumers: Vec<String>,
+  options: VerificationOptions<F>,
+  provider_state_executor: &S
+) -> bool {
+  match tokio::runtime::Builder::new().threaded_scheduler().enable_all().build() {
+    Ok(mut runtime) => runtime.block_on(
+      verify_provider_async(provider_info, source, filter, consumers, options, provider_state_executor)),
+    Err(err) => {
+      error!("Verify provider process failed to start the tokio runtime: {}", err);
+      false
+    }
+  }
+}
+
+/// Verify the provider with the given pact sources (async version)
+pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExecutor>(
     provider_info: ProviderInfo,
     source: Vec<PactSource>,
     filter: FilterInfo,
@@ -721,11 +752,13 @@ async fn verify_pact<'a, F: RequestFilterExecutor, S: ProviderStateExecutor>(
     let mut errors: Vec<(String, MismatchResult)> = vec![];
 
     let results: Vec<(&dyn Interaction, Result<(), MismatchResult>)> = futures::stream::iter(
-      pact.interactions().clone().into_iter()
+      pact.interactions().iter().cloned()
     )
       .filter(|interaction| futures::future::ready(filter_interaction(*interaction, filter)))
-      .then( |interaction| {
-        futures::future::ready((interaction, verify_interaction(provider_info, interaction, options, provider_state_executor)))
+      .then( |interaction| async move {
+        verify_interaction(provider_info, interaction.clone(), options, provider_state_executor)
+          .then(|result| futures::future::ready((interaction, result)))
+          .await
       })
       .collect()
       .await;

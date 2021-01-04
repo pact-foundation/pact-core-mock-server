@@ -17,7 +17,7 @@ exclude = [
 libc = "0.2.76"
 clap = "2.33.0"
 pact_matching = { version = "0.8.0", path = "../pact_matching" }
-pact_verifier = { version = "0.9.0", path = "../pact_verifier" }
+pact_verifier = { version = "0.10.0", path = "../pact_verifier" }
 simplelog = "0.8"
 log = "0.4.8"
 maplit = "1.0.2"

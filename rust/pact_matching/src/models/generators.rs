@@ -1,6 +1,6 @@
 //! `generators` module includes all the classes to deal with V3 format generators
 
-use std::{collections::HashMap, hash::{Hash, Hasher}, ops::Index, str::FromStr, mem};
+use std::{collections::HashMap, hash::{Hash, Hasher}, mem, ops::Index, str::FromStr};
 use std::convert::TryFrom;
 
 use chrono::prelude::*;
@@ -19,7 +19,13 @@ use uuid::Uuid;
 
 use crate::{DiffConfig, MatchingContext};
 use crate::models::content_types::ContentType;
-use crate::models::expression_parser::{contains_expressions, DataType, DataValue, MapValueResolver, parse_expression};
+use crate::models::expression_parser::{
+  contains_expressions,
+  DataType,
+  DataValue,
+  MapValueResolver,
+  parse_expression
+};
 use crate::models::json_utils::{get_field_as_string, json_to_string, JsonToNum};
 use crate::models::matchingrules::MatchingRuleCategory;
 use crate::models::OptionalBody;
@@ -650,7 +656,7 @@ impl Into<String> for GeneratorCategory {
 /// Trait to define a handler for applying generators to data of a particular content type.
 pub trait ContentTypeHandler<T> {
   /// Processes the body using the map of generators, returning a (possibly) updated body.
-  fn process_body(&mut self, generators: &HashMap<String, Generator>, mode: &GeneratorTestMode, context: &HashMap<&str, Value>) -> OptionalBody;
+  fn process_body(&mut self, generators: &HashMap<String, Generator>, mode: &GeneratorTestMode, context: &HashMap<&str, Value>) -> Result<OptionalBody, String>;
   /// Applies the generator to the key in the body.
   fn apply_key(&mut self, key: &String, generator: &dyn GenerateValue<T>, context: &HashMap<&str, Value>);
 }
@@ -738,13 +744,14 @@ impl ContentTypeHandler<Value> for JsonHandler {
     generators: &HashMap<String, Generator>,
     mode: &GeneratorTestMode,
     context: &HashMap<&str, Value>
-  ) -> OptionalBody {
+  ) -> Result<OptionalBody, String> {
     for (key, generator) in generators {
       if generator.corresponds_to_mode(mode) {
+        debug!("Applying generator {:?} to key {}", generator, key);
         self.apply_key(key, generator, context);
       }
     };
-    OptionalBody::Present(self.value.to_string().into(), Some("application/json".into()))
+    Ok(OptionalBody::Present(self.value.to_string().into(), Some("application/json".into())))
   }
 
   fn apply_key(&mut self, key: &String, generator: &dyn GenerateValue<Value>, context: &HashMap<&str, Value>) {
@@ -793,12 +800,13 @@ pub struct XmlHandler<'a> {
 }
 
 impl <'a> ContentTypeHandler<Document<'a>> for XmlHandler<'a> {
-  fn process_body(&mut self, _generators: &HashMap<String, Generator>, _mode: &GeneratorTestMode, _context: &HashMap<&str, Value>) -> OptionalBody {
-    unimplemented!()
+  fn process_body(&mut self, _generators: &HashMap<String, Generator>, _mode: &GeneratorTestMode, _context: &HashMap<&str, Value>) -> Result<OptionalBody, String> {
+    error!("UNIMPLEMENTED: Generators are not supported with XML");
+    Err("Generators are not supported with XML".to_string())
   }
 
   fn apply_key(&mut self, _key: &String, _generator: &dyn GenerateValue<Document<'a>>, _context: &HashMap<&str, Value>) {
-    unimplemented!()
+    error!("UNIMPLEMENTED: Generators are not supported with XML");
   }
 }
 
@@ -986,11 +994,15 @@ pub fn apply_body_generators(
 ) -> OptionalBody {
   match content_type {
     Some(content_type) => if content_type.is_json() {
+      debug!("apply_body_generators: JSON content type");
       let result: Result<Value, serde_json::Error> = serde_json::from_slice(&body.value());
       match result {
         Ok(val) => {
           let mut handler = JsonHandler { value: val };
-          handler.process_body(&generators, mode, context)
+          handler.process_body(&generators, mode, context).unwrap_or_else(|err| {
+            error!("Failed to generate the body: {}", err);
+            body.clone()
+          })
         },
         Err(err) => {
           error!("Failed to parse the body, so not applying any generators: {}", err);
@@ -998,10 +1010,14 @@ pub fn apply_body_generators(
         }
       }
     } else if content_type.is_xml() {
+      debug!("apply_body_generators: XML content type");
       match parse_bytes(&body.value()) {
         Ok(val) => {
           let mut handler = XmlHandler { value: val.as_document() };
-          handler.process_body(&generators, mode, context)
+          handler.process_body(&generators, mode, context).unwrap_or_else(|err| {
+            error!("Failed to generate the body: {}", err);
+            body.clone()
+          })
         },
         Err(err) => {
           error!("Failed to parse the body, so not applying any generators: {}", err);
@@ -1101,10 +1117,10 @@ mod tests {
   use test_env_log::test;
 
   use crate::models::generators::Generator::{RandomDecimal, RandomInt, Regex};
+  use crate::models::matchingrules::MatchingRule;
 
   use super::*;
   use super::Generator;
-  use crate::models::matchingrules::MatchingRule;
 
   #[test]
   fn rules_are_empty_when_there_are_no_categories() {
