@@ -511,7 +511,7 @@ fn display_notices(context: &Option<PactVerificationContext>, stage: &str) {
   }
 }
 
-/// Verify the provider with the given pact sources
+/// Verify the provider with the given pact sources (async version)
 pub async fn verify_provider<F: RequestFilterExecutor, S: ProviderStateExecutor>(
     provider_info: ProviderInfo,
     source: Vec<PactSource>,
