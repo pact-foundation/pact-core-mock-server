@@ -1,3 +1,5 @@
+//! TLS support structs
+
 // Copyright (c) 2018 Sean McArthur (https://github.com/seanmonstar/warp/blob/master/src/tls.rs)
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -19,24 +21,15 @@
 // THE SOFTWARE.
 
 use std::fs::File;
-use std::future::Future;
 use std::io::{self, BufReader, Cursor, Read};
-use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
-use std::pin::Pin;
-use std::sync::Arc;
-use std::task::{Context, Poll};
-use tokio::io::{AsyncRead, AsyncWrite};
-
-use futures::ready;
-use hyper::server::accept::Accept;
-use hyper::server::conn::{AddrIncoming, AddrStream};
 
 use tokio_rustls::rustls::{NoClientAuth, ServerConfig, TLSError};
 
 /// Represents errors that can occur building the TlsConfig
 #[derive(Debug)]
 pub enum TlsConfigError {
+  /// IO Error
   Io(io::Error),
   /// An Error parsing the Certificate
   CertParseError,

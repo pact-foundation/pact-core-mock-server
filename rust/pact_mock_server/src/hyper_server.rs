@@ -5,6 +5,8 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
 use futures::prelude::*;
+use futures::StreamExt;
+use futures::task::{Context, Poll};
 use hyper::{Body, Error, Response, Server};
 use hyper::http::header::{HeaderName, HeaderValue};
 use hyper::http::response::Builder as ResponseBuilder;
@@ -15,8 +17,8 @@ use maplit::*;
 use rustls::ServerConfig;
 use serde_json::json;
 use tokio::net::{TcpListener, TcpStream};
+use tokio_rustls::TlsAcceptor;
 use tokio_rustls::server::TlsStream;
-use tokio_rustls::{TlsAcceptor};
 
 use pact_matching::models::{HttpPart, OptionalBody, Request, RequestResponsePact};
 use pact_matching::models::generators::GeneratorTestMode;
@@ -24,14 +26,6 @@ use pact_matching::models::parse_query_string;
 
 use crate::matching::{match_request, MatchResult};
 use crate::mock_server::MockServer;
-use futures::task::{Context, Poll};
-use hyper::server::accept::{self, from_stream, Accept};
-use hyper::server::conn::{AddrIncoming, AddrStream};
-use itertools::unfold;
-use futures::stream::{Unfold};
-use std::borrow::BorrowMut;
-use std::ops::{Deref, DerefMut};
-use futures::{StreamExt, FutureExt};
 
 #[derive(Debug, Clone)]
 enum InteractionError {
@@ -367,7 +361,7 @@ pub(crate) async fn create_and_bind_tls(
   let server = Server::builder(HyperAcceptor {
     stream: tls_stream.boxed()
   })
-    .serve(make_service_fn(move |stream| {
+    .serve(make_service_fn(move |_| {
       let pact = pact.clone();
       let matches = matches.clone();
       let mock_server = mock_server.clone();
