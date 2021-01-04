@@ -756,7 +756,7 @@ async fn verify_pact<'a, F: RequestFilterExecutor, S: ProviderStateExecutor>(
     )
       .filter(|interaction| futures::future::ready(filter_interaction(*interaction, filter)))
       .then( |interaction| async move {
-        verify_interaction(provider_info, interaction.clone(), options, provider_state_executor)
+        verify_interaction(provider_info, interaction, options, provider_state_executor)
           .then(|result| futures::future::ready((interaction, result)))
           .await
       })
