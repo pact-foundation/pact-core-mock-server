@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.7.3 - Add TLS (self-signed) option
+
+* 773b4b1 - fix: pinning version of webmachine until reqwest is updated (Ronald Holshausen, Tue Jan 5 12:41:05 2021 +1100)
+* 76f052b - feat: add self-signed tls option to mockserver cli (to test TLS with Tokio 1.0) (Ronald Holshausen, Tue Jan 5 11:39:53 2021 +1100)
+* 3d531b3 - bump version to 0.7.3 (Ronald Holshausen, Thu Dec 31 13:11:40 2020 +1100)
+* d85e9ee - chore: correct changelog (Ronald Holshausen, Thu Dec 31 13:06:58 2020 +1100)
+
 # 0.7.2 - support generators associated with array contains matcher variants
 
 * 56a13d3: update pact_matching and pact_mock_server crates to latest
