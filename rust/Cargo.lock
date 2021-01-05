@@ -1691,7 +1691,7 @@ name = "pact_verifier_cli"
 version = "0.8.5"
 dependencies = [
  "pact_verifier_ffi",
- "tokio 1.0.1",
+ "tokio 0.2.24",
 ]
 
 [[package]]
