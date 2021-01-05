@@ -1,5 +1,18 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.8.4 - TLS support + FFI support
+
+* 41096dc - chore: update release scripts for pact_verifier_cli DLLs (Ronald Holshausen, Tue Jan 5 14:34:55 2021 +1100)
+* ef76f38 - chore: cleanup compiler warnings (Ronald Holshausen, Tue Jan 5 10:10:39 2021 +1100)
+* 484b747 - fix: verify interaction was blocking the thread (Ronald Holshausen, Mon Jan 4 17:12:38 2021 +1100)
+* 4c4eb85 - chore: bump minor version of pact_verifier crate due to breaking changes (Ronald Holshausen, Mon Jan 4 15:48:41 2021 +1100)
+* b583540 - Merge branch 'master' into feat/allow-invalid-certs-during-verification (Matt Fellows, Fri Jan 1 14:22:10 2021 +1100)
+* 6cec6c7 - feat: allow https scheme and ability to disable ssl verification (Matt Fellows, Thu Dec 31 12:10:57 2020 +1100)
+* 79f62ce - Merge branch 'master' into feat/add-verifier-ffi (Matt Fellows, Wed Dec 30 23:21:12 2020 +1100)
+* 8aeb567 - wip: minor updates to get FFI interface working (Matt Fellows, Tue Dec 1 19:12:53 2020 +1100)
+* c71c78d - wip: add verifier FFI bindings (Matt Fellows, Tue Dec 1 07:04:48 2020 +1100)
+* a480e76 - bump version to 0.8.4 (Matt Fellows, Tue Nov 24 11:06:22 2020 +1100)
+
 # 0.8.3 - Bugfix Release
 
 * 280c066 - bump version to 0.8.3 (Matt Fellows, Wed Nov 11 13:30:12 2020 +1100)
