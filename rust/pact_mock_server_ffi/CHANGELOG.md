@@ -1,5 +1,14 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.0.13 - Cleanup outdated crates
+
+* 4636982 - chore: update other crates to use Tokio 1.0 (Ronald Holshausen, Mon Jan 4 17:26:59 2021 +1100)
+* e1f6ddb - test: fix windows test by removing newline before EOF (Audun Halland, Sun Jan 3 04:47:47 2021 +0100)
+* ade0237 - deps: remove ffi/hyper 0.10, update lock file (Audun Halland, Sun Jan 3 03:48:21 2021 +0100)
+* 3b73b71 - deps(pact_mock_server_ffi): remove formdata, add multipart (Audun Halland, Sun Jan 3 03:40:32 2021 +0100)
+* cc104f7 - test(ffi): multipart file (Audun Halland, Sun Jan 3 01:57:38 2021 +0100)
+* c0f039f - bump version to 0.0.13 (Ronald Holshausen, Thu Dec 31 14:04:01 2020 +1100)
+
 # 0.0.12 - Supports generators associated with array contains matcher variants
 
 * fe06178 - chore: update pact_matching and pact_mock_server crates to latest (Ronald Holshausen, Thu Dec 31 13:47:43 2020 +1100)
