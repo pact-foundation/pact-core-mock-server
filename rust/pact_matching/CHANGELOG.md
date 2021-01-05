@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.8.7 - Updated dependencies
+
+* e78969d - refactor: Generator body handler now returns a Result (Ronald Holshausen, Mon Jan 4 15:47:28 2021 +1100)
+* 7b8d74e - deps: remove httparse (Audun Halland, Sun Jan 3 04:51:32 2021 +0100)
+* a7a96fc - deps(pact_matching): remove formdata, add multipart (Audun Halland, Sun Jan 3 00:19:28 2021 +0100)
+* 51ff156 - chore: cleanup rustdoc warnings (Ronald Holshausen, Wed Dec 30 15:29:44 2020 +1100)
+* d7d86d2 - bump version to 0.8.7 (Ronald Holshausen, Wed Dec 30 15:10:01 2020 +1100)
+
 # 0.8.6 - support generators associated with array contains matcher variants
 
 * c180d2c - chore: Implement Hash and PartialEq for Generator (Ronald Holshausen, Wed Dec 30 14:31:13 2020 +1100)
