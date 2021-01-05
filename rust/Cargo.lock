@@ -73,27 +73,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23b62fc65de8e4e7f52534fb52b0f3ed04746ae267519eef2a83941e8085068b"
 
 [[package]]
-name = "async-stream"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3670df70cbc01729f901f94c887814b3c68db038aad1329a418bae178bc5295c"
-dependencies = [
- "async-stream-impl",
- "futures-core",
-]
-
-[[package]]
-name = "async-stream-impl"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3548b8efc9f8e8a5a0a2808c5bd8451a9031b9e5b879a79590304ae928b0a70"
-dependencies = [
- "proc-macro2 1.0.24",
- "quote 1.0.8",
- "syn 1.0.57",
-]
-
-[[package]]
 name = "async-trait"
 version = "0.1.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1558,7 +1537,7 @@ dependencies = [
 
 [[package]]
 name = "pact_matching"
-version = "0.8.7"
+version = "0.8.8"
 dependencies = [
  "ansi_term 0.12.1",
  "base64 0.13.0",
@@ -2911,11 +2890,10 @@ dependencies = [
 
 [[package]]
 name = "tokio-stream"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f3be913b74b13210c8fe04b17ab833f5a124f45b93d0f99f59fff621f64392a"
+checksum = "e4cdeb73537e63f98adcd73138af75e3f368ccaecffaa29d7eb61b9f5a440457"
 dependencies = [
- "async-stream",
  "futures-core",
  "pin-project-lite 0.2.0",
  "tokio 1.0.1",
@@ -3278,16 +3256,16 @@ dependencies = [
 
 [[package]]
 name = "webmachine-rust"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56d88a3b160431436e866d4ffba5b17b0dafed9e9727e7fb1b2c11c365cc3540"
+checksum = "93746aae3141db1b2c910950891077fbf2ffe66973bb18e4ae99718f6ef54e0a"
 dependencies = [
  "chrono",
  "futures",
  "hex",
  "http",
- "hyper 0.13.9",
- "itertools 0.9.0",
+ "hyper 0.14.2",
+ "itertools 0.10.0",
  "lazy_static",
  "log 0.4.11",
  "maplit 1.0.2",
