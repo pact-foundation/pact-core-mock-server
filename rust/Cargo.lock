@@ -3256,16 +3256,16 @@ dependencies = [
 
 [[package]]
 name = "webmachine-rust"
-version = "0.2.2"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93746aae3141db1b2c910950891077fbf2ffe66973bb18e4ae99718f6ef54e0a"
+checksum = "56d88a3b160431436e866d4ffba5b17b0dafed9e9727e7fb1b2c11c365cc3540"
 dependencies = [
  "chrono",
  "futures",
  "hex",
  "http",
- "hyper 0.14.2",
- "itertools 0.10.0",
+ "hyper 0.13.9",
+ "itertools 0.9.0",
  "lazy_static",
  "log 0.4.11",
  "maplit 1.0.2",
