@@ -1,3 +1,5 @@
+//! Exported verifier functions
+
 use std::str;
 use std::env;
 use clap::{ErrorKind, ArgMatches, AppSettings};
@@ -93,7 +95,7 @@ fn interaction_filter(matches: &ArgMatches) -> FilterInfo {
   }
 }
 
-#[allow(dead_code)]
+/// Handles the command line arguments from the running process
 pub async fn handle_cli() -> Result<(), i32> {
   let args: Vec<String> = env::args().collect();
   let program = args[0].clone();

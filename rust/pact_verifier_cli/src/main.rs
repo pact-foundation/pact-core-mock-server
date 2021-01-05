@@ -235,13 +235,12 @@
 // Due to large generated future for async fns
 #![type_length_limit="100000000"]
 
-mod args;
-mod verifier;
+use pact_verifier_ffi::verifier::handle_cli;
 
 #[tokio::main]
 async fn main() {
-    match verifier::handle_cli().await {
-        Ok(_) => (),
-        Err(err) => std::process::exit(err)
-    }
+  match handle_cli().await {
+    Ok(_) => (),
+    Err(err) => std::process::exit(err)
+  }
 }

@@ -13,7 +13,7 @@ use log::*;
 use env_logger::Builder;
 
 mod args;
-mod verifier;
+pub mod verifier;
 
 /// Package version
 pub static VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "\0");

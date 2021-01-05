@@ -1690,6 +1690,14 @@ dependencies = [
 name = "pact_verifier_cli"
 version = "0.8.5"
 dependencies = [
+ "pact_verifier_ffi",
+ "tokio 1.0.1",
+]
+
+[[package]]
+name = "pact_verifier_ffi"
+version = "0.0.0"
+dependencies = [
  "cbindgen",
  "clap",
  "env_logger 0.7.1",
