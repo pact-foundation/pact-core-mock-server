@@ -1,5 +1,14 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.10.0 - TLS support via FFI + non-blocking verify interaction
+
+* 39c3816 - fix: using `clone` on a double-reference (Ronald Holshausen, Mon Jan 4 17:32:50 2021 +1100)
+* 484b747 - fix: verify interaction was blocking the thread (Ronald Holshausen, Mon Jan 4 17:12:38 2021 +1100)
+* 4c4eb85 - chore: bump minor version of pact_verifier crate due to breaking changes (Ronald Holshausen, Mon Jan 4 15:48:41 2021 +1100)
+* b583540 - Merge branch 'master' into feat/allow-invalid-certs-during-verification (Matt Fellows, Fri Jan 1 14:22:10 2021 +1100)
+* 6cec6c7 - feat: allow https scheme and ability to disable ssl verification (Matt Fellows, Thu Dec 31 12:10:57 2020 +1100)
+* ed410bd - bump version to 0.9.6 (Ronald Holshausen, Thu Dec 31 15:14:30 2020 +1100)
+
 # 0.9.5 - Supports generators associated with array contains matcher variants
 
 * 144b6aa - chore: upgrade dependencies to latest (Ronald Holshausen, Thu Dec 31 14:58:09 2020 +1100)
