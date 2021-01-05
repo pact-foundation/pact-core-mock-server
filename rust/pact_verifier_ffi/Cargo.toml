@@ -1,6 +1,6 @@
 [package]
 name = "pact_verifier_ffi"
-version = "0.0.1"
+version = "0.0.0"
 authors = ["Ronald Holshausen <uglyog@gmail.com>", "Matt Fellows <matt.fellows@onegeek.com.au>"]
 edition = "2018"
 description = "Pact verifier FFI for provider pact verification"

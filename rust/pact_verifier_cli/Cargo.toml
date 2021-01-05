@@ -14,5 +14,5 @@ exclude = [
 ]
 
 [dependencies]
-pact_verifier_ffi = { version = ">=0.0.0", path = "../pact_verifier_ffi" }
+pact_verifier_ffi = { version = "0.0.0", path = "../pact_verifier_ffi" }
 tokio = { version = "0.2.9", features = ["rt-core", "macros"] }
