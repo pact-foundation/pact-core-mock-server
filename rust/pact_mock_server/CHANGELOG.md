@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.7.13 - Upgrade Tokio to 1.0
+
+* ef76f38 - chore: cleanup compiler warnings (Ronald Holshausen, Tue Jan 5 10:10:39 2021 +1100)
+* 4636982 - chore: update other crates to use Tokio 1.0 (Ronald Holshausen, Mon Jan 4 17:26:59 2021 +1100)
+* 211a4fc - chore: got code compiling, which is 90% of the battle (Ronald Holshausen, Mon Jan 4 10:45:27 2021 +1100)
+* 62454d5 - chore: upgrade tokio and hyper (Ronald Holshausen, Sun Jan 3 12:22:38 2021 +1100)
+* 5dddde1 - bump version to 0.7.13 (Ronald Holshausen, Thu Dec 31 12:40:46 2020 +1100)
+
 # 0.7.12 - Mockserver URL and array contains generators
 
 * f2086d8 - chore: cleanup warnings (Ronald Holshausen, Tue Dec 29 15:46:46 2020 +1100)
