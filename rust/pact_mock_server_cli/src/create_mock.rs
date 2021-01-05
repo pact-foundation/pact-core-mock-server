@@ -3,6 +3,7 @@ use std::path::Path;
 use clap::ArgMatches;
 use log::*;
 use serde_json::Value;
+use itertools::Itertools;
 
 use pact_matching::models::{ReadWritePact, Pact, RequestResponsePact};
 
@@ -14,11 +15,19 @@ pub async fn create_mock_server(host: &str, port: u16, matches: &ArgMatches<'_>)
 
   match RequestResponsePact::read_pact(&Path::new(file)) {
     Ok(ref pact) => {
-      let url = if matches.is_present("cors") {
-        log::info!("Setting mock server to handle CORS pre-flight requests");
-        format!("http://{}:{}/?cors=true", host, port)
-      } else {
+      let mut args = vec![];
+      if matches.is_present("cors") {
+        info!("Setting mock server to handle CORS pre-flight requests");
+        args.push("cors=true");
+      }
+      if matches.is_present("tls") {
+        info!("Setting mock server to use TLS");
+        args.push("tls=true");
+      }
+      let url = if args.is_empty() {
         format!("http://{}:{}/", host, port)
+      } else {
+        format!("http://{}:{}/?{}", host, port, args.iter().join("&"))
       };
       let client = reqwest::Client::new();
       let resp = client.post(url.as_str())
