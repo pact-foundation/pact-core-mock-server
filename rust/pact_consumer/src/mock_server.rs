@@ -48,8 +48,7 @@ impl ValidatingMockServer {
     pub fn start(pact: RequestResponsePact) -> ValidatingMockServer {
         // Spawn new runtime in thread to prevent reactor execution context conflict
         let (mock_server, done_rx) = std::thread::spawn(move || {
-            let mut runtime = tokio::runtime::Builder::new()
-                .basic_scheduler()
+            let runtime = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()
                 .expect("new runtime");

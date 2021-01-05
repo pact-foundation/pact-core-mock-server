@@ -21,6 +21,7 @@ use log::*;
 use hyper::service::make_service_fn;
 use std::convert::Infallible;
 use crate::{SERVER_MANAGER, SERVER_OPTIONS, ServerOpts};
+use pact_mock_server::tls::TlsConfigBuilder;
 
 fn json_error(error: String) -> String {
     let json_response = json!({ "error" : json!(error) });
@@ -57,15 +58,30 @@ fn start_provider(context: &mut WebmachineContext, options: ServerOpts) -> Resul
           debug!("Loaded pact = {:?}", pact);
           let mock_server_id = Uuid::new_v4().to_string();
           let config = MockServerConfig {
-            cors_preflight: context.request.query.get("cors")
-              .unwrap_or(&vec![]).first().unwrap_or(&String::default())
-              .eq("true")
+            cors_preflight: query_param_set(context, "cors")
           };
           debug!("Mock server config = {:?}", config);
 
-          let mut lock = SERVER_MANAGER.lock().unwrap();
-          debug!("starting mock server with id {}", &mock_server_id);
-          match lock.start_mock_server(mock_server_id.clone(), pact, get_next_port(options.base_port), config) {
+          let mut guard = SERVER_MANAGER.lock().unwrap();
+          let result = if query_param_set(context, "tls") {
+            debug!("Starting TLS mock server with id {}", &mock_server_id);
+            let key = include_str!("self-signed.key");
+            let cert = include_str!("self-signed.cert");
+            TlsConfigBuilder::new()
+              .key(key.as_bytes())
+              .cert(cert.as_bytes())
+              .build()
+              .map_err(|err| {
+                format!("Failed to setup TLS using self-signed certificate - {}", err)
+              })
+              .and_then(|tls_config| {
+                guard.start_tls_mock_server(mock_server_id.clone(), pact, get_next_port(options.base_port), &tls_config, config)
+              })
+          } else {
+            debug!("Starting mock server with id {}", &mock_server_id);
+            guard.start_mock_server(mock_server_id.clone(), pact, get_next_port(options.base_port), config)
+          };
+          match result {
             Ok(mock_server) => {
               debug!("mock server started on port {}", mock_server);
               let mock_server_json = json!({
@@ -97,6 +113,12 @@ fn start_provider(context: &mut WebmachineContext, options: ServerOpts) -> Resul
       Err(422)
     }
   }
+}
+
+fn query_param_set(context: &mut WebmachineContext, name: &str) -> bool {
+  context.request.query.get(name)
+    .unwrap_or(&vec![]).first().unwrap_or(&String::default())
+    .eq("true")
 }
 
 pub fn verify_mock_server_request(context: &mut WebmachineContext) -> Result<bool, u16> {

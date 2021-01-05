@@ -22,19 +22,18 @@ pub struct ServerManager {
 }
 
 impl ServerManager {
-    /// Construct a new ServerManager for scheduling several instances of mock servers
-    /// on one tokio runtime.
-    pub fn new() -> ServerManager {
-        ServerManager {
-            runtime: tokio::runtime::Builder::new()
-                .threaded_scheduler()
-                .core_threads(1)
-                .enable_all()
-                .build()
-                .unwrap(),
-            mock_servers: BTreeMap::new(),
-        }
+  /// Construct a new ServerManager for scheduling several instances of mock servers
+  /// on one tokio runtime.
+  pub fn new() -> ServerManager {
+    ServerManager {
+      runtime: tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .unwrap(),
+      mock_servers: BTreeMap::new()
     }
+  }
 
     /// Start a new server on the runtime
     pub fn start_mock_server_with_addr(
@@ -68,11 +67,11 @@ impl ServerManager {
       id: String,
       pact: RequestResponsePact,
       addr: SocketAddr,
-      tls: &ServerConfig,
+      tls_config: &ServerConfig,
       config: MockServerConfig
     ) -> Result<SocketAddr, String> {
       let (mock_server, future) =
-        self.runtime.block_on(MockServer::new_tls(id.clone(), pact, addr, tls, config))?;
+        self.runtime.block_on(MockServer::new_tls(id.clone(), pact, addr, tls_config, config))?;
 
       let port = { mock_server.lock().unwrap().port.clone() };
       self.mock_servers.insert(

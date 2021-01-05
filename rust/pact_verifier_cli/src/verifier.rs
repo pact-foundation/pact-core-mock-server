@@ -93,6 +93,7 @@ fn interaction_filter(matches: &ArgMatches) -> FilterInfo {
   }
 }
 
+#[allow(dead_code)]
 pub async fn handle_cli() -> Result<(), i32> {
   let args: Vec<String> = env::args().collect();
   let program = args[0].clone();
@@ -128,6 +129,7 @@ pub async fn handle_cli() -> Result<(), i32> {
 // so that the caller could have more control over the error output.
 //
 // Currently, clap prints things out as if it were a CLI call
+#[allow(dead_code)]
 pub async fn handle_args(args: Vec<String>) -> Result<(), i32> {
   let program = "pact_verifier_cli".to_string();
   let version = format!("v{}", clap::crate_version!()).as_str().to_owned();
