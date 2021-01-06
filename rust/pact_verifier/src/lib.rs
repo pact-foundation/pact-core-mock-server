@@ -532,7 +532,7 @@ pub fn verify_provider<F: RequestFilterExecutor, S: ProviderStateExecutor>(
   options: VerificationOptions<F>,
   provider_state_executor: &S
 ) -> bool {
-  match tokio::runtime::Builder::new().threaded_scheduler().enable_all().build() {
+  match tokio::runtime::Builder::new_multi_thread().enable_all().build() {
     Ok(mut runtime) => runtime.block_on(
       verify_provider_async(provider_info, source, filter, consumers, options, provider_state_executor)),
     Err(err) => {

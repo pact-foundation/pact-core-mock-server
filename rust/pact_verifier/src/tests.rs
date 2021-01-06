@@ -227,8 +227,7 @@ fn publish_result_does_nothing_if_not_from_broker() {
   try_init().unwrap_or(());
 
   let server_response = catch_unwind(|| {
-    let mut runtime = tokio::runtime::Builder::new()
-      .basic_scheduler()
+    let mut runtime = tokio::runtime::Builder::new_current_thread()
       .enable_all()
       .build()
       .unwrap();

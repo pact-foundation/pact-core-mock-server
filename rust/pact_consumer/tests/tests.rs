@@ -7,7 +7,7 @@ use std::{
 
 use expectest::expect;
 use expectest::prelude::*;
-use reqwest::blocking::Client;
+use reqwest::Client;
 
 use pact_consumer::{json_pattern, json_pattern_internal};
 use pact_consumer::prelude::*;
@@ -120,8 +120,10 @@ async fn duplicate_interactions() {
                       "state": "VA",
                   }))
         .send()
+        .await
         .unwrap()
         .text()
+        .await
         .unwrap(),
       "TrixR4Kidz",
     );
