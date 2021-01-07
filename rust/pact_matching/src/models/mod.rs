@@ -807,8 +807,8 @@ impl Request {
         if self.query != other.query {
             differences.push((DifferenceType::QueryParameters, format!("Request query {:?} != {:?}", self.query, other.query)));
         }
-        let keys = self.headers.clone().map(|m| m.keys().cloned().collect_vec()).unwrap_or_default();
-        let other_keys = other.headers.clone().map(|m| m.keys().cloned().collect_vec()).unwrap_or_default();
+        let keys = self.headers.clone().map(|m| m.keys().cloned().collect_vec()).unwrap_or_default().sort();
+        let other_keys = other.headers.clone().map(|m| m.keys().cloned().collect_vec()).unwrap_or_default().sort();
         if keys != other_keys {
             differences.push((DifferenceType::Headers, format!("Request headers {:?} != {:?}", self.headers, other.headers)));
         }
