@@ -1175,7 +1175,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "url",
- "uuid 0.6.5",
+ "uuid",
 ]
 
 [[package]]
@@ -1217,7 +1217,7 @@ dependencies = [
  "sxd-document",
  "test-env-log",
  "tree_magic_mini",
- "uuid 0.6.5",
+ "uuid",
 ]
 
 [[package]]
@@ -1242,7 +1242,7 @@ dependencies = [
  "test-env-log",
  "tokio",
  "tokio-rustls",
- "uuid 0.8.1",
+ "uuid",
 ]
 
 [[package]]
@@ -1269,7 +1269,7 @@ dependencies = [
  "simplelog",
  "tokio",
  "url",
- "uuid 0.8.1",
+ "uuid",
  "webmachine-rust",
 ]
 
@@ -1296,7 +1296,7 @@ dependencies = [
  "regex-syntax 0.6.21",
  "reqwest",
  "serde_json",
- "uuid 0.8.1",
+ "uuid",
 ]
 
 [[package]]
@@ -2581,16 +2581,6 @@ name = "utf8-ranges"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4ae116fef2b7fea257ed6440d3cfcff7f190865f170cdad00bb6465bf18ecba"
-
-[[package]]
-name = "uuid"
-version = "0.6.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e1436e58182935dcd9ce0add9ea0b558e8a87befe01c1a301e6020aeb0876363"
-dependencies = [
- "cfg-if 0.1.10",
- "rand 0.4.6",
-]
 
 [[package]]
 name = "uuid"

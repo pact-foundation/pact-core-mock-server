@@ -421,7 +421,7 @@ impl GenerateValue<Value> for Generator {
         }
       },
       Generator::Uuid => match value {
-        Value::String(_) => Ok(json!(Uuid::new_v4().simple().to_string())),
+        Value::String(_) => Ok(json!(Uuid::new_v4().to_simple().to_string())),
         _ => Err(format!("Could not generate a UUID from {}", value))
       },
       Generator::RandomDecimal(digits) => match value {
