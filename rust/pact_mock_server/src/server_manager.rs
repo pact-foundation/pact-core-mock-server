@@ -228,7 +228,7 @@ mod tests {
     #[test]
     #[cfg(not(target_os = "windows"))]
     fn manager_should_start_and_shutdown_mock_server() {
-        env_logger::try_init().unwrap_or(());
+        let _ = env_logger::builder().is_test(true).try_init();
         let mut manager = ServerManager::new();
         let start_result = manager.start_mock_server("foobar".into(), RequestResponsePact::default(),
                                                      0, MockServerConfig::default());

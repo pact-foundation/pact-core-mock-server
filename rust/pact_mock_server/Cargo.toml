@@ -31,8 +31,8 @@ rustls = "0.19.0"
 tokio-rustls = "0.22.0"
 
 [dev-dependencies]
-quickcheck = "0.4.1"
-expectest = "0.9.1"
+quickcheck = "1"
+expectest = "0.12.0"
 reqwest = { version = "0.11", features = ["blocking"] }
-env_logger = "0.7.1"
+env_logger = "0.8"
 test-env-log = "0.2.2"

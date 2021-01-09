@@ -103,7 +103,7 @@ fn json_pattern_is_pattern() {
 
     use super::special_rules::Like;
 
-    let _ = env_logger::init();
+    let _ = env_logger::builder().is_test(true).try_init();
 
     // This is our pattern, combinging both example data and matching rules.
     let pattern = json_pattern!({

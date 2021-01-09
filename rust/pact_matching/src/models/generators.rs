@@ -429,7 +429,7 @@ pub trait GenerateValue<T> {
 impl GenerateValue<u16> for Generator {
   fn generate_value(&self, value: &u16, context: &HashMap<&str, Value>) -> Result<u16, String> {
     match self {
-      &Generator::RandomInt(min, max) => Ok(rand::thread_rng().gen_range(min as u16, (max as u16).saturating_add(1))),
+      &Generator::RandomInt(min, max) => Ok(rand::thread_rng().gen_range(min as u16..(max as u16).saturating_add(1))),
       &Generator::ProviderStateGenerator(ref exp, ref dt) =>
         match generate_value_from_context(exp, context, dt) {
           Ok(val) => u16::try_from(val),
@@ -457,7 +457,7 @@ pub(crate) fn generate_decimal(digits: usize) -> String {
         let chars = DIGIT_CHARSET[1..].chars();
         sample.insert(0, chars.choose(&mut rnd).unwrap());
       }
-      let pos = rnd.gen_range(1, digits - 1);
+      let pos = rnd.gen_range(1..digits - 1);
       let selected_digits = if pos != 1 && sample.starts_with('0') {
         &sample[1..(digits + 1)]
       } else {
@@ -478,7 +478,7 @@ pub(crate) fn generate_hexadecimal(digits: usize) -> String {
 }
 
 pub(crate) fn generate_ascii_string(size: usize) -> String {
-  rand::thread_rng().sample_iter(&Alphanumeric).take(size).collect()
+  rand::thread_rng().sample_iter(&Alphanumeric).map(char::from).take(size).collect()
 }
 
 fn strip_anchors(regex: &str) -> &str {
@@ -491,8 +491,8 @@ impl GenerateValue<String> for Generator {
   fn generate_value(&self, _: &String, context: &HashMap<&str, Value>) -> Result<String, String> {
     let mut rnd = rand::thread_rng();
     let result = match self {
-      Generator::RandomInt(min, max) => Ok(format!("{}", rnd.gen_range(min, max.saturating_add(1)))),
-      Generator::Uuid => Ok(Uuid::new_v4().hyphenated().to_string()),
+      Generator::RandomInt(min, max) => Ok(format!("{}", rnd.gen_range(*min..max.saturating_add(1)))),
+      Generator::Uuid => Ok(Uuid::new_v4().to_hyphenated().to_string()),
       Generator::RandomDecimal(digits) => Ok(generate_decimal(*digits as usize)),
       Generator::RandomHexadecimal(digits) => Ok(generate_hexadecimal(*digits as usize)),
       Generator::RandomString(size) => Ok(generate_ascii_string(*size as usize)),
@@ -681,7 +681,7 @@ impl JsonHandler {
                 Some(map) => match map.get(name) {
                   Some(val) => {
                     let node = tree.new_node(name.clone());
-                    node_cursor.append(node, tree).unwrap();
+                    node_cursor.append(node, tree);
                     body_cursor = val.clone();
                     node_cursor = node;
                   },
@@ -694,7 +694,7 @@ impl JsonHandler {
               match body_cursor.clone().as_array() {
                 Some(list) => if list.len() > index {
                   let node = tree.new_node(format!("{}", index));
-                  node_cursor.append(node, tree).unwrap();
+                  node_cursor.append(node, tree);
                   body_cursor = list[index].clone();
                   node_cursor = node;
                 },
@@ -707,7 +707,7 @@ impl JsonHandler {
                   let remaining = it.by_ref().cloned().collect();
                   for (key, val) in map {
                     let node = tree.new_node(key.clone());
-                    node_cursor.append(node, tree).unwrap();
+                    node_cursor.append(node, tree);
                     body_cursor = val.clone();
                     self.query_object_graph(&remaining, tree, node, val.clone());
                   }
@@ -721,7 +721,7 @@ impl JsonHandler {
                   let remaining = it.by_ref().cloned().collect();
                   for (index, val) in list.iter().enumerate() {
                     let node = tree.new_node(format!("{}", index));
-                    node_cursor.append(node, tree).unwrap();
+                    node_cursor.append(node, tree);
                     body_cursor = val.clone();
                     self.query_object_graph(&remaining, tree, node,val.clone());
                   }
@@ -762,8 +762,8 @@ impl ContentTypeHandler<Value> for JsonHandler {
         self.query_object_graph(&path_exp, &mut tree, root, self.value.clone());
         let expanded_paths = root.descendants(&tree).fold(Vec::<String>::new(), |mut acc, node_id| {
           let node = tree.index(node_id);
-          if !node.data.is_empty() && node.first_child().is_none() {
-            let path: Vec<String> = node_id.ancestors(&tree).map(|n| format!("{}", tree.index(n).data)).collect();
+          if !node.get().is_empty() && node.first_child().is_none() {
+            let path: Vec<String> = node_id.ancestors(&tree).map(|n| format!("{}", tree.index(n).get())).collect();
             if path.len() == path_exp.len() {
               acc.push(path.iter().rev().join("/"));
             }
