@@ -413,7 +413,7 @@ impl GenerateValue<Value> for Generator {
     debug!("Generating value from {:?} with context {:?}", self, context);
     let result = match self {
       Generator::RandomInt(min, max) => {
-        let rand_int = rand::thread_rng().gen_range(min, max.saturating_add(1));
+        let rand_int = rand::thread_rng().gen_range(*min..max.saturating_add(1));
         match value {
           Value::String(_) => Ok(json!(format!("{}", rand_int))),
           Value::Number(_) => Ok(json!(rand_int)),

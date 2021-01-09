@@ -17,6 +17,7 @@ use std::fs::OpenOptions;
 use uuid::Uuid;
 use pact_matching::models::PactSpecification;
 use rand::Rng;
+use rand::distributions::Alphanumeric;
 use lazy_static::*;
 use std::cell::RefCell;
 use pact_mock_server::server_manager::ServerManager;
@@ -299,7 +300,7 @@ async fn handle_command_args() -> Result<(), i32> {
               let output_path = sub_matches.value_of("output").map(|s| s.to_owned());
               let base_port = sub_matches.value_of("base-port").map(|s| s.parse::<u16>().unwrap_or(0));
               let server_key = sub_matches.value_of("server-key").map(|s| s.to_owned())
-                .unwrap_or_else(|| rand::thread_rng().gen_ascii_chars().take(16).collect::<String>());
+                .unwrap_or_else(|| rand::thread_rng().sample_iter(Alphanumeric).take(16).map(char::from).collect::<String>());
               {
                 let inner = (*SERVER_OPTIONS).lock().unwrap();
                 let mut options = inner.deref().borrow_mut();

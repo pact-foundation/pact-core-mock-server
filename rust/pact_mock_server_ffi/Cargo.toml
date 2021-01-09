@@ -25,10 +25,10 @@ maplit = "1.0.2"
 uuid = { version = "0.8", features = ["v4"] }
 chrono = "0.4"
 chrono-tz = "0.5"
-rand_regex = "0.12.0"
+rand_regex = "0.15.0"
 regex-syntax = "0.6.4"
 onig = { version = "6.1.0", default-features = false }
-rand = "0.6"
+rand = "0.8"
 itertools = "0.9.0"
 multipart = { version = "0.17", default-features = false, features = ["client", "mock"] }
 

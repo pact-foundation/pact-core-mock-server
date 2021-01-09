@@ -429,7 +429,7 @@ pub trait GenerateValue<T> {
 impl GenerateValue<u16> for Generator {
   fn generate_value(&self, value: &u16, context: &HashMap<&str, Value>) -> Result<u16, String> {
     match self {
-      &Generator::RandomInt(min, max) => Ok(rand::thread_rng().gen_range(min as u16, (max as u16).saturating_add(1))),
+      &Generator::RandomInt(min, max) => Ok(rand::thread_rng().gen_range(min as u16..(max as u16).saturating_add(1))),
       &Generator::ProviderStateGenerator(ref exp, ref dt) =>
         match generate_value_from_context(exp, context, dt) {
           Ok(val) => u16::try_from(val),
@@ -457,7 +457,7 @@ pub(crate) fn generate_decimal(digits: usize) -> String {
         let chars = DIGIT_CHARSET[1..].chars();
         sample.insert(0, chars.choose(&mut rnd).unwrap());
       }
-      let pos = rnd.gen_range(1, digits - 1);
+      let pos = rnd.gen_range(1..digits - 1);
       let selected_digits = if pos != 1 && sample.starts_with('0') {
         &sample[1..(digits + 1)]
       } else {
@@ -478,7 +478,7 @@ pub(crate) fn generate_hexadecimal(digits: usize) -> String {
 }
 
 pub(crate) fn generate_ascii_string(size: usize) -> String {
-  rand::thread_rng().sample_iter(&Alphanumeric).take(size).collect()
+  rand::thread_rng().sample_iter(&Alphanumeric).map(char::from).take(size).collect()
 }
 
 fn strip_anchors(regex: &str) -> &str {
@@ -491,7 +491,7 @@ impl GenerateValue<String> for Generator {
   fn generate_value(&self, _: &String, context: &HashMap<&str, Value>) -> Result<String, String> {
     let mut rnd = rand::thread_rng();
     let result = match self {
-      Generator::RandomInt(min, max) => Ok(format!("{}", rnd.gen_range(min, max.saturating_add(1)))),
+      Generator::RandomInt(min, max) => Ok(format!("{}", rnd.gen_range(*min..max.saturating_add(1)))),
       Generator::Uuid => Ok(Uuid::new_v4().to_hyphenated().to_string()),
       Generator::RandomDecimal(digits) => Ok(generate_decimal(*digits as usize)),
       Generator::RandomHexadecimal(digits) => Ok(generate_hexadecimal(*digits as usize)),
