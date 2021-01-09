@@ -84,11 +84,12 @@ fn setup_loggers(level: &str, command: &str, output: Option<&str>, no_file_log: 
         },
         _ => {
           let log_file = setup_log_file(output).map_err(|e| format!("{:?}", e))?;
-          match TermLogger::new(log_level, Config::default(), term_mode) {
-            Some(logger) => CombinedLogger::init(vec![logger, WriteLogger::new(log_level,
-                                                                               Config::default(), log_file)]).map_err(|e| format!("{:?}", e)),
-            None => WriteLogger::init(log_level, Config::default(), log_file).map_err(|e| format!("{:?}", e))
-          }
+          CombinedLogger::init(
+            vec![
+              TermLogger::new(log_level, Config::default(), term_mode),
+              WriteLogger::new(log_level, Config::default(), log_file)
+            ]
+          ).map_err(|e| format!("{:?}", e))
         }
       }
     } else if no_term_log {
