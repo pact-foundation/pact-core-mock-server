@@ -54,7 +54,7 @@ fn string_pattern_is_pattern() {
 
     use super::special_rules::Term;
 
-    let _ = env_logger::init();
+    let _ = env_logger::builder().is_test(true).try_init();
 
     // This is our pattern, combining both example data and matching rules.
     let pattern: StringPattern = Term::new(Regex::new("^[0-9]+$").unwrap(), "10").into();

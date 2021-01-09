@@ -24,7 +24,7 @@ use pact_matching::models::RequestResponsePact;
 fn mock_server_passing_validation() {
     use expectest::*;
 
-    let _ = env_logger::init();
+    let _ = env_logger::builder().is_test(true).try_init();
 
     let output_dir = Path::new("target/pact_dir");
     fs::remove_dir_all(output_dir).unwrap_or(());
@@ -69,7 +69,7 @@ fn mock_server_passing_validation() {
 #[test]
 #[should_panic]
 fn mock_server_failing_validation() {
-    let _ = env_logger::init();
+    let _ = env_logger::builder().is_test(true).try_init();
 
     let hello_service = PactBuilder::new("Hello CLI", "Hello Server")
         .interaction("request a greeting", |i| {
@@ -85,7 +85,7 @@ fn mock_server_failing_validation() {
 
 #[tokio::test]
 async fn duplicate_interactions() {
-  let _ = env_logger::init();
+  let _ = env_logger::builder().is_test(true).try_init();
 
   let output_dir = Path::new("/tmp/duplicate_interactions");
   fs::remove_dir_all(output_dir).unwrap_or(());
