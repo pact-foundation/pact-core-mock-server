@@ -681,7 +681,7 @@ impl JsonHandler {
                 Some(map) => match map.get(name) {
                   Some(val) => {
                     let node = tree.new_node(name.clone());
-                    node_cursor.append(node, tree).unwrap();
+                    node_cursor.append(node, tree);
                     body_cursor = val.clone();
                     node_cursor = node;
                   },
@@ -694,7 +694,7 @@ impl JsonHandler {
               match body_cursor.clone().as_array() {
                 Some(list) => if list.len() > index {
                   let node = tree.new_node(format!("{}", index));
-                  node_cursor.append(node, tree).unwrap();
+                  node_cursor.append(node, tree);
                   body_cursor = list[index].clone();
                   node_cursor = node;
                 },
@@ -707,7 +707,7 @@ impl JsonHandler {
                   let remaining = it.by_ref().cloned().collect();
                   for (key, val) in map {
                     let node = tree.new_node(key.clone());
-                    node_cursor.append(node, tree).unwrap();
+                    node_cursor.append(node, tree);
                     body_cursor = val.clone();
                     self.query_object_graph(&remaining, tree, node, val.clone());
                   }
@@ -721,7 +721,7 @@ impl JsonHandler {
                   let remaining = it.by_ref().cloned().collect();
                   for (index, val) in list.iter().enumerate() {
                     let node = tree.new_node(format!("{}", index));
-                    node_cursor.append(node, tree).unwrap();
+                    node_cursor.append(node, tree);
                     body_cursor = val.clone();
                     self.query_object_graph(&remaining, tree, node,val.clone());
                   }
@@ -762,8 +762,8 @@ impl ContentTypeHandler<Value> for JsonHandler {
         self.query_object_graph(&path_exp, &mut tree, root, self.value.clone());
         let expanded_paths = root.descendants(&tree).fold(Vec::<String>::new(), |mut acc, node_id| {
           let node = tree.index(node_id);
-          if !node.data.is_empty() && node.first_child().is_none() {
-            let path: Vec<String> = node_id.ancestors(&tree).map(|n| format!("{}", tree.index(n).data)).collect();
+          if !node.get().is_empty() && node.first_child().is_none() {
+            let path: Vec<String> = node_id.ancestors(&tree).map(|n| format!("{}", tree.index(n).get())).collect();
             if path.len() == path_exp.len() {
               acc.push(path.iter().rev().join("/"));
             }
