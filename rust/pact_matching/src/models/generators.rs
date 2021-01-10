@@ -126,7 +126,7 @@ impl Generator {
       "ProviderState" => map.get("expression").map(|f|
         Generator::ProviderStateGenerator(json_to_string(f), map.get("dataType")
           .map(|dt| DataType::from(dt.clone())))),
-      "MockServerURL" => Some(Generator::MockServerURL(get_field_as_string("value", map).unwrap_or_default(),
+      "MockServerURL" => Some(Generator::MockServerURL(get_field_as_string("example", map).unwrap_or_default(),
                                                        get_field_as_string("regex", map).unwrap_or_default())),
       _ => {
         log::warn!("'{}' is not a valid generator type", gen_type);
