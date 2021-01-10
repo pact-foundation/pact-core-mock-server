@@ -1,5 +1,20 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.8.8 - Bugfixes + updated dependencies
+
+* 56ce20a - fix: MockServerURL generator was using the incorrect field (Ronald Holshausen, Sun Jan 10 15:54:18 2021 +1100)
+* 2bcf8fa - Merge pull request #88 from audunhalland/upgrade-http (Ronald Holshausen, Sun Jan 10 10:33:50 2021 +1100)
+* 5e5c320 - chore: upgrade rand, rand_regex (Audun Halland, Sat Jan 9 09:33:13 2021 +0100)
+* 3a28a6c - chore: upgrade regex, chrono-tz (Audun Halland, Sat Jan 9 11:12:49 2021 +0100)
+* 1483fef - chore: upgrade uuid to 0.8 (Audun Halland, Sat Jan 9 11:03:30 2021 +0100)
+* 9a8a63f - chore: upgrade quickcheck (Audun Halland, Sat Jan 9 08:46:51 2021 +0100)
+* 245a5d6 - chore: upgrade indextree (Audun Halland, Sat Jan 9 08:35:59 2021 +0100)
+* 5b60ec0 - chore: get rid of nom dupes by using tree_magic_mini (Audun Halland, Sat Jan 9 08:06:22 2021 +0100)
+* 13d295a - fixing an incorrect use of sort() (Steve Cooper, Thu Jan 7 20:56:35 2021 +0000)
+* 422cfb9 - request headers generated unexpected differences when the pact was serialised and deserialised. fixed by sorting header keys during comparison (Steve Cooper, Thu Jan 7 17:47:45 2021 +0000)
+* 3a6945e - chore: Upgrade reqwest to 0.11 and hence tokio to 1.0 (Ronald Holshausen, Wed Jan 6 15:34:47 2021 +1100)
+* df77b63 - bump version to 0.8.8 (Ronald Holshausen, Tue Jan 5 12:29:55 2021 +1100)
+
 # 0.8.7 - Updated dependencies
 
 * e78969d - refactor: Generator body handler now returns a Result (Ronald Holshausen, Mon Jan 4 15:47:28 2021 +1100)
