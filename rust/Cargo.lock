@@ -1081,7 +1081,7 @@ dependencies = [
 
 [[package]]
 name = "pact_consumer"
-version = "0.7.3"
+version = "0.7.4"
 dependencies = [
  "env_logger",
  "expectest",
