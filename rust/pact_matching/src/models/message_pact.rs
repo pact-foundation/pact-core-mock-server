@@ -101,8 +101,7 @@ impl MessagePact {
     }
 
     /// Creates a `MessagePact` from a `Value` struct.
-    pub fn from_json(file: &String, pact_json: &Value)
-    -> Result<MessagePact, String> {
+    pub fn from_json(file: &str, pact_json: &Value) -> Result<MessagePact, String> {
         let metadata = parse_meta_data(pact_json);
         let spec_version = determine_spec_version(file, &metadata);
 

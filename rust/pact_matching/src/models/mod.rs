@@ -1380,7 +1380,7 @@ fn parse_interactions(pact_json: &Value, spec_version: PactSpecification) -> Vec
     }
 }
 
-fn determine_spec_version(file: &String, metadata: &BTreeMap<String, BTreeMap<String, String>>) -> PactSpecification {
+fn determine_spec_version(file: &str, metadata: &BTreeMap<String, BTreeMap<String, String>>) -> PactSpecification {
   let specification = if metadata.contains_key("pact-specification") {
     metadata.get("pact-specification")
   } else {
@@ -1433,7 +1433,7 @@ impl RequestResponsePact {
     }
 
     /// Creates a `Pact` from a `Value` struct.
-    pub fn from_json(file: &String, pact_json: &Value) -> RequestResponsePact {
+    pub fn from_json(file: &str, pact_json: &Value) -> RequestResponsePact {
         let metadata = parse_meta_data(pact_json);
         let spec_version = determine_spec_version(file, &metadata);
 
@@ -1693,26 +1693,8 @@ pub fn read_pact(file: &Path) -> io::Result<Box<dyn Pact>> {
   let mut f = File::open(file)?;
   let pact_json = serde_json::from_reader(&mut f);
   match pact_json {
-    Ok(ref json) => {
-      match json {
-        Value::Object(map) => if map.contains_key("messages") {
-          match MessagePact::from_json(&format!("{:?}", file), json) {
-            Ok(pact) => Ok(Box::new(pact)),
-            Err(err) => Err(Error::new(ErrorKind::Other, format!("Failed to parse Pact JSON - {}", err)))
-          }
-        } else {
-          let metadata = parse_meta_data(json);
-          let file_str = file.to_string_lossy();
-          let spec_version = determine_spec_version(&file_str.to_string(), &metadata);
-          match spec_version {
-            PactSpecification::V4 => v4::from_json(&file_str, json)
-              .map_err(|err| Error::new(ErrorKind::Other, err)),
-            _ => Ok(Box::new(RequestResponsePact::from_json(&format!("{:?}", file), json)))
-          }
-        },
-        _ => Err(Error::new(ErrorKind::Other, format!("Failed to parse Pact JSON - it is not a valid pact file")))
-      }
-    },
+    Ok(ref json) => load_pact_from_json(&*file.to_string_lossy(), json)
+      .map_err(|err| Error::new(ErrorKind::Other, err)),
     Err(err) => Err(Error::new(ErrorKind::Other, format!("Failed to parse Pact JSON - {}", err)))
   }
 }
@@ -1720,23 +1702,28 @@ pub fn read_pact(file: &Path) -> io::Result<Box<dyn Pact>> {
 /// Reads the pact file from a URL and parses the resulting JSON into a `Pact` struct
 pub fn load_pact_from_url<'a>(url: &String, auth: &Option<HttpAuth>) -> Result<Box<dyn Pact>, String> {
   match http_utils::fetch_json_from_url(url, auth) {
-    Ok((ref url, ref json)) => match json {
-      Value::Object(map) => if map.contains_key("messages") {
-        match MessagePact::from_json(&format!("{:?}", url), json) {
-          Ok(pact) => Ok(Box::new(pact)),
-          Err(err) => Err(err)
-        }
-      } else {
-        let metadata = parse_meta_data(json);
-        let spec_version = determine_spec_version(url, &metadata);
-        match spec_version {
-          PactSpecification::V4 => v4::from_json(&url, json),
-          _ => Ok(Box::new(RequestResponsePact::from_json(url, json)))
-        }
-      },
-      _ => Err(format!("Failed to parse Pact JSON from URL '{}' - it is not a valid pact file", url))
-    },
+    Ok((ref url, ref json)) => load_pact_from_json(url.as_str(), json),
     Err(err) => Err(err)
+  }
+}
+
+/// Loads a Pact model from a JSON Value
+pub fn load_pact_from_json(source: &str, json: &Value) -> Result<Box<dyn Pact>, String> {
+  match json {
+    Value::Object(map) => if map.contains_key("messages") {
+      match MessagePact::from_json(source, json) {
+        Ok(pact) => Ok(Box::new(pact)),
+        Err(err) => Err(err)
+      }
+    } else {
+      let metadata = parse_meta_data(json);
+      let spec_version = determine_spec_version(source, &metadata);
+      match spec_version {
+        PactSpecification::V4 => v4::from_json(&source, json),
+        _ => Ok(Box::new(RequestResponsePact::from_json(source, json)))
+      }
+    },
+    _ => Err(format!("Failed to parse Pact JSON from source '{}' - it is not a valid pact file", source))
   }
 }
 
