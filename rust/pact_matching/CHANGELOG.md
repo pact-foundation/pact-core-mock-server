@@ -1,5 +1,14 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.8.9 - Fixes + thread safe support functions
+
+* c8f7091 - feat: made pact broker module public so it can be used by other crates (Ronald Holshausen, Sun Jan 24 18:24:30 2021 +1100)
+* 53232b4 - chore: added some thread safe support functions to Interaction trait (Ronald Holshausen, Sun Jan 24 14:38:06 2021 +1100)
+* 93ae06d - chore: add function to clone and wrap an interaction in a box (Ronald Holshausen, Sun Jan 24 12:20:37 2021 +1100)
+* a35150b - feat: extracted the JSON -> Pact logic into a public function (Ronald Holshausen, Sun Jan 24 10:16:33 2021 +1100)
+* ae95e0c - fix: apply generators to the request in the same manor as the response (Ronald Holshausen, Mon Jan 18 17:25:38 2021 +1100)
+* 1c0cfba - bump version to 0.8.9 (Ronald Holshausen, Mon Jan 11 09:57:30 2021 +1100)
+
 # 0.8.8 - Bugfixes + updated dependencies
 
 * 56ce20a - fix: MockServerURL generator was using the incorrect field (Ronald Holshausen, Sun Jan 10 15:54:18 2021 +1100)
