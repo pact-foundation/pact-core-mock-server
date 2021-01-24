@@ -10,6 +10,7 @@ use std::hash::{Hash, Hasher};
 use std::io::{Error, ErrorKind};
 use std::path::Path;
 use std::string::ToString;
+use std::sync::{Arc, Mutex};
 
 use itertools::EitherOrBoth::{Both, Left, Right};
 use itertools::Itertools;
@@ -18,7 +19,7 @@ use maplit::*;
 use nom::lib::std::fmt::Formatter;
 use serde_json::{json, Value};
 
-use crate::models::{Consumer, detect_content_type_from_bytes, generators, Interaction, matchingrules, OptionalBody, Pact, PactSpecification, Provider, provider_states, ReadWritePact, RequestResponseInteraction, RequestResponsePact, PACT_RUST_VERSION};
+use crate::models::{Consumer, detect_content_type_from_bytes, generators, Interaction, matchingrules, OptionalBody, Pact, PACT_RUST_VERSION, PactSpecification, Provider, provider_states, ReadWritePact, RequestResponseInteraction, RequestResponsePact};
 use crate::models::content_types::ContentType;
 use crate::models::generators::generators_to_json;
 use crate::models::json_utils::{hash_json, json_to_string};
@@ -327,6 +328,14 @@ impl Interaction for V4Interaction {
 
   fn boxed(&self) -> Box<dyn Interaction> {
     Box::new(self.clone())
+  }
+
+  fn arced(&self) -> Arc<dyn Interaction> {
+    Arc::new(self.clone())
+  }
+
+  fn thread_safe(&self) -> Arc<Mutex<dyn Interaction + Send + Sync>> {
+    Arc::new(Mutex::new(self.clone()))
   }
 }
 

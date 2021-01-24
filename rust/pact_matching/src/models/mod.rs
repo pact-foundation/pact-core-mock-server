@@ -1,6 +1,7 @@
 //! The `models` module provides all the structures required to model a Pact.
 
 use std::{fmt, fs};
+use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -13,6 +14,7 @@ use std::io::prelude::*;
 use std::path::Path;
 use std::str;
 use std::str::from_utf8;
+use std::sync::{Arc, Mutex};
 
 use base64::{decode, encode};
 use hex::FromHex;
@@ -26,15 +28,14 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::models::content_types::ContentType;
+use crate::models::generators::{Generator, GeneratorCategory};
 use crate::models::http_utils::HttpAuth;
 use crate::models::json_utils::json_to_string;
 use crate::models::message::Message;
 use crate::models::message_pact::MessagePact;
 use crate::models::provider_states::ProviderState;
-use crate::models::v4::{interaction_from_json, V4Pact, V4Interaction};
+use crate::models::v4::{interaction_from_json, V4Interaction, V4Pact};
 use crate::models::v4::http_parts::{HttpRequest, HttpResponse};
-use std::borrow::Borrow;
-use crate::models::generators::{GeneratorCategory, Generator};
 
 pub mod json_utils;
 pub mod xml_utils;
@@ -281,9 +282,9 @@ impl Display for OptionalBody {
 #[cfg(test)]
 mod body_tests {
   use expectest::prelude::*;
-  use super::content_types::JSON;
 
   use super::*;
+  use super::content_types::JSON;
 
   #[test]
   fn display_tests() {
@@ -414,20 +415,20 @@ pub trait HttpPart {
     }
   }
 
-    /// Checks if the HTTP Part has the given header
-    fn has_header(&self, header_name: &String) -> bool {
-        self.lookup_header_value(header_name).is_some()
-    }
+  /// Checks if the HTTP Part has the given header
+  fn has_header(&self, header_name: &str) -> bool {
+      self.lookup_header_value(header_name).is_some()
+  }
 
-    /// Checks if the HTTP Part has the given header
-    fn lookup_header_value(&self, header_name: &String) -> Option<String> {
-      match *self.headers() {
-        Some(ref h) => h.iter()
-          .find(|kv| kv.0.to_lowercase() == header_name.to_lowercase())
-          .map(|kv| kv.1.clone().join(", ")),
-        None => None
-      }
+  /// Checks if the HTTP Part has the given header
+  fn lookup_header_value(&self, header_name: &str) -> Option<String> {
+    match *self.headers() {
+      Some(ref h) => h.iter()
+        .find(|kv| kv.0.to_lowercase() == header_name.to_lowercase())
+        .map(|kv| kv.1.clone().join(", ")),
+      None => None
     }
+  }
 
   /// If the body is a textual type (non-binary)
   fn has_text_body(&self) -> bool {
@@ -1066,6 +1067,10 @@ pub trait Interaction {
   fn as_v4(&self) -> V4Interaction;
   /// Clones this interaction and wraps it in a Box
   fn boxed(&self) -> Box<dyn Interaction>;
+  /// Clones this interaction and wraps it in an Arc
+  fn arced(&self) -> Arc<dyn Interaction>;
+  /// Clones this interaction and wraps it in an Arc and Mutex
+  fn thread_safe(&self) -> Arc<Mutex<dyn Interaction + Send + Sync>>;
 }
 
 impl Debug for dyn Interaction {
@@ -1180,6 +1185,14 @@ impl Interaction for RequestResponseInteraction {
 
   fn boxed(&self) -> Box<dyn Interaction> {
     Box::new(self.clone())
+  }
+
+  fn arced(&self) -> Arc<dyn Interaction> {
+    Arc::new(self.clone())
+  }
+
+  fn thread_safe(&self) -> Arc<Mutex<dyn Interaction + Send + Sync>> {
+    Arc::new(Mutex::new(self.clone()))
   }
 }
 

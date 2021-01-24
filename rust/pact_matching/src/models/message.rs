@@ -121,6 +121,14 @@ impl Interaction for Message {
   fn boxed(&self) -> Box<dyn Interaction> {
     Box::new(self.clone())
   }
+
+  fn arced(&self) -> Arc<dyn Interaction> {
+    Arc::new(self.clone())
+  }
+
+  fn thread_safe(&self) -> Arc<Mutex<dyn Interaction + Send + Sync>> {
+    Arc::new(Mutex::new(self.clone()))
+  }
 }
 
 impl Message {
