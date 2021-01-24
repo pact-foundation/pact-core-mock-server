@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.10.2 - made pact broker module public so it can be used by other crates
+
+* c8f7091 - feat: made pact broker module public so it can be used by other crates (Ronald Holshausen, Sun Jan 24 18:24:30 2021 +1100)
+* fb4e996 - bump version to 0.10.2 (Ronald Holshausen, Mon Jan 11 10:28:35 2021 +1100)
+
 # 0.10.1 - Updated dependencies
 
 * 1ac3548 - chore: upgrade env_logger to 0.8 (Audun Halland, Sat Jan 9 09:50:27 2021 +0100)
