@@ -678,15 +678,6 @@ checksum = "47be2f14c678be2fdcab04ab1171db51b2762ce6f0a8ee87c8dd4a04ed216135"
 
 [[package]]
 name = "itertools"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "284f18f85651fe11e8a991b2adb42cb078325c996ed026d994719efcfca1d54b"
-dependencies = [
- "either",
-]
-
-[[package]]
-name = "itertools"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37d572918e350e82412fe766d24b15e6682fb2ed2bbe018280caa810397cb319"
@@ -770,12 +761,6 @@ checksum = "fcf3805d4480bb5b86070dcfeb9e2cb2ebc148adb753c5cca5f884d1d65a42b2"
 dependencies = [
  "cfg-if 0.1.10",
 ]
-
-[[package]]
-name = "maplit"
-version = "0.1.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22593015b8df7747861c69c28acd32589fb96c1686369f3b661d12e409d4cf65"
 
 [[package]]
 name = "maplit"
@@ -1107,11 +1092,11 @@ dependencies = [
  "env_logger",
  "expectest",
  "futures",
- "itertools 0.9.0",
+ "itertools",
  "lazy_static",
  "libc",
  "log",
- "maplit 0.1.6",
+ "maplit",
  "pact_matching",
  "pact_mock_server",
  "quickcheck",
@@ -1139,11 +1124,11 @@ dependencies = [
  "hex",
  "http",
  "indextree",
- "itertools 0.10.0",
+ "itertools",
  "lazy_static",
  "lenient_semver",
  "log",
- "maplit 1.0.2",
+ "maplit",
  "mime",
  "multipart",
  "nom 5.1.2",
@@ -1176,10 +1161,10 @@ dependencies = [
  "futures",
  "hyper",
  "hyper-rustls",
- "itertools 0.9.0",
+ "itertools",
  "lazy_static",
  "log",
- "maplit 0.1.6",
+ "maplit",
  "pact_matching",
  "quickcheck",
  "reqwest",
@@ -1200,11 +1185,11 @@ dependencies = [
  "futures",
  "http",
  "hyper",
- "itertools 0.9.0",
+ "itertools",
  "lazy_static",
  "libc",
  "log",
- "maplit 0.1.6",
+ "maplit",
  "pact_matching",
  "pact_mock_server",
  "quickcheck",
@@ -1228,11 +1213,11 @@ dependencies = [
  "chrono-tz",
  "env_logger",
  "expectest",
- "itertools 0.9.0",
+ "itertools",
  "lazy_static",
  "libc",
  "log",
- "maplit 1.0.2",
+ "maplit",
  "multipart",
  "onig",
  "pact_matching",
@@ -1257,11 +1242,11 @@ dependencies = [
  "expectest",
  "futures",
  "http",
- "itertools 0.10.0",
+ "itertools",
  "lazy_static",
  "libc",
  "log",
- "maplit 1.0.2",
+ "maplit",
  "mime",
  "pact_consumer",
  "pact_matching",
@@ -1294,7 +1279,7 @@ dependencies = [
  "lazy_static",
  "libc",
  "log",
- "maplit 1.0.2",
+ "maplit",
  "pact_matching",
  "pact_verifier",
  "quickcheck",
@@ -2447,10 +2432,10 @@ dependencies = [
  "hex",
  "http",
  "hyper",
- "itertools 0.10.0",
+ "itertools",
  "lazy_static",
  "log",
- "maplit 1.0.2",
+ "maplit",
  "serde",
  "serde_json",
 ]

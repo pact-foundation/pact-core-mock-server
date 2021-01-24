@@ -22,7 +22,7 @@ pact_mock_server = { version = "0.7.12", path = "../pact_mock_server" }
 simplelog = "0.9"
 log = "0.4"
 uuid = { version = "0.8", features = ["v4"] }
-maplit = "0.1.3"
+maplit = "1.0.2"
 rand = "0.8"
 webmachine-rust = "0.2.2"
 regex = "1"
@@ -33,7 +33,7 @@ http = "0.2"
 futures = "0.3.0"
 tokio = { version = "1", features = ["full"] }
 hyper = "0.14.0"
-itertools = "0.9.0"
+itertools = "0.10.0"
 
 [dev-dependencies]
 quickcheck = "1"
