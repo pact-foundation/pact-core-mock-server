@@ -227,7 +227,7 @@ fn publish_result_does_nothing_if_not_from_broker() {
   try_init().unwrap_or(());
 
   let server_response = catch_unwind(|| {
-    let mut runtime = tokio::runtime::Builder::new_current_thread()
+    let runtime = tokio::runtime::Builder::new_current_thread()
       .enable_all()
       .build()
       .unwrap();
@@ -287,7 +287,8 @@ async fn publish_successful_result_to_broker() {
     Link {
       name: "pb:publish-verification-results".to_string(),
       href: Some(server.path("/path/to/pact/verification".to_string()).to_string()),
-      templated: false
+      templated: false,
+      title: None
     }
   ];
   let source = PactSource::BrokerUrl("Test".to_string(), server.url().to_string(), None, links);

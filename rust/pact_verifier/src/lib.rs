@@ -37,7 +37,7 @@ use crate::request_response::display_request_response_result;
 use std::sync::Arc;
 
 mod provider_client;
-mod pact_broker;
+pub mod pact_broker;
 pub mod callback_executors;
 mod request_response;
 mod messages;
@@ -533,7 +533,7 @@ pub fn verify_provider<F: RequestFilterExecutor, S: ProviderStateExecutor>(
   provider_state_executor: &S
 ) -> bool {
   match tokio::runtime::Builder::new_multi_thread().enable_all().build() {
-    Ok(mut runtime) => runtime.block_on(
+    Ok(runtime) => runtime.block_on(
       verify_provider_async(provider_info, source, filter, consumers, options, provider_state_executor)),
     Err(err) => {
       error!("Verify provider process failed to start the tokio runtime: {}", err);
@@ -665,8 +665,8 @@ async fn fetch_pact(source: PactSource) -> Vec<Result<(Box<dyn Pact>, Option<Pac
       .map(|pact| (pact, None, source))],
     PactSource::BrokerUrl(ref provider_name, ref broker_url, ref auth, _) => {
       let result = pact_broker::fetch_pacts_from_broker(
-        broker_url.clone(),
-        provider_name.clone(),
+        broker_url.as_str(),
+        provider_name.as_str(),
         auth.clone()
       ).await;
 
@@ -694,7 +694,7 @@ async fn fetch_pact(source: PactSource) -> Vec<Result<(Box<dyn Pact>, Option<Pac
     },
     PactSource::BrokerWithDynamicConfiguration { provider_name, broker_url, enable_pending, include_wip_pacts_since, provider_tags, selectors, auth, links: _ } => {
       let result = pact_broker::fetch_pacts_dynamically_from_broker(
-        broker_url.clone(),
+        broker_url.as_str(),
         provider_name.clone(),
         enable_pending,
         include_wip_pacts_since,
@@ -806,7 +806,7 @@ async fn publish_result<F: RequestFilterExecutor>(
     let provider_version = options.provider_version.clone().unwrap();
     let publish_result = publish_verification_results(
       links,
-      broker_url.clone(),
+      broker_url.as_str(),
       auth.clone(),
       result,
       provider_version,

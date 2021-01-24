@@ -44,14 +44,15 @@ pub fn fetch_json_from_url(url: &String, auth: &Option<HttpAuth>) -> Result<(Str
 impl Display for HttpAuth {
   fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
     match *self {
-      HttpAuth::Token(ref t) => write!(f, "Token({}****)", t.get(0..5).unwrap_or("****")),
+      HttpAuth::Token(ref t) =>
+        write!(f, "Token({:*<width$})", t.get(0..4).unwrap_or(""), width = t.len()),
       HttpAuth::User(ref u, ref p) => {
         if let Some(pass) = p {
-          write!(f, "User({}, {}****)", u, pass.get(0..5).unwrap_or("****"))
+          write!(f, "User({}, {:*<width$})", u, pass.get(0..4).unwrap_or(""), width = pass.len())
         } else {
           write!(f, "User({}, [no password])", u)
         }
-      },
+      }
     }
   }
 }

@@ -47,7 +47,7 @@ pub(crate) fn setup_app<'a, 'b>(program: String, version: &'b str) -> App<'a, 'b
       .number_of_values(1)
       .empty_values(false)
       .help("URL of pact file to verify (can be repeated)"))
-      .arg(Arg::with_name("broker-url")
+    .arg(Arg::with_name("broker-url")
       .short("b")
       .long("broker-url")
       .env("PACT_BROKER_BASE_URL")

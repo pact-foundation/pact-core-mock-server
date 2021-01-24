@@ -89,8 +89,7 @@ pub unsafe extern fn verify(args: *const c_char) -> i32 {
   }
 
   let result = catch_unwind(|| {
-    let mut runtime = tokio::runtime::Runtime::new().unwrap();
-
+    let runtime = tokio::runtime::Runtime::new().unwrap();
     runtime.block_on(async {
       let args_raw = CStr::from_ptr(args).to_string_lossy().into_owned();
       let args: Vec<String> = args_raw.lines().map(|s| s.to_string()).collect();
