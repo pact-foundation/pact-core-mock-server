@@ -317,8 +317,16 @@ impl Interaction for V4Interaction {
     }
   }
 
+  fn is_v4(&self) -> bool {
+    true
+  }
+
   fn as_v4(&self) -> V4Interaction {
     self.clone()
+  }
+
+  fn boxed(&self) -> Box<dyn Interaction> {
+    Box::new(self.clone())
   }
 }
 

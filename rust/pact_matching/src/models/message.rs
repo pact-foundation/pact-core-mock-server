@@ -99,6 +99,10 @@ impl Interaction for Message {
     }
   }
 
+  fn is_v4(&self) -> bool {
+    false
+  }
+
   fn as_v4(&self) -> V4Interaction {
     V4Interaction::AsynchronousMessages {
       id: self.id.clone(),
@@ -112,6 +116,10 @@ impl Interaction for Message {
       matching_rules: self.matching_rules.clone(),
       generators: self.generators.clone()
     }
+  }
+
+  fn boxed(&self) -> Box<dyn Interaction> {
+    Box::new(self.clone())
   }
 }
 

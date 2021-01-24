@@ -1060,8 +1060,12 @@ pub trait Interaction {
   /// Determine the content type of the interaction. If a `Content-Type` header or metadata value is present, the
   /// value of that value will be returned. Otherwise, the contents will be inspected.
   fn content_type(&self) -> Option<ContentType>;
+  /// If this is a V4 interaction
+  fn is_v4(&self) -> bool;
   /// Returns the interaction in V4 format
   fn as_v4(&self) -> V4Interaction;
+  /// Clones this interaction and wraps it in a Box
+  fn boxed(&self) -> Box<dyn Interaction>;
 }
 
 impl Debug for dyn Interaction {
@@ -1084,6 +1088,20 @@ impl Display for dyn Interaction {
       std::fmt::Display::fmt(&mp, f)
     } else {
       Err(fmt::Error)
+    }
+  }
+}
+
+impl Clone for Box<dyn Interaction> {
+  fn clone(&self) -> Self {
+    if self.is_v4() {
+      Box::new(self.as_v4())
+    } else if let Some(req_res) = self.as_request_response() {
+      Box::new(req_res)
+    } else if let Some(mp) = self.as_message() {
+      Box::new(mp)
+    } else {
+      panic!("Internal Error - Tried to clone an interaction that was not valid")
     }
   }
 }
@@ -1145,6 +1163,10 @@ impl Interaction for RequestResponseInteraction {
     self.response.content_type()
   }
 
+  fn is_v4(&self) -> bool {
+    false
+  }
+
   fn as_v4(&self) -> V4Interaction {
     V4Interaction::SynchronousHttp {
       id: self.id.clone(),
@@ -1154,6 +1176,10 @@ impl Interaction for RequestResponseInteraction {
       request: self.request.as_v4_request(),
       response: self.response.as_v4_response()
     }.with_key()
+  }
+
+  fn boxed(&self) -> Box<dyn Interaction> {
+    Box::new(self.clone())
   }
 }
 
