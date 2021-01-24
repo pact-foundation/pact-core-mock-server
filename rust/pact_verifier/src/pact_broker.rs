@@ -583,7 +583,7 @@ pub async fn fetch_pacts_dynamically_from_broker(
         PactBrokerError::NotFound(_) =>
         PactBrokerError::NotFound(
           format!("No pacts for provider '{}' were found in the pact broker. URL: '{}'",
-          provider_name.clone(), broker_url.clone())),
+          provider_name.clone(), broker_url)),
           _ => err
         }
       })?;
