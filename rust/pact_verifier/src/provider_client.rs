@@ -143,7 +143,7 @@ pub async fn make_provider_request<F: RequestFilterExecutor>(
   options: &VerificationOptions<F>,
   client: &reqwest::Client
 ) -> Result<Response, ProviderClientError> {
-  let request_filter_option = options.request_filter.as_ref();
+  let request_filter_option = options.request_filter.clone();
   let request = if request_filter_option.is_some() {
     let request_filter = request_filter_option.unwrap();
     info!("Invoking request filter for request");

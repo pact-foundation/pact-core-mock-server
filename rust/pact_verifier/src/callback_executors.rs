@@ -17,7 +17,7 @@ use crate::provider_client::{make_state_change_request, provider_client_error_to
 /// Trait for executors that call request filters
 pub trait RequestFilterExecutor {
   /// Mutates requests based on some criteria.
-  fn call(self: &Arc<Self>, request: &Request) -> Request;
+  fn call(self: Arc<Self>, request: &Request) -> Request;
 }
 
 /// A "null" request filter executor, which does nothing, but permits
@@ -30,7 +30,7 @@ pub struct NullRequestFilterExecutor {
 }
 
 impl RequestFilterExecutor for NullRequestFilterExecutor {
-  fn call(self: &Arc<Self>, _request: &Request) -> Request {
+  fn call(self: Arc<Self>, _request: &Request) -> Request {
     unimplemented!("NullRequestFilterExecutor should never be called")
   }
 }
@@ -48,7 +48,7 @@ pub struct ProviderStateError {
 #[async_trait]
 pub trait ProviderStateExecutor {
   /// Invoke the callback for the given provider state, returning an optional Map of values
-  async fn call(self: &Arc<Self>, interaction_id: Option<String>, provider_state: &ProviderState, setup: bool, client: Option<&reqwest::Client>) -> Result<HashMap<String, Value>, ProviderStateError>;
+  async fn call(self: Arc<Self>, interaction_id: Option<String>, provider_state: &ProviderState, setup: bool, client: Option<&reqwest::Client>) -> Result<HashMap<String, Value>, ProviderStateError>;
 }
 
 /// Default provider state callback executor, which executes an HTTP request
@@ -75,7 +75,7 @@ impl Default for HttpRequestProviderStateExecutor {
 #[async_trait]
 impl ProviderStateExecutor for HttpRequestProviderStateExecutor {
   async fn call(
-    self: &Arc<Self>,
+    self: Arc<Self>,
     interaction_id: Option<String>,
     provider_state: &ProviderState,
     setup: bool,

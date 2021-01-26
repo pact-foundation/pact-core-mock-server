@@ -255,7 +255,7 @@ async fn execute_state_change<S: ProviderStateExecutor>(
   setup: bool,
   interaction_id: Option<String>,
   client: &reqwest::Client,
-  provider_state_executor: &Arc<S>
+  provider_state_executor: Arc<S>
 ) -> Result<HashMap<String, Value>, MismatchResult> {
     if setup {
         println!("  Given {}", Style::new().bold().paint(provider_state.name.clone()));
@@ -283,7 +283,8 @@ async fn verify_interaction<F: RequestFilterExecutor, S: ProviderStateExecutor>(
       let state_name = state.name.clone();
       info!("Running provider state change handler '{}' for '{}'", state_name, interaction.description());
       async move {
-        execute_state_change(&state, true, interaction.id(), &client, provider_state_executor)
+        execute_state_change(&state, true, interaction.id(), &client,
+                             provider_state_executor.clone())
           .map_err(|err| {
             error!("Provider state change for '{}' has failed - {:?}", state_name, err);
             err
@@ -322,7 +323,8 @@ async fn verify_interaction<F: RequestFilterExecutor, S: ProviderStateExecutor>(
       .then(|(state, client)| async move {
         let state_name = state.name.clone();
         info!("Running provider state change handler '{}' for '{}'", state_name, interaction.description());
-        execute_state_change(&state, false, interaction.id(), &client, provider_state_executor)
+        execute_state_change(&state, false, interaction.id(), &client,
+                             provider_state_executor.clone())
           .map_err(|err| {
             error!("Provider state change teardown for '{}' has failed - {:?}", state.name, err);
             err
@@ -571,7 +573,8 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
           if pact.interactions().is_empty() {
             println!("         {}", Yellow.paint("WARNING: Pact file has no interactions"));
           } else {
-            let errors = verify_pact(&provider_info, &filter, pact, &options, provider_state_executor).await;
+            let errors = verify_pact(&provider_info, &filter, pact, &options,
+                                     &provider_state_executor.clone()).await;
             for error in errors.clone() {
               if pending {
                 pending_errors.push(error);

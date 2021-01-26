@@ -149,7 +149,7 @@ async fn test_state_change_with_parameters() {
   });
   let client = reqwest::Client::new();
   let result = execute_state_change(&provider_state, true,
-                                    None, &client, &provider_state_executor).await;
+                                    None, &client, provider_state_executor).await;
   expect!(result.clone()).to(be_ok());
 }
 
@@ -185,7 +185,7 @@ async fn test_state_change_with_parameters_in_query() {
   let client = reqwest::Client::new();
 
   let result = execute_state_change(&provider_state, true,
-                                    None, &client, &provider_state_executor).await;
+                                    None, &client, provider_state_executor).await;
   expect!(result.clone()).to(be_ok());
 }
 
@@ -216,7 +216,7 @@ async fn test_state_change_returning_json_values() {
   });
   let client = reqwest::Client::new();
   let result = execute_state_change(&provider_state, true,
-                                    None, &client, &provider_state_executor).await;
+                                    None, &client, provider_state_executor).await;
   expect!(result.clone()).to(be_ok().value(hashmap! {
     "a".into() => json!("A"),
     "b".into() => json!(100)
