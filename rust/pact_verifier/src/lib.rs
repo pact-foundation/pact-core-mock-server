@@ -255,7 +255,7 @@ async fn execute_state_change<S: ProviderStateExecutor>(
   setup: bool,
   interaction_id: Option<String>,
   client: &reqwest::Client,
-  provider_state_executor: &S
+  provider_state_executor: &Arc<S>
 ) -> Result<HashMap<String, Value>, MismatchResult> {
     if setup {
         println!("  Given {}", Style::new().bold().paint(provider_state.name.clone()));
@@ -269,7 +269,7 @@ async fn verify_interaction<F: RequestFilterExecutor, S: ProviderStateExecutor>(
   provider: &ProviderInfo,
   interaction: &dyn Interaction,
   options: &VerificationOptions<F>,
-  provider_state_executor: &S
+  provider_state_executor: &Arc<S>
 ) -> Result<(), MismatchResult> {
   let client = Arc::new(reqwest::Client::builder()
                 .danger_accept_invalid_certs(options.disable_ssl_verification)
@@ -485,7 +485,7 @@ pub struct VerificationOptions<F> where F: RequestFilterExecutor {
     /// Build URL to associate with the published results
     pub build_url: Option<String>,
     /// Request filter callback
-    pub request_filter: Option<Box<F>>,
+    pub request_filter: Option<Arc<F>>,
     /// Tags to use when publishing results
     pub provider_tags: Vec<String>,
     /// Ignore invalid/self-signed SSL certificates
@@ -530,7 +530,7 @@ pub fn verify_provider<F: RequestFilterExecutor, S: ProviderStateExecutor>(
   filter: FilterInfo,
   consumers: Vec<String>,
   options: VerificationOptions<F>,
-  provider_state_executor: &S
+  provider_state_executor: &Arc<S>
 ) -> bool {
   match tokio::runtime::Builder::new_multi_thread().enable_all().build() {
     Ok(runtime) => runtime.block_on(
@@ -549,7 +549,7 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
     filter: FilterInfo,
     consumers: Vec<String>,
     options: VerificationOptions<F>,
-    provider_state_executor: &S
+    provider_state_executor: &Arc<S>
 ) -> bool {
     let pact_results = fetch_pacts(source, consumers).await;
 
@@ -747,7 +747,7 @@ async fn verify_pact<'a, F: RequestFilterExecutor, S: ProviderStateExecutor>(
   filter: &FilterInfo,
   pact: Box<dyn Pact + 'a>,
   options: &VerificationOptions<F>,
-  provider_state_executor: &S
+  provider_state_executor: &Arc<S>
 ) -> Vec<(String, MismatchResult)> {
     let mut errors: Vec<(String, MismatchResult)> = vec![];
 

@@ -1,15 +1,18 @@
 //! Exported verifier functions
 
-use std::str;
 use std::env;
-use clap::{ErrorKind, ArgMatches, AppSettings};
+use std::str;
+use std::str::FromStr;
+use std::sync::Arc;
+
+use clap::{AppSettings, ArgMatches, ErrorKind};
+use log::{debug, LevelFilter};
+use simplelog::{Config, TerminalMode, TermLogger};
+
+use pact_matching::models::http_utils::HttpAuth;
 use pact_matching::models::PactSpecification;
 use pact_matching::s;
 use pact_verifier::*;
-use log::{LevelFilter, debug};
-use simplelog::{TermLogger, Config, TerminalMode};
-use std::str::FromStr;
-use pact_matching::models::http_utils::HttpAuth;
 use pact_verifier::callback_executors::HttpRequestProviderStateExecutor;
 
 use super::args;
@@ -166,17 +169,17 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
     };
     let source = pact_source(matches);
     let filter = interaction_filter(matches);
-    let provider_state_executor = HttpRequestProviderStateExecutor {
+    let provider_state_executor = Arc::new(HttpRequestProviderStateExecutor {
       state_change_url: matches.value_of("state-change-url").map(|s| s.to_string()),
       state_change_body: !matches.is_present("state-change-as-query"),
       state_change_teardown: matches.is_present("state-change-teardown")
-    };
+    });
 
     let options = VerificationOptions {
         publish: matches.is_present("publish"),
         provider_version: matches.value_of("provider-version").map(|v| v.to_string()),
         build_url: matches.value_of("build-url").map(|v| v.to_string()),
-        request_filter: None::<Box<NullRequestFilterExecutor>>,
+        request_filter: None::<Arc<NullRequestFilterExecutor>>,
         provider_tags: matches.values_of("provider-tags")
           .map_or_else(|| vec![], |tags| tags.map(|tag| tag.to_string()).collect()),
         disable_ssl_verification: matches.is_present("disable-ssl-verification")

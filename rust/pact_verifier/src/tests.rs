@@ -13,6 +13,7 @@ use crate::pact_broker::Link;
 use maplit::*;
 use serde_json::json;
 use crate::callback_executors::HttpRequestProviderStateExecutor;
+use std::sync::Arc;
 
 #[test]
 fn if_no_interaction_filter_is_defined_returns_true() {
@@ -142,10 +143,10 @@ async fn test_state_change_with_parameters() {
       }
   };
 
-  let provider_state_executor = HttpRequestProviderStateExecutor {
+  let provider_state_executor = Arc::new(HttpRequestProviderStateExecutor {
     state_change_url: Some(server.url().to_string()),
     .. HttpRequestProviderStateExecutor::default()
-  };
+  });
   let client = reqwest::Client::new();
   let result = execute_state_change(&provider_state, true,
                                     None, &client, &provider_state_executor).await;
@@ -176,11 +177,11 @@ async fn test_state_change_with_parameters_in_query() {
       }
   };
 
-  let provider_state_executor = HttpRequestProviderStateExecutor {
+  let provider_state_executor = Arc::new(HttpRequestProviderStateExecutor {
     state_change_url: Some(server.url().to_string()),
     state_change_body: false,
     .. HttpRequestProviderStateExecutor::default()
-  };
+  });
   let client = reqwest::Client::new();
 
   let result = execute_state_change(&provider_state, true,
@@ -209,10 +210,10 @@ async fn test_state_change_returning_json_values() {
     params: hashmap!{}
   };
 
-  let provider_state_executor = HttpRequestProviderStateExecutor {
+  let provider_state_executor = Arc::new(HttpRequestProviderStateExecutor {
     state_change_url: Some(server.url().to_string()),
     .. HttpRequestProviderStateExecutor::default()
-  };
+  });
   let client = reqwest::Client::new();
   let result = execute_state_change(&provider_state, true,
                                     None, &client, &provider_state_executor).await;
@@ -245,7 +246,7 @@ fn publish_result_does_nothing_if_not_from_broker() {
         publish: true,
         provider_version: None,
         build_url: None,
-        request_filter: None::<Box<super::NullRequestFilterExecutor>>,
+        request_filter: None::<Arc<super::NullRequestFilterExecutor>>,
         provider_tags: vec![],
         disable_ssl_verification: false
       };
@@ -279,7 +280,7 @@ async fn publish_successful_result_to_broker() {
     publish: true,
     provider_version: Some("1".into()),
     build_url: None,
-    request_filter: None::<Box<super::NullRequestFilterExecutor>>,
+    request_filter: None::<Arc<super::NullRequestFilterExecutor>>,
     provider_tags: vec![],
     disable_ssl_verification: false
   };
