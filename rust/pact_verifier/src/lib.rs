@@ -228,13 +228,13 @@ async fn verify_response_from_provider<F: RequestFilterExecutor>(
   options: &VerificationOptions<F>,
   client: &reqwest::Client,
   verification_context: &HashMap<&str, Value>
-) -> Result<(), MismatchResult> {
+) -> Result<Option<String>, MismatchResult> {
   let expected_response = &interaction.response;
   match make_provider_request(provider, &pact_matching::generate_request(&interaction.request, &GeneratorTestMode::Provider, &verification_context), options, client).await {
     Ok(ref actual_response) => {
       let mismatches = match_response(expected_response.clone(), actual_response.clone());
       if mismatches.is_empty() {
-        Ok(())
+        Ok(interaction.id.clone())
       } else {
         Err(MismatchResult::Mismatches {
           mismatches,
@@ -270,7 +270,7 @@ async fn verify_interaction<F: RequestFilterExecutor, S: ProviderStateExecutor>(
   interaction: &dyn Interaction,
   options: &VerificationOptions<F>,
   provider_state_executor: &Arc<S>
-) -> Result<(), MismatchResult> {
+) -> Result<Option<String>, MismatchResult> {
   let client = Arc::new(reqwest::Client::builder()
                 .danger_accept_invalid_certs(options.disable_ssl_verification)
                 .build()
@@ -307,7 +307,7 @@ async fn verify_interaction<F: RequestFilterExecutor, S: ProviderStateExecutor>(
   let result = futures::future::ready((provider_states_results.iter()
     .map(|(k, v)| (k.as_str(), v.clone())).collect(), client.clone()))
     .then(|(context, client)| async move {
-    let mut result = Err(MismatchResult::Error("No interaction was verified".into(), None));
+    let mut result = Err(MismatchResult::Error("No interaction was verified".into(), interaction.id().clone()));
     if let Some(interaction) = interaction.as_request_response() {
       result = verify_response_from_provider(provider, &interaction, options, &client, &context).await;
     }
@@ -555,6 +555,7 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
 ) -> bool {
     let pact_results = fetch_pacts(source, consumers).await;
 
+    let mut results: Vec<(Option<String>, Option<MismatchResult>)> = vec![];
     let mut pending_errors: Vec<(String, MismatchResult)> = vec![];
     let mut all_errors: Vec<(String, MismatchResult)> = vec![];
     for pact_result in pact_results {
@@ -575,16 +576,19 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
           } else {
             let errors = verify_pact(&provider_info, &filter, pact, &options,
                                      &provider_state_executor.clone()).await;
-            for error in errors.clone() {
-              if pending {
-                pending_errors.push(error);
-              } else {
-                all_errors.push(error);
+            for (id, desc, error) in &errors {
+              results.push((id.clone(), error.clone()));
+              if let Some(error) = error {
+                if pending {
+                  pending_errors.push((desc.clone(), error.clone()));
+                } else {
+                  all_errors.push((desc.clone(), error.clone()));
+                }
               }
             }
 
             if options.publish {
-              publish_result(&errors, &pact_source, &options).await;
+              publish_result(&results, &pact_source, &options).await;
 
               if !all_errors.is_empty() || !pending_errors.is_empty() {
                 display_notices(&context, VERIFICATION_NOTICE_AFTER_ERROR_RESULT_AND_PUBLISH);
@@ -602,7 +606,7 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
         },
         Err(err) => {
           log::error!("Failed to load pact - {}", Red.paint(err.to_string()));
-          all_errors.push((s!("Failed to load pact"), MismatchResult::Error(err.to_string(), None)));
+          all_errors.push(("Failed to load pact".to_string(), MismatchResult::Error(err.to_string(), None)));
         }
       }
     };
@@ -751,10 +755,10 @@ async fn verify_pact<'a, F: RequestFilterExecutor, S: ProviderStateExecutor>(
   pact: Box<dyn Pact + 'a>,
   options: &VerificationOptions<F>,
   provider_state_executor: &Arc<S>
-) -> Vec<(String, MismatchResult)> {
-    let mut errors: Vec<(String, MismatchResult)> = vec![];
+) -> Vec<(Option<String>, String, Option<MismatchResult>)> {
+    let mut errors: Vec<(Option<String>, String, Option<MismatchResult>)> = vec![];
 
-    let results: Vec<(&dyn Interaction, Result<(), MismatchResult>)> = futures::stream::iter(
+    let results: Vec<(&dyn Interaction, Result<Option<String>, MismatchResult>)> = futures::stream::iter(
       pact.interactions().iter().cloned()
     )
       .filter(|interaction| futures::future::ready(filter_interaction(*interaction, filter)))
@@ -793,18 +797,18 @@ async fn verify_pact<'a, F: RequestFilterExecutor, S: ProviderStateExecutor>(
 }
 
 async fn publish_result<F: RequestFilterExecutor>(
-  errors: &[(String, MismatchResult)],
+  results: &[(Option<String>, Option<MismatchResult>)],
   source: &PactSource,
   options: &VerificationOptions<F>
 ) {
   if let PactSource::BrokerUrl(_, broker_url, auth, links) = source.clone() {
     log::info!("Publishing verification results back to the Pact Broker");
-    let result = if errors.is_empty() {
+    let result = if results.iter().all(|(_, result)| result.is_none()) {
       log::debug!("Publishing a successful result to {}", source);
-      TestResult::Ok
+      TestResult::Ok(results.iter().map(|(id, _)| id.clone()).collect())
     } else {
       log::debug!("Publishing a failure result to {}", source);
-      TestResult::Failed(Vec::from(errors))
+      TestResult::Failed(Vec::from(results))
     };
     let provider_version = options.provider_version.clone().unwrap();
     let publish_result = publish_verification_results(

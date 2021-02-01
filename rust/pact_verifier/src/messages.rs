@@ -17,7 +17,7 @@ pub async fn verify_message_from_provider<F: RequestFilterExecutor>(
   options: &VerificationOptions<F>,
   client: &reqwest::Client,
   verification_context: &HashMap<&str, Value>
-) -> Result<(), MismatchResult> {
+) -> Result<Option<String>, MismatchResult> {
   let mut request_body = json!({
     "description": interaction.description
   });
@@ -47,7 +47,7 @@ pub async fn verify_message_from_provider<F: RequestFilterExecutor>(
       log::debug!("actual message = {:?}", actual);
       let mismatches = match_message(interaction, &actual);
       if mismatches.is_empty() {
-        Ok(())
+        Ok(interaction.id.clone())
       } else {
         Err(MismatchResult::Mismatches {
           mismatches,
@@ -64,22 +64,23 @@ pub async fn verify_message_from_provider<F: RequestFilterExecutor>(
 }
 
 pub fn display_message_result(
-  errors: &mut Vec<(String, MismatchResult)>,
+  errors: &mut Vec<(Option<String>, String, Option<MismatchResult>)>,
   interaction: &Message,
-  match_result: &Result<(), MismatchResult>,
+  match_result: &Result<Option<String>, MismatchResult>,
   description: &String
 ) {
   match match_result {
-    Ok(()) => {
+    Ok(id) => {
       display_result(Green.paint("OK"),
         interaction.metadata.iter()
           .map(|(k, v)| (k.clone(), v.clone(), Green.paint("OK"))).collect()
-      )
+      );
+      errors.push((id.clone(), description.clone(), None));
     },
     Err(ref err) => match *err {
       MismatchResult::Error(ref err_des, _) => {
         println!("      {}", Red.paint(format!("Request Failed - {}", err_des)));
-        errors.push((description.clone(), err.clone()));
+        errors.push((err.interaction_id().clone(), description.clone(), Some(err.clone())));
       },
       MismatchResult::Mismatches { ref mismatches, .. } => {
         let metadata_results = interaction.metadata.iter().map(|(k, v)| {
@@ -102,7 +103,7 @@ pub fn display_message_result(
         };
 
         display_result(body_result, metadata_results);
-        errors.push((description.clone(), err.clone()));
+        errors.push((interaction.id.clone(), description.clone(), Some(err.clone())));
       }
     }
   }

@@ -267,6 +267,9 @@ async fn publish_successful_result_to_broker() {
       i.request.json_body(json_pattern!({
         "providerApplicationVersion": "1",
         "success": true,
+        "testResults": [
+          { "interactionId": "1", "success": true }
+        ],
         "verifiedBy": json!({
           "implementation": "Pact-Rust",
           "version": PACT_RUST_VERSION
@@ -293,5 +296,5 @@ async fn publish_successful_result_to_broker() {
     }
   ];
   let source = PactSource::BrokerUrl("Test".to_string(), server.url().to_string(), None, links);
-  super::publish_result(&vec![], &source, &options).await;
+  super::publish_result(&vec![(Some("1".to_string()), None)], &source, &options).await;
 }

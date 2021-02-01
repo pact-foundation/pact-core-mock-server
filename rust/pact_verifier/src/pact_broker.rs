@@ -699,16 +699,16 @@ pub async fn fetch_pacts_dynamically_from_broker(
 /// Struct that wraps the result of a verification test
 pub enum TestResult {
   /// Test was OK
-  Ok,
+  Ok(Vec<Option<String>>),
   /// Test failed verification
-  Failed(Vec<(String, MismatchResult)>)
+  Failed(Vec<(Option<String>, Option<MismatchResult>)>)
 }
 
 impl TestResult {
   /// Convert this test result to a boolean value
   pub fn to_bool(&self) -> bool {
     match self {
-      TestResult::Ok => true,
+      TestResult::Ok(_) => true,
       _ => false
     }
   }
@@ -757,76 +757,91 @@ fn build_payload(result: TestResult, version: String, build_url: Option<String>)
     json_obj.insert("buildUrl".into(), json!(build_url.unwrap()));
   }
 
-  if let TestResult::Failed(mismatches) = result {
-    let values = mismatches.iter()
-      .group_by(|mismatch| mismatch.1.interaction_id().unwrap_or_default())
-      .into_iter()
-      .map(|(key, mismatches)| {
-        let acc: (Vec<serde_json::Value>, Vec<serde_json::Value>) = (vec![], vec![]);
-        let values = mismatches.fold(acc, |mut acc, mismatch| {
-          match mismatch.1 {
-            MismatchResult::Mismatches { ref mismatches, .. } => {
-              for mismatch in mismatches {
-                match *mismatch {
-                  Mismatch::MethodMismatch { ref expected, ref actual } => acc.0.push(json!({
-                    "attribute": "method",
-                    "description": format!("Expected method of {} but received {}", expected, actual)
-                  })),
-                  Mismatch::PathMismatch { ref mismatch, .. } => acc.0.push(json!({
-                    "attribute": "path",
-                    "description": mismatch
-                  })),
-                  Mismatch::StatusMismatch { ref expected, ref actual } => acc.0.push(json!({
-                    "attribute": "status",
-                    "description": format!("Expected status of {} but received {}", expected, actual)
-                  })),
-                  Mismatch::QueryMismatch { ref parameter, ref mismatch, .. } => acc.0.push(json!({
-                    "attribute": "query",
-                    "identifier": parameter,
-                    "description": mismatch
-                  })),
-                  Mismatch::HeaderMismatch { ref key, ref mismatch, .. } => acc.0.push(json!({
-                    "attribute": "header",
-                    "identifier": key,
-                    "description": mismatch
-                  })),
-                  Mismatch::BodyTypeMismatch { ref expected, ref actual, .. } => acc.0.push(json!({
-                    "attribute": "body",
-                    "identifier": "$",
-                    "description": format!("Expected body type of '{}' but received '{}'", expected, actual)
-                  })),
-                  Mismatch::BodyMismatch { ref path, ref mismatch, .. } => acc.0.push(json!({
-                    "attribute": "body",
-                    "identifier": path,
-                    "description": mismatch
-                  })),
-                  Mismatch::MetadataMismatch { ref key, ref mismatch, .. } => acc.0.push(json!({
-                    "attribute": "metadata",
-                    "identifier": key,
-                    "description": mismatch
-                  }))
-                }
-              }
-            },
-            MismatchResult::Error(ref err, _) => acc.1.push(json!({ "message": err }))
-          };
-          acc
-        });
+  match result {
+    TestResult::Failed(mismatches) => {
+      let values = mismatches.iter()
+        .group_by(|(id, _)| id.clone().unwrap_or_default())
+        .into_iter()
+        .map(|(key, mismatches)| {
+          let acc: (Vec<serde_json::Value>, Vec<serde_json::Value>) = (vec![], vec![]);
+          let values = mismatches.fold(acc, |mut acc, (_, result)| {
+            if let Some(mismatch) = result {
+              match mismatch {
+                MismatchResult::Mismatches { ref mismatches, .. } => {
+                  for mismatch in mismatches {
+                    match *mismatch {
+                      Mismatch::MethodMismatch { ref expected, ref actual } => acc.0.push(json!({
+                      "attribute": "method",
+                      "description": format!("Expected method of {} but received {}", expected, actual)
+                    })),
+                      Mismatch::PathMismatch { ref mismatch, .. } => acc.0.push(json!({
+                      "attribute": "path",
+                      "description": mismatch
+                    })),
+                      Mismatch::StatusMismatch { ref expected, ref actual } => acc.0.push(json!({
+                      "attribute": "status",
+                      "description": format!("Expected status of {} but received {}", expected, actual)
+                    })),
+                      Mismatch::QueryMismatch { ref parameter, ref mismatch, .. } => acc.0.push(json!({
+                      "attribute": "query",
+                      "identifier": parameter,
+                      "description": mismatch
+                    })),
+                      Mismatch::HeaderMismatch { ref key, ref mismatch, .. } => acc.0.push(json!({
+                      "attribute": "header",
+                      "identifier": key,
+                      "description": mismatch
+                    })),
+                      Mismatch::BodyTypeMismatch { ref expected, ref actual, .. } => acc.0.push(json!({
+                      "attribute": "body",
+                      "identifier": "$",
+                      "description": format!("Expected body type of '{}' but received '{}'", expected, actual)
+                    })),
+                      Mismatch::BodyMismatch { ref path, ref mismatch, .. } => acc.0.push(json!({
+                      "attribute": "body",
+                      "identifier": path,
+                      "description": mismatch
+                    })),
+                      Mismatch::MetadataMismatch { ref key, ref mismatch, .. } => acc.0.push(json!({
+                      "attribute": "metadata",
+                      "identifier": key,
+                      "description": mismatch
+                    }))
+                    }
+                  }
+                },
+                MismatchResult::Error(ref err, _) => acc.1.push(json!({ "message": err }))
+              };
+            };
+            acc
+          });
 
-        let mut json = json!({
-          "interactionId": key,
-          "success": false,
-          "mismatches": values.0
-        });
+          let mut json = json!({
+            "interactionId": key,
+            "success": values.0.is_empty() && values.1.is_empty()
+          });
 
-        if !values.1.is_empty() {
-          json.as_object_mut().unwrap().insert("exceptions".into(), json!(values.1));
-        }
+          if !values.0.is_empty() {
+            json.as_object_mut().unwrap().insert("mismatches".into(), json!(values.0));
+          }
 
-        json
-      }).collect::<Vec<serde_json::Value>>();
+          if !values.1.is_empty() {
+            json.as_object_mut().unwrap().insert("exceptions".into(), json!(values.1));
+          }
 
-    json_obj.insert("testResults".into(), serde_json::Value::Array(values));
+          json
+        }).collect::<Vec<serde_json::Value>>();
+
+      json_obj.insert("testResults".into(), serde_json::Value::Array(values));
+    }
+    TestResult::Ok(ids) => {
+      let values = ids.iter().filter(|id| id.is_some())
+        .map(|id| json!({
+        "interactionId": id.clone().unwrap_or_default(),
+        "success": true
+      })).collect();
+      json_obj.insert("testResults".into(), serde_json::Value::Array(values));
+    }
   }
   json
 }
@@ -1554,11 +1569,12 @@ mod tests {
 
   #[test]
   fn test_build_payload_with_success() {
-    let result = TestResult::Ok;
+    let result = TestResult::Ok(vec![]);
     let payload = super::build_payload(result, "1".to_string(), None);
     expect!(payload).to(be_equal_to(json!({
       "providerApplicationVersion": "1",
       "success": true,
+      "testResults": [],
       "verifiedBy": {
         "implementation": "Pact-Rust",
         "version": PACT_RUST_VERSION
@@ -1568,12 +1584,33 @@ mod tests {
 
   #[test]
   fn test_build_payload_adds_the_build_url_if_provided() {
-    let result = TestResult::Ok;
+    let result = TestResult::Ok(vec![]);
     let payload = super::build_payload(result, "1".to_string(), Some("http://build-url".to_string()));
     expect!(payload).to(be_equal_to(json!({
       "providerApplicationVersion": "1",
       "success": true,
       "buildUrl": "http://build-url",
+      "testResults": [],
+      "verifiedBy": {
+        "implementation": "Pact-Rust",
+        "version": PACT_RUST_VERSION
+      }
+    })));
+  }
+
+  #[test]
+  fn test_build_payload_adds_a_result_for_each_interaction() {
+    let result = TestResult::Ok(vec![Some("1".to_string()), Some("2".to_string()), Some("3".to_string()), None]);
+    let payload = super::build_payload(result, "1".to_string(), Some("http://build-url".to_string()));
+    expect!(payload).to(be_equal_to(json!({
+      "providerApplicationVersion": "1",
+      "success": true,
+      "buildUrl": "http://build-url",
+      "testResults": [
+        { "interactionId": "1", "success": true },
+        { "interactionId": "2", "success": true },
+        { "interactionId": "3", "success": true }
+      ],
       "verifiedBy": {
         "implementation": "Pact-Rust",
         "version": PACT_RUST_VERSION
@@ -1599,14 +1636,14 @@ mod tests {
   #[test]
   fn test_build_payload_with_failure_with_mismatches() {
     let result = TestResult::Failed(vec![
-      ("Description".to_string(), MismatchResult::Mismatches {
+      (Some("1234abc".to_string()), Some(MismatchResult::Mismatches {
         mismatches: vec![
           MethodMismatch { expected: "PUT".to_string(), actual: "POST".to_string() }
         ],
         expected: Box::new(RequestResponseInteraction::default()),
         actual: Box::new(RequestResponseInteraction::default()),
         interaction_id: Some("1234abc".to_string())
-      })
+      }))
     ]);
     let payload = super::build_payload(result, "1".to_string(), None);
     expect!(payload).to(be_equal_to(json!({
@@ -1633,7 +1670,7 @@ mod tests {
   #[test]
   fn test_build_payload_with_failure_with_exception() {
     let result = TestResult::Failed(vec![
-      ("Description".to_string(), MismatchResult::Error("Bang".to_string(), Some("1234abc".to_string())))
+      (Some("1234abc".to_string()), Some(MismatchResult::Error("Bang".to_string(), Some("1234abc".to_string()))))
     ]);
     let payload = super::build_payload(result, "1".to_string(), None);
     expect!(payload).to(be_equal_to(json!({
@@ -1647,8 +1684,56 @@ mod tests {
             }
           ],
           "interactionId": "1234abc",
-          "mismatches": [],
           "success": false
+        }
+      ],
+      "verifiedBy": {
+        "implementation": "Pact-Rust",
+        "version": PACT_RUST_VERSION
+      }
+    })));
+  }
+
+  #[test]
+  fn test_build_payload_with_mixed_results() {
+    let result = TestResult::Failed(vec![
+      (Some("1234abc".to_string()), Some(MismatchResult::Mismatches {
+        mismatches: vec![
+          MethodMismatch { expected: "PUT".to_string(), actual: "POST".to_string() }
+        ],
+        expected: Box::new(RequestResponseInteraction::default()),
+        actual: Box::new(RequestResponseInteraction::default()),
+        interaction_id: Some("1234abc".to_string())
+      })),
+      (Some("12345678".to_string()), Some(MismatchResult::Error("Bang".to_string(), Some("1234abc".to_string())))),
+      (Some("abc123".to_string()), None)
+    ]);
+    let payload = super::build_payload(result, "1".to_string(), None);
+    expect!(payload).to(be_equal_to(json!({
+      "providerApplicationVersion": "1",
+      "success": false,
+      "testResults": [
+        {
+          "interactionId": "1234abc",
+          "mismatches": [
+            {
+              "attribute": "method", "description": "Expected method of PUT but received POST"
+            }
+          ],
+          "success": false
+        },
+        {
+          "exceptions": [
+            {
+              "message": "Bang"
+            }
+          ],
+          "interactionId": "12345678",
+          "success": false
+        },
+        {
+          "interactionId": "abc123",
+          "success": true
         }
       ],
       "verifiedBy": {
