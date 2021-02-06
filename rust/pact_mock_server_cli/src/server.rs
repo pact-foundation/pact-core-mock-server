@@ -1,27 +1,31 @@
-use hyper::server::Server;
-use pact_matching::models::RequestResponsePact;
-use uuid::Uuid;
-use serde_json::{self, Value, json};
 use std::{
-  sync::mpsc,
-  thread,
-  time::Duration,
   iter::FromIterator,
   net::TcpListener,
-  process
+  process,
+  sync::mpsc,
+  thread,
+  time::Duration
 };
-use crate::verify;
+use std::convert::Infallible;
+use std::net::{IpAddr, SocketAddr};
+
+use futures::channel::oneshot::{channel, Sender};
+use hyper::server::Server;
+use hyper::service::make_service_fn;
+use log::*;
+use maplit::*;
+use serde_json::{self, json, Value};
+use uuid::Uuid;
 use webmachine_rust::*;
 use webmachine_rust::context::*;
 use webmachine_rust::headers::*;
-use maplit::*;
+
+use pact_matching::models::RequestResponsePact;
 use pact_mock_server::mock_server::MockServerConfig;
-use std::net::{SocketAddr, IpAddr};
-use log::*;
-use hyper::service::make_service_fn;
-use std::convert::Infallible;
-use crate::{SERVER_MANAGER, SERVER_OPTIONS, ServerOpts};
 use pact_mock_server::tls::TlsConfigBuilder;
+
+use crate::{SERVER_MANAGER, SERVER_OPTIONS, ServerOpts};
+use crate::verify;
 
 fn json_error(error: String) -> String {
     let json_response = json!({ "error" : json!(error) });
@@ -333,7 +337,7 @@ fn dispatcher() -> WebmachineDispatcher<'static>  {
 
 pub async fn start_server(port: u16) -> Result<(), i32> {
   let addr = SocketAddr::new(IpAddr::from([0, 0, 0, 0]), port);
-  let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+  let (shutdown_tx, shutdown_rx) = channel::<()>();
 
   let make_svc = make_service_fn(|_| async {
     Ok::<_, Infallible>(dispatcher())

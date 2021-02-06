@@ -480,18 +480,20 @@ fn filter_consumers(consumers: &[String], res: &Result<(Box<dyn Pact>, Option<Pa
 /// Options to use when running the verification
 #[derive(Debug, Clone)]
 pub struct VerificationOptions<F> where F: RequestFilterExecutor {
-    /// If results should be published back to the broker
-    pub publish: bool,
-    /// Provider version being published
-    pub provider_version: Option<String>,
-    /// Build URL to associate with the published results
-    pub build_url: Option<String>,
-    /// Request filter callback
-    pub request_filter: Option<Arc<F>>,
-    /// Tags to use when publishing results
-    pub provider_tags: Vec<String>,
-    /// Ignore invalid/self-signed SSL certificates
-    pub disable_ssl_verification: bool
+  /// If results should be published back to the broker
+  pub publish: bool,
+  /// Provider version being published
+  pub provider_version: Option<String>,
+  /// Build URL to associate with the published results
+  pub build_url: Option<String>,
+  /// Request filter callback
+  pub request_filter: Option<Arc<F>>,
+  /// Tags to use when publishing results
+  pub provider_tags: Vec<String>,
+  /// Ignore invalid/self-signed SSL certificates
+  pub disable_ssl_verification: bool,
+  /// Timeout in ms for provider state callbacks
+  pub callback_timeout: u64
 }
 
 impl <F: RequestFilterExecutor> Default for VerificationOptions<F> {
@@ -502,7 +504,8 @@ impl <F: RequestFilterExecutor> Default for VerificationOptions<F> {
       build_url: None,
       request_filter: None,
       provider_tags: vec![],
-      disable_ssl_verification: false
+      disable_ssl_verification: false,
+      callback_timeout: 5000
     }
   }
 }

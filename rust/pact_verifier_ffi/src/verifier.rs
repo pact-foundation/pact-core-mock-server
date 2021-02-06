@@ -134,7 +134,7 @@ pub async fn handle_cli() -> Result<(), i32> {
 // so that the caller could have more control over the error output.
 //
 // Currently, clap prints things out as if it were a CLI call
-#[allow(dead_code)]
+#[allow(dead_code, missing_docs)]
 pub async fn handle_args(args: Vec<String>) -> Result<(), i32> {
   let program = "pact_verifier_cli".to_string();
   let version = format!("v{}", clap::crate_version!()).as_str().to_owned();
@@ -176,13 +176,14 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
     });
 
     let options = VerificationOptions {
-        publish: matches.is_present("publish"),
-        provider_version: matches.value_of("provider-version").map(|v| v.to_string()),
-        build_url: matches.value_of("build-url").map(|v| v.to_string()),
-        request_filter: None::<Arc<NullRequestFilterExecutor>>,
-        provider_tags: matches.values_of("provider-tags")
-          .map_or_else(|| vec![], |tags| tags.map(|tag| tag.to_string()).collect()),
-        disable_ssl_verification: matches.is_present("disable-ssl-verification")
+      publish: matches.is_present("publish"),
+      provider_version: matches.value_of("provider-version").map(|v| v.to_string()),
+      build_url: matches.value_of("build-url").map(|v| v.to_string()),
+      request_filter: None::<Arc<NullRequestFilterExecutor>>,
+      provider_tags: matches.values_of("provider-tags")
+        .map_or_else(|| vec![], |tags| tags.map(|tag| tag.to_string()).collect()),
+      disable_ssl_verification: matches.is_present("disable-ssl-verification"),
+      .. VerificationOptions::default()
     };
 
     for s in &source {

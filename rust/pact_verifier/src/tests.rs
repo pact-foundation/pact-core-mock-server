@@ -248,7 +248,8 @@ fn publish_result_does_nothing_if_not_from_broker() {
         build_url: None,
         request_filter: None::<Arc<super::NullRequestFilterExecutor>>,
         provider_tags: vec![],
-        disable_ssl_verification: false
+        disable_ssl_verification: false,
+        .. super::VerificationOptions::default()
       };
       super::publish_result(&vec![], &PactSource::File("/tmp/test".into()), &options).await;
     })
@@ -285,7 +286,8 @@ async fn publish_successful_result_to_broker() {
     build_url: None,
     request_filter: None::<Arc<super::NullRequestFilterExecutor>>,
     provider_tags: vec![],
-    disable_ssl_verification: false
+    disable_ssl_verification: false,
+    .. super::VerificationOptions::default()
   };
   let links = vec![
     Link {
