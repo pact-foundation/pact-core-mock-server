@@ -1,16 +1,20 @@
-use super::Mismatch;
-use super::DiffConfig;
-use sxd_document::dom::*;
 use std::collections::btree_map::BTreeMap;
-use itertools::{Itertools, EitherOrBoth};
-use crate::models::matchingrules::*;
-use crate::matchers::*;
-use onig::Regex;
-use crate::models::xml_utils::parse_bytes;
-use crate::models::{HttpPart, OptionalBody};
-use sxd_document::QName;
+
+use bytes::Bytes;
+use itertools::{EitherOrBoth, Itertools};
 use maplit::*;
+use onig::Regex;
+use sxd_document::dom::*;
+use sxd_document::QName;
+
+use crate::matchers::*;
 use crate::MatchingContext;
+use crate::models::{HttpPart, OptionalBody};
+use crate::models::matchingrules::*;
+use crate::models::xml_utils::parse_bytes;
+
+use super::DiffConfig;
+use super::Mismatch;
 
 pub fn match_xml(expected: &dyn HttpPart, actual: &dyn HttpPart, context: &MatchingContext) -> Result<(), Vec<super::Mismatch>> {
   let mut mismatches = vec![];
@@ -25,16 +29,20 @@ pub fn match_xml(expected: &dyn HttpPart, actual: &dyn HttpPart, context: &Match
       if expected_result.is_err() || actual_result.is_err() {
         match expected_result {
           Err(e) => {
-            mismatches.push(Mismatch::BodyMismatch { path: s!("$"), expected: Some(expected.body().value().clone().into()),
-              actual: Some(actual.body().value().clone().into()),
+            mismatches.push(Mismatch::BodyMismatch {
+              path: "$".to_string(),
+              expected: expected.body().value(),
+              actual: actual.body().value(),
               mismatch: format!("Failed to parse the expected body: '{:?}'", e)});
           },
           _ => ()
         }
         match actual_result {
           Err(e) => {
-            mismatches.push(Mismatch::BodyMismatch { path: s!("$"), expected: Some(expected.body().value().clone().into()),
-              actual: Some(actual.body().value().clone().into()),
+            mismatches.push(Mismatch::BodyMismatch {
+              path: "$".to_string(),
+              expected: expected.body().value(),
+              actual: actual.body().value(),
               mismatch: format!("Failed to parse the actual body: '{:?}'", e)});
           },
           _ => ()
@@ -53,8 +61,12 @@ pub fn match_xml(expected: &dyn HttpPart, actual: &dyn HttpPart, context: &Match
       }
     },
     _ => {
-      mismatches.push(Mismatch::BodyMismatch { path: "$".into(), expected: Some(expected.body().value().clone().into()),
-        actual: None, mismatch: format!("Expected an XML body {} but was missing", expected.body())});
+      mismatches.push(Mismatch::BodyMismatch {
+        path: "$".into(),
+        expected: expected.body().value(),
+        actual: None,
+        mismatch: format!("Expected an XML body {} but was missing", expected.body())
+      });
     }
   }
 
@@ -204,7 +216,7 @@ fn compare_attributes(path: &Vec<&str>, expected: &Element, actual: &Element,
             }
           } else {
             mismatches.push(Mismatch::BodyMismatch { path: path_to_string(&p),
-              expected: Some(key.as_bytes().to_vec()),
+              expected: Some(Bytes::from(key.clone())),
               actual: None,
               mismatch: format!("Expected attribute '{}'='{}' but was missing", key, value)});
           }
@@ -361,17 +373,22 @@ fn compare_value(path: &Vec<&str>, expected: &String, actual: &String, context: 
 
 #[cfg(test)]
 mod tests {
-  use super::*;
-  use expectest::prelude::*;
   use expectest::expect;
-  use crate::Mismatch;
-  use crate::DiffConfig;
-  use test_env_log::test;
-  use crate::models::{Request, OptionalBody};
+  use expectest::prelude::*;
   use ntest::test_case;
+  use test_env_log::test;
+  use bytes::Bytes;
+
+  use crate::DiffConfig;
+  use crate::Mismatch;
+  use crate::models::{OptionalBody, Request};
+
+  use super::*;
 
   macro_rules! request {
-    ($e:expr) => (Request { body: OptionalBody::Present($e.as_bytes().to_vec(), None), .. Request::default() })
+    ($e:expr) => (Request {
+        body: OptionalBody::Present(Bytes::from($e), None), .. Request::default()
+      })
   }
 
   #[test]
@@ -416,8 +433,12 @@ mod tests {
     let mismatches = result.unwrap_err();
     expect!(mismatches.iter()).to(have_count(2));
     let mismatch = mismatches[0].clone();
-    expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$"), expected: Some(vec![]),
-      actual: Some(vec![]), mismatch: s!("")}));
+    expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch {
+      path: s!("$"),
+      expected: Some(Bytes::new()),
+      actual: Some(Bytes::new()),
+      mismatch: s!("")
+    }));
   }
 
   #[test]
@@ -425,8 +446,12 @@ mod tests {
     let expected = request!(r#"<xml-is-bad"#);
     let actual = request!(r#"<?xml version="1.0" encoding="UTF-8"?> <blah/>"#);
     let result = match_xml(&expected, &actual, &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
-    expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch { path: s!("$"), expected: Some(expected.body.value()),
-      actual: Some(actual.body.value()), mismatch: s!("") } ]));
+    expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch {
+      path: s!("$"),
+      expected: expected.body.value(),
+      actual: actual.body.value(),
+      mismatch: s!("")
+    } ]));
   }
 
   #[test]
@@ -434,8 +459,12 @@ mod tests {
     let expected = request!(r#"<?xml version="1.0" encoding="UTF-8"?> <blah/>"#);
     let actual = request!(r#"{json: "is bad"}"#);
     let result = match_xml(&expected, &actual, &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
-    expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch { path: s!("$"), expected: Some(expected.body.value()),
-      actual: Some(actual.body.value()), mismatch: s!("") } ]));
+    expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch {
+      path: s!("$"),
+      expected: expected.body.value(),
+      actual: actual.body.value(),
+      mismatch: s!("")
+    } ]));
   }
 
   fn mismatch_message(result: &Result<(), Vec<Mismatch>>) -> String {
@@ -623,8 +652,12 @@ mod tests {
     "#);
     let result = match_xml(&expected, &actual, &MatchingContext::with_config(DiffConfig::NoUnexpectedKeys));
     expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected no children but received [bar]")));
-    expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch { path: s!("$.foo"), expected: Some(vec![]),
-        actual: Some("bar".into()), mismatch: s!("") } ]));
+    expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch {
+      path: s!("$.foo"),
+      expected: Some(Bytes::new()),
+      actual: Some("bar".into()),
+      mismatch: s!("")
+    } ]));
   }
 
   #[test]
@@ -661,8 +694,12 @@ mod tests {
     "#);
     let result = match_xml(&expected, &actual, &MatchingContext::with_config(DiffConfig::NoUnexpectedKeys));
     expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected child <bar/> but was missing")));
-    expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch { path: s!("$.foo"), expected: Some("bar".into()),
-        actual: Some(vec![]), mismatch: s!("") } ]));
+    expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch {
+      path: s!("$.foo"),
+      expected: Some("bar".into()),
+      actual: Some(Bytes::new()),
+      mismatch: s!("")
+    } ]));
   }
 
   #[test]
@@ -903,8 +940,8 @@ mod tests {
     let result = match_xml(&expected, &actual, &MatchingContext::with_config(DiffConfig::NoUnexpectedKeys));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch {
       path: "$.urn:other:blah".to_string(),
-      expected: Some("urn:other:blah".as_bytes().to_vec()),
-      actual: Some("urn:ns:blah".as_bytes().to_vec()),
+      expected: Some("urn:other:blah".into()),
+      actual: Some("urn:ns:blah".into()),
       mismatch: "Expected 'urn:other:blah' to be equal to 'urn:ns:blah'".to_string()
     } ]));
   }
@@ -916,8 +953,8 @@ mod tests {
     let result = match_xml(&expected, &actual, &MatchingContext::with_config(DiffConfig::NoUnexpectedKeys));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch {
       path: "$.urn:other:blah".to_string(),
-      expected: Some("urn:other:blah".as_bytes().to_vec()),
-      actual: Some("blah".as_bytes().to_vec()),
+      expected: Some("urn:other:blah".into()),
+      actual: Some("blah".into()),
       mismatch: "Expected 'urn:other:blah' to be equal to 'blah'".to_string()
     } ]));
   }
@@ -929,8 +966,8 @@ mod tests {
     let result = match_xml(&expected, &actual, &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch {
       path: "$.blah".to_string(),
-      expected: Some("blah".as_bytes().to_vec()),
-      actual: Some("urn:ns:blah".as_bytes().to_vec()),
+      expected: Some("blah".into()),
+      actual: Some("urn:ns:blah".into()),
       mismatch: "Expected 'blah' to be equal to 'urn:ns:blah'".to_string()
     } ]));
   }
@@ -950,7 +987,7 @@ mod tests {
     let result = match_xml(&expected, &actual, &MatchingContext::with_config(DiffConfig::NoUnexpectedKeys));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch {
       path: "$.foo.@urn:b:something".to_string(),
-      expected: Some("urn:b:something".as_bytes().to_vec()),
+      expected: Some("urn:b:something".into()),
       actual: None,
       mismatch: "Expected attribute 'urn:b:something'='100' but was missing".to_string()
     } ]));

@@ -1,8 +1,14 @@
-use crate::models::matchingrules::*;
+use std::str::from_utf8;
+
+use bytes::Bytes;
 use itertools::Itertools;
 use onig::Regex;
-use crate::time_utils::validate_datetime;
+use log::*;
+
 use crate::MatchingContext;
+use crate::models::matchingrules::*;
+use crate::time_utils::validate_datetime;
+use crate::binary_utils::match_content_type;
 
 pub trait Matches<A> {
   fn matches(&self, actual: &A, matcher: &MatchingRule) -> Result<(), String>;
@@ -280,6 +286,54 @@ impl Matches<u64> for f64 {
     }
 }
 
+impl Matches<Bytes> for Bytes {
+  fn matches(&self, actual: &Bytes, matcher: &MatchingRule) -> Result<(), String> {
+    debug!("Bytes -> Bytes: comparing {} bytes to {} bytes using {:?}", self.len(), actual.len(), matcher);
+    match matcher {
+      MatchingRule::Regex(regex) => {
+        match Regex::new(regex) {
+          Ok(re) => {
+            match from_utf8(actual) {
+              Ok(s) => if re.is_match(s) {
+                Ok(())
+              } else {
+                Err(format!("Expected '{}' to match '{}'", s, regex))
+              }
+              Err(err) => Err(format!("Could not convert actual bytes into a UTF-8 string - {}", err))
+            }
+          },
+          Err(err) => Err(format!("'{}' is not a valid regular expression - {}", regex, err))
+        }
+      },
+      MatchingRule::Equality => {
+        if self == actual {
+          Ok(())
+        } else {
+          Err(format!("Expected '{:?}...' ({} bytes) to be equal to '{:?}...' ({} bytes)",
+                      self.split_at(10).0, self.len(), actual.split_at(10).0, actual.len()))
+        }
+      },
+      MatchingRule::Type |
+      MatchingRule::MinType(_) |
+      MatchingRule::MaxType(_)|
+      MatchingRule::MinMaxType(_, _) => Ok(()),
+      MatchingRule::Include(substr) => {
+        match from_utf8(actual) {
+          Ok(s) => if s.contains(substr) {
+            Ok(())
+          } else {
+            Err(format!("Expected '{}' to include '{}'", s, substr))
+          }
+          Err(err) => Err(format!("Could not convert actual bytes into a UTF-8 string - {}", err))
+        }
+      },
+      MatchingRule::ContentType(content_type) => match_content_type(&actual, content_type),
+      _ => Err(format!("Unable to match '{:?}...' ({} bytes) using {:?}",
+                       actual.split_at(10).0, actual.len(), matcher))
+    }
+  }
+}
+
 pub fn match_values<E, A>(path: &[&str], context: &MatchingContext, expected: &E, actual: &A) -> Result<(), Vec<String>>
     where E: Matches<A> {
     let matching_rules = context.select_best_matcher(path);
@@ -311,9 +365,10 @@ pub fn match_values<E, A>(path: &[&str], context: &MatchingContext, expected: &E
 
 #[cfg(test)]
 mod tests {
-  use super::*;
-  use expectest::prelude::*;
   use expectest::expect;
+  use expectest::prelude::*;
+
+  use super::*;
 
   #[test]
   fn select_best_matcher_selects_most_appropriate_by_weight() {

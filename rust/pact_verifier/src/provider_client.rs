@@ -107,7 +107,7 @@ fn extract_headers(headers: &HeaderMap) -> Option<HashMap<String, Vec<String>>> 
 async fn extract_body(response: reqwest::Response, pact_response: &Response) -> Result<OptionalBody, reqwest::Error> {
   let body = response.bytes().await?;
   if !body.is_empty() {
-    Ok(OptionalBody::Present(body.to_vec(), pact_response.content_type()))
+    Ok(OptionalBody::Present(body, pact_response.content_type()))
   } else {
     Ok(OptionalBody::Empty)
   }

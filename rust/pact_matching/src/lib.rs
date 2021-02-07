@@ -354,6 +354,7 @@ use crate::models::{HttpPart, Interaction, PactSpecification};
 use crate::models::content_types::ContentType;
 use crate::models::generators::*;
 use crate::models::matchingrules::*;
+use bytes::Bytes;
 
 /// Simple macro to convert a string slice to a `String` struct.
 #[macro_export]
@@ -551,23 +552,27 @@ pub enum Mismatch {
     },
     /// Mismatch in the content type of the body
     BodyTypeMismatch {
-        /// expected content type of the body
-        expected: String,
-        /// actual content type of the body
-        actual: String,
-        /// description of the mismatch
-        mismatch: String
+      /// expected content type of the body
+      expected: String,
+      /// actual content type of the body
+      actual: String,
+      /// description of the mismatch
+      mismatch: String,
+      /// expected value
+      expected_body: Option<Bytes>,
+      /// actual value
+      actual_body: Option<Bytes>
     },
     /// Body element mismatch
     BodyMismatch {
-        /// path expression to where the mismatch occurred
-        path: String,
-        /// expected value
-        expected: Option<Vec<u8>>,
-        /// actual value
-        actual: Option<Vec<u8>>,
-        /// description of the mismatch
-        mismatch: String
+      /// path expression to where the mismatch occurred
+      path: String,
+      /// expected value
+      expected: Option<Bytes>,
+      /// actual value
+      actual: Option<Bytes>,
+      /// description of the mismatch
+      mismatch: String
     },
     /// Message metadata mismatch
     MetadataMismatch {
@@ -583,83 +588,99 @@ pub enum Mismatch {
 }
 
 impl Mismatch {
-    /// Converts the mismatch to a `Value` struct.
-    pub fn to_json(&self) -> serde_json::Value {
-        match self {
-            &Mismatch::MethodMismatch { expected: ref e, actual: ref a } => {
-                json!({
-                    s!("type") : json!("MethodMismatch"),
-                    s!("expected") : json!(e),
-                    s!("actual") : json!(a)
-                })
-            },
-            &Mismatch::PathMismatch { expected: ref e, actual: ref a, mismatch: ref m } => {
-                json!({
-                    s!("type") : json!("PathMismatch"),
-                    s!("expected") : json!(e),
-                    s!("actual") : json!(a),
-                    s!("mismatch") : json!(m)
-                })
-            },
-            &Mismatch::StatusMismatch { expected: ref e, actual: ref a } => {
-                json!({
-                    s!("type") : json!("StatusMismatch"),
-                    s!("expected") : json!(e),
-                    s!("actual") : json!(a)
-                })
-            },
-            &Mismatch::QueryMismatch { parameter: ref p, expected: ref e, actual: ref a, mismatch: ref m } => {
-                json!({
-                    s!("type") : json!("QueryMismatch"),
-                    s!("parameter") : json!(p),
-                    s!("expected") : json!(e),
-                    s!("actual") : json!(a),
-                    s!("mismatch") : json!(m)
-                })
-            },
-            &Mismatch::HeaderMismatch { key: ref k, expected: ref e, actual: ref a, mismatch: ref m } => {
-                json!({
-                    s!("type") : json!("HeaderMismatch"),
-                    s!("key") : json!(k),
-                    s!("expected") : json!(e),
-                    s!("actual") : json!(a),
-                    s!("mismatch") : json!(m)
-                })
-            },
-            &Mismatch::BodyTypeMismatch { expected: ref e, actual: ref a, mismatch: ref m } => {
-                json!({
-                    s!("type") : json!("BodyTypeMismatch"),
-                    s!("expected") : json!(e),
-                    s!("actual") : json!(a),
-                    s!("mismatch") : json!(m)
-                })
-            },
-            &Mismatch::BodyMismatch { ref path, ref expected, ref actual, ref mismatch } => {
-              json!({
-                "type" : "BodyMismatch",
-                "path" : path,
-                "expected" : match expected {
-                  Some(v) => serde_json::Value::String(str::from_utf8(v).unwrap_or("ERROR: could not convert from bytes").into()),
-                  None => serde_json::Value::Null
-                },
-                "actual" : match actual {
-                  Some(v) => serde_json::Value::String(str::from_utf8(v).unwrap_or("ERROR: could not convert from bytes").into()),
-                  None => serde_json::Value::Null
-                },
-                "mismatch" : mismatch
-              })
-            }
-            &Mismatch::MetadataMismatch { key: ref k, expected: ref e, actual: ref a, mismatch: ref m } => {
-              json!({
-                s!("type") : json!("MetadataMismatch"),
-                s!("key") : json!(k),
-                s!("expected") : json!(e),
-                s!("actual") : json!(a),
-                s!("mismatch") : json!(m)
-              })
-            }
-        }
+  /// Converts the mismatch to a `Value` struct.
+  pub fn to_json(&self) -> serde_json::Value {
+    match self {
+      Mismatch::MethodMismatch { expected: e, actual: a } => {
+        json!({
+          "type" : "MethodMismatch",
+          "expected" : e,
+          "actual" : a
+        })
+      },
+      Mismatch::PathMismatch { expected: e, actual: a, mismatch: m } => {
+        json!({
+          "type" : "PathMismatch",
+          "expected" : e,
+          "actual" : a,
+          "mismatch" : m
+        })
+      },
+      Mismatch::StatusMismatch { expected: e, actual: a } => {
+        json!({
+          "type" : "StatusMismatch",
+          "expected" : e,
+          "actual" : a
+        })
+      },
+      Mismatch::QueryMismatch { parameter: p, expected: e, actual: a, mismatch: m } => {
+        json!({
+          "type" : "QueryMismatch",
+          "parameter" : p,
+          "expected" : e,
+          "actual" : a,
+          "mismatch" : m
+        })
+      },
+      Mismatch::HeaderMismatch { key: k, expected: e, actual: a, mismatch: m } => {
+        json!({
+          "type" : "HeaderMismatch",
+          "key" : k,
+          "expected" : e,
+          "actual" : a,
+          "mismatch" : m
+        })
+      },
+      Mismatch::BodyTypeMismatch {
+        expected,
+        actual,
+        mismatch,
+        expected_body,
+        actual_body
+      } => {
+        json!({
+          "type" : "BodyTypeMismatch",
+          "expected" : expected,
+          "actual" : actual,
+          "mismatch" : mismatch,
+          "expectedBody": match expected_body {
+            Some(v) => serde_json::Value::String(str::from_utf8(v)
+              .unwrap_or("ERROR: could not convert to UTF-8 from bytes").into()),
+            None => serde_json::Value::Null
+          },
+          "actualBody": match actual_body {
+            Some(v) => serde_json::Value::String(str::from_utf8(v)
+              .unwrap_or("ERROR: could not convert to UTF-8 from bytes").into()),
+            None => serde_json::Value::Null
+          }
+        })
+      },
+      Mismatch::BodyMismatch { path, expected, actual, mismatch } => {
+        json!({
+          "type" : "BodyMismatch",
+          "path" : path,
+          "expected" : match expected {
+            Some(v) => serde_json::Value::String(str::from_utf8(v).unwrap_or("ERROR: could not convert from bytes").into()),
+            None => serde_json::Value::Null
+          },
+          "actual" : match actual {
+            Some(v) => serde_json::Value::String(str::from_utf8(v).unwrap_or("ERROR: could not convert from bytes").into()),
+            None => serde_json::Value::Null
+          },
+          "mismatch" : mismatch
+        })
+      }
+      Mismatch::MetadataMismatch { key, expected, actual, mismatch } => {
+        json!({
+          "type" : "MetadataMismatch",
+          "key" : key,
+          "expected" : expected,
+          "actual" : actual,
+          "mismatch" : mismatch
+        })
+      }
     }
+  }
 
     /// Returns the type of the mismatch as a string
     pub fn mismatch_type(&self) -> String {
@@ -724,36 +745,36 @@ impl Mismatch {
 impl PartialEq for Mismatch {
   fn eq(&self, other: &Mismatch) -> bool {
     match (self, other) {
-      (&Mismatch::MethodMismatch{ expected: ref e1, actual: ref a1 },
-        &Mismatch::MethodMismatch{ expected: ref e2, actual: ref a2 }) => {
+      (Mismatch::MethodMismatch { expected: e1, actual: a1 },
+        Mismatch::MethodMismatch { expected: e2, actual: a2 }) => {
         e1 == e2 && a1 == a2
       },
-      (&Mismatch::PathMismatch{ expected: ref e1, actual: ref a1, mismatch: _ },
-        &Mismatch::PathMismatch{ expected: ref e2, actual: ref a2, mismatch: _ }) => {
+      (Mismatch::PathMismatch { expected: e1, actual: a1, .. },
+        Mismatch::PathMismatch { expected: e2, actual: a2, .. }) => {
         e1 == e2 && a1 == a2
       },
-      (&Mismatch::StatusMismatch{ expected: ref e1, actual: ref a1 },
-        &Mismatch::StatusMismatch{ expected: ref e2, actual: ref a2 }) => {
+      (Mismatch::StatusMismatch { expected: e1, actual: a1 },
+        Mismatch::StatusMismatch { expected: e2, actual: a2 }) => {
         e1 == e2 && a1 == a2
       },
-      (&Mismatch::BodyTypeMismatch{ expected: ref e1, actual: ref a1, mismatch: _  },
-        &Mismatch::BodyTypeMismatch{ expected: ref e2, actual: ref a2, mismatch: _ }) => {
+      (Mismatch::BodyTypeMismatch { expected: e1, actual: a1, .. },
+        Mismatch::BodyTypeMismatch { expected: e2, actual: a2, .. }) => {
         e1 == e2 && a1 == a2
       },
-      (&Mismatch::QueryMismatch{ parameter: ref p1, expected: ref e1, actual: ref a1, mismatch: _ },
-        &Mismatch::QueryMismatch{ parameter: ref p2, expected: ref e2, actual: ref a2, mismatch: _ }) => {
+      (Mismatch::QueryMismatch { parameter: p1, expected: e1, actual: a1, .. },
+        Mismatch::QueryMismatch { parameter: p2, expected: e2, actual: a2, .. }) => {
         p1 == p2 && e1 == e2 && a1 == a2
       },
-      (&Mismatch::HeaderMismatch{ key: ref p1, expected: ref e1, actual: ref a1, mismatch: _ },
-        &Mismatch::HeaderMismatch{ key: ref p2, expected: ref e2, actual: ref a2, mismatch: _ }) => {
+      (Mismatch::HeaderMismatch { key: p1, expected: e1, actual: a1, .. },
+        Mismatch::HeaderMismatch { key: p2, expected: e2, actual: a2, .. }) => {
         p1 == p2 && e1 == e2 && a1 == a2
       },
-      (&Mismatch::BodyMismatch{ path: ref p1, expected: ref e1, actual: ref a1, mismatch: _ },
-        &Mismatch::BodyMismatch{ path: ref p2, expected: ref e2, actual: ref a2, mismatch: _ }) => {
+      (Mismatch::BodyMismatch { path: p1, expected: e1, actual: a1, .. },
+        Mismatch::BodyMismatch { path: p2, expected: e2, actual: a2, .. }) => {
         p1 == p2 && e1 == e2 && a1 == a2
       },
-      (&Mismatch::MetadataMismatch{ key: ref p1, expected: ref e1, actual: ref a1, mismatch: _ },
-        &Mismatch::MetadataMismatch{ key: ref p2, expected: ref e2, actual: ref a2, mismatch: _ }) => {
+      (Mismatch::MetadataMismatch { key: p1, expected: e1, actual: a1, .. },
+        Mismatch::MetadataMismatch { key: p2, expected: e2, actual: a2, .. }) => {
         p1 == p2 && e1 == e2 && a1 == a2
       },
       (_, _) => false
@@ -786,7 +807,18 @@ pub enum BodyMatchResult {
   /// Matched OK
   Ok,
   /// Mismatch in the content type of the body
-  BodyTypeMismatch(String, String, String),
+  BodyTypeMismatch {
+    /// Expected content type
+    expected_type: String,
+    /// Actual content type
+    actual_type: String,
+    /// Message
+    message: String,
+    /// Expected body
+    expected: Option<Bytes>,
+    /// Actual body
+    actual: Option<Bytes>
+  },
   /// Mismatches with the body contents
   BodyMismatches(HashMap<String, Vec<Mismatch>>)
 }
@@ -795,9 +827,13 @@ impl BodyMatchResult {
   /// Returns all the mismatches
   pub fn mismatches(&self) -> Vec<Mismatch> {
     match self {
-      BodyMatchResult::BodyTypeMismatch(expected, actual, message) => {
+      BodyMatchResult::BodyTypeMismatch { expected_type, actual_type, message, expected, actual } => {
         vec![Mismatch::BodyTypeMismatch {
-          expected: expected.clone(), actual: actual.clone(), mismatch: message.clone(),
+          expected: expected_type.clone(),
+          actual: actual_type.clone(),
+          mismatch: message.clone(),
+          expected_body: expected.clone(),
+          actual_body: actual.clone()
         }]
       },
       BodyMatchResult::BodyMismatches(results) =>
@@ -809,7 +845,7 @@ impl BodyMatchResult {
   /// If all the things matched OK
   pub fn all_matched(&self) -> bool {
     match self {
-      BodyMatchResult::BodyTypeMismatch(_, _, _) => false,
+      BodyMatchResult::BodyTypeMismatch { .. } => false,
       BodyMatchResult::BodyMismatches(results) =>
         results.values().all(|m| m.is_empty()),
       _ => true
@@ -882,7 +918,7 @@ impl RequestMatchResult {
       }
     }
     match &self.body {
-      BodyMatchResult::BodyTypeMismatch(_, _, _) => {
+      BodyMatchResult::BodyTypeMismatch { .. } => {
         score -= 1;
       },
       BodyMatchResult::BodyMismatches(results) => {
@@ -923,29 +959,30 @@ pub enum DiffConfig {
 }
 
 /// Matches the actual text body to the expected one.
-pub fn match_text(expected: &Vec<u8>, actual: &Vec<u8>, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
+pub fn match_text(expected: &Option<Bytes>, actual: &Option<Bytes>, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
   let path = vec!["$"];
   if context.matcher_is_defined(&path) {
     let mut mismatches = vec![];
-    let expected_str = match from_utf8(expected) {
+    let empty = Bytes::default();
+    let expected_str = match from_utf8(expected.as_ref().unwrap_or_else(|| &empty)) {
       Ok(expected) => expected,
       Err(err) => {
         mismatches.push(Mismatch::BodyMismatch {
-          path: s!("$"),
-          expected: Some(expected.clone()),
-          actual: Some(actual.clone()),
+          path: "$".to_string(),
+          expected: expected.clone(),
+          actual: actual.clone(),
           mismatch: format!("Could not parse expected value as UTF-8 text: {}", err)
         });
         ""
       }
     };
-    let actual_str = match from_utf8(actual) {
+    let actual_str = match from_utf8(actual.as_ref().unwrap_or_else(|| &empty)) {
       Ok(actual) => actual,
       Err(err) => {
         mismatches.push(Mismatch::BodyMismatch {
-          path: s!("$"),
-          expected: Some(expected.clone()),
-          actual: Some(actual.clone()),
+          path: "$".to_string(),
+          expected: expected.clone(),
+          actual: actual.clone(),
           mismatch: format!("Could not parse actual value as UTF-8 text: {}", err)
         });
         ""
@@ -954,9 +991,9 @@ pub fn match_text(expected: &Vec<u8>, actual: &Vec<u8>, context: &MatchingContex
     if let Err(messages) = match_values(&path, context, &expected_str, &actual_str) {
       for message in messages {
         mismatches.push(Mismatch::BodyMismatch {
-          path: s!("$"),
-          expected: Some(expected.clone()),
-          actual: Some(actual.clone()),
+          path: "$".to_string(),
+          expected: expected.clone(),
+          actual: actual.clone(),
           mismatch: message.clone()
         })
       }
@@ -967,8 +1004,8 @@ pub fn match_text(expected: &Vec<u8>, actual: &Vec<u8>, context: &MatchingContex
       Err(mismatches)
     }
   } else if expected != actual {
-    Err(vec![ Mismatch::BodyMismatch { path: s!("$"), expected: Some(expected.clone()),
-      actual: Some(actual.clone()),
+    Err(vec![ Mismatch::BodyMismatch { path: "$".to_string(), expected: expected.clone(),
+      actual: actual.clone(),
       mismatch: format!("Expected text '{:?}' but received '{:?}'", expected, actual) } ])
   } else {
     Ok(())
@@ -1169,12 +1206,16 @@ fn match_body_content(content_type: &ContentType, expected: &dyn models::HttpPar
     (&models::OptionalBody::Null, _) => BodyMatchResult::Ok,
     (&models::OptionalBody::Empty, _) => BodyMatchResult::Ok,
     (e, &models::OptionalBody::Missing) => {
-      BodyMatchResult::BodyMismatches(hashmap!{ "$".into() => vec![Mismatch::BodyMismatch { expected: Some(e.value()), actual: None,
+      BodyMatchResult::BodyMismatches(hashmap!{ "$".into() => vec![Mismatch::BodyMismatch {
+        expected: e.value(),
+        actual: None,
         mismatch: format!("Expected body {} but was missing", e),
         path: s!("/")}]})
     },
     (e, &models::OptionalBody::Empty) => {
-      BodyMatchResult::BodyMismatches(hashmap!{ "$".into() => vec![Mismatch::BodyMismatch { expected: Some(e.value()), actual: None,
+      BodyMatchResult::BodyMismatches(hashmap!{ "$".into() => vec![Mismatch::BodyMismatch {
+        expected: e.value(),
+        actual: None,
         mismatch: format!("Expected body {} but was empty", e),
         path: s!("/")}]})
     },
@@ -1202,10 +1243,14 @@ pub fn match_body(
                          actual_content_type.to_string().as_str(), header_context).is_ok()) {
     match_body_content(&expected_content_type, expected, actual, context)
   } else if expected.body().is_present() {
-    BodyMatchResult::BodyTypeMismatch(expected_content_type.to_string(),
-      actual_content_type.to_string(),
-      format!("Expected body with content type {} but was {}", expected_content_type,
-              actual_content_type))
+    BodyMatchResult::BodyTypeMismatch {
+      expected_type: expected_content_type.to_string(),
+      actual_type: actual_content_type.to_string(),
+      message: format!("Expected body with content type {} but was {}", expected_content_type,
+                       actual_content_type),
+      expected: expected.body().value(),
+      actual: actual.body().value()
+    }
   } else {
     BodyMatchResult::Ok
   }
@@ -1284,9 +1329,13 @@ pub fn match_message_contents(
          actual_content_type);
   if expected_content_type.is_equivalent_to(&actual_content_type) {
     match match_body_content(&expected_content_type, expected, actual, context) {
-      BodyMatchResult::BodyTypeMismatch(expected, actual, message) => {
+      BodyMatchResult::BodyTypeMismatch { expected_type, actual_type, message, expected, actual } => {
         Err(vec![ Mismatch::BodyTypeMismatch {
-          expected, actual, mismatch: message,
+          expected: expected_type,
+          actual: actual_type,
+          mismatch: message,
+          expected_body: expected,
+          actual_body: actual
         } ])
       },
       BodyMatchResult::BodyMismatches(results) => {
@@ -1300,6 +1349,8 @@ pub fn match_message_contents(
       actual: actual_content_type.to_string(),
       mismatch: format!("Expected message with content type {} but was {}",
                         expected_content_type, actual_content_type),
+      expected_body: expected.contents.value(),
+      actual_body: actual.contents.value()
     } ])
   } else {
     Ok(())

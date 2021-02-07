@@ -17,6 +17,7 @@ use std::str::from_utf8;
 use std::sync::{Arc, Mutex};
 
 use base64::{decode, encode};
+use bytes::{Bytes, BytesMut};
 use hex::FromHex;
 use itertools::{iproduct, Itertools};
 use itertools::EitherOrBoth::{Both, Left, Right};
@@ -163,7 +164,7 @@ pub enum OptionalBody {
     /// from null values. It is treated as `Empty`.
     Null,
     /// A non-empty body that is present in the pact file.
-    Present(Vec<u8>, Option<ContentType>)
+    Present(Bytes, Option<ContentType>)
 }
 
 impl OptionalBody {
@@ -176,18 +177,18 @@ impl OptionalBody {
         }
     }
 
-    /// Returns the body if present, otherwise returns the empty Vec.
-    pub fn value(&self) -> Vec<u8> {
-        match *self {
-            OptionalBody::Present(ref s, _) => s.clone(),
-            _ => vec![]
-        }
+  /// Returns the body if present, otherwise returns the empty buffer.
+  pub fn value(&self) -> Option<Bytes> {
+    match self {
+      OptionalBody::Present(s, _) => Some(s.clone()),
+      _ => None
     }
+  }
 
-  /// Returns the body if present as a string, otherwise returns the empty string.
+  /// Returns the body if present as a UTF-8 string, otherwise returns the empty string.
   pub fn str_value(&self) -> &str {
-    match *self {
-      OptionalBody::Present(ref s, _) => str::from_utf8(s).unwrap_or(""),
+    match self {
+      OptionalBody::Present(s, _) => str::from_utf8(s).unwrap_or(""),
       _ => ""
     }
   }
@@ -247,7 +248,7 @@ impl From<String> for OptionalBody {
     if s.is_empty() {
       OptionalBody::Empty
     } else {
-      OptionalBody::Present(Vec::from(s.as_bytes()), None)
+      OptionalBody::Present(Bytes::from(s), None)
     }
   }
 }
@@ -257,7 +258,9 @@ impl <'a> From<&'a str> for OptionalBody {
     if s.is_empty() {
       OptionalBody::Empty
     } else {
-      OptionalBody::Present(Vec::from(s.as_bytes()), None)
+      let mut buf = BytesMut::with_capacity(0);
+      buf.extend_from_slice(s.as_bytes());
+      OptionalBody::Present(buf.freeze(), None)
     }
   }
 }
@@ -623,8 +626,8 @@ fn body_from_json(request: &Value, fieldname: &str, headers: &Option<HashMap<Str
   };
 
   match request.get(fieldname) {
-    Some(v) => match *v {
-      Value::String(ref s) => {
+    Some(v) => match v {
+      Value::String(s) => {
         if s.is_empty() {
           OptionalBody::Empty
         } else {
@@ -640,7 +643,7 @@ fn body_from_json(request: &Value, fieldname: &str, headers: &Option<HashMap<Str
             OptionalBody::Present(s.clone().into(), Some(content_type))
           } else {
             match decode(s) {
-              Ok(bytes) => OptionalBody::Present(bytes.clone(), None),
+              Ok(bytes) => OptionalBody::Present(bytes.into(), None),
               Err(_) => OptionalBody::Present(s.clone().into(), None)
             }
           }

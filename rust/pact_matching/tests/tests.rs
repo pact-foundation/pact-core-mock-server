@@ -502,7 +502,7 @@ fn test_load_pact_with_binary_body() {
       let pact_json = pact.to_json(PactSpecification::V2);
 
       let interaction = pact.interactions.first().unwrap();
-      expect!(interaction.response.body.value()).to(be_equal_to(buffer));
+      expect!(interaction.response.body.value().unwrap_or_default().to_vec()).to(be_equal_to(buffer));
       let pact_interactions = pact_json.get("interactions").unwrap().as_array().unwrap();
       let pact_interactions_from_file = pact_json_from_file.get("interactions").unwrap().as_array().unwrap();
       expect!(pact_interactions).to(be_equal_to(pact_interactions_from_file));

@@ -204,7 +204,7 @@ fn body_does_not_match_if_different_content_types() {
     path: s!("/"),
     query: None,
     headers: Some(hashmap! { s!("Content-Type") => vec![s!("application/json")] }),
-    body: OptionalBody::Present(vec![], None),
+    body: OptionalBody::Present(Bytes::new(), None),
     ..Request::default()
   };
   let actual = Request {
@@ -223,6 +223,8 @@ fn body_does_not_match_if_different_content_types() {
     expected: s!("application/json"),
     actual: s!("text/plain"),
     mismatch: s!(""),
+    expected_body: None,
+    actual_body: None
   }));
 }
 
@@ -233,7 +235,7 @@ fn body_matching_uses_any_matcher_for_content_type_header() {
     path: s!("/"),
     query: None,
     headers: Some(hashmap! { s!("Content-Type") => vec![s!("application/json")] }),
-    body: OptionalBody::Present(Vec::from("100"), None),
+    body: OptionalBody::Present(Bytes::from("100"), None),
     ..Request::default()
   };
   let actual = Request {
@@ -241,7 +243,7 @@ fn body_matching_uses_any_matcher_for_content_type_header() {
     path: s!("/"),
     query: None,
     headers: Some(hashmap! { s!("Content-Type") => vec![s!("application/hal+json")] }),
-    body: OptionalBody::Present(Vec::from("100"), None),
+    body: OptionalBody::Present(Bytes::from("100"), None),
     ..Request::default()
   };
   let header_context = MatchingContext::new(
@@ -313,7 +315,7 @@ fn partial_equal_for_method_mismatch() {
   expect!(&mismatch).to_not(be_equal_to(&Mismatch::StatusMismatch { expected: 200, actual: 300 }));
   expect!(&mismatch).to_not(be_equal_to(&Mismatch::QueryMismatch { parameter: s!(""), expected: s!(""), actual: s!(""), mismatch: s!("") }));
   expect!(&mismatch).to_not(be_equal_to(&Mismatch::HeaderMismatch { key: s!(""), expected: s!(""), actual: s!(""), mismatch: s!("") }));
-  expect!(&mismatch).to_not(be_equal_to(&Mismatch::BodyTypeMismatch { expected: s!(""), actual: s!(""), mismatch: s!("") }));
+  expect!(&mismatch).to_not(be_equal_to(&Mismatch::BodyTypeMismatch { expected: s!(""), actual: s!(""), mismatch: s!(""), expected_body: None, actual_body: None }));
   expect!(&mismatch).to_not(be_equal_to(&Mismatch::BodyMismatch { expected: Some("get".into()), actual: Some("post".into()), mismatch: s!(""), path: s!("/") }));
 }
 
@@ -331,7 +333,7 @@ fn partial_equal_for_path_mismatch() {
   expect!(&mismatch).to_not(be_equal_to(&Mismatch::StatusMismatch { expected: 200, actual: 300 }));
   expect!(&mismatch).to_not(be_equal_to(&Mismatch::QueryMismatch { parameter: s!(""), expected: s!(""), actual: s!(""), mismatch: s!("") }));
   expect!(&mismatch).to_not(be_equal_to(&Mismatch::HeaderMismatch { key: s!(""), expected: s!(""), actual: s!(""), mismatch: s!("") }));
-  expect!(&mismatch).to_not(be_equal_to(&Mismatch::BodyTypeMismatch { expected: s!(""), actual: s!(""), mismatch: s!("") }));
+  expect!(&mismatch).to_not(be_equal_to(&Mismatch::BodyTypeMismatch { expected: s!(""), actual: s!(""), mismatch: s!(""), expected_body: None, actual_body: None }));
   expect!(&mismatch).to_not(be_equal_to(&Mismatch::BodyMismatch { expected: Some("get".into()), actual: Some("post".into()), mismatch: s!(""), path: s!("/") }));
 }
 
@@ -349,16 +351,16 @@ fn partial_equal_for_status_mismatch() {
   expect!(&mismatch).to_not(be_equal_to(&Mismatch::PathMismatch { expected: s!("200"), actual: s!("300"), mismatch: s!("") }));
   expect!(&mismatch).to_not(be_equal_to(&Mismatch::QueryMismatch { parameter: s!(""), expected: s!(""), actual: s!(""), mismatch: s!("") }));
   expect!(&mismatch).to_not(be_equal_to(&Mismatch::HeaderMismatch { key: s!(""), expected: s!(""), actual: s!(""), mismatch: s!("") }));
-  expect!(&mismatch).to_not(be_equal_to(&Mismatch::BodyTypeMismatch { expected: s!(""), actual: s!(""), mismatch: s!("") }));
+  expect!(&mismatch).to_not(be_equal_to(&Mismatch::BodyTypeMismatch { expected: s!(""), actual: s!(""), mismatch: s!(""), expected_body: None, actual_body: None }));
   expect!(&mismatch).to_not(be_equal_to(&Mismatch::BodyMismatch { expected: Some("get".into()), actual: Some("post".into()), mismatch: s!(""), path: s!("/") }));
 }
 
 #[test]
 fn partial_equal_for_body_type_mismatch() {
-  let mismatch = Mismatch::BodyTypeMismatch { expected: s!("get"), actual: s!("post"), mismatch: s!("") };
-  let mismatch2 = Mismatch::BodyTypeMismatch { expected: s!("get"), actual: s!("post"), mismatch: s!("") };
-  let mismatch3 = Mismatch::BodyTypeMismatch { expected: s!("get"), actual: s!("put"), mismatch: s!("") };
-  let mismatch4 = Mismatch::BodyTypeMismatch { expected: s!("post"), actual: s!("post"), mismatch: s!("") };
+  let mismatch = Mismatch::BodyTypeMismatch { expected: s!("get"), actual: s!("post"), mismatch: s!(""), expected_body: None, actual_body: None };
+  let mismatch2 = Mismatch::BodyTypeMismatch { expected: s!("get"), actual: s!("post"), mismatch: s!(""), expected_body: None, actual_body: None };
+  let mismatch3 = Mismatch::BodyTypeMismatch { expected: s!("get"), actual: s!("put"), mismatch: s!(""), expected_body: None, actual_body: None };
+  let mismatch4 = Mismatch::BodyTypeMismatch { expected: s!("post"), actual: s!("post"), mismatch: s!(""), expected_body: None, actual_body: None };
   expect!(&mismatch).to(be_equal_to(&mismatch));
   expect!(&mismatch).to(be_equal_to(&mismatch2));
   expect!(&mismatch).to_not(be_equal_to(&mismatch3));
@@ -389,7 +391,7 @@ fn partial_equal_for_query_mismatch() {
   expect!(&mismatch).to_not(be_equal_to(&Mismatch::StatusMismatch { expected: 200, actual: 300 }));
   expect!(&mismatch).to_not(be_equal_to(&Mismatch::PathMismatch { expected: s!(""), actual: s!(""), mismatch: s!("") }));
   expect!(&mismatch).to_not(be_equal_to(&Mismatch::HeaderMismatch { key: s!(""), expected: s!(""), actual: s!(""), mismatch: s!("") }));
-  expect!(&mismatch).to_not(be_equal_to(&Mismatch::BodyTypeMismatch { expected: s!(""), actual: s!(""), mismatch: s!("") }));
+  expect!(&mismatch).to_not(be_equal_to(&Mismatch::BodyTypeMismatch { expected: s!(""), actual: s!(""), mismatch: s!(""), expected_body: None, actual_body: None }));
   expect!(&mismatch).to_not(be_equal_to(&Mismatch::BodyMismatch { expected: Some("get".into()), actual: Some("post".into()), mismatch: s!(""), path: s!("/") }));
 }
 
@@ -411,7 +413,7 @@ fn partial_equal_for_header_mismatch() {
   expect!(&mismatch).to_not(be_equal_to(&Mismatch::StatusMismatch { expected: 200, actual: 300 }));
   expect!(&mismatch).to_not(be_equal_to(&Mismatch::PathMismatch { expected: s!(""), actual: s!(""), mismatch: s!("") }));
   expect!(&mismatch).to_not(be_equal_to(&Mismatch::QueryMismatch { parameter: s!(""), expected: s!(""), actual: s!(""), mismatch: s!("") }));
-  expect!(&mismatch).to_not(be_equal_to(&Mismatch::BodyTypeMismatch { expected: s!(""), actual: s!(""), mismatch: s!("") }));
+  expect!(&mismatch).to_not(be_equal_to(&Mismatch::BodyTypeMismatch { expected: s!(""), actual: s!(""), mismatch: s!(""), expected_body: None, actual_body: None }));
   expect!(&mismatch).to_not(be_equal_to(&Mismatch::BodyMismatch { expected: Some("get".into()), actual: Some("post".into()), mismatch: s!(""), path: s!("/") }));
 }
 
@@ -433,7 +435,7 @@ fn partial_equal_for_body_mismatch() {
   expect!(&mismatch).to_not(be_equal_to(&Mismatch::StatusMismatch { expected: 200, actual: 300 }));
   expect!(&mismatch).to_not(be_equal_to(&Mismatch::PathMismatch { expected: s!(""), actual: s!(""), mismatch: s!("") }));
   expect!(&mismatch).to_not(be_equal_to(&Mismatch::HeaderMismatch { key: s!(""), expected: s!(""), actual: s!(""), mismatch: s!("") }));
-  expect!(&mismatch).to_not(be_equal_to(&Mismatch::BodyTypeMismatch { expected: s!(""), actual: s!(""), mismatch: s!("") }));
+  expect!(&mismatch).to_not(be_equal_to(&Mismatch::BodyTypeMismatch { expected: s!(""), actual: s!(""), mismatch: s!(""), expected_body: None, actual_body: None }));
   expect!(&mismatch).to_not(be_equal_to(&Mismatch::QueryMismatch { parameter: s!(""), expected: s!("get"), actual: s!("post"), mismatch: s!("") }));
 }
 
@@ -530,7 +532,7 @@ fn match_query_returns_a_mismatch_if_the_values_do_not_match_by_a_matcher() {
 }
 
 macro_rules! request {
-  ($e:expr) => (Request { body: OptionalBody::Present($e.as_bytes().to_vec(), None), .. Request::default() })
+  ($e:expr) => (Request { body: OptionalBody::Present($e.into(), None), .. Request::default() })
 }
 
 #[test]
@@ -551,8 +553,8 @@ fn matching_text_body_be_false_when_bodies_are_not_equal() {
   expect!(mismatches.iter()).to_not(be_empty());
   assert_eq!(mismatches[0], Mismatch::BodyMismatch {
     path: s!("$"),
-    expected: Some(expected.body.value()),
-    actual: Some(actual.body.value()),
+    expected: expected.body.value(),
+    actual: actual.body.value(),
     mismatch: s!(""),
   });
 }

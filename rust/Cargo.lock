@@ -127,6 +127,9 @@ name = "bytes"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b700ce4376041dcd0a327fd0097c41095743c4c8af8887265942faf1100bd040"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "cbindgen"
@@ -1115,6 +1118,7 @@ version = "0.8.10"
 dependencies = [
  "ansi_term 0.12.1",
  "base64",
+ "bytes",
  "chrono",
  "chrono-tz",
  "difference",
@@ -1208,6 +1212,7 @@ dependencies = [
 name = "pact_mock_server_ffi"
 version = "0.0.15"
 dependencies = [
+ "bytes",
  "cbindgen",
  "chrono",
  "chrono-tz",

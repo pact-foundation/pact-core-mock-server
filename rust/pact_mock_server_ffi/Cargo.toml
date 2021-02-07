@@ -31,6 +31,7 @@ onig = { version = "6.1.0", default-features = false }
 rand = "0.8"
 itertools = "0.10.0"
 multipart = { version = "0.17", default-features = false, features = ["client", "mock"] }
+bytes = "1"
 
 [dev-dependencies]
 expectest = "0.12.0"

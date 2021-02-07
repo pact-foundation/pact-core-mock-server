@@ -2175,7 +2175,7 @@ fn merge_pact_test() {
       RequestResponseInteraction {
         description: s!("Test Interaction with matcher"),
         request: Request {
-          body: OptionalBody::Present(json!({ "related": [1, 2, 3] }).to_string().as_bytes().to_vec(), Some(JSON.clone())),
+          body: OptionalBody::Present(json!({ "related": [1, 2, 3] }).to_string().into(), Some(JSON.clone())),
           matching_rules: matchingrules!{
             "body" => {
               "$.related" => [ MatchingRule::MinMaxType(0, 5) ]
@@ -2192,7 +2192,7 @@ fn merge_pact_test() {
       RequestResponseInteraction {
         description: s!("Test Interaction with matcher"),
         request: Request {
-          body: OptionalBody::Present(json!({ "related": [1, 2, 3] }).to_string().as_bytes().to_vec(), Some(JSON.clone())),
+          body: OptionalBody::Present(json!({ "related": [1, 2, 3] }).to_string().into(), Some(JSON.clone())),
           matching_rules: matchingrules!{
             "body" => {
               "$.related" => [ MatchingRule::MinMaxType(1, 10) ]

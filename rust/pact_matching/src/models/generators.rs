@@ -995,7 +995,7 @@ pub fn apply_body_generators(
   match content_type {
     Some(content_type) => if content_type.is_json() {
       debug!("apply_body_generators: JSON content type");
-      let result: Result<Value, serde_json::Error> = serde_json::from_slice(&body.value());
+      let result: Result<Value, serde_json::Error> = serde_json::from_slice(&body.value().unwrap_or_default());
       match result {
         Ok(val) => {
           let mut handler = JsonHandler { value: val };
@@ -1011,7 +1011,7 @@ pub fn apply_body_generators(
       }
     } else if content_type.is_xml() {
       debug!("apply_body_generators: XML content type");
-      match parse_bytes(&body.value()) {
+      match parse_bytes(&body.value().unwrap_or_default()) {
         Ok(val) => {
           let mut handler = XmlHandler { value: val.as_document() };
           handler.process_body(&generators, mode, context).unwrap_or_else(|err| {

@@ -12,6 +12,7 @@ use crate::models::{detect_content_type_from_bytes, generators, headers_from_jso
 use crate::models::content_types::ContentType;
 use crate::models::v4::calc_content_type;
 use crate::models::json_utils::json_to_string;
+use bytes::BytesMut;
 
 /// Struct that defines the HTTP request.
 #[derive(Debug, Clone, Eq)]
@@ -228,7 +229,9 @@ pub(crate) fn body_from_json(json: &Value, attr_name: &str, headers: &Option<Has
               let content_type = content_type.unwrap_or_else(|| {
                 detect_content_type_from_bytes(&body_bytes).unwrap_or_default()
               });
-              OptionalBody::Present(body_bytes, Some(content_type))
+              let mut buf = BytesMut::new();
+              buf.extend_from_slice(&*body_bytes);
+              OptionalBody::Present(buf.freeze(), Some(content_type))
             }
           },
           None => OptionalBody::Missing

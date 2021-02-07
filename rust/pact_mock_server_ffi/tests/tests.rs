@@ -1,21 +1,24 @@
-use std::ffi::{CString, CStr};
+use std::ffi::{CStr, CString};
+use std::panic::catch_unwind;
+
+use bytes::Bytes;
 use expectest::prelude::*;
-use pact_matching::models::OptionalBody;
+use maplit::*;
 use reqwest::blocking::Client;
 use reqwest::header::CONTENT_TYPE;
-use std::panic::catch_unwind;
+
+use pact_matching::models::OptionalBody;
 use pact_mock_server_ffi::{
-  create_mock_server,
-  mock_server_mismatches,
   cleanup_mock_server,
-  new_pact,
-  new_interaction,
-  with_header,
+  create_mock_server,
   handles::InteractionPart,
-  with_query_parameter,
-  with_multipart_file
+  mock_server_mismatches,
+  new_interaction,
+  new_pact,
+  with_header,
+  with_multipart_file,
+  with_query_parameter
 };
-use maplit::*;
 
 #[test]
 fn post_to_mock_server_with_misatches() {
@@ -113,15 +116,15 @@ fn create_multipart_file() {
     }));
 
     let actual_req_body_str = match &i.request.body {
-      OptionalBody::Present(body, _) => Some(String::from_utf8(body.clone()).unwrap()),
-      _ => None,
+      OptionalBody::Present(body, _) => body.clone(),
+      _ => Bytes::new(),
     };
 
-    let expected_req_body = format!(
+    let expected_req_body = Bytes::from(format!(
       "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"multipart-test-file.json\"\r\nContent-Type: application/json\r\n\r\ntrue\r\n--{boundary}--\r\n",
       boundary = boundary
-    );
+    ));
 
-    expect!(actual_req_body_str).to(be_equal_to(Some(expected_req_body)));
+    expect!(actual_req_body_str).to(be_equal_to(expected_req_body));
   });
 }

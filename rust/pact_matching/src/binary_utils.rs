@@ -9,6 +9,8 @@ use http::header::{HeaderMap, HeaderName};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use onig::Regex;
+use bytes::{Bytes, Buf};
+use std::str::from_utf8;
 
 static ROOT: &str = "$";
 
@@ -36,21 +38,26 @@ pub fn convert_data(data: &Value) -> Vec<u8> {
 
 pub fn match_octet_stream(expected: &dyn HttpPart, actual: &dyn HttpPart, context: &MatchingContext) -> Result<(), Vec<super::Mismatch>> {
   let mut mismatches = vec![];
-  let expected = expected.body().value();
-  let actual = actual.body().value();
+  let expected = expected.body().value().unwrap_or_default();
+  let actual = actual.body().value().unwrap_or_default();
   debug!("matching binary contents ({} bytes)", actual.len());
   let path = vec!["$"];
   if context.matcher_is_defined(&path) {
     match context.select_best_matcher(&path) {
-      None => mismatches.push(Mismatch::BodyMismatch { path: s!("$"), expected: Some(expected.clone()),
-        actual: Some(actual.clone()),
+      None => mismatches.push(Mismatch::BodyMismatch {
+        path: "$".into(),
+        expected: Some(expected),
+        actual: Some(actual),
         mismatch: format!("No matcher found for category 'body' and path '{}'", path.iter().join("."))}),
       Some(ref rulelist) => {
-        let results = rulelist.rules.iter().map(|rule| expected.matches(&actual.as_slice(), rule)).collect::<Vec<Result<(), String>>>();
+        let results = rulelist.rules.iter().map(|rule|
+          expected.matches(&actual, rule)).collect::<Vec<Result<(), String>>>();
         match rulelist.rule_logic {
           RuleLogic::And => for result in results {
             if let Err(err) = result {
-              mismatches.push(Mismatch::BodyMismatch { path: s!("$"), expected: Some(expected.clone()),
+              mismatches.push(Mismatch::BodyMismatch {
+                path: "$".into(),
+                expected: Some(expected.clone()),
                 actual: Some(actual.clone()),
                 mismatch: err })
             }
@@ -59,7 +66,9 @@ pub fn match_octet_stream(expected: &dyn HttpPart, actual: &dyn HttpPart, contex
             if results.iter().all(|result| result.is_err()) {
               for result in results {
                 if let Err(err) = result {
-                  mismatches.push(Mismatch::BodyMismatch { path: s!("$"), expected: Some(expected.clone()),
+                  mismatches.push(Mismatch::BodyMismatch {
+                    path: "$".into(),
+                    expected: Some(expected.clone()),
                     actual: Some(actual.clone()),
                     mismatch: err })
                 }
@@ -70,9 +79,13 @@ pub fn match_octet_stream(expected: &dyn HttpPart, actual: &dyn HttpPart, contex
       }
     }
   } else if expected != actual {
-    mismatches.push(Mismatch::BodyMismatch { path: s!("$"), expected: Some(expected.clone()),
+    mismatches.push(Mismatch::BodyMismatch {
+      path: "$".into(),
+      expected: Some(expected.clone()),
       actual: Some(actual.clone()),
-      mismatch: format!("Expected binary data of {} bytes but received {} bytes", expected.len(), actual.len()) });
+      mismatch: format!("Expected binary data of {} bytes but received {} bytes",
+                        expected.len(), actual.len())
+    });
   }
 
   if mismatches.is_empty() {
@@ -106,30 +119,36 @@ struct MimeFile {
   name: String,
   content_type: Option<mime::Mime>,
   filename: String,
-  data: Vec<u8>
+  data: Bytes
 }
 
 pub fn match_mime_multipart(expected: &dyn HttpPart, actual: &dyn HttpPart, context: &MatchingContext) -> Result<(), Vec<super::Mismatch>> {
   let mut mismatches = vec![];
   debug!("matching MIME multipart contents");
 
-  let actual_parts = parse_multipart(&mut actual.body().value().as_slice(), actual.headers());
-  let expected_parts = parse_multipart(&mut expected.body().value().as_slice(), expected.headers());
+  let actual_parts = parse_multipart(actual.body().value().unwrap_or_default().reader(), actual.headers());
+  let expected_parts = parse_multipart(expected.body().value().unwrap_or_default().reader(), expected.headers());
 
   if expected_parts.is_err() || actual_parts.is_err() {
     match expected_parts {
       Err(e) => {
-        mismatches.push(Mismatch::BodyMismatch { path: s!("$"), expected: Some(expected.body().value().clone().into()),
-          actual: Some(actual.body().value().clone().into()),
-          mismatch: format!("Failed to parse the expected body as a MIME multipart body: '{}'", e)});
+        mismatches.push(Mismatch::BodyMismatch {
+          path: "$".into(),
+          expected: expected.body().value(),
+          actual: actual.body().value(),
+          mismatch: format!("Failed to parse the expected body as a MIME multipart body: '{}'", e)
+        });
       },
       _ => ()
     }
     match actual_parts {
       Err(e) => {
-        mismatches.push(Mismatch::BodyMismatch { path: s!("$"), expected: Some(expected.body().value().clone().into()),
-          actual: Some(actual.body().value().clone().into()),
-          mismatch: format!("Failed to parse the actual body as a MIME multipart body: '{}'", e)});
+        mismatches.push(Mismatch::BodyMismatch {
+          path: "$".into(),
+          expected: expected.body().value(),
+          actual: actual.body().value(),
+          mismatch: format!("Failed to parse the actual body as a MIME multipart body: '{}'", e)
+        });
       },
       _ => ()
     }
@@ -147,7 +166,9 @@ pub fn match_mime_multipart(expected: &dyn HttpPart, actual: &dyn HttpPart, cont
         },
         None => {
           debug!("MIME multipart '{}' is missing in the actual body", name);
-          mismatches.push(Mismatch::BodyMismatch { path: s!("$"), expected: Some(name.clone().into_bytes()),
+          mismatches.push(Mismatch::BodyMismatch {
+            path: "$".into(),
+            expected: Some(Bytes::from(name.clone())),
             actual: None,
             mismatch: format!("Expected a MIME part '{}' but was missing", name)});
         }
@@ -174,14 +195,16 @@ fn match_mime_part(expected: &MimePart, actual: &MimePart, context: &MatchingCon
     }
     (MimePart::Field(_), MimePart::File(_)) => {
       Err(vec![
-        Mismatch::BodyMismatch { path: s!("$"), expected: Some(key.clone().into_bytes()),
+        Mismatch::BodyMismatch { path: "$".into(),
+          expected: Some(Bytes::from(key.clone())),
           actual: None,
           mismatch: format!("Expected a MIME field '{}' but was file", key)}
       ])
     },
     (MimePart::File(_), MimePart::Field(_)) => {
       Err(vec![
-        Mismatch::BodyMismatch { path: s!("$"), expected: Some(key.clone().into_bytes()),
+        Mismatch::BodyMismatch { path: "$".into(),
+          expected: Some(Bytes::from(key.clone())),
           actual: None,
           mismatch: format!("Expected a MIME file '{}' but was field", key)}
       ])
@@ -204,8 +227,8 @@ fn match_field(key: &String, expected: &String, actual: &String, context: &Match
     messages.iter().map(|message| {
       Mismatch::BodyMismatch {
         path: path.join("."),
-        expected: Some(expected.as_bytes().to_vec()),
-        actual: Some(actual.as_bytes().to_vec()),
+        expected: Some(Bytes::from(expected.as_bytes().to_vec())),
+        actual: Some(Bytes::from(actual.as_bytes().to_vec())),
         mismatch: message.clone()
       }
     }).collect()
@@ -227,7 +250,7 @@ impl Matches<MimeFile> for MimeFile {
       MatchingRule::Regex(ref regex) => {
         match Regex::new(regex) {
           Ok(re) => {
-            match String::from_utf8(actual.data.clone()) {
+            match from_utf8(&*actual.data) {
               Ok(a) => if re.is_match(&a) {
                   Ok(())
                 } else {
@@ -250,7 +273,7 @@ impl Matches<MimeFile> for MimeFile {
         }
       },
       MatchingRule::Include(ref substr) => {
-        match String::from_utf8(actual.data.clone()) {
+        match from_utf8(&*actual.data) {
           Ok(actual_contents) => if actual_contents.contains(substr) {
             Ok(())
           } else {
@@ -295,7 +318,9 @@ fn match_file(key: &String, expected: &MimeFile, actual: &MimeFile, context: &Ma
         expected: expected_str.clone(),
         actual: actual_str.clone(),
         mismatch: format!("Expected MIME part '{}' with content type '{}' but was '{}'",
-                          key, expected_str, actual_str)
+                          key, expected_str, actual_str),
+        expected_body: None,
+        actual_body: None
       }])
     }
   };
@@ -325,7 +350,7 @@ fn parse_multipart<R: std::io::Read>(body: R, headers: &Option<HashMap<String, V
             name,
             content_type,
             filename,
-            data,
+            data: Bytes::from(data),
           }));
         } else {
           parts.push(MimePart::Field(MimeField {
@@ -382,6 +407,7 @@ mod tests {
   use crate::{DiffConfig, Mismatch, MatchingContext};
   use maplit::*;
   use std::str;
+  use bytes::{Bytes, BytesMut};
 
   fn mismatch(m: &Mismatch) -> &str {
     match m {
@@ -393,10 +419,10 @@ mod tests {
 
   #[test]
   fn match_mime_multipart_error_when_not_multipart() {
-    let body = "not a multipart body";
+    let body = Bytes::from("not a multipart body");
     let request = Request {
       headers: Some(hashmap!{}),
-      body: OptionalBody::Present(body.as_bytes().to_vec(), None),
+      body: OptionalBody::Present(body, None),
       ..Request::default()
     };
     let context = MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys);
@@ -413,7 +439,7 @@ mod tests {
 
   #[test]
   fn match_mime_multipart_equal() {
-    let expected_body = "--1234\r\n\
+    let expected_body = Bytes::from("--1234\r\n\
       Content-Type: text/plain\r\n\
       Content-Disposition: form-data; name=\"name\"\r\n\r\nBaxter\r\n\
       --1234\r\n\
@@ -424,13 +450,13 @@ mod tests {
       Content-Disposition: form-data; name=\"file\"; filename=\"008.csv\"\r\n\r\n\
       1,2,3,4\r\n\
       4,5,6,7\r\n\
-      --1234--\r\n";
+      --1234--\r\n");
     let expected = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=1234".into() ] }),
-      body: OptionalBody::Present(expected_body.as_bytes().to_vec(), None),
+      body: OptionalBody::Present(expected_body, None),
       ..Request::default()
     };
-    let actual_body = "--1234\r\n\
+    let actual_body = Bytes::from("--1234\r\n\
       Content-Type: text/plain\r\n\
       Content-Disposition: form-data; name=\"name\"\r\n\r\nBaxter\r\n\
       --1234\r\n\
@@ -441,10 +467,10 @@ mod tests {
       Content-Disposition: form-data; name=\"file\"; filename=\"008.csv\"\r\n\r\n\
       1,2,3,4\r\n\
       4,5,6,7\r\n\
-      --1234--\r\n";
+      --1234--\r\n");
     let actual = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=1234".into() ] }),
-      body: OptionalBody::Present(actual_body.as_bytes().to_vec(), None),
+      body: OptionalBody::Present(actual_body, None),
       ..Request::default()
     };
     let context = MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys);
@@ -456,7 +482,7 @@ mod tests {
 
   #[test]
   fn match_mime_multipart_missing_part() {
-    let expected_body = "--1234\r\n\
+    let expected_body = Bytes::from("--1234\r\n\
       Content-Type: text/plain\r\n\
       Content-Disposition: form-data; name=\"name\"\r\n\r\nBaxter\r\n\
       --1234\r\n\
@@ -467,19 +493,19 @@ mod tests {
       Content-Disposition: form-data; name=\"file\"; filename=\"008.csv\"\r\n\r\n\
       1,2,3,4\r\n\
       4,5,6,7\r\n\
-      --1234--\r\n";
+      --1234--\r\n");
     let expected = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=1234".into() ] }),
-      body: OptionalBody::Present(expected_body.as_bytes().to_vec(), None),
+      body: OptionalBody::Present(expected_body, None),
       ..Request::default()
     };
-    let actual_body = "--1234\r\n\
+    let actual_body = Bytes::from("--1234\r\n\
       Content-Type: text/plain\r\n\
       Content-Disposition: form-data; name=\"name\"\r\n\r\nBaxter\r\n\
-      --1234--\r\n";
+      --1234--\r\n");
     let actual = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=1234".into() ] }),
-      body: OptionalBody::Present(actual_body.as_bytes().to_vec(), None),
+      body: OptionalBody::Present(actual_body, None),
       ..Request::default()
     };
     let context = MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys);
@@ -494,7 +520,7 @@ mod tests {
 
   #[test]
   fn match_mime_multipart_different_values() {
-    let expected_body = "--1234\r\n\
+    let expected_body = Bytes::from("--1234\r\n\
       Content-Type: text/plain\r\n\
       Content-Disposition: form-data; name=\"name\"\r\n\r\nBaxter\r\n\
       --1234\r\n\
@@ -505,13 +531,13 @@ mod tests {
       Content-Disposition: form-data; name=\"file\"; filename=\"008.csv\"\r\n\r\n\
       1,2,3,4\r\n\
       4,5,6,7\r\n\
-      --1234--\r\n";
+      --1234--\r\n");
     let expected = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=1234".into() ] }),
-      body: OptionalBody::Present(expected_body.as_bytes().to_vec(), None),
+      body: OptionalBody::Present(expected_body, None),
       ..Request::default()
     };
-    let actual_body = "--4567\r\n\
+    let actual_body = Bytes::from("--4567\r\n\
       Content-Type: text/plain\r\n\
       Content-Disposition: form-data; name=\"name\"\r\n\r\nFred\r\n\
       --4567\r\n\
@@ -522,10 +548,10 @@ mod tests {
       Content-Disposition: form-data; name=\"file\"; filename=\"009.csv\"\r\n\r\n\
       a,b,c,d\r\n\
       4,5,6,7\r\n\
-      --4567--\r\n";
+      --4567--\r\n");
     let actual = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=4567".into() ] }),
-      body: OptionalBody::Present(actual_body.as_bytes().to_vec(), None),
+      body: OptionalBody::Present(actual_body, None),
       ..Request::default()
     };
     let context = MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys);
@@ -541,16 +567,16 @@ mod tests {
 
   #[test]
   fn match_mime_multipart_with_matching_rule() {
-    let expected_body = "--1234\r\n\
+    let expected_body = Bytes::from("--1234\r\n\
       Content-Type: text/plain\r\n\
       Content-Disposition: form-data; name=\"name\"\r\n\r\nBaxter\r\n\
       --1234\r\n\
       Content-Type: text/plain\r\n\
       Content-Disposition: form-data; name=\"age\"\r\n\r\n1 month\r\n\
-      --1234--\r\n";
+      --1234--\r\n");
     let expected = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=1234".into() ] }),
-      body: OptionalBody::Present(expected_body.as_bytes().to_vec(), None),
+      body: OptionalBody::Present(expected_body, None),
       matching_rules: matchingrules! {
         "body" => {
           "$.name" => [ MatchingRule::Regex(s!("^\\w+$")) ],
@@ -559,7 +585,7 @@ mod tests {
       },
       ..Request::default()
     };
-    let actual_body = "--4567\r\n\
+    let actual_body = Bytes::from("--4567\r\n\
       Content-Type: text/plain\r\n\
       Content-Disposition: form-data; name=\"name\"\r\n\r\nFred\r\n\
       --4567\r\n\
@@ -570,107 +596,7 @@ mod tests {
       Content-Disposition: form-data; name=\"file\"; filename=\"009.csv\"\r\n\r\n\
       a,b,c,d\r\n\
       4,5,6,7\r\n\
-      --4567--\r\n";
-    let actual = Request {
-      headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=4567".into() ] }),
-      body: OptionalBody::Present(actual_body.as_bytes().to_vec(), None),
-      ..Request::default()
-    };
-    let context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
-      &expected.matching_rules.rules_for_category("body").unwrap());
-
-    let result = match_mime_multipart(&expected, &actual, &context);
-
-    expect!(result).to(be_ok());
-  }
-
-  #[test]
-  fn match_mime_multipart_different_content_type() {
-    let expected_body = "--1234\r\n\
-      Content-Type: text/plain\r\n\
-      Content-Disposition: form-data; name=\"name\"\r\n\r\nBaxter\r\n\
-      --1234\r\n\
-      Content-Type: text/plain\r\n\
-      Content-Disposition: form-data; name=\"age\"\r\n\r\n1 month\r\n\
-      --1234\r\n\
-      Content-Type: text/csv\r\n\
-      Content-Disposition: form-data; name=\"file\"; filename=\"008.csv\"\r\n\r\n\
-      1,2,3,4\r\n\
-      4,5,6,7\r\n\
-      --1234--\r\n";
-    let expected = Request {
-      headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=1234".into() ] }),
-      body: OptionalBody::Present(expected_body.as_bytes().to_vec(), None),
-      ..Request::default()
-    };
-    let actual_body = "--4567\r\n\
-      Content-Type: text/plain\r\n\
-      Content-Disposition: form-data; name=\"name\"\r\n\r\nBaxter\r\n\
-      --4567\r\n\
-      Content-Type: text/plain\r\n\
-      Content-Disposition: form-data; name=\"age\"\r\n\r\n1 month\r\n\
-      --4567\r\n\
-      Content-Type: text/html\r\n\
-      Content-Disposition: form-data; name=\"file\"; filename=\"009.csv\"\r\n\r\n\
-      <html>a,b,c,d\r\n\
-      4,5,6,7\r\n\
-      --4567--\r\n";
-    let actual = Request {
-      headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=4567".into() ] }),
-      body: OptionalBody::Present(actual_body.as_bytes().to_vec(), None),
-      ..Request::default()
-    };
-    let context = MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys);
-
-    let result = match_mime_multipart(&expected, &actual, &context);
-    let mismatches = result.unwrap_err();
-    expect!(mismatches.iter().map(|m| mismatch(m)).collect::<Vec<&str>>()).to(be_equal_to(vec![
-      "Expected MIME part 'file' with content type 'text/csv' but was 'text/html'"
-    ]));
-  }
-
-  #[test]
-  fn match_mime_multipart_content_type_matcher() {
-    let expected_body = "--1234\r\n\
-      Content-Type: text/plain\r\n\
-      Content-Disposition: form-data; name=\"name\"\r\n\r\nBaxter\r\n\
-      --1234\r\n\
-      Content-Type: text/plain\r\n\
-      Content-Disposition: form-data; name=\"age\"\r\n\r\n1 month\r\n\
-      --1234\r\n\
-      Content-Type: image/png\r\n\
-      Content-Disposition: form-data; name=\"file\"; filename=\"008.htm\"\r\n\r\n\
-      <html>1,2,3,4\r\n\
-      4,5,6,7\r\n\
-      --1234--\r\n";
-    let expected = Request {
-      headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=1234".into() ] }),
-      body: OptionalBody::Present(expected_body.as_bytes().to_vec(), None),
-      matching_rules: matchingrules! {
-        "body" => {
-          "$.file" => [ MatchingRule::ContentType("image/png".into()) ]
-        }
-      },
-      ..Request::default()
-    };
-    let bytes: [u8; 16] = [
-        0x89, 0x50, 0x4e, 0x47,
-        0x0d, 0x0a, 0x1a, 0x0a,
-        0x00, 0x00, 0x00, 0x0d,
-        0x49, 0x48, 0x44, 0x52
-     ];
-
-    let mut actual_body = "--4567\r\n\
-      Content-Type: text/plain\r\n\
-      Content-Disposition: form-data; name=\"name\"\r\n\r\nBaxter\r\n\
-      --4567\r\n\
-      Content-Type: text/plain\r\n\
-      Content-Disposition: form-data; name=\"age\"\r\n\r\n1 month\r\n\
-      --4567\r\n\
-      Content-Type: image/png\r\n\
-      Content-Disposition: form-data; name=\"file\"; filename=\"009.htm\"\r\n\r\n".as_bytes().to_vec();
-    actual_body.extend_from_slice(&bytes);
-    actual_body.extend_from_slice("\r\n--4567--\r\n".as_bytes());
+      --4567--\r\n");
     let actual = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=4567".into() ] }),
       body: OptionalBody::Present(actual_body, None),
@@ -685,8 +611,108 @@ mod tests {
   }
 
   #[test]
+  fn match_mime_multipart_different_content_type() {
+    let expected_body = Bytes::from("--1234\r\n\
+      Content-Type: text/plain\r\n\
+      Content-Disposition: form-data; name=\"name\"\r\n\r\nBaxter\r\n\
+      --1234\r\n\
+      Content-Type: text/plain\r\n\
+      Content-Disposition: form-data; name=\"age\"\r\n\r\n1 month\r\n\
+      --1234\r\n\
+      Content-Type: text/csv\r\n\
+      Content-Disposition: form-data; name=\"file\"; filename=\"008.csv\"\r\n\r\n\
+      1,2,3,4\r\n\
+      4,5,6,7\r\n\
+      --1234--\r\n");
+    let expected = Request {
+      headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=1234".into() ] }),
+      body: OptionalBody::Present(expected_body, None),
+      ..Request::default()
+    };
+    let actual_body = Bytes::from("--4567\r\n\
+      Content-Type: text/plain\r\n\
+      Content-Disposition: form-data; name=\"name\"\r\n\r\nBaxter\r\n\
+      --4567\r\n\
+      Content-Type: text/plain\r\n\
+      Content-Disposition: form-data; name=\"age\"\r\n\r\n1 month\r\n\
+      --4567\r\n\
+      Content-Type: text/html\r\n\
+      Content-Disposition: form-data; name=\"file\"; filename=\"009.csv\"\r\n\r\n\
+      <html>a,b,c,d\r\n\
+      4,5,6,7\r\n\
+      --4567--\r\n");
+    let actual = Request {
+      headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=4567".into() ] }),
+      body: OptionalBody::Present(actual_body, None),
+      ..Request::default()
+    };
+    let context = MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys);
+
+    let result = match_mime_multipart(&expected, &actual, &context);
+    let mismatches = result.unwrap_err();
+    expect!(mismatches.iter().map(|m| mismatch(m)).collect::<Vec<&str>>()).to(be_equal_to(vec![
+      "Expected MIME part 'file' with content type 'text/csv' but was 'text/html'"
+    ]));
+  }
+
+  #[test]
+  fn match_mime_multipart_content_type_matcher() {
+    let expected_body = Bytes::from("--1234\r\n\
+      Content-Type: text/plain\r\n\
+      Content-Disposition: form-data; name=\"name\"\r\n\r\nBaxter\r\n\
+      --1234\r\n\
+      Content-Type: text/plain\r\n\
+      Content-Disposition: form-data; name=\"age\"\r\n\r\n1 month\r\n\
+      --1234\r\n\
+      Content-Type: image/png\r\n\
+      Content-Disposition: form-data; name=\"file\"; filename=\"008.htm\"\r\n\r\n\
+      <html>1,2,3,4\r\n\
+      4,5,6,7\r\n\
+      --1234--\r\n");
+    let expected = Request {
+      headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=1234".into() ] }),
+      body: OptionalBody::Present(expected_body, None),
+      matching_rules: matchingrules! {
+        "body" => {
+          "$.file" => [ MatchingRule::ContentType("image/png".into()) ]
+        }
+      },
+      ..Request::default()
+    };
+    let bytes: [u8; 16] = [
+        0x89, 0x50, 0x4e, 0x47,
+        0x0d, 0x0a, 0x1a, 0x0a,
+        0x00, 0x00, 0x00, 0x0d,
+        0x49, 0x48, 0x44, 0x52
+     ];
+
+    let mut actual_body = BytesMut::from("--4567\r\n\
+      Content-Type: text/plain\r\n\
+      Content-Disposition: form-data; name=\"name\"\r\n\r\nBaxter\r\n\
+      --4567\r\n\
+      Content-Type: text/plain\r\n\
+      Content-Disposition: form-data; name=\"age\"\r\n\r\n1 month\r\n\
+      --4567\r\n\
+      Content-Type: image/png\r\n\
+      Content-Disposition: form-data; name=\"file\"; filename=\"009.htm\"\r\n\r\n");
+    actual_body.extend_from_slice(&bytes);
+    actual_body.extend_from_slice("\r\n--4567--\r\n".as_bytes());
+    let actual = Request {
+      headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=4567".into() ] }),
+      body: OptionalBody::Present(actual_body.freeze(), None),
+      ..Request::default()
+    };
+    let context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
+      &expected.matching_rules.rules_for_category("body").unwrap());
+
+    let result = match_mime_multipart(&expected, &actual, &context);
+
+    expect!(result).to(be_ok());
+  }
+
+  #[test]
   fn match_mime_multipart_content_type_matcher_with_mismatch() {
-    let expected_body = "--1234\r\n\
+    let expected_body = Bytes::from("--1234\r\n\
       Content-Type: text/plain\r\n\
       Content-Disposition: form-data; name=\"name\"\r\n\r\nBaxter\r\n\
       --1234\r\n\
@@ -697,10 +723,10 @@ mod tests {
       Content-Disposition: form-data; name=\"file\"; filename=\"008.htm\"\r\n\r\n\
       1,2,3,4\r\n\
       4,5,6,7\r\n\
-      --1234--\r\n";
+      --1234--\r\n");
     let expected = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=1234".into() ] }),
-      body: OptionalBody::Present(expected_body.as_bytes().to_vec(), None),
+      body: OptionalBody::Present(expected_body, None),
       matching_rules: matchingrules! {
         "body" => {
           "$.file" => [ MatchingRule::ContentType("application/jpeg".into()) ]
@@ -708,7 +734,7 @@ mod tests {
       },
       ..Request::default()
     };
-    let actual_body = "--4567\r\n\
+    let actual_body = Bytes::from("--4567\r\n\
       Content-Type: text/plain\r\n\
       Content-Disposition: form-data; name=\"name\"\r\n\r\nBaxter\r\n\
       --4567\r\n\
@@ -719,10 +745,10 @@ mod tests {
       Content-Disposition: form-data; name=\"file\"; filename=\"009.htm\"\r\n\r\n\
       a,b,c,d\r\n\
       4,5,6,7\r\n\
-      --4567--\r\n";
+      --4567--\r\n");
     let actual = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=4567".into() ] }),
-      body: OptionalBody::Present(actual_body.as_bytes().to_vec(), None),
+      body: OptionalBody::Present(actual_body, None),
       ..Request::default()
     };
     let context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,

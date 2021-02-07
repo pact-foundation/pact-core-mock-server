@@ -10,6 +10,7 @@ use pact_matching::{match_message, Mismatch};
 use ansi_term::{ANSIGenericString, Style};
 use maplit::*;
 use pact_matching::models::HttpPart;
+use bytes::Bytes;
 
 pub async fn verify_message_from_provider<F: RequestFilterExecutor>(
   provider: &ProviderInfo,
@@ -29,7 +30,7 @@ pub async fn verify_message_from_provider<F: RequestFilterExecutor>(
   }
   let message_request = Request {
     method: "POST".into(),
-    body: OptionalBody::Present(request_body.to_string().as_bytes().to_vec(), Some("application/json".into())),
+    body: OptionalBody::Present(Bytes::from(request_body.to_string()), Some("application/json".into())),
     headers: Some(hashmap! {
         "Content-Type".to_string() => vec!["application/json".to_string()]
     }),

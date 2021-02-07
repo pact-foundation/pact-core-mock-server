@@ -9,7 +9,7 @@ use std::{
 use std::convert::Infallible;
 use std::net::{IpAddr, SocketAddr};
 
-use futures::channel::oneshot::{channel, Sender};
+use futures::channel::oneshot::channel;
 use hyper::server::Server;
 use hyper::service::make_service_fn;
 use log::*;

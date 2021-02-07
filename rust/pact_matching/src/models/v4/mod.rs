@@ -408,7 +408,7 @@ fn calc_content_type(body: &OptionalBody, headers: &Option<HashMap<String, Vec<S
       }
     }).flatten())
     .or_else(|| if body.is_present() {
-      detect_content_type_from_bytes(&*body.value())
+      detect_content_type_from_bytes(&*body.value().unwrap_or_default())
     } else {
       None
     })

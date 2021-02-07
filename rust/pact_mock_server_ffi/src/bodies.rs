@@ -8,6 +8,7 @@ use pact_matching::models::{Request, OptionalBody, Response};
 use maplit::*;
 use std::path::Path;
 use log::*;
+use bytes::Bytes;
 
 const CONTENT_TYPE_HEADER: &str = "Content-Type";
 
@@ -251,7 +252,7 @@ pub fn file_as_multipart_body(file: &str, part_name: &str) -> Result<MultipartBo
   let http_buffer = multipart.send().map_err(format_multipart_error)?;
 
   Ok(MultipartBody {
-    body: OptionalBody::Present(http_buffer.buf, Some("multipart/form-data".into())),
+    body: OptionalBody::Present(Bytes::from(http_buffer.buf), Some("multipart/form-data".into())),
     boundary: http_buffer.boundary
   })
 }
@@ -262,7 +263,7 @@ pub fn empty_multipart_body() -> Result<MultipartBody, String> {
   let http_buffer = multipart.send().map_err(format_multipart_error)?;
 
   Ok(MultipartBody {
-    body: OptionalBody::Present(http_buffer.buf, Some("multipart/form-data".into())),
+    body: OptionalBody::Present(Bytes::from(http_buffer.buf), Some("multipart/form-data".into())),
     boundary: http_buffer.boundary
   })
 }
