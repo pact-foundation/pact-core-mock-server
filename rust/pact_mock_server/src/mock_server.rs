@@ -8,7 +8,6 @@ use std::io;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use lazy_static::*;
 use rustls::ServerConfig;
 use serde_json::json;
 
@@ -20,10 +19,6 @@ use crate::matching::MatchResult;
 use std::cell::RefCell;
 use std::ops::DerefMut;
 use log::*;
-
-lazy_static! {
-  static ref PACT_FILE_MUTEX: Mutex<()> = Mutex::new(());
-}
 
 /// Mock server configuration
 #[derive(Debug, Default, Clone)]
@@ -220,34 +215,27 @@ impl MockServer {
         mismatches.chain(missing).collect()
     }
 
-    /// Mock server writes its pact out to the provided directory
-    pub fn write_pact(&self, output_path: &Option<String>) -> io::Result<()> {
-        let pact_file_name = self.pact.default_file_name();
-        let filename = match *output_path {
-            Some(ref path) => {
-                let mut path = PathBuf::from(path);
-                path.push(pact_file_name);
-                path
-            },
-            None => PathBuf::from(pact_file_name)
-        };
+  /// Mock server writes its pact out to the provided directory
+  pub fn write_pact(&self, output_path: &Option<String>) -> io::Result<()> {
+    let pact_file_name = self.pact.default_file_name();
+    let filename = match *output_path {
+      Some(ref path) => {
+        let mut path = PathBuf::from(path);
+        path.push(pact_file_name);
+        path
+      },
+      None => PathBuf::from(pact_file_name)
+    };
 
-        log::info!("Writing pact out to '{}'", filename.display());
-
-        // Lock so that no two threads can read/write pact file at the same time.
-        // TODO: Could use a fs-based lock in case multiple processes are doing
-        // this concurrently?
-        // Pact-JVM uses a file lock
-        let _file_lock = PACT_FILE_MUTEX.lock().unwrap();
-
-        match write_pact(&self.pact, filename.as_path(), self.pact.spec_version()) {
-            Ok(_) => Ok(()),
-            Err(err) => {
-                log::warn!("Failed to write pact to file - {}", err);
-                Err(err)
-            }
-        }
+    info!("Writing pact out to '{}'", filename.display());
+    match write_pact(&self.pact, filename.as_path(), self.pact.spec_version()) {
+      Ok(_) => Ok(()),
+      Err(err) => {
+        warn!("Failed to write pact to file - {}", err);
+        Err(err)
+      }
     }
+  }
 
     /// Returns the URL of the mock server
     pub fn url(&self) -> String {

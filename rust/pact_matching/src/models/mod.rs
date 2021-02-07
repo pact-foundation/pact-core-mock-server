@@ -11,6 +11,7 @@ use std::fs::File;
 use std::hash::{Hash, Hasher};
 use std::io::{self, Error, ErrorKind};
 use std::io::prelude::*;
+use std::io::SeekFrom;
 use std::path::Path;
 use std::str;
 use std::str::from_utf8;
@@ -18,6 +19,7 @@ use std::sync::{Arc, Mutex};
 
 use base64::{decode, encode};
 use bytes::{Bytes, BytesMut};
+use fs2::FileExt;
 use hex::FromHex;
 use itertools::{iproduct, Itertools};
 use itertools::EitherOrBoth::{Both, Left, Right};
@@ -1733,9 +1735,14 @@ pub fn message_interaction_from_json(source: &str, json: &Value, spec: &PactSpec
 /// Reads the pact file and parses the resulting JSON into a `Pact` struct
 pub fn read_pact(file: &Path) -> io::Result<Box<dyn Pact>> {
   let mut f = File::open(file)?;
-  let pact_json = serde_json::from_reader(&mut f);
+  read_pact_from_file(&mut f, file)
+}
+
+/// Reads the pact from the file and parses the resulting JSON into a `Pact` struct
+pub fn read_pact_from_file(file: &mut File, path: &Path) -> io::Result<Box<dyn Pact>> {
+  let pact_json = serde_json::from_reader(file);
   match pact_json {
-    Ok(ref json) => load_pact_from_json(&*file.to_string_lossy(), json)
+    Ok(ref json) => load_pact_from_json(&*path.to_string_lossy(), json)
       .map_err(|err| Error::new(ErrorKind::Other, err)),
     Err(err) => Err(Error::new(ErrorKind::Other, format!("Failed to parse Pact JSON - {}", err)))
   }
@@ -1792,22 +1799,33 @@ pub fn write_pact<T: ReadWritePact + Pact + Debug>(pact: &T, path: &Path, pact_s
   fs::create_dir_all(path.parent().unwrap())?;
   if path.exists() {
     debug!("Merging pact with file {:?}", path);
-    let existing_pact = read_pact(path)?;
+    let mut f = fs::OpenOptions::new().read(true).write(true).open(&path)?;
+    f.lock_exclusive()?;
+    let existing_pact = read_pact_from_file(&mut f, path)?;
 
     if existing_pact.specification_version() < pact.specification_version() {
       warn!("Note: Existing pact is an older specification version ({:?}), and will be upgraded",
-        existing_pact.specification_version());
+            existing_pact.specification_version());
     }
 
-    match pact.merge(existing_pact.borrow()) {
-      Ok(ref merged_pact) => {
-        let mut file = File::create(path)?;
-        let result = serde_json::to_string_pretty(&merged_pact.to_json(pact_spec))?;
-        file.write_all(result.as_bytes())?;
-        Ok(())
+    let result = match pact.merge(existing_pact.borrow()) {
+      Ok(ref merged_pact) => match serde_json::to_string_pretty(&merged_pact.to_json(pact_spec)) {
+        Ok(json) => match f.set_len(0) {
+          Ok(_) => match f.seek(SeekFrom::Start(0)) {
+            Ok(_) => match f.write_all(json.as_bytes()) {
+              Ok(_) => Ok(()),
+              Err(err) => Err(err)
+            }
+            Err(err) => Err(err)
+          }
+          Err(err) => Err(err)
+        }
+        Err(err) => Err(err.into())
       },
       Err(ref message) => Err(Error::new(ErrorKind::Other, message.clone()))
-    }
+    };
+    f.unlock()?;
+    result
   } else {
     debug!("Writing new pact file to {:?}", path);
     let mut file = File::create(path)?;
