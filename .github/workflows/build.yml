@@ -27,6 +27,7 @@ jobs:
           command: test
         env:
           RUST_LOG: debug
+          RUST_BACKTRACE: 1
       - name: Build Components
         uses: marcopolo/cargo@master
         with:
