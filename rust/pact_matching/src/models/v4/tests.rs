@@ -458,7 +458,7 @@ fn write_pact_test() {
   dir.push(format!("pact_test_{}", x));
   dir.push(pact.default_file_name());
 
-  let result = write_pact(&pact, &dir, PactSpecification::V4);
+  let result = write_pact(&pact, &dir, PactSpecification::V4, true);
 
   let pact_file = read_pact_file(dir.as_path().to_str().unwrap()).unwrap_or_default();
   fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());

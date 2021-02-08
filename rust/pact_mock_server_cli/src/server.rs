@@ -139,7 +139,7 @@ pub fn verify_mock_server_request(context: &mut WebmachineContext) -> Result<boo
       } else {
         let inner = SERVER_OPTIONS.lock().unwrap();
         let options = inner.borrow();
-        match ms.write_pact(&options.output_path) {
+        match ms.write_pact(&options.output_path, false) {
           Ok(_) => Ok(true),
           Err(err) => {
             map.insert("error", json!(format!("Failed to write pact to file - {}", err)));

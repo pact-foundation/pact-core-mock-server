@@ -1546,7 +1546,9 @@ impl RequestResponsePact {
 impl ReadWritePact for RequestResponsePact {
   fn read_pact(path: &Path) -> io::Result<RequestResponsePact> {
     let mut f = File::open(path)?;
+    f.lock_shared()?;
     let pact_json = serde_json::from_reader(&mut f);
+    f.unlock()?;
     match pact_json {
       Ok(ref json) => Ok(RequestResponsePact::from_json(&format!("{:?}", path), json)),
       Err(err) => Err(Error::new(ErrorKind::Other, format!("Failed to parse Pact JSON - {}", err)))
@@ -1740,7 +1742,13 @@ pub fn read_pact(file: &Path) -> io::Result<Box<dyn Pact>> {
 
 /// Reads the pact from the file and parses the resulting JSON into a `Pact` struct
 pub fn read_pact_from_file(file: &mut File, path: &Path) -> io::Result<Box<dyn Pact>> {
-  let pact_json = serde_json::from_reader(file);
+  file.lock_shared()?;
+  let mut buf = String::with_capacity(file.metadata()
+    .map(|md| md.len()).unwrap_or(1024) as usize);
+  let res = file.read_to_string(&mut buf);
+  file.unlock()?;
+  res?;
+  let pact_json = serde_json::from_str(&buf);
   match pact_json {
     Ok(ref json) => load_pact_from_json(&*path.to_string_lossy(), json)
       .map_err(|err| Error::new(ErrorKind::Other, err)),
@@ -1792,46 +1800,60 @@ pub trait ReadWritePact {
   fn default_file_name(&self) -> String;
 }
 
+lazy_static!{
+  static ref WRITE_LOCK: Mutex<()> = Mutex::new(());
+}
+
 /// Writes the pact out to the provided path. If there is an existing pact at the path, the two
-/// pacts will be merged together. Returns an error if the file can not be written or the pacts
-/// can no be merged.
-pub fn write_pact<T: ReadWritePact + Pact + Debug>(pact: &T, path: &Path, pact_spec: PactSpecification) -> io::Result<()> {
+/// pacts will be merged together unless overwrite is true. Returns an error if the file can not
+/// be written or the pacts can not be merged.
+pub fn write_pact<T: ReadWritePact + Pact + Debug>(
+  pact: &T,
+  path: &Path,
+  pact_spec: PactSpecification,
+  overwrite: bool
+) -> io::Result<()> {
   fs::create_dir_all(path.parent().unwrap())?;
-  if path.exists() {
+  let _ = WRITE_LOCK.lock().unwrap();
+  if !overwrite && path.exists() {
     debug!("Merging pact with file {:?}", path);
     let mut f = fs::OpenOptions::new().read(true).write(true).open(&path)?;
     f.lock_exclusive()?;
-    let existing_pact = read_pact_from_file(&mut f, path)?;
+    let existing_pact = read_pact_from_file(&mut f, path)
+      .or_else(|err| { f.unlock().and(Err(err)) })?;
 
     if existing_pact.specification_version() < pact.specification_version() {
       warn!("Note: Existing pact is an older specification version ({:?}), and will be upgraded",
             existing_pact.specification_version());
     }
 
-    let result = match pact.merge(existing_pact.borrow()) {
-      Ok(ref merged_pact) => match serde_json::to_string_pretty(&merged_pact.to_json(pact_spec)) {
-        Ok(json) => match f.set_len(0) {
-          Ok(_) => match f.seek(SeekFrom::Start(0)) {
-            Ok(_) => match f.write_all(json.as_bytes()) {
-              Ok(_) => Ok(()),
-              Err(err) => Err(err)
-            }
+    let merged_pact = pact.merge(existing_pact.borrow())
+      .or_else(|err| {
+        f.unlock().and(Err(Error::new(ErrorKind::Other, err.clone())))
+      })?;
+    let result = match serde_json::to_string_pretty(&merged_pact.to_json(pact_spec)) {
+      Ok(json) => match f.set_len(0) {
+        Ok(_) => match f.seek(SeekFrom::Start(0)) {
+          Ok(_) => match f.write_all(json.as_bytes()) {
+            Ok(_) => Ok(()),
             Err(err) => Err(err)
           }
           Err(err) => Err(err)
         }
-        Err(err) => Err(err.into())
-      },
-      Err(ref message) => Err(Error::new(ErrorKind::Other, message.clone()))
+        Err(err) => Err(err)
+      }
+      Err(err) => Err(err.into())
     };
     f.unlock()?;
     result
   } else {
     debug!("Writing new pact file to {:?}", path);
-    let mut file = File::create(path)?;
     let result = serde_json::to_string_pretty(&pact.to_json(pact_spec))?;
-    file.write_all(result.as_bytes())?;
-    Ok(())
+    let mut file = File::create(path)?;
+    file.lock_exclusive()?;
+    let result = file.write_all(result.as_bytes());
+    file.unlock()?;
+    result
   }
 }
 

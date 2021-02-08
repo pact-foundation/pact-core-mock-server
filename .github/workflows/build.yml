@@ -25,6 +25,8 @@ jobs:
         with:
           working-directory: rust
           command: test
+        env:
+          RUST_LOG: debug
       - name: Build Components
         uses: marcopolo/cargo@master
         with:

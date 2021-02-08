@@ -370,6 +370,9 @@ pub extern fn cleanup_mock_server(mock_server_port: i32) -> bool {
 /// be called if all the consumer tests have passed. The directory to write the file to is passed
 /// as the second parameter. If a NULL pointer is passed, the current working directory is used.
 ///
+/// If overwrite is true, the file will be overwritten with the contents of the current pact.
+/// Otherwise, it will be merged with any existing pact file.
+///
 /// Returns 0 if the pact file was successfully written. Returns a positive code if the file can
 /// not be written, or there is no mock server running on that port or the function panics.
 ///
@@ -383,7 +386,7 @@ pub extern fn cleanup_mock_server(mock_server_port: i32) -> bool {
 /// | 2 | The pact file was not able to be written |
 /// | 3 | A mock server with the provided port was not found |
 #[no_mangle]
-pub extern fn write_pact_file(mock_server_port: i32, directory: *const c_char) -> i32 {
+pub extern fn write_pact_file(mock_server_port: i32, directory: *const c_char, overwrite: bool) -> i32 {
   let result = catch_unwind(|| {
     let dir = unsafe {
       if directory.is_null() {
@@ -400,7 +403,7 @@ pub extern fn write_pact_file(mock_server_port: i32, directory: *const c_char) -
       }
     };
 
-    pact_mock_server::write_pact_file(mock_server_port, dir)
+    pact_mock_server::write_pact_file(mock_server_port, dir, overwrite)
   });
 
   match result {

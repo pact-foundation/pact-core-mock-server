@@ -18,6 +18,7 @@ use log::*;
 use maplit::*;
 use nom::lib::std::fmt::Formatter;
 use serde_json::{json, Value};
+use fs2::FileExt;
 
 use crate::models::{Consumer, detect_content_type_from_bytes, generators, Interaction, matchingrules, OptionalBody, Pact, PACT_RUST_VERSION, PactSpecification, Provider, provider_states, ReadWritePact, RequestResponseInteraction, RequestResponsePact};
 use crate::models::content_types::ContentType;
@@ -511,7 +512,9 @@ impl Default for V4Pact {
 impl ReadWritePact for V4Pact {
   fn read_pact(path: &Path) -> io::Result<V4Pact> {
     let mut f = File::open(path)?;
+    f.lock_shared()?;
     let pact_json = serde_json::from_reader(&mut f);
+    f.unlock()?;
     match pact_json {
       Ok(ref json) => {
         let metadata = meta_data_from_json(json);

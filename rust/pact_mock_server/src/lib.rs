@@ -232,14 +232,20 @@ pub enum WritePactFileErr {
 /// Trigger a mock server to write out its pact file. This function should
 /// be called if all the consumer tests have passed. The directory to write the file to is passed
 /// as the second parameter. If `None` is passed in, the current working directory is used.
+/// If overwrite is true, the file will be overwritten with the contents of the current pact.
+/// Otherwise it will be merged with any existing pact file.
 ///
 /// Returns `Ok` if the pact file was successfully written. Returns an `Err` if the file can
 /// not be written, or there is no mock server running on that port.
-pub fn write_pact_file(mock_server_port: i32, directory: Option<String>) -> Result<(), WritePactFileErr> {
+pub fn write_pact_file(
+  mock_server_port: i32,
+  directory: Option<String>,
+  overwrite: bool
+) -> Result<(), WritePactFileErr> {
     let opt_result = MANAGER.lock().unwrap()
         .get_or_insert_with(ServerManager::new)
         .find_mock_server_by_port_mut(mock_server_port as u16, &|mock_server| {
-            mock_server.write_pact(&directory)
+            mock_server.write_pact(&directory, overwrite)
                 .map(|_| ())
                 .map_err(|err| {
                     log::error!("Failed to write pact to file - {}", err);

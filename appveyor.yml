@@ -21,6 +21,7 @@ build_script:
   - rustc -V
   - cargo -V
   - gcc --version
+  - set RUST_LOG=debug
   - cd "%APPVEYOR_BUILD_FOLDER%\rust\pact_matching"
   - cargo build
   - cargo test

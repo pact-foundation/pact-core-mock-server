@@ -138,9 +138,10 @@ impl ValidatingMockServer {
 
         if mismatches.is_empty() {
             // Success! Write out the generated pact file.
-            ms.write_pact(&Some(
-                env::var("PACT_OUTPUT_DIR").unwrap_or_else(|_| "target/pacts".to_owned()),
-            ))
+            ms.write_pact(
+              &Some(
+                env::var("PACT_OUTPUT_DIR").unwrap_or_else(|_| "target/pacts".to_owned())),
+              env::var("PACT_OVERWRITE").unwrap_or_else(|_| "false".to_owned()) == "true")
             .map_err(|err| format!("error writing pact: {}", err))?;
             Ok(())
         } else {

@@ -15,6 +15,7 @@ use log::*;
 use maplit::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use fs2::FileExt;
 
 use crate::models::{Consumer, Interaction, Pact, RequestResponsePact, ReadWritePact};
 use crate::models::determine_spec_version;
@@ -231,7 +232,9 @@ impl MessagePact {
 impl ReadWritePact for MessagePact {
   fn read_pact(path: &Path) -> io::Result<MessagePact> {
     let mut f = File::open(path)?;
+    f.lock_shared()?;
     let pact_json: Value = serde_json::from_reader(&mut f)?;
+    f.unlock()?;
     MessagePact::from_json(&format!("{:?}", path), &pact_json)
       .map_err(|err| Error::new(ErrorKind::Other, err.clone()))
   }
