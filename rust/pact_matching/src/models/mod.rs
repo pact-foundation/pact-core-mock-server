@@ -1742,17 +1742,19 @@ pub fn read_pact(file: &Path) -> io::Result<Box<dyn Pact>> {
 
 /// Reads the pact from the file and parses the resulting JSON into a `Pact` struct
 pub fn read_pact_from_file(file: &mut File, path: &Path) -> io::Result<Box<dyn Pact>> {
+  let mut buf = String::new();
   file.lock_shared()?;
-  let mut buf = String::with_capacity(file.metadata()
-    .map(|md| md.len()).unwrap_or(1024) as usize);
-  let res = file.read_to_string(&mut buf);
+  file.read_to_string(&mut buf).or_else(|err| file.unlock().and(Err(err)))?;
   file.unlock()?;
-  res?;
   let pact_json = serde_json::from_str(&buf);
   match pact_json {
     Ok(ref json) => load_pact_from_json(&*path.to_string_lossy(), json)
       .map_err(|err| Error::new(ErrorKind::Other, err)),
-    Err(err) => Err(Error::new(ErrorKind::Other, format!("Failed to parse Pact JSON - {}", err)))
+    Err(err) => {
+      error!("read_pact_from_file: {}", err);
+      debug!("read_pact_from_file: file contents = '{}'", buf);
+      Err(Error::new(ErrorKind::Other, format!("Failed to parse Pact JSON - {}", err)))
+    }
   }
 }
 
@@ -1818,9 +1820,7 @@ pub fn write_pact<T: ReadWritePact + Pact + Debug>(
   if !overwrite && path.exists() {
     debug!("Merging pact with file {:?}", path);
     let mut f = fs::OpenOptions::new().read(true).write(true).open(&path)?;
-    f.lock_exclusive()?;
-    let existing_pact = read_pact_from_file(&mut f, path)
-      .or_else(|err| { f.unlock().and(Err(err)) })?;
+    let existing_pact = read_pact_from_file(&mut f, path)?;
 
     if existing_pact.specification_version() < pact.specification_version() {
       warn!("Note: Existing pact is an older specification version ({:?}), and will be upgraded",
@@ -1828,21 +1828,19 @@ pub fn write_pact<T: ReadWritePact + Pact + Debug>(
     }
 
     let merged_pact = pact.merge(existing_pact.borrow())
-      .or_else(|err| {
-        f.unlock().and(Err(Error::new(ErrorKind::Other, err.clone())))
-      })?;
-    let result = match serde_json::to_string_pretty(&merged_pact.to_json(pact_spec)) {
-      Ok(json) => match f.set_len(0) {
-        Ok(_) => match f.seek(SeekFrom::Start(0)) {
-          Ok(_) => match f.write_all(json.as_bytes()) {
-            Ok(_) => Ok(()),
-            Err(err) => Err(err)
-          }
+      .map_err(|err| Error::new(ErrorKind::Other, err.clone()))?;
+    let pact_json = serde_json::to_string_pretty(&merged_pact.to_json(pact_spec))?;
+
+    f.lock_exclusive()?;
+    let result = match f.set_len(0) {
+      Ok(_) => match f.seek(SeekFrom::Start(0)) {
+        Ok(_) => match f.write_all(pact_json.as_bytes()) {
+          Ok(_) => Ok(()),
           Err(err) => Err(err)
         }
         Err(err) => Err(err)
       }
-      Err(err) => Err(err.into())
+      Err(err) => Err(err)
     };
     f.unlock()?;
     result
