@@ -1227,7 +1227,7 @@ dependencies = [
 
 [[package]]
 name = "pact_verifier"
-version = "0.10.3"
+version = "0.10.4"
 dependencies = [
  "ansi_term 0.12.1",
  "async-trait",
@@ -1264,7 +1264,7 @@ dependencies = [
 
 [[package]]
 name = "pact_verifier_ffi"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "cbindgen",
  "clap",
