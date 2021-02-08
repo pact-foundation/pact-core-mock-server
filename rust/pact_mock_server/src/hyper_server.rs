@@ -43,9 +43,9 @@ fn extract_path(uri: &hyper::Uri) -> String {
 }
 
 fn extract_query_string(uri: &hyper::Uri) -> Option<HashMap<String, Vec<String>>> {
-    uri.path_and_query()
-        .and_then(|path_and_query| path_and_query.query())
-        .and_then(|query| parse_query_string(&query.into()))
+  uri.path_and_query()
+    .and_then(|path_and_query| path_and_query.query())
+    .and_then(|query| parse_query_string(query))
 }
 
 fn extract_headers(headers: &hyper::HeaderMap) -> Result<Option<HashMap<String, Vec<String>>>, InteractionError> {

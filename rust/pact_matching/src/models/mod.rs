@@ -1494,7 +1494,7 @@ impl RequestResponsePact {
             provider,
             interactions: parse_interactions(pact_json, spec_version.clone()),
             metadata,
-            specification_version: spec_version.clone()
+            specification_version: spec_version
         }
     }
 
@@ -1519,8 +1519,8 @@ impl RequestResponsePact {
     }
 
     /// Reads the pact file from a URL and parses the resulting JSON into a `Pact` struct
-    pub fn from_url(url: &String, auth: &Option<HttpAuth>) -> Result<RequestResponsePact, String> {
-      http_utils::fetch_json_from_url(url, auth).map(|(ref url, ref json)| RequestResponsePact::from_json(url, json))
+    pub fn from_url(url: &str, auth: &Option<HttpAuth>) -> Result<RequestResponsePact, String> {
+      http_utils::fetch_json_from_url(&url.to_string(), auth).map(|(ref url, ref json)| RequestResponsePact::from_json(url, json))
     }
 
     /// Returns a default RequestResponsePact struct
@@ -1688,13 +1688,13 @@ fn encode_query(query: &str) -> String {
 /// Parses a query string into an optional map. The query parameter name will be mapped to
 /// a list of values. Where the query parameter is repeated, the order of the values will be
 /// preserved.
-pub fn parse_query_string(query: &String) -> Option<HashMap<String, Vec<String>>> {
+pub fn parse_query_string(query: &str) -> Option<HashMap<String, Vec<String>>> {
     if !query.is_empty() {
-        Some(query.split("&").map(|kv| {
+        Some(query.split('&').map(|kv| {
             if kv.is_empty() {
                 vec![]
-            } else if kv.contains("=") {
-                kv.splitn(2, "=").collect::<Vec<&str>>()
+            } else if kv.contains('=') {
+                kv.splitn(2, '=').collect::<Vec<&str>>()
             } else {
                 vec![kv]
             }
@@ -1706,7 +1706,7 @@ pub fn parse_query_string(query: &String) -> Option<HashMap<String, Vec<String>>
                 } else {
                     s!("")
                 };
-                map.entry(name).or_insert(vec![]).push(value);
+                map.entry(name).or_insert_with(|| vec![]).push(value);
             }
             map
         }))
@@ -1759,9 +1759,9 @@ pub fn read_pact_from_file(file: &mut File, path: &Path) -> io::Result<Box<dyn P
 }
 
 /// Reads the pact file from a URL and parses the resulting JSON into a `Pact` struct
-pub fn load_pact_from_url<'a>(url: &String, auth: &Option<HttpAuth>) -> Result<Box<dyn Pact>, String> {
-  match http_utils::fetch_json_from_url(url, auth) {
-    Ok((ref url, ref json)) => load_pact_from_json(url.as_str(), json),
+pub fn load_pact_from_url(url: &str, auth: &Option<HttpAuth>) -> Result<Box<dyn Pact>, String> {
+  match http_utils::fetch_json_from_url(&url.to_string(), auth) {
+    Ok((ref url, ref json)) => load_pact_from_json(url, json),
     Err(err) => Err(err)
   }
 }
@@ -1816,7 +1816,7 @@ pub fn write_pact<T: ReadWritePact + Pact + Debug>(
   overwrite: bool
 ) -> io::Result<()> {
   fs::create_dir_all(path.parent().unwrap())?;
-  let _ = WRITE_LOCK.lock().unwrap();
+  let _lock = WRITE_LOCK.lock().unwrap();
   if !overwrite && path.exists() {
     debug!("Merging pact with file {:?}", path);
     let mut f = fs::OpenOptions::new().read(true).write(true).open(&path)?;
@@ -1828,20 +1828,13 @@ pub fn write_pact<T: ReadWritePact + Pact + Debug>(
     }
 
     let merged_pact = pact.merge(existing_pact.borrow())
-      .map_err(|err| Error::new(ErrorKind::Other, err.clone()))?;
+      .map_err(|err| Error::new(ErrorKind::Other, err))?;
     let pact_json = serde_json::to_string_pretty(&merged_pact.to_json(pact_spec))?;
 
     f.lock_exclusive()?;
-    let result = match f.set_len(0) {
-      Ok(_) => match f.seek(SeekFrom::Start(0)) {
-        Ok(_) => match f.write_all(pact_json.as_bytes()) {
-          Ok(_) => Ok(()),
-          Err(err) => Err(err)
-        }
-        Err(err) => Err(err)
-      }
-      Err(err) => Err(err)
-    };
+    let result = f.set_len(0)
+      .and_then(|_| f.seek(SeekFrom::Start(0)))
+      .and_then(|_| f.write_all(pact_json.as_bytes()));
     f.unlock()?;
     result
   } else {
