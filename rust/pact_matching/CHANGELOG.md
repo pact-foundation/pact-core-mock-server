@@ -1,5 +1,14 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.8.10 - use a file system lock when merging pact files
+
+* eae1b16 - chore: fix clippy errors (Ronald Holshausen, Mon Feb 8 14:57:42 2021 +1100)
+* 4442949 - chore: keep the file locked for the smallest possible window (Ronald Holshausen, Mon Feb 8 14:34:22 2021 +1100)
+* 9976e80 - feat: added read locks and a mutex guard to reading and writing pacts (Ronald Holshausen, Mon Feb 8 11:58:52 2021 +1100)
+* 61e16ed - feat: use a file system lock when merging pact files (Ronald Holshausen, Sun Feb 7 17:00:29 2021 +1100)
+* 49a3cf2 - refactor: use bytes crate instead of vector of bytes for body content (Ronald Holshausen, Sun Feb 7 14:43:40 2021 +1100)
+* 48997d6 - bump version to 0.8.10 (Ronald Holshausen, Mon Jan 25 10:07:31 2021 +1100)
+
 # 0.8.9 - Fixes + thread safe support functions
 
 * c8f7091 - feat: made pact broker module public so it can be used by other crates (Ronald Holshausen, Sun Jan 24 18:24:30 2021 +1100)
