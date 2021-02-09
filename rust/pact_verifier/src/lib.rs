@@ -620,12 +620,13 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
       println!("\nThere were {} non-fatal pact failures on pending pacts (see docs.pact.io/pending for more)\n", pending_errors.len());
     }
     if !all_errors.is_empty() {
-        println!("\nFailures:\n");
-        print_errors(&all_errors);
-        println!("\nThere were {} pact failures\n", all_errors.len());
-        false
+      println!("\nFailures:\n");
+      print_errors(&all_errors);
+      println!("\nThere were {} pact failures\n", all_errors.len());
+      false
     } else {
-        true
+      println!();
+      true
     }
 }
 
