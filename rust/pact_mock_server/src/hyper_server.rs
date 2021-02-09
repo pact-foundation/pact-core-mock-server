@@ -43,8 +43,12 @@ fn extract_path(uri: &hyper::Uri) -> String {
 }
 
 fn extract_query_string(uri: &hyper::Uri) -> Option<HashMap<String, Vec<String>>> {
+  debug!("Extracting query from uri {:?}", uri);
   uri.path_and_query()
-    .and_then(|path_and_query| path_and_query.query())
+    .and_then(|path_and_query| {
+      debug!("path_and_query -> {:?}", path_and_query);
+      path_and_query.query()
+    })
     .and_then(|query| parse_query_string(query))
 }
 

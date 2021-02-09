@@ -1620,47 +1620,58 @@ impl ReadWritePact for RequestResponsePact {
   }
 }
 
-fn decode_query(query: &str) -> String {
-    let mut chars = query.chars();
-    let mut ch = chars.next();
-    let mut result = String::new();
+fn decode_query(query: &str) -> Result<String, String> {
+  let mut chars = query.chars();
+  let mut ch = chars.next();
+  let mut buffer = vec![];
 
-    while ch.is_some() {
-        let c = ch.unwrap();
-        if c == '%' {
-            let c1 = chars.next();
-            let c2 = chars.next();
-            match (c1, c2) {
-                (Some(v1), Some(v2)) => {
-                    let mut s = String::new();
-                    s.push(v1);
-                    s.push(v2);
-                    let decoded: Result<Vec<u8>, _> = FromHex::from_hex(s.into_bytes());
-                    match decoded {
-                        Ok(n) => result.push(n[0] as char),
-                        Err(_) => {
-                            result.push('%');
-                            result.push(v1);
-                            result.push(v2);
-                        }
-                    }
-                },
-                (Some(v1), None) => {
-                    result.push('%');
-                    result.push(v1);
-                },
-                _ => result.push('%')
+  while ch.is_some() {
+    let c = ch.unwrap();
+    trace!("ch = '{:?}'", ch);
+    if c == '%' {
+      let c1 = chars.next();
+      let c2 = chars.next();
+      match (c1, c2) {
+        (Some(v1), Some(v2)) => {
+          let mut s = String::new();
+          s.push(v1);
+          s.push(v2);
+          let decoded: Result<Vec<u8>, _> = FromHex::from_hex(s.into_bytes());
+          match decoded {
+            Ok(n) => {
+              trace!("decoded = '{:?}'", n);
+              buffer.extend_from_slice(&n);
+            },
+            Err(err) => {
+              error!("Failed to decode '%{}{}' to as HEX - {}", v1, v2, err);
+              buffer.push('%' as u8);
+              buffer.push(v1 as u8);
+              buffer.push(v2 as u8);
             }
-        } else if c == '+' {
-            result.push(' ');
-        } else {
-            result.push(c);
-        }
-
-        ch = chars.next();
+          }
+        },
+        (Some(v1), None) => {
+          buffer.push('%' as u8);
+          buffer.push(v1 as u8);
+        },
+        _ => buffer.push('%' as u8)
+      }
+    } else if c == '+' {
+      buffer.push(' ' as u8);
+    } else {
+      buffer.push(c as u8);
     }
 
-    result
+    ch = chars.next();
+  }
+
+  match str::from_utf8(&buffer) {
+    Ok(s) => Ok(s.to_owned()),
+    Err(err) => {
+      error!("Failed to decode '{}' to UTF-8 - {}", query, err);
+      Err(format!("Failed to decode '{}' to UTF-8 - {}", query, err))
+    }
+  }
 }
 
 fn encode_query(query: &str) -> String {
@@ -1689,30 +1700,34 @@ fn encode_query(query: &str) -> String {
 /// a list of values. Where the query parameter is repeated, the order of the values will be
 /// preserved.
 pub fn parse_query_string(query: &str) -> Option<HashMap<String, Vec<String>>> {
-    if !query.is_empty() {
-        Some(query.split('&').map(|kv| {
-            if kv.is_empty() {
-                vec![]
-            } else if kv.contains('=') {
-                kv.splitn(2, '=').collect::<Vec<&str>>()
-            } else {
-                vec![kv]
-            }
-        }).fold(HashMap::new(), |mut map, name_value| {
-            if !name_value.is_empty() {
-                let name = decode_query(name_value[0]);
-                let value = if name_value.len() > 1 {
-                    decode_query(name_value[1])
-                } else {
-                    s!("")
-                };
-                map.entry(name).or_insert_with(|| vec![]).push(value);
-            }
-            map
-        }))
-    } else {
-        None
-    }
+  if !query.is_empty() {
+    Some(query.split('&').map(|kv| {
+      trace!("kv = '{}'", kv);
+      if kv.is_empty() {
+        vec![]
+      } else if kv.contains('=') {
+        kv.splitn(2, '=').collect::<Vec<&str>>()
+      } else {
+        vec![kv]
+      }
+    }).fold(HashMap::new(), |mut map, name_value| {
+      trace!("name_value = '{:?}'", name_value);
+      if !name_value.is_empty() {
+        let name = decode_query(name_value[0])
+          .unwrap_or_else(|_| name_value[0].to_owned());
+        let value = if name_value.len() > 1 {
+          decode_query(name_value[1]).unwrap_or_else(|_| name_value[1].to_owned())
+        } else {
+          String::default()
+        };
+        trace!("decoded: '{}' => '{}'", name, value);
+        map.entry(name).or_insert_with(|| vec![]).push(value);
+      }
+      map
+    }))
+  } else {
+    None
+  }
 }
 
 /// Converts the JSON struct into an HTTP Interaction

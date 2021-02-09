@@ -1,23 +1,27 @@
+use std::collections::hash_map::DefaultHasher;
+use std::collections::HashMap;
+use std::env;
+use std::fs::{self, File};
+use std::hash::{Hash, Hasher};
+use std::io;
+use std::str::FromStr;
+
+#[allow(unused_imports)] use env_logger;
+use expectest::expect;
+use expectest::prelude::*;
+use maplit::*;
+use rand;
+use serde_json::json;
+
+use crate::models::matchingrules::{matchers_from_json, MatchingRule};
+use crate::models::v4::V4Interaction;
+
 use super::*;
 use super::{body_from_json, headers_from_json};
-use crate::models::matchingrules::{MatchingRule, matchers_from_json};
-use std::collections::HashMap;
-use std::collections::hash_map::DefaultHasher;
-use std::fs::{self, File};
-use std::io;
-use std::env;
-use expectest::prelude::*;
-use expectest::expect;
-use rand;
-use std::hash::{Hash, Hasher};
-use super::provider_states::*;
-use super::matchingrules::*;
-use super::generators::{Generators, Generator, generators_from_json};
-use std::str::FromStr;
-use serde_json::json;
-#[allow(unused_imports)] use env_logger;
 use super::content_types::*;
-use crate::models::v4::V4Interaction;
+use super::generators::{Generator, Generators, generators_from_json};
+use super::matchingrules::*;
+use super::provider_states::*;
 
 #[test]
 fn request_from_json_defaults_to_get() {
@@ -59,12 +63,13 @@ fn response_from_json_defaults_to_status_200() {
 
 #[test]
 fn parse_query_string_test() {
-    let query = "a=b&c=d".to_string();
-    let mut expected = HashMap::new();
-    expected.insert("a".to_string(), vec!["b".to_string()]);
-    expected.insert("c".to_string(), vec!["d".to_string()]);
-    let result = parse_query_string(&query);
-    assert_eq!(result, Some(expected));
+  let query = "a=b&c=d".to_string();
+  let expected = hashmap!{
+    "a".to_string() => vec!["b".to_string()],
+    "c".to_string() => vec!["d".to_string()]
+  };
+  let result = parse_query_string(&query);
+  expect!(result).to(be_some().value(expected));
 }
 
 #[test]
@@ -97,11 +102,23 @@ fn parse_query_string_handles_equals_in_values() {
 
 #[test]
 fn parse_query_string_decodes_values() {
-    let query = "a=a%20b%20c".to_string();
-    let mut expected = HashMap::new();
-    expected.insert("a".to_string(), vec!["a b c".to_string()]);
-    let result = parse_query_string(&query);
-    assert_eq!(result, Some(expected));
+  let query = "a=a%20b%20c".to_string();
+  let expected = hashmap! {
+    "a".to_string() => vec!["a b c".to_string()]
+  };
+  let result = parse_query_string(&query);
+  expect!(result).to(be_some().value(expected));
+}
+
+#[test]
+fn parse_query_string_decodes_non_ascii_values() {
+  let query = "accountNumber=100&anotherValue=%E6%96%87%E4%BB%B6.txt".to_string();
+  let expected = hashmap! {
+    "accountNumber".to_string() => vec!["100".to_string()],
+    "anotherValue".to_string() => vec!["文件.txt".to_string()]
+  };
+  let result = parse_query_string(&query);
+  expect!(result).to(be_some().value(expected));
 }
 
 #[test]
@@ -115,12 +132,12 @@ fn quickcheck_parse_query_string() {
             let result = match parse_query_string(&s) {
             Some(map) => {
                     if map.len() == 1 && !s.contains("=") {
-                        *map.keys().next().unwrap() == decode_query(&s)
+                        *map.keys().next().unwrap() == decode_query(&s).unwrap()
                 } else {
                         let reconstructed_query = map.iter().map(|(k, v)| {
                             v.iter().map(|qv| format!("{}={}", k, qv)).join("&")
                         }).join("&");
-                        let r = decode_query(&s) == reconstructed_query;
+                        let r = decode_query(&s).unwrap() == reconstructed_query;
                         // if !r {
                         //     dbg!(reconstructed_query);
                         //     dbg!(decode_query(&s) == reconstructed_query);
