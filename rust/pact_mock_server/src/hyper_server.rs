@@ -12,7 +12,7 @@ use hyper::http::header::{HeaderName, HeaderValue};
 use hyper::http::response::Builder as ResponseBuilder;
 use hyper::service::make_service_fn;
 use hyper::service::service_fn;
-use log::{debug, error, info, warn};
+use log::*;
 use maplit::*;
 use rustls::ServerConfig;
 use serde_json::json;
