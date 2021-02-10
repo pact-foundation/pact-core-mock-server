@@ -31,7 +31,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::models::content_types::ContentType;
-use crate::models::file_utils::{with_read_lock, with_read_lock_for_open_file};
+use crate::models::file_utils::{with_read_lock, with_read_lock_for_open_file, with_write_lock};
 use crate::models::generators::{Generator, GeneratorCategory};
 use crate::models::http_utils::HttpAuth;
 use crate::models::json_utils::json_to_string;
@@ -1847,12 +1847,11 @@ pub fn write_pact<T: ReadWritePact + Pact + Debug>(
       .map_err(|err| Error::new(ErrorKind::Other, err))?;
     let pact_json = serde_json::to_string_pretty(&merged_pact.to_json(pact_spec))?;
 
-    f.lock_exclusive()?;
-    let result = f.set_len(0)
-      .and_then(|_| f.seek(SeekFrom::Start(0)))
-      .and_then(|_| f.write_all(pact_json.as_bytes()));
-    f.unlock()?;
-    result
+    with_write_lock(path, &mut f, 3, &mut |f| {
+      f.set_len(0)
+        .and_then(|_| f.seek(SeekFrom::Start(0)))
+        .and_then(|_| f.write_all(pact_json.as_bytes()))
+    })
   } else {
     debug!("Writing new pact file to {:?}", path);
     let result = serde_json::to_string_pretty(&pact.to_json(pact_spec))?;
