@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.10.4 - add final newline to verifier output
+
+* 8c2152e - fix: add final newline to verifier output (Jest will overwrite it with the test name) (Ronald Holshausen, Tue Feb 9 14:15:19 2021 +1100)
+* 0a2aad9 - chore: correct release script (Ronald Holshausen, Mon Feb 8 16:14:20 2021 +1100)
+* f952467 - bump version to 0.10.4 (Ronald Holshausen, Mon Feb 8 16:04:33 2021 +1100)
+
 # 0.10.3 - Fixes + add callback timeout option for verifcation callbacks
 
 * 49a3cf2 - refactor: use bytes crate instead of vector of bytes for body content (Ronald Holshausen, Sun Feb 7 14:43:40 2021 +1100)
