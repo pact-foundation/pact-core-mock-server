@@ -1,6 +1,6 @@
 [package]
 name = "pact_verifier"
-version = "0.10.4"
+version = "0.10.5"
 authors = ["Ronald Holshausen <uglyog@gmail.com>"]
 edition = "2018"
 description = "Pact-Rust support library that implements provider verification functions"
