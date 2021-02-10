@@ -1103,7 +1103,7 @@ dependencies = [
 
 [[package]]
 name = "pact_matching"
-version = "0.8.11"
+version = "0.8.12"
 dependencies = [
  "ansi_term 0.12.1",
  "base64",
