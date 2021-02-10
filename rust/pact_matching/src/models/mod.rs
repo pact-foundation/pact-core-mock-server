@@ -31,6 +31,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::models::content_types::ContentType;
+use crate::models::file_utils::{with_read_lock, with_read_lock_for_open_file};
 use crate::models::generators::{Generator, GeneratorCategory};
 use crate::models::http_utils::HttpAuth;
 use crate::models::json_utils::json_to_string;
@@ -47,6 +48,7 @@ pub mod xml_utils;
 pub mod http_utils;
 pub mod content_types;
 mod expression_parser;
+mod file_utils;
 
 /// Version of the library
 pub const PACT_RUST_VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
@@ -1545,14 +1547,12 @@ impl RequestResponsePact {
 
 impl ReadWritePact for RequestResponsePact {
   fn read_pact(path: &Path) -> io::Result<RequestResponsePact> {
-    let mut f = File::open(path)?;
-    f.lock_shared()?;
-    let pact_json = serde_json::from_reader(&mut f);
-    f.unlock()?;
-    match pact_json {
-      Ok(ref json) => Ok(RequestResponsePact::from_json(&format!("{:?}", path), json)),
-      Err(err) => Err(Error::new(ErrorKind::Other, format!("Failed to parse Pact JSON - {}", err)))
-    }
+    with_read_lock(path, 3, &mut |f| {
+      match serde_json::from_reader(f) {
+        Ok(ref json) => Ok(RequestResponsePact::from_json(&format!("{:?}", path), json)),
+        Err(err) => Err(Error::new(ErrorKind::Other, format!("Failed to parse Pact JSON - {}", err)))
+      }
+    })
   }
 
   fn merge(&self, pact: &dyn Pact) -> Result<RequestResponsePact, String> {
@@ -1757,10 +1757,11 @@ pub fn read_pact(file: &Path) -> io::Result<Box<dyn Pact>> {
 
 /// Reads the pact from the file and parses the resulting JSON into a `Pact` struct
 pub fn read_pact_from_file(file: &mut File, path: &Path) -> io::Result<Box<dyn Pact>> {
-  let mut buf = String::new();
-  file.lock_shared()?;
-  file.read_to_string(&mut buf).or_else(|err| file.unlock().and(Err(err)))?;
-  file.unlock()?;
+  let buf = with_read_lock_for_open_file(path, file, 3, &mut |f| {
+    let mut buf = String::new();
+    f.read_to_string(&mut buf)?;
+    Ok(buf)
+  })?;
   let pact_json = serde_json::from_str(&buf);
   match pact_json {
     Ok(ref json) => load_pact_from_json(&*path.to_string_lossy(), json)

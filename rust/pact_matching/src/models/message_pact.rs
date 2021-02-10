@@ -15,7 +15,6 @@ use log::*;
 use maplit::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use fs2::FileExt;
 
 use crate::models::{Consumer, Interaction, Pact, RequestResponsePact, ReadWritePact};
 use crate::models::determine_spec_version;
@@ -28,6 +27,7 @@ use crate::models::parse_meta_data;
 use crate::models::Provider;
 use crate::models::v4::V4Pact;
 use crate::models::PACT_RUST_VERSION;
+use crate::models::file_utils::with_read_lock;
 
 /// Struct that represents a pact between the consumer and provider of a service.
 /// It contains a list of Messages instead of Interactions, but is otherwise
@@ -231,12 +231,11 @@ impl MessagePact {
 
 impl ReadWritePact for MessagePact {
   fn read_pact(path: &Path) -> io::Result<MessagePact> {
-    let mut f = File::open(path)?;
-    f.lock_shared()?;
-    let pact_json: Value = serde_json::from_reader(&mut f)?;
-    f.unlock()?;
-    MessagePact::from_json(&format!("{:?}", path), &pact_json)
-      .map_err(|err| Error::new(ErrorKind::Other, err.clone()))
+    with_read_lock(path, 3, &mut |f| {
+      let pact_json: Value = serde_json::from_reader(f)?;
+      MessagePact::from_json(&format!("{:?}", path), &pact_json)
+        .map_err(|err| Error::new(ErrorKind::Other, err.clone()))
+    })
   }
 
   fn merge(&self, pact: &dyn Pact) -> Result<MessagePact, String> {

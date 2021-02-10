@@ -5,7 +5,6 @@ use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap};
 use std::collections::hash_map::DefaultHasher;
 use std::fmt::Display;
-use std::fs::File;
 use std::hash::{Hash, Hasher};
 use std::io::{Error, ErrorKind};
 use std::path::Path;
@@ -18,7 +17,6 @@ use log::*;
 use maplit::*;
 use nom::lib::std::fmt::Formatter;
 use serde_json::{json, Value};
-use fs2::FileExt;
 
 use crate::models::{Consumer, detect_content_type_from_bytes, generators, Interaction, matchingrules, OptionalBody, Pact, PACT_RUST_VERSION, PactSpecification, Provider, provider_states, ReadWritePact, RequestResponseInteraction, RequestResponsePact};
 use crate::models::content_types::ContentType;
@@ -29,6 +27,7 @@ use crate::models::message::Message;
 use crate::models::message_pact::MessagePact;
 use crate::models::provider_states::ProviderState;
 use crate::models::v4::http_parts::{body_from_json, HttpRequest, HttpResponse};
+use crate::models::file_utils::with_read_lock;
 
 /// V4 Interaction Type
 #[derive(Debug, Clone)]
@@ -511,30 +510,26 @@ impl Default for V4Pact {
 
 impl ReadWritePact for V4Pact {
   fn read_pact(path: &Path) -> io::Result<V4Pact> {
-    let mut f = File::open(path)?;
-    f.lock_shared()?;
-    let pact_json = serde_json::from_reader(&mut f);
-    f.unlock()?;
-    match pact_json {
-      Ok(ref json) => {
-        let metadata = meta_data_from_json(json);
-        let consumer = match json.get("consumer") {
-          Some(v) => Consumer::from_json(v),
-          None => Consumer { name: "consumer".into() }
-        };
-        let provider = match json.get("provider") {
-          Some(v) => Provider::from_json(v),
-          None => Provider { name: "provider".into() }
-        };
-        Ok(V4Pact {
-          consumer,
-          provider,
-          interactions: interactions_from_json(json, &*path.to_string_lossy()),
-          metadata
-        })
-      },
-      Err(err) => Err(Error::new(ErrorKind::Other, format!("Failed to parse Pact JSON - {}", err)))
-    }
+    let json = with_read_lock(path, 3, &mut |f| {
+      serde_json::from_reader::<_, Value>(f)
+        .map_err(|err|
+          Error::new(ErrorKind::Other, format!("Failed to parse Pact JSON - {}", err)))
+    })?;
+    let metadata = meta_data_from_json(&json);
+    let consumer = match json.get("consumer") {
+      Some(v) => Consumer::from_json(v),
+      None => Consumer { name: "consumer".into() }
+    };
+    let provider = match json.get("provider") {
+      Some(v) => Provider::from_json(v),
+      None => Provider { name: "provider".into() }
+    };
+    Ok(V4Pact {
+      consumer,
+      provider,
+      interactions: interactions_from_json(&json, &*path.to_string_lossy()),
+      metadata
+    })
   }
 
   fn merge(&self, other: &dyn Pact) -> Result<V4Pact, String> {
