@@ -6,12 +6,13 @@
 
 use crate::models::pact_specification::PactSpecification;
 use crate::util::*;
-use crate::{as_mut, as_ref, ffi_fn, safe_str};
+use crate::{as_mut, as_ref, cstr, ffi_fn, safe_str};
 use anyhow::{anyhow, Context};
 use libc::{c_char, c_int, c_uint, EXIT_FAILURE, EXIT_SUCCESS};
-use pact_matching::models::OptionalBody;
+use pact_matching::models::{content_types::ContentType, OptionalBody};
 use serde_json::from_str as from_json_str;
 use serde_json::Value as JsonValue;
+use std::collections::HashMap;
 use std::ops::Drop;
 
 /*===============================================================================================
@@ -55,6 +56,38 @@ ffi_fn! {
 
             Message::from_json(index, &json_value, &spec_version)
                 .map_err(|e| anyhow::anyhow!("{}", e))?
+        };
+
+        ptr::raw_to(message)
+    } {
+        ptr::null_mut_to::<Message>()
+    }
+}
+
+ffi_fn! {
+    /// Constructs a `Message` from a body with a given content-type.
+    fn message_new_from_body(body: *const c_char, content_type: *const c_char) -> *mut Message {
+        // Get the body as a Vec<u8>.
+        let body = cstr!(body)
+            .to_bytes()
+            .to_owned();
+
+        // Parse the content type.
+        let content_type = ContentType::parse(safe_str!(content_type))
+            .map_err(|s| anyhow!("invalid content type '{}'", s))?;
+
+        // Populate the Message metadata.
+        let mut metadata = HashMap::new();
+        metadata.insert(String::from("contentType"), content_type.to_string());
+
+        // Populate the OptionalBody with our content and content type.
+        let contents = OptionalBody::Present(body, Some(content_type));
+
+        // Construct and return the message.
+        let message = Message {
+            contents,
+            metadata,
+            .. Message::default()
         };
 
         ptr::raw_to(message)
