@@ -75,6 +75,13 @@ ffi_fn! {
 }
 
 ffi_fn! {
+    /// Free the provider state when you're done using it.
+    fn provider_state_delete(provider_state: *mut ProviderState) {
+        ptr::drop_raw(provider_state);
+    }
+}
+
+ffi_fn! {
     /// Free the provider state param iterator when you're done using it.
     fn provider_state_param_iter_delete(iter: *mut ProviderStateParamIterator) {
         ptr::drop_raw(iter);
