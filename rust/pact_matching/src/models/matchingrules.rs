@@ -116,7 +116,7 @@ impl <T: Debug + Display + PartialEq> Matches<Vec<T>> for Vec<T> {
           Ok(())
         }
       }
-      MatchingRule::Equality => {
+      MatchingRule::Equality | MatchingRule::Values => {
         if self == actual {
           Ok(())
         } else {
@@ -246,7 +246,9 @@ pub enum MatchingRule {
   /// Match binary data by its content type (magic file check)
   ContentType(String),
   /// Match array items in any order against a list of variants
-  ArrayContains(Vec<(usize, MatchingRuleCategory, HashMap<String, Generator>)>)
+  ArrayContains(Vec<(usize, MatchingRuleCategory, HashMap<String, Generator>)>),
+  /// Matcher for values in a map, ignoring the keys
+  Values
 }
 
 impl MatchingRule {
@@ -335,6 +337,7 @@ impl MatchingRule {
               }
               None => None
             }
+            "values" => Some(MatchingRule::Values),
             _ => None
           }
         },
@@ -407,18 +410,23 @@ impl MatchingRule {
           }
           json
         }).collect::<Vec<Value>>()
-      })
+      }),
+      MatchingRule::Values => json!({ "match": "values" })
     }
   }
 
   /// Delegate to the matching rule defined at the given path to compare the key/value maps.
-  pub fn compare_maps<T: Display + Debug>(&self, path: &[&str], expected: &HashMap<String, T>, actual: &HashMap<String, T>,
-                                  context: &MatchingContext,
-                                  callback: &mut dyn FnMut(&Vec<&str>, &T, &T) -> Result<(), Vec<Mismatch>>) -> Result<(), Vec<Mismatch>> {
-    let mut p = path.to_vec();
-    p.push("any");
+  pub fn compare_maps<T: Display + Debug>(
+    &self,
+    path: &[&str],
+    expected: &HashMap<String, T>,
+    actual: &HashMap<String, T>,
+    context: &MatchingContext,
+    callback: &mut dyn FnMut(&Vec<&str>, &T, &T
+  ) -> Result<(), Vec<Mismatch>>) -> Result<(), Vec<Mismatch>> {
     let mut result = Ok(());
-    if context.wildcard_matcher_is_defined(&p) {
+    if context.values_matcher_defined(&path) {
+      debug!("Values matcher is defined for path {:?}", path);
       for (key, value) in actual.iter() {
         let mut p = path.to_vec();
         p.push(key);
@@ -885,6 +893,14 @@ impl RuleList {
     })
   }
 
+  /// If the values matcher is defined for the rule list
+  pub fn values_matcher_defined(&self) -> bool {
+    self.rules.iter().any(|rule| match rule {
+      MatchingRule::Values => true,
+      _ => false
+    })
+  }
+
   /// Add a matching rule to the rule list
   pub fn add_rule(&mut self, rule: &MatchingRule) {
     self.rules.push(rule.clone())
@@ -1012,6 +1028,11 @@ impl MatchingRuleCategory {
   /// If there is a type matcher defined for the category
   pub fn type_matcher_defined(&self) -> bool {
     self.rules.values().any(|rule_list| rule_list.type_matcher_defined())
+  }
+
+  /// If there is a values matcher defined in the rules
+  pub fn values_matcher_defined(&self) -> bool {
+    self.rules.values().any(|rule_list| rule_list.values_matcher_defined())
   }
 
   /// If there is a matcher defined for the path

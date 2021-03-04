@@ -586,3 +586,27 @@ fn matching_text_body_must_use_defined_matcher() {
   let mismatches = compare_bodies(&TEXT.clone(), &expected, &actual, &context);
   expect!(mismatches.mismatches().iter()).to_not(be_empty());
 }
+
+#[test]
+fn values_matcher_defined() {
+  let context = MatchingContext::new(
+    DiffConfig::AllowUnexpectedKeys,
+    &matchingrules! {
+      "body" => {
+        "$" => [ MatchingRule::Values ],
+        "$.x" => [ MatchingRule::Type ],
+        "$.y" => [ MatchingRule::Values ],
+        "$.z" => [ MatchingRule::Type, MatchingRule::Values ],
+        "$.x[*].y" => [ MatchingRule::Values ],
+        "$.y[*].y" => [ MatchingRule::Type ]
+      }
+    }.rules_for_category("body").unwrap());
+
+  expect!(context.values_matcher_defined(&["$"])).to(be_true());
+  expect!(context.values_matcher_defined(&["$", "x"])).to(be_false());
+  expect!(context.values_matcher_defined(&["$", "y"])).to(be_true());
+  expect!(context.values_matcher_defined(&["$", "z"])).to(be_true());
+  expect!(context.values_matcher_defined(&["$", "x", "0", "y"])).to(be_true());
+  expect!(context.values_matcher_defined(&["$", "x", "0", "z"])).to(be_false());
+  expect!(context.values_matcher_defined(&["$", "y", "0", "y"])).to(be_false());
+}

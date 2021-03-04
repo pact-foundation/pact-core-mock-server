@@ -132,7 +132,7 @@ impl Matches<Value> for Value {
           (_, _) => Err(format!("Expected '{}' to be the same type as '{}'", json_to_string(self), json_to_string(actual))),
         }
       },
-      MatchingRule::Equality => {
+      MatchingRule::Equality | MatchingRule::Values => {
         if self == actual {
           Ok(())
         } else {
@@ -273,7 +273,7 @@ pub fn display_diff(expected: &String, actual: &String, path: &str, indent: &str
 }
 
 fn compare(path: &[&str], expected: &Value, actual: &Value, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
-  log::debug!("Comparing path {}", path.join("."));
+  debug!("Comparing path {}", path.join("."));
   match (expected, actual) {
     (&Value::Object(ref emap), &Value::Object(ref amap)) => compare_maps(path, emap, amap, context),
     (&Value::Object(_), _) => {
@@ -301,9 +301,12 @@ fn compare(path: &[&str], expected: &Value, actual: &Value, context: &MatchingCo
 
 fn compare_maps(path: &[&str], expected: &serde_json::Map<String, Value>, actual: &serde_json::Map<String, Value>,
                 context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
+  let spath = path.join(".");
+  debug!("Comparing maps at {}: {:?} -> {:?}", spath, expected, actual);
   if expected.is_empty() && !actual.is_empty() {
+    debug!("Expected map is empty, but actual is not");
     Err(vec![ Mismatch::BodyMismatch {
-      path: path.join("."),
+      path: spath,
       expected: Some(json_to_string(&json!(expected)).into()),
       actual: Some(json_to_string(&json!(actual)).into()),
       mismatch: format!("Expected an empty Map but received {}", json_to_string(&json!(actual))),
@@ -314,6 +317,7 @@ fn compare_maps(path: &[&str], expected: &serde_json::Map<String, Value>, actual
     let actual = actual.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
 
     if context.matcher_is_defined(path) {
+      debug!("Matcher is defined for path {}", spath);
       for matcher in context.select_best_matcher(path).unwrap().rules {
         result = merge_result(result,matcher.compare_maps(path, &expected, &actual, &context, &mut |p, expected, actual| {
           compare(&p, expected, actual, context)
@@ -936,7 +940,7 @@ mod tests {
     expect!(Value::String(s!("100")).matches(&Value::Null, &matcher)).to(be_ok());
   }
 
-  #[test]
+  #[test_env_log::test]
   fn compare_maps_handles_wildcard_matchers() {
     let val1 = request!(r#"
     {
@@ -980,12 +984,15 @@ mod tests {
       ]
     }"#);
 
-    let result = match_json(&val1, &val2, &MatchingContext::new(DiffConfig::AllowUnexpectedKeys, &matchingrules!{
+    let matching_rules = matchingrules! {
       "body" => {
-        "$.articles[*].variants.*" => [ MatchingRule::Type ],
-        "$.articles[*].variants.*.bundles.*" => [ MatchingRule::Type ]
+        "$.articles[*].variants" => [ MatchingRule::Values ],
+        "$.articles[*].variants.*.bundles" => [ MatchingRule::Values ],
+        "$.articles[*].variants.*.bundles.*.referencedArticles[*]" => [ MatchingRule::Type ]
       }
-    }.rules_for_category("body").unwrap()));
+    };
+    let context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys, &matching_rules.rules_for_category("body").unwrap());
+    let result = match_json(&val1, &val2, &context);
     expect!(result).to(be_ok());
   }
 

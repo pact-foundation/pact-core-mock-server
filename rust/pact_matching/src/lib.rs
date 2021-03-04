@@ -421,6 +421,7 @@ impl MatchingContext {
   }
 
   /// If there is a wildcard matcher defined at the path in this context
+  #[deprecated(since = "0.8.12", note = "Replaced with values matcher")]
   pub fn wildcard_matcher_is_defined(&self, path: &[&str]) -> bool {
     !self.matchers_for_exact_path(path).filter(|&(val, _)| val.ends_with(".*")).is_empty()
   }
@@ -444,38 +445,37 @@ impl MatchingContext {
     self.matchers.resolve_matchers_for_path(path).type_matcher_defined()
   }
 
+  /// If there is a values matcher defined at the path in this context
+  pub fn values_matcher_defined(&self, path: &[&str]) -> bool {
+    self.matchers_for_exact_path(path).values_matcher_defined()
+  }
+
   /// Matches the keys of the expected and actual maps
   pub fn match_keys<T: Display + Debug>(&self, path: &[&str], expected: &HashMap<String, T>, actual: &HashMap<String, T>) -> Result<(), Vec<Mismatch>> {
-    let mut p = path.to_vec();
-    p.push("any");
-    if !self.wildcard_matcher_is_defined(&p) {
-      let mut expected_keys = expected.keys().cloned().collect::<Vec<String>>();
-      expected_keys.sort();
-      let mut actual_keys = actual.keys().cloned().collect::<Vec<String>>();
-      actual_keys.sort();
-      let missing_keys: Vec<String> = expected.keys().filter(|key| !actual.contains_key(*key)).cloned().collect();
-      match self.config {
-        DiffConfig::AllowUnexpectedKeys if !missing_keys.is_empty() => {
-          Err(vec![Mismatch::BodyMismatch {
-            path: path.join("."),
-            expected: Some(expected.for_mismatch().into()),
-            actual: Some(actual.for_mismatch().into()),
-            mismatch: format!("Actual map is missing the following keys: {}", missing_keys.join(", ")),
-          }])
-        }
-        DiffConfig::NoUnexpectedKeys if expected_keys != actual_keys => {
-          Err(vec![Mismatch::BodyMismatch {
-            path: path.join("."),
-            expected: Some(expected.for_mismatch().into()),
-            actual: Some(actual.for_mismatch().into()),
-            mismatch: format!("Expected a Map with keys {} but received one with keys {}",
-                              expected_keys.join(", "), actual_keys.join(", ")),
-          }])
-        }
-        _ => Ok(())
+    let mut expected_keys = expected.keys().cloned().collect::<Vec<String>>();
+    expected_keys.sort();
+    let mut actual_keys = actual.keys().cloned().collect::<Vec<String>>();
+    actual_keys.sort();
+    let missing_keys: Vec<String> = expected.keys().filter(|key| !actual.contains_key(*key)).cloned().collect();
+    match self.config {
+      DiffConfig::AllowUnexpectedKeys if !missing_keys.is_empty() => {
+        Err(vec![Mismatch::BodyMismatch {
+          path: path.join("."),
+          expected: Some(expected.for_mismatch().into()),
+          actual: Some(actual.for_mismatch().into()),
+          mismatch: format!("Actual map is missing the following keys: {}", missing_keys.join(", ")),
+        }])
       }
-    } else {
-      Ok(())
+      DiffConfig::NoUnexpectedKeys if expected_keys != actual_keys => {
+        Err(vec![Mismatch::BodyMismatch {
+          path: path.join("."),
+          expected: Some(expected.for_mismatch().into()),
+          actual: Some(actual.for_mismatch().into()),
+          mismatch: format!("Expected a Map with keys {} but received one with keys {}",
+                            expected_keys.join(", "), actual_keys.join(", ")),
+        }])
+      }
+      _ => Ok(())
     }
   }
 }
