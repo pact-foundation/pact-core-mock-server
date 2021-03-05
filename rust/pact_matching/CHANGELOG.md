@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.8.12 - Values matcher - match values, ignoring keys
+
+* bc84a4d - feat: implemented matching values ignoring keys (Ronald Holshausen, Fri Mar 5 10:52:01 2021 +1100)
+* 16f736c - bump version to 0.8.12 (Ronald Holshausen, Wed Feb 10 15:21:46 2021 +1100)
+
 # 0.8.11 - file locking with exp backoff
 
 * 6f13f49 - feat: implemented non-blocking write file locking with exp backoff (Ronald Holshausen, Wed Feb 10 14:50:38 2021 +1100)
