@@ -1416,7 +1416,7 @@ macro_rules! matchingrules {
             let mut _category = _rules.add_category($name);
             $({
               $({
-                _category.add_rule(&$subname.to_string(), $matcher, &crate::models::matchingrules::RuleLogic::And);
+                _category.add_rule(&$subname.to_string(), $matcher, &$crate::models::matchingrules::RuleLogic::And);
               })*
             })*
         })*
