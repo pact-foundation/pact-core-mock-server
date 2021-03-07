@@ -19,7 +19,6 @@ use super::*;
 use super::{body_from_json, headers_from_json};
 use super::content_types::*;
 use super::generators::{Generator, Generators, generators_from_json};
-use super::matchingrules::*;
 use super::provider_states::*;
 
 #[test]

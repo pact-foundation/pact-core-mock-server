@@ -128,7 +128,7 @@ mod tests {
 
   use crate::{MatchingContext, Mismatch, DiffConfig};
   use crate::headers::{match_header_value, match_headers};
-  use crate::models::matchingrules::{MatchingRule, RuleLogic};
+  use crate::models::matchingrules::MatchingRule;
 
   #[test]
   fn matching_headers_be_true_when_headers_are_equal() {

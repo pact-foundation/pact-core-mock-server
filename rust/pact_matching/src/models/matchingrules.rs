@@ -1131,6 +1131,14 @@ impl MatchingRuleCategory {
     }
     generators
   }
+
+  /// Clones this category with the new name
+  pub fn rename(&self, name: &str) -> Self {
+    MatchingRuleCategory {
+      name: name.into(),
+      .. self.clone()
+    }
+  }
 }
 
 impl Hash for MatchingRuleCategory {
@@ -1316,6 +1324,19 @@ impl MatchingRules {
       map
     }))
   }
+
+  /// Clones the matching rules, renaming the category
+  pub fn rename(&self, old_name: &str, new_name: &str) -> Self {
+    MatchingRules {
+      rules: self.rules.iter().map(|(key, value)| {
+        if key == old_name {
+          (new_name.to_string(), value.rename(new_name))
+        } else {
+          (key.clone(), value.clone())
+        }
+      }).collect()
+    }
+  }
 }
 
 impl Hash for MatchingRules {
@@ -1395,7 +1416,7 @@ macro_rules! matchingrules {
             let mut _category = _rules.add_category($name);
             $({
               $({
-                _category.add_rule(&$subname.to_string(), $matcher, &RuleLogic::And);
+                _category.add_rule(&$subname.to_string(), $matcher, &crate::models::matchingrules::RuleLogic::And);
               })*
             })*
         })*

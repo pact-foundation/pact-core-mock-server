@@ -8,10 +8,11 @@ use expectest::prelude::*;
 use maplit::*;
 use serde_json::json;
 
-use crate::models::{Consumer, headers_from_json, OptionalBody, PACT_RUST_VERSION, PactSpecification, Provider, ReadWritePact, write_pact};
+use crate::models::{Consumer, headers_from_json, OptionalBody, PACT_RUST_VERSION, PactSpecification, Provider, ReadWritePact, write_pact, Interaction};
 use crate::models::content_types::JSON;
 use crate::models::provider_states::ProviderState;
-use crate::models::v4::{from_json, interaction_from_json, SynchronousHttp, V4Pact};
+use crate::models::matchingrules::MatchingRule;
+use crate::models::v4::{from_json, interaction_from_json, SynchronousHttp, V4Pact, AsynchronousMessage};
 use crate::models::v4::http_parts::{HttpRequest, HttpResponse};
 use crate::models::v4::http_parts::body_from_json;
 
@@ -1333,3 +1334,16 @@ fn body_from_json_returns_the_raw_body_if_there_is_no_encoded_value() {
 //   }}
 // }}"#, super::VERSION.unwrap())));
 // }
+
+#[test]
+fn when_downgrading_message_pact_to_v3_rename_the_matching_rules_from_content_to_body() {
+  let message = AsynchronousMessage {
+    contents: OptionalBody::Missing,
+    matching_rules: matchingrules! { "content" => { "user_id" => [ MatchingRule::Regex("^[0-9]+$".into()) ] } },
+    .. AsynchronousMessage::default()
+  };
+  let v3 = message.as_message().unwrap();
+  expect!(v3.matching_rules).to(be_equal_to(
+    matchingrules! { "body" => { "user_id" => [ MatchingRule::Regex("^[0-9]+$".into()) ] }}
+  ));
+}

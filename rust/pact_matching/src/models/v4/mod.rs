@@ -414,7 +414,7 @@ impl Interaction for AsynchronousMessage {
       provider_states: self.provider_states.clone(),
       contents: self.contents.clone(),
       metadata: self.metadata.iter().map(|(k, v)| (k.clone(), json_to_string(v))).collect(),
-      matching_rules: self.matching_rules.clone(),
+      matching_rules: self.matching_rules.rename("content", "body"),
       generators: self.generators.clone()
     })
   }

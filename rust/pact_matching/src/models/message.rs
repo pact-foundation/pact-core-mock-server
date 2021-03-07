@@ -122,7 +122,7 @@ impl Interaction for Message {
       metadata: self.metadata.iter()
         .map(|(k, v)| (k.clone(), Value::String(v.clone())))
         .collect(),
-      matching_rules: self.matching_rules.clone(),
+      matching_rules: self.matching_rules.rename("body", "content"),
       generators: self.generators.clone()
     })
   }
@@ -239,6 +239,7 @@ mod tests {
   use serde_json;
 
   use super::*;
+  use super::super::matchingrules::MatchingRule;
 
   #[test]
     fn loading_message_from_json() {
@@ -399,4 +400,17 @@ mod tests {
         }]));
         expect!(message.matching_rules.rules.iter()).to(be_empty());
     }
+
+  #[test]
+  fn when_upgrading_message_pact_to_v4_rename_the_matching_rules_from_body_to_content() {
+    let message = Message {
+      contents: OptionalBody::Missing,
+      matching_rules: matchingrules! { "body" => { "user_id" => [ MatchingRule::Regex("^[0-9]+$".into()) ] } },
+      .. Message::default()
+    };
+    let v4 = message.as_v4_async_message().unwrap();
+    expect!(v4.matching_rules).to(be_equal_to(
+      matchingrules! { "content" => { "user_id" => [ MatchingRule::Regex("^[0-9]+$".into()) ] }}
+    ));
+  }
 }
