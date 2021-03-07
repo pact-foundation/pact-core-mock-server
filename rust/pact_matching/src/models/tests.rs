@@ -14,7 +14,6 @@ use rand;
 use serde_json::json;
 
 use crate::models::matchingrules::{matchers_from_json, MatchingRule};
-use crate::models::v4::V4Interaction;
 
 use super::*;
 use super::{body_from_json, headers_from_json};
@@ -1164,7 +1163,6 @@ fn write_pact_test_should_upgrade_older_pacts_when_merging() {
 
 #[test]
 fn write_pact_test_upgrades_older_pacts_to_v4_when_merging() {
-  env_logger::try_init().unwrap_or_default();
   let pact = RequestResponsePact {
     consumer: Consumer { name: s!("merge_consumer") },
     provider: Provider { name: s!("merge_provider") },
@@ -1182,14 +1180,14 @@ fn write_pact_test_upgrades_older_pacts_to_v4_when_merging() {
     consumer: Consumer { name: s!("merge_consumer") },
     provider: Provider { name: s!("merge_provider") },
     interactions: vec![
-      V4Interaction::SynchronousHttp {
+      Box::new(SynchronousHttp {
         id: None,
         key: None,
         description: s!("Test Interaction"),
         provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap! {} }],
         request: Default::default(),
         response: Default::default(),
-      }
+      })
     ],
     metadata: btreemap! {},
   };

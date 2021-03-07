@@ -13,6 +13,7 @@ use crate::models::provider_states::ProviderState;
 
 use super::*;
 use super::body_from_json;
+use crate::models::v4::AsynchronousMessage;
 
 /// Struct that defines a message.
 #[derive(PartialEq, Debug, Clone, Eq, Deserialize, Serialize)]
@@ -103,8 +104,16 @@ impl Interaction for Message {
     false
   }
 
-  fn as_v4(&self) -> V4Interaction {
-    V4Interaction::AsynchronousMessages {
+  fn as_v4(&self) -> Option<Box<dyn V4Interaction>> {
+    self.as_v4_async_message().map(|i| i.boxed_v4())
+  }
+
+  fn as_v4_http(&self) -> Option<SynchronousHttp> {
+    None
+  }
+
+  fn as_v4_async_message(&self) -> Option<AsynchronousMessage> {
+    Some(AsynchronousMessage {
       id: self.id.clone(),
       key: None,
       description: self.description.clone(),
@@ -115,7 +124,7 @@ impl Interaction for Message {
         .collect(),
       matching_rules: self.matching_rules.clone(),
       generators: self.generators.clone()
-    }
+    })
   }
 
   fn boxed(&self) -> Box<dyn Interaction> {

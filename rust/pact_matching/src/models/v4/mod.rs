@@ -1,10 +1,10 @@
 //! V4 specification models
 
-use std::{fmt, io, mem};
+use std::{fmt, io};
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap};
 use std::collections::hash_map::DefaultHasher;
-use std::fmt::Display;
+use std::fmt::{Display, Debug};
 use std::hash::{Hash, Hasher};
 use std::io::{Error, ErrorKind};
 use std::path::Path;
@@ -71,259 +71,184 @@ impl V4InteractionType {
 
 pub mod http_parts;
 
-/// V4 Interaction Types
-#[derive(Debug, Clone, Eq)]
-pub enum V4Interaction {
-  /// Synchronous HTTP request/response interaction
-  SynchronousHttp {
-    /// Interaction ID. This will only be set if the Pact file was fetched from a Pact Broker
-    id: Option<String>,
-    /// Unique key for this interaction
-    key: Option<String>,
-    /// A description for the interaction. Must be unique within the Pact file
-    description: String,
-    /// Optional provider states for the interaction.
-    /// See https://docs.pact.io/getting_started/provider_states for more info on provider states.
-    provider_states: Vec<provider_states::ProviderState>,
-    /// Request of the interaction
-    request: HttpRequest,
-    /// Response of the interaction
-    response: HttpResponse
-  },
+/// V4 Interaction trait
+pub trait V4Interaction: Interaction {
+  /// Convert the interaction to a JSON Value
+  fn to_json(&self) -> Value;
 
-  /// Asynchronous interactions as a sequence of messages
-  AsynchronousMessages {
-    /// Interaction ID. This will only be set if the Pact file was fetched from a Pact Broker
-    id: Option<String>,
-    /// Unique key for this interaction
-    key: Option<String>,
-    /// A description for the interaction. Must be unique within the Pact file
-    description: String,
-    /// Optional provider state for the interaction.
-    /// See https://docs.pact.io/getting_started/provider_states for more info on provider states.
-    provider_states: Vec<ProviderState>,
-    /// The contents of the message
-    contents: OptionalBody,
-    /// Metadata associated with this message.
-    metadata: HashMap<String, Value>,
-    /// Matching rules
-    matching_rules: matchingrules::MatchingRules,
-    /// Generators
-    generators: generators::Generators
+  /// Convert the interaction to its super trait
+  fn to_super(&self) -> &dyn Interaction;
+
+  /// Key for this interaction
+  fn key(&self) -> Option<String>;
+
+  /// Clones this interaction and wraps it in a box
+  fn boxed_v4(&self) -> Box<dyn V4Interaction>;
+}
+
+impl Debug for dyn V4Interaction {
+  fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    if let Some(i) = self.as_v4_http() {
+      std::fmt::Display::fmt(&i, f)
+    } else if let Some(i) = self.as_v4_async_message() {
+      std::fmt::Display::fmt(&i, f)
+    } else {
+      Err(fmt::Error)
+    }
   }
 }
 
-impl V4Interaction {
-  /// Convert the interaction to a JSON Value
-  pub fn to_json(&self) -> Value {
-    match self {
-      V4Interaction::SynchronousHttp { key, description, provider_states, request, response, .. } => {
-        let mut json = json!({
-          "type": V4InteractionType::Synchronous_HTTP.to_string(),
-          "key": key.clone().unwrap_or_else(|| self.calc_hash()),
-          "description": description.clone(),
-          "request": request.to_json(),
-          "response": response.to_json()
-        });
-
-        if !provider_states.is_empty() {
-          let map = json.as_object_mut().unwrap();
-          map.insert("providerStates".to_string(), Value::Array(provider_states.iter().map(|p| p.to_json()).collect()));
-        }
-
-        json
-      },
-
-      V4Interaction::AsynchronousMessages { key, description, provider_states, contents, metadata, matching_rules, generators, .. } => {
-        let mut json = json!({
-          "type": V4InteractionType::Asynchronous_Messages.to_string(),
-          "key": key.clone().unwrap_or_else(|| self.calc_hash()),
-          "description": description.clone()
-        });
-
-        if let Value::Object(body) = contents.to_v4_json() {
-          let map = json.as_object_mut().unwrap();
-          map.insert("contents".to_string(), Value::Object(body));
-        }
-
-        if !metadata.is_empty() {
-          let map = json.as_object_mut().unwrap();
-          map.insert("metadata".to_string(), Value::Object(
-            metadata.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
-          ));
-        }
-
-        if !provider_states.is_empty() {
-          let map = json.as_object_mut().unwrap();
-          map.insert("providerStates".to_string(), Value::Array(provider_states.iter().map(|p| p.to_json()).collect()));
-        }
-
-        if !matching_rules.is_empty() {
-          let map = json.as_object_mut().unwrap();
-          map.insert("matchingRules".to_string(), matchers_to_json(matching_rules, &PactSpecification::V4));
-        }
-
-        if !generators.is_empty() {
-          let map = json.as_object_mut().unwrap();
-          map.insert("generators".to_string(), generators_to_json(generators, &PactSpecification::V4));
-        }
-
-        json
-      }
+impl Display for dyn V4Interaction {
+  fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    if let Some(i) = self.as_v4_http() {
+      std::fmt::Display::fmt(&i, f)
+    } else if let Some(i) = self.as_v4_async_message() {
+      std::fmt::Display::fmt(&i, f)
+    } else {
+      Err(fmt::Error)
     }
   }
+}
 
+impl Clone for Box<dyn V4Interaction> {
+  fn clone(&self) -> Self {
+    if let Some(http) = self.as_v4_http() {
+      Box::new(http)
+    } else if let Some(message) = self.as_v4_async_message() {
+      Box::new(message)
+    } else {
+      panic!("Internal Error - Tried to clone an interaction that was not valid")
+    }
+  }
+}
+
+/// V4 HTTP Interaction Type
+#[derive(Debug, Clone, Eq)]
+pub struct SynchronousHttp {
+  /// Interaction ID. This will only be set if the Pact file was fetched from a Pact Broker
+  pub id: Option<String>,
+  /// Unique key for this interaction
+  pub key: Option<String>,
+  /// A description for the interaction. Must be unique within the Pact file
+  pub description: String,
+  /// Optional provider states for the interaction.
+  /// See https://docs.pact.io/getting_started/provider_states for more info on provider states.
+  pub provider_states: Vec<provider_states::ProviderState>,
+  /// Request of the interaction
+  pub request: HttpRequest,
+  /// Response of the interaction
+  pub response: HttpResponse
+}
+
+impl SynchronousHttp {
   fn calc_hash(&self) -> String {
     let mut s = DefaultHasher::new();
     self.hash(&mut s);
     format!("{:x}", s.finish())
   }
 
-  /// Returns all the field values as a tuple if this is a Synchronous Http interaction, returns a error otherwise
-  pub fn as_synchronous_http(&self) -> Result<(Option<String>, Option<String>, String, Vec<provider_states::ProviderState>, HttpRequest, HttpResponse), String> {
-    match self {
-      V4Interaction::SynchronousHttp { id, key, description, provider_states, request, response } =>
-        Ok((id.clone(), key.clone(), description.clone(), provider_states.clone(), request.clone(), response.clone())),
-      _ => Err("V4 interaction is not a synchronous http interaction".to_string())
-    }
-  }
-
-  /// Returns all the field values as a tuple if this is a Asynchronous Message interaction, returns a error otherwise
-  pub fn as_asynchronous_message(&self) -> Result<(Option<String>, Option<String>, String, Vec<ProviderState>, OptionalBody, HashMap<String, Value>, matchingrules::MatchingRules, generators::Generators), String> {
-    match self {
-      V4Interaction::AsynchronousMessages { id, key, description, provider_states, contents, metadata, matching_rules, generators } =>
-        Ok((id.clone(), key.clone(), description.clone(), provider_states.clone(), contents.clone(), metadata.clone(), matching_rules.clone(), generators.clone() )),
-      _ => Err("V4 interaction is not a asynchronous message interaction".to_string())
-    }
-  }
-
-  /// Returns the distinct key value for this interaction.
-  pub fn key(&self) -> Option<String> {
-    match self {
-      V4Interaction::SynchronousHttp { key, .. } => key.clone(),
-      V4Interaction::AsynchronousMessages { key, .. } => key.clone()
-    }
-  }
-
   /// Creates a new version with a calculated key
-  pub fn with_key(&self) -> V4Interaction {
-    match self {
-      V4Interaction::SynchronousHttp { id, description, provider_states, request, response, .. } => V4Interaction::SynchronousHttp {
-        id: id.clone(),
-        key: Some(self.calc_hash()),
-        description: description.clone(),
-        provider_states: provider_states.clone(),
-        request: request.clone(),
-        response: response.clone()
-      },
-      V4Interaction::AsynchronousMessages { id, description, provider_states, contents, metadata, matching_rules, generators, .. } => V4Interaction::AsynchronousMessages {
-        id: id.clone(),
-        key: Some(self.calc_hash()),
-        description: description.clone(),
-        provider_states: provider_states.clone(),
-        contents: contents.clone(),
-        metadata: metadata.clone(),
-        matching_rules: matching_rules.clone(),
-        generators: generators.clone()
-      }
+  pub fn with_key(&self) -> SynchronousHttp {
+    SynchronousHttp {
+      key: Some(self.calc_hash()),
+      .. self.clone()
     }
   }
 }
 
-impl Interaction for V4Interaction {
-  fn type_of(&self) -> String {
-    match self {
-      V4Interaction::SynchronousHttp { .. } => format!("V4 {}", V4InteractionType::Synchronous_HTTP),
-      V4Interaction::AsynchronousMessages { .. } => format!("V4 {}", V4InteractionType::Asynchronous_Messages)
+impl V4Interaction for SynchronousHttp {
+  fn to_json(&self) -> Value {
+    let mut json = json!({
+      "type": V4InteractionType::Synchronous_HTTP.to_string(),
+      "key": self.key.clone().unwrap_or_else(|| self.calc_hash()),
+      "description": self.description.clone(),
+      "request": self.request.to_json(),
+      "response": self.response.to_json()
+    });
+
+    if !self.provider_states.is_empty() {
+      let map = json.as_object_mut().unwrap();
+      map.insert("providerStates".to_string(), Value::Array(
+        self.provider_states.iter().map(|p| p.to_json()).collect()));
     }
+
+    json
+  }
+
+  fn to_super(&self) -> &dyn Interaction {
+    self
+  }
+
+  fn key(&self) -> Option<String> {
+    self.key.clone()
+  }
+
+  fn boxed_v4(&self) -> Box<dyn V4Interaction> {
+    Box::new(self.clone())
+  }
+}
+
+impl Interaction for SynchronousHttp {
+  fn type_of(&self) -> String {
+    format!("V4 {}", V4InteractionType::Synchronous_HTTP)
   }
 
   fn is_request_response(&self) -> bool {
-    match self {
-      V4Interaction::SynchronousHttp { .. } => true,
-      _ => false
-    }
+    true
   }
 
   fn as_request_response(&self) -> Option<RequestResponseInteraction> {
-    match self {
-      V4Interaction::SynchronousHttp { id, description, provider_states, request, response, .. } =>
-        Some(RequestResponseInteraction {
-          id: id.clone(),
-          description: description.clone(),
-          provider_states: provider_states.clone(),
-          request: request.as_v3_request(),
-          response: response.as_v3_response()
-        }),
-      _ => None
-    }
+    Some(RequestResponseInteraction {
+      id: self.id.clone(),
+      description: self.description.clone(),
+      provider_states: self.provider_states.clone(),
+      request: self.request.as_v3_request(),
+      response: self.response.as_v3_response()
+    })
   }
 
   fn is_message(&self) -> bool {
-    match self {
-      V4Interaction::AsynchronousMessages { .. } => true,
-      _ => false
-    }
+    false
   }
 
   fn as_message(&self) -> Option<Message> {
-    match self {
-      V4Interaction::AsynchronousMessages { id, description, provider_states, contents, metadata, matching_rules, generators, .. } =>
-        Some(Message {
-          id: id.clone(),
-          description: description.clone(),
-          provider_states: provider_states.clone(),
-          contents: contents.clone(),
-          metadata: metadata.iter().map(|(k, v)| (k.clone(), json_to_string(v))).collect(),
-          matching_rules: matching_rules.clone(),
-          generators: generators.clone()
-        }),
-      _ => None
-    }
+    None
   }
 
   fn id(&self) -> Option<String> {
-    match self {
-      V4Interaction::SynchronousHttp { id, .. } => id.clone(),
-      V4Interaction::AsynchronousMessages { id, .. } => id.clone()
-    }
+    self.id.clone()
   }
 
   fn description(&self) -> String {
-    match self {
-      V4Interaction::SynchronousHttp { description, .. } => description.clone(),
-      V4Interaction::AsynchronousMessages { description, .. } => description.clone()
-    }
+    self.description.clone()
   }
 
   fn provider_states(&self) -> Vec<ProviderState> {
-    match self {
-      V4Interaction::SynchronousHttp { provider_states, .. } => provider_states.clone(),
-      V4Interaction::AsynchronousMessages { provider_states, .. } => provider_states.clone()
-    }
+    self.provider_states.clone()
   }
 
   fn contents(&self) -> OptionalBody {
-    match self {
-      V4Interaction::SynchronousHttp { response, .. } => response.body.clone(),
-      V4Interaction::AsynchronousMessages { contents, .. } => contents.clone()
-    }
+    self.response.body.clone()
   }
 
   fn content_type(&self) -> Option<ContentType> {
-    match self {
-      V4Interaction::SynchronousHttp { response, .. } => response.content_type(),
-      V4Interaction::AsynchronousMessages { contents, metadata, .. } =>
-        calc_content_type(contents, &metadata_to_headers(metadata))
-    }
+    self.response.content_type()
   }
 
   fn is_v4(&self) -> bool {
     true
   }
 
-  fn as_v4(&self) -> V4Interaction {
-    self.clone()
+  fn as_v4(&self) -> Option<Box<dyn V4Interaction>> {
+    Some(self.boxed_v4())
+  }
+
+  fn as_v4_http(&self) -> Option<SynchronousHttp> {
+    Some(self.clone())
+  }
+
+  fn as_v4_async_message(&self) -> Option<AsynchronousMessage> {
+    None
   }
 
   fn boxed(&self) -> Box<dyn Interaction> {
@@ -339,9 +264,9 @@ impl Interaction for V4Interaction {
   }
 }
 
-impl Default for V4Interaction {
+impl Default for SynchronousHttp {
   fn default() -> Self {
-    V4Interaction::SynchronousHttp {
+    SynchronousHttp {
       id: None,
       key: None,
       description: "Synchronous/HTTP Interaction".to_string(),
@@ -352,50 +277,239 @@ impl Default for V4Interaction {
   }
 }
 
-impl PartialEq for V4Interaction {
+impl PartialEq for SynchronousHttp {
   fn eq(&self, other: &Self) -> bool {
-    if mem::discriminant(self) == mem::discriminant(other) {
-      match self {
-        V4Interaction::SynchronousHttp { description, provider_states, request, response, .. } => {
-          let (_, _, other_desc, other_states, other_request, other_response) = other.as_synchronous_http().unwrap();
-          description.clone() == other_desc && provider_states.clone() == other_states &&
-            request.clone() == other_request && response.clone() == other_response
-        }
-        V4Interaction::AsynchronousMessages { description, provider_states, contents, metadata, matching_rules, generators, .. } => {
-          let (_, _, other_description, other_provider_states, other_contents, other_metadata, other_matching_rules, other_generators) = other.as_asynchronous_message().unwrap();
-          description.clone() == other_description && provider_states.clone() == other_provider_states &&
-            contents.clone() == other_contents && metadata.clone() == other_metadata &&
-            matching_rules.clone() == other_matching_rules &&
-            generators.clone() == other_generators
-        }
-      }
-    } else {
-      false
+    self.description == other.description && self.provider_states == other.provider_states &&
+      self.request == other.request && self.response == other.response
+  }
+}
+
+impl Hash for SynchronousHttp {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    self.description.hash(state);
+    self.provider_states.hash(state);
+    self.request.hash(state);
+    self.response.hash(state);
+  }
+}
+
+impl Display for SynchronousHttp {
+  fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    write!(f, "V4 Http Interaction ( id: {:?}, description: \"{}\", provider_states: {:?}, request: {}, response: {} )",
+           self.id, self.description, self.provider_states, self.request, self.response)
+  }
+}
+
+/// Asynchronous interactions as a sequence of messages
+#[derive(Debug, Clone, Eq)]
+pub struct AsynchronousMessage {
+  /// Interaction ID. This will only be set if the Pact file was fetched from a Pact Broker
+  pub id: Option<String>,
+  /// Unique key for this interaction
+  pub key: Option<String>,
+  /// A description for the interaction. Must be unique within the Pact file
+  pub description: String,
+  /// Optional provider state for the interaction.
+  /// See https://docs.pact.io/getting_started/provider_states for more info on provider states.
+  pub provider_states: Vec<ProviderState>,
+  /// The contents of the message
+  pub contents: OptionalBody,
+  /// Metadata associated with this message.
+  pub metadata: HashMap<String, Value>,
+  /// Matching rules
+  pub matching_rules: matchingrules::MatchingRules,
+  /// Generators
+  pub generators: generators::Generators
+}
+
+impl AsynchronousMessage {
+  fn calc_hash(&self) -> String {
+    let mut s = DefaultHasher::new();
+    self.hash(&mut s);
+    format!("{:x}", s.finish())
+  }
+
+  /// Creates a new version with a calculated key
+  pub fn with_key(&self) -> AsynchronousMessage {
+    AsynchronousMessage {
+      key: Some(self.calc_hash()),
+      .. self.clone()
     }
   }
 }
 
-impl Hash for V4Interaction {
-  fn hash<H: Hasher>(&self, state: &mut H) {
-    match self {
-      V4Interaction::SynchronousHttp { description, provider_states, request, response, .. } => {
-        description.hash(state);
-        provider_states.hash(state);
-        request.hash(state);
-        response.hash(state);
-      }
-      V4Interaction::AsynchronousMessages { description, provider_states, contents, metadata, matching_rules, generators, .. } => {
-        description.hash(state);
-        provider_states.hash(state);
-        contents.hash(state);
-        for (k, v) in metadata {
-          k.hash(state);
-          hash_json(v, state);
-        }
-        matching_rules.hash(state);
-        generators.hash(state);
-      }
+impl V4Interaction for AsynchronousMessage {
+  fn to_json(&self) -> Value {
+    let mut json = json!({
+      "type": V4InteractionType::Asynchronous_Messages.to_string(),
+      "key": self.key.clone().unwrap_or_else(|| self.calc_hash()),
+      "description": self.description.clone()
+    });
+
+    if let Value::Object(body) = self.contents.to_v4_json() {
+      let map = json.as_object_mut().unwrap();
+      map.insert("contents".to_string(), Value::Object(body));
     }
+
+    if !self.metadata.is_empty() {
+      let map = json.as_object_mut().unwrap();
+      map.insert("metadata".to_string(), Value::Object(
+        self.metadata.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
+      ));
+    }
+
+    if !self.provider_states.is_empty() {
+      let map = json.as_object_mut().unwrap();
+      map.insert("providerStates".to_string(), Value::Array(
+        self.provider_states.iter().map(|p| p.to_json()).collect()));
+    }
+
+    if !self.matching_rules.is_empty() {
+      let map = json.as_object_mut().unwrap();
+      map.insert("matchingRules".to_string(), matchers_to_json(&self.matching_rules, &PactSpecification::V4));
+    }
+
+    if !self.generators.is_empty() {
+      let map = json.as_object_mut().unwrap();
+      map.insert("generators".to_string(), generators_to_json(&self.generators, &PactSpecification::V4));
+    }
+
+    json
+  }
+
+  fn to_super(&self) -> &dyn Interaction {
+    self
+  }
+
+  fn key(&self) -> Option<String> {
+    self.key.clone()
+  }
+
+  fn boxed_v4(&self) -> Box<dyn V4Interaction> {
+    Box::new(self.clone())
+  }
+}
+
+impl Interaction for AsynchronousMessage {
+  fn type_of(&self) -> String {
+    format!("V4 {}", V4InteractionType::Asynchronous_Messages)
+  }
+
+  fn is_request_response(&self) -> bool {
+    false
+  }
+
+  fn as_request_response(&self) -> Option<RequestResponseInteraction> {
+    None
+  }
+
+  fn is_message(&self) -> bool {
+    true
+  }
+
+  fn as_message(&self) -> Option<Message> {
+    Some(Message {
+      id: self.id.clone(),
+      description: self.description.clone(),
+      provider_states: self.provider_states.clone(),
+      contents: self.contents.clone(),
+      metadata: self.metadata.iter().map(|(k, v)| (k.clone(), json_to_string(v))).collect(),
+      matching_rules: self.matching_rules.clone(),
+      generators: self.generators.clone()
+    })
+  }
+
+  fn id(&self) -> Option<String> {
+    self.id.clone()
+  }
+
+  fn description(&self) -> String {
+    self.description.clone()
+  }
+
+  fn provider_states(&self) -> Vec<ProviderState> {
+    self.provider_states.clone()
+  }
+
+  fn contents(&self) -> OptionalBody {
+    self.contents.clone()
+  }
+
+  fn content_type(&self) -> Option<ContentType> {
+    calc_content_type(&self.contents, &metadata_to_headers(&self.metadata))
+  }
+
+  fn is_v4(&self) -> bool {
+    true
+  }
+
+  fn as_v4(&self) -> Option<Box<dyn V4Interaction>> {
+    Some(self.boxed_v4())
+  }
+
+  fn as_v4_http(&self) -> Option<SynchronousHttp> {
+    None
+  }
+
+  fn as_v4_async_message(&self) -> Option<AsynchronousMessage> {
+    Some(self.clone())
+  }
+
+  fn boxed(&self) -> Box<dyn Interaction> {
+    Box::new(self.clone())
+  }
+
+  fn arced(&self) -> Arc<dyn Interaction> {
+    Arc::new(self.clone())
+  }
+
+  fn thread_safe(&self) -> Arc<Mutex<dyn Interaction + Send + Sync>> {
+    Arc::new(Mutex::new(self.clone()))
+  }
+}
+
+impl Default for AsynchronousMessage {
+  fn default() -> Self {
+    AsynchronousMessage {
+      id: None,
+      key: None,
+      description: "Asynchronous/Message Interaction".to_string(),
+      provider_states: vec![],
+      contents: OptionalBody::Missing,
+      metadata: Default::default(),
+      matching_rules: Default::default(),
+      generators: Default::default()
+    }
+  }
+}
+
+impl PartialEq for AsynchronousMessage {
+  fn eq(&self, other: &Self) -> bool {
+    self.description == other.description && self.provider_states == other.provider_states &&
+      self.contents == other.contents && self.metadata == other.metadata &&
+      self.matching_rules == other.matching_rules &&
+      self.generators == other.generators
+  }
+}
+
+impl Hash for AsynchronousMessage {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    self.description.hash(state);
+    self.provider_states.hash(state);
+    self.contents.hash(state);
+    for (k, v) in &self.metadata {
+      k.hash(state);
+      hash_json(v, state);
+    }
+    self.matching_rules.hash(state);
+    self.generators.hash(state);
+  }
+}
+
+impl Display for AsynchronousMessage {
+  fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    write!(f, "V4 Asynchronous Message Interaction ( id: {:?}, description: \"{}\", provider_states: {:?}, contents: {}, metadata: {:?} )",
+           self.id, self.description, self.provider_states, self.contents, self.metadata)
   }
 }
 
@@ -422,7 +536,7 @@ pub struct V4Pact {
   /// Provider side of the pact
   pub provider: Provider,
   /// List of messages between the consumer and provider.
-  pub interactions: Vec<V4Interaction>,
+  pub interactions: Vec<Box<dyn V4Interaction>>,
   /// Metadata associated with this pact.
   pub metadata: BTreeMap<String, Value>
 }
@@ -456,7 +570,7 @@ impl Pact for V4Pact {
   }
 
   fn interactions(&self) -> Vec<&dyn Interaction> {
-    self.interactions.iter().map(|i| i as &dyn Interaction).collect()
+    self.interactions.iter().map(|i| i.to_super()).collect()
   }
 
   fn metadata(&self) -> BTreeMap<String, BTreeMap<String, String>> {
@@ -538,12 +652,12 @@ impl ReadWritePact for V4Pact {
         consumer: self.consumer.clone(),
         provider: self.provider.clone(),
         interactions: self.interactions.iter()
-          .merge_join_by(other.interactions().iter().map(|i| i.as_v4()), |a, b| {
+          .merge_join_by(other.interactions().iter().map(|i| i.as_v4().unwrap()), |a, b| {
             match (a.key(), b.key()) {
               (Some(key_a), Some(key_b)) => Ord::cmp(&key_a, &key_b),
               (_, _) => {
-                let type_a = dbg!(a.type_of());
-                let type_b = dbg!(b.type_of());
+                let type_a = a.type_of();
+                let type_b = b.type_of();
                 let cmp = Ord::cmp(&type_a, &type_b);
                 if cmp == Ordering::Equal {
                   let cmp = Ord::cmp(&a.provider_states().iter().map(|p| p.name.clone()).collect::<Vec<String>>(),
@@ -559,10 +673,12 @@ impl ReadWritePact for V4Pact {
               }
             }
           })
-          .map(|either| match either {
-            Left(i) => i.clone(),
-            Right(i) => i,
-            Both(_, i) => i.clone()
+          .map(|either| {
+            match either {
+              Left(i) => i.clone(),
+              Right(i) => i.boxed_v4(),
+              Both(i, _) => i.clone()
+            }
           })
           .collect(),
         metadata: self.metadata.clone()
@@ -596,7 +712,7 @@ pub fn from_json(source: &str, pact_json: &Value) -> Result<Box<dyn Pact>, Strin
   }))
 }
 
-fn interactions_from_json(json: &Value, source: &str) -> Vec<V4Interaction> {
+fn interactions_from_json(json: &Value, source: &str) -> Vec<Box<dyn V4Interaction>> {
   match json.get("interactions") {
     Some(v) => match *v {
       Value::Array(ref array) => array.iter().enumerate().map(|(index, ijson)| {
@@ -611,7 +727,7 @@ fn interactions_from_json(json: &Value, source: &str) -> Vec<V4Interaction> {
 }
 
 /// Create an interaction from a JSON struct
-pub fn interaction_from_json(source: &str, index: usize, ijson: &Value) -> Result<V4Interaction, String> {
+pub fn interaction_from_json(source: &str, index: usize, ijson: &Value) -> Result<Box<dyn V4Interaction>, String> {
   match ijson.get("type") {
     Some(i_type) => match V4InteractionType::from_str(json_to_string(i_type).as_str()) {
       Ok(i_type) => {
@@ -629,14 +745,14 @@ pub fn interaction_from_json(source: &str, index: usize, ijson: &Value) -> Resul
           V4InteractionType::Synchronous_HTTP => {
             let request = ijson.get("request").cloned().unwrap_or_default();
             let response = ijson.get("response").cloned().unwrap_or_default();
-            Ok(V4Interaction::SynchronousHttp {
+            Ok(Box::new(SynchronousHttp {
               id,
               key,
               description,
               provider_states,
               request: HttpRequest::from_json(&request),
               response: HttpResponse::from_json(&response)
-            })
+            }))
           }
           V4InteractionType::Asynchronous_Messages => {
             let metadata = match ijson.get("metadata") {
@@ -646,7 +762,7 @@ pub fn interaction_from_json(source: &str, index: usize, ijson: &Value) -> Resul
               _ => hashmap!{}
             };
             let as_headers = metadata_to_headers(&metadata);
-            Ok(V4Interaction::AsynchronousMessages {
+            Ok(Box::new(AsynchronousMessage {
               id,
               key,
               description,
@@ -655,7 +771,7 @@ pub fn interaction_from_json(source: &str, index: usize, ijson: &Value) -> Resul
               contents: body_from_json(ijson, "contents", &as_headers),
               matching_rules: matchingrules::matchers_from_json(ijson, &None),
               generators: generators::generators_from_json(ijson)
-            })
+            }))
           }
           V4InteractionType::Synchronous_Messages => {
             warn!("Interaction type '{}' is currently unimplemented. It will be ignored. Source: {}", i_type, source);

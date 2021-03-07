@@ -38,7 +38,7 @@ use crate::models::json_utils::json_to_string;
 use crate::models::message::Message;
 use crate::models::message_pact::MessagePact;
 use crate::models::provider_states::ProviderState;
-use crate::models::v4::{interaction_from_json, V4Interaction, V4Pact};
+use crate::models::v4::{interaction_from_json, V4Pact, SynchronousHttp, AsynchronousMessage, V4Interaction};
 use crate::models::v4::http_parts::{HttpRequest, HttpResponse};
 
 pub mod json_utils;
@@ -1071,7 +1071,11 @@ pub trait Interaction {
   /// If this is a V4 interaction
   fn is_v4(&self) -> bool;
   /// Returns the interaction in V4 format
-  fn as_v4(&self) -> V4Interaction;
+  fn as_v4(&self) -> Option<Box<dyn V4Interaction>>;
+  /// Returns the interaction in V4 format
+  fn as_v4_http(&self) -> Option<SynchronousHttp>;
+  /// Returns the interaction in V4 format
+  fn as_v4_async_message(&self) -> Option<AsynchronousMessage>;
   /// Clones this interaction and wraps it in a Box
   fn boxed(&self) -> Box<dyn Interaction>;
   /// Clones this interaction and wraps it in an Arc
@@ -1086,6 +1090,10 @@ impl Debug for dyn Interaction {
       std::fmt::Debug::fmt(&req_res, f)
     } else if let Some(mp) = self.as_message() {
       std::fmt::Debug::fmt(&mp, f)
+    } else if let Some(i) = self.as_v4_http() {
+      std::fmt::Display::fmt(&i, f)
+    } else if let Some(i) = self.as_v4_async_message() {
+      std::fmt::Display::fmt(&i, f)
     } else {
       Err(fmt::Error)
     }
@@ -1098,6 +1106,10 @@ impl Display for dyn Interaction {
       std::fmt::Display::fmt(&req_res, f)
     } else if let Some(mp) = self.as_message() {
       std::fmt::Display::fmt(&mp, f)
+    } else if let Some(mp) = self.as_v4_http() {
+      std::fmt::Display::fmt(&mp, f)
+    } else if let Some(mp) = self.as_v4_async_message() {
+      std::fmt::Display::fmt(&mp, f)
     } else {
       Err(fmt::Error)
     }
@@ -1107,7 +1119,13 @@ impl Display for dyn Interaction {
 impl Clone for Box<dyn Interaction> {
   fn clone(&self) -> Self {
     if self.is_v4() {
-      Box::new(self.as_v4())
+      if let Some(http) = self.as_v4_http() {
+        Box::new(http)
+      } else if let Some(message) = self.as_v4_async_message() {
+        Box::new(message)
+      } else {
+        panic!("Internal Error - Tried to clone an interaction that was not valid")
+      }
     } else if let Some(req_res) = self.as_request_response() {
       Box::new(req_res)
     } else if let Some(mp) = self.as_message() {
@@ -1179,16 +1197,25 @@ impl Interaction for RequestResponseInteraction {
     false
   }
 
-  fn as_v4(&self) -> V4Interaction {
-    V4Interaction::SynchronousHttp {
+  fn as_v4(&self) -> Option<Box<dyn V4Interaction>> {
+    self.as_v4_http().map(|i| i.boxed_v4())
+  }
+
+  fn as_v4_http(&self) -> Option<SynchronousHttp> {
+    Some(SynchronousHttp {
       id: self.id.clone(),
       key: None,
       description: self.description.clone(),
       provider_states: self.provider_states.clone(),
       request: self.request.as_v4_request(),
       response: self.response.as_v4_response()
-    }.with_key()
+    }.with_key())
   }
+
+  fn as_v4_async_message(&self) -> Option<AsynchronousMessage> {
+    None
+  }
+
 
   fn boxed(&self) -> Box<dyn Interaction> {
     Box::new(self.clone())
@@ -1734,7 +1761,7 @@ pub fn parse_query_string(query: &str) -> Option<HashMap<String, Vec<String>>> {
 pub fn http_interaction_from_json(source: &str, json: &Value, spec: &PactSpecification) -> Result<Box<dyn Interaction>, String> {
   match spec {
     PactSpecification::V4 => interaction_from_json(source, 0, json)
-      .map(|i| Box::new(i) as Box<dyn Interaction>),
+      .map(|i| i.boxed()),
     _ => Ok(Box::new(RequestResponseInteraction::from_json(0, json, spec)))
   }
 }
@@ -1743,7 +1770,7 @@ pub fn http_interaction_from_json(source: &str, json: &Value, spec: &PactSpecifi
 pub fn message_interaction_from_json(source: &str, json: &Value, spec: &PactSpecification) -> Result<Box<dyn Interaction>, String> {
   match spec {
     PactSpecification::V4 => interaction_from_json(source, 0, json)
-      .map(|i| Box::new(i) as Box<dyn Interaction>),
+      .map(|i| i.boxed()),
     _ => Message::from_json(0, json, spec)
       .map(|i| Box::new(i) as Box<dyn Interaction>)
   }
