@@ -138,6 +138,10 @@ impl Interaction for Message {
   fn thread_safe(&self) -> Arc<Mutex<dyn Interaction + Send + Sync>> {
     Arc::new(Mutex::new(self.clone()))
   }
+
+  fn matching_rules(&self) -> Option<MatchingRules> {
+    Some(self.matching_rules.clone())
+  }
 }
 
 impl Message {

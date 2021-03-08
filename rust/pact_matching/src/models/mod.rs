@@ -40,6 +40,7 @@ use crate::models::message_pact::MessagePact;
 use crate::models::provider_states::ProviderState;
 use crate::models::v4::{interaction_from_json, V4Pact, SynchronousHttp, AsynchronousMessage, V4Interaction};
 use crate::models::v4::http_parts::{HttpRequest, HttpResponse};
+use crate::models::matchingrules::MatchingRules;
 
 pub mod json_utils;
 pub mod xml_utils;
@@ -1082,6 +1083,8 @@ pub trait Interaction {
   fn arced(&self) -> Arc<dyn Interaction>;
   /// Clones this interaction and wraps it in an Arc and Mutex
   fn thread_safe(&self) -> Arc<Mutex<dyn Interaction + Send + Sync>>;
+  /// Returns the matching rules associated with this interaction (if there are any)
+  fn matching_rules(&self) -> Option<MatchingRules>;
 }
 
 impl Debug for dyn Interaction {
@@ -1227,6 +1230,10 @@ impl Interaction for RequestResponseInteraction {
 
   fn thread_safe(&self) -> Arc<Mutex<dyn Interaction + Send + Sync>> {
     Arc::new(Mutex::new(self.clone()))
+  }
+
+  fn matching_rules(&self) -> Option<MatchingRules> {
+    None
   }
 }
 

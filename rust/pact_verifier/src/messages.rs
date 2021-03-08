@@ -1,30 +1,33 @@
-use crate::callback_executors::RequestFilterExecutor;
-use crate::{ProviderInfo, VerificationOptions, MismatchResult};
-use pact_matching::models::message::Message;
 use std::collections::HashMap;
-use serde_json::{json, Value};
-use pact_matching::models::{Request, OptionalBody};
-use crate::provider_client::{make_provider_request, provider_client_error_to_string};
-use ansi_term::Colour::*;
-use pact_matching::{match_message, Mismatch};
+
 use ansi_term::{ANSIGenericString, Style};
-use maplit::*;
-use pact_matching::models::HttpPart;
+use ansi_term::Colour::*;
 use bytes::Bytes;
+use maplit::*;
+use serde_json::{json, Value};
+
+use pact_matching::{match_message, Mismatch};
+use pact_matching::models::{Interaction, OptionalBody, Request};
+use pact_matching::models::HttpPart;
+use pact_matching::models::message::Message;
+
+use crate::{MismatchResult, ProviderInfo, VerificationOptions};
+use crate::callback_executors::RequestFilterExecutor;
+use crate::provider_client::{make_provider_request, provider_client_error_to_string};
 
 pub async fn verify_message_from_provider<F: RequestFilterExecutor>(
   provider: &ProviderInfo,
-  interaction: &Message,
+  interaction: &Box<dyn Interaction>,
   options: &VerificationOptions<F>,
   client: &reqwest::Client,
   _: &HashMap<&str, Value>
 ) -> Result<Option<String>, MismatchResult> {
   let mut request_body = json!({
-    "description": interaction.description
+    "description": interaction.description()
   });
-  if !interaction.provider_states.is_empty() {
+  if !interaction.provider_states().is_empty() {
     if let Some(map) = request_body.as_object_mut() {
-      map.insert("providerStates".into(), Value::Array(interaction.provider_states.iter()
+      map.insert("providerStates".into(), Value::Array(interaction.provider_states().iter()
         .map(|ps| ps.to_json()).collect()));
     }
   }
@@ -46,20 +49,20 @@ pub async fn verify_message_from_provider<F: RequestFilterExecutor>(
         .. Message::default()
       };
       log::debug!("actual message = {:?}", actual);
-      let mismatches = match_message(interaction, &actual);
+      let mismatches = match_message(interaction, &actual.boxed());
       if mismatches.is_empty() {
-        Ok(interaction.id.clone())
+        Ok(interaction.id().clone())
       } else {
         Err(MismatchResult::Mismatches {
           mismatches,
-          expected: Box::new(interaction.clone()),
-          actual: Box::new(actual),
-          interaction_id: interaction.id.clone()
+          expected: interaction.boxed(),
+          actual: actual.boxed(),
+          interaction_id: interaction.id().clone()
         })
       }
     },
     Err(err) => {
-      Err(MismatchResult::Error(provider_client_error_to_string(err), interaction.id.clone()))
+      Err(MismatchResult::Error(provider_client_error_to_string(err), interaction.id().clone()))
     }
   }
 }

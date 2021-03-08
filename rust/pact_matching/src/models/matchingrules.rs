@@ -1038,14 +1038,15 @@ impl MatchingRuleCategory {
   /// If there is a matcher defined for the path
   pub fn matcher_is_defined(&self, path: &[&str]) -> bool {
     let result = !self.resolve_matchers_for_path(path).is_empty();
-    trace!("matcher_is_defined for category {} and path {:?} -> {}", self.name, path, result);
+    trace!("matcher_is_defined: for category {} and path {:?} -> {}", self.name, path, result);
     result
   }
 
   /// filters this category with all rules that match the given path for categories that contain
-  /// collections (bodies, headers, query parameters). Returns self otherwise.
+  /// collections (eg. bodies, headers, query parameters). Returns self otherwise.
   pub fn resolve_matchers_for_path(&self, path: &[&str]) -> MatchingRuleCategory {
-    if self.name == "body" || self.name == "header" || self.name == "query" {
+    if self.name == "body" || self.name == "header" || self.name == "query" ||
+      self.name == "content" || self.name == "metadata" {
       self.filter(|(val, _)| {
         calc_path_weight(val, path).0 > 0
       })
@@ -1056,7 +1057,7 @@ impl MatchingRuleCategory {
 
   /// Selects the best matcher for the given path by calculating a weighting for each one
   pub fn select_best_matcher(&self, path: &[&str]) -> Option<RuleList> {
-    if self.name == "body" {
+    if self.name == "body" || self.name == "content" {
       self.max_by_path(path)
     } else {
       self.resolve_matchers_for_path(path).as_rule_list()

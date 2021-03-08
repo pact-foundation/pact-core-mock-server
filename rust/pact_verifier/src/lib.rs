@@ -311,8 +311,8 @@ async fn verify_interaction<F: RequestFilterExecutor, S: ProviderStateExecutor>(
     if let Some(interaction) = interaction.as_request_response() {
       result = verify_response_from_provider(provider, &interaction, options, &client, &context).await;
     }
-    if let Some(interaction) = interaction.as_message() {
-      result = verify_message_from_provider(provider, &interaction, options, &client, &context).await;
+    if interaction.is_message() {
+      result = verify_message_from_provider(provider, &interaction.boxed(), options, &client, &context).await;
     }
     result
   }).await;

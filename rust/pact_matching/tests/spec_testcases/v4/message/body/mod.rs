@@ -260,7 +260,7 @@ fn array_with_regular_expression_in_element() {
             }
           },
           "matchingRules": {
-            "body": {
+            "content": {
               "$.animals": {
                 "matchers": [
                   {
@@ -471,7 +471,7 @@ fn matches_with_regex_with_bracket_notation() {
             }
           },
           "matchingRules": {
-            "body": {
+            "content": {
               "$['2'].str": {
                 "matchers": [
                   {
@@ -540,7 +540,7 @@ fn array_with_regular_expression_that_does_not_match_in_element() {
             }
           },
           "matchingRules": {
-            "body": {
+            "content": {
               "$.animals": {
                 "matchers": [
                   {
@@ -629,7 +629,7 @@ fn array_size_less_than_required() {
             }
           },
           "matchingRules": {
-            "body": {
+            "content": {
               "$.animals": {
                 "matchers": [
                   {
@@ -701,7 +701,7 @@ fn array_with_nested_array_that_does_not_match() {
             }
           },
           "matchingRules": {
-            "body": {
+            "content": {
               "$.animals": {
                 "matchers": [
                   {
@@ -983,7 +983,7 @@ fn matches_with_type() {
             }
           },
           "matchingRules": {
-            "body": {
+            "content": {
               "$.alligator.name": {
                 "matchers": [
                   {
@@ -1171,7 +1171,7 @@ fn array_with_at_least_one_element_not_matching_example_type() {
             }
           },
           "matchingRules": {
-            "body": {
+            "content": {
               "$.animals": {
                 "matchers": [
                   {
@@ -1318,7 +1318,7 @@ fn array_with_nested_array_that_matches() {
             }
           },
           "matchingRules": {
-            "body": {
+            "content": {
               "$.animals": {
                 "matchers": [
                   {
@@ -1433,7 +1433,7 @@ fn matches_with_regex() {
             }
           },
           "matchingRules": {
-            "body": {
+            "content": {
               "$.alligator.name": {
                 "matchers": [
                   {
@@ -1930,7 +1930,7 @@ fn array_with_at_least_one_element_matching_by_example() {
             }
           },
           "matchingRules": {
-            "body": {
+            "content": {
               "$.animals": {
                 "matchers": [
                   {

@@ -18,11 +18,11 @@ use maplit::*;
 use nom::lib::std::fmt::Formatter;
 use serde_json::{json, Value};
 
-use crate::models::{Consumer, detect_content_type_from_bytes, generators, Interaction, matchingrules, OptionalBody, Pact, PACT_RUST_VERSION, PactSpecification, Provider, provider_states, ReadWritePact, RequestResponseInteraction, RequestResponsePact};
+use crate::models::{Consumer, detect_content_type_from_bytes, generators, Interaction, matchingrules, OptionalBody, Pact, PACT_RUST_VERSION, PactSpecification, Provider, provider_states, ReadWritePact, RequestResponseInteraction, RequestResponsePact, HttpPart};
 use crate::models::content_types::ContentType;
-use crate::models::generators::generators_to_json;
+use crate::models::generators::{generators_to_json, Generators};
 use crate::models::json_utils::{hash_json, json_to_string};
-use crate::models::matchingrules::matchers_to_json;
+use crate::models::matchingrules::{matchers_to_json, MatchingRules};
 use crate::models::message::Message;
 use crate::models::message_pact::MessagePact;
 use crate::models::provider_states::ProviderState;
@@ -262,6 +262,10 @@ impl Interaction for SynchronousHttp {
   fn thread_safe(&self) -> Arc<Mutex<dyn Interaction + Send + Sync>> {
     Arc::new(Mutex::new(self.clone()))
   }
+
+  fn matching_rules(&self) -> Option<MatchingRules> {
+    None
+  }
 }
 
 impl Default for SynchronousHttp {
@@ -466,6 +470,10 @@ impl Interaction for AsynchronousMessage {
   fn thread_safe(&self) -> Arc<Mutex<dyn Interaction + Send + Sync>> {
     Arc::new(Mutex::new(self.clone()))
   }
+
+  fn matching_rules(&self) -> Option<MatchingRules> {
+    Some(self.matching_rules.clone())
+  }
 }
 
 impl Default for AsynchronousMessage {
@@ -510,6 +518,35 @@ impl Display for AsynchronousMessage {
   fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
     write!(f, "V4 Asynchronous Message Interaction ( id: {:?}, description: \"{}\", provider_states: {:?}, contents: {}, metadata: {:?} )",
            self.id, self.description, self.provider_states, self.contents, self.metadata)
+  }
+}
+
+impl HttpPart for AsynchronousMessage {
+  fn headers(&self) -> &Option<HashMap<String, Vec<String>>> {
+    unimplemented!()
+  }
+
+  fn headers_mut(&mut self) -> &mut HashMap<String, Vec<String>> {
+    unimplemented!()
+  }
+
+  fn body(&self) -> &OptionalBody {
+    &self.contents
+  }
+
+  fn matching_rules(&self) -> &MatchingRules {
+    &self.matching_rules
+  }
+
+  fn generators(&self) -> &Generators {
+    &self.generators
+  }
+
+  fn lookup_content_type(&self) -> Option<String> {
+    self.metadata.iter().find(|(k, _)| {
+      let key = k.to_ascii_lowercase();
+      key == "contenttype" || key == "content-type"
+    }).map(|(_, v)| v.as_str().unwrap_or_default().to_string())
   }
 }
 
