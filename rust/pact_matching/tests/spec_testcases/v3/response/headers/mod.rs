@@ -101,12 +101,12 @@ fn whitespace_after_comma_different() {
         "comment": "Whitespace between comma separated headers does not matter",
         "expected" : {
           "headers": {
-            "Accept": "alligators,hippos"
+            "Type": "alligators,hippos"
           }
         },
         "actual": {
           "headers": {
-            "Accept": "alligators, hippos"
+            "Type": "alligators, hippos"
           }
         }
       }
@@ -140,12 +140,12 @@ fn header_value_is_different_case() {
         "comment": "Headers values are case sensitive",
         "expected" : {
           "headers": {
-            "Accept": "alligators"
+            "Type": "alligators"
           }
         },
         "actual": {
           "headers": {
-            "Accept": "Alligators"
+            "Type": "Alligators"
           }
         }
       }

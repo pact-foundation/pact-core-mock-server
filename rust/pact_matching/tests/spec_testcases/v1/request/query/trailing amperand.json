@@ -1,6 +1,6 @@
 {
   "match": true,
-  "comment": "Query strings are matched using basic string equality, these are not equal. (not supported)",
+  "comment": "Query strings are matched using basic string equality, these are not equal. (not supported by pact-jvm)",
   "expected" : {
     "method": "GET",
     "path": "/path",

@@ -155,7 +155,7 @@ fn header_value_is_different_case() {
           "path": "/path",
           "query": {},
           "headers": {
-            "Accept": "alligators"
+            "Type": "alligators"
           }
         },
         "actual": {
@@ -163,7 +163,7 @@ fn header_value_is_different_case() {
           "path": "/path",
           "query": {},
           "headers": {
-            "Accept": "Alligators"
+            "Type": "Alligators"
           }
         }
       }

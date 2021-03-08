@@ -69,7 +69,7 @@ fn whitespace_after_comma_different() {
           "path": "/path",
           "query": "",
           "headers": {
-            "Accept": "alligators,hippos"
+            "Type": "alligators,hippos"
           }
         },
         "actual": {
@@ -77,7 +77,7 @@ fn whitespace_after_comma_different() {
           "path": "/path",
           "query": "",
           "headers": {
-            "Accept": "alligators, hippos"
+            "Type": "alligators, hippos"
           }
         }
       }
@@ -114,7 +114,7 @@ fn header_value_is_different_case() {
           "path": "/path",
           "query": "",
           "headers": {
-            "Accept": "alligators"
+            "Type": "alligators"
           }
         },
         "actual": {
@@ -122,7 +122,7 @@ fn header_value_is_different_case() {
           "path": "/path",
           "query": "",
           "headers": {
-            "Accept": "Alligators"
+            "Type": "Alligators"
           }
         }
       }
