@@ -130,7 +130,7 @@ async fn test_state_change_with_parameters() {
       i.request.method("POST");
       i.request.path("/");
       i.request.header("Content-Type", "application/json");
-      i.request.body("{\"A\":\"1\",\"B\":\"2\",\"action\":\"setup\",\"state\":\"TestState\"}");
+      i.request.body("{\"params\":{\"A\":\"1\",\"B\":\"2\"},\"action\":\"setup\",\"state\":\"TestState\"}");
       i.response.status(200);
     })
     .start_mock_server();
@@ -198,7 +198,7 @@ async fn test_state_change_returning_json_values() {
       i.request.method("POST");
       i.request.path("/");
       i.request.header("Content-Type", "application/json");
-      i.request.body("{\"action\":\"setup\",\"state\":\"TestState\"}");
+      i.request.body("{\"action\":\"setup\",\"state\":\"TestState\",\"params\":{}}");
       i.response.status(200);
       i.response.header("Content-Type", "application/json");
       i.response.body("{\"a\": \"A\", \"b\": 100}");

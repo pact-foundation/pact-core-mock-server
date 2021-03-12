@@ -85,20 +85,15 @@ impl ProviderStateExecutor for HttpRequestProviderStateExecutor {
       Some(state_change_url) => {
         let mut state_change_request = Request { method: "POST".to_string(), .. Request::default() };
         if self.state_change_body {
-          let mut json_body = json!({
-                    "state".to_string() : json!(provider_state.name.clone()),
-                    "action".to_string() : json!(if setup {
+          let json_body = json!({
+                    "state".to_string() : provider_state.name.clone(),
+                    "params".to_string() : provider_state.params.clone(),
+                    "action".to_string() : if setup {
                         "setup".to_string()
                     } else {
                         "teardown".to_string()
-                    })
+                    }
                 });
-          {
-            let json_body_mut = json_body.as_object_mut().unwrap();
-            for (k, v) in provider_state.params.clone() {
-              json_body_mut.insert(k, v);
-            }
-          }
           state_change_request.body = OptionalBody::Present(json_body.to_string().into(), Some(JSON.clone()));
           state_change_request.headers = Some(hashmap!{ "Content-Type".to_string() => vec!["application/json".to_string()] });
         } else {
