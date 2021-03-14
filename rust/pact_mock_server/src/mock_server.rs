@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use rustls::ServerConfig;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use pact_matching::models::{RequestResponseInteraction, RequestResponsePact, write_pact};
@@ -51,6 +52,13 @@ impl ToString for MockServerScheme {
   }
 }
 
+/// Metrics for the mock server
+#[derive(Debug, Default, Clone, Serialize, Deserialize, Eq, PartialEq)]
+pub struct MockServerMetrics {
+  /// Total requests
+  pub requests: usize
+}
+
 /// Struct to represent the "foreground" part of mock server
 #[derive(Debug, Default)]
 pub struct MockServer {
@@ -71,7 +79,9 @@ pub struct MockServer {
   /// Shutdown signal
   shutdown_tx: RefCell<Option<futures::channel::oneshot::Sender<()>>>,
   /// Mock server config
-  pub config: MockServerConfig
+  pub config: MockServerConfig,
+  /// Metrics collected by the mock server
+  pub metrics: MockServerMetrics
 }
 
 impl MockServer {
@@ -94,7 +104,8 @@ impl MockServer {
       pact: pact.clone(),
       matches: matches.clone(),
       shutdown_tx: RefCell::new(Some(shutdown_tx)),
-      config: config.clone()
+      config: config.clone(),
+      metrics: MockServerMetrics::default()
     }));
 
     let (future, socket_addr) = hyper_server::create_and_bind(
@@ -139,7 +150,8 @@ impl MockServer {
       pact: pact.clone(),
       matches: matches.clone(),
       shutdown_tx: RefCell::new(Some(shutdown_tx)),
-      config: config.clone()
+      config: config.clone(),
+      metrics: MockServerMetrics::default()
     }));
 
     let (future, socket_addr) = hyper_server::create_and_bind_tls(
@@ -170,7 +182,10 @@ impl MockServer {
     match shutdown_future.take() {
       Some(sender) => {
         match sender.send(()) {
-          Ok(()) => Ok(()),
+          Ok(()) => {
+            debug!("Mock server {} shutdown - {:?}", self.id, self.metrics);
+            Ok(())
+          },
           Err(_) => Err("Problem sending shutdown signal to mock server".into())
         }
       },
@@ -186,7 +201,8 @@ impl MockServer {
         "address" : self.address.clone().unwrap_or_default(),
         "scheme" : self.scheme.to_string(),
         "provider" : self.pact.provider.name.clone(),
-        "status" : if self.mismatches().is_empty() { "ok" } else { "error" }
+        "status" : if self.mismatches().is_empty() { "ok" } else { "error" },
+        "metrics" : self.metrics
       })
     }
 
@@ -261,7 +277,8 @@ impl Clone for MockServer {
       pact: self.pact.clone(),
       matches: self.matches.clone(),
       shutdown_tx: RefCell::new(None),
-      config: self.config.clone()
+      config: self.config.clone(),
+      metrics: self.metrics.clone()
     }
   }
 }

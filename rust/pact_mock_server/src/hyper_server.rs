@@ -1,3 +1,4 @@
+use std::borrow::BorrowMut;
 use std::collections::HashMap;
 use std::io;
 use std::net::SocketAddr;
@@ -17,8 +18,8 @@ use maplit::*;
 use rustls::ServerConfig;
 use serde_json::json;
 use tokio::net::{TcpListener, TcpStream};
-use tokio_rustls::TlsAcceptor;
 use tokio_rustls::server::TlsStream;
+use tokio_rustls::TlsAcceptor;
 
 use pact_matching::models::{HttpPart, OptionalBody, Request, RequestResponsePact};
 use pact_matching::models::generators::GeneratorTestMode;
@@ -233,19 +234,25 @@ async fn handle_request(
   matches: Arc<Mutex<Vec<MatchResult>>>,
   mock_server: Arc<Mutex<MockServer>>
 ) -> Result<Response<Body>, InteractionError> {
-    debug!("Creating pact request from hyper request");
+  debug!("Creating pact request from hyper request");
 
-    let pact_request = hyper_request_to_pact_request(req).await?;
-    info!("Received request {}", pact_request);
-    if pact_request.has_text_body() {
-      debug!("     body: '{}'", pact_request.body.str_value());
-    }
+  {
+    let mut guard = mock_server.lock().unwrap();
+    let mock_server = guard.borrow_mut();
+    mock_server.metrics.requests = mock_server.metrics.requests + 1;
+  }
 
-    let match_result = match_request(&pact_request, &pact.interactions);
+  let pact_request = hyper_request_to_pact_request(req).await?;
+  info!("Received request {}", pact_request);
+  if pact_request.has_text_body() {
+    debug!("     body: '{}'", pact_request.body.str_value());
+  }
 
-    matches.lock().unwrap().push(match_result.clone());
+  let match_result = match_request(&pact_request, &pact.interactions);
 
-    match_result_to_hyper_response(&pact_request, match_result, mock_server)
+  matches.lock().unwrap().push(match_result.clone());
+
+  match_result_to_hyper_response(&pact_request, match_result, mock_server)
 }
 
 // TODO: Should instead use some form of X-Pact headers

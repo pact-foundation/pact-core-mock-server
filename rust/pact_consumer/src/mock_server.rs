@@ -10,7 +10,7 @@ use std::{
     thread,
 };
 use url::Url;
-use pact_mock_server::mock_server::MockServerConfig;
+use pact_mock_server::mock_server::{MockServerConfig, MockServerMetrics};
 use std::sync::{Mutex, Arc};
 
 /// This trait is implemented by types which allow us to start a mock server.
@@ -175,6 +175,11 @@ impl ValidatingMockServer {
             Err(msg)
         }
     }
+
+  /// Returns the metrics collected by the mock server
+  pub fn metrics(&self) -> MockServerMetrics {
+    self.mock_server.lock().unwrap().metrics.clone()
+  }
 }
 
 /// Either panic with `msg`, or if we're already in the middle of a panic,

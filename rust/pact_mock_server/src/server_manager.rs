@@ -9,6 +9,7 @@ use std::collections::BTreeMap;
 use rustls::ServerConfig;
 use std::net::SocketAddr;
 use std::sync::{Mutex, Arc};
+use log::*;
 
 struct ServerEntry {
   mock_server: Arc<Mutex<MockServer>>,
@@ -143,6 +144,7 @@ impl ServerManager {
       match self.mock_servers.remove(&id) {
         Some(entry) => {
           let mut ms = entry.mock_server.lock().unwrap();
+          debug!("Shutting down mock server with ID {} - {:?}", id, ms.metrics);
           match ms.shutdown() {
             Ok(()) => {
               self.runtime.block_on(entry.join_handle).unwrap();
@@ -167,6 +169,7 @@ impl ServerManager {
       if let Some(id) = result {
         if let Some(entry) = self.mock_servers.remove(&id) {
           let mut ms = entry.mock_server.lock().unwrap();
+          debug!("Shutting down mock server with port {} - {:?}", port, ms.metrics);
           return match ms.shutdown() {
             Ok(()) => {
               self.runtime.block_on(entry.join_handle).unwrap();
