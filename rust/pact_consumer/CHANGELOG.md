@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.7.5 - mock server metrics
+
+* 5a529fd - feat: add ability of mock server to expose metrics #94 (Ronald Holshausen, Sun Mar 14 11:41:16 2021 +1100)
+* eec03d2 - bump version to 0.7.5 (Ronald Holshausen, Mon Feb 8 16:23:43 2021 +1100)
+
 # 0.7.4 - Use a file system lock when merging pact files
 
 * 9976e80 - feat: added read locks and a mutex guard to reading and writing pacts (Ronald Holshausen, Mon Feb 8 11:58:52 2021 +1100)
