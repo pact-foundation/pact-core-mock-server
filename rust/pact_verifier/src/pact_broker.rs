@@ -12,6 +12,7 @@ use reqwest::{Method, RequestBuilder};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use serde_with::skip_serializing_none;
+use tokio::time::{sleep, Duration};
 
 use pact_matching::Mismatch;
 use pact_matching::models::{Pact, PACT_RUST_VERSION, RequestResponsePact};
@@ -489,6 +490,7 @@ async fn with_retries(retries: u8, request: RequestBuilder) -> Result<reqwest::R
                       match request_builder.try_clone() {
                         None => (Some(response), None),
                         Some(rb) => {
+                          sleep(Duration::from_millis(10_u64.pow(attempt as u32))).await;
                           (Some(request_builder.send().await), Some(rb))
                         }
                       }
@@ -500,6 +502,7 @@ async fn with_retries(retries: u8, request: RequestBuilder) -> Result<reqwest::R
                         match request_builder.try_clone() {
                           None => (Some(response), None),
                           Some(rb) => {
+                            sleep(Duration::from_millis(10_u64.pow(attempt as u32))).await;
                             (Some(request_builder.send().await), Some(rb))
                           }
                         }
