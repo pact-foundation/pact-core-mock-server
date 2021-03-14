@@ -1,5 +1,14 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.8.13 - V4 features (message refactor)
+
+* b7c80e8 - chore: update specification tests (Ronald Holshausen, Mon Mar 8 15:48:34 2021 +1100)
+* 4fe65fb - feat(V4): Update matching code to use matchingRules.content for V4 messages (Ronald Holshausen, Mon Mar 8 12:10:31 2021 +1100)
+* 86f8140 - fix: missing $ in macro (Ronald Holshausen, Sun Mar 7 18:48:09 2021 +1100)
+* 81de3d3 - feat(V4): Move message pact content matching rules from matchingRules.body to matchingRules.content (Ronald Holshausen, Sun Mar 7 17:47:27 2021 +1100)
+* 127e6f2 - refactor: converted V4 interaction models from enum structs to plain structs (Ronald Holshausen, Sun Mar 7 17:17:15 2021 +1100)
+* b71a13f - bump version to 0.8.13 (Ronald Holshausen, Fri Mar 5 11:07:43 2021 +1100)
+
 # 0.8.12 - Values matcher - match values, ignoring keys
 
 * bc84a4d - feat: implemented matching values ignoring keys (Ronald Holshausen, Fri Mar 5 10:52:01 2021 +1100)
