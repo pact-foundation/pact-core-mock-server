@@ -37,3 +37,4 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 
 [build-dependencies]
 cbindgen = "0.14.1"
+os_info = { version = "3.0", default-features = false }

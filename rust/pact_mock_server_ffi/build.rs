@@ -1,9 +1,18 @@
 use std::env;
 use std::path::PathBuf;
+use os_info;
+use os_info::Type;
 
 fn main() {
     let crate_dir = env!("CARGO_MANIFEST_DIR");
     let crate_name = env!("CARGO_PKG_NAME");
+
+    let info = os_info::get();
+    if info.os_type() == Type::Macos {
+      // Remove hardcoded path to avoid need to use install_name_tool.
+      // Drop file into a well-known path such as /usr/local/lib and it can be automatically discovered
+      println!("cargo:rustc-cdylib-link-arg=-Wl,-install_name,libpact_mock_server_ffi.dylib");
+    }
     if env::var("GENERATE_C_HEADER").is_ok() {
         let out_dir = env::var("OUT_DIR").unwrap();
         let mut path = PathBuf::from(out_dir);
