@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.7.16 - Bugfix Release
+
+* 5a529fd - feat: add ability of mock server to expose metrics #94 (Ronald Holshausen, Sun Mar 14 11:41:16 2021 +1100)
+* e81482e - chore: correct import (Ronald Holshausen, Tue Feb 9 16:27:38 2021 +1100)
+* b23c845 - chore: cleanup some debug logging (Ronald Holshausen, Tue Feb 9 16:18:34 2021 +1100)
+* 7f054e8 - fix: correctly assemble UTF-8 percent encoded query parameters (Ronald Holshausen, Tue Feb 9 14:02:04 2021 +1100)
+* 2002b67 - bump version to 0.7.16 (Ronald Holshausen, Mon Feb 8 15:44:20 2021 +1100)
+
 # 0.7.15 - use a file system lock when merging pact files
 
 * eae1b16 - chore: fix clippy errors (Ronald Holshausen, Mon Feb 8 14:57:42 2021 +1100)
