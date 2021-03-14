@@ -310,7 +310,7 @@ impl HALClient {
   }
 
     async fn parse_broker_response(
-        self,
+        &self,
         path: String,
         response: reqwest::Response,
     ) -> Result<serde_json::Value, PactBrokerError> {
@@ -401,15 +401,15 @@ impl HALClient {
     }
   }
 
-  async fn post_json(self, url: String, body: String) -> Result<serde_json::Value, PactBrokerError> {
+  async fn post_json(&self, url: &str, body: &str) -> Result<serde_json::Value, PactBrokerError> {
     self.send_document(url, body, Method::POST).await
   }
 
-  async fn put_json(self, url: String, body: String) -> Result<serde_json::Value, PactBrokerError> {
+  async fn put_json(&self, url: &str, body: &str) -> Result<serde_json::Value, PactBrokerError> {
     self.send_document(url, body, Method::PUT).await
   }
 
-  async fn send_document(self, url: String, body: String, method: Method) -> Result<serde_json::Value, PactBrokerError> {
+  async fn send_document(&self, url: &str, body: &str, method: Method) -> Result<serde_json::Value, PactBrokerError> {
     log::debug!("Sending JSON to {} using {}: {}", url, method, body);
 
     let url = url.parse::<reqwest::Url>()
@@ -435,9 +435,9 @@ impl HALClient {
       .header("Content-Type", "application/json")
       .header("Accept", "application/hal+json")
       .header("Accept", "application/json")
-      .body(body);
+      .body(body.to_string());
 
-    let response = request_builder.send()
+    let response = with_retries(self.retries, request_builder)
       .await
       .map_err(|err| PactBrokerError::IoError(
         format!("Failed to send JSON to the pact broker URL '{}' - {}", url, err)
@@ -659,7 +659,7 @@ pub async fn fetch_pacts_dynamically_from_broker(
     let response = match hal_client.find_link("self") {
       Ok(link) => {
         let link = hal_client.clone().parse_link_url(&link, &hashmap!{})?;
-        match hal_client.clone().post_json(link, request_body).await {
+        match hal_client.clone().post_json(link.as_str(), request_body.as_str()).await {
           Ok(res) => Some(res),
           Err(err) => {
             debug!("error Response for pacts for verification {:?} ", err);
@@ -797,7 +797,7 @@ pub async fn publish_verification_results(
       ))?;
 
   let json = build_payload(result, version, build_url);
-  hal_client.post_json(publish_link.href.clone().unwrap(), json.to_string()).await
+  hal_client.post_json(publish_link.href.unwrap_or_default().as_str(), json.to_string().as_str()).await
 }
 
 fn build_payload(result: TestResult, version: String, build_url: Option<String>) -> serde_json::Value {
@@ -918,7 +918,7 @@ async fn publish_provider_tags(
           "version".to_string() => version.to_string(),
           "tag".to_string() => tag.clone()
         };
-        match hal_client.clone().put_json(hal_client.clone().parse_link_url(&link, &template_values)?, "{}".to_string()).await {
+        match hal_client.clone().put_json(hal_client.clone().parse_link_url(&link, &template_values)?.as_str(), "{}").await {
           Ok(_) => debug!("Pushed tag {} for provider version {}", tag, version),
           Err(err) => {
             error!("Failed to push tag {} for provider version {}", tag, version);
@@ -1016,7 +1016,6 @@ mod tests {
   use pact_consumer::prelude::*;
   use pact_matching::Mismatch::MethodMismatch;
   use pact_matching::models::{Consumer, PactSpecification, Provider, RequestResponseInteraction};
-  use pact_mock_server::mock_server::MockServerMetrics;
 
   use super::*;
   use super::{content_type, json_content_type};
@@ -1133,9 +1132,46 @@ mod tests {
       .start_mock_server();
 
     let client = HALClient::with_url(pact_broker.url().as_str(), None);
-    let result = client.clone().fetch("/").await;
+    let expected_requests = client.retries as usize;
+    let result = client.fetch("/").await;
+    expect!(result).to(be_err());
+    expect!(pact_broker.metrics().requests).to(be_equal_to(expected_requests ));
+  }
+
+  #[tokio::test]
+  async fn post_json_retries_the_request_on_50x_errors() {
+    let _ = env_logger::try_init();
+    let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
+      .interaction("a POST request", |i| {
+        i.given("server returns a gateway error");
+        i.request.path("/").method("POST");
+        i.response.status(503);
+      })
+      .start_mock_server();
+
+    let client = HALClient::with_url(pact_broker.url().as_str(), None);
+    let expected_requests = client.retries as usize;
+    let result = client.post_json(pact_broker.url().as_str(), "{}").await;
     expect!(result.clone()).to(be_err());
-    expect!(pact_broker.metrics()).to(be_equal_to(MockServerMetrics { requests: client.retries as usize }));
+    expect!(pact_broker.metrics().requests).to(be_equal_to(expected_requests ));
+  }
+
+  #[tokio::test]
+  async fn put_json_retries_the_request_on_50x_errors() {
+    let _ = env_logger::try_init();
+    let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
+      .interaction("a PUT request", |i| {
+        i.given("server returns a gateway error");
+        i.request.path("/").method("PUT");
+        i.response.status(503);
+      })
+      .start_mock_server();
+
+    let client = HALClient::with_url(pact_broker.url().as_str(), None);
+    let expected_requests = client.retries as usize;
+    let result = client.put_json(pact_broker.url().as_str(), "{}").await;
+    expect!(result.clone()).to(be_err());
+    expect!(pact_broker.metrics().requests).to(be_equal_to(expected_requests ));
   }
 
   #[test]
