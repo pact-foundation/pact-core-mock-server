@@ -4,11 +4,13 @@ class CbindgenTestConan(ConanFile):
     name = "pact_mock_server_ffi"
     version = "0.0.17"
     description = "Pact/Rust FFI bindings"
-    url = "https://github.com/pact-foundation/pact-reference"
+    url = "https://github.com/conan-io/conan-center-index"
+    homepage = "https://github.com/pact-foundation/pact-reference"
     license = "MIT"
     settings = "os", "compiler", "build_type", "arch"
     no_copy_source = True
     requires = "openssl/1.1.1d"
+    topics = ("pact", "consumer-driven-contracts", "contract-testing", "mock-server")
 
     def build(self):
         if self.settings.os == "Windows":
