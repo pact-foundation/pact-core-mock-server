@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.0.16 - Bugfix Release
+
+* f4881db - feat: set non-hard coded install name on Mac dylib (Matt Fellows, Wed Feb 24 14:29:52 2021 +1100)
+* abcf6a7 - bump version to 0.0.16 (Ronald Holshausen, Mon Feb 8 15:55:11 2021 +1100)
+
 # 0.0.15 - use a file system lock when merging pact files
 
 * 9976e80 - feat: added read locks and a mutex guard to reading and writing pacts (Ronald Holshausen, Mon Feb 8 11:58:52 2021 +1100)
