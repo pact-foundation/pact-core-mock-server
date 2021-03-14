@@ -1,23 +1,27 @@
 //! Structs and functions for interacting with a Pact Broker
 
-use pact_matching::models::{Pact, RequestResponsePact, PACT_RUST_VERSION};
-use pact_matching::models::message_pact::MessagePact;
-use pact_matching::s;
-use crate::MismatchResult;
+use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
+
+use futures::stream::*;
+use itertools::Itertools;
+use log::*;
+use maplit::*;
+use regex::{Captures, Regex};
+use reqwest::{Method, RequestBuilder};
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use serde_with::skip_serializing_none;
-use serde::{Deserialize, Serialize};
-use itertools::Itertools;
-use std::collections::HashMap;
-use super::provider_client::join_paths;
-use regex::{Regex, Captures};
-use futures::stream::*;
-use pact_matching::models::http_utils::HttpAuth;
+
 use pact_matching::Mismatch;
-use std::fmt::{Display, Formatter};
-use maplit::*;
-use reqwest::Method;
-use log::*;
+use pact_matching::models::{Pact, PACT_RUST_VERSION, RequestResponsePact};
+use pact_matching::models::http_utils::HttpAuth;
+use pact_matching::models::message_pact::MessagePact;
+use pact_matching::s;
+
+use crate::MismatchResult;
+
+use super::provider_client::join_paths;
 
 fn is_true(object: &serde_json::Map<String, serde_json::Value>, field: &str) -> bool {
     match object.get(field) {
@@ -180,27 +184,28 @@ impl Default for Link {
 /// HAL aware HTTP client
 #[derive(Clone)]
 pub struct HALClient {
-    client: reqwest::Client,
-    url: String,
-    path_info: Option<serde_json::Value>,
-    auth: Option<HttpAuth>
+  client: reqwest::Client,
+  url: String,
+  path_info: Option<serde_json::Value>,
+  auth: Option<HttpAuth>,
+  retries: u8
 }
 
 impl HALClient {
-
   /// Initialise a client with the URL and authentication
   pub fn with_url(url: &str, auth: Option<HttpAuth>) -> HALClient {
     HALClient { url: url.to_string(), auth, ..HALClient::default() }
   }
 
-    fn update_path_info(self, path_info: serde_json::Value) -> HALClient {
-        HALClient {
-            client: self.client.clone(),
-            url: self.url.clone(),
-            path_info: Some(path_info),
-            auth: self.auth
-        }
+  fn update_path_info(self, path_info: serde_json::Value) -> HALClient {
+    HALClient {
+      client: self.client.clone(),
+      url: self.url.clone(),
+      path_info: Some(path_info),
+      auth: self.auth,
+      retries: self.retries
     }
+  }
 
   /// Navigate to the resource from the link name
   pub async fn navigate(
@@ -277,34 +282,32 @@ impl HALClient {
       self.fetch(joined_url.path().into()).await
   }
 
-    async fn fetch(self, path: String) -> Result<serde_json::Value, PactBrokerError> {
-        log::info!("Fetching path '{}' from pact broker", path);
+  async fn fetch(self, path: &str) -> Result<serde_json::Value, PactBrokerError> {
+    info!("Fetching path '{}' from pact broker", path);
 
-        let url = join_paths(&self.url, path.clone()).parse::<reqwest::Url>()
-            .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?;
+    let url = join_paths(&self.url, path.to_string()).parse::<reqwest::Url>()
+        .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?;
 
-        let request_builder = match self.auth {
-            Some(ref auth) => match auth {
-                HttpAuth::User(username, password) => self.client.get(url).basic_auth(username, password.clone()),
-                HttpAuth::Token(token) => self.client.get(url).bearer_auth(token)
-            },
-            None => self.client.get(url)
-        }.header("accept", "application/hal+json, application/json");
+    let request_builder = match self.auth {
+        Some(ref auth) => match auth {
+            HttpAuth::User(username, password) => self.client.get(url).basic_auth(username, password.clone()),
+            HttpAuth::Token(token) => self.client.get(url).bearer_auth(token)
+        },
+        None => self.client.get(url)
+    }.header("accept", "application/hal+json, application/json");
 
-        let response = request_builder
-            .send()
-            .await
-            .map_err(|err| {
-                PactBrokerError::IoError(format!("Failed to access pact broker path '{}' - {}. URL: '{}'",
-                    &path,
-                    err,
-                    &self.url,
-                ))
-            })?;
+    let response = with_retries(self.retries, request_builder).await
+      .map_err(|err| {
+          PactBrokerError::IoError(format!("Failed to access pact broker path '{}' - {}. URL: '{}'",
+              &path,
+              err,
+              &self.url,
+          ))
+      })?;
 
-        self.parse_broker_response(path, response)
-            .await
-    }
+    self.parse_broker_response(path.to_string(), response)
+        .await
+  }
 
     async fn parse_broker_response(
         self,
@@ -463,6 +466,60 @@ impl HALClient {
   }
 }
 
+async fn with_retries(retries: u8, request: RequestBuilder) -> Result<reqwest::Response, reqwest::Error> {
+  match &request.try_clone() {
+    None => {
+      warn!("with_retries: Could not retry the request as it is not cloneable");
+      request.send().await
+    }
+    Some(rb) => {
+      futures::stream::iter((1..=retries).step_by(1))
+        .fold((None::<Result<reqwest::Response, reqwest::Error>>, rb.try_clone()), |(response, request), attempt| {
+          async move {
+            match request {
+              Some(request_builder) => match response {
+                None => {
+                  let next = request_builder.try_clone();
+                  (Some(request_builder.send().await), next)
+                },
+                Some(response) => {
+                  trace!("with_retries: attempt {}/{} is {:?}", attempt, retries, response);
+                  match response {
+                    Ok(ref res) => if res.status().is_server_error() {
+                      match request_builder.try_clone() {
+                        None => (Some(response), None),
+                        Some(rb) => {
+                          (Some(request_builder.send().await), Some(rb))
+                        }
+                      }
+                    } else {
+                      (Some(response), None)
+                    },
+                    Err(ref err) => if err.is_status() {
+                      if err.status().unwrap_or_default().is_server_error() {
+                        match request_builder.try_clone() {
+                          None => (Some(response), None),
+                          Some(rb) => {
+                            (Some(request_builder.send().await), Some(rb))
+                          }
+                        }
+                      } else {
+                        (Some(response), None)
+                      }
+                    } else {
+                      (Some(response), None)
+                    }
+                  }
+                }
+              }
+              None => (response, None)
+            }
+          }
+        }).await.0.unwrap()
+    }
+  }
+}
+
 impl Default for HALClient {
   fn default() -> Self {
     HALClient {
@@ -471,7 +528,8 @@ impl Default for HALClient {
         .unwrap(),
       url: s!(""),
       path_info: None,
-      auth: None
+      auth: None,
+      retries: 3
     }
   }
 }
@@ -950,54 +1008,57 @@ pub struct PactVerificationProperties {
 
 #[cfg(test)]
 mod tests {
-    use expectest::prelude::*;
-    use expectest::expect;
-    use super::*;
-    use super::{content_type, json_content_type};
-    use pact_consumer::prelude::*;
-    use pact_consumer::*;
-    use env_logger::*;
-    use pact_matching::models::{Consumer, Provider, PactSpecification, RequestResponseInteraction};
-    use pact_matching::Mismatch::MethodMismatch;
+  use env_logger::*;
+  use expectest::expect;
+  use expectest::prelude::*;
 
-    #[tokio::test]
-    async fn fetch_returns_an_error_if_there_is_no_pact_broker() {
-        let client = HALClient::with_url("http://idont.exist:6666", None);
-        expect!(client.fetch(s!("/")).await).to(be_err());
-    }
+  use pact_consumer::*;
+  use pact_consumer::prelude::*;
+  use pact_matching::Mismatch::MethodMismatch;
+  use pact_matching::models::{Consumer, PactSpecification, Provider, RequestResponseInteraction};
+  use pact_mock_server::mock_server::MockServerMetrics;
 
-    #[tokio::test]
-    async fn fetch_returns_an_error_if_it_does_not_get_a_success_response() {
-        let pact_broker = PactBuilder::new("RustPactVerifier", "PactBroker")
-            .interaction("a request to a non-existant path", |i| {
-                i.given("the pact broker has a valid pact");
-                i.request.path("/hello");
-                i.response.status(404);
-            })
-            .start_mock_server();
+  use super::*;
+  use super::{content_type, json_content_type};
 
-        let client = HALClient::with_url(pact_broker.url().as_str(), None);
-        let result = client.fetch(s!("/hello")).await;
-        expect!(result).to(be_err().value(format!("Request to pact broker path \'/hello\' failed: 404 Not Found. URL: '{}'",
-            pact_broker.url())));
-    }
+  #[tokio::test]
+  async fn fetch_returns_an_error_if_there_is_no_pact_broker() {
+    let client = HALClient::with_url("http://idont.exist:6666", None);
+    expect!(client.fetch("/").await).to(be_err());
+  }
 
-    #[tokio::test]
-    async fn fetch_returns_an_error_if_it_does_not_get_a_hal_response() {
-        let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
-            .interaction("a request to a non-json resource", |i| {
-                i.request.path("/nonjson");
-                i.response
-                    .header("Content-Type", "text/html")
-                    .body("<html></html>");
-            })
-            .start_mock_server();
+  #[tokio::test]
+  async fn fetch_returns_an_error_if_it_does_not_get_a_success_response() {
+    let pact_broker = PactBuilder::new("RustPactVerifier", "PactBroker")
+        .interaction("a request to a non-existant path", |i| {
+            i.given("the pact broker has a valid pact");
+            i.request.path("/hello");
+            i.response.status(404);
+        })
+        .start_mock_server();
 
-        let client = HALClient::with_url(pact_broker.url().as_str(), None);
-        let result = client.fetch(s!("/nonjson")).await;
-        expect!(result).to(be_err().value(format!("Did not get a HAL response from pact broker path \'/nonjson\', content type is 'text/html'. URL: '{}'",
-            pact_broker.url())));
-    }
+    let client = HALClient::with_url(pact_broker.url().as_str(), None);
+    let result = client.fetch("/hello").await;
+    expect!(result).to(be_err().value(format!("Request to pact broker path \'/hello\' failed: 404 Not Found. URL: '{}'",
+        pact_broker.url())));
+  }
+
+  #[tokio::test]
+  async fn fetch_returns_an_error_if_it_does_not_get_a_hal_response() {
+    let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
+      .interaction("a request to a non-json resource", |i| {
+          i.request.path("/nonjson");
+          i.response
+              .header("Content-Type", "text/html")
+              .body("<html></html>");
+      })
+      .start_mock_server();
+
+    let client = HALClient::with_url(pact_broker.url().as_str(), None);
+    let result = client.fetch("/nonjson").await;
+    expect!(result).to(be_err().value(format!("Did not get a HAL response from pact broker path \'/nonjson\', content type is 'text/html'. URL: '{}'",
+      pact_broker.url())));
+  }
 
     #[test]
     fn content_type_test() {
@@ -1051,14 +1112,31 @@ mod tests {
             .start_mock_server();
 
         let client = HALClient::with_url(pact_broker.url().as_str(), None);
-        let result = client.clone().fetch(s!("/nonhal")).await;
+        let result = client.clone().fetch("/nonhal").await;
         expect!(result).to(be_err().value(format!("Did not get a valid HAL response body from pact broker path \'/nonhal\' - EOF while parsing a value at line 1 column 0. URL: '{}'",
             pact_broker.url())));
 
-        let result = client.clone().fetch(s!("/nonhal2")).await;
+        let result = client.clone().fetch("/nonhal2").await;
         expect!(result).to(be_err().value(format!("Did not get a valid HAL response body from pact broker path \'/nonhal2\' - expected value at line 1 column 1. URL: '{}'",
             pact_broker.url())));
     }
+
+  #[tokio::test]
+  async fn fetch_retries_the_request_on_50x_errors() {
+    let _ = env_logger::try_init();
+    let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
+      .interaction("a request to a hal resource", |i| {
+        i.given("server returns a gateway error");
+        i.request.path("/");
+        i.response.status(503);
+      })
+      .start_mock_server();
+
+    let client = HALClient::with_url(pact_broker.url().as_str(), None);
+    let result = client.clone().fetch("/").await;
+    expect!(result.clone()).to(be_err());
+    expect!(pact_broker.metrics()).to(be_equal_to(MockServerMetrics { requests: client.retries as usize }));
+  }
 
   #[test]
   fn parse_link_url_returns_error_if_there_is_no_href() {
@@ -1103,7 +1181,7 @@ mod tests {
             .start_mock_server();
 
         let mut client = HALClient::with_url(pact_broker.url().as_str(), None);
-        let result = client.clone().fetch(s!("/")).await;
+        let result = client.clone().fetch("/").await;
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
         let result = client.clone().fetch_link("hal2", &hashmap!{}).await;
@@ -1124,7 +1202,7 @@ mod tests {
             .start_mock_server();
 
         let mut client = HALClient::with_url(pact_broker.url().as_str(), None);
-        let result = client.clone().fetch(s!("/")).await;
+        let result = client.clone().fetch("/").await;
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
         let result = client.clone().fetch_link("any", &hashmap!{}).await;
@@ -1132,25 +1210,25 @@ mod tests {
             pact_broker.url())));
     }
 
-    #[tokio::test]
-    async fn fetch_link_returns_an_error_if_the_previous_resource_does_not_have_the_link() {
-        let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
-            .interaction("a request to a hal resource", |i| {
-                i.request.path("/");
-                i.response
-                    .header("Content-Type", "application/hal+json")
-                    .body("{\"_links\":{\"next\":{\"href\":\"/abc\"},\"prev\":{\"href\":\"/def\"}}}");
-            })
-            .start_mock_server();
+  #[tokio::test]
+  async fn fetch_link_returns_an_error_if_the_previous_resource_does_not_have_the_link() {
+    let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
+        .interaction("a request to a hal resource", |i| {
+            i.request.path("/");
+            i.response
+                .header("Content-Type", "application/hal+json")
+                .body("{\"_links\":{\"next\":{\"href\":\"/abc\"},\"prev\":{\"href\":\"/def\"}}}");
+        })
+        .start_mock_server();
 
-        let mut client = HALClient::with_url(pact_broker.url().as_str(), None);
-        let result = client.clone().fetch(s!("/")).await;
-        expect!(result.clone()).to(be_ok());
-        client.path_info = result.ok();
-        let result = client.clone().fetch_link("any", &hashmap!{}).await;
-        expect!(result).to(be_err().value(format!("Link 'any' was not found in the response, only the following links where found: \"next, prev\". URL: '{}', LINK: 'any'",
-            pact_broker.url())));
-    }
+    let mut client = HALClient::with_url(pact_broker.url().as_str(), None);
+    let result = client.clone().fetch("/").await;
+    expect!(result.clone()).to(be_ok());
+    client.path_info = result.ok();
+    let result = client.clone().fetch_link("any", &hashmap!{}).await;
+    expect!(result).to(be_err().value(format!("Link 'any' was not found in the response, only the following links where found: \"next, prev\". URL: '{}', LINK: 'any'",
+        pact_broker.url())));
+  }
 
     #[tokio::test]
     async fn fetch_link_returns_the_resource_for_the_link() {
@@ -1170,7 +1248,7 @@ mod tests {
             .start_mock_server();
 
         let mut client = HALClient::with_url(pact_broker.url().as_str(), None);
-        let result = client.clone().fetch(s!("/")).await;
+        let result = client.clone().fetch("/").await;
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
         let result = client.clone().fetch_link("next", &hashmap!{}).await;
@@ -1196,7 +1274,7 @@ mod tests {
             .start_mock_server();
 
         let mut client = HALClient::with_url(pact_broker.url().as_str(), None);
-        let result = client.clone().fetch(s!("/")).await;
+        let result = client.clone().fetch("/").await;
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
         let result = client.clone().fetch_link("next", &hashmap!{}).await;
@@ -1223,7 +1301,7 @@ mod tests {
             .start_mock_server();
 
         let mut client = HALClient::with_url(pact_broker.url().as_str(), None);
-        let result = client.clone().fetch(s!("/")).await;
+        let result = client.clone().fetch("/").await;
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
         let result = client.clone().fetch_link("document", &hashmap!{ s!("id") => s!("abc") }).await;

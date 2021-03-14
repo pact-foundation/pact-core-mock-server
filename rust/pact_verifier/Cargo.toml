@@ -50,3 +50,4 @@ quickcheck = "1"
 expectest = "0.12.0"
 env_logger = "0.8"
 pact_consumer = { version = "0.7.0", path = "../pact_consumer" }
+pact_mock_server = { version = "0.7.15", path = "../pact_mock_server" }
