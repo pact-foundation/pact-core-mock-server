@@ -10,6 +10,7 @@ use std::iter::{self, Iterator};
 pub use pact_matching::models::message_pact::MessagePact;
 use pact_matching::models::Consumer;
 use pact_matching::models::Provider;
+use crate::models::message::Message;
 
 ffi_fn! {
     /// Construct a new `MessagePact` from the JSON string.
@@ -76,6 +77,53 @@ ffi_fn! {
         provider as *mut Provider
     } {
         ptr::null_mut_to::<Provider>()
+    }
+}
+
+ffi_fn! {
+    /// Get an iterator over the messages of a message pact.
+    ///
+    /// This iterator carries a pointer to the message pact, and must
+    /// not outlive the message pact.
+    ///
+    /// The message pact messages also must not be modified during iteration.
+    /// If they are, the old iterator must be deleted and a new iterator created.
+    ///
+    /// # Errors
+    ///
+    /// On failure, this function will return a NULL pointer.
+    ///
+    /// This function may fail if any of the Rust strings contain embedded
+    /// null ('\0') bytes.
+    fn message_pact_get_message_iter(message_pact: *mut MessagePact) -> *mut MessagePactMessageIterator {
+        let message_pact = as_mut!(message_pact);
+        let iter = MessagePactMessageIterator { current: 0, message_pact };
+        ptr::raw_to(iter)
+    } {
+        ptr::null_mut_to::<MessagePactMessageIterator>()
+    }
+}
+
+ffi_fn! {
+    /// Get the next message from the message pact.
+    fn message_pact_message_iter_next(iter: *mut MessagePactMessageIterator) -> *mut Message {
+        let iter = as_mut!(iter);
+        let message_pact = as_mut!(iter.message_pact);
+        let index = iter.next();
+        let message = message_pact
+            .messages
+            .get_mut(index)
+            .ok_or(anyhow::anyhow!("iter past the end of messages"))?;
+        message as *mut Message
+    } {
+        ptr::null_mut_to::<Message>()
+    }
+}
+
+ffi_fn! {
+    /// Delete the iterator.
+    fn message_pact_message_iter_delete(iter: *mut MessagePactMessageIterator) {
+        ptr::drop_raw(iter);
     }
 }
 
@@ -188,6 +236,23 @@ ffi_fn! {
     }
 }
 
+/// An iterator over messages in a message pact.
+#[derive(Debug)]
+#[allow(missing_copy_implementations)]
+pub struct MessagePactMessageIterator {
+    current: usize,
+    message_pact: *mut MessagePact,
+}
+
+impl MessagePactMessageIterator {
+    /// Get the index of the next message in the message pact.
+    fn next(&mut self) -> usize {
+        let idx = self.current;
+        self.current += 1;
+        idx
+    }
+}
+
 /// An iterator that enables FFI iteration over metadata by putting all the keys on the heap
 /// and tracking which one we're currently at.
 ///
@@ -198,7 +263,7 @@ pub struct MessagePactMetadataIterator {
     keys: Vec<(String, String)>,
     /// The current key
     current: usize,
-    /// Pointer to the message.
+    /// Pointer to the message pact.
     message_pact: *const MessagePact,
 }
 
