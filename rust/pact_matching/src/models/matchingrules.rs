@@ -1435,19 +1435,19 @@ macro_rules! matchingrules {
 #[macro_export]
 macro_rules! matchingrules_list {
   ( $name:expr ; $( $subname:expr => [ $( $matcher:expr ), * ] ),* ) => {{
-    let mut _category = $crate::MatchingRuleCategory::empty($name);
+    let mut _category = $crate::models::matchingrules::MatchingRuleCategory::empty($name);
     $(
       $(
-        _category.add_rule($subname, $matcher, &$crate::RuleLogic::And);
+        _category.add_rule($subname, $matcher, &$crate::models::matchingrules::RuleLogic::And);
       )*
     )*
     _category
   }};
 
   ( $name:expr ; [ $( $matcher:expr ), * ] ) => {{
-    let mut _category = $crate::MatchingRuleCategory::empty($name);
+    let mut _category = $crate::models::matchingrules::MatchingRuleCategory::empty($name);
     $(
-      _category.add_rule("", $matcher, &$crate::RuleLogic::And);
+      _category.add_rule("", $matcher, &$crate::models::matchingrules::RuleLogic::And);
     )*
     _category
   }};

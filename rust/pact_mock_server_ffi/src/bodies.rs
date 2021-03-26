@@ -1,14 +1,16 @@
 //! Functions to support processing request/response bodies
 
-use pact_matching::models::matchingrules::{MatchingRuleCategory, MatchingRule, RuleLogic};
-use pact_matching::models::generators::{Generators, Generator, GeneratorCategory};
-use serde_json::{Value, Map};
-use pact_matching::models::json_utils::{json_to_string, json_to_num};
-use pact_matching::models::{Request, OptionalBody, Response};
-use maplit::*;
 use std::path::Path;
-use log::*;
+
 use bytes::Bytes;
+use log::*;
+use maplit::*;
+use serde_json::{Map, Value};
+
+use pact_matching::models::{OptionalBody, Request, Response};
+use pact_matching::models::generators::{Generator, GeneratorCategory, Generators};
+use pact_matching::models::json_utils::{json_to_num, json_to_string};
+use pact_matching::models::matchingrules::{MatchingRule, MatchingRuleCategory, RuleLogic};
 
 const CONTENT_TYPE_HEADER: &str = "Content-Type";
 
@@ -270,4 +272,87 @@ pub fn empty_multipart_body() -> Result<MultipartBody, String> {
 
 fn format_multipart_error(e: std::io::Error) -> String {
   format!("convert_ptr_to_mime_part_body: Failed to generate multipart body: {}", e)
+}
+
+#[cfg(test)]
+mod test {
+  use std::str::FromStr;
+
+  use expectest::prelude::{be_equal_to, expect};
+  use serde_json::json;
+
+  use pact_matching::{generators, matchingrules_list};
+  use pact_matching::models::generators::{Generator, Generators};
+  use pact_matching::models::matchingrules::{MatchingRule, MatchingRuleCategory};
+
+  use crate::bodies::process_object;
+
+  #[test]
+  fn process_object_with_normal_json_test() {
+    let json = json!({
+      "a": "b",
+      "c": [100, 200, 300]
+    });
+    let mut matching_rules = MatchingRuleCategory::default();
+    let mut generators = Generators::default();
+    let result = process_object(json.as_object().unwrap(), &mut matching_rules,
+                                &mut generators, "$", false, false);
+
+    expect!(result).to(be_equal_to(json));
+  }
+
+  #[test]
+  fn process_object_with_matching_rule_test() {
+    let json = json!({
+      "a": {
+        "pact:matcher:type": "regex",
+        "regex": "\\w+",
+        "value": "b"
+      },
+      "c": [100, 200, {
+        "pact:matcher:type": "integer",
+        "pact:generator:type": "RandomInt",
+        "value": 300
+      }]
+    });
+    let mut matching_rules = MatchingRuleCategory::empty("body");
+    let mut generators = Generators::default();
+    let result = process_object(json.as_object().unwrap(), &mut matching_rules,
+                                &mut generators, "$", false, false);
+
+    expect!(result).to(be_equal_to(json!({
+      "a": "b",
+      "c": [100, 200, 300]
+    })));
+    expect!(matching_rules).to(be_equal_to(matchingrules_list!{
+      "body";
+      "$.a" => [ MatchingRule::Regex("\\w+".into()) ],
+      "$.c[2]" => [ MatchingRule::Integer ]
+    }));
+    expect!(generators).to(be_equal_to(generators! {
+      "BODY" => {
+        "$.c[2]" => Generator::RandomInt(0, 10)
+      }
+    }));
+  }
+
+  #[test]
+  fn process_object_with_primitive_json_value() {
+    let json = json!({
+      "pact:matcher:type": "regex",
+      "regex": "\\w+",
+      "value": "b"
+    });
+    let mut matching_rules = MatchingRuleCategory::empty("body");
+    let mut generators = Generators::default();
+    let result = process_object(json.as_object().unwrap(), &mut matching_rules,
+                                &mut generators, "$", false, false);
+
+    expect!(result).to(be_equal_to(json!("b")));
+    expect!(matching_rules).to(be_equal_to(matchingrules_list!{
+      "body";
+      "$" => [ MatchingRule::Regex("\\w+".into()) ]
+    }));
+    expect!(generators).to(be_equal_to(Generators::default()));
+  }
 }
