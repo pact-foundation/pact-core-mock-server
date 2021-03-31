@@ -1,0 +1,27 @@
+{
+    "name": "pact-reference/php",
+    "description": "Reference implementation of calling pact mock server from PHP",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Tien Vo",
+            "email": "tien.xuan.vo@gmail.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.4",
+        "ext-ffi": "*",
+        "symfony/http-client": "^5.3",
+        "slim/slim": "^4.8",
+        "slim/psr7": "^1.4",
+        "symfony/process": "^5.3",
+        "guzzlehttp/guzzle": "^7.3"
+    },
+    "scripts": {
+        "consumer-1-matches": "MATCHING=1 php src/consumer-1.php",
+        "consumer-1-mismatches": "MATCHING=0 php src/consumer-1.php",
+        "consumer-2-matches": "MATCHING=1 php src/consumer-2.php",
+        "consumer-2-mismatches": "MATCHING=0 php src/consumer-2.php",
+        "provider": "php src/provider.php"
+    }
+}

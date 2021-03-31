@@ -42,3 +42,6 @@ ruby/*/tmp/
 ruby/*/.rspec_status
 
 build/
+
+php/vendor/
+php/composer.lock

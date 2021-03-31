@@ -1,0 +1,37 @@
+{
+  "consumer": {
+    "name": "http-consumer-2"
+  },
+  "interactions": [
+    {
+      "description": "A PUT request to generate book cover",
+      "providerStates": [
+        {
+          "name": "Book Fixtures Loaded"
+        }
+      ],
+      "request": {
+        "body": [],
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "method": "PUT",
+        "path": "/api/books/fb5a885f-f7e8-4a50-950f-c1a64a94d500/generate-cover"
+      },
+      "response": {
+        "status": 204
+      }
+    }
+  ],
+  "metadata": {
+    "pactRust": {
+      "version": "0.9.3"
+    },
+    "pactSpecification": {
+      "version": "3.0.0"
+    }
+  },
+  "provider": {
+    "name": "provider"
+  }
+}
