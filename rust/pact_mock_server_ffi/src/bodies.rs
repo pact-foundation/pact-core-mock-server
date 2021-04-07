@@ -147,6 +147,7 @@ pub fn from_integration_json(m: &Map<String, Value>) -> Option<MatchingRule> {
           None => None
         },
         "null" => Some(MatchingRule::Null),
+        "values" => Some(MatchingRule::Values),
         "contentType" => match m.get("value") {
           Some(s) => Some(MatchingRule::ContentType(json_to_string(s))),
           None => None
