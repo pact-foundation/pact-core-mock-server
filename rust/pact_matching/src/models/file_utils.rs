@@ -1,18 +1,18 @@
 use std::fs::File;
 use std::path::Path;
-use std::io;
 use log::*;
-use std::io::{Error, ErrorKind};
 use fs2::FileExt;
 use std::thread::sleep;
 use std::time::Duration;
+
+use anyhow::bail;
 
 pub(crate) fn with_read_lock_for_open_file<T>(
   path: &Path,
   file: &mut File,
   attempts: u32,
-  cl: &mut dyn FnMut(&mut File) -> io::Result<T>
-) -> io::Result<T> {
+  cl: &mut dyn FnMut(&mut File) -> anyhow::Result<T>
+) -> anyhow::Result<T> {
   let mut attempt = 0;
   while attempt < attempts {
    trace!("Attempt {} of {} to get a shared lock on '{:?}'", attempt, attempts, path);
@@ -37,14 +37,14 @@ pub(crate) fn with_read_lock_for_open_file<T>(
   let msg = format!("Could not acquire a shared lock on '{}' after {} attempts",
                     path.to_string_lossy(), attempts);
   error!("{}", msg);
-  return Err(Error::new(ErrorKind::Other, msg));
+  bail!(msg);
 }
 
 pub(crate) fn with_read_lock<T>(
   path: &Path,
   attempts: u32,
-  cl: &mut dyn FnMut(&mut File) -> io::Result<T>
-) -> io::Result<T> {
+  cl: &mut dyn FnMut(&mut File) -> anyhow::Result<T>
+) -> anyhow::Result<T> {
   let mut file = File::open(path)?;
   with_read_lock_for_open_file(path, &mut file, attempts, cl)
 }
@@ -53,8 +53,8 @@ pub(crate) fn with_write_lock<T>(
   path: &Path,
   file: &mut File,
   attempts: u32,
-  cl: &mut dyn FnMut(&mut File) -> io::Result<T>
-) -> io::Result<T> {
+  cl: &mut dyn FnMut(&mut File) -> anyhow::Result<T>
+) -> anyhow::Result<T> {
   let mut attempt = 0;
   while attempt < attempts {
     trace!("Attempt {} of {} to get an exclusive lock on '{:?}'", attempt, attempts, path);
@@ -79,5 +79,5 @@ pub(crate) fn with_write_lock<T>(
   let msg = format!("Could not acquire an exclusive lock on '{}' after {} attempts",
                     path.to_string_lossy(), attempts);
   error!("{}", msg);
-  return Err(Error::new(ErrorKind::Other, msg));
+  bail!(msg);
 }

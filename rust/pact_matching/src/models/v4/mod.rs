@@ -1,16 +1,16 @@
 //! V4 specification models
 
-use std::{fmt, io};
+use std::fmt;
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap};
 use std::collections::hash_map::DefaultHasher;
 use std::fmt::{Display, Debug};
 use std::hash::{Hash, Hasher};
-use std::io::{Error, ErrorKind};
 use std::path::Path;
 use std::string::ToString;
 use std::sync::{Arc, Mutex};
 
+use anyhow::Context as _;
 use itertools::EitherOrBoth::{Both, Left, Right};
 use itertools::Itertools;
 use log::*;
@@ -660,11 +660,10 @@ impl Default for V4Pact {
 }
 
 impl ReadWritePact for V4Pact {
-  fn read_pact(path: &Path) -> io::Result<V4Pact> {
+  fn read_pact(path: &Path) -> anyhow::Result<V4Pact> {
     let json = with_read_lock(path, 3, &mut |f| {
       serde_json::from_reader::<_, Value>(f)
-        .map_err(|err|
-          Error::new(ErrorKind::Other, format!("Failed to parse Pact JSON - {}", err)))
+        .context("Failed to parse Pact JSON")
     })?;
     let metadata = meta_data_from_json(&json);
     let consumer = match json.get("consumer") {

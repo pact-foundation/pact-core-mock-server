@@ -4,7 +4,6 @@
 //!
 
 use std::ffi::CString;
-use std::io;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
@@ -232,7 +231,7 @@ impl MockServer {
     }
 
   /// Mock server writes its pact out to the provided directory
-  pub fn write_pact(&self, output_path: &Option<String>, overwrite: bool) -> io::Result<()> {
+  pub fn write_pact(&self, output_path: &Option<String>, overwrite: bool) -> anyhow::Result<()> {
     let pact_file_name = self.pact.default_file_name();
     let filename = match *output_path {
       Some(ref path) => {
