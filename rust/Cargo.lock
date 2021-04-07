@@ -2129,9 +2129,9 @@ dependencies = [
 
 [[package]]
 name = "tree_magic_mini"
-version = "1.0.1"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "287a760af78a7d607cb231500c06009ea1e0599cd57b10c32760061979bab1f1"
+checksum = "172fbbcb75249161c738f00d693e883f4204a0c063658f505d6303f6c081f3da"
 dependencies = [
  "fnv",
  "lazy_static",
