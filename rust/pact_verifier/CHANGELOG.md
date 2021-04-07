@@ -1,5 +1,8 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.10.6 - Bugfix Release
+
+
 # 0.10.5 - Bugfix Release
 
 * 32ba4b1 - chore: update pact_matching to latest (Matt Fellows, Wed Apr 7 13:12:36 2021 +1000)
