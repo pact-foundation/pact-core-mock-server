@@ -1230,7 +1230,7 @@ dependencies = [
 
 [[package]]
 name = "pact_verifier"
-version = "0.10.5"
+version = "0.10.6"
 dependencies = [
  "ansi_term 0.12.1",
  "async-trait",
