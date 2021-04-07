@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.8.14 - Bugfix Release
+
+* 75c2c1a - fix: upgrade to tree_magic_mini 2.0.0 because they pulled 1.0.0 from crates.io and now builds fail (Matt Fellows, Wed Apr 7 12:53:26 2021 +1000)
+* 4f48223 - chore: add some tests for process_object (Ronald Holshausen, Fri Mar 26 15:00:32 2021 +1100)
+* 41652e2 - bump version to 0.8.14 (Ronald Holshausen, Sun Mar 14 14:34:21 2021 +1100)
+
 # 0.8.13 - V4 features (message refactor)
 
 * b7c80e8 - chore: update specification tests (Ronald Holshausen, Mon Mar 8 15:48:34 2021 +1100)
