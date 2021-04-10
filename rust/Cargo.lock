@@ -28,6 +28,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "anyhow"
+version = "1.0.40"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "28b2cd92db5cbd74e8e5028f7e27dd7aa3090e89e4f2a197cc7c8dfb69c7063b"
+
+[[package]]
 name = "arrayvec"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1107,6 +1113,7 @@ name = "pact_matching"
 version = "0.8.14"
 dependencies = [
  "ansi_term 0.12.1",
+ "anyhow",
  "base64",
  "bytes",
  "chrono",
@@ -1150,6 +1157,7 @@ dependencies = [
 name = "pact_mock_server"
 version = "0.7.17"
 dependencies = [
+ "anyhow",
  "bytes",
  "env_logger",
  "expectest",
@@ -1233,6 +1241,7 @@ name = "pact_verifier"
 version = "0.10.5"
 dependencies = [
  "ansi_term 0.12.1",
+ "anyhow",
  "async-trait",
  "bytes",
  "difference",

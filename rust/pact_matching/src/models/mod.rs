@@ -9,7 +9,6 @@ use std::default::Default;
 use std::fmt::{Debug, Display, Formatter};
 use std::fs::File;
 use std::hash::{Hash, Hasher};
-use std::io::{self, Error, ErrorKind};
 use std::io::prelude::*;
 use std::io::SeekFrom;
 use std::path::Path;
@@ -17,6 +16,8 @@ use std::str;
 use std::str::from_utf8;
 use std::sync::{Arc, Mutex};
 
+use anyhow::anyhow;
+use anyhow::Context as _;
 use base64::{decode, encode};
 use bytes::{Bytes, BytesMut};
 use fs2::FileExt;
@@ -1580,12 +1581,11 @@ impl RequestResponsePact {
 }
 
 impl ReadWritePact for RequestResponsePact {
-  fn read_pact(path: &Path) -> io::Result<RequestResponsePact> {
+  fn read_pact(path: &Path) -> anyhow::Result<RequestResponsePact> {
     with_read_lock(path, 3, &mut |f| {
-      match serde_json::from_reader(f) {
-        Ok(ref json) => Ok(RequestResponsePact::from_json(&format!("{:?}", path), json)),
-        Err(err) => Err(Error::new(ErrorKind::Other, format!("Failed to parse Pact JSON - {}", err)))
-      }
+      let pact_json = serde_json::from_reader(f)
+        .context("Failed to parse Pact JSON")?;
+      Ok(RequestResponsePact::from_json(&format!("{:?}", path), &pact_json))
     })
   }
 
@@ -1784,46 +1784,41 @@ pub fn message_interaction_from_json(source: &str, json: &Value, spec: &PactSpec
 }
 
 /// Reads the pact file and parses the resulting JSON into a `Pact` struct
-pub fn read_pact(file: &Path) -> io::Result<Box<dyn Pact>> {
+pub fn read_pact(file: &Path) -> anyhow::Result<Box<dyn Pact>> {
   let mut f = File::open(file)?;
   read_pact_from_file(&mut f, file)
 }
 
 /// Reads the pact from the file and parses the resulting JSON into a `Pact` struct
-pub fn read_pact_from_file(file: &mut File, path: &Path) -> io::Result<Box<dyn Pact>> {
+pub fn read_pact_from_file(file: &mut File, path: &Path) -> anyhow::Result<Box<dyn Pact>> {
   let buf = with_read_lock_for_open_file(path, file, 3, &mut |f| {
     let mut buf = String::new();
     f.read_to_string(&mut buf)?;
     Ok(buf)
   })?;
-  let pact_json = serde_json::from_str(&buf);
-  match pact_json {
-    Ok(ref json) => load_pact_from_json(&*path.to_string_lossy(), json)
-      .map_err(|err| Error::new(ErrorKind::Other, err)),
-    Err(err) => {
+  let pact_json = serde_json::from_str(&buf)
+    .context("Failed to parse Pact JSON")
+    .map_err(|err| {
       error!("read_pact_from_file: {}", err);
       debug!("read_pact_from_file: file contents = '{}'", buf);
-      Err(Error::new(ErrorKind::Other, format!("Failed to parse Pact JSON - {}", err)))
-    }
-  }
+      err
+    })?;
+  load_pact_from_json(&*path.to_string_lossy(), &pact_json)
+    .map_err(|e| anyhow!(e))
 }
 
 /// Reads the pact file from a URL and parses the resulting JSON into a `Pact` struct
 pub fn load_pact_from_url(url: &str, auth: &Option<HttpAuth>) -> Result<Box<dyn Pact>, String> {
-  match http_utils::fetch_json_from_url(&url.to_string(), auth) {
-    Ok((ref url, ref json)) => load_pact_from_json(url, json),
-    Err(err) => Err(err)
-  }
+  let (url, pact_json) = http_utils::fetch_json_from_url(&url.to_string(), auth)?;
+  load_pact_from_json(&url, &pact_json)
 }
 
 /// Loads a Pact model from a JSON Value
 pub fn load_pact_from_json(source: &str, json: &Value) -> Result<Box<dyn Pact>, String> {
   match json {
     Value::Object(map) => if map.contains_key("messages") {
-      match MessagePact::from_json(source, json) {
-        Ok(pact) => Ok(Box::new(pact)),
-        Err(err) => Err(err)
-      }
+      let pact = MessagePact::from_json(source, json)?;
+      Ok(Box::new(pact))
     } else {
       let metadata = parse_meta_data(json);
       let spec_version = determine_spec_version(source, &metadata);
@@ -1839,7 +1834,7 @@ pub fn load_pact_from_json(source: &str, json: &Value) -> Result<Box<dyn Pact>, 
 /// Trait for objects that can represent Pacts and can be read and written
 pub trait ReadWritePact {
   /// Reads the pact file and parses the resulting JSON into a `Pact` struct
-  fn read_pact(path: &Path) -> io::Result<Self> where Self: std::marker::Sized;
+  fn read_pact(path: &Path) -> anyhow::Result<Self> where Self: std::marker::Sized;
 
   /// Merges this pact with the other pact, and returns a new Pact with the interactions sorted.
   /// Returns an error if there is a merge conflict, which will occur if the other pact is a different
@@ -1864,7 +1859,7 @@ pub fn write_pact<T: ReadWritePact + Pact + Debug>(
   path: &Path,
   pact_spec: PactSpecification,
   overwrite: bool
-) -> io::Result<()> {
+) -> anyhow::Result<()> {
   fs::create_dir_all(path.parent().unwrap())?;
   let _lock = WRITE_LOCK.lock().unwrap();
   if !overwrite && path.exists() {
@@ -1878,13 +1873,14 @@ pub fn write_pact<T: ReadWritePact + Pact + Debug>(
     }
 
     let merged_pact = pact.merge(existing_pact.borrow())
-      .map_err(|err| Error::new(ErrorKind::Other, err))?;
+      .map_err(|err| anyhow!(err))?;
     let pact_json = serde_json::to_string_pretty(&merged_pact.to_json(pact_spec))?;
 
     with_write_lock(path, &mut f, 3, &mut |f| {
-      f.set_len(0)
-        .and_then(|_| f.seek(SeekFrom::Start(0)))
-        .and_then(|_| f.write_all(pact_json.as_bytes()))
+      f.set_len(0)?;
+      f.seek(SeekFrom::Start(0))?;
+      f.write_all(pact_json.as_bytes())?;
+      Ok(())
     })
   } else {
     debug!("Writing new pact file to {:?}", path);
@@ -1893,7 +1889,7 @@ pub fn write_pact<T: ReadWritePact + Pact + Debug>(
     file.lock_exclusive()?;
     let result = file.write_all(result.as_bytes());
     file.unlock()?;
-    result
+    result.map_err(|e| e.into())
   }
 }
 
