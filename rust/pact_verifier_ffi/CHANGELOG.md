@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.0.3 - Bugfix Release
+
+* f4881db - feat: set non-hard coded install name on Mac dylib (Matt Fellows, Wed Feb 24 14:29:52 2021 +1100)
+* dc64860 - bump version to 0.0.3 (Ronald Holshausen, Mon Feb 8 16:13:22 2021 +1100)
+
 # 0.0.2 - add callback timeout option for verifcation callbacks
 
 * 4afa86a - fix: add callback timeout option for verifcation callbacks (Ronald Holshausen, Sat Feb 6 12:27:32 2021 +1100)
