@@ -7,7 +7,6 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::fmt;
 use std::fs;
-use std::io;
 use std::path::Path;
 
 use ansi_term::*;
@@ -358,7 +357,7 @@ fn display_result(
   println!("      has a matching body ({})", body_result);
 }
 
-fn walkdir(dir: &Path) -> io::Result<Vec<io::Result<Box<dyn Pact>>>> {
+fn walkdir(dir: &Path) -> anyhow::Result<Vec<anyhow::Result<Box<dyn Pact>>>> {
     let mut pacts = vec![];
     log::debug!("Scanning {:?}", dir);
     for entry in fs::read_dir(dir)? {

@@ -1,14 +1,14 @@
 //! The `message_pact` module defines a Pact
 //! that contains Messages instead of Interactions.
 
-use std::{fs, io};
+use std::fs;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::fs::File;
-use std::io::{Error, ErrorKind};
 use std::io::prelude::*;
 use std::path::Path;
 
+use anyhow::anyhow;
 use itertools::EitherOrBoth::{Both, Left, Right};
 use itertools::Itertools;
 use log::*;
@@ -230,11 +230,11 @@ impl MessagePact {
 }
 
 impl ReadWritePact for MessagePact {
-  fn read_pact(path: &Path) -> io::Result<MessagePact> {
+  fn read_pact(path: &Path) -> anyhow::Result<MessagePact> {
     with_read_lock(path, 3, &mut |f| {
       let pact_json: Value = serde_json::from_reader(f)?;
       MessagePact::from_json(&format!("{:?}", path), &pact_json)
-        .map_err(|err| Error::new(ErrorKind::Other, err.clone()))
+        .map_err(|e| anyhow!(e))
     })
   }
 
