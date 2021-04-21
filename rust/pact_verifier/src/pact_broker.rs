@@ -1461,14 +1461,14 @@ mod tests {
           "happy_provider", None).await;
         match &result {
           Ok(_) => (),
-          Err(err) => panic!(format!("Expected an Ok result, got a error {}", err))
+          Err(err) => panic!("Expected an Ok result, got a error {}", err)
         }
         let pacts = &result.unwrap();
         expect!(pacts.len()).to(be_equal_to(2));
         for pact in pacts {
           match pact {
             Ok(_) => (),
-            Err(err) => panic!(format!("Expected an Ok result, got a error {}", err))
+            Err(err) => panic!("Expected an Ok result, got a error {}", err)
           }
         }
     }
@@ -1589,7 +1589,7 @@ mod tests {
 
     match &result {
       Ok(_) => (),
-      Err(err) => panic!(format!("Expected an Ok result, got a error {}", err))
+      Err(err) => panic!("Expected an Ok result, got a error {}", err)
     }
 
     let pacts = &result.unwrap();
@@ -1598,7 +1598,7 @@ mod tests {
     for pact in pacts {
       match pact {
         Ok(_) => (),
-        Err(err) => panic!(format!("Expected an Ok result, got a error {}", err))
+        Err(err) => panic!("Expected an Ok result, got a error {}", err)
       }
     }
   }
