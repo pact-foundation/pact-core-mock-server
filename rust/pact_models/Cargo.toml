@@ -1,0 +1,7 @@
+[package]
+name = "pact_models"
+version = "0.0.0"
+authors = ["Ronald Holshausen <rholshausen@dius.com.au>"]
+edition = "2018"
+
+[dependencies]
