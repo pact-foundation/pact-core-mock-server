@@ -31,17 +31,19 @@ use onig::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
+use pact_models::PactSpecification;
+
 use crate::models::content_types::ContentType;
 use crate::models::file_utils::{with_read_lock, with_read_lock_for_open_file, with_write_lock};
 use crate::models::generators::{Generator, GeneratorCategory};
 use crate::models::http_utils::HttpAuth;
 use crate::models::json_utils::json_to_string;
+use crate::models::matchingrules::MatchingRules;
 use crate::models::message::Message;
 use crate::models::message_pact::MessagePact;
 use crate::models::provider_states::ProviderState;
-use crate::models::v4::{interaction_from_json, V4Pact, SynchronousHttp, AsynchronousMessage, V4Interaction};
+use crate::models::v4::{AsynchronousMessage, interaction_from_json, SynchronousHttp, V4Interaction, V4Pact};
 use crate::models::v4::http_parts::{HttpRequest, HttpResponse};
-use crate::models::matchingrules::MatchingRules;
 
 pub mod json_utils;
 pub mod xml_utils;
@@ -54,56 +56,6 @@ mod file_utils;
 
 /// Version of the library
 pub const PACT_RUST_VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
-
-/// Enum defining the pact specification versions supported by the library
-#[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize, Serialize)]
-#[allow(non_camel_case_types)]
-pub enum PactSpecification {
-    /// Unknown or unsupported specification version
-    Unknown,
-    /// First version of the pact specification (https://github.com/pact-foundation/pact-specification/tree/version-1)
-    V1,
-    /// Second version of the pact specification (https://github.com/pact-foundation/pact-specification/tree/version-1.1)
-    V1_1,
-    /// Version two of the pact specification (https://github.com/pact-foundation/pact-specification/tree/version-2)
-    V2,
-    /// Version three of the pact specification (https://github.com/pact-foundation/pact-specification/tree/version-3)
-    V3,
-    /// Version four of the pact specification (https://github.com/pact-foundation/pact-specification/tree/version-4)
-    V4
-}
-
-impl Default for PactSpecification {
-  fn default() -> Self {
-    PactSpecification::Unknown
-  }
-}
-
-impl PactSpecification {
-    /// Returns the semantic version string of the specification version.
-    pub fn version_str(&self) -> String {
-        match *self {
-            PactSpecification::V1 => s!("1.0.0"),
-            PactSpecification::V1_1 => s!("1.1.0"),
-            PactSpecification::V2 => s!("2.0.0"),
-            PactSpecification::V3 => s!("3.0.0"),
-            PactSpecification::V4 => s!("4.0"),
-            _ => s!("unknown")
-        }
-    }
-
-    /// Returns a descriptive string of the specification version.
-    pub fn to_string(&self) -> String {
-        match *self {
-            PactSpecification::V1 => s!("V1"),
-            PactSpecification::V1_1 => s!("V1.1"),
-            PactSpecification::V2 => s!("V2"),
-            PactSpecification::V3 => s!("V3"),
-            PactSpecification::V4 => s!("V4"),
-            _ => s!("unknown")
-        }
-    }
-}
 
 /// Struct that defines the consumer of the pact.
 #[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]

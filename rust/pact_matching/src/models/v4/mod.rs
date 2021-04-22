@@ -1,10 +1,10 @@
 //! V4 specification models
 
-use std::fmt;
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap};
 use std::collections::hash_map::DefaultHasher;
-use std::fmt::{Display, Debug};
+use std::fmt;
+use std::fmt::{Debug, Display};
 use std::hash::{Hash, Hasher};
 use std::path::Path;
 use std::string::ToString;
@@ -18,16 +18,18 @@ use maplit::*;
 use nom::lib::std::fmt::Formatter;
 use serde_json::{json, Value};
 
-use crate::models::{Consumer, detect_content_type_from_bytes, generators, Interaction, matchingrules, OptionalBody, Pact, PACT_RUST_VERSION, PactSpecification, Provider, provider_states, ReadWritePact, RequestResponseInteraction, RequestResponsePact, HttpPart};
+use pact_models::PactSpecification;
+
+use crate::models::{Consumer, detect_content_type_from_bytes, generators, HttpPart, Interaction, matchingrules, OptionalBody, Pact, PACT_RUST_VERSION, Provider, provider_states, ReadWritePact, RequestResponseInteraction, RequestResponsePact};
 use crate::models::content_types::ContentType;
-use crate::models::generators::{generators_to_json, Generators};
+use crate::models::file_utils::with_read_lock;
+use crate::models::generators::{Generators, generators_to_json};
 use crate::models::json_utils::{hash_json, json_to_string};
 use crate::models::matchingrules::{matchers_to_json, MatchingRules};
 use crate::models::message::Message;
 use crate::models::message_pact::MessagePact;
 use crate::models::provider_states::ProviderState;
 use crate::models::v4::http_parts::{body_from_json, HttpRequest, HttpResponse};
-use crate::models::file_utils::with_read_lock;
 
 /// V4 Interaction Type
 #[derive(Debug, Clone)]

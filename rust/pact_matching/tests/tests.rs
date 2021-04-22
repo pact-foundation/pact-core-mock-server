@@ -9,6 +9,7 @@ use std::{
 use expectest::prelude::*;
 use maplit::*;
 
+use pact_models::PactSpecification;
 use pact_matching::models::*;
 use pact_matching::s;
 

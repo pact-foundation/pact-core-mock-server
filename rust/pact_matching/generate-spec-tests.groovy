@@ -15,7 +15,7 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
     pw.println('#[allow(unused_imports)]')
     pw.println('use test_env_log::test;')
     pw.println('#[allow(unused_imports)]')
-    pw.println('use pact_matching::models::PactSpecification;')
+    pw.println('use pact_models::PactSpecification;')
     pw.println('#[allow(unused_imports)]')
     pw.println('use serde_json;')
     pw.println('#[allow(unused_imports)]')

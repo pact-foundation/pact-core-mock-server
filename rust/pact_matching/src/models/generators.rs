@@ -1,9 +1,13 @@
 //! `generators` module includes all the classes to deal with V3 format generators
 
 use std::{collections::HashMap, hash::{Hash, Hasher}, mem, ops::Index, str::FromStr};
+#[cfg(test)]
+use std::collections::hash_map::DefaultHasher;
 use std::convert::TryFrom;
 
 use chrono::prelude::*;
+#[cfg(test)]
+use expectest::prelude::*;
 use indextree::{Arena, NodeId};
 use itertools::Itertools;
 use log::*;
@@ -16,6 +20,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{self, json, Value};
 use sxd_document::dom::Document;
 use uuid::Uuid;
+
+use pact_models::PactSpecification;
 
 use crate::{DiffConfig, MatchingContext};
 use crate::models::content_types::ContentType;
@@ -32,13 +38,6 @@ use crate::models::OptionalBody;
 use crate::models::xml_utils::parse_bytes;
 use crate::path_exp::*;
 use crate::time_utils::{parse_pattern, to_chrono_pattern};
-
-use super::PactSpecification;
-
-#[cfg(test)]
-use expectest::prelude::*;
-#[cfg(test)]
-use std::collections::hash_map::DefaultHasher;
 
 /// Trait to represent a generator
 #[derive(Serialize, Deserialize, Debug, Clone, Eq)]

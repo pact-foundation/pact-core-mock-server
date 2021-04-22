@@ -1,30 +1,29 @@
 //! `matchingrules` module includes all the classes to deal with V3 format matchers
 
 use std::{collections::{HashMap, HashSet}, hash::{Hash, Hasher}, mem};
+#[cfg(test)]
+use std::collections::hash_map::DefaultHasher;
 use std::fmt::{Debug, Display};
 #[allow(unused_imports)] // FromStr is actually used
-use std::str::{self, FromStr, from_utf8};
+use std::str::{self, from_utf8, FromStr};
 
+#[cfg(test)]
+use expectest::prelude::*;
 use log::*;
 use maplit::*;
+use nom::lib::std::cmp::Ordering;
 use onig::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{self, json, Value};
 
+use pact_models::PactSpecification;
+
 use crate::{MatchingContext, merge_result, Mismatch};
+use crate::binary_utils::match_content_type;
 use crate::matchers::{match_values, Matches};
+use crate::models::generators::{Generator, GeneratorCategory, Generators};
 use crate::models::json_utils::{json_to_num, json_to_string};
 use crate::path_exp::*;
-
-use super::PactSpecification;
-use nom::lib::std::cmp::Ordering;
-use crate::binary_utils::match_content_type;
-use crate::models::generators::{Generators, GeneratorCategory, Generator};
-
-#[cfg(test)]
-use expectest::prelude::*;
-#[cfg(test)]
-use std::collections::hash_map::DefaultHasher;
 
 fn matches_token(path_fragment: &str, path_token: &PathToken) -> usize {
   match path_token {
@@ -1460,9 +1459,10 @@ mod tests {
   use serde_json::Value;
   use speculate::speculate;
 
+  use crate::models::generators::*;
+
   use super::*;
   use super::super::*;
-  use crate::models::generators::*;
 
   #[test]
   fn rules_are_empty_when_there_are_no_categories() {

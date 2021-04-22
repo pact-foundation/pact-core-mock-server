@@ -343,18 +343,20 @@ use std::str::from_utf8;
 
 use ansi_term::*;
 use ansi_term::Colour::*;
+use bytes::Bytes;
 use lazy_static::*;
 use log::*;
 use maplit::hashmap;
 use serde_json::{json, Value};
 
+use pact_models::PactSpecification;
+
 use crate::headers::{match_header_value, match_headers};
 use crate::matchers::*;
-use crate::models::{HttpPart, Interaction, PactSpecification};
+use crate::models::{HttpPart, Interaction};
 use crate::models::content_types::ContentType;
 use crate::models::generators::*;
 use crate::models::matchingrules::*;
-use bytes::Bytes;
 
 /// Simple macro to convert a string slice to a `String` struct.
 #[macro_export]

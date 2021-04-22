@@ -1,9 +1,9 @@
 //! The `message_pact` module defines a Pact
 //! that contains Messages instead of Interactions.
 
-use std::fs;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
+use std::fs;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
@@ -16,18 +16,19 @@ use maplit::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::models::{Consumer, Interaction, Pact, RequestResponsePact, ReadWritePact};
+use pact_models::PactSpecification;
+
+use crate::models::{Consumer, Interaction, Pact, ReadWritePact, RequestResponsePact};
 use crate::models::determine_spec_version;
+use crate::models::file_utils::with_read_lock;
 use crate::models::http_utils;
 use crate::models::http_utils::HttpAuth;
 use crate::models::message;
 use crate::models::message::Message;
-use crate::models::PactSpecification;
+use crate::models::PACT_RUST_VERSION;
 use crate::models::parse_meta_data;
 use crate::models::Provider;
 use crate::models::v4::V4Pact;
-use crate::models::PACT_RUST_VERSION;
-use crate::models::file_utils::with_read_lock;
 
 /// Struct that represents a pact between the consumer and provider of a service.
 /// It contains a list of Messages instead of Interactions, but is otherwise

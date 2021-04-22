@@ -10,8 +10,8 @@ use log::{debug, LevelFilter};
 use simplelog::{Config, TerminalMode, TermLogger};
 
 use pact_matching::models::http_utils::HttpAuth;
-use pact_matching::models::PactSpecification;
 use pact_matching::s;
+use pact_models::PactSpecification;
 use pact_verifier::*;
 use pact_verifier::callback_executors::HttpRequestProviderStateExecutor;
 

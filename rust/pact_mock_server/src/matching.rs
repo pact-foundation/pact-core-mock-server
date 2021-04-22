@@ -3,12 +3,15 @@
 //! against a list of potential interactions.
 //!
 
-use pact_matching::models::{RequestResponseInteraction, Request, PactSpecification};
-use pact_matching::Mismatch;
-use pact_matching::s;
-use serde_json::json;
-use itertools::Itertools;
 use std::fmt::{Display, Formatter};
+
+use itertools::Itertools;
+use serde_json::json;
+
+use pact_matching::Mismatch;
+use pact_matching::models::{Request, RequestResponseInteraction};
+use pact_matching::s;
+use pact_models::PactSpecification;
 
 /// Enum to define a match result
 #[derive(Debug, Clone, PartialEq)]

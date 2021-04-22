@@ -4,23 +4,25 @@
 
 #![warn(missing_docs)]
 
-use clap::{Arg, App, SubCommand, AppSettings, ErrorKind, ArgMatches};
-use std::env;
-use std::str::FromStr;
-use std::fs::{self, File};
-use std::io;
-use std::sync::Mutex;
-use log::{LevelFilter};
-use simplelog::{CombinedLogger, TermLogger, WriteLogger, SimpleLogger, Config};
-use std::path::PathBuf;
-use std::fs::OpenOptions;
-use uuid::Uuid;
-use pact_matching::models::PactSpecification;
-use rand::Rng;
-use rand::distributions::Alphanumeric;
-use lazy_static::*;
 use std::cell::RefCell;
+use std::env;
+use std::fs::{self, File};
+use std::fs::OpenOptions;
+use std::io;
+use std::path::PathBuf;
+use std::str::FromStr;
+use std::sync::Mutex;
+
+use clap::{App, AppSettings, Arg, ArgMatches, ErrorKind, SubCommand};
+use lazy_static::*;
+use log::LevelFilter;
+use rand::distributions::Alphanumeric;
+use rand::Rng;
+use simplelog::{CombinedLogger, Config, SimpleLogger, TermLogger, WriteLogger};
+use uuid::Uuid;
+
 use pact_mock_server::server_manager::ServerManager;
+use pact_models::PactSpecification;
 
 pub(crate) fn display_error(error: String, matches: &ArgMatches) -> ! {
     eprintln!("ERROR: {}", error);
@@ -342,15 +344,16 @@ async fn handle_command_args() -> Result<(), i32> {
 
 #[cfg(test)]
 mod test {
+  use expectest::expect;
+  use expectest::prelude::*;
+  use quickcheck::{quickcheck, TestResult};
+  use rand::Rng;
 
-    use quickcheck::{TestResult, quickcheck};
-    use rand::Rng;
-    use super::{integer_value, uuid_value};
-    use expectest::prelude::*;
-    use expectest::expect;
-    use pact_matching::s;
+  use pact_matching::s;
 
-    #[test]
+  use super::{integer_value, uuid_value};
+
+  #[test]
     fn validates_integer_value() {
         fn prop(s: String) -> TestResult {
             let mut rng = ::rand::thread_rng();

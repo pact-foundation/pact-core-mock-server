@@ -1018,7 +1018,8 @@ mod tests {
   use pact_consumer::*;
   use pact_consumer::prelude::*;
   use pact_matching::Mismatch::MethodMismatch;
-  use pact_matching::models::{Consumer, PactSpecification, Provider, RequestResponseInteraction};
+  use pact_matching::models::{Consumer, Provider, RequestResponseInteraction};
+  use pact_models::PactSpecification;
 
   use super::*;
   use super::{content_type, json_content_type};
