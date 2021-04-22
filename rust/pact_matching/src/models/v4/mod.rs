@@ -98,6 +98,12 @@ pub trait V4Interaction: Interaction {
 
   /// Clones this interaction and wraps it in a box
   fn boxed_v4(&self) -> Box<dyn V4Interaction>;
+
+  /// Annotations and comments associated with this interaction
+  fn comments(&self) -> HashMap<String, Value>;
+
+  /// Mutable access to the annotations and comments associated with this interaction
+  fn comments_mut(&mut self) -> &mut HashMap<String, Value>;
 }
 
 impl Debug for dyn V4Interaction {
@@ -151,7 +157,9 @@ pub struct SynchronousHttp {
   /// Request of the interaction
   pub request: HttpRequest,
   /// Response of the interaction
-  pub response: HttpResponse
+  pub response: HttpResponse,
+  /// Annotations and comments associated with this interaction
+  pub comments: HashMap<String, Value>
 }
 
 impl SynchronousHttp {
@@ -186,6 +194,12 @@ impl V4Interaction for SynchronousHttp {
         self.provider_states.iter().map(|p| p.to_json()).collect()));
     }
 
+    if !self.comments.is_empty() {
+      let map = json.as_object_mut().unwrap();
+      map.insert("comments".to_string(), self.comments.iter()
+        .map(|(k, v)| (k.clone(), v.clone())).collect());
+    }
+
     json
   }
 
@@ -199,6 +213,14 @@ impl V4Interaction for SynchronousHttp {
 
   fn boxed_v4(&self) -> Box<dyn V4Interaction> {
     Box::new(self.clone())
+  }
+
+  fn comments(&self) -> HashMap<String, Value> {
+    self.comments.clone()
+  }
+
+  fn comments_mut(&mut self) -> &mut HashMap<String, Value> {
+    &mut self.comments
   }
 }
 
@@ -290,7 +312,8 @@ impl Default for SynchronousHttp {
       description: "Synchronous/HTTP Interaction".to_string(),
       provider_states: vec![],
       request: HttpRequest::default(),
-      response: HttpResponse::default()
+      response: HttpResponse::default(),
+      comments: Default::default()
     }
   }
 }
@@ -337,7 +360,9 @@ pub struct AsynchronousMessage {
   /// Matching rules
   pub matching_rules: matchingrules::MatchingRules,
   /// Generators
-  pub generators: generators::Generators
+  pub generators: generators::Generators,
+  /// Annotations and comments associated with this interaction
+  pub comments: HashMap<String, Value>
 }
 
 impl AsynchronousMessage {
@@ -392,6 +417,12 @@ impl V4Interaction for AsynchronousMessage {
       map.insert("generators".to_string(), generators_to_json(&self.generators, &PactSpecification::V4));
     }
 
+    if !self.comments.is_empty() {
+      let map = json.as_object_mut().unwrap();
+      map.insert("comments".to_string(), self.comments.iter()
+        .map(|(k, v)| (k.clone(), v.clone())).collect());
+    }
+
     json
   }
 
@@ -405,6 +436,14 @@ impl V4Interaction for AsynchronousMessage {
 
   fn boxed_v4(&self) -> Box<dyn V4Interaction> {
     Box::new(self.clone())
+  }
+
+  fn comments(&self) -> HashMap<String, Value> {
+    self.comments.clone()
+  }
+
+  fn comments_mut(&mut self) -> &mut HashMap<String, Value> {
+    &mut self.comments
   }
 }
 
@@ -500,7 +539,8 @@ impl Default for AsynchronousMessage {
       contents: OptionalBody::Missing,
       metadata: Default::default(),
       matching_rules: Default::default(),
-      generators: Default::default()
+      generators: Default::default(),
+      comments: Default::default()
     }
   }
 }
@@ -676,8 +716,7 @@ impl Default for V4Pact {
 impl ReadWritePact for V4Pact {
   fn read_pact(path: &Path) -> anyhow::Result<V4Pact> {
     let json = with_read_lock(path, 3, &mut |f| {
-      serde_json::from_reader::<_, Value>(f)
-        .context("Failed to parse Pact JSON")
+      serde_json::from_reader::<_, Value>(f).context("Failed to parse Pact JSON")
     })?;
     let metadata = meta_data_from_json(&json);
     let consumer = match json.get("consumer") {
@@ -790,6 +829,17 @@ pub fn interaction_from_json(source: &str, index: usize, ijson: &Value) -> Resul
           },
           None => format!("Interaction {}", index)
         };
+        let comments = match ijson.get("comments") {
+          Some(v) => match v {
+            Value::Object(map) => map.iter()
+              .map(|(k, v)| (k.clone(), v.clone())).collect(),
+            _ => {
+              warn!("Interaction comments must be a JSON Object, but received {}. Ignoring", v);
+              Default::default()
+            }
+          },
+          None => Default::default()
+        };
         let provider_states = provider_states::ProviderState::from_json(ijson);
         match i_type {
           V4InteractionType::Synchronous_HTTP => {
@@ -801,7 +851,8 @@ pub fn interaction_from_json(source: &str, index: usize, ijson: &Value) -> Resul
               description,
               provider_states,
               request: HttpRequest::from_json(&request),
-              response: HttpResponse::from_json(&response)
+              response: HttpResponse::from_json(&response),
+              comments
             }))
           }
           V4InteractionType::Asynchronous_Messages => {
@@ -820,7 +871,8 @@ pub fn interaction_from_json(source: &str, index: usize, ijson: &Value) -> Resul
               metadata,
               contents: body_from_json(ijson, "contents", &as_headers),
               matching_rules: matchingrules::matchers_from_json(ijson, &None),
-              generators: generators::generators_from_json(ijson)
+              generators: generators::generators_from_json(ijson),
+              comments
             }))
           }
           V4InteractionType::Synchronous_Messages => {

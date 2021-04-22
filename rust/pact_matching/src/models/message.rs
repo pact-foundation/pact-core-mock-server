@@ -124,7 +124,8 @@ impl Interaction for Message {
         .map(|(k, v)| (k.clone(), Value::String(v.clone())))
         .collect(),
       matching_rules: self.matching_rules.rename("body", "content"),
-      generators: self.generators.clone()
+      generators: self.generators.clone(),
+      .. Default::default()
     })
   }
 

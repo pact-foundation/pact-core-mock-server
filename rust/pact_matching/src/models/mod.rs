@@ -962,7 +962,8 @@ impl Interaction for RequestResponseInteraction {
       description: self.description.clone(),
       provider_states: self.provider_states.clone(),
       request: self.request.as_v4_request(),
-      response: self.response.as_v4_response()
+      response: self.response.as_v4_response(),
+      .. Default::default()
     }.with_key())
   }
 

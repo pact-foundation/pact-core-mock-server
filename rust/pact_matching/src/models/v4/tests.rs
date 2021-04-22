@@ -447,8 +447,7 @@ fn write_pact_test() {
         key: None,
         description: s!("Test Interaction"),
         provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
-        request: Default::default(),
-        response: Default::default()
+        .. Default::default()
       })
     ],
     .. V4Pact::default() };
@@ -1348,4 +1347,76 @@ fn when_downgrading_message_pact_to_v3_rename_the_matching_rules_from_content_to
   expect!(v3.matching_rules).to(be_equal_to(
     matchingrules! { "body" => { "user_id" => [ MatchingRule::Regex("^[0-9]+$".into()) ] }}
   ));
+}
+
+#[test]
+fn write_v4_pact_test_with_comments() {
+  let pact = V4Pact { consumer: Consumer { name: s!("write_v4pact_test_consumer") },
+    provider: Provider { name: "write_v4pact_test_provider".into() },
+    interactions: vec![
+      Box::new(SynchronousHttp {
+        id: None,
+        key: None,
+        description: "Test Interaction".into(),
+        comments: hashmap! {
+          "text".to_string() => json!([
+            "This allows me to specify just a bit more information about the interaction",
+            "It has no functional impact, but can be displayed in the broker HTML page, and potentially in the test output",
+            "It could even contain the name of the running test on the consumer side to help marry the interactions back to the test case"
+          ]),
+          "testname".to_string() => json!("example_test.groovy")
+        },
+        .. Default::default()
+      })
+    ],
+    .. V4Pact::default() };
+  let mut dir = env::temp_dir();
+  let x = rand::random::<u16>();
+  dir.push(format!("pact_test_{}", x));
+  dir.push(pact.default_file_name());
+
+  let result = write_pact(&pact, &dir, PactSpecification::V4, true);
+
+  let pact_file = read_pact_file(dir.as_path().to_str().unwrap()).unwrap_or_default();
+  fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());
+
+  expect!(result).to(be_ok());
+  expect!(pact_file).to(be_equal_to(format!(r#"{{
+  "consumer": {{
+    "name": "write_v4pact_test_consumer"
+  }},
+  "interactions": [
+    {{
+      "comments": {{
+        "testname": "example_test.groovy",
+        "text": [
+          "This allows me to specify just a bit more information about the interaction",
+          "It has no functional impact, but can be displayed in the broker HTML page, and potentially in the test output",
+          "It could even contain the name of the running test on the consumer side to help marry the interactions back to the test case"
+        ]
+      }},
+      "description": "Test Interaction",
+      "key": "7e7114bdaf9a0be2",
+      "request": {{
+        "method": "GET",
+        "path": "/"
+      }},
+      "response": {{
+        "status": 200
+      }},
+      "type": "Synchronous/HTTP"
+    }}
+  ],
+  "metadata": {{
+    "pactRust": {{
+      "version": "{}"
+    }},
+    "pactSpecification": {{
+      "version": "4.0"
+    }}
+  }},
+  "provider": {{
+    "name": "write_v4pact_test_provider"
+  }}
+}}"#, super::PACT_RUST_VERSION.unwrap())));
 }

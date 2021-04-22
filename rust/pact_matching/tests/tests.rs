@@ -8,6 +8,7 @@ use std::{
 
 use expectest::prelude::*;
 use maplit::*;
+use serde_json::json;
 
 use pact_matching::models::*;
 use pact_matching::s;
@@ -579,6 +580,48 @@ fn test_load_v4_combined_pact() {
       let expected_keys : Vec<String> = vec![s!("pactRust"), s!("pactSpecification")];
       expect!(metadata.keys().cloned().collect::<Vec<String>>()).to(be_equal_to(expected_keys));
       expect!(metadata.get("pactSpecification").unwrap().to_string()).to(be_equal_to(s!("{\"version\":\"4.0\"}")));
+    },
+    Err(err) => panic!("Failed to load pact from '{:?}' - {}", pact_file, err)
+  }
+}
+
+#[test]
+fn test_load_v4_pact_with_comments() {
+  let pact_file = fixture_path("v4-http-pact-comments.json");
+  let pact_result = read_pact(&pact_file);
+
+  match pact_result {
+    Ok(pact) => {
+      let interaction = pact.interactions().first().unwrap().as_v4().unwrap();
+      expect!(interaction.comments()).to(be_equal_to(hashmap!{
+        "text".to_string() => json!([
+          "This allows me to specify just a bit more information about the interaction",
+          "It has no functional impact, but can be displayed in the broker HTML page, and potentially in the test output",
+          "It could even contain the name of the running test on the consumer side to help marry the interactions back to the test case"
+        ]),
+        "testname".to_string() => json!("example_test.groovy")
+      }));
+    },
+    Err(err) => panic!("Failed to load pact from '{:?}' - {}", pact_file, err)
+  }
+}
+
+#[test]
+fn test_load_v4_pact_with_message_with_comments() {
+  let pact_file = fixture_path("v4-message-pact-comments.json");
+  let pact_result = read_pact(&pact_file);
+
+  match pact_result {
+    Ok(pact) => {
+      let interaction = pact.interactions().first().unwrap().as_v4().unwrap();
+      expect!(interaction.comments()).to(be_equal_to(hashmap!{
+        "text".to_string() => json!([
+          "This allows me to specify just a bit more information about the interaction",
+          "It has no functional impact, but can be displayed in the broker HTML page, and potentially in the test output",
+          "It could even contain the name of the running test on the consumer side to help marry the interactions back to the test case"
+        ]),
+        "testname".to_string() => json!("example_test.groovy")
+      }));
     },
     Err(err) => panic!("Failed to load pact from '{:?}' - {}", pact_file, err)
   }

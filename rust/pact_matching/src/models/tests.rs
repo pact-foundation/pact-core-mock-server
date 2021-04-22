@@ -1183,8 +1183,7 @@ fn write_pact_test_upgrades_older_pacts_to_v4_when_merging() {
         key: None,
         description: s!("Test Interaction"),
         provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap! {} }],
-        request: Default::default(),
-        response: Default::default(),
+        .. Default::default()
       })
     ],
     metadata: btreemap! {},
