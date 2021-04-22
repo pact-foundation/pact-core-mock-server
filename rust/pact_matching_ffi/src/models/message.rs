@@ -9,7 +9,7 @@ use crate::util::*;
 use crate::{as_mut, as_ref, cstr, ffi_fn, safe_str};
 use anyhow::{anyhow, Context};
 use libc::{c_char, c_int, c_uint, EXIT_FAILURE, EXIT_SUCCESS};
-use pact_matching::models::{content_types::ContentType, OptionalBody};
+use pact_models::{content_types::ContentType, OptionalBody};
 use serde_json::from_str as from_json_str;
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
@@ -105,7 +105,7 @@ ffi_fn! {
         metadata.insert(String::from("contentType"), content_type.to_string());
 
         // Populate the OptionalBody with our content and content type.
-        let contents = OptionalBody::Present(body, Some(content_type));
+        let contents = OptionalBody::Present(body.into(), Some(content_type));
 
         // Construct and return the message.
         let message = Message {

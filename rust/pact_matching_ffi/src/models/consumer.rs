@@ -4,7 +4,7 @@ use crate::util::*;
 use crate::{as_ref, ffi_fn};
 use libc::c_char;
 
-pub use pact_matching::models::Consumer;
+pub use pact_models::Consumer;
 
 ffi_fn! {
     /// Get a copy of this consumer's name.

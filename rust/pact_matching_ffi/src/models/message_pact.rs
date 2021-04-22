@@ -9,8 +9,7 @@ use std::iter::{self, Iterator};
 // Necessary to make 'cbindgen' generate an opaque struct on the C side.
 use crate::models::message::Message;
 pub use pact_matching::models::message_pact::MessagePact;
-use pact_matching::models::Consumer;
-use pact_matching::models::Provider;
+use pact_models::{Consumer, Provider};
 
 ffi_fn! {
     /// Construct a new `MessagePact` from the JSON string.

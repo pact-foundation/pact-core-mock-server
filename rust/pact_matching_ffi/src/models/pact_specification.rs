@@ -1,6 +1,6 @@
 //! C FFI friendly version of pact_matching::models::PactSpecification
 
-use pact_matching::models::PactSpecification as NonCPactSpecification;
+use pact_models::PactSpecification as NonCPactSpecification;
 
 /// Enum defining the pact specification versions supported by the library
 #[repr(C)]

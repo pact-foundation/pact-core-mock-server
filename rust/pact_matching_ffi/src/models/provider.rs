@@ -1,7 +1,7 @@
 //! FFI wrapper code for pact_matching::models::Provider
 use libc::c_char;
 
-pub use pact_matching::models::Provider;
+pub use pact_models::Provider;
 
 use crate::util::*;
 use crate::{as_ref, ffi_fn};

@@ -13,7 +13,7 @@ pub(crate) mod util;
 use crate::util::*;
 use libc::c_char;
 use models::message::Message;
-use pact_matching as pm;
+use pact_matching::{self as pm, models::Interaction};
 
 pub use pact_matching::Mismatch;
 
@@ -21,9 +21,9 @@ ffi_fn! {
     /// Match a pair of messages, producing a collection of mismatches,
     /// which is empty if the two messages matched.
     fn match_message(msg_1: *const Message, msg_2: *const Message) -> *const Mismatches {
-        let msg_1 = as_ref!(msg_1);
-        let msg_2 = as_ref!(msg_2);
-        let mismatches = Mismatches(pm::match_message(msg_1, msg_2));
+        let msg_1: Box<dyn Interaction> = unsafe { Box::from_raw(msg_1 as *mut Message) };
+        let msg_2: Box<dyn Interaction> = unsafe { Box::from_raw(msg_2 as *mut Message) };
+        let mismatches = Mismatches(pm::match_message(&msg_1, &msg_2));
 
         ptr::raw_to(mismatches) as *const Mismatches
     } {
