@@ -1239,7 +1239,7 @@ dependencies = [
 
 [[package]]
 name = "pact_models"
-version = "0.0.0"
+version = "0.0.1"
 
 [[package]]
 name = "pact_verifier"
