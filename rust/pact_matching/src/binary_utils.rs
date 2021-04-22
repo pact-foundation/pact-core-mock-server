@@ -1,16 +1,18 @@
-use serde_json::Value;
-use crate::{Mismatch, MatchingContext};
-use crate::models::matchingrules::{RuleLogic, MatchingRule};
-use crate::matchers::{Matches, match_values};
-use itertools::Itertools;
-use log::*;
-use crate::models::HttpPart;
-use http::header::{HeaderMap, HeaderName};
 use std::collections::HashMap;
 use std::convert::TryInto;
-use onig::Regex;
-use bytes::{Bytes, Buf};
 use std::str::from_utf8;
+
+use bytes::{Buf, Bytes};
+use http::header::{HeaderMap, HeaderName};
+use itertools::Itertools;
+use log::*;
+use onig::Regex;
+use serde_json::Value;
+
+use crate::{MatchingContext, Mismatch};
+use crate::matchers::{match_values, Matches};
+use crate::models::HttpPart;
+use crate::models::matchingrules::{MatchingRule, RuleLogic};
 
 static ROOT: &str = "$";
 
@@ -399,15 +401,19 @@ fn get_http_header_map(h: &Option<HashMap<String, Vec<String>>>) -> HeaderMap {
 
 #[cfg(test)]
 mod tests {
-  use crate::models::{Request, OptionalBody};
-  use crate::models::matchingrules::*;
-  use crate::binary_utils::match_mime_multipart;
+  use std::str;
+
+  use bytes::{Bytes, BytesMut};
   use expectest::prelude::*;
   use hamcrest2::prelude::*;
-  use crate::{DiffConfig, Mismatch, MatchingContext};
   use maplit::*;
-  use std::str;
-  use bytes::{Bytes, BytesMut};
+
+  use pact_models::OptionalBody;
+
+  use crate::{DiffConfig, MatchingContext, Mismatch};
+  use crate::binary_utils::match_mime_multipart;
+  use crate::models::matchingrules::*;
+  use crate::models::Request;
 
   fn mismatch(m: &Mismatch) -> &str {
     match m {

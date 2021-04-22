@@ -18,10 +18,22 @@ use maplit::*;
 use nom::lib::std::fmt::Formatter;
 use serde_json::{json, Value};
 
-use pact_models::PactSpecification;
+use pact_models::{Consumer, OptionalBody, PactSpecification, Provider};
+use pact_models::content_types::ContentType;
 
-use crate::models::{Consumer, detect_content_type_from_bytes, generators, HttpPart, Interaction, matchingrules, OptionalBody, Pact, PACT_RUST_VERSION, Provider, provider_states, ReadWritePact, RequestResponseInteraction, RequestResponsePact};
-use crate::models::content_types::ContentType;
+use crate::models::{
+  detect_content_type_from_bytes,
+  generators,
+  HttpPart,
+  Interaction,
+  matchingrules,
+  Pact,
+  PACT_RUST_VERSION,
+  provider_states,
+  ReadWritePact,
+  RequestResponseInteraction,
+  RequestResponsePact
+};
 use crate::models::file_utils::with_read_lock;
 use crate::models::generators::{Generators, generators_to_json};
 use crate::models::json_utils::{hash_json, json_to_string};

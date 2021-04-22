@@ -1,14 +1,15 @@
-use pact_matching::models::*;
-use pact_matching::models::matchingrules::MatchingRules;
-#[cfg(test)]
-use regex::Regex;
 use std::collections::HashMap;
-
-use crate::prelude::*;
 
 #[cfg(test)]
 #[allow(unused_imports)]
 use env_logger;
+#[cfg(test)]
+use regex::Regex;
+
+use pact_matching::models::matchingrules::MatchingRules;
+use pact_models::OptionalBody;
+
+use crate::prelude::*;
 
 /// Various methods shared between `RequestBuilder` and `ResponseBuilder`.
 pub trait HttpPartBuilder {

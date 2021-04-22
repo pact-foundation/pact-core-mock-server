@@ -1246,11 +1246,14 @@ name = "pact_models"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "base64",
  "bytes",
  "expectest",
  "itertools",
+ "lazy_static",
  "log",
  "maplit",
+ "mime",
  "serde",
  "serde_json",
 ]

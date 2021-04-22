@@ -7,7 +7,6 @@ use maplit::*;
 use reqwest::blocking::Client;
 use reqwest::header::CONTENT_TYPE;
 
-use pact_matching::models::OptionalBody;
 use pact_mock_server_ffi::{
   cleanup_mock_server,
   create_mock_server,
@@ -19,6 +18,7 @@ use pact_mock_server_ffi::{
   with_multipart_file,
   with_query_parameter
 };
+use pact_models::OptionalBody;
 
 #[test]
 fn post_to_mock_server_with_misatches() {

@@ -4,10 +4,11 @@ use std::collections::BTreeMap;
 use std::str::FromStr;
 
 use itertools::Itertools;
-use lazy_static::*;
 use log::*;
-use mime::Mime;
 use serde::{Deserialize, Serialize};
+
+use lazy_static::*;
+use mime::Mime;
 
 /// Content type of a body
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, Hash)]

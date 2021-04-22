@@ -2,8 +2,10 @@ use std::collections::HashMap;
 
 use expectest::prelude::*;
 
-use crate::models::{OptionalBody, Request};
-use crate::models::content_types::TEXT;
+use pact_models::content_types::TEXT;
+use pact_models::OptionalBody;
+
+use crate::models::Request;
 
 use super::*;
 

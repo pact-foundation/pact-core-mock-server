@@ -8,11 +8,13 @@ use expectest::prelude::*;
 use maplit::*;
 use serde_json::json;
 
-use crate::models::{Consumer, headers_from_json, OptionalBody, PACT_RUST_VERSION, PactSpecification, Provider, ReadWritePact, write_pact, Interaction};
-use crate::models::content_types::JSON;
-use crate::models::provider_states::ProviderState;
+use pact_models::{Consumer, OptionalBody, Provider};
+use pact_models::content_types::JSON;
+
+use crate::models::{headers_from_json, Interaction, PACT_RUST_VERSION, PactSpecification, ReadWritePact, write_pact};
 use crate::models::matchingrules::MatchingRule;
-use crate::models::v4::{from_json, interaction_from_json, SynchronousHttp, V4Pact, AsynchronousMessage};
+use crate::models::provider_states::ProviderState;
+use crate::models::v4::{AsynchronousMessage, from_json, interaction_from_json, SynchronousHttp, V4Pact};
 use crate::models::v4::http_parts::{HttpRequest, HttpResponse};
 use crate::models::v4::http_parts::body_from_json;
 

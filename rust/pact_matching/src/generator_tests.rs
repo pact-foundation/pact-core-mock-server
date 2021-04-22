@@ -1,10 +1,16 @@
-use super::*;
-use expectest::prelude::*;
-use expectest::expect;
-use crate::models::{Request, Response, OptionalBody};
-use crate::models::generators::{JsonHandler, ContentTypeHandler};
 use std::str::FromStr;
+
+use expectest::expect;
+use expectest::prelude::*;
 use serde_json::Value;
+
+use pact_models::content_types::{JSON, TEXT};
+use pact_models::OptionalBody;
+
+use crate::models::{Request, Response};
+use crate::models::generators::{ContentTypeHandler, JsonHandler};
+
+use super::*;
 
 #[test]
 fn returns_original_response_if_there_are_no_generators() {
@@ -83,23 +89,23 @@ fn applies_query_generator_for_query_parameters_to_the_copy_of_the_request() {
 #[test]
 fn apply_generator_to_empty_body_test() {
   let generators = Generators::default();
-  expect!(generators.apply_body_generators(&GeneratorTestMode::Provider, &OptionalBody::Empty, Some(models::content_types::TEXT.clone()), &hashmap!{})).to(be_equal_to(OptionalBody::Empty));
-  expect!(generators.apply_body_generators(&GeneratorTestMode::Provider, &OptionalBody::Null, Some(models::content_types::TEXT.clone()), &hashmap!{})).to(be_equal_to(OptionalBody::Null));
-  expect!(generators.apply_body_generators(&GeneratorTestMode::Provider, &OptionalBody::Missing, Some(models::content_types::TEXT.clone()), &hashmap!{})).to(be_equal_to(OptionalBody::Missing));
+  expect!(generators.apply_body_generators(&GeneratorTestMode::Provider, &OptionalBody::Empty, Some(TEXT.clone()), &hashmap!{})).to(be_equal_to(OptionalBody::Empty));
+  expect!(generators.apply_body_generators(&GeneratorTestMode::Provider, &OptionalBody::Null, Some(TEXT.clone()), &hashmap!{})).to(be_equal_to(OptionalBody::Null));
+  expect!(generators.apply_body_generators(&GeneratorTestMode::Provider, &OptionalBody::Missing, Some(TEXT.clone()), &hashmap!{})).to(be_equal_to(OptionalBody::Missing));
 }
 
 #[test]
 fn do_not_apply_generators_if_there_are_no_body_generators() {
   let generators = Generators::default();
   let body = OptionalBody::Present("{\"a\": 100, \"b\": \"B\"}".into(), None);
-  expect!(generators.apply_body_generators(&GeneratorTestMode::Provider, &body, Some(models::content_types::JSON.clone()), &hashmap!{})).to(be_equal_to(body));
+  expect!(generators.apply_body_generators(&GeneratorTestMode::Provider, &body, Some(JSON.clone()), &hashmap!{})).to(be_equal_to(body));
 }
 
 #[test]
 fn apply_generator_to_text_body_test() {
   let generators = Generators::default();
   let body = OptionalBody::Present("some text".into(), None);
-  expect!(generators.apply_body_generators(&GeneratorTestMode::Provider, &body, Some(models::content_types::TEXT.clone()), &hashmap!{})).to(be_equal_to(body));
+  expect!(generators.apply_body_generators(&GeneratorTestMode::Provider, &body, Some(TEXT.clone()), &hashmap!{})).to(be_equal_to(body));
 }
 
 #[test]
@@ -135,7 +141,7 @@ fn applies_body_generator_to_the_copy_of_the_response() {
 fn does_not_change_body_if_there_are_no_generators() {
   let body = OptionalBody::Present("{\"a\": 100, \"b\": \"B\"}".into(), None);
   let generators = generators!{};
-  let processed = generators.apply_body_generators(&GeneratorTestMode::Provider, &body, Some(models::content_types::JSON.clone()),
+  let processed = generators.apply_body_generators(&GeneratorTestMode::Provider, &body, Some(JSON.clone()),
     &hashmap!{});
   expect!(processed).to(be_equal_to(body));
 }

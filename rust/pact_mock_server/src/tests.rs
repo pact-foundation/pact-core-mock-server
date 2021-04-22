@@ -1,13 +1,17 @@
-use expectest::prelude::*;
 use expectest::expect;
+use expectest::prelude::*;
 use maplit::*;
-use super::*;
-use crate::matching::{MatchResult, match_request};
-use pact_matching::models::{Request, OptionalBody, Response, RequestResponseInteraction};
-use pact_matching::Mismatch;
-use pact_matching::models::matchingrules::*;
-use pact_matching::matchingrules;
 use reqwest::header::ACCEPT;
+
+use pact_matching::matchingrules;
+use pact_matching::Mismatch;
+use pact_matching::models::{Request, RequestResponseInteraction, Response};
+use pact_matching::models::matchingrules::*;
+use pact_models::OptionalBody;
+
+use crate::matching::{match_request, MatchResult};
+
+use super::*;
 
 #[test]
 fn match_request_returns_a_match_for_identical_requests() {

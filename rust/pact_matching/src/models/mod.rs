@@ -19,7 +19,6 @@ use std::sync::{Arc, Mutex};
 use anyhow::anyhow;
 use anyhow::Context as _;
 use base64::{decode, encode};
-use bytes::{Bytes, BytesMut};
 use fs2::FileExt;
 use hex::FromHex;
 use itertools::{iproduct, Itertools};
@@ -31,9 +30,9 @@ use onig::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use pact_models::{Consumer, PactSpecification, Provider};
+use pact_models::{Consumer, OptionalBody, PactSpecification, Provider};
+use pact_models::content_types::*;
 
-use crate::models::content_types::ContentType;
 use crate::models::file_utils::{with_read_lock, with_read_lock_for_open_file, with_write_lock};
 use crate::models::generators::{Generator, GeneratorCategory};
 use crate::models::http_utils::HttpAuth;
@@ -50,160 +49,11 @@ pub mod xml_utils;
 #[macro_use] pub mod matchingrules;
 #[macro_use] pub mod generators;
 pub mod http_utils;
-pub mod content_types;
 mod expression_parser;
 mod file_utils;
 
 /// Version of the library
 pub const PACT_RUST_VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
-
-/// Enum that defines the four main states that a body of a request and response can be in a pact
-/// file.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
-#[serde(untagged)]
-pub enum OptionalBody {
-    /// A body is missing if it is not present in the pact file
-    Missing,
-    /// An empty body that is present in the pact file.
-    Empty,
-    /// A JSON body that is the null value. This state is to protect other language implementations
-    /// from null values. It is treated as `Empty`.
-    Null,
-    /// A non-empty body that is present in the pact file.
-    Present(Bytes, Option<ContentType>)
-}
-
-impl OptionalBody {
-
-    /// If the body is present in the pact file and not empty or null.
-    pub fn is_present(&self) -> bool {
-        match *self {
-            OptionalBody::Present(_, _) => true,
-            _ => false
-        }
-    }
-
-  /// Returns the body if present, otherwise returns the empty buffer.
-  pub fn value(&self) -> Option<Bytes> {
-    match self {
-      OptionalBody::Present(s, _) => Some(s.clone()),
-      _ => None
-    }
-  }
-
-  /// Returns the body if present as a UTF-8 string, otherwise returns the empty string.
-  pub fn str_value(&self) -> &str {
-    match self {
-      OptionalBody::Present(s, _) => str::from_utf8(s).unwrap_or(""),
-      _ => ""
-    }
-  }
-
-  /// If the body has a content type associated to it
-  pub fn has_content_type(&self) -> bool {
-    match self {
-      OptionalBody::Present(_, content_type) => content_type.is_some(),
-      _ => false
-    }
-  }
-
-  /// Parsed content type of the body
-  pub fn content_type(&self) -> Option<ContentType> {
-    match self {
-      OptionalBody::Present(_, content_type) =>
-        content_type.clone(),
-      _ => None
-    }
-  }
-
-  /// Converts this body into a V4 Pact file JSON format
-  pub fn to_v4_json(&self) -> Value {
-    match self {
-      OptionalBody::Present(bytes, _) => {
-        let content_type = self.content_type().unwrap_or_default();
-        let (contents, encoded) = if content_type.is_json() {
-          match serde_json::from_slice(bytes) {
-            Ok(json_body) => (json_body, Value::Bool(false)),
-            Err(err) => {
-              warn!("Failed to parse json body: {}", err);
-              (Value::String(encode(bytes)), Value::String("base64".to_string()))
-            }
-          }
-        } else if content_type.is_binary() {
-          (Value::String(encode(bytes)), Value::String("base64".to_string()))
-        } else {
-          match str::from_utf8(bytes) {
-            Ok(s) => (Value::String(s.to_string()), Value::Bool(false)),
-            Err(_) => (Value::String(encode(bytes)), Value::String("base64".to_string()))
-          }
-        };
-        json!({
-          "content": contents,
-          "contentType": content_type.to_string(),
-          "encoded": encoded
-        })
-      },
-      OptionalBody::Empty => json!({"content": ""}),
-      _ => Value::Null
-    }
-  }
-}
-
-impl From<String> for OptionalBody {
-  fn from(s: String) -> Self {
-    if s.is_empty() {
-      OptionalBody::Empty
-    } else {
-      OptionalBody::Present(Bytes::from(s), None)
-    }
-  }
-}
-
-impl <'a> From<&'a str> for OptionalBody {
-  fn from(s: &'a str) -> Self {
-    if s.is_empty() {
-      OptionalBody::Empty
-    } else {
-      let mut buf = BytesMut::with_capacity(0);
-      buf.extend_from_slice(s.as_bytes());
-      OptionalBody::Present(buf.freeze(), None)
-    }
-  }
-}
-
-impl Display for OptionalBody {
-  fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-    match *self {
-      OptionalBody::Missing => write!(f, "Missing"),
-      OptionalBody::Empty => write!(f, "Empty"),
-      OptionalBody::Null => write!(f, "Null"),
-      OptionalBody::Present(ref s, ref content_type) => {
-        if let Some(content_type) = content_type {
-          write!(f, "Present({} bytes, {})", s.len(), content_type)
-        } else {
-          write!(f, "Present({} bytes)", s.len())
-        }
-      }
-    }
-  }
-}
-
-#[cfg(test)]
-mod body_tests {
-  use expectest::prelude::*;
-
-  use super::*;
-  use super::content_types::JSON;
-
-  #[test]
-  fn display_tests() {
-    expect!(format!("{}", OptionalBody::Missing)).to(be_equal_to("Missing"));
-    expect!(format!("{}", OptionalBody::Empty)).to(be_equal_to("Empty"));
-    expect!(format!("{}", OptionalBody::Null)).to(be_equal_to("Null"));
-    expect!(format!("{}", OptionalBody::Present("hello".into(), None))).to(be_equal_to("Present(5 bytes)"));
-    expect!(format!("{}", OptionalBody::Present("\"hello\"".into(), Some(JSON.clone())))).to(be_equal_to("Present(7 bytes, application/json)"));
-  }
-}
 
 lazy_static! {
     static ref XMLREGEXP: Regex = Regex::new(r"^\s*<\?xml\s*version.*").unwrap();
@@ -215,20 +65,20 @@ lazy_static! {
 fn detect_content_type_from_string(s: &String) -> Option<ContentType> {
   log::debug!("Detecting content type from contents: '{}'", s);
   if is_match(&XMLREGEXP, s.as_str()) {
-    Some(content_types::XML.clone())
+    Some(XML.clone())
   } else if is_match(&HTMLREGEXP, s.to_uppercase().as_str()) {
-    Some(content_types::HTML.clone())
+    Some(HTML.clone())
   } else if is_match(&XMLREGEXP2, s.as_str()) {
-    Some(content_types::XML.clone())
+    Some(XML.clone())
   } else if is_match(&JSONREGEXP, s.as_str()) {
-    Some(content_types::JSON.clone())
+    Some(JSON.clone())
   } else {
-    Some(content_types::TEXT.clone())
+    Some(TEXT.clone())
   }
 }
 
 fn detect_content_type_from_bytes(s: &[u8]) -> Option<ContentType> {
-  log::debug!("Detecting content type from byte contents");
+  debug!("Detecting content type from byte contents");
   let header = if s.len() > 32 {
     &s[0..32]
   } else {
@@ -237,15 +87,15 @@ fn detect_content_type_from_bytes(s: &[u8]) -> Option<ContentType> {
   match from_utf8(header) {
     Ok(s) => {
       if is_match(&XMLREGEXP, s) {
-        Some(content_types::XML.clone())
+        Some(XML.clone())
       } else if is_match(&HTMLREGEXP, &*s.to_uppercase()) {
-        Some(content_types::HTML.clone())
+        Some(HTML.clone())
       } else if is_match(&XMLREGEXP2, s) {
-        Some(content_types::XML.clone())
+        Some(XML.clone())
       } else if is_match(&JSONREGEXP, s) {
-        Some(content_types::JSON.clone())
+        Some(JSON.clone())
       } else {
-        Some(content_types::TEXT.clone())
+        Some(TEXT.clone())
       }
     },
     Err(_) => None

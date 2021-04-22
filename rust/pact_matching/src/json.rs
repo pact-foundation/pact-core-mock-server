@@ -547,10 +547,12 @@ mod tests {
   use expectest::prelude::*;
   use std::collections::HashMap;
 
+  use pact_models::OptionalBody;
+
   use crate::DiffConfig;
   use crate::Mismatch;
   use crate::Mismatch::BodyMismatch;
-  use crate::models::{OptionalBody, Request};
+  use crate::models::Request;
 
   use super::*;
 

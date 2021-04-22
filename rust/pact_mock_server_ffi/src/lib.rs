@@ -50,6 +50,7 @@ use std::panic::catch_unwind;
 use std::ptr::null_mut;
 use std::str;
 
+use bytes::Bytes;
 use chrono::Local;
 use env_logger::Builder;
 use itertools::Itertools;
@@ -60,16 +61,16 @@ use onig::Regex;
 use rand::prelude::*;
 use serde_json::json;
 use uuid::Uuid;
-use bytes::Bytes;
 
-use pact_matching::models::{HttpPart, RequestResponseInteraction, OptionalBody};
+use pact_matching::models::{HttpPart, RequestResponseInteraction};
 use pact_matching::models::matchingrules::{MatchingRule, RuleLogic};
 use pact_matching::models::provider_states::ProviderState;
 use pact_matching::time_utils::{parse_pattern, to_chrono_pattern};
 use pact_mock_server::{MANAGER, MockServerError, tls::TlsConfigBuilder, WritePactFileErr};
 use pact_mock_server::server_manager::ServerManager;
+use pact_models::OptionalBody;
 
-use crate::bodies::{file_as_multipart_body, empty_multipart_body, process_json, request_multipart, response_multipart, MultipartBody};
+use crate::bodies::{empty_multipart_body, file_as_multipart_body, MultipartBody, process_json, request_multipart, response_multipart};
 use crate::handles::InteractionPart;
 
 pub mod handles;

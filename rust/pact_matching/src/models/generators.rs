@@ -21,10 +21,10 @@ use serde_json::{self, json, Value};
 use sxd_document::dom::Document;
 use uuid::Uuid;
 
+use pact_models::content_types::ContentType;
 use pact_models::PactSpecification;
 
 use crate::{DiffConfig, MatchingContext};
-use crate::models::content_types::ContentType;
 use crate::models::expression_parser::{
   contains_expressions,
   DataType,

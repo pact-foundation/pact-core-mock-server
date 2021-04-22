@@ -21,9 +21,10 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio_rustls::server::TlsStream;
 use tokio_rustls::TlsAcceptor;
 
-use pact_matching::models::{HttpPart, OptionalBody, Request, RequestResponsePact};
+use pact_matching::models::{HttpPart, Request, RequestResponsePact};
 use pact_matching::models::generators::GeneratorTestMode;
 use pact_matching::models::parse_query_string;
+use pact_models::OptionalBody;
 
 use crate::matching::{match_request, MatchResult};
 use crate::mock_server::MockServer;

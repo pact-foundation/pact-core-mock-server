@@ -349,12 +349,12 @@ use log::*;
 use maplit::hashmap;
 use serde_json::{json, Value};
 
-use pact_models::PactSpecification;
+use pact_models::content_types::ContentType;
+use pact_models::{PactSpecification, OptionalBody};
 
 use crate::headers::{match_header_value, match_headers};
 use crate::matchers::*;
 use crate::models::{HttpPart, Interaction};
-use crate::models::content_types::ContentType;
 use crate::models::generators::*;
 use crate::models::matchingrules::*;
 
@@ -1194,27 +1194,27 @@ fn match_body_content(content_type: &ContentType, expected: &dyn models::HttpPar
   let expected_body = expected.body();
   let actual_body = actual.body();
   match (expected_body, actual_body) {
-    (&models::OptionalBody::Missing, _) => BodyMatchResult::Ok,
-    (&models::OptionalBody::Null, &models::OptionalBody::Present(ref b, _)) => {
+    (&OptionalBody::Missing, _) => BodyMatchResult::Ok,
+    (&OptionalBody::Null, &OptionalBody::Present(ref b, _)) => {
       BodyMatchResult::BodyMismatches(hashmap!{ "$".into() => vec![Mismatch::BodyMismatch { expected: None, actual: Some(b.clone()),
         mismatch: format!("Expected empty body but received {}", actual_body),
         path: s!("/")}]})
     },
-    (&models::OptionalBody::Empty, &models::OptionalBody::Present(ref b, _)) => {
+    (&OptionalBody::Empty, &OptionalBody::Present(ref b, _)) => {
       BodyMatchResult::BodyMismatches(hashmap!{ "$".into() => vec![Mismatch::BodyMismatch { expected: None, actual: Some(b.clone()),
         mismatch: format!("Expected empty body but received {}", actual_body),
         path: s!("/")}]})
     },
-    (&models::OptionalBody::Null, _) => BodyMatchResult::Ok,
-    (&models::OptionalBody::Empty, _) => BodyMatchResult::Ok,
-    (e, &models::OptionalBody::Missing) => {
+    (&OptionalBody::Null, _) => BodyMatchResult::Ok,
+    (&OptionalBody::Empty, _) => BodyMatchResult::Ok,
+    (e, &OptionalBody::Missing) => {
       BodyMatchResult::BodyMismatches(hashmap!{ "$".into() => vec![Mismatch::BodyMismatch {
         expected: e.value(),
         actual: None,
         mismatch: format!("Expected body {} but was missing", e),
         path: s!("/")}]})
     },
-    (e, &models::OptionalBody::Empty) => {
+    (e, &OptionalBody::Empty) => {
       BodyMatchResult::BodyMismatches(hashmap!{ "$".into() => vec![Mismatch::BodyMismatch {
         expected: e.value(),
         actual: None,

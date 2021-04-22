@@ -11,8 +11,9 @@ use log::*;
 use reqwest::{Client, Error, RequestBuilder};
 
 use pact_matching::models::*;
-use pact_matching::models::content_types::ContentType;
 use pact_matching::s;
+use pact_models::content_types::ContentType;
+use pact_models::OptionalBody;
 
 use super::*;
 
@@ -242,8 +243,9 @@ mod tests {
   use itertools::Itertools;
   use maplit::*;
 
-  use pact_matching::models::{OptionalBody, Request};
+  use pact_matching::models::Request;
   use pact_matching::s;
+  use pact_models::OptionalBody;
 
   use super::{create_native_request, join_paths};
 

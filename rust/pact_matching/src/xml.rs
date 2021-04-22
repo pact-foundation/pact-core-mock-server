@@ -7,9 +7,11 @@ use onig::Regex;
 use sxd_document::dom::*;
 use sxd_document::QName;
 
+use pact_models::OptionalBody;
+
 use crate::matchers::*;
 use crate::MatchingContext;
-use crate::models::{HttpPart, OptionalBody};
+use crate::models::HttpPart;
 use crate::models::matchingrules::*;
 use crate::models::xml_utils::parse_bytes;
 
@@ -373,15 +375,17 @@ fn compare_value(path: &Vec<&str>, expected: &String, actual: &String, context: 
 
 #[cfg(test)]
 mod tests {
+  use bytes::Bytes;
   use expectest::expect;
   use expectest::prelude::*;
   use ntest::test_case;
   use test_env_log::test;
-  use bytes::Bytes;
+
+  use pact_models::OptionalBody;
 
   use crate::DiffConfig;
   use crate::Mismatch;
-  use crate::models::{OptionalBody, Request};
+  use crate::models::Request;
 
   use super::*;
 
