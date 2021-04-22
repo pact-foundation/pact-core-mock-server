@@ -1,5 +1,8 @@
 //! Defines an error type representing the message extracted from `AnyError`.
 
+// All of this module is `pub(crate)` and should not appear in the C header file
+// or documentation.
+
 use crate::error::any_error::AnyError;
 
 /// An error message extracted from an `AnyError`.

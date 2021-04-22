@@ -1,11 +1,17 @@
 //! Status returned to the C caller for log FFI functions.
 
+// All of this module is `pub(crate)` and should not appear in the C header file
+// or documentation.
+
 use crate::log::logger::LoggerError;
 use crate::log::sink::SinkSpecifierError;
 use log::SetLoggerError;
 
 /// An enum representing the status codes which can be returned to the C caller.
 pub(crate) enum Status {
+    /// Can't construct sink
+    CantConstructSink = -7,
+
     /// Opening a sink to the given file failed.
     CantOpenSinkToFile = -6,
 

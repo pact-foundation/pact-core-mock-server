@@ -9,6 +9,14 @@ use serde_json::Value as JsonValue;
 
 ffi_fn! {
     /// Get the name of the provider state as a string, which needs to be deleted with `string_delete`.
+    ///
+    /// # Safety
+    ///
+    /// This function is safe.
+    ///
+    /// # Error Handling
+    ///
+    /// If the provider_state param is NULL, this returns NULL.
     fn provider_state_get_name(provider_state: *const ProviderState) -> *const c_char {
         let provider_state = as_ref!(provider_state);
         let name = string::to_c(&provider_state.name)?;
@@ -20,6 +28,8 @@ ffi_fn! {
 
 ffi_fn! {
     /// Get an iterator over the params of a provider state.
+    ///
+    /// # Safety
     ///
     /// This iterator carries a pointer to the provider state, and must
     /// not outlive the provider state.
@@ -56,7 +66,15 @@ ffi_fn! {
     /// Returns a pointer to a heap allocated array of 2 elements, the pointer to the
     /// key string on the heap, and the pointer to the value string on the heap.
     ///
+    /// # Safety
+    ///
+    /// The underlying data must not be modified during iteration.
+    ///
     /// The user needs to free both the contained strings and the array.
+    ///
+    /// # Error Handling
+    ///
+    /// Returns NULL if there's no further elements or the iterator is NULL.
     fn provider_state_param_iter_next(
         iter: *mut ProviderStateParamIterator
     ) -> *mut ProviderStateParamPair {

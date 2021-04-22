@@ -2,11 +2,14 @@
 
 use log::LevelFilter as NonCLevelFilter;
 
+// This is exactly equivalent to `LevelFilter` from the `log` crate,
+// except that it's `#[repr(C)]`, meaning it's safe to put in the signature
+// of a C-exposed FFI function.
+
 /// An enum representing the log level to use.
 ///
-/// This is exactly equivalent to `LevelFilter` from the `log` crate,
-/// except that it's `#[repr(C)]`, meaning it's safe to put in the signature
-/// of a C-exposed FFI function.
+/// This enum is passed to `log_attach_sink`, which defines where to direct
+/// log output at the specified level or lower.
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub enum LevelFilter {

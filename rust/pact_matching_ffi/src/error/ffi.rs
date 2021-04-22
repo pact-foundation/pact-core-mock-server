@@ -8,6 +8,14 @@ use std::slice;
 
 /// Provide the error message from `LAST_ERROR` to the calling C code.
 ///
+/// This function should be called after any other function in the pact_matching FFI
+/// indicates a failure with its own error message, if the caller wants to get more context
+/// on why the error happened.
+///
+/// Do note that this error-reporting mechanism only reports the top-level error message,
+/// not any source information embedded in the original Rust error type. If you want more
+/// detailed information for debugging purposes, use the logging interface.
+///
 /// # Params
 ///
 /// * `buffer`: a pointer to an array of `char` of sufficient length to hold the error message.
@@ -24,6 +32,15 @@ use std::slice;
 /// # Notes
 ///
 /// Note that this function zeroes out any excess in the provided buffer.
+///
+/// # Error Handling
+///
+/// The return code must be checked for one of the negative number error codes before the buffer
+/// is used. If an error code is present, the buffer may not be in a usable state.
+///
+/// If the buffer is longer than needed for the error message, the excess space will be zeroed
+/// as a safety mechanism. This is slightly less efficient than leaving the contents of the buffer
+/// alone, but the difference is expected to be negligible in practice.
 #[no_mangle]
 pub extern "C" fn get_error_message(
     buffer: *mut c_char,

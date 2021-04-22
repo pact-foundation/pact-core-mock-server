@@ -1,5 +1,8 @@
 //! The thread-local log dispatcher, which is cleared once applied.
 
+// All of this module is `pub(crate)` and should not appear in the C header file
+// or documentation.
+
 use fern::Dispatch;
 use log::SetLoggerError;
 use std::cell::RefCell;

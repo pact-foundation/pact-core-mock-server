@@ -5,6 +5,15 @@ This crate provides a Foreign Function Interface (FFI) to the `pact_matching` cr
 with the intent of enabling Pact's core matching mechanisms to be used by implementations
 in other languages.
 
+## Dependencies
+
+This crates requires:
+
+- `cbindgen`, a tool for automatically generating the header file needed for C users of the crate.
+- A nightly-channel version of Cargo (needed for an unstable flag used by `cbindgen` to get the macro-expanded contents of the crate source).
+
+It will additionally attempt to find and use `Doxygen` to generate C-friendly documentation (you can of course alternatively use `cargo doc` to get Rustdoc documentation).
+
 ## Building
 
 For convenience, this tool integrates with CMake, which is setup to:
@@ -47,3 +56,8 @@ $ cd build
 $ cmake ..
 $ cmake --build .
 ```
+
+## Architecture
+
+You can read about the architecture and design choices of this crate in
+[ARCHITECTURE.md](./ARCHITECTURE.md).

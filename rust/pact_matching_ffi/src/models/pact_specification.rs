@@ -9,15 +9,15 @@ use pact_matching::models::PactSpecification as NonCPactSpecification;
 pub enum PactSpecification {
     /// Unknown or unsupported specification version
     Unknown,
-    /// First version of the pact specification (https://github.com/pact-foundation/pact-specification/tree/version-1)
+    /// First version of the pact specification (<https://github.com/pact-foundation/pact-specification/tree/version-1>)
     V1,
-    /// Second version of the pact specification (https://github.com/pact-foundation/pact-specification/tree/version-1.1)
+    /// Second version of the pact specification (<https://github.com/pact-foundation/pact-specification/tree/version-1.1>)
     V1_1,
-    /// Version two of the pact specification (https://github.com/pact-foundation/pact-specification/tree/version-2)
+    /// Version two of the pact specification (<https://github.com/pact-foundation/pact-specification/tree/version-2>)
     V2,
-    /// Version three of the pact specification (https://github.com/pact-foundation/pact-specification/tree/version-3)
+    /// Version three of the pact specification (<https://github.com/pact-foundation/pact-specification/tree/version-3>)
     V3,
-    /// Version four of the pact specification (https://github.com/pact-foundation/pact-specification/tree/version-4)
+    /// Version four of the pact specification (<https://github.com/pact-foundation/pact-specification/tree/version-4>)
     V4,
 }
 

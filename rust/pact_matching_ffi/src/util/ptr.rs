@@ -1,5 +1,8 @@
 //! Utility functions for working with raw pointers.
 
+// All of this module is `pub(crate)` and should not appear in the C header file
+// or documentation.
+
 use std::mem;
 use std::ptr;
 

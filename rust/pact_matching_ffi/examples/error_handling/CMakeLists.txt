@@ -19,9 +19,9 @@ endif()
 # PROJECT DECLARATION
 #################################################################################################
 
-project(C_EXAMPLE_1
+project(PMFFI_ERROR_HANDLING
         VERSION "0.1.0"
-        DESCRIPTION "A basic example of a C consumer for the pact matching FFI"
+        DESCRIPTION "A basic example of C consumer error handling for the pact matching FFI"
         LANGUAGES C)
 
 #################################################################################################
@@ -68,7 +68,7 @@ endif()
 #################################################################################################
 
 # Sets the search path to the location of the package config
-get_filename_component(REAL_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
+get_filename_component(REAL_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
 set(SEARCH_PATH "${REAL_ROOT}/build/install/lib/cmake")
 
 # Find the pact matching FFI package and load the imported target
@@ -83,3 +83,4 @@ add_executable(example src/main.c)
 
 # Link to pact matching FFI
 target_link_libraries(example PRIVATE PactMatchingFfi)
+

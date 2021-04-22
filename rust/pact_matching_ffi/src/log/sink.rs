@@ -1,5 +1,8 @@
 //! The sinks to which logs may be sent.
 
+// All of this module is `pub(crate)` and should not appear in the C header file
+// or documentation.
+
 use fern::Dispatch;
 use std::convert::TryFrom;
 use std::fs::File;

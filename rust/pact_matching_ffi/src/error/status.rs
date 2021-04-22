@@ -1,5 +1,8 @@
 //! The possible status codes which error-FFI may return to the C caller.
 
+// All of this module is `pub(crate)` and should not appear in the C header file
+// or documentation.
+
 use crate::util::write::WriteBufError;
 
 /// The status code returned by `get_error_message` to the C caller.

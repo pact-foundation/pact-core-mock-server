@@ -7,14 +7,23 @@ use libc::c_char;
 use std::iter::{self, Iterator};
 
 // Necessary to make 'cbindgen' generate an opaque struct on the C side.
+use crate::models::message::Message;
 pub use pact_matching::models::message_pact::MessagePact;
 use pact_matching::models::Consumer;
 use pact_matching::models::Provider;
-use crate::models::message::Message;
 
 ffi_fn! {
     /// Construct a new `MessagePact` from the JSON string.
     /// The provided file name is used when generating error messages.
+    ///
+    /// # Safety
+    ///
+    /// The `file_name` and `json_str` parameters must both be valid UTF-8
+    /// encoded strings.
+    ///
+    /// # Error Handling
+    ///
+    /// On error, this function will return a null pointer.
     fn message_pact_new_from_json(
         file_name: *const c_char,
         json_str: *const c_char
@@ -49,7 +58,11 @@ ffi_fn! {
     /// This is a mutable borrow: The caller may mutate the Consumer
     /// through this pointer.
     ///
-    /// # Errors
+    /// # Safety
+    ///
+    /// This function is safe.
+    ///
+    /// # Error Handling
     ///
     /// This function will only fail if it is passed a NULL pointer.
     /// In the case of error, a NULL pointer will be returned.
@@ -67,7 +80,11 @@ ffi_fn! {
     /// This is a mutable borrow: The caller may mutate the Provider
     /// through this pointer.
     ///
-    /// # Errors
+    /// # Safety
+    ///
+    /// This function is safe.
+    ///
+    /// # Error Handling
     ///
     /// This function will only fail if it is passed a NULL pointer.
     /// In the case of error, a NULL pointer will be returned.
@@ -83,13 +100,15 @@ ffi_fn! {
 ffi_fn! {
     /// Get an iterator over the messages of a message pact.
     ///
+    /// # Safety
+    ///
     /// This iterator carries a pointer to the message pact, and must
     /// not outlive the message pact.
     ///
     /// The message pact messages also must not be modified during iteration.
     /// If they are, the old iterator must be deleted and a new iterator created.
     ///
-    /// # Errors
+    /// # Error Handling
     ///
     /// On failure, this function will return a NULL pointer.
     ///
@@ -106,6 +125,14 @@ ffi_fn! {
 
 ffi_fn! {
     /// Get the next message from the message pact.
+    ///
+    /// # Safety
+    ///
+    /// This function is safe.
+    ///
+    /// # Error Handling
+    ///
+    /// This function will return a NULL pointer if passed a NULL pointer or if an error occurs.
     fn message_pact_message_iter_next(iter: *mut MessagePactMessageIterator) -> *mut Message {
         let iter = as_mut!(iter);
         let message_pact = as_mut!(iter.message_pact);
@@ -129,15 +156,18 @@ ffi_fn! {
 
 ffi_fn! {
     /// Get a copy of the metadata value indexed by `key1` and `key2`.
-    /// The returned string must be deleted with `string_delete`.
+    ///
+    /// # Safety
     ///
     /// Since it is a copy, the returned string may safely outlive
     /// the `Message`.
     ///
+    /// The returned string must be deleted with `string_delete`.
+    ///
     /// The returned pointer will be NULL if the metadata does not contain
     /// the given key, or if an error occurred.
     ///
-    /// # Errors
+    /// # Error Handling
     ///
     /// On failure, this function will return a NULL pointer.
     ///
@@ -160,13 +190,15 @@ ffi_fn! {
 ffi_fn! {
     /// Get an iterator over the metadata of a message pact.
     ///
+    /// # Safety
+    ///
     /// This iterator carries a pointer to the message pact, and must
     /// not outlive the message pact.
     ///
     /// The message pact metadata also must not be modified during iteration. If it is,
     /// the old iterator must be deleted and a new iterator created.
     ///
-    /// # Errors
+    /// # Error Handling
     ///
     /// On failure, this function will return a NULL pointer.
     ///
@@ -200,6 +232,14 @@ ffi_fn! {
 
 ffi_fn! {
     /// Get the next triple out of the iterator, if possible
+    ///
+    /// # Safety
+    ///
+    /// This operation is invalid if the underlying data has been changed during iteration.
+    ///
+    /// # Error Handling
+    ///
+    /// Returns null if no next element is present.
     fn message_pact_metadata_iter_next(iter: *mut MessagePactMetadataIterator) -> *mut MessagePactMetadataTriple {
         let iter = as_mut!(iter);
         let message_pact = as_ref!(iter.message_pact);
@@ -296,6 +336,7 @@ impl MessagePactMetadataTriple {
         inner_key: &str,
         value: &str,
     ) -> anyhow::Result<MessagePactMetadataTriple> {
+        // This constructor means each of these strings is an owned string.
         Ok(MessagePactMetadataTriple {
             outer_key: string::to_c(outer_key)? as *const c_char,
             inner_key: string::to_c(inner_key)? as *const c_char,

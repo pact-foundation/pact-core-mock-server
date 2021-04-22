@@ -1,5 +1,8 @@
 //! The internal API for setting and getting the last error message.
 
+// All of this module is `pub(crate)` and should not appear in the C header file
+// or documentation.
+
 use std::cell::RefCell;
 
 thread_local! {

@@ -6,36 +6,42 @@
 #define ERROR_MSG_LEN 256
 
 int main(void) {
-    logger_init();
-    logger_attach_sink("stdout", LevelFilter_Trace);
-    logger_apply();
+    /*=======================================================================
+     * Simple empty message creation.
+     *---------------------------------------------------------------------*/
 
     Message *msg = message_new();
-    int error = message_delete(msg);
 
-    if (error == EXIT_FAILURE) {
+    if (msg == NULL) {
         char error_msg[ERROR_MSG_LEN];
-
         int error = get_error_message(error_msg, ERROR_MSG_LEN);
-
         printf("%s\n", error_msg);
-
         return EXIT_FAILURE;
     }
+
+    message_delete(msg);
+
+
+    /*=======================================================================
+     * Creating a message from a JSON string.
+     *---------------------------------------------------------------------*/
 
     char *json_str = "{\
         \"description\": \"String\",\
         \"providerState\": \"provider state\",\
         \"matchingRules\": {}\
     }";
-    Message *msg_json = message_from_json(0, json_str, PactSpecification_V3);
+    Message *msg_json = message_new_from_json(0, json_str, PactSpecification_V3);
 
-    if (NULL == msg_json) {
+    if (msg_json == NULL) {
         char error_msg[ERROR_MSG_LEN];
         int error = get_error_message(error_msg, ERROR_MSG_LEN);
         printf("%s\n", error_msg);
         return EXIT_FAILURE;
     }
 
+    message_delete(msg_json);
+
     return EXIT_SUCCESS;
 }
+

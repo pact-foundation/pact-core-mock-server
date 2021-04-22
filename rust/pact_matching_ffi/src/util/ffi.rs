@@ -1,5 +1,8 @@
 //! Provides a convenience macro for wrapping FFI code.
 
+// All of this module is a macro and should not appear in the C header file
+// or documentation.
+
 #[doc(hidden)]
 #[macro_export]
 macro_rules! ffi_fn {

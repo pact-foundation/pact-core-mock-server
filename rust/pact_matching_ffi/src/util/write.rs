@@ -1,5 +1,8 @@
 //! API for safely writing Rust `String`s into C strings.
 
+// All of this module is `pub(crate)` and should not appear in the C header file
+// or documentation.
+
 use std::ffi::{CString, NulError};
 use std::io::{self, Write};
 use zeroize::Zeroize;

@@ -3,6 +3,9 @@ use libc::c_char;
 use std::ffi::CString;
 use std::ops::Not;
 
+// All of this module is `pub(crate)` and should not appear in the C header file
+// or documentation.
+
 /// Converts the string into a C-compatible null terminated string,
 /// then forgets the container while returning a pointer to the
 /// underlying buffer.

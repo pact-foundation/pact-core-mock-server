@@ -41,5 +41,8 @@ mod status;
 // Function for the C program to read the last error message.
 pub use crate::error::ffi::get_error_message;
 
+// Utility function for setting the last error message.
+pub(crate) use crate::error::last_error::set_error_msg;
+
 // Utility function for convenient panic-catching and error-reporting.
 pub(crate) use crate::error::panic::catch_panic;

@@ -1,5 +1,8 @@
 //! Defines an alias for the type returned by `std::panic::catch_unwind`.
 
+// All of this module is `pub(crate)` and should not appear in the C header file
+// or documentation.
+
 use crate::error::error_msg::ErrorMsg;
 use std::any::Any;
 

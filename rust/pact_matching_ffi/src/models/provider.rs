@@ -8,7 +8,33 @@ use crate::{as_ref, ffi_fn};
 
 ffi_fn! {
     /// Get a copy of this provider's name.
+    ///
     /// The copy must be deleted with `string_delete`.
+    ///
+    /// # Usage
+    ///
+    /// ```c
+    /// // Assuming `file_name` and `json_str` are already defined.
+    ///
+    /// MessagePact *message_pact = message_pact_new_from_json(file_name, json_str);
+    /// if (message_pact == NULLPTR) {
+    ///     // handle error.
+    /// }
+    ///
+    /// Provider *provider = message_pact_get_provider(message_pact);
+    /// if (provider == NULLPTR) {
+    ///     // handle error.
+    /// }
+    ///
+    /// char *name = provider_get_name(provider);
+    /// if (name == NULL) {
+    ///     // handle error.
+    /// }
+    ///
+    /// printf("%s\n", name);
+    ///
+    /// string_delete(name);
+    /// ```
     ///
     /// # Errors
     ///

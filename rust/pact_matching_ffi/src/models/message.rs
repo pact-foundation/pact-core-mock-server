@@ -33,6 +33,14 @@ pub use pact_matching::models::provider_states::ProviderState;
 
 ffi_fn! {
     /// Get a mutable pointer to a newly-created default message on the heap.
+    ///
+    /// # Safety
+    ///
+    /// This function is safe.
+    ///
+    /// # Error Handling
+    ///
+    /// Returns NULL on error.
     fn message_new() -> *mut Message {
         let message = Message::default();
         ptr::raw_to(message)
@@ -43,6 +51,14 @@ ffi_fn! {
 
 ffi_fn! {
     /// Constructs a `Message` from the JSON string
+    ///
+    /// # Safety
+    ///
+    /// This function is safe.
+    ///
+    /// # Error Handling
+    ///
+    /// If the JSON string is invalid or not UTF-8 encoded, returns a NULL.
     fn message_new_from_json(
         index: c_uint,
         json_str: *const c_char,
@@ -66,6 +82,14 @@ ffi_fn! {
 
 ffi_fn! {
     /// Constructs a `Message` from a body with a given content-type.
+    ///
+    /// # Safety
+    ///
+    /// This function is safe.
+    ///
+    /// # Error Handling
+    ///
+    /// If the body or content type are invalid or not UTF-8 encoded, returns NULL.
     fn message_new_from_body(body: *const c_char, content_type: *const c_char) -> *mut Message {
         // Get the body as a Vec<u8>.
         let body = cstr!(body)
@@ -109,6 +133,19 @@ ffi_fn! {
 
 ffi_fn! {
     /// Get the contents of a `Message`.
+    ///
+    /// # Safety
+    ///
+    /// The returned string must be deleted with `string_delete`.
+    ///
+    /// The returned string can outlive the message.
+    ///
+    /// # Error Handling
+    ///
+    /// If the message is NULL, returns NULL. If the body of the message
+    /// is missing, then this function also returns NULL. This means there's
+    /// no mechanism to differentiate with this function call alone between
+    /// a NULL message and a missing message body.
     fn message_get_contents(message: *const Message) -> *const c_char {
         let message = as_ref!(message);
 
@@ -137,6 +174,9 @@ ffi_fn! {
 
 ffi_fn! {
     /// Get a copy of the description.
+    ///
+    /// # Safety
+    ///
     /// The returned string must be deleted with `string_delete`.
     ///
     /// Since it is a copy, the returned string may safely outlive
@@ -160,11 +200,17 @@ ffi_fn! {
 ffi_fn! {
     /// Write the `description` field on the `Message`.
     ///
+    /// # Safety
+    ///
     /// `description` must contain valid UTF-8. Invalid UTF-8
     /// will be replaced with U+FFFD REPLACEMENT CHARACTER.
     ///
     /// This function will only reallocate if the new string
     /// does not fit in the existing buffer.
+    ///
+    /// # Error Handling
+    ///
+    /// Errors will be reported with a non-zero return value.
     fn message_set_description(message: *mut Message, description: *const c_char) -> c_int {
         let message = as_mut!(message);
         let description = safe_str!(description);
@@ -186,15 +232,15 @@ ffi_fn! {
 
 ffi_fn! {
     /// Get a copy of the provider state at the given index from this message.
-    /// A pointer to the structure will be written to `out_provider_state`,
-    /// only if no errors are encountered.
+    ///
+    /// # Safety
     ///
     /// The returned structure must be deleted with `provider_state_delete`.
     ///
     /// Since it is a copy, the returned structure may safely outlive
     /// the `Message`.
     ///
-    /// # Errors
+    /// # Error Handling
     ///
     /// On failure, this function will return a variant other than Success.
     ///
@@ -219,6 +265,14 @@ ffi_fn! {
 
 ffi_fn! {
     /// Get an iterator over provider states.
+    ///
+    /// # Safety
+    ///
+    /// The underlying data must not change during iteration.
+    ///
+    /// # Error Handling
+    ///
+    /// Returns NULL if an error occurs.
     fn message_get_provider_state_iter(message: *mut Message) -> *mut ProviderStateIterator {
         let message = as_mut!(message);
         let iter = ProviderStateIterator { current: 0, message };
@@ -230,6 +284,14 @@ ffi_fn! {
 
 ffi_fn! {
     /// Get the next value from the iterator.
+    ///
+    /// # Safety
+    ///
+    /// The underlying data must not change during iteration.
+    ///
+    /// # Error Handling
+    ///
+    /// Returns NULL if an error occurs.
     fn provider_state_iter_next(iter: *mut ProviderStateIterator) -> *mut ProviderState {
         let iter = as_mut!(iter);
         let message = as_mut!(iter.message);
@@ -273,6 +335,9 @@ impl ProviderStateIterator {
 
 ffi_fn! {
     /// Get a copy of the metadata value indexed by `key`.
+    ///
+    /// # Safety
+    ///
     /// The returned string must be deleted with `string_delete`.
     ///
     /// Since it is a copy, the returned string may safely outlive
@@ -281,7 +346,7 @@ ffi_fn! {
     /// The returned pointer will be NULL if the metadata does not contain
     /// the given key, or if an error occurred.
     ///
-    /// # Errors
+    /// # Error Handling
     ///
     /// On failure, this function will return a NULL pointer.
     ///
@@ -302,10 +367,13 @@ ffi_fn! {
 ffi_fn! {
     /// Insert the (`key`, `value`) pair into this Message's
     /// `metadata` HashMap.
+    ///
+    /// # Safety
+    ///
     /// This function returns an enum indicating the result;
     /// see the comments on HashMapInsertStatus for details.
     ///
-    /// # Errors
+    /// # Error Handling
     ///
     /// This function may fail if the provided `key` or `value` strings
     /// contain invalid UTF-8.
@@ -330,13 +398,15 @@ ffi_fn! {
 ffi_fn! {
     /// Get an iterator over the metadata of a message.
     ///
+    /// # Safety
+    ///
     /// This iterator carries a pointer to the message, and must
     /// not outlive the message.
     ///
     /// The message metadata also must not be modified during iteration. If it is,
     /// the old iterator must be deleted and a new iterator created.
     ///
-    /// # Errors
+    /// # Error Handling
     ///
     /// On failure, this function will return a NULL pointer.
     ///
@@ -359,6 +429,14 @@ ffi_fn! {
 
 ffi_fn! {
     /// Get the next key and value out of the iterator, if possible
+    ///
+    /// # Safety
+    ///
+    /// The underlying data must not change during iteration.
+    ///
+    /// # Error Handling
+    ///
+    /// If no further data is present, returns NULL.
     fn message_metadata_iter_next(iter: *mut MessageMetadataIterator) -> *mut MessageMetadataPair {
         let iter = as_mut!(iter);
         let message = as_ref!(iter.message);

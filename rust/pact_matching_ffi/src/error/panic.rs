@@ -1,5 +1,8 @@
 //! An alternative to `std::panic::catch_unwind` which does error-reporting.
 
+// All of this module is `pub(crate)` and should not appear in the C header file
+// or documentation.
+
 use crate::error::any_error::ToErrorMsg;
 use crate::error::last_error::set_error_msg;
 use std::panic::{catch_unwind, UnwindSafe};
