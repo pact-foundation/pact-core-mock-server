@@ -28,7 +28,7 @@ where
         }
         Err(err) => {
             // We have an `AnyError`
-            let err = err.to_error_msg();
+            let err = err.into_error_msg();
             set_error_msg(err);
             None
         }

@@ -24,11 +24,11 @@ pub(crate) enum Sink {
     File(File),
 }
 
-impl Into<Dispatch> for Sink {
-    fn into(self) -> Dispatch {
+impl From<Sink> for Dispatch {
+    fn from(sink: Sink) -> Dispatch {
         let dispatch = Dispatch::new();
 
-        match self {
+        match sink {
             Sink::Stdout(stdout) => dispatch.chain(stdout),
             Sink::Stderr(stderr) => dispatch.chain(stderr),
             Sink::File(file) => dispatch.chain(file),

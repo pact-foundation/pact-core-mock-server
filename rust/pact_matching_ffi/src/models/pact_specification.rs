@@ -35,10 +35,10 @@ impl From<NonCPactSpecification> for PactSpecification {
     }
 }
 
-impl Into<NonCPactSpecification> for PactSpecification {
+impl From<PactSpecification> for NonCPactSpecification {
     #[inline]
-    fn into(self) -> NonCPactSpecification {
-        match self {
+    fn from(spec: PactSpecification) -> NonCPactSpecification {
+        match spec {
             PactSpecification::Unknown => NonCPactSpecification::Unknown,
             PactSpecification::V1 => NonCPactSpecification::V1,
             PactSpecification::V1_1 => NonCPactSpecification::V1_1,

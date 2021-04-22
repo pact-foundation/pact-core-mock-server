@@ -11,7 +11,7 @@ pub(crate) type AnyError = Box<dyn Any + Send + 'static>;
 
 /// An extension trait for extracting an error message out of an `AnyError`.
 pub(crate) trait ToErrorMsg {
-    fn to_error_msg(self) -> String;
+    fn into_error_msg(self) -> String;
 }
 
 impl ToErrorMsg for AnyError {
@@ -23,7 +23,7 @@ impl ToErrorMsg for AnyError {
     /// Note that if an error message can't be extracted from the `AnyError`,
     /// there will still be an update to the `LAST_ERROR`, reporting that an
     /// unknown error occurred.
-    fn to_error_msg(self) -> String {
+    fn into_error_msg(self) -> String {
         ErrorMsg::from(self).to_string()
     }
 }

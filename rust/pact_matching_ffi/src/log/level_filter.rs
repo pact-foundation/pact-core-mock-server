@@ -34,9 +34,9 @@ impl From<NonCLevelFilter> for LevelFilter {
     }
 }
 
-impl Into<NonCLevelFilter> for LevelFilter {
-    fn into(self) -> NonCLevelFilter {
-        match self {
+impl From<LevelFilter> for NonCLevelFilter {
+    fn from(filter: LevelFilter) -> NonCLevelFilter {
+        match filter {
             LevelFilter::Off => NonCLevelFilter::Off,
             LevelFilter::Error => NonCLevelFilter::Error,
             LevelFilter::Warn => NonCLevelFilter::Warn,

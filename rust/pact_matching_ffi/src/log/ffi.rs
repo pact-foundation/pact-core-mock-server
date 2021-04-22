@@ -187,7 +187,7 @@ pub extern "C" fn logger_init() {
 /// This function checks the validity of the passed-in sink specifier, and errors
 /// out if the specifier isn't valid UTF-8.
 #[allow(clippy::missing_safety_doc)]
-#[allow(clippy::not_unsafe_ptr_args_deref)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[no_mangle]
 pub extern "C" fn logger_attach_sink(
     sink_specifier: *const c_char,
