@@ -1,7 +1,9 @@
 use pact_matching::models::*;
+use pact_models::{Consumer, Provider};
+
+use crate::prelude::*;
 
 use super::interaction_builder::InteractionBuilder;
-use crate::prelude::*;
 
 /// Builder for `Pact` objects.
 ///

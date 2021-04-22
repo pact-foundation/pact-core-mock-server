@@ -1,11 +1,14 @@
 //! Handles wrapping Rust models
 
-use pact_matching::models::{RequestResponsePact, Consumer, Provider, RequestResponseInteraction};
-use lazy_static::*;
-use maplit::*;
-use std::sync::Mutex;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::sync::Mutex;
+
+use lazy_static::*;
+use maplit::*;
+
+use pact_matching::models::{RequestResponseInteraction, RequestResponsePact};
+use pact_models::{Consumer, Provider};
 
 lazy_static! {
   static ref PACT_HANDLES: Mutex<HashMap<usize, RefCell<RequestResponsePact>>> = Mutex::new(hashmap![]);

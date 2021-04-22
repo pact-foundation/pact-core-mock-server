@@ -1,19 +1,24 @@
-use expectest::prelude::*;
+use std::panic::catch_unwind;
+use std::sync::Arc;
+
+use env_logger::*;
 use expectest::expect;
-use super::{FilterInfo, filter_interaction, filter_consumers, execute_state_change};
+use expectest::prelude::*;
+use maplit::*;
+use serde_json::json;
+
+use pact_consumer::*;
+use pact_consumer::prelude::*;
 use pact_matching::models::*;
 use pact_matching::models::provider_states::*;
 use pact_matching::s;
-use pact_consumer::prelude::*;
-use pact_consumer::*;
-use env_logger::*;
-use crate::PactSource;
-use std::panic::catch_unwind;
-use crate::pact_broker::Link;
-use maplit::*;
-use serde_json::json;
+use pact_models::Consumer;
+
 use crate::callback_executors::HttpRequestProviderStateExecutor;
-use std::sync::Arc;
+use crate::pact_broker::Link;
+use crate::PactSource;
+
+use super::{execute_state_change, filter_consumers, filter_interaction, FilterInfo};
 
 #[test]
 fn if_no_interaction_filter_is_defined_returns_true() {

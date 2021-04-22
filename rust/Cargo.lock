@@ -1098,6 +1098,7 @@ dependencies = [
  "maplit",
  "pact_matching",
  "pact_mock_server",
+ "pact_models",
  "quickcheck",
  "regex",
  "reqwest",
@@ -1231,6 +1232,7 @@ dependencies = [
  "os_info",
  "pact_matching",
  "pact_mock_server",
+ "pact_models",
  "rand 0.8.3",
  "rand_regex",
  "regex-syntax",
@@ -1244,6 +1246,11 @@ name = "pact_models"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "bytes",
+ "expectest",
+ "itertools",
+ "log",
+ "maplit",
  "serde",
  "serde_json",
 ]

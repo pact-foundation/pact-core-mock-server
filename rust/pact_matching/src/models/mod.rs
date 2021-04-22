@@ -31,7 +31,7 @@ use onig::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use pact_models::PactSpecification;
+use pact_models::{Consumer, PactSpecification, Provider};
 
 use crate::models::content_types::ContentType;
 use crate::models::file_utils::{with_read_lock, with_read_lock_for_open_file, with_write_lock};
@@ -56,58 +56,6 @@ mod file_utils;
 
 /// Version of the library
 pub const PACT_RUST_VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
-
-/// Struct that defines the consumer of the pact.
-#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
-pub struct Consumer {
-    /// Each consumer should have a unique name to identify it.
-    pub name: String
-}
-
-impl Consumer {
-    /// Builds a `Consumer` from the `Json` struct.
-    pub fn from_json(pact_json: &Value) -> Consumer {
-        let val = match pact_json.get("name") {
-            Some(v) => match v.clone() {
-                Value::String(s) => s,
-                _ => v.to_string()
-            },
-            None => "consumer".to_string()
-        };
-        Consumer { name: val.clone() }
-    }
-
-    /// Converts this `Consumer` to a `Value` struct.
-    pub fn to_json(&self) -> Value {
-        json!({ s!("name") : json!(self.name.clone()) })
-    }
-}
-
-/// Struct that defines a provider of a pact.
-#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
-pub struct Provider {
-    /// Each provider should have a unique name to identify it.
-    pub name: String
-}
-
-impl Provider {
-    /// Builds a `Provider` from a `Value` struct.
-    pub fn from_json(pact_json: &Value) -> Provider {
-        let val = match pact_json.get("name") {
-            Some(v) => match v.clone() {
-                Value::String(s) => s,
-                _ => v.to_string()
-            },
-            None => "provider".to_string()
-        };
-        Provider { name: val.clone() }
-    }
-
-    /// Converts this `Provider` to a `Value` struct.
-    pub fn to_json(&self) -> Value {
-        json!({ s!("name") : json!(self.name.clone()) })
-    }
-}
 
 /// Enum that defines the four main states that a body of a request and response can be in a pact
 /// file.
