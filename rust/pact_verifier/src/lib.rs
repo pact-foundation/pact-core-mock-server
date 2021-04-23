@@ -1,6 +1,6 @@
 //! The `pact_verifier` crate provides the core logic to performing verification of providers.
-//! It implements the V3 Pact specification (https://github.com/pact-foundation/pact-specification/tree/version-3).
-#![type_length_limit="4776643"]
+//! It implements the V3 (https://github.com/pact-foundation/pact-specification/tree/version-3)
+//! and V4 Pact specification (https://github.com/pact-foundation/pact-specification/tree/version-4).
 #![warn(missing_docs)]
 
 use std::collections::HashMap;
@@ -8,6 +8,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::fmt;
 use std::fs;
 use std::path::Path;
+use std::sync::Arc;
 
 use ansi_term::*;
 use ansi_term::Colour::*;
@@ -25,6 +26,7 @@ use pact_matching::*;
 use pact_matching::models::*;
 use pact_matching::models::generators::GeneratorTestMode;
 use pact_matching::models::http_utils::HttpAuth;
+use pact_matching::models::json_utils::json_to_string;
 use pact_matching::models::provider_states::*;
 
 use crate::callback_executors::{ProviderStateError, ProviderStateExecutor};
@@ -33,7 +35,7 @@ use crate::pact_broker::{Link, PactVerificationContext, publish_verification_res
 pub use crate::pact_broker::{ConsumerVersionSelector, PactsForVerificationRequest};
 use crate::provider_client::{make_provider_request, provider_client_error_to_string};
 use crate::request_response::display_request_response_result;
-use std::sync::Arc;
+use pact_matching::models::v4::V4Interaction;
 
 mod provider_client;
 pub mod pact_broker;
@@ -786,6 +788,12 @@ async fn verify_pact<'a, F: RequestFilterExecutor, S: ProviderStateExecutor>(
       description.push_str(&interaction.description());
       println!("  {}", interaction.description());
 
+      if interaction.is_v4() {
+        if let Some(interaction) = interaction.as_v4() {
+          display_comments(interaction)
+        }
+      }
+
       if let Some(interaction) = interaction.as_request_response() {
         display_request_response_result(&mut errors, &interaction, &match_result, &description)
       }
@@ -797,6 +805,25 @@ async fn verify_pact<'a, F: RequestFilterExecutor, S: ProviderStateExecutor>(
     println!();
 
     errors
+}
+
+fn display_comments(interaction: Box<dyn V4Interaction>) {
+  let comments = interaction.comments();
+  if !comments.is_empty() {
+    if let Some(testname) = comments.get("testname") {
+      println!("\n  Test Name: {}", json_to_string(testname));
+    }
+    if let Some(comment_text) = comments.get("text") {
+      println!("\n  Comments:");
+      match comment_text {
+        Value::Array(comment_text) => for value in comment_text {
+          println!("    {}", json_to_string(value));
+        }
+        _ => println!("    {}", comment_text)
+      }
+    }
+    println!();
+  }
 }
 
 async fn publish_result<F: RequestFilterExecutor>(
