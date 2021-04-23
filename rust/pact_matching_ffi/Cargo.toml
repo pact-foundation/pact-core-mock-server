@@ -1,0 +1,26 @@
+[package]
+name = "pact_matching_ffi"
+version = "0.1.0"
+authors = ["Andrew Lilley Brinker <abrinker@mitre.org>", "Caleb Stepanian <cstepanian@mitre.org>"]
+edition = "2018"
+description = "Pact matching interface for foreign languages."
+readme = "README.md"
+keywords = ["testing", "pact", "cdc", "mockserver"]
+license = "MIT"
+exclude = [
+    "*.iml"
+]
+
+[dependencies]
+pact_matching = { version = "0.8.14", path = "../pact_matching" }
+pact_models = { version = "0.0.1", path = "../pact_models" }
+anyhow = "1.0.28"
+libc = "0.2.69"
+zeroize = "1.1.0"
+thiserror = "1.0.15"
+fern = "0.6.0"
+log = "0.4.8"
+serde_json = "1.0.51"
+
+[lib]
+crate-type = ["cdylib"]
