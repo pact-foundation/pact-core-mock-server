@@ -164,6 +164,8 @@ async fn test_state_change_with_parameters_in_query() {
 
   let server = PactBuilder::new("RustPactVerifier", "SomeRunningProvider")
     .interaction("a state change request with params in the query string", |i| {
+      i.comment("testing state change with parameters in the query");
+      i.test_name("test_state_change_with_parameters_in_query");
       i.request.method("POST");
       i.request.path("/");
       i.request.query_param("state", "TestState");

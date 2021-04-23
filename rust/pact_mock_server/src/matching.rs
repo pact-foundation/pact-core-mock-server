@@ -3,44 +3,45 @@
 //! against a list of potential interactions.
 //!
 
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
+use std::sync::Arc;
 
 use itertools::Itertools;
 use serde_json::json;
 
 use pact_matching::Mismatch;
-use pact_matching::models::{Request, RequestResponseInteraction};
+use pact_matching::models::{Interaction, Request, RequestResponseInteraction, Response};
 use pact_matching::s;
 use pact_models::PactSpecification;
 
 /// Enum to define a match result
 #[derive(Debug, Clone, PartialEq)]
 pub enum MatchResult {
-    /// Match result where the request was successfully matched
-    RequestMatch(RequestResponseInteraction),
-    /// Match result where there were a number of mismatches
-    RequestMismatch(RequestResponseInteraction, Vec<Mismatch>),
-    /// Match result where the request was not expected
-    RequestNotFound(Request),
-    /// Match result where an expected request was not received
-    MissingRequest(RequestResponseInteraction)
+  /// Match result where the request was successfully matched
+  RequestMatch(Request, Response),
+  /// Match result where there were a number of mismatches
+  RequestMismatch(Request, Vec<Mismatch>),
+  /// Match result where the request was not expected
+  RequestNotFound(Request),
+  /// Match result where an expected request was not received
+  MissingRequest(Request)
 }
 
 impl MatchResult {
     /// Returns the match key for this mismatch
     pub fn match_key(&self) -> String {
         match self {
-            &MatchResult::RequestMatch(_) => s!("Request-Matched"),
-            &MatchResult::RequestMismatch(_, _) => s!("Request-Mismatch"),
-            &MatchResult::RequestNotFound(_) => s!("Unexpected-Request"),
-            &MatchResult::MissingRequest(_) => s!("Missing-Request")
-        }
+            &MatchResult::RequestMatch(_, _) => "Request-Matched",
+            &MatchResult::RequestMismatch(_, _) => "Request-Mismatch",
+            &MatchResult::RequestNotFound(_) => "Unexpected-Request",
+            &MatchResult::MissingRequest(_) => "Missing-Request"
+        }.to_string()
     }
 
     /// Returns true if this match result is a `RequestMatch`
     pub fn matched(&self) -> bool {
         match self {
-            &MatchResult::RequestMatch(_) => true,
+            &MatchResult::RequestMatch(_, _) => true,
             _ => false
         }
     }
@@ -56,19 +57,19 @@ impl MatchResult {
     /// Converts this match result to a `Value` struct
     pub fn to_json(&self) -> serde_json::Value {
         match self {
-            &MatchResult::RequestMatch(_) => json!({ s!("type") : s!("request-match")}),
-            &MatchResult::RequestMismatch(ref interaction, ref mismatches) => mismatches_to_json(&interaction.request, mismatches),
+            &MatchResult::RequestMatch(_, _) => json!({ "type" : "request-match"}),
+            &MatchResult::RequestMismatch(ref request, ref mismatches) => mismatches_to_json(request, mismatches),
             &MatchResult::RequestNotFound(ref req) => json!({
-                "type": json!("request-not-found"),
-                "method": json!(req.method),
-                "path": json!(req.path),
+                "type": "request-not-found",
+                "method": req.method,
+                "path": req.path,
                 "request": req.to_json(&PactSpecification::V3)
             }),
-            &MatchResult::MissingRequest(ref interaction) => json!({
-                "type": json!("missing-request"),
-                "method": json!(interaction.request.method),
-                "path": json!(interaction.request.path),
-                "request": interaction.request.to_json(&PactSpecification::V3)
+            &MatchResult::MissingRequest(ref request) => json!({
+                "type": "missing-request",
+                "method": request.method,
+                "path": request.path,
+                "request": request.to_json(&PactSpecification::V3)
             })
         }
     }
@@ -77,11 +78,11 @@ impl MatchResult {
 impl Display for MatchResult {
   fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
     match self {
-      MatchResult::RequestMatch(interaction) => {
-        write!(f, "Request matched OK - {}", interaction.request)
+      MatchResult::RequestMatch(request, _) => {
+        write!(f, "Request matched OK - {}", request)
       },
-      MatchResult::RequestMismatch(interaction, mismatches) => {
-        write!(f, "Request did not match - {}", interaction.request)?;
+      MatchResult::RequestMismatch(request, mismatches) => {
+        write!(f, "Request did not match - {}", request)?;
         for (i, mismatch) in mismatches.iter().enumerate() {
           write!(f, "    {}) {}", i, mismatch)?;
         }
@@ -90,8 +91,8 @@ impl Display for MatchResult {
       MatchResult::RequestNotFound(request) => {
         write!(f, "Request was not expected - {}", request)
       },
-      MatchResult::MissingRequest(interaction) => {
-        write!(f, "Request was not received - {}", interaction.request)
+      MatchResult::MissingRequest(request) => {
+        write!(f, "Request was not received - {}", request)
       }
     }
   }
@@ -99,31 +100,36 @@ impl Display for MatchResult {
 
 fn mismatches_to_json(request: &Request, mismatches: &Vec<Mismatch>) -> serde_json::Value {
     json!({
-        s!("type") : json!("request-mismatch"),
-        s!("method") : json!(request.method),
-        s!("path") : json!(request.path),
-        s!("mismatches") : mismatches.iter().map(|m| m.to_json()).collect::<serde_json::Value>()
+        "type" : "request-mismatch",
+        "method" : request.method,
+        "path" : request.path,
+        "mismatches" : mismatches.iter().map(|m| m.to_json()).collect::<serde_json::Value>()
     })
 }
 
 ///
 /// Matches a request against a list of interactions
 ///
-pub fn match_request(req: &Request, interactions: &Vec<RequestResponseInteraction>) -> MatchResult {
+pub fn match_request(req: &Request, interactions: Vec<&dyn Interaction>) -> MatchResult {
   let mut match_results = interactions
     .into_iter()
-    .map(|i| (i.clone(), pact_matching::match_request(i.request.clone(), req.clone())))
+    .filter(|i| i.is_request_response())
+    .map(|i| {
+      let interaction = i.as_request_response().unwrap();
+      (i.clone(), pact_matching::match_request(interaction.request.clone(), req.clone()))
+    })
     .sorted_by(|(_, i1), (_, i2)| {
       Ord::cmp(&i2.score(), &i1.score())
     });
   match match_results.next() {
-    Some(res) => {
-      if res.1.all_matched() {
-        MatchResult::RequestMatch(res.0.clone())
-      } else if res.1.method_or_path_mismatch() {
+    Some((interaction, result)) => {
+      let request_response_interaction = interaction.as_request_response().unwrap();
+      if result.all_matched() {
+        MatchResult::RequestMatch(request_response_interaction.request, request_response_interaction.response)
+      } else if result.method_or_path_mismatch() {
         MatchResult::RequestNotFound(req.clone())
       } else {
-        MatchResult::RequestMismatch(res.0.clone(), res.1.mismatches())
+        MatchResult::RequestMismatch(request_response_interaction.request, result.mismatches())
       }
     },
     None => MatchResult::RequestNotFound(req.clone())

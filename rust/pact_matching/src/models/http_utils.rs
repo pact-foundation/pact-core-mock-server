@@ -1,9 +1,11 @@
 //! Module for fetching documents via HTTP
 
-use reqwest::Error;
-use reqwest::blocking::Client;
-use serde_json::Value;
 use std::fmt::{Display, Formatter};
+
+use anyhow::anyhow;
+use reqwest::blocking::Client;
+use reqwest::Error;
+use serde_json::Value;
 
 /// Type of authentication to use
 #[derive(Debug, Clone)]
@@ -15,7 +17,7 @@ pub enum HttpAuth {
 }
 
 /// Fetches the JSON from a URL
-pub fn fetch_json_from_url(url: &String, auth: &Option<HttpAuth>) -> Result<(String, Value), String> {
+pub fn fetch_json_from_url(url: &String, auth: &Option<HttpAuth>) -> anyhow::Result<(String, Value)> {
   let client = Client::new();
   let request = match auth {
     &Some(ref auth) => {
@@ -32,12 +34,12 @@ pub fn fetch_json_from_url(url: &String, auth: &Option<HttpAuth>) -> Result<(Str
       let pact_json: Result<Value, Error> = res.json();
       match pact_json {
         Ok(ref json) => Ok((url.clone(), json.clone())),
-        Err(err) => Err(format!("Failed to parse JSON - {}", err))
+        Err(err) => Err(anyhow!("Failed to parse JSON - {}", err))
       }
     } else {
-      Err(format!("Request failed with status - {}", res.status()))
+      Err(anyhow!("Request failed with status - {}", res.status()))
     },
-    Err(err) => Err(format!("Request failed - {}", err))
+    Err(err) => Err(anyhow!("Request failed - {}", err))
   }
 }
 

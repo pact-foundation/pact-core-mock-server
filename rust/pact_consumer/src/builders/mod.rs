@@ -29,10 +29,10 @@ fn basic_builder_example() {
         })
         .build();
 
-    assert_eq!(pact.consumer.name, "Consumer");
-    assert_eq!(pact.provider.name, "Provider");
-    assert_eq!(pact.interactions.len(), 1);
-    let interaction = &pact.interactions[0];
-    assert_eq!(&interaction.description, "GET /greeting/hello");
-    assert_eq!(interaction.provider_states[0].name, "a greeting named hello");
+    assert_eq!(pact.consumer().name, "Consumer");
+    assert_eq!(pact.provider().name, "Provider");
+    assert_eq!(pact.interactions().len(), 1);
+    let interaction = pact.interactions()[0];
+    assert_eq!(&interaction.description(), "GET /greeting/hello");
+    assert_eq!(interaction.provider_states()[0].name, "a greeting named hello");
 }

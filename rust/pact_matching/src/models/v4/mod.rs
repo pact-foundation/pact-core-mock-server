@@ -10,7 +10,7 @@ use std::path::Path;
 use std::string::ToString;
 use std::sync::{Arc, Mutex};
 
-use anyhow::Context as _;
+use anyhow::{anyhow, Context as _};
 use itertools::EitherOrBoth::{Both, Left, Right};
 use itertools::Itertools;
 use log::*;
@@ -86,7 +86,7 @@ impl V4InteractionType {
 pub mod http_parts;
 
 /// V4 Interaction trait
-pub trait V4Interaction: Interaction {
+pub trait V4Interaction: Interaction + Send + Sync {
   /// Convert the interaction to a JSON Value
   fn to_json(&self) -> Value;
 
@@ -106,17 +106,17 @@ pub trait V4Interaction: Interaction {
   fn comments_mut(&mut self) -> &mut HashMap<String, Value>;
 }
 
-impl Debug for dyn V4Interaction {
-  fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-    if let Some(i) = self.as_v4_http() {
-      std::fmt::Display::fmt(&i, f)
-    } else if let Some(i) = self.as_v4_async_message() {
-      std::fmt::Display::fmt(&i, f)
-    } else {
-      Err(fmt::Error)
-    }
-  }
-}
+// impl Debug for dyn V4Interaction {
+//   fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+//     if let Some(i) = self.as_v4_http() {
+//       std::fmt::Display::fmt(&i, f)
+//     } else if let Some(i) = self.as_v4_async_message() {
+//       std::fmt::Display::fmt(&i, f)
+//     } else {
+//       Err(fmt::Error)
+//     }
+//   }
+// }
 
 impl Display for dyn V4Interaction {
   fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -287,11 +287,11 @@ impl Interaction for SynchronousHttp {
     None
   }
 
-  fn boxed(&self) -> Box<dyn Interaction> {
+  fn boxed(&self) -> Box<dyn Interaction + Send> {
     Box::new(self.clone())
   }
 
-  fn arced(&self) -> Arc<dyn Interaction> {
+  fn arced(&self) -> Arc<dyn Interaction + Send> {
     Arc::new(self.clone())
   }
 
@@ -512,11 +512,11 @@ impl Interaction for AsynchronousMessage {
     Some(self.clone())
   }
 
-  fn boxed(&self) -> Box<dyn Interaction> {
+  fn boxed(&self) -> Box<dyn Interaction + Send> {
     Box::new(self.clone())
   }
 
-  fn arced(&self) -> Arc<dyn Interaction> {
+  fn arced(&self) -> Arc<dyn Interaction + Send> {
     Arc::new(self.clone())
   }
 
@@ -700,6 +700,32 @@ impl Pact for V4Pact {
   fn specification_version(&self) -> PactSpecification {
     PactSpecification::V4
   }
+
+  fn boxed(&self) -> Box<dyn Pact + Send> {
+    Box::new(self.clone())
+  }
+
+  fn arced(&self) -> Arc<dyn Pact + Send> {
+    Arc::new(self.clone())
+  }
+
+  fn thread_safe(&self) -> Arc<Mutex<dyn Pact + Send + Sync>> {
+    Arc::new(Mutex::new(self.clone()))
+  }
+
+  fn add_interaction(&mut self, interaction: &dyn Interaction) -> Result<(), String> {
+    match interaction.as_v4() {
+      None => Err("Can only add interactions that can be converted to V4 to this Pact".to_string()),
+      Some(interaction) => {
+        self.interactions.push(interaction);
+        Ok(())
+      }
+    }
+  }
+
+  fn spec_version(&self) -> PactSpecification {
+    PactSpecification::V4
+  }
 }
 
 impl Default for V4Pact {
@@ -735,9 +761,9 @@ impl ReadWritePact for V4Pact {
     })
   }
 
-  fn merge(&self, other: &dyn Pact) -> Result<V4Pact, String> {
+  fn merge(&self, other: &dyn Pact) -> anyhow::Result<Box<dyn Pact>> {
     if self.consumer.name == other.consumer().name && self.provider.name == other.provider().name {
-      Ok(V4Pact {
+      Ok(Box::new(V4Pact {
         consumer: self.consumer.clone(),
         provider: self.provider.clone(),
         interactions: self.interactions.iter()
@@ -771,9 +797,9 @@ impl ReadWritePact for V4Pact {
           })
           .collect(),
         metadata: self.metadata.clone()
-      })
+      }))
     } else {
-      Err(s!("Unable to merge pacts, as they have different consumers or providers"))
+      Err(anyhow!("Unable to merge pacts, as they have different consumers or providers"))
     }
   }
 
@@ -783,7 +809,7 @@ impl ReadWritePact for V4Pact {
 }
 
 /// Creates a V4 Pact from the provided JSON struct
-pub fn from_json(source: &str, pact_json: &Value) -> Result<Box<dyn Pact>, String> {
+pub fn from_json(source: &str, pact_json: &Value) -> anyhow::Result<Box<dyn Pact>> {
   let metadata = meta_data_from_json(pact_json);
   let consumer = match pact_json.get("consumer") {
     Some(v) => Consumer::from_json(v),
@@ -816,7 +842,7 @@ fn interactions_from_json(json: &Value, source: &str) -> Vec<Box<dyn V4Interacti
 }
 
 /// Create an interaction from a JSON struct
-pub fn interaction_from_json(source: &str, index: usize, ijson: &Value) -> Result<Box<dyn V4Interaction>, String> {
+pub fn interaction_from_json(source: &str, index: usize, ijson: &Value) -> anyhow::Result<Box<dyn V4Interaction>> {
   match ijson.get("type") {
     Some(i_type) => match V4InteractionType::from_str(json_to_string(i_type).as_str()) {
       Ok(i_type) => {
@@ -877,18 +903,18 @@ pub fn interaction_from_json(source: &str, index: usize, ijson: &Value) -> Resul
           }
           V4InteractionType::Synchronous_Messages => {
             warn!("Interaction type '{}' is currently unimplemented. It will be ignored. Source: {}", i_type, source);
-            Err(format!("Interaction type '{}' is currently unimplemented. It will be ignored. Source: {}", i_type, source))
+            Err(anyhow!("Interaction type '{}' is currently unimplemented. It will be ignored. Source: {}", i_type, source))
           }
         }
       },
       Err(_) => {
         warn!("Interaction {} has an incorrect type attribute '{}'. It will be ignored. Source: {}", index, i_type, source);
-        Err(format!("Interaction {} has an incorrect type attribute '{}'. It will be ignored. Source: {}", index, i_type, source))
+        Err(anyhow!("Interaction {} has an incorrect type attribute '{}'. It will be ignored. Source: {}", index, i_type, source))
       }
     },
     None => {
       warn!("Interaction {} has no type attribute. It will be ignored. Source: {}", index, source);
-      Err(format!("Interaction {} has no type attribute. It will be ignored. Source: {}", index, source))
+      Err(anyhow!("Interaction {} has no type attribute. It will be ignored. Source: {}", index, source))
     }
   }
 }

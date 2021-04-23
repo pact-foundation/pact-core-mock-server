@@ -20,7 +20,7 @@ use webmachine_rust::*;
 use webmachine_rust::context::*;
 use webmachine_rust::headers::*;
 
-use pact_matching::models::RequestResponsePact;
+use pact_matching::models::{RequestResponsePact, load_pact_from_json};
 use pact_mock_server::mock_server::MockServerConfig;
 use pact_mock_server::tls::TlsConfigBuilder;
 
@@ -58,7 +58,11 @@ fn start_provider(context: &mut WebmachineContext, options: ServerOpts) -> Resul
     Some(ref body) if !body.is_empty() => {
       match serde_json::from_slice(body) {
         Ok(ref json) => {
-          let pact = RequestResponsePact::from_json(&context.request.request_path, json);
+          let pact = load_pact_from_json(&context.request.request_path, json)
+            .map_err(|err| {
+              error!("Failed to parse Pact JSON - {}", err);
+              422 as u16
+            })?;
           debug!("Loaded pact = {:?}", pact);
           let mock_server_id = Uuid::new_v4().to_string();
           let config = MockServerConfig {

@@ -3,22 +3,23 @@
 //! instance of a mock server.
 //!
 
+use std::cell::RefCell;
 use std::ffi::CString;
+use std::ops::DerefMut;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
+use log::*;
 use rustls::ServerConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use pact_matching::models::{RequestResponseInteraction, RequestResponsePact, write_pact};
+use pact_matching::models::{Pact, RequestResponseInteraction, RequestResponsePact, write_pact, Request};
 use pact_matching::models::ReadWritePact;
 
 use crate::hyper_server;
 use crate::matching::MatchResult;
-use std::cell::RefCell;
-use std::ops::DerefMut;
-use log::*;
+use std::borrow::Borrow;
 
 /// Mock server configuration
 #[derive(Debug, Default, Clone)]
@@ -59,7 +60,7 @@ pub struct MockServerMetrics {
 }
 
 /// Struct to represent the "foreground" part of mock server
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct MockServer {
   /// Mock server unique ID
   pub id: String,
@@ -72,7 +73,7 @@ pub struct MockServer {
   /// List of resources that need to be cleaned up when the mock server completes
   pub resources: Vec<CString>,
   /// Pact that this mock server is based on
-  pub pact: RequestResponsePact,
+  pub pact: Arc<Mutex<dyn Pact + Send + Sync>>,
   /// Receiver of match results
   matches: Arc<Mutex<Vec<MatchResult>>>,
   /// Shutdown signal
@@ -87,7 +88,7 @@ impl MockServer {
   /// Create a new mock server, consisting of its state (self) and its executable server future.
   pub async fn new(
     id: String,
-    pact: RequestResponsePact,
+    pact: Box<dyn Pact>,
     addr: std::net::SocketAddr,
     config: MockServerConfig
   ) -> Result<(Arc<Mutex<MockServer>>, impl std::future::Future<Output = ()>), String> {
@@ -100,7 +101,7 @@ impl MockServer {
       address: None,
       scheme: MockServerScheme::HTTP,
       resources: vec![],
-      pact: pact.clone(),
+      pact: pact.thread_safe(),
       matches: matches.clone(),
       shutdown_tx: RefCell::new(Some(shutdown_tx)),
       config: config.clone(),
@@ -108,7 +109,7 @@ impl MockServer {
     }));
 
     let (future, socket_addr) = hyper_server::create_and_bind(
-      pact,
+      pact.as_request_response_pact().unwrap(),
       addr,
       async {
         shutdown_rx.await.ok();
@@ -133,7 +134,7 @@ impl MockServer {
   /// Create a new TLS mock server, consisting of its state (self) and its executable server future.
   pub async fn new_tls(
     id: String,
-    pact: RequestResponsePact,
+    pact: Box<dyn Pact>,
     addr: std::net::SocketAddr,
     tls: &ServerConfig,
     config: MockServerConfig
@@ -146,7 +147,7 @@ impl MockServer {
       address: None,
       scheme: MockServerScheme::HTTPS,
       resources: vec![],
-      pact: pact.clone(),
+      pact: pact.thread_safe(),
       matches: matches.clone(),
       shutdown_tx: RefCell::new(Some(shutdown_tx)),
       config: config.clone(),
@@ -154,7 +155,7 @@ impl MockServer {
     }));
 
     let (future, socket_addr) = hyper_server::create_and_bind_tls(
-      pact,
+      pact.as_request_response_pact().unwrap(),
       addr,
       async {
         shutdown_rx.await.ok();
@@ -194,12 +195,13 @@ impl MockServer {
 
     /// Converts this mock server to a `Value` struct
     pub fn to_json(&self) -> serde_json::Value {
+      let pact = self.pact.lock().unwrap();
       json!({
         "id" : self.id.clone(),
         "port" : self.port.unwrap_or_default() as u64,
         "address" : self.address.clone().unwrap_or_default(),
         "scheme" : self.scheme.to_string(),
-        "provider" : self.pact.provider.name.clone(),
+        "provider" : pact.provider().name.clone(),
         "status" : if self.mismatches().is_empty() { "ok" } else { "error" },
         "metrics" : self.metrics
       })
@@ -212,27 +214,32 @@ impl MockServer {
 
     /// Returns all the mismatches that have occurred with this mock server
     pub fn mismatches(&self) -> Vec<MatchResult> {
-        let matches = self.matches();
-        let mismatches = matches.iter()
-          .filter(|m| !m.matched() && !m.cors_preflight())
-          .map(|m| m.clone());
-        let interactions: Vec<&RequestResponseInteraction> = matches.iter().map(|m| {
-            match *m {
-                MatchResult::RequestMatch(ref interaction) => Some(interaction),
-                MatchResult::RequestMismatch(ref interaction, _) => Some(interaction),
-                MatchResult::RequestNotFound(_) => None,
-                MatchResult::MissingRequest(_) => None
-            }
-        }).filter(|o| o.is_some()).map(|o| o.unwrap()).collect();
-        let missing = self.pact.interactions.iter()
-            .filter(|i| !interactions.contains(i))
-            .map(|i| MatchResult::MissingRequest(i.clone()));
-        mismatches.chain(missing).collect()
+      let matches = self.matches();
+      let mismatches = matches.iter()
+        .filter(|m| !m.matched() && !m.cors_preflight())
+        .map(|m| m.clone());
+      let requests: Vec<Request> = matches.iter().map(|m| {
+        match m {
+          MatchResult::RequestMatch(request, _) => Some(request),
+          MatchResult::RequestMismatch(request, _) => Some(request),
+          MatchResult::RequestNotFound(_) => None,
+          MatchResult::MissingRequest(_) => None
+        }
+      }).filter(|o| o.is_some()).map(|o| o.unwrap().clone()).collect();
+
+      let pact = self.pact.lock().unwrap();
+      let interactions = pact.interactions();
+      let missing = interactions.iter()
+        .map(|i| i.as_request_response().unwrap().request)
+        .filter(|req| !requests.contains(req))
+        .map(|req| MatchResult::MissingRequest(req.clone()));
+      mismatches.chain(missing).collect()
     }
 
   /// Mock server writes its pact out to the provided directory
   pub fn write_pact(&self, output_path: &Option<String>, overwrite: bool) -> anyhow::Result<()> {
-    let pact_file_name = self.pact.default_file_name();
+    let pact = self.pact.lock().unwrap().boxed();
+    let pact_file_name = pact.default_file_name();
     let filename = match *output_path {
       Some(ref path) => {
         let mut path = PathBuf::from(path);
@@ -243,7 +250,8 @@ impl MockServer {
     };
 
     info!("Writing pact out to '{}'", filename.display());
-    match write_pact(&self.pact, filename.as_path(), self.pact.spec_version(), overwrite) {
+    let specification = pact.spec_version();
+    match write_pact(pact, filename.as_path(), specification, overwrite) {
       Ok(_) => Ok(()),
       Err(err) => {
         warn!("Failed to write pact to file - {}", err);
@@ -278,6 +286,23 @@ impl Clone for MockServer {
       shutdown_tx: RefCell::new(None),
       config: self.config.clone(),
       metrics: self.metrics.clone()
+    }
+  }
+}
+
+impl Default for MockServer {
+  fn default() -> Self {
+    MockServer {
+      id: "".to_string(),
+      scheme: Default::default(),
+      port: None,
+      address: None,
+      resources: vec![],
+      pact: Arc::new(Mutex::new(RequestResponsePact::default())),
+      matches: Arc::new(Mutex::new(vec![])),
+      shutdown_tx: RefCell::new(None),
+      config: Default::default(),
+      metrics: Default::default()
     }
   }
 }

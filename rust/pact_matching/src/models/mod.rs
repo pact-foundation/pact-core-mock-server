@@ -797,7 +797,7 @@ pub struct PactConflict {
 }
 
 /// Interaction Trait
-pub trait Interaction {
+pub trait Interaction: Debug {
   /// The type of the interaction
   fn type_of(&self) -> String;
   /// If this is a request/response interaction
@@ -829,30 +829,30 @@ pub trait Interaction {
   /// Returns the interaction in V4 format
   fn as_v4_async_message(&self) -> Option<AsynchronousMessage>;
   /// Clones this interaction and wraps it in a Box
-  fn boxed(&self) -> Box<dyn Interaction>;
+  fn boxed(&self) -> Box<dyn Interaction + Send>;
   /// Clones this interaction and wraps it in an Arc
-  fn arced(&self) -> Arc<dyn Interaction>;
+  fn arced(&self) -> Arc<dyn Interaction + Send>;
   /// Clones this interaction and wraps it in an Arc and Mutex
   fn thread_safe(&self) -> Arc<Mutex<dyn Interaction + Send + Sync>>;
   /// Returns the matching rules associated with this interaction (if there are any)
   fn matching_rules(&self) -> Option<MatchingRules>;
 }
 
-impl Debug for dyn Interaction {
-  fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-    if let Some(req_res) = self.as_request_response() {
-      std::fmt::Debug::fmt(&req_res, f)
-    } else if let Some(mp) = self.as_message() {
-      std::fmt::Debug::fmt(&mp, f)
-    } else if let Some(i) = self.as_v4_http() {
-      std::fmt::Display::fmt(&i, f)
-    } else if let Some(i) = self.as_v4_async_message() {
-      std::fmt::Display::fmt(&i, f)
-    } else {
-      Err(fmt::Error)
-    }
-  }
-}
+// impl Debug for dyn Interaction {
+//   fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+//     if let Some(req_res) = self.as_request_response() {
+//       std::fmt::Debug::fmt(&req_res, f)
+//     } else if let Some(mp) = self.as_message() {
+//       std::fmt::Debug::fmt(&mp, f)
+//     } else if let Some(i) = self.as_v4_http() {
+//       std::fmt::Display::fmt(&i, f)
+//     } else if let Some(i) = self.as_v4_async_message() {
+//       std::fmt::Display::fmt(&i, f)
+//     } else {
+//       Err(fmt::Error)
+//     }
+//   }
+// }
 
 impl Display for dyn Interaction {
   fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -972,11 +972,11 @@ impl Interaction for RequestResponseInteraction {
   }
 
 
-  fn boxed(&self) -> Box<dyn Interaction> {
+  fn boxed(&self) -> Box<dyn Interaction + Send> {
     Box::new(self.clone())
   }
 
-  fn arced(&self) -> Arc<dyn Interaction> {
+  fn arced(&self) -> Arc<dyn Interaction + Send> {
     Arc::new(self.clone())
   }
 
@@ -1090,7 +1090,7 @@ impl Display for RequestResponseInteraction {
 }
 
 /// Trait for a Pact (request/response or message)
-pub trait Pact {
+pub trait Pact: Debug + ReadWritePact {
   /// Consumer side of the pact
   fn consumer(&self) -> Consumer;
   /// Provider side of the pact
@@ -1109,6 +1109,16 @@ pub trait Pact {
   fn as_v4_pact(&self) -> Result<V4Pact, String>;
   /// Specification version of this Pact
   fn specification_version(&self) -> PactSpecification;
+  /// Clones this Pact and wraps it in a Box
+  fn boxed(&self) -> Box<dyn Pact + Send>;
+  /// Clones this Pact and wraps it in an Arc
+  fn arced(&self) -> Arc<dyn Pact + Send>;
+  /// Clones this Pact and wraps it in an Arc and Mutex
+  fn thread_safe(&self) -> Arc<Mutex<dyn Pact + Send + Sync>>;
+  /// Adds an interactions in the Pact
+  fn add_interaction(&mut self, interaction: &dyn Interaction) -> Result<(), String>;
+  /// Returns the specification version of this pact
+  fn spec_version(&self) -> PactSpecification;
 }
 
 pub mod message;
@@ -1171,6 +1181,32 @@ impl Pact for RequestResponsePact {
 
   fn specification_version(&self) -> PactSpecification {
     self.specification_version.clone()
+  }
+
+  fn boxed(&self) -> Box<dyn Pact + Send> {
+    Box::new(self.clone())
+  }
+
+  fn arced(&self) -> Arc<dyn Pact + Send> {
+    Arc::new(self.clone())
+  }
+
+  fn thread_safe(&self) -> Arc<Mutex<dyn Pact + Send + Sync>> {
+    Arc::new(Mutex::new(self.clone()))
+  }
+
+  fn add_interaction(&mut self, interaction: &dyn Interaction) -> Result<(), String> {
+    match interaction.as_request_response() {
+      None => Err("Can only add request/response interactions to this Pact".to_string()),
+      Some(interaction) => {
+        self.interactions.push(interaction);
+        Ok(())
+      }
+    }
+  }
+
+  fn spec_version(&self) -> PactSpecification {
+    PactSpecification::V3
   }
 }
 
@@ -1307,7 +1343,7 @@ impl RequestResponsePact {
     }
 
     /// Reads the pact file from a URL and parses the resulting JSON into a `Pact` struct
-    pub fn from_url(url: &str, auth: &Option<HttpAuth>) -> Result<RequestResponsePact, String> {
+    pub fn from_url(url: &str, auth: &Option<HttpAuth>) -> anyhow::Result<RequestResponsePact> {
       http_utils::fetch_json_from_url(&url.to_string(), auth).map(|(ref url, ref json)| RequestResponsePact::from_json(url, json))
     }
 
@@ -1340,7 +1376,7 @@ impl ReadWritePact for RequestResponsePact {
     })
   }
 
-  fn merge(&self, pact: &dyn Pact) -> Result<RequestResponsePact, String> {
+  fn merge(&self, pact: &dyn Pact) -> anyhow::Result<Box<dyn Pact>> {
     if self.consumer.name == pact.consumer().name && self.provider.name == pact.provider().name {
       let conflicts = iproduct!(self.interactions.clone(), pact.interactions().clone())
         .map(|i| i.0.conflicts_with(i.1))
@@ -1355,7 +1391,7 @@ impl ReadWritePact for RequestResponsePact {
             warn!("   {}", conflict.description);
           }
         }
-        Err(format!("Unable to merge pacts, as there were {} conflict(s) between the interactions. Please clean out your pact directory before running the tests.",
+        Err(anyhow!("Unable to merge pacts, as there were {} conflict(s) between the interactions. Please clean out your pact directory before running the tests.",
                     num_conflicts))
       } else {
         let interactions: Vec<Result<RequestResponseInteraction, String>> = self.interactions.iter()
@@ -1382,7 +1418,7 @@ impl ReadWritePact for RequestResponsePact {
           .map(|i| i.as_ref().unwrap_err().to_string())
           .collect();
         if errors.is_empty() {
-          Ok(RequestResponsePact {
+          Ok(Box::new(RequestResponsePact {
             provider: self.provider.clone(),
             consumer: self.consumer.clone(),
             interactions: interactions.iter()
@@ -1390,13 +1426,13 @@ impl ReadWritePact for RequestResponsePact {
               .map(|i| i.as_ref().unwrap().clone()).collect(),
             metadata: self.metadata.clone(),
             specification_version: self.specification_version.clone()
-          })
+          }))
         } else {
-          Err(format!("Unable to merge pacts: {}", errors.join(", ")))
+          Err(anyhow!("Unable to merge pacts: {}", errors.join(", ")))
         }
       }
     } else {
-      Err(s!("Unable to merge pacts, as they have different consumers or providers"))
+      Err(anyhow!("Unable to merge pacts, as they have different consumers or providers"))
     }
   }
 
@@ -1516,7 +1552,7 @@ pub fn parse_query_string(query: &str) -> Option<HashMap<String, Vec<String>>> {
 }
 
 /// Converts the JSON struct into an HTTP Interaction
-pub fn http_interaction_from_json(source: &str, json: &Value, spec: &PactSpecification) -> Result<Box<dyn Interaction>, String> {
+pub fn http_interaction_from_json(source: &str, json: &Value, spec: &PactSpecification) -> anyhow::Result<Box<dyn Interaction + Send>> {
   match spec {
     PactSpecification::V4 => interaction_from_json(source, 0, json)
       .map(|i| i.boxed()),
@@ -1525,12 +1561,11 @@ pub fn http_interaction_from_json(source: &str, json: &Value, spec: &PactSpecifi
 }
 
 /// Converts the JSON struct into a Message Interaction
-pub fn message_interaction_from_json(source: &str, json: &Value, spec: &PactSpecification) -> Result<Box<dyn Interaction>, String> {
+pub fn message_interaction_from_json(source: &str, json: &Value, spec: &PactSpecification) -> anyhow::Result<Box<dyn Interaction + Send>> {
   match spec {
     PactSpecification::V4 => interaction_from_json(source, 0, json)
       .map(|i| i.boxed()),
-    _ => Message::from_json(0, json, spec)
-      .map(|i| Box::new(i) as Box<dyn Interaction>)
+    _ => Message::from_json(0, json, spec).map(|i| i.boxed())
   }
 }
 
@@ -1559,13 +1594,13 @@ pub fn read_pact_from_file(file: &mut File, path: &Path) -> anyhow::Result<Box<d
 }
 
 /// Reads the pact file from a URL and parses the resulting JSON into a `Pact` struct
-pub fn load_pact_from_url(url: &str, auth: &Option<HttpAuth>) -> Result<Box<dyn Pact>, String> {
+pub fn load_pact_from_url(url: &str, auth: &Option<HttpAuth>) -> anyhow::Result<Box<dyn Pact>> {
   let (url, pact_json) = http_utils::fetch_json_from_url(&url.to_string(), auth)?;
   load_pact_from_json(&url, &pact_json)
 }
 
 /// Loads a Pact model from a JSON Value
-pub fn load_pact_from_json(source: &str, json: &Value) -> Result<Box<dyn Pact>, String> {
+pub fn load_pact_from_json(source: &str, json: &Value) -> anyhow::Result<Box<dyn Pact>> {
   match json {
     Value::Object(map) => if map.contains_key("messages") {
       let pact = MessagePact::from_json(source, json)?;
@@ -1578,7 +1613,7 @@ pub fn load_pact_from_json(source: &str, json: &Value) -> Result<Box<dyn Pact>, 
         _ => Ok(Box::new(RequestResponsePact::from_json(source, json)))
       }
     },
-    _ => Err(format!("Failed to parse Pact JSON from source '{}' - it is not a valid pact file", source))
+    _ => Err(anyhow!("Failed to parse Pact JSON from source '{}' - it is not a valid pact file", source))
   }
 }
 
@@ -1591,7 +1626,7 @@ pub trait ReadWritePact {
   /// Returns an error if there is a merge conflict, which will occur if the other pact is a different
   /// type, or if a V3 Pact then if any interaction has the
   /// same description and provider state and the requests and responses are different.
-  fn merge(&self, other: &dyn Pact) -> Result<Self, String> where Self: std::marker::Sized;
+  fn merge(&self, other: &dyn Pact) -> anyhow::Result<Box<dyn Pact>>;
 
   /// Determines the default file name for the pact. This is based on the consumer and
   /// provider names.
@@ -1605,8 +1640,8 @@ lazy_static!{
 /// Writes the pact out to the provided path. If there is an existing pact at the path, the two
 /// pacts will be merged together unless overwrite is true. Returns an error if the file can not
 /// be written or the pacts can not be merged.
-pub fn write_pact<T: ReadWritePact + Pact + Debug>(
-  pact: &T,
+pub fn write_pact(
+  pact: Box<dyn Pact>,
   path: &Path,
   pact_spec: PactSpecification,
   overwrite: bool
@@ -1623,8 +1658,7 @@ pub fn write_pact<T: ReadWritePact + Pact + Debug>(
             existing_pact.specification_version());
     }
 
-    let merged_pact = pact.merge(existing_pact.borrow())
-      .map_err(|err| anyhow!(err))?;
+    let merged_pact = pact.merge(existing_pact.borrow())?;
     let pact_json = serde_json::to_string_pretty(&merged_pact.to_json(pact_spec))?;
 
     with_write_lock(path, &mut f, 3, &mut |f| {

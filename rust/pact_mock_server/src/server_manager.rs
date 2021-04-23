@@ -2,14 +2,16 @@
 //! This module defines a manager for holding multiple instances of mock servers.
 //!
 
-use crate::mock_server::{MockServer, MockServerConfig};
-
-use pact_matching::models::RequestResponsePact;
 use std::collections::BTreeMap;
-use rustls::ServerConfig;
 use std::net::SocketAddr;
-use std::sync::{Mutex, Arc};
+use std::sync::{Arc, Mutex};
+
 use log::*;
+use rustls::ServerConfig;
+
+use pact_matching::models::{Pact, RequestResponsePact};
+
+use crate::mock_server::{MockServer, MockServerConfig};
 
 struct ServerEntry {
   mock_server: Arc<Mutex<MockServer>>,
@@ -40,7 +42,7 @@ impl ServerManager {
     pub fn start_mock_server_with_addr(
       &mut self,
       id: String,
-      pact: RequestResponsePact,
+      pact: Box<dyn Pact>,
       addr: SocketAddr,
       config: MockServerConfig
     ) -> Result<SocketAddr, String> {
@@ -66,7 +68,7 @@ impl ServerManager {
     pub fn start_tls_mock_server_with_addr(
       &mut self,
       id: String,
-      pact: RequestResponsePact,
+      pact: Box<dyn Pact>,
       addr: SocketAddr,
       tls_config: &ServerConfig,
       config: MockServerConfig
@@ -93,7 +95,7 @@ impl ServerManager {
     pub fn start_mock_server(
       &mut self,
       id: String,
-      pact: RequestResponsePact,
+      pact: Box<dyn Pact>,
       port: u16,
       config: MockServerConfig
     ) -> Result<u16, String> {
@@ -105,7 +107,7 @@ impl ServerManager {
   pub async fn start_mock_server_nonblocking(
     &mut self,
     id: String,
-    pact: RequestResponsePact,
+    pact: Box<dyn Pact>,
     port: u16,
     config: MockServerConfig
   ) -> Result<u16, String> {
@@ -130,7 +132,7 @@ impl ServerManager {
     pub fn start_tls_mock_server(
       &mut self,
       id: String,
-      pact: RequestResponsePact,
+      pact: Box<dyn Pact>,
       port: u16,
       tls: &ServerConfig,
       config: MockServerConfig
@@ -223,17 +225,20 @@ impl ServerManager {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use std::net::TcpStream;
-    use std::{thread, time};
-    use env_logger;
+  use std::{thread, time};
+  use std::net::TcpStream;
 
-    #[test]
+  use env_logger;
+
+  use super::*;
+
+  #[test]
     #[cfg(not(target_os = "windows"))]
     fn manager_should_start_and_shutdown_mock_server() {
         let _ = env_logger::builder().is_test(true).try_init();
         let mut manager = ServerManager::new();
-        let start_result = manager.start_mock_server("foobar".into(), RequestResponsePact::default(),
+        let start_result = manager.start_mock_server("foobar".into(),
+                                                     RequestResponsePact::default().boxed(),
                                                      0, MockServerConfig::default());
 
         assert!(start_result.is_ok());

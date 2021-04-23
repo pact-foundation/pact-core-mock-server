@@ -18,7 +18,7 @@ use crate::provider_client::{make_provider_request, provider_client_error_to_str
 
 pub async fn verify_message_from_provider<F: RequestFilterExecutor>(
   provider: &ProviderInfo,
-  interaction: &Box<dyn Interaction>,
+  interaction: &Box<dyn Interaction + Send>,
   options: &VerificationOptions<F>,
   client: &reqwest::Client,
   _: &HashMap<&str, Value>

@@ -7,28 +7,34 @@
 
 #![warn(missing_docs)]
 
+use std::sync::Mutex;
+
+use lazy_static::*;
+use log::*;
+use rustls::ServerConfig;
+use serde_json::json;
+use uuid::Uuid;
+
+use pact_matching::models::{load_pact_from_json, Pact, RequestResponsePact};
+use pact_matching::s;
+
+use crate::mock_server::MockServerConfig;
+use crate::server_manager::ServerManager;
+
 pub mod matching;
 pub mod mock_server;
 pub mod server_manager;
 mod hyper_server;
 pub mod tls;
 
-use pact_matching::models::RequestResponsePact;
-use pact_matching::s;
-use std::sync::Mutex;
-use serde_json::json;
-use uuid::Uuid;
-use crate::server_manager::ServerManager;
-use lazy_static::*;
-use rustls::ServerConfig;
-
-use crate::mock_server::MockServerConfig;
-
 /// Mock server errors
+#[derive(thiserror::Error, Debug)]
 pub enum MockServerError {
   /// Invalid Pact Json
+  #[error("Invalid Pact JSON")]
   InvalidPactJson,
   /// Failed to start the mock server
+  #[error("Failed to start the mock server")]
   MockServerFailedToStart
 }
 
@@ -56,7 +62,7 @@ lazy_static! {
 /// - If a mock server is not able to be started
 pub fn start_mock_server(
   id: String,
-  pact: RequestResponsePact,
+  pact: Box<dyn Pact>,
   addr: std::net::SocketAddr
 ) -> Result<i32, String> {
   start_mock_server_with_config(id, pact, addr, MockServerConfig::default())
@@ -78,7 +84,7 @@ pub fn start_mock_server(
 /// - If a mock server is not able to be started
 pub fn start_mock_server_with_config(
   id: String,
-  pact: RequestResponsePact,
+  pact: Box<dyn Pact>,
   addr: std::net::SocketAddr,
   config: MockServerConfig
 ) -> Result<i32, String> {
@@ -104,7 +110,7 @@ pub fn start_mock_server_with_config(
 /// - If a mock server is not able to be started
 pub fn start_tls_mock_server(
   id: String,
-  pact: RequestResponsePact,
+  pact: Box<dyn Pact>,
   addr: std::net::SocketAddr,
   tls: &ServerConfig
 ) -> Result<i32, String> {
@@ -128,7 +134,7 @@ pub fn start_tls_mock_server(
 /// - If a mock server is not able to be started
 pub fn start_tls_mock_server_with_config(
   id: String,
-  pact: RequestResponsePact,
+  pact: Box<dyn Pact>,
   addr: std::net::SocketAddr,
   tls: &ServerConfig,
   config: MockServerConfig
@@ -148,19 +154,19 @@ pub fn start_tls_mock_server_with_config(
 pub fn create_mock_server(
   pact_json: &str,
   addr: std::net::SocketAddr
-) -> Result<i32, MockServerError> {
+) -> anyhow::Result<i32> {
   match serde_json::from_str(pact_json) {
     Ok(pact_json) => {
-      let pact = RequestResponsePact::from_json(&s!("<create_mock_server>"), &pact_json);
+      let pact = load_pact_from_json("<create_mock_server>", &pact_json)?;
       start_mock_server(Uuid::new_v4().to_string(), pact, addr)
         .map_err(|err| {
-          log::error!("Could not start mock server: {}", err);
-          MockServerError::MockServerFailedToStart
+          error!("Could not start mock server: {}", err);
+          MockServerError::MockServerFailedToStart.into()
         })
     },
     Err(err) => {
-      log::error!("Could not parse pact json: {}", err);
-      Err(MockServerError::InvalidPactJson)
+      error!("Could not parse pact json: {}", err);
+      Err(MockServerError::InvalidPactJson.into())
     }
   }
 }
@@ -176,19 +182,19 @@ pub fn create_tls_mock_server(
   pact_json: &str,
   addr: std::net::SocketAddr,
   tls: &ServerConfig
-) -> Result<i32, MockServerError> {
+) -> anyhow::Result<i32> {
   match serde_json::from_str(pact_json) {
     Ok(pact_json) => {
-      let pact = RequestResponsePact::from_json(&s!("<create_mock_server>"), &pact_json);
+      let pact = load_pact_from_json("<create_mock_server>", &pact_json)?;
       start_tls_mock_server(Uuid::new_v4().to_string(), pact, addr, tls)
         .map_err(|err| {
-          log::error!("Could not start mock server: {}", err);
-          MockServerError::MockServerFailedToStart
+          error!("Could not start mock server: {}", err);
+          MockServerError::MockServerFailedToStart.into()
         })
     },
     Err(err) => {
-      log::error!("Could not parse pact json: {}", err);
-      Err(MockServerError::InvalidPactJson)
+      error!("Could not parse pact json: {}", err);
+      Err(MockServerError::InvalidPactJson.into())
     }
   }
 }

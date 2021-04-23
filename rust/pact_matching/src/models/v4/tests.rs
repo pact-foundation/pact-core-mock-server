@@ -11,7 +11,7 @@ use serde_json::json;
 use pact_models::{Consumer, OptionalBody, Provider};
 use pact_models::content_types::JSON;
 
-use crate::models::{headers_from_json, Interaction, PACT_RUST_VERSION, PactSpecification, ReadWritePact, write_pact};
+use crate::models::{headers_from_json, Interaction, PACT_RUST_VERSION, PactSpecification, ReadWritePact, write_pact, Pact};
 use crate::models::matchingrules::MatchingRule;
 use crate::models::provider_states::ProviderState;
 use crate::models::v4::{AsynchronousMessage, from_json, interaction_from_json, SynchronousHttp, V4Pact};
@@ -456,7 +456,7 @@ fn write_pact_test() {
   dir.push(format!("pact_test_{}", x));
   dir.push(pact.default_file_name());
 
-  let result = write_pact(&pact, &dir, PactSpecification::V4, true);
+  let result = write_pact(pact.boxed(), &dir, PactSpecification::V4, true);
 
   let pact_file = read_pact_file(dir.as_path().to_str().unwrap()).unwrap_or_default();
   fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());
@@ -530,8 +530,8 @@ fn write_pact_test_should_merge_pacts() {
   dir.push(format!("pact_test_{}", x));
   dir.push(pact.default_file_name());
 
-  let result = write_pact(&pact, dir.as_path(), PactSpecification::V4, true);
-  let result2 = write_pact(&pact2, dir.as_path(), PactSpecification::V4, false);
+  let result = write_pact(pact.boxed(), dir.as_path(), PactSpecification::V4, true);
+  let result2 = write_pact(pact2.boxed(), dir.as_path(), PactSpecification::V4, false);
 
   let pact_file = read_pact_file(dir.as_path().to_str().unwrap()).unwrap_or(s!(""));
   fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());
@@ -626,8 +626,8 @@ fn write_pact_test_should_overwrite_pact_with_same_key() {
   dir.push(format!("pact_test_{}", x));
   dir.push(pact.default_file_name());
 
-  let result = write_pact(&pact, dir.as_path(), PactSpecification::V4, true);
-  let result2 = write_pact(&pact2, dir.as_path(), PactSpecification::V4, false);
+  let result = write_pact(pact.boxed(), dir.as_path(), PactSpecification::V4, true);
+  let result2 = write_pact(pact2.boxed(), dir.as_path(), PactSpecification::V4, false);
 
   let pact_file = read_pact_file(dir.as_path().to_str().unwrap()).unwrap_or_default();
   fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());
@@ -1375,7 +1375,7 @@ fn write_v4_pact_test_with_comments() {
   dir.push(format!("pact_test_{}", x));
   dir.push(pact.default_file_name());
 
-  let result = write_pact(&pact, &dir, PactSpecification::V4, true);
+  let result = write_pact(pact.boxed(), &dir, PactSpecification::V4, true);
 
   let pact_file = read_pact_file(dir.as_path().to_str().unwrap()).unwrap_or_default();
   fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());

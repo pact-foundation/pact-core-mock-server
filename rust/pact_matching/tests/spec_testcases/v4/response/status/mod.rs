@@ -30,11 +30,11 @@ fn different_status() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v4/response/status/different status.json", &interaction_json, &PactSpecification::V4).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v4/response/status/different status.json", &interaction_json, &PactSpecification::V4).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V4).unwrap();
@@ -65,11 +65,11 @@ fn matches() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v4/response/status/matches.json", &interaction_json, &PactSpecification::V4).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v4/response/status/matches.json", &interaction_json, &PactSpecification::V4).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V4).unwrap();

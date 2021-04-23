@@ -21,8 +21,8 @@ ffi_fn! {
     /// Match a pair of messages, producing a collection of mismatches,
     /// which is empty if the two messages matched.
     fn match_message(msg_1: *const Message, msg_2: *const Message) -> *const Mismatches {
-        let msg_1: Box<dyn Interaction> = unsafe { Box::from_raw(msg_1 as *mut Message) };
-        let msg_2: Box<dyn Interaction> = unsafe { Box::from_raw(msg_2 as *mut Message) };
+        let msg_1: Box<dyn Interaction + Send> = unsafe { Box::from_raw(msg_1 as *mut Message) };
+        let msg_2: Box<dyn Interaction + Send> = unsafe { Box::from_raw(msg_2 as *mut Message) };
         let mismatches = Mismatches(pm::match_message(&msg_1, &msg_2));
 
         ptr::raw_to(mismatches) as *const Mismatches

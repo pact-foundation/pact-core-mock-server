@@ -21,7 +21,7 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio_rustls::server::TlsStream;
 use tokio_rustls::TlsAcceptor;
 
-use pact_matching::models::{HttpPart, Request, RequestResponsePact};
+use pact_matching::models::{HttpPart, Pact, Request, RequestResponsePact};
 use pact_matching::models::generators::GeneratorTestMode;
 use pact_matching::models::parse_query_string;
 use pact_models::OptionalBody;
@@ -161,7 +161,7 @@ fn match_result_to_hyper_response(
   };
 
   match match_result {
-    MatchResult::RequestMatch(ref interaction) => {
+    MatchResult::RequestMatch(ref request, ref response) => {
       let ms = mock_server.lock().unwrap();
       let context = hashmap!{
         "mockServer" => json!({
@@ -170,7 +170,7 @@ fn match_result_to_hyper_response(
         })
       };
       debug!("Test context = {:?}", context);
-      let response = pact_matching::generate_response(&interaction.response, &GeneratorTestMode::Consumer, &context);
+      let response = pact_matching::generate_response(response, &GeneratorTestMode::Consumer, &context);
       info!("Request matched, sending response {}", response);
       if response.has_text_body() {
         debug!("     body: '{}'", response.body.str_value());
@@ -249,7 +249,7 @@ async fn handle_request(
     debug!("     body: '{}'", pact_request.body.str_value());
   }
 
-  let match_result = match_request(&pact_request, &pact.interactions);
+  let match_result = match_request(&pact_request, pact.interactions());
 
   matches.lock().unwrap().push(match_result.clone());
 
@@ -414,6 +414,7 @@ mod tests {
   use hyper::HeaderMap;
 
   use super::*;
+  use std::cell::RefCell;
 
   #[tokio::test]
   async fn can_fetch_results_on_current_thread() {

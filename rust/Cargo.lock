@@ -1204,6 +1204,7 @@ dependencies = [
  "serde",
  "serde_json",
  "test-env-log",
+ "thiserror",
  "tokio",
  "tokio-rustls",
  "uuid",
@@ -1313,6 +1314,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with",
+ "thiserror",
  "tokio",
 ]
 

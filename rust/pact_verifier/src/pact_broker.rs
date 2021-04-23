@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 
+use anyhow::anyhow;
 use futures::stream::*;
 use itertools::Itertools;
 use log::*;
@@ -12,7 +13,7 @@ use reqwest::{Method, RequestBuilder};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use serde_with::skip_serializing_none;
-use tokio::time::{sleep, Duration};
+use tokio::time::{Duration, sleep};
 
 use pact_matching::Mismatch;
 use pact_matching::models::{Pact, PACT_RUST_VERSION, RequestResponsePact};
@@ -69,17 +70,22 @@ fn find_entry(map: &serde_json::Map<String, serde_json::Value>, key: &str) -> Op
 }
 
 /// Errors that can occur with a Pact Broker
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, thiserror::Error)]
 pub enum PactBrokerError {
   /// Error with a HAL link
+  #[error("Error with a HAL link - {0}")]
   LinkError(String),
   /// Error with the content of a HAL resource
+  #[error("Error with the content of a HAL resource - {0}")]
   ContentError(String),
+  #[error("IO Error - {0}")]
   /// IO Error
   IoError(String),
   /// Link/Resource was not found
+  #[error("Link/Resource was not found - {0}")]
   NotFound(String),
   /// Invalid URL
+  #[error("Invalid URL - {0}")]
   UrlError(String)
 }
 
@@ -109,18 +115,6 @@ impl <'a> PartialEq<&'a str> for PactBrokerError {
     }
 }
 
-impl Display for PactBrokerError {
-  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-    match *self {
-      PactBrokerError::LinkError(ref s) => write!(f, "LinkError({})", s),
-      PactBrokerError::ContentError(ref s) => write!(f, "ContentError({})", s),
-      PactBrokerError::IoError(ref s) => write!(f, "IoError({})", s),
-      PactBrokerError::NotFound(ref s) => write!(f, "NotFound({})", s),
-      PactBrokerError::UrlError(ref s) => write!(f, "UrlError({})", s)
-    }
-  }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 /// Structure to represent a HAL link
@@ -129,7 +123,7 @@ pub struct Link {
   pub name: String,
   /// Link HREF
   pub href: Option<String>,
-  /// If the link is templated (has expressions in the HREF that need to be expanded
+  /// If the link is templated (has expressions in the HREF that need to be expanded)
   pub templated: bool,
   /// Link title
   pub title: Option<String>
@@ -557,9 +551,9 @@ pub async fn fetch_pacts_from_broker(
   broker_url: &str,
   provider_name: &str,
   auth: Option<HttpAuth>
-) -> Result<Vec<Result<(Box<dyn Pact>, Option<PactVerificationContext>, Vec<Link>), PactBrokerError>>, PactBrokerError> {
+) -> anyhow::Result<Vec<anyhow::Result<(Box<dyn Pact + Send>, Option<PactVerificationContext>, Vec<Link>)>>> {
     let mut hal_client = HALClient::with_url(broker_url, auth);
-    let template_values = hashmap!{ s!("provider") => provider_name.to_string() };
+    let template_values = hashmap!{ "provider".to_string() => provider_name.to_string() };
 
     hal_client = hal_client.navigate("pb:latest-provider-pacts", &template_values)
         .await
@@ -604,17 +598,15 @@ pub async fn fetch_pacts_from_broker(
               let links = links_from_json(&pact_json);
               match pact_json {
                 Value::Object(ref map) => if map.contains_key("messages") {
-                  match MessagePact::from_json(&href, &pact_json) {
-                    Ok(pact) => Ok((Box::new(pact) as Box<dyn Pact>, None, links)),
-                    Err(err) => Err(PactBrokerError::ContentError(err))
-                  }
+                  MessagePact::from_json(&href, &pact_json)
+                    .map(|pact| (pact.boxed(), None, links))
                 } else {
-                  Ok((Box::new(RequestResponsePact::from_json(&href, &pact_json)) as Box<dyn Pact>, None, links))
+                  Ok((RequestResponsePact::from_json(&href, &pact_json).boxed(), None, links))
                 },
-                _ => Err(PactBrokerError::ContentError(format!("Link '{}' does not point to a valid pact file", href)))
+                _ => Err(anyhow!("Link '{}' does not point to a valid pact file", href))
               }
             },
-            Err(err) => Err(err)
+            Err(err) => Err(err.into())
           }
         })
         .into_stream()
@@ -633,7 +625,7 @@ pub async fn fetch_pacts_dynamically_from_broker(
   provider_tags: Vec<String>,
   consumer_version_selectors: Vec<ConsumerVersionSelector>,
   auth: Option<HttpAuth>
-) -> Result<Vec<Result<(Box<dyn Pact>, Option<PactVerificationContext>, Vec<Link>), PactBrokerError>>, PactBrokerError> {
+) -> Result<Vec<Result<(Box<dyn Pact + Send>, Option<PactVerificationContext>, Vec<Link>), PactBrokerError>>, PactBrokerError> {
     let mut hal_client = HALClient::with_url(broker_url, auth);
     let template_values = hashmap!{ s!("provider") => provider_name.clone() };
 
@@ -738,11 +730,11 @@ pub async fn fetch_pacts_dynamically_from_broker(
             match pact_json {
               Value::Object(ref map) => if map.contains_key("messages") {
                 match MessagePact::from_json(&href, &pact_json) {
-                  Ok(pact) => Ok((Box::new(pact) as Box<dyn Pact>, Some(context), links)),
-                  Err(err) => Err(PactBrokerError::ContentError(err))
+                  Ok(pact) => Ok((pact.boxed(), Some(context), links)),
+                  Err(err) => Err(PactBrokerError::ContentError(format!("{}", err)))
                 }
               } else {
-                Ok((Box::new(RequestResponsePact::from_json(&href, &pact_json)) as Box<dyn Pact>, Some(context), links))
+                Ok((RequestResponsePact::from_json(&href, &pact_json).boxed(), Some(context), links))
               },
               _ => Err(PactBrokerError::ContentError(format!("Link '{}' does not point to a valid pact file", href)))
             }
@@ -1019,7 +1011,7 @@ mod tests {
   use pact_consumer::prelude::*;
   use pact_matching::Mismatch::MethodMismatch;
   use pact_matching::models::RequestResponseInteraction;
-  use pact_models::{PactSpecification, Consumer, Provider};
+  use pact_models::{Consumer, PactSpecification, Provider};
 
   use super::*;
   use super::{content_type, json_content_type};
@@ -1385,7 +1377,8 @@ mod tests {
             panic!("Expected an error result, but got OK");
           },
           Err(err) => {
-            expect!(err.to_string().starts_with("NotFound(No pacts for provider \'sad_provider\' where found in the pact broker.")).to(be_true());
+            println!("err: {}", err);
+            expect!(err.to_string().starts_with("Link/Resource was not found - No pacts for provider 'sad_provider' where found in the pact broker")).to(be_true());
           }
         }
     }
@@ -1680,7 +1673,7 @@ mod tests {
       },
       Err(err) => {
         println!("err: {}", err);
-        expect!(err.to_string().starts_with("NotFound(No pacts were found for this provider")).to(be_true());
+        expect!(err.to_string().starts_with("Link/Resource was not found - No pacts were found for this provider")).to(be_true());
       }
     }
   }

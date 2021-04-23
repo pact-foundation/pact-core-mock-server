@@ -21,11 +21,11 @@ use super::interaction_builder::InteractionBuilder;
 ///     .build();
 ///
 /// // The request method and response status default as follows.
-/// assert_eq!(pact.interactions[0].request.method, "GET");
-/// assert_eq!(pact.interactions[0].response.status, 200);
+/// assert_eq!(pact.interactions()[0].as_request_response().unwrap().request.method, "GET");
+/// assert_eq!(pact.interactions()[0].as_request_response().unwrap().response.status, 200);
 /// ```
 pub struct PactBuilder {
-    pact: RequestResponsePact,
+  pact: Box<dyn Pact>,
 }
 
 impl PactBuilder {
@@ -43,7 +43,7 @@ impl PactBuilder {
         pact.provider = Provider {
             name: provider.into(),
         };
-        PactBuilder { pact }
+        PactBuilder { pact: pact.boxed() }
     }
 
     /// Add a new `Interaction` to the `Pact`.
@@ -54,19 +54,19 @@ impl PactBuilder {
     {
         let mut interaction = InteractionBuilder::new(description.into());
         build_fn(&mut interaction);
-        self.push_interaction(interaction.build())
+        self.push_interaction(&interaction.build())
     }
 
     /// Directly add a pre-built `Interaction` to our `Pact`. Normally it's
     /// easier to use `interaction` instead of this function.
-    pub fn push_interaction(&mut self, interaction: RequestResponseInteraction) -> &mut Self {
-      self.pact.interactions.push(interaction);
+    pub fn push_interaction(&mut self, interaction: &dyn Interaction) -> &mut Self {
+      self.pact.add_interaction(interaction).unwrap();
       self
     }
 
     /// Return the `Pact` we've built.
-    pub fn build(&self) -> RequestResponsePact {
-        self.pact.clone()
+    pub fn build(&self) -> Box<dyn Pact + Send> {
+      self.pact.boxed()
     }
 }
 

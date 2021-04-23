@@ -62,7 +62,7 @@ use rand::prelude::*;
 use serde_json::json;
 use uuid::Uuid;
 
-use pact_matching::models::{HttpPart, RequestResponseInteraction};
+use pact_matching::models::{HttpPart, RequestResponseInteraction, Pact};
 use pact_matching::models::matchingrules::{MatchingRule, RuleLogic};
 use pact_matching::models::provider_states::ProviderState;
 use pact_matching::time_utils::{parse_pattern, to_chrono_pattern};
@@ -174,9 +174,12 @@ pub extern fn create_mock_server(pact_str: *const c_char, addr_str: *const c_cha
       };
       match server_result {
         Ok(ms_port) => ms_port,
-        Err(err) => match err {
-          MockServerError::InvalidPactJson => -2,
-          MockServerError::MockServerFailedToStart => -3
+        Err(err) => match err.downcast_ref::<MockServerError>() {
+          Some(err) => match err {
+            MockServerError::InvalidPactJson => -2,
+            MockServerError::MockServerFailedToStart => -3
+          },
+          None => -3
         }
       }
     }
@@ -261,8 +264,9 @@ pub extern fn create_mock_server_for_pact(pact: handles::PactHandle, addr_str: *
     if let Ok(Ok(addr)) = str::from_utf8(addr_c_str.to_bytes()).map(|s| s.parse::<std::net::SocketAddr>()) {
       pact.with_pact(&move |_, inner| {
         let server_result = match &tls_config {
-          Some(tls_config) => pact_mock_server::start_tls_mock_server(Uuid::new_v4().to_string(), inner.clone(), addr, tls_config),
-          None => pact_mock_server::start_mock_server(Uuid::new_v4().to_string(), inner.clone(), addr)
+          Some(tls_config) => pact_mock_server::start_tls_mock_server(
+            Uuid::new_v4().to_string(), inner.boxed(), addr, tls_config),
+          None => pact_mock_server::start_mock_server(Uuid::new_v4().to_string(), inner.boxed(), addr)
         };
         match server_result {
           Ok(ms_port) => ms_port,

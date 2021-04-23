@@ -20,9 +20,9 @@ pub trait StartMockServer {
 }
 
 impl StartMockServer for RequestResponsePact {
-    fn start_mock_server(&self) -> ValidatingMockServer {
-        ValidatingMockServer::start(self.clone())
-    }
+  fn start_mock_server(&self) -> ValidatingMockServer {
+    ValidatingMockServer::start(self.boxed())
+  }
 }
 
 /// A mock HTTP server that handles the requests described in a `Pact`, intended
@@ -43,56 +43,59 @@ pub struct ValidatingMockServer {
 }
 
 impl ValidatingMockServer {
-    /// Create a new mock server which handles requests as described in the
-    /// pact, and runs in a background thread
-    pub fn start(pact: RequestResponsePact) -> ValidatingMockServer {
-        // Spawn new runtime in thread to prevent reactor execution context conflict
-        let (mock_server, done_rx) = std::thread::spawn(move || {
-            let runtime = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .expect("new runtime");
+  /// Create a new mock server which handles requests as described in the
+  /// pact, and runs in a background thread
+  pub fn start(pact: Box<dyn Pact + Send>) -> ValidatingMockServer {
+    // Spawn new runtime in thread to prevent reactor execution context conflict
+    let (pact_tx, pact_rx) = std::sync::mpsc::channel::<Box<dyn Pact + Send>>();
+    pact_tx.send(pact);
+    let (mock_server, done_rx) = std::thread::spawn(|| {
+      let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("new runtime");
 
-            let (mock_server, server_future) = runtime.block_on(async move {
-              mock_server::MockServer::new("".into(), pact, ([0, 0, 0, 0], 0 as u16).into(),
-                MockServerConfig::default())
-                .await
-                .unwrap()
-            });
+      let (mock_server, server_future) = runtime.block_on(async move {
+        mock_server::MockServer::new("".into(), pact_rx.recv().unwrap(), ([0, 0, 0, 0], 0 as u16).into(),
+          MockServerConfig::default())
+          .await
+          .unwrap()
+      });
 
-            // Start the actual thread the runtime will run on
-            let (done_tx, done_rx) = std::sync::mpsc::channel::<()>();
-            let tname = format!(
-                "test({})-pact-mock-server",
-                thread::current().name().unwrap_or("<unknown>")
-            );
-            std::thread::Builder::new()
-                .name(tname)
-                .spawn(move || {
-                    runtime.block_on(server_future);
-                    let _ = done_tx.send(());
-                })
-                .expect("thread spawn");
-
-            (mock_server, done_rx)
+      // Start the actual thread the runtime will run on
+      let (done_tx, done_rx) = std::sync::mpsc::channel::<()>();
+      let tname = format!(
+        "test({})-pact-mock-server",
+        thread::current().name().unwrap_or("<unknown>")
+      );
+      std::thread::Builder::new()
+        .name(tname)
+        .spawn(move || {
+          runtime.block_on(server_future);
+          let _ = done_tx.send(());
         })
-        .join()
-        .unwrap();
+        .expect("thread spawn");
 
-        let (description, url_str) = {
-          let ms = mock_server.lock().unwrap();
-          let description = format!(
-            "{}/{}", ms.pact.consumer.name, ms.pact.provider.name
-          );
-          (description, ms.url())
-        };
-        ValidatingMockServer {
-          description,
-          url: url_str.parse().expect("invalid mock server URL"),
-          mock_server,
-          done_rx,
-        }
+      (mock_server, done_rx)
+    })
+    .join()
+    .unwrap();
+
+    let (description, url_str) = {
+      let ms = mock_server.lock().unwrap();
+      let pact = ms.pact.lock().unwrap();
+      let description = format!(
+        "{}/{}", pact.consumer().name, pact.provider().name
+      );
+      (description, ms.url())
+    };
+    ValidatingMockServer {
+      description,
+      url: url_str.parse().expect("invalid mock server URL"),
+      mock_server,
+      done_rx,
     }
+  }
 
     /// The URL of our mock server. You can make normal HTTP requests using this
     /// as the base URL.
@@ -149,11 +152,11 @@ impl ValidatingMockServer {
             let mut msg = format!("mock server {} failed verification:\n", self.description,);
             for mismatch in mismatches {
                 match mismatch {
-                    MatchResult::RequestMatch(_) => {
+                    MatchResult::RequestMatch(..) => {
                         unreachable!("list of mismatches contains a match");
                     }
-                    MatchResult::RequestMismatch(interaction, mismatches) => {
-                        let _ = writeln!(&mut msg, "- interaction {:?}:", interaction.description,);
+                    MatchResult::RequestMismatch(request, mismatches) => {
+                        let _ = writeln!(&mut msg, "- request {}:", request);
                         for m in mismatches {
                             let _ = writeln!(&mut msg, "  - {}", m.description());
                         }
@@ -162,13 +165,12 @@ impl ValidatingMockServer {
                         let _ = writeln!(&mut msg, "- received unexpected request:");
                         let _ = writeln!(&mut msg, "{:#?}", request);
                     }
-                    MatchResult::MissingRequest(interaction) => {
+                    MatchResult::MissingRequest(request) => {
                         let _ = writeln!(
                             &mut msg,
-                            "- interaction {:?} expected, but never occurred",
-                            interaction.description,
+                            "- request {} expected, but never occurred", request,
                         );
-                        let _ = writeln!(&mut msg, "{:#?}", interaction.request);
+                        let _ = writeln!(&mut msg, "{:#?}", request);
                     }
                 }
             }

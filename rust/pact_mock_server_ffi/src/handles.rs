@@ -7,7 +7,7 @@ use std::sync::Mutex;
 use lazy_static::*;
 use maplit::*;
 
-use pact_matching::models::{RequestResponseInteraction, RequestResponsePact};
+use pact_matching::models::{Interaction, Pact, RequestResponseInteraction, RequestResponsePact};
 use pact_models::{Consumer, Provider};
 
 lazy_static! {

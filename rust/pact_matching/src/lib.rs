@@ -1321,8 +1321,8 @@ pub fn match_response(expected: models::Response, actual: models::Response) -> V
 
 /// Matches the actual message contents to the expected one. This takes into account the content type of each.
 pub fn match_message_contents(
-  expected: &Box<dyn Interaction>,
-  actual: &Box<dyn Interaction>,
+  expected: &Box<dyn Interaction + Send>,
+  actual: &Box<dyn Interaction + Send>,
   context: &MatchingContext
 ) -> Result<(), Vec<Mismatch>> {
   let expected_content_type = expected.content_type().unwrap_or_default();
@@ -1370,8 +1370,8 @@ pub fn match_message_contents(
 
 /// Matches the actual message metadata to the expected one.
 pub fn match_message_metadata(
-  expected: &Box<dyn Interaction>,
-  actual: &Box<dyn Interaction>,
+  expected: &Box<dyn Interaction + Send>,
+  actual: &Box<dyn Interaction + Send>,
   context: &MatchingContext
 ) -> HashMap<String, Vec<Mismatch>> {
   debug!("Matching message metadata for '{}'", expected.description());
@@ -1432,7 +1432,7 @@ fn match_metadata_value(key: &str, expected: &Value, actual: &Value, context: &M
 }
 
 /// Matches the actual and expected messages.
-pub fn match_message(expected: &Box<dyn Interaction>, actual: &Box<dyn Interaction>) -> Vec<Mismatch> {
+pub fn match_message(expected: &Box<dyn Interaction + Send>, actual: &Box<dyn Interaction + Send>) -> Vec<Mismatch> {
   let mut mismatches = vec![];
 
   if expected.is_message() && actual.is_message() {
@@ -1580,7 +1580,7 @@ pub fn match_interaction_response(expected: Box<dyn Interaction>, actual: Box<dy
 }
 
 /// Matches an interaction
-pub fn match_interaction(expected: Box<dyn Interaction>, actual: Box<dyn Interaction>, _spec_version: &PactSpecification) -> Result<Vec<Mismatch>, String> {
+pub fn match_interaction(expected: Box<dyn Interaction + Send>, actual: Box<dyn Interaction + Send>, _spec_version: &PactSpecification) -> Result<Vec<Mismatch>, String> {
   if let Some(expected) = expected.as_request_response() {
     let request_result = match_request(expected.request, actual.as_request_response().unwrap().request);
     let response_result = match_response(expected.response, actual.as_request_response().unwrap().response);

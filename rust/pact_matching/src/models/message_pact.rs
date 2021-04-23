@@ -7,8 +7,9 @@ use std::fs;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 
-use anyhow::anyhow;
+use anyhow::{anyhow, bail};
 use itertools::EitherOrBoth::{Both, Left, Right};
 use itertools::Itertools;
 use log::*;
@@ -93,6 +94,31 @@ impl Pact for MessagePact {
     self.specification_version.clone()
   }
 
+  fn boxed(&self) -> Box<dyn Pact + Send> {
+    Box::new(self.clone())
+  }
+
+  fn arced(&self) -> Arc<dyn Pact + Send> {
+    Arc::new(self.clone())
+  }
+
+  fn thread_safe(&self) -> Arc<Mutex<dyn Pact + Send + Sync>> {
+    Arc::new(Mutex::new(self.clone()))
+  }
+
+  fn add_interaction(&mut self, interaction: &dyn Interaction) -> Result<(), String> {
+    match interaction.as_message() {
+      None => Err("Can only add message interactions to this Pact".to_string()),
+      Some(interaction) => {
+        self.messages.push(interaction);
+        Ok(())
+      }
+    }
+  }
+
+  fn spec_version(&self) -> PactSpecification {
+    PactSpecification::V3
+  }
 }
 
 impl MessagePact {
@@ -103,7 +129,7 @@ impl MessagePact {
     }
 
     /// Creates a `MessagePact` from a `Value` struct.
-    pub fn from_json(file: &str, pact_json: &Value) -> Result<MessagePact, String> {
+    pub fn from_json(file: &str, pact_json: &Value) -> anyhow::Result<MessagePact> {
         let metadata = parse_meta_data(pact_json);
         let spec_version = determine_spec_version(file, &metadata);
 
@@ -126,9 +152,7 @@ impl MessagePact {
                 }
                 messages
             }
-            Some(_) => return Err(
-                "Expecting 'messages' field to be Array".to_string()
-                ),
+            Some(_) => bail!("Expecting 'messages' field to be Array"),
             None => vec![],
         };
 
@@ -142,8 +166,7 @@ impl MessagePact {
     }
 
     /// Creates a BTreeMap of the metadata of this pact.
-    pub fn metadata_to_json(&self, pact_spec: &PactSpecification)
-    -> BTreeMap<String, Value> {
+    pub fn metadata_to_json(&self, pact_spec: &PactSpecification) -> BTreeMap<String, Value> {
         let mut md_map: BTreeMap<String, Value> = self.metadata.iter()
             .map(|(k, v)| {
                 let key = match k.as_str() {
@@ -174,8 +197,7 @@ impl MessagePact {
 
     /// Reads the pact file from a URL and parses the resulting JSON
     /// into a `MessagePact` struct
-    pub fn from_url(url: &String, auth: &Option<HttpAuth>)
-    -> Result<MessagePact, String> {
+    pub fn from_url(url: &String, auth: &Option<HttpAuth>) -> anyhow::Result<MessagePact> {
         let (url, json) = http_utils::fetch_json_from_url(url, auth)?;
         MessagePact::from_json(&url, &json)
     }
@@ -187,20 +209,18 @@ impl MessagePact {
         &self,
         path: &Path,
         pact_spec: PactSpecification,
-    ) -> Result<(), String> {
-        fs::create_dir_all(path.parent().unwrap())
-            .map_err(|e| format!("{:?}", e))?;
+    ) -> anyhow::Result<()> {
+        fs::create_dir_all(path.parent().unwrap())?;
 
         debug!("Writing new pact file to {:?}", path);
-        let mut file = File::create(path)
-            .map_err(|e| format!("{:?}", e))?;
+        let mut file = File::create(path)?;
 
         file.write_all(
             format!("{}",
                 serde_json::to_string_pretty(
                     &self.to_json(pact_spec)).unwrap()
             ).as_bytes()
-        ).map_err(|e| format!("{:?}", e))?;
+        )?;
 
         Ok(())
     }
@@ -239,7 +259,7 @@ impl ReadWritePact for MessagePact {
     })
   }
 
-  fn merge(&self, pact: &dyn Pact) -> Result<MessagePact, String> {
+  fn merge(&self, pact: &dyn Pact) -> anyhow::Result<Box<dyn Pact>> {
     if self.consumer.name == pact.consumer().name && self.provider.name == pact.provider().name {
       let messages: Vec<Result<Message, String>> = self.messages.iter()
         .merge_join_by(pact.interactions().iter(), |a, b| {
@@ -264,7 +284,7 @@ impl ReadWritePact for MessagePact {
         .map(|i| i.as_ref().unwrap_err().to_string())
         .collect();
       if errors.is_empty() {
-        Ok(MessagePact {
+        Ok(Box::new(MessagePact {
           provider: self.provider.clone(),
           consumer: self.consumer.clone(),
           messages: messages.iter()
@@ -272,12 +292,12 @@ impl ReadWritePact for MessagePact {
             .map(|i| i.as_ref().unwrap().clone()).collect(),
           metadata: self.metadata.clone(),
           specification_version: self.specification_version.clone()
-        })
+        }))
       } else {
-        Err(format!("Unable to merge pacts: {}", errors.join(", ")))
+        Err(anyhow!("Unable to merge pacts: {}", errors.join(", ")))
       }
     } else {
-      Err(s!("Unable to merge pacts, as they have different consumers or providers"))
+      Err(anyhow!("Unable to merge pacts, as they have different consumers or providers"))
     }
   }
 

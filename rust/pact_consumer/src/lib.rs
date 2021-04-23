@@ -65,7 +65,7 @@
 //! # use pact_matching::models::Pact;
 //! # use std::io::Read;
 //! # use pact_consumer::prelude::*;
-//! # let pact = PactBuilder::new("Consumer", "Alice Service")
+//! # let alice_service = PactBuilder::new("Consumer", "Alice Service")
 //! #     // Start a new interaction. We can add as many interactions as we want.
 //! #     .interaction("a retrieve Mallory request", |i| {
 //! #         // Defines a provider state. It is optional.
@@ -77,10 +77,7 @@
 //! #         i.response
 //! #             .content_type("text/plain")
 //! #             .body("That is some good Mallory.");
-//! #     })
-//! #     .build();
-//! // Start the mock server running.
-//! let alice_service = pact.start_mock_server();
+//! #     }).start_mock_server();
 //!
 //! // You would use your actual client code here.
 //! let mallory_url = alice_service.path("/mallory");

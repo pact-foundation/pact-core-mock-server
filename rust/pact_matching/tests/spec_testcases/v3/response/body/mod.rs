@@ -61,11 +61,11 @@ fn array_with_regex_matcher() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/array with regex matcher.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/array with regex matcher.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -98,11 +98,11 @@ fn unexpected_xml_namespace() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/unexpected xml namespace.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/unexpected xml namespace.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -135,11 +135,11 @@ fn different_value_found_at_index_xml() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/different value found at index xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/different value found at index xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -180,11 +180,11 @@ fn unexpected_index_with_not_null_value() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/unexpected index with not null value.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/unexpected index with not null value.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -222,11 +222,11 @@ fn missing_body() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/missing body.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/missing body.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -268,11 +268,11 @@ fn unexpected_key_with_null_value() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/unexpected key with null value.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/unexpected key with null value.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -313,11 +313,11 @@ fn different_value_found_at_key() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/different value found at key.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/different value found at key.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -358,11 +358,11 @@ fn not_null_found_at_key_when_null_expected() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/not null found at key when null expected.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/not null found at key when null expected.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -416,11 +416,11 @@ fn additional_property_with_type_matcher() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/additional property with type matcher.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/additional property with type matcher.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -483,11 +483,11 @@ fn matches_with_integers() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/matches with integers.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/matches with integers.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -520,11 +520,11 @@ fn different_value_found_at_key_xml() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/different value found at key xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/different value found at key xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -565,11 +565,11 @@ fn number_found_in_array_when_string_expected() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/number found in array when string expected.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/number found in array when string expected.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -600,11 +600,11 @@ fn no_body_no_content_type_xml() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/no body no content type xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/no body no content type xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -645,11 +645,11 @@ fn property_name_is_different_case() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/property name is different case.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/property name is different case.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -693,11 +693,11 @@ fn array_with_type_matcher_mismatch_xml() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/array with type matcher mismatch xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/array with type matcher mismatch xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -738,11 +738,11 @@ fn array_in_different_order() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/array in different order.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/array in different order.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -787,11 +787,11 @@ fn plain_text_regex_matching() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/plain text regex matching.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/plain text regex matching.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -836,11 +836,11 @@ fn plain_text_regex_matching_that_does_not_match() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/plain text regex matching that does not match.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/plain text regex matching that does not match.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -901,11 +901,11 @@ fn matches_with_floats() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/matches with floats.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/matches with floats.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -937,11 +937,11 @@ fn empty_body_no_content_type() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/empty body no content type.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/empty body no content type.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -974,11 +974,11 @@ fn objects_in_array_second_matches_xml() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/objects in array second matches xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/objects in array second matches xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -1032,11 +1032,11 @@ fn array_with_type_matcher_mismatch() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/array with type matcher mismatch.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/array with type matcher mismatch.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -1069,11 +1069,11 @@ fn plain_text_that_matches() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/plain text that matches.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/plain text that matches.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -1134,11 +1134,11 @@ fn array_with_type_matcher() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/array with type matcher.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/array with type matcher.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -1175,11 +1175,11 @@ fn missing_body_no_content_type() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/missing body no content type.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/missing body no content type.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -1237,11 +1237,11 @@ fn objects_in_array_type_matching_xml() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/objects in array type matching xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/objects in array type matching xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -1274,11 +1274,11 @@ fn empty_body() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/empty body.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/empty body.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -1319,11 +1319,11 @@ fn string_found_in_array_when_number_expected() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/string found in array when number expected.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/string found in array when number expected.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -1356,11 +1356,11 @@ fn array_at_top_level_xml() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/array at top level xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/array at top level xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -1406,11 +1406,11 @@ fn objects_in_array_first_matches() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/objects in array first matches.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/objects in array first matches.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -1443,11 +1443,11 @@ fn keys_out_of_order_match_xml() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/keys out of order match xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/keys out of order match xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -1506,11 +1506,11 @@ fn array_at_top_level() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/array at top level.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/array at top level.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -1573,11 +1573,11 @@ fn matches_with_type() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/matches with type.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/matches with type.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -1610,11 +1610,11 @@ fn different_xml_namespaces() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/different xml namespaces.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/different xml namespaces.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -1647,11 +1647,11 @@ fn different_xml_namespace_prefixes() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/different xml namespace prefixes.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/different xml namespace prefixes.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -1683,11 +1683,11 @@ fn null_body_no_content_type() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/null body no content type.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/null body no content type.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -1738,11 +1738,11 @@ fn array_with_type_matcher_xml() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/array with type matcher xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/array with type matcher xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -1775,11 +1775,11 @@ fn missing_index_xml() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/missing index xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/missing index xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -1812,11 +1812,11 @@ fn objects_in_array_no_matches_xml() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/objects in array no matches xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/objects in array no matches xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -1853,11 +1853,11 @@ fn no_body_no_content_type() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/no body no content type.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/no body no content type.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -1896,11 +1896,11 @@ fn non_empty_body_found_when_empty_expected() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/non empty body found when empty expected.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/non empty body found when empty expected.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -1963,11 +1963,11 @@ fn deeply_nested_objects() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/deeply nested objects.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/deeply nested objects.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -2000,11 +2000,11 @@ fn missing_key_xml() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/missing key xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/missing key xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -2045,11 +2045,11 @@ fn objects_in_array_no_matches() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/objects in array no matches.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/objects in array no matches.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -2110,11 +2110,11 @@ fn objects_in_array_type_matching() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/objects in array type matching.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/objects in array type matching.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -2155,11 +2155,11 @@ fn not_null_found_in_array_when_null_expected() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/not null found in array when null expected.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/not null found in array when null expected.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -2193,11 +2193,11 @@ fn plain_text_empty_body() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/plain text empty body.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/plain text empty body.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -2264,11 +2264,11 @@ fn array_at_top_level_with_matchers_xml() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/array at top level with matchers xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/array at top level with matchers xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -2309,11 +2309,11 @@ fn different_value_found_at_index() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/different value found at index.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/different value found at index.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -2370,11 +2370,11 @@ fn matches_with_regex() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/matches with regex.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/matches with regex.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -2432,11 +2432,11 @@ fn objects_in_array_with_type_mismatching() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/objects in array with type mismatching.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/objects in array with type mismatching.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -2477,11 +2477,11 @@ fn number_found_at_key_when_string_expected() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/number found at key when string expected.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/number found at key when string expected.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -2521,11 +2521,11 @@ fn objects_in_array_second_matches() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/objects in array second matches.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/objects in array second matches.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -2558,11 +2558,11 @@ fn array_in_different_order_xml() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/array in different order xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/array in different order xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -2607,11 +2607,11 @@ fn matches_with_regex_xml() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/matches with regex xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/matches with regex xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -2644,11 +2644,11 @@ fn value_found_in_array_when_empty_expected_xml() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/value found in array when empty expected xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/value found in array when empty expected xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -2689,11 +2689,11 @@ fn missing_index() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/missing index.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/missing index.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -2732,11 +2732,11 @@ fn keys_out_of_order_match() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/keys out of order match.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/keys out of order match.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -2769,11 +2769,11 @@ fn null_body() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/null body.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/null body.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -2806,11 +2806,11 @@ fn unexpected_key_with_non_empty_value_xml() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/unexpected key with non-empty value xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/unexpected key with non-empty value xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -2842,11 +2842,11 @@ fn missing_body_xml() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/missing body xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/missing body xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -2887,11 +2887,11 @@ fn null_found_in_array_when_not_null_expected() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/null found in array when not null expected.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/null found in array when not null expected.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -2945,11 +2945,11 @@ fn additional_property_with_type_matcher_that_does_not_match() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/additional property with type matcher that does not match.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/additional property with type matcher that does not match.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -2990,11 +2990,11 @@ fn unexpected_index_with_null_value() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/unexpected index with null value.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/unexpected index with null value.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -3036,11 +3036,11 @@ fn unexpected_key_with_not_null_value() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/unexpected key with not null value.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/unexpected key with not null value.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -3070,11 +3070,11 @@ fn missing_body_found_when_empty_expected() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/missing body found when empty expected.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/missing body found when empty expected.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -3115,11 +3115,11 @@ fn string_found_at_key_when_number_expected() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/string found at key when number expected.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/string found at key when number expected.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -3152,11 +3152,11 @@ fn unexpected_key_with_empty_value_xml() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/unexpected key with empty value xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/unexpected key with empty value xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -3198,11 +3198,11 @@ fn missing_key() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/missing key.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/missing key.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -3246,11 +3246,11 @@ fn plain_text_regex_matching_missing_body() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/plain text regex matching missing body.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/plain text regex matching missing body.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -3283,11 +3283,11 @@ fn objects_in_array_first_matches_xml() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/objects in array first matches xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/objects in array first matches xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -3320,11 +3320,11 @@ fn matches_xml() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/matches xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/matches xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -3357,11 +3357,11 @@ fn deeply_nested_objects_xml() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/deeply nested objects xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/deeply nested objects xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -3394,11 +3394,11 @@ fn property_name_is_different_case_xml() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/property name is different case xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/property name is different case xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -3430,11 +3430,11 @@ fn plain_text_missing_body() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/plain text missing body.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/plain text missing body.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -3479,11 +3479,11 @@ fn matches() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/matches.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/matches.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -3603,11 +3603,11 @@ fn array_at_top_level_with_matchers() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/array at top level with matchers.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/array at top level with matchers.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -3648,11 +3648,11 @@ fn null_found_at_key_where_not_null_expected() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/null found at key where not null expected.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/null found at key where not null expected.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -3685,11 +3685,11 @@ fn unexpected_index_with_non_empty_value_xml() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/unexpected index with non-empty value xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/unexpected index with non-empty value xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -3740,11 +3740,11 @@ fn objects_in_array_with_type_mismatching_xml() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/objects in array with type mismatching xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/objects in array with type mismatching xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -3777,11 +3777,11 @@ fn plain_text_that_does_not_match() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/plain text that does not match.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/plain text that does not match.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -3833,11 +3833,11 @@ fn array_with_regex_matcher_xml() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/array with regex matcher xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/array with regex matcher xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();
@@ -3870,11 +3870,11 @@ fn unexpected_index_with_missing_value_xml() {
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v3/response/body/unexpected index with missing value xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("EXPECTED: {}", expected);
+    println!("EXPECTED: {:?}", expected);
     println!("BODY: {}", expected.contents().str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v3/response/body/unexpected index with missing value xml.json", &interaction_json, &PactSpecification::V3).unwrap();
-    println!("ACTUAL: {}", actual);
+    println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.contents().str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V3).unwrap();

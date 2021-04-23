@@ -106,7 +106,6 @@ async fn duplicate_interactions() {
           .path("/rolex.html");
         interaction.response.body("TrixR4Kidz");
       })
-      .build()
       .start_mock_server();
 
     let mock_url = mock_service.url().as_ref();

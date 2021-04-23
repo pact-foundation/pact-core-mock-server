@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 
+use anyhow::anyhow;
 use maplit::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -129,11 +130,11 @@ impl Interaction for Message {
     })
   }
 
-  fn boxed(&self) -> Box<dyn Interaction> {
+  fn boxed(&self) -> Box<dyn Interaction + Send> {
     Box::new(self.clone())
   }
 
-  fn arced(&self) -> Arc<dyn Interaction> {
+  fn arced(&self) -> Arc<dyn Interaction + Send> {
     Arc::new(self.clone())
   }
 
@@ -163,7 +164,7 @@ impl Message {
     }
 
     /// Constructs a `Message` from the `Json` struct.
-    pub fn from_json(index: usize, json: &Value, spec_version: &PactSpecification) -> Result<Message, String> {
+    pub fn from_json(index: usize, json: &Value, spec_version: &PactSpecification) -> anyhow::Result<Message> {
         match spec_version {
             &PactSpecification::V3 => {
                 let description = match json.get("description") {
@@ -193,7 +194,7 @@ impl Message {
                   generators: Generators::default()
                 })
             },
-            _ => Err(s!("Messages require Pact Specification version 3"))
+            _ => Err(anyhow!("Messages require Pact Specification version 3"))
         }
     }
 }
