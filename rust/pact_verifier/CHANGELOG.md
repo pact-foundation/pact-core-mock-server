@@ -2,6 +2,7 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 
 # 0.10.6 - Bugfix Release
 
+* 63fcf49 - feat: enable consumer code to use the new Value matcher (Matt Fellows, Wed Apr 7 14:01:00 +1000)
 
 # 0.10.5 - Bugfix Release
 
