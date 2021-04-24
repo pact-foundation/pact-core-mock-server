@@ -61,7 +61,7 @@ fn start_provider(context: &mut WebmachineContext, options: ServerOpts) -> Resul
           let pact = load_pact_from_json(&context.request.request_path, json)
             .map_err(|err| {
               error!("Failed to parse Pact JSON - {}", err);
-              422 as u16
+              422_u16
             })?;
           debug!("Loaded pact = {:?}", pact);
           let mock_server_id = Uuid::new_v4().to_string();
@@ -93,7 +93,7 @@ fn start_provider(context: &mut WebmachineContext, options: ServerOpts) -> Resul
             Ok(mock_server) => {
               debug!("mock server started on port {}", mock_server);
               let mock_server_json = json!({
-                "id" : json!(mock_server_id.clone()),
+                "id" : json!(mock_server_id),
                 "port" : json!(mock_server as i64),
               });
               let json_response = json!({ "mockServer" : mock_server_json });
@@ -136,8 +136,7 @@ pub fn verify_mock_server_request(context: &mut WebmachineContext) -> Result<boo
       let mut map = btreemap!{ "mockServer" => ms.to_json() };
       let mismatches = ms.mismatches();
       if !mismatches.is_empty() {
-        map.insert("mismatches", json!(
-          Vec::from_iter(mismatches.iter().map(|m| m.to_json()))));
+        map.insert("mismatches", json!(mismatches.iter().map(|m| m.to_json()).collect()));
         context.response.body = Some(json!(map).to_string().into_bytes());
         Err(422)
       } else {
@@ -234,9 +233,9 @@ fn mock_server_resource<'a>() -> WebmachineResource<'a> {
     }),
     render_response: callback(&|context, _| {
       debug!("mock_server_resource -> render_response");
-      match context.metadata.get("subpath".into()) {
+      match context.metadata.get("subpath") {
         None => {
-          let id = context.metadata.get("id".into()).unwrap().clone();
+          let id = context.metadata.get("id").unwrap().clone();
           SERVER_MANAGER.lock().unwrap().find_mock_server_by_id(&id, &|ms| ms.to_json())
             .map(|json| json.to_string())
         }
@@ -248,7 +247,7 @@ fn mock_server_resource<'a>() -> WebmachineResource<'a> {
     }),
     process_post: callback(&|context, _| {
       debug!("mock_server_resource -> process_post");
-      let subpath = context.metadata.get("subpath".into()).unwrap().clone();
+      let subpath = context.metadata.get("subpath").unwrap().clone();
       if subpath == "verify" {
         verify_mock_server_request(context)
       } else {
@@ -257,9 +256,9 @@ fn mock_server_resource<'a>() -> WebmachineResource<'a> {
     }),
     delete_resource: callback(&|context, _| {
       debug!("mock_server_resource -> delete_resource");
-      match context.metadata.get("subpath".into()) {
+      match context.metadata.get("subpath") {
         None => {
-          let id = context.metadata.get("id".into()).unwrap().clone();
+          let id = context.metadata.get("id").unwrap().clone();
           thread::spawn(move || {
             if SERVER_MANAGER.lock().unwrap().shutdown_mock_server_by_id(id) {
               Ok(true)
