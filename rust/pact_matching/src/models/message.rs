@@ -13,6 +13,7 @@ use crate::models::generators::Generators;
 use crate::models::matchingrules::MatchingRules;
 use crate::models::provider_states::ProviderState;
 use crate::models::v4::AsynchronousMessage;
+use crate::models::v4::sync_message::SynchronousMessages;
 
 use super::*;
 use super::body_from_json;
@@ -128,6 +129,10 @@ impl Interaction for Message {
       generators: self.generators.clone(),
       .. Default::default()
     })
+  }
+
+  fn as_v4_sync_message(&self) -> Option<SynchronousMessages> {
+    None
   }
 
   fn boxed(&self) -> Box<dyn Interaction + Send> {

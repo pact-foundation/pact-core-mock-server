@@ -1,7 +1,7 @@
 //! V4 specification models
 
 use std::cmp::Ordering;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::collections::hash_map::DefaultHasher;
 use std::fmt;
 use std::fmt::{Debug, Display};
@@ -10,7 +10,7 @@ use std::path::Path;
 use std::string::ToString;
 use std::sync::{Arc, Mutex};
 
-use anyhow::{anyhow, Context as _};
+use anyhow::{anyhow, Context};
 use itertools::EitherOrBoth::{Both, Left, Right};
 use itertools::Itertools;
 use log::*;
@@ -42,9 +42,12 @@ use crate::models::message::Message;
 use crate::models::message_pact::MessagePact;
 use crate::models::provider_states::ProviderState;
 use crate::models::v4::http_parts::{body_from_json, HttpRequest, HttpResponse};
+use crate::models::v4::sync_message::SynchronousMessages;
+
+pub mod sync_message;
 
 /// V4 Interaction Type
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[allow(non_camel_case_types)]
 pub enum V4InteractionType {
   /// Synchronous HTTP Request Response
@@ -73,12 +76,12 @@ impl Display for V4InteractionType {
 
 impl V4InteractionType {
   /// Returns the V4 interaction type from the string value
-  pub fn from_str(type_str: &str) -> Result<V4InteractionType, String> {
+  pub fn from_str(type_str: &str) -> anyhow::Result<V4InteractionType> {
     match type_str {
       "Synchronous/HTTP" => Ok(V4InteractionType::Synchronous_HTTP),
       "Asynchronous/Messages" => Ok(V4InteractionType::Asynchronous_Messages),
       "Synchronous/Messages" => Ok(V4InteractionType::Synchronous_Messages),
-      _ => Err(format!("'{}' is not a valid V4 interaction type", type_str))
+      _ => Err(anyhow!("'{}' is not a valid V4 interaction type", type_str))
     }
   }
 }
@@ -104,25 +107,18 @@ pub trait V4Interaction: Interaction + Send + Sync {
 
   /// Mutable access to the annotations and comments associated with this interaction
   fn comments_mut(&mut self) -> &mut HashMap<String, Value>;
-}
 
-// impl Debug for dyn V4Interaction {
-//   fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-//     if let Some(i) = self.as_v4_http() {
-//       std::fmt::Display::fmt(&i, f)
-//     } else if let Some(i) = self.as_v4_async_message() {
-//       std::fmt::Display::fmt(&i, f)
-//     } else {
-//       Err(fmt::Error)
-//     }
-//   }
-// }
+  /// Type of this V4 interaction
+  fn v4_type(&self) -> V4InteractionType;
+}
 
 impl Display for dyn V4Interaction {
   fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
     if let Some(i) = self.as_v4_http() {
       std::fmt::Display::fmt(&i, f)
     } else if let Some(i) = self.as_v4_async_message() {
+      std::fmt::Display::fmt(&i, f)
+    } else if let Some(i) = self.as_v4_sync_message() {
       std::fmt::Display::fmt(&i, f)
     } else {
       Err(fmt::Error)
@@ -135,6 +131,8 @@ impl Clone for Box<dyn V4Interaction> {
     if let Some(http) = self.as_v4_http() {
       Box::new(http)
     } else if let Some(message) = self.as_v4_async_message() {
+      Box::new(message)
+    } else if let Some(message) = self.as_v4_sync_message() {
       Box::new(message)
     } else {
       panic!("Internal Error - Tried to clone an interaction that was not valid")
@@ -222,11 +220,15 @@ impl V4Interaction for SynchronousHttp {
   fn comments_mut(&mut self) -> &mut HashMap<String, Value> {
     &mut self.comments
   }
+
+  fn v4_type(&self) -> V4InteractionType {
+    V4InteractionType::Synchronous_HTTP
+  }
 }
 
 impl Interaction for SynchronousHttp {
   fn type_of(&self) -> String {
-    format!("V4 {}", V4InteractionType::Synchronous_HTTP)
+    format!("V4 {}", self.v4_type())
   }
 
   fn is_request_response(&self) -> bool {
@@ -284,6 +286,10 @@ impl Interaction for SynchronousHttp {
   }
 
   fn as_v4_async_message(&self) -> Option<AsynchronousMessage> {
+    None
+  }
+
+  fn as_v4_sync_message(&self) -> Option<SynchronousMessages> {
     None
   }
 
@@ -445,11 +451,15 @@ impl V4Interaction for AsynchronousMessage {
   fn comments_mut(&mut self) -> &mut HashMap<String, Value> {
     &mut self.comments
   }
+
+  fn v4_type(&self) -> V4InteractionType {
+    V4InteractionType::Asynchronous_Messages
+  }
 }
 
 impl Interaction for AsynchronousMessage {
   fn type_of(&self) -> String {
-    format!("V4 {}", V4InteractionType::Asynchronous_Messages)
+    format!("V4 {}", self.v4_type())
   }
 
   fn is_request_response(&self) -> bool {
@@ -510,6 +520,10 @@ impl Interaction for AsynchronousMessage {
 
   fn as_v4_async_message(&self) -> Option<AsynchronousMessage> {
     Some(self.clone())
+  }
+
+  fn as_v4_sync_message(&self) -> Option<SynchronousMessages> {
+    None
   }
 
   fn boxed(&self) -> Box<dyn Interaction + Send> {
@@ -649,6 +663,17 @@ impl V4Pact {
     md_map.insert("pactRust".to_string(), json!({"version" : PACT_RUST_VERSION.unwrap_or("unknown")}));
     Value::Object(md_map)
   }
+
+  /// If this Pact has any interactions of the given type
+  pub fn has_interactions(&self, interaction_type: V4InteractionType) -> bool {
+    self.interactions.iter().any(|interaction| interaction.v4_type() == interaction_type)
+  }
+
+  /// If this Pact has different types of interactions
+  pub fn has_mixed_interactions(&self) -> bool {
+    let interaction_types: HashSet<_> = self.interactions.iter().map(|i| i.v4_type()).collect();
+    interaction_types.len() > 1
+  }
 }
 
 impl Pact for V4Pact {
@@ -676,24 +701,76 @@ impl Pact for V4Pact {
       .collect()
   }
 
-  fn to_json(&self, _: PactSpecification) -> Value {
-    json!({
-      "consumer": self.consumer.to_json(),
-      "provider": self.provider.to_json(),
-      "interactions": Value::Array(self.interactions.iter().map(|i| i.to_json()).collect()),
-      "metadata": self.metadata_to_json()
+  fn to_json(&self, pact_spec: PactSpecification) -> anyhow::Result<Value> {
+    match pact_spec {
+      PactSpecification::V4 => Ok(json!({
+        "consumer": self.consumer.to_json(),
+        "provider": self.provider.to_json(),
+        "interactions": Value::Array(self.interactions.iter().map(|i| i.to_json()).collect()),
+        "metadata": self.metadata_to_json()
+      })),
+      _ => if self.has_mixed_interactions() {
+        Err(anyhow!("A Pact with mixed interaction types can't be downgraded to {:?}", pact_spec))
+      } else if self.interactions.is_empty() || self.has_interactions(V4InteractionType::Synchronous_HTTP) {
+        self.as_request_response_pact()?.to_json(pact_spec)
+      } else if self.has_interactions(V4InteractionType::Asynchronous_Messages) {
+        self.as_message_pact()?.to_json(pact_spec)
+      } else {
+        let interaction = self.interactions.first().unwrap();
+        Err(anyhow!("A Pact with {} interactions can't be downgraded to {:?}", interaction.type_of(), pact_spec))
+      }
+    }
+  }
+
+  fn as_request_response_pact(&self) -> anyhow::Result<RequestResponsePact> {
+    let interactions = self.interactions.iter()
+      .map(|i| i.as_request_response())
+      .filter(|i| i.is_some())
+      .map(|i| i.unwrap())
+      .collect();
+    let metadata = self.metadata.iter().map(|(k, v)| {
+      match v {
+        Value::Object(map) => Some((k.clone(), map.iter()
+          .map(|(k, v)| (k.clone(), v.to_string())).collect())),
+        _ => None
+      }
+    }).filter(|val| val.is_some())
+      .map(|val| val.unwrap())
+      .collect();
+    Ok(RequestResponsePact {
+      consumer: self.consumer.clone(),
+      provider: self.provider.clone(),
+      interactions,
+      metadata,
+      specification_version: PactSpecification::V3
     })
   }
 
-  fn as_request_response_pact(&self) -> Result<RequestResponsePact, String> {
-    unimplemented!()
+  fn as_message_pact(&self) -> anyhow::Result<MessagePact> {
+    let interactions = self.interactions.iter()
+      .map(|i| i.as_message())
+      .filter(|i| i.is_some())
+      .map(|i| i.unwrap())
+      .collect();
+    let metadata = self.metadata.iter().map(|(k, v)| {
+      match v {
+        Value::Object(map) => Some((k.clone(), map.iter()
+          .map(|(k, v)| (k.clone(), v.to_string())).collect())),
+        _ => None
+      }
+    }).filter(|val| val.is_some())
+      .map(|val| val.unwrap())
+      .collect();
+    Ok(MessagePact {
+      consumer: self.consumer.clone(),
+      provider: self.provider.clone(),
+      messages: interactions,
+      metadata,
+      specification_version: PactSpecification::V3
+    })
   }
 
-  fn as_message_pact(&self) -> Result<MessagePact, String> {
-    unimplemented!()
-  }
-
-  fn as_v4_pact(&self) -> Result<V4Pact, String> {
+  fn as_v4_pact(&self) -> anyhow::Result<V4Pact> {
     Ok(self.clone())
   }
 
@@ -713,18 +790,14 @@ impl Pact for V4Pact {
     Arc::new(Mutex::new(self.clone()))
   }
 
-  fn add_interaction(&mut self, interaction: &dyn Interaction) -> Result<(), String> {
+  fn add_interaction(&mut self, interaction: &dyn Interaction) -> anyhow::Result<()> {
     match interaction.as_v4() {
-      None => Err("Can only add interactions that can be converted to V4 to this Pact".to_string()),
+      None => Err(anyhow!("Can only add interactions that can be converted to V4 to this Pact")),
       Some(interaction) => {
         self.interactions.push(interaction);
         Ok(())
       }
     }
-  }
-
-  fn spec_version(&self) -> PactSpecification {
-    PactSpecification::V4
   }
 }
 

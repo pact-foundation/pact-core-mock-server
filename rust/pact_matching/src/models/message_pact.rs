@@ -66,28 +66,42 @@ impl Pact for MessagePact {
   }
 
   /// Converts this pact to a `Value` struct.
-  fn to_json(&self, pact_spec: PactSpecification) -> Value {
-    json!({
-      s!("consumer"): self.consumer.to_json(),
-      s!("provider"): self.provider.to_json(),
-      s!("messages"):
-        Value::Array(self.messages.iter().map(
-            |i| serde_json::to_value(i).unwrap())
-            .collect()),
-      s!("metadata"): json!(self.metadata_to_json(&pact_spec))
-    })
+  fn to_json(&self, pact_spec: PactSpecification) -> anyhow::Result<Value> {
+    match pact_spec {
+      PactSpecification::V3 => Ok(json!({
+        "consumer": self.consumer.to_json(),
+        "provider": self.provider.to_json(),
+        "messages":
+          Value::Array(self.messages.iter().map(
+              |i| serde_json::to_value(i).unwrap())
+              .collect()),
+        "metadata": self.metadata_to_json(&pact_spec)
+      })),
+      PactSpecification::V4 => self.as_v4_pact()?.to_json(pact_spec),
+      _ => Err(anyhow!("Message Pacts require minimum V3 specification"))
+    }
   }
 
-  fn as_request_response_pact(&self) -> Result<RequestResponsePact, String> {
-    Err(format!("Can't convert a Message Pact to a different type"))
+  fn as_request_response_pact(&self) -> anyhow::Result<RequestResponsePact> {
+    Err(anyhow!("Can't convert a Message Pact to a different type"))
   }
 
-  fn as_message_pact(&self) -> Result<MessagePact, String> {
+  fn as_message_pact(&self) -> anyhow::Result<MessagePact> {
     Ok(self.clone())
   }
 
-  fn as_v4_pact(&self) -> Result<V4Pact, String> {
-    Err(format!("Can't convert a Message Pact to a different type"))
+  fn as_v4_pact(&self) -> anyhow::Result<V4Pact> {
+    let interactions = self.messages.iter()
+      .map(|i| i.as_v4())
+      .filter(|i| i.is_some())
+      .map(|i| i.unwrap())
+      .collect();
+    Ok(V4Pact {
+      consumer: self.consumer.clone(),
+      provider: self.provider.clone(),
+      interactions,
+      metadata: self.metadata.iter().map(|(k, v)| (k.clone(), json!(v))).collect()
+    })
   }
 
   fn specification_version(&self) -> PactSpecification {
@@ -106,18 +120,14 @@ impl Pact for MessagePact {
     Arc::new(Mutex::new(self.clone()))
   }
 
-  fn add_interaction(&mut self, interaction: &dyn Interaction) -> Result<(), String> {
+  fn add_interaction(&mut self, interaction: &dyn Interaction) -> anyhow::Result<()> {
     match interaction.as_message() {
-      None => Err("Can only add message interactions to this Pact".to_string()),
+      None => Err(anyhow!("Can only add message interactions to this Pact")),
       Some(interaction) => {
         self.messages.push(interaction);
         Ok(())
       }
     }
-  }
-
-  fn spec_version(&self) -> PactSpecification {
-    PactSpecification::V3
   }
 }
 
@@ -125,7 +135,7 @@ impl MessagePact {
 
     /// Returns the specification version of this pact
     pub fn spec_version(&self) -> PactSpecification {
-        determine_spec_version(&s!("<MessagePact>"), &self.metadata)
+      determine_spec_version("<MessagePact>", &self.metadata)
     }
 
     /// Creates a `MessagePact` from a `Value` struct.
@@ -218,7 +228,7 @@ impl MessagePact {
         file.write_all(
             format!("{}",
                 serde_json::to_string_pretty(
-                    &self.to_json(pact_spec)).unwrap()
+                    &self.to_json(pact_spec)?)?
             ).as_bytes()
         )?;
 

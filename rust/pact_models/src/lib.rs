@@ -7,7 +7,7 @@ use bytes::{Bytes, BytesMut};
 use log::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use base64::{decode, encode};
+use base64::encode;
 
 use crate::content_types::ContentType;
 

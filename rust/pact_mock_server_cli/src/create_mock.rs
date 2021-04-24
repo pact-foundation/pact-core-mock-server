@@ -4,6 +4,7 @@ use clap::ArgMatches;
 use log::*;
 use serde_json::Value;
 use itertools::Itertools;
+use anyhow::anyhow;
 
 use pact_matching::models::{ReadWritePact, Pact, RequestResponsePact};
 
@@ -30,8 +31,13 @@ pub async fn create_mock_server(host: &str, port: u16, matches: &ArgMatches<'_>)
         format!("http://{}:{}/?{}", host, port, args.iter().join("&"))
       };
       let client = reqwest::Client::new();
+      let json = pact.to_json(pact.specification_version())
+        .map_err(|err| {
+          crate::display_error(format!("Failed to send pact as JSON '{}': {}", file, err), matches);
+          -1
+        })?;
       let resp = client.post(url.as_str())
-        .json(&pact.to_json(pact.spec_version()))
+        .json(&json)
         .send().await;
       match resp {
         Ok(response) => {
@@ -51,7 +57,7 @@ pub async fn create_mock_server(host: &str, port: u16, matches: &ArgMatches<'_>)
                 Ok(())
               },
               Err(err) => {
-                log::error!("Failed to parse JSON: {}", err);
+                error!("Failed to parse JSON: {}", err);
                 crate::display_error(format!("Failed to parse JSON: {}", err), matches);
               }
             }

@@ -1325,8 +1325,10 @@ pub fn match_message_contents(
   actual: &Box<dyn Interaction + Send>,
   context: &MatchingContext
 ) -> Result<(), Vec<Mismatch>> {
-  let expected_content_type = expected.content_type().unwrap_or_default();
-  let actual_content_type = actual.content_type().unwrap_or_default();
+  let expected_content_type = expected.as_message()
+    .map(|m| models::HttpPart::content_type(&m)).flatten().unwrap_or_default();
+  let actual_content_type = actual.as_message()
+    .map(|m| models::HttpPart::content_type(&m)).flatten().unwrap_or_default();
   debug!("expected content type = '{}', actual content type = '{}'", expected_content_type,
          actual_content_type);
   if expected_content_type.is_equivalent_to(&actual_content_type) {

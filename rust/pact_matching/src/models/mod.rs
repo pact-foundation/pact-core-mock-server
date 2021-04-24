@@ -16,8 +16,7 @@ use std::str;
 use std::str::from_utf8;
 use std::sync::{Arc, Mutex};
 
-use anyhow::anyhow;
-use anyhow::Context as _;
+use anyhow::{anyhow, Context};
 use base64::{decode, encode};
 use fs2::FileExt;
 use hex::FromHex;
@@ -43,6 +42,7 @@ use crate::models::message_pact::MessagePact;
 use crate::models::provider_states::ProviderState;
 use crate::models::v4::{AsynchronousMessage, interaction_from_json, SynchronousHttp, V4Interaction, V4Pact};
 use crate::models::v4::http_parts::{HttpRequest, HttpResponse};
+use crate::models::v4::sync_message::SynchronousMessages;
 
 pub mod json_utils;
 pub mod xml_utils;
@@ -800,59 +800,73 @@ pub struct PactConflict {
 pub trait Interaction: Debug {
   /// The type of the interaction
   fn type_of(&self) -> String;
+
   /// If this is a request/response interaction
   fn is_request_response(&self) -> bool;
+
   /// Returns the request/response interaction if it is one
   fn as_request_response(&self) -> Option<RequestResponseInteraction>;
+
   /// If this is a message interaction
   fn is_message(&self) -> bool;
+
   /// Returns the message interaction if it is one
   fn as_message(&self) -> Option<Message>;
+
   /// Interaction ID. This will only be set if the Pact file was fetched from a Pact Broker
   fn id(&self) -> Option<String>;
+
   /// Description of this interaction. This needs to be unique in the pact file.
   fn description(&self) -> String;
+
   /// Optional provider states for the interaction.
   /// See https://docs.pact.io/getting_started/provider_states for more info on provider states.
   fn provider_states(&self) -> Vec<provider_states::ProviderState>;
+
   /// Body of the response or message
+  #[deprecated(
+    since = "0.8.14",
+    note = "Some interactions have multiple contents (like request/response), so it is impossible \
+      to know which to return for this method"
+  )]
   fn contents(&self) -> OptionalBody;
+
   /// Determine the content type of the interaction. If a `Content-Type` header or metadata value is present, the
   /// value of that value will be returned. Otherwise, the contents will be inspected.
+  #[deprecated(
+  since = "0.8.14",
+  note = "Some interactions have multiple contents (like request/response), so it is impossible \
+      to know which to return for this method"
+  )]
   fn content_type(&self) -> Option<ContentType>;
+
   /// If this is a V4 interaction
   fn is_v4(&self) -> bool;
+
   /// Returns the interaction in V4 format
   fn as_v4(&self) -> Option<Box<dyn V4Interaction>>;
+
   /// Returns the interaction in V4 format
   fn as_v4_http(&self) -> Option<SynchronousHttp>;
+
   /// Returns the interaction in V4 format
   fn as_v4_async_message(&self) -> Option<AsynchronousMessage>;
+
+  /// Returns the interaction in V4 format
+  fn as_v4_sync_message(&self) -> Option<SynchronousMessages>;
+
   /// Clones this interaction and wraps it in a Box
   fn boxed(&self) -> Box<dyn Interaction + Send>;
+
   /// Clones this interaction and wraps it in an Arc
   fn arced(&self) -> Arc<dyn Interaction + Send>;
+
   /// Clones this interaction and wraps it in an Arc and Mutex
   fn thread_safe(&self) -> Arc<Mutex<dyn Interaction + Send + Sync>>;
+
   /// Returns the matching rules associated with this interaction (if there are any)
   fn matching_rules(&self) -> Option<MatchingRules>;
 }
-
-// impl Debug for dyn Interaction {
-//   fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-//     if let Some(req_res) = self.as_request_response() {
-//       std::fmt::Debug::fmt(&req_res, f)
-//     } else if let Some(mp) = self.as_message() {
-//       std::fmt::Debug::fmt(&mp, f)
-//     } else if let Some(i) = self.as_v4_http() {
-//       std::fmt::Display::fmt(&i, f)
-//     } else if let Some(i) = self.as_v4_async_message() {
-//       std::fmt::Display::fmt(&i, f)
-//     } else {
-//       Err(fmt::Error)
-//     }
-//   }
-// }
 
 impl Display for dyn Interaction {
   fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -971,6 +985,9 @@ impl Interaction for RequestResponseInteraction {
     None
   }
 
+  fn as_v4_sync_message(&self) -> Option<SynchronousMessages> {
+    None
+  }
 
   fn boxed(&self) -> Box<dyn Interaction + Send> {
     Box::new(self.clone())
@@ -1100,13 +1117,13 @@ pub trait Pact: Debug + ReadWritePact {
   /// Pact metadata
   fn metadata(&self) -> BTreeMap<String, BTreeMap<String, String>>;
   /// Converts this pact to a `Value` struct.
-  fn to_json(&self, pact_spec: PactSpecification) -> Value;
+  fn to_json(&self, pact_spec: PactSpecification) -> anyhow::Result<Value>;
   /// Attempt to downcast to a concrete Pact
-  fn as_request_response_pact(&self) -> Result<RequestResponsePact, String>;
+  fn as_request_response_pact(&self) -> anyhow::Result<RequestResponsePact>;
   /// Attempt to downcast to a concrete Message Pact
-  fn as_message_pact(&self) -> Result<MessagePact, String>;
+  fn as_message_pact(&self) -> anyhow::Result<MessagePact>;
   /// Attempt to downcast to a concrete V4 Pact
-  fn as_v4_pact(&self) -> Result<V4Pact, String>;
+  fn as_v4_pact(&self) -> anyhow::Result<V4Pact>;
   /// Specification version of this Pact
   fn specification_version(&self) -> PactSpecification;
   /// Clones this Pact and wraps it in a Box
@@ -1116,9 +1133,7 @@ pub trait Pact: Debug + ReadWritePact {
   /// Clones this Pact and wraps it in an Arc and Mutex
   fn thread_safe(&self) -> Arc<Mutex<dyn Pact + Send + Sync>>;
   /// Adds an interactions in the Pact
-  fn add_interaction(&mut self, interaction: &dyn Interaction) -> Result<(), String>;
-  /// Returns the specification version of this pact
-  fn spec_version(&self) -> PactSpecification;
+  fn add_interaction(&mut self, interaction: &dyn Interaction) -> anyhow::Result<()>;
 }
 
 pub mod message;
@@ -1158,25 +1173,38 @@ impl Pact for RequestResponsePact {
   }
 
   /// Converts this pact to a `Value` struct.
-  fn to_json(&self, pact_spec: PactSpecification) -> Value {
-    json!({
-            s!("consumer"): self.consumer.to_json(),
-            s!("provider"): self.provider.to_json(),
-            s!("interactions"): Value::Array(self.interactions.iter().map(|i| i.to_json(&pact_spec)).collect()),
-            s!("metadata"): json!(self.metadata_to_json(&pact_spec))
-        })
+  fn to_json(&self, pact_spec: PactSpecification) -> anyhow::Result<Value> {
+    match pact_spec {
+      PactSpecification::V4 => self.as_v4_pact()?.to_json(pact_spec),
+      _ => Ok(json!({
+          "consumer": self.consumer.to_json(),
+          "provider": self.provider.to_json(),
+          "interactions": Value::Array(self.interactions.iter().map(|i| i.to_json(&pact_spec)).collect()),
+          "metadata": self.metadata_to_json(&pact_spec)
+      }))
+    }
   }
 
-  fn as_request_response_pact(&self) -> Result<RequestResponsePact, String> {
+  fn as_request_response_pact(&self) -> anyhow::Result<RequestResponsePact> {
     Ok(self.clone())
   }
 
-  fn as_message_pact(&self) -> Result<MessagePact, String> {
-    Err(format!("Can't convert a Request/response Pact to a different type"))
+  fn as_message_pact(&self) -> anyhow::Result<MessagePact> {
+    Err(anyhow!("Can't convert a Request/response Pact to a different type"))
   }
 
-  fn as_v4_pact(&self) -> Result<V4Pact, String> {
-    Err(format!("Can't convert a Request/response Pact to a different type"))
+  fn as_v4_pact(&self) -> anyhow::Result<V4Pact> {
+    let interactions = self.interactions.iter()
+      .map(|i| i.as_v4())
+      .filter(|i| i.is_some())
+      .map(|i| i.unwrap())
+      .collect();
+    Ok(V4Pact {
+      consumer: self.consumer.clone(),
+      provider: self.provider.clone(),
+      interactions,
+      metadata: self.metadata.iter().map(|(k, v)| (k.clone(), json!(v))).collect()
+    })
   }
 
   fn specification_version(&self) -> PactSpecification {
@@ -1195,18 +1223,14 @@ impl Pact for RequestResponsePact {
     Arc::new(Mutex::new(self.clone()))
   }
 
-  fn add_interaction(&mut self, interaction: &dyn Interaction) -> Result<(), String> {
+  fn add_interaction(&mut self, interaction: &dyn Interaction) -> anyhow::Result<()> {
     match interaction.as_request_response() {
-      None => Err("Can only add request/response interactions to this Pact".to_string()),
+      None => Err(anyhow!("Can only add request/response interactions to this Pact")),
       Some(interaction) => {
         self.interactions.push(interaction);
         Ok(())
       }
     }
-  }
-
-  fn spec_version(&self) -> PactSpecification {
-    PactSpecification::V3
   }
 }
 
@@ -1659,7 +1683,7 @@ pub fn write_pact(
     }
 
     let merged_pact = pact.merge(existing_pact.borrow())?;
-    let pact_json = serde_json::to_string_pretty(&merged_pact.to_json(pact_spec))?;
+    let pact_json = serde_json::to_string_pretty(&merged_pact.to_json(pact_spec)?)?;
 
     with_write_lock(path, &mut f, 3, &mut |f| {
       f.set_len(0)?;
@@ -1669,7 +1693,7 @@ pub fn write_pact(
     })
   } else {
     debug!("Writing new pact file to {:?}", path);
-    let result = serde_json::to_string_pretty(&pact.to_json(pact_spec))?;
+    let result = serde_json::to_string_pretty(&pact.to_json(pact_spec)?)?;
     let mut file = File::create(path)?;
     file.lock_exclusive()?;
     let result = file.write_all(result.as_bytes());

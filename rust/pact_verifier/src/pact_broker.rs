@@ -1389,12 +1389,12 @@ mod tests {
         let pact = RequestResponsePact { consumer: Consumer { name: s!("Consumer") },
             provider: Provider { name: s!("happy_provider") },
             .. RequestResponsePact::default() }
-            .to_json(PactSpecification::V3).to_string();
+            .to_json(PactSpecification::V3).unwrap().to_string();
         let pact2 = RequestResponsePact { consumer: Consumer { name: s!("Consumer2") },
             provider: Provider { name: s!("happy_provider") },
             interactions: vec![ RequestResponseInteraction { description: s!("a request friends"), .. RequestResponseInteraction::default() } ],
             .. RequestResponsePact::default() }
-            .to_json(PactSpecification::V3).to_string();
+            .to_json(PactSpecification::V3).unwrap().to_string();
         let pact_broker = PactBuilder::new("RustPactVerifier", "PactBroker")
             .interaction("a request to the pact broker root", |i| {
                 i.request
@@ -1474,7 +1474,7 @@ mod tests {
       let pact = RequestResponsePact { consumer: Consumer { name: s!("Consumer") },
         provider: Provider { name: s!("happy_provider") },
         .. RequestResponsePact::default() }
-        .to_json(PactSpecification::V3).to_string();
+        .to_json(PactSpecification::V3).unwrap().to_string();
 
       let pact_broker = PactBuilder::new("RustPactVerifier", "PactBroker")
           .interaction("a request to the pact broker root", |i| {

@@ -34,7 +34,7 @@ fn test_load_pact() {
     Ok(pact) => {
       let mut f = File::open(pact_file).unwrap();
       let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-      let pact_json = pact.as_request_response_pact().unwrap().to_json(PactSpecification::V2);
+      let pact_json = pact.as_request_response_pact().unwrap().to_json(PactSpecification::V2).unwrap();
       expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
       expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
       expect!(pact_json.get("interactions")).to(be_equal_to(pact_json_from_file.get("interactions")));
@@ -58,7 +58,7 @@ fn test_load_test_pact() {
         Ok(ref pact) => {
             let mut f = File::open(pact_file).unwrap();
             let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-            let pact_json = pact.to_json(pact.spec_version());
+            let pact_json = pact.to_json(pact.spec_version()).unwrap();
             expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
             expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
             expect!(pact_json.get("interactions")).to(be_equal_to(pact_json_from_file.get("interactions")));
@@ -82,7 +82,7 @@ fn test_load_pact_encoded_query() {
         Ok(ref pact) => {
             let mut f = File::open(pact_file).unwrap();
             let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-            let pact_json = pact.to_json(pact.spec_version());
+            let pact_json = pact.to_json(pact.spec_version()).unwrap();
             expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
             expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
 
@@ -125,7 +125,7 @@ fn test_load_test_pact_lowercase_method() {
         Ok(ref pact) => {
             let mut f = File::open(pact_file).unwrap();
             let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-            let pact_json = pact.to_json(PactSpecification::V3);
+            let pact_json = pact.to_json(PactSpecification::V3).unwrap();
             expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
             expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
 
@@ -167,7 +167,7 @@ fn test_load_test_pact_no_bodies() {
         Ok(ref pact) => {
             let mut f = File::open(pact_file).unwrap();
             let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-            let pact_json = pact.to_json(pact.spec_version());
+            let pact_json = pact.to_json(pact.spec_version()).unwrap();
             expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
             expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
             expect!(pact_json.get("interactions")).to(be_equal_to(pact_json_from_file.get("interactions")));
@@ -196,7 +196,7 @@ fn test_load_test_pact_no_metadata() {
         Ok(ref pact) => {
             let mut f = File::open(pact_file).unwrap();
             let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-            let pact_json = pact.to_json(PactSpecification::V2);
+            let pact_json = pact.to_json(PactSpecification::V2).unwrap();
             expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
             expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
             expect!(pact_json.get("interactions")).to(be_equal_to(pact_json_from_file.get("interactions")));
@@ -220,7 +220,7 @@ fn test_load_test_pact_no_spec_version() {
         Ok(ref pact) => {
             let mut f = File::open(pact_file).unwrap();
             let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-            let pact_json = pact.to_json(PactSpecification::V2);
+            let pact_json = pact.to_json(PactSpecification::V2).unwrap();
             expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
             expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
             expect!(pact_json.get("interactions")).to(be_equal_to(pact_json_from_file.get("interactions")));
@@ -257,7 +257,7 @@ fn test_load_test_pact_no_version() {
         Ok(ref pact) => {
             let mut f = File::open(pact_file).unwrap();
             let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-            let pact_json = pact.to_json(PactSpecification::V2);
+            let pact_json = pact.to_json(PactSpecification::V2).unwrap();
             expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
             expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
             expect!(pact_json.get("interactions")).to(be_equal_to(pact_json_from_file.get("interactions")));
@@ -282,7 +282,7 @@ fn test_load_test_pact_query_old_format() {
         Ok(ref pact) => {
             let mut f = File::open(pact_file).unwrap();
             let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-            let pact_json = pact.to_json(pact.spec_version());
+            let pact_json = pact.to_json(pact.spec_version()).unwrap();
             expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
             expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
             expect!(pact_json.get("interactions")).to(be_equal_to(pact_json_from_file.get("interactions")));
@@ -306,7 +306,7 @@ fn test_load_test_pact_root_string_json() {
         Ok(ref pact) => {
             let mut f = File::open(pact_file).unwrap();
             let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-            let pact_json = pact.to_json(PactSpecification::V3);
+            let pact_json = pact.to_json(PactSpecification::V3).unwrap();
             expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
             expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
 
@@ -332,7 +332,7 @@ fn test_load_test_pact_with_bodies() {
         Ok(ref pact) => {
             let mut f = File::open(pact_file).unwrap();
             let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-            let pact_json = pact.to_json(pact.spec_version());
+            let pact_json = pact.to_json(pact.spec_version()).unwrap();
             expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
             expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
             expect!(pact_json.get("interactions")).to(be_equal_to(pact_json_from_file.get("interactions")));
@@ -356,7 +356,7 @@ fn test_load_v2_pact() {
         Ok(ref pact) => {
             let mut f = File::open(pact_file).unwrap();
             let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-            let pact_json = pact.to_json(pact.spec_version());
+            let pact_json = pact.to_json(pact.spec_version()).unwrap();
             expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
             expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
             expect!(pact_json.get("interactions")).to(be_equal_to(pact_json_from_file.get("interactions")));
@@ -380,7 +380,7 @@ fn test_load_v2_pact_query() {
         Ok(ref pact) => {
             let mut f = File::open(pact_file).unwrap();
             let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-            let pact_json = pact.to_json(pact.spec_version());
+            let pact_json = pact.to_json(pact.spec_version()).unwrap();
             expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
             expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
 
@@ -423,7 +423,7 @@ fn test_load_test_pact_matchers() {
         Ok(ref pact) => {
             let mut f = File::open(pact_file).unwrap();
             let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-            let pact_json = pact.to_json(pact.spec_version());
+            let pact_json = pact.to_json(pact.spec_version()).unwrap();
             expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
             expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
             expect!(pact_json.get("interactions")).to(be_equal_to(pact_json_from_file.get("interactions")));
@@ -447,7 +447,7 @@ fn test_load_test_pact_matchers_old_format() {
         Ok(ref pact) => {
             let mut f = File::open(pact_file).unwrap();
             let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-            let pact_json = pact.to_json(pact.spec_version());
+            let pact_json = pact.to_json(pact.spec_version()).unwrap();
             expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
             expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
 
@@ -501,7 +501,7 @@ fn test_load_pact_with_binary_body() {
     Ok(ref pact) => {
       let mut f = File::open(pact_file).unwrap();
       let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-      let pact_json = pact.to_json(PactSpecification::V2);
+      let pact_json = pact.to_json(PactSpecification::V2).unwrap();
 
       let interaction = pact.interactions.first().unwrap();
       expect!(interaction.response.body.value().unwrap_or_default().to_vec()).to(be_equal_to(buffer));
@@ -522,7 +522,7 @@ fn test_load_v4_pact() {
     Ok(pact) => {
       let mut f = File::open(pact_file).unwrap();
       let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-      let pact_json = pact.to_json(PactSpecification::V4);
+      let pact_json = pact.to_json(PactSpecification::V4).unwrap();
       expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
       expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
       expect!(pact_json.get("interactions")).to(be_equal_to(pact_json_from_file.get("interactions")));
@@ -546,7 +546,7 @@ fn test_load_v4_message_pact() {
     Ok(pact) => {
       let mut f = File::open(pact_file).unwrap();
       let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-      let pact_json = pact.to_json(PactSpecification::V4);
+      let pact_json = pact.to_json(PactSpecification::V4).unwrap();
       expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
       expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
       expect!(pact_json.get("interactions")).to(be_equal_to(pact_json_from_file.get("interactions")));
@@ -570,7 +570,7 @@ fn test_load_v4_combined_pact() {
     Ok(pact) => {
       let mut f = File::open(pact_file).unwrap();
       let pact_json_from_file : serde_json::Value = serde_json::de::from_reader(&mut f).unwrap();
-      let pact_json = pact.to_json(PactSpecification::V4);
+      let pact_json = pact.to_json(PactSpecification::V4).unwrap();
       expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
       expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
       expect!(pact_json.get("interactions")).to(be_equal_to(pact_json_from_file.get("interactions")));

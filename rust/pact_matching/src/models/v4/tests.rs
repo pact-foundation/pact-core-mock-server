@@ -11,12 +11,13 @@ use serde_json::json;
 use pact_models::{Consumer, OptionalBody, Provider};
 use pact_models::content_types::JSON;
 
-use crate::models::{headers_from_json, Interaction, PACT_RUST_VERSION, PactSpecification, ReadWritePact, write_pact, Pact};
+use crate::models::{headers_from_json, Interaction, Pact, PACT_RUST_VERSION, PactSpecification, ReadWritePact, write_pact};
 use crate::models::matchingrules::MatchingRule;
 use crate::models::provider_states::ProviderState;
-use crate::models::v4::{AsynchronousMessage, from_json, interaction_from_json, SynchronousHttp, V4Pact};
+use crate::models::v4::{AsynchronousMessage, from_json, interaction_from_json, SynchronousHttp, V4InteractionType, V4Pact};
 use crate::models::v4::http_parts::{HttpRequest, HttpResponse};
 use crate::models::v4::http_parts::body_from_json;
+use crate::models::v4::sync_message::SynchronousMessages;
 
 #[test]
 fn synchronous_http_request_from_json_defaults_to_get() {
@@ -500,6 +501,75 @@ fn write_pact_test() {
 }
 
 #[test]
+fn write_synchronous_message_pact_test() {
+  let pact = V4Pact {
+    consumer: Consumer { name: "write_pact_test_consumer".into() },
+    provider: Provider { name: "write_pact_test_provider".into() },
+    interactions: vec![
+      Box::new(SynchronousMessages {
+        id: None,
+        key: None,
+        description: "Test Interaction".into(),
+        provider_states: vec![ProviderState { name: "Good state to be in".into(), params: hashmap!{} }],
+        response: vec![AsynchronousMessage::default()],
+        .. Default::default()
+      })
+    ],
+    .. V4Pact::default() };
+  let mut dir = env::temp_dir();
+  let x = rand::random::<u16>();
+  dir.push(format!("pact_test_{}", x));
+  dir.push(pact.default_file_name());
+
+  let result = write_pact(pact.boxed(), &dir, PactSpecification::V4, true);
+
+  let pact_file = read_pact_file(dir.as_path().to_str().unwrap()).unwrap_or_default();
+  fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());
+
+  expect!(result).to(be_ok());
+  expect!(pact_file).to(be_equal_to(format!(r#"{{
+  "consumer": {{
+    "name": "write_pact_test_consumer"
+  }},
+  "interactions": [
+    {{
+      "description": "Test Interaction",
+      "key": "a0395223ce6c542b",
+      "providerStates": [
+        {{
+          "name": "Good state to be in"
+        }}
+      ],
+      "request": {{
+        "description": "Asynchronous/Message Interaction",
+        "key": "eb97728e3ed8475f",
+        "type": "Asynchronous/Messages"
+      }},
+      "response": [
+        {{
+          "description": "Asynchronous/Message Interaction",
+          "key": "eb97728e3ed8475f",
+          "type": "Asynchronous/Messages"
+        }}
+      ],
+      "type": "Synchronous/Messages"
+    }}
+  ],
+  "metadata": {{
+    "pactRust": {{
+      "version": "{}"
+    }},
+    "pactSpecification": {{
+      "version": "4.0"
+    }}
+  }},
+  "provider": {{
+    "name": "write_pact_test_provider"
+  }}
+}}"#, super::PACT_RUST_VERSION.unwrap())));
+}
+
+#[test]
 fn write_pact_test_should_merge_pacts() {
   let pact = V4Pact {
     consumer: Consumer { name: "merge_consumer".into() },
@@ -671,40 +741,36 @@ fn write_pact_test_should_overwrite_pact_with_same_key() {
 }}"#, PACT_RUST_VERSION.unwrap())));
 }
 
-// #[test]
-// fn pact_merge_does_not_merge_different_consumers() {
-//   let pact = RequestResponsePact { consumer: Consumer { name: s!("test_consumer") },
-//     provider: Provider { name: s!("test_provider") },
-//     interactions: vec![],
-//     metadata: btreemap!{},
-//     specification_version: PactSpecification::V1
-//   };
-//   let pact2 = RequestResponsePact { consumer: Consumer { name: s!("test_consumer2") },
-//     provider: Provider { name: s!("test_provider") },
-//     interactions: vec![],
-//     metadata: btreemap!{},
-//     specification_version: PactSpecification::V1_1
-//   };
-//   expect!(pact.merge(&pact2)).to(be_err());
-// }
-//
-// #[test]
-// fn pact_merge_does_not_merge_different_providers() {
-//   let pact = RequestResponsePact { consumer: Consumer { name: s!("test_consumer") },
-//     provider: Provider { name: s!("test_provider") },
-//     interactions: vec![],
-//     metadata: btreemap!{},
-//     specification_version: PactSpecification::V1_1
-//   };
-//   let pact2 = RequestResponsePact { consumer: Consumer { name: s!("test_consumer") },
-//     provider: Provider { name: s!("test_provider2") },
-//     interactions: vec![],
-//     metadata: btreemap!{},
-//     specification_version: PactSpecification::V1_1
-//   };
-//   expect!(pact.merge(&pact2)).to(be_err());
-// }
-//
+#[test]
+fn pact_merge_does_not_merge_different_consumers() {
+  let pact = V4Pact { consumer: Consumer { name: "test_consumer".to_string() },
+    provider: Provider { name: "test_provider".to_string() },
+    interactions: vec![],
+    metadata: btreemap!{}
+  };
+  let pact2 = V4Pact { consumer: Consumer { name: "test_consumer2".to_string() },
+    provider: Provider { name: "test_provider".to_string() },
+    interactions: vec![],
+    metadata: btreemap!{}
+  };
+  expect!(pact.merge(&pact2)).to(be_err());
+}
+
+#[test]
+fn pact_merge_does_not_merge_different_providers() {
+  let pact = V4Pact { consumer: Consumer { name: "test_consumer".to_string() },
+    provider: Provider { name: "test_provider".to_string() },
+    interactions: vec![],
+    metadata: btreemap!{}
+  };
+  let pact2 = V4Pact { consumer: Consumer { name: "test_consumer".to_string() },
+    provider: Provider { name: "test_provider2".to_string() },
+    interactions: vec![],
+    metadata: btreemap!{}
+  };
+  expect!(pact.merge(&pact2)).to(be_err());
+}
+
 // #[test]
 // fn pact_merge_does_not_merge_where_there_are_conflicting_interactions() {
 //   let pact = RequestResponsePact { consumer: Consumer { name: s!("test_consumer") },
@@ -734,46 +800,52 @@ fn write_pact_test_should_overwrite_pact_with_same_key() {
 //   };
 //   expect!(pact.merge(&pact2)).to(be_err());
 // }
-//
-// #[test]
-// fn pact_merge_removes_duplicates() {
-//   let pact = RequestResponsePact { consumer: Consumer { name: s!("test_consumer") },
-//     provider: Provider { name: s!("test_provider") },
-//     interactions: vec![
-//       RequestResponseInteraction {
-//         description: s!("Test Interaction"),
-//         provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
-//         .. RequestResponseInteraction::default()
-//       }
-//     ],
-//     .. RequestResponsePact::default()
-//   };
-//   let pact2 = RequestResponsePact { consumer: Consumer { name: s!("test_consumer") },
-//     provider: Provider { name: s!("test_provider") },
-//     interactions: vec![
-//       RequestResponseInteraction {
-//         description: s!("Test Interaction"),
-//         provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
-//         .. RequestResponseInteraction::default()
-//       },
-//       RequestResponseInteraction {
-//         description: s!("Test Interaction 2"),
-//         provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
-//         .. RequestResponseInteraction::default()
-//       }
-//     ],
-//     .. RequestResponsePact::default()
-//   };
-//
-//   let merged_pact = pact.merge(&pact2);
-//   expect!(merged_pact.clone()).to(be_ok());
-//   expect!(merged_pact.clone().unwrap().interactions.len()).to(be_equal_to(2));
-//
-//   let merged_pact2 = pact.merge(&pact.clone());
-//   expect!(merged_pact2.clone()).to(be_ok());
-//   expect!(merged_pact2.clone().unwrap().interactions.len()).to(be_equal_to(1));
-// }
-//
+
+#[test]
+fn pact_merge_removes_duplicates() {
+  let pact = V4Pact {
+    consumer: Consumer { name: "test_consumer".into() },
+    provider: Provider { name: "test_provider".into() },
+    interactions: vec![
+      Box::new(SynchronousHttp {
+        description: "Test Interaction".into(),
+        key: Some("1234567890".into()),
+        provider_states: vec![ProviderState { name: "Good state to be in".into(), params: hashmap!{} }],
+        response: HttpResponse { status: 400, .. HttpResponse::default() },
+        .. SynchronousHttp::default()
+      })
+    ],
+    .. V4Pact::default()
+  };
+  let pact2 = V4Pact {
+    consumer: Consumer { name: "test_consumer".into() },
+    provider: Provider { name: "test_provider".into() },
+    interactions: vec![
+      Box::new(SynchronousHttp {
+        description: "Test Interaction".into(),
+        key: Some("1234567890".into()),
+        provider_states: vec![ProviderState { name: "Good state to be in".into(), params: hashmap!{} }],
+        response: HttpResponse { status: 400, .. HttpResponse::default() },
+        .. SynchronousHttp::default()
+      }),
+      Box::new(SynchronousHttp {
+        description: "Test Interaction 2".into(),
+        key: Some("1234567891".into()),
+        provider_states: vec![ProviderState { name: "Good state to be in".into(), params: hashmap!{} }],
+        response: HttpResponse { status: 400, .. HttpResponse::default() },
+        .. SynchronousHttp::default()
+      })
+    ],
+    .. V4Pact::default()
+  };
+
+  let merged_pact = pact.merge(&pact2);
+  expect!(merged_pact.unwrap().interactions().len()).to(be_equal_to(2));
+
+  let merged_pact2 = pact.merge(&pact.clone());
+  expect!(merged_pact2.unwrap().interactions().len()).to(be_equal_to(1));
+}
+
 // #[test]
 // fn interactions_do_not_conflict_if_they_have_different_descriptions() {
 //   let interaction1 = RequestResponseInteraction {
@@ -889,168 +961,172 @@ fn hash_for_http_response() {
   expect!(hash(&response3)).to_not(be_equal_to(hash(&response4)));
 }
 
-// #[test]
-// fn write_pact_test_with_matchers() {
-//   let pact = RequestResponsePact { consumer: Consumer { name: s!("write_pact_test_consumer") },
-//     provider: Provider { name: s!("write_pact_test_provider") },
-//     interactions: vec![
-//       RequestResponseInteraction {
-//         description: s!("Test Interaction"),
-//         provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
-//         request: Request {
-//           matching_rules: matchingrules!{
-//                         "body" => {
-//                             "$" => [ MatchingRule::Type ]
-//                         }
-//                     },
-//           .. Request::default()
-//         },
-//         .. RequestResponseInteraction::default()
-//       }
-//     ],
-//     .. RequestResponsePact::default() };
-//   let mut dir = env::temp_dir();
-//   let x = rand::random::<u16>();
-//   dir.push(format!("pact_test_{}", x));
-//   dir.push(pact.default_file_name());
-//
-//   let result = pact.write_pact(dir.as_path(), PactSpecification::V2);
-//
-//   let pact_file = read_pact_file(dir.as_path().to_str().unwrap()).unwrap_or(s!(""));
-//   fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());
-//
-//   expect!(result).to(be_ok());
-//   expect!(pact_file).to(be_equal_to(format!(r#"{{
-//   "consumer": {{
-//     "name": "write_pact_test_consumer"
-//   }},
-//   "interactions": [
-//     {{
-//       "description": "Test Interaction",
-//       "providerState": "Good state to be in",
-//       "request": {{
-//         "matchingRules": {{
-//           "$.body": {{
-//             "match": "type"
-//           }}
-//         }},
-//         "method": "GET",
-//         "path": "/"
-//       }},
-//       "response": {{
-//         "status": 200
-//       }}
-//     }}
-//   ],
-//   "metadata": {{
-//     "pactRust": {{
-//       "version": "{}"
-//     }},
-//     "pactSpecification": {{
-//       "version": "2.0.0"
-//     }}
-//   }},
-//   "provider": {{
-//     "name": "write_pact_test_provider"
-//   }}
-// }}"#, super::VERSION.unwrap())));
-// }
-//
-// #[test]
-// fn write_pact_v3_test_with_matchers() {
-//   let pact = RequestResponsePact { consumer: Consumer { name: s!("write_pact_test_consumer_v3") },
-//     provider: Provider { name: s!("write_pact_test_provider_v3") },
-//     interactions: vec![
-//       RequestResponseInteraction {
-//         description: s!("Test Interaction"),
-//         provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
-//         request: Request {
-//           matching_rules: matchingrules!{
-//                         "body" => {
-//                             "$" => [ MatchingRule::Type ]
-//                         },
-//                         "header" => {
-//                           "HEADER_A" => [ MatchingRule::Include(s!("ValA")), MatchingRule::Include(s!("ValB")) ]
-//                         }
-//                     },
-//           .. Request::default()
-//         },
-//         .. RequestResponseInteraction::default()
-//       }
-//     ],
-//     .. RequestResponsePact::default() };
-//   let mut dir = env::temp_dir();
-//   let x = rand::random::<u16>();
-//   dir.push(format!("pact_test_{}", x));
-//   dir.push(pact.default_file_name());
-//
-//   let result = pact.write_pact(dir.as_path(), PactSpecification::V3);
-//
-//   let pact_file = read_pact_file(dir.as_path().to_str().unwrap()).unwrap_or(s!(""));
-//   fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());
-//
-//   expect!(result).to(be_ok());
-//   expect!(pact_file).to(be_equal_to(format!(r#"{{
-//   "consumer": {{
-//     "name": "write_pact_test_consumer_v3"
-//   }},
-//   "interactions": [
-//     {{
-//       "description": "Test Interaction",
-//       "providerStates": [
-//         {{
-//           "name": "Good state to be in"
-//         }}
-//       ],
-//       "request": {{
-//         "matchingRules": {{
-//           "body": {{
-//             "$": {{
-//               "combine": "AND",
-//               "matchers": [
-//                 {{
-//                   "match": "type"
-//                 }}
-//               ]
-//             }}
-//           }},
-//           "header": {{
-//             "HEADER_A": {{
-//               "combine": "AND",
-//               "matchers": [
-//                 {{
-//                   "match": "include",
-//                   "value": "ValA"
-//                 }},
-//                 {{
-//                   "match": "include",
-//                   "value": "ValB"
-//                 }}
-//               ]
-//             }}
-//           }}
-//         }},
-//         "method": "GET",
-//         "path": "/"
-//       }},
-//       "response": {{
-//         "status": 200
-//       }}
-//     }}
-//   ],
-//   "metadata": {{
-//     "pactRust": {{
-//       "version": "{}"
-//     }},
-//     "pactSpecification": {{
-//       "version": "3.0.0"
-//     }}
-//   }},
-//   "provider": {{
-//     "name": "write_pact_test_provider_v3"
-//   }}
-// }}"#, super::VERSION.unwrap())));
-// }
+#[test]
+fn write_v2_pact_test_with_matchers() {
+  let pact = V4Pact {
+    consumer: Consumer { name: "write_pact_test_consumer".into() },
+    provider: Provider { name: "write_pact_test_provider".into() },
+    interactions: vec![
+      Box::new(SynchronousHttp {
+        description: "Test Interaction".into(),
+        key: Some("1234567890".into()),
+        provider_states: vec![ProviderState { name: "Good state to be in".into(), params: hashmap!{} }],
+        request: HttpRequest {
+          matching_rules: matchingrules!{
+            "body" => {
+              "$" => [ MatchingRule::Type ]
+            }
+          },
+          .. HttpRequest::default()
+        },
+        .. SynchronousHttp::default()
+      })
+    ],
+    .. V4Pact::default() };
+
+  let mut dir = env::temp_dir();
+  let x = rand::random::<u16>();
+  dir.push(format!("pact_test_{}", x));
+  dir.push(pact.default_file_name());
+
+  let result = write_pact(pact.boxed(), &dir, PactSpecification::V2, true);
+
+  let pact_file = read_pact_file(dir.as_path().to_str().unwrap()).unwrap_or("".to_string());
+  fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());
+
+  expect!(result).to(be_ok());
+  expect!(pact_file).to(be_equal_to(format!(r#"{{
+  "consumer": {{
+    "name": "write_pact_test_consumer"
+  }},
+  "interactions": [
+    {{
+      "description": "Test Interaction",
+      "providerState": "Good state to be in",
+      "request": {{
+        "matchingRules": {{
+          "$.body": {{
+            "match": "type"
+          }}
+        }},
+        "method": "GET",
+        "path": "/"
+      }},
+      "response": {{
+        "status": 200
+      }}
+    }}
+  ],
+  "metadata": {{
+    "pactRust": {{
+      "version": "{}"
+    }},
+    "pactSpecification": {{
+      "version": "2.0.0"
+    }}
+  }},
+  "provider": {{
+    "name": "write_pact_test_provider"
+  }}
+}}"#, super::PACT_RUST_VERSION.unwrap())));
+}
+
+#[test]
+fn write_pact_v3_test_with_matchers() {
+  let pact = V4Pact { consumer: Consumer { name: s!("write_pact_test_consumer_v3") },
+    provider: Provider { name: s!("write_pact_test_provider_v3") },
+    interactions: vec![
+      Box::new(SynchronousHttp {
+        description: "Test Interaction".into(),
+        key: Some("1234567890".into()),
+        provider_states: vec![ProviderState { name: "Good state to be in".into(), params: hashmap!{} }],
+        request: HttpRequest {
+          matching_rules: matchingrules!{
+            "body" => {
+              "$" => [ MatchingRule::Type ]
+            },
+            "header" => {
+              "HEADER_A" => [ MatchingRule::Include(s!("ValA")), MatchingRule::Include(s!("ValB")) ]
+            }
+          },
+          .. HttpRequest::default()
+        },
+        .. SynchronousHttp::default()
+      })
+    ],
+    .. V4Pact::default() };
+  let mut dir = env::temp_dir();
+  let x = rand::random::<u16>();
+  dir.push(format!("pact_test_{}", x));
+  dir.push(pact.default_file_name());
+
+  let result = write_pact(pact.boxed(), &dir, PactSpecification::V3, true);
+
+  let pact_file = read_pact_file(dir.as_path().to_str().unwrap()).unwrap_or(s!(""));
+  fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());
+
+  expect!(result).to(be_ok());
+  expect!(pact_file).to(be_equal_to(format!(r#"{{
+  "consumer": {{
+    "name": "write_pact_test_consumer_v3"
+  }},
+  "interactions": [
+    {{
+      "description": "Test Interaction",
+      "providerStates": [
+        {{
+          "name": "Good state to be in"
+        }}
+      ],
+      "request": {{
+        "matchingRules": {{
+          "body": {{
+            "$": {{
+              "combine": "AND",
+              "matchers": [
+                {{
+                  "match": "type"
+                }}
+              ]
+            }}
+          }},
+          "header": {{
+            "HEADER_A": {{
+              "combine": "AND",
+              "matchers": [
+                {{
+                  "match": "include",
+                  "value": "ValA"
+                }},
+                {{
+                  "match": "include",
+                  "value": "ValB"
+                }}
+              ]
+            }}
+          }}
+        }},
+        "method": "GET",
+        "path": "/"
+      }},
+      "response": {{
+        "status": 200
+      }}
+    }}
+  ],
+  "metadata": {{
+    "pactRust": {{
+      "version": "{}"
+    }},
+    "pactSpecification": {{
+      "version": "3.0.0"
+    }}
+  }},
+  "provider": {{
+    "name": "write_pact_test_provider_v3"
+  }}
+}}"#, super::PACT_RUST_VERSION.unwrap())));
+}
 
 #[test]
 fn body_from_json_returns_missing_if_there_is_no_body() {
@@ -1419,4 +1495,86 @@ fn write_v4_pact_test_with_comments() {
     "name": "write_v4pact_test_provider"
   }}
 }}"#, super::PACT_RUST_VERSION.unwrap())));
+}
+
+#[test]
+fn has_interactions_test() {
+  let pact1 = V4Pact {
+    interactions: vec![],
+    .. V4Pact::default() };
+  let pact2 = V4Pact {
+    interactions: vec![
+      Box::new(SynchronousHttp::default())
+    ],
+    .. V4Pact::default() };
+  let pact3 = V4Pact {
+    interactions: vec![
+      Box::new(AsynchronousMessage::default())
+    ],
+    .. V4Pact::default() };
+  let pact4 = V4Pact {
+    interactions: vec![
+      Box::new(SynchronousMessages::default())
+    ],
+    .. V4Pact::default() };
+  let pact5 = V4Pact {
+    interactions: vec![
+      Box::new(SynchronousHttp::default()),
+      Box::new(SynchronousMessages::default())
+    ],
+    .. V4Pact::default() };
+
+  expect!(pact1.has_interactions(V4InteractionType::Synchronous_HTTP)).to(be_false());
+  expect!(pact1.has_interactions(V4InteractionType::Asynchronous_Messages)).to(be_false());
+  expect!(pact1.has_interactions(V4InteractionType::Synchronous_Messages)).to(be_false());
+
+  expect!(pact2.has_interactions(V4InteractionType::Synchronous_HTTP)).to(be_true());
+  expect!(pact2.has_interactions(V4InteractionType::Asynchronous_Messages)).to(be_false());
+  expect!(pact2.has_interactions(V4InteractionType::Synchronous_Messages)).to(be_false());
+
+  expect!(pact3.has_interactions(V4InteractionType::Synchronous_HTTP)).to(be_false());
+  expect!(pact3.has_interactions(V4InteractionType::Asynchronous_Messages)).to(be_true());
+  expect!(pact3.has_interactions(V4InteractionType::Synchronous_Messages)).to(be_false());
+
+  expect!(pact4.has_interactions(V4InteractionType::Synchronous_HTTP)).to(be_false());
+  expect!(pact4.has_interactions(V4InteractionType::Asynchronous_Messages)).to(be_false());
+  expect!(pact4.has_interactions(V4InteractionType::Synchronous_Messages)).to(be_true());
+
+  expect!(pact5.has_interactions(V4InteractionType::Synchronous_HTTP)).to(be_true());
+  expect!(pact5.has_interactions(V4InteractionType::Asynchronous_Messages)).to(be_false());
+  expect!(pact5.has_interactions(V4InteractionType::Synchronous_Messages)).to(be_true());
+}
+
+#[test]
+fn has_mixed_interactions_test() {
+  let pact1 = V4Pact {
+    interactions: vec![],
+    .. V4Pact::default() };
+  let pact2 = V4Pact {
+    interactions: vec![
+      Box::new(SynchronousHttp::default())
+    ],
+    .. V4Pact::default() };
+  let pact3 = V4Pact {
+    interactions: vec![
+      Box::new(AsynchronousMessage::default())
+    ],
+    .. V4Pact::default() };
+  let pact4 = V4Pact {
+    interactions: vec![
+      Box::new(SynchronousMessages::default())
+    ],
+    .. V4Pact::default() };
+  let pact5 = V4Pact {
+    interactions: vec![
+      Box::new(SynchronousHttp::default()),
+      Box::new(SynchronousMessages::default())
+    ],
+    .. V4Pact::default() };
+
+  expect!(pact1.has_mixed_interactions()).to(be_false());
+  expect!(pact2.has_mixed_interactions()).to(be_false());
+  expect!(pact3.has_mixed_interactions()).to(be_false());
+  expect!(pact4.has_mixed_interactions()).to(be_false());
+  expect!(pact5.has_mixed_interactions()).to(be_true());
 }

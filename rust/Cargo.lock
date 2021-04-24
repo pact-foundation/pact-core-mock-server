@@ -1214,6 +1214,7 @@ dependencies = [
 name = "pact_mock_server_cli"
 version = "0.7.4"
 dependencies = [
+ "anyhow",
  "clap",
  "expectest",
  "futures",
