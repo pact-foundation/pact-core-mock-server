@@ -136,7 +136,8 @@ pub fn verify_mock_server_request(context: &mut WebmachineContext) -> Result<boo
       let mut map = btreemap!{ "mockServer" => ms.to_json() };
       let mismatches = ms.mismatches();
       if !mismatches.is_empty() {
-        map.insert("mismatches", json!(mismatches.iter().map(|m| m.to_json()).collect()));
+        map.insert("mismatches", json!(mismatches.iter()
+          .map(|m| m.to_json()).collect::<Vec<Value>>()));
         context.response.body = Some(json!(map).to_string().into_bytes());
         Err(422)
       } else {
