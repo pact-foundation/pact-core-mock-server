@@ -116,7 +116,7 @@ pub fn match_request(req: &Request, interactions: Vec<&dyn Interaction>) -> Matc
     .filter(|i| i.is_request_response())
     .map(|i| {
       let interaction = i.as_request_response().unwrap();
-      (i.clone(), pact_matching::match_request(interaction.request.clone(), req.clone()))
+      (interaction.clone(), pact_matching::match_request(interaction.request.clone(), req.clone()))
     })
     .sorted_by(|(_, i1), (_, i2)| {
       Ord::cmp(&i2.score(), &i1.score())
