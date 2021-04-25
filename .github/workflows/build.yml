@@ -43,5 +43,5 @@ jobs:
           toolchain: nightly
           components: cargo
       - name: Build pact_matching_ffi with CMake
-        run: rust/pact_matching_ffi/ci-build.sh
+        run: ci-build.sh
         working-directory: rust/pact_matching_ffi
