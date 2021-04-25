@@ -181,7 +181,7 @@ set(CARGO_TARGET_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../target")
 # The name of the crate itself.
 set(CRATE_NAME ${NAME_STRING})
 
-# Set the CARGO_LIBRARY_NAME based on whether we're on Windows
+# Set the CARGO_LIBRARY_NAME based on whether we're on Windows, Linux or OSX
 if(WIN32)
     set(CARGO_LIBRARY_NAME "${CRATE_NAME}.dll")
 else()
@@ -189,7 +189,7 @@ else()
 endif()
 
 # The path to the library file.
-set(CARGO_LIBRARY_FILE "${CARGO_TARGET_DIR}/${TARGET_TYPE}/${CARGO_LIBRARY_NAME}")
+set(CARGO_LIBRARY_FILE "${CARGO_TARGET_DIR}/${TARGET_TYPE}/lib${CARGO_LIBRARY_NAME}")
 
 # On Windows, dynamic linking requires both a .dll file (which will be dynamically
 # linked), and a library file (which describes _how_ to link to the DLL, and will
