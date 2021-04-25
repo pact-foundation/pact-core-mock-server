@@ -38,3 +38,9 @@ jobs:
         with:
           working-directory: rust
           command: clippy
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          components: cargo
+      - name: Build pact_matching_ffi with CMake
+        run: rust/pact_matching_ffi/ci-build.sh
