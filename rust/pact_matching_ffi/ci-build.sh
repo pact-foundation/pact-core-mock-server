@@ -23,6 +23,7 @@ cmake --install . --prefix ./install
 echo #####################################
 echo # Running examples
 echo #####################################
+cd ..
 for i in examples/*; do
   pushd $i
   mkdir build
