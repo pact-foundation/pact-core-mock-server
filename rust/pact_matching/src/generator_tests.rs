@@ -5,7 +5,7 @@ use expectest::prelude::*;
 use serde_json::Value;
 
 use pact_models::content_types::{JSON, TEXT};
-use pact_models::OptionalBody;
+use pact_models::bodies::OptionalBody;
 
 use crate::models::{Request, Response};
 use crate::models::generators::{ContentTypeHandler, JsonHandler};

@@ -8,7 +8,8 @@ use expectest::prelude::*;
 use maplit::*;
 use serde_json::json;
 
-use pact_models::{Consumer, OptionalBody, Provider};
+use pact_models::{Consumer, Provider};
+use pact_models::bodies::OptionalBody;
 use pact_models::content_types::JSON;
 
 use crate::models::{headers_from_json, Interaction, Pact, PACT_RUST_VERSION, PactSpecification, ReadWritePact, write_pact};

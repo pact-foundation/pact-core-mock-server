@@ -350,7 +350,8 @@ use maplit::hashmap;
 use serde_json::{json, Value};
 
 use pact_models::content_types::ContentType;
-use pact_models::{PactSpecification, OptionalBody};
+use pact_models::PactSpecification;
+use pact_models::bodies::OptionalBody;
 
 use crate::headers::{match_header_value, match_headers};
 use crate::matchers::*;

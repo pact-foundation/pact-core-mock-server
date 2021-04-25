@@ -7,7 +7,7 @@ use onig::Regex;
 use sxd_document::dom::*;
 use sxd_document::QName;
 
-use pact_models::OptionalBody;
+use pact_models::bodies::OptionalBody;
 
 use crate::matchers::*;
 use crate::MatchingContext;
@@ -381,7 +381,7 @@ mod tests {
   use ntest::test_case;
   use test_env_log::test;
 
-  use pact_models::OptionalBody;
+  use pact_models::bodies::OptionalBody;
 
   use crate::DiffConfig;
   use crate::Mismatch;

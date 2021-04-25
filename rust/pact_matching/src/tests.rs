@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use expectest::prelude::*;
 
 use pact_models::content_types::TEXT;
-use pact_models::OptionalBody;
+use pact_models::bodies::OptionalBody;
 
 use crate::models::Request;
 

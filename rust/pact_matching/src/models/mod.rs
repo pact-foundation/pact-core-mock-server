@@ -29,8 +29,9 @@ use onig::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use pact_models::{Consumer, OptionalBody, PactSpecification, Provider};
+use pact_models::{Consumer, PactSpecification, Provider};
 use pact_models::content_types::*;
+use pact_models::bodies::OptionalBody;
 
 use crate::models::file_utils::{with_read_lock, with_read_lock_for_open_file, with_write_lock};
 use crate::models::generators::{Generator, GeneratorCategory};

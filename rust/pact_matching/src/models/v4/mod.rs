@@ -18,7 +18,8 @@ use maplit::*;
 use nom::lib::std::fmt::Formatter;
 use serde_json::{json, Value};
 
-use pact_models::{Consumer, OptionalBody, PactSpecification, Provider};
+use pact_models::{Consumer, PactSpecification, Provider};
+use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
 
 use crate::models::{

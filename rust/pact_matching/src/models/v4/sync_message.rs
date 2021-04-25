@@ -10,7 +10,7 @@ use itertools::Itertools;
 use serde_json::{json, Value};
 
 use pact_models::content_types::ContentType;
-use pact_models::OptionalBody;
+use pact_models::bodies::OptionalBody;
 
 use crate::models::{Interaction, RequestResponseInteraction};
 use crate::models::matchingrules::MatchingRules;

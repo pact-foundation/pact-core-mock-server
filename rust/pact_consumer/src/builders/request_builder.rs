@@ -9,7 +9,7 @@ use regex::Regex;
 
 use pact_matching::models::*;
 use pact_matching::models::matchingrules::MatchingRules;
-use pact_models::OptionalBody;
+use pact_models::bodies::OptionalBody;
 
 use crate::prelude::*;
 use crate::util::GetDefaulting;

@@ -408,7 +408,7 @@ mod tests {
   use hamcrest2::prelude::*;
   use maplit::*;
 
-  use pact_models::OptionalBody;
+  use pact_models::bodies::OptionalBody;
 
   use crate::{DiffConfig, MatchingContext, Mismatch};
   use crate::binary_utils::match_mime_multipart;

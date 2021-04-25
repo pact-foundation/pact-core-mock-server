@@ -13,7 +13,7 @@ use reqwest::{Client, Error, RequestBuilder};
 use pact_matching::models::*;
 use pact_matching::s;
 use pact_models::content_types::ContentType;
-use pact_models::OptionalBody;
+use pact_models::bodies::OptionalBody;
 
 use super::*;
 
@@ -245,7 +245,7 @@ mod tests {
 
   use pact_matching::models::Request;
   use pact_matching::s;
-  use pact_models::OptionalBody;
+  use pact_models::bodies::OptionalBody;
 
   use super::{create_native_request, join_paths};
 

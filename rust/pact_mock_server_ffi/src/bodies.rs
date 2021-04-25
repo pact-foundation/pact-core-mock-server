@@ -11,7 +11,7 @@ use pact_matching::models::{Request, Response};
 use pact_matching::models::generators::{Generator, GeneratorCategory, Generators};
 use pact_matching::models::json_utils::{json_to_num, json_to_string};
 use pact_matching::models::matchingrules::{MatchingRule, MatchingRuleCategory, RuleLogic};
-use pact_models::OptionalBody;
+use pact_models::bodies::OptionalBody;
 
 const CONTENT_TYPE_HEADER: &str = "Content-Type";
 

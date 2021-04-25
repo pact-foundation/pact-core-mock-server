@@ -10,7 +10,7 @@ use pact_matching::{match_message, Mismatch};
 use pact_matching::models::{Interaction, Request};
 use pact_matching::models::HttpPart;
 use pact_matching::models::message::Message;
-use pact_models::OptionalBody;
+use pact_models::bodies::OptionalBody;
 
 use crate::{MismatchResult, ProviderInfo, VerificationOptions};
 use crate::callback_executors::RequestFilterExecutor;

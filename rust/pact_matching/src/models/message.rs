@@ -7,7 +7,7 @@ use maplit::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use pact_models::OptionalBody;
+use pact_models::bodies::OptionalBody;
 
 use crate::models::generators::Generators;
 use crate::models::matchingrules::MatchingRules;

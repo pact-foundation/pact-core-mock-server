@@ -7,7 +7,7 @@ use pact_matching::matchingrules;
 use pact_matching::Mismatch;
 use pact_matching::models::{Interaction, Request, RequestResponseInteraction, Response};
 use pact_matching::models::matchingrules::*;
-use pact_models::OptionalBody;
+use pact_models::bodies::OptionalBody;
 
 use crate::matching::{match_request, MatchResult};
 

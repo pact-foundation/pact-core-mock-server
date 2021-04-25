@@ -24,7 +24,7 @@ use tokio_rustls::TlsAcceptor;
 use pact_matching::models::{HttpPart, Pact, Request, RequestResponsePact};
 use pact_matching::models::generators::GeneratorTestMode;
 use pact_matching::models::parse_query_string;
-use pact_models::OptionalBody;
+use pact_models::bodies::OptionalBody;
 
 use crate::matching::{match_request, MatchResult};
 use crate::mock_server::MockServer;
@@ -408,13 +408,14 @@ pub(crate) async fn create_and_bind_tls(
 
 #[cfg(test)]
 mod tests {
+  use std::cell::RefCell;
+
   use expectest::expect;
   use expectest::prelude::*;
   use hyper::header::{ACCEPT, CONTENT_TYPE, USER_AGENT};
   use hyper::HeaderMap;
 
   use super::*;
-  use std::cell::RefCell;
 
   #[tokio::test]
   async fn can_fetch_results_on_current_thread() {
