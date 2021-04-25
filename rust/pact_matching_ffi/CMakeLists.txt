@@ -295,31 +295,32 @@ if(NOT DOXYGEN_FOUND)
     message(WARNING "Could not find Doxygen; FFI documentation will not be generated")
 endif()
 
-# Configure Doxygen to be appropriate for our C header file.
-set(DOXYGEN_QUIET "YES")
-set(DOXYGEN_HTML_DYNAMIC_MENUS "YES")
-set(DOXYGEN_DYNAMIC_SECTIONS "YES")
-set(DOXYGEN_DISABLE_INDEX "YES")
-set(DOXYGEN_GENERATE_TREEVIEW "YES")
-set(DOXYGEN_ENUM_VALUES_PER_LINE 1)
-set(DOXYGEN_EXT_LINKS_IN_WINDOW "YES")
-set(DOXYGEN_ALPHABETICAL_INDEX "NO")
-set(DOXYGEN_GENERATE_TODOLIST "NO")
-set(DOXYGEN_GENERATE_TESTLIST "NO")
-set(DOXYGEN_GENERATE_BUGLIST "NO")
-set(DOXYGEN_SHOW_USED_FILES "NO")
-set(DOXYGEN_JAVADOC_AUTOBRIEF "YES")
-set(DOXYGEN_JAVADOC_BLOCK "YES")
-set(DOXYGEN_FULL_PATH_NAMES "NO")
-set(DOXYGEN_OPTIMIZE_OUTPUT_FOR_C "YES")
+if(DOXYGEN_FOUND)
+  # Configure Doxygen to be appropriate for our C header file.
+  set(DOXYGEN_QUIET "YES")
+  set(DOXYGEN_HTML_DYNAMIC_MENUS "YES")
+  set(DOXYGEN_DYNAMIC_SECTIONS "YES")
+  set(DOXYGEN_DISABLE_INDEX "YES")
+  set(DOXYGEN_GENERATE_TREEVIEW "YES")
+  set(DOXYGEN_ENUM_VALUES_PER_LINE 1)
+  set(DOXYGEN_EXT_LINKS_IN_WINDOW "YES")
+  set(DOXYGEN_ALPHABETICAL_INDEX "NO")
+  set(DOXYGEN_GENERATE_TODOLIST "NO")
+  set(DOXYGEN_GENERATE_TESTLIST "NO")
+  set(DOXYGEN_GENERATE_BUGLIST "NO")
+  set(DOXYGEN_SHOW_USED_FILES "NO")
+  set(DOXYGEN_JAVADOC_AUTOBRIEF "YES")
+  set(DOXYGEN_JAVADOC_BLOCK "YES")
+  set(DOXYGEN_FULL_PATH_NAMES "NO")
+  set(DOXYGEN_OPTIMIZE_OUTPUT_FOR_C "YES")
 
-# Setup Doxygen.
-doxygen_add_docs(
-    generate_docs
-    ${CBINDGEN_HEADER_FILE}
-    ALL
-    COMMENT "Generating documentation with doxygen")
-
+  # Setup Doxygen.
+  doxygen_add_docs(
+      generate_docs
+      ${CBINDGEN_HEADER_FILE}
+      ALL
+      COMMENT "Generating documentation with doxygen")
+endif()
 
 #################################################################################################
 # PACKAGE FILES
