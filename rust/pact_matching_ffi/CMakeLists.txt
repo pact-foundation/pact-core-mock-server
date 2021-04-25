@@ -220,7 +220,6 @@ add_custom_command(
     OUTPUT ${CARGO_LIBRARY_FILE}
     COMMAND
         ${CARGO_EXECUTABLE}
-        +nightly
         build
         ${CARGO_BUILD_TYPE}
         --target-dir ${CARGO_TARGET_DIR}
