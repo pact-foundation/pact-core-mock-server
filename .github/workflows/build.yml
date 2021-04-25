@@ -41,7 +41,10 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
-          components: cargo
+          override: true
+      - name: Install doxygen
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y doxygen
       - name: Build pact_matching_ffi with CMake
         run: ./ci-build.sh
         working-directory: rust/pact_matching_ffi
