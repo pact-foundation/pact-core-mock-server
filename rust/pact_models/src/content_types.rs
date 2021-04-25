@@ -1,14 +1,14 @@
 //! Module for handling content types
 
 use std::collections::BTreeMap;
-use std::str::FromStr;
+use std::str::{from_utf8, FromStr};
 
 use itertools::Itertools;
-use log::*;
-use serde::{Deserialize, Serialize};
-
 use lazy_static::*;
+use log::*;
 use mime::Mime;
+use regex::Regex;
+use serde::{Deserialize, Serialize};
 
 /// Content type of a body
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, Hash)]
@@ -51,6 +51,11 @@ lazy_static! {
     sub_type: "plain".into(),
     .. ContentType::default()
   };
+
+  static ref XMLREGEXP: Regex = Regex::new(r"^\s*<\?xml\s*version.*").unwrap();
+  static ref HTMLREGEXP: Regex = Regex::new(r"^\s*(<!DOCTYPE)|(<HTML>).*").unwrap();
+  static ref JSONREGEXP: Regex = Regex::new(r#"^\s*(true|false|null|[0-9]+|"\w*|\{\s*(}|"\w+)|\[\s*)"#).unwrap();
+  static ref XMLREGEXP2: Regex = Regex::new(r#"^\s*<\w+\s*(:\w+=["”][^"”]+["”])?.*"#).unwrap();
 }
 
 impl ContentType {
@@ -208,6 +213,56 @@ impl PartialEq<&str> for ContentType {
       Ok(other) => *self == other,
       Err(_) => false
     }
+  }
+}
+
+fn is_match(regex: &Regex, string: &str) -> bool {
+  if let Some(m) = regex.find(string) {
+    m.start() == 0
+  } else {
+    false
+  }
+}
+
+/// Try detect the content type from the contents of a string
+pub fn detect_content_type_from_string(s: &String) -> Option<ContentType> {
+  log::debug!("Detecting content type from contents: '{}'", s);
+  if is_match(&XMLREGEXP, s.as_str()) {
+    Some(XML.clone())
+  } else if is_match(&HTMLREGEXP, s.to_uppercase().as_str()) {
+    Some(HTML.clone())
+  } else if is_match(&XMLREGEXP2, s.as_str()) {
+    Some(XML.clone())
+  } else if is_match(&JSONREGEXP, s.as_str()) {
+    Some(JSON.clone())
+  } else {
+    Some(TEXT.clone())
+  }
+}
+
+/// Try detect the content type from a sequence bytes
+pub fn detect_content_type_from_bytes(s: &[u8]) -> Option<ContentType> {
+  debug!("Detecting content type from byte contents");
+  let header = if s.len() > 32 {
+    &s[0..32]
+  } else {
+    s
+  };
+  match from_utf8(header) {
+    Ok(s) => {
+      if is_match(&XMLREGEXP, s) {
+        Some(XML.clone())
+      } else if is_match(&HTMLREGEXP, &*s.to_uppercase()) {
+        Some(HTML.clone())
+      } else if is_match(&XMLREGEXP2, s) {
+        Some(XML.clone())
+      } else if is_match(&JSONREGEXP, s) {
+        Some(JSON.clone())
+      } else {
+        Some(TEXT.clone())
+      }
+    },
+    Err(_) => None
   }
 }
 

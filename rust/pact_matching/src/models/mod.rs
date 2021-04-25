@@ -13,7 +13,6 @@ use std::io::prelude::*;
 use std::io::SeekFrom;
 use std::path::Path;
 use std::str;
-use std::str::from_utf8;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, Context};
@@ -25,7 +24,6 @@ use itertools::EitherOrBoth::{Both, Left, Right};
 use lazy_static::*;
 use log::*;
 use maplit::*;
-use onig::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -55,53 +53,6 @@ mod file_utils;
 
 /// Version of the library
 pub const PACT_RUST_VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
-
-lazy_static! {
-    static ref XMLREGEXP: Regex = Regex::new(r"^\s*<\?xml\s*version.*").unwrap();
-    static ref HTMLREGEXP: Regex = Regex::new(r"^\s*(<!DOCTYPE)|(<HTML>).*").unwrap();
-    static ref JSONREGEXP: Regex = Regex::new(r#"^\s*(true|false|null|[0-9]+|"\w*|\{\s*(}|"\w+)|\[\s*)"#).unwrap();
-    static ref XMLREGEXP2: Regex = Regex::new(r#"^\s*<\w+\s*(:\w+=["”][^"”]+["”])?.*"#).unwrap();
-}
-
-fn detect_content_type_from_string(s: &String) -> Option<ContentType> {
-  log::debug!("Detecting content type from contents: '{}'", s);
-  if is_match(&XMLREGEXP, s.as_str()) {
-    Some(XML.clone())
-  } else if is_match(&HTMLREGEXP, s.to_uppercase().as_str()) {
-    Some(HTML.clone())
-  } else if is_match(&XMLREGEXP2, s.as_str()) {
-    Some(XML.clone())
-  } else if is_match(&JSONREGEXP, s.as_str()) {
-    Some(JSON.clone())
-  } else {
-    Some(TEXT.clone())
-  }
-}
-
-fn detect_content_type_from_bytes(s: &[u8]) -> Option<ContentType> {
-  debug!("Detecting content type from byte contents");
-  let header = if s.len() > 32 {
-    &s[0..32]
-  } else {
-    s
-  };
-  match from_utf8(header) {
-    Ok(s) => {
-      if is_match(&XMLREGEXP, s) {
-        Some(XML.clone())
-      } else if is_match(&HTMLREGEXP, &*s.to_uppercase()) {
-        Some(HTML.clone())
-      } else if is_match(&XMLREGEXP2, s) {
-        Some(XML.clone())
-      } else if is_match(&JSONREGEXP, s) {
-        Some(JSON.clone())
-      } else {
-        Some(TEXT.clone())
-      }
-    },
-    Err(_) => None
-  }
-}
 
 /// Enumeration of the types of differences between requests and responses
 #[derive(PartialEq, Debug, Clone, Eq)]
@@ -217,14 +168,6 @@ pub trait HttpPart {
       }
     }
     generators
-  }
-}
-
-fn is_match(regex: &Regex, string: &str) -> bool {
-  if let Some(m) = regex.find(string) {
-    m.0 == 0
-  } else {
-    false
   }
 }
 

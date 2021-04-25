@@ -25,6 +25,7 @@ bytes = { version = "1", features = ["serde"] }
 lazy_static = "1.4.0"
 mime = "0.3.16"
 base64 = "0.13.0"
+regex = "1"
 
 [dev-dependencies]
 expectest = "0.12.0"
