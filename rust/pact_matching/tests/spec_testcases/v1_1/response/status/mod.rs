@@ -31,11 +31,11 @@ fn different_status() {
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/status/different status.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.contents().str_value());
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/status/different status.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.contents().str_value());
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V1_1).unwrap();
     println!("RESULT: {:?}", result);
@@ -66,11 +66,11 @@ fn matches() {
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/status/matches.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.contents().str_value());
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/status/matches.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.contents().str_value());
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
     let result = match_interaction_response(expected, actual, &PactSpecification::V1_1).unwrap();
     println!("RESULT: {:?}", result);
