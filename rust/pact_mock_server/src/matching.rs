@@ -4,14 +4,12 @@
 //!
 
 use std::fmt::{Debug, Display, Formatter};
-use std::sync::Arc;
 
 use itertools::Itertools;
 use serde_json::json;
 
 use pact_matching::Mismatch;
-use pact_matching::models::{Interaction, Request, RequestResponseInteraction, Response};
-use pact_matching::s;
+use pact_matching::models::{Interaction, Request, Response};
 use pact_models::PactSpecification;
 
 /// Enum to define a match result

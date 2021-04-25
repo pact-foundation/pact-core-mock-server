@@ -386,6 +386,12 @@ impl AsynchronousMessage {
       .. self.clone()
     }
   }
+
+  /// Returns the content type of the message by returning the content type associated with
+  /// the body, or by looking it up in the message metadata
+  pub fn message_content_type(&self) -> Option<ContentType> {
+    calc_content_type(&self.contents, &metadata_to_headers(&self.metadata))
+  }
 }
 
 impl V4Interaction for AsynchronousMessage {
@@ -504,7 +510,7 @@ impl Interaction for AsynchronousMessage {
   }
 
   fn content_type(&self) -> Option<ContentType> {
-    calc_content_type(&self.contents, &metadata_to_headers(&self.metadata))
+    self.message_content_type()
   }
 
   fn is_v4(&self) -> bool {

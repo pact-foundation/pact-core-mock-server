@@ -15,8 +15,7 @@ use rustls::ServerConfig;
 use serde_json::json;
 use uuid::Uuid;
 
-use pact_matching::models::{load_pact_from_json, Pact, RequestResponsePact};
-use pact_matching::s;
+use pact_matching::models::{load_pact_from_json, Pact};
 
 use crate::mock_server::MockServerConfig;
 use crate::server_manager::ServerManager;

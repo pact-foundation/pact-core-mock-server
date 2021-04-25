@@ -14,12 +14,10 @@ use rustls::ServerConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use pact_matching::models::{Pact, RequestResponseInteraction, RequestResponsePact, write_pact, Request};
-use pact_matching::models::ReadWritePact;
+use pact_matching::models::{Pact, RequestResponsePact, write_pact, Request};
 
 use crate::hyper_server;
 use crate::matching::MatchResult;
-use std::borrow::Borrow;
 
 /// Mock server configuration
 #[derive(Debug, Default, Clone)]

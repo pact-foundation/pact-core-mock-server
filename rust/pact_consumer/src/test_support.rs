@@ -1,5 +1,5 @@
 use pact_matching::match_request;
-use pact_matching::models::{Pact, RequestResponsePact};
+use pact_matching::models::Pact;
 
 /// Check that all requests in `actual` match the patterns provide by
 /// `expected`, and raise an error if anything fails.

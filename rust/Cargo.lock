@@ -1099,6 +1099,7 @@ dependencies = [
 name = "pact_consumer"
 version = "0.7.6"
 dependencies = [
+ "anyhow",
  "env_logger",
  "expectest",
  "futures",

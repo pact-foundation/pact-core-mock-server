@@ -1,5 +1,4 @@
 use std::{
-  iter::FromIterator,
   net::TcpListener,
   process,
   sync::mpsc,
@@ -20,7 +19,7 @@ use webmachine_rust::*;
 use webmachine_rust::context::*;
 use webmachine_rust::headers::*;
 
-use pact_matching::models::{RequestResponsePact, load_pact_from_json};
+use pact_matching::models::load_pact_from_json;
 use pact_mock_server::mock_server::MockServerConfig;
 use pact_mock_server::tls::TlsConfigBuilder;
 

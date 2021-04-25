@@ -89,18 +89,7 @@ impl Interaction for Message {
   }
 
   fn content_type(&self) -> Option<ContentType> {
-    let body = &self.contents;
-    if body.has_content_type() {
-      body.content_type()
-    } else {
-      match self.metadata.iter().find(|(k, _)| {
-        let key = k.to_ascii_lowercase();
-        key == "contenttype" || key == "content-type"
-      }) {
-        Some((_, v)) => ContentType::parse(v.as_str()).ok(),
-        None => self.detect_content_type()
-      }
-    }
+    self.message_content_type()
   }
 
   fn is_v4(&self) -> bool {
@@ -202,6 +191,23 @@ impl Message {
             _ => Err(anyhow!("Messages require Pact Specification version 3"))
         }
     }
+
+  /// Returns the content type of the message by returning the content type associated with
+  /// the body, or by looking it up in the message metadata
+  pub fn message_content_type(&self) -> Option<ContentType> {
+    let body = &self.contents;
+    if body.has_content_type() {
+      body.content_type()
+    } else {
+      match self.metadata.iter().find(|(k, _)| {
+        let key = k.to_ascii_lowercase();
+        key == "contenttype" || key == "content-type"
+      }) {
+        Some((_, v)) => ContentType::parse(v.as_str()).ok(),
+        None => self.detect_content_type()
+      }
+    }
+  }
 }
 
 impl HttpPart for Message {
@@ -370,13 +376,13 @@ mod tests {
         metadata: hashmap!{ s!("contentType") => s!("text/plain") },
         .. Message::default()
       };
-      expect!(Interaction::content_type(&message).unwrap_or_default().to_string()).to(be_equal_to("text/plain"));
+      expect!(message.message_content_type().unwrap_or_default().to_string()).to(be_equal_to("text/plain"));
     }
 
     #[test]
     fn message_mimetype_defaults_to_json() {
       let message = Message::default();
-      expect!(Interaction::content_type(&message).unwrap_or_default().to_string()).to(be_equal_to("application/json"));
+      expect!(message.message_content_type().unwrap_or_default().to_string()).to(be_equal_to("application/json"));
     }
 
     #[test]

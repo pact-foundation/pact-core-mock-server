@@ -5,7 +5,7 @@ use reqwest::header::ACCEPT;
 
 use pact_matching::matchingrules;
 use pact_matching::Mismatch;
-use pact_matching::models::{Interaction, Request, RequestResponseInteraction, Response};
+use pact_matching::models::{Interaction, Request, RequestResponseInteraction, Response, RequestResponsePact};
 use pact_matching::models::matchingrules::*;
 use pact_models::bodies::OptionalBody;
 
@@ -36,7 +36,7 @@ fn match_request_returns_a_match_for_multiple_identical_requests() {
     let request = Request::default();
     let interaction = RequestResponseInteraction { request: request.clone(), .. RequestResponseInteraction::default() };
     let interaction2 = RequestResponseInteraction {
-      description: s!("test2"),
+      description: "test2".to_string(),
       request: request.clone(),
       ..RequestResponseInteraction::default()
     };
@@ -50,11 +50,11 @@ fn match_request_returns_a_match_for_multiple_identical_requests() {
 
 #[test]
 fn match_request_returns_a_match_for_multiple_requests() {
-    let request = Request { method: s!("GET"), .. Request::default() };
-    let request2 = Request { method: s!("POST"), path: s!("/post"), .. Request::default() };
+    let request = Request { method: "GET".to_string(), .. Request::default() };
+    let request2 = Request { method: "POST".to_string(), path: "/post".to_string(), .. Request::default() };
     let interaction = RequestResponseInteraction { request: request.clone(), .. RequestResponseInteraction::default() };
     let interaction2 = RequestResponseInteraction {
-      description: s!("test2"),
+      description: "test2".to_string(),
       request: request2.clone(),
       ..RequestResponseInteraction::default()
     };
@@ -69,7 +69,7 @@ fn match_request_returns_a_match_for_multiple_requests() {
 #[test]
 fn match_request_returns_a_mismatch_for_incorrect_request() {
     let request = Request::default();
-    let expected_request = Request { query: Some(hashmap!{ s!("QueryA") => vec![s!("Value A")] }),
+    let expected_request = Request { query: Some(hashmap!{ "QueryA".to_string() => vec!["Value A".to_string()] }),
         .. Request::default() };
     let interaction = RequestResponseInteraction {
       request: expected_request,
@@ -79,13 +79,13 @@ fn match_request_returns_a_mismatch_for_incorrect_request() {
       &interaction as &dyn Interaction
     ];
     let result = match_request(&request, interactions);
-    expect!(result.match_key()).to(be_equal_to(s!("Request-Mismatch")));
+    expect!(result.match_key()).to(be_equal_to("Request-Mismatch".to_string()));
 }
 
 #[test]
 fn match_request_returns_request_not_found_if_method_or_path_do_not_match() {
-    let request = Request { method: s!("GET"), path: s!("/path"), .. Request::default() };
-    let expected_request = Request { method: s!("POST"), path: s!("/otherpath"),
+    let request = Request { method: "GET".to_string(), path: "/path".to_string(), .. Request::default() };
+    let expected_request = Request { method: "POST".to_string(), path: "/otherpath".to_string(),
         .. Request::default() };
     let interaction = RequestResponseInteraction {
       request: expected_request,
@@ -100,28 +100,28 @@ fn match_request_returns_request_not_found_if_method_or_path_do_not_match() {
 
 #[test]
 fn match_request_returns_the_most_appropriate_mismatch_for_multiple_requests() {
-    let request = Request { method: s!("GET"), path: s!("/"), body: OptionalBody::Present("This is a body".into(), None),
+    let request = Request { method: "GET".to_string(), path: "/".to_string(), body: OptionalBody::Present("This is a body".into(), None),
       .. Request::default() };
-    let request2 = Request { method: s!("GET"), path: s!("/"), query: Some(hashmap!{
-        s!("QueryA") => vec![s!("Value A")]
+    let request2 = Request { method: "GET".to_string(), path: "/".to_string(), query: Some(hashmap!{
+        "QueryA".to_string() => vec!["Value A".to_string()]
         }), body: OptionalBody::Present("This is a body".into(), None),
       .. Request::default() };
-    let request3 = Request { method: s!("GET"), path: s!("/"), query: Some(hashmap!{
-        s!("QueryA") => vec![s!("Value A")]
+    let request3 = Request { method: "GET".to_string(), path: "/".to_string(), query: Some(hashmap!{
+        "QueryA".to_string() => vec!["Value A".to_string()]
         }), body: OptionalBody::Missing, .. Request::default() };
-    let interaction = RequestResponseInteraction { description: s!("test"), request: request.clone(), .. RequestResponseInteraction::default() };
-    let interaction2 = RequestResponseInteraction { description: s!("test2"), request: request2.clone(), .. RequestResponseInteraction::default() };
+    let interaction = RequestResponseInteraction { description: "test".to_string(), request: request.clone(), .. RequestResponseInteraction::default() };
+    let interaction2 = RequestResponseInteraction { description: "test2".to_string(), request: request2.clone(), .. RequestResponseInteraction::default() };
     let interactions = vec![&interaction as &dyn Interaction, &interaction2 as &dyn Interaction];
     let result = match_request(&request3, interactions);
     expect!(result).to(be_equal_to(MatchResult::RequestMismatch(interaction2.request,
-        vec![Mismatch::BodyMismatch { path: s!("/"), expected: Some("This is a body".into()), actual: None,
-        mismatch: s!("Expected body \'This is a body\' but was missing") }])));
+        vec![Mismatch::BodyMismatch { path: "/".to_string(), expected: Some("This is a body".into()), actual: None,
+        mismatch: "Expected body \'This is a body\' but was missing".to_string() }])));
 }
 
 #[test]
 fn match_request_supports_v2_matchers() {
-    let request = Request { method: s!("GET"), path: s!("/"),
-        headers: Some(hashmap!{ s!("Content-Type") => vec![s!("application/json")] }), body: OptionalBody::Present(
+    let request = Request { method: "GET".to_string(), path: "/".to_string(),
+        headers: Some(hashmap!{ "Content-Type".to_string() => vec!["application/json".to_string()] }), body: OptionalBody::Present(
             r#"
             {
                 "a": 100,
@@ -129,8 +129,8 @@ fn match_request_supports_v2_matchers() {
             }
             "#.into(), None
         ), .. Request::default() };
-    let expected_request = Request { method: s!("GET"), path: s!("/"),
-        headers: Some(hashmap!{ s!("Content-Type") => vec![s!("application/json")] }),
+    let expected_request = Request { method: "GET".to_string(), path: "/".to_string(),
+        headers: Some(hashmap!{ "Content-Type".to_string() => vec!["application/json".to_string()] }),
         body: OptionalBody::Present(
             r#"
             {
@@ -152,21 +152,21 @@ fn match_request_supports_v2_matchers() {
 
 #[test]
 fn match_request_supports_v2_matchers_with_xml() {
-    let request = Request { method: s!("GET"), path: s!("/"), query: None,
-        headers: Some(hashmap!{ s!("Content-Type") => vec![s!("application/xml")] }), body: OptionalBody::Present(
+    let request = Request { method: "GET".to_string(), path: "/".to_string(), query: None,
+        headers: Some(hashmap!{ "Content-Type".to_string() => vec!["application/xml".to_string()] }), body: OptionalBody::Present(
             r#"<?xml version="1.0" encoding="UTF-8"?>
             <foo>hello<bar/>world</foo>
             "#.into(), None
         ), .. Request::default() };
-    let expected_request = Request { method: s!("GET"), path: s!("/"), query: None,
-        headers: Some(hashmap!{ s!("Content-Type") => vec![s!("application/xml")] }),
+    let expected_request = Request { method: "GET".to_string(), path: "/".to_string(), query: None,
+        headers: Some(hashmap!{ "Content-Type".to_string() => vec!["application/xml".to_string()] }),
         body: OptionalBody::Present(
             r#"<?xml version="1.0" encoding="UTF-8"?>
             <foo>hello<bar/>mars </foo>
             "#.into(), None
         ), matching_rules: matchingrules!{
           "body" => {
-            "$.foo['#text']" => [ MatchingRule::Regex(s!("[a-z]+")) ]
+            "$.foo['#text']" => [ MatchingRule::Regex("[a-z]+".into()) ]
           }
         },
       .. Request::default()
@@ -215,13 +215,13 @@ fn match_request_with_more_specific_request() {
     }),
     .. Request::default() };
   let interaction1 = RequestResponseInteraction {
-    description: s!("test_more_general_request"),
+    description: "test_more_general_request".into(),
     request: request1.clone(),
     response: Response { status: 401, .. Response::default() },
     .. RequestResponseInteraction::default()
   };
   let interaction2 = RequestResponseInteraction {
-    description: s!("test_more_specific_request"),
+    description: "test_more_specific_request".into(),
     request: request2.clone(),
     response: Response { status: 200, .. Response::default() },
     .. RequestResponseInteraction::default()

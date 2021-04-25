@@ -1,7 +1,6 @@
 //! Structs and functions for interacting with a Pact Broker
 
 use std::collections::HashMap;
-use std::fmt::{Display, Formatter};
 
 use anyhow::anyhow;
 use futures::stream::*;

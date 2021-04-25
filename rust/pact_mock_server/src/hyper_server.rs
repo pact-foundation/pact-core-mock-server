@@ -161,7 +161,7 @@ fn match_result_to_hyper_response(
   };
 
   match match_result {
-    MatchResult::RequestMatch(ref request, ref response) => {
+    MatchResult::RequestMatch(_, ref response) => {
       let ms = mock_server.lock().unwrap();
       let context = hashmap!{
         "mockServer" => json!({
@@ -408,8 +408,6 @@ pub(crate) async fn create_and_bind_tls(
 
 #[cfg(test)]
 mod tests {
-  use std::cell::RefCell;
-
   use expectest::expect;
   use expectest::prelude::*;
   use hyper::header::{ACCEPT, CONTENT_TYPE, USER_AGENT};

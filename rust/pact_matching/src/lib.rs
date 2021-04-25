@@ -1326,8 +1326,8 @@ pub fn match_message_contents(
   actual: &Box<dyn Interaction + Send>,
   context: &MatchingContext
 ) -> Result<(), Vec<Mismatch>> {
-  let expected_content_type = expected.as_message()
-    .map(|m| models::HttpPart::content_type(&m)).flatten().unwrap_or_default();
+  let expected_message = expected.as_message().unwrap();
+  let expected_content_type = expected_message.message_content_type().unwrap_or_default();
   let actual_content_type = actual.as_message()
     .map(|m| models::HttpPart::content_type(&m)).flatten().unwrap_or_default();
   debug!("expected content type = '{}', actual content type = '{}'", expected_content_type,
@@ -1338,9 +1338,8 @@ pub fn match_message_contents(
       let actual = actual.as_v4_async_message().unwrap();
       match_body_content(&expected_content_type, &expected, &actual, context)
     } else {
-      let expected = expected.as_message().unwrap();
       let actual = actual.as_message().unwrap();
-      match_body_content(&expected_content_type, &expected, &actual, context)
+      match_body_content(&expected_content_type, &expected_message, &actual, context)
     };
     match result {
       BodyMatchResult::BodyTypeMismatch { expected_type, actual_type, message, expected, actual } => {
@@ -1357,14 +1356,14 @@ pub fn match_message_contents(
       },
       _ => Ok(())
     }
-  } else if expected.contents().is_present() {
+  } else if expected_message.contents.is_present() {
     Err(vec![ Mismatch::BodyTypeMismatch {
       expected: expected_content_type.to_string(),
       actual: actual_content_type.to_string(),
       mismatch: format!("Expected message with content type {} but was {}",
                         expected_content_type, actual_content_type),
-      expected_body: expected.contents().value(),
-      actual_body: actual.contents().value()
+      expected_body: expected_message.contents.value(),
+      actual_body: actual.as_message().map(|m| m.contents.value()).unwrap_or_default()
     } ])
   } else {
     Ok(())

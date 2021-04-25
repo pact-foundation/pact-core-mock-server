@@ -1,6 +1,6 @@
 //! The `pact_models` crate provides all the structs and traits required to model a Pact.
 
-use log::*;
+#[allow(unused_imports)] use log::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 

@@ -48,7 +48,7 @@ impl ValidatingMockServer {
   pub fn start(pact: Box<dyn Pact + Send>) -> ValidatingMockServer {
     // Spawn new runtime in thread to prevent reactor execution context conflict
     let (pact_tx, pact_rx) = std::sync::mpsc::channel::<Box<dyn Pact + Send>>();
-    pact_tx.send(pact);
+    pact_tx.send(pact).expect("INTERNAL ERROR: Could not pass pact into mock server thread");
     let (mock_server, done_rx) = std::thread::spawn(|| {
       let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()

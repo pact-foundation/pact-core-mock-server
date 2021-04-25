@@ -142,7 +142,7 @@ impl Interaction for SynchronousMessages {
   }
 
   fn content_type(&self) -> Option<ContentType> {
-    self.request.content_type()
+    self.request.message_content_type()
   }
 
   fn is_v4(&self) -> bool {
