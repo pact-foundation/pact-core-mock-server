@@ -45,18 +45,35 @@ fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
         let pending = matches.is_present("enable-pending");
         let wip = matches.value_of("include-wip-pacts-since").map(|wip| wip.to_string());
         let consumer_version_tags = matches.values_of("consumer-version-tags")
-          .map_or_else(|| vec![], |tags| consumer_tags_to_selectors(tags.collect::<Vec<_>>()));
+          .map_or_else(Vec::new, |tags| consumer_tags_to_selectors(tags.collect::<Vec<_>>()));
         let provider_tags = matches.values_of("provider-tags")
-          .map_or_else(|| vec![], |tags| tags.map(|tag| tag.to_string()).collect());
+          .map_or_else(Vec::new, |tags| tags.map(|tag| tag.to_string()).collect());
 
         if matches.is_present("token") {
-          PactSource::BrokerWithDynamicConfiguration { provider_name: name, broker_url: s!(v), enable_pending: pending, include_wip_pacts_since: wip, provider_tags: provider_tags, selectors: consumer_version_tags,
-            auth: matches.value_of("token").map(|token| HttpAuth::Token(token.to_string())), links: vec![] }
+          PactSource::BrokerWithDynamicConfiguration {
+            provider_name: name,
+            broker_url: v.into(),
+            enable_pending: pending,
+            include_wip_pacts_since: wip,
+            provider_tags,
+            selectors: consumer_version_tags,
+            auth: matches.value_of("token").map(|token| HttpAuth::Token(token.to_string())),
+            links: vec![]
+          }
         } else {
         let auth = matches.value_of("user").map(|user| {
           HttpAuth::User(user.to_string(), matches.value_of("password").map(|p| p.to_string()))
         });
-          PactSource::BrokerWithDynamicConfiguration { provider_name: name, broker_url: s!(v), enable_pending: pending, include_wip_pacts_since: wip, provider_tags: provider_tags, selectors: consumer_version_tags, auth: auth, links: vec![] }
+          PactSource::BrokerWithDynamicConfiguration {
+            provider_name: name,
+            broker_url: v.into(),
+            enable_pending: pending,
+            include_wip_pacts_since: wip,
+            provider_tags,
+            selectors: consumer_version_tags,
+            auth,
+            links: vec![]
+          }
         }
       } else {
         PactSource::BrokerUrl(s!(matches.value_of("provider-name").unwrap()), s!(v), None, vec![])
@@ -181,7 +198,7 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
       build_url: matches.value_of("build-url").map(|v| v.to_string()),
       request_filter: None::<Arc<NullRequestFilterExecutor>>,
       provider_tags: matches.values_of("provider-tags")
-        .map_or_else(|| vec![], |tags| tags.map(|tag| tag.to_string()).collect()),
+        .map_or_else(Vec::new, |tags| tags.map(|tag| tag.to_string()).collect()),
       disable_ssl_verification: matches.is_present("disable-ssl-verification"),
       .. VerificationOptions::default()
     };

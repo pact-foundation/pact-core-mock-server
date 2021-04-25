@@ -82,6 +82,9 @@ pub unsafe extern fn free_string(s: *mut c_char) {
 /// | 2 | A null pointer was received |
 /// | 3 | The method panicked |
 ///
+/// # Safety
+///
+/// Exported functions are inherently unsafe. Deal.
 #[no_mangle]
 pub unsafe extern fn verify(args: *const c_char) -> i32 {
   if args.is_null() {
