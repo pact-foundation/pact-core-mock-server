@@ -12,7 +12,7 @@ jobs:
     runs-on: ${{ matrix.operating-system }}
     strategy:
       matrix:
-        operating-system: [ ubuntu-latest, windows-latest, macos-latest ]
+        operating-system: [ ubuntu-latest ]
         rust: [ stable, beta ]
     steps:
       - uses: actions/checkout@v2
@@ -48,3 +48,4 @@ jobs:
       - name: Build pact_matching_ffi with CMake
         run: ./ci-build.sh
         working-directory: rust/pact_matching_ffi
+        shell: bash
