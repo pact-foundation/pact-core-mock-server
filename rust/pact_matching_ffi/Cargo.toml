@@ -12,7 +12,7 @@ exclude = [
 ]
 
 [dependencies]
-pact_matching = { version = "0.8.14", path = "../pact_matching" }
+pact_matching = { version = "0.9", path = "../pact_matching" }
 pact_models = { version = "0.0", path = "../pact_models" }
 anyhow = "1.0.28"
 libc = "0.2.69"
