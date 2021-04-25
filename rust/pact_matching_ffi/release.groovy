@@ -45,6 +45,12 @@ ask('Execute Build?: [Y]') {
   executeOnShell 'cargo test'
 }
 
+ask('Execute CMake Build?: [Y]') {
+  executeOnShell 'mkdir -p build'
+  executeOnShell 'cd build && cmake ..'
+  executeOnShell 'cd build && cmake --build .'
+}
+
 def projectProps = new File('Cargo.toml').text
 def versionMatch = projectProps =~ /(?m)version\s*=\s*"(.*)"/
 def version = versionMatch[0][1]
@@ -97,12 +103,10 @@ ask('Tag and Push commits?: [Y]') {
 }
 
 ask('Publish library to crates.io?: [Y]') {
-  executeOnShell 'rm -rf pact_mock_server_ffi.h conan/lib/test_package/build conan/dll/test_package/build'
-  executeOnShell 'cargo package --no-verify'
-  executeOnShell 'cargo publish --no-verify'
+  executeOnShell 'rm -rf build'
+  executeOnShell 'cargo package'
+  executeOnShell 'cargo publish'
 }
-
-executeOnShell "cargo build --release"
 
 def nextVer = Version.valueOf(releaseVer).incrementPatchVersion()
 ask("Bump version to $nextVer?: [Y]") {

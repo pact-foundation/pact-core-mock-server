@@ -2,6 +2,9 @@
 
 set -e
 
+cmake --version
+cargo +nightly --version
+
 echo #####################################
 echo # Build library with CMake
 echo #####################################
