@@ -46,8 +46,8 @@ fn type_of(json: &Value) -> String {
 
 impl Matches<Value> for Value {
   fn matches(&self, actual: &Value, matcher: &MatchingRule) -> Result<(), String> {
-    let result = match *matcher {
-      MatchingRule::Regex(ref regex) => {
+    let result = match matcher {
+      MatchingRule::Regex(regex) => {
         match Regex::new(regex) {
           Ok(re) => {
             let actual_str = match actual {
@@ -63,7 +63,7 @@ impl Matches<Value> for Value {
           Err(err) => Err(format!("'{}' is not a valid regular expression - {}", regex, err))
         }
       },
-      MatchingRule::Include(ref substr) => {
+      MatchingRule::Include(substr) => {
         let actual_str = match actual {
           &Value::String(ref s) => s.clone(),
           _ => actual.to_string()
@@ -87,7 +87,7 @@ impl Matches<Value> for Value {
       },
       MatchingRule::MinType(min) => {
         match (self, actual) {
-          (&Value::Array(_), &Value::Array(ref actual_array)) => if actual_array.len() < min {
+          (&Value::Array(_), &Value::Array(ref actual_array)) => if actual_array.len() < *min {
             Err(format!("Expected '{}' to have at least {} item(s)", json_to_string(actual), min))
           } else {
             Ok(())
@@ -102,7 +102,7 @@ impl Matches<Value> for Value {
       },
       MatchingRule::MaxType(max) => {
         match (self, actual) {
-          (&Value::Array(_), &Value::Array(ref actual_array)) => if actual_array.len() > max {
+          (&Value::Array(_), &Value::Array(ref actual_array)) => if actual_array.len() > *max {
             Err(format!("Expected '{}' to have at most {} item(s)", json_to_string(actual), max))
           } else {
             Ok(())
@@ -117,9 +117,9 @@ impl Matches<Value> for Value {
       },
       MatchingRule::MinMaxType(min, max) => {
         match (self, actual) {
-          (&Value::Array(_), &Value::Array(ref actual_array)) => if actual_array.len() < min {
+          (&Value::Array(_), &Value::Array(ref actual_array)) => if actual_array.len() < *min {
             Err(format!("Expected '{}' to have at least {} item(s)", json_to_string(actual), min))
-          } else if actual_array.len() > max {
+          } else if actual_array.len() > *max {
             Err(format!("Expected '{}' to have at most {} item(s)", json_to_string(actual), max))
           } else {
             Ok(())
@@ -173,6 +173,15 @@ impl Matches<Value> for Value {
       MatchingRule::ContentType(ref expected_content_type) => {
         match_content_type(&convert_data(actual), expected_content_type)
           .map_err(|err| format!("Expected data to have a content type of '{}' but was {}", expected_content_type, err))
+      }
+      MatchingRule::Boolean => match actual {
+        Value::Bool(_) => Ok(()),
+        Value::String(val) => if val == "true" || val == "false" {
+          Ok(())
+        } else {
+          Err(format!("Expected '{}' to match a boolean", json_to_string(actual)))
+        }
+        _ => Err(format!("Expected '{}' to match a boolean", json_to_string(actual)))
       }
       _ => Ok(())
     };
@@ -928,6 +937,16 @@ mod tests {
     expect!(Value::String(s!("100")).matches(&Value::String(s!("100")), &matcher)).to(be_err());
     expect!(Value::String(s!("100")).matches(&json!(100), &matcher)).to(be_ok());
     expect!(Value::String(s!("100")).matches(&json!(100.01), &matcher)).to(be_ok());
+  }
+
+  #[test]
+  fn boolean_matcher_test() {
+    let matcher = MatchingRule::Boolean;
+    expect!(Value::Bool(true).matches(&Value::String("100".into()), &matcher)).to(be_err());
+    expect!(Value::Bool(true).matches(&Value::Bool(false), &matcher)).to(be_ok());
+    expect!(Value::Bool(true).matches(&json!(100), &matcher)).to(be_err());
+    expect!(Value::Bool(true).matches(&Value::String("true".into()), &matcher)).to(be_ok());
+    expect!(Value::Bool(true).matches(&Value::String("false".into()), &matcher)).to(be_ok());
   }
 
   #[test]

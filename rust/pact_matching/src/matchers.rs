@@ -90,6 +90,13 @@ impl Matches<&str> for String {
           Err(_) => Err(format!("Expected '{}' to match a timestamp format of '{}'", actual, s))
         }
       },
+      MatchingRule::Boolean => {
+        if *actual == "true" || *actual == "false" {
+          Ok(())
+        } else {
+          Err(format!("Expected '{}' to match a boolean", actual))
+        }
+      },
       _ => Err(format!("Unable to match '{}' using {:?}", self, matcher))
     }
   }
@@ -284,6 +291,37 @@ impl Matches<u64> for f64 {
           _ => Err(format!("Unable to match '{}' using {:?}", self, matcher))
        }
     }
+}
+
+impl Matches<bool> for bool {
+  fn matches(&self, actual: &bool, matcher: &MatchingRule) -> Result<(), String> {
+    log::debug!("bool -> bool: comparing '{}' to {} using {:?}", self, actual, matcher);
+    match matcher {
+      MatchingRule::Regex(regex) => {
+        match Regex::new(regex) {
+          Ok(re) => {
+            if re.is_match(&actual.to_string()) {
+              Ok(())
+            } else {
+              Err(format!("Expected {} to match '{}'", actual, regex))
+            }
+          },
+          Err(err) => Err(format!("'{}' is not a valid regular expression - {}", regex, err))
+        }
+      },
+      MatchingRule::Type |
+      MatchingRule::MinType(_) |
+      MatchingRule::MaxType(_) |
+      MatchingRule::MinMaxType(_, _) => Ok(()),
+      MatchingRule::Equality => if actual == self {
+        Ok(())
+      } else {
+        Err(format!("Expected {} (Boolean) to be equal to {} (Boolean)", self, actual))
+      },
+      MatchingRule::Boolean => Ok(()),
+      _ => Err(format!("Boolean: Unable to match {} using {:?}", self, matcher))
+    }
+  }
 }
 
 impl Matches<Bytes> for Bytes {
@@ -668,5 +706,17 @@ mod tests {
       r"^([\+-]?\d{4}(?!\d{2}\b))((-?)((0[1-9]|1[0-2])(\3([12]\d|0[1-9]|3[01]))?|W([0-4]\d|5[0-2])(-?[1-7])?|(00[1-9]|0[1-9]\d|[12]\d{2}|3([0-5]\d|6[1-6])))?)$"
         .into());
     expect!(s!("100").matches(&s!("2019-09-27"), &matcher)).to(be_ok());
+  }
+
+  #[test]
+  fn boolean_matcher_test() {
+    let matcher = MatchingRule::Boolean;
+    expect!("100".to_string().matches(&"100", &matcher)).to(be_err());
+    expect!("100".to_string().matches(&"10a", &matcher)).to(be_err());
+    expect!("100".to_string().matches(&100, &matcher)).to(be_err());
+    expect!(100.matches(&100.1, &matcher)).to(be_err());
+    expect!("100".to_string().matches(&"true", &matcher)).to(be_ok());
+    expect!("100".to_string().matches(&"false", &matcher)).to(be_ok());
+    expect!(false.matches(&true, &matcher)).to(be_ok());
   }
 }

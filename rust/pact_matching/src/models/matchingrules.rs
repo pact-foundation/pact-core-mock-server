@@ -77,7 +77,7 @@ pub(crate) fn path_length(path_exp: &str) -> usize {
 
 impl <T: Debug + Display + PartialEq> Matches<Vec<T>> for Vec<T> {
   fn matches(&self, actual: &Vec<T>, matcher: &MatchingRule) -> Result<(), String> {
-    let result = match *matcher {
+    let result = match matcher {
       MatchingRule::Regex(ref regex) => {
         match Regex::new(regex) {
           Ok(re) => {
@@ -93,23 +93,23 @@ impl <T: Debug + Display + PartialEq> Matches<Vec<T>> for Vec<T> {
       }
       MatchingRule::Type => Ok(()),
       MatchingRule::MinType(min) => {
-        if actual.len() < min {
+        if actual.len() < *min {
           Err(format!("Expected list with length {} to have a minimum length of {}", actual.len(), min))
         } else {
           Ok(())
         }
       }
       MatchingRule::MaxType(max) => {
-        if actual.len() > max {
+        if actual.len() > *max {
           Err(format!("Expected list with length {} to have a maximum length of {}", actual.len(), max))
         } else {
           Ok(())
         }
       }
       MatchingRule::MinMaxType(min, max) => {
-        if actual.len() < min {
+        if actual.len() < *min {
           Err(format!("Expected list with length {} to have a minimum length of {}", actual.len(), min))
-        } else if actual.len() > max {
+        } else if actual.len() > *max {
           Err(format!("Expected list with length {} to have a maximum length of {}", actual.len(), max))
         } else {
           Ok(())
@@ -131,7 +131,7 @@ impl <T: Debug + Display + PartialEq> Matches<Vec<T>> for Vec<T> {
 
 impl Matches<&[u8]> for Vec<u8> {
   fn matches(&self, actual: &&[u8], matcher: &MatchingRule) -> Result<(), String> {
-    let result = match *matcher {
+    let result = match matcher {
       MatchingRule::Regex(ref regex) => {
         match Regex::new(regex) {
           Ok(re) => {
@@ -147,23 +147,23 @@ impl Matches<&[u8]> for Vec<u8> {
       }
       MatchingRule::Type => Ok(()),
       MatchingRule::MinType(min) => {
-        if actual.len() < min {
+        if actual.len() < *min {
           Err(format!("Expected list with length {} to have a minimum length of {}", actual.len(), min))
         } else {
           Ok(())
         }
       }
       MatchingRule::MaxType(max) => {
-        if actual.len() > max {
+        if actual.len() > *max {
           Err(format!("Expected list with length {} to have a maximum length of {}", actual.len(), max))
         } else {
           Ok(())
         }
       }
       MatchingRule::MinMaxType(min, max) => {
-        if actual.len() < min {
+        if actual.len() < *min {
           Err(format!("Expected list with length {} to have a minimum length of {}", actual.len(), min))
-        } else if actual.len() > max {
+        } else if actual.len() > *max {
           Err(format!("Expected list with length {} to have a maximum length of {}", actual.len(), max))
         } else {
           Ok(())
@@ -247,7 +247,9 @@ pub enum MatchingRule {
   /// Match array items in any order against a list of variants
   ArrayContains(Vec<(usize, MatchingRuleCategory, HashMap<String, Generator>)>),
   /// Matcher for values in a map, ignoring the keys
-  Values
+  Values,
+  /// Matches boolean values (booleans and the string values `true` and `false`)
+  Boolean
 }
 
 impl MatchingRule {
@@ -278,6 +280,7 @@ impl MatchingRule {
             "integer" => Some(MatchingRule::Integer),
             "decimal" => Some(MatchingRule::Decimal),
             "real" => Some(MatchingRule::Decimal),
+            "boolean" => Some(MatchingRule::Boolean),
             "min" => match json_to_num(m.get(&val).cloned()) {
               Some(min) => Some(MatchingRule::MinType(min)),
               None => None
@@ -384,6 +387,7 @@ impl MatchingRule {
       MatchingRule::Number => json!({ "match": "number" }),
       MatchingRule::Integer => json!({ "match": "integer" }),
       MatchingRule::Decimal => json!({ "match": "decimal" }),
+      MatchingRule::Boolean => json!({ "match": "boolean" }),
       MatchingRule::Null => json!({ "match": "null" }),
       MatchingRule::ContentType(ref r) => json!({ "match": "contentType",
         "value": Value::String(r.clone()) }),
@@ -1734,6 +1738,8 @@ mod tests {
       be_some().value(MatchingRule::Decimal));
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"real\"}").unwrap())).to(
       be_some().value(MatchingRule::Decimal));
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"boolean\"}").unwrap())).to(
+      be_some().value(MatchingRule::Boolean));
 
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"timestamp\", \"timestamp\": \"A\"}").unwrap())).to(
       be_some().value(MatchingRule::Timestamp(s!("A"))));

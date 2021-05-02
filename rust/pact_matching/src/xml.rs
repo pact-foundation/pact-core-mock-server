@@ -1111,4 +1111,30 @@ mod tests {
     let result = match_xml(&expected.clone(), &actual.clone(), &MatchingContext::new(DiffConfig::NoUnexpectedKeys, &matching_rules));
     expect!(result).to(be_ok());
   }
+
+  #[test]
+  fn match_boolean_attributes() {
+    let expected = request!(r#"<?xml version="1.0" encoding="UTF-8"?>
+    <foo something="true" somethingElse="true"/>
+    "#);
+    let actual = request!(r#"<?xml version="1.0" encoding="UTF-8"?>
+    <foo something="false" somethingElse="101"/>
+    "#);
+    let matching_rules = matchingrules! {
+      "body" => {
+        "$.foo['@something']" => [ MatchingRule::Boolean ],
+        "$.foo['@somethingElse']" => [ MatchingRule::Boolean ]
+      }
+    }.rules_for_category("body").unwrap();
+    let result = match_xml(&expected.clone(), &actual.clone(), &MatchingContext::new(DiffConfig::NoUnexpectedKeys, &matching_rules));
+    expect!(mismatch_message(&result)).to(be_equal_to("Expected \'101\' to match a boolean".to_string()));
+    expect!(result).to(be_err().value(vec![
+      Mismatch::BodyMismatch {
+        path: "$.foo.@somethingElse".into(),
+        expected: Some("true".into()),
+        actual: Some("101".into()),
+        mismatch: Default::default()
+      }
+    ]));
+  }
 }
