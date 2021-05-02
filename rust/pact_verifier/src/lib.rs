@@ -754,7 +754,8 @@ async fn fetch_pacts(source: Vec<PactSource>, consumers: Vec<String>)
     .await
 }
 
-async fn verify_pact<'a, F: RequestFilterExecutor, S: ProviderStateExecutor>(
+/// Internal function, public for testing purposes
+pub async fn verify_pact<'a, F: RequestFilterExecutor, S: ProviderStateExecutor>(
   provider_info: &ProviderInfo,
   filter: &FilterInfo,
   pact: Box<dyn Pact + 'a>,
