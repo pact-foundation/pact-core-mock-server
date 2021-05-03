@@ -246,21 +246,21 @@ install(FILES ${CARGO_INSTALL_FILES} TYPE LIB)
 #################################################################################################
 
 # Define a fake file to ensure the header file is always rebuilt
-set(CBINDGEN_HEADER_FILE_FAKE "${CMAKE_HEADER_FILE}.fake")
+#set(CBINDGEN_HEADER_FILE_FAKE "${CMAKE_HEADER_FILE}.fake")
 
 # Make sure the fake file doesn't actually exist, which would break this mechanism
-if(EXISTS ${CBINDGEN_HEADER_FILE_FAKE})
-  message(FATAL_ERROR "File \"${CBINDGEN_HEADER_FILE_FAKE}\" found, this should never be created, remove!")
-endif()
+#if(EXISTS ${CBINDGEN_HEADER_FILE_FAKE})
+#  message(FATAL_ERROR "File \"${CBINDGEN_HEADER_FILE_FAKE}\" found, this should never be created, remove!")
+#endif()
 
 # From the cmake documentation "If the output of the custom command is not actually created as a
 # file on disk it should be marked with the SYMBOLIC source file property."
 #
 # Not doing this leads to build warnings for the not generated file on windows when using msbuild
-set_source_files_properties(
-    ${CBINDGEN_HEADER_FILE_FAKE}
-    PROPERTIES
-        SYMBOLIC TRUE)
+#set_source_files_properties(
+#    ${CBINDGEN_HEADER_FILE_FAKE}
+#    PROPERTIES
+#        SYMBOLIC TRUE)
 
 # Mark the header file as being a generated header file.
 set_source_files_properties(
@@ -271,7 +271,7 @@ set_source_files_properties(
 
 # Defines the cbindgen command to generate the header file.
 add_custom_command(
-    OUTPUT ${CBINDGEN_HEADER_FILE_FAKE} ${CBINDGEN_HEADER_FILE}
+    OUTPUT ${CBINDGEN_HEADER_FILE}
     COMMAND
         rustup run nightly
         ${CBINDGEN_EXECUTABLE}
@@ -285,7 +285,7 @@ add_custom_command(
 # Add target for the header file
 add_custom_target(generate_header
     COMMENT "Generating header file with cbindgen"
-    DEPENDS ${CBINDGEN_HEADER_FILE_FAKE})
+    DEPENDS ${CBINDGEN_HEADER_FILE})
 
 # Teach CMake to install the header file built by the generate_header target
 install(FILES "${CBINDGEN_HEADER_FILE}" TYPE INCLUDE)

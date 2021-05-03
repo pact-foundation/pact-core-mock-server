@@ -6,6 +6,8 @@ cmake --version
 cargo +nightly --version
 cargo install cbindgen
 
+rm -rf ./include
+
 echo #####################################
 echo # Build library with CMake
 echo #####################################
@@ -14,6 +16,7 @@ cd build
 cmake -DCMAKE_BUILD_TYPE=Debug ..
 cmake --build . -v
 
+ls -la ..
 ls -la ../../target/debug
 
 echo #####################################
