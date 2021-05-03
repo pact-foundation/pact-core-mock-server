@@ -56,8 +56,8 @@ prefix_with_name = true
 # Parse dependencies.
 parse_deps = true
 
-# Only include `pact_matching` (nothing else).
-include = ["pact_matching"]
+# Only include `pact_matching` and `pact_models` (nothing else).
+include = ["pact_matching", "pact_models"]
 
 
 #==============================================================================
