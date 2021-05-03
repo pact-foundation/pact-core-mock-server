@@ -2,10 +2,7 @@
 
 set -e
 
-cmake --version
-cargo +nightly --version
 cargo install cbindgen
-
 rm -rf ./include
 
 #####################################

@@ -49,3 +49,4 @@ jobs:
         run: ./ci-build.sh
         working-directory: rust/pact_matching_ffi
         shell: bash
+        if: runner.os == 'Linux'
