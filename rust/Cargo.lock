@@ -1175,6 +1175,7 @@ dependencies = [
  "fern",
  "libc",
  "log",
+ "os_info",
  "pact_matching",
  "pact_models",
  "serde_json",
