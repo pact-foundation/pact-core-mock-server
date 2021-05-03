@@ -82,5 +82,5 @@ find_package(PactMatchingFfi REQUIRED CONFIG PATHS ${SEARCH_PATH})
 add_executable(example src/main.c)
 
 # Link to pact matching FFI
-target_link_libraries(example PRIVATE PactMatchingFfi)
+target_link_libraries(example PRIVATE PactMatchingFfi pthread dl m)
 
