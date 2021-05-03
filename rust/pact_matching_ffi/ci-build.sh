@@ -18,8 +18,8 @@ cmake --build . -v
 cd ..
 
 rustup run nightly cbindgen \
-  --config cbindgen.toml
-  --crate pact_matching_ffi
+  --config cbindgen.toml \
+  --crate pact_matching_ffi \
   --output include/pact_matching.h
 
 echo #####################################
