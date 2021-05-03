@@ -8,6 +8,7 @@ pub mod content_types;
 pub mod bodies;
 
 /// Enum defining the pact specification versions supported by the library
+#[repr(C)]
 #[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize, Serialize)]
 #[allow(non_camel_case_types)]
 pub enum PactSpecification {

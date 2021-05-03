@@ -69,6 +69,7 @@ use pact_matching::time_utils::{parse_pattern, to_chrono_pattern};
 use pact_mock_server::{MANAGER, MockServerError, tls::TlsConfigBuilder, WritePactFileErr};
 use pact_mock_server::server_manager::ServerManager;
 use pact_models::bodies::OptionalBody;
+use pact_models::PactSpecification;
 
 use crate::bodies::{empty_multipart_body, file_as_multipart_body, MultipartBody, process_json, request_multipart, response_multipart};
 use crate::handles::InteractionPart;
@@ -563,6 +564,17 @@ pub extern fn with_query_parameter(interaction: handles::InteractionHandle,
   } else {
     warn!("Ignoring query parameter with empty or null name");
   }
+}
+
+/// Sets the specification version for a given Pact model
+///
+/// * `pact` - Handle to a Pact model
+/// * `version` - the spec version to use
+#[no_mangle]
+pub extern fn with_specification(pact: handles::PactHandle, version: PactSpecification) {
+  pact.with_pact(&|_, inner| {
+    inner.specification_version = version.clone();
+  });
 }
 
 /// Configures a header for the Interaction.
