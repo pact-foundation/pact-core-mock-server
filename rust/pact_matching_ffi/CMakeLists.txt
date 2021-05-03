@@ -246,21 +246,21 @@ install(FILES ${CARGO_INSTALL_FILES} TYPE LIB)
 #################################################################################################
 
 # Define a fake file to ensure the header file is always rebuilt
-#set(CBINDGEN_HEADER_FILE_FAKE "${CMAKE_HEADER_FILE}.fake")
+set(CBINDGEN_HEADER_FILE_FAKE "${CMAKE_HEADER_FILE}.fake")
 
 # Make sure the fake file doesn't actually exist, which would break this mechanism
-#if(EXISTS ${CBINDGEN_HEADER_FILE_FAKE})
-#  message(FATAL_ERROR "File \"${CBINDGEN_HEADER_FILE_FAKE}\" found, this should never be created, remove!")
-#endif()
+if(EXISTS ${CBINDGEN_HEADER_FILE_FAKE})
+  message(FATAL_ERROR "File \"${CBINDGEN_HEADER_FILE_FAKE}\" found, this should never be created, remove!")
+endif()
 
 # From the cmake documentation "If the output of the custom command is not actually created as a
 # file on disk it should be marked with the SYMBOLIC source file property."
 #
 # Not doing this leads to build warnings for the not generated file on windows when using msbuild
-#set_source_files_properties(
-#    ${CBINDGEN_HEADER_FILE_FAKE}
-#    PROPERTIES
-#        SYMBOLIC TRUE)
+set_source_files_properties(
+    ${CBINDGEN_HEADER_FILE_FAKE}
+    PROPERTIES
+        SYMBOLIC TRUE)
 
 # Mark the header file as being a generated header file.
 set_source_files_properties(

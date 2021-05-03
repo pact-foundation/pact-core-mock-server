@@ -15,9 +15,12 @@ mkdir build
 cd build
 cmake -DCMAKE_BUILD_TYPE=Debug ..
 cmake --build . -v
+cd ..
 
-ls -la ..
-ls -la ../../target/debug
+rustup run nightly cbindgen \
+  --config cbindgen.toml
+  --crate pact_matching_ffi
+  --output include/pact_matching.h
 
 echo #####################################
 echo # Make library available for examples
