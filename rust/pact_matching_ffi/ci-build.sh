@@ -14,7 +14,7 @@ cd build
 cmake -DCMAKE_BUILD_TYPE=Debug ..
 cmake --build . -v
 
-ls -la ../../target/release
+ls -la ../../target/debug
 
 echo #####################################
 echo # Make library available for examples
