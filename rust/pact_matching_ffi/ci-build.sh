@@ -11,8 +11,8 @@ echo # Build library with CMake
 echo #####################################
 mkdir build
 cd build
-cmake ..
-cmake --build .
+cmake -DCMAKE_BUILD_TYPE=Debug ..
+cmake --build . -v
 
 ls -la ../../target/release
 
