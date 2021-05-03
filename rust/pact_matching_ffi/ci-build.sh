@@ -14,6 +14,8 @@ cd build
 cmake ..
 cmake --build .
 
+ls -la target/release
+
 echo #####################################
 echo # Make library available for examples
 echo #####################################
