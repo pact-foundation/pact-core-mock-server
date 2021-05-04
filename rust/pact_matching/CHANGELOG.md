@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.9.1 - V4 features
+
+* 6b2da7d - feat(V4): added a boolean matcher (Ronald Holshausen, Sun May 2 12:57:09 2021 +1000)
+* e3a71a3 - bump version to 0.9.1 (Ronald Holshausen, Sun Apr 25 14:09:22 2021 +1000)
+
 # 0.9.0 - Extracted some models to pact_models + V4 spec updates
 
 * 735c9e7 - chore: bump pact_matching to 0.9 (Ronald Holshausen, Sun Apr 25 13:50:18 2021 +1000)
