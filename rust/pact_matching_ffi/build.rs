@@ -1,5 +1,3 @@
-use std::env;
-use std::path::PathBuf;
 use os_info;
 use os_info::Type;
 
