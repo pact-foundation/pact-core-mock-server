@@ -1668,7 +1668,7 @@ mod tests {
         expect!(matchers.to_v2_json().to_string()).to(be_equal_to(
           "{\"$.body.a.b\":{\"match\":\"type\"},\
           \"$.header.item1\":{\"match\":\"regex\",\"regex\":\"5\"},\
-          \"$.path.\":{\"match\":\"regex\",\"regex\":\"/path/\\\\d+\"},\
+          \"$.path\":{\"match\":\"regex\",\"regex\":\"/path/\\\\d+\"},\
           \"$.query.a\":{\"match\":\"regex\",\"regex\":\"\\\\w+\"}}"
         ));
       }
