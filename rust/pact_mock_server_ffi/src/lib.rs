@@ -547,7 +547,6 @@ pub extern fn with_query_parameter(interaction: handles::InteractionHandle,
     interaction.with_interaction(&|_, inner| {
       inner.request.query = inner.request.query.clone().map(|mut q| {
         let value = from_integration_json(&mut inner.request.matching_rules, &mut inner.request.generators, &value.to_string(), &format!("{}[{}]", &name, index).to_string(), "query");
-
         if q.contains_key(name) {
           let values = q.get_mut(name).unwrap();
           if index >= values.len() {
