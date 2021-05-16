@@ -43,6 +43,9 @@
 
 #![warn(missing_docs)]
 
+use pact_matching::models::matchingrules::MatchingRules;
+use pact_matching::models::generators::Generators;
+use crate::bodies::process_object;
 use std::any::Any;
 use std::ffi::CStr;
 use std::ffi::CString;
@@ -523,7 +526,9 @@ pub extern fn given_with_param(interaction: handles::InteractionHandle, descript
 pub extern fn with_request(interaction: handles::InteractionHandle, method: *const c_char, path: *const c_char) {
   let method = convert_cstr("method", method).unwrap_or_else(|| "GET");
   let path = convert_cstr("path", path).unwrap_or_else(|| "/");
+
   interaction.with_interaction(&|_, inner| {
+    let path = from_integration_json(&mut inner.request.matching_rules, &mut inner.request.generators, &path.to_string(), &"".to_string(), "path");
     inner.request.method = method.to_string();
     inner.request.path = path.to_string();
   });
@@ -541,6 +546,8 @@ pub extern fn with_query_parameter(interaction: handles::InteractionHandle,
     let value = convert_cstr("value", value).unwrap_or_default();
     interaction.with_interaction(&|_, inner| {
       inner.request.query = inner.request.query.clone().map(|mut q| {
+        let value = from_integration_json(&mut inner.request.matching_rules, &mut inner.request.generators, &value.to_string(), &format!("{}[{}]", &name, index).to_string(), "query");
+
         if q.contains_key(name) {
           let values = q.get_mut(name).unwrap();
           if index >= values.len() {
@@ -555,6 +562,7 @@ pub extern fn with_query_parameter(interaction: handles::InteractionHandle,
         };
         q
       }).or_else(|| {
+        let value = from_integration_json(&mut inner.request.matching_rules, &mut inner.request.generators, &value.to_string(), &format!("{}[{}]", &name, index).to_string(), "query");
         let mut values: Vec<String> = Vec::new();
         values.resize_with(index + 1, Default::default);
         values[index] = value.to_string();
@@ -563,6 +571,26 @@ pub extern fn with_query_parameter(interaction: handles::InteractionHandle,
     });
   } else {
     warn!("Ignoring query parameter with empty or null name");
+  }
+}
+
+/// Convert JSON matching rule structures into their internal representation (excl. bodies)
+///
+/// For non-body values (headers, query, path etc.) extract out the value from any matchers
+/// and apply the matchers/generators to the model
+fn from_integration_json(rules: &mut MatchingRules, generators: &mut Generators, value: &String, path: &String, category: &str) -> String {
+  let category = rules.add_category(category);
+
+  match serde_json::from_str(&value) {
+    Ok(json) => match json {
+      serde_json::Value::Object(ref map) => {
+        let json = process_object(map, category, generators, path, false, false).to_string();
+        // These are simple JSON primitives (strings), so we must unescape them
+        serde_json::from_str(&json.to_string()).unwrap_or_default()
+      },
+      _ => value.to_string()
+    },
+    Err(_) => value.to_string()
   }
 }
 
@@ -593,6 +621,12 @@ pub extern fn with_header(interaction: handles::InteractionHandle, part: Interac
         InteractionPart::Request => inner.request.headers.clone(),
         InteractionPart::Response => inner.response.headers.clone()
       };
+
+      let value = match part {
+        InteractionPart::Request => from_integration_json(&mut inner.request.matching_rules, &mut inner.request.generators, &value.to_string(), &format!("{}", &name).to_string(), "header"),
+        InteractionPart::Response => from_integration_json(&mut inner.response.matching_rules, &mut inner.response.generators, &value.to_string(), &format!("{}", &name).to_string(), "header")
+      };
+
       let updated_headers = headers.map(|mut h| {
         if h.contains_key(name) {
           let values = h.get_mut(name).unwrap();
