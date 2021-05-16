@@ -1023,6 +1023,10 @@ impl MatchingRuleCategory {
       for (k, v) in self.rules.clone() {
         map.insert(k.replace("$", "$.body"), v.to_v2_json());
       }
+    } else if self.name == "path" {
+      for (_, v) in self.rules.clone() {
+        map.insert("$.path".to_string(), v.to_v2_json());
+      }
     } else {
       for (k, v) in self.rules.clone() {
         map.insert(format!("$.{}.{}", self.name, k), v.to_v2_json());
