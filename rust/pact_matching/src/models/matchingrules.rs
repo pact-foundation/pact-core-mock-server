@@ -214,8 +214,6 @@ impl <T: Display> DisplayForMismatch for &[T] {
 /// Set of all matching rules
 #[derive(Serialize, Deserialize, Debug, Clone, Eq)]
 pub enum MatchingRule {
-  /// Dummy rule to allow all values passed in via the FFI to be JSON integration values, even primitives
-  Dummy,
   /// Matcher using equals
   Equality,
   /// Match using a regular expression
@@ -267,7 +265,6 @@ impl MatchingRule {
               Some(s) => Some(MatchingRule::Regex(json_to_string(s))),
               None => None
             },
-            "dummy" => Some(MatchingRule::Dummy),
             "equality" => Some(MatchingRule::Equality),
             "include" => match m.get("value") {
               Some(s) => Some(MatchingRule::Include(json_to_string(s))),
@@ -369,7 +366,6 @@ impl MatchingRule {
   /// Converts this `MatchingRule` to a `Value` struct
   pub fn to_json(&self) -> Value {
     match self {
-      MatchingRule::Dummy => json!({}),
       MatchingRule::Equality => json!({ "match": "equality" }),
       MatchingRule::Regex(ref r) => json!({ "match": "regex",
         "regex": r.clone() }),
