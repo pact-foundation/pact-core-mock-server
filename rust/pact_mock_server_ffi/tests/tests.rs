@@ -1,3 +1,12 @@
+use pact_mock_server_ffi::write_pact_file;
+use pact_mock_server_ffi::write_message_pact_file;
+use libc::c_char;
+use pact_mock_server_ffi::message_reify_contents;
+use pact_mock_server_ffi::message_with_contents;
+use pact_mock_server_ffi::message_given;
+use pact_mock_server_ffi::new_message;
+use pact_mock_server_ffi::message_expects_to_receive;
+use pact_mock_server_ffi::new_message_pact;
 use std::ffi::{CStr, CString};
 use std::panic::catch_unwind;
 
@@ -135,9 +144,9 @@ fn create_multipart_file() {
 }
 
 #[test]
-fn request_with_matchers() {
-  let consumer_name = CString::new("consumer").unwrap();
-  let provider_name = CString::new("provider").unwrap();
+fn http_consumer_feature_test() {
+  let consumer_name = CString::new("http-consumer").unwrap();
+  let provider_name = CString::new("http-provider").unwrap();
   let pact_handle = new_pact(consumer_name.as_ptr(), provider_name.as_ptr());
   let description = CString::new("request_with_matchers").unwrap();
   let interaction = new_interaction(pact_handle.clone(), description.as_ptr());
@@ -151,6 +160,7 @@ fn request_with_matchers() {
   let request_body_with_matchers = CString::new("{\"id\": {\"value\":1,\"pact:matcher:type\":\"type\"}}").unwrap();
   let response_body_with_matchers = CString::new("{\"created\": {\"value\":\"maybe\",\"pact:matcher:type\":\"regex\", \"regex\":\"(yes|no|maybe)\"}}").unwrap();
   let address = CString::new("127.0.0.1:0").unwrap();
+  let file_path = CString::new("/tmp/pact").unwrap();
 
   upon_receiving(interaction.clone(), CString::new("a request to test the FFI interface").unwrap().as_ptr());
   with_request(interaction.clone(), CString::new("POST").unwrap().as_ptr(), path_matcher.as_ptr());
@@ -180,7 +190,7 @@ fn request_with_matchers() {
         expect!(res.status()).to(be_eq(200));
         expect!(res.headers().get("My-Special-Content-Type").unwrap()).to(be_eq("application/json"));
         let json: serde_json::Value = res.json().unwrap_or_default();
-        expect!(json.get("created").unwrap().to_string()).to(be_eq("maybe"));
+        expect!(json.get("created").unwrap().as_str().unwrap()).to(be_eq("maybe"));
       },
       Err(_) => {
         panic!("expected 200 response but request failed");
@@ -192,7 +202,30 @@ fn request_with_matchers() {
     CStr::from_ptr(mock_server_mismatches(port)).to_string_lossy().into_owned()
   };
 
+  write_pact_file(port, file_path.as_ptr(), true);
   cleanup_mock_server(port);
 
   expect!(mismatches).to(be_equal_to("[]"));
+}
+
+#[test]
+fn message_consumer_feature_test() {
+  let consumer_name = CString::new("message-consumer").unwrap();
+  let provider_name = CString::new("message-provider").unwrap();
+  let description = CString::new("message_request_with_matchers").unwrap();
+  let content_type = CString::new("application/json").unwrap();
+  let request_body_with_matchers = CString::new("{\"id\": {\"value\":1,\"pact:matcher:type\":\"type\"}}").unwrap();
+  let file_path = CString::new("/tmp/pact").unwrap();
+
+  let message_pact_handle = new_message_pact(consumer_name.as_ptr(), provider_name.as_ptr());
+  let message_handle = new_message(message_pact_handle.clone(), description.as_ptr());
+  message_given(message_handle.clone(), CString::new("a functioning FFI interface").unwrap().as_ptr());
+  message_expects_to_receive(message_handle.clone(), CString::new("a request to test the FFI interface").unwrap().as_ptr());
+  message_with_contents(message_handle.clone(), content_type.as_ptr(), request_body_with_matchers.as_ptr());
+  // message_with_metadata(...) // TODO:
+  let res: *const c_char = message_reify_contents(message_handle.clone());
+  let c_str: &CStr = unsafe { CStr::from_ptr(res) };
+  let str_slice: &str = c_str.to_str().unwrap();
+  expect!(str_slice).to(be_equal_to("{\"id\":1}"));
+  write_message_pact_file(message_pact_handle.clone(), file_path.as_ptr(), true);
 }

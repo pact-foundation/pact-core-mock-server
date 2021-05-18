@@ -43,6 +43,9 @@
 
 #![warn(missing_docs)]
 
+use pact_models::content_types::JSON;
+use pact_models::bodies::OptionalBody::{Present, Null};
+use pact_matching::models::message::Message;
 use pact_matching::models::matchingrules::MatchingRules;
 use pact_matching::models::generators::Generators;
 use crate::bodies::process_object;
@@ -52,6 +55,7 @@ use std::ffi::CString;
 use std::panic::catch_unwind;
 use std::ptr::null_mut;
 use std::str;
+use std::path::PathBuf;
 
 use bytes::Bytes;
 use chrono::Local;
@@ -397,22 +401,10 @@ pub extern fn cleanup_mock_server(mock_server_port: i32) -> bool {
 #[no_mangle]
 pub extern fn write_pact_file(mock_server_port: i32, directory: *const c_char, overwrite: bool) -> i32 {
   let result = catch_unwind(|| {
-    let dir = unsafe {
-      if directory.is_null() {
-        log::warn!("Directory to write to is NULL, defaulting to the current working directory");
-        None
-      } else {
-        let c_str = CStr::from_ptr(directory);
-        let dir_str = str::from_utf8(c_str.to_bytes()).unwrap();
-        if dir_str.is_empty() {
-          None
-        } else {
-          Some(dir_str.to_string())
-        }
-      }
-    };
+    let dir = path_from_dir(directory, None);
+    let path = dir.map(|path| path.into_os_string().into_string().unwrap_or_default());
 
-    pact_mock_server::write_pact_file(mock_server_port, dir, overwrite)
+    pact_mock_server::write_pact_file(mock_server_port, path, overwrite)
   });
 
   match result {
@@ -583,9 +575,9 @@ fn from_integration_json(rules: &mut MatchingRules, generators: &mut Generators,
   match serde_json::from_str(&value) {
     Ok(json) => match json {
       serde_json::Value::Object(ref map) => {
-        let json = process_object(map, category, generators, path, false, false).to_string();
+        let json: serde_json::Value = process_object(map, category, generators, path, false, false);
         // These are simple JSON primitives (strings), so we must unescape them
-        serde_json::from_str(&json.to_string()).unwrap_or_default()
+        json.as_str().unwrap_or_default().to_string()
       },
       _ => value.to_string()
     },
@@ -825,7 +817,6 @@ pub unsafe extern fn check_regex(regex: *const c_char, example: *const c_char) -
   }
 }
 
-
 /// Generates an example string based on the provided regex.
 pub fn generate_regex_value_internal(regex: &str) -> Result<String, String> {
   let mut parser = regex_syntax::ParserBuilder::new().unicode(false).build();
@@ -1013,5 +1004,200 @@ fn convert_ptr_to_mime_part_body(file: *const c_char, part_name: &str) -> Result
       }
     }?;
     file_as_multipart_body(file, part_name)
+  }
+}
+
+/// Creates a new Pact Message model and returns a handle to it.
+///
+/// * `consumer_name` - The name of the consumer for the pact.
+/// * `provider_name` - The name of the provider for the pact.
+///
+/// Returns a new `MessagePactHandle`.
+#[no_mangle]
+pub extern fn new_message_pact(consumer_name: *const c_char, provider_name: *const c_char) -> handles::MessagePactHandle {
+  let consumer = convert_cstr("consumer_name", consumer_name).unwrap_or_else(|| "Consumer");
+  let provider = convert_cstr("provider_name", provider_name).unwrap_or_else(|| "Provider");
+  handles::MessagePactHandle::new(consumer, provider)
+}
+
+/// Creates a new Message and returns a handle to it.
+///
+/// * `description` - The message description. It needs to be unique for each Message.
+///
+/// Returns a new `MessageHandle`.
+#[no_mangle]
+pub extern fn new_message(pact: handles::MessagePactHandle, description: *const c_char) -> handles::MessageHandle {
+  if let Some(description) = convert_cstr("description", description) {
+    pact.with_pact(&|_, inner| {
+      let message = Message {
+        description: description.to_string(),
+        ..Message::default()
+      };
+      inner.messages.push(message);
+      handles::MessageHandle::new(pact.clone(), inner.messages.len())
+    }).unwrap_or_else(|| handles::MessageHandle::new(pact.clone(), 0))
+  } else {
+    handles::MessageHandle::new(pact.clone(), 0)
+  }
+}
+
+/// Sets the description for the Message.
+///
+/// * `description` - The message description. It needs to be unique for each message.
+#[no_mangle]
+pub extern fn message_expects_to_receive(message: handles::MessageHandle, description: *const c_char) {
+  if let Some(description) = convert_cstr("description", description) {
+    message.with_message(&|_, inner| {
+      inner.description = description.to_string();
+    });
+  }
+}
+
+/// Adds a provider state to the Interaction.
+///
+/// * `description` - The provider state description. It needs to be unique for each message
+#[no_mangle]
+pub extern fn message_given(message: handles::MessageHandle, description: *const c_char) {
+  if let Some(description) = convert_cstr("description", description) {
+    message.with_message(&|_, inner| {
+      inner.provider_states.push(ProviderState::default(&description.to_string()));
+    });
+  }
+}
+
+/// Adds a provider state to the Message with a parameter key and value.
+///
+/// * `description` - The provider state description. It needs to be unique.
+/// * `name` - Parameter name.
+/// * `value` - Parameter value.
+#[no_mangle]
+pub extern fn message_given_with_param(message: handles::MessageHandle, description: *const c_char,
+                               name: *const c_char, value: *const c_char) {
+  if let Some(description) = convert_cstr("description", description) {
+    if let Some(name) = convert_cstr("name", name) {
+      let value = convert_cstr("value", value).unwrap_or_default();
+      message.with_message(&|_, inner| {
+        let value = match serde_json::from_str(value) {
+          Ok(json) => json,
+          Err(_) => json!(value)
+        };
+        match inner.provider_states.iter().find_position(|state| state.name == description) {
+          Some((index, _)) => {
+            inner.provider_states.get_mut(index).unwrap().params.insert(name.to_string(), value);
+          },
+          None => inner.provider_states.push(ProviderState {
+            name: description.to_string(),
+            params: hashmap!{ name.to_string() => value }
+          })
+        };
+      });
+    }
+  }
+}
+
+/// Adds the contents of the Message
+///
+/// * `content_type` - The content type of the body. Defaults to `text/plain`.
+/// * `body` - The body contents. For JSON payloads, matching rules can be embedded in the body.
+#[no_mangle]
+pub extern fn message_with_contents(message: handles::MessageHandle, content_type: *const c_char, body: *const c_char) {
+  let body = convert_cstr("body", body).unwrap_or_default();
+  let content_type = convert_cstr("content_type", content_type).unwrap_or_else(|| "text/plain");
+
+  message.with_message(&|_, inner| {
+    inner.metadata.insert("Content-Type".to_string(), content_type.to_string());
+
+    let body = if inner.content_type().unwrap_or_default().is_json() {
+      let category = inner.matching_rules.add_category("body");
+      OptionalBody::Present(Bytes::from(process_json(body.to_string(), category, &mut inner.generators)), Some(JSON.clone()))
+    } else {
+      OptionalBody::from(body)
+    };
+
+    inner.contents = body;
+  });
+}
+
+/// Reifies the given message
+///
+/// Reification is the process of stripping away any matchers, and returning the original contents
+#[no_mangle]
+pub extern fn message_reify_contents(message: handles::MessageHandle) -> *const c_char {
+  let res = message.with_message(&|_, inner| {
+    let body = match inner.body() {
+      Null => "null",
+      Present(_, _) => inner.body().str_value(),
+      _ => ""
+    };
+
+    body.as_ptr() as *const c_char
+  });
+
+  match res {
+    Some(res) => res,
+    None => "".as_ptr() as *const c_char
+  }
+}
+
+/// External interface to write out the message pact file. This function should
+/// be called if all the consumer tests have passed. The directory to write the file to is passed
+/// as the second parameter. If a NULL pointer is passed, the current working directory is used.
+///
+/// If overwrite is true, the file will be overwritten with the contents of the current pact.
+/// Otherwise, it will be merged with any existing pact file.
+///
+/// Returns 0 if the pact file was successfully written. Returns a positive code if the file can
+/// not be written, or there is no mock server running on that port or the function panics.
+///
+/// # Errors
+///
+/// Errors are returned as positive values.
+///
+/// | Error | Description |
+/// |-------|-------------|
+/// | 1 | A general panic was caught |
+/// | 2 | The pact file was not able to be written |
+#[no_mangle]
+pub extern fn write_message_pact_file(pact: handles::MessagePactHandle, directory: *const c_char, overwrite: bool) -> i32 {
+  let result = pact.with_pact(&|_, inner| {
+    let filename = path_from_dir(directory, Some(inner.default_file_name().as_str()));
+    pact_matching::models::write_pact(inner.boxed(), &filename.unwrap(), inner.specification_version(), overwrite)
+  });
+
+  match result {
+    Some(_val) => 0,
+    None => {
+      log::error!("unable to write the pact file");
+      1
+    }
+  }
+}
+
+fn path_from_dir(directory: *const c_char, default: Option<&str>) -> Option<PathBuf> {
+  let dir = unsafe {
+    if directory.is_null() {
+      log::warn!("Directory to write to is NULL, defaulting to the current working directory");
+      None
+    } else {
+      let c_str = CStr::from_ptr(directory);
+      let dir_str = str::from_utf8(c_str.to_bytes()).unwrap();
+      if dir_str.is_empty() {
+        None
+      } else {
+        Some(dir_str.to_string())
+      }
+    }
+  };
+
+  match dir {
+    Some(ref path) => {
+      Some(PathBuf::from(path))
+    },
+    None => {
+      match default {
+        Some(dir) => Some(PathBuf::from(dir)),
+        None => None
+      }
+    }
   }
 }

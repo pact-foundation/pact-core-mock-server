@@ -192,6 +192,22 @@ impl Message {
         }
     }
 
+    /// Converts this interaction to a `Value` struct.
+    /// note: spec version is preserved for compatibility with the RequestResponsePact interface
+    /// and for future use
+    pub fn to_json(&self, _spec_version: &PactSpecification) -> Value {
+      let mut value = json!({
+          s!("description"): Value::String(self.description.clone()),
+          s!("contents"): self.contents.str_value(),
+          s!("metadata"): self.metadata
+      });
+      if !self.provider_states.is_empty() {
+          let map = value.as_object_mut().unwrap();
+          map.insert(s!("providerStates"), Value::Array(self.provider_states.iter().map(|p| p.to_json()).collect()));
+      }
+      value
+  }
+
   /// Returns the content type of the message by returning the content type associated with
   /// the body, or by looking it up in the message metadata
   pub fn message_content_type(&self) -> Option<ContentType> {
@@ -430,5 +446,20 @@ mod tests {
     expect!(v4.matching_rules).to(be_equal_to(
       matchingrules! { "content" => { "user_id" => [ MatchingRule::Regex("^[0-9]+$".into()) ] }}
     ));
+  }
+
+  #[test]
+  fn message_with_json_body_serialises() {
+    let message_json = r#"{
+        "contents": {
+            "hello": "world"
+        },
+        "metadata": {
+            "contentType": "application/json"
+        }
+    }"#;
+    let message = Message::from_json(0, &serde_json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
+    let v = message.to_json(&PactSpecification::V3);
+    expect!(v.get("contents").unwrap().as_str().unwrap()).to(be_equal_to("{\"hello\":\"world\"}"));
   }
 }
