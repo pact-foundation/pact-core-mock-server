@@ -1118,6 +1118,18 @@ pub extern fn message_with_contents(message: handles::MessageHandle, content_typ
   });
 }
 
+/// Adds expected metadata to the Message
+///
+/// * `key` - metadata key
+/// * `value` - metadata value.
+#[no_mangle]
+pub extern fn message_with_metadata(message: handles::MessageHandle, key: *const c_char, value: *const c_char) {
+  if let Some(key) = convert_cstr("key", key) {
+    let value = convert_cstr("value", value).unwrap_or_default();
+    message.with_message(&|_, inner| inner.metadata.insert(key.to_string(), value.to_string()));
+  }
+}
+
 /// Reifies the given message
 ///
 /// Reification is the process of stripping away any matchers, and returning the original contents
@@ -1155,8 +1167,8 @@ pub extern fn message_reify_contents(message: handles::MessageHandle) -> *const 
 ///
 /// | Error | Description |
 /// |-------|-------------|
-/// | 1 | A general panic was caught |
-/// | 2 | The pact file was not able to be written |
+/// | 1 | The pact file was not able to be written |
+/// | 2 | The message pact for the given handle was not found |
 #[no_mangle]
 pub extern fn write_message_pact_file(pact: handles::MessagePactHandle, directory: *const c_char, overwrite: bool) -> i32 {
   let result = pact.with_pact(&|_, inner| {
@@ -1165,15 +1177,23 @@ pub extern fn write_message_pact_file(pact: handles::MessagePactHandle, director
   });
 
   match result {
-    Some(_val) => 0,
+    Some(write_result) => match write_result {
+      Ok(_) => 0,
+      Err(e) => {
+        log::error!("unable to write the pact file: {:}", e);
+        1
+      }
+    },
     None => {
       log::error!("unable to write the pact file");
-      1
+      2
     }
   }
 }
 
-fn path_from_dir(directory: *const c_char, default: Option<&str>) -> Option<PathBuf> {
+/// Given a c string for the output directory, and an optional filename
+/// return a fully qualified directory or file path name for the output pact file
+fn path_from_dir(directory: *const c_char, file_name: Option<&str>) -> Option<PathBuf> {
   let dir = unsafe {
     if directory.is_null() {
       log::warn!("Directory to write to is NULL, defaulting to the current working directory");
@@ -1189,15 +1209,11 @@ fn path_from_dir(directory: *const c_char, default: Option<&str>) -> Option<Path
     }
   };
 
-  match dir {
-    Some(ref path) => {
-      Some(PathBuf::from(path))
-    },
-    None => {
-      match default {
-        Some(dir) => Some(PathBuf::from(dir)),
-        None => None
-      }
+  dir.map(|path| {
+    let mut full_path = PathBuf::from(path);
+    if let Some(pact_file_name) = file_name {
+      full_path.push(pact_file_name);
     }
-  }
+    full_path
+  })
 }

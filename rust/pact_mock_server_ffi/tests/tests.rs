@@ -1,3 +1,4 @@
+use pact_mock_server_ffi::message_with_metadata;
 use pact_mock_server_ffi::write_pact_file;
 use pact_mock_server_ffi::write_message_pact_file;
 use libc::c_char;
@@ -214,6 +215,8 @@ fn message_consumer_feature_test() {
   let provider_name = CString::new("message-provider").unwrap();
   let description = CString::new("message_request_with_matchers").unwrap();
   let content_type = CString::new("application/json").unwrap();
+  let metadata_key = CString::new("message-queue-name").unwrap();
+  let metadata_val = CString::new("message-queue-val").unwrap();
   let request_body_with_matchers = CString::new("{\"id\": {\"value\":1,\"pact:matcher:type\":\"type\"}}").unwrap();
   let file_path = CString::new("/tmp/pact").unwrap();
 
@@ -222,10 +225,11 @@ fn message_consumer_feature_test() {
   message_given(message_handle.clone(), CString::new("a functioning FFI interface").unwrap().as_ptr());
   message_expects_to_receive(message_handle.clone(), CString::new("a request to test the FFI interface").unwrap().as_ptr());
   message_with_contents(message_handle.clone(), content_type.as_ptr(), request_body_with_matchers.as_ptr());
-  // message_with_metadata(...) // TODO:
+  message_with_metadata(message_handle.clone(), metadata_key.as_ptr(), metadata_val.as_ptr());
   let res: *const c_char = message_reify_contents(message_handle.clone());
   let c_str: &CStr = unsafe { CStr::from_ptr(res) };
   let str_slice: &str = c_str.to_str().unwrap();
   expect!(str_slice).to(be_equal_to("{\"id\":1}"));
-  write_message_pact_file(message_pact_handle.clone(), file_path.as_ptr(), true);
+  let res = write_message_pact_file(message_pact_handle.clone(), file_path.as_ptr(), true);
+  expect!(res).to(be_eq(0));
 }
