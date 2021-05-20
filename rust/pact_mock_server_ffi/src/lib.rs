@@ -43,6 +43,7 @@
 
 #![warn(missing_docs)]
 
+use pact_models::content_types::ContentType;
 use pact_models::content_types::JSON;
 use pact_models::bodies::OptionalBody::{Present, Null};
 use pact_matching::models::message::Message;
@@ -1105,11 +1106,15 @@ pub extern fn message_with_contents(message: handles::MessageHandle, content_typ
   let content_type = convert_cstr("content_type", content_type).unwrap_or_else(|| "text/plain");
 
   message.with_message(&|_, inner| {
-    inner.metadata.insert("Content-Type".to_string(), content_type.to_string());
+    let content_type = ContentType::parse(content_type).ok();
 
-    let body = if inner.content_type().unwrap_or_default().is_json() {
-      let category = inner.matching_rules.add_category("body");
-      OptionalBody::Present(Bytes::from(process_json(body.to_string(), category, &mut inner.generators)), Some(JSON.clone()))
+    let body = if let Some(content_type) = content_type {
+      if content_type.is_json() {
+        let category = inner.matching_rules.add_category("body");
+        OptionalBody::Present(Bytes::from(process_json(body.to_string(), category, &mut inner.generators)), Some(content_type))
+      } else {
+        OptionalBody::Present(Bytes::from(body), Some(content_type))
+      }
     } else {
       OptionalBody::from(body)
     };
