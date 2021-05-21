@@ -1097,11 +1097,10 @@ pub extern fn message_given_with_param(message: handles::MessageHandle, descript
 
 /// Adds the contents of the Message
 ///
-/// * `content_type` - The content type of the body. Defaults to `text/plain`.
+/// * `content_type` - The content type of the body. Defaults to `text/plain`, supports JSON structures with matchers and binary data.
 /// * `body` - The body contents. For JSON payloads, matching rules can be embedded in the body.
 #[no_mangle]
-pub extern fn message_with_contents(message: handles::MessageHandle, content_type: *const c_char, body: *const c_char) {
-  let body = convert_cstr("body", body).unwrap_or_default();
+pub extern fn message_with_contents(message: handles::MessageHandle, content_type: *const c_char, body: *const c_char, size: usize) {
   let content_type = convert_cstr("content_type", content_type).unwrap_or_else(|| "text/plain");
 
   message.with_message(&|_, inner| {
@@ -1109,13 +1108,14 @@ pub extern fn message_with_contents(message: handles::MessageHandle, content_typ
 
     let body = if let Some(content_type) = content_type {
       if content_type.is_json() {
+        let body = convert_cstr("body", body).unwrap_or_default();
         let category = inner.matching_rules.add_category("body");
         OptionalBody::Present(Bytes::from(process_json(body.to_string(), category, &mut inner.generators)), Some(content_type))
       } else {
-        OptionalBody::Present(Bytes::from(body), Some(content_type))
+        OptionalBody::Present(Bytes::from(unsafe { std::slice::from_raw_parts(body as *const u8, size) }), Some(content_type))
       }
     } else {
-      OptionalBody::from(body)
+      OptionalBody::Present(Bytes::from(unsafe { std::slice::from_raw_parts(body as *const u8, size) }), None)
     };
 
     inner.contents = body;

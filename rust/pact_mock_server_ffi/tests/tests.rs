@@ -224,7 +224,7 @@ fn message_consumer_feature_test() {
   let message_handle = new_message(message_pact_handle.clone(), description.as_ptr());
   message_given(message_handle.clone(), CString::new("a functioning FFI interface").unwrap().as_ptr());
   message_expects_to_receive(message_handle.clone(), CString::new("a request to test the FFI interface").unwrap().as_ptr());
-  message_with_contents(message_handle.clone(), content_type.as_ptr(), request_body_with_matchers.as_ptr());
+  message_with_contents(message_handle.clone(), content_type.as_ptr(), request_body_with_matchers.as_ptr(), content_type.as_bytes().len());
   message_with_metadata(message_handle.clone(), metadata_key.as_ptr(), metadata_val.as_ptr());
   let res: *const c_char = message_reify_contents(message_handle.clone());
   let c_str: &CStr = unsafe { CStr::from_ptr(res) };
