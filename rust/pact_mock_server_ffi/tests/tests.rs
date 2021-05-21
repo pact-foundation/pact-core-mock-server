@@ -229,7 +229,7 @@ fn message_consumer_feature_test() {
   let res: *const c_char = message_reify_contents(message_handle.clone());
   let c_str: &CStr = unsafe { CStr::from_ptr(res) };
   let str_slice: &str = c_str.to_str().unwrap();
-  expect!(str_slice).to(be_equal_to("{\"id\":1}"));
+  expect!(str_slice).to(be_equal_to("{\"contents\":\"{\\\"id\\\":1}\",\"description\":\"a request to test the FFI interface\",\"metadata\":{\"contentType\":\"application/json\",\"message-queue-name\":\"message-queue-val\"},\"providerStates\":[{\"name\":\"a functioning FFI interface\"}]}"));
   let res = write_message_pact_file(message_pact_handle.clone(), file_path.as_ptr(), true);
   expect!(res).to(be_eq(0));
 }

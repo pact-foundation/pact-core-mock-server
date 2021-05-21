@@ -44,7 +44,6 @@
 #![warn(missing_docs)]
 
 use pact_models::content_types::ContentType;
-use pact_models::content_types::JSON;
 use pact_models::bodies::OptionalBody::{Present, Null};
 use pact_matching::models::message::Message;
 use pact_matching::models::matchingrules::MatchingRules;
@@ -1141,17 +1140,17 @@ pub extern fn message_with_metadata(message: handles::MessageHandle, key: *const
 #[no_mangle]
 pub extern fn message_reify_contents(message: handles::MessageHandle) -> *const c_char {
   let res = message.with_message(&|_, inner| {
-    let body = match inner.body() {
-      Null => "null",
-      Present(_, _) => inner.body().str_value(),
-      _ => ""
-    };
-
-    body.as_ptr() as *const c_char
+    match inner.body() {
+      Null => "null".to_string(),
+      Present(_, _) => inner.to_json(&PactSpecification::V3).to_string(),
+      _ => "".to_string()
+    }
   });
 
+  println!("{:?}", res);
+
   match res {
-    Some(res) => res,
+    Some(res) => res.as_str().as_ptr() as *const c_char,
     None => "".as_ptr() as *const c_char
   }
 }
