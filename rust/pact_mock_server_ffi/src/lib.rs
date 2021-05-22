@@ -1095,12 +1095,16 @@ pub extern fn message_given_with_param(message: handles::MessageHandle, descript
   }
 }
 
-/// Adds the contents of the Message
+/// Adds the contents of the Message.
+///
+/// Accepts JSON, binary and other payload types. Binary data will be base64 encoded when serialised.
 ///
 /// * `content_type` - The content type of the body. Defaults to `text/plain`, supports JSON structures with matchers and binary data.
 /// * `body` - The body contents. For JSON payloads, matching rules can be embedded in the body.
+/// * `content_type` - Expected content type (e.g. application/json, application/octet-stream)
+/// * `size` - number of bytes in the message to read
 #[no_mangle]
-pub extern fn message_with_contents(message: handles::MessageHandle, content_type: *const c_char, body: *const c_char, size: usize) {
+pub extern fn message_with_contents(message: handles::MessageHandle, content_type: *const c_char, body: *const c_char, size: size_t) {
   let content_type = convert_cstr("content_type", content_type).unwrap_or_else(|| "text/plain");
 
   message.with_message(&|_, inner| {
@@ -1138,7 +1142,7 @@ pub extern fn message_with_metadata(message: handles::MessageHandle, key: *const
 ///
 /// Reification is the process of stripping away any matchers, and returning the original contents
 #[no_mangle]
-pub extern fn message_reify_contents(message: handles::MessageHandle) -> *const c_char {
+pub extern fn message_reify(message: handles::MessageHandle) -> *const c_char {
   let res = message.with_message(&|_, inner| {
     match inner.body() {
       Null => "null".to_string(),
@@ -1146,8 +1150,6 @@ pub extern fn message_reify_contents(message: handles::MessageHandle) -> *const 
       _ => "".to_string()
     }
   });
-
-  println!("{:?}", res);
 
   match res {
     Some(res) => res.as_str().as_ptr() as *const c_char,

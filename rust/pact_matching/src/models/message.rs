@@ -1,7 +1,6 @@
 //! The `message` module provides all functionality to deal with messages.
 
 use std::collections::HashMap;
-
 use anyhow::anyhow;
 use maplit::*;
 use serde::{Deserialize, Serialize};
@@ -198,13 +197,35 @@ impl Message {
     pub fn to_json(&self, _spec_version: &PactSpecification) -> Value {
       let mut value = json!({
           s!("description"): Value::String(self.description.clone()),
-          s!("contents"): self.contents.str_value(),
           s!("metadata"): self.metadata
       });
-      if !self.provider_states.is_empty() {
-          let map = value.as_object_mut().unwrap();
+      {
+        let map = value.as_object_mut().unwrap();
+
+        match self.contents {
+          OptionalBody::Present(ref body, _) => if self.message_content_type().unwrap_or_default().is_json() {
+            match serde_json::from_slice(body) {
+              Ok(json_body) => { map.insert(s!("contents"), json_body); },
+              Err(err) => {
+                log::warn!("Failed to parse json body: {}", err);
+                map.insert(s!("contents"), Value::String(encode(body)));
+              }
+            }
+          } else {
+            match str::from_utf8(body) {
+              Ok(s) => map.insert(s!("contents"), Value::String(s.to_string())),
+              Err(_) => map.insert(s!("contents"), Value::String(encode(body)))
+            };
+          },
+          OptionalBody::Empty => { map.insert(s!("contents"), Value::String(s!(""))); },
+          OptionalBody::Missing => (),
+          OptionalBody::Null => { map.insert(s!("contents"), Value::Null); }
+        }
+        if !self.provider_states.is_empty() {
           map.insert(s!("providerStates"), Value::Array(self.provider_states.iter().map(|p| p.to_json()).collect()));
+        }
       }
+
       value
   }
 
@@ -268,6 +289,7 @@ fn missing_body() -> OptionalBody {
 
 #[cfg(test)]
 mod tests {
+  use bytes::Bytes;
   use expectest::expect;
   use expectest::prelude::*;
   use serde_json;
@@ -461,5 +483,33 @@ mod tests {
     let message = Message::from_json(0, &serde_json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
     let v = message.to_json(&PactSpecification::V3);
     expect!(v.get("contents").unwrap().as_str().unwrap()).to(be_equal_to("{\"hello\":\"world\"}"));
+  }
+
+  #[test]
+  fn message_with_binary_body_serialises() {
+    let message_json = r#"{
+        "metadata": {
+            "contentType": "application/octet-stream"
+        }
+    }"#;
+
+    let file = env::current_dir()
+          .expect("could not find current working directory")
+          .join("tests/data")
+          .join("message_with_binary_body_serialises.zip")
+          .to_owned();
+
+    let content_type = ContentType::parse("application/octet-stream").unwrap();
+    let contents = fs::read(file).unwrap();
+    let encoded = concat!(
+      "UEsDBAoAAAAAAI2rtlKd3GsXCgAAAAoAAAAIABwAZmlsZS50eHRVVAkAA9nqqGDb6qhgdXgLAAEE9QEAAAQUAAAAdGVzdCBkYXRhClBL",
+      "AQIeAwoAAAAAAI2rtlKd3GsXCgAAAAoAAAAIABgAAAAAAAEAAACkgQAAAABmaWxlLnR4dFVUBQAD2eqoYHV4CwABBPUBAAAEFAAAAFBLBQYAAAAAAQABAE4",
+      "AAABMAAAAAAA=");
+
+    let mut message = Message::from_json(0, &serde_json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
+    message.contents = OptionalBody::Present(Bytes::from(contents), Some(content_type));
+    let json = message.to_json(&PactSpecification::V3);
+
+    expect!(json.get("contents").unwrap().as_str().unwrap()).to(be_equal_to(encoded));
   }
 }

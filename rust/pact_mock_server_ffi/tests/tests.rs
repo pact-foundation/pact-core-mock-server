@@ -2,7 +2,7 @@ use pact_mock_server_ffi::message_with_metadata;
 use pact_mock_server_ffi::write_pact_file;
 use pact_mock_server_ffi::write_message_pact_file;
 use libc::c_char;
-use pact_mock_server_ffi::message_reify_contents;
+use pact_mock_server_ffi::message_reify;
 use pact_mock_server_ffi::message_with_contents;
 use pact_mock_server_ffi::message_given;
 use pact_mock_server_ffi::new_message;
@@ -226,7 +226,7 @@ fn message_consumer_feature_test() {
   message_expects_to_receive(message_handle.clone(), CString::new("a request to test the FFI interface").unwrap().as_ptr());
   message_with_contents(message_handle.clone(), content_type.as_ptr(), request_body_with_matchers.as_ptr(), content_type.as_bytes().len());
   message_with_metadata(message_handle.clone(), metadata_key.as_ptr(), metadata_val.as_ptr());
-  let res: *const c_char = message_reify_contents(message_handle.clone());
+  let res: *const c_char = message_reify(message_handle.clone());
   let c_str: &CStr = unsafe { CStr::from_ptr(res) };
   let str_slice: &str = c_str.to_str().unwrap();
   expect!(str_slice).to(be_equal_to("{\"contents\":\"{\\\"id\\\":1}\",\"description\":\"a request to test the FFI interface\",\"metadata\":{\"contentType\":\"application/json\",\"message-queue-name\":\"message-queue-val\"},\"providerStates\":[{\"name\":\"a functioning FFI interface\"}]}"));
