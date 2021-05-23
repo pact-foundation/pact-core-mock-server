@@ -43,6 +43,7 @@
 
 #![warn(missing_docs)]
 
+use std::collections::BTreeMap;
 use pact_models::content_types::ContentType;
 use pact_models::bodies::OptionalBody::{Present, Null};
 use pact_matching::models::message::Message;
@@ -593,6 +594,29 @@ fn from_integration_json(rules: &mut MatchingRules, generators: &mut Generators,
 pub extern fn with_specification(pact: handles::PactHandle, version: PactSpecification) {
   pact.with_pact(&|_, inner| {
     inner.specification_version = version.clone();
+  });
+}
+
+/// Sets the additional metadata on the Pact file. Common uses are to add the client library details such as the name and version
+///
+/// * `pact` - Handle to a Pact model
+/// * `namespace` - the top level metadat key to set any key values on
+/// * `name` - the key to set
+/// * `value` - the value to set
+#[no_mangle]
+pub extern fn with_pact_metadata(pact: handles::PactHandle, namespace: *const c_char, name: *const c_char, value: *const c_char) {
+  pact.with_pact(&|_, inner| {
+    let namespace = convert_cstr("namespace", namespace).unwrap_or_default();
+    let name = convert_cstr("name", name).unwrap_or_default();
+    let value = convert_cstr("value", value).unwrap_or_default();
+
+    if namespace != "" {
+      let mut child = BTreeMap::new();
+      child.insert(name.to_string(), value.to_string());
+      inner.metadata.insert(namespace.to_string(), child);
+    } else {
+      log::warn!("no namespace provided for metadata {:?} => {:?}. Ignoring", name, value);
+    }
   });
 }
 
@@ -1195,6 +1219,29 @@ pub extern fn write_message_pact_file(pact: handles::MessagePactHandle, director
       2
     }
   }
+}
+
+/// Sets the additional metadata on the Pact file. Common uses are to add the client library details such as the name and version
+///
+/// * `pact` - Handle to a Pact model
+/// * `namespace` - the top level metadat key to set any key values on
+/// * `name` - the key to set
+/// * `value` - the value to set
+#[no_mangle]
+pub extern fn with_message_pact_metadata(pact: handles::MessagePactHandle, namespace: *const c_char, name: *const c_char, value: *const c_char) {
+  pact.with_pact(&|_, inner| {
+    let namespace = convert_cstr("namespace", namespace).unwrap_or_default();
+    let name = convert_cstr("name", name).unwrap_or_default();
+    let value = convert_cstr("value", value).unwrap_or_default();
+
+    if namespace != "" {
+      let mut child = BTreeMap::new();
+      child.insert(name.to_string(), value.to_string());
+      inner.metadata.insert(namespace.to_string(), child);
+    } else {
+      log::warn!("no namespace provided for metadata {:?} => {:?}. Ignoring", name, value);
+    }
+  });
 }
 
 /// Given a c string for the output directory, and an optional filename
