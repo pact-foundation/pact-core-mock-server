@@ -1191,7 +1191,7 @@ pub extern fn write_message_pact_file(pact: handles::MessagePactHandle, director
       }
     },
     None => {
-      log::error!("unable to write the pact file");
+      log::error!("unable to write the pact file, message pact for handle {:?} not found", &pact);
       2
     }
   }
