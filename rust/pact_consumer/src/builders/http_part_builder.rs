@@ -7,9 +7,14 @@ use env_logger;
 use regex::Regex;
 
 use pact_matching::models::matchingrules::MatchingRules;
+use pact_matching::models::generators::{Generators, GeneratorCategory, Generator};
+use pact_matching::models::expression_parser::{
+  DataType
+};
 use pact_models::bodies::OptionalBody;
 
 use crate::prelude::*;
+use serde_json::json;
 
 /// Various methods shared between `RequestBuilder` and `ResponseBuilder`.
 pub trait HttpPartBuilder {
@@ -22,6 +27,12 @@ pub trait HttpPartBuilder {
     /// carefully in Rust.
     #[doc(hidden)]
     fn headers_and_matching_rules_mut(&mut self) -> (&mut HashMap<String, Vec<String>>, &mut MatchingRules);
+
+    /// (Implementation detail.) This function fetches the mutable state that's
+    /// needed to update this builder's `generators`. You should not need to use
+    /// this under normal circumstances.
+    #[doc(hidden)]
+    fn generators(&mut self) -> &mut Generators;
 
     /// (Implementation detail.) This function fetches the mutable state that's
     /// needed to update this builder's `body`. You should not need to use this
@@ -61,6 +72,35 @@ pub trait HttpPartBuilder {
           headers.insert(name.clone(), vec![value.to_example()]);
         }
         value.extract_matching_rules(&name, rules.add_category("header"))
+      }
+      self
+    }
+
+    /// Specify a header pattern and a generator from provider state.
+    ///
+    /// ```
+    /// use pact_consumer::prelude::*;
+    /// use pact_consumer::*;
+    /// use pact_consumer::builders::RequestBuilder;
+    /// use regex::Regex;
+    ///
+    /// RequestBuilder::default()
+    ///     .header_from_provider_state("X-Simple", "providerState", "value")
+    ///     .header_from_provider_state("X-Digits", "providerState", term!("^[0-9]+$", "123"));
+    /// ```
+    #[allow(clippy::option_map_unit_fn)]
+    fn header_from_provider_state<N, E, V>(&mut self, name: N, expression: E, value: V) -> &mut Self
+      where
+        N: Into<String>,
+        E: Into<String>,
+        V: Into<StringPattern>,
+    {
+      let expression = expression.into();
+      let sub_category = name.into();
+      self.header(&sub_category, value);
+      {
+        let generators = self.generators();
+        generators.add_generator_with_subcategory(&GeneratorCategory::HEADER, sub_category,Generator::ProviderStateGenerator(expression, Some(DataType::STRING)))
       }
       self
     }
@@ -171,6 +211,32 @@ fn header_pattern() {
         .build();
     assert_requests_match!(good, pattern);
     assert_requests_do_not_match!(bad, pattern);
+}
+
+#[test]
+fn header_generator() {
+  let actual = PactBuilder::new("C", "P")
+    .interaction("I", |i| {
+      i.request.header_from_provider_state(
+        "Authorization",
+        "token",
+        "some-token",
+      );
+    }).build();
+
+  let expected = PactBuilder::new("C", "P")
+    .interaction("I", |i| {
+      i.request.header("Authorization", "from-provider-state");
+    })
+    .build();
+
+  let good_context = &mut HashMap::new();
+  good_context.insert("token", json!("from-provider-state"));
+  assert_requests_with_context_match!(actual, expected, good_context);
+
+  let bad_context = &mut HashMap::new();
+  bad_context.insert("token", json!("not-from-provider-state"));
+  assert_requests_with_context_do_not_match!(actual, expected, bad_context);
 }
 
 #[test]

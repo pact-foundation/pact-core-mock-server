@@ -13,6 +13,10 @@ use pact_models::bodies::OptionalBody;
 
 use crate::prelude::*;
 use crate::util::GetDefaulting;
+use pact_matching::models::generators::{Generators, GeneratorCategory, Generator};
+use pact_matching::models::expression_parser::DataType;
+
+use serde_json::json;
 
 /// Builder for `Request` objects. Normally created via `PactBuilder`.
 pub struct RequestBuilder {
@@ -63,6 +67,21 @@ impl RequestBuilder {
             "",
             self.request.matching_rules.add_category("path"),
         );
+        self
+    }
+
+    /// Specify the request path with generators. Defaults to `"/"`.
+    pub fn path_from_provider_state<E, P: Into<StringPattern>>(&mut self, expression: E, path: P) -> &mut Self
+        where
+          E: Into<String>
+    {
+        let path = path.into();
+        let expression = expression.into();
+        self.path(path);
+        {
+            let generators = self.generators();
+            generators.add_generator(&GeneratorCategory::PATH, Generator::ProviderStateGenerator(expression, Some(DataType::STRING)))
+        }
         self
     }
 
@@ -127,6 +146,10 @@ impl HttpPartBuilder for RequestBuilder {
     )
   }
 
+  fn generators(&mut self) -> &mut Generators {
+    &mut self.request.generators
+  }
+
   fn body_and_matching_rules_mut(&mut self) -> (&mut OptionalBody, &mut MatchingRules) {
       (
           &mut self.request.body,
@@ -151,6 +174,29 @@ fn path_pattern() {
         .build();
     assert_requests_match!(good, pattern);
     assert_requests_do_not_match!(bad, pattern);
+}
+
+#[test]
+fn path_generator() {
+    let actual = PactBuilder::new("C", "P")
+      .interaction("I", |i| {
+          i.request.path_from_provider_state("/greeting/${greeting}", "/greeting/hi");
+      })
+      .build();
+
+    let expected = PactBuilder::new("C", "P")
+      .interaction("I", |i| {
+          i.request.path("/greeting/hello");
+      })
+      .build();
+
+    let good_context = &mut HashMap::new();
+    good_context.insert("greeting", json!("hello"));
+    assert_requests_with_context_match!(actual, expected, good_context);
+
+    let bad_context = &mut HashMap::new();
+    bad_context.insert("greeting", json!("goodbye"));
+    assert_requests_with_context_do_not_match!(actual, expected, bad_context);
 }
 
 #[test]
