@@ -7,6 +7,7 @@ use pact_matching::models::matchingrules::MatchingRules;
 use pact_models::bodies::OptionalBody;
 
 use crate::prelude::*;
+use pact_matching::models::generators::Generators;
 
 /// Builder for `Response` objects. Normally created via `PactBuilder`.
 pub struct ResponseBuilder {
@@ -79,6 +80,10 @@ impl HttpPartBuilder for ResponseBuilder {
       self.response.headers.get_or_insert(hashmap!{}),
       &mut self.response.matching_rules,
     )
+  }
+
+  fn generators(&mut self) -> &mut Generators {
+    &mut self.response.generators
   }
 
   fn body_and_matching_rules_mut(&mut self) -> (&mut OptionalBody, &mut MatchingRules) {

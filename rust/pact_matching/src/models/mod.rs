@@ -48,7 +48,7 @@ pub mod xml_utils;
 #[macro_use] pub mod matchingrules;
 #[macro_use] pub mod generators;
 pub mod http_utils;
-mod expression_parser;
+pub mod expression_parser;
 mod file_utils;
 
 /// Version of the library
