@@ -211,9 +211,9 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
       provider_version: matches.value_of("provider-version").map(|v| v.to_string()),
       build_url: matches.value_of("build-url").map(|v| v.to_string()),
       request_filter: None::<Arc<NullRequestFilterExecutor>>,
-      provider_tags: matches.values_of("provider-tags")
-        .map_or_else(Vec::new, |tags| tags.map(|tag| tag.to_string()).collect()),
+      provider_tags: matches.values_of("provider-tags").map_or_else(Vec::new, |tags| tags.map(|tag| tag.to_string()).collect()),
       disable_ssl_verification: matches.is_present("disable-ssl-verification"),
+      callback_timeout: matches.value_of("callback-timeout").map(|t| t.parse::<u64>().unwrap_or(5000)).unwrap_or(5000),
       .. VerificationOptions::default()
     };
 
