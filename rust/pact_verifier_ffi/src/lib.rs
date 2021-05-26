@@ -81,6 +81,7 @@ pub unsafe extern fn free_string(s: *mut c_char) {
 /// | 1 | The verification process failed, see output for errors |
 /// | 2 | A null pointer was received |
 /// | 3 | The method panicked |
+/// | 4 | Invalid arguments were provided to the verification process |
 ///
 /// # Safety
 ///
@@ -100,7 +101,7 @@ pub unsafe extern fn verify(args: *const c_char) -> i32 {
 
       match result {
         Ok(_) => 0,
-        Err(_) => 1
+        Err(e) => e
       }
     })
   });

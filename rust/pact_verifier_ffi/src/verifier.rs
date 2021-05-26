@@ -165,7 +165,7 @@ pub async fn handle_args(args: Vec<String>) -> Result<(), i32> {
     Ok(results) => handle_matches(&results).await,
     Err(ref err) => {
       log::error!("error verifying Pact: {:?} {:?}", err.message, err);
-      Err(1)
+      Err(4)
     }
   }
 }
