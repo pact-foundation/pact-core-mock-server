@@ -3,6 +3,7 @@
 //! and V4 Pact specification (https://github.com/pact-foundation/pact-specification/tree/version-4).
 #![warn(missing_docs)]
 
+use std::time::Duration;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::fmt;
@@ -273,9 +274,10 @@ async fn verify_interaction<F: RequestFilterExecutor, S: ProviderStateExecutor>(
   provider_state_executor: &Arc<S>
 ) -> Result<Option<String>, MismatchResult> {
   let client = Arc::new(reqwest::Client::builder()
-                .danger_accept_invalid_certs(options.disable_ssl_verification)
-                .build()
-                .unwrap_or(reqwest::Client::new()));
+  .danger_accept_invalid_certs(options.disable_ssl_verification)
+  .timeout(Duration::from_millis(options.request_timeout))
+  .build()
+  .unwrap_or(reqwest::Client::new()));
 
   let mut provider_states_results = hashmap!{};
   let sc_results = futures::stream::iter(
@@ -493,8 +495,8 @@ pub struct VerificationOptions<F> where F: RequestFilterExecutor {
   pub provider_tags: Vec<String>,
   /// Ignore invalid/self-signed SSL certificates
   pub disable_ssl_verification: bool,
-  /// Timeout in ms for provider state callbacks
-  pub callback_timeout: u64
+  /// Timeout in ms for verification requests and state callbacks
+  pub request_timeout: u64
 }
 
 impl <F: RequestFilterExecutor> Default for VerificationOptions<F> {
@@ -506,7 +508,7 @@ impl <F: RequestFilterExecutor> Default for VerificationOptions<F> {
       request_filter: None,
       provider_tags: vec![],
       disable_ssl_verification: false,
-      callback_timeout: 5000
+      request_timeout: 5000
     }
   }
 }

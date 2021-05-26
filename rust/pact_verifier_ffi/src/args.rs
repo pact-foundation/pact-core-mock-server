@@ -220,12 +220,11 @@ pub(crate) fn setup_app<'a, 'b>(program: String, version: &'b str) -> App<'a, 'b
       .empty_values(false)
       .requires("broker-url")
       .help("Allow pacts that don't match given consumer selectors (or tags) to  be verified, without causing the overall task to fail. For more information, see https://pact.io/wip"))
-    .arg(Arg::with_name("callback-timeout")
-      .long("callback-timeout")
+    .arg(Arg::with_name("request-timeout")
+      .long("request-timeout")
       .takes_value(true)
       .empty_values(false)
-      .requires("state-change-url")
-      .help("Sets the HTTP request timeout in milliseconds for state change requests."))
+      .help("Sets the HTTP request timeout in milliseconds for requests to the target API and for state change requests."))
     }
 
 #[cfg(test)]
