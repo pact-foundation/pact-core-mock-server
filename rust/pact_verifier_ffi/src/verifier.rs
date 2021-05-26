@@ -47,15 +47,15 @@ fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
         let provider_tags = matches.values_of("provider-tags")
         .map_or_else(Vec::new, |tags| tags.map(|tag| tag.to_string()).collect());
 
-        let mut selectors: Vec<ConsumerVersionSelector> = vec![];
-
-        if matches.is_present("consumer-version-selectors") {
-          selectors = matches.values_of("consumer-version-selectors")
+        let selectors = if matches.is_present("consumer-version-selectors") {
+          matches.values_of("consumer-version-selectors")
             .map_or_else(Vec::new, |s| json_to_selectors(s.collect::<Vec<_>>()));
         } else if matches.is_present("consumer-version-tags") {
-          selectors = matches.values_of("consumer-version-tags")
+          matches.values_of("consumer-version-tags")
             .map_or_else(Vec::new, |tags| consumer_tags_to_selectors(tags.collect::<Vec<_>>()));
-        }
+        } else {
+          vec![]
+        };
 
         if matches.is_present("token") {
           PactSource::BrokerWithDynamicConfiguration {
