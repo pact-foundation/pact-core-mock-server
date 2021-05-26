@@ -1350,6 +1350,9 @@ dependencies = [
  "quickcheck",
  "rand 0.8.3",
  "regex",
+ "serde",
+ "serde_json",
+ "serde_with",
  "simplelog",
  "tokio",
 ]
