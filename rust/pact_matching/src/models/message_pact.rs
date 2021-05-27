@@ -474,7 +474,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn to_json() {
         let pact_json = r#"
         {
@@ -501,6 +500,6 @@ mod tests {
         expect!(pact.as_ref()).to(be_ok());
         let pact = pact.unwrap();
         let contents = pact.to_json(PactSpecification::V3);
-        expect!(contents.unwrap().to_string()).to(be_equal_to("{\"consumer\":{\"name\":\"Consumer\"},\"messages\":[{\"contents\":\"{\\\"hello\\\":\\\"world\\\"}\",\"description\":\"Message Description\",\"metadata\":{}}],\"metadata\":{\"pactRust\":{\"version\":\"0.9.2\"},\"pactSpecification\":{\"version\":\"3.0.0\"}},\"provider\":{\"name\":\"Alice Service\"}}"));
+        expect!(contents.unwrap().to_string()).to(be_equal_to("{\"consumer\":{\"name\":\"Consumer\"},\"messages\":[{\"contents\":{\"hello\":\"world\"},\"description\":\"Message Description\",\"metadata\":{}}],\"metadata\":{\"pactRust\":{\"version\":\"".to_owned() + env!("CARGO_PKG_VERSION") + "\"},\"pactSpecification\":{\"version\":\"3.0.0\"}},\"provider\":{\"name\":\"Alice Service\"}}"));
     }
 }
