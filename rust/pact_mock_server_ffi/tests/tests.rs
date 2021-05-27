@@ -176,7 +176,7 @@ fn http_consumer_feature_test() {
   // will respond with...
   with_header(interaction.clone(), InteractionPart::Response, content_type.as_ptr(), 0, value_header_with_matcher.as_ptr());
   with_header(interaction.clone(), InteractionPart::Response, special_header.as_ptr(), 0, value_header_with_matcher.as_ptr());
-  with_body(interaction.clone(), InteractionPart::Response, CString::new("application/json").unwrap().as_ptr(), response_body_with_matchers.as_ptr());
+  with_body(interaction.clone(), InteractionPart::Response, header.as_ptr(), response_body_with_matchers.as_ptr());
   response_status(interaction.clone(), 200);
   let port = create_mock_server_for_pact(pact_handle.clone(), address.as_ptr(), false);
 
@@ -223,18 +223,18 @@ fn message_consumer_feature_test() {
   let metadata_val = CString::new("message-queue-val").unwrap();
   let request_body_with_matchers = CString::new("{\"id\": {\"value\":1,\"pact:matcher:type\":\"type\"}}").unwrap();
   let file_path = CString::new("/tmp/pact").unwrap();
+  let given = CString::new("a functioning FFI interface").unwrap();
+  let receive_description = CString::new("a request to test the FFI interface").unwrap();
 
   let message_pact_handle = new_message_pact(consumer_name.as_ptr(), provider_name.as_ptr());
   let message_handle = new_message(message_pact_handle.clone(), description.as_ptr());
-  let given = CString::new("a functioning FFI interface").unwrap();
   message_given(message_handle.clone(), given.as_ptr());
-  let descr = CString::new("a request to test the FFI interface").unwrap();
-  message_expects_to_receive(message_handle.clone(), descr.as_ptr());
+  message_expects_to_receive(message_handle.clone(), receive_description.as_ptr());
   message_with_contents(message_handle.clone(), content_type.as_ptr(), request_body_with_matchers.as_ptr(), request_body_with_matchers.as_bytes().len());
   message_with_metadata(message_handle.clone(), metadata_key.as_ptr(), metadata_val.as_ptr());
   let res: *const c_char = message_reify(message_handle.clone());
-  let c_str: &CStr = unsafe { CStr::from_ptr(res) };
-  expect!(c_str.to_str()).to(be_ok().value("{\"contents\":{\"id\":1},\"description\":\"a request to test the FFI interface\",\"metadata\":{\"contentType\":\"application/json\",\"message-queue-name\":\"message-queue-val\"},\"providerStates\":[{\"name\":\"a functioning FFI interface\"}]}".to_string()));
+  let reified: &CStr = unsafe { CStr::from_ptr(res) };
+  expect!(reified.to_str().to_owned()).to(be_ok().value("{\"contents\":{\"id\":1},\"description\":\"a request to test the FFI interface\",\"metadata\":{\"contentType\":\"application/json\",\"message-queue-name\":\"message-queue-val\"},\"providerStates\":[{\"name\":\"a functioning FFI interface\"}]}".to_string()));
   let res = write_message_pact_file(message_pact_handle.clone(), file_path.as_ptr(), true);
   expect!(res).to(be_eq(0));
 }
