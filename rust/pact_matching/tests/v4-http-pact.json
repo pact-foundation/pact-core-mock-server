@@ -10,6 +10,7 @@
       "type": "Synchronous/HTTP",
       "key": "001",
       "description": "test interaction with a binary body",
+      "pending": false,
       "request": {
         "method": "GET",
         "path": "/"

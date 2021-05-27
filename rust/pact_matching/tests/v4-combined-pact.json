@@ -10,6 +10,7 @@
       "type": "Synchronous/HTTP",
       "key": "001",
       "description": "test interaction with a binary body",
+      "pending": false,
       "request": {
         "method": "GET",
         "path": "/"
@@ -28,6 +29,7 @@
     }, {
       "type": "Asynchronous/Messages",
       "key": "m_001",
+      "pending": false,
       "metadata": {
         "contentType": "application/json",
         "destination": "a/b/c"

@@ -71,6 +71,9 @@ pub trait V4Interaction: Interaction + Send + Sync {
 
   /// Type of this V4 interaction
   fn v4_type(&self) -> V4InteractionType;
+
+  /// If this interaction is pending. Pending interactions will not fail a build if they fail.
+  fn pending(&self) -> bool;
 }
 
 impl Display for dyn V4Interaction {
@@ -118,7 +121,10 @@ pub struct SynchronousHttp {
   /// Response of the interaction
   pub response: HttpResponse,
   /// Annotations and comments associated with this interaction
-  pub comments: HashMap<String, Value>
+  pub comments: HashMap<String, Value>,
+
+  /// If this interaction is pending. Pending interactions will never fail the build if they fail
+  pub pending: bool
 }
 
 impl SynchronousHttp {
@@ -135,6 +141,48 @@ impl SynchronousHttp {
       .. self.clone()
     }
   }
+
+  /// Parse the JSON into a SynchronousHttp interaction
+  pub fn from_json(json: &Value, index: usize) -> anyhow::Result<SynchronousHttp> {
+    if json.is_object() {
+      let id = json.get("_id").map(|id| json_to_string(id));
+      let key = json.get("key").map(|id| json_to_string(id));
+      let description = match json.get("description") {
+        Some(v) => match *v {
+          Value::String(ref s) => s.clone(),
+          _ => v.to_string()
+        },
+        None => format!("Interaction {}", index)
+      };
+      let comments = match json.get("comments") {
+        Some(v) => match v {
+          Value::Object(map) => map.iter()
+            .map(|(k, v)| (k.clone(), v.clone())).collect(),
+          _ => {
+            warn!("Interaction comments must be a JSON Object, but received {}. Ignoring", v);
+            Default::default()
+          }
+        },
+        None => Default::default()
+      };
+      let provider_states = provider_states::ProviderState::from_json(json);
+      let request = json.get("request").cloned().unwrap_or_default();
+      let response = json.get("response").cloned().unwrap_or_default();
+      Ok(SynchronousHttp {
+        id,
+        key,
+        description,
+        provider_states,
+        request: HttpRequest::from_json(&request),
+        response: HttpResponse::from_json(&response),
+        comments,
+        pending: json.get("pending")
+          .map(|value| value.as_bool().unwrap_or_default()).unwrap_or_default()
+      })
+    } else {
+      Err(anyhow!("Expected a JSON object for the interaction, got '{}'", json))
+    }
+  }
 }
 
 impl V4Interaction for SynchronousHttp {
@@ -144,7 +192,8 @@ impl V4Interaction for SynchronousHttp {
       "key": self.key.clone().unwrap_or_else(|| self.calc_hash()),
       "description": self.description.clone(),
       "request": self.request.to_json(),
-      "response": self.response.to_json()
+      "response": self.response.to_json(),
+      "pending": self.pending
     });
 
     if !self.provider_states.is_empty() {
@@ -184,6 +233,10 @@ impl V4Interaction for SynchronousHttp {
 
   fn v4_type(&self) -> V4InteractionType {
     V4InteractionType::Synchronous_HTTP
+  }
+
+  fn pending(&self) -> bool {
+    self.pending
   }
 }
 
@@ -280,7 +333,8 @@ impl Default for SynchronousHttp {
       provider_states: vec![],
       request: HttpRequest::default(),
       response: HttpResponse::default(),
-      comments: Default::default()
+      comments: Default::default(),
+      pending: false
     }
   }
 }
@@ -288,7 +342,8 @@ impl Default for SynchronousHttp {
 impl PartialEq for SynchronousHttp {
   fn eq(&self, other: &Self) -> bool {
     self.description == other.description && self.provider_states == other.provider_states &&
-      self.request == other.request && self.response == other.response
+      self.request == other.request && self.response == other.response &&
+      self.pending == other.pending
   }
 }
 
@@ -298,13 +353,15 @@ impl Hash for SynchronousHttp {
     self.provider_states.hash(state);
     self.request.hash(state);
     self.response.hash(state);
+    self.pending.hash(state);
   }
 }
 
 impl Display for SynchronousHttp {
   fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-    write!(f, "V4 Http Interaction ( id: {:?}, description: \"{}\", provider_states: {:?}, request: {}, response: {} )",
-           self.id, self.description, self.provider_states, self.request, self.response)
+    let pending = if self.pending { " [PENDING]" } else { "" };
+    write!(f, "V4 Http Interaction{} ( id: {:?}, description: \"{}\", provider_states: {:?}, request: {}, response: {} )",
+           pending, self.id, self.description, self.provider_states, self.request, self.response)
   }
 }
 
@@ -329,7 +386,10 @@ pub struct AsynchronousMessage {
   /// Generators
   pub generators: generators::Generators,
   /// Annotations and comments associated with this interaction
-  pub comments: HashMap<String, Value>
+  pub comments: HashMap<String, Value>,
+
+  /// If this interaction is pending. Pending interactions will never fail the build if they fail
+  pub pending: bool
 }
 
 impl AsynchronousMessage {
@@ -352,6 +412,55 @@ impl AsynchronousMessage {
   pub fn message_content_type(&self) -> Option<ContentType> {
     calc_content_type(&self.contents, &metadata_to_headers(&self.metadata))
   }
+
+  /// Parse the JSON into an AsynchronousMessage interaction
+  pub fn from_json(json: &Value, index: usize) -> anyhow::Result<AsynchronousMessage> {
+    if json.is_object() {
+      let id = json.get("_id").map(|id| json_to_string(id));
+      let key = json.get("key").map(|id| json_to_string(id));
+      let description = match json.get("description") {
+        Some(v) => match *v {
+          Value::String(ref s) => s.clone(),
+          _ => v.to_string()
+        },
+        None => format!("Interaction {}", index)
+      };
+      let comments = match json.get("comments") {
+        Some(v) => match v {
+          Value::Object(map) => map.iter()
+            .map(|(k, v)| (k.clone(), v.clone())).collect(),
+          _ => {
+            warn!("Interaction comments must be a JSON Object, but received {}. Ignoring", v);
+            Default::default()
+          }
+        },
+        None => Default::default()
+      };
+      let provider_states = provider_states::ProviderState::from_json(json);
+      let metadata = match json.get("metadata") {
+        Some(&Value::Object(ref v)) => v.iter().map(|(k, v)| {
+          (k.clone(), v.clone())
+        }).collect(),
+        _ => hashmap! {}
+      };
+      let as_headers = metadata_to_headers(&metadata);
+      Ok(AsynchronousMessage {
+        id,
+        key,
+        description,
+        provider_states,
+        metadata,
+        contents: body_from_json(&json, "contents", &as_headers),
+        matching_rules: matchingrules::matchers_from_json(&json, &None),
+        generators: generators::generators_from_json(&json),
+        comments,
+        pending: json.get("pending")
+          .map(|value| value.as_bool().unwrap_or_default()).unwrap_or_default()
+      })
+    } else {
+      Err(anyhow!("Expected a JSON object for the interaction, got '{}'", json))
+    }
+  }
 }
 
 impl V4Interaction for AsynchronousMessage {
@@ -359,7 +468,8 @@ impl V4Interaction for AsynchronousMessage {
     let mut json = json!({
       "type": V4InteractionType::Asynchronous_Messages.to_string(),
       "key": self.key.clone().unwrap_or_else(|| self.calc_hash()),
-      "description": self.description.clone()
+      "description": self.description.clone(),
+      "pending": self.pending
     });
 
     if let Value::Object(body) = self.contents.to_v4_json() {
@@ -421,6 +531,10 @@ impl V4Interaction for AsynchronousMessage {
 
   fn v4_type(&self) -> V4InteractionType {
     V4InteractionType::Asynchronous_Messages
+  }
+
+  fn pending(&self) -> bool {
+    self.pending
   }
 }
 
@@ -521,7 +635,8 @@ impl Default for AsynchronousMessage {
       metadata: Default::default(),
       matching_rules: Default::default(),
       generators: Default::default(),
-      comments: Default::default()
+      comments: Default::default(),
+      pending: false
     }
   }
 }
@@ -531,7 +646,8 @@ impl PartialEq for AsynchronousMessage {
     self.description == other.description && self.provider_states == other.provider_states &&
       self.contents == other.contents && self.metadata == other.metadata &&
       self.matching_rules == other.matching_rules &&
-      self.generators == other.generators
+      self.generators == other.generators &&
+      self.pending == other.pending
   }
 }
 
@@ -546,13 +662,15 @@ impl Hash for AsynchronousMessage {
     }
     self.matching_rules.hash(state);
     self.generators.hash(state);
+    self.pending.hash(state);
   }
 }
 
 impl Display for AsynchronousMessage {
   fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-    write!(f, "V4 Asynchronous Message Interaction ( id: {:?}, description: \"{}\", provider_states: {:?}, contents: {}, metadata: {:?} )",
-           self.id, self.description, self.provider_states, self.contents, self.metadata)
+    let pending = if self.pending { " [PENDING]" } else { "" };
+    write!(f, "V4 Asynchronous Message Interaction{} ( id: {:?}, description: \"{}\", provider_states: {:?}, contents: {}, metadata: {:?} )",
+           pending, self.id, self.description, self.provider_states, self.contents, self.metadata)
   }
 }
 
@@ -886,65 +1004,10 @@ pub fn interaction_from_json(source: &str, index: usize, ijson: &Value) -> anyho
   match ijson.get("type") {
     Some(i_type) => match V4InteractionType::from_str(json_to_string(i_type).as_str()) {
       Ok(i_type) => {
-        let id = ijson.get("_id").map(|id| json_to_string(id));
-        let key = ijson.get("key").map(|id| json_to_string(id));
-        let description = match ijson.get("description") {
-          Some(v) => match *v {
-            Value::String(ref s) => s.clone(),
-            _ => v.to_string()
-          },
-          None => format!("Interaction {}", index)
-        };
-        let comments = match ijson.get("comments") {
-          Some(v) => match v {
-            Value::Object(map) => map.iter()
-              .map(|(k, v)| (k.clone(), v.clone())).collect(),
-            _ => {
-              warn!("Interaction comments must be a JSON Object, but received {}. Ignoring", v);
-              Default::default()
-            }
-          },
-          None => Default::default()
-        };
-        let provider_states = provider_states::ProviderState::from_json(ijson);
         match i_type {
-          V4InteractionType::Synchronous_HTTP => {
-            let request = ijson.get("request").cloned().unwrap_or_default();
-            let response = ijson.get("response").cloned().unwrap_or_default();
-            Ok(Box::new(SynchronousHttp {
-              id,
-              key,
-              description,
-              provider_states,
-              request: HttpRequest::from_json(&request),
-              response: HttpResponse::from_json(&response),
-              comments
-            }))
-          }
-          V4InteractionType::Asynchronous_Messages => {
-            let metadata = match ijson.get("metadata") {
-              Some(&Value::Object(ref v)) => v.iter().map(|(k, v)| {
-                (k.clone(), v.clone())
-              }).collect(),
-              _ => hashmap!{}
-            };
-            let as_headers = metadata_to_headers(&metadata);
-            Ok(Box::new(AsynchronousMessage {
-              id,
-              key,
-              description,
-              provider_states,
-              metadata,
-              contents: body_from_json(ijson, "contents", &as_headers),
-              matching_rules: matchingrules::matchers_from_json(ijson, &None),
-              generators: generators::generators_from_json(ijson),
-              comments
-            }))
-          }
-          V4InteractionType::Synchronous_Messages => {
-            warn!("Interaction type '{}' is currently unimplemented. It will be ignored. Source: {}", i_type, source);
-            Err(anyhow!("Interaction type '{}' is currently unimplemented. It will be ignored. Source: {}", i_type, source))
-          }
+          V4InteractionType::Synchronous_HTTP => SynchronousHttp::from_json(ijson, index).map(|i| i.boxed_v4()),
+          V4InteractionType::Asynchronous_Messages => AsynchronousMessage::from_json(ijson, index).map(|i| i.boxed_v4()),
+          V4InteractionType::Synchronous_Messages => SynchronousMessages::from_json(ijson, index).map(|i| i.boxed_v4())
         }
       },
       Err(_) => {

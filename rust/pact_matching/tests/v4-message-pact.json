@@ -13,6 +13,7 @@
         "contentType": "application/json",
         "destination": "a/b/c"
       },
+      "pending": false,
       "providerStates": [
         {
           "name": "message exists"

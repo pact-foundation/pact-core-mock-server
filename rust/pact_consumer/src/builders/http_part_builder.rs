@@ -5,16 +5,14 @@ use std::collections::HashMap;
 use env_logger;
 #[cfg(test)]
 use regex::Regex;
+use serde_json::json;
 
+use pact_matching::models::expression_parser::DataType;
+use pact_matching::models::generators::{Generator, GeneratorCategory, Generators};
 use pact_matching::models::matchingrules::MatchingRules;
-use pact_matching::models::generators::{Generators, GeneratorCategory, Generator};
-use pact_matching::models::expression_parser::{
-  DataType
-};
 use pact_models::bodies::OptionalBody;
 
 use crate::prelude::*;
-use serde_json::json;
 
 /// Various methods shared between `RequestBuilder` and `ResponseBuilder`.
 pub trait HttpPartBuilder {

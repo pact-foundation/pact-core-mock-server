@@ -205,7 +205,7 @@ fn load_basic_pact() {
 
   let v4pact = pact.as_v4_pact().unwrap();
   match v4pact.interactions[0].as_v4_http() {
-    Some(SynchronousHttp { request, response, .. }) => {
+    Some(SynchronousHttp { request, response, pending, .. }) => {
       expect!(request).to(be_equal_to(HttpRequest {
         method: "GET".into(),
         path: "/mallory".into(),
@@ -220,6 +220,7 @@ fn load_basic_pact() {
         body: OptionalBody::Present("\"That is some good Mallory.\"".into(), Some("text/html".into())),
         .. HttpResponse::default()
       }));
+      expect!(pending).to(be_false());
     }
     _ => panic!("Was expecting an HTTP pact")
   }
@@ -471,7 +472,8 @@ fn write_pact_test() {
   "interactions": [
     {{
       "description": "Test Interaction",
-      "key": "53d3170820ad2160",
+      "key": "296966511eff169a",
+      "pending": false,
       "providerStates": [
         {{
           "name": "Good state to be in"
@@ -535,7 +537,8 @@ fn write_synchronous_message_pact_test() {
   "interactions": [
     {{
       "description": "Test Interaction",
-      "key": "a0395223ce6c542b",
+      "key": "dc5a1311f5aa578d",
+      "pending": false,
       "providerStates": [
         {{
           "name": "Good state to be in"
@@ -543,13 +546,15 @@ fn write_synchronous_message_pact_test() {
       ],
       "request": {{
         "description": "Asynchronous/Message Interaction",
-        "key": "eb97728e3ed8475f",
+        "key": "774c6898f6381239",
+        "pending": false,
         "type": "Asynchronous/Messages"
       }},
       "response": [
         {{
           "description": "Asynchronous/Message Interaction",
-          "key": "eb97728e3ed8475f",
+          "key": "774c6898f6381239",
+          "pending": false,
           "type": "Asynchronous/Messages"
         }}
       ],
@@ -616,7 +621,8 @@ fn write_pact_test_should_merge_pacts() {
   "interactions": [
     {{
       "description": "Test Interaction",
-      "key": "53d3170820ad2160",
+      "key": "296966511eff169a",
+      "pending": false,
       "providerStates": [
         {{
           "name": "Good state to be in"
@@ -633,7 +639,8 @@ fn write_pact_test_should_merge_pacts() {
     }},
     {{
       "description": "Test Interaction 2",
-      "key": "4da93913a351bb8c",
+      "key": "d3e13a43bc0744ac",
+      "pending": false,
       "providerStates": [
         {{
           "name": "Good state to be in"
@@ -713,6 +720,7 @@ fn write_pact_test_should_overwrite_pact_with_same_key() {
     {{
       "description": "Test Interaction",
       "key": "1234567890",
+      "pending": false,
       "providerStates": [
         {{
           "name": "Good state to be in"
@@ -1473,7 +1481,8 @@ fn write_v4_pact_test_with_comments() {
         ]
       }},
       "description": "Test Interaction",
-      "key": "7e7114bdaf9a0be2",
+      "key": "7e202f73d7d6d607",
+      "pending": false,
       "request": {{
         "method": "GET",
         "path": "/"

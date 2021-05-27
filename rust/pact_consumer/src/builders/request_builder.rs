@@ -6,17 +6,16 @@ use env_logger;
 use maplit::*;
 #[cfg(test)]
 use regex::Regex;
+use serde_json::json;
 
 use pact_matching::models::*;
+use pact_matching::models::expression_parser::DataType;
+use pact_matching::models::generators::{Generator, GeneratorCategory, Generators};
 use pact_matching::models::matchingrules::MatchingRules;
 use pact_models::bodies::OptionalBody;
 
 use crate::prelude::*;
 use crate::util::GetDefaulting;
-use pact_matching::models::generators::{Generators, GeneratorCategory, Generator};
-use pact_matching::models::expression_parser::DataType;
-
-use serde_json::json;
 
 /// Builder for `Request` objects. Normally created via `PactBuilder`.
 pub struct RequestBuilder {

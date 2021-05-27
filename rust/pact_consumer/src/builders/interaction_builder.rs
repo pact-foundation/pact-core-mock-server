@@ -76,7 +76,8 @@ impl InteractionBuilder {
       provider_states: self.provider_states.clone(),
       request: self.request.build().as_v4_request(),
       response: self.response.build().as_v4_response(),
-      comments: Default::default()
+      comments: Default::default(),
+      pending: false
     }
   }
 }

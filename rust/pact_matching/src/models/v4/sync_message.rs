@@ -6,13 +6,16 @@ use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
 
+use anyhow::anyhow;
 use itertools::Itertools;
+use log::*;
 use serde_json::{json, Value};
 
-use pact_models::content_types::ContentType;
 use pact_models::bodies::OptionalBody;
+use pact_models::content_types::ContentType;
 
-use crate::models::{Interaction, RequestResponseInteraction};
+use crate::models::{Interaction, provider_states, RequestResponseInteraction};
+use crate::models::json_utils::json_to_string;
 use crate::models::matchingrules::MatchingRules;
 use crate::models::message::Message;
 use crate::models::provider_states::ProviderState;
@@ -35,7 +38,10 @@ pub struct SynchronousMessages {
   /// Request message
   pub request: AsynchronousMessage,
   /// Response messages
-  pub response: Vec<AsynchronousMessage>
+  pub response: Vec<AsynchronousMessage>,
+
+  /// If this interaction is pending. Pending interactions will never fail the build if they fail
+  pub pending: bool
 }
 
 impl SynchronousMessages {
@@ -52,6 +58,64 @@ impl SynchronousMessages {
       .. self.clone()
     }
   }
+
+  /// Parse the JSON into a SynchronousMessages structure
+  pub fn from_json(json: &Value, index: usize) -> anyhow::Result<SynchronousMessages> {
+    if json.is_object() {
+      let id = json.get("_id").map(|id| json_to_string(id));
+      let key = json.get("key").map(|id| json_to_string(id));
+      let description = match json.get("description") {
+        Some(v) => match *v {
+          Value::String(ref s) => s.clone(),
+          _ => v.to_string()
+        },
+        None => format!("Interaction {}", index)
+      };
+      let comments = match json.get("comments") {
+        Some(v) => match v {
+          Value::Object(map) => map.iter()
+            .map(|(k, v)| (k.clone(), v.clone())).collect(),
+          _ => {
+            warn!("Interaction comments must be a JSON Object, but received {}. Ignoring", v);
+            Default::default()
+          }
+        },
+        None => Default::default()
+      };
+      let provider_states = provider_states::ProviderState::from_json(json);
+      let request = json.get("request")
+        .ok_or(anyhow!("JSON for SynchronousMessages does not contain a 'request' object"))?;
+      let response = json.get("response")
+        .ok_or(anyhow!("JSON for SynchronousMessages does not contain a 'response' array"))?
+        .as_array()
+        .ok_or(anyhow!("JSON for SynchronousMessages does not contain a 'response' array"))?;
+      let responses =
+        response.iter().enumerate()
+          .map(|(index, message)| AsynchronousMessage::from_json(message, index))
+          .collect::<Vec<anyhow::Result<AsynchronousMessage>>>();
+      if responses.iter().any(|res| res.is_err()) {
+        let errors = responses.iter()
+          .filter(|res| res.is_err())
+          .map(|res| res.as_ref().unwrap_err().to_string())
+          .join(", ");
+        Err(anyhow!("Failed to parse SynchronousMessages responses - {}", errors))
+      } else {
+        Ok(SynchronousMessages {
+          id,
+          key,
+          description,
+          provider_states,
+          comments,
+          request: AsynchronousMessage::from_json(request, 0)?,
+          response: responses.iter().map(|res| res.as_ref().unwrap().clone()).collect(),
+          pending: json.get("pending")
+            .map(|value| value.as_bool().unwrap_or_default()).unwrap_or_default()
+        })
+      }
+    } else {
+      Err(anyhow!("Expected a JSON object for the interaction, got '{}'", json))
+    }
+  }
 }
 
 impl V4Interaction for SynchronousMessages {
@@ -60,6 +124,7 @@ impl V4Interaction for SynchronousMessages {
       "type": V4InteractionType::Synchronous_Messages.to_string(),
       "key": self.key.clone().unwrap_or_else(|| self.calc_hash()),
       "description": self.description.clone(),
+      "pending": self.pending,
       "request": self.request.to_json(),
       "response": self.response.iter().map(|m| m.to_json()).collect_vec()
     });
@@ -101,6 +166,10 @@ impl V4Interaction for SynchronousMessages {
 
   fn v4_type(&self) -> V4InteractionType {
     V4InteractionType::Synchronous_Messages
+  }
+
+  fn pending(&self) -> bool {
+    self.pending
   }
 }
 
@@ -191,7 +260,8 @@ impl Default for SynchronousMessages {
       provider_states: vec![],
       comments: Default::default(),
       request: Default::default(),
-      response: Default::default()
+      response: Default::default(),
+      pending: false
     }
   }
 }
@@ -199,7 +269,8 @@ impl Default for SynchronousMessages {
 impl PartialEq for SynchronousMessages {
   fn eq(&self, other: &Self) -> bool {
     self.description == other.description && self.provider_states == other.provider_states &&
-      self.request == other.request && self.response == other.response
+      self.request == other.request && self.response == other.response &&
+      self.pending == other.pending
   }
 }
 
@@ -209,12 +280,14 @@ impl Hash for SynchronousMessages {
     self.provider_states.hash(state);
     self.request.hash(state);
     self.response.hash(state);
+    self.pending.hash(state);
   }
 }
 
 impl Display for SynchronousMessages {
   fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-    write!(f, "V4 Synchronous Message Interaction ( id: {:?}, description: \"{}\", provider_states: {:?}, request: {}, response: {:?} )",
-           self.id, self.description, self.provider_states, self.request, self.response)
+    let pending = if self.pending { " [PENDING]" } else { "" };
+    write!(f, "V4 Synchronous Message Interaction{} ( id: {:?}, description: \"{}\", provider_states: {:?}, request: {}, response: {:?} )",
+           pending, self.id, self.description, self.provider_states, self.request, self.response)
   }
 }

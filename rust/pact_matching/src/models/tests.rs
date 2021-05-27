@@ -1162,12 +1162,12 @@ fn write_pact_test_should_upgrade_older_pacts_when_merging() {
 #[test]
 fn write_pact_test_upgrades_older_pacts_to_v4_when_merging() {
   let pact = RequestResponsePact {
-    consumer: Consumer { name: s!("merge_consumer") },
-    provider: Provider { name: s!("merge_provider") },
+    consumer: Consumer { name: "merge_consumer".into() },
+    provider: Provider { name: "merge_provider".into() },
     interactions: vec![
       RequestResponseInteraction {
-        description: s!("Test Interaction 2"),
-        provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap! {} }],
+        description: "Test Interaction 2".into(),
+        provider_states: vec![ProviderState { name: "Good state to be in".into(), params: hashmap! {} }],
         ..RequestResponseInteraction::default()
       }
     ],
@@ -1175,14 +1175,14 @@ fn write_pact_test_upgrades_older_pacts_to_v4_when_merging() {
     specification_version: PactSpecification::V1_1,
   };
   let pact2 = V4Pact {
-    consumer: Consumer { name: s!("merge_consumer") },
-    provider: Provider { name: s!("merge_provider") },
+    consumer: Consumer { name: "merge_consumer".into() },
+    provider: Provider { name: "merge_provider".into() },
     interactions: vec![
       Box::new(SynchronousHttp {
         id: None,
         key: None,
-        description: s!("Test Interaction"),
-        provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap! {} }],
+        description: "Test Interaction".into(),
+        provider_states: vec![ProviderState { name: "Good state to be in".into(), params: hashmap! {} }],
         .. Default::default()
       })
     ],
@@ -1208,7 +1208,8 @@ fn write_pact_test_upgrades_older_pacts_to_v4_when_merging() {
   "interactions": [
     {{
       "description": "Test Interaction",
-      "key": "53d3170820ad2160",
+      "key": "296966511eff169a",
+      "pending": false,
       "providerStates": [
         {{
           "name": "Good state to be in"
@@ -1225,7 +1226,8 @@ fn write_pact_test_upgrades_older_pacts_to_v4_when_merging() {
     }},
     {{
       "description": "Test Interaction 2",
-      "key": "4da93913a351bb8c",
+      "key": "d3e13a43bc0744ac",
+      "pending": false,
       "providerStates": [
         {{
           "name": "Good state to be in"
