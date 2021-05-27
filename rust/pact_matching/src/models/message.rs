@@ -474,7 +474,6 @@ mod tests {
   }
 
   #[test]
-  #[ignore]
   fn message_with_json_body_serialises() {
     let message_json = r#"{
         "contents": {
@@ -486,11 +485,10 @@ mod tests {
     }"#;
     let message = Message::from_json(0, &serde_json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
     let v = message.to_json(&PactSpecification::V3);
-    expect!(v.get("contents").unwrap().as_str().unwrap()).to(be_equal_to("{\"hello\":\"world\"}"));
+    expect!(v.get("contents").unwrap().get("hello").unwrap().as_str().unwrap()).to(be_equal_to("world"));
   }
 
   #[test]
-  #[ignore]
   fn message_with_binary_body_serialises() {
     let message_json = r#"{
         "metadata": {

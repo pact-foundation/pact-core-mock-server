@@ -210,7 +210,6 @@ fn http_consumer_feature_test() {
 }
 
 #[test]
-#[ignore]
 fn message_consumer_feature_test() {
   let consumer_name = CString::new("message-consumer").unwrap();
   let provider_name = CString::new("message-provider").unwrap();
@@ -231,8 +230,7 @@ fn message_consumer_feature_test() {
   message_with_metadata(message_handle.clone(), metadata_key.as_ptr(), metadata_val.as_ptr());
   let res: *const c_char = message_reify(message_handle.clone());
   let c_str: &CStr = unsafe { CStr::from_ptr(res) };
-  let str_slice: &str = c_str.to_str().unwrap();
-  expect!(str_slice.to_owned()).to(be_equal_to("{\"contents\":{\"id\":1},\"description\":\"a request to test the FFI interface\",\"metadata\":{\"contentType\":\"application/json\",\"message-queue-name\":\"message-queue-val\"},\"providerStates\":[{\"name\":\"a functioning FFI interface\"}]}".to_string()));
+  expect!(c_str.to_str()).to(be_ok().value("{\"contents\":{\"id\":1},\"description\":\"a request to test the FFI interface\",\"metadata\":{\"contentType\":\"application/json\",\"message-queue-name\":\"message-queue-val\"},\"providerStates\":[{\"name\":\"a functioning FFI interface\"}]}".to_string()));
   let res = write_message_pact_file(message_pact_handle.clone(), file_path.as_ptr(), true);
   expect!(res).to(be_eq(0));
 }
