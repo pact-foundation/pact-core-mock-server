@@ -204,7 +204,9 @@ fn load_basic_pact() {
   expect!(pact.metadata().iter()).to(have_count(0));
 
   let v4pact = pact.as_v4_pact().unwrap();
-  match v4pact.interactions[0].as_v4_http() {
+  let interaction = &v4pact.interactions[0];
+  expect!(interaction.pending()).to(be_false());
+  match interaction.as_v4_http() {
     Some(SynchronousHttp { request, response, pending, .. }) => {
       expect!(request).to(be_equal_to(HttpRequest {
         method: "GET".into(),
@@ -1587,4 +1589,34 @@ fn has_mixed_interactions_test() {
   expect!(pact3.has_mixed_interactions()).to(be_false());
   expect!(pact4.has_mixed_interactions()).to(be_false());
   expect!(pact5.has_mixed_interactions()).to(be_true());
+}
+
+#[test]
+fn load_pending_pact() {
+  let pact_json = json!({
+      "interactions" : [ {
+        "type": "Synchronous/HTTP",
+        "description" : "test interaction",
+        "pending": true,
+        "request" : {
+          "method" : "get"
+        },
+        "response" : {
+          "status" : 200
+        }
+      } ],
+      "metadata" : {}
+    });
+  let pact = from_json("", &pact_json).unwrap();
+  expect!(pact.interactions().iter()).to(have_count(1));
+
+  let v4pact = pact.as_v4_pact().unwrap();
+  let interaction = &v4pact.interactions[0];
+  expect(interaction.pending()).to(be_true());
+  match interaction.as_v4_http() {
+    Some(SynchronousHttp { request, .. }) => {
+      expect!(&request.method).to(be_equal_to("GET"));
+    }
+    _ => panic!("Was expecting an HTTP pact")
+  }
 }
