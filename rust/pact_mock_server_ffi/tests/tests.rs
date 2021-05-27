@@ -162,13 +162,17 @@ fn http_consumer_feature_test() {
   let response_body_with_matchers = CString::new("{\"created\": {\"value\":\"maybe\",\"pact:matcher:type\":\"regex\", \"regex\":\"(yes|no|maybe)\"}}").unwrap();
   let address = CString::new("127.0.0.1:0").unwrap();
   let file_path = CString::new("/tmp/pact").unwrap();
+  let description = CString::new("a request to test the FFI interface").unwrap();
+  let method = CString::new("POST").unwrap();
+  let query =  CString::new("foo").unwrap();
+  let header = CString::new("application/json").unwrap();
 
-  upon_receiving(interaction.clone(), CString::new("a request to test the FFI interface").unwrap().as_ptr());
-  with_request(interaction.clone(), CString::new("POST").unwrap().as_ptr(), path_matcher.as_ptr());
+  upon_receiving(interaction.clone(), description.as_ptr());
+  with_request(interaction.clone(), method  .as_ptr(), path_matcher.as_ptr());
   with_header(interaction.clone(), InteractionPart::Request, content_type.as_ptr(), 0, value_header_with_matcher.as_ptr());
   with_header(interaction.clone(), InteractionPart::Request, authorization.as_ptr(), 0, auth_header_with_matcher.as_ptr());
-  with_query_parameter(interaction.clone(), CString::new("foo").unwrap().as_ptr(), 0, query_param_matcher.as_ptr());
-  with_body(interaction.clone(), InteractionPart::Request, CString::new("application/json").unwrap().as_ptr(), request_body_with_matchers.as_ptr());
+  with_query_parameter(interaction.clone(), query.as_ptr(), 0, query_param_matcher.as_ptr());
+  with_body(interaction.clone(), InteractionPart::Request, header.as_ptr(), request_body_with_matchers.as_ptr());
   // will respond with...
   with_header(interaction.clone(), InteractionPart::Response, content_type.as_ptr(), 0, value_header_with_matcher.as_ptr());
   with_header(interaction.clone(), InteractionPart::Response, special_header.as_ptr(), 0, value_header_with_matcher.as_ptr());
