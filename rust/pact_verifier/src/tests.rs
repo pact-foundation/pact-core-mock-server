@@ -14,7 +14,7 @@ use pact_matching::models::provider_states::*;
 use pact_matching::s;
 use pact_models::Consumer;
 
-use crate::{PactSource, ProviderInfo, verify_pact};
+use crate::{PactSource};
 use crate::callback_executors::HttpRequestProviderStateExecutor;
 use crate::pact_broker::Link;
 
