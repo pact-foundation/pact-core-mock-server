@@ -498,11 +498,10 @@ mod tests {
         }
     }"#;
 
-    let file = env::current_dir()
-          .expect("could not find current working directory")
-          .join("tests/data")
-          .join("message_with_binary_body_serialises.zip")
-          .to_owned();
+    let file = Path::new(env!("CARGO_MANIFEST_DIR"))
+      .join("tests/data")
+      .join("message_with_binary_body_serialises.zip")
+      .to_owned();
 
     let content_type = ContentType::parse("application/octet-stream").unwrap();
     let contents = fs::read(file).unwrap();
