@@ -44,10 +44,18 @@ fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
         let name = matches.value_of("provider-name").unwrap().to_string();
         let pending = matches.is_present("enable-pending");
         let wip = matches.value_of("include-wip-pacts-since").map(|wip| wip.to_string());
-        let consumer_version_tags = matches.values_of("consumer-version-tags")
-          .map_or_else(Vec::new, |tags| consumer_tags_to_selectors(tags.collect::<Vec<_>>()));
         let provider_tags = matches.values_of("provider-tags")
-          .map_or_else(Vec::new, |tags| tags.map(|tag| tag.to_string()).collect());
+        .map_or_else(Vec::new, |tags| tags.map(|tag| tag.to_string()).collect());
+
+        let selectors = if matches.is_present("consumer-version-selectors") {
+          matches.values_of("consumer-version-selectors")
+            .map_or_else(Vec::new, |s| json_to_selectors(s.collect::<Vec<_>>()))
+        } else if matches.is_present("consumer-version-tags") {
+          matches.values_of("consumer-version-tags")
+            .map_or_else(Vec::new, |tags| consumer_tags_to_selectors(tags.collect::<Vec<_>>()))
+        } else {
+          vec![]
+        };
 
         if matches.is_present("token") {
           PactSource::BrokerWithDynamicConfiguration {
@@ -56,7 +64,7 @@ fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
             enable_pending: pending,
             include_wip_pacts_since: wip,
             provider_tags,
-            selectors: consumer_version_tags,
+            selectors: selectors,
             auth: matches.value_of("token").map(|token| HttpAuth::Token(token.to_string())),
             links: vec![]
           }
@@ -70,7 +78,7 @@ fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
             enable_pending: pending,
             include_wip_pacts_since: wip,
             provider_tags,
-            selectors: consumer_version_tags,
+            selectors: selectors,
             auth,
             links: vec![]
           }
@@ -84,14 +92,20 @@ fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
 }
 
 fn consumer_tags_to_selectors(tags: Vec<&str>) -> Vec<pact_verifier::ConsumerVersionSelector> {
-tags.iter().map(|t| {
-  pact_verifier::ConsumerVersionSelector {
-    consumer: None,
-    fallback_tag: None,
-    tag: t.to_string(),
-    latest: Some(true),
-  }
-}).collect()
+  tags.iter().map(|t| {
+    pact_verifier::ConsumerVersionSelector {
+      consumer: None,
+      fallback_tag: None,
+      tag: t.to_string(),
+      latest: Some(true),
+    }
+  }).collect()
+}
+
+fn json_to_selectors(tags: Vec<&str>) -> Vec<pact_verifier::ConsumerVersionSelector> {
+  tags.iter().map(|t| serde_json::from_str(t))
+  .flatten()
+  .collect()
 }
 
 fn interaction_filter(matches: &ArgMatches) -> FilterInfo {
@@ -197,9 +211,9 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
       provider_version: matches.value_of("provider-version").map(|v| v.to_string()),
       build_url: matches.value_of("build-url").map(|v| v.to_string()),
       request_filter: None::<Arc<NullRequestFilterExecutor>>,
-      provider_tags: matches.values_of("provider-tags")
-        .map_or_else(Vec::new, |tags| tags.map(|tag| tag.to_string()).collect()),
+      provider_tags: matches.values_of("provider-tags").map_or_else(Vec::new, |tags| tags.map(|tag| tag.to_string()).collect()),
       disable_ssl_verification: matches.is_present("disable-ssl-verification"),
+      request_timeout: matches.value_of("request-timeout").map(|t| t.parse::<u64>().unwrap_or(5000)).unwrap_or(5000),
       .. VerificationOptions::default()
     };
 
