@@ -224,6 +224,7 @@ pub(crate) fn setup_app<'a, 'b>(program: String, version: &'b str) -> App<'a, 'b
       .long("request-timeout")
       .takes_value(true)
       .empty_values(false)
+      .validator(integer_value)
       .help("Sets the HTTP request timeout in milliseconds for requests to the target API and for state change requests."))
     }
 
