@@ -6,6 +6,7 @@ use serde_json::{json, Value};
 
 pub mod content_types;
 pub mod bodies;
+pub mod v4;
 
 /// Enum defining the pact specification versions supported by the library
 #[cfg_attr(feature = "ffi", repr(C))]
@@ -108,6 +109,25 @@ impl Provider {
   pub fn to_json(&self) -> Value {
     json!({ "name" : self.name })
   }
+}
+
+/// Enumeration of the types of differences between requests and responses
+#[derive(PartialEq, Debug, Clone, Eq)]
+pub enum DifferenceType {
+  /// Methods differ
+  Method,
+  /// Paths differ
+  Path,
+  /// Headers differ
+  Headers,
+  /// Query parameters differ
+  QueryParameters,
+  /// Bodies differ
+  Body,
+  /// Matching Rules differ
+  MatchingRules,
+  /// Response status differ
+  Status
 }
 
 #[cfg(test)]

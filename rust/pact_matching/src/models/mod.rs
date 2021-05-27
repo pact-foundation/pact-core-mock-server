@@ -27,7 +27,7 @@ use maplit::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use pact_models::{Consumer, PactSpecification, Provider};
+use pact_models::{Consumer, PactSpecification, Provider, DifferenceType};
 use pact_models::content_types::*;
 use pact_models::bodies::OptionalBody;
 
@@ -53,25 +53,6 @@ mod file_utils;
 
 /// Version of the library
 pub const PACT_RUST_VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
-
-/// Enumeration of the types of differences between requests and responses
-#[derive(PartialEq, Debug, Clone, Eq)]
-pub enum DifferenceType {
-  /// Methods differ
-  Method,
-  /// Paths differ
-  Path,
-  /// Headers differ
-  Headers,
-  /// Query parameters differ
-  QueryParameters,
-  /// Bodies differ
-  Body,
-  /// Matching Rules differ
-  MatchingRules,
-  /// Response status differ
-  Status
-}
 
 /// Trait to specify an HTTP part of a message. It encapsulates the shared parts of a request and
 /// response.
