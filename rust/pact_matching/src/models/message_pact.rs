@@ -72,9 +72,7 @@ impl Pact for MessagePact {
         "consumer": self.consumer.to_json(),
         "provider": self.provider.to_json(),
         "messages":
-          Value::Array(self.messages.iter().map(
-              |i| serde_json::to_value(i).unwrap())
-              .collect()),
+        Value::Array(self.messages.iter().map(|m| m.to_json(&pact_spec)).collect()),
         "metadata": self.metadata_to_json(&pact_spec)
       })),
       PactSpecification::V4 => self.as_v4_pact()?.to_json(pact_spec),
@@ -473,5 +471,35 @@ mod tests {
 
         expect!(pact.specification_version).to(be_equal_to(PactSpecification::V3));
         expect!(pact.metadata.iter()).to(have_count(0));
+    }
+
+    #[test]
+    fn to_json() {
+        let pact_json = r#"
+        {
+            "provider": {
+                "name": "Alice Service"
+            },
+            "consumer": {
+                "name": "Consumer"
+            },
+            "messages": [
+                {
+                    "description": "Message Description",
+                    "contents": {
+                        "hello": "world"
+                    },
+                    "metadata": {
+                        "contentType": "application/json"
+                    }
+                }
+            ]
+        }
+        "#;
+        let pact = MessagePact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
+        expect!(pact.as_ref()).to(be_ok());
+        let pact = pact.unwrap();
+        let contents = pact.to_json(PactSpecification::V3);
+        expect!(contents.unwrap().to_string()).to(be_equal_to("{\"consumer\":{\"name\":\"Consumer\"},\"messages\":[{\"contents\":\"{\\\"hello\\\":\\\"world\\\"}\",\"description\":\"Message Description\",\"metadata\":{}}],\"metadata\":{\"pactRust\":{\"version\":\"0.9.2\"},\"pactSpecification\":{\"version\":\"3.0.0\"}},\"provider\":{\"name\":\"Alice Service\"}}"));
     }
 }

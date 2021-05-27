@@ -8,10 +8,13 @@ use lazy_static::*;
 use maplit::*;
 
 use pact_matching::models::{RequestResponseInteraction, RequestResponsePact};
+use pact_matching::models::message::Message;
+use pact_matching::models::message_pact::MessagePact;
 use pact_models::{Consumer, Provider};
 
 lazy_static! {
   static ref PACT_HANDLES: Mutex<HashMap<usize, RefCell<RequestResponsePact>>> = Mutex::new(hashmap![]);
+  static ref MESSAGE_PACT_HANDLES: Mutex<HashMap<usize, RefCell<MessagePact>>> = Mutex::new(hashmap![]);
 }
 
 #[repr(C)]
@@ -85,6 +88,73 @@ impl InteractionHandle {
     handles.get_mut(&self.pact).map(|inner| {
       match inner.borrow_mut().interactions.get_mut(self.interaction - 1) {
         Some(inner_i) => Some(f(self.interaction - 1, inner_i)),
+        None => None
+      }
+    }).flatten()
+  }
+}
+
+#[repr(C)]
+#[derive(Debug, Clone)]
+/// Wraps a Pact model struct
+pub struct MessagePactHandle {
+  /// Pact reference
+  pub pact: usize
+}
+
+#[repr(C)]
+#[derive(Debug, Clone)]
+/// Wraps a Pact model struct
+pub struct MessageHandle {
+  /// Message Pact reference
+  pub pact: usize,
+  /// Interaction reference
+  pub message: usize
+}
+
+impl MessagePactHandle {
+  /// Creates a new handle to a Pact model
+  pub fn new(consumer: &str, provider: &str) -> Self {
+    let mut handles = MESSAGE_PACT_HANDLES.lock().unwrap();
+    let id = handles.len() + 1;
+    handles.insert(id, RefCell::new(MessagePact {
+      consumer: Consumer { name: consumer.to_string() },
+      provider: Provider { name: provider.to_string() },
+      .. MessagePact::default()
+    }));
+    MessagePactHandle {
+      pact: id
+    }
+  }
+
+  /// Invokes the closure with the inner MessagePact model
+  pub fn with_pact<R>(&self, f: &dyn Fn(usize, &mut MessagePact) -> R) -> Option<R> {
+    let mut handles = MESSAGE_PACT_HANDLES.lock().unwrap();
+    handles.get_mut(&self.pact).map(|inner| f(self.pact - 1, &mut inner.borrow_mut()))
+  }
+}
+
+impl MessageHandle {
+  /// Creates a new handle to a message
+  pub fn new(pact: MessagePactHandle, message: usize) -> MessageHandle {
+    MessageHandle {
+      pact: pact.pact,
+      message
+    }
+  }
+
+  /// Invokes the closure with the inner MessagePact model
+  pub fn with_pact<R>(&self, f: &dyn Fn(usize, &mut MessagePact) -> R) -> Option<R> {
+    let mut handles = MESSAGE_PACT_HANDLES.lock().unwrap();
+    handles.get_mut(&self.pact).map(|inner| f(self.pact - 1, &mut inner.borrow_mut()))
+  }
+
+  /// Invokes the closure with the inner Interaction model
+  pub fn with_message<R>(&self, f: &dyn Fn(usize, &mut Message) -> R) -> Option<R> {
+    let mut handles = MESSAGE_PACT_HANDLES.lock().unwrap();
+    handles.get_mut(&self.pact).map(|inner| {
+      match inner.borrow_mut().messages.get_mut(self.message - 1) {
+        Some(inner_i) => Some(f(self.message - 1, inner_i)),
         None => None
       }
     }).flatten()
