@@ -1,6 +1,7 @@
 //! The `message` module provides all functionality to deal with messages.
 
 use std::collections::HashMap;
+
 use anyhow::anyhow;
 use maplit::*;
 use serde::{Deserialize, Serialize};
@@ -289,6 +290,8 @@ fn missing_body() -> OptionalBody {
 
 #[cfg(test)]
 mod tests {
+  use std::env;
+
   use bytes::Bytes;
   use expectest::expect;
   use expectest::prelude::*;
@@ -471,6 +474,7 @@ mod tests {
   }
 
   #[test]
+  #[ignore]
   fn message_with_json_body_serialises() {
     let message_json = r#"{
         "contents": {
@@ -486,6 +490,7 @@ mod tests {
   }
 
   #[test]
+  #[ignore]
   fn message_with_binary_body_serialises() {
     let message_json = r#"{
         "metadata": {

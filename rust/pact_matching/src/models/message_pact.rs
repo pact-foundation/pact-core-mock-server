@@ -474,6 +474,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn to_json() {
         let pact_json = r#"
         {
