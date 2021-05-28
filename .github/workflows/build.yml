@@ -28,6 +28,18 @@ jobs:
         with:
           working-directory: rust
           command: build
+      - name: Run the C FFI tests
+        if: runner.os == 'Linux'
+        with:
+          working-directory: c/consumer-verification
+        run: |
+          alocal
+          autoconf
+          automake --add-missing
+          ./configure
+          make
+          src/consumer-verification basic ../../rust/target/debug/libpact_mock_server_ffi.so
+          src/consumer-verification error ../../rust/target/debug/libpact_mock_server_ffi.so
       - name: Clippy
         uses: marcopolo/cargo@master
         with:
