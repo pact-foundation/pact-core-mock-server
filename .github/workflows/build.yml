@@ -33,6 +33,7 @@ jobs:
         working-directory: c/consumer-verification
         run: |
           sudo apt-get install autoconf automake autotools-dev
+          ls -l /usr/bin/aclocal*
           autoconf
           automake --add-missing
           ./configure
