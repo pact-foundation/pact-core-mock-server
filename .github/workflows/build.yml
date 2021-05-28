@@ -32,7 +32,7 @@ jobs:
         if: runner.os == 'Linux'
         working-directory: c/consumer-verification
         run: |
-          sudo apt-get install autoconf automake
+          sudo apt-get install autoconf automake autotools-dev
           alocal
           autoconf
           automake --add-missing
