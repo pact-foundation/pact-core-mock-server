@@ -1,301 +1,119 @@
 use std::str::from_utf8;
 
+use anyhow::anyhow;
 use bytes::Bytes;
 use itertools::Itertools;
-use onig::Regex;
 use log::*;
+use onig::Regex;
 
+use pact_models::HttpStatus;
+
+use crate::binary_utils::match_content_type;
 use crate::MatchingContext;
 use crate::models::matchingrules::*;
 use crate::time_utils::validate_datetime;
-use crate::binary_utils::match_content_type;
 
 pub trait Matches<A> {
-  fn matches(&self, actual: &A, matcher: &MatchingRule) -> Result<(), String>;
+  fn matches(&self, actual: &A, matcher: &MatchingRule) -> anyhow::Result<()>;
 }
 
 impl Matches<String> for String {
-  fn matches(&self, actual: &String, matcher: &MatchingRule) -> Result<(), String> {
+  fn matches(&self, actual: &String, matcher: &MatchingRule) -> anyhow::Result<()> {
     self.matches(&actual.as_str(), matcher)
   }
 }
 
 impl Matches<&str> for &str {
-  fn matches(&self, actual: &&str, matcher: &MatchingRule) -> Result<(), String> {
+  fn matches(&self, actual: &&str, matcher: &MatchingRule) -> anyhow::Result<()> {
     self.to_string().matches(actual, matcher)
   }
 }
 
 impl Matches<&str> for String {
-  fn matches(&self, actual: &&str, matcher: &MatchingRule) -> Result<(), String> {
-    log::debug!("String -> String: comparing '{}' to '{}' using {:?}", self, actual, matcher);
-    match *matcher {
-      MatchingRule::Regex(ref regex) => {
+  fn matches(&self, actual: &&str, matcher: &MatchingRule) -> anyhow::Result<()> {
+    debug!("String -> String: comparing '{}' to '{}' using {:?}", self, actual, matcher);
+    match matcher {
+      MatchingRule::Regex(regex) => {
         match Regex::new(regex) {
           Ok(re) => {
             if re.is_match(actual) {
               Ok(())
             } else {
-              Err(format!("Expected '{}' to match '{}'", actual, regex))
+              Err(anyhow!("Expected '{}' to match '{}'", actual, regex))
             }
           },
-          Err(err) => Err(format!("'{}' is not a valid regular expression - {}", regex, err))
+          Err(err) => Err(anyhow!("'{}' is not a valid regular expression - {}", regex, err))
         }
       },
       MatchingRule::Equality => {
         if self == actual {
           Ok(())
         } else {
-          Err(format!("Expected '{}' to be equal to '{}'", self, actual))
+          Err(anyhow!("Expected '{}' to be equal to '{}'", self, actual))
         }
       },
       MatchingRule::Type |
       MatchingRule::MinType(_) |
-      MatchingRule::MaxType(_)|
+      MatchingRule::MaxType(_) |
       MatchingRule::MinMaxType(_, _) => Ok(()),
-      MatchingRule::Include(ref substr) => {
+      MatchingRule::Include(substr) => {
         if actual.contains(substr) {
           Ok(())
         } else {
-          Err(format!("Expected '{}' to include '{}'", actual, substr))
+          Err(anyhow!("Expected '{}' to include '{}'", actual, substr))
         }
       },
       MatchingRule::Number | MatchingRule::Decimal => {
         match actual.parse::<f64>() {
           Ok(_) => Ok(()),
-          Err(_) => Err(format!("Expected '{}' to match a number", actual))
+          Err(_) => Err(anyhow!("Expected '{}' to match a number", actual))
         }
       },
       MatchingRule::Integer => {
         match actual.parse::<u64>() {
           Ok(_) => Ok(()),
-          Err(_) => Err(format!("Expected '{}' to match an integer number", actual))
+          Err(_) => Err(anyhow!("Expected '{}' to match an integer number", actual))
         }
       },
-      MatchingRule::Date(ref s) => {
+      MatchingRule::Date(s) => {
         match validate_datetime(&actual.to_string(), s) {
           Ok(_) => Ok(()),
-          Err(_) => Err(format!("Expected '{}' to match a date format of '{}'", actual, s))
+          Err(_) => Err(anyhow!("Expected '{}' to match a date format of '{}'", actual, s))
         }
       },
-      MatchingRule::Time(ref s) => {
+      MatchingRule::Time(s) => {
         match validate_datetime(&actual.to_string(), s) {
           Ok(_) => Ok(()),
-          Err(_) => Err(format!("Expected '{}' to match a time format of '{}'", actual, s))
+          Err(_) => Err(anyhow!("Expected '{}' to match a time format of '{}'", actual, s))
         }
       },
-      MatchingRule::Timestamp(ref s) => {
+      MatchingRule::Timestamp(s) => {
         match validate_datetime(&actual.to_string(), s) {
           Ok(_) => Ok(()),
-          Err(_) => Err(format!("Expected '{}' to match a timestamp format of '{}'", actual, s))
+          Err(_) => Err(anyhow!("Expected '{}' to match a timestamp format of '{}'", actual, s))
         }
       },
       MatchingRule::Boolean => {
         if *actual == "true" || *actual == "false" {
           Ok(())
         } else {
-          Err(format!("Expected '{}' to match a boolean", actual))
+          Err(anyhow!("Expected '{}' to match a boolean", actual))
         }
-      },
-      _ => Err(format!("Unable to match '{}' using {:?}", self, matcher))
+      }
+      MatchingRule::StatusCode(status) => {
+        match actual.parse::<u16>() {
+          Ok(status_code) => match_status_code(status_code, status),
+          Err(err) => Err(anyhow!("Unable to match '{}' using {:?} - {}", self, matcher, err))
+        }
+      }
+      _ => Err(anyhow!("Unable to match '{}' using {:?}", self, matcher))
     }
   }
 }
 
 impl Matches<u64> for String {
-    fn matches(&self, actual: &u64, matcher: &MatchingRule) -> Result<(), String> {
-        log::debug!("String -> u64: comparing '{}' to {} using {:?}", self, actual, matcher);
-        match *matcher {
-          MatchingRule::Regex(ref regex) => {
-            match Regex::new(regex) {
-              Ok(re) => {
-                if re.is_match(&actual.to_string()) {
-                  Ok(())
-                } else {
-                  Err(format!("Expected {} to match '{}'", actual, regex))
-                }
-              },
-              Err(err) => Err(format!("'{}' is not a valid regular expression - {}", regex, err))
-            }
-           },
-          MatchingRule::Type |
-          MatchingRule::MinType(_) |
-          MatchingRule::MaxType(_) |
-          MatchingRule::MinMaxType(_, _) =>
-            Err(format!("Expected '{}' (String) to be the same type as {} (Number)", self, actual)),
-          MatchingRule::Equality => Err(format!("Expected '{}' (String) to be equal to {} (Number)", self, actual)),
-          MatchingRule::Include(ref substr) => {
-            if actual.to_string().contains(substr) {
-              Ok(())
-            } else {
-              Err(format!("Expected {} to include '{}'", actual, substr))
-            }
-          },
-          MatchingRule::Number | MatchingRule::Integer => Ok(()),
-          MatchingRule::Decimal => Err(format!("Expected {} to match a decimal number", actual)),
-          _ => Err(format!("String: Unable to match {} using {:?}", self, matcher))
-       }
-    }
-}
-
-impl Matches<u64> for u64 {
-    fn matches(&self, actual: &u64, matcher: &MatchingRule) -> Result<(), String> {
-        log::debug!("u64 -> u64: comparing {} to {} using {:?}", self, actual, matcher);
-        match *matcher {
-          MatchingRule::Regex(ref regex) => {
-            match Regex::new(regex) {
-              Ok(re) => {
-                if re.is_match(&actual.to_string()) {
-                  Ok(())
-                } else {
-                  Err(format!("Expected {} to match '{}'", actual, regex))
-                }
-              },
-              Err(err) => Err(format!("'{}' is not a valid regular expression - {}", regex, err))
-            }
-          },
-          MatchingRule::Type |
-          MatchingRule::MinType(_) |
-          MatchingRule::MaxType(_) |
-          MatchingRule::MinMaxType(_, _) => Ok(()),
-          MatchingRule::Equality => {
-             if self == actual {
-                 Ok(())
-             } else {
-                 Err(format!("Expected {} to be equal to {}", self, actual))
-             }
-          },
-          MatchingRule::Include(ref substr) => {
-            if actual.to_string().contains(substr) {
-              Ok(())
-            } else {
-              Err(format!("Expected {} to include '{}'", actual, substr))
-            }
-          },
-          MatchingRule::Number | MatchingRule::Integer => Ok(()),
-          MatchingRule::Decimal => Err(format!("Expected {} to match a decimal number", actual)),
-          _ => Err(format!("Unable to match {} using {:?}", self, matcher))
-       }
-    }
-}
-
-impl Matches<f64> for u64 {
-    fn matches(&self, actual: &f64, matcher: &MatchingRule) -> Result<(), String> {
-        log::debug!("u64 -> f64: comparing {} to {} using {:?}", self, actual, matcher);
-        match *matcher {
-          MatchingRule::Regex(ref regex) => {
-            match Regex::new(regex) {
-              Ok(re) => {
-                if re.is_match(&actual.to_string()) {
-                  Ok(())
-                } else {
-                  Err(format!("Expected {} to match '{}'", actual, regex))
-                }
-              },
-              Err(err) => Err(format!("'{}' is not a valid regular expression - {}", regex, err))
-            }
-          },
-          MatchingRule::Type |
-          MatchingRule::MinType(_) |
-          MatchingRule::MaxType(_) |
-          MatchingRule::MinMaxType(_, _) =>
-            Err(format!("Expected {} (Integer) to be the same type as {} (Decimal)", self, actual)),
-          MatchingRule::Equality => Err(format!("Expected {} (Integer) to be equal to {} (Decimal)", self, actual)),
-          MatchingRule::Include(ref substr) => {
-            if actual.to_string().contains(substr) {
-              Ok(())
-            } else {
-              Err(format!("Expected {} to include '{}'", actual, substr))
-            }
-          },
-          MatchingRule::Number | MatchingRule::Decimal => Ok(()),
-          MatchingRule::Integer => Err(format!("Expected {} to match an integer number", actual)),
-          _ => Err(format!("Unable to match {} using {:?}", self, matcher))
-       }
-    }
-}
-
-impl Matches<f64> for f64 {
-    #[allow(clippy::float_cmp)]
-    fn matches(&self, actual: &f64, matcher: &MatchingRule) -> Result<(), String> {
-        log::debug!("f64 -> f64: comparing {} to {} using {:?}", self, actual, matcher);
-        match *matcher {
-          MatchingRule::Regex(ref regex) => {
-            match Regex::new(regex) {
-              Ok(re) => {
-                if re.is_match(&actual.to_string()) {
-                  Ok(())
-                } else {
-                  Err(format!("Expected {} to match '{}'", actual, regex))
-                }
-              },
-              Err(err) => Err(format!("'{}' is not a valid regular expression - {}", regex, err))
-            }
-          },
-          MatchingRule::Type |
-          MatchingRule::MinType(_) |
-          MatchingRule::MaxType(_) |
-          MatchingRule::MinMaxType(_, _) => Ok(()),
-          MatchingRule::Equality => {
-             if self == actual {
-                 Ok(())
-             } else {
-                 Err(format!("Expected {} to be equal to {}", self, actual))
-             }
-          },
-          MatchingRule::Include(ref substr) => {
-            if actual.to_string().contains(substr) {
-              Ok(())
-            } else {
-              Err(format!("Expected {} to include '{}'", actual, substr))
-            }
-          },
-          MatchingRule::Number | MatchingRule::Decimal => Ok(()),
-          MatchingRule::Integer => Err(format!("Expected {} to match an integer number", actual)),
-          _ => Err(format!("Unable to match {} using {:?}", self, matcher))
-       }
-    }
-}
-
-impl Matches<u64> for f64 {
-    fn matches(&self, actual: &u64, matcher: &MatchingRule) -> Result<(), String> {
-        log::debug!("f64 -> u64: comparing {} to {} using {:?}", self, actual, matcher);
-        match *matcher {
-          MatchingRule::Regex(ref regex) => {
-            match Regex::new(regex) {
-              Ok(re) => {
-                if re.is_match(&actual.to_string()) {
-                  Ok(())
-                } else {
-                  Err(format!("Expected '{}' to match '{}'", actual, regex))
-                }
-              },
-              Err(err) => Err(format!("'{}' is not a valid regular expression - {}", regex, err))
-            }
-          },
-          MatchingRule::Type |
-          MatchingRule::MinType(_) |
-          MatchingRule::MaxType(_) |
-          MatchingRule::MinMaxType(_, _) =>
-            Err(format!("Expected {} (Decimal) to be the same type as {} (Integer)", self, actual)),
-          MatchingRule::Equality => Err(format!("Expected {} (Decimal) to be equal to {} (Integer)", self, actual)),
-          MatchingRule::Include(ref substr) => {
-            if actual.to_string().contains(substr) {
-              Ok(())
-            } else {
-              Err(format!("Expected {} to include '{}'", actual, substr))
-            }
-          },
-          MatchingRule::Number | MatchingRule::Integer => Ok(()),
-          MatchingRule::Decimal => Err(format!("Expected {} to match a decimal number", actual)),
-          _ => Err(format!("Unable to match '{}' using {:?}", self, matcher))
-       }
-    }
-}
-
-impl Matches<bool> for bool {
-  fn matches(&self, actual: &bool, matcher: &MatchingRule) -> Result<(), String> {
-    log::debug!("bool -> bool: comparing '{}' to {} using {:?}", self, actual, matcher);
+  fn matches(&self, actual: &u64, matcher: &MatchingRule) -> anyhow::Result<()> {
+    log::debug!("String -> u64: comparing '{}' to {} using {:?}", self, actual, matcher);
     match matcher {
       MatchingRule::Regex(regex) => {
         match Regex::new(regex) {
@@ -303,10 +121,293 @@ impl Matches<bool> for bool {
             if re.is_match(&actual.to_string()) {
               Ok(())
             } else {
-              Err(format!("Expected {} to match '{}'", actual, regex))
+              Err(anyhow!("Expected {} to match '{}'", actual, regex))
             }
           },
-          Err(err) => Err(format!("'{}' is not a valid regular expression - {}", regex, err))
+          Err(err) => Err(anyhow!("'{}' is not a valid regular expression - {}", regex, err))
+        }
+      },
+      MatchingRule::Type |
+      MatchingRule::MinType(_) |
+      MatchingRule::MaxType(_) |
+      MatchingRule::MinMaxType(_, _) =>
+        Err(anyhow!("Expected '{}' (String) to be the same type as {} (Number)", self, actual)),
+      MatchingRule::Equality => Err(anyhow!("Expected '{}' (String) to be equal to {} (Number)", self, actual)),
+      MatchingRule::Include(substr) => {
+        if actual.to_string().contains(substr) {
+          Ok(())
+        } else {
+          Err(anyhow!("Expected {} to include '{}'", actual, substr))
+        }
+      },
+      MatchingRule::Number | MatchingRule::Integer => Ok(()),
+      MatchingRule::Decimal => Err(anyhow!("Expected {} to match a decimal number", actual)),
+      MatchingRule::StatusCode(status) => match_status_code(*actual as u16, status),
+      _ => Err(anyhow!("String: Unable to match {} using {:?}", self, matcher))
+    }
+  }
+}
+
+impl Matches<u64> for u64 {
+  fn matches(&self, actual: &u64, matcher: &MatchingRule) -> anyhow::Result<()> {
+    debug!("u64 -> u64: comparing {} to {} using {:?}", self, actual, matcher);
+    match matcher {
+      MatchingRule::Regex(regex) => {
+        match Regex::new(regex) {
+          Ok(re) => {
+            if re.is_match(&actual.to_string()) {
+              Ok(())
+            } else {
+              Err(anyhow!("Expected {} to match '{}'", actual, regex))
+            }
+          },
+          Err(err) => Err(anyhow!("'{}' is not a valid regular expression - {}", regex, err))
+        }
+      },
+      MatchingRule::Type |
+      MatchingRule::MinType(_) |
+      MatchingRule::MaxType(_) |
+      MatchingRule::MinMaxType(_, _) => Ok(()),
+      MatchingRule::Equality => {
+        if self == actual {
+          Ok(())
+        } else {
+          Err(anyhow!("Expected {} to be equal to {}", self, actual))
+        }
+      },
+      MatchingRule::Include(substr) => {
+        if actual.to_string().contains(substr) {
+          Ok(())
+        } else {
+          Err(anyhow!("Expected {} to include '{}'", actual, substr))
+        }
+      },
+      MatchingRule::Number | MatchingRule::Integer => Ok(()),
+      MatchingRule::Decimal => Err(anyhow!("Expected {} to match a decimal number", actual)),
+      MatchingRule::StatusCode(status) => match_status_code(*actual as u16, status),
+      _ => Err(anyhow!("Unable to match {} using {:?}", self, matcher))
+    }
+  }
+}
+
+impl Matches<f64> for u64 {
+  fn matches(&self, actual: &f64, matcher: &MatchingRule) -> anyhow::Result<()> {
+    debug!("u64 -> f64: comparing {} to {} using {:?}", self, actual, matcher);
+    match matcher {
+      MatchingRule::Regex(regex) => {
+        match Regex::new(regex) {
+          Ok(re) => {
+            if re.is_match(&actual.to_string()) {
+              Ok(())
+            } else {
+              Err(anyhow!("Expected {} to match '{}'", actual, regex))
+            }
+          },
+          Err(err) => Err(anyhow!("'{}' is not a valid regular expression - {}", regex, err))
+        }
+      },
+      MatchingRule::Type |
+      MatchingRule::MinType(_) |
+      MatchingRule::MaxType(_) |
+      MatchingRule::MinMaxType(_, _) =>
+        Err(anyhow!("Expected {} (Integer) to be the same type as {} (Decimal)", self, actual)),
+      MatchingRule::Equality => Err(anyhow!("Expected {} (Integer) to be equal to {} (Decimal)", self, actual)),
+      MatchingRule::Include(substr) => {
+        if actual.to_string().contains(substr) {
+          Ok(())
+        } else {
+          Err(anyhow!("Expected {} to include '{}'", actual, substr))
+        }
+      },
+      MatchingRule::Number | MatchingRule::Decimal => Ok(()),
+      MatchingRule::Integer => Err(anyhow!("Expected {} to match an integer number", actual)),
+      _ => Err(anyhow!("Unable to match {} using {:?}", self, matcher))
+    }
+  }
+}
+
+impl Matches<f64> for f64 {
+  #[allow(clippy::float_cmp)]
+  fn matches(&self, actual: &f64, matcher: &MatchingRule) -> anyhow::Result<()> {
+    debug!("f64 -> f64: comparing {} to {} using {:?}", self, actual, matcher);
+    match matcher {
+      MatchingRule::Regex(regex) => {
+        match Regex::new(regex) {
+          Ok(re) => {
+            if re.is_match(&actual.to_string()) {
+              Ok(())
+            } else {
+              Err(anyhow!("Expected {} to match '{}'", actual, regex))
+            }
+          },
+          Err(err) => Err(anyhow!("'{}' is not a valid regular expression - {}", regex, err))
+        }
+      },
+      MatchingRule::Type |
+      MatchingRule::MinType(_) |
+      MatchingRule::MaxType(_) |
+      MatchingRule::MinMaxType(_, _) => Ok(()),
+      MatchingRule::Equality => {
+        if self == actual {
+          Ok(())
+        } else {
+          Err(anyhow!("Expected {} to be equal to {}", self, actual))
+        }
+      },
+      MatchingRule::Include(substr) => {
+        if actual.to_string().contains(substr) {
+          Ok(())
+        } else {
+          Err(anyhow!("Expected {} to include '{}'", actual, substr))
+        }
+      },
+      MatchingRule::Number | MatchingRule::Decimal => Ok(()),
+      MatchingRule::Integer => Err(anyhow!("Expected {} to match an integer number", actual)),
+      _ => Err(anyhow!("Unable to match {} using {:?}", self, matcher))
+    }
+  }
+}
+
+impl Matches<u64> for f64 {
+  fn matches(&self, actual: &u64, matcher: &MatchingRule) -> anyhow::Result<()> {
+    debug!("f64 -> u64: comparing {} to {} using {:?}", self, actual, matcher);
+    match matcher {
+      MatchingRule::Regex(ref regex) => {
+        match Regex::new(regex) {
+          Ok(re) => {
+            if re.is_match(&actual.to_string()) {
+              Ok(())
+            } else {
+              Err(anyhow!("Expected '{}' to match '{}'", actual, regex))
+            }
+          },
+          Err(err) => Err(anyhow!("'{}' is not a valid regular expression - {}", regex, err))
+        }
+      },
+      MatchingRule::Type |
+      MatchingRule::MinType(_) |
+      MatchingRule::MaxType(_) |
+      MatchingRule::MinMaxType(_, _) =>
+        Err(anyhow!("Expected {} (Decimal) to be the same type as {} (Integer)", self, actual)),
+      MatchingRule::Equality => Err(anyhow!("Expected {} (Decimal) to be equal to {} (Integer)", self, actual)),
+      MatchingRule::Include(substr) => {
+        if actual.to_string().contains(substr) {
+          Ok(())
+        } else {
+          Err(anyhow!("Expected {} to include '{}'", actual, substr))
+        }
+      },
+      MatchingRule::Number | MatchingRule::Integer => Ok(()),
+      MatchingRule::Decimal => Err(anyhow!("Expected {} to match a decimal number", actual)),
+      _ => Err(anyhow!("Unable to match '{}' using {:?}", self, matcher))
+    }
+  }
+}
+
+impl Matches<u16> for String {
+  fn matches(&self, actual: &u16, matcher: &MatchingRule) -> anyhow::Result<()> {
+    debug!("String -> u16: comparing '{}' to {} using {:?}", self, actual, matcher);
+    self.matches(&(*actual as u64), matcher)
+  }
+}
+
+impl Matches<u16> for u16 {
+  fn matches(&self, actual: &u16, matcher: &MatchingRule) -> anyhow::Result<()> {
+    debug!("u16 -> u16: comparing {} to {} using {:?}", self, actual, matcher);
+    (*self as u64).matches(&(*actual as u64), matcher)
+  }
+}
+
+impl Matches<i32> for String {
+  fn matches(&self, actual: &i32, matcher: &MatchingRule) -> anyhow::Result<()> {
+    debug!("String -> i32: comparing '{}' to {} using {:?}", self, actual, matcher);
+    match matcher {
+      MatchingRule::Regex(regex) => {
+        match Regex::new(regex) {
+          Ok(re) => {
+            if re.is_match(&actual.to_string()) {
+              Ok(())
+            } else {
+              Err(anyhow!("Expected {} to match '{}'", actual, regex))
+            }
+          },
+          Err(err) => Err(anyhow!("'{}' is not a valid regular expression - {}", regex, err))
+        }
+      },
+      MatchingRule::Type |
+      MatchingRule::MinType(_) |
+      MatchingRule::MaxType(_) |
+      MatchingRule::MinMaxType(_, _) => Ok(()),
+      MatchingRule::Equality => Err(anyhow!("Expected '{}' (String) to be equal to {} (Number)", self, actual)),
+      MatchingRule::Include(substr) => {
+        if actual.to_string().contains(substr) {
+          Ok(())
+        } else {
+          Err(anyhow!("Expected {} to include '{}'", actual, substr))
+        }
+      },
+      MatchingRule::Number | MatchingRule::Integer => Ok(()),
+      MatchingRule::Decimal => Err(anyhow!("Expected {} to match a decimal number", actual)),
+      _ => Err(anyhow!("Unable to match {} using {:?}", self, matcher))
+    }
+  }
+}
+
+impl Matches<i32> for i32 {
+  fn matches(&self, actual: &i32, matcher: &MatchingRule) -> anyhow::Result<()> {
+    debug!("u16 -> u16: comparing {} to {} using {:?}", self, actual, matcher);
+    match matcher {
+      MatchingRule::Regex(regex) => {
+        match Regex::new(regex) {
+          Ok(re) => {
+            if re.is_match(&actual.to_string()) {
+              Ok(())
+            } else {
+              Err(anyhow!("Expected {} to match '{}'", actual, regex))
+            }
+          },
+          Err(err) => Err(anyhow!("'{}' is not a valid regular expression - {}", regex, err))
+        }
+      },
+      MatchingRule::Type |
+      MatchingRule::MinType(_) |
+      MatchingRule::MaxType(_) |
+      MatchingRule::MinMaxType(_, _) => Ok(()),
+      MatchingRule::Equality => {
+        if self == actual {
+          Ok(())
+        } else {
+          Err(anyhow!("Expected {} to be equal to {}", self, actual))
+        }
+      },
+      MatchingRule::Include(substr) => {
+        if actual.to_string().contains(substr) {
+          Ok(())
+        } else {
+          Err(anyhow!("Expected {} to include '{}'", actual, substr))
+        }
+      },
+      MatchingRule::Number | MatchingRule::Integer => Ok(()),
+      MatchingRule::Decimal => Err(anyhow!("Expected {} to match a decimal number", actual)),
+      _ => Err(anyhow!("Unable to match {} using {:?}", self, matcher))
+    }
+  }
+}
+
+impl Matches<bool> for bool {
+  fn matches(&self, actual: &bool, matcher: &MatchingRule) -> anyhow::Result<()> {
+    debug!("bool -> bool: comparing '{}' to {} using {:?}", self, actual, matcher);
+    match matcher {
+      MatchingRule::Regex(regex) => {
+        match Regex::new(regex) {
+          Ok(re) => {
+            if re.is_match(&actual.to_string()) {
+              Ok(())
+            } else {
+              Err(anyhow!("Expected {} to match '{}'", actual, regex))
+            }
+          },
+          Err(err) => Err(anyhow!("'{}' is not a valid regular expression - {}", regex, err))
         }
       },
       MatchingRule::Type |
@@ -316,16 +417,16 @@ impl Matches<bool> for bool {
       MatchingRule::Equality => if actual == self {
         Ok(())
       } else {
-        Err(format!("Expected {} (Boolean) to be equal to {} (Boolean)", self, actual))
+        Err(anyhow!("Expected {} (Boolean) to be equal to {} (Boolean)", self, actual))
       },
       MatchingRule::Boolean => Ok(()),
-      _ => Err(format!("Boolean: Unable to match {} using {:?}", self, matcher))
+      _ => Err(anyhow!("Boolean: Unable to match {} using {:?}", self, matcher))
     }
   }
 }
 
 impl Matches<Bytes> for Bytes {
-  fn matches(&self, actual: &Bytes, matcher: &MatchingRule) -> Result<(), String> {
+  fn matches(&self, actual: &Bytes, matcher: &MatchingRule) -> anyhow::Result<()> {
     debug!("Bytes -> Bytes: comparing {} bytes to {} bytes using {:?}", self.len(), actual.len(), matcher);
     match matcher {
       MatchingRule::Regex(regex) => {
@@ -335,38 +436,38 @@ impl Matches<Bytes> for Bytes {
               Ok(s) => if re.is_match(s) {
                 Ok(())
               } else {
-                Err(format!("Expected '{}' to match '{}'", s, regex))
+                Err(anyhow!("Expected '{}' to match '{}'", s, regex))
               }
-              Err(err) => Err(format!("Could not convert actual bytes into a UTF-8 string - {}", err))
+              Err(err) => Err(anyhow!("Could not convert actual bytes into a UTF-8 string - {}", err))
             }
           },
-          Err(err) => Err(format!("'{}' is not a valid regular expression - {}", regex, err))
+          Err(err) => Err(anyhow!("'{}' is not a valid regular expression - {}", regex, err))
         }
       },
       MatchingRule::Equality => {
         if self == actual {
           Ok(())
         } else {
-          Err(format!("Expected '{:?}...' ({} bytes) to be equal to '{:?}...' ({} bytes)",
+          Err(anyhow!("Expected '{:?}...' ({} bytes) to be equal to '{:?}...' ({} bytes)",
                       self.split_at(10).0, self.len(), actual.split_at(10).0, actual.len()))
         }
       },
       MatchingRule::Type |
       MatchingRule::MinType(_) |
-      MatchingRule::MaxType(_)|
+      MatchingRule::MaxType(_) |
       MatchingRule::MinMaxType(_, _) => Ok(()),
       MatchingRule::Include(substr) => {
         match from_utf8(actual) {
           Ok(s) => if s.contains(substr) {
             Ok(())
           } else {
-            Err(format!("Expected '{}' to include '{}'", s, substr))
+            Err(anyhow!("Expected '{}' to include '{}'", s, substr))
           }
-          Err(err) => Err(format!("Could not convert actual bytes into a UTF-8 string - {}", err))
+          Err(err) => Err(anyhow!("Could not convert actual bytes into a UTF-8 string - {}", err))
         }
       },
       MatchingRule::ContentType(content_type) => match_content_type(&actual, content_type),
-      _ => Err(format!("Unable to match '{:?}...' ({} bytes) using {:?}",
+      _ => Err(anyhow!("Unable to match '{:?}...' ({} bytes) using {:?}",
                        actual.split_at(10).0, actual.len(), matcher))
     }
   }
@@ -380,25 +481,45 @@ pub fn match_values<E, A>(path: &[&str], context: &MatchingContext, expected: &E
         Some(ref rulelist) => {
           let results = rulelist.rules.iter().map(|rule| {
             expected.matches(actual, rule)
-          }).collect::<Vec<Result<(), String>>>();
+          }).collect::<Vec<anyhow::Result<()>>>();
           match rulelist.rule_logic {
             RuleLogic::And => {
               if results.iter().all(|result| result.is_ok()) {
                 Ok(())
               } else {
-                Err(results.iter().filter(|result| result.is_err()).map(|result| result.clone().unwrap_err()).collect())
+                Err(results.iter().filter(|result| result.is_err())
+                  .map(|result| result.as_ref().unwrap_err().to_string()).collect())
               }
             },
             RuleLogic::Or => {
               if results.iter().any(|result| result.is_ok()) {
                 Ok(())
               } else {
-                Err(results.iter().filter(|result| result.is_err()).map(|result| result.clone().unwrap_err()).collect())
+                Err(results.iter().filter(|result| result.is_err())
+                  .map(|result| result.as_ref().unwrap_err().to_string()).collect())
               }
             }
           }
         }
     }
+}
+
+fn match_status_code(status_code: u16, status: &HttpStatus) -> anyhow::Result<()> {
+  let matches = match status {
+    HttpStatus::Information => (100..=199).contains(&status_code),
+    HttpStatus::Success => (200..=299).contains(&status_code),
+    HttpStatus::Redirect => (300..=399).contains(&status_code),
+    HttpStatus::ClientError => (400..=499).contains(&status_code),
+    HttpStatus::ServerError => (500..=599).contains(&status_code),
+    HttpStatus::StatusCodes(status_codes) => status_codes.contains(&status_code),
+    HttpStatus::NonError => status_code < 400,
+    HttpStatus::Error => status_code >= 400
+  };
+  if matches {
+    Ok(())
+  } else {
+    Err(anyhow!("Expected status code {} to be a {}", status_code, status))
+  }
 }
 
 #[cfg(test)]
@@ -718,5 +839,26 @@ mod tests {
     expect!("100".to_string().matches(&"true", &matcher)).to(be_ok());
     expect!("100".to_string().matches(&"false", &matcher)).to(be_ok());
     expect!(false.matches(&true, &matcher)).to(be_ok());
+  }
+
+  #[test]
+  fn match_status_code_test() {
+    expect!(match_status_code(100, &HttpStatus::Information)).to(be_ok());
+    expect!(match_status_code(199, &HttpStatus::Information)).to(be_ok());
+    expect!(match_status_code(500, &HttpStatus::Information)).to(be_err());
+    expect!(match_status_code(200, &HttpStatus::Success)).to(be_ok());
+    expect!(match_status_code(400, &HttpStatus::Success)).to(be_err());
+    expect!(match_status_code(301, &HttpStatus::Redirect)).to(be_ok());
+    expect!(match_status_code(500, &HttpStatus::Redirect)).to(be_err());
+    expect!(match_status_code(404, &HttpStatus::ClientError)).to(be_ok());
+    expect!(match_status_code(500, &HttpStatus::ClientError)).to(be_err());
+    expect!(match_status_code(503, &HttpStatus::ServerError)).to(be_ok());
+    expect!(match_status_code(499, &HttpStatus::ServerError)).to(be_err());
+    expect!(match_status_code(200, &HttpStatus::StatusCodes(vec![200, 201, 204]))).to(be_ok());
+    expect!(match_status_code(202, &HttpStatus::StatusCodes(vec![200, 201, 204]))).to(be_err());
+    expect!(match_status_code(333, &HttpStatus::NonError)).to(be_ok());
+    expect!(match_status_code(599, &HttpStatus::NonError)).to(be_err());
+    expect!(match_status_code(555, &HttpStatus::Error)).to(be_ok());
+    expect!(match_status_code(99, &HttpStatus::Error)).to(be_err());
   }
 }

@@ -215,7 +215,7 @@ pub fn request_multipart(request: &mut Request, boundary: &str, body: OptionalBo
     }
   };
   request.matching_rules.add_category("body")
-    .add_rule(format!("$['{}']", part_name), MatchingRule::ContentType(content_type.into()), &RuleLogic::And);
+    .add_rule(&format!("$['{}']", part_name), MatchingRule::ContentType(content_type.into()), &RuleLogic::And);
   request.matching_rules.add_category("header")
     .add_rule("Content-Type", MatchingRule::Regex(r"multipart/form-data;(\s*charset=[^;]*;)?\s*boundary=.*".into()), &RuleLogic::And);
 }
@@ -234,7 +234,7 @@ pub fn response_multipart(response: &mut Response, boundary: &str, body: Optiona
     }
   }
   response.matching_rules.add_category("body")
-    .add_rule(format!("$['{}']", part_name), MatchingRule::ContentType(content_type.into()), &RuleLogic::And);
+    .add_rule(&format!("$['{}']", part_name), MatchingRule::ContentType(content_type.into()), &RuleLogic::And);
   response.matching_rules.add_category("header")
     .add_rule("Content-Type", MatchingRule::Regex(r"multipart/form-data;(\s*charset=[^;]*;)?\s*boundary=.*".into()), &RuleLogic::And);
 }

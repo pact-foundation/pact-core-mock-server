@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use env_logger;
 #[cfg(test)]
 use regex::Regex;
+#[cfg(test)]
 use serde_json::json;
 
 use pact_matching::models::expression_parser::DataType;

@@ -819,50 +819,50 @@ fn build_payload(result: TestResult, version: String, build_url: Option<String>)
           let values = mismatches.fold(acc, |mut acc, (_, result)| {
             if let Some(mismatch) = result {
               match mismatch {
-                MismatchResult::Mismatches { ref mismatches, .. } => {
+                MismatchResult::Mismatches { mismatches, .. } => {
                   for mismatch in mismatches {
-                    match *mismatch {
-                      Mismatch::MethodMismatch { ref expected, ref actual } => acc.0.push(json!({
-                      "attribute": "method",
-                      "description": format!("Expected method of {} but received {}", expected, actual)
-                    })),
-                      Mismatch::PathMismatch { ref mismatch, .. } => acc.0.push(json!({
-                      "attribute": "path",
-                      "description": mismatch
-                    })),
-                      Mismatch::StatusMismatch { ref expected, ref actual } => acc.0.push(json!({
-                      "attribute": "status",
-                      "description": format!("Expected status of {} but received {}", expected, actual)
-                    })),
-                      Mismatch::QueryMismatch { ref parameter, ref mismatch, .. } => acc.0.push(json!({
-                      "attribute": "query",
-                      "identifier": parameter,
-                      "description": mismatch
-                    })),
-                      Mismatch::HeaderMismatch { ref key, ref mismatch, .. } => acc.0.push(json!({
-                      "attribute": "header",
-                      "identifier": key,
-                      "description": mismatch
-                    })),
-                      Mismatch::BodyTypeMismatch { ref expected, ref actual, .. } => acc.0.push(json!({
-                      "attribute": "body",
-                      "identifier": "$",
-                      "description": format!("Expected body type of '{}' but received '{}'", expected, actual)
-                    })),
-                      Mismatch::BodyMismatch { ref path, ref mismatch, .. } => acc.0.push(json!({
-                      "attribute": "body",
-                      "identifier": path,
-                      "description": mismatch
-                    })),
-                      Mismatch::MetadataMismatch { ref key, ref mismatch, .. } => acc.0.push(json!({
-                      "attribute": "metadata",
-                      "identifier": key,
-                      "description": mismatch
-                    }))
+                    match mismatch {
+                      Mismatch::MethodMismatch { expected, actual } => acc.0.push(json!({
+                        "attribute": "method",
+                        "description": format!("Expected method of {} but received {}", expected, actual)
+                      })),
+                      Mismatch::PathMismatch { mismatch, .. } => acc.0.push(json!({
+                        "attribute": "path",
+                        "description": mismatch
+                      })),
+                      Mismatch::StatusMismatch { mismatch, .. } => acc.0.push(json!({
+                        "attribute": "status",
+                        "description": mismatch
+                      })),
+                      Mismatch::QueryMismatch { parameter, mismatch, .. } => acc.0.push(json!({
+                        "attribute": "query",
+                        "identifier": parameter,
+                        "description": mismatch
+                      })),
+                      Mismatch::HeaderMismatch { key, mismatch, .. } => acc.0.push(json!({
+                        "attribute": "header",
+                        "identifier": key,
+                        "description": mismatch
+                      })),
+                      Mismatch::BodyTypeMismatch { expected, actual, .. } => acc.0.push(json!({
+                        "attribute": "body",
+                        "identifier": "$",
+                        "description": format!("Expected body type of '{}' but received '{}'", expected, actual)
+                      })),
+                      Mismatch::BodyMismatch { path, mismatch, .. } => acc.0.push(json!({
+                        "attribute": "body",
+                        "identifier": path,
+                        "description": mismatch
+                      })),
+                      Mismatch::MetadataMismatch { key, mismatch, .. } => acc.0.push(json!({
+                        "attribute": "metadata",
+                        "identifier": key,
+                        "description": mismatch
+                      }))
                     }
                   }
                 },
-                MismatchResult::Error(ref err, _) => acc.1.push(json!({ "message": err }))
+                MismatchResult::Error(err, _) => acc.1.push(json!({ "message": err }))
               };
             };
             acc

@@ -1,7 +1,9 @@
 use std::collections::btree_map::BTreeMap;
 
+use anyhow::anyhow;
 use bytes::Bytes;
 use itertools::{EitherOrBoth, Itertools};
+use log::*;
 use maplit::*;
 use onig::Regex;
 use sxd_document::dom::*;
@@ -88,7 +90,7 @@ fn name(name: QName) -> String {
 }
 
 impl<'a> Matches<Element<'a>> for Element<'a> {
-    fn matches(&self, actual: &Element, matcher: &MatchingRule) -> Result<(), String> {
+    fn matches(&self, actual: &Element, matcher: &MatchingRule) -> anyhow::Result<()> {
         let result = match *matcher {
           MatchingRule::Regex(ref regex) => {
             match Regex::new(regex) {
@@ -96,32 +98,32 @@ impl<'a> Matches<Element<'a>> for Element<'a> {
                 if re.is_match(actual.name().local_part()) {
                   Ok(())
                 } else {
-                  Err(format!("Expected '{}' to match '{}'", name(actual.name()), regex))
+                  Err(anyhow!("Expected '{}' to match '{}'", name(actual.name()), regex))
                 }
               },
-              Err(err) => Err(format!("'{}' is not a valid regular expression - {}", regex, err))
+              Err(err) => Err(anyhow!("'{}' is not a valid regular expression - {}", regex, err))
             }
           },
           MatchingRule::Type => if self.name() == actual.name() {
              Ok(())
           } else {
-             Err(format!("Expected '{}' to be the same type as '{}'", name(self.name()),
+             Err(anyhow!("Expected '{}' to be the same type as '{}'", name(self.name()),
                          name(actual.name())))
           },
           MatchingRule::MinType(min) => if actual.children().len() < min {
-             Err(format!("Expected '{}' to have at least {} children", name(actual.name()), min))
+             Err(anyhow!("Expected '{}' to have at least {} children", name(actual.name()), min))
           } else {
              Ok(())
           },
           MatchingRule::MaxType(max) => if actual.children().len() > max {
-             Err(format!("Expected '{}' to have at most {} children", name(actual.name()), max))
+             Err(anyhow!("Expected '{}' to have at most {} children", name(actual.name()), max))
           } else {
              Ok(())
           },
           MatchingRule::MinMaxType(min, max) => if actual.children().len() < min {
-            Err(format!("Expected '{}' to have at least {} children", name(actual.name()), min))
+            Err(anyhow!("Expected '{}' to have at least {} children", name(actual.name()), min))
           } else if actual.children().len() > max {
-            Err(format!("Expected '{}' to have at most {} children", name(actual.name()), max))
+            Err(anyhow!("Expected '{}' to have at most {} children", name(actual.name()), max))
           } else {
             Ok(())
           },
@@ -129,12 +131,12 @@ impl<'a> Matches<Element<'a>> for Element<'a> {
              if self.name() == actual.name() {
                  Ok(())
              } else {
-                  Err(format!("Expected '{}' to be equal to '{}'", name(self.name()), name(actual.name())))
+                  Err(anyhow!("Expected '{}' to be equal to '{}'", name(self.name()), name(actual.name())))
              }
           },
-          _ => Err(format!("Unable to match {:?} using {:?}", self, matcher))
+          _ => Err(anyhow!("Unable to match {:?} using {:?}", self, matcher))
         };
-        log::debug!("Comparing '{:?}' to '{:?}' using {:?} -> {:?}", self, actual, matcher, result);
+        debug!("Comparing '{:?}' to '{:?}' using {:?} -> {:?}", self, actual, matcher, result);
         result
     }
 }
@@ -155,7 +157,7 @@ fn compare_element(path: &Vec<&str>, expected: &Element, actual: &Element,
     log::debug!("calling match_values {:?} on {:?}", path, actual);
     match_values(&path, context, expected, actual)
   } else {
-    expected.matches(actual, &MatchingRule::Equality).map_err(|err| vec![err])
+    expected.matches(actual, &MatchingRule::Equality).map_err(|err| vec![err.to_string()])
   };
   log::debug!("Comparing '{:?}' to '{:?}' at path '{}' -> {:?}", expected, actual,
     path_to_string(&path), matcher_result);
@@ -335,9 +337,10 @@ fn compare_text(path: &Vec<&str>, expected: &Element, actual: &Element,
     let matcher_result = if context.matcher_is_defined(&p) {
       match_values(&p, context, &expected_text, &actual_text)
     } else {
-      expected_text.matches(&actual_text, &MatchingRule::Equality).map_err(|err| vec![err])
+      expected_text.matches(&actual_text, &MatchingRule::Equality)
+        .map_err(|err| vec![err.to_string()])
     };
-    log::debug!("Comparing text '{}' to '{}' at path '{}' -> {:?}", expected_text, actual_text,
+    debug!("Comparing text '{}' to '{}' at path '{}' -> {:?}", expected_text, actual_text,
         path_to_string(path), matcher_result);
     match matcher_result {
         Err(messages) => {
@@ -358,9 +361,9 @@ fn compare_value(path: &Vec<&str>, expected: &String, actual: &String, context: 
   let matcher_result = if context.matcher_is_defined(&path) {
     match_values(path, context, expected, actual)
   } else {
-    expected.matches(actual, &MatchingRule::Equality).map_err(|err| vec![err])
+    expected.matches(actual, &MatchingRule::Equality).map_err(|err| vec![err.to_string()])
   };
-  log::debug!("Comparing '{}' to '{}' at path '{}' -> {:?}", expected, actual, path_to_string(path), matcher_result);
+  debug!("Comparing '{}' to '{}' at path '{}' -> {:?}", expected, actual, path_to_string(path), matcher_result);
   matcher_result.map_err(|messages| {
     messages.iter().map(|message| {
       Mismatch::BodyMismatch {

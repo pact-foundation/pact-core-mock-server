@@ -1,12 +1,13 @@
 //! `matchingrules` module includes all the classes to deal with V3 format matchers
 
-use std::{collections::{HashMap, HashSet}, hash::{Hash, Hasher}, mem};
+use std::{collections::{HashMap, HashSet}, fmt, hash::{Hash, Hasher}, mem};
 #[cfg(test)]
 use std::collections::hash_map::DefaultHasher;
-use std::fmt::{Debug, Display};
+use std::fmt::{Debug, Display, Formatter};
 #[allow(unused_imports)] // FromStr is actually used
 use std::str::{self, from_utf8, FromStr};
 
+use anyhow::anyhow;
 #[cfg(test)]
 use expectest::prelude::*;
 use log::*;
@@ -16,7 +17,7 @@ use onig::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{self, json, Value};
 
-use pact_models::PactSpecification;
+use pact_models::{HttpStatus, PactSpecification};
 
 use crate::{MatchingContext, merge_result, Mismatch};
 use crate::binary_utils::match_content_type;
@@ -76,7 +77,7 @@ pub(crate) fn path_length(path_exp: &str) -> usize {
 }
 
 impl <T: Debug + Display + PartialEq> Matches<Vec<T>> for Vec<T> {
-  fn matches(&self, actual: &Vec<T>, matcher: &MatchingRule) -> Result<(), String> {
+  fn matches(&self, actual: &Vec<T>, matcher: &MatchingRule) -> anyhow::Result<()> {
     let result = match matcher {
       MatchingRule::Regex(ref regex) => {
         match Regex::new(regex) {
@@ -85,32 +86,32 @@ impl <T: Debug + Display + PartialEq> Matches<Vec<T>> for Vec<T> {
             if re.is_match(text.as_str()) {
               Ok(())
             } else {
-              Err(format!("Expected '{}' to match '{}'", text, regex))
+              Err(anyhow!("Expected '{}' to match '{}'", text, regex))
             }
           }
-          Err(err) => Err(format!("'{}' is not a valid regular expression - {}", regex, err))
+          Err(err) => Err(anyhow!("'{}' is not a valid regular expression - {}", regex, err))
         }
       }
       MatchingRule::Type => Ok(()),
       MatchingRule::MinType(min) => {
         if actual.len() < *min {
-          Err(format!("Expected list with length {} to have a minimum length of {}", actual.len(), min))
+          Err(anyhow!("Expected list with length {} to have a minimum length of {}", actual.len(), min))
         } else {
           Ok(())
         }
       }
       MatchingRule::MaxType(max) => {
         if actual.len() > *max {
-          Err(format!("Expected list with length {} to have a maximum length of {}", actual.len(), max))
+          Err(anyhow!("Expected list with length {} to have a maximum length of {}", actual.len(), max))
         } else {
           Ok(())
         }
       }
       MatchingRule::MinMaxType(min, max) => {
         if actual.len() < *min {
-          Err(format!("Expected list with length {} to have a minimum length of {}", actual.len(), min))
+          Err(anyhow!("Expected list with length {} to have a minimum length of {}", actual.len(), min))
         } else if actual.len() > *max {
-          Err(format!("Expected list with length {} to have a maximum length of {}", actual.len(), max))
+          Err(anyhow!("Expected list with length {} to have a maximum length of {}", actual.len(), max))
         } else {
           Ok(())
         }
@@ -119,52 +120,52 @@ impl <T: Debug + Display + PartialEq> Matches<Vec<T>> for Vec<T> {
         if self == actual {
           Ok(())
         } else {
-          Err(format!("Expected {:?} to be equal to {:?}", actual, self))
+          Err(anyhow!("Expected {:?} to be equal to {:?}", actual, self))
         }
       }
-      _ => Err(format!("Unable to match {:?} using {:?}", self, matcher))
+      _ => Err(anyhow!("Unable to match {:?} using {:?}", self, matcher))
     };
-    log::debug!("Comparing '{:?}' to '{:?}' using {:?} -> {:?}", self, actual, matcher, result);
+    debug!("Comparing '{:?}' to '{:?}' using {:?} -> {:?}", self, actual, matcher, result);
     result
   }
 }
 
 impl Matches<&[u8]> for Vec<u8> {
-  fn matches(&self, actual: &&[u8], matcher: &MatchingRule) -> Result<(), String> {
+  fn matches(&self, actual: &&[u8], matcher: &MatchingRule) -> anyhow::Result<()> {
     let result = match matcher {
-      MatchingRule::Regex(ref regex) => {
+      MatchingRule::Regex(regex) => {
         match Regex::new(regex) {
           Ok(re) => {
             let text = from_utf8(actual).unwrap_or_default();
             if re.is_match(text) {
               Ok(())
             } else {
-              Err(format!("Expected '{}' to match '{}'", text, regex))
+              Err(anyhow!("Expected '{}' to match '{}'", text, regex))
             }
           }
-          Err(err) => Err(format!("'{}' is not a valid regular expression - {}", regex, err))
+          Err(err) => Err(anyhow!("'{}' is not a valid regular expression - {}", regex, err))
         }
       }
       MatchingRule::Type => Ok(()),
       MatchingRule::MinType(min) => {
         if actual.len() < *min {
-          Err(format!("Expected list with length {} to have a minimum length of {}", actual.len(), min))
+          Err(anyhow!("Expected list with length {} to have a minimum length of {}", actual.len(), min))
         } else {
           Ok(())
         }
       }
       MatchingRule::MaxType(max) => {
         if actual.len() > *max {
-          Err(format!("Expected list with length {} to have a maximum length of {}", actual.len(), max))
+          Err(anyhow!("Expected list with length {} to have a maximum length of {}", actual.len(), max))
         } else {
           Ok(())
         }
       }
       MatchingRule::MinMaxType(min, max) => {
         if actual.len() < *min {
-          Err(format!("Expected list with length {} to have a minimum length of {}", actual.len(), min))
+          Err(anyhow!("Expected list with length {} to have a minimum length of {}", actual.len(), min))
         } else if actual.len() > *max {
-          Err(format!("Expected list with length {} to have a maximum length of {}", actual.len(), max))
+          Err(anyhow!("Expected list with length {} to have a maximum length of {}", actual.len(), max))
         } else {
           Ok(())
         }
@@ -173,14 +174,14 @@ impl Matches<&[u8]> for Vec<u8> {
         if self == actual {
           Ok(())
         } else {
-          Err(format!("Expected {:?} to be equal to {:?}", actual, self))
+          Err(anyhow!("Expected {:?} to be equal to {:?}", actual, self))
         }
       }
       MatchingRule::ContentType(ref expected_content_type) => {
         match_content_type(&actual, expected_content_type)
-          .map_err(|err| format!("Expected data to have a content type of '{}' but was {}", expected_content_type, err))
+          .map_err(|err| anyhow!("Expected data to have a content type of '{}' but was {}", expected_content_type, err))
       }
-      _ => Err(format!("Unable to match {:?} using {:?}", self, matcher))
+      _ => Err(anyhow!("Unable to match {:?} using {:?}", self, matcher))
     };
     debug!("Comparing list with {} items to one with {} items using {:?} -> {:?}", self.len(), actual.len(), matcher, result);
     result
@@ -249,7 +250,9 @@ pub enum MatchingRule {
   /// Matcher for values in a map, ignoring the keys
   Values,
   /// Matches boolean values (booleans and the string values `true` and `false`)
-  Boolean
+  Boolean,
+  /// Request status code matcher
+  StatusCode(HttpStatus)
 }
 
 impl MatchingRule {
@@ -340,6 +343,16 @@ impl MatchingRule {
               None => None
             }
             "values" => Some(MatchingRule::Values),
+            "statusCode" => match m.get("status") {
+              Some(s) => match HttpStatus::from_json(s) {
+                Ok(status) => Some(MatchingRule::StatusCode(status)),
+                Err(err) => {
+                  error!("Failed to parse status code matcher = {}", err);
+                  None
+                }
+              },
+              None => Some(MatchingRule::StatusCode(HttpStatus::Success))
+            },
             _ => None
           }
         },
@@ -414,7 +427,8 @@ impl MatchingRule {
           json
         }).collect::<Vec<Value>>()
       }),
-      MatchingRule::Values => json!({ "match": "values" })
+      MatchingRule::Values => json!({ "match": "values" }),
+      MatchingRule::StatusCode(status) => json!({ "status": status.to_json()})
     }
   }
 
@@ -926,11 +940,97 @@ impl PartialEq for RuleList {
   }
 }
 
+
+/// Category that the matching rule is applied to
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash, PartialOrd, Ord)]
+pub enum Category {
+  /// Request Method
+  METHOD,
+  /// Request Path
+  PATH,
+  /// Request/Response Header
+  HEADER,
+  /// Request Query Parameter
+  QUERY,
+  /// Body
+  BODY,
+  /// Response Status
+  STATUS,
+  /// Message contents (body)
+  CONTENTS,
+  /// Message metadata
+  METADATA
+}
+
+impl FromStr for Category {
+  type Err = String;
+
+  fn from_str(s: &str) -> Result<Self, Self::Err> {
+    match s.to_lowercase().as_str() {
+      "method" => Ok(Category::METHOD),
+      "path" => Ok(Category::PATH),
+      "header" => Ok(Category::HEADER),
+      "query" => Ok(Category::QUERY),
+      "body" => Ok(Category::BODY),
+      "status" => Ok(Category::STATUS),
+      "contents" => Ok(Category::CONTENTS),
+      "metadata" => Ok(Category::METADATA),
+      _ => Err(format!("'{}' is not a valid Category", s))
+    }
+  }
+}
+
+impl <'a> Into<&'a str> for Category {
+  fn into(self) -> &'a str {
+    match self {
+      Category::METHOD => "method",
+      Category::PATH => "path",
+      Category::HEADER => "header",
+      Category::QUERY => "query",
+      Category::BODY => "body",
+      Category::STATUS => "status",
+      Category::CONTENTS => "contents",
+      Category::METADATA => "metadata"
+    }
+  }
+}
+
+impl Into<String> for Category {
+  fn into(self) -> String {
+    self.to_string()
+  }
+}
+
+impl <'a> From<&'a str> for Category {
+  fn from(s: &'a str) -> Self {
+    Category::from_str(s).unwrap_or_default()
+  }
+}
+
+impl From<String> for Category {
+  fn from(s: String) -> Self {
+    Category::from_str(&s).unwrap_or_default()
+  }
+}
+
+impl Default for Category {
+  fn default() -> Self {
+    Category::BODY
+  }
+}
+
+impl Display for Category {
+  fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    let s: &str = self.clone().into();
+    write!(f, "{}", s)
+  }
+}
+
 /// Data structure for representing a category of matching rules
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, Default)]
 pub struct MatchingRuleCategory {
   /// Name of the category
-  pub name: String,
+  pub name: Category,
   /// Matching rules for this category
   pub rules: HashMap<String, RuleList>
 }
@@ -938,7 +1038,7 @@ pub struct MatchingRuleCategory {
 impl MatchingRuleCategory {
   /// Creates an empty category
   pub fn empty<S>(name: S) -> MatchingRuleCategory
-    where S: Into<String>
+    where S: Into<Category>
   {
     MatchingRuleCategory {
       name: name.into(),
@@ -948,7 +1048,7 @@ impl MatchingRuleCategory {
 
   /// Creates a default category
   pub fn equality<S>(name: S) -> MatchingRuleCategory
-    where S: Into<String>
+    where S: Into<Category>
   {
     MatchingRuleCategory {
       name: name.into(),
@@ -980,9 +1080,9 @@ impl MatchingRuleCategory {
   }
 
   /// Adds a rule to this category
-  pub fn add_rule<S>(&mut self, key: S, matcher: MatchingRule, rule_logic: &RuleLogic)
-    where S: Into<String> {
-    let rules = self.rules.entry(key.into()).or_insert_with(|| RuleList::empty(rule_logic));
+  pub fn add_rule(&mut self, key: &str, matcher: MatchingRule, rule_logic: &RuleLogic) {
+    let key = key.to_string();
+    let rules = self.rules.entry(key).or_insert_with(|| RuleList::empty(rule_logic));
     rules.rules.push(matcher);
   }
 
@@ -1015,19 +1115,17 @@ impl MatchingRuleCategory {
   pub fn to_v2_json(&self) -> HashMap<String, Value> {
     let mut map = hashmap!{};
 
-    if self.name == "body" {
-      for (k, v) in self.rules.clone() {
-        map.insert(k.replace("$", "$.body"), v.to_v2_json());
-      }
-    } else if self.name == "path" {
-      for (_, v) in self.rules.clone() {
+    match &self.name {
+      Category::PATH => for (_, v) in self.rules.clone() {
         map.insert("$.path".to_string(), v.to_v2_json());
       }
-    } else {
-      for (k, v) in self.rules.clone() {
+      Category::BODY => for (k, v) in self.rules.clone() {
+        map.insert(k.replace("$", "$.body"), v.to_v2_json());
+      }
+      _ => for (k, v) in &self.rules {
         map.insert(format!("$.{}.{}", self.name, k), v.to_v2_json());
       }
-    }
+    };
 
     map
   }
@@ -1045,29 +1143,27 @@ impl MatchingRuleCategory {
   /// If there is a matcher defined for the path
   pub fn matcher_is_defined(&self, path: &[&str]) -> bool {
     let result = !self.resolve_matchers_for_path(path).is_empty();
-    trace!("matcher_is_defined: for category {} and path {:?} -> {}", self.name, path, result);
+    trace!("matcher_is_defined: for category {} and path {:?} -> {}", self.name.to_string(), path, result);
     result
   }
 
   /// filters this category with all rules that match the given path for categories that contain
   /// collections (eg. bodies, headers, query parameters). Returns self otherwise.
   pub fn resolve_matchers_for_path(&self, path: &[&str]) -> MatchingRuleCategory {
-    if self.name == "body" || self.name == "header" || self.name == "query" ||
-      self.name == "content" || self.name == "metadata" {
-      self.filter(|(val, _)| {
+    match self.name {
+      Category::HEADER| Category::QUERY | Category::BODY |
+      Category::CONTENTS | Category::METADATA => self.filter(|(val, _)| {
         calc_path_weight(val, path).0 > 0
-      })
-    } else {
-      self.clone()
+      }),
+      _ => self.clone()
     }
   }
 
   /// Selects the best matcher for the given path by calculating a weighting for each one
   pub fn select_best_matcher(&self, path: &[&str]) -> Option<RuleList> {
-    if self.name == "body" || self.name == "content" {
-      self.max_by_path(path)
-    } else {
-      self.resolve_matchers_for_path(path).as_rule_list()
+    match self.name {
+      Category::BODY | Category::METADATA => self.max_by_path(path),
+      _ => self.resolve_matchers_for_path(path).as_rule_list()
     }
   }
 
@@ -1078,7 +1174,7 @@ impl MatchingRuleCategory {
 
   /// Adds the rules to the category from the provided JSON
   pub fn add_rules_from_json(&mut self, rules: &Value) {
-    if self.name == "path" && rules.get("matchers").is_some() {
+    if self.name == Category::PATH && rules.get("matchers").is_some() {
       let rule_logic = match rules.get("combine") {
         Some(val) => if json_to_string(val).to_uppercase() == "OR" {
           RuleLogic::Or
@@ -1141,7 +1237,8 @@ impl MatchingRuleCategory {
   }
 
   /// Clones this category with the new name
-  pub fn rename(&self, name: &str) -> Self {
+  pub fn rename<S>(&self, name: S) -> Self
+    where S: Into<Category> {
     MatchingRuleCategory {
       name: name.into(),
       .. self.clone()
@@ -1186,7 +1283,7 @@ impl Ord for MatchingRuleCategory {
 #[serde(transparent)]
 pub struct MatchingRules {
     /// Categories of matching rules
-    pub rules: HashMap<String, MatchingRuleCategory>
+    pub rules: HashMap<Category, MatchingRuleCategory>
 }
 
 impl MatchingRules {
@@ -1203,7 +1300,7 @@ impl MatchingRules {
 
     /// Adds the category to the map of rules
     pub fn add_category<S>(&mut self, category: S) -> &mut MatchingRuleCategory
-      where S: Into<String>
+      where S: Into<Category> + Clone
     {
       let category = category.into();
       if !self.rules.contains_key(&category) {
@@ -1213,70 +1310,75 @@ impl MatchingRules {
     }
 
     /// Returns all the category names in this rule set
-    pub fn categories(&self) -> HashSet<String> {
+    pub fn categories(&self) -> HashSet<Category> {
       self.rules.keys().cloned().collect()
     }
 
     /// Returns the category of rules for a given category name
-    pub fn rules_for_category(&self, category: &str) -> Option<MatchingRuleCategory> {
-      self.rules.get(category).cloned()
+    pub fn rules_for_category<S>(&self, category: S) -> Option<MatchingRuleCategory>
+      where S: Into<Category> {
+      self.rules.get(&category.into()).cloned()
     }
 
     /// If there is a matcher defined for the category and path
-    pub fn matcher_is_defined(&self, category: &str, path: &Vec<&str>) -> bool {
-      let result = match self.resolve_matchers(category, path) {
-        Some(ref category) => !category.is_empty(),
+    pub fn matcher_is_defined<S>(&self, category: S, path: &Vec<&str>) -> bool
+      where S: Into<Category> + Clone {
+      let result = match self.resolve_matchers(category.clone().into(), path) {
+        Some(ref rules) => !rules.is_empty(),
         None => false
       };
-      trace!("matcher_is_defined for category {} and path {:?} -> {}", category, path, result);
+      trace!("matcher_is_defined for category {} and path {:?} -> {}", category.into(), path, result);
       result
     }
 
     /// If there is a wildcard matcher defined for the category and path
-    pub fn wildcard_matcher_is_defined(&self, category: &str, path: &Vec<&str>) -> bool {
+    pub fn wildcard_matcher_is_defined<S>(&self, category: S, path: &Vec<&str>) -> bool
+      where S: Into<Category> + Clone {
       match self.resolve_wildcard_matchers(category, path) {
-        Some(ref category) => !category.filter(|&(val, _)| val.ends_with(".*")).is_empty(),
+        Some(ref rules) => !rules.filter(|&(val, _)| val.ends_with(".*")).is_empty(),
         None => false
       }
     }
 
   /// If there is a type matcher defined for the category and path
-  pub fn type_matcher_defined(&self, category: &str, path: &Vec<&str>) -> bool {
-    let result = match self.resolve_matchers(category, path) {
-      Some(ref category) => category.type_matcher_defined(),
+  pub fn type_matcher_defined<S>(&self, category: S, path: &Vec<&str>) -> bool
+    where S: Into<Category> + Display + Clone {
+    let result = match self.resolve_matchers(category.clone(), path) {
+      Some(ref rules) => rules.type_matcher_defined(),
       None => false
     };
-    trace!("type_matcher_defined for category {} and path {:?} -> {}", category, path, result);
+    trace!("type_matcher_defined for category {} and path {:?} -> {}", category.into(), path, result);
     result
   }
 
   /// Returns a `Category` filtered with all rules that match the given path.
-  pub fn resolve_matchers(&self, category: &str, path: &Vec<&str>) -> Option<MatchingRuleCategory> {
+  pub fn resolve_matchers<S>(&self, category: S, path: &Vec<&str>) -> Option<MatchingRuleCategory>
+    where S: Into<Category> {
     self.rules_for_category(category)
-      .map(|category| category.resolve_matchers_for_path(path))
+      .map(|rules| rules.resolve_matchers_for_path(path))
   }
 
-    /// Returns a list of rules from the body category that match the given path
-    pub fn resolve_body_matchers_by_path(&self, path: &Vec<&str>) -> Option<RuleList> {
-      match self.rules_for_category(&s!("body")) {
-        Some(category) => category.max_by_path(path),
-        None => None
-      }
+  /// Returns a list of rules from the body category that match the given path
+  pub fn resolve_body_matchers_by_path(&self, path: &Vec<&str>) -> Option<RuleList> {
+    match self.rules_for_category("body") {
+      Some(category) => category.max_by_path(path),
+      None => None
     }
+  }
 
-    fn resolve_wildcard_matchers(&self, category: &str, path: &Vec<&str>) -> Option<MatchingRuleCategory> {
-      if category == "body" {
-        self.rules_for_category(category).map(|category| category.filter(|&(val, _)| {
-          calc_path_weight(val, path).0 > 0 && path_length(val) == path.len()
-        }))
-      } else if category == "header" || category == "query" {
-        self.rules_for_category(category).map(|category| category.filter(|&(val, _)| {
-          path.len() == 1 && path[0] == *val
-        }))
-      } else {
-        self.rules_for_category(category)
-      }
+  fn resolve_wildcard_matchers<S>(&self, category: S, path: &Vec<&str>) -> Option<MatchingRuleCategory>
+    where S: Into<Category> + Clone {
+    let category = category.into();
+    match category {
+      Category::BODY => self.rules_for_category(Category::BODY).map(|category| category.filter(|&(val, _)| {
+        calc_path_weight(val, path).0 > 0 && path_length(val) == path.len()
+      })),
+      Category::HEADER | Category::QUERY => self.rules_for_category(category.clone()).map(|category| category.filter(|&(val, _)| {
+        path.len() == 1 && path[0] == *val
+      })),
+      _ => self.rules_for_category(category)
     }
+  }
 
     fn load_from_v2_map(&mut self, map: &serde_json::Map<String, Value>) {
       for (key, v) in map {
@@ -1313,12 +1415,13 @@ impl MatchingRules {
 
   fn to_v3_json(&self) -> Value {
     Value::Object(self.rules.iter().fold(serde_json::Map::new(), |mut map, (name, sub_category)| {
-      if name == "path" {
-        if let Some(rules) = sub_category.rules.get("") {
-          map.insert(name.clone(), rules.to_v3_json());
+      match name {
+        Category::PATH => if let Some(rules) = sub_category.rules.get("") {
+          map.insert(name.to_string(), rules.to_v3_json());
         }
-      } else {
-        map.insert(name.clone(), sub_category.to_v3_json());
+        _ => {
+          map.insert(name.to_string(), sub_category.to_v3_json());
+        }
       }
       map
     }))
@@ -1334,11 +1437,14 @@ impl MatchingRules {
   }
 
   /// Clones the matching rules, renaming the category
-  pub fn rename(&self, old_name: &str, new_name: &str) -> Self {
+  pub fn rename<S>(&self, old_name: S, new_name: S) -> Self
+    where S: Into<Category> {
+    let old = old_name.into();
+    let new = new_name.into();
     MatchingRules {
       rules: self.rules.iter().map(|(key, value)| {
-        if key == old_name {
-          (new_name.to_string(), value.rename(new_name))
+        if key == &old {
+          (new.clone(), value.rename(new.clone()))
         } else {
           (key.clone(), value.clone())
         }
@@ -1481,9 +1587,9 @@ mod tests {
   fn rules_are_empty_when_there_are_only_empty_categories() {
     expect!(MatchingRules {
       rules: hashmap!{
-        s!("body") => MatchingRuleCategory::empty("body"),
-        s!("header") => MatchingRuleCategory::empty("header"),
-        s!("query") => MatchingRuleCategory::empty("query")
+        "body".into() => MatchingRuleCategory::empty("body"),
+        "header".into() => MatchingRuleCategory::empty("header"),
+        "query".into() => MatchingRuleCategory::empty("query")
       }
     }.is_empty()).to(be_true());
   }
@@ -1527,22 +1633,24 @@ mod tests {
     let matching_rules = matchers_from_json(&matching_rules_json, &None);
 
     expect!(matching_rules.rules.iter()).to_not(be_empty());
-    expect!(matching_rules.categories()).to(be_equal_to(hashset!{ s!("path"), s!("query"), s!("header"), s!("body") }));
-    expect!(matching_rules.rules_for_category(&s!("path"))).to(be_some().value(MatchingRuleCategory {
-      name: s!("path"),
+    expect!(matching_rules.categories()).to(be_equal_to(hashset!{
+      Category::PATH, Category::QUERY, Category::HEADER, Category::BODY
+    }));
+    expect!(matching_rules.rules_for_category("path")).to(be_some().value(MatchingRuleCategory {
+      name: "path".into(),
       rules: hashmap! { s!("") => RuleList { rules: vec![ MatchingRule::Regex(s!("\\w+")) ], rule_logic: RuleLogic::And } }
     }));
-    expect!(matching_rules.rules_for_category(&s!("query"))).to(be_some().value(MatchingRuleCategory {
-      name: s!("query"),
+    expect!(matching_rules.rules_for_category("query")).to(be_some().value(MatchingRuleCategory {
+      name: "query".into(),
       rules: hashmap!{ s!("Q1") => RuleList { rules: vec![ MatchingRule::Regex(s!("\\d+")) ], rule_logic: RuleLogic::And } }
     }));
-    expect!(matching_rules.rules_for_category(&s!("header"))).to(be_some().value(MatchingRuleCategory {
-      name: s!("header"),
+    expect!(matching_rules.rules_for_category("header")).to(be_some().value(MatchingRuleCategory {
+      name: "header".into(),
       rules: hashmap!{ s!("HEADERY") => RuleList { rules: vec![
         MatchingRule::Include(s!("ValueA")) ], rule_logic: RuleLogic::And } }
     }));
-    expect!(matching_rules.rules_for_category(&s!("body"))).to(be_some().value(MatchingRuleCategory {
-      name: s!("body"),
+    expect!(matching_rules.rules_for_category("body")).to(be_some().value(MatchingRuleCategory {
+      name: "body".into(),
       rules: hashmap!{
         s!("$.animals") => RuleList { rules: vec![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
         s!("$.animals[*].*") => RuleList { rules: vec![ MatchingRule::Type ], rule_logic: RuleLogic::And },
@@ -1595,23 +1703,25 @@ mod tests {
     let matching_rules = matchers_from_json(&matching_rules_json, &None);
 
     expect!(matching_rules.rules.iter()).to_not(be_empty());
-    expect!(matching_rules.categories()).to(be_equal_to(hashset!{ s!("path"), s!("query"), s!("header"), s!("body") }));
-    expect!(matching_rules.rules_for_category(&s!("path"))).to(be_some().value(MatchingRuleCategory {
-      name: s!("path"),
+    expect!(matching_rules.categories()).to(be_equal_to(hashset!{
+      Category::PATH, Category::QUERY, Category::HEADER, Category::BODY
+    }));
+    expect!(matching_rules.rules_for_category("path")).to(be_some().value(MatchingRuleCategory {
+      name: "path".into(),
       rules: hashmap! { s!("") => RuleList { rules: vec![ MatchingRule::Regex(s!("\\w+")) ], rule_logic: RuleLogic::And } }
     }));
-    expect!(matching_rules.rules_for_category(&s!("query"))).to(be_some().value(MatchingRuleCategory {
-      name: s!("query"),
+    expect!(matching_rules.rules_for_category("query")).to(be_some().value(MatchingRuleCategory {
+      name: "query".into(),
       rules: hashmap!{ s!("Q1") => RuleList { rules: vec![ MatchingRule::Regex(s!("\\d+")) ], rule_logic: RuleLogic::And } }
     }));
-    expect!(matching_rules.rules_for_category(&s!("header"))).to(be_some().value(MatchingRuleCategory {
-      name: s!("header"),
+    expect!(matching_rules.rules_for_category("header")).to(be_some().value(MatchingRuleCategory {
+      name: "header".into(),
       rules: hashmap!{ s!("HEADERY") => RuleList { rules: vec![
         MatchingRule::Include(s!("ValueA")),
         MatchingRule::Include(s!("ValueB")) ], rule_logic: RuleLogic::Or } }
     }));
-    expect!(matching_rules.rules_for_category(&s!("body"))).to(be_some().value(MatchingRuleCategory {
-      name: s!("body"),
+    expect!(matching_rules.rules_for_category("body")).to(be_some().value(MatchingRuleCategory {
+      name: "body".into(),
       rules: hashmap!{
         s!("$.animals") => RuleList { rules: vec![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
         s!("$.animals[*].*") => RuleList { rules: vec![ MatchingRule::Type ], rule_logic: RuleLogic::And },
@@ -1636,9 +1746,9 @@ mod tests {
     let matching_rules = matchers_from_json(&matching_rules_json, &None);
 
     expect!(matching_rules.rules.iter()).to_not(be_empty());
-    expect!(matching_rules.categories()).to(be_equal_to(hashset!{ s!("path") }));
-    expect!(matching_rules.rules_for_category(&s!("path"))).to(be_some().value(MatchingRuleCategory {
-      name: s!("path"),
+    expect!(matching_rules.categories()).to(be_equal_to(hashset!{ Category::PATH }));
+    expect!(matching_rules.rules_for_category("path")).to(be_some().value(MatchingRuleCategory {
+      name: "path".into(),
       rules: hashmap! { s!("") => RuleList { rules: vec![ MatchingRule::Regex(s!("\\w+")) ], rule_logic: RuleLogic::And } }
     }));
   }

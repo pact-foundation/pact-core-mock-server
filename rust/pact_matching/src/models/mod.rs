@@ -35,7 +35,7 @@ use crate::models::file_utils::{with_read_lock, with_read_lock_for_open_file, wi
 use crate::models::generators::{Generator, GeneratorCategory};
 use crate::models::http_utils::HttpAuth;
 use crate::models::json_utils::json_to_string;
-use crate::models::matchingrules::MatchingRules;
+use crate::models::matchingrules::{MatchingRules, Category};
 pub use crate::models::message::Message;
 pub use crate::models::message_pact::MessagePact;
 use crate::models::provider_states::ProviderState;
@@ -143,7 +143,8 @@ pub trait HttpPart {
         generators.insert(path.clone(), generator.clone());
       }
     }
-    if let Some(rules) = self.matching_rules().rules_for_category(category.clone().into()) {
+    let mr_category: Category = category.clone().into();
+    if let Some(rules) = self.matching_rules().rules_for_category(mr_category) {
       for (path, generator) in rules.generators() {
         generators.insert(path.clone(), generator.clone());
       }

@@ -4,32 +4,33 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 use ansi_term::Colour::*;
+use anyhow::anyhow;
+use chrono::prelude::*;
 use difference::*;
 use log::*;
 use onig::{Captures, Regex};
 use rand::Rng;
 use serde_json::{json, Value};
 use uuid::Uuid;
-use chrono::prelude::*;
 
 use crate::{MatchingContext, merge_result};
 use crate::binary_utils::{convert_data, match_content_type};
 use crate::matchers::*;
 use crate::models::generators::{
+  ContentTypeHandler,
   find_matching_variant,
-  GenerateValue,
-  Generator,
+  generate_ascii_string,
   generate_decimal,
   generate_hexadecimal,
-  generate_ascii_string,
   generate_value_from_context,
-  JsonHandler,
-  ContentTypeHandler
+  GenerateValue,
+  Generator,
+  JsonHandler
 };
 use crate::models::HttpPart;
 use crate::models::json_utils::{get_field_as_string, json_to_string};
 use crate::models::matchingrules::*;
-use crate::time_utils::{parse_pattern, validate_datetime, to_chrono_pattern};
+use crate::time_utils::{parse_pattern, to_chrono_pattern, validate_datetime};
 
 use super::Mismatch;
 
@@ -45,7 +46,7 @@ fn type_of(json: &Value) -> String {
 }
 
 impl Matches<Value> for Value {
-  fn matches(&self, actual: &Value, matcher: &MatchingRule) -> Result<(), String> {
+  fn matches(&self, actual: &Value, matcher: &MatchingRule) -> anyhow::Result<()> {
     let result = match matcher {
       MatchingRule::Regex(regex) => {
         match Regex::new(regex) {
@@ -57,10 +58,10 @@ impl Matches<Value> for Value {
             if re.is_match(&actual_str) {
               Ok(())
             } else {
-              Err(format!("Expected '{}' to match '{}'", json_to_string(actual), regex))
+              Err(anyhow!("Expected '{}' to match '{}'", json_to_string(actual), regex))
             }
           },
-          Err(err) => Err(format!("'{}' is not a valid regular expression - {}", regex, err))
+          Err(err) => Err(anyhow!("'{}' is not a valid regular expression - {}", regex, err))
         }
       },
       MatchingRule::Include(substr) => {
@@ -71,7 +72,7 @@ impl Matches<Value> for Value {
         if actual_str.contains(substr) {
           Ok(())
         } else {
-          Err(format!("Expected '{}' to include '{}'", json_to_string(actual), substr))
+          Err(anyhow!("Expected '{}' to include '{}'", json_to_string(actual), substr))
         }
       },
       MatchingRule::Type => {
@@ -82,13 +83,13 @@ impl Matches<Value> for Value {
           (&Value::Null, &Value::Null) => Ok(()),
           (&Value::Object(_), &Value::Object(_)) => Ok(()),
           (&Value::String(_), &Value::String(_)) => Ok(()),
-          (_, _) => Err(format!("Expected '{}' to be the same type as '{}'", json_to_string(self), json_to_string(actual))),
+          (_, _) => Err(anyhow!("Expected '{}' to be the same type as '{}'", json_to_string(self), json_to_string(actual))),
         }
       },
       MatchingRule::MinType(min) => {
         match (self, actual) {
           (&Value::Array(_), &Value::Array(ref actual_array)) => if actual_array.len() < *min {
-            Err(format!("Expected '{}' to have at least {} item(s)", json_to_string(actual), min))
+            Err(anyhow!("Expected '{}' to have at least {} item(s)", json_to_string(actual), min))
           } else {
             Ok(())
           },
@@ -97,13 +98,13 @@ impl Matches<Value> for Value {
           (&Value::Null, &Value::Null) => Ok(()),
           (&Value::Object(_), &Value::Object(_)) => Ok(()),
           (&Value::String(_), &Value::String(_)) => Ok(()),
-          (_, _) => Err(format!("Expected '{}' to be the same type as '{}'", json_to_string(self), json_to_string(actual))),
+          (_, _) => Err(anyhow!("Expected '{}' to be the same type as '{}'", json_to_string(self), json_to_string(actual))),
         }
       },
       MatchingRule::MaxType(max) => {
         match (self, actual) {
           (&Value::Array(_), &Value::Array(ref actual_array)) => if actual_array.len() > *max {
-            Err(format!("Expected '{}' to have at most {} item(s)", json_to_string(actual), max))
+            Err(anyhow!("Expected '{}' to have at most {} item(s)", json_to_string(actual), max))
           } else {
             Ok(())
           },
@@ -112,15 +113,15 @@ impl Matches<Value> for Value {
           (&Value::Null, &Value::Null) => Ok(()),
           (&Value::Object(_), &Value::Object(_)) => Ok(()),
           (&Value::String(_), &Value::String(_)) => Ok(()),
-          (_, _) => Err(format!("Expected '{}' to be the same type as '{}'", json_to_string(self), json_to_string(actual))),
+          (_, _) => Err(anyhow!("Expected '{}' to be the same type as '{}'", json_to_string(self), json_to_string(actual))),
         }
       },
       MatchingRule::MinMaxType(min, max) => {
         match (self, actual) {
           (&Value::Array(_), &Value::Array(ref actual_array)) => if actual_array.len() < *min {
-            Err(format!("Expected '{}' to have at least {} item(s)", json_to_string(actual), min))
+            Err(anyhow!("Expected '{}' to have at least {} item(s)", json_to_string(actual), min))
           } else if actual_array.len() > *max {
-            Err(format!("Expected '{}' to have at most {} item(s)", json_to_string(actual), max))
+            Err(anyhow!("Expected '{}' to have at most {} item(s)", json_to_string(actual), max))
           } else {
             Ok(())
           },
@@ -129,59 +130,59 @@ impl Matches<Value> for Value {
           (&Value::Null, &Value::Null) => Ok(()),
           (&Value::Object(_), &Value::Object(_)) => Ok(()),
           (&Value::String(_), &Value::String(_)) => Ok(()),
-          (_, _) => Err(format!("Expected '{}' to be the same type as '{}'", json_to_string(self), json_to_string(actual))),
+          (_, _) => Err(anyhow!("Expected '{}' to be the same type as '{}'", json_to_string(self), json_to_string(actual))),
         }
       },
       MatchingRule::Equality | MatchingRule::Values => {
         if self == actual {
           Ok(())
         } else {
-          Err(format!("Expected '{}' to be equal to '{}'", json_to_string(self), json_to_string(actual)))
+          Err(anyhow!("Expected '{}' to be equal to '{}'", json_to_string(self), json_to_string(actual)))
         }
       },
       MatchingRule::Null => match actual {
         &Value::Null => Ok(()),
-        _ => Err(format!("Expected '{}' to be a null value", json_to_string(actual)))
+        _ => Err(anyhow!("Expected '{}' to be a null value", json_to_string(actual)))
       },
       MatchingRule::Integer => if actual.is_i64() || actual.is_u64() {
         Ok(())
       } else {
-        Err(format!("Expected '{}' to be an integer value", json_to_string(actual)))
+        Err(anyhow!("Expected '{}' to be an integer value", json_to_string(actual)))
       },
       MatchingRule::Decimal => if actual.is_f64() {
         Ok(())
       } else {
-        Err(format!("Expected '{}' to be a decimal value", json_to_string(actual)))
+        Err(anyhow!("Expected '{}' to be a decimal value", json_to_string(actual)))
       },
       MatchingRule::Number => if actual.is_number() {
         Ok(())
       } else {
-        Err(format!("Expected '{}' to be a number", json_to_string(actual)))
+        Err(anyhow!("Expected '{}' to be a number", json_to_string(actual)))
       },
       MatchingRule::Date(ref s) => {
         validate_datetime(&json_to_string(actual), s)
-          .map_err(|err| format!("Expected '{}' to match a date format of '{}': {}", actual, s, err))
+          .map_err(|err| anyhow!("Expected '{}' to match a date format of '{}': {}", actual, s, err))
       },
       MatchingRule::Time(ref s) => {
         validate_datetime(&json_to_string(actual), s)
-          .map_err(|err| format!("Expected '{}' to match a time format of '{}': {}", actual, s, err))
+          .map_err(|err| anyhow!("Expected '{}' to match a time format of '{}': {}", actual, s, err))
       },
       MatchingRule::Timestamp(ref s) => {
         validate_datetime(&json_to_string(actual), s)
-          .map_err(|err| format!("Expected '{}' to match a timestamp format of '{}': {}", actual, s, err))
+          .map_err(|err| anyhow!("Expected '{}' to match a timestamp format of '{}': {}", actual, s, err))
       },
       MatchingRule::ContentType(ref expected_content_type) => {
         match_content_type(&convert_data(actual), expected_content_type)
-          .map_err(|err| format!("Expected data to have a content type of '{}' but was {}", expected_content_type, err))
+          .map_err(|err| anyhow!("Expected data to have a content type of '{}' but was {}", expected_content_type, err))
       }
       MatchingRule::Boolean => match actual {
         Value::Bool(_) => Ok(()),
         Value::String(val) => if val == "true" || val == "false" {
           Ok(())
         } else {
-          Err(format!("Expected '{}' to match a boolean", json_to_string(actual)))
+          Err(anyhow!("Expected '{}' to match a boolean", json_to_string(actual)))
         }
-        _ => Err(format!("Expected '{}' to match a boolean", json_to_string(actual)))
+        _ => Err(anyhow!("Expected '{}' to match a boolean", json_to_string(actual)))
       }
       _ => Ok(())
     };
@@ -406,7 +407,7 @@ fn compare_values(path: &[&str], expected: &Value, actual: &Value, context: &Mat
     debug!("compare_values: Calling match_values for path {}", path.join("."));
     match_values(path, context, expected, actual)
   } else {
-    expected.matches(actual, &MatchingRule::Equality).map_err(|err| vec![err])
+    expected.matches(actual, &MatchingRule::Equality).map_err(|err| vec![err.to_string()])
   };
   log::debug!("compare_values: Comparing '{:?}' to '{:?}' at path '{}' -> {:?}", expected, actual, path.join("."), matcher_result);
   matcher_result.map_err(|messages| {
@@ -552,9 +553,10 @@ impl GenerateValue<Value> for Generator {
 
 #[cfg(test)]
 mod tests {
+  use std::collections::HashMap;
+
   use expectest::expect;
   use expectest::prelude::*;
-  use std::collections::HashMap;
 
   use pact_models::bodies::OptionalBody;
 

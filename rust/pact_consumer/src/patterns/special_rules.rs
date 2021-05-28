@@ -299,11 +299,8 @@ where
     }
 
     fn extract_matching_rules(&self, path: &str, rules_out: &mut MatchingRuleCategory) {
-        rules_out.add_rule(
-            &path.to_string(),
-            MatchingRule::Regex(self.regex.to_string()),
-            &RuleLogic::And
-        );
+        rules_out.add_rule(path, MatchingRule::Regex(self.regex.to_string()),
+            &RuleLogic::And);
     }
 }
 

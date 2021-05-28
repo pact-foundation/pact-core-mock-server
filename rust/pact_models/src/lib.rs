@@ -1,6 +1,10 @@
 //! The `pact_models` crate provides all the structs and traits required to model a Pact.
 
-#[allow(unused_imports)] use log::*;
+use std::fmt::{Display, Formatter};
+use std::fmt;
+
+use anyhow::anyhow;
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -128,6 +132,89 @@ pub enum DifferenceType {
   MatchingRules,
   /// Response status differ
   Status
+}
+
+
+/// Enum that defines the different types of HTTP statuses
+#[derive(Debug, Clone, Deserialize, Serialize, Ord, PartialOrd, Eq, PartialEq)]
+pub enum HttpStatus {
+  /// Informational responses (100–199)
+  Information,
+  /// Successful responses (200–299)
+  Success,
+  /// Redirects (300–399)
+  Redirect,
+  /// Client errors (400–499)
+  ClientError,
+  /// Server errors (500–599)
+  ServerError,
+  /// Explicit status codes
+  StatusCodes(Vec<u16>),
+  /// Non-error response(< 400)
+  NonError,
+  /// Any error response (>= 400)
+  Error
+}
+
+impl HttpStatus {
+  /// Parse a JSON structure into a HttpStatus
+  pub fn from_json(value: &Value) -> anyhow::Result<Self> {
+    match value {
+      Value::String(s) => match s.as_str() {
+        "info" => Ok(HttpStatus::Information),
+        "success" => Ok(HttpStatus::Success),
+        "redirect" => Ok(HttpStatus::Redirect),
+        "clientError" => Ok(HttpStatus::ClientError),
+        "serverError" => Ok(HttpStatus::ServerError),
+        "nonError" => Ok(HttpStatus::NonError),
+        "error" => Ok(HttpStatus::Error),
+        _ => Err(anyhow!("'{}' is not a valid value for an HTTP Status", s))
+      },
+      Value::Array(a) => {
+        let status_codes = a.iter().map(|status| match status {
+          Value::Number(n) => if n.is_u64() {
+            Ok(n.as_u64().unwrap() as u16)
+          } else if n.is_i64() {
+            Ok(n.as_i64().unwrap() as u16)
+          } else {
+            Ok(n.as_f64().unwrap() as u16)
+          },
+          Value::String(s) => s.parse::<u16>().map_err(|err| anyhow!(err)),
+          _ => Err(anyhow!("'{}' is not a valid JSON value for an HTTP Status", status))
+        }).collect::<Vec<anyhow::Result<u16>>>();
+        if status_codes.iter().any(|it| it.is_err()) {
+          Err(anyhow!("'{}' is not a valid JSON value for an HTTP Status", value))
+        } else {
+          Ok(HttpStatus::StatusCodes(status_codes.iter().map(|code| *code.as_ref().unwrap()).collect()))
+        }
+      }
+      _ => Err(anyhow!("'{}' is not a valid JSON value for an HTTP Status", value))
+    }
+  }
+
+  /// Generate a JSON structure for this status
+  pub fn to_json(&self) -> Value {
+    match self {
+      HttpStatus::StatusCodes(codes) => json!(codes),
+      _ => json!(self.to_string())
+    }
+  }
+}
+
+impl Display for HttpStatus {
+  fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    match self {
+      HttpStatus::Information => write!(f, "Informational response (100–199)"),
+      HttpStatus::Success => write!(f, "Successful response (200–299)"),
+      HttpStatus::Redirect => write!(f, "Redirect (300–399)"),
+      HttpStatus::ClientError => write!(f, "Client error (400–499)"),
+      HttpStatus::ServerError => write!(f, "Server error (500–599)"),
+      HttpStatus::StatusCodes(status) =>
+        write!(f, "{}", status.iter().map(|s| s.to_string()).join(", ")),
+      HttpStatus::NonError => write!(f, "Non-error response (< 400)"),
+      HttpStatus::Error => write!(f, "Error response (>= 400)")
+    }
+  }
 }
 
 #[cfg(test)]

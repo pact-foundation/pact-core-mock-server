@@ -1,7 +1,8 @@
 //! Support for patterns which match only strings, not JSON.
 
-use pact_matching::models::matchingrules::MatchingRuleCategory;
 use std::borrow::Cow;
+
+use pact_matching::models::matchingrules::MatchingRuleCategory;
 
 use super::Pattern;
 
@@ -49,7 +50,6 @@ fn string_pattern_is_pattern() {
     use env_logger;
     use regex::Regex;
     use maplit::*;
-    use pact_matching::s;
     use serde_json::*;
 
     use super::special_rules::Term;
@@ -64,7 +64,7 @@ fn string_pattern_is_pattern() {
 
     // Here are our matching rules, for passing to the low-level match engine.
     let expected_rules = hashmap!(
-        s!("$.query.val") => json!({ "match": "regex", "regex": "^[0-9]+$" })
+        "$.query.val".to_string() => json!({ "match": "regex", "regex": "^[0-9]+$" })
     );
     let mut rules = MatchingRuleCategory::empty("query");
     pattern.extract_matching_rules("val", &mut rules);

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::convert::TryInto;
 use std::str::from_utf8;
 
+use anyhow::anyhow;
 use bytes::{Buf, Bytes};
 use http::header::{HeaderMap, HeaderName};
 use itertools::Itertools;
@@ -16,7 +17,7 @@ use crate::models::matchingrules::{MatchingRule, RuleLogic};
 
 static ROOT: &str = "$";
 
-pub fn match_content_type<S>(data: &[u8], expected_content_type: S) -> Result<(), String>
+pub fn match_content_type<S>(data: &[u8], expected_content_type: S) -> anyhow::Result<()>
   where S: Into<String> {
   let result = tree_magic_mini::from_u8(data);
   let expected = expected_content_type.into();
@@ -26,7 +27,7 @@ pub fn match_content_type<S>(data: &[u8], expected_content_type: S) -> Result<()
   if matches {
     Ok(())
   } else {
-    Err(format!("Expected binary contents to have content type '{}' but detected contents was '{}'",
+    Err(anyhow!("Expected binary contents to have content type '{}' but detected contents was '{}'",
       expected, result))
   }
 }
@@ -53,7 +54,7 @@ pub fn match_octet_stream(expected: &dyn HttpPart, actual: &dyn HttpPart, contex
         mismatch: format!("No matcher found for category 'body' and path '{}'", path.iter().join("."))}),
       Some(ref rulelist) => {
         let results = rulelist.rules.iter().map(|rule|
-          expected.matches(&actual, rule)).collect::<Vec<Result<(), String>>>();
+          expected.matches(&actual, rule)).collect::<Vec<anyhow::Result<()>>>();
         match rulelist.rule_logic {
           RuleLogic::And => for result in results {
             if let Err(err) = result {
@@ -61,7 +62,7 @@ pub fn match_octet_stream(expected: &dyn HttpPart, actual: &dyn HttpPart, contex
                 path: "$".into(),
                 expected: Some(expected.clone()),
                 actual: Some(actual.clone()),
-                mismatch: err })
+                mismatch: err.to_string() })
             }
           },
           RuleLogic::Or => {
@@ -72,7 +73,7 @@ pub fn match_octet_stream(expected: &dyn HttpPart, actual: &dyn HttpPart, contex
                     path: "$".into(),
                     expected: Some(expected.clone()),
                     actual: Some(actual.clone()),
-                    mismatch: err })
+                    mismatch: err.to_string() })
                 }
               }
             }
@@ -246,8 +247,8 @@ fn first(bytes: &[u8], len: usize) -> &[u8] {
 }
 
 impl Matches<MimeFile> for MimeFile {
-  fn matches(&self, actual: &MimeFile, matcher: &MatchingRule) -> Result<(), String> {
-    log::debug!("FilePart: comparing binary data to '{:?}' using {:?}", actual.content_type, matcher);
+  fn matches(&self, actual: &MimeFile, matcher: &MatchingRule) -> anyhow::Result<()> {
+    debug!("FilePart: comparing binary data to '{:?}' using {:?}", actual.content_type, matcher);
     match matcher {
       MatchingRule::Regex(ref regex) => {
         match Regex::new(regex) {
@@ -256,20 +257,20 @@ impl Matches<MimeFile> for MimeFile {
               Ok(a) => if re.is_match(&a) {
                   Ok(())
                 } else {
-                  Err(format!("Expected binary file '{}' to match '{}'", actual.filename, regex))
+                  Err(anyhow!("Expected binary file '{}' to match '{}'", actual.filename, regex))
                 },
-              Err(err) => Err(format!("Expected binary file to match '{}' but could convert the file to a string '{}' - {}",
+              Err(err) => Err(anyhow!("Expected binary file to match '{}' but could convert the file to a string '{}' - {}",
                                       regex, actual.filename, err))
             }
           },
-          Err(err) => Err(format!("'{}' is not a valid regular expression - {}", regex, err))
+          Err(err) => Err(anyhow!("'{}' is not a valid regular expression - {}", regex, err))
         }
       },
       MatchingRule::Equality => {
         if self.data == actual.data {
           Ok(())
         } else {
-          Err(format!("Expected binary file ({} bytes) starting with {:?} to be equal to ({} bytes) starting with {:?}",
+          Err(anyhow!("Expected binary file ({} bytes) starting with {:?} to be equal to ({} bytes) starting with {:?}",
           actual.data.len(), first(&actual.data, 20),
           self.data.len(), first(&self.data, 20)))
         }
@@ -279,14 +280,14 @@ impl Matches<MimeFile> for MimeFile {
           Ok(actual_contents) => if actual_contents.contains(substr) {
             Ok(())
           } else {
-            Err(format!("Expected binary file ({}) to include '{}'", actual.filename, substr))
+            Err(anyhow!("Expected binary file ({}) to include '{}'", actual.filename, substr))
           },
-          Err(err) => Err(format!("Expected binary file to include '{}' but could not convert the file to a string '{}' - {}",
+          Err(err) => Err(anyhow!("Expected binary file to include '{}' but could not convert the file to a string '{}' - {}",
                                   substr, actual.filename, err))
         }
       },
       MatchingRule::ContentType(content_type) => match_content_type(&actual.data, content_type),
-      _ => Err(format!("Unable to match binary file using {:?}", matcher))
+      _ => Err(anyhow!("Unable to match binary file using {:?}", matcher))
     }
   }
 }
@@ -326,7 +327,7 @@ fn match_file(key: &String, expected: &MimeFile, actual: &MimeFile, context: &Ma
       }])
     }
   };
-  log::debug!("Comparing '{:?}' to '{:?}' at path '{}' -> {:?}", expected, actual, path.join("."), matcher_result);
+  debug!("Comparing '{:?}' to '{:?}' at path '{}' -> {:?}", expected, actual, path.join("."), matcher_result);
   matcher_result
 }
 

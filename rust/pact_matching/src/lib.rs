@@ -349,9 +349,9 @@ use log::*;
 use maplit::hashmap;
 use serde_json::{json, Value};
 
-use pact_models::content_types::ContentType;
 use pact_models::PactSpecification;
 use pact_models::bodies::OptionalBody;
+use pact_models::content_types::ContentType;
 
 use crate::headers::{match_header_value, match_headers};
 use crate::matchers::*;
@@ -430,16 +430,14 @@ impl MatchingContext {
   }
 
   fn matchers_for_exact_path(&self, path: &[&str]) -> MatchingRuleCategory {
-    if self.matchers.name == "body" {
-      self.matchers.filter(|&(val, _)| {
-        calc_path_weight(val, path).0 > 0 && path_length(val) == path.len()
-      })
-    } else if self.matchers.name == "header" || self.matchers.name == "query" {
-      self.matchers.filter(|&(val, _)| {
+    match self.matchers.name {
+      Category::HEADER | Category::QUERY => self.matchers.filter(|&(val, _)| {
         path.len() == 1 && path[0] == *val
-      })
-    } else {
-      self.matchers.filter(|_| false)
+      }),
+      Category::BODY => self.matchers.filter(|&(val, _)| {
+        calc_path_weight(val, path).0 > 0 && path_length(val) == path.len()
+      }),
+      _ => self.matchers.filter(|_| false)
     }
   }
 
@@ -527,9 +525,11 @@ pub enum Mismatch {
     /// Response status mismatch
     StatusMismatch {
         /// expected response status
-        expected: u16,
-        /// actual response status
-        actual: u16
+      expected: u16,
+      /// actual response status
+      actual: u16,
+      /// description of the mismatch
+      mismatch: String
     },
     /// Request query mismatch
     QueryMismatch {
@@ -609,11 +609,12 @@ impl Mismatch {
           "mismatch" : m
         })
       },
-      Mismatch::StatusMismatch { expected: e, actual: a } => {
+      Mismatch::StatusMismatch { expected: e, actual: a, mismatch: m } => {
         json!({
           "type" : "StatusMismatch",
           "expected" : e,
-          "actual" : a
+          "actual" : a,
+          "mismatch": m
         })
       },
       Mismatch::QueryMismatch { parameter: p, expected: e, actual: a, mismatch: m } => {
@@ -686,16 +687,16 @@ impl Mismatch {
   }
 
     /// Returns the type of the mismatch as a string
-    pub fn mismatch_type(&self) -> String {
+    pub fn mismatch_type(&self) -> &str {
       match *self {
-        Mismatch::MethodMismatch { .. } => s!("MethodMismatch"),
-        Mismatch::PathMismatch { .. } => s!("PathMismatch"),
-        Mismatch::StatusMismatch { .. } => s!("StatusMismatch"),
-        Mismatch::QueryMismatch { .. } => s!("QueryMismatch"),
-        Mismatch::HeaderMismatch { .. } => s!("HeaderMismatch"),
-        Mismatch::BodyTypeMismatch { .. } => s!("BodyTypeMismatch"),
-        Mismatch::BodyMismatch { .. } => s!("BodyMismatch"),
-        Mismatch::MetadataMismatch { .. } => s!("MetadataMismatch")
+        Mismatch::MethodMismatch { .. } => "MethodMismatch",
+        Mismatch::PathMismatch { .. } => "PathMismatch",
+        Mismatch::StatusMismatch { .. } => "StatusMismatch",
+        Mismatch::QueryMismatch { .. } => "QueryMismatch",
+        Mismatch::HeaderMismatch { .. } => "HeaderMismatch",
+        Mismatch::BodyTypeMismatch { .. } => "BodyTypeMismatch",
+        Mismatch::BodyMismatch { .. } => "BodyMismatch",
+        Mismatch::MetadataMismatch { .. } => "MetadataMismatch"
       }
     }
 
@@ -715,31 +716,31 @@ impl Mismatch {
 
     /// Returns a formated string for this mismatch
     pub fn description(&self) -> String {
-      match *self {
-        Mismatch::MethodMismatch { expected: ref e, actual: ref a } => format!("expected {} but was {}", e, a),
-        Mismatch::PathMismatch { ref mismatch, .. } => mismatch.clone(),
-        Mismatch::StatusMismatch { expected: ref e, actual: ref a } => format!("expected {} but was {}", e, a),
-        Mismatch::QueryMismatch { ref mismatch, .. } => mismatch.clone(),
-        Mismatch::HeaderMismatch { ref mismatch, .. } => mismatch.clone(),
-        Mismatch::BodyTypeMismatch {  expected: ref e, actual: ref a, .. } => format!("expected '{}' body but was '{}'", e, a),
-        Mismatch::BodyMismatch { ref path, ref mismatch, .. } => format!("{} -> {}", path, mismatch),
-        Mismatch::MetadataMismatch { ref mismatch, .. } => mismatch.clone()
+      match self {
+        Mismatch::MethodMismatch { expected: e, actual: a } => format!("expected {} but was {}", e, a),
+        Mismatch::PathMismatch { mismatch, .. } => mismatch.clone(),
+        Mismatch::StatusMismatch { mismatch, .. } => mismatch.clone(),
+        Mismatch::QueryMismatch { mismatch, .. } => mismatch.clone(),
+        Mismatch::HeaderMismatch { mismatch, .. } => mismatch.clone(),
+        Mismatch::BodyTypeMismatch {  expected: e, actual: a, .. } => format!("expected '{}' body but was '{}'", e, a),
+        Mismatch::BodyMismatch { path, mismatch, .. } => format!("{} -> {}", path, mismatch),
+        Mismatch::MetadataMismatch { mismatch, .. } => mismatch.clone()
       }
     }
 
     /// Returns a formatted string with ansi escape codes for this mismatch
     pub fn ansi_description(&self) -> String {
-      match *self {
-        Mismatch::MethodMismatch { expected: ref e, actual: ref a } => format!("expected {} but was {}", Red.paint(e.clone()), Green.paint(a.clone())),
-        Mismatch::PathMismatch { expected: ref e, actual: ref a, .. } => format!("expected '{}' but was '{}'", Red.paint(e.clone()), Green.paint(a.clone())),
-        Mismatch::StatusMismatch { expected: ref e, actual: ref a } => format!("expected {} but was {}", Red.paint(e.to_string()), Green.paint(a.to_string())),
-        Mismatch::QueryMismatch { expected: ref e, actual: ref a, parameter: ref p, .. } => format!("Expected '{}' but received '{}' for query parameter '{}'",
+      match self {
+        Mismatch::MethodMismatch { expected: e, actual: a } => format!("expected {} but was {}", Red.paint(e.clone()), Green.paint(a.clone())),
+        Mismatch::PathMismatch { expected: e, actual: a, .. } => format!("expected '{}' but was '{}'", Red.paint(e.clone()), Green.paint(a.clone())),
+        Mismatch::StatusMismatch { expected: e, actual: a, .. } => format!("expected {} but was {}", Red.paint(e.to_string()), Green.paint(a.to_string())),
+        Mismatch::QueryMismatch { expected: e, actual: a, parameter: p, .. } => format!("Expected '{}' but received '{}' for query parameter '{}'",
           Red.paint(e.to_string()), Green.paint(a.to_string()), Style::new().bold().paint(p.clone())),
-        Mismatch::HeaderMismatch { expected: ref e, actual: ref a, key: ref k, .. } => format!("Expected header '{}' to have value '{}' but was '{}'",
+        Mismatch::HeaderMismatch { expected: e, actual: a, key: k, .. } => format!("Expected header '{}' to have value '{}' but was '{}'",
           Style::new().bold().paint(k.clone()), Red.paint(e.to_string()), Green.paint(a.to_string())),
-        Mismatch::BodyTypeMismatch {  expected: ref e, actual: ref a, .. } => format!("expected '{}' body but was '{}'", Red.paint(e.clone()), Green.paint(a.clone())),
-        Mismatch::BodyMismatch { ref path, ref mismatch, .. } => format!("{} -> {}", Style::new().bold().paint(path.clone()), mismatch),
-        Mismatch::MetadataMismatch { expected: ref e, actual: ref a, key: ref k, .. } => format!("Expected message metadata '{}' to have value '{}' but was '{}'",
+        Mismatch::BodyTypeMismatch {  expected: e, actual: a, .. } => format!("expected '{}' body but was '{}'", Red.paint(e.clone()), Green.paint(a.clone())),
+        Mismatch::BodyMismatch { path, mismatch, .. } => format!("{} -> {}", Style::new().bold().paint(path.clone()), mismatch),
+        Mismatch::MetadataMismatch { expected: e, actual: a, key: k, .. } => format!("Expected message metadata '{}' to have value '{}' but was '{}'",
           Style::new().bold().paint(k.clone()), Red.paint(e.to_string()), Green.paint(a.to_string()))
       }
     }
@@ -756,8 +757,8 @@ impl PartialEq for Mismatch {
         Mismatch::PathMismatch { expected: e2, actual: a2, .. }) => {
         e1 == e2 && a1 == a2
       },
-      (Mismatch::StatusMismatch { expected: e1, actual: a1 },
-        Mismatch::StatusMismatch { expected: e2, actual: a2 }) => {
+      (Mismatch::StatusMismatch { expected: e1, actual: a1, .. },
+        Mismatch::StatusMismatch { expected: e2, actual: a2, .. }) => {
         e1 == e2 && a1 == a2
       },
       (Mismatch::BodyTypeMismatch { expected: e1, actual: a1, .. },
@@ -1031,6 +1032,7 @@ pub fn match_path(expected: &String, actual: &String, context: &MatchingContext)
     match_values(&path, context, &expected.to_string(), &actual.to_string())
   } else {
     expected.matches(actual, &MatchingRule::Equality).map_err(|err| vec![err])
+      .map_err(|errors| errors.iter().map(|err| err.to_string()).collect())
   };
   matcher_result.map_err(|messages| messages.iter().map(|message| {
     Mismatch::PathMismatch {
@@ -1047,7 +1049,8 @@ fn compare_query_parameter_value(key: &String, expected: &String, actual: &Strin
   let matcher_result = if context.matcher_is_defined(&path) {
     matchers::match_values(&path, context, expected, actual)
   } else {
-    expected.matches(actual, &MatchingRule::Equality).map_err(|err| vec![err])
+    expected.matches(actual, &MatchingRule::Equality)
+      .map_err(|error| vec![error.to_string()])
   };
   matcher_result.map_err(|messages| {
     messages.iter().map(|message| {
@@ -1287,11 +1290,27 @@ pub fn match_request(expected: models::Request, actual: models::Request) -> Requ
 }
 
 /// Matches the actual response status to the expected one.
-pub fn match_status(expected: u16, actual: u16) -> Result<(), Mismatch> {
-  if expected != actual {
-    Err(Mismatch::StatusMismatch { expected, actual })
+pub fn match_status(expected: u16, actual: u16, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
+  let path = vec![];
+  if context.matcher_is_defined(&path) {
+    match_values(&path, context, &expected, &actual)
+      .map_err(|messages| messages.iter().map(|message| {
+        Mismatch::StatusMismatch {
+          expected,
+          actual,
+          mismatch: message.clone()
+        }
+      }).collect())
   } else {
-    Ok(())
+    if expected != actual {
+      Err(vec![Mismatch::StatusMismatch {
+        expected,
+        actual,
+        mismatch: format!("expected {} but was {}", expected, actual)
+      }])
+    } else {
+      Ok(())
+    }
   }
 }
 
@@ -1299,17 +1318,19 @@ pub fn match_status(expected: u16, actual: u16) -> Result<(), Mismatch> {
 pub fn match_response(expected: models::Response, actual: models::Response) -> Vec<Mismatch> {
   let mut mismatches = vec![];
 
-  log::info!("comparing to expected response: {}", expected);
+  info!("comparing to expected response: {}", expected);
 
+  let status_context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
+    &expected.matching_rules.rules_for_category("status").unwrap_or_default());
   let body_context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
-                                          &expected.matching_rules.rules_for_category("body").unwrap_or_default());
+    &expected.matching_rules.rules_for_category("body").unwrap_or_default());
   let header_context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
-                                            &expected.matching_rules.rules_for_category("header").unwrap_or_default());
+    &expected.matching_rules.rules_for_category("header").unwrap_or_default());
 
   mismatches.extend_from_slice(match_body(&expected, &actual, &body_context, &header_context)
     .mismatches().as_slice());
-  if let Err(mismatch) = match_status(expected.status, actual.status) {
-    mismatches.push(mismatch);
+  if let Err(m) = match_status(expected.status, actual.status, &status_context) {
+    mismatches.extend_from_slice(&m);
   }
   let result = match_headers(expected.headers, actual.headers,
                              &header_context);
@@ -1419,7 +1440,7 @@ fn match_metadata_value(key: &str, expected: &Value, actual: &Value, context: &M
     headers::match_parameter_header(expected.as_str().unwrap_or_default(),
                                     actual.as_str().unwrap_or_default(), key, "metadata")
   } else {
-    expected.matches(actual, &MatchingRule::Equality).map_err(|err| vec![err])
+    expected.matches(actual, &MatchingRule::Equality).map_err(|err| vec![err.to_string()])
   };
   matcher_result.map_err(|messages| {
     messages.iter().map(|message| {

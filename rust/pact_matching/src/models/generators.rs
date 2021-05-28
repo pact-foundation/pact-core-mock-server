@@ -33,7 +33,7 @@ use crate::models::expression_parser::{
   parse_expression
 };
 use crate::models::json_utils::{get_field_as_string, json_to_string, JsonToNum};
-use crate::models::matchingrules::MatchingRuleCategory;
+use crate::models::matchingrules::{Category, MatchingRuleCategory};
 use crate::models::OptionalBody;
 use crate::models::xml_utils::parse_bytes;
 use crate::path_exp::*;
@@ -649,6 +649,19 @@ impl Into<String> for GeneratorCategory {
   fn into(self) -> String {
     let s: &str = self.into();
     s.to_string()
+  }
+}
+
+impl Into<Category> for GeneratorCategory {
+  fn into(self) -> Category {
+    match self {
+      GeneratorCategory::METHOD => Category::METHOD,
+      GeneratorCategory::PATH => Category::PATH,
+      GeneratorCategory::HEADER => Category::HEADER,
+      GeneratorCategory::QUERY => Category::QUERY,
+      GeneratorCategory::BODY => Category::BODY,
+      GeneratorCategory::STATUS => Category::STATUS
+    }
   }
 }
 
