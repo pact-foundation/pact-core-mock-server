@@ -32,8 +32,7 @@ jobs:
         if: runner.os == 'Linux'
         working-directory: c/consumer-verification
         run: |
-          sudo apt-get install autoconf automake autotools-dev
-          ls -l /usr/bin/aclocal*
+          /usr/bin/aclocal
           autoconf
           automake --add-missing
           ./configure
