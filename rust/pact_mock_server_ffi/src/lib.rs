@@ -1164,7 +1164,8 @@ pub extern fn message_with_metadata(message: handles::MessageHandle, key: *const
 
 /// Reifies the given message
 ///
-/// Reification is the process of stripping away any matchers, and returning the original contents
+/// Reification is the process of stripping away any matchers, and returning the original contents.
+/// NOTE: the returned string needs to be deallocated with the `free_string` function
 #[no_mangle]
 pub extern fn message_reify(message: handles::MessageHandle) -> *const c_char {
   let res = message.with_message(&|_, inner| {
@@ -1176,8 +1177,11 @@ pub extern fn message_reify(message: handles::MessageHandle) -> *const c_char {
   });
 
   match res {
-    Some(res) => res.as_str().as_ptr() as *const c_char,
-    None => "".as_ptr() as *const c_char
+    Some(res) => {
+      let string = CString::new(res).unwrap();
+      string.into_raw() as *const c_char
+    },
+    None => CString::default().into_raw() as *const c_char
   }
 }
 
