@@ -30,8 +30,7 @@ jobs:
           command: build
       - name: Run the C FFI tests
         if: runner.os == 'Linux'
-        with:
-          working-directory: c/consumer-verification
+        working-directory: c/consumer-verification
         run: |
           alocal
           autoconf
