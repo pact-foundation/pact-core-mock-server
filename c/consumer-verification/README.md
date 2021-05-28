@@ -13,6 +13,9 @@ The C example uses libcurl, so the development library needs to be installed. On
 
 Next, for Linux and OSX, do the standard configure and make series of steps.
 
+    $ aclocal
+    $ autoconf
+    $ automake --add-missing
     $ ./configure
     checking for a BSD-compatible install... /usr/bin/install -c
     checking whether build environment is sane... yes
