@@ -91,10 +91,12 @@ fn extract_headers(headers: &HeaderMap) -> Option<HashMap<String, Vec<String>>> 
             .map(|v| v.to_string())
             .map_err(|err| log::warn!("Failed to parse HTTP header value: {}", err))
           ).collect();
-        (name.as_str().into(), parsed_vals.iter().cloned()
-          .filter(|val| val.is_ok())
-          .map(|val| val.unwrap_or_default())
-          .collect())
+       (name.as_str().into(), parsed_vals.iter().cloned()
+            .filter(|val| val.is_ok())
+            .map(|val| val.unwrap_or_default())
+            .flat_map(|val| val.split(",").map(|v| v.to_string()).collect::<Vec<String>>())
+            .map(|val| val.trim().to_string())
+            .collect())
       })
       .collect();
 
@@ -167,7 +169,7 @@ pub async fn make_provider_request<F: RequestFilterExecutor>(
     .and_then(native_response_to_pact_response)
     .await
     .map_err(|err| ProviderClientError::ResponseError(err.to_string()))?;
-
+    
   Ok(response)
 }
 
