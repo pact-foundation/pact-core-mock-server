@@ -142,6 +142,12 @@ impl Display for OptionalBody {
   }
 }
 
+impl Default for OptionalBody {
+  fn default() -> Self {
+    OptionalBody::Missing
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use expectest::prelude::*;

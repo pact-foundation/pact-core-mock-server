@@ -45,9 +45,11 @@ use crate::models::message_pact::MessagePact;
 use crate::models::provider_states::ProviderState;
 use crate::models::v4::http_parts::{body_from_json, HttpRequest, HttpResponse};
 use crate::models::v4::sync_message::SynchronousMessages;
+use crate::models::v4::message_parts::MessageContents;
 
 pub mod sync_message;
 pub mod http_parts;
+pub mod message_parts;
 
 /// V4 Interaction trait
 pub trait V4Interaction: Interaction + Send + Sync {
@@ -378,13 +380,7 @@ pub struct AsynchronousMessage {
   /// See https://docs.pact.io/getting_started/provider_states for more info on provider states.
   pub provider_states: Vec<ProviderState>,
   /// The contents of the message
-  pub contents: OptionalBody,
-  /// Metadata associated with this message.
-  pub metadata: HashMap<String, Value>,
-  /// Matching rules
-  pub matching_rules: matchingrules::MatchingRules,
-  /// Generators
-  pub generators: generators::Generators,
+  pub contents: MessageContents,
   /// Annotations and comments associated with this interaction
   pub comments: HashMap<String, Value>,
 
@@ -410,7 +406,7 @@ impl AsynchronousMessage {
   /// Returns the content type of the message by returning the content type associated with
   /// the body, or by looking it up in the message metadata
   pub fn message_content_type(&self) -> Option<ContentType> {
-    calc_content_type(&self.contents, &metadata_to_headers(&self.metadata))
+    calc_content_type(&self.contents.contents, &metadata_to_headers(&self.contents.metadata))
   }
 
   /// Parse the JSON into an AsynchronousMessage interaction
@@ -449,10 +445,12 @@ impl AsynchronousMessage {
         key,
         description,
         provider_states,
-        metadata,
-        contents: body_from_json(&json, "contents", &as_headers),
-        matching_rules: matchingrules::matchers_from_json(&json, &None),
-        generators: generators::generators_from_json(&json),
+        contents: MessageContents {
+          metadata,
+          contents: body_from_json(&json, "contents", &as_headers),
+          matching_rules: matchingrules::matchers_from_json(&json, &None),
+          generators: generators::generators_from_json(&json)
+        },
         comments,
         pending: json.get("pending")
           .map(|value| value.as_bool().unwrap_or_default()).unwrap_or_default()
@@ -472,15 +470,15 @@ impl V4Interaction for AsynchronousMessage {
       "pending": self.pending
     });
 
-    if let Value::Object(body) = self.contents.to_v4_json() {
+    if let Value::Object(body) = self.contents.contents.to_v4_json() {
       let map = json.as_object_mut().unwrap();
       map.insert("contents".to_string(), Value::Object(body));
     }
 
-    if !self.metadata.is_empty() {
+    if !self.contents.metadata.is_empty() {
       let map = json.as_object_mut().unwrap();
       map.insert("metadata".to_string(), Value::Object(
-        self.metadata.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
+        self.contents.metadata.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
       ));
     }
 
@@ -490,14 +488,14 @@ impl V4Interaction for AsynchronousMessage {
         self.provider_states.iter().map(|p| p.to_json()).collect()));
     }
 
-    if !self.matching_rules.is_empty() {
+    if !self.contents.matching_rules.is_empty() {
       let map = json.as_object_mut().unwrap();
-      map.insert("matchingRules".to_string(), matchers_to_json(&self.matching_rules, &PactSpecification::V4));
+      map.insert("matchingRules".to_string(), matchers_to_json(&self.contents.matching_rules, &PactSpecification::V4));
     }
 
-    if !self.generators.is_empty() {
+    if !self.contents.generators.is_empty() {
       let map = json.as_object_mut().unwrap();
-      map.insert("generators".to_string(), generators_to_json(&self.generators, &PactSpecification::V4));
+      map.insert("generators".to_string(), generators_to_json(&self.contents.generators, &PactSpecification::V4));
     }
 
     if !self.comments.is_empty() {
@@ -560,10 +558,10 @@ impl Interaction for AsynchronousMessage {
       id: self.id.clone(),
       description: self.description.clone(),
       provider_states: self.provider_states.clone(),
-      contents: self.contents.clone(),
-      metadata: self.metadata.iter().map(|(k, v)| (k.clone(), json_to_string(v))).collect(),
-      matching_rules: self.matching_rules.rename("content", "body"),
-      generators: self.generators.clone()
+      contents: self.contents.contents.clone(),
+      metadata: self.contents.metadata.iter().map(|(k, v)| (k.clone(), json_to_string(v))).collect(),
+      matching_rules: self.contents.matching_rules.rename("content", "body"),
+      generators: self.contents.generators.clone()
     })
   }
 
@@ -580,7 +578,7 @@ impl Interaction for AsynchronousMessage {
   }
 
   fn contents(&self) -> OptionalBody {
-    self.contents.clone()
+    self.contents.contents.clone()
   }
 
   fn content_type(&self) -> Option<ContentType> {
@@ -620,7 +618,7 @@ impl Interaction for AsynchronousMessage {
   }
 
   fn matching_rules(&self) -> Option<MatchingRules> {
-    Some(self.matching_rules.clone())
+    Some(self.contents.matching_rules.clone())
   }
 }
 
@@ -631,10 +629,12 @@ impl Default for AsynchronousMessage {
       key: None,
       description: "Asynchronous/Message Interaction".to_string(),
       provider_states: vec![],
-      contents: OptionalBody::Missing,
-      metadata: Default::default(),
-      matching_rules: Default::default(),
-      generators: Default::default(),
+      contents: MessageContents {
+        contents: OptionalBody::Missing,
+        metadata: Default::default(),
+        matching_rules: Default::default(),
+        generators: Default::default()
+      },
       comments: Default::default(),
       pending: false
     }
@@ -644,10 +644,7 @@ impl Default for AsynchronousMessage {
 impl PartialEq for AsynchronousMessage {
   fn eq(&self, other: &Self) -> bool {
     self.description == other.description && self.provider_states == other.provider_states &&
-      self.contents == other.contents && self.metadata == other.metadata &&
-      self.matching_rules == other.matching_rules &&
-      self.generators == other.generators &&
-      self.pending == other.pending
+      self.contents == other.contents && self.pending == other.pending
   }
 }
 
@@ -655,13 +652,13 @@ impl Hash for AsynchronousMessage {
   fn hash<H: Hasher>(&self, state: &mut H) {
     self.description.hash(state);
     self.provider_states.hash(state);
-    self.contents.hash(state);
-    for (k, v) in &self.metadata {
+    self.contents.contents.hash(state);
+    for (k, v) in &self.contents.metadata {
       k.hash(state);
       hash_json(v, state);
     }
-    self.matching_rules.hash(state);
-    self.generators.hash(state);
+    self.contents.matching_rules.hash(state);
+    self.contents.generators.hash(state);
     self.pending.hash(state);
   }
 }
@@ -670,7 +667,7 @@ impl Display for AsynchronousMessage {
   fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
     let pending = if self.pending { " [PENDING]" } else { "" };
     write!(f, "V4 Asynchronous Message Interaction{} ( id: {:?}, description: \"{}\", provider_states: {:?}, contents: {}, metadata: {:?} )",
-           pending, self.id, self.description, self.provider_states, self.contents, self.metadata)
+           pending, self.id, self.description, self.provider_states, self.contents.contents, self.contents.metadata)
   }
 }
 
@@ -684,19 +681,19 @@ impl HttpPart for AsynchronousMessage {
   }
 
   fn body(&self) -> &OptionalBody {
-    &self.contents
+    &self.contents.contents
   }
 
   fn matching_rules(&self) -> &MatchingRules {
-    &self.matching_rules
+    &self.contents.matching_rules
   }
 
   fn generators(&self) -> &Generators {
-    &self.generators
+    &self.contents.generators
   }
 
   fn lookup_content_type(&self) -> Option<String> {
-    self.metadata.iter().find(|(k, _)| {
+    self.contents.metadata.iter().find(|(k, _)| {
       let key = k.to_ascii_lowercase();
       key == "contenttype" || key == "content-type"
     }).map(|(_, v)| v.as_str().unwrap_or_default().to_string())

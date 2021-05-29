@@ -17,6 +17,7 @@ use crate::models::v4::sync_message::SynchronousMessages;
 
 use super::*;
 use super::body_from_json;
+use crate::models::v4::message_parts::MessageContents;
 
 /// Struct that defines a message.
 #[derive(PartialEq, Debug, Clone, Eq, Deserialize, Serialize)]
@@ -110,12 +111,14 @@ impl Interaction for Message {
       key: None,
       description: self.description.clone(),
       provider_states: self.provider_states.clone(),
-      contents: self.contents.clone(),
-      metadata: self.metadata.iter()
-        .map(|(k, v)| (k.clone(), Value::String(v.clone())))
-        .collect(),
-      matching_rules: self.matching_rules.rename("body", "content"),
-      generators: self.generators.clone(),
+      contents: MessageContents {
+        contents: self.contents.clone(),
+        metadata: self.metadata.iter()
+          .map(|(k, v)| (k.clone(), Value::String(v.clone())))
+          .collect(),
+        matching_rules: self.matching_rules.rename("body", "content"),
+        generators: self.generators.clone()
+      },
       .. Default::default()
     })
   }
@@ -477,7 +480,7 @@ mod tests {
       .. Message::default()
     };
     let v4 = message.as_v4_async_message().unwrap();
-    expect!(v4.matching_rules).to(be_equal_to(
+    expect!(v4.contents.matching_rules).to(be_equal_to(
       matchingrules! { "content" => { "user_id" => [ MatchingRule::Regex("^[0-9]+$".into()) ] }}
     ));
   }

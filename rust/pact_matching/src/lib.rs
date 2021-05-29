@@ -1400,13 +1400,13 @@ pub fn match_message_metadata(
   debug!("Matching message metadata for '{}'", expected.description());
   let mut result = hashmap!{};
   let expected_metadata = if let Some(expected) = expected.as_v4_async_message() {
-    expected.metadata.clone()
+    expected.contents.metadata
   } else {
     expected.as_message().unwrap().metadata.iter()
       .map(|(k, v)| (k.clone(), Value::String(v.clone()))).collect()
   };
   let actual_metadata = if let Some(actual) = actual.as_v4_async_message() {
-    actual.metadata.clone()
+    actual.contents.metadata.clone()
   } else {
     actual.as_message().unwrap().metadata.iter()
       .map(|(k, v)| (k.clone(), Value::String(v.clone()))).collect()

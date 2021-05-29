@@ -19,6 +19,7 @@ use crate::models::v4::{AsynchronousMessage, from_json, interaction_from_json, S
 use crate::models::v4::http_parts::{HttpRequest, HttpResponse};
 use crate::models::v4::http_parts::body_from_json;
 use crate::models::v4::sync_message::SynchronousMessages;
+use crate::models::v4::message_parts::MessageContents;
 
 #[test]
 fn synchronous_http_request_from_json_defaults_to_get() {
@@ -1426,8 +1427,10 @@ fn body_from_json_returns_the_raw_body_if_there_is_no_encoded_value() {
 #[test]
 fn when_downgrading_message_pact_to_v3_rename_the_matching_rules_from_content_to_body() {
   let message = AsynchronousMessage {
-    contents: OptionalBody::Missing,
-    matching_rules: matchingrules! { "content" => { "user_id" => [ MatchingRule::Regex("^[0-9]+$".into()) ] } },
+    contents: MessageContents {
+      matching_rules: matchingrules! { "content" => { "user_id" => [ MatchingRule::Regex("^[0-9]+$".into()) ] } },
+      .. MessageContents::default()
+    },
     .. AsynchronousMessage::default()
   };
   let v3 = message.as_message().unwrap();
