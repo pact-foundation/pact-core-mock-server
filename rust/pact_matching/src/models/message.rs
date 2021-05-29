@@ -195,13 +195,22 @@ impl Message {
     /// Converts this interaction to a `Value` struct.
     /// note: spec version is preserved for compatibility with the RequestResponsePact interface
     /// and for future use
-    pub fn to_json(&self, _spec_version: &PactSpecification) -> Value {
+    pub fn to_json(&self, spec_version: &PactSpecification) -> Value {
       let mut value = json!({
           s!("description"): Value::String(self.description.clone()),
           s!("metadata"): self.metadata
       });
       {
         let map = value.as_object_mut().unwrap();
+
+        if self.matching_rules.is_not_empty() {
+            map.insert(s!("matchingRules"), matchingrules::matchers_to_json(
+            &self.matching_rules.clone(), spec_version));
+        }
+        if self.generators.is_not_empty() {
+          map.insert(s!("generators"), generators::generators_to_json(
+            &self.generators.clone(), spec_version));
+        }
 
         match self.contents {
           OptionalBody::Present(ref body, _) => if self.message_content_type().unwrap_or_default().is_json() {

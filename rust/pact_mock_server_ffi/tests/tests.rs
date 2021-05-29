@@ -234,7 +234,7 @@ fn message_consumer_feature_test() {
   message_with_metadata(message_handle.clone(), metadata_key.as_ptr(), metadata_val.as_ptr());
   let res: *const c_char = message_reify(message_handle.clone());
   let reified: &CStr = unsafe { CStr::from_ptr(res) };
-  expect!(reified.to_str().to_owned()).to(be_ok().value("{\"contents\":{\"id\":1},\"description\":\"a request to test the FFI interface\",\"metadata\":{\"contentType\":\"application/json\",\"message-queue-name\":\"message-queue-val\"},\"providerStates\":[{\"name\":\"a functioning FFI interface\"}]}".to_string()));
+  expect!(reified.to_str().to_owned()).to(be_ok().value("{\"contents\":{\"id\":1},\"description\":\"a request to test the FFI interface\",\"matchingRules\":{\"body\":{\"$.id\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"type\"}]}}},\"metadata\":{\"contentType\":\"application/json\",\"message-queue-name\":\"message-queue-val\"},\"providerStates\":[{\"name\":\"a functioning FFI interface\"}]}".to_string()));
   let res = write_message_pact_file(message_pact_handle.clone(), file_path.as_ptr(), true);
   expect!(res).to(be_eq(0));
 }
