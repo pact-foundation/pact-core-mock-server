@@ -20,6 +20,7 @@ use crate::models::matchingrules::MatchingRules;
 use crate::models::message::Message;
 use crate::models::provider_states::ProviderState;
 use crate::models::v4::{AsynchronousMessage, SynchronousHttp, V4Interaction, V4InteractionType};
+use crate::models::v4::message_parts::MessageContents;
 
 /// Synchronous interactions as a request message to a sequence of response messages
 #[derive(Debug, Clone, Eq)]
@@ -36,9 +37,9 @@ pub struct SynchronousMessages {
   /// Annotations and comments associated with this interaction
   pub comments: HashMap<String, Value>,
   /// Request message
-  pub request: AsynchronousMessage,
+  pub request: MessageContents,
   /// Response messages
-  pub response: Vec<AsynchronousMessage>,
+  pub response: Vec<MessageContents>,
 
   /// If this interaction is pending. Pending interactions will never fail the build if they fail
   pub pending: bool
@@ -90,9 +91,9 @@ impl SynchronousMessages {
         .as_array()
         .ok_or(anyhow!("JSON for SynchronousMessages does not contain a 'response' array"))?;
       let responses =
-        response.iter().enumerate()
-          .map(|(index, message)| AsynchronousMessage::from_json(message, index))
-          .collect::<Vec<anyhow::Result<AsynchronousMessage>>>();
+        response.iter()
+          .map(|message| MessageContents::from_json(message))
+          .collect::<Vec<anyhow::Result<MessageContents>>>();
       if responses.iter().any(|res| res.is_err()) {
         let errors = responses.iter()
           .filter(|res| res.is_err())
@@ -106,7 +107,7 @@ impl SynchronousMessages {
           description,
           provider_states,
           comments,
-          request: AsynchronousMessage::from_json(request, 0)?,
+          request: MessageContents::from_json(request)?,
           response: responses.iter().map(|res| res.as_ref().unwrap().clone()).collect(),
           pending: json.get("pending")
             .map(|value| value.as_bool().unwrap_or_default()).unwrap_or_default()

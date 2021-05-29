@@ -406,7 +406,7 @@ impl AsynchronousMessage {
   /// Returns the content type of the message by returning the content type associated with
   /// the body, or by looking it up in the message metadata
   pub fn message_content_type(&self) -> Option<ContentType> {
-    calc_content_type(&self.contents.contents, &metadata_to_headers(&self.contents.metadata))
+    self.contents.message_content_type()
   }
 
   /// Parse the JSON into an AsynchronousMessage interaction

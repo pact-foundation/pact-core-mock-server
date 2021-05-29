@@ -517,7 +517,8 @@ fn write_synchronous_message_pact_test() {
         key: None,
         description: "Test Interaction".into(),
         provider_states: vec![ProviderState { name: "Good state to be in".into(), params: hashmap!{} }],
-        response: vec![AsynchronousMessage::default()],
+        request: MessageContents { contents: "\"this is a message\"".into(), .. MessageContents::default() },
+        response: vec![MessageContents { contents: "\"this is a response\"".into(), .. MessageContents::default() }],
         .. Default::default()
       })
     ],
@@ -540,7 +541,7 @@ fn write_synchronous_message_pact_test() {
   "interactions": [
     {{
       "description": "Test Interaction",
-      "key": "dc5a1311f5aa578d",
+      "key": "b341297869a4287d",
       "pending": false,
       "providerStates": [
         {{
@@ -548,17 +549,19 @@ fn write_synchronous_message_pact_test() {
         }}
       ],
       "request": {{
-        "description": "Asynchronous/Message Interaction",
-        "key": "774c6898f6381239",
-        "pending": false,
-        "type": "Asynchronous/Messages"
+        "contents": {{
+          "content": "\"this is a message\"",
+          "contentType": "*/*",
+          "encoded": false
+        }}
       }},
       "response": [
         {{
-          "description": "Asynchronous/Message Interaction",
-          "key": "774c6898f6381239",
-          "pending": false,
-          "type": "Asynchronous/Messages"
+          "contents": {{
+            "content": "\"this is a response\"",
+            "contentType": "*/*",
+            "encoded": false
+          }}
         }}
       ],
       "type": "Synchronous/Messages"
