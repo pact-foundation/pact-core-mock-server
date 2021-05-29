@@ -341,7 +341,7 @@ fn compare_maps(path: &[&str], expected: &serde_json::Map<String, Value>, actual
     if context.matcher_is_defined(path) {
       debug!("compare_maps: Matcher is defined for path {}", spath);
       for matcher in context.select_best_matcher(path).unwrap().rules {
-        result = merge_result(result,matcher.compare_maps(path, &expected, &actual, &context, &mut |p, expected, actual| {
+        result = merge_result(result,compare_maps_with_matchingrule(&matcher, path, &expected, &actual, &context, &mut |p, expected, actual| {
           compare(&p, expected, actual, context)
         }));
       }
@@ -366,7 +366,7 @@ fn compare_lists(path: &[&str], expected: &Vec<Value>, actual: &Vec<Value>,
     log::debug!("compare_lists: matcher defined for path '{}'", spath);
     let mut result = Ok(());
     for matcher in context.select_best_matcher(path).unwrap().rules {
-      let values_result = matcher.compare_lists(path, expected, actual, context, &|p, expected, actual, context| {
+      let values_result = compare_lists_with_matchingrule(&matcher, path, expected, actual, context, &|p, expected, actual, context| {
         compare(p, expected, actual, context)
       });
       result = merge_result(result, values_result);

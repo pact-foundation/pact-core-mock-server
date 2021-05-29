@@ -432,124 +432,6 @@ impl MatchingRule {
     }
   }
 
-  /// Delegate to the matching rule defined at the given path to compare the key/value maps.
-  pub fn compare_maps<T: Display + Debug>(
-    &self,
-    path: &[&str],
-    expected: &HashMap<String, T>,
-    actual: &HashMap<String, T>,
-    context: &MatchingContext,
-    callback: &mut dyn FnMut(&Vec<&str>, &T, &T
-  ) -> Result<(), Vec<Mismatch>>) -> Result<(), Vec<Mismatch>> {
-    let mut result = Ok(());
-    if context.values_matcher_defined(&path) {
-      debug!("Values matcher is defined for path {:?}", path);
-      for (key, value) in actual.iter() {
-        let mut p = path.to_vec();
-        p.push(key);
-        if expected.contains_key(key) {
-          result = merge_result(result, callback(&p, &expected[key], value));
-        } else if !expected.is_empty() {
-          result = merge_result(result, callback(&p, &expected.values().next().unwrap(), value));
-        }
-      }
-    } else {
-      result = merge_result(result, context.match_keys(path, &expected, &actual));
-      for (key, value) in expected.iter() {
-        if actual.contains_key(key) {
-          let mut p = path.to_vec();
-          p.push(key);
-          result = merge_result(result, callback(&p, value, &actual[key]));
-        }
-      }
-    }
-    result
-  }
-
-  /// Compare the expected and actual lists using the matching rule's logic
-  pub fn compare_lists<T: Display + Debug + PartialEq + Clone + Sized>(
-    &self,
-    path: &[&str],
-    expected: &Vec<T>,
-    actual: &Vec<T>,
-    context: &MatchingContext,
-    callback: &dyn Fn(&[&str], &T, &T, &MatchingContext) -> Result<(), Vec<Mismatch>>
-  ) -> Result<(), Vec<Mismatch>> {
-    let mut result = Ok(());
-    match self {
-      MatchingRule::ArrayContains(variants) => {
-        let variants = if variants.is_empty() {
-          expected.iter().enumerate().map(|(index, _)| {
-            (index, MatchingRuleCategory::equality("body"), HashMap::default())
-          }).collect()
-        } else {
-          variants.clone()
-        };
-        for (index, rules, _) in variants {
-          match expected.get(index) {
-            Some(expected_value) => {
-              let context = context.clone_with(&rules);
-              let predicate: &dyn Fn(&(usize, &T)) -> bool = &|&(actual_index, value)| {
-                debug!("Comparing list item {} with value '{:?}' to '{:?}'", actual_index, value, expected_value);
-                callback(&vec!["$"], expected_value, value, &context).is_ok()
-              };
-              if actual.iter().enumerate().find(predicate).is_none() {
-                result = merge_result(result,Err(vec![ Mismatch::BodyMismatch {
-                  path: path.join("."),
-                  expected: Some(expected_value.to_string().into()),
-                  actual: Some(actual.for_mismatch().into()),
-                  mismatch: format!("Variant at index {} ({}) was not found in the actual list", index, expected_value)
-                } ]));
-              };
-            },
-            None => {
-              result = merge_result(result,Err(vec![ Mismatch::BodyMismatch {
-                path: path.join("."),
-                expected: Some(expected.for_mismatch().into()),
-                actual: Some(actual.for_mismatch().into()),
-                mismatch: format!("ArrayContains: variant {} is missing from the expected list, which has {} items",
-                                  index, expected.len())
-              } ]));
-            }
-          }
-        }
-      }
-      _ => {
-        if let Err(messages) = match_values(path, context, expected, actual) {
-          for message in messages {
-            result = merge_result(result,Err(vec![ Mismatch::BodyMismatch {
-              path: path.join("."),
-              expected: Some(expected.for_mismatch().into()),
-              actual: Some(actual.for_mismatch().into()),
-              mismatch: message.clone()
-            } ]));
-          }
-        }
-        let mut expected_list = Vec::new();
-        if let Some(expected_example) = expected.first() {
-          expected_list.resize(actual.len(), (*expected_example).clone());
-        }
-
-        for (index, value) in expected_list.iter().enumerate() {
-          let ps = index.to_string();
-          log::debug!("Comparing list item {} with value '{:?}' to '{:?}'", index, actual.get(index), value);
-          let mut p = path.to_vec();
-          p.push(ps.as_str());
-          if index < actual.len() {
-            result = merge_result(result, callback(&p, value, &actual[index], context));
-          } else if !context.matcher_is_defined(&p) {
-            result = merge_result(result,Err(vec![ Mismatch::BodyMismatch { path: path.join("."),
-              expected: Some(expected.for_mismatch().into()),
-              actual: Some(actual.for_mismatch().into()),
-              mismatch: format!("Expected {} but was missing", value) } ]))
-          }
-        }
-      }
-    }
-
-    result
-  }
-
   /// If there are any generators associated with this matching rule
   pub fn has_generators(&self) -> bool {
     match self {
@@ -830,6 +712,125 @@ fn hash_and_partial_eq_for_matching_rule() {
   expect!(&ac7).to_not(be_equal_to(&ac5));
   expect!(&ac7).to_not(be_equal_to(&ac6));
   expect!(&ac7).to_not(be_equal_to(&ac1));
+}
+
+
+/// Delegate to the matching rule defined at the given path to compare the key/value maps.
+pub fn compare_maps_with_matchingrule<T: Display + Debug>(
+  _rule: &MatchingRule,
+  path: &[&str],
+  expected: &HashMap<String, T>,
+  actual: &HashMap<String, T>,
+  context: &MatchingContext,
+  callback: &mut dyn FnMut(&Vec<&str>, &T, &T
+  ) -> Result<(), Vec<Mismatch>>) -> Result<(), Vec<Mismatch>> {
+  let mut result = Ok(());
+  if context.values_matcher_defined(&path) {
+    debug!("Values matcher is defined for path {:?}", path);
+    for (key, value) in actual.iter() {
+      let mut p = path.to_vec();
+      p.push(key);
+      if expected.contains_key(key) {
+        result = merge_result(result, callback(&p, &expected[key], value));
+      } else if !expected.is_empty() {
+        result = merge_result(result, callback(&p, &expected.values().next().unwrap(), value));
+      }
+    }
+  } else {
+    result = merge_result(result, context.match_keys(path, &expected, &actual));
+    for (key, value) in expected.iter() {
+      if actual.contains_key(key) {
+        let mut p = path.to_vec();
+        p.push(key);
+        result = merge_result(result, callback(&p, value, &actual[key]));
+      }
+    }
+  }
+  result
+}
+
+/// Compare the expected and actual lists using the matching rule's logic
+pub fn compare_lists_with_matchingrule<T: Display + Debug + PartialEq + Clone + Sized>(
+  rule: &MatchingRule,
+  path: &[&str],
+  expected: &Vec<T>,
+  actual: &Vec<T>,
+  context: &MatchingContext,
+  callback: &dyn Fn(&[&str], &T, &T, &MatchingContext) -> Result<(), Vec<Mismatch>>
+) -> Result<(), Vec<Mismatch>> {
+  let mut result = Ok(());
+  match rule {
+    MatchingRule::ArrayContains(variants) => {
+      let variants = if variants.is_empty() {
+        expected.iter().enumerate().map(|(index, _)| {
+          (index, MatchingRuleCategory::equality("body"), HashMap::default())
+        }).collect()
+      } else {
+        variants.clone()
+      };
+      for (index, rules, _) in variants {
+        match expected.get(index) {
+          Some(expected_value) => {
+            let context = context.clone_with(&rules);
+            let predicate: &dyn Fn(&(usize, &T)) -> bool = &|&(actual_index, value)| {
+              debug!("Comparing list item {} with value '{:?}' to '{:?}'", actual_index, value, expected_value);
+              callback(&vec!["$"], expected_value, value, &context).is_ok()
+            };
+            if actual.iter().enumerate().find(predicate).is_none() {
+              result = merge_result(result,Err(vec![ Mismatch::BodyMismatch {
+                path: path.join("."),
+                expected: Some(expected_value.to_string().into()),
+                actual: Some(actual.for_mismatch().into()),
+                mismatch: format!("Variant at index {} ({}) was not found in the actual list", index, expected_value)
+              } ]));
+            };
+          },
+          None => {
+            result = merge_result(result,Err(vec![ Mismatch::BodyMismatch {
+              path: path.join("."),
+              expected: Some(expected.for_mismatch().into()),
+              actual: Some(actual.for_mismatch().into()),
+              mismatch: format!("ArrayContains: variant {} is missing from the expected list, which has {} items",
+                                index, expected.len())
+            } ]));
+          }
+        }
+      }
+    }
+    _ => {
+      if let Err(messages) = match_values(path, context, expected, actual) {
+        for message in messages {
+          result = merge_result(result,Err(vec![ Mismatch::BodyMismatch {
+            path: path.join("."),
+            expected: Some(expected.for_mismatch().into()),
+            actual: Some(actual.for_mismatch().into()),
+            mismatch: message.clone()
+          } ]));
+        }
+      }
+      let mut expected_list = Vec::new();
+      if let Some(expected_example) = expected.first() {
+        expected_list.resize(actual.len(), (*expected_example).clone());
+      }
+
+      for (index, value) in expected_list.iter().enumerate() {
+        let ps = index.to_string();
+        debug!("Comparing list item {} with value '{:?}' to '{:?}'", index, actual.get(index), value);
+        let mut p = path.to_vec();
+        p.push(ps.as_str());
+        if index < actual.len() {
+          result = merge_result(result, callback(&p, value, &actual[index], context));
+        } else if !context.matcher_is_defined(&p) {
+          result = merge_result(result,Err(vec![ Mismatch::BodyMismatch { path: path.join("."),
+            expected: Some(expected.for_mismatch().into()),
+            actual: Some(actual.for_mismatch().into()),
+            mismatch: format!("Expected {} but was missing", value) } ]))
+        }
+      }
+    }
+  }
+
+  result
 }
 
 /// Enumeration to define how to combine rules
