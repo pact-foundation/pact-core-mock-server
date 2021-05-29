@@ -8,10 +8,10 @@ use async_trait::async_trait;
 use maplit::*;
 use serde_json::{json, Value};
 
-use pact_matching::models::provider_states::ProviderState;
 use pact_matching::models::Request;
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::JSON;
+use pact_models::provider_states::ProviderState;
 
 use crate::provider_client::{make_state_change_request, provider_client_error_to_string};
 

@@ -22,7 +22,7 @@ use std::ops::Drop;
 
 // Necessary to make 'cbindgen' generate an opaque struct on the C side.
 pub use pact_matching::models::message::Message;
-pub use pact_matching::models::provider_states::ProviderState;
+pub use pact_models::provider_states::ProviderState;
 
 /*===============================================================================================
  * # Message

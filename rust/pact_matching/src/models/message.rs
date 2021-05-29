@@ -8,10 +8,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use pact_models::bodies::OptionalBody;
+use pact_models::provider_states::ProviderState;
 
 use crate::models::generators::Generators;
 use crate::models::matchingrules::MatchingRules;
-use crate::models::provider_states::ProviderState;
 use crate::models::v4::AsynchronousMessage;
 use crate::models::v4::sync_message::SynchronousMessages;
 

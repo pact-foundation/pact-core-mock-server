@@ -27,18 +27,18 @@ use maplit::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use pact_models::{Consumer, PactSpecification, Provider, DifferenceType};
-use pact_models::content_types::*;
+use pact_models::{Consumer, DifferenceType, PactSpecification, Provider};
 use pact_models::bodies::OptionalBody;
+use pact_models::content_types::*;
+use pact_models::provider_states::ProviderState;
 
 use crate::models::file_utils::{with_read_lock, with_read_lock_for_open_file, with_write_lock};
 use crate::models::generators::{Generator, GeneratorCategory};
 use crate::models::http_utils::HttpAuth;
 use crate::models::json_utils::json_to_string;
-use crate::models::matchingrules::{MatchingRules, Category};
+use crate::models::matchingrules::{Category, MatchingRules};
 pub use crate::models::message::Message;
 pub use crate::models::message_pact::MessagePact;
-use crate::models::provider_states::ProviderState;
 use crate::models::v4::{AsynchronousMessage, interaction_from_json, SynchronousHttp, V4Interaction, V4Pact};
 use crate::models::v4::http_parts::{HttpRequest, HttpResponse};
 use crate::models::v4::sync_message::SynchronousMessages;
@@ -711,8 +711,6 @@ impl Default for Response {
   }
 }
 
-pub mod provider_states;
-
 /// Struct that defined an interaction conflict
 #[derive(Debug, Clone)]
 pub struct PactConflict {
@@ -747,7 +745,7 @@ pub trait Interaction: Debug {
 
   /// Optional provider states for the interaction.
   /// See https://docs.pact.io/getting_started/provider_states for more info on provider states.
-  fn provider_states(&self) -> Vec<provider_states::ProviderState>;
+  fn provider_states(&self) -> Vec<ProviderState>;
 
   /// Body of the response or message
   #[deprecated(
@@ -839,7 +837,7 @@ pub struct RequestResponseInteraction {
     pub description: String,
     /// Optional provider states for the interaction.
     /// See https://docs.pact.io/getting_started/provider_states for more info on provider states.
-    pub provider_states: Vec<provider_states::ProviderState>,
+    pub provider_states: Vec<ProviderState>,
     /// Request of the interaction
     pub request: Request,
     /// Response of the interaction
@@ -943,7 +941,7 @@ impl RequestResponseInteraction {
             },
             None => format!("Interaction {}", index)
         };
-        let provider_states = provider_states::ProviderState::from_json(pact_json);
+        let provider_states = ProviderState::from_json(pact_json);
         let request = match pact_json.get("request") {
             Some(v) => Request::from_json(v, spec_version),
             None => Request::default()

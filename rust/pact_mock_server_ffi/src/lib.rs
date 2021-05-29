@@ -43,20 +43,14 @@
 
 #![warn(missing_docs)]
 
-use std::collections::BTreeMap;
-use pact_models::content_types::ContentType;
-use pact_models::bodies::OptionalBody::{Present, Null};
-use pact_matching::models::message::Message;
-use pact_matching::models::matchingrules::MatchingRules;
-use pact_matching::models::generators::Generators;
-use crate::bodies::process_object;
 use std::any::Any;
+use std::collections::BTreeMap;
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::panic::catch_unwind;
+use std::path::PathBuf;
 use std::ptr::null_mut;
 use std::str;
-use std::path::PathBuf;
 
 use bytes::Bytes;
 use chrono::Local;
@@ -70,16 +64,22 @@ use rand::prelude::*;
 use serde_json::json;
 use uuid::Uuid;
 
-use pact_matching::models::{HttpPart, RequestResponseInteraction, Pact};
+use pact_matching::models::{HttpPart, Pact, RequestResponseInteraction};
+use pact_matching::models::generators::Generators;
 use pact_matching::models::matchingrules::{MatchingRule, RuleLogic};
-use pact_matching::models::provider_states::ProviderState;
+use pact_matching::models::matchingrules::MatchingRules;
+use pact_matching::models::message::Message;
 use pact_matching::time_utils::{parse_pattern, to_chrono_pattern};
 use pact_mock_server::{MANAGER, MockServerError, tls::TlsConfigBuilder, WritePactFileErr};
 use pact_mock_server::server_manager::ServerManager;
+use pact_models::bodies::OptionalBody::{Null, Present};
 use pact_models::bodies::OptionalBody;
+use pact_models::content_types::ContentType;
 use pact_models::PactSpecification;
+use pact_models::provider_states::ProviderState;
 
 use crate::bodies::{empty_multipart_body, file_as_multipart_body, MultipartBody, process_json, request_multipart, response_multipart};
+use crate::bodies::process_object;
 use crate::handles::InteractionPart;
 
 pub mod handles;

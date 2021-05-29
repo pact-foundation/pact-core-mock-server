@@ -1,11 +1,13 @@
 //! Represents the state of providers in a message.
 
-use crate::util::*;
-use crate::{as_mut, as_ref, ffi_fn};
 use anyhow::anyhow;
 use libc::c_char;
-use pact_matching::models::provider_states::ProviderState;
 use serde_json::Value as JsonValue;
+
+use pact_models::provider_states::ProviderState;
+
+use crate::{as_mut, as_ref, ffi_fn};
+use crate::util::*;
 
 ffi_fn! {
     /// Get the name of the provider state as a string, which needs to be deleted with `string_delete`.

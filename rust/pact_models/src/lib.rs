@@ -11,6 +11,7 @@ use serde_json::{json, Value};
 pub mod content_types;
 pub mod bodies;
 pub mod v4;
+pub mod provider_states;
 
 /// Enum defining the pact specification versions supported by the library
 #[cfg_attr(feature = "ffi", repr(C))]

@@ -21,6 +21,7 @@ use serde_json::{json, Value};
 use pact_models::{Consumer, PactSpecification, Provider};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
+use pact_models::provider_states::{self, ProviderState};
 use pact_models::v4::V4InteractionType;
 
 use crate::models::{
@@ -31,7 +32,6 @@ use crate::models::{
   matchingrules,
   Pact,
   PACT_RUST_VERSION,
-  provider_states,
   ReadWritePact,
   RequestResponseInteraction,
   RequestResponsePact
@@ -42,10 +42,9 @@ use crate::models::json_utils::{hash_json, json_to_string};
 use crate::models::matchingrules::{matchers_to_json, MatchingRules};
 use crate::models::message::Message;
 use crate::models::message_pact::MessagePact;
-use crate::models::provider_states::ProviderState;
 use crate::models::v4::http_parts::{body_from_json, HttpRequest, HttpResponse};
-use crate::models::v4::sync_message::SynchronousMessages;
 use crate::models::v4::message_parts::MessageContents;
+use crate::models::v4::sync_message::SynchronousMessages;
 
 pub mod sync_message;
 pub mod http_parts;

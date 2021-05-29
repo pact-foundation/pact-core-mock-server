@@ -3,13 +3,13 @@
 //! and V4 Pact specification (https://github.com/pact-foundation/pact-specification/tree/version-4).
 #![warn(missing_docs)]
 
-use std::time::Duration;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::fmt;
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
 
 use ansi_term::*;
 use ansi_term::Colour::*;
@@ -28,7 +28,8 @@ use pact_matching::models::*;
 use pact_matching::models::generators::GeneratorTestMode;
 use pact_matching::models::http_utils::HttpAuth;
 use pact_matching::models::json_utils::json_to_string;
-use pact_matching::models::provider_states::*;
+use pact_matching::models::v4::V4Interaction;
+use pact_models::provider_states::*;
 
 use crate::callback_executors::{ProviderStateError, ProviderStateExecutor};
 use crate::messages::{display_message_result, verify_message_from_provider};
@@ -36,7 +37,6 @@ use crate::pact_broker::{Link, PactVerificationContext, publish_verification_res
 pub use crate::pact_broker::{ConsumerVersionSelector, PactsForVerificationRequest};
 use crate::provider_client::{make_provider_request, provider_client_error_to_string};
 use crate::request_response::display_request_response_result;
-use pact_matching::models::v4::V4Interaction;
 
 mod provider_client;
 pub mod pact_broker;

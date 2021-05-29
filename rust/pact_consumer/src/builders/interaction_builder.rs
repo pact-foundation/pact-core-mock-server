@@ -1,9 +1,9 @@
 use pact_matching::models::*;
-use pact_matching::models::provider_states::ProviderState;
+use pact_matching::models::v4::SynchronousHttp;
+use pact_models::provider_states::ProviderState;
 
 use super::request_builder::RequestBuilder;
 use super::response_builder::ResponseBuilder;
-use pact_matching::models::v4::SynchronousHttp;
 
 /// Builder for `Interaction` objects. Normally created via
 /// `PactBuilder::interaction`.
