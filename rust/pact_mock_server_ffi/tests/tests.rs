@@ -72,7 +72,7 @@ fn create_header_with_multiple_values() {
   let value_2 = CString::new("application/json").unwrap();
   with_header(interaction.clone(), InteractionPart::Request, name.as_ptr(), 1, value_2.as_ptr());
   with_header(interaction.clone(), InteractionPart::Request, name.as_ptr(), 0, value_1.as_ptr());
-  interaction.with_interaction(&|_, i| {
+  interaction.with_interaction(&|_, _, i| {
     expect!(i.request.headers.as_ref()).to(be_some().value(&hashmap!{
       "accept".to_string() => vec!["application/hal+json".to_string(), "application/json".to_string()]
     }));
@@ -93,7 +93,7 @@ fn create_query_parameter_with_multiple_values() {
   with_query_parameter(interaction.clone(), name.as_ptr(), 2, value_3.as_ptr());
   with_query_parameter(interaction.clone(), name.as_ptr(), 0, value_1.as_ptr());
   with_query_parameter(interaction.clone(), name.as_ptr(), 1, value_2.as_ptr());
-  interaction.with_interaction(&|_, i| {
+  interaction.with_interaction(&|_, _, i| {
     expect!(i.request.query.as_ref()).to(be_some().value(&hashmap!{
       "q".to_string() => vec!["1".to_string(), "2".to_string(), "3".to_string()]
     }));
@@ -113,7 +113,7 @@ fn create_multipart_file() {
 
   with_multipart_file(interaction.clone(), InteractionPart::Request, content_type.as_ptr(), file.as_ptr(), part_name.as_ptr());
 
-  interaction.with_interaction(&|_, i| {
+  interaction.with_interaction(&|_, _, i| {
     let boundary = match &i.request.headers {
       Some(hashmap) => {
         hashmap.get("Content-Type")
@@ -181,6 +181,9 @@ fn http_consumer_feature_test() {
   let port = create_mock_server_for_pact(pact_handle.clone(), address.as_ptr(), false);
 
   expect!(port).to(be_greater_than(0));
+
+  // Mock server has started, we can't now modify the pact
+  expect!(upon_receiving(interaction.clone(), description.as_ptr())).to(be_false());
 
   let _ = catch_unwind(|| {
     let client = Client::default();

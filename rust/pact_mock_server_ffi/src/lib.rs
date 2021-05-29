@@ -274,11 +274,14 @@ pub extern fn create_mock_server_for_pact(pact: handles::PactHandle, addr_str: *
       pact.with_pact(&move |_, inner| {
         let server_result = match &tls_config {
           Some(tls_config) => pact_mock_server::start_tls_mock_server(
-            Uuid::new_v4().to_string(), inner.boxed(), addr, tls_config),
-          None => pact_mock_server::start_mock_server(Uuid::new_v4().to_string(), inner.boxed(), addr)
+            Uuid::new_v4().to_string(), inner.pact.boxed(), addr, tls_config),
+          None => pact_mock_server::start_mock_server(Uuid::new_v4().to_string(), inner.pact.boxed(), addr)
         };
         match server_result {
-          Ok(ms_port) => ms_port,
+          Ok(ms_port) => {
+            inner.mock_server_started = true;
+            ms_port
+          },
           Err(err) => {
             error!("Failed to start mock server - {}", err);
             -3
@@ -313,7 +316,7 @@ pub extern fn mock_server_matched(mock_server_port: i32) -> bool {
   match result {
     Ok(val) => val,
     Err(cause) => {
-      log::error!("Caught a general panic: {:?}", cause);
+      error!("Caught a general panic: {:?}", cause);
       false
     }
   }
@@ -449,50 +452,59 @@ pub extern fn new_interaction(pact: handles::PactHandle, description: *const c_c
         description: description.to_string(),
         ..RequestResponseInteraction::default()
       };
-      inner.interactions.push(interaction);
-      handles::InteractionHandle::new(pact.clone(), inner.interactions.len())
+      inner.pact.interactions.push(interaction);
+      handles::InteractionHandle::new(pact.clone(), inner.pact.interactions.len())
     }).unwrap_or_else(|| handles::InteractionHandle::new(pact.clone(), 0))
   } else {
     handles::InteractionHandle::new(pact.clone(), 0)
   }
 }
 
-/// Sets the description for the Interaction.
+/// Sets the description for the Interaction. Returns false if the interaction or Pact can't be
+/// modified (i.e. the mock server for it has already started)
 ///
 /// * `description` - The interaction description. It needs to be unique for each interaction.
 #[no_mangle]
-pub extern fn upon_receiving(interaction: handles::InteractionHandle, description: *const c_char) {
+pub extern fn upon_receiving(interaction: handles::InteractionHandle, description: *const c_char) -> bool {
   if let Some(description) = convert_cstr("description", description) {
-    interaction.with_interaction(&|_, inner| {
+    interaction.with_interaction(&|_, mock_server_started, inner| {
       inner.description = description.to_string();
-    });
+      !mock_server_started
+    }).unwrap_or(false)
+  } else {
+    false
   }
 }
 
-/// Adds a provider state to the Interaction.
+/// Adds a provider state to the Interaction. Returns false if the interaction or Pact can't be
+/// modified (i.e. the mock server for it has already started)
 ///
 /// * `description` - The provider state description. It needs to be unique.
 #[no_mangle]
-pub extern fn given(interaction: handles::InteractionHandle, description: *const c_char) {
+pub extern fn given(interaction: handles::InteractionHandle, description: *const c_char) -> bool {
   if let Some(description) = convert_cstr("description", description) {
-    interaction.with_interaction(&|_, inner| {
+    interaction.with_interaction(&|_, mock_server_started, inner| {
       inner.provider_states.push(ProviderState::default(&description.to_string()));
-    });
+      !mock_server_started
+    }).unwrap_or(false)
+  } else {
+    false
   }
 }
 
-/// Adds a provider state to the Interaction with a parameter key and value.
+/// Adds a provider state to the Interaction with a parameter key and value. Returns false if the interaction or Pact can't be
+/// modified (i.e. the mock server for it has already started)
 ///
 /// * `description` - The provider state description. It needs to be unique.
 /// * `name` - Parameter name.
 /// * `value` - Parameter value.
 #[no_mangle]
 pub extern fn given_with_param(interaction: handles::InteractionHandle, description: *const c_char,
-                               name: *const c_char, value: *const c_char) {
+                               name: *const c_char, value: *const c_char) -> bool {
   if let Some(description) = convert_cstr("description", description) {
     if let Some(name) = convert_cstr("name", name) {
       let value = convert_cstr("value", value).unwrap_or_default();
-      interaction.with_interaction(&|_, inner| {
+      interaction.with_interaction(&|_, mock_server_started, inner| {
         let value = match serde_json::from_str(value) {
           Ok(json) => json,
           Err(_) => json!(value)
@@ -506,38 +518,54 @@ pub extern fn given_with_param(interaction: handles::InteractionHandle, descript
             params: hashmap!{ name.to_string() => value }
           })
         };
-      });
+        !mock_server_started
+      }).unwrap_or(false)
+    } else {
+      false
     }
+  } else {
+    false
   }
 }
 
-/// Configures the request for the Interaction.
+/// Configures the request for the Interaction. Returns false if the interaction or Pact can't be
+/// modified (i.e. the mock server for it has already started)
 ///
 /// * `method` - The request method. Defaults to GET.
 /// * `path` - The request path. Defaults to `/`.
 #[no_mangle]
-pub extern fn with_request(interaction: handles::InteractionHandle, method: *const c_char, path: *const c_char) {
+pub extern fn with_request(
+  interaction: handles::InteractionHandle,
+  method: *const c_char,
+  path: *const c_char
+) -> bool {
   let method = convert_cstr("method", method).unwrap_or_else(|| "GET");
   let path = convert_cstr("path", path).unwrap_or_else(|| "/");
 
-  interaction.with_interaction(&|_, inner| {
+  interaction.with_interaction(&|_, mock_server_started, inner| {
     let path = from_integration_json(&mut inner.request.matching_rules, &mut inner.request.generators, &path.to_string(), &"".to_string(), "path");
     inner.request.method = method.to_string();
     inner.request.path = path.to_string();
-  });
+    !mock_server_started
+  }).unwrap_or(false)
 }
 
-/// Configures a query parameter for the Interaction.
+/// Configures a query parameter for the Interaction. Returns false if the interaction or Pact can't be
+/// modified (i.e. the mock server for it has already started)
 ///
 /// * `name` - the query parameter name.
 /// * `value` - the query parameter value.
 /// * `index` - the index of the value (starts at 0). You can use this to create a query parameter with multiple values
 #[no_mangle]
-pub extern fn with_query_parameter(interaction: handles::InteractionHandle,
-                                   name: *const c_char, index: size_t, value: *const c_char) {
+pub extern fn with_query_parameter(
+  interaction: handles::InteractionHandle,
+  name: *const c_char,
+  index: size_t,
+  value: *const c_char
+) -> bool {
   if let Some(name) = convert_cstr("name", name) {
     let value = convert_cstr("value", value).unwrap_or_default();
-    interaction.with_interaction(&|_, inner| {
+    interaction.with_interaction(&|_, mock_server_started, inner| {
       inner.request.query = inner.request.query.clone().map(|mut q| {
         let value = from_integration_json(&mut inner.request.matching_rules, &mut inner.request.generators, &value.to_string(), &format!("{}[{}]", &name, index).to_string(), "query");
         if q.contains_key(name) {
@@ -560,9 +588,11 @@ pub extern fn with_query_parameter(interaction: handles::InteractionHandle,
         values[index] = value.to_string();
         Some(hashmap!{ name.to_string() => values })
       });
-    });
+      !mock_server_started
+    }).unwrap_or(false)
   } else {
     warn!("Ignoring query parameter with empty or null name");
+    false
   }
 }
 
@@ -586,25 +616,33 @@ fn from_integration_json(rules: &mut MatchingRules, generators: &mut Generators,
   }
 }
 
-/// Sets the specification version for a given Pact model
+/// Sets the specification version for a given Pact model. Returns false if the interaction or Pact can't be
+/// modified (i.e. the mock server for it has already started)
 ///
 /// * `pact` - Handle to a Pact model
 /// * `version` - the spec version to use
 #[no_mangle]
-pub extern fn with_specification(pact: handles::PactHandle, version: PactSpecification) {
+pub extern fn with_specification(pact: handles::PactHandle, version: PactSpecification) -> bool {
   pact.with_pact(&|_, inner| {
-    inner.specification_version = version.clone();
-  });
+    inner.pact.specification_version = version.clone();
+    !inner.mock_server_started
+  }).unwrap_or(false)
 }
 
 /// Sets the additional metadata on the Pact file. Common uses are to add the client library details such as the name and version
+/// Returns false if the interaction or Pact can't be modified (i.e. the mock server for it has already started)
 ///
 /// * `pact` - Handle to a Pact model
 /// * `namespace` - the top level metadat key to set any key values on
 /// * `name` - the key to set
 /// * `value` - the value to set
 #[no_mangle]
-pub extern fn with_pact_metadata(pact: handles::PactHandle, namespace: *const c_char, name: *const c_char, value: *const c_char) {
+pub extern fn with_pact_metadata(
+  pact: handles::PactHandle,
+  namespace: *const c_char,
+  name: *const c_char,
+  value: *const c_char
+) -> bool {
   pact.with_pact(&|_, inner| {
     let namespace = convert_cstr("namespace", namespace).unwrap_or_default();
     let name = convert_cstr("name", name).unwrap_or_default();
@@ -613,25 +651,32 @@ pub extern fn with_pact_metadata(pact: handles::PactHandle, namespace: *const c_
     if namespace != "" {
       let mut child = BTreeMap::new();
       child.insert(name.to_string(), value.to_string());
-      inner.metadata.insert(namespace.to_string(), child);
+      inner.pact.metadata.insert(namespace.to_string(), child);
     } else {
       log::warn!("no namespace provided for metadata {:?} => {:?}. Ignoring", name, value);
     }
-  });
+    !inner.mock_server_started
+  }).unwrap_or(false)
 }
 
-/// Configures a header for the Interaction.
+/// Configures a header for the Interaction. Returns false if the interaction or Pact can't be
+/// modified (i.e. the mock server for it has already started)
 ///
 /// * `part` - The part of the interaction to add the header to (Request or Response).
 /// * `name` - the header name.
 /// * `value` - the header value.
 /// * `index` - the index of the value (starts at 0). You can use this to create a header with multiple values
 #[no_mangle]
-pub extern fn with_header(interaction: handles::InteractionHandle, part: InteractionPart,
-                          name: *const c_char, index: size_t, value: *const c_char) {
+pub extern fn with_header(
+  interaction: handles::InteractionHandle,
+  part: InteractionPart,
+  name: *const c_char,
+  index: size_t,
+  value: *const c_char
+) -> bool {
   if let Some(name) = convert_cstr("name", name) {
     let value = convert_cstr("value", value).unwrap_or_default();
-    interaction.with_interaction(&|_, inner| {
+    interaction.with_interaction(&|_, mock_server_started, inner| {
       let headers = match part {
         InteractionPart::Request => inner.request.headers.clone(),
         InteractionPart::Response => inner.response.headers.clone()
@@ -666,35 +711,44 @@ pub extern fn with_header(interaction: handles::InteractionHandle, part: Interac
         InteractionPart::Request => inner.request.headers = updated_headers,
         InteractionPart::Response => inner.response.headers = updated_headers
       };
-    });
+      !mock_server_started
+    }).unwrap_or(false)
   } else {
     warn!("Ignoring header with empty or null name");
+    false
   }
 }
 
-/// Configures the response for the Interaction.
+/// Configures the response for the Interaction. Returns false if the interaction or Pact can't be
+/// modified (i.e. the mock server for it has already started)
 ///
 /// * `status` - the response status. Defaults to 200.
 #[no_mangle]
-pub extern fn response_status(interaction: handles::InteractionHandle, status: c_ushort) {
-  interaction.with_interaction(&|_, inner| {
+pub extern fn response_status(interaction: handles::InteractionHandle, status: c_ushort) -> bool {
+  interaction.with_interaction(&|_, mock_server_started, inner| {
     inner.response.status = status;
-  });
+    !mock_server_started
+  }).unwrap_or(false)
 }
 
-/// Adds the body for the interaction.
+/// Adds the body for the interaction. Returns false if the interaction or Pact can't be
+/// modified (i.e. the mock server for it has already started)
 ///
 /// * `part` - The part of the interaction to add the body to (Request or Response).
 /// * `content_type` - The content type of the body. Defaults to `text/plain`. Will be ignored if a content type
 ///   header is already set.
 /// * `body` - The body contents. For JSON payloads, matching rules can be embedded in the body.
 #[no_mangle]
-pub extern fn with_body(interaction: handles::InteractionHandle, part: InteractionPart,
-                        content_type: *const c_char, body: *const c_char) {
+pub extern fn with_body(
+  interaction: handles::InteractionHandle,
+  part: InteractionPart,
+  content_type: *const c_char,
+  body: *const c_char
+) -> bool {
   let content_type = convert_cstr("content_type", content_type).unwrap_or_else(|| "text/plain");
   let body = convert_cstr("body", body).unwrap_or_default();
   let content_type_header = "Content-Type".to_string();
-  interaction.with_interaction(&|_, inner| {
+  interaction.with_interaction(&|_, mock_server_started, inner| {
     match part {
       InteractionPart::Request => {
         if !inner.request.has_header(&content_type_header) {
@@ -735,7 +789,8 @@ pub extern fn with_body(interaction: handles::InteractionHandle, part: Interacti
         inner.response.body = body;
       }
     };
-  });
+    !mock_server_started
+  }).unwrap_or(false)
 }
 
 fn error_message(err: Box<dyn Any>, method: &str) -> String {
@@ -904,19 +959,25 @@ pub unsafe extern fn free_string(s: *mut c_char) {
 }
 
 /// Adds a binary file as the body with the expected content type and example contents. Will use
-/// a mime type matcher to match the body.
+/// a mime type matcher to match the body. Returns false if the interaction or Pact can't be
+/// modified (i.e. the mock server for it has already started)
 ///
 /// * `interaction` - Interaction handle to set the body for.
 /// * `part` - Request or response part.
 /// * `content_type` - Expected content type.
 /// * `body` - example body contents in bytes
 #[no_mangle]
-pub extern fn with_binary_file(interaction: handles::InteractionHandle, part: InteractionPart,
-                               content_type: *const c_char, body: *const c_char , size: size_t) {
+pub extern fn with_binary_file(
+  interaction: handles::InteractionHandle,
+  part: InteractionPart,
+  content_type: *const c_char,
+  body: *const c_char ,
+  size: size_t
+) -> bool {
   let content_type_header = "Content-Type".to_string();
   match convert_cstr("content_type", content_type) {
     Some(content_type) => {
-      interaction.with_interaction(&|_, inner| {
+      interaction.with_interaction(&|_, mock_server_started, inner| {
         match part {
           InteractionPart::Request => {
             inner.request.body = convert_ptr_to_body(body, size);
@@ -947,14 +1008,19 @@ pub extern fn with_binary_file(interaction: handles::InteractionHandle, part: In
             inner.response.matching_rules.add_category("body").add_rule("$", MatchingRule::ContentType(content_type.into()), &RuleLogic::And);
           }
         };
-      });
+        !mock_server_started
+      }).unwrap_or(false)
     },
-    None => warn!("with_binary_file: Content type value is not valid (NULL or non-UTF-8)")
+    None => {
+      warn!("with_binary_file: Content type value is not valid (NULL or non-UTF-8)");
+      false
+    }
   }
 }
 
 /// Adds a binary file as the body as a MIME multipart with the expected content type and example contents. Will use
-/// a mime type matcher to match the body.
+/// a mime type matcher to match the body. Returns an error if the interaction or Pact can't be
+/// modified (i.e. the mock server for it has already started)
 ///
 /// * `interaction` - Interaction handle to set the body for.
 /// * `part` - Request or response part.
@@ -972,14 +1038,18 @@ pub extern fn with_multipart_file(
   let part_name = convert_cstr("part_name", part_name).unwrap_or_else(|| "file");
   match convert_cstr("content_type", content_type) {
     Some(content_type) => {
-      match interaction.with_interaction(&|_, inner| {
+      match interaction.with_interaction(&|_, mock_server_started, inner| {
         match convert_ptr_to_mime_part_body(file, part_name) {
           Ok(body) => {
             match part {
               InteractionPart::Request => request_multipart(&mut inner.request, &body.boundary, body.body, &content_type, part_name),
               InteractionPart::Response => response_multipart(&mut inner.response, &body.boundary, body.body, &content_type, part_name)
             };
-            Ok(())
+            if mock_server_started {
+              Err(format!("with_multipart_file: This Pact can not be modified, as the mock server has already started"))
+            } else {
+              Ok(())
+            }
           },
           Err(err) => Err(format!("with_multipart_file: failed to generate multipart body - {}", err))
         }
