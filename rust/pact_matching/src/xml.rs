@@ -89,8 +89,8 @@ fn name(name: QName) -> String {
   }
 }
 
-impl<'a> Matches<Element<'a>> for Element<'a> {
-    fn matches(&self, actual: &Element, matcher: &MatchingRule) -> anyhow::Result<()> {
+impl<'a> Matches<&'a Element<'a>> for &'a Element<'a> {
+    fn matches_with(&self, actual: &Element, matcher: &MatchingRule) -> anyhow::Result<()> {
         let result = match *matcher {
           MatchingRule::Regex(ref regex) => {
             match Regex::new(regex) {
@@ -157,7 +157,7 @@ fn compare_element(path: &Vec<&str>, expected: &Element, actual: &Element,
     log::debug!("calling match_values {:?} on {:?}", path, actual);
     match_values(&path, context, expected, actual)
   } else {
-    expected.matches(actual, &MatchingRule::Equality).map_err(|err| vec![err.to_string()])
+    expected.matches_with(actual, &MatchingRule::Equality).map_err(|err| vec![err.to_string()])
   };
   log::debug!("Comparing '{:?}' to '{:?}' at path '{}' -> {:?}", expected, actual,
     path_to_string(&path), matcher_result);
@@ -324,20 +324,20 @@ fn compare_children(path: &Vec<&str>, expected: &Element, actual: &Element,
 
 fn compare_text(path: &Vec<&str>, expected: &Element, actual: &Element,
     mismatches: &mut Vec<super::Mismatch>, context: &MatchingContext) {
-    let expected_text = s!(expected.children().iter().cloned()
+    let expected_text = expected.children().iter().cloned()
         .filter(|child| child.text().is_some())
-        .map(|child| child.text().unwrap().text())
-        .collect::<String>().trim());
-    let actual_text = s!(actual.children().iter().cloned()
+        .map(|child| child.text().unwrap().text().trim())
+        .collect::<String>();
+    let actual_text = actual.children().iter().cloned()
         .filter(|child| child.text().is_some())
-        .map(|child| child.text().unwrap().text())
-        .collect::<String>().trim());
+        .map(|child| child.text().unwrap().text().trim())
+        .collect::<String>();
     let mut p = path.to_vec();
     p.push("#text");
     let matcher_result = if context.matcher_is_defined(&p) {
-      match_values(&p, context, &expected_text, &actual_text)
+      match_values(&p, context, expected_text.trim(), actual_text.trim())
     } else {
-      expected_text.matches(&actual_text, &MatchingRule::Equality)
+      expected_text.matches_with(actual_text.trim(), &MatchingRule::Equality)
         .map_err(|err| vec![err.to_string()])
     };
     debug!("Comparing text '{}' to '{}' at path '{}' -> {:?}", expected_text, actual_text,
@@ -359,9 +359,9 @@ fn compare_text(path: &Vec<&str>, expected: &Element, actual: &Element,
 
 fn compare_value(path: &Vec<&str>, expected: &String, actual: &String, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
   let matcher_result = if context.matcher_is_defined(&path) {
-    match_values(path, context, expected, actual)
+    match_values(path, context, expected.as_str(), actual.as_str())
   } else {
-    expected.matches(actual, &MatchingRule::Equality).map_err(|err| vec![err.to_string()])
+    expected.matches_with(actual, &MatchingRule::Equality).map_err(|err| vec![err.to_string()])
   };
   debug!("Comparing '{}' to '{}' at path '{}' -> {:?}", expected, actual, path_to_string(path), matcher_result);
   matcher_result.map_err(|messages| {

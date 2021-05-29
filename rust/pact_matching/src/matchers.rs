@@ -13,24 +13,42 @@ use crate::MatchingContext;
 use crate::models::matchingrules::*;
 use crate::time_utils::validate_datetime;
 
-pub trait Matches<A> {
-  fn matches(&self, actual: &A, matcher: &MatchingRule) -> anyhow::Result<()>;
+/// Trait for matching rule implementation
+pub trait Matches<A: Clone> {
+  #[deprecated(since = "0.9.2", note="Use matches_with instead")]
+  fn matches(&self, actual: &A, matcher: &MatchingRule) -> anyhow::Result<()> {
+    self.matches_with(actual.clone(), matcher)
+  }
+
+  fn matches_with(&self, actual: A, matcher: &MatchingRule) -> anyhow::Result<()>;
 }
 
 impl Matches<String> for String {
-  fn matches(&self, actual: &String, matcher: &MatchingRule) -> anyhow::Result<()> {
-    self.matches(&actual.as_str(), matcher)
+  fn matches_with(&self, actual: String, matcher: &MatchingRule) -> anyhow::Result<()> {
+    self.as_str().matches_with(actual.as_str(), matcher)
   }
 }
 
-impl Matches<&str> for &str {
-  fn matches(&self, actual: &&str, matcher: &MatchingRule) -> anyhow::Result<()> {
-    self.to_string().matches(actual, matcher)
+impl Matches<&String> for String {
+  fn matches_with(&self, actual: &String, matcher: &MatchingRule) -> anyhow::Result<()> {
+    self.as_str().matches_with(actual.as_str(), matcher)
+  }
+}
+
+impl Matches<&String> for &String {
+  fn matches_with(&self, actual: &String, matcher: &MatchingRule) -> anyhow::Result<()> {
+    self.as_str().matches_with(actual.as_str(), matcher)
   }
 }
 
 impl Matches<&str> for String {
-  fn matches(&self, actual: &&str, matcher: &MatchingRule) -> anyhow::Result<()> {
+  fn matches_with(&self, actual: &str, matcher: &MatchingRule) -> anyhow::Result<()> {
+    self.as_str().matches_with(actual, matcher)
+  }
+}
+
+impl Matches<&str> for &str {
+  fn matches_with(&self, actual: &str, matcher: &MatchingRule) -> anyhow::Result<()> {
     debug!("String -> String: comparing '{}' to '{}' using {:?}", self, actual, matcher);
     match matcher {
       MatchingRule::Regex(regex) => {
@@ -46,7 +64,7 @@ impl Matches<&str> for String {
         }
       },
       MatchingRule::Equality => {
-        if self == actual {
+        if self == &actual {
           Ok(())
         } else {
           Err(anyhow!("Expected '{}' to be equal to '{}'", self, actual))
@@ -94,7 +112,7 @@ impl Matches<&str> for String {
         }
       },
       MatchingRule::Boolean => {
-        if *actual == "true" || *actual == "false" {
+        if actual == "true" || actual == "false" {
           Ok(())
         } else {
           Err(anyhow!("Expected '{}' to match a boolean", actual))
@@ -112,7 +130,13 @@ impl Matches<&str> for String {
 }
 
 impl Matches<u64> for String {
-  fn matches(&self, actual: &u64, matcher: &MatchingRule) -> anyhow::Result<()> {
+  fn matches_with(&self, actual: u64, matcher: &MatchingRule) -> anyhow::Result<()> {
+    self.as_str().matches_with(actual, matcher)
+  }
+}
+
+impl Matches<u64> for &str {
+  fn matches_with(&self, actual: u64, matcher: &MatchingRule) -> anyhow::Result<()> {
     log::debug!("String -> u64: comparing '{}' to {} using {:?}", self, actual, matcher);
     match matcher {
       MatchingRule::Regex(regex) => {
@@ -142,14 +166,14 @@ impl Matches<u64> for String {
       },
       MatchingRule::Number | MatchingRule::Integer => Ok(()),
       MatchingRule::Decimal => Err(anyhow!("Expected {} to match a decimal number", actual)),
-      MatchingRule::StatusCode(status) => match_status_code(*actual as u16, status),
+      MatchingRule::StatusCode(status) => match_status_code(actual as u16, status),
       _ => Err(anyhow!("String: Unable to match {} using {:?}", self, matcher))
     }
   }
 }
 
 impl Matches<u64> for u64 {
-  fn matches(&self, actual: &u64, matcher: &MatchingRule) -> anyhow::Result<()> {
+  fn matches_with(&self, actual: u64, matcher: &MatchingRule) -> anyhow::Result<()> {
     debug!("u64 -> u64: comparing {} to {} using {:?}", self, actual, matcher);
     match matcher {
       MatchingRule::Regex(regex) => {
@@ -169,7 +193,7 @@ impl Matches<u64> for u64 {
       MatchingRule::MaxType(_) |
       MatchingRule::MinMaxType(_, _) => Ok(()),
       MatchingRule::Equality => {
-        if self == actual {
+        if *self == actual {
           Ok(())
         } else {
           Err(anyhow!("Expected {} to be equal to {}", self, actual))
@@ -184,14 +208,14 @@ impl Matches<u64> for u64 {
       },
       MatchingRule::Number | MatchingRule::Integer => Ok(()),
       MatchingRule::Decimal => Err(anyhow!("Expected {} to match a decimal number", actual)),
-      MatchingRule::StatusCode(status) => match_status_code(*actual as u16, status),
+      MatchingRule::StatusCode(status) => match_status_code(actual as u16, status),
       _ => Err(anyhow!("Unable to match {} using {:?}", self, matcher))
     }
   }
 }
 
 impl Matches<f64> for u64 {
-  fn matches(&self, actual: &f64, matcher: &MatchingRule) -> anyhow::Result<()> {
+  fn matches_with(&self, actual: f64, matcher: &MatchingRule) -> anyhow::Result<()> {
     debug!("u64 -> f64: comparing {} to {} using {:?}", self, actual, matcher);
     match matcher {
       MatchingRule::Regex(regex) => {
@@ -228,7 +252,7 @@ impl Matches<f64> for u64 {
 
 impl Matches<f64> for f64 {
   #[allow(clippy::float_cmp)]
-  fn matches(&self, actual: &f64, matcher: &MatchingRule) -> anyhow::Result<()> {
+  fn matches_with(&self, actual: f64, matcher: &MatchingRule) -> anyhow::Result<()> {
     debug!("f64 -> f64: comparing {} to {} using {:?}", self, actual, matcher);
     match matcher {
       MatchingRule::Regex(regex) => {
@@ -248,7 +272,7 @@ impl Matches<f64> for f64 {
       MatchingRule::MaxType(_) |
       MatchingRule::MinMaxType(_, _) => Ok(()),
       MatchingRule::Equality => {
-        if self == actual {
+        if *self == actual {
           Ok(())
         } else {
           Err(anyhow!("Expected {} to be equal to {}", self, actual))
@@ -269,7 +293,7 @@ impl Matches<f64> for f64 {
 }
 
 impl Matches<u64> for f64 {
-  fn matches(&self, actual: &u64, matcher: &MatchingRule) -> anyhow::Result<()> {
+  fn matches_with(&self, actual: u64, matcher: &MatchingRule) -> anyhow::Result<()> {
     debug!("f64 -> u64: comparing {} to {} using {:?}", self, actual, matcher);
     match matcher {
       MatchingRule::Regex(ref regex) => {
@@ -305,21 +329,34 @@ impl Matches<u64> for f64 {
 }
 
 impl Matches<u16> for String {
-  fn matches(&self, actual: &u16, matcher: &MatchingRule) -> anyhow::Result<()> {
+  fn matches_with(&self, actual: u16, matcher: &MatchingRule) -> anyhow::Result<()> {
     debug!("String -> u16: comparing '{}' to {} using {:?}", self, actual, matcher);
-    self.matches(&(*actual as u64), matcher)
+    self.matches_with(actual as u64, matcher)
+  }
+}
+
+impl Matches<u16> for &str {
+  fn matches_with(&self, actual: u16, matcher: &MatchingRule) -> anyhow::Result<()> {
+    debug!("String -> u16: comparing '{}' to {} using {:?}", self, actual, matcher);
+    self.matches_with(actual as u64, matcher)
   }
 }
 
 impl Matches<u16> for u16 {
-  fn matches(&self, actual: &u16, matcher: &MatchingRule) -> anyhow::Result<()> {
+  fn matches_with(&self, actual: u16, matcher: &MatchingRule) -> anyhow::Result<()> {
     debug!("u16 -> u16: comparing {} to {} using {:?}", self, actual, matcher);
-    (*self as u64).matches(&(*actual as u64), matcher)
+    (*self as u64).matches_with(actual as u64, matcher)
   }
 }
 
-impl Matches<i32> for String {
-  fn matches(&self, actual: &i32, matcher: &MatchingRule) -> anyhow::Result<()> {
+impl Matches<i64> for String {
+  fn matches_with(&self, actual: i64, matcher: &MatchingRule) -> anyhow::Result<()> {
+    self.as_str().matches_with(actual, matcher)
+  }
+}
+
+impl Matches<i64> for &str {
+  fn matches_with(&self, actual: i64, matcher: &MatchingRule) -> anyhow::Result<()> {
     debug!("String -> i32: comparing '{}' to {} using {:?}", self, actual, matcher);
     match matcher {
       MatchingRule::Regex(regex) => {
@@ -337,7 +374,8 @@ impl Matches<i32> for String {
       MatchingRule::Type |
       MatchingRule::MinType(_) |
       MatchingRule::MaxType(_) |
-      MatchingRule::MinMaxType(_, _) => Ok(()),
+      MatchingRule::MinMaxType(_, _) =>
+        Err(anyhow!("Expected '{}' (String) to be the same type as {} (Number)", self, actual)),
       MatchingRule::Equality => Err(anyhow!("Expected '{}' (String) to be equal to {} (Number)", self, actual)),
       MatchingRule::Include(substr) => {
         if actual.to_string().contains(substr) {
@@ -353,9 +391,9 @@ impl Matches<i32> for String {
   }
 }
 
-impl Matches<i32> for i32 {
-  fn matches(&self, actual: &i32, matcher: &MatchingRule) -> anyhow::Result<()> {
-    debug!("u16 -> u16: comparing {} to {} using {:?}", self, actual, matcher);
+impl Matches<i64> for i64 {
+  fn matches_with(&self, actual: i64, matcher: &MatchingRule) -> anyhow::Result<()> {
+    debug!("i64 -> i64: comparing {} to {} using {:?}", self, actual, matcher);
     match matcher {
       MatchingRule::Regex(regex) => {
         match Regex::new(regex) {
@@ -374,7 +412,7 @@ impl Matches<i32> for i32 {
       MatchingRule::MaxType(_) |
       MatchingRule::MinMaxType(_, _) => Ok(()),
       MatchingRule::Equality => {
-        if self == actual {
+        if *self == actual {
           Ok(())
         } else {
           Err(anyhow!("Expected {} to be equal to {}", self, actual))
@@ -394,8 +432,26 @@ impl Matches<i32> for i32 {
   }
 }
 
+impl Matches<i32> for String {
+  fn matches_with(&self, actual: i32, matcher: &MatchingRule) -> anyhow::Result<()> {
+    self.matches_with(actual as i64, matcher)
+  }
+}
+
+impl Matches<i32> for &str {
+  fn matches_with(&self, actual: i32, matcher: &MatchingRule) -> anyhow::Result<()> {
+    self.matches_with(actual as i64, matcher)
+  }
+}
+
+impl Matches<i32> for i32 {
+  fn matches_with(&self, actual: i32, matcher: &MatchingRule) -> anyhow::Result<()> {
+    (*self as i64).matches_with(actual as i64, matcher)
+  }
+}
+
 impl Matches<bool> for bool {
-  fn matches(&self, actual: &bool, matcher: &MatchingRule) -> anyhow::Result<()> {
+  fn matches_with(&self, actual: bool, matcher: &MatchingRule) -> anyhow::Result<()> {
     debug!("bool -> bool: comparing '{}' to {} using {:?}", self, actual, matcher);
     match matcher {
       MatchingRule::Regex(regex) => {
@@ -414,7 +470,7 @@ impl Matches<bool> for bool {
       MatchingRule::MinType(_) |
       MatchingRule::MaxType(_) |
       MatchingRule::MinMaxType(_, _) => Ok(()),
-      MatchingRule::Equality => if actual == self {
+      MatchingRule::Equality => if actual == *self {
         Ok(())
       } else {
         Err(anyhow!("Expected {} (Boolean) to be equal to {} (Boolean)", self, actual))
@@ -425,8 +481,8 @@ impl Matches<bool> for bool {
   }
 }
 
-impl Matches<Bytes> for Bytes {
-  fn matches(&self, actual: &Bytes, matcher: &MatchingRule) -> anyhow::Result<()> {
+impl Matches<&Bytes> for Bytes {
+  fn matches_with(&self, actual: &Bytes, matcher: &MatchingRule) -> anyhow::Result<()> {
     debug!("Bytes -> Bytes: comparing {} bytes to {} bytes using {:?}", self.len(), actual.len(), matcher);
     match matcher {
       MatchingRule::Regex(regex) => {
@@ -473,14 +529,14 @@ impl Matches<Bytes> for Bytes {
   }
 }
 
-pub fn match_values<E, A>(path: &[&str], context: &MatchingContext, expected: &E, actual: &A) -> Result<(), Vec<String>>
-    where E: Matches<A> {
+pub fn match_values<E, A>(path: &[&str], context: &MatchingContext, expected: E, actual: A) -> Result<(), Vec<String>>
+    where E: Matches<A>, A: Clone {
     let matching_rules = context.select_best_matcher(path);
     match matching_rules {
         None => Err(vec![format!("No matcher found for path '{}'", path.iter().join("."))]),
         Some(ref rulelist) => {
           let results = rulelist.rules.iter().map(|rule| {
-            expected.matches(actual, rule)
+            expected.matches_with(actual.clone(), rule)
           }).collect::<Vec<anyhow::Result<()>>>();
           match rulelist.rule_logic {
             RuleLogic::And => {
@@ -629,118 +685,118 @@ mod tests {
     #[test]
     fn equality_matcher_test() {
         let matcher = MatchingRule::Equality;
-        expect!(s!("100").matches(&s!("100"), &matcher)).to(be_ok());
-        expect!(s!("100").matches(&s!("101"), &matcher)).to(be_err());
-        expect!(s!("100").matches(&100, &matcher)).to(be_err());
-        expect!(100.matches(&100, &matcher)).to(be_ok());
-        expect!(100.matches(&100.0, &matcher)).to(be_err());
-        expect!(100.1f64.matches(&100.0, &matcher)).to(be_err());
+        expect!("100".matches_with("100", &matcher)).to(be_ok());
+        expect!("100".matches_with("101", &matcher)).to(be_err());
+        expect!("100".matches_with(100, &matcher)).to(be_err());
+        expect!(100.matches_with(100, &matcher)).to(be_ok());
+        expect!(100.matches_with(100.0, &matcher)).to(be_err());
+        expect!(100.1f64.matches_with(100.0, &matcher)).to(be_err());
     }
 
     #[test]
     fn regex_matcher_test() {
-        let matcher = MatchingRule::Regex(s!("^\\d+$"));
-        expect!(s!("100").matches(&s!("100"), &matcher)).to(be_ok());
-        expect!(s!("100").matches(&s!("10a"), &matcher)).to(be_err());
-        expect!(s!("100").matches(&100, &matcher)).to(be_ok());
-        expect!(100.matches(&100, &matcher)).to(be_ok());
-        expect!(100.matches(&100.01f64, &matcher)).to(be_err());
-        expect!(100.1f64.matches(&100.02f64, &matcher)).to(be_err());
+        let matcher = MatchingRule::Regex("^\\d+$".to_string());
+        expect!("100".matches_with("100", &matcher)).to(be_ok());
+        expect!("100".matches_with("10a", &matcher)).to(be_err());
+        expect!("100".matches_with(100, &matcher)).to(be_ok());
+        expect!(100.matches_with(100, &matcher)).to(be_ok());
+        expect!(100.matches_with(100.01f64, &matcher)).to(be_err());
+        expect!(100.1f64.matches_with(100.02f64, &matcher)).to(be_err());
     }
 
     #[test]
     fn type_matcher_test() {
         let matcher = MatchingRule::Type;
-        expect!(s!("100").matches(&s!("100"), &matcher)).to(be_ok());
-        expect!(s!("100").matches(&s!("10a"), &matcher)).to(be_ok());
-        expect!(s!("100").matches(&100, &matcher)).to(be_err());
-        expect!(100.matches(&200, &matcher)).to(be_ok());
-        expect!(100.matches(&100.1, &matcher)).to(be_err());
-        expect!(100.1f64.matches(&100.2, &matcher)).to(be_ok());
+        expect!("100".matches_with("100", &matcher)).to(be_ok());
+        expect!("100".matches_with("10a", &matcher)).to(be_ok());
+        expect!("100".matches_with(100, &matcher)).to(be_err());
+        expect!(100.matches_with(200, &matcher)).to(be_ok());
+        expect!(100.matches_with(100.1, &matcher)).to(be_err());
+        expect!(100.1f64.matches_with(100.2, &matcher)).to(be_ok());
     }
 
     #[test]
     fn min_type_matcher_test() {
         let matcher = MatchingRule::MinType(3);
-        expect!(s!("100").matches(&s!("100"), &matcher)).to(be_ok());
-        expect!(s!("100").matches(&s!("10a"), &matcher)).to(be_ok());
-        expect!(s!("100").matches(&s!("10"), &matcher)).to(be_ok());
-        expect!(s!("100").matches(&100, &matcher)).to(be_err());
-        expect!(100.matches(&200, &matcher)).to(be_ok());
-        expect!(100.matches(&100.1, &matcher)).to(be_err());
-        expect!(100.1f64.matches(&100.2, &matcher)).to(be_ok());
+        expect!("100".matches_with("100", &matcher)).to(be_ok());
+        expect!("100".matches_with("10a", &matcher)).to(be_ok());
+        expect!("100".matches_with("10", &matcher)).to(be_ok());
+        expect!("100".matches_with(100, &matcher)).to(be_err());
+        expect!(100.matches_with(200, &matcher)).to(be_ok());
+        expect!(100.matches_with(100.1, &matcher)).to(be_err());
+        expect!(100.1f64.matches_with(100.2, &matcher)).to(be_ok());
     }
 
     #[test]
     fn max_type_matcher_test() {
         let matcher = MatchingRule::MaxType(3);
-        expect!(s!("100").matches(&s!("100"), &matcher)).to(be_ok());
-        expect!(s!("100").matches(&s!("10a"), &matcher)).to(be_ok());
-        expect!(s!("100").matches(&s!("1000"), &matcher)).to(be_ok());
-        expect!(s!("100").matches(&100, &matcher)).to(be_err());
-        expect!(100.matches(&200, &matcher)).to(be_ok());
-        expect!(100.matches(&100.1, &matcher)).to(be_err());
-        expect!(100.1f64.matches(&100.2, &matcher)).to(be_ok());
+        expect!("100".matches_with("100", &matcher)).to(be_ok());
+        expect!("100".matches_with("10a", &matcher)).to(be_ok());
+        expect!("100".matches_with("1000", &matcher)).to(be_ok());
+        expect!("100".matches_with(100, &matcher)).to(be_err());
+        expect!(100.matches_with(200, &matcher)).to(be_ok());
+        expect!(100.matches_with(100.1, &matcher)).to(be_err());
+        expect!(100.1f64.matches_with(100.2, &matcher)).to(be_ok());
     }
 
   #[test]
   fn minmax_type_matcher_test() {
     let matcher = MatchingRule::MinMaxType(3, 6);
-    expect!(s!("100").matches(&s!("100"), &matcher)).to(be_ok());
-    expect!(s!("100").matches(&s!("10a"), &matcher)).to(be_ok());
-    expect!(s!("100").matches(&s!("1000"), &matcher)).to(be_ok());
-    expect!(s!("100").matches(&100, &matcher)).to(be_err());
-    expect!(100.matches(&200, &matcher)).to(be_ok());
-    expect!(100.matches(&100.1, &matcher)).to(be_err());
-    expect!(100.1f64.matches(&100.2, &matcher)).to(be_ok());
+    expect!("100".matches_with("100", &matcher)).to(be_ok());
+    expect!("100".matches_with("10a", &matcher)).to(be_ok());
+    expect!("100".matches_with("1000", &matcher)).to(be_ok());
+    expect!("100".matches_with(100, &matcher)).to(be_err());
+    expect!(100.matches_with(200, &matcher)).to(be_ok());
+    expect!(100.matches_with(100.1, &matcher)).to(be_err());
+    expect!(100.1f64.matches_with(100.2, &matcher)).to(be_ok());
   }
 
   #[test]
   fn timestamp_matcher_test() {
     let matcher = MatchingRule::Timestamp("yyyy-MM-dd HH:mm:ssZZZ".into());
 
-    expect!(s!("100").matches(&s!("2013-12-01 14:00:00+10:00"), &matcher)).to(be_err());
-    expect!(s!("100").matches(&s!("2013-12-01 14:00:00+1000"), &matcher)).to(be_ok());
-    expect!(s!("100").matches(&s!("13-12-01 14:00:00+10:00"), &matcher)).to(be_err());
-    expect!(s!("100").matches(&s!("I\'m a timestamp!"), &matcher)).to(be_err());
-    expect!(s!("100").matches(&s!("100"), &matcher)).to(be_err());
-    expect!(s!("100").matches(&s!("10a"), &matcher)).to(be_err());
-    expect!(s!("100").matches(&s!("1000"), &matcher)).to(be_err());
-    expect!(s!("100").matches(&100, &matcher)).to(be_err());
-    expect!(100.matches(&200, &matcher)).to(be_err());
-    expect!(100.matches(&100.1, &matcher)).to(be_err());
-    expect!(100.1f64.matches(&100.2, &matcher)).to(be_err());
+    expect!("100".matches_with("2013-12-01 14:00:00+10:00", &matcher)).to(be_err());
+    expect!("100".matches_with("2013-12-01 14:00:00+1000", &matcher)).to(be_ok());
+    expect!("100".matches_with("13-12-01 14:00:00+10:00", &matcher)).to(be_err());
+    expect!("100".matches_with("I\'m a timestamp!", &matcher)).to(be_err());
+    expect!("100".matches_with("100", &matcher)).to(be_err());
+    expect!("100".matches_with("10a", &matcher)).to(be_err());
+    expect!("100".matches_with("1000", &matcher)).to(be_err());
+    expect!("100".matches_with(100, &matcher)).to(be_err());
+    expect!(100.matches_with(200, &matcher)).to(be_err());
+    expect!(100.matches_with(100.1, &matcher)).to(be_err());
+    expect!(100.1f64.matches_with(100.2, &matcher)).to(be_err());
 
     let matcher = MatchingRule::Timestamp("yyyy-MM-dd HH:mm:ssXXX".into());
-    expect!(s!("2014-01-01 14:00:00+10:00").matches(&s!("2013-12-01 14:00:00+10:00"), &matcher)).to(be_ok());
+    expect!("2014-01-01 14:00:00+10:00".matches_with("2013-12-01 14:00:00+10:00", &matcher)).to(be_ok());
 
     let matcher = MatchingRule::Timestamp("yyyy#MM#dd#HH#mm#ss".into());
-    expect!(s!("2014-01-01 14:00:00+10:00").matches(&s!("2013#12#01#14#00#00"), &matcher)).to(be_ok());
+    expect!("2014-01-01 14:00:00+10:00".matches_with("2013#12#01#14#00#00", &matcher)).to(be_ok());
   }
 
   #[test]
   fn time_matcher_test() {
     let matcher = MatchingRule::Time("HH:mm:ss".into());
 
-    expect!(s!("00:00:00").matches(&s!("14:00:00"), &matcher)).to(be_ok());
-    expect!(s!("00:00:00").matches(&s!("33:00:00"), &matcher)).to(be_err());
-    expect!(s!("00:00:00").matches(&s!("100"), &matcher)).to(be_err());
-    expect!(s!("00:00:00").matches(&s!("10a"), &matcher)).to(be_err());
-    expect!(s!("00:00:00").matches(&s!("1000"), &matcher)).to(be_err());
-    expect!(s!("00:00:00").matches(&100, &matcher)).to(be_err());
-    expect!(100.matches(&200, &matcher)).to(be_err());
-    expect!(100.matches(&100.1, &matcher)).to(be_err());
-    expect!(100.1f64.matches(&100.2, &matcher)).to(be_err());
+    expect!("00:00:00".matches_with("14:00:00", &matcher)).to(be_ok());
+    expect!("00:00:00".matches_with("33:00:00", &matcher)).to(be_err());
+    expect!("00:00:00".matches_with("100", &matcher)).to(be_err());
+    expect!("00:00:00".matches_with("10a", &matcher)).to(be_err());
+    expect!("00:00:00".matches_with("1000", &matcher)).to(be_err());
+    expect!("00:00:00".matches_with(100, &matcher)).to(be_err());
+    expect!(100.matches_with(200, &matcher)).to(be_err());
+    expect!(100.matches_with(100.1, &matcher)).to(be_err());
+    expect!(100.1f64.matches_with(100.2, &matcher)).to(be_err());
 
     let matcher = MatchingRule::Time("mm:ss".into());
-    expect!(s!("100").matches(&s!("14:01:01"), &matcher)).to(be_err());
-    expect!(s!("100").matches(&s!("61:01"), &matcher)).to(be_err());
+    expect!("100".matches_with("14:01:01", &matcher)).to(be_err());
+    expect!("100".matches_with("61:01", &matcher)).to(be_err());
 
     let matcher = MatchingRule::Time("ss:mm:HH".into());
-    expect!(s!("100").matches(&s!("05:10:14"), &matcher)).to(be_ok());
+    expect!("100".matches_with("05:10:14", &matcher)).to(be_ok());
 
     let matcher = MatchingRule::Time("".into());
-    expect!(s!("100").matches(&s!("14:00:00+10:00"), &matcher)).to(be_err());
+    expect!("100".matches_with("14:00:00+10:00", &matcher)).to(be_err());
   }
 
   #[test]
@@ -748,77 +804,77 @@ mod tests {
     let matcher = MatchingRule::Date("yyyy-MM-dd".into());
     let matcher2 = MatchingRule::Date("MM/dd/yyyy".into());
 
-    expect!(s!("100").matches(&s!("2001-10-01"), &matcher)).to(be_ok());
-    expect!(s!("100").matches(&s!("01/14/2001"), &matcher2)).to(be_ok());
-    expect!(s!("100").matches(&s!("01-13-01"), &matcher)).to(be_err());
-    expect!(s!("100").matches(&s!("100"), &matcher)).to(be_err());
-    expect!(s!("100").matches(&s!("10a"), &matcher)).to(be_err());
-    expect!(s!("100").matches(&s!("1000"), &matcher)).to(be_err());
-    expect!(s!("100").matches(&100, &matcher)).to(be_err());
-    expect!(100.matches(&200, &matcher)).to(be_err());
-    expect!(100.matches(&100.1, &matcher)).to(be_err());
-    expect!(100.1f64.matches(&100.2, &matcher)).to(be_err());
+    expect!("100".matches_with("2001-10-01", &matcher)).to(be_ok());
+    expect!("100".matches_with("01/14/2001", &matcher2)).to(be_ok());
+    expect!("100".matches_with("01-13-01", &matcher)).to(be_err());
+    expect!("100".matches_with("100", &matcher)).to(be_err());
+    expect!("100".matches_with("10a", &matcher)).to(be_err());
+    expect!("100".matches_with("1000", &matcher)).to(be_err());
+    expect!("100".matches_with(100, &matcher)).to(be_err());
+    expect!(100.matches_with(200, &matcher)).to(be_err());
+    expect!(100.matches_with(100.1, &matcher)).to(be_err());
+    expect!(100.1f64.matches_with(100.2, &matcher)).to(be_err());
   }
 
   #[test]
   fn include_matcher_test() {
     let matcher = MatchingRule::Include("10".into());
-    expect!(s!("100").matches(&s!("100"), &matcher)).to(be_ok());
-    expect!(s!("100").matches(&s!("10a"), &matcher)).to(be_ok());
-    expect!(s!("100").matches(&s!("1000"), &matcher)).to(be_ok());
-    expect!(s!("100").matches(&s!("200"), &matcher)).to(be_err());
-    expect!(s!("100").matches(&100, &matcher)).to(be_ok());
-    expect!(100.matches(&100, &matcher)).to(be_ok());
-    expect!(100.matches(&100.1, &matcher)).to(be_ok());
-    expect!(100.1f64.matches(&100.2, &matcher)).to(be_ok());
+    expect!("100".matches_with("100", &matcher)).to(be_ok());
+    expect!("100".matches_with("10a", &matcher)).to(be_ok());
+    expect!("100".matches_with("1000", &matcher)).to(be_ok());
+    expect!("100".matches_with("200", &matcher)).to(be_err());
+    expect!("100".matches_with(100, &matcher)).to(be_ok());
+    expect!(100.matches_with(100, &matcher)).to(be_ok());
+    expect!(100.matches_with(100.1, &matcher)).to(be_ok());
+    expect!(100.1f64.matches_with(100.2, &matcher)).to(be_ok());
   }
 
   #[test]
   fn number_matcher_test() {
     let matcher = MatchingRule::Number;
-    expect!(s!("100").matches(&s!("100"), &matcher)).to(be_ok());
-    expect!(s!("100").matches(&s!("10a"), &matcher)).to(be_err());
-    expect!(s!("100").matches(&s!("1000"), &matcher)).to(be_ok());
-    expect!(s!("100").matches(&100, &matcher)).to(be_ok());
-    expect!(100.matches(&200, &matcher)).to(be_ok());
-    expect!(100.matches(&100.1, &matcher)).to(be_ok());
-    expect!(100.1f64.matches(&100.2, &matcher)).to(be_ok());
+    expect!("100".matches_with("100", &matcher)).to(be_ok());
+    expect!("100".matches_with("10a", &matcher)).to(be_err());
+    expect!("100".matches_with("1000", &matcher)).to(be_ok());
+    expect!("100".matches_with(100, &matcher)).to(be_ok());
+    expect!(100.matches_with(200, &matcher)).to(be_ok());
+    expect!(100.matches_with(100.1, &matcher)).to(be_ok());
+    expect!(100.1f64.matches_with(100.2, &matcher)).to(be_ok());
   }
 
   #[test]
   fn integer_matcher_test() {
     let matcher = MatchingRule::Integer;
-    expect!(s!("100").matches(&s!("100"), &matcher)).to(be_ok());
-    expect!(s!("100").matches(&s!("10a"), &matcher)).to(be_err());
-    expect!(s!("100").matches(&s!("1000"), &matcher)).to(be_ok());
-    expect!(s!("100").matches(&100, &matcher)).to(be_ok());
-    expect!(100.matches(&200, &matcher)).to(be_ok());
-    expect!(100.matches(&100.1, &matcher)).to(be_err());
-    expect!(100.1f64.matches(&100.2, &matcher)).to(be_err());
+    expect!("100".matches_with("100", &matcher)).to(be_ok());
+    expect!("100".matches_with("10a", &matcher)).to(be_err());
+    expect!("100".matches_with("1000", &matcher)).to(be_ok());
+    expect!("100".matches_with(100, &matcher)).to(be_ok());
+    expect!(100.matches_with(200, &matcher)).to(be_ok());
+    expect!(100.matches_with(100.1, &matcher)).to(be_err());
+    expect!(100.1f64.matches_with(100.2, &matcher)).to(be_err());
   }
 
   #[test]
   fn decimal_matcher_test() {
     let matcher = MatchingRule::Decimal;
-    expect!(s!("100").matches(&s!("100"), &matcher)).to(be_ok());
-    expect!(s!("100").matches(&s!("10a"), &matcher)).to(be_err());
-    expect!(s!("100").matches(&s!("1000"), &matcher)).to(be_ok());
-    expect!(s!("100").matches(&100, &matcher)).to(be_err());
-    expect!(100.matches(&200, &matcher)).to(be_err());
-    expect!(100.matches(&100.1, &matcher)).to(be_ok());
-    expect!(100.1f64.matches(&100.2, &matcher)).to(be_ok());
+    expect!("100".matches_with("100", &matcher)).to(be_ok());
+    expect!("100".matches_with("10a", &matcher)).to(be_err());
+    expect!("100".matches_with("1000", &matcher)).to(be_ok());
+    expect!("100".matches_with(100, &matcher)).to(be_err());
+    expect!(100.matches_with(200, &matcher)).to(be_err());
+    expect!(100.matches_with(100.1, &matcher)).to(be_ok());
+    expect!(100.1f64.matches_with(100.2, &matcher)).to(be_ok());
   }
 
   #[test]
   fn null_matcher_test() {
     let matcher = MatchingRule::Null;
-    expect!(s!("100").matches(&s!("100"), &matcher)).to(be_err());
-    expect!(s!("100").matches(&s!("10a"), &matcher)).to(be_err());
-    expect!(s!("100").matches(&s!("1000"), &matcher)).to(be_err());
-    expect!(s!("100").matches(&100, &matcher)).to(be_err());
-    expect!(100.matches(&200, &matcher)).to(be_err());
-    expect!(100.matches(&100.1, &matcher)).to(be_err());
-    expect!(100.1f64.matches(&100.2, &matcher)).to(be_err());
+    expect!("100".matches_with("100", &matcher)).to(be_err());
+    expect!("100".matches_with("10a", &matcher)).to(be_err());
+    expect!("100".matches_with("1000", &matcher)).to(be_err());
+    expect!("100".matches_with(100, &matcher)).to(be_err());
+    expect!(100.matches_with(200, &matcher)).to(be_err());
+    expect!(100.matches_with(100.1, &matcher)).to(be_err());
+    expect!(100.1f64.matches_with(100.2, &matcher)).to(be_err());
   }
 
   #[test]
@@ -826,19 +882,19 @@ mod tests {
     let matcher = MatchingRule::Regex(
       r"^([\+-]?\d{4}(?!\d{2}\b))((-?)((0[1-9]|1[0-2])(\3([12]\d|0[1-9]|3[01]))?|W([0-4]\d|5[0-2])(-?[1-7])?|(00[1-9]|0[1-9]\d|[12]\d{2}|3([0-5]\d|6[1-6])))?)$"
         .into());
-    expect!(s!("100").matches(&s!("2019-09-27"), &matcher)).to(be_ok());
+    expect!("100".matches_with("2019-09-27", &matcher)).to(be_ok());
   }
 
   #[test]
   fn boolean_matcher_test() {
     let matcher = MatchingRule::Boolean;
-    expect!("100".to_string().matches(&"100", &matcher)).to(be_err());
-    expect!("100".to_string().matches(&"10a", &matcher)).to(be_err());
-    expect!("100".to_string().matches(&100, &matcher)).to(be_err());
-    expect!(100.matches(&100.1, &matcher)).to(be_err());
-    expect!("100".to_string().matches(&"true", &matcher)).to(be_ok());
-    expect!("100".to_string().matches(&"false", &matcher)).to(be_ok());
-    expect!(false.matches(&true, &matcher)).to(be_ok());
+    expect!("100".to_string().matches_with("100", &matcher)).to(be_err());
+    expect!("100".to_string().matches_with("10a", &matcher)).to(be_err());
+    expect!("100".to_string().matches_with(100, &matcher)).to(be_err());
+    expect!(100.matches_with(100.1, &matcher)).to(be_err());
+    expect!("100".to_string().matches_with("true", &matcher)).to(be_ok());
+    expect!("100".to_string().matches_with("false", &matcher)).to(be_ok());
+    expect!(false.matches_with(true, &matcher)).to(be_ok());
   }
 
   #[test]

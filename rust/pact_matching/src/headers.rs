@@ -64,7 +64,7 @@ pub(crate) fn match_header_value(key: &str, expected: &str, actual: &str, contex
   } else if PARAMETERISED_HEADER_TYPES.contains(&key.to_lowercase().as_str()) {
     match_parameter_header(expected.as_str(), actual.as_str(), key, "header")
   } else {
-    Matches::matches(&expected, &actual, &MatchingRule::Equality)
+    Matches::matches_with(&expected, &actual, &MatchingRule::Equality)
       .map_err(|err| vec![err.to_string()])
   };
   matcher_result.map_err(|messages| {

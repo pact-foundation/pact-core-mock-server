@@ -992,7 +992,7 @@ pub fn match_text(expected: &Option<Bytes>, actual: &Option<Bytes>, context: &Ma
         ""
       }
     };
-    if let Err(messages) = match_values(&path, context, &expected_str, &actual_str) {
+    if let Err(messages) = match_values(&path, context, expected_str, actual_str) {
       for message in messages {
         mismatches.push(Mismatch::BodyMismatch {
           path: "$".to_string(),
@@ -1029,9 +1029,9 @@ pub fn match_method(expected: &String, actual: &String) -> Result<(), Mismatch> 
 pub fn match_path(expected: &String, actual: &String, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
   let path = vec![];
   let matcher_result = if context.matcher_is_defined(&path) {
-    match_values(&path, context, &expected.to_string(), &actual.to_string())
+    match_values(&path, context, expected.clone(), actual.clone())
   } else {
-    expected.matches(actual, &MatchingRule::Equality).map_err(|err| vec![err])
+    expected.matches_with(actual, &MatchingRule::Equality).map_err(|err| vec![err])
       .map_err(|errors| errors.iter().map(|err| err.to_string()).collect())
   };
   matcher_result.map_err(|messages| messages.iter().map(|message| {
@@ -1047,9 +1047,9 @@ fn compare_query_parameter_value(key: &String, expected: &String, actual: &Strin
   let index = index.to_string();
   let path = vec!["$", key.as_str(), index.as_str()];
   let matcher_result = if context.matcher_is_defined(&path) {
-    matchers::match_values(&path, context, expected, actual)
+    matchers::match_values(&path, context, expected.clone(), actual.clone())
   } else {
-    expected.matches(actual, &MatchingRule::Equality)
+    expected.matches_with(actual, &MatchingRule::Equality)
       .map_err(|error| vec![error.to_string()])
   };
   matcher_result.map_err(|messages| {
@@ -1293,7 +1293,7 @@ pub fn match_request(expected: models::Request, actual: models::Request) -> Requ
 pub fn match_status(expected: u16, actual: u16, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
   let path = vec![];
   if context.matcher_is_defined(&path) {
-    match_values(&path, context, &expected, &actual)
+    match_values(&path, context, expected, actual)
       .map_err(|messages| messages.iter().map(|message| {
         Mismatch::StatusMismatch {
           expected,
@@ -1434,13 +1434,13 @@ fn match_metadata_value(key: &str, expected: &Value, actual: &Value, context: &M
   debug!("Comparing metadata values for key '{}'", key);
   let path = vec![key];
   let matcher_result = if context.matcher_is_defined(&path) {
-    matchers::match_values(&path, context, &expected.to_string(), &actual.to_string())
+    matchers::match_values(&path, context, expected, actual)
   } else if key.to_ascii_lowercase() == "contenttype" || key.to_ascii_lowercase() == "content-type" {
     debug!("Comparing message context type '{}' => '{}'", expected, actual);
     headers::match_parameter_header(expected.as_str().unwrap_or_default(),
                                     actual.as_str().unwrap_or_default(), key, "metadata")
   } else {
-    expected.matches(actual, &MatchingRule::Equality).map_err(|err| vec![err.to_string()])
+    expected.matches_with(actual, &MatchingRule::Equality).map_err(|err| vec![err.to_string()])
   };
   matcher_result.map_err(|messages| {
     messages.iter().map(|message| {

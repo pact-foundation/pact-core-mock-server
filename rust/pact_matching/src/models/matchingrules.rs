@@ -76,8 +76,8 @@ pub(crate) fn path_length(path_exp: &str) -> usize {
   }
 }
 
-impl <T: Debug + Display + PartialEq> Matches<Vec<T>> for Vec<T> {
-  fn matches(&self, actual: &Vec<T>, matcher: &MatchingRule) -> anyhow::Result<()> {
+impl <T: Debug + Display + PartialEq + Clone> Matches<&Vec<T>> for &Vec<T> {
+  fn matches_with(&self, actual: &Vec<T>, matcher: &MatchingRule) -> anyhow::Result<()> {
     let result = match matcher {
       MatchingRule::Regex(ref regex) => {
         match Regex::new(regex) {
@@ -117,7 +117,7 @@ impl <T: Debug + Display + PartialEq> Matches<Vec<T>> for Vec<T> {
         }
       }
       MatchingRule::Equality | MatchingRule::Values => {
-        if self == actual {
+        if *self == actual {
           Ok(())
         } else {
           Err(anyhow!("Expected {:?} to be equal to {:?}", actual, self))
@@ -130,8 +130,8 @@ impl <T: Debug + Display + PartialEq> Matches<Vec<T>> for Vec<T> {
   }
 }
 
-impl Matches<&[u8]> for Vec<u8> {
-  fn matches(&self, actual: &&[u8], matcher: &MatchingRule) -> anyhow::Result<()> {
+impl Matches<&[u8]> for &Vec<u8> {
+  fn matches_with(&self, actual: &[u8], matcher: &MatchingRule) -> anyhow::Result<()> {
     let result = match matcher {
       MatchingRule::Regex(regex) => {
         match Regex::new(regex) {
@@ -171,7 +171,7 @@ impl Matches<&[u8]> for Vec<u8> {
         }
       }
       MatchingRule::Equality => {
-        if self == actual {
+        if *self == actual {
           Ok(())
         } else {
           Err(anyhow!("Expected {:?} to be equal to {:?}", actual, self))
