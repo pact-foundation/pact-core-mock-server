@@ -284,6 +284,10 @@ impl Interaction for SynchronousHttp {
     self.response.body.clone()
   }
 
+  fn contents_for_verification(&self) -> OptionalBody {
+    self.response.body.clone()
+  }
+
   fn content_type(&self) -> Option<ContentType> {
     self.response.content_type()
   }
@@ -577,6 +581,10 @@ impl Interaction for AsynchronousMessage {
   }
 
   fn contents(&self) -> OptionalBody {
+    self.contents.contents.clone()
+  }
+
+  fn contents_for_verification(&self) -> OptionalBody {
     self.contents.contents.clone()
   }
 

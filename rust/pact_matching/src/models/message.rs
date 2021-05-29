@@ -89,6 +89,10 @@ impl Interaction for Message {
     self.contents.clone()
   }
 
+  fn contents_for_verification(&self) -> OptionalBody {
+    self.contents.clone()
+  }
+
   fn content_type(&self) -> Option<ContentType> {
     self.message_content_type()
   }

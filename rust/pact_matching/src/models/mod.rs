@@ -755,6 +755,10 @@ pub trait Interaction: Debug {
   )]
   fn contents(&self) -> OptionalBody;
 
+  /// The contents of the part to use for verification. For example, with HTTP interactions, this
+  /// will be the response body
+  fn contents_for_verification(&self) -> OptionalBody;
+
   /// Determine the content type of the interaction. If a `Content-Type` header or metadata value is present, the
   /// value of that value will be returned. Otherwise, the contents will be inspected.
   #[deprecated(
@@ -878,6 +882,10 @@ impl Interaction for RequestResponseInteraction {
   }
 
   fn contents(&self) -> OptionalBody {
+    self.response.body.clone()
+  }
+
+  fn contents_for_verification(&self) -> OptionalBody {
     self.response.body.clone()
   }
 

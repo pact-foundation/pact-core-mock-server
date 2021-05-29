@@ -211,6 +211,10 @@ impl Interaction for SynchronousMessages {
     OptionalBody::Missing
   }
 
+  fn contents_for_verification(&self) -> OptionalBody {
+    self.response.first().map(|message| message.contents.clone()).unwrap_or_default()
+  }
+
   fn content_type(&self) -> Option<ContentType> {
     self.request.message_content_type()
   }

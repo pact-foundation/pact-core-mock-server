@@ -377,10 +377,10 @@ fn walkdir(dir: &Path) -> anyhow::Result<Vec<anyhow::Result<Box<dyn Pact>>>> {
 }
 
 fn display_body_mismatch(expected: &Box<dyn Interaction>, actual: &Box<dyn Interaction>, path: &str) {
-  if expected.content_type().unwrap_or_default().is_json() {
+  if expected.contents_for_verification().content_type().unwrap_or_default().is_json() {
     println!("{}", pact_matching::json::display_diff(
-      &expected.contents().str_value().to_string(),
-      &actual.contents().str_value().to_string(),
+      &expected.contents_for_verification().str_value().to_string(),
+      &actual.contents_for_verification().str_value().to_string(),
       path, "    "));
   }
 }
