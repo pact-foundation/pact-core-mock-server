@@ -1278,6 +1278,7 @@ dependencies = [
  "anyhow",
  "base64",
  "bytes",
+ "env_logger",
  "expectest",
  "itertools",
  "lazy_static",

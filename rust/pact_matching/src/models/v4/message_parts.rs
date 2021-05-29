@@ -20,7 +20,7 @@ use std::hash::{Hash, Hasher};
 use crate::models::json_utils::hash_json;
 
 /// Contents of a message interaction
-#[derive(Default, Clone, Debug, PartialEq, Eq)]
+#[derive(Default, Clone, Debug, Eq)]
 pub struct MessageContents {
   /// The contents of the message
   pub contents: OptionalBody,
@@ -107,5 +107,12 @@ impl Hash for MessageContents {
     }
     self.matching_rules.hash(state);
     self.generators.hash(state);
+  }
+}
+
+impl PartialEq for MessageContents {
+  fn eq(&self, other: &Self) -> bool {
+    self.contents == other.contents && self.metadata == other.metadata &&
+      self.matching_rules == other.matching_rules && self.generators == other.generators
   }
 }

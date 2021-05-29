@@ -11,9 +11,9 @@ use reqwest::Client;
 use serde_json::Value;
 
 use pact_consumer::prelude::*;
-use pact_matching::models::provider_states::ProviderState;
 use pact_matching::models::read_pact;
-use pact_verifier::{FilterInfo, ProviderInfo, VerificationOptions, verify_pact, NullRequestFilterExecutor};
+use pact_models::provider_states::ProviderState;
+use pact_verifier::{FilterInfo, NullRequestFilterExecutor, ProviderInfo, VerificationOptions, verify_pact};
 use pact_verifier::callback_executors::{ProviderStateError, ProviderStateExecutor};
 
 /// Get the path to one of our sample *.json files.

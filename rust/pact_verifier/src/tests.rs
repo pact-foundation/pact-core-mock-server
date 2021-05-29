@@ -10,11 +10,11 @@ use serde_json::json;
 use pact_consumer::*;
 use pact_consumer::prelude::*;
 use pact_matching::models::*;
-use pact_matching::models::provider_states::*;
 use pact_matching::s;
 use pact_models::Consumer;
+use pact_models::provider_states::*;
 
-use crate::{PactSource};
+use crate::PactSource;
 use crate::callback_executors::HttpRequestProviderStateExecutor;
 use crate::pact_broker::Link;
 

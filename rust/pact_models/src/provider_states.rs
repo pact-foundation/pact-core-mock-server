@@ -152,12 +152,12 @@ mod tests {
     let provider_states = ProviderState::from_json(&serde_json::from_str(json).unwrap());
     expect!(provider_states.iter()).to(have_count(2));
     expect!(&provider_states[0]).to(be_equal_to(&ProviderState {
-      name: s!("test state"),
-      params: hashmap!{ s!("name") => Value::String(s!("Testy")) }
+      name: "test state".into(),
+      params: hashmap!{ "name".to_string() => Value::String("Testy".into()) }
     }));
     expect!(&provider_states[1]).to(be_equal_to(&ProviderState {
-      name: s!("test state 2"),
-      params: hashmap!{ s!("name") => Value::String(s!("Testy2")) }
+      name: "test state 2".into(),
+      params: hashmap!{ "name".to_string() => Value::String("Testy2".into()) }
     }));
   }
 
@@ -170,7 +170,7 @@ mod tests {
     let provider_states = ProviderState::from_json(&serde_json::from_str(json).unwrap());
     expect!(provider_states.iter()).to(have_count(1));
     expect!(&provider_states[0]).to(be_equal_to(&ProviderState {
-      name: s!("test state"),
+      name: "test state".to_string(),
       params: hashmap!{}
     }));
   }

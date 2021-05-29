@@ -6,19 +6,19 @@ use std::hash::{Hash, Hasher};
 use std::io;
 use std::str::FromStr;
 
-#[allow(unused_imports)] use env_logger;
 use expectest::expect;
 use expectest::prelude::*;
 use maplit::*;
 use rand;
 use serde_json::json;
 
+use pact_models::provider_states::*;
+
 use crate::models::matchingrules::{matchers_from_json, MatchingRule};
 
 use super::*;
 use super::{body_from_json, headers_from_json};
 use super::generators::{Generator, Generators, generators_from_json};
-use super::provider_states::*;
 
 #[test]
 fn request_from_json_defaults_to_get() {
