@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.0.3 - FFI mockserver to log to a memory buffer
+
+* f0dc803 - chore: fix clippy voilation (Ronald Holshausen, Sun May 30 17:09:24 2021 +1000)
+* 02b8bc3 - chore: run the C example after the pact_matching_ffi examples (Ronald Holshausen, Sun May 30 16:51:27 2021 +1000)
+* 90ff271 - chore: correct markdown doc example (Ronald Holshausen, Sun May 30 16:30:25 2021 +1000)
+* eb19188 - feat: allow FFI mockserver to log to a memory buffer (Ronald Holshausen, Sun May 30 15:31:01 2021 +1000)
+* 142e625 - bump version to 0.0.3 (Ronald Holshausen, Sun May 30 11:00:24 2021 +1000)
+
 # 0.0.2 - Refactor: Moved provider state models
 
 * 7022625 - refactor: move provider state models to the pact models crate (Ronald Holshausen, Sat May 29 17:18:48 2021 +1000)
