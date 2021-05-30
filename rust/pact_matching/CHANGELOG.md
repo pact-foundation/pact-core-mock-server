@@ -1,5 +1,35 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.9.2 - Bugfixes + V4 changes (Status code matcher + Pending flag)
+
+* 44e7eb4 - chore: cleanup deprecation warnings (Ronald Holshausen, Sat May 29 17:55:04 2021 +1000)
+* f24bbbc - refactor: decouple matching rule logic from matching rule model (Ronald Holshausen, Sat May 29 17:44:12 2021 +1000)
+* a7b81af - chore: fix clippy violation (Ronald Holshausen, Sat May 29 17:29:06 2021 +1000)
+* 7022625 - refactor: move provider state models to the pact models crate (Ronald Holshausen, Sat May 29 17:18:48 2021 +1000)
+* a84151c - refactor(V4): reuse the extract common message parts with synchronous messages (Ronald Holshausen, Sat May 29 17:06:04 2021 +1000)
+* ef37cb9 - refactor(V4): extract common message parts into a seperate struct (Ronald Holshausen, Sat May 29 16:38:38 2021 +1000)
+* 59e23f4 - fix: message pact needed matchingrules + generators (Matt Fellows, Sat May 29 15:16:32 2021 +1000)
+* ebb11df - feat(V4): fixed test _ refactored types for match functions (Ronald Holshausen, Sat May 29 14:56:31 2021 +1000)
+* 73a53b8 - feat(V4): add an HTTP status code matcher (Ronald Holshausen, Fri May 28 18:40:11 2021 +1000)
+* 81eed06 - fix: add zip file for binary test (Matt Fellows, Thu May 27 22:55:40 2021 +1000)
+* cf679bd - fix: message pact feature test (Matt Fellows, Thu May 27 21:33:24 2021 +1000)
+* 84d79a1 - fix: message pact feature test (Matt Fellows, Thu May 27 21:05:38 2021 +1000)
+* a7e5778 - fix: broken message test (Matt Fellows, Thu May 27 15:36:31 2021 +1000)
+* db6e8b2 - feat(V4): added some tests for pending interactions (Ronald Holshausen, Thu May 27 17:08:46 2021 +1000)
+* 7e4caf8 - feat(V4): added a pending flag to V4 interactions (Ronald Holshausen, Thu May 27 16:59:18 2021 +1000)
+* 8e8075b - refactor: move some more structs to the models crate (Ronald Holshausen, Thu May 27 14:34:03 2021 +1000)
+* 0fcb371 - chore: ignore failing message interaction tests for now (Ronald Holshausen, Thu May 27 14:32:03 2021 +1000)
+* 0c9391d - Merge pull request #101 from pact-foundation/feat/ffi-consumer-message-pact (Matt Fellows, Thu May 27 12:57:58 2021 +1000)
+* 810106d - Merge pull request #100 from pact-foundation/feat/more-consumer-ffi-matchers (Ronald Holshausen, Thu May 27 11:17:53 2021 +1000)
+* ffbcaf5 - feat: Added header_from_provider_state and path_from_provider_state (Rob Caiger, Mon May 24 13:54:16 2021 +0100)
+* 5024e17 - feat: allow messages to have binary payloads (Matt Fellows, Sat May 22 21:50:57 2021 +1000)
+* 413e9a5 - feat: initial consumer FFI based message pact (Matt Fellows, Tue May 18 23:37:49 2021 +1000)
+* 066d7a9 - Revert "feat: support a dummy matcher" (Matt Fellows, Mon May 17 10:47:40 2021 +1000)
+* 5167cfb - fix: broken test for v2 path matcher (Matt Fellows, Sun May 16 14:29:50 2021 +1000)
+* a33718a - fix: serialise v2 path matcher correctly for FFI (Matt Fellows, Sun May 16 14:10:14 2021 +1000)
+* f56ae24 - feat: support a dummy matcher (Matt Fellows, Sun May 16 14:05:08 2021 +1000)
+* fbd5ae3 - bump version to 0.9.2 (Ronald Holshausen, Tue May 4 10:13:02 2021 +1000)
+
 # 0.9.1 - V4 features
 
 * 6b2da7d - feat(V4): added a boolean matcher (Ronald Holshausen, Sun May 2 12:57:09 2021 +1000)
