@@ -1,5 +1,16 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.8.5 - V4 features + updated Tokio to 1.0
+
+* 3a6945e - chore: Upgrade reqwest to 0.11 and hence tokio to 1.0 (Ronald Holshausen, Wed Jan 6 15:34:47 2021 +1100)
+* 9eb107a - Revert "Revert "chore: bump version to 0.0.1"" (Ronald Holshausen, Tue Jan 5 17:25:37 2021 +1100)
+* 4b4d4a8 - Revert "chore: bump version to 0.0.1" (Ronald Holshausen, Tue Jan 5 17:11:54 2021 +1100)
+* 0a210bb - chore: bump version to 0.0.1 (Ronald Holshausen, Tue Jan 5 16:57:47 2021 +1100)
+* 2ebeef9 - fix: pact_verifier_cli needs to use Tokio 0.2 (Ronald Holshausen, Tue Jan 5 16:24:29 2021 +1100)
+* d9f0e8b - refactor: split pact_verifier ffi functions into seperate crate (Ronald Holshausen, Tue Jan 5 16:17:46 2021 +1100)
+* c9e0694 - Revert "Revert "bump version to 0.8.5"" (Ronald Holshausen, Tue Jan 5 15:37:25 2021 +1100)
+* 1a4b9a5 - chore: correct the pact_verifier_cli windows release script (Ronald Holshausen, Tue Jan 5 15:36:58 2021 +1100)
+
 # 0.8.4 - TLS support + FFI support
 
 * 41096dc - chore: update release scripts for pact_verifier_cli DLLs (Ronald Holshausen, Tue Jan 5 14:34:55 2021 +1100)
