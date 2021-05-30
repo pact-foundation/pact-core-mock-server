@@ -1,6 +1,6 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
-# 0.0.3 - FFI enhancements
+# 0.0.4 - FFI enhancements
 
 * a3f272b - Merge pull request #104 from pact-foundation/feat/consumer-version-selectors (Matt Fellows, Thu May 27 13:16:46 2021 +1000)
 * b40b76f - wip: add validator to request timeout (Matt Fellows, Thu May 27 13:06:45 2021 +1000)
