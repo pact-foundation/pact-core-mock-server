@@ -28,18 +28,6 @@ jobs:
         with:
           working-directory: rust
           command: build
-      - name: Run the C FFI tests
-        if: runner.os == 'Linux'
-        working-directory: c/consumer-verification
-        run: |
-          sudo apt install libcurl4-openssl-dev
-          /usr/bin/aclocal
-          autoconf
-          automake --add-missing
-          ./configure
-          make
-          src/consumer-verification basic ../../rust/target/debug/libpact_mock_server_ffi.so
-          src/consumer-verification error ../../rust/target/debug/libpact_mock_server_ffi.so
       - name: Clippy
         uses: marcopolo/cargo@master
         with:
@@ -57,3 +45,15 @@ jobs:
         working-directory: rust/pact_matching_ffi
         shell: bash
         if: runner.os == 'Linux'
+      - name: Run the C FFI tests
+        if: runner.os == 'Linux'
+        working-directory: c/consumer-verification
+        run: |
+          sudo apt install libcurl4-openssl-dev
+          /usr/bin/aclocal
+          autoconf
+          automake --add-missing
+          ./configure
+          make
+          src/consumer-verification basic ../../rust/target/debug/libpact_mock_server_ffi.so
+          src/consumer-verification error ../../rust/target/debug/libpact_mock_server_ffi.so

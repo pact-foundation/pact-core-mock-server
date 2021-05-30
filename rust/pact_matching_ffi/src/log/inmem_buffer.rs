@@ -1,4 +1,4 @@
-//! Thread local in-memory buffer for logging output
+//! In-memory buffer for logging output
 
 use std::io;
 use std::io::Write;
@@ -10,7 +10,7 @@ use lazy_static::lazy_static;
 lazy_static! {
   // Memory buffer for the buffer logger. This is needed here because there is no
   // way to get the logger sync from the Dispatch struct. The buffer will be emptied
-  // when the contents is fetched via an FFI call. A buffer is created per thread.
+  // when the contents is fetched via an FFI call.
   /// cbindgen:ignore
   static ref BUFFER: Mutex<BytesMut> = Mutex::new(BytesMut::with_capacity(256));
 }
