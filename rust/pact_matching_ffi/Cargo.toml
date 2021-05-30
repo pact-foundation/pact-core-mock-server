@@ -1,6 +1,6 @@
 [package]
 name = "pact_matching_ffi"
-version = "0.0.2"
+version = "0.0.3"
 authors = ["Andrew Lilley Brinker <abrinker@mitre.org>", "Caleb Stepanian <cstepanian@mitre.org>"]
 edition = "2018"
 description = "Pact matching interface for foreign languages."
