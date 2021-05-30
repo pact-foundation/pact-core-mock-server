@@ -1248,7 +1248,7 @@ dependencies = [
 
 [[package]]
 name = "pact_mock_server_ffi"
-version = "0.0.18"
+version = "0.1.0"
 dependencies = [
  "bytes",
  "cbindgen",
