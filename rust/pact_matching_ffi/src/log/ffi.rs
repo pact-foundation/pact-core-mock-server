@@ -201,7 +201,7 @@ pub extern "C" fn logger_init() {
 ///
 /// # Usage
 ///
-/// ```
+/// ```c
 /// int result = logger_attach_sink("file /some/file/path", LogLevel_Filter);
 /// ```
 ///
