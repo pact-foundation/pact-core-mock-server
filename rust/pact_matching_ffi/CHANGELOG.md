@@ -1,5 +1,9 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.0.2 - Refactor: Moved provider state models
+
+* 7022625 - refactor: move provider state models to the pact models crate (Ronald Holshausen, Sat May 29 17:18:48 2021 +1000)
+
 # 0.0.1 - First Release
 
 * fc81f3e - chore: prep for release (Ronald Holshausen, Tue May 4 10:24:18 2021 +1000)
