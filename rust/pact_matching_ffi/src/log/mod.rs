@@ -6,8 +6,16 @@ mod logger;
 mod sink;
 mod status;
 mod target;
+mod inmem_buffer;
 
 pub use crate::log::ffi::{
-    logger_apply, logger_attach_sink, logger_init,
+    logger_apply,
+    logger_attach_sink,
+    logger_init,
+    fetch_memory_buffer,
+    log_to_stdout,
+    log_to_stderr,
+    log_to_file,
+    log_to_buffer
 };
 pub(crate) use crate::log::target::TARGET;

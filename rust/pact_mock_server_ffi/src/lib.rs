@@ -82,6 +82,18 @@ use crate::bodies::{empty_multipart_body, file_as_multipart_body, MultipartBody,
 use crate::bodies::process_object;
 use crate::handles::InteractionPart;
 
+// Export all the FFI logging functions from pact_matching_ffi
+pub use pact_matching_ffi::log::{
+  logger_apply,
+  logger_attach_sink,
+  logger_init,
+  fetch_memory_buffer,
+  log_to_stdout,
+  log_to_stderr,
+  log_to_file,
+  log_to_buffer
+};
+
 pub mod handles;
 pub mod bodies;
 

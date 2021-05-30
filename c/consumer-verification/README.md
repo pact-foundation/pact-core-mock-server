@@ -68,9 +68,9 @@ Now you have an executable `src/consumer-verification` that links to the pact_mo
 
 There are two tests. The basic test expects all requests to the verified, and the error test where there should be
 validation errors. The src/consumer-verification executable takes 2 parameters: the test to run (basic or error) and the
-path to the libpact_mock_server_ffi library.
+paths to the shared libraries.
 
-    $ src/consumer-verification basic ../../rust/target/debug/libpact_mock_server_ffi.so
+    $ src/consumer-verification basic ../../rust/target/debug/libpact_mock_server_ffi.so ../../rust/target/debug/libpact_matching_ffi.so
     This is consumer-verification 0.0.0.
     Running basic pact test
     Mock server started on port 39263

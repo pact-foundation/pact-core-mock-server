@@ -3,13 +3,17 @@
 // All of this module is `pub(crate)` and should not appear in the C header file
 // or documentation.
 
-use fern::Dispatch;
 use std::convert::TryFrom;
+use std::fmt::Debug;
 use std::fs::File;
 use std::io::{self, Stderr, Stdout};
 use std::ops::Not;
 use std::path::PathBuf;
 use std::str::FromStr;
+
+use fern::Dispatch;
+
+use crate::log::inmem_buffer::InMemBuffer;
 
 /// A sink for logs to be written to, based on a provider specifier.
 #[derive(Debug)]
@@ -22,58 +26,62 @@ pub(crate) enum Sink {
 
     /// Write logs to a file.
     File(File),
+
+    /// Write logs to a thread local memory buffer
+    Buffer(InMemBuffer)
 }
 
 impl From<Sink> for Dispatch {
-    fn from(sink: Sink) -> Dispatch {
-        let dispatch = Dispatch::new();
+  fn from(sink: Sink) -> Dispatch {
+    let dispatch = Dispatch::new();
 
-        match sink {
-            Sink::Stdout(stdout) => dispatch.chain(stdout),
-            Sink::Stderr(stderr) => dispatch.chain(stderr),
-            Sink::File(file) => dispatch.chain(file),
-        }
+    match sink {
+      Sink::Stdout(stdout) => dispatch.chain(stdout),
+      Sink::Stderr(stderr) => dispatch.chain(stderr),
+      Sink::File(file) => dispatch.chain(file),
+      Sink::Buffer(buffer) => dispatch.chain(buffer.boxed())
     }
+  }
 }
 
 impl<'a> TryFrom<&'a str> for Sink {
-    type Error = SinkSpecifierError;
+  type Error = SinkSpecifierError;
 
-    fn try_from(s: &'a str) -> Result<Sink, Self::Error> {
-        let s = s.trim();
+  fn try_from(s: &'a str) -> Result<Sink, Self::Error> {
+    let s = s.trim();
 
-        if s == "stdout" {
-            return Ok(Sink::Stdout(io::stdout()));
-        } else if s == "stderr" {
-            return Ok(Sink::Stderr(io::stderr()));
-        }
-
+    match s {
+      "stdout" => Ok(Sink::Stdout(io::stdout())),
+      "stderr" => Ok(Sink::Stderr(io::stderr())),
+      "buffer" => Ok(Sink::Buffer(InMemBuffer{})),
+      _ => {
         let pat = "file ";
-
         if s.starts_with(pat).not() {
-            return Err(SinkSpecifierError::UnknownSinkType {
-                name: s.to_owned(),
-            });
-        }
-
-        match s.get(pat.len()..) {
+          Err(SinkSpecifierError::UnknownSinkType {
+            name: s.to_owned(),
+          })
+        } else {
+          match s.get(pat.len()..) {
             None => Err(SinkSpecifierError::MissingFilePath),
             Some(remainder) => {
-                match File::create(remainder) {
-                    Ok(file) => Ok(Sink::File(file)),
-                    Err(source) => {
-                        // PANIC SAFETY: This `unwrap` is fine because the `PathBuf` impl of `FromStr` has an associated
-                        // `Self::Error` type of `Infallible`, indicating the operation always succeeds.
-                        let path = PathBuf::from_str(remainder).unwrap();
-                        Err(SinkSpecifierError::CantMakeFile {
-                            path,
-                            source,
-                        })
-                    }
+              match File::create(remainder) {
+                Ok(file) => Ok(Sink::File(file)),
+                Err(source) => {
+                  // PANIC SAFETY: This `unwrap` is fine because the `PathBuf` impl of `FromStr` has an associated
+                  // `Self::Error` type of `Infallible`, indicating the operation always succeeds.
+                  let path = PathBuf::from_str(remainder).unwrap();
+                  Err(SinkSpecifierError::CantMakeFile {
+                    path,
+                    source,
+                  })
                 }
+              }
             }
+          }
         }
+      }
     }
+  }
 }
 
 /// An error arising from attempting to parse a sink specifier string.

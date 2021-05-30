@@ -3,9 +3,10 @@
 // All of this module is `pub(crate)` and should not appear in the C header file
 // or documentation.
 
+use std::cell::RefCell;
+
 use fern::Dispatch;
 use log::SetLoggerError;
-use std::cell::RefCell;
 
 thread_local! {
     // The thread-local logger. This is only populated during setup of the logger.

@@ -2,7 +2,7 @@
 //! and consistently.
 
 #[macro_use]
-pub(crate) mod ffi;
+pub mod ffi;
 pub(crate) mod ptr;
 pub(crate) mod string;
 pub(crate) mod write;

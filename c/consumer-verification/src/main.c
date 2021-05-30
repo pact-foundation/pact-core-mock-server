@@ -4,6 +4,7 @@
 #include <string.h>
 #include <dlfcn.h>
 #include <curl/curl.h>
+#include "../../rust/pact_matching_ffi/include/pact_matching.h"
 
 char *append_filename(char *executable, char *filename) {
   int executable_len = strlen(executable);
@@ -35,17 +36,27 @@ char *slurp_file(char *filename) {
 }
 
 /*
-Definitions of the exported functions from the pact mock server library
+  Definitions of the exported functions from the pact mock server library
 */
 typedef int32_t (*lib_create_mock_server)(const char *, const char*);
 typedef int32_t (*lib_mock_server_matched)(int32_t);
 typedef int32_t (*lib_cleanup_mock_server)(int32_t);
 typedef char* (*lib_mock_server_mismatches)(int32_t);
 
+typedef int (*lib_log_to_buffer)(enum LevelFilter level_filter);
+typedef int (*lib_log_to_stdout)(enum LevelFilter level_filter);
+typedef const char * (*lib_fetch_memory_buffer)(void);
+typedef void (*lib_string_delete)(char *string);
+
 lib_create_mock_server create_mock_server;
 lib_mock_server_matched mock_server_matched;
 lib_cleanup_mock_server cleanup_mock_server;
 lib_mock_server_mismatches mock_server_mismatches;
+
+lib_log_to_buffer mock_server_log_to_buffer;
+lib_log_to_stdout mock_server_log_to_stdout;
+lib_fetch_memory_buffer mock_server_fetch_memory_buffer;
+lib_string_delete mock_server_string_delete;
 
 /* Loads the mock server shared library and sets up the functions we need to call */
 int setup_mock_server_functions(char *mock_server_lib) {
@@ -57,6 +68,10 @@ int setup_mock_server_functions(char *mock_server_lib) {
     mock_server_matched = dlsym(handle, "mock_server_matched");
     cleanup_mock_server = dlsym(handle, "cleanup_mock_server");
     mock_server_mismatches = dlsym(handle, "mock_server_mismatches");
+    mock_server_log_to_buffer = dlsym(handle, "log_to_buffer");
+    mock_server_log_to_stdout = dlsym(handle, "log_to_stdout");
+    mock_server_fetch_memory_buffer = dlsym(handle, "fetch_memory_buffer");
+    mock_server_string_delete = dlsym(handle, "string_delete");
     return create_mock_server != 0 && mock_server_matched != 0 && cleanup_mock_server != 0 &&
       mock_server_mismatches != 0;
   } else {
@@ -208,6 +223,9 @@ int main (int argc, char **argv) {
     return 1;
   }
 
+  int result = mock_server_log_to_buffer(LevelFilter_Debug);
+  printf("Setup logging result: %d\n", result);
+
   curl_global_init(CURL_GLOBAL_ALL);
 
   if (strcmp(argv[1], "basic") == 0) {
@@ -219,6 +237,12 @@ int main (int argc, char **argv) {
   } else {
     puts("Hmm, I'm sure I validated all the inputs, so how did you get here?");
   }
+
+  puts("------------------ LOGS ------------------");
+  char* logs = mock_server_fetch_memory_buffer();
+  puts(logs);
+  mock_server_string_delete(logs);
+  puts("------------------------------------------");
 
   return 0;
 }

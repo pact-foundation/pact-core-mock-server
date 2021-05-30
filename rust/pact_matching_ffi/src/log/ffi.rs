@@ -1,15 +1,21 @@
 //! The public FFI functions for initializing, adding sinks to, and applying a logger.
 
+use std::convert::TryFrom;
+use std::ffi::{CStr, CString};
+use std::ptr;
+use std::str::from_utf8;
+
+use fern::Dispatch;
+use libc::{c_char, c_int};
+use log::{error, LevelFilter as LogLevelFilter};
+
 use crate::error::set_error_msg;
 use crate::log::level_filter::LevelFilter;
 use crate::log::logger::{add_sink, apply_logger, set_logger};
 use crate::log::sink::Sink;
 use crate::log::status::Status;
-use fern::Dispatch;
-use libc::{c_char, c_int};
-use log::LevelFilter as LogLevelFilter;
-use std::convert::TryFrom;
-use std::ffi::{CStr, CString};
+use crate::util::string::to_c;
+use crate::log::inmem_buffer::fetch_buffer_contents;
 
 /// Convenience function to direct all logging to stdout.
 #[no_mangle]
@@ -109,6 +115,33 @@ pub extern "C" fn log_to_file(
     Status::Success as c_int
 }
 
+
+/// Convenience function to direct all logging to a thread local memory buffer.
+#[no_mangle]
+pub extern "C" fn log_to_buffer(level_filter: LevelFilter) -> c_int {
+  logger_init();
+
+  let spec = match CString::new("buffer") {
+    Ok(spec) => spec,
+    Err(e) => {
+      set_error_msg(e.to_string());
+      return Status::CantConstructSink as c_int;
+    }
+  };
+
+  let status = logger_attach_sink(spec.as_ptr(), level_filter);
+  if status != 0 {
+    return status;
+  }
+
+  let status = logger_apply();
+  if status != 0 {
+    return status;
+  }
+
+  Status::Success as c_int
+}
+
 // C API uses something like the pledge API to select write locations, including:
 //
 // * stdout (`logger_attach_sink("stdout", LevelFilter_Info)`)
@@ -164,6 +197,7 @@ pub extern "C" fn logger_init() {
 /// - stdout (`logger_attach_sink("stdout", LevelFilter_Info)`)
 /// - stderr (`logger_attach_sink("stderr", LevelFilter_Debug)`)
 /// - file w/ file path (`logger_attach_sink("file /some/file/path", LevelFilter_Trace)`)
+/// - buffer (`logger_attach_sink("buffer", LevelFilter_Debug)`)
 ///
 /// # Usage
 ///
@@ -243,4 +277,28 @@ pub extern "C" fn logger_apply() -> c_int {
     };
 
     status as c_int
+}
+
+
+/// Fetch the in-memory logger buffer contents. This will only have any contents if the `buffer`
+/// sink has been configured to log to. The contents will be allocated on the heap and will need
+/// to be freed with `string_delete`.
+///
+/// Returns a NULL pointer if the buffer can't be fetched. This can occur is there is not
+/// sufficient memory to make a copy of the contents or the buffer contains non-UTF-8 characters.
+#[no_mangle]
+pub extern "C" fn fetch_memory_buffer() -> *const c_char {
+   match from_utf8(&fetch_buffer_contents()) {
+     Ok(contents) => match to_c(contents) {
+       Ok(c_str) => c_str,
+       Err(err) => {
+         error!("Failed to copy in-memory log buffer - {}", err);
+         ptr::null()
+       }
+     }
+     Err(err) => {
+       error!("Failed to convert in-memory log buffer to UTF-8 = {}", err);
+       ptr::null()
+     }
+   }
 }
