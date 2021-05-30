@@ -71,7 +71,7 @@ pub extern "C" fn log_to_stderr(level_filter: LevelFilter) -> c_int {
 
 /// Convenience function to direct all logging to a file.
 #[no_mangle]
-pub extern "C" fn log_to_file(
+pub unsafe extern "C" fn log_to_file(
     file_name: *const c_char,
     level_filter: LevelFilter,
 ) -> c_int {
@@ -83,7 +83,7 @@ pub extern "C" fn log_to_file(
         }
 
         let file_name =
-            match unsafe { CStr::from_ptr(file_name) }.to_str() {
+            match CStr::from_ptr(file_name).to_str() {
                 Ok(file_name) => file_name,
                 Err(e) => {
                     set_error_msg(e.to_string());
