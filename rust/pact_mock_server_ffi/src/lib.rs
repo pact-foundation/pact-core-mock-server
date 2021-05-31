@@ -451,7 +451,7 @@ pub extern fn mock_server_logs(mock_server_port: i32) -> *const c_char {
   let result = catch_unwind(|| {
     MANAGER.lock().unwrap()
       .get_or_insert_with(ServerManager::new)
-      .find_mock_server_by_port_mut(mock_server_port as u16, &|ref mut mock_server| {
+      .find_mock_server_by_port_mut(mock_server_port as u16, &|mock_server| {
         match from_utf8(&fetch_buffer_contents(&mock_server.id)) {
           Ok(contents) => match CString::new(contents.to_string()) {
             Ok(c_str) => {
