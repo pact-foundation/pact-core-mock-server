@@ -291,11 +291,11 @@ pub extern "C" fn logger_apply() -> c_int {
 /// Returns a NULL pointer if the buffer can't be fetched. This can occur is there is not
 /// sufficient memory to make a copy of the contents or the buffer contains non-UTF-8 characters.
 #[no_mangle]
-pub extern "C" fn fetch_log_buffer(log_id: *const c_char,) -> *const c_char {
+pub unsafe extern "C" fn fetch_log_buffer(log_id: *const c_char,) -> *const c_char {
   let id = if log_id.is_null() {
     "global"
   } else {
-    unsafe { CStr::from_ptr(log_id) }.to_str().unwrap_or("global")
+    CStr::from_ptr(log_id).to_str().unwrap_or("global")
   };
   match from_utf8(&fetch_buffer_contents(&id.to_string())) {
     Ok(contents) => match to_c(contents) {
