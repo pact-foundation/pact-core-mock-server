@@ -1,4 +1,3 @@
-use os_info;
 use os_info::Type;
 
 fn main() {

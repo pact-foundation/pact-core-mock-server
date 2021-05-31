@@ -20,10 +20,9 @@ lazy_static! {
   static ref LOG_BUFFER: Mutex<HashMap<String, BytesMut>> = Mutex::new(HashMap::new());
 }
 
-#[allow(missing_docs)]
 task_local! {
-  #[allow(missing_docs)]
   /// Log ID to accumulate logs against
+  #[allow(missing_docs)]
   pub static LOG_ID: String;
 }
 

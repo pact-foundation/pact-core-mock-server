@@ -655,7 +655,7 @@ pub extern fn with_query_parameter(
 ///
 /// For non-body values (headers, query, path etc.) extract out the value from any matchers
 /// and apply the matchers/generators to the model
-fn from_integration_json(rules: &mut MatchingRules, generators: &mut Generators, value: &String, path: &String, category: &str) -> String {
+fn from_integration_json(rules: &mut MatchingRules, generators: &mut Generators, value: &str, path: &str, category: &str) -> String {
   let category = rules.add_category(category);
 
   match serde_json::from_str(&value) {
@@ -703,7 +703,7 @@ pub extern fn with_pact_metadata(
     let name = convert_cstr("name", name).unwrap_or_default();
     let value = convert_cstr("value", value).unwrap_or_default();
 
-    if namespace != "" {
+    if !namespace.is_empty() {
       let mut child = BTreeMap::new();
       child.insert(name.to_string(), value.to_string());
       inner.pact.metadata.insert(namespace.to_string(), child);
@@ -738,8 +738,16 @@ pub extern fn with_header(
       };
 
       let value = match part {
-        InteractionPart::Request => from_integration_json(&mut inner.request.matching_rules, &mut inner.request.generators, &value.to_string(), &format!("{}", &name).to_string(), "header"),
-        InteractionPart::Response => from_integration_json(&mut inner.response.matching_rules, &mut inner.response.generators, &value.to_string(), &format!("{}", &name).to_string(), "header")
+        InteractionPart::Request => from_integration_json(&mut inner.request.matching_rules,
+                                                          &mut inner.request.generators,
+                                                          &value.to_string(),
+                                                          &name.to_string(),
+                                                          "header"),
+        InteractionPart::Response => from_integration_json(&mut inner.response.matching_rules,
+                                                           &mut inner.response.generators,
+                                                           &value.to_string(),
+                                                           &name.to_string(),
+                                                           "header")
       };
 
       let updated_headers = headers.map(|mut h| {
@@ -800,7 +808,7 @@ pub extern fn with_body(
   content_type: *const c_char,
   body: *const c_char
 ) -> bool {
-  let content_type = convert_cstr("content_type", content_type).unwrap_or_else(|| "text/plain");
+  let content_type = convert_cstr("content_type", content_type).unwrap_or("text/plain");
   let body = convert_cstr("body", body).unwrap_or_default();
   let content_type_header = "Content-Type".to_string();
   interaction.with_interaction(&|_, mock_server_started, inner| {
@@ -1090,7 +1098,7 @@ pub extern fn with_multipart_file(
   file: *const c_char,
   part_name: *const c_char
 ) -> StringResult {
-  let part_name = convert_cstr("part_name", part_name).unwrap_or_else(|| "file");
+  let part_name = convert_cstr("part_name", part_name).unwrap_or("file");
   match convert_cstr("content_type", content_type) {
     Some(content_type) => {
       match interaction.with_interaction(&|_, mock_server_started, inner| {
@@ -1101,7 +1109,7 @@ pub extern fn with_multipart_file(
               InteractionPart::Response => response_multipart(&mut inner.response, &body.boundary, body.body, &content_type, part_name)
             };
             if mock_server_started {
-              Err(format!("with_multipart_file: This Pact can not be modified, as the mock server has already started"))
+              Err("with_multipart_file: This Pact can not be modified, as the mock server has already started".to_string())
             } else {
               Ok(())
             }
@@ -1164,8 +1172,8 @@ fn convert_ptr_to_mime_part_body(file: *const c_char, part_name: &str) -> Result
 /// Returns a new `MessagePactHandle`.
 #[no_mangle]
 pub extern fn new_message_pact(consumer_name: *const c_char, provider_name: *const c_char) -> handles::MessagePactHandle {
-  let consumer = convert_cstr("consumer_name", consumer_name).unwrap_or_else(|| "Consumer");
-  let provider = convert_cstr("provider_name", provider_name).unwrap_or_else(|| "Provider");
+  let consumer = convert_cstr("consumer_name", consumer_name).unwrap_or("Consumer");
+  let provider = convert_cstr("provider_name", provider_name).unwrap_or("Provider");
   handles::MessagePactHandle::new(consumer, provider)
 }
 
@@ -1186,7 +1194,7 @@ pub extern fn new_message(pact: handles::MessagePactHandle, description: *const 
       handles::MessageHandle::new(pact.clone(), inner.messages.len())
     }).unwrap_or_else(|| handles::MessageHandle::new(pact.clone(), 0))
   } else {
-    handles::MessageHandle::new(pact.clone(), 0)
+    handles::MessageHandle::new(pact, 0)
   }
 }
 
@@ -1254,7 +1262,7 @@ pub extern fn message_given_with_param(message: handles::MessageHandle, descript
 /// * `size` - number of bytes in the message to read
 #[no_mangle]
 pub extern fn message_with_contents(message: handles::MessageHandle, content_type: *const c_char, body: *const c_char, size: size_t) {
-  let content_type = convert_cstr("content_type", content_type).unwrap_or_else(|| "text/plain");
+  let content_type = convert_cstr("content_type", content_type).unwrap_or("text/plain");
 
   message.with_message(&|_, inner| {
     let content_type = ContentType::parse(content_type).ok();
@@ -1363,7 +1371,7 @@ pub extern fn with_message_pact_metadata(pact: handles::MessagePactHandle, names
     let name = convert_cstr("name", name).unwrap_or_default();
     let value = convert_cstr("value", value).unwrap_or_default();
 
-    if namespace != "" {
+    if !namespace.is_empty() {
       let mut child = BTreeMap::new();
       child.insert(name.to_string(), value.to_string());
       inner.metadata.insert(namespace.to_string(), child);
