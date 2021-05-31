@@ -57,3 +57,10 @@ jobs:
           make
           src/consumer-verification basic ../../rust/target/debug/libpact_mock_server_ffi.so
           src/consumer-verification error ../../rust/target/debug/libpact_mock_server_ffi.so
+
+  musl-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: |
+         docker run --rm --user "$(id -u)":"$(id -g)" -v $(pwd):/workspace -w /workspace -t rust:alpine3.12 cargo build && cargo test"
