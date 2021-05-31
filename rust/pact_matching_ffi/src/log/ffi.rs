@@ -9,13 +9,14 @@ use fern::Dispatch;
 use libc::{c_char, c_int};
 use log::{error, LevelFilter as LogLevelFilter};
 
+use pact_matching::logging::fetch_buffer_contents;
+
 use crate::error::set_error_msg;
 use crate::log::level_filter::LevelFilter;
 use crate::log::logger::{add_sink, apply_logger, set_logger};
 use crate::log::sink::Sink;
 use crate::log::status::Status;
 use crate::util::string::to_c;
-use crate::log::inmem_buffer::fetch_buffer_contents;
 
 /// Convenience function to direct all logging to stdout.
 #[no_mangle]
@@ -284,21 +285,29 @@ pub extern "C" fn logger_apply() -> c_int {
 /// sink has been configured to log to. The contents will be allocated on the heap and will need
 /// to be freed with `string_delete`.
 ///
+/// Fetches the logs associated with the provided identifier, or uses the "global" one if the
+/// identifier is not specified (i.e. NULL).
+///
 /// Returns a NULL pointer if the buffer can't be fetched. This can occur is there is not
 /// sufficient memory to make a copy of the contents or the buffer contains non-UTF-8 characters.
 #[no_mangle]
-pub extern "C" fn fetch_memory_buffer() -> *const c_char {
-   match from_utf8(&fetch_buffer_contents()) {
-     Ok(contents) => match to_c(contents) {
-       Ok(c_str) => c_str,
-       Err(err) => {
-         error!("Failed to copy in-memory log buffer - {}", err);
-         ptr::null()
-       }
-     }
-     Err(err) => {
-       error!("Failed to convert in-memory log buffer to UTF-8 = {}", err);
-       ptr::null()
-     }
-   }
+pub extern "C" fn fetch_log_buffer(log_id: *const c_char,) -> *const c_char {
+  let id = if log_id.is_null() {
+    "global"
+  } else {
+    unsafe { CStr::from_ptr(log_id) }.to_str().unwrap_or("global")
+  };
+  match from_utf8(&fetch_buffer_contents(&id.to_string())) {
+    Ok(contents) => match to_c(contents) {
+      Ok(c_str) => c_str,
+      Err(err) => {
+        error!("Failed to copy in-memory log buffer - {}", err);
+        ptr::null()
+      }
+    }
+    Err(err) => {
+      error!("Failed to convert in-memory log buffer to UTF-8 = {}", err);
+      ptr::null()
+    }
+  }
 }

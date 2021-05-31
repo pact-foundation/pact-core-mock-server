@@ -113,7 +113,8 @@ impl MockServer {
         shutdown_rx.await.ok();
       },
       matches,
-      mock_server.clone()
+      mock_server.clone(),
+      &id
     )
       .await
       .map_err(|err| format!("Could not start server: {}", err))?;

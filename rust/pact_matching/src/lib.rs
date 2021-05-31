@@ -374,6 +374,7 @@ pub mod json;
 mod xml;
 mod binary_utils;
 mod headers;
+pub mod logging;
 
 #[derive(Debug, Clone)]
 /// Context used to apply matching logic

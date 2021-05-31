@@ -1,34 +1,19 @@
-//! In-memory buffer for logging output
+//! In-memory buffer for logging output.
 
 use std::io;
 use std::io::Write;
-use std::sync::Mutex;
 
-use bytes::{BufMut, Bytes, BytesMut};
-use lazy_static::lazy_static;
+use pact_matching::logging::write_to_log_buffer;
 
-lazy_static! {
-  // Memory buffer for the buffer logger. This is needed here because there is no
-  // way to get the logger sync from the Dispatch struct. The buffer will be emptied
-  // when the contents is fetched via an FFI call.
-  /// cbindgen:ignore
-  static ref BUFFER: Mutex<BytesMut> = Mutex::new(BytesMut::with_capacity(256));
-}
-
-/// Fetches the contents from the in-memory buffer and empties the buffer
-pub(crate) fn fetch_buffer_contents() -> Bytes {
-  let mut inner = BUFFER.lock().unwrap();
-  inner.split().freeze()
-}
-
-/// In-memory thread local buffer for logging output. Sends output to `BUFFER`
+/// In-memory buffer for logging output. Sends output to static `LOG_BUFFER` in the pact_matching
+/// crate. If there is a task local ID found, will accumulate against that ID, otherwise will
+/// accumulate against the "global" ID.
 #[derive(Debug)]
 pub(crate) struct InMemBuffer { }
 
 impl Write for InMemBuffer {
   fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-    let mut inner = BUFFER.lock().unwrap();
-    inner.put(buf);
+    write_to_log_buffer(buf);
     Ok(buf.len())
   }
 

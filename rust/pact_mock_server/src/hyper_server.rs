@@ -21,6 +21,7 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio_rustls::server::TlsStream;
 use tokio_rustls::TlsAcceptor;
 
+use pact_matching::logging::LOG_ID;
 use pact_matching::models::{HttpPart, Pact, Request, RequestResponsePact};
 use pact_matching::models::generators::GeneratorTestMode;
 use pact_matching::models::parse_query_string;
@@ -289,31 +290,35 @@ pub(crate) async fn create_and_bind(
   addr: SocketAddr,
   shutdown: impl std::future::Future<Output = ()>,
   matches: Arc<Mutex<Vec<MatchResult>>>,
-  mock_server: Arc<Mutex<MockServer>>
+  mock_server: Arc<Mutex<MockServer>>,
+  mock_server_id: &String
 ) -> Result<(impl std::future::Future<Output = ()>, SocketAddr), hyper::Error> {
   let pact = Arc::new(pact);
+  let ms_id = Arc::new(mock_server_id.clone());
 
   let server = Server::try_bind(&addr)?
     .serve(make_service_fn(move |_| {
       let pact = pact.clone();
       let matches = matches.clone();
       let mock_server = mock_server.clone();
+      let mock_server_id = ms_id.clone();
 
-      async {
+      LOG_ID.scope(mock_server_id.to_string(), async {
         Ok::<_, hyper::Error>(
           service_fn(move |req| {
             let pact = pact.clone();
             let matches = matches.clone();
             let mock_server = mock_server.clone();
+            let mock_server_id = mock_server_id.clone();
 
-            async {
+            LOG_ID.scope(mock_server_id.to_string(), async {
               handle_mock_request_error(
                 handle_request(req, pact, matches, mock_server).await
               )
-            }
+            })
           })
         )
-      }
+      })
     }));
 
   let socket_addr = server.local_addr();
@@ -427,7 +432,8 @@ mod tests {
           shutdown_rx.await.ok();
       },
       matches.clone(),
-      Arc::new(Mutex::new(MockServer::default()))
+      Arc::new(Mutex::new(MockServer::default())),
+      &String::default()
     ).await.unwrap();
 
     let join_handle = tokio::task::spawn(future);

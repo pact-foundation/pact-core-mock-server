@@ -45,18 +45,20 @@ typedef char* (*lib_mock_server_mismatches)(int32_t);
 
 typedef int (*lib_log_to_buffer)(enum LevelFilter level_filter);
 typedef int (*lib_log_to_stdout)(enum LevelFilter level_filter);
-typedef const char * (*lib_fetch_memory_buffer)(void);
-typedef void (*lib_string_delete)(char *string);
+typedef const char * (*lib_fetch_log_buffer)(const char *);
+typedef const char * (*lib_mock_server_logs)(int32_t);
+typedef void (*lib_string_delete)(const char *string);
 
 lib_create_mock_server create_mock_server;
 lib_mock_server_matched mock_server_matched;
 lib_cleanup_mock_server cleanup_mock_server;
 lib_mock_server_mismatches mock_server_mismatches;
 
-lib_log_to_buffer mock_server_log_to_buffer;
-lib_log_to_stdout mock_server_log_to_stdout;
-lib_fetch_memory_buffer mock_server_fetch_memory_buffer;
-lib_string_delete mock_server_string_delete;
+lib_log_to_buffer mock_server__log_to_buffer;
+lib_log_to_stdout mock_server__log_to_stdout;
+lib_fetch_log_buffer mock_server__fetch_log_buffer;
+lib_mock_server_logs mock_server__mock_server_logs;
+lib_string_delete mock_server__string_delete;
 
 /* Loads the mock server shared library and sets up the functions we need to call */
 int setup_mock_server_functions(char *mock_server_lib) {
@@ -68,10 +70,11 @@ int setup_mock_server_functions(char *mock_server_lib) {
     mock_server_matched = dlsym(handle, "mock_server_matched");
     cleanup_mock_server = dlsym(handle, "cleanup_mock_server");
     mock_server_mismatches = dlsym(handle, "mock_server_mismatches");
-    mock_server_log_to_buffer = dlsym(handle, "log_to_buffer");
-    mock_server_log_to_stdout = dlsym(handle, "log_to_stdout");
-    mock_server_fetch_memory_buffer = dlsym(handle, "fetch_memory_buffer");
-    mock_server_string_delete = dlsym(handle, "string_delete");
+    mock_server__log_to_buffer = dlsym(handle, "log_to_buffer");
+    mock_server__log_to_stdout = dlsym(handle, "log_to_stdout");
+    mock_server__fetch_log_buffer = dlsym(handle, "fetch_log_buffer");
+    mock_server__mock_server_logs = dlsym(handle, "mock_server_logs");
+    mock_server__string_delete = dlsym(handle, "string_delete");
     return create_mock_server != 0 && mock_server_matched != 0 && cleanup_mock_server != 0 &&
       mock_server_mismatches != 0;
   } else {
@@ -122,6 +125,11 @@ void basic_test(char *executable) {
       } else {
         puts("FAILED: Mock server did not match all requests!!");
       }
+
+      puts("--------------- MOCK SERVER LOGS ---------------");
+      const char* logs = mock_server__mock_server_logs(port);
+      puts(logs);
+      puts("------------------------------------------------");
 
       /* Lastly, we need to shutdown and cleanup the mock server */
       cleanup_mock_server(port);
@@ -198,6 +206,11 @@ void error_test(char *executable) {
         puts(mismatch_json);
       }
 
+      puts("--------------- MOCK SERVER LOGS ---------------");
+      const char* logs = mock_server__mock_server_logs(port);
+      puts(logs);
+      puts("------------------------------------------------");
+
       /* Lastly, we need to shutdown and cleanup the mock server */
       cleanup_mock_server(port);
       free(pact);
@@ -213,8 +226,8 @@ void error_test(char *executable) {
 int main (int argc, char **argv) {
   puts("This is " PACKAGE_STRING ".");
 
-  if (argc < 3 || (strcmp(argv[1], "basic") != 0 && strcmp(argv[1], "error") != 0)) {
-    puts("You need to specify the test to run: basic, error and the path to the rust DLL");
+  if (argc < 3 || (strcmp(argv[1], "basic") != 0 && strcmp(argv[1], "error") != 0 && strcmp(argv[1], "both") != 0)) {
+    puts("You need to specify the test to run: basic, error or both and the path to the rust DLL");
     return 1;
   }
 
@@ -223,7 +236,7 @@ int main (int argc, char **argv) {
     return 1;
   }
 
-  int result = mock_server_log_to_buffer(LevelFilter_Debug);
+  int result = mock_server__log_to_buffer(LevelFilter_Debug);
   printf("Setup logging result: %d\n", result);
 
   curl_global_init(CURL_GLOBAL_ALL);
@@ -234,15 +247,19 @@ int main (int argc, char **argv) {
   } else if (strcmp(argv[1], "error") == 0) {
     puts("Running error pact test");
     error_test(argv[0]);
+  } else if (strcmp(argv[1], "both") == 0) {
+    puts("Running both tests test");
+    basic_test(argv[0]);
+    error_test(argv[0]);
   } else {
     puts("Hmm, I'm sure I validated all the inputs, so how did you get here?");
   }
 
-  puts("------------------ LOGS ------------------");
-  char* logs = mock_server_fetch_memory_buffer();
+  puts("------------------ GLOBAL LOGS ------------------");
+  const char* logs = mock_server__fetch_log_buffer(NULL);
   puts(logs);
-  mock_server_string_delete(logs);
-  puts("------------------------------------------");
+  mock_server__string_delete(logs);
+  puts("------------------------------------------------");
 
   return 0;
 }

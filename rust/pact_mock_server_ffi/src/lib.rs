@@ -50,7 +50,7 @@ use std::ffi::CString;
 use std::panic::catch_unwind;
 use std::path::PathBuf;
 use std::ptr::null_mut;
-use std::str;
+use std::{str, ptr};
 
 use bytes::Bytes;
 use chrono::Local;
@@ -87,12 +87,14 @@ pub use pact_matching_ffi::log::{
   logger_apply,
   logger_attach_sink,
   logger_init,
-  fetch_memory_buffer,
+  fetch_log_buffer,
   log_to_stdout,
   log_to_stderr,
   log_to_file,
   log_to_buffer
 };
+use std::str::from_utf8;
+use pact_matching::logging::fetch_buffer_contents;
 
 pub mod handles;
 pub mod bodies;
@@ -434,6 +436,47 @@ pub extern fn write_pact_file(mock_server_port: i32, directory: *const c_char, o
     Err(cause) => {
       log::error!("Caught a general panic: {:?}", cause);
       1
+    }
+  }
+}
+
+
+/// Fetch the logs for the mock server. This needs the memory buffer log sink to be setup before
+/// the mock server is started. Returned string will be freed with the `cleanup_mock_server`
+/// function call.
+///
+/// Will return a NULL pointer if the logs for the mock server can not be retrieved.
+#[no_mangle]
+pub extern fn mock_server_logs(mock_server_port: i32) -> *const c_char {
+  let result = catch_unwind(|| {
+    MANAGER.lock().unwrap()
+      .get_or_insert_with(ServerManager::new)
+      .find_mock_server_by_port_mut(mock_server_port as u16, &|ref mut mock_server| {
+        match from_utf8(&fetch_buffer_contents(&mock_server.id)) {
+          Ok(contents) => match CString::new(contents.to_string()) {
+            Ok(c_str) => {
+              let p = c_str.as_ptr();
+              mock_server.resources.push(c_str);
+              p
+            },
+            Err(err) => {
+              error!("Failed to copy in-memory log buffer - {}", err);
+              ptr::null()
+            }
+          }
+          Err(err) => {
+            error!("Failed to convert in-memory log buffer to UTF-8 = {}", err);
+            ptr::null()
+          }
+        }
+      })
+  });
+
+  match result {
+    Ok(val) => val.unwrap_or_else(|| ptr::null()),
+    Err(cause) => {
+      error!("Caught a general panic: {:?}", cause);
+      ptr::null()
     }
   }
 }

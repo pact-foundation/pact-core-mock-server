@@ -1165,6 +1165,7 @@ dependencies = [
  "speculate",
  "sxd-document",
  "test-env-log",
+ "tokio",
  "tree_magic_mini",
  "uuid",
 ]

@@ -12,7 +12,7 @@ pub use crate::log::ffi::{
     logger_apply,
     logger_attach_sink,
     logger_init,
-    fetch_memory_buffer,
+    fetch_log_buffer,
     log_to_stdout,
     log_to_stderr,
     log_to_file,
