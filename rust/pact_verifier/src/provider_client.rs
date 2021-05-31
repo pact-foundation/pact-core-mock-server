@@ -170,7 +170,7 @@ pub async fn make_provider_request<F: RequestFilterExecutor>(
     .and_then(native_response_to_pact_response)
     .await
     .map_err(|err| ProviderClientError::ResponseError(err.to_string()))?;
-    
+
   Ok(response)
 }
 
@@ -249,7 +249,36 @@ mod tests {
   use pact_matching::s;
   use pact_models::bodies::OptionalBody;
 
-  use super::{create_native_request, join_paths};
+  use super::{create_native_request, join_paths, extract_headers};
+  use http::{HeaderMap, HeaderValue};
+
+  #[test]
+  fn extract_headers_tests() {
+    let mut headers = HeaderMap::new();
+    headers.insert("HOST", "example.com".parse().unwrap());
+    headers.insert("CONTENT_LENGTH", "123".parse().unwrap());
+    let response = extract_headers(&headers).unwrap();
+    expect!(&response["host"][0]).to(be_equal_to(&"example.com"));
+    expect!(&response["content_length"][0]).to(be_equal_to(&"123"));
+  }
+
+  #[test]
+  fn extract_headers_return_none_if_headers_are_empty() {
+    expect!(extract_headers(&HeaderMap::new())).to(be_none());
+  }
+
+  #[test]
+  fn extract_headers_when_header_value_is_a_comma_separated_string() {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+      "Access-Control-Expose-Headers",
+      "Content-Length, Content-Type, Expires".parse().unwrap()
+    );
+    let response = extract_headers(&headers).unwrap();
+    expect!(&response["access-control-expose-headers"][0]).to(be_equal_to(&"Content-Length"));
+    expect!(&response["access-control-expose-headers"][1]).to(be_equal_to(&"Content-Type"));
+    expect!(&response["access-control-expose-headers"][2]).to(be_equal_to(&"Expires"));
+  }
 
   #[test]
   fn join_paths_test() {
