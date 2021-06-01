@@ -2,3 +2,4 @@ FROM rust:alpine3.12
 
 RUN apk --no-cache add bash musl-dev openssl-dev
 
+ENTRYPOINT ["/bin/bash"]
