@@ -127,7 +127,6 @@ fn if_a_consumer_filter_is_defined_returns_true_if_the_consumer_name_does_match(
 }
 
 #[tokio::test]
-#[cfg(not(target_env = "musl"))] // fails on alpine with SIGSEGV
 async fn test_state_change_with_parameters() {
   try_init().unwrap_or(());
 
@@ -160,7 +159,6 @@ async fn test_state_change_with_parameters() {
 }
 
 #[tokio::test]
-#[cfg(not(target_env = "musl"))] // fails on alpine with SIGSEGV
 async fn test_state_change_with_parameters_in_query() {
   try_init().unwrap_or(());
 
@@ -199,7 +197,6 @@ async fn test_state_change_with_parameters_in_query() {
 }
 
 #[tokio::test]
-#[cfg(not(target_env = "musl"))] // fails on alpine with SIGSEGV
 async fn test_state_change_returning_json_values() {
   try_init().unwrap_or(());
 
@@ -234,7 +231,6 @@ async fn test_state_change_returning_json_values() {
 }
 
 #[test]
-#[cfg(not(target_env = "musl"))] // fails on alpine with SIGSEGV
 fn publish_result_does_nothing_if_not_from_broker() {
   try_init().unwrap_or(());
 
@@ -269,7 +265,6 @@ fn publish_result_does_nothing_if_not_from_broker() {
 }
 
 #[tokio::test]
-#[cfg(not(target_env = "musl"))] // fails on alpine with SIGSEGV
 async fn publish_successful_result_to_broker() {
   try_init().unwrap_or(());
 

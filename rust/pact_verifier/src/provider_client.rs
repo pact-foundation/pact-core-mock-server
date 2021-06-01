@@ -250,7 +250,7 @@ mod tests {
   use pact_models::bodies::OptionalBody;
 
   use super::{create_native_request, join_paths, extract_headers};
-  use http::{HeaderMap, HeaderValue};
+  use http::HeaderMap;
 
   #[test]
   fn extract_headers_tests() {
@@ -290,7 +290,6 @@ mod tests {
   }
 
   #[test]
-  #[cfg(not(target_env = "musl"))] // fails on alpine with SIGSEGV
   fn convert_request_to_native_request_test() {
     let client = reqwest::Client::new();
     let base_url = "http://example.test:8080".to_string();
@@ -303,7 +302,6 @@ mod tests {
   }
 
   #[test]
-  #[cfg(not(target_env = "musl"))] // fails on alpine with SIGSEGV
   fn convert_request_to_native_request_with_query_parameters() {
     let client = reqwest::Client::new();
     let base_url = "http://example.test:8080".to_string();
@@ -321,7 +319,6 @@ mod tests {
   }
 
   #[test]
-  #[cfg(not(target_env = "musl"))] // fails on alpine with SIGSEGV
   fn convert_request_to_native_request_with_headers() {
     let client = reqwest::Client::new();
     let base_url = "http://example.test:8080".to_string();
@@ -346,7 +343,6 @@ mod tests {
   }
 
   #[test]
-  #[cfg(not(target_env = "musl"))] // fails on alpine with SIGSEGV
   fn convert_request_to_native_request_with_body() {
     let client = reqwest::Client::new();
     let base_url = "http://example.test:8080".to_string();
@@ -362,7 +358,6 @@ mod tests {
   }
 
   #[test]
-  #[cfg(not(target_env = "musl"))] // fails on alpine with SIGSEGV
   fn convert_request_to_native_request_with_null_body() {
     let client = reqwest::Client::new();
     let base_url = "http://example.test:8080".to_string();
@@ -378,7 +373,6 @@ mod tests {
   }
 
   #[test]
-  #[cfg(not(target_env = "musl"))] // fails on alpine with SIGSEGV
   fn convert_request_to_native_request_with_json_null_body() {
     let client = reqwest::Client::new();
     let base_url = "http://example.test:8080".to_string();

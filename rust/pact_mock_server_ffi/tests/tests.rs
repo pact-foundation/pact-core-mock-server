@@ -36,7 +36,6 @@ use pact_mock_server_ffi::{
 use pact_models::bodies::OptionalBody;
 
 #[test]
-#[cfg(not(target_env = "musl"))] // fails on alpine with SIGSEGV
 fn post_to_mock_server_with_misatches() {
   let pact_json = include_str!("post-pact.json");
   let pact_json_c = CString::new(pact_json).expect("Could not construct C string from json");
@@ -62,7 +61,6 @@ fn post_to_mock_server_with_misatches() {
 }
 
 #[test]
-#[cfg(not(target_env = "musl"))] // fails on alpine with SIGSEGV
 fn create_header_with_multiple_values() {
   let consumer_name = CString::new("consumer").unwrap();
   let provider_name = CString::new("provider").unwrap();
@@ -82,7 +80,6 @@ fn create_header_with_multiple_values() {
 }
 
 #[test]
-#[cfg(not(target_env = "musl"))] // fails on alpine with SIGSEGV
 fn create_query_parameter_with_multiple_values() {
   let consumer_name = CString::new("consumer").unwrap();
   let provider_name = CString::new("provider").unwrap();
@@ -104,7 +101,6 @@ fn create_query_parameter_with_multiple_values() {
 }
 
 #[test]
-#[cfg(not(target_env = "musl"))] // fails on alpine
 fn create_multipart_file() {
   let consumer_name = CString::new("consumer").unwrap();
   let provider_name = CString::new("provider").unwrap();
@@ -149,7 +145,6 @@ fn create_multipart_file() {
 }
 
 #[test]
-#[cfg(not(target_env = "musl"))] // fails on alpine with SIGSEGV
 fn http_consumer_feature_test() {
   let consumer_name = CString::new("http-consumer").unwrap();
   let provider_name = CString::new("http-provider").unwrap();
@@ -222,7 +217,6 @@ fn http_consumer_feature_test() {
 }
 
 #[test]
-#[cfg(not(target_env = "musl"))] // fails on alpine with SIGSEGV
 fn message_consumer_feature_test() {
   let consumer_name = CString::new("message-consumer").unwrap();
   let provider_name = CString::new("message-provider").unwrap();

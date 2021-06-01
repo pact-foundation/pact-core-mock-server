@@ -177,7 +177,6 @@ fn match_request_supports_v2_matchers_with_xml() {
 }
 
 #[test]
-#[cfg(not(target_env = "musl"))] // reqwest fails with a seg violation on alpine
 fn match_request_with_header_with_multiple_values() {
   let pact = RequestResponsePact {
     interactions: vec![

@@ -41,7 +41,6 @@ impl ProviderStateExecutor for DummyProviderStateExecutor {
 }
 
 #[tokio::test]
-#[cfg(not(target_env = "musl"))] // fails on alpine with SIGSEGV
 async fn verify_pact_with_match_values_matcher() {
   try_init().unwrap_or(());
 

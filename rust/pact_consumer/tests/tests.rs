@@ -68,7 +68,6 @@ fn mock_server_passing_validation() {
 
 #[test]
 #[should_panic]
-#[cfg(not(target_env = "musl"))] // fails with a seg violation on alpine
 fn mock_server_failing_validation() {
     let _ = env_logger::builder().is_test(true).try_init();
 
@@ -85,7 +84,6 @@ fn mock_server_failing_validation() {
 }
 
 #[tokio::test]
-#[cfg(not(target_env = "musl"))] // fails with a seg violation on alpine
 async fn duplicate_interactions() {
   let _ = env_logger::builder().is_test(true).try_init();
 
