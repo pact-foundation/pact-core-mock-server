@@ -9,6 +9,7 @@ RUN sudo chown -R rust:rust /home/rust
 # Fix the cargo manifest so it can be built standalone
 RUN sed -i -e 's/pact_matching = {\s*version\s*=\s*"\([^"]*\).*/pact_matching = "\1"/' Cargo.toml
 RUN sed -i -e 's/pact_mock_server = {\s*version\s*=\s*"\([^"]*\).*/pact_mock_server = "\1"/' Cargo.toml
+RUN sed -i -e 's/pact_models = {\s*version\s*=\s*"\([^"]*\).*/pact_models = "\1"/' Cargo.toml
 
 RUN sudo apt-get clean && sudo apt-get update -y && sudo apt-get install llvm libclang-dev -y
 
