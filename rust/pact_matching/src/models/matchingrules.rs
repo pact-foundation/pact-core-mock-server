@@ -130,7 +130,7 @@ impl <T: Debug + Display + PartialEq + Clone> Matches<&Vec<T>> for &Vec<T> {
   }
 }
 
-impl Matches<&[u8]> for &Vec<u8> {
+impl Matches<&[u8]> for Vec<u8> {
   fn matches_with(&self, actual: &[u8], matcher: &MatchingRule) -> anyhow::Result<()> {
     let result = match matcher {
       MatchingRule::Regex(regex) => {
@@ -185,6 +185,12 @@ impl Matches<&[u8]> for &Vec<u8> {
     };
     debug!("Comparing list with {} items to one with {} items using {:?} -> {:?}", self.len(), actual.len(), matcher, result);
     result
+  }
+}
+
+impl Matches<&[u8]> for &Vec<u8> {
+  fn matches_with(&self, actual: &[u8], matcher: &MatchingRule) -> anyhow::Result<()> {
+    (*self).matches_with(actual, matcher)
   }
 }
 
