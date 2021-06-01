@@ -518,7 +518,7 @@ mod tests {
       .to_owned();
 
     let content_type = ContentType::parse("application/octet-stream").unwrap();
-    let contents = fs::read(file).unwrap();
+    let contents = fs::read(dbg!(file)).unwrap();
     let encoded = concat!(
       "UEsDBAoAAAAAAI2rtlKd3GsXCgAAAAoAAAAIABwAZmlsZS50eHRVVAkAA9nqqGDb6qhgdXgLAAEE9QEAAAQUAAAAdGVzdCBkYXRhClBL",
       "AQIeAwoAAAAAAI2rtlKd3GsXCgAAAAoAAAAIABgAAAAAAAEAAACkgQAAAABmaWxlLnR4dFVUBQAD2eqoYHV4CwABBPUBAAAEFAAAAFBLBQYAAAAAAQABAE4",
