@@ -11,6 +11,7 @@ use reqwest::Client;
 use serde_json::Value;
 
 use pact_consumer::prelude::*;
+use pact_consumer::*;
 use pact_matching::models::read_pact;
 use pact_models::provider_states::ProviderState;
 use pact_verifier::{FilterInfo, NullRequestFilterExecutor, ProviderInfo, VerificationOptions, verify_pact};
@@ -79,6 +80,47 @@ async fn verify_pact_with_match_values_matcher() {
   };
 
   let pact_file = fixture_path("match-values.json");
+  let pact = read_pact(pact_file.as_path()).unwrap();
+  let options: VerificationOptions<NullRequestFilterExecutor> = VerificationOptions::default();
+  let provider_states = Arc::new(DummyProviderStateExecutor{});
+
+  let result = verify_pact(&provider, &FilterInfo::None, pact, &options, &provider_states).await;
+
+  expect!(result.get(0).unwrap().2.clone()).to(be_none());
+}
+
+#[tokio::test]
+async fn verify_pact_with_attributes_with_special_values() {
+  try_init().unwrap_or(());
+
+  let server = PactBuilder::new_v4("book_consumer", "book_provider")
+    .interaction("create book request", |i| {
+      i.test_name("verify_pact_with_attributes_with_special_values");
+      i.request.method("POST");
+      i.request.path("/books");
+      i.request.content_type("application/json");
+
+      i.response.ok().content_type("application/json").json_body(json_pattern!({
+        "@context": "/api/contexts/Book",
+        "@id": "/api/books/0114b2a8-3347-49d8-ad99-0e792c5a30e6",
+        "@type": "Book",
+        "title": "Voluptas et tempora repellat corporis excepturi.",
+        "description": "Quaerat odit quia nisi accusantium natus voluptatem. Explicabo corporis eligendi ut ut sapiente ut qui quidem. Optio amet velit aut delectus. Sed alias asperiores perspiciatis deserunt omnis. Mollitia unde id in.",
+        "author": "Melisa Kassulke",
+        "%publicationDate%": "1999-02-13T00:00:00+07:00",
+        "reviews": []
+      }));
+    })
+    .start_mock_server();
+
+  let provider = ProviderInfo {
+    name: "BookProvider".to_string(),
+    host: "127.0.0.1".to_string(),
+    port: server.url().port(),
+    .. ProviderInfo::default()
+  };
+
+  let pact_file = fixture_path("pact_with_special_chars.json");
   let pact = read_pact(pact_file.as_path()).unwrap();
   let options: VerificationOptions<NullRequestFilterExecutor> = VerificationOptions::default();
   let provider_states = Arc::new(DummyProviderStateExecutor{});
