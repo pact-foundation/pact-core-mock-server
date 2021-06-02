@@ -10,10 +10,13 @@ mod json_pattern;
 #[macro_use]
 mod special_rules;
 mod string_pattern;
+#[macro_use]
+mod date_time;
 
 pub use self::json_pattern::*;
 pub use self::special_rules::*;
 pub use self::string_pattern::*;
+pub use self::date_time::*;
 
 /// Abstract interface to types which can:
 ///

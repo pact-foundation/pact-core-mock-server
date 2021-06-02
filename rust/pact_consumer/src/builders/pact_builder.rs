@@ -4,6 +4,7 @@ use pact_models::{Consumer, Provider};
 use crate::prelude::*;
 
 use super::interaction_builder::InteractionBuilder;
+use pact_matching::models::v4::V4Pact;
 
 /// Builder for `Pact` objects.
 ///
@@ -46,7 +47,22 @@ impl PactBuilder {
         PactBuilder { pact: pact.boxed() }
     }
 
-    /// Add a new `Interaction` to the `Pact`.
+    /// Create a new `PactBuilder` for a V4 specification Pact, specifying the names of the service
+    /// consuming the API and the service providing it.
+    pub fn new_v4<C, P>(consumer: C, provider: P) -> Self
+      where
+        C: Into<String>,
+        P: Into<String>
+    {
+      let pact = V4Pact {
+        consumer: Consumer { name: consumer.into() },
+        provider: Provider { name: provider.into() },
+        .. V4Pact::default()
+      };
+      PactBuilder { pact: pact.boxed() }
+    }
+
+    /// Add a new HTTP `Interaction` to the `Pact`.
     pub fn interaction<D, F>(&mut self, description: D, build_fn: F) -> &mut Self
     where
         D: Into<String>,
