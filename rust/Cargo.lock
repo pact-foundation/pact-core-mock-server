@@ -1051,6 +1051,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "pact_file_verifier"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "log",
+ "pact_matching",
+ "pact_models",
+ "serde",
+ "serde_json",
+ "simplelog 0.10.0",
+]
+
+[[package]]
 name = "pact_matching"
 version = "0.9.3"
 dependencies = [
@@ -1167,7 +1181,7 @@ dependencies = [
  "regex",
  "reqwest",
  "serde_json",
- "simplelog",
+ "simplelog 0.9.0",
  "tokio",
  "url",
  "uuid",
@@ -1261,6 +1275,7 @@ name = "pact_verifier_cli"
 version = "0.8.6"
 dependencies = [
  "pact_verifier_ffi",
+ "reqwest",
  "tokio",
 ]
 
@@ -1287,7 +1302,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with",
- "simplelog",
+ "simplelog 0.9.0",
  "tokio",
 ]
 
@@ -1860,6 +1875,17 @@ name = "simplelog"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4bc0ffd69814a9b251d43afcabf96dad1b29f5028378056257be9e3fecc9f720"
+dependencies = [
+ "chrono",
+ "log",
+ "termcolor",
+]
+
+[[package]]
+name = "simplelog"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "59d0fe306a0ced1c88a58042dc22fc2ddd000982c26d75f6aa09a394547c41e0"
 dependencies = [
  "chrono",
  "log",

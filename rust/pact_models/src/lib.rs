@@ -12,6 +12,7 @@ pub mod content_types;
 pub mod bodies;
 pub mod v4;
 pub mod provider_states;
+pub mod verify_json;
 
 /// Enum defining the pact specification versions supported by the library
 #[cfg_attr(feature = "ffi", repr(C))]
@@ -61,6 +62,31 @@ impl PactSpecification {
       PactSpecification::V4 => "V4",
       _ => "unknown"
     }.into()
+  }
+}
+
+impl From<&str> for PactSpecification {
+  fn from(s: &str) -> Self {
+    match s.to_uppercase().as_str() {
+      "V1" => PactSpecification::V1,
+      "V1.1" => PactSpecification::V1_1,
+      "V2" => PactSpecification::V2,
+      "V3" => PactSpecification::V3,
+      "V4" => PactSpecification::V4,
+      _ => PactSpecification::Unknown
+    }
+  }
+}
+
+impl From<String> for PactSpecification {
+  fn from(s: String) -> Self {
+    PactSpecification::from(s.as_str())
+  }
+}
+
+impl From<&String> for PactSpecification {
+  fn from(s: &String) -> Self {
+    PactSpecification::from(s.as_str())
   }
 }
 

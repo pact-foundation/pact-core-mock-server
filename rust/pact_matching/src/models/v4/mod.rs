@@ -23,6 +23,7 @@ use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
 use pact_models::provider_states::{self, ProviderState};
 use pact_models::v4::V4InteractionType;
+use pact_models::verify_json::{PactFileVerificationResult, PactJsonVerifier};
 
 use crate::models::{
   detect_content_type_from_bytes,
@@ -967,6 +968,12 @@ impl ReadWritePact for V4Pact {
 
   fn default_file_name(&self) -> String {
     format!("{}-{}.json", self.consumer.name, self.provider.name)
+  }
+}
+
+impl PactJsonVerifier for V4Pact {
+  fn verify_json(pact_json: &Value) -> Vec<PactFileVerificationResult> {
+    todo!()
   }
 }
 

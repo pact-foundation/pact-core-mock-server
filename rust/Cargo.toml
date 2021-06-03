@@ -1,8 +1,3 @@
-# This is a "workspace" crate, which declares that an entire family of Rust
-# crates are developed together. This allows running commands like
-# `cargo test --all`, and it also allows our child crates to share build
-# artifacts, speeding up compilation considerably.
-
 [workspace]
 members = [
     "pact_models",
@@ -14,5 +9,6 @@ members = [
     "pact_consumer",
     "pact_verifier",
     "pact_verifier_cli",
-    "pact_verifier_ffi"
+    "pact_verifier_ffi",
+    "pact_file_verifier"
 ]

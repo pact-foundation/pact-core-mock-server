@@ -31,6 +31,7 @@ use pact_models::{Consumer, DifferenceType, PactSpecification, Provider};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::*;
 use pact_models::provider_states::ProviderState;
+use pact_models::verify_json::{PactFileVerificationResult, PactJsonVerifier};
 
 use crate::models::file_utils::{with_read_lock, with_read_lock_for_open_file, with_write_lock};
 use crate::models::generators::{Generator, GeneratorCategory};
@@ -1166,7 +1167,8 @@ impl Pact for RequestResponsePact {
   }
 }
 
-fn parse_meta_data(pact_json: &Value) -> BTreeMap<String, BTreeMap<String, String>> {
+/// Construct Metadata from JSON value
+pub fn parse_meta_data(pact_json: &Value) -> BTreeMap<String, BTreeMap<String, String>> {
     match pact_json.get("metadata") {
         Some(v) => match *v {
             Value::Object(ref obj) => obj.iter().map(|(k, v)| {
@@ -1204,7 +1206,8 @@ fn parse_interactions(pact_json: &Value, spec_version: PactSpecification) -> Vec
     }
 }
 
-fn determine_spec_version(file: &str, metadata: &BTreeMap<String, BTreeMap<String, String>>) -> PactSpecification {
+/// Determines the Pact specification version from the metadata of the Pact file
+pub fn determine_spec_version(file: &str, metadata: &BTreeMap<String, BTreeMap<String, String>>) -> PactSpecification {
   let specification = if metadata.contains_key("pact-specification") {
     metadata.get("pact-specification")
   } else {
@@ -1219,7 +1222,7 @@ fn determine_spec_version(file: &str, metadata: &BTreeMap<String, BTreeMap<Strin
               0 => PactSpecification::V1,
               1 => PactSpecification::V1_1,
               _ => {
-                log::warn!("Unsupported specification version '{}' found in the metadata in the pact file {:?}, will try load it as a V1 specification", ver, file);
+                warn!("Unsupported specification version '{}' found in the metadata in the pact file {:?}, will try load it as a V1 specification", ver, file);
                 PactSpecification::V1
               }
             },
@@ -1227,23 +1230,23 @@ fn determine_spec_version(file: &str, metadata: &BTreeMap<String, BTreeMap<Strin
             3 => PactSpecification::V3,
             4 => PactSpecification::V4,
             _ => {
-                log::warn!("Unsupported specification version '{}' found in the metadata in the pact file {:?}, will try load it as a V3 specification", ver, file);
+                warn!("Unsupported specification version '{}' found in the metadata in the pact file {:?}, will try load it as a V3 specification", ver, file);
                 PactSpecification::Unknown
             }
           },
           Err(err) => {
-            log::warn!("Could not parse specification version '{}' found in the metadata in the pact file {:?}, assuming V3 specification - {}", ver, file, err);
+            warn!("Could not parse specification version '{}' found in the metadata in the pact file {:?}, assuming V3 specification - {}", ver, file, err);
             PactSpecification::Unknown
           }
         },
         None => {
-          log::warn!("No specification version found in the metadata in the pact file {:?}, assuming V3 specification", file);
+          warn!("No specification version found in the metadata in the pact file {:?}, assuming V3 specification", file);
           PactSpecification::V3
         }
       }
     },
     None => {
-      log::warn!("No metadata found in pact file {:?}, assuming V3 specification", file);
+      warn!("No metadata found in pact file {:?}, assuming V3 specification", file);
       PactSpecification::V3
     }
   }
@@ -1394,6 +1397,12 @@ impl ReadWritePact for RequestResponsePact {
 
   fn default_file_name(&self) -> String {
     format!("{}-{}.json", self.consumer.name, self.provider.name)
+  }
+}
+
+impl PactJsonVerifier for RequestResponsePact {
+  fn verify_json(pact_json: &Value) -> Vec<PactFileVerificationResult> {
+    todo!()
   }
 }
 

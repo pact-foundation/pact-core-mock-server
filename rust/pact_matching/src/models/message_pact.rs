@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use pact_models::PactSpecification;
+use pact_models::verify_json::{PactFileVerificationResult, PactJsonVerifier};
 
 use crate::models::{Consumer, Interaction, Pact, ReadWritePact, RequestResponsePact};
 use crate::models::determine_spec_version;
@@ -311,6 +312,12 @@ impl ReadWritePact for MessagePact {
 
   fn default_file_name(&self) -> String {
     format!("{}-{}.json", self.consumer.name, self.provider.name)
+  }
+}
+
+impl PactJsonVerifier for MessagePact {
+  fn verify_json(pact_json: &Value) -> Vec<PactFileVerificationResult> {
+    todo!()
   }
 }
 
