@@ -31,7 +31,7 @@ use pact_models::{Consumer, DifferenceType, PactSpecification, Provider};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::*;
 use pact_models::provider_states::ProviderState;
-use pact_models::verify_json::{PactFileVerificationResult, PactJsonVerifier};
+use pact_models::verify_json::{json_type_of, PactFileVerificationResult, ResultLevel, PactJsonVerifier};
 
 use crate::models::file_utils::{with_read_lock, with_read_lock_for_open_file, with_write_lock};
 use crate::models::generators::{Generator, GeneratorCategory};
@@ -1039,6 +1039,12 @@ impl Display for RequestResponseInteraction {
   }
 }
 
+impl PactJsonVerifier for RequestResponseInteraction {
+  fn verify_json(path: &str, pact_json: &Value, strict: bool) -> Vec<PactFileVerificationResult> {
+    vec![]
+  }
+}
+
 /// Trait for a Pact (request/response or message)
 pub trait Pact: Debug + ReadWritePact {
   /// Consumer side of the pact
@@ -1401,8 +1407,53 @@ impl ReadWritePact for RequestResponsePact {
 }
 
 impl PactJsonVerifier for RequestResponsePact {
-  fn verify_json(pact_json: &Value) -> Vec<PactFileVerificationResult> {
-    todo!()
+  fn verify_json(path: &str, pact_json: &Value, strict: bool) -> Vec<PactFileVerificationResult> {
+    let mut results = vec![];
+
+    match pact_json {
+      Value::Object(values) => {
+        if let Some(consumer) = values.get("consumer") {
+          results.extend(Consumer::verify_json("/consumer", consumer, strict));
+        } else if strict {
+          results.push(PactFileVerificationResult::new("/consumer", ResultLevel::ERROR, "Missing consumer"))
+        } else {
+          results.push(PactFileVerificationResult::new("/consumer", ResultLevel::WARNING, "Missing consumer"))
+        }
+
+        if let Some(provider) = values.get("provider") {
+          results.extend(Provider::verify_json("/provider", provider, strict));
+        } else if strict {
+          results.push(PactFileVerificationResult::new("/provider", ResultLevel::ERROR, "Missing provider"))
+        } else {
+          results.push(PactFileVerificationResult::new("/provider", ResultLevel::WARNING, "Missing provider"))
+        }
+
+        if let Some(interactions) = values.get("interactions") {
+          match interactions {
+            Value::Array(values) => if values.is_empty() {
+              results.push(PactFileVerificationResult::new("/interactions", ResultLevel::WARNING, "Interactions is empty"))
+            } else {
+              results.extend(values.iter().enumerate()
+                .flat_map(|(index, interaction)| {
+                  RequestResponseInteraction::verify_json(&format!("/interactions/{}", index), interaction, strict)
+                }))
+            }
+            _ => results.push(PactFileVerificationResult::new("/interactions", ResultLevel::ERROR,
+              &format!("Must be an Object, got {}", json_type_of(pact_json))))
+          }
+        } else {
+          results.push(PactFileVerificationResult::new("/interactions", ResultLevel::WARNING, "Missing interactions"))
+        }
+
+        if let Some(metadata) = values.get("metadata") {
+
+        }
+      }
+      _ => results.push(PactFileVerificationResult::new("/", ResultLevel::ERROR,
+        &format!("Must be an Object, got {}", json_type_of(pact_json))))
+    }
+
+    results
   }
 }
 

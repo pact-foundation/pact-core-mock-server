@@ -18,7 +18,7 @@ use pact_matching::models::{determine_spec_version, http_utils, MessagePact, par
 use pact_matching::models::http_utils::HttpAuth;
 use pact_matching::models::v4::V4Pact;
 use pact_models::PactSpecification;
-use pact_models::verify_json::{PactFileVerificationResult, PactFileVerificationResultLevel, PactJsonVerifier};
+use pact_models::verify_json::{json_type_of, PactFileVerificationResult, ResultLevel, PactJsonVerifier};
 use verification::VerificationResult;
 
 use crate::verification::display_results;
@@ -98,7 +98,7 @@ fn setup_app<'a, 'b>(program: &str, version: &'b str) -> App<'a, 'b> {
       .help("Format to use to output results as"))
     .arg(Arg::with_name("strict")
       .long("strict")
-      .help("Enable strict validation. This will reject additional attributes"))
+      .help("Enable strict validation. This will reject things like additional attributes"))
 }
 
 fn handle_cli() -> Result<(), i32> {
@@ -151,18 +151,15 @@ fn handle_matches(args: &ArgMatches) -> Result<(), i32> {
       _ => spec_version.clone()
     };
     let results = match spec_version {
-      PactSpecification::V4 => V4Pact::verify_json(pact_json),
+      PactSpecification::V4 => V4Pact::verify_json("/", pact_json, args.is_present("strict")),
       _ => match pact_json {
         Value::Object(map) => if map.contains_key("messages") {
-          MessagePact::verify_json(pact_json)
+          MessagePact::verify_json("/", pact_json, args.is_present("strict"))
         } else {
-          RequestResponsePact::verify_json(pact_json)
+          RequestResponsePact::verify_json("/", pact_json, args.is_present("strict"))
         },
-        _ => vec![PactFileVerificationResult {
-          path: "/".to_string(),
-          level: PactFileVerificationResultLevel::Error,
-          message: format!("Must be an Object, got {}", type_of(pact_json))
-        }]
+        _ => vec![PactFileVerificationResult::new("/", ResultLevel::ERROR,
+          &format!("Must be an Object, got {}", json_type_of(pact_json)))]
       }
     };
     VerificationResult::new(source, results)
@@ -177,17 +174,6 @@ fn handle_matches(args: &ArgMatches) -> Result<(), i32> {
   } else {
     Ok(())
   }
-}
-
-fn type_of(value: &Value) -> String {
-  match value {
-    Value::Null => "Null",
-    Value::Bool(_) => "Bool",
-    Value::Number(_) => "Number",
-    Value::String(_) => "String",
-    Value::Array(_) => "Array",
-    Value::Object(_) => "Object"
-  }.to_string()
 }
 
 fn load_files(args: &ArgMatches) -> anyhow::Result<Vec<(String, Value)>> {

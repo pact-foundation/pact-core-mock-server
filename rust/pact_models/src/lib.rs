@@ -8,6 +8,8 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
+use crate::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerifier, ResultLevel};
+
 pub mod content_types;
 pub mod bodies;
 pub mod v4;
@@ -116,6 +118,31 @@ impl Consumer {
   }
 }
 
+impl PactJsonVerifier for Consumer {
+  fn verify_json(path: &str, pact_json: &Value, strict: bool) -> Vec<PactFileVerificationResult> {
+    let mut results = vec![];
+
+    match pact_json {
+      Value::Object(values) => {
+        if let Some(name) = values.get("name") {
+          if !name.is_string() {
+            results.push(PactFileVerificationResult::new(path.to_owned() + "/name", ResultLevel::ERROR,
+              format!("Must be a String, got {}", json_type_of(pact_json))))
+          }
+        } else if strict {
+          results.push(PactFileVerificationResult::new(path.to_owned() + "/name", ResultLevel::ERROR, "Missing name"))
+        } else {
+          results.push(PactFileVerificationResult::new(path.to_owned() + "/name", ResultLevel::WARNING, "Missing name"))
+        }
+      }
+      _ => results.push(PactFileVerificationResult::new(path, ResultLevel::ERROR,
+        format!("Must be an Object, got {}", json_type_of(pact_json))))
+    }
+
+    results
+  }
+}
+
 /// Struct that defines a provider of a pact.
 #[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
 pub struct Provider {
@@ -139,6 +166,31 @@ impl Provider {
   /// Converts this `Provider` to a `Value` struct.
   pub fn to_json(&self) -> Value {
     json!({ "name" : self.name })
+  }
+}
+
+impl PactJsonVerifier for Provider {
+  fn verify_json(path: &str, pact_json: &Value, strict: bool) -> Vec<PactFileVerificationResult> {
+    let mut results = vec![];
+
+    match pact_json {
+      Value::Object(values) => {
+        if let Some(name) = values.get("name") {
+          if !name.is_string() {
+            results.push(PactFileVerificationResult::new(path.to_owned() + "/name", ResultLevel::ERROR,
+                                                         format!("Must be a String, got {}", json_type_of(pact_json))))
+          }
+        } else if strict {
+          results.push(PactFileVerificationResult::new(path.to_owned() + "/name", ResultLevel::ERROR, "Missing name"))
+        } else {
+          results.push(PactFileVerificationResult::new(path.to_owned() + "/name", ResultLevel::WARNING, "Missing name"))
+        }
+      }
+      _ => results.push(PactFileVerificationResult::new(path, ResultLevel::ERROR,
+                                                        format!("Must be an Object, got {}", json_type_of(pact_json))))
+    }
+
+    results
   }
 }
 
