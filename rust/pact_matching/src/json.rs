@@ -810,7 +810,7 @@ mod tests {
     let result = match_json(&val4.clone(), &val4.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     expect!(result).to(be_ok());
 
-    let result = match_json(&val1.clone(), &val2.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    let result = match_json(&val1.clone(), &val2.clone(), &MatchingContext::with_config(DiffConfig::NoUnexpectedKeys));
     expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected an empty Map but received {\"a\":1,\"b\":2}")));
 
     let result = match_json(&val2.clone(), &val3.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
