@@ -11,7 +11,6 @@ use log::*;
 use reqwest::{Client, Error, RequestBuilder};
 
 use pact_matching::models::*;
-use pact_matching::s;
 use pact_models::content_types::ContentType;
 use pact_models::bodies::OptionalBody;
 
@@ -34,15 +33,21 @@ impl From<reqwest::Error> for ProviderClientError {
   }
 }
 
-pub fn join_paths(base: &str, path: String) -> String {
-    let mut full_path = s!(base.trim_end_matches('/'));
+pub fn join_paths(base: &str, path: &str) -> String {
+  if !path.is_empty() && path != "/" {
+    let mut full_path = base.trim_end_matches('/').to_string();
     full_path.push('/');
     full_path.push_str(path.trim_start_matches('/'));
     full_path
+  } else if !base.is_empty() && base != "/" {
+    base.trim_end_matches('/').to_string()
+  } else {
+    "/".to_string()
+  }
 }
 
 fn create_native_request(client: &Client, base_url: &str, request: &Request) -> Result<RequestBuilder, ProviderClientError> {
-  let url = join_paths(base_url, request.path.clone());
+  let url = join_paths(base_url, &request.path.clone());
   let mut builder = client.request(Method::from_bytes(
     &request.method.clone().into_bytes()).unwrap_or(Method::GET), &url);
 
@@ -246,7 +251,6 @@ mod tests {
   use maplit::*;
 
   use pact_matching::models::Request;
-  use pact_matching::s;
   use pact_models::bodies::OptionalBody;
 
   use super::{create_native_request, join_paths, extract_headers};
@@ -282,11 +286,12 @@ mod tests {
 
   #[test]
   fn join_paths_test() {
-      expect!(join_paths(&s!(""), s!(""))).to(be_equal_to(s!("/")));
-      expect!(join_paths(&s!("/"), s!(""))).to(be_equal_to(s!("/")));
-      expect!(join_paths(&s!(""), s!("/"))).to(be_equal_to(s!("/")));
-      expect!(join_paths(&s!("/"), s!("/"))).to(be_equal_to(s!("/")));
-      expect!(join_paths(&s!("/a/b"), s!("/c/d"))).to(be_equal_to(s!("/a/b/c/d")));
+    expect!(join_paths("", "")).to(be_equal_to("/"));
+    expect!(join_paths("/", "")).to(be_equal_to("/"));
+    expect!(join_paths("", "/")).to(be_equal_to("/"));
+    expect!(join_paths("/", "/")).to(be_equal_to("/"));
+    expect!(join_paths("/base", "/")).to(be_equal_to("/base"));
+    expect!(join_paths("/a/b", "/c/d")).to(be_equal_to("/a/b/c/d"));
   }
 
   #[test]

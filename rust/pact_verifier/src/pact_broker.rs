@@ -279,7 +279,7 @@ impl HALClient {
   async fn fetch(self, path: &str) -> Result<serde_json::Value, PactBrokerError> {
     info!("Fetching path '{}' from pact broker", path);
 
-    let url = join_paths(&self.url, path.to_string()).parse::<reqwest::Url>()
+    let url = join_paths(&self.url, path).parse::<reqwest::Url>()
         .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?;
 
     let request_builder = match self.auth {
