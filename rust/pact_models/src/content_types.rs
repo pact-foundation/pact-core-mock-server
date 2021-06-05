@@ -357,6 +357,14 @@ mod tests {
       ..ContentType::default()
     };
     expect!(content_type.is_json()).to(be_true());
+
+    // TODO
+    // let content_type = ContentType {
+    //   main_type: "application".into(),
+    //   sub_type: "graphql".into(),
+    //   ..ContentType::default()
+    // };
+    // expect!(content_type.is_json()).to(be_true());
   }
 
   #[test]

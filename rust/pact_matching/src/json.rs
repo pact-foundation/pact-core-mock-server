@@ -13,7 +13,7 @@ use rand::Rng;
 use serde_json::{json, Value};
 use uuid::Uuid;
 
-use crate::{MatchingContext, merge_result};
+use crate::{MatchingContext, merge_result, DiffConfig};
 use crate::binary_utils::{convert_data, match_content_type};
 use crate::matchers::*;
 use crate::models::generators::{
@@ -325,7 +325,7 @@ fn compare_maps(path: &[&str], expected: &serde_json::Map<String, Value>, actual
                 context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
   let spath = path.join(".");
   debug!("compare_maps: Comparing maps at {}: {:?} -> {:?}", spath, expected, actual);
-  if expected.is_empty() && !actual.is_empty() {
+  if expected.is_empty() && context.config == DiffConfig::NoUnexpectedKeys && !actual.is_empty() {
     debug!("compare_maps: Expected map is empty, but actual is not");
     Err(vec![ Mismatch::BodyMismatch {
       path: spath,
@@ -1203,5 +1203,20 @@ mod tests {
     }.rules_for_category("body").unwrap());
     let result = match_json(&expected, &actual, &context);
     expect!(result).to(be_ok());
+  }
+
+  #[test]
+  fn compare_maps_handles_empty_expected_maps() {
+    let expected_json = json!({});
+    let expected = expected_json.as_object().unwrap();
+    let actual_json = json!({"foo": "bar"});
+    let actual = actual_json.as_object().unwrap();
+    let context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys, &MatchingRuleCategory::empty("body"));
+    let result = compare_maps(&vec!["$"], expected, actual, &context);
+    expect!(result).to(be_ok());
+
+    let context = MatchingContext::new(DiffConfig::NoUnexpectedKeys, &MatchingRuleCategory::empty("body"));
+    let result = compare_maps(&vec!["$"], expected, actual, &context);
+    expect!(result).to(be_err());
   }
 }
