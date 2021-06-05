@@ -83,7 +83,8 @@ impl ContentType {
   /// If it is a JSON type
   pub fn is_json(&self) -> bool {
     self.main_type == "application" && (self.sub_type.starts_with("json") ||
-      self.suffix.as_ref().unwrap_or(&String::default()) == "json")
+      self.suffix.as_ref().unwrap_or(&String::default()) == "json" ||
+      self.sub_type == "graphql")
   }
 
   /// If it is a XML type
@@ -358,13 +359,12 @@ mod tests {
     };
     expect!(content_type.is_json()).to(be_true());
 
-    // TODO
-    // let content_type = ContentType {
-    //   main_type: "application".into(),
-    //   sub_type: "graphql".into(),
-    //   ..ContentType::default()
-    // };
-    // expect!(content_type.is_json()).to(be_true());
+    let content_type = ContentType {
+      main_type: "application".into(),
+      sub_type: "graphql".into(),
+      ..ContentType::default()
+    };
+    expect!(content_type.is_json()).to(be_true());
   }
 
   #[test]
