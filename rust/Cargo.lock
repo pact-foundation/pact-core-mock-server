@@ -1274,6 +1274,7 @@ dependencies = [
 name = "pact_verifier_cli"
 version = "0.8.6"
 dependencies = [
+ "clap",
  "pact_verifier_ffi",
  "reqwest",
  "tokio",

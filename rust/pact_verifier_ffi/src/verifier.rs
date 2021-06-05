@@ -130,11 +130,10 @@ fn interaction_filter(matches: &ArgMatches) -> FilterInfo {
 }
 
 /// Handles the command line arguments from the running process
-pub async fn handle_cli() -> Result<(), i32> {
+pub async fn handle_cli(version: &str) -> Result<(), i32> {
   let args: Vec<String> = env::args().collect();
   let program = args[0].clone();
-  let version = format!("v{}", clap::crate_version!()).as_str().to_owned();
-  let app = args::setup_app(program, &version);
+  let app = args::setup_app(program, version);
   let matches = app
                   .setting(AppSettings::ArgRequiredElseHelp)
                   .setting(AppSettings::ColoredHelp)
@@ -149,7 +148,7 @@ pub async fn handle_cli() -> Result<(), i32> {
               Ok(())
           },
           ErrorKind::VersionDisplayed => {
-              print_version();
+              print_version(version);
               println!();
               Ok(())
           },
@@ -235,7 +234,7 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
     }
 }
 
-fn print_version() {
-  println!("\npact verifier version     : v{}", clap::crate_version!());
+fn print_version(version: &str) {
+  println!("\npact verifier version     : v{}", version);
   println!("pact specification version: v{}", PactSpecification::V3.version_str());
 }

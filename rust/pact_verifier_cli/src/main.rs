@@ -239,7 +239,7 @@ use pact_verifier_ffi::verifier::handle_cli;
 
 #[tokio::main]
 async fn main() {
-  match handle_cli().await {
+  match handle_cli(clap::crate_version!()).await {
     Ok(_) => (),
     Err(err) => std::process::exit(err)
   }

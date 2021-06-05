@@ -17,3 +17,4 @@ exclude = [
 pact_verifier_ffi = { version = "0.0", path = "../pact_verifier_ffi" }
 tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.11", default-features = false, features = ["rustls-tls", "blocking", "json"] }
+clap = "2.33"
