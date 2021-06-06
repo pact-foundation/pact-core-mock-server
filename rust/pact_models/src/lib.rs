@@ -275,7 +275,13 @@ impl HttpStatus {
   pub fn to_json(&self) -> Value {
     match self {
       HttpStatus::StatusCodes(codes) => json!(codes),
-      _ => json!(self.to_string())
+      HttpStatus::Information => json!("info"),
+      HttpStatus::Success => json!("success"),
+      HttpStatus::Redirect => json!("redirect"),
+      HttpStatus::ClientError => json!("clientError"),
+      HttpStatus::ServerError => json!("serverError"),
+      HttpStatus::NonError => json!("nonError"),
+      HttpStatus::Error => json!("error")
     }
   }
 }

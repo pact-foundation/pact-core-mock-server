@@ -434,7 +434,7 @@ impl MatchingRule {
         }).collect::<Vec<Value>>()
       }),
       MatchingRule::Values => json!({ "match": "values" }),
-      MatchingRule::StatusCode(status) => json!({ "status": status.to_json()})
+      MatchingRule::StatusCode(status) => json!({ "match": "statusCode", "status": status.to_json()})
     }
   }
 
@@ -1920,6 +1920,36 @@ mod tests {
           (0, matchingrules_list! { "body"; [ MatchingRule::Equality ] }, generators)
         ])
     ));
+
+    let json = json!({
+      "match": "statusCode",
+      "status": "success"
+    });
+    expect!(MatchingRule::from_json(&json)).to(be_some().value(
+      MatchingRule::StatusCode(HttpStatus::Success)
+    ));
+
+    let json = json!({
+      "match": "statusCode",
+      "status": [200, 201, 204]
+    });
+    expect!(MatchingRule::from_json(&json)).to(be_some().value(
+      MatchingRule::StatusCode(HttpStatus::StatusCodes(vec![200, 201, 204]))
+    ));
+  }
+
+  #[test]
+  fn matching_rule_to_json_test() {
+    expect!(MatchingRule::StatusCode(HttpStatus::ClientError).to_json()).to(
+      be_equal_to(json!({
+        "match": "statusCode",
+        "status": "clientError"
+      })));
+    expect!(MatchingRule::StatusCode(HttpStatus::StatusCodes(vec![400, 401, 404])).to_json()).to(
+      be_equal_to(json!({
+        "match": "statusCode",
+        "status": [400, 401, 404]
+      })));
   }
 
   #[test]
