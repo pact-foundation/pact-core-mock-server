@@ -93,7 +93,7 @@ pub fn hash_json<H: Hasher>(v: &Value, state: &mut H) {
 }
 
 /// Look up a field and return it as a string value
-pub(crate) fn get_field_as_string(field: &str, map: &Map<String, Value>) -> Option<String> {
+pub fn get_field_as_string(field: &str, map: &Map<String, Value>) -> Option<String> {
   map.get(field).map(|f| json_to_string(f))
 }
 
@@ -124,14 +124,14 @@ mod tests {
 
   #[test]
   fn json_to_string_test() {
-    expect!(json_to_string(&Value::from_str("\"test string\"").unwrap())).to(be_equal_to(s!("test string")));
-    expect!(json_to_string(&Value::from_str("null").unwrap())).to(be_equal_to(s!("null")));
-    expect!(json_to_string(&Value::from_str("100").unwrap())).to(be_equal_to(s!("100")));
-    expect!(json_to_string(&Value::from_str("100.10").unwrap())).to(be_equal_to(s!("100.1")));
-    expect!(json_to_string(&Value::from_str("{}").unwrap())).to(be_equal_to(s!("{}")));
-    expect!(json_to_string(&Value::from_str("[]").unwrap())).to(be_equal_to(s!("[]")));
-    expect!(json_to_string(&Value::from_str("true").unwrap())).to(be_equal_to(s!("true")));
-    expect!(json_to_string(&Value::from_str("false").unwrap())).to(be_equal_to(s!("false")));
+    expect!(json_to_string(&Value::from_str("\"test string\"").unwrap())).to(be_equal_to("test string".to_string()));
+    expect!(json_to_string(&Value::from_str("null").unwrap())).to(be_equal_to("null".to_string()));
+    expect!(json_to_string(&Value::from_str("100").unwrap())).to(be_equal_to("100".to_string()));
+    expect!(json_to_string(&Value::from_str("100.10").unwrap())).to(be_equal_to("100.1".to_string()));
+    expect!(json_to_string(&Value::from_str("{}").unwrap())).to(be_equal_to("{}".to_string()));
+    expect!(json_to_string(&Value::from_str("[]").unwrap())).to(be_equal_to("[]".to_string()));
+    expect!(json_to_string(&Value::from_str("true").unwrap())).to(be_equal_to("true".to_string()));
+    expect!(json_to_string(&Value::from_str("false").unwrap())).to(be_equal_to("false".to_string()));
   }
 
   #[test]

@@ -21,9 +21,10 @@ use serde_json::{json, Value};
 use pact_models::{Consumer, PactSpecification, Provider};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
+use pact_models::json_utils::{hash_json, json_to_string};
 use pact_models::provider_states::{self, ProviderState};
 use pact_models::v4::V4InteractionType;
-use pact_models::verify_json::{json_type_of, PactFileVerificationResult, ResultLevel, PactJsonVerifier};
+use pact_models::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerifier, ResultLevel};
 
 use crate::models::{
   detect_content_type_from_bytes,
@@ -39,7 +40,6 @@ use crate::models::{
 };
 use crate::models::file_utils::with_read_lock;
 use crate::models::generators::{Generators, generators_to_json};
-use crate::models::json_utils::{hash_json, json_to_string};
 use crate::models::matchingrules::{matchers_to_json, MatchingRules};
 use crate::models::message::Message;
 use crate::models::message_pact::MessagePact;

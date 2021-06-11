@@ -30,13 +30,13 @@ use serde_json::{json, Value};
 use pact_models::{Consumer, DifferenceType, PactSpecification, Provider};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::*;
+use pact_models::json_utils::json_to_string;
 use pact_models::provider_states::ProviderState;
-use pact_models::verify_json::{json_type_of, PactFileVerificationResult, ResultLevel, PactJsonVerifier};
+use pact_models::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerifier, ResultLevel};
 
 use crate::models::file_utils::{with_read_lock, with_read_lock_for_open_file, with_write_lock};
 use crate::models::generators::{Generator, GeneratorCategory};
 use crate::models::http_utils::HttpAuth;
-use crate::models::json_utils::json_to_string;
 use crate::models::matchingrules::{Category, MatchingRules};
 pub use crate::models::message::Message;
 pub use crate::models::message_pact::MessagePact;
@@ -44,12 +44,10 @@ use crate::models::v4::{AsynchronousMessage, interaction_from_json, SynchronousH
 use crate::models::v4::http_parts::{HttpRequest, HttpResponse};
 use crate::models::v4::sync_message::SynchronousMessages;
 
-pub mod json_utils;
 pub mod xml_utils;
 #[macro_use] pub mod matchingrules;
 #[macro_use] pub mod generators;
 pub mod http_utils;
-pub mod expression_parser;
 mod file_utils;
 
 /// Version of the library

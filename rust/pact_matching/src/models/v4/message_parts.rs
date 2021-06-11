@@ -1,23 +1,23 @@
 //! Structs for shared parts of message interactions
 
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
+use std::hash::{Hash, Hasher};
 
 use anyhow::anyhow;
 use maplit::hashmap;
 use serde_json::{json, Value};
 
 use pact_models::bodies::OptionalBody;
+use pact_models::content_types::ContentType;
+use pact_models::json_utils::hash_json;
 use pact_models::PactSpecification;
 
 use crate::models::{generators, matchingrules};
 use crate::models::generators::generators_to_json;
 use crate::models::matchingrules::matchers_to_json;
+use crate::models::v4::{calc_content_type, metadata_to_headers};
 use crate::models::v4::http_parts::body_from_json;
-use crate::models::v4::{metadata_to_headers, calc_content_type};
-use pact_models::content_types::ContentType;
-use std::fmt::{Display, Formatter};
-use std::hash::{Hash, Hasher};
-use crate::models::json_utils::hash_json;
 
 /// Contents of a message interaction
 #[derive(Default, Clone, Debug, Eq)]

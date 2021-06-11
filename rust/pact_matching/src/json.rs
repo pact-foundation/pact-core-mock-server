@@ -13,7 +13,9 @@ use rand::Rng;
 use serde_json::{json, Value};
 use uuid::Uuid;
 
-use crate::{MatchingContext, merge_result, DiffConfig};
+use pact_models::json_utils::{get_field_as_string, json_to_string};
+
+use crate::{DiffConfig, MatchingContext, merge_result};
 use crate::binary_utils::{convert_data, match_content_type};
 use crate::matchers::*;
 use crate::models::generators::{
@@ -28,7 +30,6 @@ use crate::models::generators::{
   JsonHandler
 };
 use crate::models::HttpPart;
-use crate::models::json_utils::{get_field_as_string, json_to_string};
 use crate::models::matchingrules::*;
 use crate::time_utils::{parse_pattern, to_chrono_pattern, validate_datetime};
 

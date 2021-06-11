@@ -1232,6 +1232,7 @@ dependencies = [
  "log",
  "maplit",
  "mime",
+ "nom 5.1.2",
  "regex",
  "serde",
  "serde_json",

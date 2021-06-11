@@ -9,12 +9,12 @@ use bytes::BytesMut;
 use log::*;
 use serde_json::{json, Value};
 
-use pact_models::PactSpecification;
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
+use pact_models::json_utils::json_to_string;
+use pact_models::PactSpecification;
 
 use crate::models::{detect_content_type_from_bytes, generators, headers_from_json, matchingrules, query_to_json, Request, Response, v3_query_from_json};
-use crate::models::json_utils::json_to_string;
 use crate::models::v4::calc_content_type;
 
 /// Struct that defines the HTTP request.

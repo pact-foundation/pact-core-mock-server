@@ -22,17 +22,17 @@ use sxd_document::dom::Document;
 use uuid::Uuid;
 
 use pact_models::content_types::ContentType;
-use pact_models::PactSpecification;
-
-use crate::{DiffConfig, MatchingContext};
-use crate::models::expression_parser::{
+use pact_models::expression_parser::{
   contains_expressions,
   DataType,
   DataValue,
   MapValueResolver,
   parse_expression
 };
-use crate::models::json_utils::{get_field_as_string, json_to_string, JsonToNum};
+use pact_models::json_utils::{get_field_as_string, json_to_string, JsonToNum};
+use pact_models::PactSpecification;
+
+use crate::{DiffConfig, MatchingContext};
 use crate::models::matchingrules::{Category, MatchingRuleCategory};
 use crate::models::OptionalBody;
 use crate::models::xml_utils::parse_bytes;

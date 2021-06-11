@@ -15,6 +15,8 @@ pub mod bodies;
 pub mod v4;
 pub mod provider_states;
 pub mod verify_json;
+pub mod json_utils;
+pub mod expression_parser;
 
 /// Enum defining the pact specification versions supported by the library
 #[cfg_attr(feature = "ffi", repr(C))]

@@ -27,8 +27,8 @@ use pact_matching::*;
 use pact_matching::models::*;
 use pact_matching::models::generators::GeneratorTestMode;
 use pact_matching::models::http_utils::HttpAuth;
-use pact_matching::models::json_utils::json_to_string;
 use pact_matching::models::v4::V4Interaction;
+use pact_models::json_utils::json_to_string;
 use pact_models::provider_states::*;
 
 use crate::callback_executors::{ProviderStateError, ProviderStateExecutor};

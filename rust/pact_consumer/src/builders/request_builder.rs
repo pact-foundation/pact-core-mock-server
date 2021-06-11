@@ -10,10 +10,10 @@ use regex::Regex;
 use serde_json::json;
 
 use pact_matching::models::*;
-use pact_matching::models::expression_parser::DataType;
 use pact_matching::models::generators::{Generator, GeneratorCategory, Generators};
-use pact_matching::models::matchingrules::{MatchingRules, Category};
+use pact_matching::models::matchingrules::{Category, MatchingRules};
 use pact_models::bodies::OptionalBody;
+use pact_models::expression_parser::DataType;
 
 use crate::prelude::*;
 use crate::util::GetDefaulting;

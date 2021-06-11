@@ -1,14 +1,17 @@
-use clap::ArgMatches;
 use std::sync::Mutex;
-use pact_mock_server::{
-    server_manager::ServerManager,
-    mock_server::MockServer
-};
-use pact_matching::s;
+
+use clap::ArgMatches;
 use http::StatusCode;
 use serde_json::Value;
+
+use pact_matching::s;
+use pact_mock_server::{
+  mock_server::MockServer,
+  server_manager::ServerManager
+};
+use pact_models::json_utils::json_to_string;
+
 use crate::handle_error;
-use pact_matching::models::json_utils::json_to_string;
 
 pub async fn verify_mock_server(host: &str, port: u16, matches: &ArgMatches<'_>) -> Result<(), i32> {
   let mock_server_id = matches.value_of("mock-server-id");
