@@ -561,9 +561,9 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
 ) -> bool {
     let pact_results = fetch_pacts(source, consumers).await;
 
-    let mut results: Vec<(Option<String>, Option<MismatchResult>)> = vec![];
+    let mut results: Vec<(Option<String>, Result<(), MismatchResult>)> = vec![];
     let mut pending_errors: Vec<(String, MismatchResult)> = vec![];
-    let mut all_errors: Vec<(String, MismatchResult)> = vec![];
+    let mut errors: Vec<(String, MismatchResult)> = vec![];
     for pact_result in pact_results {
       match pact_result {
         Ok((pact, context, pact_source)) => {
@@ -581,13 +581,13 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
             };
             let result = verify_pact_internal(&provider_info, &filter, pact, &options,
                                               &provider_state_executor.clone(), pending).await;
-            for (id, desc, error) in &result.errors {
-              results.push((id.clone(), error.clone()));
-              if let Some(error) = error {
-                if pending {
-                  pending_errors.push((desc.clone(), error.clone()));
+            for result in &result.results {
+              results.push((result.interaction_id.clone(), result.result.clone()));
+              if let Err(error) = &result.result {
+                if result.pending {
+                  pending_errors.push((result.description.clone(), error.clone()));
                 } else {
-                  all_errors.push((desc.clone(), error.clone()));
+                  errors.push((result.description.clone(), error.clone()));
                 }
               }
             }
@@ -595,13 +595,13 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
             if options.publish {
               publish_result(&results, &pact_source, &options).await;
 
-              if !all_errors.is_empty() || !pending_errors.is_empty() {
+              if !errors.is_empty() || !pending_errors.is_empty() {
                 display_notices(&context, VERIFICATION_NOTICE_AFTER_ERROR_RESULT_AND_PUBLISH);
               } else {
                 display_notices(&context, VERIFICATION_NOTICE_AFTER_SUCCESSFUL_RESULT_AND_PUBLISH);
               }
             } else {
-              if !all_errors.is_empty() || pending_errors.is_empty() {
+              if !errors.is_empty() || pending_errors.is_empty() {
                 display_notices(&context, VERIFICATION_NOTICE_AFTER_ERROR_RESULT_AND_NO_PUBLISH);
               } else {
                 display_notices(&context, VERIFICATION_NOTICE_AFTER_SUCCESSFUL_RESULT_AND_NO_PUBLISH);
@@ -610,8 +610,8 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
           }
         },
         Err(err) => {
-          log::error!("Failed to load pact - {}", Red.paint(err.to_string()));
-          all_errors.push(("Failed to load pact".to_string(), MismatchResult::Error(err.to_string(), None)));
+          error!("Failed to load pact - {}", Red.paint(err.to_string()));
+          errors.push(("Failed to load pact".to_string(), MismatchResult::Error(err.to_string(), None)));
         }
       }
     };
@@ -619,12 +619,12 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
     if !pending_errors.is_empty() {
       println!("\nPending Failures:\n");
       print_errors(&pending_errors);
-      println!("\nThere were {} non-fatal pact failures on pending pacts (see docs.pact.io/pending for more)\n", pending_errors.len());
+      println!("\nThere were {} non-fatal pact failures on pending pacts or interactions (see docs.pact.io/pending for more)\n", pending_errors.len());
     }
-    if !all_errors.is_empty() {
+    if !errors.is_empty() {
       println!("\nFailures:\n");
-      print_errors(&all_errors);
-      println!("\nThere were {} pact failures\n", all_errors.len());
+      print_errors(&errors);
+      println!("\nThere were {} pact failures\n", errors.len());
       false
     } else {
       println!();
@@ -755,10 +755,22 @@ async fn fetch_pacts(source: Vec<PactSource>, consumers: Vec<String>)
     .await
 }
 
-/// Result of verifying a Pact interaction
+/// /// Result of verifying a Pact interaction
+pub struct VerificationInteractionResult {
+  /// Interaction ID
+  pub interaction_id: Option<String>,
+  /// Description
+  pub description: String,
+  /// Result of the verification
+  pub result: Result<(), MismatchResult>,
+  /// If the Pact or interaction is pending
+  pub pending: bool
+}
+
+/// Result of verifying a Pact
 pub struct VerificationResult {
-  /// Errors that occurred
-  pub errors: Vec<(Option<String>, String, Option<MismatchResult>)>
+  /// Results that occurred
+  pub results: Vec<VerificationInteractionResult>
 }
 
 /// Internal function, public for testing purposes
@@ -770,8 +782,6 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
   provider_state_executor: &Arc<S>,
   pending: bool
 ) -> VerificationResult {
-  let mut errors: Vec<(Option<String>, String, Option<MismatchResult>)> = vec![];
-
   let results: Vec<(&dyn Interaction, Result<Option<String>, MismatchResult>)> = futures::stream::iter(
     pact.interactions().iter().cloned()
   )
@@ -784,6 +794,7 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
     .collect()
     .await;
 
+  let mut errors: Vec<VerificationInteractionResult> = vec![];
   for (interaction, match_result) in results {
     let mut description = format!("Verifying a pact between {} and {}",
       pact.consumer().name.clone(), pact.provider().name.clone());
@@ -814,23 +825,28 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
     }
 
     match match_result {
-      Ok(id) => {
-        errors.push((id.clone(), description.clone(), None));
+      Ok(_) => {
+        errors.push(VerificationInteractionResult {
+          interaction_id: interaction.id(),
+          description: description.clone(),
+          result: Ok(()),
+          pending: pending || interaction.pending()
+        });
       },
-      Err(ref err) => match *err {
-        MismatchResult::Error(ref err_des, _) => {
-          errors.push((err.interaction_id().clone(), description.clone(), Some(err.clone())));
-        },
-        MismatchResult::Mismatches { ref mismatches, .. } => {
-          errors.push((interaction.id().clone(), description.clone(), Some(err.clone())));
-        }
+      Err(err) => {
+        errors.push(VerificationInteractionResult {
+          interaction_id: interaction.id(),
+          description: description.clone(),
+          result: Err(err.clone()),
+          pending: pending || interaction.pending()
+        });
       }
     }
   }
 
   println!();
 
-  VerificationResult { errors }
+  VerificationResult { results: errors }
 }
 
 fn display_comments(interaction: Box<dyn V4Interaction>) {
@@ -853,18 +869,22 @@ fn display_comments(interaction: Box<dyn V4Interaction>) {
 }
 
 async fn publish_result<F: RequestFilterExecutor>(
-  results: &[(Option<String>, Option<MismatchResult>)],
+  results: &[(Option<String>, Result<(), MismatchResult>)],
   source: &PactSource,
   options: &VerificationOptions<F>
 ) {
   if let PactSource::BrokerUrl(_, broker_url, auth, links) = source.clone() {
-    log::info!("Publishing verification results back to the Pact Broker");
-    let result = if results.iter().all(|(_, result)| result.is_none()) {
-      log::debug!("Publishing a successful result to {}", source);
+    info!("Publishing verification results back to the Pact Broker");
+    let result = if results.iter().all(|(_, result)| result.is_ok()) {
+      debug!("Publishing a successful result to {}", source);
       TestResult::Ok(results.iter().map(|(id, _)| id.clone()).collect())
     } else {
-      log::debug!("Publishing a failure result to {}", source);
-      TestResult::Failed(Vec::from(results))
+      debug!("Publishing a failure result to {}", source);
+      TestResult::Failed(
+        results.iter()
+        .map(|(id, result)| (id.clone(), result.as_ref().err().cloned()))
+        .collect()
+      )
     };
     let provider_version = options.provider_version.clone().unwrap();
     let publish_result = publish_verification_results(
@@ -877,9 +897,9 @@ async fn publish_result<F: RequestFilterExecutor>(
       options.provider_tags.clone()
     ).await;
 
-    match publish_result {
-      Ok(_) => log::info!("Results published to Pact Broker"),
-      Err(ref err) => log::error!("Publishing of verification results failed with an error: {}", err)
+    match &publish_result {
+      Ok(_) => info!("Results published to Pact Broker"),
+      Err(err) => error!("Publishing of verification results failed with an error: {}", err)
     };
   }
 }

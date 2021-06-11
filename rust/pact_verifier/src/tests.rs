@@ -305,5 +305,5 @@ async fn publish_successful_result_to_broker() {
     }
   ];
   let source = PactSource::BrokerUrl("Test".to_string(), server.url().to_string(), None, links);
-  super::publish_result(&vec![(Some("1".to_string()), None)], &source, &options).await;
+  super::publish_result(&vec![(Some("1".to_string()), Ok(()))], &source, &options).await;
 }

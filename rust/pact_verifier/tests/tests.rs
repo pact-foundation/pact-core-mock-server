@@ -87,7 +87,7 @@ async fn verify_pact_with_match_values_matcher() {
   let result = verify_pact_internal(&provider, &FilterInfo::None,
                                     pact, &options, &provider_states, false).await;
 
-  expect!(result.errors.get(0).unwrap().2.clone()).to(be_none());
+  expect!(result.results.get(0).unwrap().result.as_ref()).to(be_ok());
 }
 
 #[tokio::test]
@@ -129,12 +129,11 @@ async fn verify_pact_with_attributes_with_special_values() {
   let result = verify_pact_internal(&provider, &FilterInfo::None,
                                     pact, &options, &provider_states, false).await;
 
-  expect!(result.errors.get(0).unwrap().2.clone()).to(be_none());
+  expect!(result.results.get(0).unwrap().result.as_ref()).to(be_ok());
 }
 
 #[tokio::test]
-#[ignore]
-async fn verifing_a_pact_with_pending_interactions() {
+async fn verifying_a_pact_with_pending_interactions() {
   try_init().unwrap_or(());
   let provider = ProviderInfo {
     name: "PendingProvider".to_string(),
@@ -150,5 +149,6 @@ async fn verifing_a_pact_with_pending_interactions() {
   let result = verify_pact_internal(&provider, &FilterInfo::None,
                                     pact, &options, &provider_states, false).await;
 
-  expect!(result.errors.get(0).unwrap().2.clone()).to(be_none());
+  expect!(result.results.get(0).unwrap().result.as_ref()).to(be_err());
+  expect!(result.results.get(0).unwrap().pending).to(be_true());
 }
