@@ -13,7 +13,6 @@ license = "MIT"
 exclude = [
     "*.iml"
 ]
-build = "build.rs"
 
 [dependencies]
 pact_models = { version =  "0.0", path = "../pact_models" }
@@ -37,7 +36,6 @@ uuid = { version = "0.8", features = ["v4"] }
 indextree = "4.3"
 nom = "5.1.1"
 chrono = "0.4.19"
-chrono-tz = "0.5"
 rand_regex = "0.15"
 regex-syntax = "0.6.21"
 tree_magic_mini = "2"
@@ -62,7 +60,3 @@ speculate = "0.1.2"
 test-env-log = "0.2.3"
 ntest = "0.7.2"
 pretty_assertions = "0.6.1"
-
-[build-dependencies]
-parse-zoneinfo = "0.3.0"
-maplit = "1.0.2"

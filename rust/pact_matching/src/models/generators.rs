@@ -21,6 +21,7 @@ use serde_json::{self, json, Value};
 use sxd_document::dom::Document;
 use uuid::Uuid;
 
+use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
 use pact_models::expression_parser::{
   contains_expressions,
@@ -31,13 +32,12 @@ use pact_models::expression_parser::{
 };
 use pact_models::json_utils::{get_field_as_string, json_to_string, JsonToNum};
 use pact_models::PactSpecification;
+use pact_models::time_utils::{parse_pattern, to_chrono_pattern};
 
 use crate::{DiffConfig, MatchingContext};
 use crate::models::matchingrules::{Category, MatchingRuleCategory};
-use crate::models::OptionalBody;
 use crate::models::xml_utils::parse_bytes;
 use crate::path_exp::*;
-use crate::time_utils::{parse_pattern, to_chrono_pattern};
 
 /// Trait to represent a generator
 #[derive(Serialize, Deserialize, Debug, Clone, Eq)]

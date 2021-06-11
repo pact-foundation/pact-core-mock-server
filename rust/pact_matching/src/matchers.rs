@@ -7,11 +7,11 @@ use log::*;
 use onig::Regex;
 
 use pact_models::HttpStatus;
+use pact_models::time_utils::validate_datetime;
 
 use crate::binary_utils::match_content_type;
 use crate::MatchingContext;
 use crate::models::matchingrules::*;
-use crate::time_utils::validate_datetime;
 
 /// Trait for matching rule implementation
 pub trait Matches<A: Clone> {

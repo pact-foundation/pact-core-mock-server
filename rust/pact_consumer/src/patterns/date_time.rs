@@ -1,10 +1,11 @@
 //! Matchers for matching dates, times and date-times
 
-use pact_matching::models::matchingrules::{MatchingRule, MatchingRuleCategory, RuleLogic};
-use pact_matching::time_utils::parse_pattern;
-
-use crate::patterns::{Pattern, JsonPattern, StringPattern};
 use std::marker::PhantomData;
+
+use pact_matching::models::matchingrules::{MatchingRule, MatchingRuleCategory, RuleLogic};
+use pact_models::time_utils::parse_pattern;
+
+use crate::patterns::{JsonPattern, Pattern, StringPattern};
 
 /// Match and generate strings that match a date-time format string.
 #[derive(Debug)]
