@@ -619,7 +619,7 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
     if !pending_errors.is_empty() {
       println!("\nPending Failures:\n");
       print_errors(&pending_errors);
-      println!("\nThere were {} non-fatal pact failures on pending pacts or interactions (see docs.pact.io/pending for more)\n", pending_errors.len());
+      println!("\nThere were {} non-fatal pact failures on pending pacts or interactions (see docs.pact.io/pending for more information)\n", pending_errors.len());
     }
     if !errors.is_empty() {
       println!("\nFailures:\n");
@@ -807,9 +807,10 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
     description.push_str(" - ");
     description.push_str(&interaction.description());
     if interaction.pending() {
-      description.push_str(" [PENDING]");
+      println!("  {} {}", interaction.description(), Yellow.paint("[PENDING]"));
+    } else {
+      println!("  {}", interaction.description());
     };
-    println!("  {}", interaction.description());
 
     if interaction.is_v4() {
       if let Some(interaction) = interaction.as_v4() {
