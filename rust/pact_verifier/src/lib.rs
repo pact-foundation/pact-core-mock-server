@@ -818,10 +818,10 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
     }
 
     if let Some(interaction) = interaction.as_request_response() {
-      display_request_response_result(&interaction, &match_result, &description)
+      display_request_response_result(&interaction, &match_result)
     }
     if let Some(interaction) = interaction.as_message() {
-      display_message_result(&interaction, &match_result, &description)
+      display_message_result(&interaction, &match_result)
     }
 
     match match_result {

@@ -70,11 +70,9 @@ pub async fn verify_message_from_provider<F: RequestFilterExecutor>(
 
 pub fn display_message_result(
   interaction: &Message,
-  match_result: &Result<Option<String>, MismatchResult>,
-  description: &String
-) {
+  match_result: &Result<Option<String>, MismatchResult>) {
   match match_result {
-    Ok(id) => {
+    Ok(_) => {
       display_result(Green.paint("OK"),
         interaction.metadata.iter()
           .map(|(k, v)| (k.clone(), v.clone(), Green.paint("OK"))).collect()

@@ -5,11 +5,9 @@ use pact_matching::Mismatch;
 
 pub fn display_request_response_result(
   interaction: &RequestResponseInteraction,
-  match_result: &Result<Option<String>, MismatchResult>,
-  description: &String
-) {
+  match_result: &Result<Option<String>, MismatchResult>) {
   match match_result {
-    Ok(id) => {
+    Ok(_) => {
       display_result(
         interaction.response.status,
         Green.paint("OK"),
@@ -23,7 +21,6 @@ pub fn display_request_response_result(
         println!("      {}", Red.paint(format!("Request Failed - {}", err_des)));
       },
       MismatchResult::Mismatches { ref mismatches, .. } => {
-        let description = description.to_owned() + " returns a response which ";
         let status_result = if mismatches.iter().any(|m| m.mismatch_type() == "StatusMismatch") {
           Red.paint("FAILED")
         } else {
