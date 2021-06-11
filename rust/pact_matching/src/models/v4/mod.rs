@@ -73,9 +73,6 @@ pub trait V4Interaction: Interaction + Send + Sync {
 
   /// Type of this V4 interaction
   fn v4_type(&self) -> V4InteractionType;
-
-  /// If this interaction is pending. Pending interactions will not fail a build if they fail.
-  fn pending(&self) -> bool;
 }
 
 impl Display for dyn V4Interaction {
@@ -236,10 +233,6 @@ impl V4Interaction for SynchronousHttp {
   fn v4_type(&self) -> V4InteractionType {
     V4InteractionType::Synchronous_HTTP
   }
-
-  fn pending(&self) -> bool {
-    self.pending
-  }
 }
 
 impl Interaction for SynchronousHttp {
@@ -327,6 +320,10 @@ impl Interaction for SynchronousHttp {
 
   fn matching_rules(&self) -> Option<MatchingRules> {
     None
+  }
+
+  fn pending(&self) -> bool {
+    self.pending
   }
 }
 
@@ -534,10 +531,6 @@ impl V4Interaction for AsynchronousMessage {
   fn v4_type(&self) -> V4InteractionType {
     V4InteractionType::Asynchronous_Messages
   }
-
-  fn pending(&self) -> bool {
-    self.pending
-  }
 }
 
 impl Interaction for AsynchronousMessage {
@@ -627,6 +620,10 @@ impl Interaction for AsynchronousMessage {
 
   fn matching_rules(&self) -> Option<MatchingRules> {
     Some(self.contents.matching_rules.clone())
+  }
+
+  fn pending(&self) -> bool {
+    self.pending
   }
 }
 

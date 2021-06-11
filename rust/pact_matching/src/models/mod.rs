@@ -793,6 +793,9 @@ pub trait Interaction: Debug {
 
   /// Returns the matching rules associated with this interaction (if there are any)
   fn matching_rules(&self) -> Option<MatchingRules>;
+
+  /// If this interaction is pending (V4 only)
+  fn pending(&self) -> bool { false }
 }
 
 impl Display for dyn Interaction {

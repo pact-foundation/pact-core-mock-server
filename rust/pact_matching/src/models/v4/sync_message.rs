@@ -168,10 +168,6 @@ impl V4Interaction for SynchronousMessages {
   fn v4_type(&self) -> V4InteractionType {
     V4InteractionType::Synchronous_Messages
   }
-
-  fn pending(&self) -> bool {
-    self.pending
-  }
 }
 
 impl Interaction for SynchronousMessages {
@@ -253,6 +249,10 @@ impl Interaction for SynchronousMessages {
 
   fn matching_rules(&self) -> Option<MatchingRules> {
     None
+  }
+
+  fn pending(&self) -> bool {
+    self.pending
   }
 }
 

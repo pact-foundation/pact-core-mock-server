@@ -69,7 +69,6 @@ pub async fn verify_message_from_provider<F: RequestFilterExecutor>(
 }
 
 pub fn display_message_result(
-  errors: &mut Vec<(Option<String>, String, Option<MismatchResult>)>,
   interaction: &Message,
   match_result: &Result<Option<String>, MismatchResult>,
   description: &String
@@ -80,12 +79,10 @@ pub fn display_message_result(
         interaction.metadata.iter()
           .map(|(k, v)| (k.clone(), v.clone(), Green.paint("OK"))).collect()
       );
-      errors.push((id.clone(), description.clone(), None));
     },
     Err(ref err) => match *err {
       MismatchResult::Error(ref err_des, _) => {
         println!("      {}", Red.paint(format!("Request Failed - {}", err_des)));
-        errors.push((err.interaction_id().clone(), description.clone(), Some(err.clone())));
       },
       MismatchResult::Mismatches { ref mismatches, .. } => {
         let metadata_results = interaction.metadata.iter().map(|(k, v)| {
@@ -108,7 +105,6 @@ pub fn display_message_result(
         };
 
         display_result(body_result, metadata_results);
-        errors.push((interaction.id.clone(), description.clone(), Some(err.clone())));
       }
     }
   }

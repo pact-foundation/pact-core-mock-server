@@ -567,11 +567,6 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
     for pact_result in pact_results {
       match pact_result {
         Ok((pact, context, pact_source)) => {
-          let pending = match &context {
-            Some(context) => context.verification_properties.pending,
-            None => false
-          };
-
           display_notices(&context, VERIFICATION_NOTICE_BEFORE);
           println!("\nVerifying a pact between {} and {}",
           Style::new().bold().paint(pact.consumer().name.clone()),
@@ -580,9 +575,13 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
           if pact.interactions().is_empty() {
             println!("         {}", Yellow.paint("WARNING: Pact file has no interactions"));
           } else {
-            let errors = verify_pact(&provider_info, &filter, pact, &options,
-                                     &provider_state_executor.clone()).await;
-            for (id, desc, error) in &errors {
+            let pending = match &context {
+              Some(context) => context.verification_properties.pending,
+              None => false
+            };
+            let result = verify_pact_internal(&provider_info, &filter, pact, &options,
+                                              &provider_state_executor.clone(), pending).await;
+            for (id, desc, error) in &result.errors {
               results.push((id.clone(), error.clone()));
               if let Some(error) = error {
                 if pending {
@@ -756,58 +755,82 @@ async fn fetch_pacts(source: Vec<PactSource>, consumers: Vec<String>)
     .await
 }
 
+/// Result of verifying a Pact interaction
+pub struct VerificationResult {
+  /// Errors that occurred
+  pub errors: Vec<(Option<String>, String, Option<MismatchResult>)>
+}
+
 /// Internal function, public for testing purposes
-pub async fn verify_pact<'a, F: RequestFilterExecutor, S: ProviderStateExecutor>(
+pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderStateExecutor>(
   provider_info: &ProviderInfo,
   filter: &FilterInfo,
   pact: Box<dyn Pact + 'a>,
   options: &VerificationOptions<F>,
-  provider_state_executor: &Arc<S>
-) -> Vec<(Option<String>, String, Option<MismatchResult>)> {
-    let mut errors: Vec<(Option<String>, String, Option<MismatchResult>)> = vec![];
+  provider_state_executor: &Arc<S>,
+  pending: bool
+) -> VerificationResult {
+  let mut errors: Vec<(Option<String>, String, Option<MismatchResult>)> = vec![];
 
-    let results: Vec<(&dyn Interaction, Result<Option<String>, MismatchResult>)> = futures::stream::iter(
-      pact.interactions().iter().cloned()
-    )
-      .filter(|interaction| futures::future::ready(filter_interaction(*interaction, filter)))
-      .then( |interaction| async move {
-        verify_interaction(provider_info, interaction, options, provider_state_executor)
-          .then(|result| futures::future::ready((interaction, result)))
-          .await
-      })
-      .collect()
-      .await;
+  let results: Vec<(&dyn Interaction, Result<Option<String>, MismatchResult>)> = futures::stream::iter(
+    pact.interactions().iter().cloned()
+  )
+    .filter(|interaction| futures::future::ready(filter_interaction(*interaction, filter)))
+    .then( |interaction| async move {
+      verify_interaction(provider_info, interaction, options, provider_state_executor)
+        .then(|result| futures::future::ready((interaction, result)))
+        .await
+    })
+    .collect()
+    .await;
 
-    for (interaction, match_result) in results {
-      let mut description = format!("Verifying a pact between {} and {}",
-                                    pact.consumer().name.clone(), pact.provider().name.clone());
-      if let Some((first, elements)) = interaction.provider_states().split_first() {
-        description.push_str(&format!(" Given {}", first.name));
-        for state in elements {
-          description.push_str(&format!(" And {}", state.name));
-        }
+  for (interaction, match_result) in results {
+    let mut description = format!("Verifying a pact between {} and {}",
+      pact.consumer().name.clone(), pact.provider().name.clone());
+    if let Some((first, elements)) = interaction.provider_states().split_first() {
+      description.push_str(&format!(" Given {}", first.name));
+      for state in elements {
+        description.push_str(&format!(" And {}", state.name));
       }
-      description.push_str(" - ");
-      description.push_str(&interaction.description());
-      println!("  {}", interaction.description());
+    }
+    description.push_str(" - ");
+    description.push_str(&interaction.description());
+    if interaction.pending() {
+      description.push_str(" [PENDING]");
+    };
+    println!("  {}", interaction.description());
 
-      if interaction.is_v4() {
-        if let Some(interaction) = interaction.as_v4() {
-          display_comments(interaction)
-        }
-      }
-
-      if let Some(interaction) = interaction.as_request_response() {
-        display_request_response_result(&mut errors, &interaction, &match_result, &description)
-      }
-      if let Some(interaction) = interaction.as_message() {
-        display_message_result(&mut errors, &interaction, &match_result, &description)
+    if interaction.is_v4() {
+      if let Some(interaction) = interaction.as_v4() {
+        display_comments(interaction)
       }
     }
 
-    println!();
+    if let Some(interaction) = interaction.as_request_response() {
+      display_request_response_result(&interaction, &match_result, &description)
+    }
+    if let Some(interaction) = interaction.as_message() {
+      display_message_result(&interaction, &match_result, &description)
+    }
 
-    errors
+    match match_result {
+      Ok(id) => {
+        errors.push((id.clone(), description.clone(), None));
+      },
+      Err(ref err) => match *err {
+        MismatchResult::Error(ref err_des, _) => {
+          errors.push((err.interaction_id().clone(), description.clone(), Some(err.clone())));
+        },
+        MismatchResult::Mismatches { ref mismatches, .. } => {
+          errors.push((interaction.id().clone(), description.clone(), Some(err.clone())));
+        }
+      }
+    }
+  }
+
+  println!();
+
+  VerificationResult { errors }
 }
 
 fn display_comments(interaction: Box<dyn V4Interaction>) {

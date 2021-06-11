@@ -14,7 +14,7 @@ use pact_consumer::prelude::*;
 use pact_consumer::*;
 use pact_matching::models::read_pact;
 use pact_models::provider_states::ProviderState;
-use pact_verifier::{FilterInfo, NullRequestFilterExecutor, ProviderInfo, VerificationOptions, verify_pact};
+use pact_verifier::{FilterInfo, NullRequestFilterExecutor, ProviderInfo, VerificationOptions, verify_pact_internal};
 use pact_verifier::callback_executors::{ProviderStateError, ProviderStateExecutor};
 
 /// Get the path to one of our sample *.json files.
@@ -84,9 +84,10 @@ async fn verify_pact_with_match_values_matcher() {
   let options: VerificationOptions<NullRequestFilterExecutor> = VerificationOptions::default();
   let provider_states = Arc::new(DummyProviderStateExecutor{});
 
-  let result = verify_pact(&provider, &FilterInfo::None, pact, &options, &provider_states).await;
+  let result = verify_pact_internal(&provider, &FilterInfo::None,
+                                    pact, &options, &provider_states, false).await;
 
-  expect!(result.get(0).unwrap().2.clone()).to(be_none());
+  expect!(result.errors.get(0).unwrap().2.clone()).to(be_none());
 }
 
 #[tokio::test]
@@ -125,7 +126,29 @@ async fn verify_pact_with_attributes_with_special_values() {
   let options: VerificationOptions<NullRequestFilterExecutor> = VerificationOptions::default();
   let provider_states = Arc::new(DummyProviderStateExecutor{});
 
-  let result = verify_pact(&provider, &FilterInfo::None, pact, &options, &provider_states).await;
+  let result = verify_pact_internal(&provider, &FilterInfo::None,
+                                    pact, &options, &provider_states, false).await;
 
-  expect!(result.get(0).unwrap().2.clone()).to(be_none());
+  expect!(result.errors.get(0).unwrap().2.clone()).to(be_none());
+}
+
+#[tokio::test]
+#[ignore]
+async fn verifing_a_pact_with_pending_interactions() {
+  try_init().unwrap_or(());
+  let provider = ProviderInfo {
+    name: "PendingProvider".to_string(),
+    host: "127.0.0.1".to_string(),
+    .. ProviderInfo::default()
+  };
+
+  let pact_file = fixture_path("v4-pending-pact.json");
+  let pact = read_pact(pact_file.as_path()).unwrap();
+  let options: VerificationOptions<NullRequestFilterExecutor> = VerificationOptions::default();
+  let provider_states = Arc::new(DummyProviderStateExecutor{});
+
+  let result = verify_pact_internal(&provider, &FilterInfo::None,
+                                    pact, &options, &provider_states, false).await;
+
+  expect!(result.errors.get(0).unwrap().2.clone()).to(be_none());
 }

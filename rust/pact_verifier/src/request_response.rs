@@ -4,7 +4,6 @@ use pact_matching::models::RequestResponseInteraction;
 use pact_matching::Mismatch;
 
 pub fn display_request_response_result(
-  errors: &mut Vec<(Option<String>, String, Option<MismatchResult>)>,
   interaction: &RequestResponseInteraction,
   match_result: &Result<Option<String>, MismatchResult>,
   description: &String
@@ -18,12 +17,10 @@ pub fn display_request_response_result(
           (k.clone(), v.join(", "), Green.paint("OK"))
         }).collect()), Green.paint("OK")
       );
-      errors.push((id.clone(), description.clone(), None));
     },
     Err(ref err) => match *err {
       MismatchResult::Error(ref err_des, _) => {
         println!("      {}", Red.paint(format!("Request Failed - {}", err_des)));
-        errors.push((err.interaction_id().clone(), description.clone(), Some(err.clone())));
       },
       MismatchResult::Mismatches { ref mismatches, .. } => {
         let description = description.to_owned() + " returns a response which ";
@@ -55,7 +52,6 @@ pub fn display_request_response_result(
         };
 
         display_result(interaction.response.status, status_result, header_results, body_result);
-        errors.push((interaction.id.clone(), description.clone(), Some(err.clone())));
       }
     }
   }
