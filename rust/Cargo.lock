@@ -1034,6 +1034,7 @@ dependencies = [
 name = "pact_cli"
 version = "0.0.0"
 dependencies = [
+ "ansi_term 0.12.1",
  "anyhow",
  "clap",
  "expectest",

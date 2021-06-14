@@ -1,5 +1,7 @@
 //! Functions to verify a Pact file
 
+use ansi_term::*;
+use ansi_term::Colour::*;
 use log::error;
 use serde::Serialize;
 use serde_json::Value;
@@ -78,25 +80,31 @@ fn display_output(results: &Vec<VerificationResult>) -> anyhow::Result<()> {
   });
 
   println!("Verification result is {}\n", match overall_result {
-    ResultLevel::ERROR => "ERROR",
-    ResultLevel::WARNING => "WARNING",
-    ResultLevel::NOTICE => "OK"
+    ResultLevel::ERROR => Red.paint("ERROR"),
+    ResultLevel::WARNING => Yellow.paint("WARNING"),
+    ResultLevel::NOTICE => Green.paint("OK")
   });
 
   let mut errors = 0_usize;
   let mut info = 0_usize;
   for (index, result) in results.iter().enumerate() {
     if result.results.is_empty() {
-      println!("  {}) {}: OK", index + 1, result.source);
+      println!("  {}) {}: {}", index + 1, result.source, Green.paint("OK"));
     } else {
       println!("  {}) {}:\n", index + 1, result.source);
       for (j, r) in result.results.iter().enumerate() {
-        println!("    {}.{}) {}: \"{}\" - {}", index + 1, j + 1, r.level, r.path, r.message);
-
         match r.level {
-          ResultLevel::ERROR => errors += 1,
-          ResultLevel::WARNING => info += 1,
-          _ => {}
+          ResultLevel::ERROR => {
+            errors += 1;
+            println!("    {}.{}) {}: \"{}\" - {}", index + 1, j + 1, Red.paint(r.level.to_string()), r.path, r.message);
+          },
+          ResultLevel::WARNING => {
+            info += 1;
+            println!("    {}.{}) {}: \"{}\" - {}", index + 1, j + 1, Yellow.paint(r.level.to_string()), r.path, r.message);
+          },
+          ResultLevel::NOTICE => {
+            println!("    {}.{}) {}: \"{}\" - {}", index + 1, j + 1, r.level, r.path, r.message);
+          }
         }
       }
     }
