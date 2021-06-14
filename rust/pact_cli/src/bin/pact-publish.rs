@@ -1,30 +1,23 @@
-//! Pact file format validator
-//!
-//! Validator for Pact files.
+//! CLI to publish Pact files to a Pact broker.
 
 #![warn(missing_docs)]
 
-use std::{env, fs};
+use std::env;
 use std::fs::File;
 
 use anyhow::{anyhow, Context};
 use clap::{App, AppSettings, Arg, ArgMatches, ErrorKind};
-use glob::glob;
 use log::*;
 use serde_json::Value;
 
 use pact_cli::{glob_value, setup_loggers};
-use pact_cli::verification::{display_results, VerificationResult};
-use pact_matching::models::{determine_spec_version, http_utils, MessagePact, parse_meta_data, RequestResponsePact};
+use pact_matching::models::http_utils;
 use pact_matching::models::http_utils::HttpAuth;
-use pact_matching::models::v4::V4Pact;
-use pact_models::PactSpecification;
-use pact_models::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerifier, ResultLevel};
 
 fn setup_app<'a, 'b>(program: &str, version: &'b str) -> App<'a, 'b> {
   App::new(program)
     .version(version)
-    .about("Pact file format verifier")
+    .about("Pact file publisher")
     .version_short("v")
     .arg(Arg::with_name("loglevel")
       .short("l")
@@ -36,46 +29,36 @@ fn setup_app<'a, 'b>(program: &str, version: &'b str) -> App<'a, 'b> {
     .arg(Arg::with_name("file")
       .short("f")
       .long("file")
-      .required_unless_one(&["url", "dir", "glob"])
+      .required_unless_one(&["dir", "glob"])
       .takes_value(true)
       .use_delimiter(false)
       .multiple(true)
       .number_of_values(1)
       .empty_values(false)
-      .help("Pact file to verify (can be repeated)"))
-    .arg(Arg::with_name("url")
-      .short("u")
-      .long("url")
-      .required_unless_one(&["file", "dir", "glob"])
-      .takes_value(true)
-      .use_delimiter(false)
-      .multiple(true)
-      .number_of_values(1)
-      .empty_values(false)
-      .help("URL of pact file to verify (can be repeated)"))
+      .help("Pact file to publish (can be repeated)"))
     .arg(Arg::with_name("dir")
       .short("d")
       .long("dir")
-      .required_unless_one(&["file", "url", "glob"])
+      .required_unless_one(&["file", "glob"])
       .takes_value(true)
       .use_delimiter(false)
       .multiple(true)
       .number_of_values(1)
       .empty_values(false)
-      .help("Directory of pact files to verify (can be repeated)"))
+      .help("Directory of pact files to publish (can be repeated)"))
     .arg(Arg::with_name("glob")
       .short("g")
       .long("glob")
-      .required_unless_one(&["file", "url", "dir"])
+      .required_unless_one(&["file", "dir"])
       .takes_value(true)
       .use_delimiter(false)
       .multiple(true)
       .number_of_values(1)
       .empty_values(false)
       .validator(glob_value)
-      .help("Glob pattern to match pact files to verify (can be repeated)")
+      .help("Glob pattern to match pact files to publish (can be repeated)")
       .long_help("
-      Glob pattern to match pact files to verify
+      Glob pattern to match pact files to publish
 
       ?      matches any single character.
       *      matches any (possibly empty) sequence of characters.
@@ -94,13 +77,10 @@ fn setup_app<'a, 'b>(program: &str, version: &'b str) -> App<'a, 'b> {
       the start or the end, e.g. [abc-].
 
       See https://docs.rs/glob/0.3.0/glob/struct.Pattern.html"))
-    .arg(Arg::with_name("spec")
-      .long("specification")
-      .short("s")
-      .takes_value(true)
-      .possible_values(&["v1", "v2", "v3", "v4", "auto"])
-      .default_value("auto")
-      .help("Pact specification to verify as. Defaults to detecting the version from the Pact file."))
+    .arg(Arg::with_name("validate")
+      .long("validate")
+      .short("v")
+      .help("Validate the Pact files before publishing."))
     .arg(Arg::with_name("user")
       .long("user")
       .takes_value(true)
@@ -108,7 +88,7 @@ fn setup_app<'a, 'b>(program: &str, version: &'b str) -> App<'a, 'b> {
       .number_of_values(1)
       .empty_values(false)
       .conflicts_with("token")
-      .help("Username to use when fetching pacts from URLS"))
+      .help("Username to use to publish with"))
     .arg(Arg::with_name("password")
       .long("password")
       .takes_value(true)
@@ -116,7 +96,7 @@ fn setup_app<'a, 'b>(program: &str, version: &'b str) -> App<'a, 'b> {
       .number_of_values(1)
       .empty_values(false)
       .conflicts_with("token")
-      .help("Password to use when fetching pacts from URLS"))
+      .help("Password to use to publish with"))
     .arg(Arg::with_name("token")
       .short("t")
       .long("token")
@@ -125,17 +105,7 @@ fn setup_app<'a, 'b>(program: &str, version: &'b str) -> App<'a, 'b> {
       .number_of_values(1)
       .empty_values(false)
       .conflicts_with("user")
-      .help("Bearer token to use when fetching pacts from URLS"))
-    .arg(Arg::with_name("output")
-      .short("o")
-      .long("output")
-      .takes_value(true)
-      .possible_values(&["console", "json"])
-      .default_value("console")
-      .help("Format to use to output results as"))
-    .arg(Arg::with_name("strict")
-      .long("strict")
-      .help("Enable strict validation. This will reject things like additional attributes"))
+      .help("Bearer token to use to publish with"))
 }
 
 fn handle_cli() -> Result<(), i32> {
@@ -169,48 +139,34 @@ fn handle_matches(args: &ArgMatches) -> Result<(), i32> {
     eprintln!();
   }
 
-  let spec_version = args.value_of("spec").map(|version| {
-    if version == "auto" {
-      PactSpecification::Unknown
-    } else {
-      PactSpecification::from(version)
-    }
-  }).unwrap_or(PactSpecification::Unknown);
-
   let files = load_files(args).map_err(|_| 1)?;
 
-  let results = files.iter().map(|(source, pact_json)| {
-    let spec_version = match spec_version {
-      PactSpecification::Unknown => {
-        let metadata = parse_meta_data(pact_json);
-        determine_spec_version(source, &metadata)
-      }
-      _ => spec_version.clone()
-    };
-    let results = match spec_version {
-      PactSpecification::V4 => V4Pact::verify_json("/", pact_json, args.is_present("strict")),
-      _ => match pact_json {
-        Value::Object(map) => if map.contains_key("messages") {
-          MessagePact::verify_json("/", pact_json, args.is_present("strict"))
-        } else {
-          RequestResponsePact::verify_json("/", pact_json, args.is_present("strict"))
-        },
-        _ => vec![PactFileVerificationResult::new("/", ResultLevel::ERROR,
-          &format!("Must be an Object, got {}", json_type_of(pact_json)))]
-      }
-    };
-    VerificationResult::new(source, results)
-  }).collect();
-
-  let display_result = display_results(&results, args.value_of("output").unwrap_or("console"));
-
-  if display_result.is_err() {
-    Err(3)
-  } else if results.iter().any(|res| res.has_errors()) {
-    Err(2)
-  } else {
-    Ok(())
-  }
+  // let results = files.iter().map(|(source, pact_json)| {
+  //   let results = match spec_version {
+  //     PactSpecification::V4 => V4Pact::verify_json("/", pact_json, args.is_present("strict")),
+  //     _ => match pact_json {
+  //       Value::Object(map) => if map.contains_key("messages") {
+  //         MessagePact::verify_json("/", pact_json, args.is_present("strict"))
+  //       } else {
+  //         RequestResponsePact::verify_json("/", pact_json, args.is_present("strict"))
+  //       },
+  //       _ => vec![PactFileVerificationResult::new("/", ResultLevel::ERROR,
+  //         &format!("Must be an Object, got {}", json_type_of(pact_json)))]
+  //     }
+  //   };
+  //   VerificationResult::new(source, results)
+  // }).collect();
+  //
+  // let display_result = display_results(&results, "console");
+  //
+  // if display_result.is_err() {
+  //   Err(3)
+  // } else if results.iter().any(|res| res.has_errors()) {
+  //   Err(2)
+  // } else {
+  //   Ok(())
+  // }
+  Err(1)
 }
 
 fn load_files(args: &ArgMatches) -> anyhow::Result<Vec<(String, Value)>> {
@@ -224,26 +180,6 @@ fn load_files(args: &ArgMatches) -> anyhow::Result<Vec<(String, Value)>> {
     sources.extend(values.map(|v| {
       (v.to_string(), fetch_pact(v, args).map(|(_, value)| value))
     }).collect::<Vec<(String, anyhow::Result<Value>)>>());
-  };
-  if let Some(values) = args.values_of("dir") {
-    for value in values {
-      for entry in fs::read_dir(value)? {
-        let path = entry?.path();
-        if path.is_file() && path.extension().unwrap_or_default() == "json" {
-          let file_name = path.to_str().ok_or(anyhow!("Directory contains non-UTF-8 entry"))?;
-          sources.push((file_name.to_string(), load_file(file_name)));
-        }
-      }
-    }
-  };
-  if let Some(values) = args.values_of("glob") {
-    for value in values {
-      for entry in glob(value)? {
-        let entry = entry?;
-        let file_name = entry.to_str().ok_or(anyhow!("Glob matched non-UTF-8 entry"))?;
-        sources.push((file_name.to_string(), load_file(file_name)));
-      }
-    }
   };
 
   if sources.iter().any(|(_, res)| res.is_err()) {
@@ -272,8 +208,7 @@ fn fetch_pact(url: &str, args: &ArgMatches) -> anyhow::Result<(String, Value)> {
 
 fn load_file(file_name: &str) -> anyhow::Result<Value> {
   let file = File::open(file_name)?;
-  serde_json::from_reader(file)
-    .map_err(|err| anyhow!("Failed to parse file as JSON - {}", err))
+  serde_json::from_reader(file).context("file is not JSON")
 }
 
 fn main() {

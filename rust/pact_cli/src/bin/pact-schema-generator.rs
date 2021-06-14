@@ -3,21 +3,14 @@
 #![warn(missing_docs)]
 
 use std::env;
-use std::fs::File;
-use std::str::FromStr;
 
-use anyhow::{anyhow, Context};
 use clap::{App, AppSettings, Arg, ArgMatches, ErrorKind};
 use log::*;
-use serde_json::{Error, json, to_string_pretty, Value};
-use simplelog::{ColorChoice, Config, TerminalMode, TermLogger};
+use serde_json::{json, to_string_pretty};
 
-use pact_cli::{setup_loggers, verification};
-use pact_matching::models::{determine_spec_version, http_utils, MessagePact, parse_meta_data, RequestResponsePact};
-use pact_matching::models::http_utils::HttpAuth;
-use pact_matching::models::v4::V4Pact;
+use pact_cli::setup_loggers;
+use pact_matching::models::RequestResponsePact;
 use pact_models::PactSpecification;
-use pact_models::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerifier, ResultLevel};
 
 fn setup_app<'a, 'b>(program: &str, version: &'b str) -> App<'a, 'b> {
   App::new(program)

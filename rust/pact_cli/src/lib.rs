@@ -13,3 +13,10 @@ pub fn setup_loggers(level: &str) -> Result<(), SetLoggerError> {
   };
   TermLogger::init(log_level, Config::default(), TerminalMode::Stderr, ColorChoice::Auto)
 }
+
+pub fn glob_value(v: String) -> Result<(), String> {
+  match glob::Pattern::new(&v) {
+    Ok(_) => Ok(()),
+    Err(err) => Err(format!("'{}' is not a valid glob pattern - {}", v, err))
+  }
+}

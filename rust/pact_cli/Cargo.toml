@@ -22,3 +22,4 @@ pact_matching = { version = "0.9", path = "../pact_matching" }
 anyhow = "1.0.40"
 log = "0.4.14"
 simplelog = "0.10.0"
+glob = "0.3.0"
