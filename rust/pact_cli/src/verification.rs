@@ -4,7 +4,7 @@ use serde::Serialize;
 use pact_models::verify_json::{PactFileVerificationResult, ResultLevel};
 
 #[derive(Debug, Clone, Serialize)]
-pub(crate) struct VerificationResult {
+pub struct VerificationResult {
   /// source of the verification
   pub source: String,
   /// results
@@ -12,13 +12,13 @@ pub(crate) struct VerificationResult {
 }
 
 impl VerificationResult {
-  pub(crate) fn has_errors(&self) -> bool {
+  pub fn has_errors(&self) -> bool {
     self.results.iter().any(|result| result.level == ResultLevel::ERROR)
   }
 }
 
 impl VerificationResult {
-  pub(crate) fn new(source: &String, results: Vec<PactFileVerificationResult>) -> Self {
+  pub fn new(source: &String, results: Vec<PactFileVerificationResult>) -> Self {
     VerificationResult {
       source: source.clone(),
       results: results.clone()
@@ -26,7 +26,7 @@ impl VerificationResult {
   }
 }
 
-pub(crate) fn display_results(result: &Vec<VerificationResult>, output_type: &str) -> anyhow::Result<()> {
+pub fn display_results(result: &Vec<VerificationResult>, output_type: &str) -> anyhow::Result<()> {
   if output_type == "json" {
     generate_json_output(result)
   } else {

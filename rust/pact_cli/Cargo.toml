@@ -1,11 +1,11 @@
 [package]
-name = "pact_file_verifier"
+name = "pact_cli"
 version = "0.0.0"
 authors = ["Ronald Holshausen <rholshausen@dius.com.au>"]
 edition = "2018"
-description = "Pact file verifier"
+description = "CLI utilities for Pact"
 homepage = "http://www.pact.io"
-repository = "https://github.com/pact-foundation/pact-reference/blob/master/rust/pact_file_verifier"
+repository = "https://github.com/pact-foundation/pact-reference/blob/master/rust/pact_cli"
 readme = "README.md"
 keywords = ["testing", "pact", "cdc"]
 license = "MIT"

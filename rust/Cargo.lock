@@ -1025,6 +1025,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "pact_cli"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "log",
+ "pact_matching",
+ "pact_models",
+ "serde",
+ "serde_json",
+ "simplelog 0.10.0",
+]
+
+[[package]]
 name = "pact_consumer"
 version = "0.7.7"
 dependencies = [
@@ -1048,20 +1062,6 @@ dependencies = [
  "tokio",
  "url",
  "uuid",
-]
-
-[[package]]
-name = "pact_file_verifier"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "clap",
- "log",
- "pact_matching",
- "pact_models",
- "serde",
- "serde_json",
- "simplelog 0.10.0",
 ]
 
 [[package]]

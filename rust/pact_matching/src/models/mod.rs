@@ -1331,6 +1331,41 @@ impl RequestResponsePact {
       s!("pact-rust") => btreemap!{ s!("version") => s!(PACT_RUST_VERSION.unwrap_or("unknown")) }
     }
   }
+
+  /// Generate the JSON schema properties for the given Pact specification
+  pub fn schema(spec_version: PactSpecification) -> Value {
+    json!({
+      "properties": {
+        "consumer": {
+          "description": "The consumer application of the interaction",
+          "$ref": "#/definitions/application"
+        },
+        "interactions": {
+          "description": "The interactions between the consumer and provider",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/interaction"
+          },
+        },
+        "metadata": {
+          "description": "Metadata associated with the Pact file",
+          "$ref": "#/definitions/metadata"
+        },
+        "provider": {
+          "description": "The provider application of the interaction",
+          "$ref": "#/definitions/application"
+        }
+      },
+      "required": [
+        "consumer",
+        "interactions",
+        "provider"
+      ],
+      "definitions": {
+
+      }
+    })
+  }
 }
 
 impl ReadWritePact for RequestResponsePact {

@@ -57,18 +57,6 @@ impl PactSpecification {
         _ => "unknown"
     }.into()
   }
-
-  /// Returns a descriptive string of the specification version.
-  pub fn to_string(&self) -> String {
-    match *self {
-      PactSpecification::V1 => "V1",
-      PactSpecification::V1_1 => "V1.1",
-      PactSpecification::V2 => "V2",
-      PactSpecification::V3 => "V3",
-      PactSpecification::V4 => "V4",
-      _ => "unknown"
-    }.into()
-  }
 }
 
 impl From<&str> for PactSpecification {
@@ -93,6 +81,19 @@ impl From<String> for PactSpecification {
 impl From<&String> for PactSpecification {
   fn from(s: &String) -> Self {
     PactSpecification::from(s.as_str())
+  }
+}
+
+impl ToString for PactSpecification {
+  fn to_string(&self) -> String {
+    match *self {
+      PactSpecification::V1 => "V1",
+      PactSpecification::V1_1 => "V1.1",
+      PactSpecification::V2 => "V2",
+      PactSpecification::V3 => "V3",
+      PactSpecification::V4 => "V4",
+      _ => "unknown"
+    }.into()
   }
 }
 

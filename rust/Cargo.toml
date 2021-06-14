@@ -10,5 +10,5 @@ members = [
     "pact_verifier",
     "pact_verifier_cli",
     "pact_verifier_ffi",
-    "pact_file_verifier"
+    "pact_cli"
 ]

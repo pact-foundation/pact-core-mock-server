@@ -14,16 +14,13 @@ use log::*;
 use serde_json::Value;
 use simplelog::{ColorChoice, Config, TerminalMode, TermLogger};
 
+use pact_cli::{setup_loggers, verification};
+use pact_cli::verification::{display_results, VerificationResult};
 use pact_matching::models::{determine_spec_version, http_utils, MessagePact, parse_meta_data, RequestResponsePact};
 use pact_matching::models::http_utils::HttpAuth;
 use pact_matching::models::v4::V4Pact;
 use pact_models::PactSpecification;
-use pact_models::verify_json::{json_type_of, PactFileVerificationResult, ResultLevel, PactJsonVerifier};
-use verification::VerificationResult;
-
-use crate::verification::display_results;
-
-mod verification;
+use pact_models::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerifier, ResultLevel};
 
 fn setup_app<'a, 'b>(program: &str, version: &'b str) -> App<'a, 'b> {
   App::new(program)
@@ -216,14 +213,6 @@ fn fetch_pact(url: &str, args: &ArgMatches) -> anyhow::Result<(String, Value)> {
 fn load_file(file_name: &str) -> anyhow::Result<Value> {
   let file = File::open(file_name)?;
   serde_json::from_reader(file).context("file is not JSON")
-}
-
-fn setup_loggers(level: &str) -> Result<(), SetLoggerError> {
-  let log_level = match level {
-    "none" => LevelFilter::Off,
-    _ => LevelFilter::from_str(level).unwrap()
-  };
-  TermLogger::init(log_level, Config::default(), TerminalMode::Stderr, ColorChoice::Auto)
 }
 
 fn main() {
