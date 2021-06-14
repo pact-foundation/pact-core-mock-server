@@ -26,6 +26,7 @@ use log::*;
 use maplit::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use maplit::hashset;
 
 use pact_models::{Consumer, DifferenceType, PactSpecification, Provider};
 use pact_models::bodies::OptionalBody;
@@ -1443,7 +1444,7 @@ impl ReadWritePact for RequestResponsePact {
 }
 
 impl PactJsonVerifier for RequestResponsePact {
-  fn verify_json(path: &str, pact_json: &Value, strict: bool) -> Vec<PactFileVerificationResult> {
+  fn verify_json(_path: &str, pact_json: &Value, strict: bool) -> Vec<PactFileVerificationResult> {
     let mut results = vec![];
 
     match pact_json {
@@ -1483,6 +1484,15 @@ impl PactJsonVerifier for RequestResponsePact {
 
         if let Some(metadata) = values.get("metadata") {
 
+        }
+
+        let valid_attr = hashset! { "consumer", "provider", "interactions", "metadata" };
+        for (key, _) in values {
+          if !valid_attr.contains(key.as_str()) {
+            results.push(PactFileVerificationResult::new(&format!("/{}", key),
+              if strict { ResultLevel::ERROR } else { ResultLevel::WARNING },
+                   &format!("Unexpected attribute '{}'", key)));
+          }
         }
       }
       _ => results.push(PactFileVerificationResult::new("/", ResultLevel::ERROR,

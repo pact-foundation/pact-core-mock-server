@@ -1,7 +1,13 @@
+//! Functions to verify a Pact file
+
 use log::error;
 use serde::Serialize;
+use serde_json::Value;
 
-use pact_models::verify_json::{PactFileVerificationResult, ResultLevel};
+use pact_matching::models::{determine_spec_version, MessagePact, parse_meta_data, RequestResponsePact};
+use pact_matching::models::v4::V4Pact;
+use pact_models::PactSpecification;
+use pact_models::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerifier, ResultLevel};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct VerificationResult {
@@ -22,6 +28,28 @@ impl VerificationResult {
     VerificationResult {
       source: source.clone(),
       results: results.clone()
+    }
+  }
+}
+
+pub fn verify_json(pact_json: &Value, spec_version: &PactSpecification, source: &str, strict: bool) -> Vec<PactFileVerificationResult> {
+  let spec_version = match spec_version {
+    PactSpecification::Unknown => {
+      let metadata = parse_meta_data(pact_json);
+      determine_spec_version(source, &metadata)
+    }
+    _ => spec_version.clone()
+  };
+  match spec_version {
+    PactSpecification::V4 => V4Pact::verify_json("/", pact_json, strict),
+    _ => match pact_json {
+      Value::Object(map) => if map.contains_key("messages") {
+        MessagePact::verify_json("/", pact_json, strict)
+      } else {
+        RequestResponsePact::verify_json("/", pact_json, strict)
+      },
+      _ => vec![PactFileVerificationResult::new("/", ResultLevel::ERROR,
+                                                &format!("Must be an Object, got {}", json_type_of(pact_json)))]
     }
   }
 }
@@ -92,3 +120,6 @@ fn generate_json_output(results: &Vec<VerificationResult>) -> anyhow::Result<()>
     }
   }
 }
+
+#[cfg(test)]
+mod tests;

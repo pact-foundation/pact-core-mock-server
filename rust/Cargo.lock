@@ -1036,8 +1036,10 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "clap",
+ "expectest",
  "glob",
  "log",
+ "maplit",
  "pact_matching",
  "pact_models",
  "serde",

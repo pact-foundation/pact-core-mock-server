@@ -7,19 +7,16 @@
 use std::{env, fs};
 use std::fs::File;
 
-use anyhow::{anyhow, Context};
+use anyhow::anyhow;
 use clap::{App, AppSettings, Arg, ArgMatches, ErrorKind};
 use glob::glob;
 use log::*;
 use serde_json::Value;
 
 use pact_cli::{glob_value, setup_loggers};
-use pact_cli::verification::{display_results, VerificationResult};
-use pact_matching::models::{determine_spec_version, http_utils, MessagePact, parse_meta_data, RequestResponsePact};
-use pact_matching::models::http_utils::HttpAuth;
-use pact_matching::models::v4::V4Pact;
+use pact_cli::verification::{display_results, VerificationResult, verify_json};
+use pact_matching::models::http_utils::{self, HttpAuth};
 use pact_models::PactSpecification;
-use pact_models::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerifier, ResultLevel};
 
 fn setup_app<'a, 'b>(program: &str, version: &'b str) -> App<'a, 'b> {
   App::new(program)
@@ -180,25 +177,7 @@ fn handle_matches(args: &ArgMatches) -> Result<(), i32> {
   let files = load_files(args).map_err(|_| 1)?;
 
   let results = files.iter().map(|(source, pact_json)| {
-    let spec_version = match spec_version {
-      PactSpecification::Unknown => {
-        let metadata = parse_meta_data(pact_json);
-        determine_spec_version(source, &metadata)
-      }
-      _ => spec_version.clone()
-    };
-    let results = match spec_version {
-      PactSpecification::V4 => V4Pact::verify_json("/", pact_json, args.is_present("strict")),
-      _ => match pact_json {
-        Value::Object(map) => if map.contains_key("messages") {
-          MessagePact::verify_json("/", pact_json, args.is_present("strict"))
-        } else {
-          RequestResponsePact::verify_json("/", pact_json, args.is_present("strict"))
-        },
-        _ => vec![PactFileVerificationResult::new("/", ResultLevel::ERROR,
-          &format!("Must be an Object, got {}", json_type_of(pact_json)))]
-      }
-    };
+    let results = verify_json(pact_json, &spec_version, source, args.is_present("strict"));
     VerificationResult::new(source, results)
   }).collect();
 
