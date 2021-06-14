@@ -17,3 +17,5 @@ have a look at the [V2 Branch](https://github.com/pact-foundation/pact-reference
 [C Example](c/consumer-verification)
 
 [Ruby Example](ruby/example_consumer_spec)
+
+[PHP Example](php)
