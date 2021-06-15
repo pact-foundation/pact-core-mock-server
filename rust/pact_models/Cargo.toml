@@ -33,6 +33,7 @@ regex = "1"
 nom = "5.1.1"
 chrono = "0.4.19"
 chrono-tz = "0.5"
+lenient_semver = "0.4.2"
 
 [dev-dependencies]
 expectest = "0.12.0"

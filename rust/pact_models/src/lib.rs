@@ -57,6 +57,33 @@ impl PactSpecification {
         _ => "unknown"
     }.into()
   }
+
+  /// Parse a version string into a PactSpecification
+  pub fn parse_version<S: Into<String>>(input: S) -> anyhow::Result<PactSpecification> {
+    let str_version = input.into();
+    let version = lenient_semver::parse(str_version.as_str())
+      .map_err(|_| anyhow!("Invalid specification version '{}'", str_version))?;
+    match version.major {
+      1 => match version.minor {
+        0 => Ok(PactSpecification::V1),
+        1 => Ok(PactSpecification::V1_1),
+        _ => Err(anyhow!("Unsupported specification version '{}'", str_version))
+      },
+      2 => match version.minor {
+        0 => Ok(PactSpecification::V2),
+        _ => Err(anyhow!("Unsupported specification version '{}'", str_version))
+      },
+      3 => match version.minor {
+        0 => Ok(PactSpecification::V3),
+        _ => Err(anyhow!("Unsupported specification version '{}'", str_version))
+      },
+      4 => match version.minor {
+        0 => Ok(PactSpecification::V4),
+        _ => Err(anyhow!("Unsupported specification version '{}'", str_version))
+      },
+      _ => Err(anyhow!("Invalid specification version '{}'", str_version))
+    }
+  }
 }
 
 impl From<&str> for PactSpecification {

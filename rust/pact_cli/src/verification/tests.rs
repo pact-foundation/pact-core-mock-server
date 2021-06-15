@@ -2,8 +2,9 @@ use expectest::prelude::*;
 use serde_json:: json;
 
 use pact_models::PactSpecification;
+use pact_models::verify_json::ResultLevel;
 
-use super::{verify_json, ResultLevel};
+use super::verify_json;
 
 #[test]
 fn empty_json() {
@@ -119,4 +120,160 @@ fn with_metadata() {
     .collect();
   expect!(messages).to(be_equal_to(
     vec!["Interactions is empty".to_string()]));
+}
+
+#[test]
+fn with_invalid_metadata() {
+  let json = json!({
+    "consumer": {
+      "name": "test"
+    },
+    "provider": {
+      "name": "test"
+    },
+    "interactions": [],
+    "metadata": []
+  });
+  let results = verify_json(&json, &PactSpecification::V1, "", false);
+
+  expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(have_count(1));
+
+  let messages: Vec<String> = results.iter()
+    .filter(|result| result.level == ResultLevel::ERROR)
+    .map(|result| result.message.clone())
+    .collect();
+  expect!(messages).to(be_equal_to(
+    vec!["Metadata must be an Object, got Array".to_string()]));
+}
+
+#[test]
+fn with_spec_version_in_metadata() {
+  let json = json!({
+    "consumer": {
+      "name": "test"
+    },
+    "provider": {
+      "name": "test"
+    },
+    "interactions": [],
+    "metadata": {
+      "pactSpecification" : {
+        "version" : "2.0.0"
+      }
+    }
+  });
+  let results = verify_json(&json, &PactSpecification::V1, "", false);
+
+  expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(be_empty());
+}
+
+#[test]
+fn with_old_spec_version_in_metadata() {
+  let json = json!({
+    "consumer": {
+      "name": "test"
+    },
+    "provider": {
+      "name": "test"
+    },
+    "interactions": [],
+    "metadata": {
+      "pact-specification" : {
+        "version" : "2.0.0"
+      }
+    }
+  });
+  let results = verify_json(&json, &PactSpecification::V1, "", false);
+
+  expect!(results.iter()).to(have_count(2));
+  expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(be_empty());
+
+  let messages: Vec<String> = results.iter()
+    .map(|result| result.message.clone())
+    .collect();
+  expect!(messages).to(be_equal_to(
+    vec!["Interactions is empty".to_string(), "'pact-specification' is deprecated, use 'pactSpecification' instead".to_string()]));
+}
+
+#[test]
+fn with_missing_spec_version_in_metadata() {
+  let json = json!({
+    "consumer": {
+      "name": "test"
+    },
+    "provider": {
+      "name": "test"
+    },
+    "interactions": [],
+    "metadata": {
+      "pactSpecification" : {
+      }
+    }
+  });
+  let results = verify_json(&json, &PactSpecification::V1, "", false);
+
+  expect!(results.iter()).to(have_count(2));
+  expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(be_empty());
+
+  let messages: Vec<String> = results.iter()
+    .map(|result| result.message.clone())
+    .collect();
+  expect!(messages).to(be_equal_to(
+    vec!["Interactions is empty".to_string(), "pactSpecification is missing the version attribute".to_string()]));
+}
+
+#[test]
+fn with_null_spec_version_in_metadata() {
+  let json = json!({
+    "consumer": {
+      "name": "test"
+    },
+    "provider": {
+      "name": "test"
+    },
+    "interactions": [],
+    "metadata": {
+      "pactSpecification" : {
+        "version": null
+      }
+    }
+  });
+  let results = verify_json(&json, &PactSpecification::V1, "", false);
+
+  expect!(results.iter()).to(have_count(2));
+  expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(be_empty());
+
+  let messages: Vec<String> = results.iter()
+    .map(|result| result.message.clone())
+    .collect();
+  expect!(messages).to(be_equal_to(
+    vec!["Interactions is empty".to_string(), "pactSpecification version is NULL".to_string()]));
+}
+
+#[test]
+fn with_incorrect_spec_version_in_metadata() {
+  let json = json!({
+    "consumer": {
+      "name": "test"
+    },
+    "provider": {
+      "name": "test"
+    },
+    "interactions": [],
+    "metadata": {
+      "pactSpecification" : {
+        "version": json!([1, 2, 3])
+      }
+    }
+  });
+  let results = verify_json(&json, &PactSpecification::V1, "", false);
+
+  expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(have_count(1));
+
+  let messages: Vec<String> = results.iter()
+    .filter(|result| result.level == ResultLevel::ERROR)
+    .map(|result| result.message.clone())
+    .collect();
+  expect!(messages).to(be_equal_to(
+    vec!["Version must be a String, got Array".to_string()]));
 }

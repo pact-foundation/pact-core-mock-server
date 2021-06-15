@@ -1483,7 +1483,7 @@ impl PactJsonVerifier for RequestResponsePact {
         }
 
         if let Some(metadata) = values.get("metadata") {
-
+          results.extend(verify_metadata(metadata));
         }
 
         let valid_attr = hashset! { "consumer", "provider", "interactions", "metadata" };
@@ -1501,6 +1501,51 @@ impl PactJsonVerifier for RequestResponsePact {
 
     results
   }
+}
+
+pub(crate) fn verify_metadata(metadata: &Value) -> Vec<PactFileVerificationResult> {
+  let mut results = vec![];
+
+  match metadata {
+    Value::Object(values) => {
+      let spec_value = if let Some(spec_value) = values.get("pactSpecification") {
+        Some(spec_value)
+      } else if let Some(spec_value) = values.get("pact-specification") {
+        results.push(PactFileVerificationResult::new("/metadata", ResultLevel::WARNING,
+          &format!("'pact-specification' is deprecated, use 'pactSpecification' instead")));
+        Some(spec_value)
+      } else {
+        None
+      };
+      if let Some(spec) = spec_value {
+        match spec {
+          Value::Object(values) => {
+            if let Some(version) = values.get("version") {
+              match version {
+                Value::Null => results.push(PactFileVerificationResult::new("/metadata/pactSpecification/version", ResultLevel::WARNING,
+                                                                            &format!("pactSpecification version is NULL"))),
+                Value::String(version) => if PactSpecification::parse_version(version).is_err() {
+                  results.push(PactFileVerificationResult::new("/metadata/pactSpecification/version", ResultLevel::ERROR,
+                                                               &format!("'{}' is not a valid Pact specification version", version)))
+                }
+                _ => results.push(PactFileVerificationResult::new("/metadata/pactSpecification/version", ResultLevel::ERROR,
+                                                                  &format!("Version must be a String, got {}", json_type_of(version))))
+              }
+            } else {
+              results.push(PactFileVerificationResult::new("/metadata/pactSpecification", ResultLevel::WARNING,
+                                                           &format!("pactSpecification is missing the version attribute")));
+            }
+          }
+          _ => results.push(PactFileVerificationResult::new("/metadata/pactSpecification", ResultLevel::ERROR,
+            &format!("pactSpecification must be an Object, got {}", json_type_of(spec))))
+        }
+      }
+    }
+    _ => results.push(PactFileVerificationResult::new("/metadata", ResultLevel::ERROR,
+      &format!("Metadata must be an Object, got {}", json_type_of(metadata))))
+  }
+
+  results
 }
 
 fn decode_query(query: &str) -> Result<String, String> {

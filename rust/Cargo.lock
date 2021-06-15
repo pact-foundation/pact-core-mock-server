@@ -688,21 +688,31 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "lenient_semver"
-version = "0.3.0"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1e69422a47c615a5d4dc300df0aeceaf8db75316d7a96b80c41f1ae0d1c6e30"
+checksum = "de8de3f4f3754c280ce1c8c42ed8dd26a9c8385c2e5ad4ec5a77e774cea9c1ec"
 dependencies = [
  "lenient_semver_parser",
- "semver",
+ "semver 1.0.3",
 ]
 
 [[package]]
 name = "lenient_semver_parser"
-version = "0.3.0"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7cb776fddcf01a2bf698446332a08b38ad591f93126f3d78880bd2e1900cbbe"
+checksum = "7f650c1d024ddc26b4bb79c3076b30030f2cf2b18292af698c81f7337a64d7d6"
 dependencies = [
- "semver",
+ "lenient_semver_version_builder",
+ "semver 1.0.3",
+]
+
+[[package]]
+name = "lenient_semver_version_builder"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9049f8ff49f75b946f95557148e70230499c8a642bf2d6528246afc7d0282d17"
+dependencies = [
+ "semver 1.0.3",
 ]
 
 [[package]]
@@ -1108,7 +1118,7 @@ dependencies = [
  "rand_regex",
  "regex-syntax",
  "reqwest",
- "semver",
+ "semver 0.11.0",
  "serde",
  "serde_json",
  "speculate",
@@ -1239,6 +1249,7 @@ dependencies = [
  "expectest",
  "itertools",
  "lazy_static",
+ "lenient_semver",
  "log",
  "maplit",
  "mime",
@@ -1777,6 +1788,12 @@ checksum = "f301af10236f6df4160f7c3f04eec6dbc70ace82d23326abad5edee88801c6b6"
 dependencies = [
  "semver-parser",
 ]
+
+[[package]]
+name = "semver"
+version = "1.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f3aac57ee7f3272d8395c6e4f502f434f0e289fcd62876f70daa008c20dcabe"
 
 [[package]]
 name = "semver-parser"
