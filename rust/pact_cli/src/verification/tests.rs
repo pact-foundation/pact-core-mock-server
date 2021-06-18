@@ -277,3 +277,138 @@ fn with_incorrect_spec_version_in_metadata() {
   expect!(messages).to(be_equal_to(
     vec!["Version must be a String, got Array".to_string()]));
 }
+
+#[test]
+fn with_missing_consumer_name() {
+  let json = json!({
+    "consumer": {},
+    "provider": {
+      "name": "test"
+    },
+    "interactions": []
+  });
+  let results = verify_json(&json, &PactSpecification::V1, "", false);
+
+  expect!(results.iter()).to(have_count(2));
+  expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(be_empty());
+
+  let messages: Vec<(&str, &str)> = results.iter()
+    .map(|result| (result.message.as_str(), result.path.as_str()))
+    .collect();
+  expect!(messages).to(be_equal_to(
+    vec![("Missing name", "/consumer/name"), ("Interactions is empty", "/interactions")]));
+
+  let results = verify_json(&json, &PactSpecification::V1, "", true);
+
+  expect!(results.iter()).to(have_count(2));
+  expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(have_count(1));
+
+  let messages: Vec<(&str, &str)> = results.iter()
+    .filter(|result| result.level == ResultLevel::ERROR)
+    .map(|result| (result.message.as_str(), result.path.as_str()))
+    .collect();
+  expect!(messages).to(be_equal_to(vec![("Missing name", "/consumer/name")]));
+}
+
+#[test]
+fn with_additional_consumer_properties() {
+  let json = json!({
+    "consumer": {
+      "name": "test",
+      "other_name": "test"
+    },
+    "provider": {
+      "name": "test"
+    },
+    "interactions": []
+  });
+  let results = verify_json(&json, &PactSpecification::V1, "", false);
+
+  expect!(results.iter()).to(have_count(2));
+  expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(be_empty());
+
+  let messages: Vec<(&str, &str)> = results.iter()
+    .map(|result| (result.message.as_str(), result.path.as_str()))
+    .collect();
+  expect!(messages).to(be_equal_to(
+    vec![("Unknown attribute 'other_name'", "/consumer"), ("Interactions is empty", "/interactions")]));
+
+  let results = verify_json(&json, &PactSpecification::V1, "", true);
+
+  expect!(results.iter()).to(have_count(2));
+  expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(have_count(1));
+
+  let messages: Vec<&str> = results.iter()
+    .filter(|result| result.level == ResultLevel::ERROR)
+    .map(|result| result.message.as_str())
+    .collect();
+  expect!(messages).to(be_equal_to(vec!["Unknown attribute 'other_name'"]));
+}
+
+#[test]
+fn with_missing_provider_name() {
+  let json = json!({
+    "consumer": {
+      "name": "test"
+    },
+    "provider": {
+    },
+    "interactions": []
+  });
+  let results = verify_json(&json, &PactSpecification::V1, "", false);
+
+  expect!(results.iter()).to(have_count(2));
+  expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(be_empty());
+
+  let messages: Vec<(&str, &str)> = results.iter()
+    .map(|result| (result.message.as_str(), result.path.as_str()))
+    .collect();
+  expect!(messages).to(be_equal_to(
+    vec![("Missing name", "/provider/name"), ("Interactions is empty", "/interactions")]));
+
+  let results = verify_json(&json, &PactSpecification::V1, "", true);
+
+  expect!(results.iter()).to(have_count(2));
+  expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(have_count(1));
+
+  let messages: Vec<(&str, &str)> = results.iter()
+    .filter(|result| result.level == ResultLevel::ERROR)
+    .map(|result| (result.message.as_str(), result.path.as_str()))
+    .collect();
+  expect!(messages).to(be_equal_to(vec![("Missing name", "/provider/name")]));
+}
+
+#[test]
+fn with_additional_provider_properties() {
+  let json = json!({
+    "consumer": {
+      "name": "test"
+    },
+    "provider": {
+      "name": "test",
+      "other_name": "test"
+    },
+    "interactions": []
+  });
+  let results = verify_json(&json, &PactSpecification::V1, "", false);
+
+  expect!(results.iter()).to(have_count(2));
+  expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(be_empty());
+
+  let messages: Vec<(&str, &str)> = results.iter()
+    .map(|result| (result.message.as_str(), result.path.as_str()))
+    .collect();
+  expect!(messages).to(be_equal_to(
+    vec![("Unknown attribute 'other_name'", "/provider"), ("Interactions is empty", "/interactions")]));
+
+  let results = verify_json(&json, &PactSpecification::V1, "", true);
+
+  expect!(results.iter()).to(have_count(2));
+  expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(have_count(1));
+
+  let messages: Vec<&str> = results.iter()
+    .filter(|result| result.level == ResultLevel::ERROR)
+    .map(|result| result.message.as_str())
+    .collect();
+  expect!(messages).to(be_equal_to(vec!["Unknown attribute 'other_name'"]));
+}

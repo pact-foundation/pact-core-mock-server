@@ -22,7 +22,7 @@ mod timezone_db;
 
 /// Enum defining the pact specification versions supported by the library
 #[cfg_attr(feature = "ffi", repr(C))]
-#[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Deserialize, Serialize)]
 #[allow(non_camel_case_types)]
 pub enum PactSpecification {
   /// Unknown or unsupported specification version
@@ -148,6 +148,19 @@ impl Consumer {
   pub fn to_json(&self) -> Value {
     json!({ "name" : self.name })
   }
+
+  /// Generate the JSON schema properties for the given Pact specification
+  pub fn schema(_spec_version: PactSpecification) -> Value {
+    json!({
+      "properties": {
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": ["name"],
+      "type": "object"
+    })
+  }
 }
 
 impl PactJsonVerifier for Consumer {
@@ -161,10 +174,16 @@ impl PactJsonVerifier for Consumer {
             results.push(PactFileVerificationResult::new(path.to_owned() + "/name", ResultLevel::ERROR,
               format!("Must be a String, got {}", json_type_of(pact_json))))
           }
-        } else if strict {
-          results.push(PactFileVerificationResult::new(path.to_owned() + "/name", ResultLevel::ERROR, "Missing name"))
         } else {
-          results.push(PactFileVerificationResult::new(path.to_owned() + "/name", ResultLevel::WARNING, "Missing name"))
+          results.push(PactFileVerificationResult::new(path.to_owned() + "/name",
+            if strict { ResultLevel::ERROR } else { ResultLevel::WARNING }, "Missing name"))
+        }
+
+        for key in values.keys() {
+          if key != "name" {
+            results.push(PactFileVerificationResult::new(path.to_owned(),
+              if strict { ResultLevel::ERROR } else { ResultLevel::WARNING }, format!("Unknown attribute '{}'", key)))
+          }
         }
       }
       _ => results.push(PactFileVerificationResult::new(path, ResultLevel::ERROR,
@@ -199,6 +218,19 @@ impl Provider {
   pub fn to_json(&self) -> Value {
     json!({ "name" : self.name })
   }
+
+  /// Generate the JSON schema properties for the given Pact specification
+  pub fn schema(_spec_version: PactSpecification) -> Value {
+    json!({
+      "properties": {
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": ["name"],
+      "type": "object"
+    })
+  }
 }
 
 impl PactJsonVerifier for Provider {
@@ -212,10 +244,16 @@ impl PactJsonVerifier for Provider {
             results.push(PactFileVerificationResult::new(path.to_owned() + "/name", ResultLevel::ERROR,
                                                          format!("Must be a String, got {}", json_type_of(pact_json))))
           }
-        } else if strict {
-          results.push(PactFileVerificationResult::new(path.to_owned() + "/name", ResultLevel::ERROR, "Missing name"))
         } else {
-          results.push(PactFileVerificationResult::new(path.to_owned() + "/name", ResultLevel::WARNING, "Missing name"))
+          results.push(PactFileVerificationResult::new(path.to_owned() + "/name",
+            if strict { ResultLevel::ERROR } else { ResultLevel::WARNING }, "Missing name"))
+        }
+
+        for key in values.keys() {
+          if key != "name" {
+            results.push(PactFileVerificationResult::new(path.to_owned(),
+              if strict { ResultLevel::ERROR } else { ResultLevel::WARNING }, format!("Unknown attribute '{}'", key)))
+          }
         }
       }
       _ => results.push(PactFileVerificationResult::new(path, ResultLevel::ERROR,

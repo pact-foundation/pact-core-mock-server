@@ -1,6 +1,5 @@
 //! Functions to verify a Pact file
 
-use ansi_term::*;
 use ansi_term::Colour::*;
 use log::error;
 use serde::Serialize;

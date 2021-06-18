@@ -1020,6 +1020,11 @@ impl RequestResponseInteraction {
         }]
       }
     }
+
+  /// Generate the JSON schema properties for the given Pact specification
+  pub fn schema(spec_version: PactSpecification) -> Value {
+    json!({})
+  }
 }
 
 impl Default for RequestResponseInteraction {
@@ -1202,6 +1207,55 @@ pub fn parse_meta_data(pact_json: &Value) -> BTreeMap<String, BTreeMap<String, S
     }
 }
 
+fn metadata_schema(spec_version: PactSpecification) -> Value {
+  if spec_version < PactSpecification::V3 {
+    json!({
+      "properties": {
+        "pactSpecification": {
+          "additionalProperties": false,
+          "properties": {
+            "version": {
+              "type": "string"
+            }
+          },
+          "required": ["version"],
+          "type": "object"
+        },
+        "pactSpecificationVersion": {
+          "type": "string"
+        },
+        "pact-specification": {
+          "additionalProperties": false,
+          "properties": {
+              "version": {
+                  "type": "string"
+              }
+          },
+          "required": ["version"],
+          "type": "object"
+        }
+      },
+      "type": "object"
+    })
+  } else {
+    json!({
+      "properties": {
+        "pactSpecification": {
+          "additionalProperties": false,
+          "properties": {
+            "version": {
+              "type": "string"
+            }
+          },
+          "required": ["version"],
+          "type": "object"
+        }
+      },
+      "type": "object"
+    })
+  }
+}
+
 fn parse_interactions(pact_json: &Value, spec_version: PactSpecification) -> Vec<RequestResponseInteraction> {
     match pact_json.get("interactions") {
         Some(v) => match *v {
@@ -1337,25 +1391,17 @@ impl RequestResponsePact {
   pub fn schema(spec_version: PactSpecification) -> Value {
     json!({
       "properties": {
-        "consumer": {
-          "description": "The consumer application of the interaction",
-          "$ref": "#/definitions/application"
-        },
+        "consumer": Consumer::schema(spec_version),
         "interactions": {
           "description": "The interactions between the consumer and provider",
           "type": "array",
-          "items": {
-            "$ref": "#/definitions/interaction"
-          },
+          "items": RequestResponseInteraction::schema(spec_version),
         },
         "metadata": {
           "description": "Metadata associated with the Pact file",
           "$ref": "#/definitions/metadata"
         },
-        "provider": {
-          "description": "The provider application of the interaction",
-          "$ref": "#/definitions/application"
-        }
+        "provider": Provider::schema(spec_version)
       },
       "required": [
         "consumer",
@@ -1363,7 +1409,7 @@ impl RequestResponsePact {
         "provider"
       ],
       "definitions": {
-
+        "metadata": metadata_schema(spec_version)
       }
     })
   }

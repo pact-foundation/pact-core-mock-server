@@ -926,7 +926,7 @@ mod tests {
     expect!(parse_pattern("GGGGG")).to(
       be_ok().value(vec![DateTimePatternToken::Era(5)]));
     expect!(parse_pattern("GGGGGG")).to(
-      be_err().value("Parsing datetime pattern \'GGGGGG\' failed with error - Parsing Failure: TooManyPatternLetters(\"Too many pattern letters for Era (\\\'G\\\'): 6\", 6)".to_string()));
+      be_err().value("Parsing datetime pattern 'GGGGGG' failed with error - Parsing Failure: TooManyPatternLetters(\"Too many pattern letters for Era ('G'): 6\", 6)".to_string()));
 
     expect!(validate_datetime(&"ad".into(), &"G".into())).to(be_ok());
     expect!(validate_datetime(&"AD".into(), &"GG".into())).to(be_ok());
