@@ -1,5 +1,5 @@
 //! `provider_states` module contains all the logic for dealing with provider states.
-//! See https://docs.pact.io/getting_started/provider_states for more info on provider states.
+//! See `https://docs.pact.io/getting_started/provider_states` for more info on provider states.
 
 use std::cmp::Eq;
 use std::collections::HashMap;
