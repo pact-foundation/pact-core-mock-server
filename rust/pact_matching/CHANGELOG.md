@@ -1,5 +1,26 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.9.3 - Refactor + Bugfixes
+
+* 4fe8383c - chore: upgrade nom to 6.2.0 to resolve lexical-core compiler error (Ronald Holshausen, Tue Jun 22 14:41:16 2021 +1000)
+* bbc638be - feat(pact file verification): verify consumer and provider sections (Ronald Holshausen, Fri Jun 18 16:52:15 2021 +1000)
+* a7c071bc - feat(pact-file-validation): implemented validation of the metadata section (Ronald Holshausen, Wed Jun 16 09:17:28 2021 +1000)
+* 0652139e - feat(file-validator): check for additional properties in the root (Ronald Holshausen, Mon Jun 14 16:45:20 2021 +1000)
+* 00b65dcf - chore: rename pact_file_verifier -> pact_cli (Ronald Holshausen, Mon Jun 14 14:08:24 2021 +1000)
+* db75a42a - refactor: seperate displaying errors from gathering results in the verifier (Ronald Holshausen, Fri Jun 11 14:35:40 2021 +1000)
+* 6198538d - refactor: move time_utils to pact_models crate (Ronald Holshausen, Fri Jun 11 12:58:26 2021 +1000)
+* 5c670814 - refactor: move expression_parser to pact_models crate (Ronald Holshausen, Fri Jun 11 10:51:51 2021 +1000)
+* 457aa5fc - fix(V4): Status code matcher was not converted to JSON correctly (Ronald Holshausen, Sun Jun 6 12:53:37 2021 +1000)
+* 696ffb6a - chore: fix failing test #113 (Ronald Holshausen, Sat Jun 5 15:13:41 2021 +1000)
+* a44cbbee - fix: verifier was returning a mismatch when the expected body is empty #113 (Ronald Holshausen, Sat Jun 5 15:07:22 2021 +1000)
+* 4e328d93 - feat: implement verification for RequestResponsePact, Consumer, Provider (Ronald Holshausen, Thu Jun 3 16:59:23 2021 +1000)
+* 2f678213 - feat: initial prototype of a pact file verifier (Ronald Holshausen, Thu Jun 3 14:56:16 2021 +1000)
+* 4038e611 - chore: add missing matches_with implementation (Ronald Holshausen, Tue Jun 1 15:36:33 2021 +1000)
+* 68f8f84e - chore: skip failing tests in alpine to get the build going (Ronald Holshausen, Tue Jun 1 13:47:20 2021 +1000)
+* 6d058529 - chore: fix some clippy warnings (Ronald Holshausen, Mon May 31 16:42:57 2021 +1000)
+* 17beef62 - feat: support accumulating log entries per running mock server (Ronald Holshausen, Mon May 31 15:09:20 2021 +1000)
+* e27ce896 - bump version to 0.9.3 (Ronald Holshausen, Sun May 30 10:45:06 2021 +1000)
+
 # 0.9.2 - Bugfixes + V4 changes (Status code matcher + Pending flag)
 
 * 44e7eb4 - chore: cleanup deprecation warnings (Ronald Holshausen, Sat May 29 17:55:04 2021 +1000)
