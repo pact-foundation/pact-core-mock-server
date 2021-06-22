@@ -17,12 +17,12 @@ use maplit::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
+use pact_models::file_utils::with_read_lock;
 use pact_models::PactSpecification;
-use pact_models::verify_json::{json_type_of, PactFileVerificationResult, ResultLevel, PactJsonVerifier};
+use pact_models::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerifier, ResultLevel};
 
 use crate::models::{Consumer, Interaction, Pact, ReadWritePact, RequestResponsePact};
 use crate::models::determine_spec_version;
-use crate::models::file_utils::with_read_lock;
 use crate::models::http_utils;
 use crate::models::http_utils::HttpAuth;
 use crate::models::message;

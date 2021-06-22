@@ -19,6 +19,7 @@ pub mod json_utils;
 pub mod expression_parser;
 pub mod time_utils;
 mod timezone_db;
+pub mod file_utils;
 
 /// Enum defining the pact specification versions supported by the library
 #[cfg_attr(feature = "ffi", repr(C))]

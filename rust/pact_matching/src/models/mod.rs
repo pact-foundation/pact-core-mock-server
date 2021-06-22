@@ -17,25 +17,23 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, Context};
 use base64::{decode, encode};
-use fs2::FileExt;
 use hex::FromHex;
 use itertools::{iproduct, Itertools};
 use itertools::EitherOrBoth::{Both, Left, Right};
 use lazy_static::*;
 use log::*;
-use maplit::*;
+use maplit::{hashset, btreemap, hashmap};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use maplit::hashset;
 
 use pact_models::{Consumer, DifferenceType, PactSpecification, Provider};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::*;
+use pact_models::file_utils::{with_read_lock, with_write_lock, with_read_lock_for_open_file};
 use pact_models::json_utils::json_to_string;
 use pact_models::provider_states::ProviderState;
 use pact_models::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerifier, ResultLevel};
 
-use crate::models::file_utils::{with_read_lock, with_read_lock_for_open_file, with_write_lock};
 use crate::models::generators::{Generator, GeneratorCategory};
 use crate::models::http_utils::HttpAuth;
 use crate::models::matchingrules::{Category, MatchingRules};
@@ -49,7 +47,6 @@ pub mod xml_utils;
 #[macro_use] pub mod matchingrules;
 #[macro_use] pub mod generators;
 pub mod http_utils;
-mod file_utils;
 
 /// Version of the library
 pub const PACT_RUST_VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
@@ -1824,10 +1821,10 @@ pub fn write_pact(
     debug!("Writing new pact file to {:?}", path);
     let result = serde_json::to_string_pretty(&pact.to_json(pact_spec)?)?;
     let mut file = File::create(path)?;
-    file.lock_exclusive()?;
-    let result = file.write_all(result.as_bytes());
-    file.unlock()?;
-    result.map_err(|e| e.into())
+    with_write_lock(path, &mut file, 3, &mut |f| {
+      f.write_all(result.as_bytes())?;
+      Ok(())
+    })
   }
 }
 

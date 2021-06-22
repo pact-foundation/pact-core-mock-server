@@ -21,6 +21,7 @@ use serde_json::{json, Value};
 use pact_models::{Consumer, PactSpecification, Provider};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
+use pact_models::file_utils::with_read_lock;
 use pact_models::json_utils::{hash_json, json_to_string};
 use pact_models::provider_states::{self, ProviderState};
 use pact_models::v4::V4InteractionType;
@@ -38,7 +39,6 @@ use crate::models::{
   RequestResponseInteraction,
   RequestResponsePact
 };
-use crate::models::file_utils::with_read_lock;
 use crate::models::generators::{Generators, generators_to_json};
 use crate::models::matchingrules::{matchers_to_json, MatchingRules};
 use crate::models::message::Message;

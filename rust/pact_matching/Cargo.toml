@@ -43,7 +43,6 @@ multipart = { version = "0.17", default-features = false, features = ["server"] 
 http = "0.2"
 mime = "0.3.16"
 bytes = { version = "1", features = ["serde"] }
-fs2 = "0.4.3"
 tokio = { version = "1", features = ["full"] }
 
 [dependencies.reqwest]

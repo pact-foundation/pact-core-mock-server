@@ -1,3 +1,5 @@
+//! Functions for dealing with file locks while reading/writing pact files
+
 use std::fs::File;
 use std::path::Path;
 use log::*;
@@ -7,7 +9,10 @@ use std::time::Duration;
 
 use anyhow::bail;
 
-pub(crate) fn with_read_lock_for_open_file<T>(
+/// Attempts to get a read lock on the open file before proceeding with the provided closure.
+/// Has an exponential back-off (100, 1000, 10000 ms), and will return an error if unable to get
+/// the lock withing the provided number of attempts.
+pub fn with_read_lock_for_open_file<T>(
   path: &Path,
   file: &mut File,
   attempts: u32,
@@ -37,10 +42,11 @@ pub(crate) fn with_read_lock_for_open_file<T>(
   let msg = format!("Could not acquire a shared lock on '{}' after {} attempts",
                     path.to_string_lossy(), attempts);
   error!("{}", msg);
-  bail!(msg);
+  bail!(msg)
 }
 
-pub(crate) fn with_read_lock<T>(
+/// Opens the file and then calls `with_read_lock_for_open_file` to get the read lock.
+pub fn with_read_lock<T>(
   path: &Path,
   attempts: u32,
   cl: &mut dyn FnMut(&mut File) -> anyhow::Result<T>
@@ -49,7 +55,10 @@ pub(crate) fn with_read_lock<T>(
   with_read_lock_for_open_file(path, &mut file, attempts, cl)
 }
 
-pub(crate) fn with_write_lock<T>(
+/// Attempts to get a write lock on the file before proceeding with the provided closure.
+/// Has an exponential back-off (100, 1000, 10000 ms), and will return an error if unable to get
+/// the lock withing the provided number of attempts.
+pub fn with_write_lock<T>(
   path: &Path,
   file: &mut File,
   attempts: u32,
@@ -79,5 +88,5 @@ pub(crate) fn with_write_lock<T>(
   let msg = format!("Could not acquire an exclusive lock on '{}' after {} attempts",
                     path.to_string_lossy(), attempts);
   error!("{}", msg);
-  bail!(msg);
+  bail!(msg)
 }
