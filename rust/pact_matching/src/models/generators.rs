@@ -33,10 +33,10 @@ use pact_models::expression_parser::{
 use pact_models::json_utils::{get_field_as_string, json_to_string, JsonToNum};
 use pact_models::PactSpecification;
 use pact_models::time_utils::{parse_pattern, to_chrono_pattern};
+use pact_models::xml_utils::parse_bytes;
 
 use crate::{DiffConfig, MatchingContext};
 use crate::models::matchingrules::{Category, MatchingRuleCategory};
-use crate::models::xml_utils::parse_bytes;
 use crate::path_exp::*;
 
 /// Trait to represent a generator

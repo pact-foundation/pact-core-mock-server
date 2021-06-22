@@ -10,12 +10,12 @@ use sxd_document::dom::*;
 use sxd_document::QName;
 
 use pact_models::bodies::OptionalBody;
+use pact_models::xml_utils::parse_bytes;
 
 use crate::matchers::*;
 use crate::MatchingContext;
 use crate::models::HttpPart;
 use crate::models::matchingrules::*;
-use crate::models::xml_utils::parse_bytes;
 
 use super::DiffConfig;
 use super::Mismatch;

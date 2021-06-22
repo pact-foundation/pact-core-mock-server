@@ -43,7 +43,6 @@ use crate::models::v4::{AsynchronousMessage, interaction_from_json, SynchronousH
 use crate::models::v4::http_parts::{HttpRequest, HttpResponse};
 use crate::models::v4::sync_message::SynchronousMessages;
 
-pub mod xml_utils;
 #[macro_use] pub mod matchingrules;
 #[macro_use] pub mod generators;
 pub mod http_utils;
