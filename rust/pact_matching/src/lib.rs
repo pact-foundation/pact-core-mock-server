@@ -349,17 +349,15 @@ use log::*;
 use maplit::hashmap;
 use serde_json::{json, Value};
 
+use pact_models::PactSpecification;
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
-use pact_models::generators::{apply_generators, GenerateValue, GeneratorCategory, GeneratorTestMode};
-use pact_models::matchingrules::{calc_path_weight, Category, MatchingRule, MatchingRuleCategory, path_length, RuleList};
-use pact_models::PactSpecification;
 
 use crate::headers::{match_header_value, match_headers};
 use crate::matchers::*;
 use crate::models::{HttpPart, Interaction};
-use crate::models::generators::generators_process_body;
-use crate::models::matchingrules::DisplayForMismatch;
+use crate::models::generators::*;
+use crate::models::matchingrules::*;
 
 /// Simple macro to convert a string slice to a `String` struct.
 #[macro_export]
@@ -368,6 +366,7 @@ macro_rules! s {
 }
 
 #[macro_use] pub mod models;
+mod path_exp;
 mod matchers;
 pub mod json;
 mod xml;
@@ -1539,7 +1538,7 @@ pub fn generate_request(request: &models::Request, mode: &GeneratorTestMode, con
   let generators = request.build_generators(&GeneratorCategory::BODY);
   if !generators.is_empty() && request.body.is_present() {
     debug!("Applying body generators...");
-    request.body = generators_process_body(mode, &request.body, request.content_type(),
+    request.body = apply_body_generators(mode, &request.body, request.content_type(),
                                          context, &generators);
   }
 
@@ -1579,7 +1578,7 @@ pub fn generate_response(response: &models::Response, mode: &GeneratorTestMode, 
   let generators = response.build_generators(&GeneratorCategory::BODY);
   if !generators.is_empty() && response.body.is_present() {
     debug!("Applying body generators...");
-    response.body = generators_process_body(mode, &response.body, response.content_type(), context, &generators);
+    response.body = apply_body_generators(mode, &response.body, response.content_type(), context, &generators);
   }
   response
 }

@@ -5,10 +5,9 @@ use std::iter::FromIterator;
 
 use maplit::*;
 
-use pact_models::matchingrules::MatchingRule;
-
 use crate::{matchers, MatchingContext, Mismatch};
 use crate::matchers::Matches;
+use crate::models::matchingrules::MatchingRule;
 
 static PARAMETERISED_HEADER_TYPES: [&str; 2] = ["accept", "content-type"];
 
@@ -128,11 +127,9 @@ mod tests {
   use expectest::prelude::*;
   use maplit::*;
 
-  use pact_models::matchingrules;
-  use pact_models::matchingrules::MatchingRule;
-
-  use crate::{DiffConfig, MatchingContext, Mismatch};
+  use crate::{MatchingContext, Mismatch, DiffConfig};
   use crate::headers::{match_header_value, match_headers};
+  use crate::models::matchingrules::MatchingRule;
 
   #[test]
   fn matching_headers_be_true_when_headers_are_equal() {

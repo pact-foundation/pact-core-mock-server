@@ -1,30 +1,23 @@
 //! The `message` module provides all functionality to deal with messages.
 
 use std::collections::HashMap;
-use std::fmt::{Display, Formatter};
-use std::str::from_utf8;
-use std::sync::{Arc, Mutex};
 
 use anyhow::anyhow;
-use base64::encode;
 use maplit::*;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::Value;
 
-use pact_models::{generators, PactSpecification};
 use pact_models::bodies::OptionalBody;
-use pact_models::content_types::ContentType;
-use pact_models::generators::Generators;
-use pact_models::matchingrules;
-use pact_models::matchingrules::MatchingRules;
 use pact_models::provider_states::ProviderState;
 
-use crate::models::{HttpPart, Interaction, RequestResponseInteraction};
-use crate::models::v4::{AsynchronousMessage, SynchronousHttp, V4Interaction};
-use crate::models::v4::message_parts::MessageContents;
+use crate::models::generators::Generators;
+use crate::models::matchingrules::MatchingRules;
+use crate::models::v4::AsynchronousMessage;
 use crate::models::v4::sync_message::SynchronousMessages;
 
+use super::*;
 use super::body_from_json;
+use crate::models::v4::message_parts::MessageContents;
 
 /// Struct that defines a message.
 #[derive(PartialEq, Debug, Clone, Eq, Deserialize, Serialize)]
@@ -227,31 +220,26 @@ impl Message {
         }
 
         match self.contents {
-          OptionalBody::Present(ref body, _) => {
-            let content_type = self.message_content_type().unwrap_or_default();
-            if content_type.is_json() {
-              match serde_json::from_slice(body) {
-                Ok(json_body) => { map.insert("contents".to_string(), json_body); },
-                Err(err) => {
-                  log::warn!("Failed to parse json body: {}", err);
-                  map.insert(s!("contents"), Value::String(encode(body)));
-                }
+          OptionalBody::Present(ref body, _) => if self.message_content_type().unwrap_or_default().is_json() {
+            match serde_json::from_slice(body) {
+              Ok(json_body) => { map.insert(s!("contents"), json_body); },
+              Err(err) => {
+                log::warn!("Failed to parse json body: {}", err);
+                map.insert(s!("contents"), Value::String(encode(body)));
               }
-            } else if content_type.is_binary() {
-              map.insert("contents".to_string(), Value::String(encode(body)));
-            } else {
-              match from_utf8(body) {
-                Ok(s) => map.insert("contents".to_string(), Value::String(s.to_string())),
-                Err(_) => map.insert("contents".to_string(), Value::String(encode(body)))
-              };
             }
+          } else {
+            match str::from_utf8(body) {
+              Ok(s) => map.insert(s!("contents"), Value::String(s.to_string())),
+              Err(_) => map.insert(s!("contents"), Value::String(encode(body)))
+            };
           },
-          OptionalBody::Empty => { map.insert("contents".to_string(), Value::String("".to_string())); },
+          OptionalBody::Empty => { map.insert(s!("contents"), Value::String(s!(""))); },
           OptionalBody::Missing => (),
-          OptionalBody::Null => { map.insert("contents".to_string(), Value::Null); }
+          OptionalBody::Null => { map.insert(s!("contents"), Value::Null); }
         }
         if !self.provider_states.is_empty() {
-          map.insert("providerStates".to_string(), Value::Array(self.provider_states.iter().map(|p| p.to_json()).collect()));
+          map.insert(s!("providerStates"), Value::Array(self.provider_states.iter().map(|p| p.to_json()).collect()));
         }
       }
 
@@ -318,18 +306,15 @@ fn missing_body() -> OptionalBody {
 
 #[cfg(test)]
 mod tests {
-  use std::{env, fs};
-  use std::path::Path;
+  use std::env;
 
   use bytes::Bytes;
   use expectest::expect;
   use expectest::prelude::*;
   use serde_json;
 
-  use pact_models::matchingrules;
-  use pact_models::matchingrules::MatchingRule;
-
   use super::*;
+  use super::super::matchingrules::MatchingRule;
 
   #[test]
     fn loading_message_from_json() {
@@ -533,7 +518,7 @@ mod tests {
       .to_owned();
 
     let content_type = ContentType::parse("application/octet-stream").unwrap();
-    let contents = fs::read(file).unwrap();
+    let contents = fs::read(dbg!(file)).unwrap();
     let encoded = concat!(
       "UEsDBAoAAAAAAI2rtlKd3GsXCgAAAAoAAAAIABwAZmlsZS50eHRVVAkAA9nqqGDb6qhgdXgLAAEE9QEAAAQUAAAAdGVzdCBkYXRhClBL",
       "AQIeAwoAAAAAAI2rtlKd3GsXCgAAAAoAAAAIABgAAAAAAAEAAACkgQAAAABmaWxlLnR4dFVUBQAD2eqoYHV4CwABBPUBAAAEFAAAAFBLBQYAAAAAAQABAE4",

@@ -2,7 +2,7 @@
 
 use std::marker::PhantomData;
 
-use pact_models::matchingrules::{MatchingRule, MatchingRuleCategory, RuleLogic};
+use pact_matching::models::matchingrules::{MatchingRule, MatchingRuleCategory, RuleLogic};
 use pact_models::time_utils::parse_pattern;
 
 use crate::patterns::{JsonPattern, Pattern, StringPattern};

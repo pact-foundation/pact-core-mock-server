@@ -10,10 +10,10 @@ use expectest::prelude::*;
 use maplit::*;
 use serde_json::json;
 
-use pact_matching::models::{read_pact, Pact, RequestResponsePact, ReadWritePact};
+use pact_matching::models::*;
 use pact_matching::s;
-use pact_models::bodies::OptionalBody;
 use pact_models::PactSpecification;
+use pact_models::bodies::OptionalBody;
 
 mod spec_testcases;
 

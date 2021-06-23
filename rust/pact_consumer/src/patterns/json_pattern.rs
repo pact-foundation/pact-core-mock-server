@@ -1,6 +1,6 @@
 //! Our `JsonPattern` type and supporting code.
 
-use pact_models::matchingrules::MatchingRuleCategory;
+use pact_matching::models::matchingrules::MatchingRuleCategory;
 use std::borrow::Cow;
 use std::collections::HashMap as Map;
 use std::iter::FromIterator;

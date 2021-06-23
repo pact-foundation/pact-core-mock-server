@@ -36,20 +36,10 @@ chrono-tz = "0.5"
 lenient_semver = "0.4.2"
 fs2 = "0.4.3"
 sxd-document = "0.3.2"
-rand = "0.8.4"
-uuid = { version = "0.8", features = ["v4"] }
-regex-syntax = "0.6.21"
-rand_regex = "0.15"
-hex = "0.4.2"
 
 [dev-dependencies]
 expectest = "0.12.0"
 env_logger = "0.8.2"
-speculate = "0.1.2"
-hamcrest2 = "0.3.0"
-pretty_assertions = "0.6.1"
-test-env-log = "0.2.3"
-quickcheck = "1"
 
 [build-dependencies]
 parse-zoneinfo = "0.3.0"

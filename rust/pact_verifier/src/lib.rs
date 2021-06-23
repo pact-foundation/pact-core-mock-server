@@ -25,7 +25,7 @@ pub use callback_executors::NullRequestFilterExecutor;
 use callback_executors::RequestFilterExecutor;
 use pact_matching::*;
 use pact_matching::models::*;
-use pact_models::generators::GeneratorTestMode;
+use pact_matching::models::generators::GeneratorTestMode;
 use pact_matching::models::http_utils::HttpAuth;
 use pact_matching::models::v4::V4Interaction;
 use pact_models::json_utils::json_to_string;

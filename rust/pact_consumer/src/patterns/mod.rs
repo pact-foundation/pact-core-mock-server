@@ -1,7 +1,7 @@
 //! JSON "patterns", which can be used to either generate JSON documents or
 //! match them.
 
-use pact_models::matchingrules::MatchingRuleCategory;
+use pact_matching::models::matchingrules::MatchingRuleCategory;
 use std::fmt::Debug;
 
 #[macro_use]

@@ -5,7 +5,6 @@ use expectest::prelude::*;
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::TEXT;
 use pact_models::HttpStatus;
-use pact_models::{matchingrules, matchingrules_list};
 
 use crate::models::Request;
 

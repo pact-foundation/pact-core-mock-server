@@ -10,8 +10,8 @@ use regex::Regex;
 use serde_json::json;
 
 use pact_matching::models::*;
-use pact_models::generators::{Generator, GeneratorCategory, Generators};
-use pact_models::matchingrules::{Category, MatchingRules};
+use pact_matching::models::generators::{Generator, GeneratorCategory, Generators};
+use pact_matching::models::matchingrules::{Category, MatchingRules};
 use pact_models::bodies::OptionalBody;
 use pact_models::expression_parser::DataType;
 

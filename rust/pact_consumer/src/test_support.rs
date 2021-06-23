@@ -1,10 +1,8 @@
-use std::collections::HashMap;
-
-use serde_json::Value;
-
-use pact_matching::{generate_request, match_request};
+use pact_matching::{match_request, generate_request};
 use pact_matching::models::Pact;
-use pact_models::generators::GeneratorTestMode;
+use pact_matching::models::generators::GeneratorTestMode;
+use std::collections::HashMap;
+use serde_json::Value;
 
 /// Check that all requests in `actual` match the patterns provide by
 /// `expected`, and raise an error if anything fails.

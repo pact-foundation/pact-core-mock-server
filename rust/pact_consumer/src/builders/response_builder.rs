@@ -3,11 +3,11 @@ use std::collections::HashMap;
 use maplit::*;
 
 use pact_matching::models::*;
+use pact_matching::models::matchingrules::MatchingRules;
 use pact_models::bodies::OptionalBody;
-use pact_models::generators::Generators;
-use pact_models::matchingrules::MatchingRules;
 
 use crate::prelude::*;
+use pact_matching::models::generators::Generators;
 
 /// Builder for `Response` objects. Normally created via `PactBuilder`.
 pub struct ResponseBuilder {

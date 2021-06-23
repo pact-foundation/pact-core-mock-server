@@ -8,10 +8,10 @@ use maplit::*;
 use serde_json::{Map, Value};
 
 use pact_matching::models::{Request, Response};
+use pact_matching::models::generators::{Generator, GeneratorCategory, Generators};
+use pact_matching::models::matchingrules::{MatchingRule, MatchingRuleCategory, RuleLogic};
 use pact_models::bodies::OptionalBody;
-use pact_models::generators::{Generator, GeneratorCategory, Generators};
 use pact_models::json_utils::{json_to_num, json_to_string};
-use pact_models::matchingrules::{MatchingRule, MatchingRuleCategory, RuleLogic};
 
 const CONTENT_TYPE_HEADER: &str = "Content-Type";
 
@@ -283,9 +283,9 @@ mod test {
   use expectest::prelude::{be_equal_to, expect};
   use serde_json::json;
 
-  use pact_models::{generators, matchingrules_list};
-  use pact_models::generators::{Generator, Generators};
-  use pact_models::matchingrules::{MatchingRule, MatchingRuleCategory};
+  use pact_matching::{generators, matchingrules_list};
+  use pact_matching::models::generators::{Generator, Generators};
+  use pact_matching::models::matchingrules::{MatchingRule, MatchingRuleCategory};
 
   use crate::bodies::process_object;
 

@@ -14,10 +14,10 @@ use serde_json::{json, Value};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
 use pact_models::json_utils::json_to_string;
-use pact_models::matchingrules::MatchingRules;
 use pact_models::provider_states::{self, ProviderState};
 
 use crate::models::{Interaction, RequestResponseInteraction};
+use crate::models::matchingrules::MatchingRules;
 use crate::models::message::Message;
 use crate::models::v4::{AsynchronousMessage, SynchronousHttp, V4Interaction, V4InteractionType};
 use crate::models::v4::message_parts::MessageContents;

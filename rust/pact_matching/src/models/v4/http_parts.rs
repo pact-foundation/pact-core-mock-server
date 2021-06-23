@@ -11,12 +11,10 @@ use serde_json::{json, Value};
 
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
-use pact_models::generators::{Generators, generators_from_json, generators_to_json};
 use pact_models::json_utils::json_to_string;
-use pact_models::matchingrules::{matchers_from_json, matchers_to_json, MatchingRules};
 use pact_models::PactSpecification;
 
-use crate::models::{detect_content_type_from_bytes, headers_from_json, query_to_json, Request, Response, v3_query_from_json};
+use crate::models::{detect_content_type_from_bytes, generators, headers_from_json, matchingrules, query_to_json, Request, Response, v3_query_from_json};
 use crate::models::v4::calc_content_type;
 
 /// Struct that defines the HTTP request.
@@ -33,9 +31,9 @@ pub struct HttpRequest {
   /// Request body
   pub body: OptionalBody,
   /// Request matching rules
-  pub matching_rules: MatchingRules,
+  pub matching_rules: matchingrules::MatchingRules,
   /// Request generators
-  pub generators: Generators
+  pub generators: generators::Generators
 }
 
 impl HttpRequest {
@@ -66,8 +64,8 @@ impl HttpRequest {
       query: query_val,
       headers: headers.clone(),
       body: body_from_json(request_json, "body", &headers),
-      matching_rules: matchers_from_json(request_json, &None),
-      generators: generators_from_json(request_json)
+      matching_rules: matchingrules::matchers_from_json(request_json, &None),
+      generators: generators::generators_from_json(request_json)
     }
   }
 
@@ -95,12 +93,12 @@ impl HttpRequest {
       }
 
       if self.matching_rules.is_not_empty() {
-        map.insert("matchingRules".to_string(), matchers_to_json(
+        map.insert("matchingRules".to_string(), matchingrules::matchers_to_json(
           &self.matching_rules.clone(), &PactSpecification::V4));
       }
 
       if self.generators.is_not_empty() {
-        map.insert("generators".to_string(), generators_to_json(
+        map.insert("generators".to_string(), generators::generators_to_json(
           &self.generators.clone(), &PactSpecification::V4));
       }
     }
@@ -267,8 +265,8 @@ impl Default for HttpRequest {
       query: None,
       headers: None,
       body: OptionalBody::Missing,
-      matching_rules: MatchingRules::default(),
-      generators: Generators::default()
+      matching_rules: matchingrules::MatchingRules::default(),
+      generators: generators::Generators::default()
     }
   }
 }
@@ -283,9 +281,9 @@ pub struct HttpResponse {
   /// Response body
   pub body: OptionalBody,
   /// Response matching rules
-  pub matching_rules: MatchingRules,
+  pub matching_rules: matchingrules::MatchingRules,
   /// Response generators
-  pub generators: Generators
+  pub generators: generators::Generators
 }
 
 impl Display for HttpResponse {
@@ -301,8 +299,8 @@ impl Default for HttpResponse {
       status: 200,
       headers: None,
       body: OptionalBody::Missing,
-      matching_rules: MatchingRules::default(),
-      generators: Generators::default()
+      matching_rules: matchingrules::MatchingRules::default(),
+      generators: generators::Generators::default()
     }
   }
 }
@@ -343,8 +341,8 @@ impl HttpResponse {
       status: status_val,
       headers: headers.clone(),
       body: body_from_json(response, "body", &headers),
-      matching_rules:  matchers_from_json(response, &None),
-      generators:  generators_from_json(response)
+      matching_rules:  matchingrules::matchers_from_json(response, &None),
+      generators:  generators::generators_from_json(response)
     }
   }
 
@@ -367,12 +365,12 @@ impl HttpResponse {
       }
 
       if self.matching_rules.is_not_empty() {
-        map.insert("matchingRules".to_string(), matchers_to_json(
+        map.insert("matchingRules".to_string(), matchingrules::matchers_to_json(
           &self.matching_rules.clone(), &PactSpecification::V4));
       }
 
       if self.generators.is_not_empty() {
-        map.insert("generators".to_string(), generators_to_json(
+        map.insert("generators".to_string(), generators::generators_to_json(
           &self.generators.clone(), &PactSpecification::V4));
       }
     }

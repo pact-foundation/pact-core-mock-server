@@ -7,11 +7,11 @@ use log::*;
 use onig::Regex;
 
 use pact_models::HttpStatus;
-use pact_models::matchingrules::{MatchingRule, RuleLogic};
 use pact_models::time_utils::validate_datetime;
 
 use crate::binary_utils::match_content_type;
 use crate::MatchingContext;
+use crate::models::matchingrules::*;
 
 /// Trait for matching rule implementation
 pub trait Matches<A: Clone> {
@@ -582,8 +582,6 @@ fn match_status_code(status_code: u16, status: &HttpStatus) -> anyhow::Result<()
 mod tests {
   use expectest::expect;
   use expectest::prelude::*;
-
-  use pact_models::{matchingrules, matchingrules_list, matchingrules::RuleList};
 
   use super::*;
 

@@ -21,10 +21,6 @@ pub mod time_utils;
 mod timezone_db;
 pub mod file_utils;
 pub mod xml_utils;
-pub mod matchingrules;
-pub mod generators;
-pub mod path_exp;
-pub mod query_strings;
 
 /// Enum defining the pact specification versions supported by the library
 #[cfg_attr(feature = "ffi", repr(C))]
