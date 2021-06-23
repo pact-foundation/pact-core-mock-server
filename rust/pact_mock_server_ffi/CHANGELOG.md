@@ -1,5 +1,17 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.1.0 - Accumulating mock server log entries + bugfixes
+
+* 6198538d - refactor: move time_utils to pact_models crate (Ronald Holshausen, Fri Jun 11 12:58:26 2021 +1000)
+* 5c670814 - refactor: move expression_parser to pact_models crate (Ronald Holshausen, Fri Jun 11 10:51:51 2021 +1000)
+* b4e26844 - fix: reqwest is dyn linked to openssl by default, which causes a SIGSEGV on alpine linux (Ronald Holshausen, Tue Jun 1 14:21:31 2021 +1000)
+* 68f8f84e - chore: skip failing tests in alpine to get the build going (Ronald Holshausen, Tue Jun 1 13:47:20 2021 +1000)
+* 6d058529 - chore: fix some clippy warnings (Ronald Holshausen, Mon May 31 16:42:57 2021 +1000)
+* 5b640422 - chore: no need for a double reference (Ronald Holshausen, Mon May 31 15:18:49 2021 +1000)
+* 17beef62 - feat: support accumulating log entries per running mock server (Ronald Holshausen, Mon May 31 15:09:20 2021 +1000)
+* c1ae81a7 - chore: bump minor version of pact_mock_server_ffi (Ronald Holshausen, Sun May 30 17:58:33 2021 +1000)
+* 1c891ef7 - bump version to 0.0.18 (Ronald Holshausen, Sun May 30 17:47:58 2021 +1000)
+
 # 0.0.17 - V4 features + bugfixes/enhancements
 
 * eb19188 - feat: allow FFI mockserver to log to a memory buffer (Ronald Holshausen, Sun May 30 15:31:01 2021 +1000)
