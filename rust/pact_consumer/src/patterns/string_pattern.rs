@@ -2,7 +2,7 @@
 
 use std::borrow::Cow;
 
-use pact_matching::models::matchingrules::MatchingRuleCategory;
+use pact_models::matchingrules::MatchingRuleCategory;
 
 use super::Pattern;
 

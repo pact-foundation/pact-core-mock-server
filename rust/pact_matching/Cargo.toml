@@ -36,8 +36,6 @@ uuid = { version = "0.8", features = ["v4"] }
 indextree = "4.3"
 nom = "6.2.0"
 chrono = "0.4.19"
-rand_regex = "0.15"
-regex-syntax = "0.6.21"
 tree_magic_mini = "2"
 multipart = { version = "0.17", default-features = false, features = ["server"] }
 http = "0.2"

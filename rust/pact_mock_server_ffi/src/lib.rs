@@ -67,15 +67,25 @@ use uuid::Uuid;
 
 use pact_matching::logging::fetch_buffer_contents;
 use pact_matching::models::{HttpPart, Pact, RequestResponseInteraction};
-use pact_matching::models::generators::Generators;
-use pact_matching::models::matchingrules::{MatchingRule, RuleLogic};
-use pact_matching::models::matchingrules::MatchingRules;
 use pact_matching::models::message::Message;
+// Export all the FFI logging functions from pact_matching_ffi
+pub use pact_matching_ffi::log::{
+  fetch_log_buffer,
+  log_to_buffer,
+  log_to_file,
+  log_to_stderr,
+  log_to_stdout,
+  logger_apply,
+  logger_attach_sink,
+  logger_init
+};
 use pact_mock_server::{MANAGER, MockServerError, tls::TlsConfigBuilder, WritePactFileErr};
 use pact_mock_server::server_manager::ServerManager;
 use pact_models::bodies::OptionalBody::{Null, Present};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
+use pact_models::generators::Generators;
+use pact_models::matchingrules::{MatchingRule, MatchingRules, RuleLogic};
 use pact_models::PactSpecification;
 use pact_models::provider_states::ProviderState;
 use pact_models::time_utils::{parse_pattern, to_chrono_pattern};
@@ -83,18 +93,6 @@ use pact_models::time_utils::{parse_pattern, to_chrono_pattern};
 use crate::bodies::{empty_multipart_body, file_as_multipart_body, MultipartBody, process_json, request_multipart, response_multipart};
 use crate::bodies::process_object;
 use crate::handles::InteractionPart;
-
-// Export all the FFI logging functions from pact_matching_ffi
-pub use pact_matching_ffi::log::{
-  logger_apply,
-  logger_attach_sink,
-  logger_init,
-  fetch_log_buffer,
-  log_to_stdout,
-  log_to_stderr,
-  log_to_file,
-  log_to_buffer
-};
 
 pub mod handles;
 pub mod bodies;

@@ -22,25 +22,23 @@ use pact_models::{Consumer, PactSpecification, Provider};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
 use pact_models::file_utils::with_read_lock;
+use pact_models::generators::{Generators, generators_from_json, generators_to_json};
 use pact_models::json_utils::{hash_json, json_to_string};
+use pact_models::matchingrules::{matchers_from_json, matchers_to_json, MatchingRules};
 use pact_models::provider_states::{self, ProviderState};
 use pact_models::v4::V4InteractionType;
 use pact_models::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerifier, ResultLevel};
 
 use crate::models::{
   detect_content_type_from_bytes,
-  generators,
   HttpPart,
   Interaction,
-  matchingrules,
   Pact,
   PACT_RUST_VERSION,
   ReadWritePact,
   RequestResponseInteraction,
   RequestResponsePact
 };
-use crate::models::generators::{Generators, generators_to_json};
-use crate::models::matchingrules::{matchers_to_json, MatchingRules};
 use crate::models::message::Message;
 use crate::models::message_pact::MessagePact;
 use crate::models::v4::http_parts::{body_from_json, HttpRequest, HttpResponse};
@@ -449,8 +447,8 @@ impl AsynchronousMessage {
         contents: MessageContents {
           metadata,
           contents: body_from_json(&json, "contents", &as_headers),
-          matching_rules: matchingrules::matchers_from_json(&json, &None),
-          generators: generators::generators_from_json(&json)
+          matching_rules: matchers_from_json(&json, &None),
+          generators: generators_from_json(&json)
         },
         comments,
         pending: json.get("pending")

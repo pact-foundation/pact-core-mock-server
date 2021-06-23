@@ -1,12 +1,14 @@
 //! Special matching rules, including `Like`, `Term`, etc.
 
-use pact_matching::models::matchingrules::{MatchingRule, MatchingRuleCategory, RuleLogic};
-use regex::Regex;
 use std::iter::repeat;
 use std::marker::PhantomData;
 
-use super::Pattern;
+use regex::Regex;
+
+use pact_models::matchingrules::{MatchingRule, MatchingRuleCategory, RuleLogic};
+
 use super::json_pattern::JsonPattern;
+use super::Pattern;
 use super::string_pattern::StringPattern;
 
 macro_rules! impl_from_for_pattern {
