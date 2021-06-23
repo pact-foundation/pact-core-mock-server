@@ -1,5 +1,21 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.10.8 - Refactor + Bugfixes
+
+* 84f01d31 - chore: cleanup pedning output (Ronald Holshausen, Fri Jun 11 16:28:28 2021 +1000)
+* e4927337 - chore: cleanup unused vars (Ronald Holshausen, Fri Jun 11 16:20:36 2021 +1000)
+* dde8a4f6 - feat(V4): support pending interactions in the verifier (Ronald Holshausen, Fri Jun 11 16:09:29 2021 +1000)
+* db75a42a - refactor: seperate displaying errors from gathering results in the verifier (Ronald Holshausen, Fri Jun 11 14:35:40 2021 +1000)
+* 5c670814 - refactor: move expression_parser to pact_models crate (Ronald Holshausen, Fri Jun 11 10:51:51 2021 +1000)
+* e9930740 - fix: state change URLs should not end with a slash #110 (Ronald Holshausen, Sat Jun 5 15:48:48 2021 +1000)
+* 6a14ac35 - chore: add verifier test for attributes with special chars in the name (Ronald Holshausen, Wed Jun 2 15:20:00 2021 +1000)
+* b4e26844 - fix: reqwest is dyn linked to openssl by default, which causes a SIGSEGV on alpine linux (Ronald Holshausen, Tue Jun 1 14:21:31 2021 +1000)
+* 68f8f84e - chore: skip failing tests in alpine to get the build going (Ronald Holshausen, Tue Jun 1 13:47:20 2021 +1000)
+* c690f751 - test: extract_headers function, specially with comma separated values (Artur Neumann, Mon May 31 12:59:28 2021 +0545)
+* 0812d57d - Revert "update changelog for release 0.10.8" (Ronald Holshausen, Sun May 30 18:45:54 2021 +1000)
+* 205b6621 - update changelog for release 0.10.8 (Ronald Holshausen, Sun May 30 18:44:14 2021 +1000)
+* 4a079c64 - bump version to 0.10.8 (Ronald Holshausen, Sun May 30 18:25:27 2021 +1000)
+
 # 0.10.7 - V4 featues + bugfixes
 
 * 905118e - Merge pull request #109 from tonynguyenit18/fix/unmatched-expected-and-response-headers-with-multiple-value (Ronald Holshausen, Sun May 30 10:19:51 2021 +1000)
