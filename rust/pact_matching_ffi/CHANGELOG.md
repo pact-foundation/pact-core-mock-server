@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.0.4 - support accumulating log entries per running mock server
+
+* 6d058529 - chore: fix some clippy warnings (Ronald Holshausen, Mon May 31 16:42:57 2021 +1000)
+* 70d18a28 - chore: clippy violation (Ronald Holshausen, Mon May 31 15:32:32 2021 +1000)
+* 17beef62 - feat: support accumulating log entries per running mock server (Ronald Holshausen, Mon May 31 15:09:20 2021 +1000)
+* a5bad95f - bump version to 0.0.4 (Ronald Holshausen, Sun May 30 17:28:37 2021 +1000)
+
 # 0.0.3 - FFI mockserver to log to a memory buffer
 
 * f0dc803 - chore: fix clippy voilation (Ronald Holshausen, Sun May 30 17:09:24 2021 +1000)
