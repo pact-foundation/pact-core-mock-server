@@ -25,12 +25,12 @@ localhost
 --state-change-url
 http://localhost:8000/change-state
 --filter-consumer
-consumer-1
+http-consumer-1
 --filter-consumer
 http-consumer-2
 --filter-consumer
 message-consumer-2", __DIR__ . '/../pact');
-$code = file_get_contents(__DIR__ . '/../lib/pact_verifier_ffi.h');
+$code = file_get_contents(__DIR__ . '/../lib/pact_verifier_ffi-c.h');
 $ffi = FFI::cdef($code, __DIR__ . '/../../rust/target/debug/libpact_verifier_ffi.so');
 
 $ffi->init('LOG_LEVEL');

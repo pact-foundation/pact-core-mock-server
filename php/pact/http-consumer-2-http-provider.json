@@ -25,13 +25,13 @@
   ],
   "metadata": {
     "pactRust": {
-      "version": "0.9.3"
+      "version": "0.9.4"
     },
     "pactSpecification": {
       "version": "3.0.0"
     }
   },
   "provider": {
-    "name": "provider"
+    "name": "http-provider"
   }
 }
