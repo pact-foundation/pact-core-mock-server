@@ -1029,12 +1029,13 @@ pub unsafe extern fn free_string(s: *mut c_char) {
 /// * `part` - Request or response part.
 /// * `content_type` - Expected content type.
 /// * `body` - example body contents in bytes
+/// * `size` - number of bytes in the body
 #[no_mangle]
 pub extern fn with_binary_file(
   interaction: handles::InteractionHandle,
   part: InteractionPart,
   content_type: *const c_char,
-  body: *const c_char ,
+  body: *const u8 ,
   size: size_t
 ) -> bool {
   let content_type_header = "Content-Type".to_string();
@@ -1138,13 +1139,13 @@ pub extern fn with_multipart_file(
   }
 }
 
-fn convert_ptr_to_body(body: *const c_char, size: size_t) -> OptionalBody {
+fn convert_ptr_to_body(body: *const u8, size: size_t) -> OptionalBody {
   if body.is_null() {
     OptionalBody::Null
   } else if size == 0 {
     OptionalBody::Empty
   } else {
-    OptionalBody::Present(Bytes::from(unsafe { std::slice::from_raw_parts(body as *const u8, size) }), None)
+    OptionalBody::Present(Bytes::from(unsafe { std::slice::from_raw_parts(body, size) }), None)
   }
 }
 
@@ -1256,27 +1257,31 @@ pub extern fn message_given_with_param(message: handles::MessageHandle, descript
 ///
 /// Accepts JSON, binary and other payload types. Binary data will be base64 encoded when serialised.
 ///
+/// Note: For text bodies (plain text, JSON or XML), you can pass in a C string (NULL terminated)
+/// and the size of the body is not required (it will be ignored). For binary bodies, you need to
+/// specify the number of bytes in the body.
+///
 /// * `content_type` - The content type of the body. Defaults to `text/plain`, supports JSON structures with matchers and binary data.
-/// * `body` - The body contents. For JSON payloads, matching rules can be embedded in the body.
+/// * `body` - The body contents as bytes. For text payloads (JSON, XML, etc.), a C string can be used and matching rules can be embedded in the body.
 /// * `content_type` - Expected content type (e.g. application/json, application/octet-stream)
-/// * `size` - number of bytes in the message to read
+/// * `size` - number of bytes in the message body to read. This is not required for text bodies (JSON, XML, etc.).
 #[no_mangle]
-pub extern fn message_with_contents(message: handles::MessageHandle, content_type: *const c_char, body: *const c_char, size: size_t) {
+pub extern fn message_with_contents(message: handles::MessageHandle, content_type: *const c_char, body: *const u8, size: size_t) {
   let content_type = convert_cstr("content_type", content_type).unwrap_or("text/plain");
 
   message.with_message(&|_, inner| {
     let content_type = ContentType::parse(content_type).ok();
 
     let body = if let Some(content_type) = content_type {
-      if content_type.is_json() {
-        let body = convert_cstr("body", body).unwrap_or_default();
+      if content_type.is_text() {
+        let body = convert_cstr("body", body as *const c_char).unwrap_or_default();
         let category = inner.matching_rules.add_category("body");
         OptionalBody::Present(Bytes::from(process_json(body.to_string(), category, &mut inner.generators)), Some(content_type))
       } else {
-        OptionalBody::Present(Bytes::from(unsafe { std::slice::from_raw_parts(body as *const u8, size) }), Some(content_type))
+        OptionalBody::Present(Bytes::from(unsafe { std::slice::from_raw_parts(body, size) }), Some(content_type))
       }
     } else {
-      OptionalBody::Present(Bytes::from(unsafe { std::slice::from_raw_parts(body as *const u8, size) }), None)
+      OptionalBody::Present(Bytes::from(unsafe { std::slice::from_raw_parts(body, size) }), None)
     };
 
     inner.contents = body;
