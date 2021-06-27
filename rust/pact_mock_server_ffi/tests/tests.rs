@@ -233,7 +233,8 @@ fn message_consumer_feature_test() {
   let message_handle = new_message(message_pact_handle.clone(), description.as_ptr());
   message_given(message_handle.clone(), given.as_ptr());
   message_expects_to_receive(message_handle.clone(), receive_description.as_ptr());
-  message_with_contents(message_handle.clone(), content_type.as_ptr(), request_body_with_matchers.as_ptr(), request_body_with_matchers.as_bytes().len());
+  let body_bytes = request_body_with_matchers.as_bytes();
+  message_with_contents(message_handle.clone(), content_type.as_ptr(), body_bytes.as_ptr(), body_bytes.len());
   message_with_metadata(message_handle.clone(), metadata_key.as_ptr(), metadata_val.as_ptr());
   let res: *const c_char = message_reify(message_handle.clone());
   let reified: &CStr = unsafe { CStr::from_ptr(res) };
