@@ -32,6 +32,8 @@ fn main() {
           .with_language(cbindgen::Language::Cxx)
           .with_namespace(&source_name)
           .with_include_guard(format!("{}_H", source_name.to_uppercase()))
+          .with_parse_deps(true)
+          .with_parse_include(&["pact_models"])
           .generate()
           .expect("Unable to generate bindings")
           .write_to_file(format!("{}/{}.h", artifacts_dir_str, base_name));
@@ -43,6 +45,8 @@ fn main() {
           .with_language(cbindgen::Language::C)
           .with_namespace(&source_name)
           .with_include_guard(format!("{}_H", source_name.to_uppercase()))
+          .with_parse_deps(true)
+          .with_parse_include(&["pact_models"])
           .generate()
           .expect("Unable to generate bindings")
           .write_to_file(format!("{}/{}-c.h", artifacts_dir_str, base_name));

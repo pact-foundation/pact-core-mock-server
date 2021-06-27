@@ -23,7 +23,7 @@ pub mod file_utils;
 pub mod xml_utils;
 
 /// Enum defining the pact specification versions supported by the library
-#[cfg_attr(feature = "ffi", repr(C))]
+#[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Deserialize, Serialize)]
 #[allow(non_camel_case_types)]
 pub enum PactSpecification {
