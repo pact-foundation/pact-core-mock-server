@@ -4,12 +4,14 @@ require __DIR__ . '/../vendor/autoload.php';
 
 use Symfony\Component\HttpClient\HttpClient;
 
-$code = file_get_contents(__DIR__ . '/../lib/pact_mock_server_ffi.h');
+$code = file_get_contents(__DIR__ . '/../lib/pact_mock_server_ffi-c.h');
 $ffi = FFI::cdef($code, __DIR__ . '/../../rust/target/debug/libpact_mock_server_ffi.so');
 
 $ffi->init('LOG_LEVEL');
 
-$pact = $ffi->new_pact('consumer-1', 'provider');
+$pact = $ffi->new_pact('http-consumer-1', 'http-provider');
+$ffi->with_specification($pact, $ffi->PactSpecification_V3);
+
 $interaction = $ffi->new_interaction($pact, 'A POST request to create book');
 $ffi->upon_receiving($interaction, 'A POST request to create book');
 $ffi->given($interaction, 'Book Fixtures Loaded');
@@ -105,7 +107,7 @@ if ($ffi->mock_server_matched($port)) {
     echo getenv('MATCHING') ? "Mock server matched all requests, Yay!" : "Mock server matched all requests, That Is Not Good (tm)";
     echo "\n";
 
-    $ffi->write_pact_file($port, __DIR__ . '/../pact', true);
+    $ffi->write_pact_file($port, __DIR__ . '/../pact', false);
 } else {
     echo getenv('MATCHING') ? "We got some mismatches, Boo!" : "We got some mismatches, as expected.";
     echo "\n";

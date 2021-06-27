@@ -11,6 +11,7 @@
     "require": {
         "php": ">=7.4",
         "ext-ffi": "*",
+        "ext-json": "*",
         "symfony/http-client": "^5.3",
         "slim/slim": "^4.8",
         "slim/psr7": "^1.4",

@@ -4,12 +4,14 @@ require __DIR__ . '/../vendor/autoload.php';
 
 use Symfony\Component\HttpClient\HttpClient;
 
-$code = file_get_contents(__DIR__ . '/../lib/pact_mock_server_ffi.h');
+$code = file_get_contents(__DIR__ . '/../lib/pact_mock_server_ffi-c.h');
 $ffi = FFI::cdef($code, __DIR__ . '/../../rust/target/debug/libpact_mock_server_ffi.so');
 
 $ffi->init('LOG_LEVEL');
 
-$pact = $ffi->new_pact('http-consumer-2', 'provider');
+$pact = $ffi->new_pact('http-consumer-2', 'http-provider');
+$ffi->with_specification($pact, $ffi->PactSpecification_V3);
+
 $interaction = $ffi->new_interaction($pact, 'A PUT request to generate book cover');
 $ffi->upon_receiving($interaction, 'A PUT request to generate book cover');
 $ffi->given($interaction, 'Book Fixtures Loaded');
@@ -18,7 +20,7 @@ $ffi->with_header($interaction, $ffi->Request, 'Content-Type', 0, 'application/j
 $ffi->with_body($interaction, $ffi->Request, 'application/json', '[]');
 $ffi->response_status($interaction, 204);
 
-$messagePact = $ffi->new_message_pact('message-consumer-2', 'provider');
+$messagePact = $ffi->new_message_pact('message-consumer-2', 'message-provider');
 $message = $ffi->new_message($messagePact, 'Book Created');
 $ffi->message_expects_to_receive($message, 'Book Created');
 $ffi->message_given($message, 'Provider has book');
@@ -28,7 +30,7 @@ $ffi->message_with_contents($message, 'application/json', '{
         "regex": "^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$",
         "value": "fb5a885f-f7e8-4a50-950f-c1a64a94d500"
     }
-}', 36); // size of uuid
+}', 0); // is size necessary?
 
 $port = $ffi->create_mock_server_for_pact($pact, '127.0.0.1:0', false);
 echo sprintf("Mock server port=%d\n", $port);
@@ -64,8 +66,8 @@ if ($ffi->mock_server_matched($port)) {
     echo getenv('MATCHING') ? "Mock server matched all requests, Yay!" : "Mock server matched all requests, That Is Not Good (tm)";
     echo "\n";
 
-    $ffi->write_pact_file($port, __DIR__ . '/../pact', true);
-    $ffi->write_message_pact_file($messagePact, __DIR__ . '/../pact', true);
+    $ffi->write_pact_file($port, __DIR__ . '/../pact', false);
+    $ffi->write_message_pact_file($messagePact, __DIR__ . '/../pact', false);
 } else {
     echo getenv('MATCHING') ? "We got some mismatches, Boo!" : "We got some mismatches, as expected.";
     echo "\n";
