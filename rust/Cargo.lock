@@ -1107,6 +1107,7 @@ dependencies = [
  "rand_regex",
  "regex-syntax",
  "reqwest",
+ "rstest",
  "semver 0.11.0",
  "serde",
  "serde_json",
@@ -1677,6 +1678,28 @@ dependencies = [
  "untrusted",
  "web-sys",
  "winapi",
+]
+
+[[package]]
+name = "rstest"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "041bb0202c14f6a158bbbf086afb03d0c6e975c2dec7d4912f8061ed44f290af"
+dependencies = [
+ "cfg-if",
+ "proc-macro2 1.0.27",
+ "quote 1.0.9",
+ "rustc_version",
+ "syn 1.0.73",
+]
+
+[[package]]
+name = "rustc_version"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f0dfe2087c51c460008730de8b57e6a320782fbfb312e1f4d520e6c6fae155ee"
+dependencies = [
+ "semver 0.11.0",
 ]
 
 [[package]]

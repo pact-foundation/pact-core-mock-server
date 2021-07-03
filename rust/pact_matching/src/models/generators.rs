@@ -5,6 +5,7 @@ use std::{collections::HashMap, hash::{Hash, Hasher}, mem, ops::Index, str::From
 use std::collections::hash_map::DefaultHasher;
 use std::convert::TryFrom;
 
+use anyhow::*;
 use chrono::prelude::*;
 #[cfg(test)]
 use expectest::prelude::*;
@@ -422,11 +423,11 @@ fn hash_and_partial_eq_for_matching_rule() {
 pub trait GenerateValue<T> {
   /// Generates a new value based on the source value. An error will be returned if the value can not
   /// be generated.
-  fn generate_value(&self, value: &T, context: &HashMap<&str, Value>) -> Result<T, String>;
+  fn generate_value(&self, value: &T, context: &HashMap<&str, Value>) -> anyhow::Result<T>;
 }
 
 impl GenerateValue<u16> for Generator {
-  fn generate_value(&self, value: &u16, context: &HashMap<&str, Value>) -> Result<u16, String> {
+  fn generate_value(&self, value: &u16, context: &HashMap<&str, Value>) -> anyhow::Result<u16> {
     match self {
       &Generator::RandomInt(min, max) => Ok(rand::thread_rng().gen_range(min as u16..(max as u16).saturating_add(1))),
       &Generator::ProviderStateGenerator(ref exp, ref dt) =>
@@ -434,7 +435,7 @@ impl GenerateValue<u16> for Generator {
           Ok(val) => u16::try_from(val),
           Err(err) => Err(err)
         },
-      _ => Err(format!("Could not generate a u16 value from {} using {:?}", value, self))
+      _ => Err(anyhow!("Could not generate a u16 value from {} using {:?}", value, self))
     }
   }
 }
@@ -487,7 +488,7 @@ fn strip_anchors(regex: &str) -> &str {
 }
 
 impl GenerateValue<String> for Generator {
-  fn generate_value(&self, _: &String, context: &HashMap<&str, Value>) -> Result<String, String> {
+  fn generate_value(&self, _: &String, context: &HashMap<&str, Value>) -> anyhow::Result<String> {
     let mut rnd = rand::thread_rng();
     let result = match self {
       Generator::RandomInt(min, max) => Ok(format!("{}", rnd.gen_range(*min..max.saturating_add(1)))),
@@ -502,14 +503,14 @@ impl GenerateValue<String> for Generator {
             match rand_regex::Regex::with_hir(hir, 20) {
               Ok(gen) => Ok(rnd.sample(gen)),
               Err(err) => {
-                log::warn!("Failed to generate a value from regular expression - {}", err);
-                Err(format!("Failed to generate a value from regular expression - {}", err))
+                warn!("Failed to generate a value from regular expression - {}", err);
+                Err(anyhow!("Failed to generate a value from regular expression - {}", err))
               }
             }
           },
           Err(err) => {
-            log::warn!("'{}' is not a valid regular expression - {}", regex, err);
-            Err(format!("'{}' is not a valid regular expression - {}", regex, err))
+            warn!("'{}' is not a valid regular expression - {}", regex, err);
+            Err(anyhow!("'{}' is not a valid regular expression - {}", regex, err))
           }
         }
       },
@@ -517,8 +518,8 @@ impl GenerateValue<String> for Generator {
         Some(pattern) => match parse_pattern(pattern) {
           Ok(tokens) => Ok(Local::now().date().format(&to_chrono_pattern(&tokens)).to_string()),
           Err(err) => {
-            log::warn!("Date format {} is not valid - {}", pattern, err);
-            Err(format!("Date format {} is not valid - {}", pattern, err))
+            warn!("Date format {} is not valid - {}", pattern, err);
+            Err(anyhow!("Date format {} is not valid - {}", pattern, err))
           }
         },
         None => Ok(Local::now().naive_local().date().to_string())
@@ -527,8 +528,8 @@ impl GenerateValue<String> for Generator {
         Some(pattern) => match parse_pattern(pattern) {
           Ok(tokens) => Ok(Local::now().format(&to_chrono_pattern(&tokens)).to_string()),
           Err(err) => {
-            log::warn!("Time format {} is not valid - {}", pattern, err);
-            Err(format!("Time format {} is not valid - {}", pattern, err))
+            warn!("Time format {} is not valid - {}", pattern, err);
+            Err(anyhow!("Time format {} is not valid - {}", pattern, err))
           }
         },
         None => Ok(Local::now().time().format("%H:%M:%S").to_string())
@@ -537,18 +538,15 @@ impl GenerateValue<String> for Generator {
         Some(pattern) => match parse_pattern(pattern) {
           Ok(tokens) => Ok(Local::now().format(&to_chrono_pattern(&tokens)).to_string()),
           Err(err) => {
-            log::warn!("DateTime format {} is not valid - {}", pattern, err);
-            Err(format!("DateTime format {} is not valid - {}", pattern, err))
+            warn!("DateTime format {} is not valid - {}", pattern, err);
+            Err(anyhow!("DateTime format {} is not valid - {}", pattern, err))
           }
         },
         None => Ok(Local::now().format("%Y-%m-%dT%H:%M:%S.%3f%z").to_string())
       },
       Generator::RandomBoolean => Ok(format!("{}", rnd.gen::<bool>())),
       Generator::ProviderStateGenerator(ref exp, ref dt) =>
-        match generate_value_from_context(exp, context, dt) {
-          Ok(val) => String::try_from(val),
-          Err(err) => Err(err)
-        },
+        generate_value_from_context(exp, context, dt).map(|val| val.to_string()),
       Generator::MockServerURL(example, regex) => if let Some(mock_server_details) = context.get("mockServer") {
         debug!("Generating URL from Mock Server details");
         match mock_server_details.as_object() {
@@ -558,17 +556,17 @@ impl GenerateValue<String> for Generator {
                 Ok(re) => Ok(re.replace(example, |caps: &Captures| {
                   format!("{}{}", url, caps.at(1).unwrap())
                 })),
-                Err(err) => Err(format!("MockServerURL: Failed to generate value: {}", err))
+                Err(err) => Err(anyhow!("MockServerURL: Failed to generate value: {}", err))
               },
-              None => Err("MockServerURL: can not generate a value as there is no mock server URL in the test context".to_string())
+              None => Err(anyhow!("MockServerURL: can not generate a value as there is no mock server URL in the test context"))
             }
           },
-          None => Err("MockServerURL: can not generate a value as there is no mock server details in the test context".to_string())
+          None => Err(anyhow!("MockServerURL: can not generate a value as there is no mock server details in the test context"))
         }
       } else {
-        Err("MockServerURL: can not generate a value as there is no mock server details in the test context".to_string())
+        Err(anyhow!("MockServerURL: can not generate a value as there is no mock server details in the test context"))
       },
-      Generator::ArrayContains(_) => Err("can only use ArrayContains with lists".to_string())
+      Generator::ArrayContains(_) => Err(anyhow!("can only use ArrayContains with lists"))
     };
     debug!("Generator = {:?}, Generated value = {:?}", self, result);
     result
@@ -576,8 +574,8 @@ impl GenerateValue<String> for Generator {
 }
 
 impl GenerateValue<Vec<String>> for Generator {
-  fn generate_value(&self, vals: &Vec<String>, context: &HashMap<&str, Value>) -> Result<Vec<String>, String> {
-    self.generate_value(vals.first().unwrap_or(&s!("")), context).map(|v| vec![v])
+  fn generate_value(&self, vals: &Vec<String>, context: &HashMap<&str, Value>) -> anyhow::Result<Vec<String>> {
+    self.generate_value(vals.first().unwrap_or(&String::default()), context).map(|v| vec![v])
   }
 }
 
@@ -1108,12 +1106,17 @@ macro_rules! generators {
   }};
 }
 
-pub(crate) fn generate_value_from_context(expression: &str, context: &HashMap<&str, Value>, data_type: &Option<DataType>) -> Result<DataValue, String> {
+pub(crate) fn generate_value_from_context(
+  expression: &str,
+  context: &HashMap<&str, Value>,
+  data_type: &Option<DataType>
+) -> anyhow::Result<DataValue> {
   let result = if contains_expressions(expression) {
     parse_expression(expression, &MapValueResolver { context: context.clone() })
+      .map(|result| Value::String(result))
   } else {
-    context.get(expression).map(|v| json_to_string(v))
-      .ok_or(format!("Value '{}' was not found in the provided context", expression))
+    context.get(expression).cloned()
+      .ok_or(anyhow!("Value '{}' was not found in the provided context", expression))
   };
   data_type.clone().unwrap_or(DataType::RAW).wrap(result)
 }
@@ -1180,7 +1183,7 @@ mod tests {
 
     expected = Generators::default();
     expected.add_generator_with_subcategory(&GeneratorCategory::BODY, "$.a.b",
-                           Generator::RandomInt(1, 10));
+                                            Generator::RandomInt(1, 10));
     expect!(generators!{
       "BODY" => {
         "$.a.b" => Generator::RandomInt(1, 10)
@@ -1387,46 +1390,46 @@ mod tests {
 
   #[test]
   fn date_generator_test() {
-    let generated = Generator::Date(None).generate_value(&"".to_string(), &hashmap!{});
+    let generated = Generator::Date(None).generate_value(&"".to_string(), &hashmap! {});
     assert_that!(generated.unwrap(), matches_regex(r"^\d{4}-\d{2}-\d{2}$"));
 
-    let generated2 = Generator::Date(Some("yyyy-MM-ddZ".into())).generate_value(&"".to_string(), &hashmap!{});
+    let generated2 = Generator::Date(Some("yyyy-MM-ddZ".into())).generate_value(&"".to_string(), &hashmap! {});
     assert_that!(generated2.unwrap(), matches_regex(r"^\d{4}-\d{2}-\d{2}[-+]\d{4}$"));
   }
 
   #[test]
   fn time_generator_test() {
-    let generated = Generator::Time(None).generate_value(&"".to_string(), &hashmap!{});
+    let generated = Generator::Time(None).generate_value(&"".to_string(), &hashmap! {});
     assert_that!(generated.unwrap(), matches_regex(r"^\d{2}:\d{2}:\d{2}$"));
 
-    let generated2 = Generator::Time(Some("HH:mm:ssZ".into())).generate_value(&"".to_string(), &hashmap!{});
+    let generated2 = Generator::Time(Some("HH:mm:ssZ".into())).generate_value(&"".to_string(), &hashmap! {});
     assert_that!(generated2.unwrap(), matches_regex(r"^\d{2}:\d{2}:\d{2}[-+]\d+$"));
   }
 
   #[test]
   fn datetime_generator_test() {
-    let generated = Generator::DateTime(None).generate_value(&"".to_string(), &hashmap!{});
+    let generated = Generator::DateTime(None).generate_value(&"".to_string(), &hashmap! {});
     assert_that!(generated.unwrap(), matches_regex(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}[-+]\d+$"));
 
-    let generated2 = Generator::DateTime(Some("yyyy-MM-dd HH:mm:ssZ".into())).generate_value(&"".to_string(), &hashmap!{});
+    let generated2 = Generator::DateTime(Some("yyyy-MM-dd HH:mm:ssZ".into())).generate_value(&"".to_string(), &hashmap! {});
     assert_that!(generated2.unwrap(), matches_regex(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[-+]\d+$"));
   }
 
   #[test]
   fn regex_generator_test() {
-    let generated = Generator::Regex(r"\d{4}\w{1,4}".into()).generate_value(&"".to_string(), &hashmap!{});
+    let generated = Generator::Regex(r"\d{4}\w{1,4}".into()).generate_value(&"".to_string(), &hashmap! {});
     assert_that!(generated.unwrap(), matches_regex(r"^\d{4}\w{1,4}$"));
 
-    let generated = Generator::Regex(r"\d{1,2}/\d{1,2}".into()).generate_value(&"".to_string(), &hashmap!{});
+    let generated = Generator::Regex(r"\d{1,2}/\d{1,2}".into()).generate_value(&"".to_string(), &hashmap! {});
     assert_that!(generated.unwrap(), matches_regex(r"^\d{1,2}/\d{1,2}$"));
 
-    let generated = Generator::Regex(r"^\d{1,2}/\d{1,2}$".into()).generate_value(&"".to_string(), &hashmap!{});
+    let generated = Generator::Regex(r"^\d{1,2}/\d{1,2}$".into()).generate_value(&"".to_string(), &hashmap! {});
     assert_that!(generated.unwrap(), matches_regex(r"^\d{1,2}/\d{1,2}$"));
   }
 
   #[test]
   fn uuid_generator_test() {
-    let generated = Generator::Uuid.generate_value(&"".to_string(), &hashmap!{});
+    let generated = Generator::Uuid.generate_value(&"".to_string(), &hashmap! {});
     assert_that!(generated.unwrap(), matches_regex(r"^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"));
   }
 
@@ -1459,14 +1462,14 @@ mod tests {
   #[test]
   fn mock_server_url_generator_test() {
     let generator = Generator::MockServerURL("http://localhost:1234/path".into(), ".*(/path)$".into());
-    let generated = generator.generate_value(&"".to_string(), &hashmap!{
+    let generated = generator.generate_value(&"".to_string(), &hashmap! {
         "mockServer" => json!({
           "url": "http://192.168.2.1:2345/p",
           "port": 2345
         })
       });
     expect!(generated.unwrap()).to(be_equal_to("http://192.168.2.1:2345/p/path"));
-    let generated = generator.generate_value(&"".to_string(), &hashmap!{});
+    let generated = generator.generate_value(&"".to_string(), &hashmap! {});
     expect!(generated).to(be_err());
   }
 
@@ -1496,15 +1499,13 @@ mod tests {
         "name": "delete"
       }
     ]);
-    let context = hashmap!{
+    let context = hashmap! {
       "mockServer" => json!({
         "href": "https://somewhere.else:1234/subpath"
       })
     };
-    let generated = generator.generate_value(&value, &context);
-    expect!(generated.clone()).to(be_ok());
-    let generated_value = generated.unwrap();
-    assert_eq!(generated_value, json!([
+    let generated = generator.generate_value(&value, &context).unwrap();
+    assert_eq!(generated, json!([
       {
         "href": "https://somewhere.else:1234/subpath/orders/1234",
         "method": "PUT",
@@ -1516,5 +1517,46 @@ mod tests {
         "name": "delete"
       }
     ]));
+  }
+}
+
+#[cfg(test)]
+mod tests2 {
+  use expectest::prelude::*;
+  use maplit::hashmap;
+  use rstest::rstest;
+  use serde_json::{json, Value};
+
+  use pact_models::expression_parser::DataType;
+
+  use crate::models::generators::generate_value_from_context;
+
+  #[rstest]
+  #[case("${a}", json!("value"), Some(DataType::STRING), json!("value"))]
+  #[case("${a}", json!("value"), Some(DataType::RAW), json!("value"))]
+  #[case("${a}", json!("value"), None, json!("value"))]
+  #[case("${a}", json!(100), Some(DataType::STRING), json!("100"))]
+  #[case("${a}", json!(100), Some(DataType::RAW), json!("100"))]
+  #[case("${a}", json!(100), Some(DataType::INTEGER), json!(100))]
+  #[case("${a}", json!(100), None, json!("100"))]
+  #[case("/${a}", json!("value"), Some(DataType::STRING), json!("/value"))]
+  #[case("/${a}", json!("value"), Some(DataType::RAW), json!("/value"))]
+  #[case("/${a}", json!("value"), None, json!("/value"))]
+  #[case("/${a}", json!(100), Some(DataType::STRING), json!("/100"))]
+  #[case("/${a}", json!(100), Some(DataType::RAW), json!("/100"))]
+  #[case("/${a}", json!(100), None, json!("/100"))]
+  #[case("a", json!("value"), Some(DataType::STRING), json!("value"))]
+  #[case("a", json!("value"), Some(DataType::RAW), json!("value"))]
+  #[case("a", json!("value"), None, json!("value"))]
+  #[case("a", json!(100), Some(DataType::STRING), json!("100"))]
+  #[case("a", json!(100), Some(DataType::RAW), json!(100))]
+  #[case("a", json!(100), Some(DataType::INTEGER), json!(100))]
+  #[case("a", json!(100), None, json!(100))]
+  fn generate_value_from_context_test(#[case] expression: &str, #[case] value: Value, #[case] data_type: Option<DataType>, #[case] expected: Value) {
+    let context = hashmap!{ "a" => value };
+    let result = generate_value_from_context(expression, &context, &data_type);
+    expect!(result.as_ref()).to(be_ok());
+    let result_value = result.unwrap();
+    expect!(result_value.as_json().unwrap()).to(be_equal_to(expected));
   }
 }

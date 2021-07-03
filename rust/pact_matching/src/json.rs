@@ -436,7 +436,7 @@ fn compare_values(path: &[&str], expected: &Value, actual: &Value, context: &Mat
 }
 
 impl GenerateValue<Value> for Generator {
-  fn generate_value(&self, value: &Value, context: &HashMap<&str, Value>) -> Result<Value, String> {
+  fn generate_value(&self, value: &Value, context: &HashMap<&str, Value>) -> anyhow::Result<Value> {
     debug!("Generating value from {:?} with context {:?}", self, context);
     let result = match self {
       Generator::RandomInt(min, max) => {
@@ -444,28 +444,28 @@ impl GenerateValue<Value> for Generator {
         match value {
           Value::String(_) => Ok(json!(format!("{}", rand_int))),
           Value::Number(_) => Ok(json!(rand_int)),
-          _ => Err(format!("Could not generate a random int from {}", value))
+          _ => Err(anyhow!("Could not generate a random int from {}", value))
         }
       },
       Generator::Uuid => match value {
         Value::String(_) => Ok(json!(Uuid::new_v4().to_simple().to_string())),
-        _ => Err(format!("Could not generate a UUID from {}", value))
+        _ => Err(anyhow!("Could not generate a UUID from {}", value))
       },
       Generator::RandomDecimal(digits) => match value {
         Value::String(_) => Ok(json!(generate_decimal(*digits as usize))),
         Value::Number(_) => match generate_decimal(*digits as usize).parse::<f64>() {
           Ok(val) => Ok(json!(val)),
-          Err(err) => Err(format!("Could not generate a random decimal from {} - {}", value, err))
+          Err(err) => Err(anyhow!("Could not generate a random decimal from {} - {}", value, err))
         },
-        _ => Err(format!("Could not generate a random decimal from {}", value))
+        _ => Err(anyhow!("Could not generate a random decimal from {}", value))
       },
       Generator::RandomHexadecimal(digits) => match value {
         Value::String(_) => Ok(json!(generate_hexadecimal(*digits as usize))),
-        _ => Err(format!("Could not generate a random hexadecimal from {}", value))
+        _ => Err(anyhow!("Could not generate a random hexadecimal from {}", value))
       },
       Generator::RandomString(size) => match value {
         Value::String(_) => Ok(json!(generate_ascii_string(*size as usize))),
-        _ => Err(format!("Could not generate a random string from {}", value))
+        _ => Err(anyhow!("Could not generate a random string from {}", value))
       },
       Generator::Regex(ref regex) => {
         let mut parser = regex_syntax::ParserBuilder::new().unicode(false).build();
@@ -475,8 +475,8 @@ impl GenerateValue<Value> for Generator {
             Ok(json!(rand::thread_rng().sample::<String, _>(gen)))
           },
           Err(err) => {
-            log::warn!("'{}' is not a valid regular expression - {}", regex, err);
-            Err(format!("Could not generate a random string from {} - {}", regex, err))
+            warn!("'{}' is not a valid regular expression - {}", regex, err);
+            Err(anyhow!("Could not generate a random string from {} - {}", regex, err))
           }
         }
       },
@@ -484,8 +484,8 @@ impl GenerateValue<Value> for Generator {
         Some(pattern) => match parse_pattern(pattern) {
           Ok(tokens) => Ok(json!(Local::now().date().format(&to_chrono_pattern(&tokens)).to_string())),
           Err(err) => {
-            log::warn!("Date format {} is not valid - {}", pattern, err);
-            Err(format!("Could not generate a random date from {} - {}", pattern, err))
+            warn!("Date format {} is not valid - {}", pattern, err);
+            Err(anyhow!("Could not generate a random date from {} - {}", pattern, err))
           }
         },
         None => Ok(json!(Local::now().naive_local().date().to_string()))
@@ -494,8 +494,8 @@ impl GenerateValue<Value> for Generator {
         Some(pattern) => match parse_pattern(pattern) {
           Ok(tokens) => Ok(json!(Local::now().format(&to_chrono_pattern(&tokens)).to_string())),
           Err(err) => {
-            log::warn!("Time format {} is not valid - {}", pattern, err);
-            Err(format!("Could not generate a random time from {} - {}", pattern, err))
+            warn!("Time format {} is not valid - {}", pattern, err);
+            Err(anyhow!("Could not generate a random time from {} - {}", pattern, err))
           }
         },
         None => Ok(json!(Local::now().time().format("%H:%M:%S").to_string()))
@@ -504,8 +504,8 @@ impl GenerateValue<Value> for Generator {
         Some(pattern) => match parse_pattern(pattern) {
           Ok(tokens) => Ok(json!(Local::now().format(&to_chrono_pattern(&tokens)).to_string())),
           Err(err) => {
-            log::warn!("DateTime format {} is not valid - {}", pattern, err);
-            Err(format!("Could not generate a random date-time from {} - {}", pattern, err))
+            warn!("DateTime format {} is not valid - {}", pattern, err);
+            Err(anyhow!("Could not generate a random date-time from {} - {}", pattern, err))
           }
         },
         None => Ok(json!(Local::now().format("%Y-%m-%dT%H:%M:%S.%3f%z").to_string()))
@@ -526,15 +526,15 @@ impl GenerateValue<Value> for Generator {
                   Ok(re) => Ok(Value::String(re.replace(example, |caps: &Captures| {
                     format!("{}{}", url, caps.at(1).unwrap())
                   }))),
-                  Err(err) => Err(format!("MockServerURL: Failed to generate value: {}", err))
+                  Err(err) => Err(anyhow!("MockServerURL: Failed to generate value: {}", err))
                 },
-                None => Err("MockServerURL: can not generate a value as there is no mock server URL in the test context".to_string())
+                None => Err(anyhow!("MockServerURL: can not generate a value as there is no mock server URL in the test context"))
               }
             },
-            None => Err("MockServerURL: can not generate a value as the mock server details in the test context is not an Object".to_string())
+            None => Err(anyhow!("MockServerURL: can not generate a value as the mock server details in the test context is not an Object"))
           }
         } else {
-          Err("MockServerURL: can not generate a value as there is no mock server details in the test context".to_string())
+          Err(anyhow!("MockServerURL: can not generate a value as there is no mock server details in the test context"))
         }
       }
       Generator::ArrayContains(variants) => match value {
@@ -556,7 +556,7 @@ impl GenerateValue<Value> for Generator {
           }
           Ok(Value::Array(result))
         }
-        _ => Err("can only use ArrayContains with lists".to_string())
+        _ => Err(anyhow!("can only use ArrayContains with lists"))
       }
     };
     debug!("Generated value = {:?}", result);

@@ -1,13 +1,18 @@
 //! expression parser for generator expressions
 
-use serde_json::{Value, json};
-use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
-use nom::lib::std::convert::TryFrom;
+use std::convert::TryFrom;
+use std::fmt::{Display, Formatter};
+
+use anyhow::*;
+use log::error;
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
+
 use crate::json_utils::json_to_string;
 
 /// Data type to cast to for provider state context values
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone, Hash)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone, Copy, Hash)]
 pub enum DataType {
   /// String values
   STRING,
@@ -25,8 +30,8 @@ pub enum DataType {
 
 impl DataType {
   /// Wraps the generated value in a DataValue
-  pub fn wrap(&self, result: Result<String, String>) -> Result<DataValue, String> {
-    result.map(|val| DataValue { generated: val, data_type: self.clone() })
+  pub fn wrap(&self, result: anyhow::Result<Value>) -> anyhow::Result<DataValue> {
+    result.map(|val| DataValue { wrapped: val.clone(), data_type: *self })
   }
 }
 
@@ -47,85 +52,204 @@ impl From<Value> for DataType {
 }
 
 /// Data Value container for a generated value
+#[derive(Clone, Debug)]
 pub struct DataValue {
   /// Original generated value
-  pub generated: String,
+  pub wrapped: Value,
   /// Data type to cast it as
   pub data_type: DataType
 }
 
 impl DataValue {
   /// Convert this data value to JSON using the associated data type
-  pub fn as_json(&self) -> Result<Value, String> {
+  pub fn as_json(&self) -> anyhow::Result<Value> {
     match self.data_type {
-      DataType::STRING => Ok(Value::String(self.generated.clone())),
-      DataType::INTEGER => self.generated.parse::<usize>().map(|val| json!(val))
-        .map_err(|err| format!("Number can not be generated from '{}' - {}", self.generated, err)),
-      DataType::FLOAT | DataType::DECIMAL => self.generated.parse::<f64>().map(|val| json!(val))
-        .map_err(|err| format!("Floating point number can not be generated from '{}' - {}", self.generated, err)),
-      DataType::RAW => Ok(Value::String(self.generated.clone())),
-      DataType::BOOLEAN => self.generated.parse::<bool>().map(|val| json!(val))
-        .map_err(|err| format!("Boolean can not be generated from '{}' - {}", self.generated, err))
+      DataType::STRING => match &self.wrapped {
+        Value::String(s) => Ok(Value::String(s.clone())),
+        _ => Ok(Value::String(self.wrapped.to_string()))
+      },
+      DataType::INTEGER => match &self.wrapped {
+        Value::Null => Ok(json!(0)),
+        Value::Bool(b) => if *b {
+          Ok(json!(1))
+        } else {
+          Ok(json!(0))
+        }
+        Value::Number(_) => Ok(self.wrapped.clone()),
+        Value::String(s) => s.parse::<usize>().map(|val| json!(val))
+          .map_err(|err| anyhow!("Number can not be generated from '{}' - {}", self.wrapped, err)),
+        Value::Array(_) | Value::Object(_) => Err(anyhow!("Number can not be generated from '{}'", self.wrapped))
+      },
+      DataType::FLOAT | DataType::DECIMAL => match &self.wrapped {
+        Value::Null => Ok(json!(0.0)),
+        Value::Bool(b) => if *b {
+          Ok(json!(1.0))
+        } else {
+          Ok(json!(0.0))
+        }
+        Value::Number(_) => Ok(self.wrapped.clone()),
+        Value::String(s) => s.parse::<f64>().map(|val| json!(val))
+          .map_err(|err| anyhow!("Floating point number can not be generated from '{}' - {}", self.wrapped, err)),
+        Value::Array(_) | Value::Object(_) => Err(anyhow!("Number can not be generated from '{}'", self.wrapped))
+      },
+      DataType::RAW => Ok(self.wrapped.clone()),
+      DataType::BOOLEAN => match &self.wrapped {
+        Value::Null => Ok(json!(false)),
+        Value::Bool(b) => Ok(Value::Bool(*b)),
+        Value::Number(n) => if let Some(n) = n.as_u64() {
+          Ok(Value::Bool(n > 0))
+        } else if let Some(n) = n.as_i64() {
+          Ok(Value::Bool(n > 0))
+        } else if let Some(n) = n.as_f64() {
+          Ok(Value::Bool(n > 0.0))
+        } else {
+          Ok(Value::Bool(false))
+        },
+        Value::String(s) => s.parse::<bool>().map(|val| json!(val))
+          .map_err(|err| anyhow!("Boolean can not be generated from '{}' - {}", self.wrapped, err)),
+        Value::Array(_) | Value::Object(_) => Err(anyhow!("Boolean can not be generated from '{}'", self.wrapped))
+      }
     }
   }
 }
 
 impl TryFrom<DataValue> for u16 {
-  type Error = String;
+  type Error = anyhow::Error;
 
   fn try_from(value: DataValue) -> Result<Self, Self::Error> {
-    match value.data_type {
-      DataType::INTEGER | DataType::RAW =>
-        value.generated.parse::<u16>().map_err(|err| format!("Number can not be generated from '{}' - {}", value.generated, err)),
-      DataType::DECIMAL | DataType::FLOAT =>
-        value.generated.parse::<f64>()
-          .map(|val| val as u16)
-          .map_err(|err| format!("u16 can not be generated from '{}' - {}", value.generated, err)),
-      _ => Err(format!("u16 can not be generated from {}", value.generated))
+    match &value.wrapped {
+      Value::Null => Ok(0),
+      Value::Bool(b) => if *b {
+        Ok(1)
+      } else {
+        Ok(0)
+      }
+      Value::Number(n) => if let Some(n) = n.as_u64() {
+        Ok(n as u16)
+      } else if let Some(n) = n.as_i64() {
+        Ok(n as u16)
+      } else if let Some(n) = n.as_f64() {
+        Ok(n as u16)
+      } else {
+        Ok(0)
+      }
+      Value::String(s) => s.parse::<u16>()
+        .map_err(|err| anyhow!("u16 can not be generated from '{}' - {}", s, err)),
+      _ => Err(anyhow!("u16 can not be generated from {}", value.wrapped))
+    }
+  }
+}
+
+impl TryFrom<DataValue> for i64 {
+  type Error = anyhow::Error;
+
+  fn try_from(value: DataValue) -> Result<Self, Self::Error> {
+    match &value.wrapped {
+      Value::Null => Ok(0),
+      Value::Bool(b) => if *b {
+        Ok(1)
+      } else {
+        Ok(0)
+      }
+      Value::Number(n) => if let Some(n) = n.as_u64() {
+        Ok(n as i64)
+      } else if let Some(n) = n.as_i64() {
+        Ok(n)
+      } else if let Some(n) = n.as_f64() {
+        Ok(n as i64)
+      } else {
+        Ok(0)
+      }
+      Value::String(s) => s.parse::<i64>()
+        .map_err(|err| anyhow!("u16 can not be generated from '{}' - {}", s, err)),
+      _ => Err(anyhow!("u16 can not be generated from {}", value.wrapped))
     }
   }
 }
 
 impl TryFrom<DataValue> for f64 {
-  type Error = String;
+  type Error = anyhow::Error;
 
   fn try_from(value: DataValue) -> Result<Self, Self::Error> {
-    match value.data_type {
-      DataType::INTEGER =>
-        value.generated.parse::<usize>()
-          .map(|val| val as f64)
-          .map_err(|err| format!("Floating point number can not be generated from '{}' - {}", value.generated, err)),
-      DataType::DECIMAL | DataType::FLOAT | DataType::RAW =>
-        value.generated.parse::<f64>().map_err(|err| format!("Floating point number can not be generated from '{}' - {}", value.generated, err)),
-      _ => Err(format!("Floating point number can not be generated from {}", value.generated))
+    match &value.wrapped {
+      Value::Null => Ok(0.0),
+      Value::Bool(b) => if *b {
+        Ok(1.0)
+      } else {
+        Ok(0.0)
+      }
+      Value::Number(n) => if let Some(n) = n.as_u64() {
+        Ok(n as f64)
+      } else if let Some(n) = n.as_i64() {
+        Ok(n as f64)
+      } else if let Some(n) = n.as_f64() {
+        Ok(n)
+      } else {
+        Ok(0.0)
+      }
+      Value::String(s) => s.parse::<f64>()
+        .map_err(|err| anyhow!("u16 can not be generated from '{}' - {}", s, err)),
+      _ => Err(anyhow!("u16 can not be generated from {}", value.wrapped))
     }
   }
 }
 
-impl TryFrom<DataValue> for String {
-  type Error = String;
+impl TryFrom<DataValue> for bool {
+  type Error = anyhow::Error;
 
   fn try_from(value: DataValue) -> Result<Self, Self::Error> {
-    match value.data_type {
-      DataType::INTEGER | DataType::DECIMAL =>
-        value.generated.parse::<i64>().map(|val| val.to_string())
-          .map_err(|err| format!("Number can not be generated from '{}' - {}", value.generated, err)),
-      DataType::FLOAT =>
-        value.generated.parse::<f64>().map(|val| val.to_string())
-          .map_err(|err| format!("Number can not be generated from '{}' - {}", value.generated, err)),
-      DataType::BOOLEAN =>
-        value.generated.parse::<bool>().map(|val| val.to_string())
-          .map_err(|err| format!("Boolean can not be generated from '{}' - {}", value.generated, err)),
-      DataType::RAW => Ok(value.generated.clone()),
-      DataType::STRING => Ok(value.generated.clone())
+    match &value.wrapped {
+      Value::Null => Ok(false),
+      Value::Bool(b) => Ok(*b),
+      Value::Number(n) => if let Some(n) = n.as_u64() {
+        Ok(n > 0)
+      } else if let Some(n) = n.as_i64() {
+        Ok(n > 0)
+      } else if let Some(n) = n.as_f64() {
+        Ok(n > 0.0)
+      } else {
+        Ok(false)
+      }
+      Value::String(s) => s.parse::<bool>()
+        .map_err(|err| anyhow!("Boolean can not be generated from '{}' - {}", s, err)),
+      _ => Err(anyhow!("Boolean can not be generated from {}", value.wrapped))
+    }
+  }
+}
+
+impl Display for DataValue {
+  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    match self.data_type {
+      DataType::STRING | DataType::RAW => write!(f, "{}", json_to_string(&self.wrapped)),
+      DataType::INTEGER => match i64::try_from(self.clone()) {
+        Ok(v) => write!(f, "{}", v),
+        Err(err) => {
+          error!("Failed to convert value = {}", err);
+          Err(std::fmt::Error)
+        }
+      }
+      DataType::FLOAT | DataType::DECIMAL => match f64::try_from(self.clone()) {
+        Ok(v) => write!(f, "{}", v),
+        Err(err) => {
+          error!("Failed to convert value = {}", err);
+          Err(std::fmt::Error)
+        }
+      }
+      DataType::BOOLEAN => match bool::try_from(self.clone()) {
+        Ok(v) => write!(f, "{}", v),
+        Err(err) => {
+          error!("Failed to convert value = {}", err);
+          Err(std::fmt::Error)
+        }
+      }
     }
   }
 }
 
 /// Trait for resolvers of values
-pub trait ValueResolver {
+pub trait ValueResolver<T> {
   /// Resolves the value by looking it up in the context
-  fn resolve_value(&self, name: &str) -> Option<String>;
+  fn resolve_value(&self, name: &str) -> Option<T>;
 }
 
 /// Value resolver that looks a value up from a Map
@@ -135,9 +259,15 @@ pub struct MapValueResolver<'a> {
   pub context: HashMap<&'a str, Value>
 }
 
-impl ValueResolver for MapValueResolver<'_> {
+impl ValueResolver<String> for MapValueResolver<'_> {
   fn resolve_value(&self, name: &str) -> Option<String> {
     self.context.get(name.into()).map(|val| json_to_string(val))
+  }
+}
+
+impl ValueResolver<Value> for MapValueResolver<'_> {
+  fn resolve_value(&self, name: &str) -> Option<Value> {
+    self.context.get(name.into()).cloned()
   }
 }
 
@@ -147,7 +277,7 @@ pub fn contains_expressions(value: &str) -> bool {
 }
 
 /// Parse the expressions and return the generated value
-pub fn parse_expression(value: &str, value_resolver: &dyn ValueResolver) -> Result<String, String> {
+pub fn parse_expression(value: &str, value_resolver: &dyn ValueResolver<String>) -> anyhow::Result<String> {
   if contains_expressions(value) {
     replace_expressions(value, value_resolver)
   } else {
@@ -155,17 +285,17 @@ pub fn parse_expression(value: &str, value_resolver: &dyn ValueResolver) -> Resu
   }
 }
 
-fn replace_expressions(value: &str, value_resolver: &dyn ValueResolver) -> Result<String, String> {
+fn replace_expressions(value: &str, value_resolver: &dyn ValueResolver<String>) -> anyhow::Result<String> {
   let mut result = String::default();
   let mut buffer = value;
   let mut position = buffer.find("${");
   while let Some(index) = position {
     result.push_str(&buffer[0..index]);
     let end_position = buffer.find('}')
-      .ok_or(format!("Missing closing brace in expression string '{}'", value))?;
+      .ok_or(anyhow!("Missing closing brace in expression string '{}'", value))?;
     if end_position - index > 2 {
       if let Some(lookup) = value_resolver.resolve_value(&buffer[(index + 2)..end_position]) {
-        result.push_str(lookup.as_str());
+        result.push_str(&*lookup);
       }
     }
     buffer = &buffer[(end_position + 1)..];
@@ -177,13 +307,14 @@ fn replace_expressions(value: &str, value_resolver: &dyn ValueResolver) -> Resul
 
 #[cfg(test)]
 mod tests {
-  use super::*;
   use expectest::prelude::*;
   use maplit::hashmap;
 
+  use super::*;
+
   struct NullResolver;
 
-  impl ValueResolver for NullResolver {
+  impl ValueResolver<String> for NullResolver {
     fn resolve_value(&self, _: &str) -> Option<String> {
       None
     }
