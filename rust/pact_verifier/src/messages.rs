@@ -7,10 +7,11 @@ use maplit::*;
 use serde_json::{json, Value};
 
 use pact_matching::{match_message, Mismatch};
-use pact_matching::models::{Interaction, Request};
+use pact_matching::models::{Interaction, Request, Response};
 use pact_matching::models::HttpPart;
 use pact_matching::models::message::Message;
 use pact_models::bodies::OptionalBody;
+use serde::{Deserialize, Serialize};
 
 use crate::{MismatchResult, ProviderInfo, VerificationOptions};
 use crate::callback_executors::RequestFilterExecutor;
@@ -42,11 +43,10 @@ pub async fn verify_message_from_provider<F: RequestFilterExecutor>(
   };
   match make_provider_request(provider, &message_request, options, client).await {
     Ok(ref actual_response) => {
+      let metadata = extract_metadata(actual_response);
       let actual = Message {
         contents: actual_response.body.clone(),
-        metadata: hashmap!{
-          "contentType".into() => actual_response.lookup_content_type().unwrap_or_default()
-        },
+        metadata: metadata,
         .. Message::default()
       };
       log::debug!("actual message = {:?}", actual);
@@ -118,4 +118,29 @@ fn display_result(body_result: ANSIGenericString<str>, metadata_result: Vec<(Str
     }
   }
   println!("      has a matching body ({})", body_result);
+}
+
+fn extract_metadata(actual_response: &Response) -> HashMap<String, String> {
+  let mut default = hashmap!{
+    "contentType".to_string() => actual_response.lookup_content_type().unwrap_or_default(),
+  };
+
+  actual_response.headers.clone().unwrap_or_default().iter().for_each(|(k,v)| {
+    if k == "pact_message_metadata" {
+      let json: String = v.first().unwrap_or(&"".to_string()).to_string();
+      log::trace!("found raw metadata from headers: {:?}", json);
+
+      let decoded = base64::decode(&json.as_str()).unwrap_or_default();
+      log::trace!("have base64 decoded headers: {:?}", decoded);
+
+      let mut metadata: HashMap<String, String> = serde_json::from_slice(&decoded).unwrap_or_default();
+      log::trace!("have JSON metadata from headers: {:?}", metadata);
+
+      for (k, v) in metadata {
+        default.insert(k, v);
+      }
+    }
+  });
+
+  default
 }

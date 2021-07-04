@@ -35,6 +35,7 @@ tokio = { version = "1", features = ["full"] }
 http = "0.2"
 async-trait = "0.1.24"
 thiserror = "1.0"
+base64 = "0.13.0"
 
 [dependencies.reqwest]
 version = "0.11"

@@ -1411,6 +1411,8 @@ pub fn match_message_metadata(
     actual.as_message().unwrap().metadata.iter()
       .map(|(k, v)| (k.clone(), Value::String(v.clone()))).collect()
   };
+  debug!("Matching message metadata. Expected '{:?}', Actual '{:?}'", expected_metadata, actual_metadata);
+
   if !expected_metadata.is_empty() || context.config == DiffConfig::NoUnexpectedKeys {
     for (key, value) in &expected_metadata {
       match actual_metadata.get(key) {

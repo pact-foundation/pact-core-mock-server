@@ -183,14 +183,14 @@ impl Message {
                     None => format!("Message {}", index)
                 };
                 let provider_states = ProviderState::from_json(json);
-                let metadata = match json.get("metaData") {
-                    Some(&Value::Object(ref v)) => v.iter().map(|(k, v)| {
-                        (k.clone(), match v {
-                            &Value::String(ref s) => s.clone(),
-                            _ => v.to_string()
-                        })
-                    }).collect(),
-                    _ => hashmap!{}
+                let metadata = match json.get("metaData").or(json.get("metadata")) {
+                  Some(&Value::Object(ref v)) => v.iter().map(|(k, v)| {
+                      (k.clone(), match v {
+                          &Value::String(ref s) => s.clone(),
+                          _ => v.to_string()
+                      })
+                  }).collect(),
+                  _ => hashmap!{},
                 };
                 Ok(Message {
                   id: None,
