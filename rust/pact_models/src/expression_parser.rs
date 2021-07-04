@@ -75,7 +75,15 @@ impl DataValue {
         } else {
           Ok(json!(0))
         }
-        Value::Number(_) => Ok(self.wrapped.clone()),
+        Value::Number(n) => if let Some(n) = n.as_u64() {
+          Ok(json!(n))
+        } else if let Some(n) = n.as_i64() {
+          Ok(json!(n))
+        } else if let Some(n) = n.as_f64() {
+          Ok(json!(n as i64))
+        } else {
+          Err(anyhow!("Internal Error: Number is neither u64, i64, or f64"))
+        }
         Value::String(s) => s.parse::<usize>().map(|val| json!(val))
           .map_err(|err| anyhow!("Number can not be generated from '{}' - {}", self.wrapped, err)),
         Value::Array(_) | Value::Object(_) => Err(anyhow!("Number can not be generated from '{}'", self.wrapped))
@@ -87,7 +95,15 @@ impl DataValue {
         } else {
           Ok(json!(0.0))
         }
-        Value::Number(_) => Ok(self.wrapped.clone()),
+        Value::Number(n) => if let Some(n) = n.as_u64() {
+          Ok(json!(n as f64))
+        } else if let Some(n) = n.as_i64() {
+          Ok(json!(n as f64))
+        } else if let Some(n) = n.as_f64() {
+          Ok(json!(n))
+        } else {
+          Err(anyhow!("Internal Error: Number is neither u64, i64, or f64"))
+        },
         Value::String(s) => s.parse::<f64>().map(|val| json!(val))
           .map_err(|err| anyhow!("Floating point number can not be generated from '{}' - {}", self.wrapped, err)),
         Value::Array(_) | Value::Object(_) => Err(anyhow!("Number can not be generated from '{}'", self.wrapped))
@@ -133,9 +149,48 @@ impl TryFrom<DataValue> for u16 {
       } else {
         Ok(0)
       }
-      Value::String(s) => s.parse::<u16>()
-        .map_err(|err| anyhow!("u16 can not be generated from '{}' - {}", s, err)),
+      Value::String(s) => match value.data_type {
+        DataType::INTEGER | DataType::RAW | DataType::STRING => s.parse::<u16>()
+          .map_err(|err| anyhow!("u16 can not be generated from '{}' - {}", s, err)),
+        DataType::DECIMAL | DataType::FLOAT => s.parse::<f64>()
+          .map(|val| val as u16)
+          .map_err(|err| anyhow!("u16 can not be generated from '{}' - {}", s, err)),
+        _ => Err(anyhow!("u16 can not be generated from {}", value.wrapped))
+      },
       _ => Err(anyhow!("u16 can not be generated from {}", value.wrapped))
+    }
+  }
+}
+
+impl TryFrom<DataValue> for u64 {
+  type Error = anyhow::Error;
+
+  fn try_from(value: DataValue) -> Result<Self, Self::Error> {
+    match &value.wrapped {
+      Value::Null => Ok(0),
+      Value::Bool(b) => if *b {
+        Ok(1)
+      } else {
+        Ok(0)
+      }
+      Value::Number(n) => if let Some(n) = n.as_u64() {
+        Ok(n)
+      } else if let Some(n) = n.as_i64() {
+        Ok(n as u64)
+      } else if let Some(n) = n.as_f64() {
+        Ok(n as u64)
+      } else {
+        Ok(0)
+      }
+      Value::String(s) => match value.data_type {
+        DataType::INTEGER | DataType::RAW | DataType::STRING => s.parse::<u64>()
+          .map_err(|err| anyhow!("u64 can not be generated from '{}' - {}", s, err)),
+        DataType::DECIMAL | DataType::FLOAT => s.parse::<f64>()
+          .map(|val| val as u64)
+          .map_err(|err| anyhow!("u64 can not be generated from '{}' - {}", s, err)),
+        _ => Err(anyhow!("u64 can not be generated from {}", value.wrapped))
+      },
+      _ => Err(anyhow!("u64 can not be generated from {}", value.wrapped))
     }
   }
 }
@@ -160,9 +215,15 @@ impl TryFrom<DataValue> for i64 {
       } else {
         Ok(0)
       }
-      Value::String(s) => s.parse::<i64>()
-        .map_err(|err| anyhow!("u16 can not be generated from '{}' - {}", s, err)),
-      _ => Err(anyhow!("u16 can not be generated from {}", value.wrapped))
+      Value::String(s) => match value.data_type {
+        DataType::INTEGER | DataType::RAW | DataType::STRING => s.parse::<i64>()
+          .map_err(|err| anyhow!("i64 can not be generated from '{}' - {}", s, err)),
+        DataType::DECIMAL | DataType::FLOAT => s.parse::<f64>()
+          .map(|val| val as i64)
+          .map_err(|err| anyhow!("i64 can not be generated from '{}' - {}", s, err)),
+        _ => Err(anyhow!("i64 can not be generated from {}", value.wrapped))
+      },
+      _ => Err(anyhow!("i64 can not be generated from {}", value.wrapped))
     }
   }
 }
@@ -187,9 +248,15 @@ impl TryFrom<DataValue> for f64 {
       } else {
         Ok(0.0)
       }
-      Value::String(s) => s.parse::<f64>()
-        .map_err(|err| anyhow!("u16 can not be generated from '{}' - {}", s, err)),
-      _ => Err(anyhow!("u16 can not be generated from {}", value.wrapped))
+      Value::String(s) => match value.data_type {
+        DataType::INTEGER => s.parse::<i64>()
+          .map(|val| val as f64)
+          .map_err(|err| anyhow!("f64 can not be generated from '{}' - {}", s, err)),
+        DataType::DECIMAL | DataType::FLOAT | DataType::RAW | DataType::STRING => s.parse::<f64>()
+          .map_err(|err| anyhow!("f64 can not be generated from '{}' - {}", s, err)),
+        _ => Err(anyhow!("f64 can not be generated from {}", value.wrapped))
+      },
+      _ => Err(anyhow!("f64 can not be generated from {}", value.wrapped))
     }
   }
 }
@@ -344,8 +411,10 @@ mod tests {
 
   #[test]
   fn returns_an_error_on_unterminated_expressions() {
-    expect!(parse_expression(&"invalid ${a expression".to_string(), &NullResolver)).to(
-      be_err().value("Missing closing brace in expression string \'invalid ${a expression\'".to_string()));
+    let result = parse_expression(&"invalid ${a expression".to_string(), &NullResolver);
+    expect!(result.as_ref()).to(be_err());
+    expect!(result.unwrap_err().to_string())
+      .to(be_equal_to("Missing closing brace in expression string \'invalid ${a expression\'".to_string()));
   }
 
   #[test]
@@ -367,51 +436,80 @@ mod tests {
 
   #[test]
   fn with_a_defined_type_converts_the_expression_into_the_correct_type() {
-    expect!(String::try_from(DataValue { generated: "string".into(), data_type: DataType::RAW })).to(be_ok().value("string".to_string()));
-    expect!(String::try_from(DataValue { generated: "string".into(), data_type: DataType::STRING })).to(be_ok().value("string".to_string()));
-    expect!(String::try_from(DataValue { generated: "100".into(), data_type: DataType::RAW })).to(be_ok().value("100".to_string()));
-    expect!(String::try_from(DataValue { generated: "100".into(), data_type: DataType::STRING })).to(be_ok().value("100".to_string()));
-    expect!(String::try_from(DataValue { generated: "100".into(), data_type: DataType::INTEGER })).to(be_ok().value("100".to_string()));
-    expect!(String::try_from(DataValue { generated: "100".into(), data_type: DataType::FLOAT })).to(be_ok().value("100".to_string()));
+    expect!(u16::try_from(DataValue { wrapped: json!("100"), data_type: DataType::RAW })).to(be_ok().value(100));
+    expect!(u16::try_from(DataValue { wrapped: json!("100"), data_type: DataType::INTEGER })).to(be_ok().value(100));
+    expect!(u16::try_from(DataValue { wrapped: json!("100.6"), data_type: DataType::INTEGER })).to(be_err());
+    expect!(u16::try_from(DataValue { wrapped: json!("100"), data_type: DataType::FLOAT })).to(be_ok().value(100));
+    expect!(u16::try_from(DataValue { wrapped: json!("100.6"), data_type: DataType::FLOAT })).to(be_ok().value(100));
+    expect!(u16::try_from(DataValue { wrapped: json!("100"), data_type: DataType::STRING })).to(be_ok().value(100));
+    expect!(u16::try_from(DataValue { wrapped: json!("string"), data_type: DataType::STRING })).to(be_err());
+    expect!(u16::try_from(DataValue { wrapped: json!("true"), data_type: DataType::BOOLEAN })).to(be_err());
 
-    expect!(u16::try_from(DataValue { generated: "100".into(), data_type: DataType::RAW })).to(be_ok().value(100));
-    expect!(u16::try_from(DataValue { generated: "100".into(), data_type: DataType::INTEGER })).to(be_ok().value(100));
-    expect!(u16::try_from(DataValue { generated: "100.6".into(), data_type: DataType::INTEGER })).to(be_err());
-    expect!(u16::try_from(DataValue { generated: "100".into(), data_type: DataType::FLOAT })).to(be_ok().value(100));
-    expect!(u16::try_from(DataValue { generated: "100.6".into(), data_type: DataType::FLOAT })).to(be_ok().value(100));
-    expect!(u16::try_from(DataValue { generated: "100".into(), data_type: DataType::STRING })).to(be_err());
+    expect!(u64::try_from(DataValue { wrapped: json!("100"), data_type: DataType::RAW })).to(be_ok().value(100));
+    expect!(u64::try_from(DataValue { wrapped: json!("100"), data_type: DataType::INTEGER })).to(be_ok().value(100));
+    expect!(u64::try_from(DataValue { wrapped: json!("100.6"), data_type: DataType::INTEGER })).to(be_err());
+    expect!(u64::try_from(DataValue { wrapped: json!("100"), data_type: DataType::FLOAT })).to(be_ok().value(100));
+    expect!(u64::try_from(DataValue { wrapped: json!("100.6"), data_type: DataType::FLOAT })).to(be_ok().value(100));
+    expect!(u64::try_from(DataValue { wrapped: json!("100"), data_type: DataType::STRING })).to(be_ok().value(100));
+    expect!(u64::try_from(DataValue { wrapped: json!("string"), data_type: DataType::STRING })).to(be_err());
+    expect!(u64::try_from(DataValue { wrapped: json!("true"), data_type: DataType::BOOLEAN })).to(be_err());
 
-    expect!(f64::try_from(DataValue { generated: "100.6".into(), data_type: DataType::RAW })).to(be_ok().value(100.6));
-    expect!(f64::try_from(DataValue { generated: "100.6".into(), data_type: DataType::INTEGER })).to(be_err());
-    expect!(f64::try_from(DataValue { generated: "100.6".into(), data_type: DataType::FLOAT })).to(be_ok().value(100.6));
-    expect!(f64::try_from(DataValue { generated: "100.6".into(), data_type: DataType::STRING })).to(be_err());
+    expect!(u64::try_from(DataValue { wrapped: json!(100), data_type: DataType::RAW })).to(be_ok().value(100));
+    expect!(u64::try_from(DataValue { wrapped: json!(100), data_type: DataType::INTEGER })).to(be_ok().value(100));
+    expect!(u64::try_from(DataValue { wrapped: json!(100.6), data_type: DataType::RAW })).to(be_ok().value(100));
+    expect!(u64::try_from(DataValue { wrapped: json!(100.6), data_type: DataType::INTEGER })).to(be_ok().value(100));
 
-    expect!(DataValue { generated: "string".into(), data_type: DataType::RAW }.as_json()).to(be_ok().value(json!("string")));
-    expect!(DataValue { generated: "string".into(), data_type: DataType::STRING }.as_json()).to(be_ok().value(json!("string")));
-    expect!(DataValue { generated: "string".into(), data_type: DataType::INTEGER }.as_json()).to(be_err());
-    expect!(DataValue { generated: "string".into(), data_type: DataType::FLOAT }.as_json()).to(be_err());
-    expect!(DataValue { generated: "string".into(), data_type: DataType::DECIMAL }.as_json()).to(be_err());
-    expect!(DataValue { generated: "string".into(), data_type: DataType::BOOLEAN }.as_json()).to(be_err());
+    expect!(f64::try_from(DataValue { wrapped: json!("100"), data_type: DataType::RAW })).to(be_ok().value(100.0));
+    expect!(f64::try_from(DataValue { wrapped: json!("100"), data_type: DataType::INTEGER })).to(be_ok().value(100.0));
+    expect!(f64::try_from(DataValue { wrapped: json!("100.6"), data_type: DataType::INTEGER })).to(be_err());
+    expect!(f64::try_from(DataValue { wrapped: json!("100"), data_type: DataType::FLOAT })).to(be_ok().value(100.0));
+    expect!(f64::try_from(DataValue { wrapped: json!("100.6"), data_type: DataType::FLOAT })).to(be_ok().value(100.6));
+    expect!(f64::try_from(DataValue { wrapped: json!("100"), data_type: DataType::STRING })).to(be_ok().value(100.0));
+    expect!(f64::try_from(DataValue { wrapped: json!("string"), data_type: DataType::STRING })).to(be_err());
+    expect!(f64::try_from(DataValue { wrapped: json!("true"), data_type: DataType::BOOLEAN })).to(be_err());
 
-    expect!(DataValue { generated: "100".into(), data_type: DataType::RAW }.as_json()).to(be_ok().value(json!("100")));
-    expect!(DataValue { generated: "100".into(), data_type: DataType::STRING }.as_json()).to(be_ok().value(json!("100")));
-    expect!(DataValue { generated: "100".into(), data_type: DataType::INTEGER }.as_json()).to(be_ok().value(json!(100)));
-    expect!(DataValue { generated: "100".into(), data_type: DataType::FLOAT }.as_json()).to(be_ok().value(json!(100.0)));
-    expect!(DataValue { generated: "100".into(), data_type: DataType::DECIMAL }.as_json()).to(be_ok().value(json!(100.0)));
-    expect!(DataValue { generated: "100".into(), data_type: DataType::BOOLEAN }.as_json()).to(be_err());
+    expect!(f64::try_from(DataValue { wrapped: json!(100.6), data_type: DataType::RAW })).to(be_ok().value(100.6));
+    expect!(f64::try_from(DataValue { wrapped: json!(100.6), data_type: DataType::INTEGER })).to(be_ok().value(100.6));
+    expect!(f64::try_from(DataValue { wrapped: json!(100), data_type: DataType::RAW })).to(be_ok().value(100.0));
+    expect!(f64::try_from(DataValue { wrapped: json!(100), data_type: DataType::STRING })).to(be_ok().value(100.0));
 
-    expect!(DataValue { generated: "100.5".into(), data_type: DataType::RAW }.as_json()).to(be_ok().value(json!("100.5")));
-    expect!(DataValue { generated: "100.5".into(), data_type: DataType::STRING }.as_json()).to(be_ok().value(json!("100.5")));
-    expect!(DataValue { generated: "100.5".into(), data_type: DataType::INTEGER }.as_json()).to(be_err());
-    expect!(DataValue { generated: "100.5".into(), data_type: DataType::FLOAT }.as_json()).to(be_ok().value(json!(100.5)));
-    expect!(DataValue { generated: "100.5".into(), data_type: DataType::DECIMAL }.as_json()).to(be_ok().value(json!(100.5)));
-    expect!(DataValue { generated: "100.5".into(), data_type: DataType::BOOLEAN }.as_json()).to(be_err());
+    expect!(DataValue { wrapped: json!("string"), data_type: DataType::RAW }.as_json()).to(be_ok().value(json!("string")));
+    expect!(DataValue { wrapped: json!("string"), data_type: DataType::STRING }.as_json()).to(be_ok().value(json!("string")));
+    expect!(DataValue { wrapped: json!("string"), data_type: DataType::INTEGER }.as_json()).to(be_err());
+    expect!(DataValue { wrapped: json!("string"), data_type: DataType::FLOAT }.as_json()).to(be_err());
+    expect!(DataValue { wrapped: json!("string"), data_type: DataType::DECIMAL }.as_json()).to(be_err());
+    expect!(DataValue { wrapped: json!("string"), data_type: DataType::BOOLEAN }.as_json()).to(be_err());
 
-    expect!(DataValue { generated: "true".into(), data_type: DataType::RAW }.as_json()).to(be_ok().value(json!("true")));
-    expect!(DataValue { generated: "true".into(), data_type: DataType::STRING }.as_json()).to(be_ok().value(json!("true")));
-    expect!(DataValue { generated: "true".into(), data_type: DataType::INTEGER }.as_json()).to(be_err());
-    expect!(DataValue { generated: "true".into(), data_type: DataType::FLOAT }.as_json()).to(be_err());
-    expect!(DataValue { generated: "true".into(), data_type: DataType::DECIMAL }.as_json()).to(be_err());
-    expect!(DataValue { generated: "true".into(), data_type: DataType::BOOLEAN }.as_json()).to(be_ok().value(json!(true)));
+    expect!(DataValue { wrapped: json!("100"), data_type: DataType::RAW }.as_json()).to(be_ok().value(json!("100")));
+    expect!(DataValue { wrapped: json!(100), data_type: DataType::RAW }.as_json()).to(be_ok().value(json!(100)));
+    expect!(DataValue { wrapped: json!("100"), data_type: DataType::STRING }.as_json()).to(be_ok().value(json!("100")));
+    expect!(DataValue { wrapped: json!("100"), data_type: DataType::INTEGER }.as_json()).to(be_ok().value(json!(100)));
+    expect!(DataValue { wrapped: json!(100), data_type: DataType::INTEGER }.as_json()).to(be_ok().value(json!(100)));
+    expect!(DataValue { wrapped: json!("100"), data_type: DataType::FLOAT }.as_json()).to(be_ok().value(json!(100.0)));
+    expect!(DataValue { wrapped: json!(100), data_type: DataType::FLOAT }.as_json()).to(be_ok().value(json!(100.0)));
+    expect!(DataValue { wrapped: json!("100"), data_type: DataType::DECIMAL }.as_json()).to(be_ok().value(json!(100.0)));
+    expect!(DataValue { wrapped: json!("100"), data_type: DataType::BOOLEAN }.as_json()).to(be_err());
+    expect!(DataValue { wrapped: json!(100), data_type: DataType::BOOLEAN }.as_json()).to(be_ok().value(json!(true)));
+
+    expect!(DataValue { wrapped: json!("100.5"), data_type: DataType::RAW }.as_json()).to(be_ok().value(json!("100.5")));
+    expect!(DataValue { wrapped: json!(100.5), data_type: DataType::RAW }.as_json()).to(be_ok().value(json!(100.5)));
+    expect!(DataValue { wrapped: json!("100.5"), data_type: DataType::STRING }.as_json()).to(be_ok().value(json!("100.5")));
+    expect!(DataValue { wrapped: json!("100.5"), data_type: DataType::INTEGER }.as_json()).to(be_err());
+    expect!(DataValue { wrapped: json!(100.5), data_type: DataType::INTEGER }.as_json()).to(be_ok().value(json!(100)));
+    expect!(DataValue { wrapped: json!("100.5"), data_type: DataType::FLOAT }.as_json()).to(be_ok().value(json!(100.5)));
+    expect!(DataValue { wrapped: json!(100.5), data_type: DataType::FLOAT }.as_json()).to(be_ok().value(json!(100.5)));
+    expect!(DataValue { wrapped: json!("100.5"), data_type: DataType::DECIMAL }.as_json()).to(be_ok().value(json!(100.5)));
+    expect!(DataValue { wrapped: json!("100.5"), data_type: DataType::BOOLEAN }.as_json()).to(be_err());
+
+    expect!(DataValue { wrapped: json!("true"), data_type: DataType::RAW }.as_json()).to(be_ok().value(json!("true")));
+    expect!(DataValue { wrapped: json!(true), data_type: DataType::RAW }.as_json()).to(be_ok().value(json!(true)));
+    expect!(DataValue { wrapped: json!("true"), data_type: DataType::STRING }.as_json()).to(be_ok().value(json!("true")));
+    expect!(DataValue { wrapped: json!(true), data_type: DataType::STRING }.as_json()).to(be_ok().value(json!("true")));
+    expect!(DataValue { wrapped: json!("true"), data_type: DataType::INTEGER }.as_json()).to(be_err());
+    expect!(DataValue { wrapped: json!(true), data_type: DataType::INTEGER }.as_json()).to(be_ok().value(json!(1)));
+    expect!(DataValue { wrapped: json!("true"), data_type: DataType::FLOAT }.as_json()).to(be_err());
+    expect!(DataValue { wrapped: json!("true"), data_type: DataType::DECIMAL }.as_json()).to(be_err());
+    expect!(DataValue { wrapped: json!("true"), data_type: DataType::BOOLEAN }.as_json()).to(be_ok().value(json!(true)));
+    expect!(DataValue { wrapped: json!(true), data_type: DataType::BOOLEAN }.as_json()).to(be_ok().value(json!(true)));
   }
 }
