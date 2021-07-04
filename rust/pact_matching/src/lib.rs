@@ -366,7 +366,6 @@ macro_rules! s {
 }
 
 #[macro_use] pub mod models;
-mod path_exp;
 mod matchers;
 pub mod json;
 mod xml;

@@ -19,12 +19,12 @@ use serde_json::{self, json, Value};
 
 use pact_models::{HttpStatus, PactSpecification};
 use pact_models::json_utils::{json_to_num, json_to_string};
+use pact_models::path_exp::{parse_path_exp, PathToken};
 
 use crate::{MatchingContext, merge_result, Mismatch};
 use crate::binary_utils::match_content_type;
 use crate::matchers::{match_values, Matches};
 use crate::models::generators::{Generator, GeneratorCategory, Generators};
-use crate::path_exp::*;
 
 fn matches_token(path_fragment: &str, path_token: &PathToken) -> usize {
   match path_token {

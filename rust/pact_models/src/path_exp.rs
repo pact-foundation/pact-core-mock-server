@@ -1,12 +1,20 @@
+//! Functions for dealing with path expressions
+
 use std::iter::Peekable;
 
+/// Struct to store path token
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PathToken {
-    Root,
-    Field(String),
-    Index(usize),
-    Star,
-    StarIndex
+  /// Root token $
+  Root,
+  /// named field token
+  Field(String),
+  /// integer index token
+  Index(usize),
+  /// * token
+  Star,
+  /// * index token
+  StarIndex
 }
 
 fn peek<I>(chars: &mut Peekable<I>) -> Option<(usize, char)> where I: Iterator<Item = (usize, char)> {
@@ -221,70 +229,70 @@ mod tests {
   #[test]
   fn parse_path_exp_handles_missing_root() {
     expect!(parse_path_exp("adsjhaskjdh"))
-      .to(be_ok().value(vec![PathToken::Root, PathToken::Field(s!("adsjhaskjdh"))]));
+      .to(be_ok().value(vec![PathToken::Root, PathToken::Field("adsjhaskjdh".to_string())]));
   }
 
   #[test]
   fn parse_path_exp_handles_missing_path() {
     expect!(parse_path_exp("$adsjhaskjdh")).to(
-      be_err().value(s!("Expected a \".\" or \"[\" instead of \"a\" in path expression \"$adsjhaskjdh\" at index 1")));
+      be_err().value("Expected a \".\" or \"[\" instead of \"a\" in path expression \"$adsjhaskjdh\" at index 1".to_string()));
   }
 
   #[test]
   fn parse_path_exp_handles_missing_path_name() {
     expect!(parse_path_exp("$.")).to(
-      be_err().value(s!("Expected a path after \".\" in path expression \"$.\" at index 1")));
+      be_err().value("Expected a path after \".\" in path expression \"$.\" at index 1".to_string()));
     expect!(parse_path_exp("$.a.b.c.")).to(
-      be_err().value(s!("Expected a path after \".\" in path expression \"$.a.b.c.\" at index 7")));
+      be_err().value("Expected a path after \".\" in path expression \"$.a.b.c.\" at index 7".to_string()));
   }
 
   #[test]
   fn parse_path_exp_handles_invalid_identifiers() {
     expect!(parse_path_exp("$.abc!")).to(
-      be_err().value(s!("\"!\" is not allowed in an identifier in path expression \"$.abc!\" at index 5")));
+      be_err().value("\"!\" is not allowed in an identifier in path expression \"$.abc!\" at index 5".to_string()));
     expect!(parse_path_exp("$.a.b.c.}")).to(
-      be_err().value(s!("Expected either a \"*\" or path identifier in path expression \"$.a.b.c.}\" at index 8")));
+      be_err().value("Expected either a \"*\" or path identifier in path expression \"$.a.b.c.}\" at index 8".to_string()));
   }
 
   #[test]
   fn parse_path_exp_with_simple_identifiers() {
     expect!(parse_path_exp("$.a")).to(
-      be_ok().value(vec![PathToken::Root, PathToken::Field(s!("a"))]));
+      be_ok().value(vec![PathToken::Root, PathToken::Field("a".to_string())]));
     expect!(parse_path_exp("$.a.b.c")).to(
-      be_ok().value(vec![PathToken::Root, PathToken::Field(s!("a")), PathToken::Field(s!("b")),
-                         PathToken::Field(s!("c"))]));
+      be_ok().value(vec![PathToken::Root, PathToken::Field("a".to_string()), PathToken::Field("b".to_string()),
+                         PathToken::Field("c".to_string())]));
     expect!(parse_path_exp("a.b.c")).to(
-      be_ok().value(vec![PathToken::Root, PathToken::Field(s!("a")), PathToken::Field(s!("b")),
-                         PathToken::Field(s!("c"))]));
+      be_ok().value(vec![PathToken::Root, PathToken::Field("a".to_string()), PathToken::Field("b".to_string()),
+                         PathToken::Field("c".to_string())]));
   }
 
   #[test]
   fn parse_path_exp_handles_underscores_and_dashes() {
     expect!(parse_path_exp("$.user_id.user-id")).to(
-      be_ok().value(vec![PathToken::Root, PathToken::Field(s!("user_id")),
-                         PathToken::Field(s!("user-id"))])
+      be_ok().value(vec![PathToken::Root, PathToken::Field("user_id".to_string()),
+                         PathToken::Field("user-id".to_string())])
     );
     expect!(parse_path_exp("$._id")).to(
-      be_ok().value(vec![PathToken::Root, PathToken::Field(s!("_id"))])
+      be_ok().value(vec![PathToken::Root, PathToken::Field("_id".to_string())])
     );
     expect!(parse_path_exp("$.id:test")).to(
-      be_ok().value(vec![PathToken::Root, PathToken::Field(s!("id:test"))])
+      be_ok().value(vec![PathToken::Root, PathToken::Field("id:test".to_string())])
     );
   }
 
   #[test]
   fn parse_path_exp_handles_xml_names() {
     expect!(parse_path_exp("$.foo.@val")).to(
-      be_ok().value(vec![PathToken::Root, PathToken::Field(s!("foo")),
-                         PathToken::Field(s!("@val"))])
+      be_ok().value(vec![PathToken::Root, PathToken::Field("foo".to_string()),
+                         PathToken::Field("@val".to_string())])
     );
     expect!(parse_path_exp("$.foo.#text")).to(
-      be_ok().value(vec![PathToken::Root, PathToken::Field(s!("foo")),
-                         PathToken::Field(s!("#text"))])
+      be_ok().value(vec![PathToken::Root, PathToken::Field("foo".to_string()),
+                         PathToken::Field("#text".to_string())])
     );
     expect!(parse_path_exp("$.urn:ns:foo.urn:ns:something.#text")).to(
-      be_ok().value(vec![PathToken::Root, PathToken::Field(s!("urn:ns:foo")),
-                         PathToken::Field(s!("urn:ns:something")), PathToken::Field(s!("#text"))])
+      be_ok().value(vec![PathToken::Root, PathToken::Field("urn:ns:foo".to_string()),
+                         PathToken::Field("urn:ns:something".to_string()), PathToken::Field("#text".to_string())])
     );
   }
 
@@ -293,52 +301,52 @@ mod tests {
     expect!(parse_path_exp("$.*")).to(
       be_ok().value(vec![PathToken::Root, PathToken::Star]));
     expect!(parse_path_exp("$.a.*.c")).to(
-      be_ok().value(vec![PathToken::Root, PathToken::Field(s!("a")), PathToken::Star,
-                         PathToken::Field(s!("c"))]));
+      be_ok().value(vec![PathToken::Root, PathToken::Field("a".to_string()), PathToken::Star,
+                         PathToken::Field("c".to_string())]));
   }
 
   #[test]
   fn parse_path_exp_with_bracket_notation() {
     expect!(parse_path_exp("$['val1']")).to(
-      be_ok().value(vec![PathToken::Root, PathToken::Field(s!("val1"))]));
+      be_ok().value(vec![PathToken::Root, PathToken::Field("val1".to_string())]));
     expect!(parse_path_exp("$.a['val@1.'].c")).to(
-      be_ok().value(vec![PathToken::Root, PathToken::Field(s!("a")), PathToken::Field(s!("val@1.")),
-                         PathToken::Field(s!("c"))]));
+      be_ok().value(vec![PathToken::Root, PathToken::Field("a".to_string()), PathToken::Field("val@1.".to_string()),
+                         PathToken::Field("c".to_string())]));
     expect!(parse_path_exp("$.a[1].c")).to(
-      be_ok().value(vec![PathToken::Root, PathToken::Field(s!("a")), PathToken::Index(1),
-                         PathToken::Field(s!("c"))]));
+      be_ok().value(vec![PathToken::Root, PathToken::Field("a".to_string()), PathToken::Index(1),
+                         PathToken::Field("c".to_string())]));
     expect!(parse_path_exp("$.a[*].c")).to(
-      be_ok().value(vec![PathToken::Root, PathToken::Field(s!("a")), PathToken::StarIndex,
-                         PathToken::Field(s!("c"))]));
+      be_ok().value(vec![PathToken::Root, PathToken::Field("a".to_string()), PathToken::StarIndex,
+                         PathToken::Field("c".to_string())]));
   }
 
   #[test]
   fn parse_path_exp_with_invalid_bracket_notation() {
     expect!(parse_path_exp("$[")).to(
-      be_err().value(s!("Expected a \"'\" (single qoute) or a digit in path expression \"$[\" after index 1")));
+      be_err().value("Expected a \"'\" (single qoute) or a digit in path expression \"$[\" after index 1".to_string()));
     expect!(parse_path_exp("$['")).to(
-      be_err().value(s!("Unterminated string in path expression \"$['\" at index 2")));
+      be_err().value("Unterminated string in path expression \"$['\" at index 2".to_string()));
     expect!(parse_path_exp("$['Unterminated string")).to(
-      be_err().value(s!("Unterminated string in path expression \"$['Unterminated string\" at index 21")));
+      be_err().value("Unterminated string in path expression \"$['Unterminated string\" at index 21".to_string()));
     expect!(parse_path_exp("$['']")).to(
-      be_err().value(s!("Empty strings are not allowed in path expression \"$['']\" at index 3")));
+      be_err().value("Empty strings are not allowed in path expression \"$['']\" at index 3".to_string()));
     expect!(parse_path_exp("$['test'.b.c")).to(
-      be_err().value(s!("Unterminated brackets, found \".\" instead of \"]\" in path expression \"$['test'.b.c\" at index 8")));
+      be_err().value("Unterminated brackets, found \".\" instead of \"]\" in path expression \"$['test'.b.c\" at index 8".to_string()));
     expect!(parse_path_exp("$['test'")).to(
-      be_err().value(s!("Unterminated brackets in path expression \"$['test'\" at index 7")));
+      be_err().value("Unterminated brackets in path expression \"$['test'\" at index 7".to_string()));
     expect!(parse_path_exp("$['test']b.c")).to(
-      be_err().value(s!("Expected a \".\" or \"[\" instead of \"b\" in path expression \"$[\'test\']b.c\" at index 9")));
+      be_err().value("Expected a \".\" or \"[\" instead of \"b\" in path expression \"$[\'test\']b.c\" at index 9".to_string()));
   }
 
   #[test]
   fn parse_path_exp_with_invalid_bracket_index_notation() {
     expect!(parse_path_exp("$[dhghh]")).to(
-      be_err().value(s!("Indexes can only consist of numbers or a \"*\", found \"d\" instead in path expression \"$[dhghh]\" at index 2")));
+      be_err().value("Indexes can only consist of numbers or a \"*\", found \"d\" instead in path expression \"$[dhghh]\" at index 2".to_string()));
     expect!(parse_path_exp("$[12abc]")).to(
-      be_err().value(s!("Indexes can only consist of numbers or a \"*\", found \"a\" instead in path expression \"$[12abc]\" at index 4")));
+      be_err().value("Indexes can only consist of numbers or a \"*\", found \"a\" instead in path expression \"$[12abc]\" at index 4".to_string()));
     expect!(parse_path_exp("$[]")).to(
-      be_err().value(s!("Empty bracket expressions are not allowed in path expression \"$[]\" at index 2")));
+      be_err().value("Empty bracket expressions are not allowed in path expression \"$[]\" at index 2".to_string()));
     expect!(parse_path_exp("$[-1]")).to(
-      be_err().value(s!("Indexes can only consist of numbers or a \"*\", found \"-\" instead in path expression \"$[-1]\" at index 2")));
+      be_err().value("Indexes can only consist of numbers or a \"*\", found \"-\" instead in path expression \"$[-1]\" at index 2".to_string()));
   }
 }
