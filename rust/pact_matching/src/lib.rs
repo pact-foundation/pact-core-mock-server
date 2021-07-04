@@ -349,15 +349,17 @@ use log::*;
 use maplit::hashmap;
 use serde_json::{json, Value};
 
-use pact_models::PactSpecification;
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
+use pact_models::generators::{apply_generators, GenerateValue, GeneratorCategory, GeneratorTestMode, VariantMatcher};
+use pact_models::matchingrules::{calc_path_weight, Category, MatchingRule, MatchingRuleCategory, path_length, RuleList};
+use pact_models::PactSpecification;
 
 use crate::headers::{match_header_value, match_headers};
 use crate::matchers::*;
 use crate::models::{HttpPart, Interaction};
-use crate::models::generators::*;
-use crate::models::matchingrules::*;
+use crate::models::generators::{generators_process_body, DefaultVariantMatcher};
+use crate::models::matchingrules::DisplayForMismatch;
 
 /// Simple macro to convert a string slice to a `String` struct.
 #[macro_export]
@@ -1496,7 +1498,7 @@ pub fn generate_request(request: &models::Request, mode: &GeneratorTestMode, con
   if !generators.is_empty() {
     debug!("Applying path generator...");
     apply_generators(mode, &generators, &mut |_, generator| {
-      if let Ok(v) = generator.generate_value(&request.path, context) {
+      if let Ok(v) = generator.generate_value(&request.path, context, &DefaultVariantMatcher.boxed()) {
         request.path = v;
       }
     });
@@ -1508,7 +1510,7 @@ pub fn generate_request(request: &models::Request, mode: &GeneratorTestMode, con
     apply_generators(mode, &generators, &mut |key, generator| {
       if let Some(ref mut headers) = request.headers {
         if headers.contains_key(key) {
-          if let Ok(v) = generator.generate_value(&headers.get(key).unwrap().clone(), context) {
+          if let Ok(v) = generator.generate_value(&headers.get(key).unwrap().clone(), context, &DefaultVariantMatcher.boxed()) {
             headers.insert(key.clone(), v);
           }
         }
@@ -1524,7 +1526,7 @@ pub fn generate_request(request: &models::Request, mode: &GeneratorTestMode, con
         if let Some(parameter) = parameters.get_mut(key) {
           let mut generated = parameter.clone();
           for (index, val) in parameter.iter().enumerate() {
-            if let Ok(v) = generator.generate_value(val, context) {
+            if let Ok(v) = generator.generate_value(val, context, &DefaultVariantMatcher.boxed()) {
               generated[index] = v;
             }
           }
@@ -1537,8 +1539,8 @@ pub fn generate_request(request: &models::Request, mode: &GeneratorTestMode, con
   let generators = request.build_generators(&GeneratorCategory::BODY);
   if !generators.is_empty() && request.body.is_present() {
     debug!("Applying body generators...");
-    request.body = apply_body_generators(mode, &request.body, request.content_type(),
-                                         context, &generators);
+    request.body = generators_process_body(mode, &request.body, request.content_type(),
+                                         context, &generators, &DefaultVariantMatcher.boxed());
   }
 
   request
@@ -1551,7 +1553,7 @@ pub fn generate_response(response: &models::Response, mode: &GeneratorTestMode, 
   if !generators.is_empty() {
     debug!("Applying status generator...");
     apply_generators(mode, &generators, &mut |_, generator| {
-      if let Ok(v) = generator.generate_value(&response.status, context) {
+      if let Ok(v) = generator.generate_value(&response.status, context, &DefaultVariantMatcher.boxed()) {
         debug!("Generated value for status: {}", v);
         response.status = v;
       }
@@ -1563,7 +1565,7 @@ pub fn generate_response(response: &models::Response, mode: &GeneratorTestMode, 
     apply_generators(mode, &generators, &mut |key, generator| {
       if let Some(ref mut headers) = response.headers {
         if headers.contains_key(key) {
-          match generator.generate_value(&headers.get(key).unwrap().clone(), context) {
+          match generator.generate_value(&headers.get(key).unwrap().clone(), context, &DefaultVariantMatcher.boxed()) {
             Ok(v) => {
               debug!("Generated value for header: {} -> {:?}", key, v);
               headers.insert(key.clone(), v)
@@ -1577,7 +1579,8 @@ pub fn generate_response(response: &models::Response, mode: &GeneratorTestMode, 
   let generators = response.build_generators(&GeneratorCategory::BODY);
   if !generators.is_empty() && response.body.is_present() {
     debug!("Applying body generators...");
-    response.body = apply_body_generators(mode, &response.body, response.content_type(), context, &generators);
+    response.body = generators_process_body(mode, &response.body, response.content_type(),
+                                            context, &generators, &DefaultVariantMatcher.boxed());
   }
   response
 }

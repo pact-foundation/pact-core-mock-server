@@ -21,7 +21,10 @@ pub mod time_utils;
 mod timezone_db;
 pub mod file_utils;
 pub mod xml_utils;
+pub mod matchingrules;
+pub mod generators;
 pub mod path_exp;
+pub mod query_strings;
 
 /// Enum defining the pact specification versions supported by the library
 #[repr(C)]
@@ -377,5 +380,3 @@ impl Display for HttpStatus {
 
 #[cfg(test)]
 mod tests;
-#[cfg(test)]
-mod generator_tests;

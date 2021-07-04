@@ -10,12 +10,12 @@ use sxd_document::dom::*;
 use sxd_document::QName;
 
 use pact_models::bodies::OptionalBody;
+use pact_models::matchingrules::MatchingRule;
 use pact_models::xml_utils::parse_bytes;
 
 use crate::matchers::*;
 use crate::MatchingContext;
 use crate::models::HttpPart;
-use crate::models::matchingrules::*;
 
 use super::DiffConfig;
 use super::Mismatch;
@@ -385,6 +385,8 @@ mod tests {
   use test_env_log::test;
 
   use pact_models::bodies::OptionalBody;
+  use pact_models::matchingrules;
+  use pact_models::matchingrules::MatchingRule;
 
   use crate::DiffConfig;
   use crate::Mismatch;

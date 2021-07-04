@@ -8,14 +8,13 @@ use anyhow::anyhow;
 use maplit::hashmap;
 use serde_json::{json, Value};
 
+use pact_models::{generators, matchingrules, PactSpecification};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
+use pact_models::generators::generators_to_json;
 use pact_models::json_utils::hash_json;
-use pact_models::PactSpecification;
+use pact_models::matchingrules::matchers_to_json;
 
-use crate::models::{generators, matchingrules};
-use crate::models::generators::generators_to_json;
-use crate::models::matchingrules::matchers_to_json;
 use crate::models::v4::{calc_content_type, metadata_to_headers};
 use crate::models::v4::http_parts::body_from_json;
 

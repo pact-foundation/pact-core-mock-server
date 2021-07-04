@@ -17,34 +17,34 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, Context};
 use base64::{decode, encode};
-use hex::FromHex;
 use itertools::{iproduct, Itertools};
 use itertools::EitherOrBoth::{Both, Left, Right};
 use lazy_static::*;
 use log::*;
-use maplit::{hashset, btreemap, hashmap};
+use maplit::{btreemap, hashmap, hashset};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use pact_models::{Consumer, DifferenceType, PactSpecification, Provider};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::*;
-use pact_models::file_utils::{with_read_lock, with_write_lock, with_read_lock_for_open_file};
+use pact_models::file_utils::{with_read_lock, with_read_lock_for_open_file, with_write_lock};
+use pact_models::generators::{Generator, GeneratorCategory, Generators, generators_from_json, generators_to_json};
 use pact_models::json_utils::json_to_string;
+use pact_models::matchingrules::{Category, matchers_from_json, matchers_to_json, MatchingRules};
 use pact_models::provider_states::ProviderState;
+use pact_models::query_strings::parse_query_string;
 use pact_models::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerifier, ResultLevel};
 
-use crate::models::generators::{Generator, GeneratorCategory};
 use crate::models::http_utils::HttpAuth;
-use crate::models::matchingrules::{Category, MatchingRules};
 pub use crate::models::message::Message;
 pub use crate::models::message_pact::MessagePact;
 use crate::models::v4::{AsynchronousMessage, interaction_from_json, SynchronousHttp, V4Interaction, V4Pact};
 use crate::models::v4::http_parts::{HttpRequest, HttpResponse};
 use crate::models::v4::sync_message::SynchronousMessages;
 
-#[macro_use] pub mod matchingrules;
-#[macro_use] pub mod generators;
+pub(crate) mod matchingrules;
+pub(crate) mod generators;
 pub mod http_utils;
 
 /// Version of the library
@@ -63,10 +63,10 @@ pub trait HttpPart {
     fn body(&self) -> &OptionalBody;
 
     /// Returns the matching rules of the HTTP part.
-    fn matching_rules(&self) -> &matchingrules::MatchingRules;
+    fn matching_rules(&self) -> &MatchingRules;
 
     /// Returns the generators of the HTTP part.
-    fn generators(&self) -> &generators::Generators;
+    fn generators(&self) -> &Generators;
 
     /// Lookup up the content type for the part
     fn lookup_content_type(&self) -> Option<String>;
@@ -163,9 +163,9 @@ pub struct Request {
     /// Request body
     pub body: OptionalBody,
     /// Request matching rules
-    pub matching_rules: matchingrules::MatchingRules,
+    pub matching_rules: MatchingRules,
     /// Request generators
-    pub generators: generators::Generators
+    pub generators: Generators
 }
 
 impl HttpPart for Request {
@@ -184,11 +184,11 @@ impl HttpPart for Request {
       &self.body
   }
 
-  fn matching_rules(&self) -> &matchingrules::MatchingRules {
+  fn matching_rules(&self) -> &MatchingRules {
       &self.matching_rules
   }
 
-  fn generators(&self) -> &generators::Generators {
+  fn generators(&self) -> &Generators {
       &self.generators
     }
 
@@ -248,8 +248,8 @@ impl Default for Request {
       query: None,
       headers: None,
       body: OptionalBody::Missing,
-      matching_rules: matchingrules::MatchingRules::default(),
-      generators: generators::Generators::default()
+      matching_rules: MatchingRules::default(),
+      generators: Generators::default()
     }
   }
 }
@@ -421,8 +421,8 @@ impl Request {
             query: query_val,
             headers: headers.clone(),
             body: body_from_json(request_json, "body", &headers),
-            matching_rules: matchingrules::matchers_from_json(request_json, &Some(s!("requestMatchingRules"))),
-            generators: generators::generators_from_json(request_json)
+            matching_rules: matchers_from_json(request_json, &Some(s!("requestMatchingRules"))),
+            generators: generators_from_json(request_json)
         }
     }
 
@@ -460,11 +460,11 @@ impl Request {
               OptionalBody::Null => { map.insert(s!("body"), Value::Null); }
             }
             if self.matching_rules.is_not_empty() {
-                map.insert(s!("matchingRules"), matchingrules::matchers_to_json(
+                map.insert(s!("matchingRules"), matchers_to_json(
                 &self.matching_rules.clone(), spec_version));
             }
             if self.generators.is_not_empty() {
-              map.insert(s!("generators"), generators::generators_to_json(
+              map.insert(s!("generators"), generators_to_json(
                 &self.generators.clone(), spec_version));
             }
         }
@@ -529,9 +529,9 @@ pub struct Response {
     /// Response body
     pub body: OptionalBody,
     /// Response matching rules
-    pub matching_rules: matchingrules::MatchingRules,
+    pub matching_rules: MatchingRules,
     /// Response generators
-    pub generators: generators::Generators
+    pub generators: Generators
 }
 
 impl Response {
@@ -547,8 +547,8 @@ impl Response {
             status: status_val,
             headers: headers.clone(),
             body: body_from_json(response, "body", &headers),
-            matching_rules:  matchingrules::matchers_from_json(response, &Some(s!("responseMatchingRules"))),
-            generators:  generators::generators_from_json(response)
+            matching_rules:  matchers_from_json(response, &Some(s!("responseMatchingRules"))),
+            generators:  generators_from_json(response)
         }
     }
 
@@ -591,11 +591,11 @@ impl Response {
           OptionalBody::Null => { map.insert(s!("body"), Value::Null); }
         }
         if self.matching_rules.is_not_empty() {
-          map.insert(s!("matchingRules"), matchingrules::matchers_to_json(
+          map.insert(s!("matchingRules"), matchers_to_json(
             &self.matching_rules.clone(), spec_version));
         }
         if self.generators.is_not_empty() {
-          map.insert(s!("generators"), generators::generators_to_json(
+          map.insert(s!("generators"), generators_to_json(
             &self.generators.clone(), spec_version));
         }
       }
@@ -648,11 +648,11 @@ impl HttpPart for Response {
       &self.body
   }
 
-  fn matching_rules(&self) -> &matchingrules::MatchingRules {
+  fn matching_rules(&self) -> &MatchingRules {
       &self.matching_rules
   }
 
-  fn generators(&self) -> &generators::Generators {
+  fn generators(&self) -> &Generators {
       &self.generators
     }
 
@@ -701,8 +701,8 @@ impl Default for Response {
       status: 200,
       headers: None,
       body: OptionalBody::Missing,
-      matching_rules: matchingrules::MatchingRules::default(),
-      generators: generators::Generators::default()
+      matching_rules: MatchingRules::default(),
+      generators: Generators::default()
     }
   }
 }
@@ -1590,60 +1590,6 @@ pub(crate) fn verify_metadata(metadata: &Value) -> Vec<PactFileVerificationResul
   results
 }
 
-fn decode_query(query: &str) -> Result<String, String> {
-  let mut chars = query.chars();
-  let mut ch = chars.next();
-  let mut buffer = vec![];
-
-  while ch.is_some() {
-    let c = ch.unwrap();
-    trace!("ch = '{:?}'", ch);
-    if c == '%' {
-      let c1 = chars.next();
-      let c2 = chars.next();
-      match (c1, c2) {
-        (Some(v1), Some(v2)) => {
-          let mut s = String::new();
-          s.push(v1);
-          s.push(v2);
-          let decoded: Result<Vec<u8>, _> = FromHex::from_hex(s.into_bytes());
-          match decoded {
-            Ok(n) => {
-              trace!("decoded = '{:?}'", n);
-              buffer.extend_from_slice(&n);
-            },
-            Err(err) => {
-              error!("Failed to decode '%{}{}' to as HEX - {}", v1, v2, err);
-              buffer.push('%' as u8);
-              buffer.push(v1 as u8);
-              buffer.push(v2 as u8);
-            }
-          }
-        },
-        (Some(v1), None) => {
-          buffer.push('%' as u8);
-          buffer.push(v1 as u8);
-        },
-        _ => buffer.push('%' as u8)
-      }
-    } else if c == '+' {
-      buffer.push(' ' as u8);
-    } else {
-      buffer.push(c as u8);
-    }
-
-    ch = chars.next();
-  }
-
-  match str::from_utf8(&buffer) {
-    Ok(s) => Ok(s.to_owned()),
-    Err(err) => {
-      error!("Failed to decode '{}' to UTF-8 - {}", query, err);
-      Err(format!("Failed to decode '{}' to UTF-8 - {}", query, err))
-    }
-  }
-}
-
 fn encode_query(query: &str) -> String {
   query.chars().map(|ch| {
     match ch {
@@ -1664,40 +1610,6 @@ fn encode_query(query: &str) -> String {
           .collect()
     }
   }).collect()
-}
-
-/// Parses a query string into an optional map. The query parameter name will be mapped to
-/// a list of values. Where the query parameter is repeated, the order of the values will be
-/// preserved.
-pub fn parse_query_string(query: &str) -> Option<HashMap<String, Vec<String>>> {
-  if !query.is_empty() {
-    Some(query.split('&').map(|kv| {
-      trace!("kv = '{}'", kv);
-      if kv.is_empty() {
-        vec![]
-      } else if kv.contains('=') {
-        kv.splitn(2, '=').collect::<Vec<&str>>()
-      } else {
-        vec![kv]
-      }
-    }).fold(HashMap::new(), |mut map, name_value| {
-      trace!("name_value = '{:?}'", name_value);
-      if !name_value.is_empty() {
-        let name = decode_query(name_value[0])
-          .unwrap_or_else(|_| name_value[0].to_owned());
-        let value = if name_value.len() > 1 {
-          decode_query(name_value[1]).unwrap_or_else(|_| name_value[1].to_owned())
-        } else {
-          String::default()
-        };
-        trace!("decoded: '{}' => '{}'", name, value);
-        map.entry(name).or_insert_with(|| vec![]).push(value);
-      }
-      map
-    }))
-  } else {
-    None
-  }
 }
 
 /// Converts the JSON struct into an HTTP Interaction

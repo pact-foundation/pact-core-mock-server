@@ -10,10 +10,11 @@ use log::*;
 use onig::Regex;
 use serde_json::Value;
 
+use pact_models::matchingrules::{MatchingRule, RuleLogic};
+
 use crate::{MatchingContext, Mismatch};
 use crate::matchers::{match_values, Matches};
 use crate::models::HttpPart;
-use crate::models::matchingrules::{MatchingRule, RuleLogic};
 
 static ROOT: &str = "$";
 
@@ -410,10 +411,11 @@ mod tests {
   use maplit::*;
 
   use pact_models::bodies::OptionalBody;
+  use pact_models::matchingrules;
+  use pact_models::matchingrules::MatchingRule;
 
   use crate::{DiffConfig, MatchingContext, Mismatch};
   use crate::binary_utils::match_mime_multipart;
-  use crate::models::matchingrules::*;
   use crate::models::Request;
 
   fn mismatch(m: &Mismatch) -> &str {

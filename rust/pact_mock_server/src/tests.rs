@@ -3,11 +3,11 @@ use expectest::prelude::*;
 use maplit::*;
 use reqwest::header::ACCEPT;
 
-use pact_matching::matchingrules;
 use pact_matching::Mismatch;
-use pact_matching::models::{Interaction, Request, RequestResponseInteraction, Response, RequestResponsePact};
-use pact_matching::models::matchingrules::*;
+use pact_matching::models::{Interaction, Request, RequestResponseInteraction, RequestResponsePact, Response};
 use pact_models::bodies::OptionalBody;
+use pact_models::matchingrules;
+use pact_models::matchingrules::MatchingRule;
 
 use crate::matching::{match_request, MatchResult};
 

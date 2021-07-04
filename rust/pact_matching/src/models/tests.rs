@@ -1,10 +1,8 @@
 use std::collections::hash_map::DefaultHasher;
-use std::collections::HashMap;
 use std::env;
 use std::fs::{self, File};
 use std::hash::{Hash, Hasher};
 use std::io;
-use std::str::FromStr;
 
 use expectest::expect;
 use expectest::prelude::*;
@@ -13,12 +11,12 @@ use rand;
 use serde_json::json;
 
 use pact_models::provider_states::*;
-
-use crate::models::matchingrules::{matchers_from_json, MatchingRule};
+use pact_models::matchingrules;
+use pact_models::matchingrules::MatchingRule;
+use pact_models::generators;
 
 use super::*;
 use super::{body_from_json, headers_from_json};
-use super::generators::{Generator, Generators, generators_from_json};
 
 #[test]
 fn request_from_json_defaults_to_get() {
@@ -56,105 +54,6 @@ fn response_from_json_defaults_to_status_200() {
      "#).unwrap();
     let response = Response::from_json(&response_json, &PactSpecification::V1_1);
     assert_eq!(response.status, 200);
-}
-
-#[test]
-fn parse_query_string_test() {
-  let query = "a=b&c=d".to_string();
-  let expected = hashmap!{
-    "a".to_string() => vec!["b".to_string()],
-    "c".to_string() => vec!["d".to_string()]
-  };
-  let result = parse_query_string(&query);
-  expect!(result).to(be_some().value(expected));
-}
-
-#[test]
-fn parse_query_string_handles_empty_string() {
-    let query = "".to_string();
-    let expected = None;
-    let result = parse_query_string(&query);
-    assert_eq!(result, expected);
-}
-
-#[test]
-fn parse_query_string_handles_missing_values() {
-    let query = "a=&c=d".to_string();
-    let mut expected = HashMap::new();
-    expected.insert("a".to_string(), vec!["".to_string()]);
-    expected.insert("c".to_string(), vec!["d".to_string()]);
-    let result = parse_query_string(&query);
-    assert_eq!(result, Some(expected));
-}
-
-#[test]
-fn parse_query_string_handles_equals_in_values() {
-    let query = "a=b&c=d=e=f".to_string();
-    let mut expected = HashMap::new();
-    expected.insert("a".to_string(), vec!["b".to_string()]);
-    expected.insert("c".to_string(), vec!["d=e=f".to_string()]);
-    let result = parse_query_string(&query);
-    assert_eq!(result, Some(expected));
-}
-
-#[test]
-fn parse_query_string_decodes_values() {
-  let query = "a=a%20b%20c".to_string();
-  let expected = hashmap! {
-    "a".to_string() => vec!["a b c".to_string()]
-  };
-  let result = parse_query_string(&query);
-  expect!(result).to(be_some().value(expected));
-}
-
-#[test]
-fn parse_query_string_decodes_non_ascii_values() {
-  let query = "accountNumber=100&anotherValue=%E6%96%87%E4%BB%B6.txt".to_string();
-  let expected = hashmap! {
-    "accountNumber".to_string() => vec!["100".to_string()],
-    "anotherValue".to_string() => vec!["文件.txt".to_string()]
-  };
-  let result = parse_query_string(&query);
-  expect!(result).to(be_some().value(expected));
-}
-
-#[test]
-#[ignore]
-fn quickcheck_parse_query_string() {
-    use quickcheck::{TestResult, quickcheck};
-    use super::decode_query;
-    use itertools::Itertools;
-    fn prop(s: String) -> TestResult {
-        if s.chars().all(|c| c.is_alphanumeric() || c == '+' || c == '&' || c == '%') {
-            let result = match parse_query_string(&s) {
-            Some(map) => {
-                    if map.len() == 1 && !s.contains("=") {
-                        *map.keys().next().unwrap() == decode_query(&s).unwrap()
-                } else {
-                        let reconstructed_query = map.iter().map(|(k, v)| {
-                            v.iter().map(|qv| format!("{}={}", k, qv)).join("&")
-                        }).join("&");
-                        let r = decode_query(&s).unwrap() == reconstructed_query;
-                        // if !r {
-                        //     dbg!(reconstructed_query);
-                        //     dbg!(decode_query(&s) == reconstructed_query);
-                        // }
-                        r
-                    }
-                },
-                None => s.is_empty()
-            };
-
-            // if !result {
-            //     dbg!(s);
-            //     dbg!(decode_query(&s));
-            // }
-            TestResult::from_bool(result)
-        } else {
-            TestResult::discard()
-        }
-    }
-    quickcheck(prop as fn(_) -> _);
 }
 
 #[test]
@@ -1503,109 +1402,6 @@ fn hash_for_response() {
 }
 
 #[test]
-fn matchers_from_json_handles_missing_matchers() {
-    let json : serde_json::Value = serde_json::from_str(r#"
-      {
-          "path": "/",
-          "query": "",
-          "headers": {}
-      }
-     "#).unwrap();
-    let matchers = matchers_from_json(&json, &Some(s!("deprecatedName")));
-    expect!(matchers.rules.iter()).to(be_empty());
-}
-
-#[test]
-fn matchers_from_json_handles_empty_matchers() {
-    let json : serde_json::Value = serde_json::from_str(r#"
-      {
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "matchingRules": {}
-      }
-     "#).unwrap();
-    let matchers = matchers_from_json(&json, &Some(s!("deprecatedName")));
-    expect!(matchers.rules.iter()).to(be_empty());
-}
-
-#[test]
-fn matchers_from_json_handles_matcher_with_no_matching_rules() {
-    let json : serde_json::Value = serde_json::from_str(r#"
-      {
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "matchingRules": {
-            "body": {
-                "$.*.path": {}
-            }
-          }
-      }
-     "#).unwrap();
-    let matchers = matchers_from_json(&json, &Some(s!("deprecatedName")));
-    expect!(matchers).to(be_equal_to(matchingrules!{
-        "body" => {
-            "$.*.path" => [ ]
-        }
-    }));
-}
-
-#[test]
-fn matchers_from_json_loads_matchers_correctly() {
-    let json : serde_json::Value = serde_json::from_str(r#"
-      {
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "matchingRules": {
-            "body": {
-                "$.*.path": {
-                    "matchers": [{
-                        "match": "regex",
-                        "regex": "\\d+"
-                    }]
-                }
-            }
-          }
-      }
-     "#).unwrap();
-    let matchers = matchers_from_json(&json, &Some(s!("deprecatedName")));
-    expect!(matchers).to(be_equal_to(matchingrules!{
-        "body" => {
-            "$.*.path" => [ MatchingRule::Regex(s!("\\d+")) ]
-        }
-    }));
-}
-
-#[test]
-fn matchers_from_json_loads_matchers_from_deprecated_name() {
-    let json : serde_json::Value = serde_json::from_str(r#"
-      {
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "deprecatedName": {
-              "body": {
-                "$.*.path": {
-                    "matchers": [{
-                        "match": "regex",
-                        "regex": "\\d+"
-                    }]
-                }
-              }
-          }
-      }
-     "#).unwrap();
-    let matchers = matchers_from_json(&json, &Some(s!("deprecatedName")));
-    expect!(matchers).to(be_equal_to(matchingrules!{
-        "body" => {
-            "$.*.path" => [ MatchingRule::Regex(s!(r#"\d+"#)) ]
-        }
-    }));
-}
-
-#[test]
 fn write_pact_test_with_matchers() {
     let pact = RequestResponsePact { consumer: Consumer { name: s!("write_pact_test_consumer") },
         provider: Provider { name: s!("write_pact_test_provider") },
@@ -1991,109 +1787,6 @@ fn write_v3_pact_test() {
     "name": "write_pact_test_provider"
   }}
 }}"#, super::PACT_RUST_VERSION.unwrap())));
-}
-
-#[test]
-fn generators_from_json_handles_missing_generators() {
-    let json : serde_json::Value = serde_json::from_str(r#"
-      {
-          "path": "/",
-          "query": "",
-          "headers": {}
-      }
-     "#).unwrap();
-    let generators = generators_from_json(&json);
-    expect!(generators.categories.iter()).to(be_empty());
-}
-
-#[test]
-fn generators_from_json_handles_empty_generators() {
-    let json : serde_json::Value = serde_json::from_str(r#"
-      {
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "generators": {}
-      }
-     "#).unwrap();
-    let generators = generators_from_json(&json);
-    expect!(generators.categories.iter()).to(be_empty());
-}
-
-#[test]
-fn generators_from_json_handles_generator_with_no_rules() {
-    let json : serde_json::Value = serde_json::from_str(r#"
-      {
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "generators": {
-            "body": {
-                "$.*.path": {}
-            }
-          }
-      }
-     "#).unwrap();
-    let generators = generators_from_json(&json);
-    expect!(generators).to(be_equal_to(Generators::default()));
-}
-
-#[test]
-fn generators_from_json_ignores_invalid_generators() {
-    let json : serde_json::Value = serde_json::from_str(r#"
-      {
-          "path": "/",
-          "query": "",
-          "headers": {},
-          "generators": {
-            "body": {
-                "$.*.path": {
-                  "type": "invalid"
-                },
-                "$.invalid": {
-                  "type": 100
-                },
-                "$.other": null
-            },
-            "invalid": {
-                "path": "path"
-            },
-            "more_invalid": 100
-          }
-      }
-     "#).unwrap();
-    let generators = generators_from_json(&json);
-    expect!(generators).to(be_equal_to(Generators::default()));
-}
-
-#[test]
-fn generators_from_json_loads_generators_correctly() {
-    let json : serde_json::Value = serde_json::from_str(r#"
-      {
-        "path": "/",
-        "query": "",
-        "headers": {},
-        "generators": {
-          "body": {
-              "$.*.path": {
-                  "type": "RandomInt",
-                  "min": 1,
-                  "max": 10
-              }
-          },
-          "path": {
-            "type": "RandomString"
-          }
-        }
-      }
-     "#).unwrap();
-    let generators = generators_from_json(&json);
-    expect!(generators).to(be_equal_to(generators!{
-        "BODY" => {
-            "$.*.path" => Generator::RandomInt(1, 10)
-        },
-        "PATH" => { "" => Generator::RandomString(10) }
-    }));
 }
 
 #[test]

@@ -11,10 +11,11 @@ use serde_json::json;
 use pact_models::{Consumer, Provider};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::JSON;
+use pact_models::matchingrules;
+use pact_models::matchingrules::MatchingRule;
 use pact_models::provider_states::ProviderState;
 
 use crate::models::{headers_from_json, Interaction, Pact, PACT_RUST_VERSION, PactSpecification, ReadWritePact, write_pact};
-use crate::models::matchingrules::MatchingRule;
 use crate::models::v4::{AsynchronousMessage, from_json, interaction_from_json, SynchronousHttp, V4InteractionType, V4Pact};
 use crate::models::v4::http_parts::{HttpRequest, HttpResponse};
 use crate::models::v4::http_parts::body_from_json;
