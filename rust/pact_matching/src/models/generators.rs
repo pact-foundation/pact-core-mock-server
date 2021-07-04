@@ -1113,7 +1113,6 @@ pub(crate) fn generate_value_from_context(
 ) -> anyhow::Result<DataValue> {
   let result = if contains_expressions(expression) {
     parse_expression(expression, &MapValueResolver { context: context.clone() })
-      .map(|result| Value::String(result))
   } else {
     context.get(expression).cloned()
       .ok_or(anyhow!("Value '{}' was not found in the provided context", expression))
@@ -1532,26 +1531,27 @@ mod tests2 {
   use crate::models::generators::generate_value_from_context;
 
   #[rstest]
-  #[case("${a}", json!("value"), Some(DataType::STRING), json!("value"))]
-  #[case("${a}", json!("value"), Some(DataType::RAW), json!("value"))]
-  #[case("${a}", json!("value"), None, json!("value"))]
-  #[case("${a}", json!(100), Some(DataType::STRING), json!("100"))]
-  #[case("${a}", json!(100), Some(DataType::RAW), json!("100"))]
-  #[case("${a}", json!(100), Some(DataType::INTEGER), json!(100))]
-  #[case("${a}", json!(100), None, json!("100"))]
-  #[case("/${a}", json!("value"), Some(DataType::STRING), json!("/value"))]
-  #[case("/${a}", json!("value"), Some(DataType::RAW), json!("/value"))]
-  #[case("/${a}", json!("value"), None, json!("/value"))]
-  #[case("/${a}", json!(100), Some(DataType::STRING), json!("/100"))]
-  #[case("/${a}", json!(100), Some(DataType::RAW), json!("/100"))]
-  #[case("/${a}", json!(100), None, json!("/100"))]
-  #[case("a", json!("value"), Some(DataType::STRING), json!("value"))]
-  #[case("a", json!("value"), Some(DataType::RAW), json!("value"))]
-  #[case("a", json!("value"), None, json!("value"))]
-  #[case("a", json!(100), Some(DataType::STRING), json!("100"))]
-  #[case("a", json!(100), Some(DataType::RAW), json!(100))]
-  #[case("a", json!(100), Some(DataType::INTEGER), json!(100))]
-  #[case("a", json!(100), None, json!(100))]
+  //     expression, value,          data_type,               expected
+  #[case("${a}",     json!("value"), Some(DataType::STRING),  json!("value"))]
+  #[case("${a}",     json!("value"), Some(DataType::RAW),     json!("value"))]
+  #[case("${a}",     json!("value"), None,                    json!("value"))]
+  #[case("${a}",     json!(100),     Some(DataType::STRING),  json!("100"))]
+  #[case("${a}",     json!(100),     Some(DataType::RAW),     json!(100))]
+  #[case("${a}",     json!(100),     Some(DataType::INTEGER), json!(100))]
+  #[case("${a}",     json!(100),     None,                    json!(100))]
+  #[case("/${a}",    json!("value"), Some(DataType::STRING),  json!("/value"))]
+  #[case("/${a}",    json!("value"), Some(DataType::RAW),     json!("/value"))]
+  #[case("/${a}",    json!("value"), None,                    json!("/value"))]
+  #[case("/${a}",    json!(100),     Some(DataType::STRING),  json!("/100"))]
+  #[case("/${a}",    json!(100),     Some(DataType::RAW),     json!("/100"))]
+  #[case("/${a}",    json!(100),     None,                    json!("/100"))]
+  #[case("a",        json!("value"), Some(DataType::STRING),  json!("value"))]
+  #[case("a",        json!("value"), Some(DataType::RAW),     json!("value"))]
+  #[case("a",        json!("value"), None,                    json!("value"))]
+  #[case("a",        json!(100),     Some(DataType::STRING),  json!("100"))]
+  #[case("a",        json!(100),     Some(DataType::RAW),     json!(100))]
+  #[case("a",        json!(100),     Some(DataType::INTEGER), json!(100))]
+  #[case("a",        json!(100),     None,                    json!(100))]
   fn generate_value_from_context_test(#[case] expression: &str, #[case] value: Value, #[case] data_type: Option<DataType>, #[case] expected: Value) {
     let context = hashmap!{ "a" => value };
     let result = generate_value_from_context(expression, &context, &data_type);

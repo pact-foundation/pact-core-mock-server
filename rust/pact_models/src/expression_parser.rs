@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::json_utils::json_to_string;
+use itertools::Itertools;
 
 /// Data type to cast to for provider state context values
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone, Copy, Hash)]
@@ -344,32 +345,44 @@ pub fn contains_expressions(value: &str) -> bool {
 }
 
 /// Parse the expressions and return the generated value
-pub fn parse_expression(value: &str, value_resolver: &dyn ValueResolver<String>) -> anyhow::Result<String> {
+pub fn parse_expression(value: &str, value_resolver: &dyn ValueResolver<Value>) -> anyhow::Result<Value> {
   if contains_expressions(value) {
     replace_expressions(value, value_resolver)
   } else {
-    Ok(value.to_string())
+    Ok(json!(value))
   }
 }
 
-fn replace_expressions(value: &str, value_resolver: &dyn ValueResolver<String>) -> anyhow::Result<String> {
-  let mut result = String::default();
+fn replace_expressions(value: &str, value_resolver: &dyn ValueResolver<Value>) -> anyhow::Result<Value> {
+  let mut result = vec![];
   let mut buffer = value;
   let mut position = buffer.find("${");
   while let Some(index) = position {
-    result.push_str(&buffer[0..index]);
+    if index > 0 {
+      result.push(json!(&buffer[0..index]));
+    }
     let end_position = buffer.find('}')
       .ok_or(anyhow!("Missing closing brace in expression string '{}'", value))?;
     if end_position - index > 2 {
-      if let Some(lookup) = value_resolver.resolve_value(&buffer[(index + 2)..end_position]) {
-        result.push_str(&*lookup);
+      let lookup_key = &buffer[(index + 2)..end_position];
+      if let Some(lookup) = value_resolver.resolve_value(lookup_key) {
+        result.push(lookup);
+      } else {
+        return Err(anyhow!("No value for '{}' found", lookup_key));
       }
     }
     buffer = &buffer[(end_position + 1)..];
     position = buffer.find("${");
   }
-  result.push_str(buffer);
-  Ok(result)
+  if !buffer.is_empty() {
+    result.push(json!(buffer));
+  }
+
+  if result.len() == 1 {
+    Ok(result.first().unwrap().clone())
+  } else {
+    Ok(json!(result.iter().map(|val| json_to_string(val)).join("")))
+  }
 }
 
 #[cfg(test)]
@@ -381,37 +394,38 @@ mod tests {
 
   struct NullResolver;
 
-  impl ValueResolver<String> for NullResolver {
-    fn resolve_value(&self, _: &str) -> Option<String> {
+  impl ValueResolver<Value> for NullResolver {
+    fn resolve_value(&self, _: &str) -> Option<Value> {
       None
     }
   }
 
   #[test]
   fn does_not_modify_strings_with_no_expressions() {
-    expect!(parse_expression(&"this is not an expression".to_string(), &NullResolver)).to(be_ok().value("this is not an expression".to_string()));
-    expect!(parse_expression(&"".to_string(), &NullResolver)).to(be_ok().value("".to_string()));
-    expect!(parse_expression(&"looks like a $".to_string(), &NullResolver)).to(be_ok().value("looks like a $".to_string()));
+    expect!(parse_expression("this is not an expression", &NullResolver)).to(be_ok().value(json!("this is not an expression")));
+    expect!(parse_expression("", &NullResolver)).to(be_ok().value("".to_string()));
+    expect!(parse_expression("looks like a $", &NullResolver)).to(be_ok().value("looks like a $".to_string()));
   }
 
   #[test]
   fn parse_expression_with_an_expression() {
     let resolver = MapValueResolver { context: hashmap!{ "a" => json!("A") } };
-    expect!(parse_expression(&"${a}".to_string(), &resolver)).to(be_ok().value("A".to_string()));
+    expect!(parse_expression("${a}", &resolver)).to(be_ok().value("A".to_string()));
+    expect!(parse_expression("${b}", &resolver)).to(be_err());
   }
 
   #[test]
   fn contains_expressions_test() {
-    expect!(contains_expressions(&"${a}".to_string())).to(be_true());
-    expect!(contains_expressions(&"$a".to_string())).to(be_false());
-    expect!(contains_expressions(&"".to_string())).to(be_false());
-    expect!(contains_expressions(&"this is not an expression".to_string())).to(be_false());
-    expect!(contains_expressions(&"this ${is} an expression".to_string())).to(be_true());
+    expect!(contains_expressions("${a}")).to(be_true());
+    expect!(contains_expressions("$a")).to(be_false());
+    expect!(contains_expressions("")).to(be_false());
+    expect!(contains_expressions("this is not an expression")).to(be_false());
+    expect!(contains_expressions("this ${is} an expression")).to(be_true());
   }
 
   #[test]
   fn returns_an_error_on_unterminated_expressions() {
-    let result = parse_expression(&"invalid ${a expression".to_string(), &NullResolver);
+    let result = parse_expression("invalid ${a expression", &NullResolver);
     expect!(result.as_ref()).to(be_err());
     expect!(result.unwrap_err().to_string())
       .to(be_equal_to("Missing closing brace in expression string \'invalid ${a expression\'".to_string()));
@@ -419,19 +433,31 @@ mod tests {
 
   #[test]
   fn handles_empty_expression() {
-    expect!(parse_expression(&"${}".to_string(), &NullResolver)).to(be_ok().value("".to_string()));
-    expect!(parse_expression(&"${} ${} ${}".to_string(), &NullResolver)).to(be_ok().value("  ".to_string()));
+    expect!(parse_expression("${}", &NullResolver)).to(be_ok().value("".to_string()));
+    expect!(parse_expression("${} ${} ${}", &NullResolver)).to(be_ok().value("  ".to_string()));
   }
 
   #[test]
   fn replaces_the_expression_with_resolved_value() {
     let resolver = MapValueResolver { context: hashmap!{ "value" => json!("[value]") } };
-    expect!(parse_expression(&"${value}".to_string(), &resolver)).to(be_ok().value("[value]".to_string()));
-    expect!(parse_expression(&" ${value}".to_string(), &resolver)).to(be_ok().value(" [value]".to_string()));
-    expect!(parse_expression(&"${value} ".to_string(), &resolver)).to(be_ok().value("[value] ".to_string()));
-    expect!(parse_expression(&" ${value} ".to_string(), &resolver)).to(be_ok().value(" [value] ".to_string()));
-    expect!(parse_expression(&" ${value} ${value} ".to_string(), &resolver)).to(be_ok().value(" [value] [value] ".to_string()));
-    expect!(parse_expression(&"$${value}}".to_string(), &resolver)).to(be_ok().value("$[value]}".to_string()));
+    expect!(parse_expression("${value}", &resolver)).to(be_ok().value("[value]".to_string()));
+    expect!(parse_expression(" ${value}", &resolver)).to(be_ok().value(" [value]".to_string()));
+    expect!(parse_expression("${value} ", &resolver)).to(be_ok().value("[value] ".to_string()));
+    expect!(parse_expression(" ${value} ", &resolver)).to(be_ok().value(" [value] ".to_string()));
+    expect!(parse_expression(" ${value} ${value} ", &resolver)).to(be_ok().value(" [value] [value] ".to_string()));
+    expect!(parse_expression("$${value}}", &resolver)).to(be_ok().value("$[value]}".to_string()));
+  }
+
+  #[test]
+  fn keeps_the_type_of_simple_resolved_expressions() {
+    let resolver = MapValueResolver { context: hashmap!{
+      "value1" => json!("[value]"),
+      "value2" => json!(100)
+    } };
+    expect!(parse_expression("${value1}", &resolver)).to(be_ok().value("[value]".to_string()));
+    expect!(parse_expression("${value2}", &resolver)).to(be_ok().value(json!(100)));
+    expect!(parse_expression("${value2} ", &resolver)).to(be_ok().value(json!("100 ")));
+    expect!(parse_expression("${value1}/${value2}", &resolver)).to(be_ok().value(json!("[value]/100")));
   }
 
   #[test]
