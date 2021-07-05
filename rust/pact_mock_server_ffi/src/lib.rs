@@ -43,6 +43,7 @@
 
 #![warn(missing_docs)]
 
+use serde_json::Value;
 use std::{ptr, str};
 use std::any::Any;
 use std::collections::BTreeMap;
@@ -1294,7 +1295,7 @@ pub extern fn message_with_contents(message: handles::MessageHandle, content_typ
 pub extern fn message_with_metadata(message: handles::MessageHandle, key: *const c_char, value: *const c_char) {
   if let Some(key) = convert_cstr("key", key) {
     let value = convert_cstr("value", value).unwrap_or_default();
-    message.with_message(&|_, inner| inner.metadata.insert(key.to_string(), value.to_string()));
+    message.with_message(&|_, inner| inner.metadata.insert(key.to_string(), Value::String(value.to_string())));
   }
 }
 

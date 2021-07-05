@@ -47,7 +47,7 @@ pub struct Message {
 
     /// Metadata associated with this message.
     #[serde(default)]
-    pub metadata: HashMap<String, String>,
+    pub metadata: HashMap<String, Value>,
 
     /// Matching rules
     #[serde(rename = "matchingRules")]
@@ -125,7 +125,7 @@ impl Interaction for Message {
       contents: MessageContents {
         contents: self.contents.clone(),
         metadata: self.metadata.iter()
-          .map(|(k, v)| (k.clone(), Value::String(v.clone())))
+          .map(|(k, v)| (k.clone(), v.clone()))
           .collect(),
         matching_rules: self.matching_rules.rename("body", "content"),
         generators: self.generators.clone()
@@ -185,10 +185,7 @@ impl Message {
                 let provider_states = ProviderState::from_json(json);
                 let metadata = match json.get("metaData").or(json.get("metadata")) {
                   Some(&Value::Object(ref v)) => v.iter().map(|(k, v)| {
-                      (k.clone(), match v {
-                          &Value::String(ref s) => s.clone(),
-                          _ => v.to_string()
-                      })
+                      (k.clone(), v.clone())
                   }).collect(),
                   _ => hashmap!{},
                 };
@@ -269,7 +266,7 @@ impl Message {
         let key = k.to_ascii_lowercase();
         key == "contenttype" || key == "content-type"
       }) {
-        Some((_, v)) => ContentType::parse(v.as_str()).ok(),
+        Some((_, v)) => ContentType::parse(v.as_str().unwrap_or_default()).ok(),
         None => self.detect_content_type()
       }
     }
@@ -301,7 +298,7 @@ impl HttpPart for Message {
     self.metadata.iter().find(|(k, _)| {
       let key = k.to_ascii_lowercase();
       key == "contenttype" || key == "content-type"
-    }).map(|(_, v)| v.clone())
+    }).map(|(_, v)| v[0].as_str().unwrap_or_default().to_string())
   }
 }
 
@@ -445,7 +442,7 @@ mod tests {
     #[test]
     fn message_mimetype_is_based_on_the_metadata() {
       let message = Message {
-        metadata: hashmap!{ s!("contentType") => s!("text/plain") },
+        metadata: hashmap!{ s!("contentType") => Value::String("text/plain".to_string()) },
         .. Message::default()
       };
       expect!(message.message_content_type().unwrap_or_default().to_string()).to(be_equal_to("text/plain"));

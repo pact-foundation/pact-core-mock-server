@@ -554,7 +554,7 @@ impl Interaction for AsynchronousMessage {
       description: self.description.clone(),
       provider_states: self.provider_states.clone(),
       contents: self.contents.contents.clone(),
-      metadata: self.contents.metadata.iter().map(|(k, v)| (k.clone(), json_to_string(v))).collect(),
+      metadata: self.contents.metadata.clone(),
       matching_rules: self.contents.matching_rules.rename("content", "body"),
       generators: self.contents.generators.clone()
     })

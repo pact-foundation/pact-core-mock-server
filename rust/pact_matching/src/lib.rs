@@ -1403,13 +1403,13 @@ pub fn match_message_metadata(
     expected.contents.metadata
   } else {
     expected.as_message().unwrap().metadata.iter()
-      .map(|(k, v)| (k.clone(), Value::String(v.clone()))).collect()
+      .map(|(k, v)| (k.clone(), v.clone())).collect()
   };
   let actual_metadata = if let Some(actual) = actual.as_v4_async_message() {
     actual.contents.metadata.clone()
   } else {
     actual.as_message().unwrap().metadata.iter()
-      .map(|(k, v)| (k.clone(), Value::String(v.clone()))).collect()
+      .map(|(k, v)| (k.clone(), v.clone())).collect()
   };
   debug!("Matching message metadata. Expected '{:?}', Actual '{:?}'", expected_metadata, actual_metadata);
 

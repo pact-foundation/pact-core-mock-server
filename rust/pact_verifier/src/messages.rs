@@ -11,7 +11,6 @@ use pact_matching::models::{Interaction, Request, Response};
 use pact_matching::models::HttpPart;
 use pact_matching::models::message::Message;
 use pact_models::bodies::OptionalBody;
-use serde::{Deserialize, Serialize};
 
 use crate::{MismatchResult, ProviderInfo, VerificationOptions};
 use crate::callback_executors::RequestFilterExecutor;
@@ -75,8 +74,7 @@ pub fn display_message_result(
     Ok(_) => {
       display_result(Green.paint("OK"),
         interaction.metadata.iter()
-          .map(|(k, v)| (k.clone(), v.clone(), Green.paint("OK"))).collect()
-      );
+          .map(|(k, v)| (k.clone(), serde_json::to_string(&v.clone()).unwrap_or_default(), Green.paint("OK"))).collect());
     },
     Err(ref err) => match *err {
       MismatchResult::Error(ref err_des, _) => {
@@ -84,7 +82,7 @@ pub fn display_message_result(
       },
       MismatchResult::Mismatches { ref mismatches, .. } => {
         let metadata_results = interaction.metadata.iter().map(|(k, v)| {
-          (k.clone(), v.clone(), if mismatches.iter().any(|m| {
+          (k.clone(), serde_json::to_string(&v.clone()).unwrap_or_default(), if mismatches.iter().any(|m| {
             match *m {
               Mismatch::MetadataMismatch { ref key, .. } => k == key,
               _ => false
@@ -113,16 +111,16 @@ fn display_result(body_result: ANSIGenericString<str>, metadata_result: Vec<(Str
   if !metadata_result.is_empty() {
     println!("      includes metadata");
     for (key, value, result) in metadata_result {
-      println!("        \"{}\" with value \"{}\" ({})", Style::new().bold().paint(key),
+      println!("        \"{}\" with value {} ({})", Style::new().bold().paint(key),
         Style::new().bold().paint(value), result);
     }
   }
   println!("      has a matching body ({})", body_result);
 }
 
-fn extract_metadata(actual_response: &Response) -> HashMap<String, String> {
+fn extract_metadata(actual_response: &Response) -> HashMap<String, Value> {
   let mut default = hashmap!{
-    "contentType".to_string() => actual_response.lookup_content_type().unwrap_or_default(),
+    "contentType".to_string() => Value::String(actual_response.lookup_content_type().unwrap_or_default()),
   };
 
   actual_response.headers.clone().unwrap_or_default().iter().for_each(|(k,v)| {
@@ -133,7 +131,7 @@ fn extract_metadata(actual_response: &Response) -> HashMap<String, String> {
       let decoded = base64::decode(&json.as_str()).unwrap_or_default();
       log::trace!("have base64 decoded headers: {:?}", decoded);
 
-      let mut metadata: HashMap<String, String> = serde_json::from_slice(&decoded).unwrap_or_default();
+      let metadata: HashMap<String, Value> = serde_json::from_slice(&decoded).unwrap_or_default();
       log::trace!("have JSON metadata from headers: {:?}", metadata);
 
       for (k, v) in metadata {
