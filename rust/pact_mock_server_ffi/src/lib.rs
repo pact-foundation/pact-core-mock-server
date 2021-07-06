@@ -52,7 +52,7 @@ use std::ffi::CString;
 use std::panic::catch_unwind;
 use std::path::PathBuf;
 use std::ptr::null_mut;
-use std::str::from_utf8;
+use std::str::{from_utf8, FromStr};
 
 use bytes::Bytes;
 use chrono::Local;
@@ -131,6 +131,57 @@ pub unsafe extern fn init(log_env_var: *const c_char) {
   let env = env_logger::Env::new().filter(log_env_var);
   let mut builder = Builder::from_env(env);
   builder.try_init().unwrap_or(());
+}
+
+/// Initialises logging, and sets the log level explicitly.
+///
+/// # Safety
+///
+/// Exported functions are inherently unsafe.
+#[no_mangle]
+pub unsafe extern "C" fn init_with_log_level(level: *const c_char) {
+  let mut builder = Builder::from_default_env();
+  let log_level = log_level_from_c_char(level);
+
+  builder.filter_level(log_level.to_level_filter());
+  builder.try_init().unwrap_or(());
+}
+
+/// Log using the shared core logging facility.
+///
+/// This is useful for callers to have a single set of logs.
+///
+/// * `source` - String. The source of the log, such as the class or caller framework to
+///                      disambiguate log lines from the rust logging (e.g. pact_go)
+/// * `log_level` - String. One of TRACE, DEBUG, INFO, WARN, ERROR
+/// * `message` - Message to log
+///
+/// Exported functions are inherently unsafe.
+#[no_mangle]
+pub unsafe extern "C" fn log_message(source: *const c_char, log_level: *const c_char, message: *const c_char) {
+  let target = convert_cstr("target", source).unwrap_or("client");
+
+  if !message.is_null() {
+    match convert_cstr("message", message) {
+      Some(message) => log!(
+        target: target,
+        log_level_from_c_char(log_level),
+        "{}",
+        message
+      ),
+      None => (),
+    }
+  }
+}
+
+unsafe fn log_level_from_c_char(log_level: *const c_char) -> log::Level {
+  if !log_level.is_null() {
+    let level = convert_cstr("log_level", log_level).unwrap_or("INFO");
+
+    log::Level::from_str(level).unwrap_or(log::Level::Info)
+  } else {
+    log::Level::Info
+  }
 }
 
 /// External interface to create a mock server. A pointer to the pact JSON as a C string is passed in,
