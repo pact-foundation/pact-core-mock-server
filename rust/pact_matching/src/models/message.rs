@@ -11,6 +11,7 @@ use maplit::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
+use pact_models::json_utils::json_to_string;
 use pact_models::{generators, PactSpecification};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
@@ -47,7 +48,7 @@ pub struct Message {
 
     /// Metadata associated with this message.
     #[serde(default)]
-    pub metadata: HashMap<String, String>,
+    pub metadata: HashMap<String, Value>,
 
     /// Matching rules
     #[serde(rename = "matchingRules")]
@@ -125,7 +126,7 @@ impl Interaction for Message {
       contents: MessageContents {
         contents: self.contents.clone(),
         metadata: self.metadata.iter()
-          .map(|(k, v)| (k.clone(), Value::String(v.clone())))
+          .map(|(k, v)| (k.clone(), v.clone()))
           .collect(),
         matching_rules: self.matching_rules.rename("body", "content"),
         generators: self.generators.clone()
@@ -183,14 +184,11 @@ impl Message {
                     None => format!("Message {}", index)
                 };
                 let provider_states = ProviderState::from_json(json);
-                let metadata = match json.get("metaData") {
-                    Some(&Value::Object(ref v)) => v.iter().map(|(k, v)| {
-                        (k.clone(), match v {
-                            &Value::String(ref s) => s.clone(),
-                            _ => v.to_string()
-                        })
-                    }).collect(),
-                    _ => hashmap!{}
+                let metadata = match json.get("metaData").or(json.get("metadata")) {
+                  Some(&Value::Object(ref v)) => v.iter().map(|(k, v)| {
+                      (k.clone(), v.clone())
+                  }).collect(),
+                  _ => hashmap!{},
                 };
                 Ok(Message {
                   id: None,
@@ -269,7 +267,7 @@ impl Message {
         let key = k.to_ascii_lowercase();
         key == "contenttype" || key == "content-type"
       }) {
-        Some((_, v)) => ContentType::parse(v.as_str()).ok(),
+        Some((_, v)) => ContentType::parse(json_to_string(&v).as_str()).ok(),
         None => self.detect_content_type()
       }
     }
@@ -301,7 +299,7 @@ impl HttpPart for Message {
     self.metadata.iter().find(|(k, _)| {
       let key = k.to_ascii_lowercase();
       key == "contenttype" || key == "content-type"
-    }).map(|(_, v)| v.clone())
+    }).map(|(_, v)| json_to_string(&v[0]))
   }
 }
 
@@ -445,7 +443,7 @@ mod tests {
     #[test]
     fn message_mimetype_is_based_on_the_metadata() {
       let message = Message {
-        metadata: hashmap!{ s!("contentType") => s!("text/plain") },
+        metadata: hashmap!{ s!("contentType") => Value::String("text/plain".to_string()) },
         .. Message::default()
       };
       expect!(message.message_content_type().unwrap_or_default().to_string()).to(be_equal_to("text/plain"));

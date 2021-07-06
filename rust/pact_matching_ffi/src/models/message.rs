@@ -103,7 +103,7 @@ ffi_fn! {
 
         // Populate the Message metadata.
         let mut metadata = HashMap::new();
-        metadata.insert(String::from("contentType"), content_type.to_string());
+        metadata.insert(String::from("contentType"), JsonValue::String(content_type.to_string()));
 
         // Populate the OptionalBody with our content and content type.
         let contents = OptionalBody::Present(body.into(), Some(content_type));
@@ -358,7 +358,7 @@ ffi_fn! {
         let message = as_ref!(message);
         let key = safe_str!(key);
         let value = message.metadata.get(key).ok_or(anyhow::anyhow!("invalid metadata key"))?;
-        let value_ptr = string::to_c(value)?;
+        let value_ptr = string::to_c(value.as_str().unwrap_or_default())?;
         value_ptr as *const c_char
     } {
         ptr::null_to::<c_char>()
@@ -387,7 +387,7 @@ ffi_fn! {
         let key = safe_str!(key);
         let value = safe_str!(value);
 
-        match message.metadata.insert(key.to_string(), value.to_string()) {
+        match message.metadata.insert(key.to_string(), JsonValue::String(value.to_string())) {
             None => HashMapInsertStatus::SuccessNew as c_int,
             Some(_) => HashMapInsertStatus::SuccessOverwrite as c_int,
         }
@@ -446,7 +446,7 @@ ffi_fn! {
             .metadata
             .get_key_value(key)
             .ok_or(anyhow::anyhow!("iter provided invalid metadata key"))?;
-        let pair = MessageMetadataPair::new(key, value)?;
+        let pair = MessageMetadataPair::new(key, value.as_str().unwrap_or_default())?;
         ptr::raw_to(pair)
     } {
         ptr::null_mut_to::<MessageMetadataPair>()

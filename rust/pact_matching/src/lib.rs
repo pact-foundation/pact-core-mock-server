@@ -354,6 +354,7 @@ use pact_models::content_types::ContentType;
 use pact_models::generators::{apply_generators, GenerateValue, GeneratorCategory, GeneratorTestMode, VariantMatcher};
 use pact_models::matchingrules::{calc_path_weight, Category, MatchingRule, MatchingRuleCategory, path_length, RuleList};
 use pact_models::PactSpecification;
+use pact_models::json_utils::json_to_string;
 
 use crate::headers::{match_header_value, match_headers};
 use crate::matchers::*;
@@ -1403,14 +1404,16 @@ pub fn match_message_metadata(
     expected.contents.metadata
   } else {
     expected.as_message().unwrap().metadata.iter()
-      .map(|(k, v)| (k.clone(), Value::String(v.clone()))).collect()
+      .map(|(k, v)| (k.clone(), v.clone())).collect()
   };
   let actual_metadata = if let Some(actual) = actual.as_v4_async_message() {
     actual.contents.metadata.clone()
   } else {
     actual.as_message().unwrap().metadata.iter()
-      .map(|(k, v)| (k.clone(), Value::String(v.clone()))).collect()
+      .map(|(k, v)| (k.clone(), v.clone())).collect()
   };
+  debug!("Matching message metadata. Expected '{:?}', Actual '{:?}'", expected_metadata, actual_metadata);
+
   if !expected_metadata.is_empty() || context.config == DiffConfig::NoUnexpectedKeys {
     for (key, value) in &expected_metadata {
       match actual_metadata.get(key) {
@@ -1420,7 +1423,7 @@ pub fn match_message_metadata(
         },
         None => {
           result.insert(key.clone(), vec![Mismatch::MetadataMismatch { key: key.clone(),
-            expected: value.as_str().unwrap_or_default().to_string(),
+            expected: json_to_string(&value),
             actual: "".to_string(),
             mismatch: format!("Expected message metadata '{}' but was missing", key) }]);
         }

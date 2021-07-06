@@ -176,6 +176,8 @@ pub async fn make_provider_request<F: RequestFilterExecutor>(
     .await
     .map_err(|err| ProviderClientError::ResponseError(err.to_string()))?;
 
+  debug!("response from call to provider = {:?}", response);
+
   Ok(response)
 }
 

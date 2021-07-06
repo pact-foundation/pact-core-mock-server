@@ -554,7 +554,7 @@ impl Interaction for AsynchronousMessage {
       description: self.description.clone(),
       provider_states: self.provider_states.clone(),
       contents: self.contents.contents.clone(),
-      metadata: self.contents.metadata.iter().map(|(k, v)| (k.clone(), json_to_string(v))).collect(),
+      metadata: self.contents.metadata.clone(),
       matching_rules: self.contents.matching_rules.rename("content", "body"),
       generators: self.contents.generators.clone()
     })
@@ -699,7 +699,7 @@ impl HttpPart for AsynchronousMessage {
     self.contents.metadata.iter().find(|(k, _)| {
       let key = k.to_ascii_lowercase();
       key == "contenttype" || key == "content-type"
-    }).map(|(_, v)| v.as_str().unwrap_or_default().to_string())
+    }).map(|(_, v)| json_to_string(v))
   }
 }
 
