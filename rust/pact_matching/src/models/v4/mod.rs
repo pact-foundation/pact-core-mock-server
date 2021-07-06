@@ -699,7 +699,7 @@ impl HttpPart for AsynchronousMessage {
     self.contents.metadata.iter().find(|(k, _)| {
       let key = k.to_ascii_lowercase();
       key == "contenttype" || key == "content-type"
-    }).map(|(_, v)| v.as_str().unwrap_or_default().to_string())
+    }).map(|(_, v)| json_to_string(v))
   }
 }
 

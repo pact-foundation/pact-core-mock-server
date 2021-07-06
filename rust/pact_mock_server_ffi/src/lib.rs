@@ -90,6 +90,7 @@ use pact_models::matchingrules::{MatchingRule, MatchingRules, RuleLogic};
 use pact_models::PactSpecification;
 use pact_models::provider_states::ProviderState;
 use pact_models::time_utils::{parse_pattern, to_chrono_pattern};
+use pact_models::json_utils::json_to_string;
 
 use crate::bodies::{empty_multipart_body, file_as_multipart_body, MultipartBody, process_json, request_multipart, response_multipart};
 use crate::bodies::process_object;
@@ -662,7 +663,7 @@ fn from_integration_json(rules: &mut MatchingRules, generators: &mut Generators,
       serde_json::Value::Object(ref map) => {
         let json: serde_json::Value = process_object(map, category, generators, path, false, false);
         // These are simple JSON primitives (strings), so we must unescape them
-        json.as_str().unwrap_or_default().to_string()
+        json_to_string(&json)
       },
       _ => value.to_string()
     },

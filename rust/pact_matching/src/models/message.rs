@@ -11,6 +11,7 @@ use maplit::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
+use pact_models::json_utils::json_to_string;
 use pact_models::{generators, PactSpecification};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
@@ -266,7 +267,7 @@ impl Message {
         let key = k.to_ascii_lowercase();
         key == "contenttype" || key == "content-type"
       }) {
-        Some((_, v)) => ContentType::parse(v.as_str().unwrap_or_default()).ok(),
+        Some((_, v)) => ContentType::parse(json_to_string(&v).as_str()).ok(),
         None => self.detect_content_type()
       }
     }
@@ -298,7 +299,7 @@ impl HttpPart for Message {
     self.metadata.iter().find(|(k, _)| {
       let key = k.to_ascii_lowercase();
       key == "contenttype" || key == "content-type"
-    }).map(|(_, v)| v[0].as_str().unwrap_or_default().to_string())
+    }).map(|(_, v)| json_to_string(&v[0]))
   }
 }
 
