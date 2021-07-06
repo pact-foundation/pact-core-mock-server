@@ -119,8 +119,10 @@ fn display_result(body_result: ANSIGenericString<str>, metadata_result: Vec<(Str
 }
 
 fn extract_metadata(actual_response: &Response) -> HashMap<String, Value> {
+  let content_type = "contentType".to_string();
+
   let mut default = hashmap!{
-    "contentType".to_string() => Value::String(actual_response.lookup_content_type().unwrap_or_default()),
+    content_type => Value::String(actual_response.lookup_content_type().unwrap_or_default()),
   };
 
   actual_response.headers.clone().unwrap_or_default().iter().for_each(|(k,v)| {
@@ -141,4 +143,63 @@ fn extract_metadata(actual_response: &Response) -> HashMap<String, Value> {
   });
 
   default
+}
+
+#[cfg(test)]
+mod tests {
+  use expectest::prelude::*;
+  use pact_models::generators::{Generators};
+  use pact_models::matchingrules::{MatchingRules};
+
+  use super::*;
+
+    #[test]
+    fn extract_metadata_default() {
+      let response = Response {
+        status: 200,
+        headers: Some(hashmap! {
+          "content-type".into() => vec!["application/json".into()],
+        }),
+        body: OptionalBody::default(),
+        generators: Generators{
+          categories: hashmap!()
+        },
+        matching_rules: MatchingRules {
+          rules: hashmap!()
+        }
+      };
+      let expected = hashmap! {
+        "contentType".to_string() => Value::String("application/json".to_string())
+      };
+
+      expect(extract_metadata(&response)).to(be_eq(expected));
+    }
+
+    #[test]
+    fn extract_metadata_from_base64_header() {
+      let response = Response {
+        status: 200,
+        headers: Some(hashmap! {
+          "content-type".into() => vec!["application/json".into()],
+          // must convert lowercase here, because the http framework actually lowercases this for us
+          "PACT_MESSAGE_METADATA".to_lowercase().into() => vec!["ewogICJDb250ZW50LVR5cGUiOiAiYXBwbGljYXRpb24vanNvbiIsCiAgInRvcGljIjogImJheiIsCiAgIm51bWJlciI6IDI3LAogICJjb21wbGV4IjogewogICAgImZvbyI6ICJiYXIiCiAgfQp9Cg==".into()],
+        }),
+        body: OptionalBody::default(),
+        generators: Generators{
+          categories: hashmap!()
+        },
+        matching_rules: MatchingRules {
+          rules: hashmap!()
+        }
+      };
+      let expected = hashmap! {
+        "contentType".to_string() => Value::String("application/json".to_string()), // From actual HTTP response header
+        "Content-Type".to_string() => Value::String("application/json".to_string()), // From metadata header
+        "complex".to_string() => json!({"foo": "bar"}),
+        "topic".to_string() => Value::String("baz".into()),
+        "number".to_string() => json!(27),
+      };
+
+      expect(extract_metadata(&response)).to(be_eq(expected));
+    }
 }
