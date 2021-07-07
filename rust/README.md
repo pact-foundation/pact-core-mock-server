@@ -112,7 +112,7 @@ release process for the crate. Then create a GH release using the tag and change
 
 ## Contributing
 
-See [CONTRIBUTING](CONTRIBUTING.md) (PRs are always welcome!).
+See [CONTRIBUTING](../CONTRIBUTING.md) (PRs are always welcome!).
 
 ## Documentation
 
@@ -142,4 +142,4 @@ or
 
 ## Licensing
 
-The code in this project is licensed under a MIT license. See [LICENSE](LICENSE).
+The code in this project is licensed under a MIT license. See [LICENSE](../LICENSE).
