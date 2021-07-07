@@ -15,7 +15,7 @@ use serde_json::Value;
 
 use pact_cli::{glob_value, setup_loggers};
 use pact_cli::verification::{display_results, VerificationResult, verify_json};
-use pact_matching::models::http_utils::{self, HttpAuth};
+use pact_models::http_utils::{self, HttpAuth};
 use pact_models::PactSpecification;
 
 fn setup_app<'a, 'b>(program: &str, version: &'b str) -> App<'a, 'b> {

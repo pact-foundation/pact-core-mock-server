@@ -16,9 +16,9 @@ use tokio::time::{Duration, sleep};
 
 use pact_matching::Mismatch;
 use pact_matching::models::{Pact, PACT_RUST_VERSION, RequestResponsePact};
-use pact_matching::models::http_utils::HttpAuth;
 use pact_matching::models::message_pact::MessagePact;
 use pact_matching::s;
+use pact_models::http_utils::HttpAuth;
 
 use crate::MismatchResult;
 

@@ -18,13 +18,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use pact_models::file_utils::with_read_lock;
+use pact_models::http_utils;
+use pact_models::http_utils::HttpAuth;
 use pact_models::PactSpecification;
 use pact_models::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerifier, ResultLevel};
 
 use crate::models::{Consumer, Interaction, Pact, ReadWritePact, RequestResponsePact};
 use crate::models::determine_spec_version;
-use crate::models::http_utils;
-use crate::models::http_utils::HttpAuth;
 use crate::models::message;
 use crate::models::message::Message;
 use crate::models::PACT_RUST_VERSION;

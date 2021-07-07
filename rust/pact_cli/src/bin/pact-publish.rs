@@ -11,8 +11,8 @@ use log::*;
 use serde_json::Value;
 
 use pact_cli::{glob_value, setup_loggers};
-use pact_matching::models::http_utils;
-use pact_matching::models::http_utils::HttpAuth;
+use pact_models::http_utils;
+use pact_models::http_utils::HttpAuth;
 
 fn setup_app<'a, 'b>(program: &str, version: &'b str) -> App<'a, 'b> {
   App::new(program)

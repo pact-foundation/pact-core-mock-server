@@ -25,18 +25,18 @@ use maplit::{btreemap, hashmap, hashset};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use pact_models::{Consumer, DifferenceType, PactSpecification, Provider};
+use pact_models::{Consumer, DifferenceType, PactSpecification, Provider, http_utils};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::*;
 use pact_models::file_utils::{with_read_lock, with_read_lock_for_open_file, with_write_lock};
 use pact_models::generators::{Generator, GeneratorCategory, Generators, generators_from_json, generators_to_json};
+use pact_models::http_utils::HttpAuth;
 use pact_models::json_utils::json_to_string;
 use pact_models::matchingrules::{Category, matchers_from_json, matchers_to_json, MatchingRules};
 use pact_models::provider_states::ProviderState;
 use pact_models::query_strings::parse_query_string;
 use pact_models::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerifier, ResultLevel};
 
-use crate::models::http_utils::HttpAuth;
 pub use crate::models::message::Message;
 pub use crate::models::message_pact::MessagePact;
 use crate::models::v4::{AsynchronousMessage, interaction_from_json, SynchronousHttp, V4Interaction, V4Pact};
@@ -45,7 +45,6 @@ use crate::models::v4::sync_message::SynchronousMessages;
 
 pub(crate) mod matchingrules;
 pub(crate) mod generators;
-pub mod http_utils;
 
 /// Version of the library
 pub const PACT_RUST_VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
