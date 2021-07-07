@@ -30,7 +30,7 @@ int main(void) {
      * Attach another sink pointing debug output to a log file.
      *---------------------------------------------------------------------*/
 
-    status = logger_attach_sink("file /var/log/pm_ffi.log", LevelFilter_Debug);
+    status = logger_attach_sink("file ./pm_ffi.log", LevelFilter_Debug);
     if (status != 0) {
         char error_msg[ERROR_MSG_LEN];
         int error = get_error_message(error_msg, ERROR_MSG_LEN);

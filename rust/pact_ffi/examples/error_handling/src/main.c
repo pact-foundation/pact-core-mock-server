@@ -6,6 +6,8 @@
 #define ERROR_MSG_LEN 256
 
 int main(void) {
+    printf("Error handling example\n");
+
     /*=======================================================================
      * Simple empty message creation.
      *---------------------------------------------------------------------*/
@@ -41,6 +43,8 @@ int main(void) {
     }
 
     message_delete(msg_json);
+
+    printf("Error handling example: DONE OK\n");
 
     return EXIT_SUCCESS;
 }

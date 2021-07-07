@@ -5,12 +5,13 @@
 
 #define ERROR_MSG_LEN 256
 
-#define NULLCHK(ptr) {\
+#define CHK(ptr) {\
     char msg[ERROR_MSG_LEN];\
     int error = get_error_message(msg, ERROR_MSG_LEN);\
-    if (error != 0) exit(EXIT_FAILURE);\
-    printf("%s\n", msg);\
-    exit(EXIT_FAILURE);\
+    if (error != 0) {\
+        printf("%s\n", msg);\
+        exit(EXIT_FAILURE);\
+    }\
 }
 
 Message* msg_json() {
@@ -26,25 +27,31 @@ Message* msg_json() {
     }";
 
     Message *msg = message_new_from_json(id, json, spec);
-    NULLCHK(msg);
+    CHK(msg);
 
     return msg;
 }
 
 int main(void) {
+    printf("FFI Example\n");
+
     Message *msg = msg_json();
 
     ProviderStateIterator *iter = message_get_provider_state_iter(msg);
+    CHK(iter);
 
-    while (iter != NULL) {
-        ProviderState *state = provider_state_iter_next(iter);
-	const char *name = provider_state_get_name(state);
-	printf("Name: %s\n", name);
+    ProviderState *state = provider_state_iter_next(iter);
+    while (state != NULL) {
+        const char *name = provider_state_get_name(state);
+        CHK(name);
+        printf("Provider State Name: %s\n", name);
+        state = provider_state_iter_next(iter);
     }
 
     provider_state_iter_delete(iter);
     message_delete(msg);
 
+    printf("FFI Example: Done OK\n");
+
     return EXIT_SUCCESS;
 }
-

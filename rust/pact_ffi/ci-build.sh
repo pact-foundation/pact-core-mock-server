@@ -38,6 +38,7 @@ for i in examples/*; do
   cd build
   cmake ..
   cmake --build .
+  echo Running example
   ./example
   popd
 done
