@@ -1075,6 +1075,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "pact_ffi"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "fern",
+ "lazy_static",
+ "libc",
+ "log",
+ "os_info",
+ "pact_matching",
+ "pact_models",
+ "serde_json",
+ "thiserror",
+ "zeroize",
+]
+
+[[package]]
 name = "pact_matching"
 version = "0.9.4"
 dependencies = [
