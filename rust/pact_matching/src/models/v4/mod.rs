@@ -23,6 +23,7 @@ use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
 use pact_models::file_utils::with_read_lock;
 use pact_models::generators::{Generators, generators_from_json, generators_to_json};
+use pact_models::http_parts::HttpPart;
 use pact_models::json_utils::{hash_json, json_to_string};
 use pact_models::matchingrules::{matchers_from_json, matchers_to_json, MatchingRules};
 use pact_models::provider_states::{self, ProviderState};
@@ -31,7 +32,6 @@ use pact_models::verify_json::{json_type_of, PactFileVerificationResult, PactJso
 
 use crate::models::{
   detect_content_type_from_bytes,
-  HttpPart,
   Interaction,
   Pact,
   PACT_RUST_VERSION,

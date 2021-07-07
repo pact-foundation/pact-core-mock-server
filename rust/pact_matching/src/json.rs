@@ -9,6 +9,7 @@ use log::*;
 use onig::Regex;
 use serde_json::{json, Value};
 
+use pact_models::http_parts::HttpPart;
 use pact_models::json_utils::json_to_string;
 use pact_models::matchingrules::MatchingRule;
 use pact_models::time_utils::validate_datetime;
@@ -16,7 +17,6 @@ use pact_models::time_utils::validate_datetime;
 use crate::{DiffConfig, MatchingContext, merge_result};
 use crate::binary_utils::{convert_data, match_content_type};
 use crate::matchers::*;
-use crate::models::HttpPart;
 use crate::models::matchingrules::{compare_lists_with_matchingrule, compare_maps_with_matchingrule};
 
 use super::Mismatch;
@@ -428,9 +428,9 @@ mod tests {
   use expectest::expect;
   use expectest::prelude::*;
 
+  use pact_models::{matchingrules, matchingrules_list};
   use pact_models::bodies::OptionalBody;
   use pact_models::matchingrules::{MatchingRule, MatchingRuleCategory};
-  use pact_models::{matchingrules, matchingrules_list};
 
   use crate::DiffConfig;
   use crate::Mismatch;

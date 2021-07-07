@@ -14,6 +14,7 @@ use pact_models::provider_states::*;
 use pact_models::matchingrules;
 use pact_models::matchingrules::MatchingRule;
 use pact_models::generators;
+use pact_models::generators::Generator;
 
 use super::*;
 use super::{body_from_json, headers_from_json};

@@ -13,6 +13,7 @@ use reqwest::{Client, Error, RequestBuilder};
 use pact_matching::models::*;
 use pact_models::content_types::ContentType;
 use pact_models::bodies::OptionalBody;
+use pact_models::http_parts::HttpPart;
 
 use super::*;
 

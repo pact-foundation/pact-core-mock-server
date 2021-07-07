@@ -352,14 +352,15 @@ use serde_json::{json, Value};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
 use pact_models::generators::{apply_generators, GenerateValue, GeneratorCategory, GeneratorTestMode, VariantMatcher};
+use pact_models::http_parts::HttpPart;
+use pact_models::json_utils::json_to_string;
 use pact_models::matchingrules::{calc_path_weight, Category, MatchingRule, MatchingRuleCategory, path_length, RuleList};
 use pact_models::PactSpecification;
-use pact_models::json_utils::json_to_string;
 
 use crate::headers::{match_header_value, match_headers};
 use crate::matchers::*;
-use crate::models::{HttpPart, Interaction};
-use crate::models::generators::{generators_process_body, DefaultVariantMatcher};
+use crate::models::generators::{DefaultVariantMatcher, generators_process_body};
+use crate::models::Interaction;
 use crate::models::matchingrules::DisplayForMismatch;
 
 /// Simple macro to convert a string slice to a `String` struct.
@@ -495,7 +496,7 @@ impl Default for MatchingContext {
 lazy_static! {
   static ref BODY_MATCHERS: [
     (fn(content_type: &ContentType) -> bool,
-    fn(expected: &dyn models::HttpPart, actual: &dyn models::HttpPart, context: &MatchingContext) -> Result<(), Vec<Mismatch>>); 4]
+    fn(expected: &dyn HttpPart, actual: &dyn HttpPart, context: &MatchingContext) -> Result<(), Vec<Mismatch>>); 4]
      = [
       (|content_type| { content_type.is_json() }, json::match_json),
       (|content_type| { content_type.is_xml() }, xml::match_xml),
@@ -1169,7 +1170,7 @@ fn group_by<I, F, K>(items: I, f: F) -> HashMap<K, Vec<I::Item>>
   m
 }
 
-fn compare_bodies(content_type: &ContentType, expected: &dyn models::HttpPart, actual: &dyn models::HttpPart, context: &MatchingContext) -> BodyMatchResult {
+fn compare_bodies(content_type: &ContentType, expected: &dyn HttpPart, actual: &dyn HttpPart, context: &MatchingContext) -> BodyMatchResult {
   let mut mismatches = vec![];
   match BODY_MATCHERS.iter().find(|mt| mt.0(&content_type)) {
     Some(ref match_fn) => {
@@ -1195,7 +1196,7 @@ fn compare_bodies(content_type: &ContentType, expected: &dyn models::HttpPart, a
   }
 }
 
-fn match_body_content(content_type: &ContentType, expected: &dyn models::HttpPart, actual: &dyn models::HttpPart, context: &MatchingContext) -> BodyMatchResult {
+fn match_body_content(content_type: &ContentType, expected: &dyn HttpPart, actual: &dyn HttpPart, context: &MatchingContext) -> BodyMatchResult {
   let expected_body = expected.body();
   let actual_body = actual.body();
   match (expected_body, actual_body) {
@@ -1232,8 +1233,8 @@ fn match_body_content(content_type: &ContentType, expected: &dyn models::HttpPar
 
 /// Matches the actual body to the expected one. This takes into account the content type of each.
 pub fn match_body(
-  expected: &dyn models::HttpPart,
-  actual: &dyn models::HttpPart,
+  expected: &dyn HttpPart,
+  actual: &dyn HttpPart,
   context: &MatchingContext,
   header_context: &MatchingContext
 ) -> BodyMatchResult {
@@ -1351,7 +1352,7 @@ pub fn match_message_contents(
   let expected_message = expected.as_message().unwrap();
   let expected_content_type = expected_message.message_content_type().unwrap_or_default();
   let actual_content_type = actual.as_message()
-    .map(|m| models::HttpPart::content_type(&m)).flatten().unwrap_or_default();
+    .map(|m| HttpPart::content_type(&m)).flatten().unwrap_or_default();
   debug!("expected content type = '{}', actual content type = '{}'", expected_content_type,
          actual_content_type);
   if expected_content_type.is_equivalent_to(&actual_content_type) {

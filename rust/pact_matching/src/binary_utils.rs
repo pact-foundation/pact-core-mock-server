@@ -10,11 +10,11 @@ use log::*;
 use onig::Regex;
 use serde_json::Value;
 
+use pact_models::http_parts::HttpPart;
 use pact_models::matchingrules::{MatchingRule, RuleLogic};
 
 use crate::{MatchingContext, Mismatch};
 use crate::matchers::{match_values, Matches};
-use crate::models::HttpPart;
 
 static ROOT: &str = "$";
 

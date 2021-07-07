@@ -43,7 +43,6 @@
 
 #![warn(missing_docs)]
 
-use serde_json::Value;
 use std::{ptr, str};
 use std::any::Any;
 use std::collections::BTreeMap;
@@ -64,10 +63,11 @@ use maplit::*;
 use onig::Regex;
 use rand::prelude::*;
 use serde_json::json;
+use serde_json::Value;
 use uuid::Uuid;
 
 use pact_matching::logging::fetch_buffer_contents;
-use pact_matching::models::{HttpPart, Pact, RequestResponseInteraction};
+use pact_matching::models::{Pact, RequestResponseInteraction};
 use pact_matching::models::message::Message;
 // Export all the FFI logging functions from pact_matching_ffi
 pub use pact_matching_ffi::log::{
@@ -86,11 +86,12 @@ use pact_models::bodies::OptionalBody::{Null, Present};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
 use pact_models::generators::Generators;
+use pact_models::http_parts::HttpPart;
+use pact_models::json_utils::json_to_string;
 use pact_models::matchingrules::{MatchingRule, MatchingRules, RuleLogic};
 use pact_models::PactSpecification;
 use pact_models::provider_states::ProviderState;
 use pact_models::time_utils::{parse_pattern, to_chrono_pattern};
-use pact_models::json_utils::json_to_string;
 
 use crate::bodies::{empty_multipart_body, file_as_multipart_body, MultipartBody, process_json, request_multipart, response_multipart};
 use crate::bodies::process_object;

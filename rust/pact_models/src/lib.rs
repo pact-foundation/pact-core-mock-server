@@ -26,6 +26,7 @@ pub mod generators;
 pub mod path_exp;
 pub mod query_strings;
 pub mod http_utils;
+pub mod http_parts;
 
 /// Enum defining the pact specification versions supported by the library
 #[repr(C)]

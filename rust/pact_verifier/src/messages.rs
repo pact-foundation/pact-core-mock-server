@@ -8,9 +8,9 @@ use serde_json::{json, Value};
 
 use pact_matching::{match_message, Mismatch};
 use pact_matching::models::{Interaction, Request, Response};
-use pact_matching::models::HttpPart;
 use pact_matching::models::message::Message;
 use pact_models::bodies::OptionalBody;
+use pact_models::http_parts::HttpPart;
 
 use crate::{MismatchResult, ProviderInfo, VerificationOptions};
 use crate::callback_executors::RequestFilterExecutor;
@@ -148,12 +148,13 @@ fn extract_metadata(actual_response: &Response) -> HashMap<String, Value> {
 #[cfg(test)]
 mod tests {
   use expectest::prelude::*;
-  use pact_models::generators::{Generators};
-  use pact_models::matchingrules::{MatchingRules};
+
+  use pact_models::generators::Generators;
+  use pact_models::matchingrules::MatchingRules;
 
   use super::*;
 
-    #[test]
+  #[test]
     fn extract_metadata_default() {
       let response = Response {
         status: 200,

@@ -19,8 +19,9 @@ use pact_models::generators::Generators;
 use pact_models::matchingrules;
 use pact_models::matchingrules::MatchingRules;
 use pact_models::provider_states::ProviderState;
+use pact_models::http_parts::HttpPart;
 
-use crate::models::{HttpPart, Interaction, RequestResponseInteraction};
+use crate::models::{Interaction, RequestResponseInteraction};
 use crate::models::v4::{AsynchronousMessage, SynchronousHttp, V4Interaction};
 use crate::models::v4::message_parts::MessageContents;
 use crate::models::v4::sync_message::SynchronousMessages;
