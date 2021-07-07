@@ -139,7 +139,7 @@ fn handle_matches(args: &ArgMatches) -> Result<(), i32> {
     eprintln!();
   }
 
-  let files = load_files(args).map_err(|_| 1)?;
+  let _files = load_files(args).map_err(|_| 1)?;
 
   // let results = files.iter().map(|(source, pact_json)| {
   //   let results = match spec_version {

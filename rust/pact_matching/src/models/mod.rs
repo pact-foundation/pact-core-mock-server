@@ -1018,7 +1018,7 @@ impl RequestResponseInteraction {
     }
 
   /// Generate the JSON schema properties for the given Pact specification
-  pub fn schema(spec_version: PactSpecification) -> Value {
+  pub fn schema(_spec_version: PactSpecification) -> Value {
     json!({})
   }
 }
@@ -1043,7 +1043,7 @@ impl Display for RequestResponseInteraction {
 }
 
 impl PactJsonVerifier for RequestResponseInteraction {
-  fn verify_json(path: &str, pact_json: &Value, strict: bool) -> Vec<PactFileVerificationResult> {
+  fn verify_json(_path: &str, _pact_json: &Value, _strict: bool) -> Vec<PactFileVerificationResult> {
     vec![]
   }
 }

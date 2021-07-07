@@ -967,11 +967,11 @@ impl ReadWritePact for V4Pact {
 }
 
 impl PactJsonVerifier for V4Pact {
-  fn verify_json(path: &str, pact_json: &Value, strict: bool) -> Vec<PactFileVerificationResult> {
+  fn verify_json(_path: &str, pact_json: &Value, _strict: bool) -> Vec<PactFileVerificationResult> {
     let mut results = vec![];
 
     match pact_json {
-      Value::Object(values) => {
+      Value::Object(_values) => {
 
       }
       _ => results.push(PactFileVerificationResult::new("/", ResultLevel::ERROR,

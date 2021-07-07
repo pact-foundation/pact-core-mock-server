@@ -38,7 +38,7 @@ impl <'a> ContentTypeHandler<Document<'a>> for XmlHandler<'a> {
     _key: &String,
     _generator: &dyn GenerateValue<Document<'a>>,
     _context: &HashMap<&str, Value>,
-    matcher: &Box<dyn VariantMatcher>
+    _matcher: &Box<dyn VariantMatcher>
   ) {
     error!("UNIMPLEMENTED: Generators are not currently supported with XML");
   }

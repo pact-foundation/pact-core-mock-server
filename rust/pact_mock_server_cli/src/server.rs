@@ -340,7 +340,7 @@ fn dispatcher() -> WebmachineDispatcher<'static>  {
 
 pub async fn start_server(port: u16) -> Result<(), i32> {
   let addr = SocketAddr::new(IpAddr::from([0, 0, 0, 0]), port);
-  let (shutdown_tx, shutdown_rx) = channel::<()>();
+  let (_shutdown_tx, shutdown_rx) = channel::<()>();
 
   let make_svc = make_service_fn(|_| async {
     Ok::<_, Infallible>(dispatcher())
