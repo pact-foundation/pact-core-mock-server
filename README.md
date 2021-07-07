@@ -41,7 +41,7 @@ This will compile all the libraries and put the generated files in `rust/target/
 
 ## Contributing
 
-See [CONTRIBUTING](CONTRIBUTING.md).
+See [CONTRIBUTING](CONTRIBUTING.md) (PRs are always welcome!).
 
 ## Documentation
 
