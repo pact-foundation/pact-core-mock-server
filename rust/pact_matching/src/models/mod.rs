@@ -32,10 +32,10 @@ use pact_models::file_utils::{with_read_lock, with_read_lock_for_open_file, with
 use pact_models::generators::{Generators, generators_from_json, generators_to_json};
 use pact_models::http_parts::HttpPart;
 use pact_models::http_utils::HttpAuth;
-use pact_models::json_utils::json_to_string;
+use pact_models::json_utils::{body_from_json, headers_from_json, headers_to_json, json_to_string};
 use pact_models::matchingrules::{matchers_from_json, matchers_to_json, MatchingRules};
 use pact_models::provider_states::ProviderState;
-use pact_models::query_strings::parse_query_string;
+use pact_models::query_strings::{parse_query_string, query_from_json, query_to_json, v3_query_from_json};
 use pact_models::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerifier, ResultLevel};
 
 pub use crate::models::message::Message;
@@ -152,142 +152,6 @@ impl Default for Request {
       matching_rules: MatchingRules::default(),
       generators: Generators::default()
     }
-  }
-}
-
-fn headers_from_json(request: &Value) -> Option<HashMap<String, Vec<String>>> {
-  match request.get("headers") {
-    Some(v) => match *v {
-      Value::Object(ref m) => Some(m.iter().map(|(key, val)| {
-        match val {
-          &Value::String(ref s) => (key.clone(), s.clone().split(',').map(|v| s!(v.trim())).collect()),
-          &Value::Array(ref v) => (key.clone(), v.iter().map(|val| {
-            match val {
-              &Value::String(ref s) => s.clone(),
-              _ => val.to_string()
-            }
-          }).collect()),
-          _ => (key.clone(), vec![val.to_string()])
-        }
-      }).collect()),
-      _ => None
-    },
-    None => None
-  }
-}
-
-fn headers_to_json(headers: &HashMap<String, Vec<String>>) -> Value {
-  json!(headers.iter().fold(BTreeMap::new(), |mut map, kv| {
-    map.insert(kv.0.clone(), Value::String(kv.1.join(", ")));
-    map
-  }))
-}
-
-#[derive(Deserialize)]
-#[serde(untagged)]
-enum JsonParsable {
-    JsonStringValue(String),
-    KeyValue(HashMap<String, Value>)
-}
-
-fn body_from_json(request: &Value, fieldname: &str, headers: &Option<HashMap<String, Vec<String>>>) -> OptionalBody {
-  let content_type = match headers {
-    &Some(ref h) => match h.iter().find(|kv| kv.0.to_lowercase() == s!("content-type")) {
-      Some(kv) => {
-        match ContentType::parse(kv.1[0].as_str()) {
-          Ok(v) => Some(v),
-          Err(_) => None
-        }
-      },
-      None => None
-    },
-    &None => None
-  };
-
-  match request.get(fieldname) {
-    Some(v) => match v {
-      Value::String(s) => {
-        if s.is_empty() {
-          OptionalBody::Empty
-        } else {
-          let content_type = content_type.unwrap_or_else(|| {
-            detect_content_type_from_string(s).unwrap_or_default()
-          });
-          if content_type.is_json() {
-            match serde_json::from_str::<JsonParsable>(&s) {
-              Ok(_) => OptionalBody::Present(s.clone().into(), Some(content_type)),
-              Err(_) => OptionalBody::Present(format!("\"{}\"", s).into(), Some(content_type))
-            }
-          } else if content_type.is_text() {
-            OptionalBody::Present(s.clone().into(), Some(content_type))
-          } else {
-            match decode(s) {
-              Ok(bytes) => OptionalBody::Present(bytes.into(), None),
-              Err(_) => OptionalBody::Present(s.clone().into(), None)
-            }
-          }
-        }
-      },
-      Value::Null => OptionalBody::Null,
-      _ => OptionalBody::Present(v.to_string().into(), None)
-    },
-    None => OptionalBody::Missing
-  }
-}
-
-/// Converts a query string map into a query string
-pub fn build_query_string(query: HashMap<String, Vec<String>>) -> String {
-    query.into_iter()
-        .sorted_by(|a, b| Ord::cmp(&a.0, &b.0))
-        .flat_map(|kv| {
-            kv.1.iter()
-                .map(|v| format!("{}={}", kv.0, encode_query(v)))
-                .collect_vec()
-        })
-        .join("&")
-}
-
-fn query_from_json(query_json: &Value, spec_version: &PactSpecification) -> Option<HashMap<String, Vec<String>>> {
-    match query_json {
-        &Value::String(ref s) => parse_query_string(s),
-        _ => {
-            log::warn!("Only string versions of request query strings are supported with specification version {}, ignoring.",
-                spec_version.to_string());
-            None
-        }
-    }
-}
-
-fn v3_query_from_json(query_json: &Value, spec_version: &PactSpecification) -> Option<HashMap<String, Vec<String>>> {
-    match query_json {
-        &Value::String(ref s) => parse_query_string(s),
-        &Value::Object(ref map) => Some(map.iter().map(|(k, v)| {
-            (k.clone(), match v {
-                &Value::String(ref s) => vec![s.clone()],
-                &Value::Array(ref array) => array.iter().map(|item| match item {
-                    &Value::String(ref s) => s.clone(),
-                    _ => v.to_string()
-                }).collect(),
-                _ => {
-                    log::warn!("Query paramter value '{}' is not valid, ignoring", v);
-                    vec![]
-                }
-            })
-        }).collect()),
-        _ => {
-            log::warn!("Only string or map versions of request query strings are supported with specification version {}, ignoring.",
-                spec_version.to_string());
-            None
-        }
-    }
-}
-
-fn query_to_json(query: HashMap<String, Vec<String>>, spec_version: &PactSpecification) -> Value {
-  match spec_version {
-    &PactSpecification::V3 | &PactSpecification::V4 => Value::Object(query.iter().map(|(k, v)| {
-      (k.clone(), Value::Array(v.iter().map(|q| Value::String(q.clone())).collect()))}
-    ).collect()),
-    _ => Value::String(build_query_string(query))
   }
 }
 

@@ -1,9 +1,15 @@
 //! Collection of utilities for working with JSON
 
+use std::collections::{HashMap, BTreeMap};
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 
-use serde_json::{self, Value, Map};
+use base64::decode;
+use serde::Deserialize;
+use serde_json::{self, Map, Value, json};
+
+use crate::bodies::OptionalBody;
+use crate::content_types::{ContentType, detect_content_type_from_string};
 
 /// Trait to convert a JSON structure to a number
 pub trait JsonToNum<T> {
@@ -97,6 +103,89 @@ pub fn get_field_as_string(field: &str, map: &Map<String, Value>) -> Option<Stri
   map.get(field).map(|f| json_to_string(f))
 }
 
+/// Returns the headers from a JSON struct as Map String -> Vec<String>
+pub fn headers_from_json(request: &Value) -> Option<HashMap<String, Vec<String>>> {
+  match request.get("headers") {
+    Some(v) => match *v {
+      Value::Object(ref m) => Some(m.iter().map(|(key, val)| {
+        match val {
+          &Value::String(ref s) => (key.clone(), s.clone().split(',').map(|v| v.trim().to_string()).collect()),
+          &Value::Array(ref v) => (key.clone(), v.iter().map(|val| {
+            match val {
+              &Value::String(ref s) => s.clone(),
+              _ => val.to_string()
+            }
+          }).collect()),
+          _ => (key.clone(), vec![val.to_string()])
+        }
+      }).collect()),
+      _ => None
+    },
+    None => None
+  }
+}
+
+/// Converts the headers map into a JSON struct
+pub fn headers_to_json(headers: &HashMap<String, Vec<String>>) -> Value {
+  json!(headers.iter().fold(BTreeMap::new(), |mut map, kv| {
+    map.insert(kv.0.clone(), Value::String(kv.1.join(", ")));
+    map
+  }))
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum JsonParsable {
+  JsonStringValue(String),
+  KeyValue(HashMap<String, Value>)
+}
+
+/// Returns the body from the JSON struct with the provided field name
+pub fn body_from_json(request: &Value, fieldname: &str, headers: &Option<HashMap<String, Vec<String>>>) -> OptionalBody {
+  let content_type = match headers {
+    &Some(ref h) => match h.iter().find(|kv| kv.0.to_lowercase() == "content-type") {
+      Some(kv) => {
+        match ContentType::parse(kv.1[0].as_str()) {
+          Ok(v) => Some(v),
+          Err(_) => None
+        }
+      },
+      None => None
+    },
+    &None => None
+  };
+
+  match request.get(fieldname) {
+    Some(v) => match v {
+      Value::String(s) => {
+        if s.is_empty() {
+          OptionalBody::Empty
+        } else {
+          let content_type = content_type.unwrap_or_else(|| {
+            detect_content_type_from_string(s).unwrap_or_default()
+          });
+          if content_type.is_json() {
+            match serde_json::from_str::<JsonParsable>(&s) {
+              Ok(_) => OptionalBody::Present(s.clone().into(), Some(content_type)),
+              Err(_) => OptionalBody::Present(format!("\"{}\"", s).into(), Some(content_type))
+            }
+          } else if content_type.is_text() {
+            OptionalBody::Present(s.clone().into(), Some(content_type))
+          } else {
+            match decode(s) {
+              Ok(bytes) => OptionalBody::Present(bytes.into(), None),
+              Err(_) => OptionalBody::Present(s.clone().into(), None)
+            }
+          }
+        }
+      },
+      Value::Null => OptionalBody::Null,
+      _ => OptionalBody::Present(v.to_string().into(), None)
+    },
+    None => OptionalBody::Missing
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use expectest::expect;
@@ -145,5 +234,154 @@ mod tests {
     expect!(json_to_num(Value::from_str("100").ok())).to(be_some().value(100));
     expect!(json_to_num(Value::from_str("-100").ok())).to(be_none());
     expect!(json_to_num(Value::from_str("100.10").ok())).to(be_some().value(100));
+  }
+
+  #[test]
+  fn body_from_text_plain_type_returns_the_same_formatted_body() {
+    let json : serde_json::Value = serde_json::from_str(r#"
+      {
+          "path": "/",
+          "query": "",
+          "headers": {"Content-Type": "text/plain"},
+          "body": "\"This is a string\""
+      }
+     "#).unwrap();
+    let headers = headers_from_json(&json);
+    let body = body_from_json(&json, "body", &headers);
+    expect!(body).to(be_equal_to(OptionalBody::Present("\"This is a string\"".into(), Some("text/plain".into()))));
+  }
+
+  #[test]
+  fn body_from_text_html_type_returns_the_same_formatted_body() {
+    let json : serde_json::Value = serde_json::from_str(r#"
+      {
+          "path": "/",
+          "query": "",
+          "headers": {"Content-Type": "text/html"},
+          "body": "\"This is a string\""
+      }
+     "#).unwrap();
+    let headers = headers_from_json(&json);
+    let body = body_from_json(&json, "body", &headers);
+    expect!(body).to(be_equal_to(OptionalBody::Present("\"This is a string\"".into(), Some("text/html".into()))));
+  }
+
+  #[test]
+  fn body_from_json_returns_the_a_json_formatted_body_if_the_body_is_a_string_and_the_content_type_is_json() {
+    let json : serde_json::Value = serde_json::from_str(r#"
+      {
+          "path": "/",
+          "query": "",
+          "headers": {"Content-Type": "application/json"},
+          "body": "This is actually a JSON string"
+      }
+     "#).unwrap();
+    let headers = headers_from_json(&json);
+    let body = body_from_json(&json, "body", &headers);
+    expect!(body).to(be_equal_to(OptionalBody::Present("\"This is actually a JSON string\"".into(), Some("application/json".into()))));
+  }
+
+  #[test]
+  fn body_from_json_returns_the_a_json_formatted_body_if_the_body_is_a_valid_json_string_and_the_content_type_is_json() {
+    let json : serde_json::Value = serde_json::from_str(r#"
+      {
+          "path": "/",
+          "query": "",
+          "headers": {"Content-Type": "application/json"},
+          "body": "\"This is actually a JSON string\""
+      }
+     "#).unwrap();
+    let headers = headers_from_json(&json);
+    let body = body_from_json(&json, "body", &headers);
+    expect!(body).to(be_equal_to(OptionalBody::Present("\"This is actually a JSON string\"".into(), Some("application/json".into()))));
+  }
+
+  #[test]
+  fn body_from_json_returns_the_body_if_the_content_type_is_json() {
+    let json : serde_json::Value = serde_json::from_str(r#"
+      {
+          "path": "/",
+          "query": "",
+          "headers": {"Content-Type": "application/json"},
+          "body": "{\"test\":true}"
+      }
+     "#).unwrap();
+    let headers = headers_from_json(&json);
+    let body = body_from_json(&json, "body", &headers);
+    expect!(body).to(be_equal_to(OptionalBody::Present("{\"test\":true}".into(), Some("application/json".into()))));
+  }
+
+  #[test]
+  fn body_from_json_returns_missing_if_there_is_no_body() {
+    let json : serde_json::Value = serde_json::from_str(r#"
+      {
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "matchingRules": {
+            "*.path": {}
+          }
+      }
+     "#).unwrap();
+    let body = body_from_json(&json, "body", &None);
+    expect!(body).to(be_equal_to(OptionalBody::Missing));
+  }
+
+  #[test]
+  fn body_from_json_returns_null_if_the_body_is_null() {
+    let json : serde_json::Value = serde_json::from_str(r#"
+      {
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "body": null
+      }
+     "#).unwrap();
+    let body = body_from_json(&json, "body", &None);
+    expect!(body).to(be_equal_to(OptionalBody::Null));
+  }
+
+  #[test]
+  fn body_from_json_returns_json_string_if_the_body_is_json_but_not_a_string() {
+    let json : serde_json::Value = serde_json::from_str(r#"
+      {
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "body": {
+            "test": true
+          }
+      }
+     "#).unwrap();
+    let body = body_from_json(&json, "body", &None);
+    expect!(body).to(be_equal_to(OptionalBody::Present("{\"test\":true}".into(), None)));
+  }
+
+  #[test]
+  fn body_from_json_returns_empty_if_the_body_is_an_empty_string() {
+    let json : serde_json::Value = serde_json::from_str(r#"
+      {
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "body": ""
+      }
+     "#).unwrap();
+    let body = body_from_json(&json, "body", &None);
+    expect!(body).to(be_equal_to(OptionalBody::Empty));
+  }
+
+  #[test]
+  fn body_from_json_returns_the_body_if_the_body_is_a_string() {
+    let json : serde_json::Value = serde_json::from_str(r#"
+      {
+          "path": "/",
+          "query": "",
+          "headers": {},
+          "body": "<?xml version=\"1.0\"?> <body></body>"
+      }
+     "#).unwrap();
+    let body = body_from_json(&json, "body", &None);
+    expect!(body).to(be_equal_to(OptionalBody::Present("<?xml version=\"1.0\"?> <body></body>".into(), Some("application/xml".into()))));
   }
 }

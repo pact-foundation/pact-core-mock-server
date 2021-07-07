@@ -12,11 +12,12 @@ use serde_json::{json, Value};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
 use pact_models::generators::{Generators, generators_from_json, generators_to_json};
-use pact_models::json_utils::json_to_string;
+use pact_models::json_utils::{headers_from_json, json_to_string};
 use pact_models::matchingrules::{matchers_from_json, matchers_to_json, MatchingRules};
 use pact_models::PactSpecification;
+use pact_models::query_strings::{query_to_json, v3_query_from_json};
 
-use crate::models::{detect_content_type_from_bytes, headers_from_json, query_to_json, Request, Response, v3_query_from_json};
+use crate::models::{detect_content_type_from_bytes, Request, Response};
 use crate::models::v4::calc_content_type;
 
 /// Struct that defines the HTTP request.

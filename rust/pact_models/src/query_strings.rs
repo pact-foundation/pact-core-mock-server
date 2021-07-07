@@ -4,6 +4,8 @@ use std::str::from_utf8;
 use hex::FromHex;
 use itertools::Itertools;
 use log::*;
+use serde_json::Value;
+use crate::PactSpecification;
 
 /// Decodes a query string using a percent-encoding scheme
 pub fn decode_query(query: &str) -> Result<String, String> {
@@ -114,6 +116,65 @@ pub fn parse_query_string(query: &str) -> Option<HashMap<String, Vec<String>>> {
     }))
   } else {
     None
+  }
+}
+
+/// Converts a query string map into a query string
+pub fn build_query_string(query: HashMap<String, Vec<String>>) -> String {
+  query.into_iter()
+    .sorted_by(|a, b| Ord::cmp(&a.0, &b.0))
+    .flat_map(|kv| {
+      kv.1.iter()
+        .map(|v| format!("{}={}", kv.0, encode_query(v)))
+        .collect_vec()
+    })
+    .join("&")
+}
+
+/// Parses a V2 query string from a JSON struct
+pub fn query_from_json(query_json: &Value, spec_version: &PactSpecification) -> Option<HashMap<String, Vec<String>>> {
+  match query_json {
+    &Value::String(ref s) => parse_query_string(s),
+    _ => {
+      warn!("Only string versions of request query strings are supported with specification version {}, ignoring.",
+        spec_version.to_string());
+      None
+    }
+  }
+}
+
+/// Parses a V3 query string from a JSON struct
+pub fn v3_query_from_json(query_json: &Value, spec_version: &PactSpecification) -> Option<HashMap<String, Vec<String>>> {
+  match query_json {
+    &Value::String(ref s) => parse_query_string(s),
+    &Value::Object(ref map) => Some(map.iter().map(|(k, v)| {
+      (k.clone(), match v {
+        &Value::String(ref s) => vec![s.clone()],
+        &Value::Array(ref array) => array.iter().map(|item| match item {
+          &Value::String(ref s) => s.clone(),
+          _ => v.to_string()
+        }).collect(),
+        _ => {
+          warn!("Query paramter value '{}' is not valid, ignoring", v);
+          vec![]
+        }
+      })
+    }).collect()),
+    _ => {
+      warn!("Only string or map versions of request query strings are supported with specification version {}, ignoring.",
+                spec_version.to_string());
+      None
+    }
+  }
+}
+
+/// Converts a query string structure into a JSON struct
+pub fn query_to_json(query: HashMap<String, Vec<String>>, spec_version: &PactSpecification) -> Value {
+  match spec_version {
+    &PactSpecification::V3 | &PactSpecification::V4 => Value::Object(query.iter().map(|(k, v)| {
+      (k.clone(), Value::Array(v.iter().map(|q| Value::String(q.clone())).collect()))}
+    ).collect()),
+    _ => Value::String(build_query_string(query))
   }
 }
 
