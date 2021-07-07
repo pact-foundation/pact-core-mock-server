@@ -1,5 +1,7 @@
 
-# Pact Matching FFI
+# Pact Matching FFI [DEPRECATED]
+
+**NOTE:** This library is being moved into a single FFI library.
 
 This crate provides a Foreign Function Interface (FFI) to the `pact_matching` crate,
 with the intent of enabling Pact's core matching mechanisms to be used by implementations
