@@ -4,7 +4,7 @@
 #include <string.h>
 #include <dlfcn.h>
 #include <curl/curl.h>
-#include <pact_matching.h>
+#include <pact.h>
 
 char *append_filename(char *executable, char *filename) {
   int executable_len = strlen(executable);

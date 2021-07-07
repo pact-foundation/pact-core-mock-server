@@ -250,7 +250,7 @@ top_build_prefix = ../
 top_builddir = ..
 top_srcdir = ..
 consumer_verification_SOURCES = main.c
-AM_CPPFLAGS = ${LIBCURL_CPPFLAGS} -I../../../rust/pact_matching_ffi/include
+AM_CPPFLAGS = ${LIBCURL_CPPFLAGS} -I../../../rust/pact_ffi/include
 consumer_verification_LDADD = ${LIBCURL} -ldl
 all: all-am
 
