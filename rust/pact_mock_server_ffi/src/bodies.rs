@@ -7,11 +7,12 @@ use log::*;
 use maplit::*;
 use serde_json::{Map, Value};
 
-use pact_matching::models::{Request, Response};
 use pact_models::bodies::OptionalBody;
 use pact_models::generators::{Generator, GeneratorCategory, Generators};
 use pact_models::json_utils::{json_to_num, json_to_string};
 use pact_models::matchingrules::{MatchingRule, MatchingRuleCategory, RuleLogic};
+use pact_models::request::Request;
+use pact_models::response::Response;
 
 const CONTENT_TYPE_HEADER: &str = "Content-Type";
 
@@ -278,8 +279,6 @@ fn format_multipart_error(e: std::io::Error) -> String {
 
 #[cfg(test)]
 mod test {
-  use std::str::FromStr;
-
   use expectest::prelude::{be_equal_to, expect};
   use serde_json::json;
 

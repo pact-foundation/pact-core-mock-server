@@ -4,6 +4,11 @@ use std::fmt::{Display, Formatter};
 use std::fmt;
 
 use anyhow::anyhow;
+use crate::bodies::OptionalBody;
+use std::collections::HashMap;
+use crate::content_types::{ContentType, detect_content_type_from_bytes};
+
+pub mod http_parts;
 
 /// V4 Interaction Type
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -43,4 +48,21 @@ impl V4InteractionType {
       _ => Err(anyhow!("'{}' is not a valid V4 interaction type", type_str))
     }
   }
+}
+
+/// Calculate the context type of the body, using the content type from the body. If that is
+/// not set, look for a Content-Type header otherwise look at the body contents
+pub fn calc_content_type(body: &OptionalBody, headers: &Option<HashMap<String, Vec<String>>>) -> Option<ContentType> {
+  body.content_type()
+    .or_else(|| headers.as_ref().map(|h| {
+      match h.iter().find(|kv| kv.0.to_lowercase() == "content-type") {
+        Some((_, v)) => ContentType::parse(v[0].as_str()).ok(),
+        None => None
+      }
+    }).flatten())
+    .or_else(|| if body.is_present() {
+      detect_content_type_from_bytes(&*body.value().unwrap_or_default())
+    } else {
+      None
+    })
 }

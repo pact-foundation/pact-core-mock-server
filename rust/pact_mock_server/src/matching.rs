@@ -9,8 +9,10 @@ use itertools::Itertools;
 use serde_json::json;
 
 use pact_matching::Mismatch;
-use pact_matching::models::{Interaction, Request, Response};
+use pact_matching::models::Interaction;
 use pact_models::PactSpecification;
+use pact_models::request::Request;
+use pact_models::response::Response;
 
 /// Enum to define a match result
 #[derive(Debug, Clone, PartialEq)]

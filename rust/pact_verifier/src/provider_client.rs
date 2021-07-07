@@ -10,10 +10,11 @@ use itertools::Itertools;
 use log::*;
 use reqwest::{Client, Error, RequestBuilder};
 
-use pact_matching::models::*;
-use pact_models::content_types::ContentType;
 use pact_models::bodies::OptionalBody;
+use pact_models::content_types::ContentType;
 use pact_models::http_parts::HttpPart;
+use pact_models::request::Request;
+use pact_models::response::Response;
 
 use super::*;
 
@@ -250,14 +251,14 @@ pub fn provider_client_error_to_string(err: ProviderClientError) -> String {
 mod tests {
   use expectest::expect;
   use expectest::prelude::*;
+  use http::HeaderMap;
   use itertools::Itertools;
   use maplit::*;
 
-  use pact_matching::models::Request;
   use pact_models::bodies::OptionalBody;
+  use pact_models::request::Request;
 
-  use super::{create_native_request, join_paths, extract_headers};
-  use http::HeaderMap;
+  use super::{create_native_request, extract_headers, join_paths};
 
   #[test]
   fn extract_headers_tests() {

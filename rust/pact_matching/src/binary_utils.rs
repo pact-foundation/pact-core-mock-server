@@ -413,10 +413,10 @@ mod tests {
   use pact_models::bodies::OptionalBody;
   use pact_models::matchingrules;
   use pact_models::matchingrules::MatchingRule;
+  use pact_models::request::Request;
 
   use crate::{DiffConfig, MatchingContext, Mismatch};
   use crate::binary_utils::match_mime_multipart;
-  use crate::models::Request;
 
   fn mismatch(m: &Mismatch) -> &str {
     match m {

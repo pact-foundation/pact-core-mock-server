@@ -8,8 +8,8 @@ use pact_models::bodies::OptionalBody;
 use pact_models::content_types::{JSON, TEXT};
 use pact_models::generators;
 use pact_models::generators::{ContentTypeHandler, Generator, JsonHandler};
-
-use crate::models::{Request, Response};
+use pact_models::request::Request;
+use pact_models::response::Response;
 
 use super::*;
 

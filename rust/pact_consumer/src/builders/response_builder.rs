@@ -2,10 +2,10 @@ use std::collections::HashMap;
 
 use maplit::*;
 
-use pact_matching::models::*;
 use pact_models::bodies::OptionalBody;
 use pact_models::generators::Generators;
 use pact_models::matchingrules::MatchingRules;
+use pact_models::response::Response;
 
 use crate::prelude::*;
 

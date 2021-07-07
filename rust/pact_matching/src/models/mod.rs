@@ -4,11 +4,10 @@ use std::{fmt, fs};
 use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
-use std::collections::HashMap;
 use std::default::Default;
 use std::fmt::{Debug, Display, Formatter};
 use std::fs::File;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 use std::io::prelude::*;
 use std::io::SeekFrom;
 use std::path::Path;
@@ -16,32 +15,29 @@ use std::str;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, Context};
-use base64::{decode, encode};
 use itertools::{iproduct, Itertools};
 use itertools::EitherOrBoth::{Both, Left, Right};
 use lazy_static::*;
 use log::*;
-use maplit::{btreemap, hashmap, hashset};
-use serde::{Deserialize, Serialize};
+use maplit::{btreemap, hashset};
 use serde_json::{json, Value};
 
 use pact_models::{Consumer, DifferenceType, http_utils, PactSpecification, Provider};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::*;
 use pact_models::file_utils::{with_read_lock, with_read_lock_for_open_file, with_write_lock};
-use pact_models::generators::{Generators, generators_from_json, generators_to_json};
 use pact_models::http_parts::HttpPart;
 use pact_models::http_utils::HttpAuth;
-use pact_models::json_utils::{body_from_json, headers_from_json, headers_to_json, json_to_string};
-use pact_models::matchingrules::{matchers_from_json, matchers_to_json, MatchingRules};
+use pact_models::json_utils::json_to_string;
+use pact_models::matchingrules::MatchingRules;
 use pact_models::provider_states::ProviderState;
-use pact_models::query_strings::{parse_query_string, query_from_json, query_to_json, v3_query_from_json};
+use pact_models::request::Request;
+use pact_models::response::Response;
 use pact_models::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerifier, ResultLevel};
 
 pub use crate::models::message::Message;
 pub use crate::models::message_pact::MessagePact;
 use crate::models::v4::{AsynchronousMessage, interaction_from_json, SynchronousHttp, V4Interaction, V4Pact};
-use crate::models::v4::http_parts::{HttpRequest, HttpResponse};
 use crate::models::v4::sync_message::SynchronousMessages;
 
 pub(crate) mod matchingrules;
@@ -49,428 +45,6 @@ pub(crate) mod generators;
 
 /// Version of the library
 pub const PACT_RUST_VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
-
-/// Struct that defines the request.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq)]
-pub struct Request {
-    /// Request method
-    pub method: String,
-    /// Request path
-    pub path: String,
-    /// Request query string
-    pub query: Option<HashMap<String, Vec<String>>>,
-    /// Request headers
-    pub headers: Option<HashMap<String, Vec<String>>>,
-    /// Request body
-    pub body: OptionalBody,
-    /// Request matching rules
-    pub matching_rules: MatchingRules,
-    /// Request generators
-    pub generators: Generators
-}
-
-impl HttpPart for Request {
-  fn headers(&self) -> &Option<HashMap<String, Vec<String>>> {
-        &self.headers
-    }
-
-  fn headers_mut(&mut self) -> &mut HashMap<String, Vec<String>> {
-    if self.headers.is_none() {
-      self.headers = Some(hashmap!{});
-    }
-    self.headers.as_mut().unwrap()
-  }
-
-  fn body(&self) -> &OptionalBody {
-      &self.body
-  }
-
-  fn matching_rules(&self) -> &MatchingRules {
-      &self.matching_rules
-  }
-
-  fn generators(&self) -> &Generators {
-      &self.generators
-    }
-
-  fn lookup_content_type(&self) -> Option<String> {
-    self.lookup_header_value(&"content-type".to_string())
-  }
-}
-
-impl Hash for Request {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.method.hash(state);
-        self.path.hash(state);
-        if self.query.is_some() {
-            for (k, v) in self.query.clone().unwrap() {
-                k.hash(state);
-                v.hash(state);
-            }
-        }
-        if self.headers.is_some() {
-            for (k, v) in self.headers.clone().unwrap() {
-                k.hash(state);
-                v.hash(state);
-            }
-        }
-        self.body.hash(state);
-        self.matching_rules.hash(state);
-        self.generators.hash(state);
-    }
-}
-
-impl PartialEq for Request {
-  fn eq(&self, other: &Self) -> bool {
-    self.method == other.method && self.path == other.path && self.query == other.query &&
-      self.headers == other.headers && self.body == other.body &&
-      self.matching_rules == other.matching_rules && self.generators == other.generators
-  }
-
-  fn ne(&self, other: &Self) -> bool {
-    self.method != other.method || self.path != other.path || self.query != other.query ||
-      self.headers != other.headers || self.body != other.body ||
-      self.matching_rules != other.matching_rules || self.generators != other.generators
-  }
-}
-
-impl Display for Request {
-  fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-    write!(f, "Request ( method: {}, path: {}, query: {:?}, headers: {:?}, body: {} )",
-      self.method, self.path, self.query, self.headers, self.body)
-  }
-}
-
-impl Default for Request {
-  fn default() -> Self {
-    Request {
-      method: s!("GET"),
-      path: s!("/"),
-      query: None,
-      headers: None,
-      body: OptionalBody::Missing,
-      matching_rules: MatchingRules::default(),
-      generators: Generators::default()
-    }
-  }
-}
-
-impl Request {
-    /// Builds a `Request` from a `Value` struct.
-    pub fn from_json(request_json: &Value, spec_version: &PactSpecification) -> Request {
-        let method_val = match request_json.get("method") {
-            Some(v) => match *v {
-                Value::String(ref s) => s.to_uppercase(),
-                _ => v.to_string().to_uppercase()
-            },
-            None => "GET".to_string()
-        };
-        let path_val = match request_json.get("path") {
-            Some(v) => match *v {
-                Value::String(ref s) => s.clone(),
-                _ => v.to_string()
-            },
-            None => "/".to_string()
-        };
-        let query_val = match request_json.get("query") {
-            Some(v) => match spec_version {
-                &PactSpecification::V3 => v3_query_from_json(v, spec_version),
-                _ => query_from_json(v, spec_version)
-            },
-            None => None
-        };
-        let headers = headers_from_json(request_json);
-        Request {
-            method: method_val,
-            path: path_val,
-            query: query_val,
-            headers: headers.clone(),
-            body: body_from_json(request_json, "body", &headers),
-            matching_rules: matchers_from_json(request_json, &Some(s!("requestMatchingRules"))),
-            generators: generators_from_json(request_json)
-        }
-    }
-
-    /// Converts this `Request` to a `Value` struct.
-    pub fn to_json(&self, spec_version: &PactSpecification) -> Value {
-        let mut json = json!({
-            s!("method") : Value::String(self.method.to_uppercase()),
-            s!("path") : Value::String(self.path.clone())
-        });
-        {
-            let map = json.as_object_mut().unwrap();
-            if self.query.is_some() {
-                map.insert(s!("query"), query_to_json(self.query.clone().unwrap(), spec_version));
-            }
-            if self.headers.is_some() {
-                map.insert(s!("headers"), headers_to_json(&self.headers.clone().unwrap()));
-            }
-            match self.body {
-              OptionalBody::Present(ref body, _) => if self.content_type().unwrap_or_default().is_json() {
-                match serde_json::from_slice(body) {
-                  Ok(json_body) => { map.insert(s!("body"), json_body); },
-                  Err(err) => {
-                    log::warn!("Failed to parse json body: {}", err);
-                    map.insert(s!("body"), Value::String(encode(body)));
-                  }
-                }
-              } else {
-                match str::from_utf8(body) {
-                  Ok(s) => map.insert(s!("body"), Value::String(s.to_string())),
-                  Err(_) => map.insert(s!("body"), Value::String(encode(body)))
-                };
-              },
-              OptionalBody::Empty => { map.insert(s!("body"), Value::String(s!(""))); },
-              OptionalBody::Missing => (),
-              OptionalBody::Null => { map.insert(s!("body"), Value::Null); }
-            }
-            if self.matching_rules.is_not_empty() {
-                map.insert(s!("matchingRules"), matchers_to_json(
-                &self.matching_rules.clone(), spec_version));
-            }
-            if self.generators.is_not_empty() {
-              map.insert(s!("generators"), generators_to_json(
-                &self.generators.clone(), spec_version));
-            }
-        }
-        json
-    }
-
-    /// Returns the default request: a GET request to the root.
-    #[deprecated(since="0.6.0", note="please use `default()` from the standard Default trait instead")]
-    pub fn default_request() -> Request {
-      Request::default()
-    }
-
-    /// Return a description of all the differences from the other request
-    pub fn differences_from(&self, other: &Request) -> Vec<(DifferenceType, String)> {
-        let mut differences = vec![];
-        if self.method != other.method {
-            differences.push((DifferenceType::Method, format!("Request method {} != {}", self.method, other.method)));
-        }
-        if self.path != other.path {
-            differences.push((DifferenceType::Path, format!("Request path {} != {}", self.path, other.path)));
-        }
-        if self.query != other.query {
-            differences.push((DifferenceType::QueryParameters, format!("Request query {:?} != {:?}", self.query, other.query)));
-        }
-        let mut keys = self.headers.clone().map(|m| m.keys().cloned().collect_vec()).unwrap_or_default();
-        let mut other_keys = other.headers.clone().map(|m| m.keys().cloned().collect_vec()).unwrap_or_default();
-        keys.sort();
-        other_keys.sort();
-        if keys != other_keys {
-            differences.push((DifferenceType::Headers, format!("Request headers {:?} != {:?}", self.headers, other.headers)));
-        }
-        if self.body != other.body {
-            differences.push((DifferenceType::Body, format!("Request body '{:?}' != '{:?}'", self.body, other.body)));
-        }
-        if self.matching_rules != other.matching_rules {
-            differences.push((DifferenceType::MatchingRules, format!("Request matching rules {:?} != {:?}", self.matching_rules, other.matching_rules)));
-        }
-        differences
-    }
-
-  /// Convert this interaction to V4 format
-  pub fn as_v4_request(&self) -> HttpRequest {
-    HttpRequest {
-      method: self.method.clone(),
-      path: self.path.clone(),
-      query: self.query.clone(),
-      headers: self.headers.clone(),
-      body: self.body.clone(),
-      matching_rules: self.matching_rules.clone(),
-      generators: self.generators.clone()
-    }
-  }
-}
-
-/// Struct that defines the response.
-#[derive(Debug, Clone, Eq)]
-pub struct Response {
-    /// Response status
-    pub status: u16,
-    /// Response headers
-    pub headers: Option<HashMap<String, Vec<String>>>,
-    /// Response body
-    pub body: OptionalBody,
-    /// Response matching rules
-    pub matching_rules: MatchingRules,
-    /// Response generators
-    pub generators: Generators
-}
-
-impl Response {
-
-    /// Build a `Response` from a `Value` struct.
-    pub fn from_json(response: &Value, _: &PactSpecification) -> Response {
-        let status_val = match response.get("status") {
-            Some(v) => v.as_u64().unwrap() as u16,
-            None => 200
-        };
-        let headers = headers_from_json(response);
-        Response {
-            status: status_val,
-            headers: headers.clone(),
-            body: body_from_json(response, "body", &headers),
-            matching_rules:  matchers_from_json(response, &Some(s!("responseMatchingRules"))),
-            generators:  generators_from_json(response)
-        }
-    }
-
-    /// Returns a default response: Status 200
-    #[deprecated(since="0.5.4", note="please use `default()` from the standard Default trait instead")]
-    pub fn default_response() -> Response {
-      Response::default()
-    }
-
-    /// Converts this response to a `Value` struct.
-    #[allow(unused_variables)]
-    pub fn to_json(&self, spec_version: &PactSpecification) -> Value {
-      let mut json = json!({
-        "status" : json!(self.status)
-      });
-      {
-        let map = json.as_object_mut().unwrap();
-        if self.headers.is_some() {
-          map.insert(s!("headers"), headers_to_json(&self.headers.clone().unwrap()));
-        }
-        match self.body {
-          OptionalBody::Present(ref body, _) => {
-            if self.content_type().unwrap_or_default().is_json() {
-              match serde_json::from_slice(body) {
-                Ok(json_body) => { map.insert(s!("body"), json_body); },
-                Err(err) => {
-                  log::warn!("Failed to parse json body: {}", err);
-                  map.insert(s!("body"), Value::String(encode(body)));
-                }
-              }
-            } else {
-              match str::from_utf8(body) {
-                Ok(s) => map.insert(s!("body"), Value::String(s.to_string())),
-                Err(_) => map.insert(s!("body"), Value::String(encode(body)))
-              };
-            }
-          },
-          OptionalBody::Empty => { map.insert(s!("body"), Value::String(s!(""))); },
-          OptionalBody::Missing => (),
-          OptionalBody::Null => { map.insert(s!("body"), Value::Null); }
-        }
-        if self.matching_rules.is_not_empty() {
-          map.insert(s!("matchingRules"), matchers_to_json(
-            &self.matching_rules.clone(), spec_version));
-        }
-        if self.generators.is_not_empty() {
-          map.insert(s!("generators"), generators_to_json(
-            &self.generators.clone(), spec_version));
-        }
-      }
-      json
-    }
-
-    /// Return a description of all the differences from the other response
-    pub fn differences_from(&self, other: &Response) -> Vec<(DifferenceType, String)> {
-        let mut differences = vec![];
-        if self.status != other.status {
-            differences.push((DifferenceType::Status, format!("Response status {} != {}", self.status, other.status)));
-        }
-        if self.headers != other.headers {
-            differences.push((DifferenceType::Headers, format!("Response headers {:?} != {:?}", self.headers, other.headers)));
-        }
-        if self.body != other.body {
-            differences.push((DifferenceType::Body, format!("Response body '{:?}' != '{:?}'", self.body, other.body)));
-        }
-        if self.matching_rules != other.matching_rules {
-            differences.push((DifferenceType::MatchingRules, format!("Response matching rules {:?} != {:?}", self.matching_rules, other.matching_rules)));
-        }
-        differences
-    }
-
-  /// Convert this response to V4 format
-  pub fn as_v4_response(&self) -> HttpResponse {
-    HttpResponse {
-      status: self.status,
-      headers: self.headers.clone(),
-      body: self.body.clone(),
-      matching_rules: self.matching_rules.clone(),
-      generators: self.generators.clone()
-    }
-  }
-}
-
-impl HttpPart for Response {
-  fn headers(&self) -> &Option<HashMap<String, Vec<String>>> {
-        &self.headers
-    }
-
-  fn headers_mut(&mut self) -> &mut HashMap<String, Vec<String>> {
-    if self.headers.is_none() {
-      self.headers = Some(hashmap!{});
-    }
-    self.headers.as_mut().unwrap()
-  }
-
-  fn body(&self) -> &OptionalBody {
-      &self.body
-  }
-
-  fn matching_rules(&self) -> &MatchingRules {
-      &self.matching_rules
-  }
-
-  fn generators(&self) -> &Generators {
-      &self.generators
-    }
-
-  fn lookup_content_type(&self) -> Option<String> {
-    self.lookup_header_value(&"content-type".to_string())
-  }
-}
-
-impl Hash for Response {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.status.hash(state);
-        if self.headers.is_some() {
-            for (k, v) in self.headers.clone().unwrap() {
-                k.hash(state);
-                v.hash(state);
-            }
-        }
-        self.body.hash(state);
-        self.matching_rules.hash(state);
-        self.generators.hash(state);
-    }
-}
-
-impl PartialEq for Response {
-  fn eq(&self, other: &Self) -> bool {
-    self.status == other.status && self.headers == other.headers && self.body == other.body &&
-      self.matching_rules == other.matching_rules && self.generators == other.generators
-  }
-
-  fn ne(&self, other: &Self) -> bool {
-    self.status != other.status || self.headers != other.headers || self.body != other.body ||
-      self.matching_rules != other.matching_rules || self.generators != other.generators
-  }
-}
-
-impl Display for Response {
-  fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-    write!(f, "Response ( status: {}, headers: {:?}, body: {} )", self.status, self.headers,
-           self.body)
-  }
-}
-
-impl Default for Response {
-  fn default() -> Self {
-    Response {
-      status: 200,
-      headers: None,
-      body: OptionalBody::Missing,
-      matching_rules: MatchingRules::default(),
-      generators: Generators::default()
-    }
-  }
-}
 
 /// Struct that defined an interaction conflict
 #[derive(Debug, Clone)]
@@ -1353,28 +927,6 @@ pub(crate) fn verify_metadata(metadata: &Value) -> Vec<PactFileVerificationResul
   }
 
   results
-}
-
-fn encode_query(query: &str) -> String {
-  query.chars().map(|ch| {
-    match ch {
-      ' ' => s!("+"),
-      '-' => ch.to_string(),
-      'a'..='z' => ch.to_string(),
-      'A'..='Z' => ch.to_string(),
-      '0'..='9' => ch.to_string(),
-      _ => ch.escape_unicode()
-          .filter(|u| u.is_digit(16))
-          .batching(|it| {
-              match it.next() {
-                  None => None,
-                  Some(x) => Some((x, it.next().unwrap()))
-              }
-          })
-          .map(|u| format!("%{}{}", u.0, u.1))
-          .collect()
-    }
-  }).collect()
 }
 
 /// Converts the JSON struct into an HTTP Interaction

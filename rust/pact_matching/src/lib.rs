@@ -356,6 +356,8 @@ use pact_models::http_parts::HttpPart;
 use pact_models::json_utils::json_to_string;
 use pact_models::matchingrules::{calc_path_weight, Category, MatchingRule, MatchingRuleCategory, path_length, RuleList};
 use pact_models::PactSpecification;
+use pact_models::request::Request;
+use pact_models::response::Response;
 
 use crate::headers::{match_header_value, match_headers};
 use crate::matchers::*;
@@ -1265,7 +1267,7 @@ pub fn match_body(
 }
 
 /// Matches the expected and actual requests
-pub fn match_request(expected: models::Request, actual: models::Request) -> RequestMatchResult {
+pub fn match_request(expected: Request, actual: Request) -> RequestMatchResult {
   log::info!("comparing to expected {}", expected);
   log::debug!("     body: '{}'", expected.body.str_value());
   log::debug!("     matching_rules: {:?}", expected.matching_rules);
@@ -1317,7 +1319,7 @@ pub fn match_status(expected: u16, actual: u16, context: &MatchingContext) -> Re
 }
 
 /// Matches the actual and expected responses.
-pub fn match_response(expected: models::Response, actual: models::Response) -> Vec<Mismatch> {
+pub fn match_response(expected: Response, actual: Response) -> Vec<Mismatch> {
   let mut mismatches = vec![];
 
   info!("comparing to expected response: {}", expected);
@@ -1495,7 +1497,7 @@ pub fn match_message(expected: &Box<dyn Interaction + Send>, actual: &Box<dyn In
 }
 
 /// Generates the request by applying any defined generators
-pub fn generate_request(request: &models::Request, mode: &GeneratorTestMode, context: &HashMap<&str, Value>) -> models::Request {
+pub fn generate_request(request: &Request, mode: &GeneratorTestMode, context: &HashMap<&str, Value>) -> Request {
   let mut request = request.clone();
 
   let generators = request.build_generators(&GeneratorCategory::PATH);
@@ -1551,7 +1553,7 @@ pub fn generate_request(request: &models::Request, mode: &GeneratorTestMode, con
 }
 
 /// Generates the response by applying any defined generators
-pub fn generate_response(response: &models::Response, mode: &GeneratorTestMode, context: &HashMap<&str, Value>) -> models::Response {
+pub fn generate_response(response: &Response, mode: &GeneratorTestMode, context: &HashMap<&str, Value>) -> Response {
   let mut response = response.clone();
   let generators = response.build_generators(&GeneratorCategory::STATUS);
   if !generators.is_empty() {

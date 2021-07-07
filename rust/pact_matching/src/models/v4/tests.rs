@@ -15,11 +15,10 @@ use pact_models::json_utils::headers_from_json;
 use pact_models::matchingrules;
 use pact_models::matchingrules::MatchingRule;
 use pact_models::provider_states::ProviderState;
+use pact_models::v4::http_parts::{HttpRequest, HttpResponse, body_from_json};
 
 use crate::models::{Interaction, Pact, PACT_RUST_VERSION, PactSpecification, ReadWritePact, write_pact};
 use crate::models::v4::{AsynchronousMessage, from_json, interaction_from_json, SynchronousHttp, V4InteractionType, V4Pact};
-use crate::models::v4::http_parts::{HttpRequest, HttpResponse};
-use crate::models::v4::http_parts::body_from_json;
 use crate::models::v4::message_parts::MessageContents;
 use crate::models::v4::sync_message::SynchronousMessages;
 

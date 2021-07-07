@@ -387,10 +387,10 @@ mod tests {
   use pact_models::bodies::OptionalBody;
   use pact_models::matchingrules;
   use pact_models::matchingrules::MatchingRule;
+  use pact_models::request::Request;
 
   use crate::DiffConfig;
   use crate::Mismatch;
-  use crate::models::Request;
 
   use super::*;
 

@@ -27,6 +27,8 @@ pub mod path_exp;
 pub mod query_strings;
 pub mod http_utils;
 pub mod http_parts;
+pub mod request;
+pub mod response;
 
 /// Enum defining the pact specification versions supported by the library
 #[repr(C)]
@@ -272,6 +274,7 @@ impl PactJsonVerifier for Provider {
   }
 }
 
+
 /// Enumeration of the types of differences between requests and responses
 #[derive(PartialEq, Debug, Clone, Eq)]
 pub enum DifferenceType {
@@ -290,7 +293,6 @@ pub enum DifferenceType {
   /// Response status differ
   Status
 }
-
 
 /// Enum that defines the different types of HTTP statuses
 #[derive(Debug, Clone, Deserialize, Serialize, Ord, PartialOrd, Eq, PartialEq)]

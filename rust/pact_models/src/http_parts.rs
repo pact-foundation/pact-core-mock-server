@@ -108,3 +108,22 @@ pub trait HttpPart {
     generators
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use expectest::prelude::*;
+  use maplit::hashmap;
+
+  use crate::bodies::OptionalBody;
+  use crate::http_parts::HttpPart;
+  use crate::request::Request;
+
+  #[test]
+  fn http_part_has_header_test() {
+    let request = Request { method: "GET".to_string(), path: "/".to_string(), query: None,
+      headers: Some(hashmap!{ "Content-Type".to_string() => vec!["application/json; charset=UTF-8".to_string()] }),
+      body: OptionalBody::Missing, .. Request::default() };
+    expect!(request.has_header("Content-Type")).to(be_true());
+    expect!(request.lookup_header_value("Content-Type")).to(be_some().value("application/json; charset=UTF-8"));
+  }
+}

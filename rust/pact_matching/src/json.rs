@@ -431,11 +431,11 @@ mod tests {
   use pact_models::{matchingrules, matchingrules_list};
   use pact_models::bodies::OptionalBody;
   use pact_models::matchingrules::{MatchingRule, MatchingRuleCategory};
+  use pact_models::request::Request;
 
   use crate::DiffConfig;
   use crate::Mismatch;
   use crate::Mismatch::BodyMismatch;
-  use crate::models::Request;
 
   use super::*;
 

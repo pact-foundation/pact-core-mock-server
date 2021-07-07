@@ -9,16 +9,16 @@ use bytes::BytesMut;
 use log::*;
 use serde_json::{json, Value};
 
-use pact_models::bodies::OptionalBody;
-use pact_models::content_types::ContentType;
-use pact_models::generators::{Generators, generators_from_json, generators_to_json};
-use pact_models::json_utils::{headers_from_json, json_to_string};
-use pact_models::matchingrules::{matchers_from_json, matchers_to_json, MatchingRules};
-use pact_models::PactSpecification;
-use pact_models::query_strings::{query_to_json, v3_query_from_json};
-
-use crate::models::{detect_content_type_from_bytes, Request, Response};
-use crate::models::v4::calc_content_type;
+use crate::bodies::OptionalBody;
+use crate::content_types::{ContentType, detect_content_type_from_bytes};
+use crate::generators::{Generators, generators_from_json, generators_to_json};
+use crate::json_utils::{headers_from_json, json_to_string};
+use crate::matchingrules::{matchers_from_json, matchers_to_json, MatchingRules};
+use crate::PactSpecification;
+use crate::query_strings::{query_to_json, v3_query_from_json};
+use crate::request::Request;
+use crate::response::Response;
+use crate::v4::calc_content_type;
 
 /// Struct that defines the HTTP request.
 #[derive(Debug, Clone, Eq)]
@@ -162,7 +162,7 @@ impl Hash for HttpRequest {
   }
 }
 
-pub(crate) fn body_from_json(json: &Value, attr_name: &str, headers: &Option<HashMap<String, Vec<String>>>) -> OptionalBody {
+pub fn body_from_json(json: &Value, attr_name: &str, headers: &Option<HashMap<String, Vec<String>>>) -> OptionalBody {
   match json.get(attr_name) {
     Some(body) => match *body {
       Value::Object(ref body_attrs) => {

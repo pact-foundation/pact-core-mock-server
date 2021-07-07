@@ -27,11 +27,11 @@ use pact_models::http_parts::HttpPart;
 use pact_models::json_utils::{hash_json, json_to_string};
 use pact_models::matchingrules::{matchers_from_json, matchers_to_json, MatchingRules};
 use pact_models::provider_states::{self, ProviderState};
+use pact_models::v4::http_parts::{body_from_json, HttpRequest, HttpResponse};
 use pact_models::v4::V4InteractionType;
 use pact_models::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerifier, ResultLevel};
 
 use crate::models::{
-  detect_content_type_from_bytes,
   Interaction,
   Pact,
   PACT_RUST_VERSION,
@@ -41,12 +41,10 @@ use crate::models::{
 };
 use crate::models::message::Message;
 use crate::models::message_pact::MessagePact;
-use crate::models::v4::http_parts::{body_from_json, HttpRequest, HttpResponse};
 use crate::models::v4::message_parts::MessageContents;
 use crate::models::v4::sync_message::SynchronousMessages;
 
 pub mod sync_message;
-pub mod http_parts;
 pub mod message_parts;
 
 /// V4 Interaction trait
@@ -701,21 +699,6 @@ impl HttpPart for AsynchronousMessage {
       key == "contenttype" || key == "content-type"
     }).map(|(_, v)| json_to_string(v))
   }
-}
-
-fn calc_content_type(body: &OptionalBody, headers: &Option<HashMap<String, Vec<String>>>) -> Option<ContentType> {
-  body.content_type()
-    .or_else(|| headers.as_ref().map(|h| {
-      match h.iter().find(|kv| kv.0.to_lowercase() == "content-type") {
-        Some((_, v)) => ContentType::parse(v[0].as_str()).ok(),
-        None => None
-      }
-    }).flatten())
-    .or_else(|| if body.is_present() {
-      detect_content_type_from_bytes(&*body.value().unwrap_or_default())
-    } else {
-      None
-    })
 }
 
 /// V4 spec Struct that represents a pact between the consumer and provider of a service.

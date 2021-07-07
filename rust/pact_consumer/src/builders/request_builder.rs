@@ -9,11 +9,11 @@ use regex::Regex;
 #[cfg(test)]
 use serde_json::json;
 
-use pact_matching::models::*;
-use pact_models::generators::{Generator, GeneratorCategory, Generators};
-use pact_models::matchingrules::{Category, MatchingRules};
 use pact_models::bodies::OptionalBody;
 use pact_models::expression_parser::DataType;
+use pact_models::generators::{Generator, GeneratorCategory, Generators};
+use pact_models::matchingrules::{Category, MatchingRules};
+use pact_models::request::Request;
 
 use crate::prelude::*;
 use crate::util::GetDefaulting;

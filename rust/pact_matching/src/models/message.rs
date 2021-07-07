@@ -11,7 +11,7 @@ use maplit::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use pact_models::json_utils::json_to_string;
+use pact_models::json_utils::{json_to_string, body_from_json};
 use pact_models::{generators, PactSpecification};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
@@ -25,8 +25,6 @@ use crate::models::{Interaction, RequestResponseInteraction};
 use crate::models::v4::{AsynchronousMessage, SynchronousHttp, V4Interaction};
 use crate::models::v4::message_parts::MessageContents;
 use crate::models::v4::sync_message::SynchronousMessages;
-
-use super::body_from_json;
 
 /// Struct that defines a message.
 #[derive(PartialEq, Debug, Clone, Eq, Deserialize, Serialize)]

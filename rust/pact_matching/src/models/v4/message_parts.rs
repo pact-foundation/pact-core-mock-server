@@ -14,9 +14,10 @@ use pact_models::content_types::ContentType;
 use pact_models::generators::generators_to_json;
 use pact_models::json_utils::hash_json;
 use pact_models::matchingrules::matchers_to_json;
+use pact_models::v4::http_parts::body_from_json;
 
-use crate::models::v4::{calc_content_type, metadata_to_headers};
-use crate::models::v4::http_parts::body_from_json;
+use crate::models::v4::metadata_to_headers;
+use pact_models::v4::calc_content_type;
 
 /// Contents of a message interaction
 #[derive(Default, Clone, Debug, Eq)]
