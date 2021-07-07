@@ -210,7 +210,7 @@ else()
 endif()
 
 # Name of the header file.
-set(CBINDGEN_HEADER_NAME "pact_matching.h")
+set(CBINDGEN_HEADER_NAME "pact.h")
 
 # Path to the header file.
 set(CBINDGEN_HEADER_FILE "${CMAKE_CURRENT_SOURCE_DIR}/include/${CBINDGEN_HEADER_NAME}")
@@ -278,7 +278,7 @@ add_custom_command(
         --config ${CBINDGEN_CONFIG_FILE}
         --crate ${CRATE_NAME}
         --output ${CBINDGEN_HEADER_FILE}
-    COMMENT "Generating include/pact_matching.h"
+    COMMENT "Generating include/pact.h"
     BYPRODUCTS ${CBINDGEN_HEADER_FILE}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -339,10 +339,10 @@ endif()
 include(CMakePackageConfigHelpers)
 
 # Set the name of the final package configuration file.
-set(PACKAGE_CONFIG_NAME "PactMatchingFfiConfig.cmake")
+set(PACKAGE_CONFIG_NAME "PactFfiConfig.cmake")
 
 # Set the name of the final package version file.
-set(PACKAGE_VERSION_NAME "PactMatchingFfiConfigVersion.cmake")
+set(PACKAGE_VERSION_NAME "PactFfiConfigVersion.cmake")
 
 # Set the path to the package configuration input file.
 set(PACKAGE_CONFIG_INPUT_FILE "cmake/${PACKAGE_CONFIG_NAME}.in")

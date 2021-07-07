@@ -40,9 +40,9 @@ jobs:
       - name: Install doxygen
         if: runner.os == 'Linux'
         run: sudo apt-get install -y doxygen
-      - name: Build pact_matching_ffi with CMake
+      - name: Build pact_ffi with CMake
         run: ./ci-build.sh
-        working-directory: rust/pact_matching_ffi
+        working-directory: rust/pact_ffi
         shell: bash
         if: runner.os == 'Linux'
       - name: Run the C FFI tests

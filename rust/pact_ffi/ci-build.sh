@@ -5,38 +5,39 @@ set -e
 cargo install cbindgen
 rm -rf ./include
 
-#####################################
-# Build library with CMake
-#####################################
-mkdir build
+echo -------------------------------------
+echo - Build library with CMake
+echo -------------------------------------
+mkdir -p build
 cd build
 cmake -DCMAKE_BUILD_TYPE=Debug ..
 cmake --build . -v
 cd ..
 
-#####################################
-# Generate header with cbindgen
-#####################################
+echo -------------------------------------
+echo - Generate header with cbindgen
+echo -------------------------------------
 rustup run nightly cbindgen \
   --config cbindgen.toml \
   --crate pact_matching_ffi \
   --output include/pact_matching.h
 
-#####################################
-# Make library available for examples
-#####################################
+echo -------------------------------------
+echo - Make library available for examples
+echo -------------------------------------
 cd build
 cmake --install . --prefix ./install
 
-#####################################
-# Running examples
-#####################################
+echo -------------------------------------
+echo - Running examples
+echo -------------------------------------
 cd ..
 for i in examples/*; do
   pushd $i
-  mkdir build
+  mkdir -p build
   cd build
   cmake ..
   cmake --build .
+  ./example
   popd
 done

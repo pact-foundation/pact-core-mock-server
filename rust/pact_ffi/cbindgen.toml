@@ -1,6 +1,6 @@
 #==============================================================================
 #
-# cbindgen configuration for Pact Matching FFI
+# cbindgen configuration for Pact FFI
 #
 # For more information on cbindgen configuration, see:
 #     https://github.com/eqrion/cbindgen/blob/master/docs.md#cbindgentoml
@@ -11,7 +11,7 @@
 language = "C"
 
 # Wrap generated file in an include guard.
-include_guard = "pact_matching_ffi_h"
+include_guard = "pact_ffi_h"
 
 # Note the version of cbindgen used to generate the header.
 include_version = true
@@ -29,7 +29,7 @@ style = "both"
 header = """
 /**
  * @file
- * @brief "An FFI interface to the `pact_matching` library, enabling cross-language use of Pact's core matching functionality."
+ * @brief "An FFI interface to the pact libraries, enabling cross-language use of Pact's core functionality."
  */
 """
 
@@ -59,7 +59,6 @@ parse_deps = true
 # Only include `pact_matching` and `pact_models` (nothing else).
 include = ["pact_matching", "pact_models"]
 
-
 #==============================================================================
 # Macro Expansion Rules
 #------------------------------------------------------------------------------
@@ -67,4 +66,4 @@ include = ["pact_matching", "pact_models"]
 [parse.expand]
 
 # Expand macros for `pact_matching_ffi`.
-crates = ["pact_matching_ffi"]
+crates = ["pact_ffi"]
