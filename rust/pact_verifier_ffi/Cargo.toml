@@ -3,7 +3,7 @@ name = "pact_verifier_ffi"
 version = "0.0.6"
 authors = ["Ronald Holshausen <uglyog@gmail.com>", "Matt Fellows <matt.fellows@onegeek.com.au>"]
 edition = "2018"
-description = "Pact verifier FFI for provider pact verification"
+description = "Pact verifier FFI for provider pact verification [DEPRECATED, replaced with pact_ffi]"
 homepage = "http://www.pact.io"
 repository = "https://github.com/pact-foundation/pact-reference/blob/master/rust/pact_verifier_ffi"
 readme = "README.md"
@@ -12,6 +12,9 @@ license = "MIT"
 exclude = [
     "*.iml"
 ]
+
+[badges]
+maintenace = { status = "deprecated" }
 
 [dependencies]
 libc = "0.2.76"

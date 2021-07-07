@@ -1,6 +1,6 @@
 # Pact Mock Server FFI library [DEPRECATED]
 
-**NOTE:** This library is being moved into a single FFI library.
+**NOTE:** This library is being moved into a single FFI library [pact_ffi](./pact_ffi).
 
 This library implements exported functions using C bindings for controlling the in-process mock server for 
 matching HTTP requests and generating responses from a pact file.
