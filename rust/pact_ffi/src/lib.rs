@@ -9,6 +9,7 @@ pub mod error;
 pub mod log;
 pub mod models;
 pub(crate) mod util;
+pub mod mock_server;
 
 use crate::util::*;
 use libc::c_char;

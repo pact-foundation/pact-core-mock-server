@@ -8,13 +8,20 @@ use maplit::*;
 use reqwest::blocking::Client;
 use reqwest::header::CONTENT_TYPE;
 
-use pact_mock_server_ffi::{
+use pact_models::bodies::OptionalBody;
+
+use pact_ffi::mock_server::{
   cleanup_mock_server,
   create_mock_server,
   create_mock_server_for_pact,
-  handles::InteractionPart,
+  message_expects_to_receive,
+  message_given, message_reify,
+  message_with_contents,
+  message_with_metadata,
   mock_server_mismatches,
   new_interaction,
+  new_message,
+  new_message_pact,
   new_pact,
   response_status,
   upon_receiving,
@@ -22,18 +29,11 @@ use pact_mock_server_ffi::{
   with_header,
   with_multipart_file,
   with_query_parameter,
-  with_request
+  with_request,
+  write_message_pact_file,
+  write_pact_file
 };
-use pact_mock_server_ffi::message_expects_to_receive;
-use pact_mock_server_ffi::message_given;
-use pact_mock_server_ffi::message_reify;
-use pact_mock_server_ffi::message_with_contents;
-use pact_mock_server_ffi::message_with_metadata;
-use pact_mock_server_ffi::new_message;
-use pact_mock_server_ffi::new_message_pact;
-use pact_mock_server_ffi::write_message_pact_file;
-use pact_mock_server_ffi::write_pact_file;
-use pact_models::bodies::OptionalBody;
+use pact_ffi::mock_server::handles::InteractionPart;
 
 #[test]
 fn post_to_mock_server_with_misatches() {

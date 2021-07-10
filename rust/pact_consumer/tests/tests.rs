@@ -14,7 +14,7 @@ use pact_consumer::prelude::*;
 use pact_matching::models::ReadWritePact;
 use pact_matching::models::RequestResponsePact;
 
-/// This is supposed to be a doctest in lib.rs, but it's breaking there, so
+/// This is supposed to be a doctest in mod, but it's breaking there, so
 /// we have an executable copy here.
 ///
 /// This test is currently ignored because it has a race condition when running in CI. Probably
