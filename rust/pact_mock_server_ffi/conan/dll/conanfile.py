@@ -2,14 +2,14 @@ from conans import ConanFile, VisualStudioBuildEnvironment, CMake, tools
 
 class CbindgenTestConan(ConanFile):
     name = "pact_mock_server_ffi_dll"
-    version = "0.0.18"
+    version = "0.1.0"
     description = "Pact/Rust FFI bindings (DLL/Shared Lib)"
     url = "https://github.com/conan-io/conan-center-index"
     homepage = "https://github.com/pact-foundation/pact-reference"
     license = "MIT"
     settings = "os", "compiler", "build_type", "arch"
     no_copy_source = True
-    requires = "openssl/1.1.1d"
+    requires = "openssl/1.1.1k"
     topics = ("pact", "consumer-driven-contracts", "contract-testing", "mock-server")
 
     def build(self):
