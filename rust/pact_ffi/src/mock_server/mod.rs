@@ -51,7 +51,7 @@ use std::ffi::CString;
 use std::panic::catch_unwind;
 use std::path::PathBuf;
 use std::ptr::null_mut;
-use std::str::{from_utf8, FromStr};
+use std::str::from_utf8;
 
 use bytes::Bytes;
 use libc::{c_char, c_ushort, size_t};
@@ -60,7 +60,6 @@ use serde_json::json;
 use serde_json::Value;
 
 use chrono::Local;
-use env_logger::Builder;
 use itertools::Itertools;
 use maplit::*;
 use onig::Regex;
@@ -85,94 +84,10 @@ use uuid::Uuid;
 use crate::mock_server::bodies::{empty_multipart_body, file_as_multipart_body, MultipartBody, process_json, request_multipart, response_multipart};
 use crate::mock_server::bodies::process_object;
 use crate::mock_server::handles::InteractionPart;
+use crate::convert_cstr;
 
 pub mod handles;
 pub mod bodies;
-
-const VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "\0");
-
-/// Get the current library version
-#[no_mangle]
-pub extern "C" fn version() -> *const c_char {
-  VERSION.as_ptr() as *const c_char
-}
-
-/// Initialise the mock server library, can provide an environment variable name to use to
-/// set the log levels.
-///
-/// # Safety
-///
-/// Exported functions are inherently unsafe.
-#[no_mangle]
-pub unsafe extern fn init(log_env_var: *const c_char) {
-  let log_env_var = if !log_env_var.is_null() {
-    let c_str = CStr::from_ptr(log_env_var);
-    match c_str.to_str() {
-      Ok(str) => str,
-      Err(err) => {
-        warn!("Failed to parse the environment variable name as a UTF-8 string: {}", err);
-        "LOG_LEVEL"
-      }
-    }
-  } else {
-    "LOG_LEVEL"
-  };
-
-  let env = env_logger::Env::new().filter(log_env_var);
-  let mut builder = Builder::from_env(env);
-  builder.try_init().unwrap_or(());
-}
-
-/// Initialises logging, and sets the log level explicitly.
-///
-/// # Safety
-///
-/// Exported functions are inherently unsafe.
-#[no_mangle]
-pub unsafe extern "C" fn init_with_log_level(level: *const c_char) {
-  let mut builder = Builder::from_default_env();
-  let log_level = log_level_from_c_char(level);
-
-  builder.filter_level(log_level.to_level_filter());
-  builder.try_init().unwrap_or(());
-}
-
-/// Log using the shared core logging facility.
-///
-/// This is useful for callers to have a single set of logs.
-///
-/// * `source` - String. The source of the log, such as the class or caller framework to
-///                      disambiguate log lines from the rust logging (e.g. pact_go)
-/// * `log_level` - String. One of TRACE, DEBUG, INFO, WARN, ERROR
-/// * `message` - Message to log
-///
-/// Exported functions are inherently unsafe.
-#[no_mangle]
-pub unsafe extern "C" fn log_message(source: *const c_char, log_level: *const c_char, message: *const c_char) {
-  let target = convert_cstr("target", source).unwrap_or("client");
-
-  if !message.is_null() {
-    match convert_cstr("message", message) {
-      Some(message) => log!(
-        target: target,
-        log_level_from_c_char(log_level),
-        "{}",
-        message
-      ),
-      None => (),
-    }
-  }
-}
-
-unsafe fn log_level_from_c_char(log_level: *const c_char) -> log::Level {
-  if !log_level.is_null() {
-    let level = convert_cstr("log_level", log_level).unwrap_or("INFO");
-
-    log::Level::from_str(level).unwrap_or(log::Level::Info)
-  } else {
-    log::Level::Info
-  }
-}
 
 /// External interface to create a mock server. A pointer to the pact JSON as a C string is passed in,
 /// as well as the port for the mock server to run on. A value of 0 for the port will result in a
@@ -904,24 +819,6 @@ fn error_message(err: Box<dyn Any>, method: &str) -> String {
     format!("{} failed with an error - {}", method, err)
   } else {
     format!("{} failed with an unknown error", method)
-  }
-}
-
-fn convert_cstr(name: &str, value: *const c_char) -> Option<&str> {
-  unsafe {
-    if value.is_null() {
-      warn!("{} is NULL!", name);
-      None
-    } else {
-      let c_str = CStr::from_ptr(value);
-      match c_str.to_str() {
-        Ok(str) => Some(str),
-        Err(err) => {
-          warn!("Failed to parse {} name as a UTF-8 string: {}", name, err);
-          None
-        }
-      }
-    }
   }
 }
 

@@ -1082,6 +1082,7 @@ dependencies = [
  "bytes",
  "chrono",
  "chrono-tz",
+ "clap",
  "env_logger",
  "expectest",
  "fern",
@@ -1096,12 +1097,17 @@ dependencies = [
  "pact_matching",
  "pact_mock_server",
  "pact_models",
+ "pact_verifier",
+ "quickcheck",
  "rand 0.8.4",
  "rand_regex",
+ "regex",
  "regex-syntax",
  "reqwest",
  "serde_json",
+ "simplelog 0.9.0",
  "thiserror",
+ "tokio",
  "uuid",
  "zeroize",
 ]
@@ -1331,7 +1337,7 @@ name = "pact_verifier_cli"
 version = "0.8.6"
 dependencies = [
  "clap",
- "pact_verifier_ffi",
+ "pact_ffi",
  "reqwest",
  "tokio",
 ]

@@ -235,7 +235,7 @@
 // Due to large generated future for async fns
 #![type_length_limit="100000000"]
 
-use pact_verifier_ffi::verifier::handle_cli;
+use pact_ffi::verifier::verifier::handle_cli;
 
 #[tokio::main]
 async fn main() {
