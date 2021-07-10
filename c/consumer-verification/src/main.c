@@ -227,7 +227,7 @@ int main (int argc, char **argv) {
   puts("This is " PACKAGE_STRING ".");
 
   if (argc < 3 || (strcmp(argv[1], "basic") != 0 && strcmp(argv[1], "error") != 0 && strcmp(argv[1], "both") != 0)) {
-    puts("You need to specify the test to run: basic, error or both and the path to the rust DLL");
+    puts("You need to specify the test to run: basic, error or both and the path to the pact FFI DLL");
     return 1;
   }
 

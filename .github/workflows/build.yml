@@ -55,8 +55,8 @@ jobs:
           automake --add-missing
           ./configure
           make
-          src/consumer-verification basic ../../rust/target/debug/libpact_mock_server_ffi.so
-          src/consumer-verification error ../../rust/target/debug/libpact_mock_server_ffi.so
+          src/consumer-verification basic ../../rust/target/debug/libpact_ffi.so
+          src/consumer-verification error ../../rust/target/debug/libpact_ffi.so
 
   musl-build:
     runs-on: ubuntu-latest

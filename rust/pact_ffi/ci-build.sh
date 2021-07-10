@@ -19,8 +19,8 @@ echo - Generate header with cbindgen
 echo -------------------------------------
 rustup run nightly cbindgen \
   --config cbindgen.toml \
-  --crate pact_matching_ffi \
-  --output include/pact_matching.h
+  --crate pact_ffi \
+  --output include/pact.h
 
 echo -------------------------------------
 echo - Make library available for examples
