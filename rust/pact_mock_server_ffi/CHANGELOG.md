@@ -1,5 +1,27 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.1.1 - Deprecated Library
+
+* 0d5ec68a - feat: copied verfier_ffi crate to pact_ffi (Ronald Holshausen, Sat Jul 10 16:54:28 2021 +1000)
+* 084ab46b - feat: Copied pact_mockserver_ffi to pact_ffi (Ronald Holshausen, Sat Jul 10 16:24:29 2021 +1000)
+* b50d2cd4 - chore: update conan recipes (Ronald Holshausen, Sat Jul 10 14:56:19 2021 +1000)
+* e2e10241 - refactor: moved Request and Response structs to the models crate (Ronald Holshausen, Wed Jul 7 18:09:36 2021 +1000)
+* 9e8b01d7 - refactor: move HttpPart struct to models crate (Ronald Holshausen, Wed Jul 7 15:59:34 2021 +1000)
+* 8e1136ec - chore: add deprecation notes to the FFI crates (Ronald Holshausen, Wed Jul 7 13:44:23 2021 +1000)
+* 48475166 - chore: add deprecation notes to the FFI libs (Ronald Holshausen, Wed Jul 7 12:43:42 2021 +1000)
+* 2e6c446a - Merge pull request #119 from pact-foundation/feat/log-via-ffi2 (Matt Fellows, Tue Jul 6 20:10:58 2021 +1000)
+* 1282378d - chore: use json_to_string on metadata for parsing content-type (Matt Fellows, Tue Jul 6 14:30:03 2021 +1000)
+* f683304c - feat: allow callers to add messages to log (Matt Fellows, Sat Jul 3 23:36:46 2021 +1000)
+* 33f9a823 - feat: support complex data structures in message metadata (Matt Fellows, Mon Jul 5 23:38:52 2021 +1000)
+* 01ff9877 - refactor: moved matching rules and generators to models crate (Ronald Holshausen, Sun Jul 4 17:17:30 2021 +1000)
+* 78c20d6a - fix: failing test after changing  message_with_contents function signature (Ronald Holshausen, Sun Jun 27 12:08:49 2021 +1000)
+* 64e07005 - fix: update doc comment on message_with_contents function (Ronald Holshausen, Sun Jun 27 11:51:35 2021 +1000)
+* 8b075d38 - fix: FFI function was exposing a struct from the models crate (Ronald Holshausen, Sun Jun 27 11:30:55 2021 +1000)
+* c3c22ea8 - Revert "refactor: moved matching rules and generators to models crate (part 1)" (Ronald Holshausen, Wed Jun 23 14:37:46 2021 +1000)
+* 53bb86c4 - Merge branch 'release-verifier' (Ronald Holshausen, Wed Jun 23 13:59:59 2021 +1000)
+* eb17d9f7 - bump version to 0.1.1 (Ronald Holshausen, Wed Jun 23 13:32:44 2021 +1000)
+* d3406650 - refactor: moved matching rules and generators to models crate (part 1) (Ronald Holshausen, Wed Jun 23 12:58:30 2021 +1000)
+
 # 0.1.0 - Accumulating mock server log entries + bugfixes
 
 * 6198538d - refactor: move time_utils to pact_models crate (Ronald Holshausen, Fri Jun 11 12:58:26 2021 +1000)
