@@ -30,10 +30,8 @@ class CbindgenTestConan(ConanFile):
             tools.unzip("libpact_ffi.a.gz")
         else:
             raise Exception("Binary does not exist for these settings")
-        tools.download(("https://github.com/pact-foundation/pact-reference/releases/download/libpact_ffi-v%s/pact_ffi.h"
-                % (str(self.version))), "include/pact_ffi.h")
-        tools.download(("https://github.com/pact-foundation/pact-reference/releases/download/libpact_ffi-v%s/pact_ffi-c.h"
-                % (str(self.version))), "include/pact_ffi-c.h")
+        tools.download(("https://github.com/pact-foundation/pact-reference/releases/download/libpact_ffi-v%s/pact.h"
+                % (str(self.version))), "include/pact.h")
 
     def package(self):
         self.copy("libpact_ffi*.a", "lib", "")
