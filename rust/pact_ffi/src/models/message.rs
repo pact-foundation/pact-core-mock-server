@@ -137,7 +137,7 @@ ffi_fn! {
     ///
     /// # Safety
     ///
-    /// The returned string must be deleted with `string_delete`.
+    /// The returned string must be deleted with `pactffi_string_delete`.
     ///
     /// The returned string can outlive the message.
     ///
@@ -178,7 +178,7 @@ ffi_fn! {
     ///
     /// # Safety
     ///
-    /// The returned string must be deleted with `string_delete`.
+    /// The returned string must be deleted with `pactffi_string_delete`.
     ///
     /// Since it is a copy, the returned string may safely outlive
     /// the `Message`.
@@ -339,7 +339,7 @@ ffi_fn! {
     ///
     /// # Safety
     ///
-    /// The returned string must be deleted with `string_delete`.
+    /// The returned string must be deleted with `pactffi_string_delete`.
     ///
     /// Since it is a copy, the returned string may safely outlive
     /// the `Message`.
@@ -526,8 +526,8 @@ impl MessageMetadataPair {
 // The discussion here helps explain: https://github.com/rust-lang/rust-clippy/issues/4774
 impl Drop for MessageMetadataPair {
     fn drop(&mut self) {
-        string::string_delete(self.key as *mut c_char);
-        string::string_delete(self.value as *mut c_char);
+        string::pactffi_string_delete(self.key as *mut c_char);
+        string::pactffi_string_delete(self.value as *mut c_char);
     }
 }
 

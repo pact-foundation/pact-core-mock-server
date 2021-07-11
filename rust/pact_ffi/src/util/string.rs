@@ -21,7 +21,7 @@ ffi_fn! {
     ///
     /// It is explicitly allowed to pass a null pointer to this function;
     /// in that case the function will do nothing.
-    fn string_delete(string: *mut c_char) {
+    fn pactffi_string_delete(string: *mut c_char) {
         if string.is_null().not() {
             let string = unsafe { CString::from_raw(string) };
             std::mem::drop(string);

@@ -161,7 +161,7 @@ ffi_fn! {
     /// Since it is a copy, the returned string may safely outlive
     /// the `Message`.
     ///
-    /// The returned string must be deleted with `string_delete`.
+    /// The returned string must be deleted with `pactffi_string_delete`.
     ///
     /// The returned pointer will be NULL if the metadata does not contain
     /// the given key, or if an error occurred.
@@ -269,7 +269,7 @@ ffi_fn! {
 }
 
 ffi_fn! {
-    /// Free a triple returned from `message_pact_metadata_iter_next`.
+    /// Free a triple returned from `pactffi_message_pact_metadata_iter_next`.
     fn pactffi_message_pact_metadata_triple_delete(triple: *mut MessagePactMetadataTriple) {
         ptr::drop_raw(triple);
     }
@@ -358,8 +358,8 @@ impl MessagePactMetadataTriple {
 // The discussion here helps explain: https://github.com/rust-lang/rust-clippy/issues/4774
 impl Drop for MessagePactMetadataTriple {
     fn drop(&mut self) {
-        string::string_delete(self.outer_key as *mut c_char);
-        string::string_delete(self.inner_key as *mut c_char);
-        string::string_delete(self.value as *mut c_char);
+        string::pactffi_string_delete(self.outer_key as *mut c_char);
+        string::pactffi_string_delete(self.inner_key as *mut c_char);
+        string::pactffi_string_delete(self.value as *mut c_char);
     }
 }

@@ -10,7 +10,7 @@ use crate::{as_mut, as_ref, ffi_fn};
 use crate::util::*;
 
 ffi_fn! {
-    /// Get the name of the provider state as a string, which needs to be deleted with `string_delete`.
+    /// Get the name of the provider state as a string, which needs to be deleted with `pactffi_string_delete`.
     ///
     /// # Safety
     ///
@@ -109,7 +109,7 @@ ffi_fn! {
 }
 
 ffi_fn! {
-    /// Free a pair of key and value returned from `provider_state_param_iter_next`.
+    /// Free a pair of key and value returned from `pactffi_provider_state_param_iter_next`.
     fn pactffi_provider_state_param_pair_delete(pair: *mut ProviderStateParamPair) {
         ptr::drop_raw(pair);
     }

@@ -9,31 +9,31 @@ pub use pact_models::Consumer;
 ffi_fn! {
     /// Get a copy of this consumer's name.
     ///
-    /// The copy must be deleted with `string_delete`.
+    /// The copy must be deleted with `pactffi_string_delete`.
     ///
     /// # Usage
     ///
     /// ```c
     /// // Assuming `file_name` and `json_str` are already defined.
     ///
-    /// MessagePact *message_pact = message_pact_new_from_json(file_name, json_str);
+    /// MessagePact *message_pact = pactffi_message_pact_new_from_json(file_name, json_str);
     /// if (message_pact == NULLPTR) {
     ///     // handle error.
     /// }
     ///
-    /// Consumer *consumer = message_pact_get_consumer(message_pact);
+    /// Consumer *consumer = pactffi_message_pact_get_consumer(message_pact);
     /// if (consumer == NULLPTR) {
     ///     // handle error.
     /// }
     ///
-    /// char *name = consumer_get_name(consumer);
+    /// char *name = pactffi_consumer_get_name(consumer);
     /// if (name == NULL) {
     ///     // handle error.
     /// }
     ///
     /// printf("%s\n", name);
     ///
-    /// string_delete(name);
+    /// pactffi_string_delete(name);
     /// ```
     ///
     /// # Errors
