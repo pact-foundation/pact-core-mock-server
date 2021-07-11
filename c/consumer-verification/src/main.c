@@ -202,7 +202,7 @@ void error_test(char *executable) {
         puts("FAILED: Mock server verified all requests!!");
       } else {
         puts("OK: Mock server did not match all requests.");
-        char *mismatch_json = ffi_mock_server_mismatches(port);
+        char *mismatch_json = mock_server_mismatches(port);
         puts(mismatch_json);
       }
 
