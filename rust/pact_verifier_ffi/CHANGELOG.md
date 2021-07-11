@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.0.6 - Deprecated Library
+
+* 10e8ef87 - refactor: moved http_utils to the models crate (Ronald Holshausen, Wed Jul 7 14:34:20 2021 +1000)
+* 8e1136ec - chore: add deprecation notes to the FFI crates (Ronald Holshausen, Wed Jul 7 13:44:23 2021 +1000)
+* 48475166 - chore: add deprecation notes to the FFI libs (Ronald Holshausen, Wed Jul 7 12:43:42 2021 +1000)
+* 8b075d38 - fix: FFI function was exposing a struct from the models crate (Ronald Holshausen, Sun Jun 27 11:30:55 2021 +1000)
+* a7638160 - bump version to 0.0.6 (Ronald Holshausen, Wed Jun 23 13:44:07 2021 +1000)
+
 # 0.0.5 - Bugfix Release
 
 * 12e51704 - fix: linux verifier ffi shasum path was incorrect. Fixes #114 (Matt Fellows, Mon Jun 7 09:25:14 2021 +1000)
