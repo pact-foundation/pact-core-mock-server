@@ -49,10 +49,10 @@ typedef const char * (*lib_fetch_log_buffer)(const char *);
 typedef const char * (*lib_mock_server_logs)(int32_t);
 typedef void (*lib_string_delete)(const char *string);
 
-lib_create_mock_server ffi_create_mock_server;
-lib_mock_server_matched ffi_mock_server_matched;
-lib_cleanup_mock_server ffi_cleanup_mock_server;
-lib_mock_server_mismatches ffi_mock_server_mismatches;
+lib_create_mock_server create_mock_server;
+lib_mock_server_matched mock_server_matched;
+lib_cleanup_mock_server cleanup_mock_server;
+lib_mock_server_mismatches mock_server_mismatches;
 
 lib_log_to_buffer mock_server__log_to_buffer;
 lib_log_to_stdout mock_server__log_to_stdout;
@@ -66,10 +66,10 @@ int setup_mock_server_functions(char *mock_server_lib) {
   void *handle = dlopen(mock_server_lib, RTLD_NOW | RTLD_GLOBAL);
   if (handle) {
     /* We have a handle, so lookup the functions we need */
-    ffi_create_mock_server = dlsym(handle, "pactffi_create_mock_server");
-    ffi_mock_server_matched = dlsym(handle, "pactffi_mock_server_matched");
-    ffi_cleanup_mock_server = dlsym(handle, "pactffi_cleanup_mock_server");
-    ffi_mock_server_mismatches = dlsym(handle, "pactffi_mock_server_mismatches");
+    create_mock_server = dlsym(handle, "pactffi_create_mock_server");
+    mock_server_matched = dlsym(handle, "pactffi_mock_server_matched");
+    cleanup_mock_server = dlsym(handle, "pactffi_cleanup_mock_server");
+    mock_server_mismatches = dlsym(handle, "pactffi_mock_server_mismatches");
     mock_server__log_to_buffer = dlsym(handle, "pactffi_log_to_buffer");
     mock_server__log_to_stdout = dlsym(handle, "pactffi_log_to_stdout");
     mock_server__fetch_log_buffer = dlsym(handle, "pactffi_fetch_log_buffer");
@@ -112,7 +112,7 @@ void basic_test(char *executable) {
   char *pact = slurp_file(pactfile);
   if (pact) {
     /* Create the mock server from the pact file. The mock server port will be returned */
-    int port = ffi_create_mock_server(pact, "127.0.0.1:0");
+    int port = create_mock_server(pact, "127.0.0.1:0");
     if (port > 0) {
       printf("Mock server started on port %d\n", port);
 
@@ -120,7 +120,7 @@ void basic_test(char *executable) {
       execute_basic_test(port);
 
       /* Check the result */
-      if (ffi_mock_server_matched(port)) {
+      if (mock_server_matched(port)) {
         puts("OK: Mock server verified all requests, as expected");
       } else {
         puts("FAILED: Mock server did not match all requests!!");
@@ -132,7 +132,7 @@ void basic_test(char *executable) {
       puts("------------------------------------------------");
 
       /* Lastly, we need to shutdown and cleanup the mock server */
-      ffi_cleanup_mock_server(port);
+      cleanup_mock_server(port);
 
       free(pact);
     } else {
@@ -190,7 +190,7 @@ void error_test(char *executable) {
   char *pact = slurp_file(pactfile);
   if (pact) {
     /* Create the mock server from the pact file. The mock server port will be returned */
-    int port = ffi_create_mock_server(pact, "127.0.0.1:0");
+    int port = create_mock_server(pact, "127.0.0.1:0");
     if (port > 0) {
       printf("Mock server started on port %d\n", port);
 
@@ -198,7 +198,7 @@ void error_test(char *executable) {
       execute_error_test(port);
 
       /* Check the result */
-      if (ffi_mock_server_matched(port)) {
+      if (mock_server_matched(port)) {
         puts("FAILED: Mock server verified all requests!!");
       } else {
         puts("OK: Mock server did not match all requests.");
@@ -212,7 +212,7 @@ void error_test(char *executable) {
       puts("------------------------------------------------");
 
       /* Lastly, we need to shutdown and cleanup the mock server */
-      ffi_cleanup_mock_server(port);
+      cleanup_mock_server(port);
       free(pact);
     } else {
       printf("Failed to start mock_server %d\n", port);
