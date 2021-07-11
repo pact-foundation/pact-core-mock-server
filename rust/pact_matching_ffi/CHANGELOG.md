@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.0.5 - Deprecated Library
+
+* 8e1136ec - chore: add deprecation notes to the FFI crates (Ronald Holshausen, Wed Jul 7 13:44:23 2021 +1000)
+* 48475166 - chore: add deprecation notes to the FFI libs (Ronald Holshausen, Wed Jul 7 12:43:42 2021 +1000)
+* 33f9a823 - feat: support complex data structures in message metadata (Matt Fellows, Mon Jul 5 23:38:52 2021 +1000)
+* 05620d7a - bump version to 0.0.5 (Ronald Holshausen, Wed Jun 23 13:52:32 2021 +1000)
+
 # 0.0.4 - support accumulating log entries per running mock server
 
 * 6d058529 - chore: fix some clippy warnings (Ronald Holshausen, Mon May 31 16:42:57 2021 +1000)
