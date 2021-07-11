@@ -1,5 +1,19 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.10.9 - Moved structs to models crate + bugfixes and enhancements
+
+* e2e10241 - refactor: moved Request and Response structs to the models crate (Ronald Holshausen, Wed Jul 7 18:09:36 2021 +1000)
+* 9e8b01d7 - refactor: move HttpPart struct to models crate (Ronald Holshausen, Wed Jul 7 15:59:34 2021 +1000)
+* 10e8ef87 - refactor: moved http_utils to the models crate (Ronald Holshausen, Wed Jul 7 14:34:20 2021 +1000)
+* a935fbd6 - chore: tests for extract_headers (Matt Fellows, Tue Jul 6 10:54:39 2021 +1000)
+* 33f9a823 - feat: support complex data structures in message metadata (Matt Fellows, Mon Jul 5 23:38:52 2021 +1000)
+* a835e684 - feat: support message metadata in verifications (Matt Fellows, Sun Jul 4 21:02:35 2021 +1000)
+* 01ff9877 - refactor: moved matching rules and generators to models crate (Ronald Holshausen, Sun Jul 4 17:17:30 2021 +1000)
+* c3c22ea8 - Revert "refactor: moved matching rules and generators to models crate (part 1)" (Ronald Holshausen, Wed Jun 23 14:37:46 2021 +1000)
+* 53bb86c4 - Merge branch 'release-verifier' (Ronald Holshausen, Wed Jun 23 13:59:59 2021 +1000)
+* 7d69ec97 - bump version to 0.10.9 (Ronald Holshausen, Wed Jun 23 13:19:38 2021 +1000)
+* d3406650 - refactor: moved matching rules and generators to models crate (part 1) (Ronald Holshausen, Wed Jun 23 12:58:30 2021 +1000)
+
 # 0.10.8 - Refactor + Bugfixes
 
 * 84f01d31 - chore: cleanup pedning output (Ronald Holshausen, Fri Jun 11 16:28:28 2021 +1000)
