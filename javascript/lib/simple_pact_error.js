@@ -6,10 +6,10 @@ const url = require('url');
 
 var dll = '../../rust/target/debug/libpact_mock_server_ffi';
 var lib = ffi.Library(path.join(__dirname, dll), {
-  create_mock_server: ['int32', ['string', 'int32']],
-  mock_server_matched: ['bool', ['int32']],
-  mock_server_mismatches: ['string', ['int32']],
-  cleanup_mock_server: ['bool', ['int32']]
+  pactffi_create_mock_server: ['int32', ['string', 'int32']],
+  pactffi_mock_server_matched: ['bool', ['int32']],
+  pactffi_mock_server_mismatches: ['string', ['int32']],
+  pactffi_cleanup_mock_server: ['bool', ['int32']]
 });
 
 var pact = '{\n' +
@@ -61,10 +61,10 @@ var pact = '{\n' +
 '      }\n' +
 '    }';
 
-var port = lib.create_mock_server(pact, 0);
+var port = lib.pactffi_create_mock_server(pact, 0);
 console.log("Mock server port=" + port);
 
-if (!lib.mock_server_matched(port)) {
+if (!lib.pactffi_mock_server_matched(port)) {
   console.log("No requests yet, as expected");
 } else {
   console.log("Hmm, something smells a bit off.");
@@ -152,16 +152,16 @@ waitForResult = function () {
         setTimeout(waitForResult, 1000);
     } else {
       console.log("-----------------------------------------------");
-      if (lib.mock_server_matched(port)) {
+      if (lib.pactffi_mock_server_matched(port)) {
         console.log("Mock server matched all requests, That Is Not Good (tm)");
       } else {
         console.log("We got some mismatches, as expected.");
-        var mismatch_json = lib.mock_server_mismatches(port);
+        var mismatch_json = lib.pactffi_mock_server_mismatches(port);
         console.log(mismatch_json);
         console.log();
         console.log(JSON.stringify(JSON.parse(mismatch_json), null, 4));
       }
-      lib.cleanup_mock_server(port);
+      lib.pactffi_cleanup_mock_server(port);
     }
 };
 setTimeout(waitForResult, 1000);

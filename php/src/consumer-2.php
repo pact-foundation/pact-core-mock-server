@@ -4,27 +4,27 @@ require __DIR__ . '/../vendor/autoload.php';
 
 use Symfony\Component\HttpClient\HttpClient;
 
-$code = file_get_contents(__DIR__ . '/../lib/pact_mock_server_ffi-c.h');
-$ffi = FFI::cdef($code, __DIR__ . '/../../rust/target/debug/libpact_mock_server_ffi.so');
+$code = file_get_contents(__DIR__ . '/../../rust/pact_ffi/include/pact.h');
+$ffi = FFI::cdef($code, __DIR__ . '/../../rust/target/debug/libpact_ffi.so');
 
 $ffi->init('LOG_LEVEL');
 
-$pact = $ffi->new_pact('http-consumer-2', 'http-provider');
-$ffi->with_specification($pact, $ffi->PactSpecification_V3);
+$pact = $ffi->pactffi_new_pact('http-consumer-2', 'http-provider');
+$ffi->pactffi_with_specification($pact, $ffi->PactSpecification_V3);
 
-$interaction = $ffi->new_interaction($pact, 'A PUT request to generate book cover');
-$ffi->upon_receiving($interaction, 'A PUT request to generate book cover');
-$ffi->given($interaction, 'Book Fixtures Loaded');
-$ffi->with_request($interaction, 'PUT', '/api/books/fb5a885f-f7e8-4a50-950f-c1a64a94d500/generate-cover');
-$ffi->with_header($interaction, $ffi->Request, 'Content-Type', 0, 'application/json');
-$ffi->with_body($interaction, $ffi->Request, 'application/json', '[]');
-$ffi->response_status($interaction, 204);
+$interaction = $ffi->pactffi_new_interaction($pact, 'A PUT request to generate book cover');
+$ffi->pactffi_upon_receiving($interaction, 'A PUT request to generate book cover');
+$ffi->pactffi_given($interaction, 'Book Fixtures Loaded');
+$ffi->pactffi_with_request($interaction, 'PUT', '/api/books/fb5a885f-f7e8-4a50-950f-c1a64a94d500/generate-cover');
+$ffi->pactffi_with_header($interaction, $ffi->Request, 'Content-Type', 0, 'application/json');
+$ffi->pactffi_with_body($interaction, $ffi->Request, 'application/json', '[]');
+$ffi->pactffi_response_status($interaction, 204);
 
-$messagePact = $ffi->new_message_pact('message-consumer-2', 'message-provider');
-$message = $ffi->new_message($messagePact, 'Book Created');
-$ffi->message_expects_to_receive($message, 'Book Created');
-$ffi->message_given($message, 'Provider has book');
-$ffi->message_with_contents($message, 'application/json', '{
+$messagePact = $ffi->pactffi_new_message_pact('message-consumer-2', 'message-provider');
+$message = $ffi->pactffi_new_message($messagePact, 'Book Created');
+$ffi->pactffi_message_expects_to_receive($message, 'Book Created');
+$ffi->pactffi_message_given($message, 'Provider has book');
+$ffi->pactffi_message_with_contents($message, 'application/json', '{
     "uuid": {
         "pact:matcher:type": "regex",
         "regex": "^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$",
@@ -32,7 +32,7 @@ $ffi->message_with_contents($message, 'application/json', '{
     }
 }', 0); // is size necessary?
 
-$port = $ffi->create_mock_server_for_pact($pact, '127.0.0.1:0', false);
+$port = $ffi->pactffi_create_mock_server_for_pact($pact, '127.0.0.1:0', false);
 echo sprintf("Mock server port=%d\n", $port);
 
 $messageHandler = function ($message) use ($port) {
@@ -58,20 +58,20 @@ $messageHandler = function ($message) use ($port) {
     echo sprintf("BODY: %s\n", print_r(json_decode($response->getContent(false), true), true));
 };
 
-$reified = $ffi->message_reify($message);
+$reified = $ffi->pactffi_message_reify($message);
 $raw = json_decode($reified, false);
 $messageHandler($raw->contents);
 
-if ($ffi->mock_server_matched($port)) {
+if ($ffi->pactffi_mock_server_matched($port)) {
     echo getenv('MATCHING') ? "Mock server matched all requests, Yay!" : "Mock server matched all requests, That Is Not Good (tm)";
     echo "\n";
 
-    $ffi->write_pact_file($port, __DIR__ . '/../pact', false);
-    $ffi->write_message_pact_file($messagePact, __DIR__ . '/../pact', false);
+    $ffi->pactffi_write_pact_file($port, __DIR__ . '/../pact', false);
+    $ffi->pactffi_write_message_pact_file($messagePact, __DIR__ . '/../pact', false);
 } else {
     echo getenv('MATCHING') ? "We got some mismatches, Boo!" : "We got some mismatches, as expected.";
     echo "\n";
-    echo sprintf("Mismatches: %s\n", print_r(json_decode(FFI::string($ffi->mock_server_mismatches($port)), true), true));
+    echo sprintf("Mismatches: %s\n", print_r(json_decode(FFI::string($ffi->pactffi_mock_server_mismatches($port)), true), true));
 }
 
-$ffi->cleanup_mock_server($port);
+$ffi->pactffi_cleanup_mock_server($port);

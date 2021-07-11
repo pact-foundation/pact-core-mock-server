@@ -66,15 +66,15 @@ int setup_mock_server_functions(char *mock_server_lib) {
   void *handle = dlopen(mock_server_lib, RTLD_NOW | RTLD_GLOBAL);
   if (handle) {
     /* We have a handle, so lookup the functions we need */
-    ffi_create_mock_server = dlsym(handle, "create_mock_server");
-    ffi_mock_server_matched = dlsym(handle, "mock_server_matched");
-    ffi_cleanup_mock_server = dlsym(handle, "cleanup_mock_server");
-    ffi_mock_server_mismatches = dlsym(handle, "mock_server_mismatches");
-    mock_server__log_to_buffer = dlsym(handle, "log_to_buffer");
-    mock_server__log_to_stdout = dlsym(handle, "log_to_stdout");
-    mock_server__fetch_log_buffer = dlsym(handle, "fetch_log_buffer");
-    mock_server__mock_server_logs = dlsym(handle, "mock_server_logs");
-    mock_server__string_delete = dlsym(handle, "string_delete");
+    ffi_create_mock_server = dlsym(handle, "pactffi_create_mock_server");
+    ffi_mock_server_matched = dlsym(handle, "pactffi_mock_server_matched");
+    ffi_cleanup_mock_server = dlsym(handle, "pactffi_cleanup_mock_server");
+    ffi_mock_server_mismatches = dlsym(handle, "pactffi_mock_server_mismatches");
+    mock_server__log_to_buffer = dlsym(handle, "pactffi_log_to_buffer");
+    mock_server__log_to_stdout = dlsym(handle, "pactffi_log_to_stdout");
+    mock_server__fetch_log_buffer = dlsym(handle, "pactffi_fetch_log_buffer");
+    mock_server__mock_server_logs = dlsym(handle, "pactffi_mock_server_logs");
+    mock_server__string_delete = dlsym(handle, "pactffi_string_delete");
     return create_mock_server != 0 && mock_server_matched != 0 && cleanup_mock_server != 0 &&
       mock_server_mismatches != 0;
   } else {

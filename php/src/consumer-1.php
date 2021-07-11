@@ -4,20 +4,20 @@ require __DIR__ . '/../vendor/autoload.php';
 
 use Symfony\Component\HttpClient\HttpClient;
 
-$code = file_get_contents(__DIR__ . '/../lib/pact_mock_server_ffi-c.h');
-$ffi = FFI::cdef($code, __DIR__ . '/../../rust/target/debug/libpact_mock_server_ffi.so');
+$code = file_get_contents(__DIR__ . '/../../rust/pact_ffi/include/pact.h');
+$ffi = FFI::cdef($code, __DIR__ . '/../../rust/target/debug/libpact_ffi.so');
 
 $ffi->init('LOG_LEVEL');
 
-$pact = $ffi->new_pact('http-consumer-1', 'http-provider');
-$ffi->with_specification($pact, $ffi->PactSpecification_V3);
+$pact = $ffi->pactffi_new_pact('http-consumer-1', 'http-provider');
+$ffi->pactffi_with_specification($pact, $ffi->PactSpecification_V3);
 
-$interaction = $ffi->new_interaction($pact, 'A POST request to create book');
-$ffi->upon_receiving($interaction, 'A POST request to create book');
-$ffi->given($interaction, 'Book Fixtures Loaded');
-$ffi->with_request($interaction, 'POST', '/api/books');
-$ffi->with_header($interaction, $ffi->Request, 'Content-Type', 0, 'application/json');
-$ffi->with_body($interaction, $ffi->Request, 'application/json', '{
+$interaction = $ffi->pactffi_new_interaction($pact, 'A POST request to create book');
+$ffi->pactffi_upon_receiving($interaction, 'A POST request to create book');
+$ffi->pactffi_given($interaction, 'Book Fixtures Loaded');
+$ffi->pactffi_with_request($interaction, 'POST', '/api/books');
+$ffi->pactffi_with_header($interaction, $ffi->Request, 'Content-Type', 0, 'application/json');
+$ffi->pactffi_with_body($interaction, $ffi->Request, 'application/json', '{
     "isbn": {
         "pact:matcher:type": "type",
         "value": "0099740915"
@@ -40,9 +40,9 @@ $ffi->with_body($interaction, $ffi->Request, 'application/json', '{
         "value": "1985-07-31T00:00:00+00:00"
     }
   }');
-$ffi->response_status($interaction, 201);
-$ffi->with_header($interaction, $ffi->Response, 'Content-Type', 0, 'application/ld+json; charset=utf-8');
-$ffi->with_body($interaction, $ffi->Response, 'application/ld+json; charset=utf-8', '{
+$ffi->pactffi_response_status($interaction, 201);
+$ffi->pactffi_with_header($interaction, $ffi->Response, 'Content-Type', 0, 'application/ld+json; charset=utf-8');
+$ffi->pactffi_with_body($interaction, $ffi->Response, 'application/ld+json; charset=utf-8', '{
     "@context": "/api/contexts/Book",
     "@id": {
         "pact:matcher:type": "regex",
@@ -72,7 +72,7 @@ $ffi->with_body($interaction, $ffi->Response, 'application/ld+json; charset=utf-
     ]
   }');
 
-$port = $ffi->create_mock_server_for_pact($pact, '127.0.0.1:0', false);
+$port = $ffi->pactffi_create_mock_server_for_pact($pact, '127.0.0.1:0', false);
 echo sprintf("Mock server port=%d\n", $port);
 
 $client = HttpClient::create();
@@ -103,15 +103,15 @@ echo sprintf("STATUS: %d\n", $response->getStatusCode());
 echo sprintf("HEADERS: %s\n", print_r($response->getHeaders(false), true));
 echo sprintf("BODY: %s\n", print_r(json_decode($response->getContent(false), true), true));
 
-if ($ffi->mock_server_matched($port)) {
+if ($ffi->pactffi_mock_server_matched($port)) {
     echo getenv('MATCHING') ? "Mock server matched all requests, Yay!" : "Mock server matched all requests, That Is Not Good (tm)";
     echo "\n";
 
-    $ffi->write_pact_file($port, __DIR__ . '/../pact', false);
+    $ffi->pactffi_write_pact_file($port, __DIR__ . '/../pact', false);
 } else {
     echo getenv('MATCHING') ? "We got some mismatches, Boo!" : "We got some mismatches, as expected.";
     echo "\n";
-    echo sprintf("Mismatches: %s\n", print_r(json_decode(FFI::string($ffi->mock_server_mismatches($port)), true), true));
+    echo sprintf("Mismatches: %s\n", print_r(json_decode(FFI::string($ffi->pactffi_mock_server_mismatches($port)), true), true));
 }
 
-$ffi->cleanup_mock_server($port);
+$ffi->pactffi_cleanup_mock_server($port);

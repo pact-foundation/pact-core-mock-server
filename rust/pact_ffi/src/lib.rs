@@ -28,7 +28,7 @@ const VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "\0");
 
 /// Get the current library version
 #[no_mangle]
-pub extern "C" fn version() -> *const c_char {
+pub extern "C" fn pactffi_version() -> *const c_char {
     VERSION.as_ptr() as *const c_char
 }
 
@@ -40,7 +40,7 @@ pub extern "C" fn version() -> *const c_char {
 ///
 /// Exported functions are inherently unsafe.
 #[no_mangle]
-pub unsafe extern fn init(log_env_var: *const c_char) {
+pub unsafe extern fn pactffi_init(log_env_var: *const c_char) {
     let log_env_var = if !log_env_var.is_null() {
         let c_str = CStr::from_ptr(log_env_var);
         match c_str.to_str() {
@@ -65,7 +65,7 @@ pub unsafe extern fn init(log_env_var: *const c_char) {
 ///
 /// Exported functions are inherently unsafe.
 #[no_mangle]
-pub unsafe extern "C" fn init_with_log_level(level: *const c_char) {
+pub unsafe extern "C" fn pactffi_init_with_log_level(level: *const c_char) {
     let mut builder = Builder::from_default_env();
     let log_level = log_level_from_c_char(level);
 
@@ -84,7 +84,7 @@ pub unsafe extern "C" fn init_with_log_level(level: *const c_char) {
 ///
 /// Exported functions are inherently unsafe.
 #[no_mangle]
-pub unsafe extern "C" fn log_message(source: *const c_char, log_level: *const c_char, message: *const c_char) {
+pub unsafe extern "C" fn pactffi_log_message(source: *const c_char, log_level: *const c_char, message: *const c_char) {
     let target = convert_cstr("target", source).unwrap_or("client");
 
     if !message.is_null() {
@@ -125,7 +125,7 @@ fn convert_cstr(name: &str, value: *const c_char) -> Option<&str> {
 ffi_fn! {
     /// Match a pair of messages, producing a collection of mismatches,
     /// which is empty if the two messages matched.
-    fn match_message(msg_1: *const Message, msg_2: *const Message) -> *const Mismatches {
+    fn pactffi_match_message(msg_1: *const Message, msg_2: *const Message) -> *const Mismatches {
         let msg_1: Box<dyn Interaction + Send> = unsafe { Box::from_raw(msg_1 as *mut Message) };
         let msg_2: Box<dyn Interaction + Send> = unsafe { Box::from_raw(msg_2 as *mut Message) };
         let mismatches = Mismatches(pm::match_message(&msg_1, &msg_2));
@@ -138,7 +138,7 @@ ffi_fn! {
 
 ffi_fn! {
     /// Get an iterator over mismatches.
-    fn mismatches_get_iter(mismatches: *const Mismatches) -> *mut MismatchesIterator {
+    fn pactffi_mismatches_get_iter(mismatches: *const Mismatches) -> *mut MismatchesIterator {
         let mismatches = as_ref!(mismatches);
         let iter = MismatchesIterator { current: 0, mismatches };
         ptr::raw_to(iter)
@@ -149,7 +149,7 @@ ffi_fn! {
 
 ffi_fn! {
     /// Delete mismatches
-    fn mismatches_delete(mismatches: *const Mismatches) {
+    fn pactffi_mismatches_delete(mismatches: *const Mismatches) {
         ptr::drop_raw(mismatches as *mut Mismatches);
     }
 }
@@ -158,7 +158,7 @@ ffi_fn! {
     /// Get the next mismatch from a mismatches iterator.
     ///
     /// Returns a null pointer if no mismatches remain.
-    fn mismatches_iter_next(iter: *mut MismatchesIterator) -> *const Mismatch {
+    fn pactffi_mismatches_iter_next(iter: *mut MismatchesIterator) -> *const Mismatch {
         let iter = as_mut!(iter);
         let mismatches = as_ref!(iter.mismatches);
         let index = iter.next();
@@ -174,14 +174,14 @@ ffi_fn! {
 
 ffi_fn! {
     /// Delete a mismatches iterator when you're done with it.
-    fn mismatches_iter_delete(iter: *mut MismatchesIterator) {
+    fn pactffi_mismatches_iter_delete(iter: *mut MismatchesIterator) {
         ptr::drop_raw(iter);
     }
 }
 
 ffi_fn! {
     /// Get a JSON representation of the mismatch.
-    fn mismatch_to_json(mismatch: *const Mismatch) -> *const c_char {
+    fn pactffi_mismatch_to_json(mismatch: *const Mismatch) -> *const c_char {
         let mismatch = as_ref!(mismatch);
         let json = mismatch.to_json().to_string();
         string::to_c(&json)? as *const c_char
@@ -192,7 +192,7 @@ ffi_fn! {
 
 ffi_fn! {
     /// Get the type of a mismatch.
-    fn mismatch_type(mismatch: *const Mismatch) -> *const c_char {
+    fn pactffi_mismatch_type(mismatch: *const Mismatch) -> *const c_char {
         let mismatch = as_ref!(mismatch);
         let t = mismatch.mismatch_type();
         string::to_c(&t)? as *const c_char
@@ -203,7 +203,7 @@ ffi_fn! {
 
 ffi_fn! {
     /// Get a summary of a mismatch.
-    fn mismatch_summary(mismatch: *const Mismatch) -> *const c_char {
+    fn pactffi_mismatch_summary(mismatch: *const Mismatch) -> *const c_char {
         let mismatch = as_ref!(mismatch);
         let summary = mismatch.summary();
         string::to_c(&summary)? as *const c_char
@@ -214,7 +214,7 @@ ffi_fn! {
 
 ffi_fn! {
     /// Get a description of a mismatch.
-    fn mismatch_description(mismatch: *const Mismatch) -> *const c_char {
+    fn pactffi_mismatch_description(mismatch: *const Mismatch) -> *const c_char {
         let mismatch = as_ref!(mismatch);
         let description = mismatch.description();
         string::to_c(&description)? as *const c_char
@@ -225,7 +225,7 @@ ffi_fn! {
 
 ffi_fn! {
     /// Get an ANSI-compatible description of a mismatch.
-    fn mismatch_ansi_description(mismatch: *const Mismatch) -> *const c_char {
+    fn pactffi_mismatch_ansi_description(mismatch: *const Mismatch) -> *const c_char {
         let mismatch = as_ref!(mismatch);
         let ansi_description = mismatch.ansi_description();
         string::to_c(&ansi_description)? as *const c_char

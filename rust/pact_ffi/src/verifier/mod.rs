@@ -31,7 +31,7 @@ pub mod verifier;
 ///
 /// Exported functions are inherently unsafe. Deal.
 #[no_mangle]
-pub unsafe extern fn verify(args: *const c_char) -> i32 {
+pub unsafe extern fn pactffi_verify(args: *const c_char) -> i32 {
   if args.is_null() {
     return 2;
   }

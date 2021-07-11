@@ -4,11 +4,11 @@ const http = require('http');
 const net = require('net');
 const url = require('url');
 
-var dll = '../../rust/target/debug/libpact_mock_server_ffi';
+var dll = '../../rust/target/debug/libpact_ffi';
 var lib = ffi.Library(path.join(__dirname, dll), {
-  create_mock_server: ['int32', ['string', 'string']],
-  mock_server_matched: ['bool', ['int32']],
-  cleanup_mock_server: ['bool', ['int32']]
+  pactffi_create_mock_server: ['int32', ['string', 'string']],
+  pactffi_mock_server_matched: ['bool', ['int32']],
+  pactffi_cleanup_mock_server: ['bool', ['int32']]
 });
 
 var pact = "{\n" +
@@ -45,7 +45,7 @@ var pact = "{\n" +
   "}\n" +
 "}\n";
 
-var port = lib.create_mock_server(pact, '127.0.0.1:0');
+var port = lib.pactffi_create_mock_server(pact, '127.0.0.1:0');
 console.log('Mock server port=' + port);
 
 var options = {
@@ -67,13 +67,13 @@ var req = http.request(options, (res) => {
   });
   res.on('end', () => {
     console.log('No more data in response.');
-    if (lib.mock_server_matched(port)) {
+    if (lib.pactffi_mock_server_matched(port)) {
       console.log("Mock server matched all requests, Yay!");
     } else {
       console.log("We got some mismatches, Boo!");
     }
 
-    lib.cleanup_mock_server(port);
+    lib.pactffi_cleanup_mock_server(port);
   })
 });
 

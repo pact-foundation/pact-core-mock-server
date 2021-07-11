@@ -30,12 +30,12 @@ http-consumer-1
 http-consumer-2
 --filter-consumer
 message-consumer-2", __DIR__ . '/../pact');
-$code = file_get_contents(__DIR__ . '/../lib/pact_verifier_ffi-c.h');
-$ffi = FFI::cdef($code, __DIR__ . '/../../rust/target/debug/libpact_verifier_ffi.so');
+$code = file_get_contents(__DIR__ . '/../../rust/pact_ffi/include/pact.h');
+$ffi = FFI::cdef($code, __DIR__ . '/../../rust/target/debug/libpact_ffi.so');
 
 $ffi->init('LOG_LEVEL');
 
-$result = $ffi->verify($args);
+$result = $ffi->pactffi_verify($args);
 
 if (!$result) {
     echo "Verifier verified all contracts, Yay!\n";

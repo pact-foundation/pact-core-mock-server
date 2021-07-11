@@ -50,7 +50,7 @@ pub fn process_object(
 ) -> Value {
   if obj.contains_key("pact:matcher:type") {
     if !skip_matchers {
-      let matching_rule = from_integration_json(obj);
+      let matching_rule = matcher_from_integration_json(obj);
       if let Some(rule) = &matching_rule {
         matching_rules.add_rule(&path.to_string(), rule.clone(), &RuleLogic::And);
       }
@@ -104,7 +104,7 @@ pub fn process_object(
 }
 
 /// Builds a `MatchingRule` from a `Value` struct used by language integrations
-pub fn from_integration_json(m: &Map<String, Value>) -> Option<MatchingRule> {
+pub fn matcher_from_integration_json(m: &Map<String, Value>) -> Option<MatchingRule> {
   match m.get("pact:matcher:type") {
     Some(value) => {
       let val = json_to_string(value);

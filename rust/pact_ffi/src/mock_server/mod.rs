@@ -54,15 +54,17 @@ use std::ptr::null_mut;
 use std::str::from_utf8;
 
 use bytes::Bytes;
-use libc::{c_char, c_ushort, size_t};
-use log::*;
-use serde_json::json;
-use serde_json::Value;
-
 use chrono::Local;
 use itertools::Itertools;
+use libc::{c_char, c_ushort, size_t};
+use log::*;
 use maplit::*;
 use onig::Regex;
+use rand::prelude::*;
+use serde_json::json;
+use serde_json::Value;
+use uuid::Uuid;
+
 use pact_matching::logging::fetch_buffer_contents;
 use pact_matching::models::{Pact, RequestResponseInteraction};
 use pact_matching::models::message::Message;
@@ -75,16 +77,21 @@ use pact_models::generators::Generators;
 use pact_models::http_parts::HttpPart;
 use pact_models::json_utils::json_to_string;
 use pact_models::matchingrules::{MatchingRule, MatchingRules, RuleLogic};
-use pact_models::PactSpecification;
 use pact_models::provider_states::ProviderState;
 use pact_models::time_utils::{parse_pattern, to_chrono_pattern};
-use rand::prelude::*;
-use uuid::Uuid;
 
-use crate::mock_server::bodies::{empty_multipart_body, file_as_multipart_body, MultipartBody, process_json, request_multipart, response_multipart};
-use crate::mock_server::bodies::process_object;
-use crate::mock_server::handles::InteractionPart;
 use crate::convert_cstr;
+use crate::mock_server::bodies::{
+  empty_multipart_body,
+  file_as_multipart_body,
+  MultipartBody,
+  process_json,
+  process_object,
+  request_multipart,
+  response_multipart
+};
+use crate::mock_server::handles::InteractionPart;
+use crate::models::pact_specification::PactSpecification;
 
 pub mod handles;
 pub mod bodies;
@@ -111,7 +118,7 @@ pub mod bodies;
 /// | -6 | Could not create the TLS configuration with the self-signed certificate |
 ///
 #[no_mangle]
-pub extern fn create_mock_server(pact_str: *const c_char, addr_str: *const c_char, tls: bool) -> i32 {
+pub extern fn pactffi_create_mock_server(pact_str: *const c_char, addr_str: *const c_char, tls: bool) -> i32 {
   let result = catch_unwind(|| {
     let c_str = unsafe {
       if pact_str.is_null() {
@@ -185,7 +192,7 @@ pub extern fn create_mock_server(pact_str: *const c_char, addr_str: *const c_cha
 ///
 /// An empty string indicates an error reading the pem file
 #[no_mangle]
-pub extern fn get_tls_ca_certificate() -> *mut c_char  {
+pub extern fn pactffi_get_tls_ca_certificate() -> *mut c_char  {
   let cert_file = include_str!("ca.pem");
   let cert_str = CString::new(cert_file).unwrap_or_default();
 
@@ -213,7 +220,7 @@ pub extern fn get_tls_ca_certificate() -> *mut c_char  {
 /// | -6 | Could not create the TLS configuration with the self-signed certificate |
 ///
 #[no_mangle]
-pub extern fn create_mock_server_for_pact(pact: handles::PactHandle, addr_str: *const c_char, tls: bool) -> i32 {
+pub extern fn pactffi_create_mock_server_for_pact(pact: handles::PactHandle, addr_str: *const c_char, tls: bool) -> i32 {
   let result = catch_unwind(|| {
     let addr_c_str = unsafe {
       if addr_str.is_null() {
@@ -278,7 +285,7 @@ pub extern fn create_mock_server_for_pact(pact: handles::PactHandle, addr_str: *
 /// is no mock server on the given port, or if any request has not been successfully matched, or
 /// the method panics.
 #[no_mangle]
-pub extern fn mock_server_matched(mock_server_port: i32) -> bool {
+pub extern fn pactffi_mock_server_matched(mock_server_port: i32) -> bool {
   let result = catch_unwind(|| {
     pact_mock_server::mock_server_matched(mock_server_port)
   });
@@ -306,7 +313,7 @@ pub extern fn mock_server_matched(mock_server_port: i32) -> bool {
 /// pointer will be returned. Don't try to dereference it, it will not end well for you.
 ///
 #[no_mangle]
-pub extern fn mock_server_mismatches(mock_server_port: i32) -> *mut c_char {
+pub extern fn pactffi_mock_server_mismatches(mock_server_port: i32) -> *mut c_char {
   let result = catch_unwind(|| {
     let result = MANAGER.lock().unwrap()
       .get_or_insert_with(ServerManager::new)
@@ -339,7 +346,7 @@ pub extern fn mock_server_mismatches(mock_server_port: i32) -> *mut c_char {
 /// with the given port number and cleanup any memory allocated for it. Returns true, unless a
 /// mock server with the given port number does not exist, or the function panics.
 #[no_mangle]
-pub extern fn cleanup_mock_server(mock_server_port: i32) -> bool {
+pub extern fn pactffi_cleanup_mock_server(mock_server_port: i32) -> bool {
   let result = catch_unwind(|| {
     pact_mock_server::shutdown_mock_server(mock_server_port)
   });
@@ -373,7 +380,7 @@ pub extern fn cleanup_mock_server(mock_server_port: i32) -> bool {
 /// | 2 | The pact file was not able to be written |
 /// | 3 | A mock server with the provided port was not found |
 #[no_mangle]
-pub extern fn write_pact_file(mock_server_port: i32, directory: *const c_char, overwrite: bool) -> i32 {
+pub extern fn pactffi_write_pact_file(mock_server_port: i32, directory: *const c_char, overwrite: bool) -> i32 {
   let result = catch_unwind(|| {
     let dir = path_from_dir(directory, None);
     let path = dir.map(|path| path.into_os_string().into_string().unwrap_or_default());
@@ -403,7 +410,7 @@ pub extern fn write_pact_file(mock_server_port: i32, directory: *const c_char, o
 ///
 /// Will return a NULL pointer if the logs for the mock server can not be retrieved.
 #[no_mangle]
-pub extern fn mock_server_logs(mock_server_port: i32) -> *const c_char {
+pub extern fn pactffi_mock_server_logs(mock_server_port: i32) -> *const c_char {
   let result = catch_unwind(|| {
     MANAGER.lock().unwrap()
       .get_or_insert_with(ServerManager::new)
@@ -444,7 +451,7 @@ pub extern fn mock_server_logs(mock_server_port: i32) -> *const c_char {
 ///
 /// Returns a new `PactHandle`.
 #[no_mangle]
-pub extern fn new_pact(consumer_name: *const c_char, provider_name: *const c_char) -> handles::PactHandle {
+pub extern fn pactffi_new_pact(consumer_name: *const c_char, provider_name: *const c_char) -> handles::PactHandle {
   let consumer = convert_cstr("consumer_name", consumer_name).unwrap_or_else(|| "Consumer");
   let provider = convert_cstr("provider_name", provider_name).unwrap_or_else(|| "Provider");
   handles::PactHandle::new(consumer, provider)
@@ -456,7 +463,7 @@ pub extern fn new_pact(consumer_name: *const c_char, provider_name: *const c_cha
 ///
 /// Returns a new `InteractionHandle`.
 #[no_mangle]
-pub extern fn new_interaction(pact: handles::PactHandle, description: *const c_char) -> handles::InteractionHandle {
+pub extern fn pactffi_new_interaction(pact: handles::PactHandle, description: *const c_char) -> handles::InteractionHandle {
   if let Some(description) = convert_cstr("description", description) {
     pact.with_pact(&|_, inner| {
       let interaction = RequestResponseInteraction {
@@ -476,7 +483,7 @@ pub extern fn new_interaction(pact: handles::PactHandle, description: *const c_c
 ///
 /// * `description` - The interaction description. It needs to be unique for each interaction.
 #[no_mangle]
-pub extern fn upon_receiving(interaction: handles::InteractionHandle, description: *const c_char) -> bool {
+pub extern fn pactffi_upon_receiving(interaction: handles::InteractionHandle, description: *const c_char) -> bool {
   if let Some(description) = convert_cstr("description", description) {
     interaction.with_interaction(&|_, mock_server_started, inner| {
       inner.description = description.to_string();
@@ -492,7 +499,7 @@ pub extern fn upon_receiving(interaction: handles::InteractionHandle, descriptio
 ///
 /// * `description` - The provider state description. It needs to be unique.
 #[no_mangle]
-pub extern fn given(interaction: handles::InteractionHandle, description: *const c_char) -> bool {
+pub extern fn pactffi_given(interaction: handles::InteractionHandle, description: *const c_char) -> bool {
   if let Some(description) = convert_cstr("description", description) {
     interaction.with_interaction(&|_, mock_server_started, inner| {
       inner.provider_states.push(ProviderState::default(&description.to_string()));
@@ -510,7 +517,7 @@ pub extern fn given(interaction: handles::InteractionHandle, description: *const
 /// * `name` - Parameter name.
 /// * `value` - Parameter value.
 #[no_mangle]
-pub extern fn given_with_param(interaction: handles::InteractionHandle, description: *const c_char,
+pub extern fn pactffi_given_with_param(interaction: handles::InteractionHandle, description: *const c_char,
                                name: *const c_char, value: *const c_char) -> bool {
   if let Some(description) = convert_cstr("description", description) {
     if let Some(name) = convert_cstr("name", name) {
@@ -545,7 +552,7 @@ pub extern fn given_with_param(interaction: handles::InteractionHandle, descript
 /// * `method` - The request method. Defaults to GET.
 /// * `path` - The request path. Defaults to `/`.
 #[no_mangle]
-pub extern fn with_request(
+pub extern fn pactffi_with_request(
   interaction: handles::InteractionHandle,
   method: *const c_char,
   path: *const c_char
@@ -568,7 +575,7 @@ pub extern fn with_request(
 /// * `value` - the query parameter value.
 /// * `index` - the index of the value (starts at 0). You can use this to create a query parameter with multiple values
 #[no_mangle]
-pub extern fn with_query_parameter(
+pub extern fn pactffi_with_query_parameter(
   interaction: handles::InteractionHandle,
   name: *const c_char,
   index: size_t,
@@ -628,14 +635,14 @@ fn from_integration_json(rules: &mut MatchingRules, generators: &mut Generators,
 }
 
 /// Sets the specification version for a given Pact model. Returns false if the interaction or Pact can't be
-/// modified (i.e. the mock server for it has already started)
+/// modified (i.e. the mock server for it has already started) or the version is invalid
 ///
 /// * `pact` - Handle to a Pact model
 /// * `version` - the spec version to use
 #[no_mangle]
-pub extern fn with_specification(pact: handles::PactHandle, version: PactSpecification) -> bool {
+pub extern fn pactffi_with_specification(pact: handles::PactHandle, version: PactSpecification) -> bool {
   pact.with_pact(&|_, inner| {
-    inner.pact.specification_version = version.clone();
+    inner.pact.specification_version = version.into();
     !inner.mock_server_started
   }).unwrap_or(false)
 }
@@ -648,7 +655,7 @@ pub extern fn with_specification(pact: handles::PactHandle, version: PactSpecifi
 /// * `name` - the key to set
 /// * `value` - the value to set
 #[no_mangle]
-pub extern fn with_pact_metadata(
+pub extern fn pactffi_with_pact_metadata(
   pact: handles::PactHandle,
   namespace: *const c_char,
   name: *const c_char,
@@ -678,7 +685,7 @@ pub extern fn with_pact_metadata(
 /// * `value` - the header value.
 /// * `index` - the index of the value (starts at 0). You can use this to create a header with multiple values
 #[no_mangle]
-pub extern fn with_header(
+pub extern fn pactffi_with_header(
   interaction: handles::InteractionHandle,
   part: InteractionPart,
   name: *const c_char,
@@ -743,7 +750,7 @@ pub extern fn with_header(
 ///
 /// * `status` - the response status. Defaults to 200.
 #[no_mangle]
-pub extern fn response_status(interaction: handles::InteractionHandle, status: c_ushort) -> bool {
+pub extern fn pactffi_response_status(interaction: handles::InteractionHandle, status: c_ushort) -> bool {
   interaction.with_interaction(&|_, mock_server_started, inner| {
     inner.response.status = status;
     !mock_server_started
@@ -758,7 +765,7 @@ pub extern fn response_status(interaction: handles::InteractionHandle, status: c
 ///   header is already set.
 /// * `body` - The body contents. For JSON payloads, matching rules can be embedded in the body.
 #[no_mangle]
-pub extern fn with_body(
+pub extern fn pactffi_with_body(
   interaction: handles::InteractionHandle,
   part: InteractionPart,
   content_type: *const c_char,
@@ -839,7 +846,7 @@ pub enum StringResult {
 ///
 /// Exported functions are inherently unsafe.
 #[no_mangle]
-pub unsafe extern fn generate_datetime_string(format: *const c_char) -> StringResult {
+pub unsafe extern fn pactffi_generate_datetime_string(format: *const c_char) -> StringResult {
   if format.is_null() {
     let error = CString::new("generate_datetime_string: format is NULL").unwrap();
     StringResult::Failed(error.into_raw())
@@ -873,7 +880,7 @@ pub unsafe extern fn generate_datetime_string(format: *const c_char) -> StringRe
 ///
 /// Exported functions are inherently unsafe.
 #[no_mangle]
-pub unsafe extern fn check_regex(regex: *const c_char, example: *const c_char) -> bool {
+pub unsafe extern fn pactffi_check_regex(regex: *const c_char, example: *const c_char) -> bool {
   if regex.is_null() {
     false
   } else {
@@ -921,7 +928,7 @@ pub fn generate_regex_value_internal(regex: &str) -> Result<String, String> {
 ///
 /// Exported functions are inherently unsafe.
 #[no_mangle]
-pub unsafe extern fn generate_regex_value(regex: *const c_char) -> StringResult {
+pub unsafe extern fn pactffi_generate_regex_value(regex: *const c_char) -> StringResult {
   if regex.is_null() {
     let error = CString::new("generate_regex_value: regex is NULL").unwrap();
     StringResult::Failed(error.into_raw())
@@ -952,7 +959,7 @@ pub unsafe extern fn generate_regex_value(regex: *const c_char) -> StringResult 
 ///
 /// Exported functions are inherently unsafe.
 #[no_mangle]
-pub unsafe extern fn free_string(s: *mut c_char) {
+pub unsafe extern fn pactffi_free_string(s: *mut c_char) {
   if s.is_null() {
     return;
   }
@@ -969,7 +976,7 @@ pub unsafe extern fn free_string(s: *mut c_char) {
 /// * `body` - example body contents in bytes
 /// * `size` - number of bytes in the body
 #[no_mangle]
-pub extern fn with_binary_file(
+pub extern fn pactffi_with_binary_file(
   interaction: handles::InteractionHandle,
   part: InteractionPart,
   content_type: *const c_char,
@@ -1030,7 +1037,7 @@ pub extern fn with_binary_file(
 /// * `file` - path to the example file
 /// * `part_name` - name for the mime part
 #[no_mangle]
-pub extern fn with_multipart_file(
+pub extern fn pactffi_with_multipart_file(
   interaction: handles::InteractionHandle,
   part: InteractionPart,
   content_type: *const c_char,
@@ -1110,7 +1117,7 @@ fn convert_ptr_to_mime_part_body(file: *const c_char, part_name: &str) -> Result
 ///
 /// Returns a new `MessagePactHandle`.
 #[no_mangle]
-pub extern fn new_message_pact(consumer_name: *const c_char, provider_name: *const c_char) -> handles::MessagePactHandle {
+pub extern fn pactffi_new_message_pact(consumer_name: *const c_char, provider_name: *const c_char) -> handles::MessagePactHandle {
   let consumer = convert_cstr("consumer_name", consumer_name).unwrap_or("Consumer");
   let provider = convert_cstr("provider_name", provider_name).unwrap_or("Provider");
   handles::MessagePactHandle::new(consumer, provider)
@@ -1122,7 +1129,7 @@ pub extern fn new_message_pact(consumer_name: *const c_char, provider_name: *con
 ///
 /// Returns a new `MessageHandle`.
 #[no_mangle]
-pub extern fn new_message(pact: handles::MessagePactHandle, description: *const c_char) -> handles::MessageHandle {
+pub extern fn pactffi_new_message(pact: handles::MessagePactHandle, description: *const c_char) -> handles::MessageHandle {
   if let Some(description) = convert_cstr("description", description) {
     pact.with_pact(&|_, inner| {
       let message = Message {
@@ -1141,7 +1148,7 @@ pub extern fn new_message(pact: handles::MessagePactHandle, description: *const 
 ///
 /// * `description` - The message description. It needs to be unique for each message.
 #[no_mangle]
-pub extern fn message_expects_to_receive(message: handles::MessageHandle, description: *const c_char) {
+pub extern fn pactffi_message_expects_to_receive(message: handles::MessageHandle, description: *const c_char) {
   if let Some(description) = convert_cstr("description", description) {
     message.with_message(&|_, inner| {
       inner.description = description.to_string();
@@ -1153,7 +1160,7 @@ pub extern fn message_expects_to_receive(message: handles::MessageHandle, descri
 ///
 /// * `description` - The provider state description. It needs to be unique for each message
 #[no_mangle]
-pub extern fn message_given(message: handles::MessageHandle, description: *const c_char) {
+pub extern fn pactffi_message_given(message: handles::MessageHandle, description: *const c_char) {
   if let Some(description) = convert_cstr("description", description) {
     message.with_message(&|_, inner| {
       inner.provider_states.push(ProviderState::default(&description.to_string()));
@@ -1167,7 +1174,7 @@ pub extern fn message_given(message: handles::MessageHandle, description: *const
 /// * `name` - Parameter name.
 /// * `value` - Parameter value.
 #[no_mangle]
-pub extern fn message_given_with_param(message: handles::MessageHandle, description: *const c_char,
+pub extern fn pactffi_message_given_with_param(message: handles::MessageHandle, description: *const c_char,
                                name: *const c_char, value: *const c_char) {
   if let Some(description) = convert_cstr("description", description) {
     if let Some(name) = convert_cstr("name", name) {
@@ -1204,7 +1211,7 @@ pub extern fn message_given_with_param(message: handles::MessageHandle, descript
 /// * `content_type` - Expected content type (e.g. application/json, application/octet-stream)
 /// * `size` - number of bytes in the message body to read. This is not required for text bodies (JSON, XML, etc.).
 #[no_mangle]
-pub extern fn message_with_contents(message: handles::MessageHandle, content_type: *const c_char, body: *const u8, size: size_t) {
+pub extern fn pactffi_message_with_contents(message: handles::MessageHandle, content_type: *const c_char, body: *const u8, size: size_t) {
   let content_type = convert_cstr("content_type", content_type).unwrap_or("text/plain");
 
   message.with_message(&|_, inner| {
@@ -1231,7 +1238,7 @@ pub extern fn message_with_contents(message: handles::MessageHandle, content_typ
 /// * `key` - metadata key
 /// * `value` - metadata value.
 #[no_mangle]
-pub extern fn message_with_metadata(message: handles::MessageHandle, key: *const c_char, value: *const c_char) {
+pub extern fn pactffi_message_with_metadata(message: handles::MessageHandle, key: *const c_char, value: *const c_char) {
   if let Some(key) = convert_cstr("key", key) {
     let value = convert_cstr("value", value).unwrap_or_default();
     message.with_message(&|_, inner| inner.metadata.insert(key.to_string(), Value::String(value.to_string())));
@@ -1243,11 +1250,11 @@ pub extern fn message_with_metadata(message: handles::MessageHandle, key: *const
 /// Reification is the process of stripping away any matchers, and returning the original contents.
 /// NOTE: the returned string needs to be deallocated with the `free_string` function
 #[no_mangle]
-pub extern fn message_reify(message: handles::MessageHandle) -> *const c_char {
+pub extern fn pactffi_message_reify(message: handles::MessageHandle) -> *const c_char {
   let res = message.with_message(&|_, inner| {
     match inner.body() {
       Null => "null".to_string(),
-      Present(_, _) => inner.to_json(&PactSpecification::V3).to_string(),
+      Present(_, _) => inner.to_json(&PactSpecification::V3.into()).to_string(),
       _ => "".to_string()
     }
   });
@@ -1280,7 +1287,7 @@ pub extern fn message_reify(message: handles::MessageHandle) -> *const c_char {
 /// | 1 | The pact file was not able to be written |
 /// | 2 | The message pact for the given handle was not found |
 #[no_mangle]
-pub extern fn write_message_pact_file(pact: handles::MessagePactHandle, directory: *const c_char, overwrite: bool) -> i32 {
+pub extern fn pactffi_write_message_pact_file(pact: handles::MessagePactHandle, directory: *const c_char, overwrite: bool) -> i32 {
   let result = pact.with_pact(&|_, inner| {
     let filename = path_from_dir(directory, Some(inner.default_file_name().as_str()));
     pact_matching::models::write_pact(inner.boxed(), &filename.unwrap(), inner.specification_version(), overwrite)
@@ -1308,7 +1315,7 @@ pub extern fn write_message_pact_file(pact: handles::MessagePactHandle, director
 /// * `name` - the key to set
 /// * `value` - the value to set
 #[no_mangle]
-pub extern fn with_message_pact_metadata(pact: handles::MessagePactHandle, namespace: *const c_char, name: *const c_char, value: *const c_char) {
+pub extern fn pactffi_with_message_pact_metadata(pact: handles::MessagePactHandle, namespace: *const c_char, name: *const c_char, value: *const c_char) {
   pact.with_pact(&|_, inner| {
     let namespace = convert_cstr("namespace", namespace).unwrap_or_default();
     let name = convert_cstr("name", name).unwrap_or_default();

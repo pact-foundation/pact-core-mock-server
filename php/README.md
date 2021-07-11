@@ -1,5 +1,4 @@
-To run the php examples, the mock server DLL needs to be built using `cargo build`
-in the `rust/libpact_mock_server_ffi` and `rust/libpact_verifier_ffi` directories.
+To run the php examples, the mock server DLL needs to be built using `cargo build` in the `rust/libpact_ffi` directory.
 
 1. run `composer install`
 2. run consumers
