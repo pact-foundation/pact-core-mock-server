@@ -12,16 +12,16 @@ int main(void) {
      * Begin logger setup.
      *---------------------------------------------------------------------*/
 
-    logger_init();
+    pactffi_logger_init();
     
     /*=======================================================================
      * Attach a sink pointing info-level output to stdout.
      *---------------------------------------------------------------------*/
 
-    status = logger_attach_sink("stdout", LevelFilter_Info);
+    status = pactffi_logger_attach_sink("stdout", LevelFilter_Info);
     if (status != 0) {
         char error_msg[ERROR_MSG_LEN];
-        int error = get_error_message(error_msg, ERROR_MSG_LEN);
+        int error = pactffi_get_error_message(error_msg, ERROR_MSG_LEN);
         printf("%s\n", error_msg);
         return EXIT_FAILURE;
     }
@@ -30,10 +30,10 @@ int main(void) {
      * Attach another sink pointing debug output to a log file.
      *---------------------------------------------------------------------*/
 
-    status = logger_attach_sink("file ./pm_ffi.log", LevelFilter_Debug);
+    status = pactffi_logger_attach_sink("file ./pm_ffi.log", LevelFilter_Debug);
     if (status != 0) {
         char error_msg[ERROR_MSG_LEN];
-        int error = get_error_message(error_msg, ERROR_MSG_LEN);
+        int error = pactffi_get_error_message(error_msg, ERROR_MSG_LEN);
         printf("%s\n", error_msg);
         return EXIT_FAILURE;
     }
@@ -42,10 +42,10 @@ int main(void) {
      * Apply the logger, completing logging setup.
      *---------------------------------------------------------------------*/
 
-    status = logger_apply();
+    status = pactffi_logger_apply();
     if (status != 0) {
         char error_msg[ERROR_MSG_LEN];
-        int error = get_error_message(error_msg, ERROR_MSG_LEN);
+        int error = pactffi_get_error_message(error_msg, ERROR_MSG_LEN);
         printf("%s\n", error_msg);
         return EXIT_FAILURE;
     }
