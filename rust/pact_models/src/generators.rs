@@ -3,7 +3,7 @@
 #[cfg(test)] use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::convert::TryFrom;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::mem;
 use std::ops::Index;
@@ -67,13 +67,57 @@ impl Default for NoopVariantMatcher {
   }
 }
 
+/// Format of UUIDs to generate
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, Copy)]
+pub enum UuidFormat {
+  /// Simple UUID (e.g 936DA01f9abd4d9d80c702af85c822a8)
+  Simple,
+  /// lower-case hyphenated (e.g 936da01f-9abd-4d9d-80c7-02af85c822a8)
+  LowerCaseHyphenated,
+  /// Upper-case hyphenated (e.g 936DA01F-9ABD-4D9D-80C7-02AF85C822A8)
+  UpperCaseHyphenated,
+  /// URN (e.g. urn:uuid:936da01f-9abd-4d9d-80c7-02af85c822a8)
+  Urn
+}
+
+impl Display for UuidFormat {
+  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    match self {
+      UuidFormat::Simple => write!(f, "simple"),
+      UuidFormat::LowerCaseHyphenated => write!(f, "lower-case-hyphenated"),
+      UuidFormat::UpperCaseHyphenated => write!(f, "upper-case-hyphenated"),
+      UuidFormat::Urn => write!(f, "URN"),
+    }
+  }
+}
+
+impl Default for UuidFormat {
+  fn default() -> Self {
+    UuidFormat::LowerCaseHyphenated
+  }
+}
+
+impl FromStr for UuidFormat {
+  type Err = anyhow::Error;
+
+  fn from_str(s: &str) -> Result<Self, Self::Err> {
+    match s {
+      "simple" => Ok(UuidFormat::Simple),
+      "lower-case-hyphenated" => Ok(UuidFormat::LowerCaseHyphenated),
+      "upper-case-hyphenated" => Ok(UuidFormat::UpperCaseHyphenated),
+      "URN" => Ok(UuidFormat::Urn),
+      _ => Err(anyhow!("'{}' is not a valid UUID format", s))
+    }
+  }
+}
+
 /// Trait to represent a generator
 #[derive(Serialize, Deserialize, Debug, Clone, Eq)]
 pub enum Generator {
   /// Generates a random integer between the min and max values
   RandomInt(i32, i32),
   /// Generates a random UUID value
-  Uuid,
+  Uuid(Option<UuidFormat>),
   /// Generates a random sequence of digits
   RandomDecimal(u16),
   /// Generates a random sequence of hexadecimal digits
@@ -103,7 +147,11 @@ impl Generator {
   pub fn to_json(&self) -> Option<Value> {
     match self {
       Generator::RandomInt(min, max) => Some(json!({ "type": "RandomInt", "min": min, "max": max })),
-      Generator::Uuid => Some(json!({ "type": "Uuid" })),
+      Generator::Uuid(format) => if let Some(format) = format {
+        Some(json!({ "type": "Uuid", "format": format.to_string() }))
+      } else {
+        Some(json!({ "type": "Uuid" }))
+      },
       Generator::RandomDecimal(digits) => Some(json!({ "type": "RandomDecimal", "digits": digits })),
       Generator::RandomHexadecimal(digits) => Some(json!({ "type": "RandomHexadecimal", "digits": digits })),
       Generator::RandomString(size) => Some(json!({ "type": "RandomString", "size": size })),
@@ -141,7 +189,11 @@ impl Generator {
         let max = <i32>::json_to_number(map, "max", 10);
         Some(Generator::RandomInt(min, max))
       },
-      "Uuid" => Some(Generator::Uuid),
+      "Uuid" => if let Some(format) = map.get("format") {
+        Some(Generator::Uuid(str::parse(json_to_string(format).as_str()).ok()))
+      } else {
+        Some(Generator::Uuid(None))
+      },
       "RandomDecimal" => Some(Generator::RandomDecimal(<u16>::json_to_number(map, "digits", 10))),
       "RandomHexadecimal" => Some(Generator::RandomHexadecimal(<u16>::json_to_number(map, "digits", 10))),
       "RandomString" => Some(Generator::RandomString(<u16>::json_to_number(map, "size", 10))),
@@ -205,6 +257,7 @@ impl Hash for Generator {
           }
         }
       }
+      Generator::Uuid(format) => format.hash(state),
       _ => ()
     }
   }
@@ -224,6 +277,7 @@ impl PartialEq for Generator {
       (Generator::ProviderStateGenerator(str1, data1), Generator::ProviderStateGenerator(str2, data2)) => str1 == str2 && data1 == data2,
       (Generator::MockServerURL(ex1, re1), Generator::MockServerURL(ex2, re2)) => ex1 == ex2 && re1 == re2,
       (Generator::ArrayContains(variants1), Generator::ArrayContains(variants2)) => variants1 == variants2,
+      (Generator::Uuid(format), Generator::Uuid(format2)) => format == format2,
       _ => mem::discriminant(self) == mem::discriminant(other)
     }
   }
@@ -238,9 +292,13 @@ fn h(rule: &Generator) -> u64 {
 
 #[test]
 fn hash_and_partial_eq_for_matching_rule() {
-  expect!(h(&Generator::Uuid)).to(be_equal_to(h(&Generator::Uuid)));
-  expect!(Generator::Uuid).to(be_equal_to(Generator::Uuid));
-  expect!(Generator::Uuid).to_not(be_equal_to(Generator::RandomBoolean));
+  expect!(h(&Generator::Uuid(None))).to(be_equal_to(h(&Generator::Uuid(None))));
+  expect!(h(&Generator::Uuid(Some(UuidFormat::Simple)))).to(be_equal_to(h(&Generator::Uuid(Some(UuidFormat::Simple)))));
+  expect!(h(&Generator::Uuid(Some(UuidFormat::Simple)))).to_not(be_equal_to(h(&Generator::Uuid(Some(UuidFormat::LowerCaseHyphenated)))));
+  expect!(Generator::Uuid(None)).to(be_equal_to(Generator::Uuid(None)));
+  expect!(Generator::Uuid(Some(UuidFormat::Simple))).to(be_equal_to(Generator::Uuid(Some(UuidFormat::Simple))));
+  expect!(Generator::Uuid(Some(UuidFormat::Simple))).to_not(be_equal_to(Generator::Uuid(Some(UuidFormat::LowerCaseHyphenated))));
+  expect!(Generator::Uuid(None)).to_not(be_equal_to(Generator::RandomBoolean));
 
   expect!(h(&Generator::RandomBoolean)).to(be_equal_to(h(&Generator::RandomBoolean)));
   expect!(Generator::RandomBoolean).to(be_equal_to(Generator::RandomBoolean));
@@ -839,7 +897,12 @@ impl GenerateValue<String> for Generator {
     let mut rnd = rand::thread_rng();
     let result = match self {
       Generator::RandomInt(min, max) => Ok(format!("{}", rnd.gen_range(*min..max.saturating_add(1)))),
-      Generator::Uuid => Ok(Uuid::new_v4().to_hyphenated().to_string()),
+      Generator::Uuid(format) => match format.unwrap_or_default() {
+        UuidFormat::Simple => Ok(Uuid::new_v4().to_simple().to_string()),
+        UuidFormat::LowerCaseHyphenated => Ok(Uuid::new_v4().to_hyphenated().to_string()),
+        UuidFormat::UpperCaseHyphenated => Ok(Uuid::new_v4().to_hyphenated().to_string().to_uppercase()),
+        UuidFormat::Urn => Ok(Uuid::new_v4().to_urn().to_string())
+      },
       Generator::RandomDecimal(digits) => Ok(generate_decimal(*digits as usize)),
       Generator::RandomHexadecimal(digits) => Ok(generate_hexadecimal(*digits as usize)),
       Generator::RandomString(size) => Ok(generate_ascii_string(*size as usize)),
@@ -938,8 +1001,13 @@ impl GenerateValue<Value> for Generator {
           _ => Err(anyhow!("Could not generate a random int from {}", value))
         }
       },
-      Generator::Uuid => match value {
-        Value::String(_) => Ok(json!(Uuid::new_v4().to_simple().to_string())),
+      Generator::Uuid(format) => match value {
+        Value::String(_) => match format.unwrap_or_default() {
+          UuidFormat::Simple => Ok(json!(Uuid::new_v4().to_simple().to_string())),
+          UuidFormat::LowerCaseHyphenated => Ok(json!(Uuid::new_v4().to_hyphenated().to_string())),
+          UuidFormat::UpperCaseHyphenated => Ok(json!(Uuid::new_v4().to_hyphenated().to_string().to_uppercase())),
+          UuidFormat::Urn => Ok(json!(Uuid::new_v4().to_urn().to_string()))
+        },
         _ => Err(anyhow!("Could not generate a UUID from {}", value))
       },
       Generator::RandomDecimal(digits) => match value {
@@ -1258,7 +1326,9 @@ mod tests {
     expect!(Generator::from_map("", &serde_json::Map::new())).to(be_none());
     expect!(Generator::from_map("Invalid", &serde_json::Map::new())).to(be_none());
     expect!(Generator::from_map("uuid", &serde_json::Map::new())).to(be_none());
-    expect!(Generator::from_map("Uuid", &serde_json::Map::new())).to(be_some().value(Generator::Uuid));
+    expect!(Generator::from_map("Uuid", &serde_json::Map::new())).to(be_some().value(Generator::Uuid(None)));
+    expect!(Generator::from_map("Uuid", &json!({ "format": "simple"}).as_object().unwrap())).to(be_some().value(Generator::Uuid(Some(UuidFormat::Simple))));
+    expect!(Generator::from_map("Uuid", &json!({ "format": "other"}).as_object().unwrap())).to(be_some().value(Generator::Uuid(None)));
     expect!(Generator::from_map("RandomBoolean", &serde_json::Map::new())).to(be_some().value(Generator::RandomBoolean));
   }
 
@@ -1340,8 +1410,12 @@ mod tests {
       "min": 5,
       "max": 15
     })));
-    expect!(Generator::Uuid.to_json().unwrap()).to(be_equal_to(json!({
+    expect!(Generator::Uuid(None).to_json().unwrap()).to(be_equal_to(json!({
       "type": "Uuid"
+    })));
+    expect!(Generator::Uuid(Some(UuidFormat::Simple)).to_json().unwrap()).to(be_equal_to(json!({
+      "type": "Uuid",
+      "format": "simple"
     })));
     expect!(Generator::RandomDecimal(5).to_json().unwrap()).to(be_equal_to(json!({
       "type": "RandomDecimal",
@@ -1491,8 +1565,20 @@ mod tests {
 
   #[test]
   fn uuid_generator_test() {
-    let generated = Generator::Uuid.generate_value(&"".to_string(), &hashmap!{}, &NoopVariantMatcher.boxed());
-    assert_that!(generated.unwrap(), matches_regex(r"^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"));
+    let generated = Generator::Uuid(None).generate_value(&"".to_string(), &hashmap!{}, &NoopVariantMatcher.boxed());
+    assert_that!(generated.unwrap(), matches_regex(r"^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$"));
+
+    let generated = Generator::Uuid(Some(UuidFormat::Simple)).generate_value(&"".to_string(), &hashmap!{}, &NoopVariantMatcher.boxed());
+    assert_that!(generated.unwrap(), matches_regex(r"^[a-f0-9]{32}$"));
+
+    let generated = Generator::Uuid(Some(UuidFormat::LowerCaseHyphenated)).generate_value(&"".to_string(), &hashmap!{}, &NoopVariantMatcher.boxed());
+    assert_that!(generated.unwrap(), matches_regex(r"^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$"));
+
+    let generated = Generator::Uuid(Some(UuidFormat::UpperCaseHyphenated)).generate_value(&"".to_string(), &hashmap!{}, &NoopVariantMatcher.boxed());
+    assert_that!(generated.unwrap(), matches_regex(r"^[A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12}$"));
+
+    let generated = Generator::Uuid(Some(UuidFormat::Urn)).generate_value(&"".to_string(), &hashmap!{}, &NoopVariantMatcher.boxed());
+    assert_that!(generated.unwrap(), matches_regex(r"^urn:uuid:[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"));
   }
 
   #[test]

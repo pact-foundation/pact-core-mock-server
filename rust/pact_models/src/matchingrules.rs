@@ -1651,7 +1651,7 @@ mod tests {
         }
       ]
     });
-    let generators = hashmap!{ "a".to_string() => Generator::Uuid };
+    let generators = hashmap!{ "a".to_string() => Generator::Uuid(None) };
     expect!(MatchingRule::from_json(&json)).to(be_some().value(
       MatchingRule::ArrayContains(
         vec![

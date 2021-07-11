@@ -34,7 +34,7 @@ fn applies_header_generator_for_headers_to_the_copy_of_the_response() {
       s!("B") => vec![s!("b")]
     }), generators: generators! {
       "HEADER" => {
-        "A" => Generator::Uuid
+        "A" => Generator::Uuid(None)
       }
     }, .. Response::default()
   };
@@ -63,7 +63,7 @@ fn applies_header_generator_for_headers_to_the_copy_of_the_request() {
       s!("B") => vec![s!("b")]
     }), generators: generators! {
       "HEADER" => {
-        "A" => Generator::Uuid
+        "A" => Generator::Uuid(None)
       }
     }, .. Request::default()
   };
@@ -78,7 +78,7 @@ fn applies_query_generator_for_query_parameters_to_the_copy_of_the_request() {
       s!("B") => vec![ s!("b") ]
     }), generators: generators! {
       "QUERY" => {
-        "A" => Generator::Uuid
+        "A" => Generator::Uuid(None)
       }
     }, .. Request::default()
   };
