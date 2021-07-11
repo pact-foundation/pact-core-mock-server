@@ -41,7 +41,7 @@ ffi_fn! {
     /// This function will fail if it is passed a NULL pointer,
     /// or the Rust string contains an embedded NULL byte.
     /// In the case of error, a NULL pointer will be returned.
-    fn consumer_get_name(consumer: *const Consumer) -> *const c_char {
+    fn pactffi_consumer_get_name(consumer: *const Consumer) -> *const c_char {
         let consumer = as_ref!(consumer);
         string::to_c(&consumer.name)? as *const c_char
     } {

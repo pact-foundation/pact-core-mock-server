@@ -42,7 +42,7 @@ use std::slice;
 /// as a safety mechanism. This is slightly less efficient than leaving the contents of the buffer
 /// alone, but the difference is expected to be negligible in practice.
 #[no_mangle]
-pub extern "C" fn get_error_message(
+pub extern "C" fn pactffi_get_error_message(
     buffer: *mut c_char,
     length: c_int,
 ) -> c_int {

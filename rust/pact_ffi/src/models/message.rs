@@ -42,7 +42,7 @@ ffi_fn! {
     /// # Error Handling
     ///
     /// Returns NULL on error.
-    fn message_new() -> *mut Message {
+    fn pactffi_message_new() -> *mut Message {
         let message = Message::default();
         ptr::raw_to(message)
     } {
@@ -60,7 +60,7 @@ ffi_fn! {
     /// # Error Handling
     ///
     /// If the JSON string is invalid or not UTF-8 encoded, returns a NULL.
-    fn message_new_from_json(
+    fn pactffi_message_new_from_json(
         index: c_uint,
         json_str: *const c_char,
         spec_version: PactSpecification
@@ -91,7 +91,7 @@ ffi_fn! {
     /// # Error Handling
     ///
     /// If the body or content type are invalid or not UTF-8 encoded, returns NULL.
-    fn message_new_from_body(body: *const c_char, content_type: *const c_char) -> *mut Message {
+    fn pactffi_message_new_from_body(body: *const c_char, content_type: *const c_char) -> *mut Message {
         // Get the body as a Vec<u8>.
         let body = cstr!(body)
             .to_bytes()
@@ -123,7 +123,7 @@ ffi_fn! {
 
 ffi_fn! {
     /// Destroy the `Message` being pointed to.
-    fn message_delete(message: *mut Message) {
+    fn pactffi_message_delete(message: *mut Message) {
         ptr::drop_raw(message);
     }
 }
@@ -147,7 +147,7 @@ ffi_fn! {
     /// is missing, then this function also returns NULL. This means there's
     /// no mechanism to differentiate with this function call alone between
     /// a NULL message and a missing message body.
-    fn message_get_contents(message: *const Message) -> *const c_char {
+    fn pactffi_message_get_contents(message: *const Message) -> *const c_char {
         let message = as_ref!(message);
 
         match message.contents {
@@ -189,7 +189,7 @@ ffi_fn! {
     ///
     /// This function may fail if the Rust string contains embedded
     /// null ('\0') bytes.
-    fn message_get_description(message: *const Message) -> *const c_char {
+    fn pactffi_message_get_description(message: *const Message) -> *const c_char {
         let message = as_ref!(message);
         let description = string::to_c(&message.description)?;
         description as *const c_char
@@ -212,7 +212,7 @@ ffi_fn! {
     /// # Error Handling
     ///
     /// Errors will be reported with a non-zero return value.
-    fn message_set_description(message: *mut Message, description: *const c_char) -> c_int {
+    fn pactffi_message_set_description(message: *mut Message, description: *const c_char) -> c_int {
         let message = as_mut!(message);
         let description = safe_str!(description);
 
@@ -247,7 +247,7 @@ ffi_fn! {
     ///
     /// This function may fail if the index requested is out of bounds,
     /// or if any of the Rust strings contain embedded null ('\0') bytes.
-    fn message_get_provider_state(message: *const Message, index: c_uint) -> *const ProviderState {
+    fn pactffi_message_get_provider_state(message: *const Message, index: c_uint) -> *const ProviderState {
         let message = as_ref!(message);
         let index = index as usize;
 
@@ -274,7 +274,7 @@ ffi_fn! {
     /// # Error Handling
     ///
     /// Returns NULL if an error occurs.
-    fn message_get_provider_state_iter(message: *mut Message) -> *mut ProviderStateIterator {
+    fn pactffi_message_get_provider_state_iter(message: *mut Message) -> *mut ProviderStateIterator {
         let message = as_mut!(message);
         let iter = ProviderStateIterator { current: 0, message };
         ptr::raw_to(iter)
@@ -293,7 +293,7 @@ ffi_fn! {
     /// # Error Handling
     ///
     /// Returns NULL if an error occurs.
-    fn provider_state_iter_next(iter: *mut ProviderStateIterator) -> *mut ProviderState {
+    fn pactffi_provider_state_iter_next(iter: *mut ProviderStateIterator) -> *mut ProviderState {
         let iter = as_mut!(iter);
         let message = as_mut!(iter.message);
         let index = iter.next();
@@ -309,7 +309,7 @@ ffi_fn! {
 
 ffi_fn! {
     /// Delete the iterator.
-    fn provider_state_iter_delete(iter: *mut ProviderStateIterator) {
+    fn pactffi_provider_state_iter_delete(iter: *mut ProviderStateIterator) {
         ptr::drop_raw(iter);
     }
 }
@@ -354,7 +354,7 @@ ffi_fn! {
     /// This function may fail if the provided `key` string contains
     /// invalid UTF-8, or if the Rust string contains embedded null ('\0')
     /// bytes.
-    fn message_find_metadata(message: *const Message, key: *const c_char) -> *const c_char {
+    fn pactffi_message_find_metadata(message: *const Message, key: *const c_char) -> *const c_char {
         let message = as_ref!(message);
         let key = safe_str!(key);
         let value = message.metadata.get(key).ok_or(anyhow::anyhow!("invalid metadata key"))?;
@@ -378,7 +378,7 @@ ffi_fn! {
     ///
     /// This function may fail if the provided `key` or `value` strings
     /// contain invalid UTF-8.
-    fn message_insert_metadata(
+    fn pactffi_message_insert_metadata(
         message: *mut Message,
         key: *const c_char,
         value: *const c_char
@@ -413,7 +413,7 @@ ffi_fn! {
     ///
     /// This function may fail if any of the Rust strings contain
     /// embedded null ('\0') bytes.
-    fn message_get_metadata_iter(message: *mut Message) -> *mut MessageMetadataIterator {
+    fn pactffi_message_get_metadata_iter(message: *mut Message) -> *mut MessageMetadataIterator {
         let message = as_mut!(message);
 
         let iter = MessageMetadataIterator {
@@ -438,7 +438,7 @@ ffi_fn! {
     /// # Error Handling
     ///
     /// If no further data is present, returns NULL.
-    fn message_metadata_iter_next(iter: *mut MessageMetadataIterator) -> *mut MessageMetadataPair {
+    fn pactffi_message_metadata_iter_next(iter: *mut MessageMetadataIterator) -> *mut MessageMetadataPair {
         let iter = as_mut!(iter);
         let message = as_ref!(iter.message);
         let key = iter.next().ok_or(anyhow::anyhow!("iter past the end of metadata"))?;
@@ -455,14 +455,14 @@ ffi_fn! {
 
 ffi_fn! {
     /// Free the metadata iterator when you're done using it.
-    fn message_metadata_iter_delete(iter: *mut MessageMetadataIterator) {
+    fn pactffi_message_metadata_iter_delete(iter: *mut MessageMetadataIterator) {
         ptr::drop_raw(iter);
     }
 }
 
 ffi_fn! {
     /// Free a pair of key and value returned from `message_metadata_iter_next`.
-    fn message_metadata_pair_delete(pair: *mut MessageMetadataPair) {
+    fn pactffi_message_metadata_pair_delete(pair: *mut MessageMetadataPair) {
         ptr::drop_raw(pair);
     }
 }

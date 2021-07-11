@@ -23,7 +23,7 @@ ffi_fn! {
     /// # Error Handling
     ///
     /// On error, this function will return a null pointer.
-    fn message_pact_new_from_json(
+    fn pactffi_message_pact_new_from_json(
         file_name: *const c_char,
         json_str: *const c_char
     ) -> *mut MessagePact {
@@ -47,7 +47,7 @@ ffi_fn! {
 
 ffi_fn! {
     /// Delete the `MessagePact` being pointed to.
-    fn message_pact_delete(message_pact: *mut MessagePact) {
+    fn pactffi_message_pact_delete(message_pact: *mut MessagePact) {
         ptr::drop_raw(message_pact);
     }
 }
@@ -65,7 +65,7 @@ ffi_fn! {
     ///
     /// This function will only fail if it is passed a NULL pointer.
     /// In the case of error, a NULL pointer will be returned.
-    fn message_pact_get_consumer(message_pact: *mut MessagePact) -> *mut Consumer {
+    fn pactffi_message_pact_get_consumer(message_pact: *mut MessagePact) -> *mut Consumer {
         let message_pact = as_mut!(message_pact);
         let consumer = &mut message_pact.consumer;
         consumer as *mut Consumer
@@ -87,7 +87,7 @@ ffi_fn! {
     ///
     /// This function will only fail if it is passed a NULL pointer.
     /// In the case of error, a NULL pointer will be returned.
-    fn message_pact_get_provider(message_pact: *mut MessagePact) -> *mut Provider {
+    fn pactffi_message_pact_get_provider(message_pact: *mut MessagePact) -> *mut Provider {
         let message_pact = as_mut!(message_pact);
         let provider = &mut message_pact.provider;
         provider as *mut Provider
@@ -113,7 +113,7 @@ ffi_fn! {
     ///
     /// This function may fail if any of the Rust strings contain embedded
     /// null ('\0') bytes.
-    fn message_pact_get_message_iter(message_pact: *mut MessagePact) -> *mut MessagePactMessageIterator {
+    fn pactffi_message_pact_get_message_iter(message_pact: *mut MessagePact) -> *mut MessagePactMessageIterator {
         let message_pact = as_mut!(message_pact);
         let iter = MessagePactMessageIterator { current: 0, message_pact };
         ptr::raw_to(iter)
@@ -132,7 +132,7 @@ ffi_fn! {
     /// # Error Handling
     ///
     /// This function will return a NULL pointer if passed a NULL pointer or if an error occurs.
-    fn message_pact_message_iter_next(iter: *mut MessagePactMessageIterator) -> *mut Message {
+    fn pactffi_message_pact_message_iter_next(iter: *mut MessagePactMessageIterator) -> *mut Message {
         let iter = as_mut!(iter);
         let message_pact = as_mut!(iter.message_pact);
         let index = iter.next();
@@ -148,7 +148,7 @@ ffi_fn! {
 
 ffi_fn! {
     /// Delete the iterator.
-    fn message_pact_message_iter_delete(iter: *mut MessagePactMessageIterator) {
+    fn pactffi_message_pact_message_iter_delete(iter: *mut MessagePactMessageIterator) {
         ptr::drop_raw(iter);
     }
 }
@@ -173,7 +173,7 @@ ffi_fn! {
     /// This function may fail if the provided `key1` or `key2` strings contains
     /// invalid UTF-8, or if the Rust string contains embedded null ('\0')
     /// bytes.
-    fn message_pact_find_metadata(message_pact: *const MessagePact, key1: *const c_char, key2: *const c_char) -> *const c_char {
+    fn pactffi_message_pact_find_metadata(message_pact: *const MessagePact, key1: *const c_char, key2: *const c_char) -> *const c_char {
         let message_pact = as_ref!(message_pact);
         let key1 = safe_str!(key1);
         let key2 = safe_str!(key2);
@@ -203,7 +203,7 @@ ffi_fn! {
     ///
     /// This function may fail if any of the Rust strings contain
     /// embedded null ('\0') bytes.
-    fn message_pact_get_metadata_iter(message_pact: *mut MessagePact) -> *mut MessagePactMetadataIterator {
+    fn pactffi_message_pact_get_metadata_iter(message_pact: *mut MessagePact) -> *mut MessagePactMetadataIterator {
         let message_pact = as_mut!(message_pact);
 
         let keys = message_pact
@@ -239,7 +239,7 @@ ffi_fn! {
     /// # Error Handling
     ///
     /// Returns null if no next element is present.
-    fn message_pact_metadata_iter_next(iter: *mut MessagePactMetadataIterator) -> *mut MessagePactMetadataTriple {
+    fn pactffi_message_pact_metadata_iter_next(iter: *mut MessagePactMetadataIterator) -> *mut MessagePactMetadataTriple {
         let iter = as_mut!(iter);
         let message_pact = as_ref!(iter.message_pact);
         let (outer_key, inner_key) = iter.next().ok_or(anyhow::anyhow!("iter past the end of metadata"))?;
@@ -263,14 +263,14 @@ ffi_fn! {
 
 ffi_fn! {
     /// Free the metadata iterator when you're done using it.
-    fn message_pact_metadata_iter_delete(iter: *mut MessagePactMetadataIterator) {
+    fn pactffi_message_pact_metadata_iter_delete(iter: *mut MessagePactMetadataIterator) {
         ptr::drop_raw(iter);
     }
 }
 
 ffi_fn! {
     /// Free a triple returned from `message_pact_metadata_iter_next`.
-    fn message_pact_metadata_triple_delete(triple: *mut MessagePactMetadataTriple) {
+    fn pactffi_message_pact_metadata_triple_delete(triple: *mut MessagePactMetadataTriple) {
         ptr::drop_raw(triple);
     }
 }

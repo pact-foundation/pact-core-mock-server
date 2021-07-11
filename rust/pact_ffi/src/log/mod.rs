@@ -9,13 +9,13 @@ mod target;
 mod inmem_buffer;
 
 pub use crate::log::ffi::{
-    logger_apply,
-    logger_attach_sink,
-    logger_init,
-    fetch_log_buffer,
-    log_to_stdout,
-    log_to_stderr,
-    log_to_file,
-    log_to_buffer
+    pactffi_logger_apply,
+    pactffi_logger_attach_sink,
+    pactffi_logger_init,
+    pactffi_fetch_log_buffer,
+    pactffi_log_to_stdout,
+    pactffi_log_to_stderr,
+    pactffi_log_to_file,
+    pactffi_log_to_buffer
 };
 pub(crate) use crate::log::target::TARGET;

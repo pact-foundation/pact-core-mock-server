@@ -19,7 +19,7 @@ ffi_fn! {
     /// # Error Handling
     ///
     /// If the provider_state param is NULL, this returns NULL.
-    fn provider_state_get_name(provider_state: *const ProviderState) -> *const c_char {
+    fn pactffi_provider_state_get_name(provider_state: *const ProviderState) -> *const c_char {
         let provider_state = as_ref!(provider_state);
         let name = string::to_c(&provider_state.name)?;
         name as *const c_char
@@ -45,7 +45,7 @@ ffi_fn! {
     ///
     /// This function may fail if any of the Rust strings contain
     /// embedded null ('\0') bytes.
-    fn provider_state_get_param_iter(
+    fn pactffi_provider_state_get_param_iter(
         provider_state: *mut ProviderState
     ) -> *mut ProviderStateParamIterator {
         let provider_state = as_mut!(provider_state);
@@ -77,7 +77,7 @@ ffi_fn! {
     /// # Error Handling
     ///
     /// Returns NULL if there's no further elements or the iterator is NULL.
-    fn provider_state_param_iter_next(
+    fn pactffi_provider_state_param_iter_next(
         iter: *mut ProviderStateParamIterator
     ) -> *mut ProviderStateParamPair {
         let iter = as_mut!(iter);
@@ -96,21 +96,21 @@ ffi_fn! {
 
 ffi_fn! {
     /// Free the provider state when you're done using it.
-    fn provider_state_delete(provider_state: *mut ProviderState) {
+    fn pactffi_provider_state_delete(provider_state: *mut ProviderState) {
         ptr::drop_raw(provider_state);
     }
 }
 
 ffi_fn! {
     /// Free the provider state param iterator when you're done using it.
-    fn provider_state_param_iter_delete(iter: *mut ProviderStateParamIterator) {
+    fn pactffi_provider_state_param_iter_delete(iter: *mut ProviderStateParamIterator) {
         ptr::drop_raw(iter);
     }
 }
 
 ffi_fn! {
     /// Free a pair of key and value returned from `provider_state_param_iter_next`.
-    fn provider_state_param_pair_delete(pair: *mut ProviderStateParamPair) {
+    fn pactffi_provider_state_param_pair_delete(pair: *mut ProviderStateParamPair) {
         ptr::drop_raw(pair);
     }
 }
