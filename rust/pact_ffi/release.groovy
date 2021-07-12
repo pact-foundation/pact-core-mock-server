@@ -108,9 +108,16 @@ ask('Publish library to crates.io?: [Y]') {
   executeOnShell 'cargo publish'
 }
 
+ask('Publish Conan packages?: [Y]') {
+  executeOnShell "cd conan/lib && conan create . pact/beta && conan upload pact_ffi/${releaseVer}@pact/beta -r=pact-foundation"
+  executeOnShell "cd conan/dll && conan create . pact/beta && conan upload pact_ffi_dll/${releaseVer}@pact/beta -r=pact-foundation"
+}
+
 def nextVer = Version.valueOf(releaseVer).incrementPatchVersion()
 ask("Bump version to $nextVer?: [Y]") {
   executeOnShell "sed -i -e 's/version = \"${releaseVer}\"/version = \"${nextVer}\"/' Cargo.toml"
+  executeOnShell "sed -i -e 's/version = \"${releaseVer}\"/version = \"${nextVer}\"/' conan/lib/conanfile.py"
+  executeOnShell "sed -i -e 's/version = \"${releaseVer}\"/version = \"${nextVer}\"/' conan/dll/conanfile.py"
   executeOnShell("cargo update")
   executeOnShell("git add Cargo.toml README.md")
   executeOnShell("git add ../Cargo.lock")
