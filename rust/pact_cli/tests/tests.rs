@@ -44,3 +44,23 @@ fn valid_v2_pact() {
 
   expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(be_empty());
 }
+
+#[test]
+fn valid_v3_pact() {
+  let pact_file = include_str!("v3-message-pact.json");
+  let json: Value = serde_json::from_str(pact_file).unwrap();
+
+  let results = verify_json(&json, &PactSpecification::Unknown, pact_file, true);
+
+  expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(be_empty());
+}
+
+#[test]
+fn valid_v4_pact() {
+  let pact_file = include_str!("v4-combined-pact.json");
+  let json: Value = serde_json::from_str(pact_file).unwrap();
+
+  let results = verify_json(&json, &PactSpecification::Unknown, pact_file, true);
+
+  expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(be_empty());
+}

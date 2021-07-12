@@ -382,8 +382,57 @@ impl Display for RequestResponseInteraction {
 }
 
 impl PactJsonVerifier for RequestResponseInteraction {
-  fn verify_json(_path: &str, _pact_json: &Value, _strict: bool) -> Vec<PactFileVerificationResult> {
-    vec![]
+  fn verify_json(path: &str, pact_json: &Value, strict: bool) -> Vec<PactFileVerificationResult> {
+    let mut results = vec![];
+
+    match pact_json {
+      Value::Object(values) => {
+        if let Some(description) = values.get("description") {
+          if !description.is_string() {
+            results.push(PactFileVerificationResult::new(path.to_owned() + "/description", ResultLevel::ERROR,
+                                                         format!("Must be a String, got {}", json_type_of(pact_json))))
+          }
+        } else {
+          results.push(PactFileVerificationResult::new(path,
+            if strict { ResultLevel::ERROR } else { ResultLevel::WARNING }, "Missing description"))
+        }
+
+        let valid_attr = hashset! {
+          "_id", "description", "providerState", "provider_state", "providerStates", "request",
+          "response" };
+        for (key, _) in values {
+          if !valid_attr.contains(key.as_str()) {
+            results.push(PactFileVerificationResult::new(path,
+              if strict { ResultLevel::ERROR } else { ResultLevel::WARNING },
+              &format!("Unexpected attribute '{}'", key)));
+          }
+        }
+      }
+      _ => results.push(PactFileVerificationResult::new(path, ResultLevel::ERROR,
+        format!("Must be an Object, got {}", json_type_of(pact_json))))
+    }
+
+    // "provider_state" -> "providerState"
+
+    // let id = pact_json.get("_id").map(|id| json_to_string(id));
+    //         let description = match pact_json.get("description") {
+    //             Some(v) => match *v {
+    //                 Value::String(ref s) => s.clone(),
+    //                 _ => v.to_string()
+    //             },
+    //             None => format!("Interaction {}", index)
+    //         };
+    //         let provider_states = ProviderState::from_json(pact_json);
+    //         let request = match pact_json.get("request") {
+    //             Some(v) => Request::from_json(v, spec_version),
+    //             None => Request::default()
+    //         };
+    //         let response = match pact_json.get("response") {
+    //             Some(v) => Response::from_json(v, spec_version),
+    //             None => Response::default()
+    //         };
+
+    results
   }
 }
 
@@ -898,6 +947,12 @@ pub(crate) fn verify_metadata(metadata: &Value) -> Vec<PactFileVerificationResul
       } else {
         None
       };
+
+      if values.contains_key("pactSpecificationVersion") {
+        results.push(PactFileVerificationResult::new("/metadata", ResultLevel::WARNING,
+          &format!("'pactSpecificationVersion' is deprecated, use 'pactSpecification/version' instead")));
+      }
+
       if let Some(spec) = spec_value {
         match spec {
           Value::Object(values) => {

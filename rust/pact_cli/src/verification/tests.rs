@@ -1,8 +1,9 @@
 use expectest::prelude::*;
 use serde_json:: json;
 
+use pact_matching::models::RequestResponseInteraction;
 use pact_models::PactSpecification;
-use pact_models::verify_json::ResultLevel;
+use pact_models::verify_json::{PactJsonVerifier, ResultLevel};
 
 use super::verify_json;
 
@@ -411,4 +412,79 @@ fn with_additional_provider_properties() {
     .map(|result| result.message.as_str())
     .collect();
   expect!(messages).to(be_equal_to(vec!["Unknown attribute 'other_name'"]));
+}
+
+#[test]
+fn verify_interaction_no_description() {
+  let interation_json = json!({});
+  let results = RequestResponseInteraction::verify_json("/interactions/0", &interation_json, false);
+  expect!(results.iter()).to(have_count(1));
+  expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(be_empty());
+  let messages: Vec<(&str, &str)> = results.iter()
+    .map(|result| (result.message.as_str(), result.path.as_str()))
+    .collect();
+  expect!(messages).to(be_equal_to(
+    vec![("Missing description", "/interactions/0")]));
+
+  let results = RequestResponseInteraction::verify_json("/interactions/0", &interation_json, true);
+  expect!(results.iter()).to(have_count(1));
+  expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(have_count(1));
+  let messages: Vec<(&str, &str)> = results.iter()
+    .map(|result| (result.message.as_str(), result.path.as_str()))
+    .collect();
+  expect!(messages).to(be_equal_to(
+    vec![("Missing description", "/interactions/0")]));
+}
+
+#[test]
+fn verify_interaction_invalid_description() {
+  let interation_json = json!({
+    "description": [1, 2, 3]
+  });
+  let results = RequestResponseInteraction::verify_json("/interactions/0", &interation_json, false);
+  expect!(results.iter()).to(have_count(1));
+  expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(have_count(1));
+  let messages: Vec<(&str, &str)> = results.iter()
+    .map(|result| (result.message.as_str(), result.path.as_str()))
+    .collect();
+  expect!(messages).to(be_equal_to(
+    vec![("Must be a String, got Object", "/interactions/0/description")]));
+}
+
+#[test]
+fn verify_interaction_extra_attributes() {
+  let interation_json = json!({
+    "description": "test",
+    "other": "test"
+  });
+  let results = RequestResponseInteraction::verify_json("/interactions/0", &interation_json, false);
+  expect!(results.iter()).to(have_count(1));
+  expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(be_empty());
+  let messages: Vec<(&str, &str)> = results.iter()
+    .map(|result| (result.message.as_str(), result.path.as_str()))
+    .collect();
+  expect!(messages).to(be_equal_to(
+    vec![("Unexpected attribute 'other'", "/interactions/0")]));
+
+  let results = RequestResponseInteraction::verify_json("/interactions/0", &interation_json, true);
+  expect!(results.iter()).to(have_count(1));
+  expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(have_count(1));
+  let messages: Vec<(&str, &str)> = results.iter()
+    .map(|result| (result.message.as_str(), result.path.as_str()))
+    .collect();
+  expect!(messages).to(be_equal_to(
+    vec![("Unexpected attribute 'other'", "/interactions/0")]));
+}
+
+#[test]
+fn verify_interaction_invalid_interaction() {
+  let interation_json = json!([1, 2, 3]);
+  let results = RequestResponseInteraction::verify_json("/interactions/0", &interation_json, false);
+  expect!(results.iter()).to(have_count(1));
+  expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(have_count(1));
+  let messages: Vec<(&str, &str)> = results.iter()
+    .map(|result| (result.message.as_str(), result.path.as_str()))
+    .collect();
+  expect!(messages).to(be_equal_to(
+    vec![("Must be an Object, got Array", "/interactions/0")]));
 }
