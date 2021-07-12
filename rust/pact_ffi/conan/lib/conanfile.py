@@ -14,7 +14,7 @@ class CbindgenTestConan(ConanFile):
 
     def build(self):
         if self.settings.os == "Windows":
-            url = ("https://github.com/pact-foundation/pact-reference/releases/download/libpact_ffi-v%s/libpact_ffi-windows-x86_64.lib.gz"
+            url = ("https://github.com/pact-foundation/pact-reference/releases/download/libpact_ffi-v%s/pact_ffi-windows-x86_64.lib.gz"
                    % (str(self.version)))
             tools.download(url, "pact_ffi.lib.gz")
             tools.unzip("pact_ffi.lib.gz")

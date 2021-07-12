@@ -14,11 +14,11 @@ class CbindgenTestConan(ConanFile):
 
     def build(self):
         if self.settings.os == "Windows":
-            url = ("https://github.com/pact-foundation/pact-reference/releases/download/libpact_ffi-v%s/libpact_ffi-windows-x86_64.dll.gz"
+            url = ("https://github.com/pact-foundation/pact-reference/releases/download/libpact_ffi-v%s/pact_ffi-windows-x86_64.dll.gz"
                    % (str(self.version)))
             tools.download(url, "pact_ffi.dll.gz")
             tools.unzip("pact_ffi.dll.gz")
-            url = ("https://github.com/pact-foundation/pact-reference/releases/download/libpact_ffi-v%s/libpact_ffi-windows-x86_64.dll.lib.gz"
+            url = ("https://github.com/pact-foundation/pact-reference/releases/download/libpact_ffi-v%s/pact_ffi-windows-x86_64.dll.lib.gz"
                    % (str(self.version)))
             tools.download(url, "pact_ffi.dll.lib.gz")
             tools.unzip("pact_ffi.dll.lib.gz")
