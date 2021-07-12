@@ -34,7 +34,7 @@ follow a C calling convention.
 
 #### Consumer Projects
 
-> TODO after merging FFI libs
+For example for a project using Conan and CMake that links to the `pact-ffi` crate, see [Pact-C++](https://github.com/pact-foundation/pact-cplusplus).
 
 #### Verifying Providers
 
@@ -42,7 +42,7 @@ follow a C calling convention.
 
 ## Developing
 
-There are 11 main crates to this implementation:
+There are 8 main crates to this implementation:
 
 ### [pact_models](./pact_models)
 
@@ -56,20 +56,10 @@ This is a library that provides the Pact functions for matching requests and res
 
 This is a library that implements exported functions using C bindings for use in foreign languages.
 
-### [pact_matching_ffi](./pact_matching_ffi) [DEPRECATED]
-
-This is a library that implements exported functions using C bindings for matching requests, responses and messages. 
-It is going to be replaced with a single FFI library [pact_ffi](./pact_ffi).
-
 ### [pact_mock_server](./pact_mock_server)
 
 This is a library that provides an in-process mock server for Pact client tests. It uses the [pact_matching](./pact_matching)
 library.
-
-### [pact_mock_server_ffi](./pact_mock_server_ffi) [DEPRECATED]
-
-This is a library that implements exported functions using C bindings for controlling the in-process mock server from
-non-rust languages. It is going to be replaced with a single FFI library [pact_ffi](./pact_ffi).
 
 ### [pact_mock_server_cli](./pact_mock_server_cli)
 
@@ -89,11 +79,6 @@ This library provides support for verifying a provider against pact files.
 
 Command line excutable that uses the [pact_verifier](./pact_verifier) to be able to verify a running provider against
 pact files.
-
-### [pact_verifier_ffi](./pact_verifier_ffi) [DEPRECATED]
-
-This is a library that implements exported functions using C bindings for verifying a provider.  It is going to be 
-replaced with a single FFI library [pact_ffi](./pact_ffi).
 
 ### Building
 

@@ -2,14 +2,11 @@
 members = [
     "pact_models",
     "pact_matching",
-    "pact_matching_ffi",
     "pact_mock_server",
     "pact_mock_server_cli",
-    "pact_mock_server_ffi",
     "pact_consumer",
     "pact_verifier",
     "pact_verifier_cli",
-    "pact_verifier_ffi",
     "pact_cli",
     "pact_ffi"
 ]

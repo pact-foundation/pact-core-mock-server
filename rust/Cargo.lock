@@ -119,25 +119,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cbindgen"
-version = "0.19.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38728c31b994e4b849cf59feefb4a8bf26acd299ee0b92c9fb35bd14ad4b8dfa"
-dependencies = [
- "clap",
- "heck",
- "indexmap",
- "log",
- "proc-macro2 1.0.27",
- "quote 1.0.9",
- "serde",
- "serde_json",
- "syn 1.0.73",
- "tempfile",
- "toml",
-]
-
-[[package]]
 name = "cc"
 version = "1.0.68"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -503,15 +484,6 @@ name = "hashbrown"
 version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ab5ef0d4909ef3724cc8cce6ccc8572c5c817592e9285f5464f8e86f8bd3726e"
-
-[[package]]
-name = "heck"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d621efb26863f0e9924c6ac577e8275e5e6b77455db64ffa6c65c904e9e132c"
-dependencies = [
- "unicode-segmentation",
-]
 
 [[package]]
 name = "hermit-abi"
@@ -1153,24 +1125,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pact_matching_ffi"
-version = "0.0.5"
-dependencies = [
- "anyhow",
- "bytes",
- "fern",
- "lazy_static",
- "libc",
- "log",
- "os_info",
- "pact_matching",
- "pact_models",
- "serde_json",
- "thiserror",
- "zeroize",
-]
-
-[[package]]
 name = "pact_mock_server"
 version = "0.7.20"
 dependencies = [
@@ -1227,36 +1181,6 @@ dependencies = [
  "url",
  "uuid",
  "webmachine-rust",
-]
-
-[[package]]
-name = "pact_mock_server_ffi"
-version = "0.1.1"
-dependencies = [
- "bytes",
- "cbindgen",
- "chrono",
- "chrono-tz",
- "env_logger",
- "expectest",
- "itertools",
- "lazy_static",
- "libc",
- "log",
- "maplit",
- "multipart",
- "onig",
- "os_info",
- "pact_matching",
- "pact_matching_ffi",
- "pact_mock_server",
- "pact_models",
- "rand 0.8.4",
- "rand_regex",
- "regex-syntax",
- "reqwest",
- "serde_json",
- "uuid",
 ]
 
 [[package]]
@@ -1339,33 +1263,6 @@ dependencies = [
  "clap",
  "pact_ffi",
  "reqwest",
- "tokio",
-]
-
-[[package]]
-name = "pact_verifier_ffi"
-version = "0.0.6"
-dependencies = [
- "cbindgen",
- "clap",
- "env_logger",
- "expectest",
- "futures",
- "lazy_static",
- "libc",
- "log",
- "maplit",
- "os_info",
- "pact_matching",
- "pact_models",
- "pact_verifier",
- "quickcheck",
- "rand 0.8.4",
- "regex",
- "serde",
- "serde_json",
- "serde_with",
- "simplelog 0.9.0",
  "tokio",
 ]
 
@@ -2304,12 +2201,6 @@ checksum = "d54590932941a9e9266f0832deed84ebe1bf2e4c9e4a3554d393d18f5e854bf9"
 dependencies = [
  "tinyvec",
 ]
-
-[[package]]
-name = "unicode-segmentation"
-version = "1.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8895849a949e7845e06bd6dc1aa51731a103c42707010a5b591c0038fb73385b"
 
 [[package]]
 name = "unicode-width"

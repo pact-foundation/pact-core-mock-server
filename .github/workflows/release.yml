@@ -21,17 +21,6 @@ jobs:
       - name: Install LLVM
         run: choco install -y llvm
         if: runner.os == 'Windows'
-      - if: startsWith(github.ref, 'refs/tags/libpact_mock_server_ffi') && runner.os == 'Linux'
-        run: ./release-linux.sh
-        working-directory: rust/pact_mock_server_ffi
-      - if: startsWith(github.ref, 'refs/tags/libpact_mock_server_ffi') && runner.os == 'Windows'
-        run: ./release-win.sh
-        shell: bash
-        working-directory: rust/pact_mock_server_ffi
-      - if: startsWith(github.ref, 'refs/tags/libpact_mock_server_ffi') && runner.os == 'macOS'
-        run: ./release-osx.sh
-        shell: bash
-        working-directory: rust/pact_mock_server_ffi
       - if: startsWith(github.ref, 'refs/tags/pact_mock_server_cli') && runner.os == 'Linux'
         run: ./release-linux.sh
         working-directory: rust/pact_mock_server_cli
@@ -54,31 +43,9 @@ jobs:
         run: ./release-osx.sh
         shell: bash
         working-directory: rust/pact_verifier_cli
-      - if: startsWith(github.ref, 'refs/tags/pact_verifier_ffi') && runner.os == 'Linux'
-        run: ./release-linux.sh
-        working-directory: rust/pact_verifier_ffi
-      - if: startsWith(github.ref, 'refs/tags/pact_verifier_ffi') && runner.os == 'Windows'
-        run: ./release-win.sh
-        shell: bash
-        working-directory: rust/pact_verifier_ffi
-      - if: startsWith(github.ref, 'refs/tags/pact_verifier_ffi') && runner.os == 'macOS'
-        run: ./release-osx.sh
-        shell: bash
-        working-directory: rust/pact_verifier_ffi
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
-      - if: startsWith(github.ref, 'refs/tags/libpact_matching_ffi') && runner.os == 'Linux'
-        run: ./release-linux.sh
-        working-directory: rust/pact_matching_ffi
-      - if: startsWith(github.ref, 'refs/tags/libpact_matching_ffi') && runner.os == 'Windows'
-        run: ./release-win.sh
-        shell: bash
-        working-directory: rust/pact_matching_ffi
-      - if: startsWith(github.ref, 'refs/tags/libpact_matching_ffi') && runner.os == 'macOS'
-        run: ./release-osx.sh
-        shell: bash
-        working-directory: rust/pact_matching_ffi
       - if: startsWith(github.ref, 'refs/tags/libpact_ffi') && runner.os == 'Linux'
         run: ./release-linux.sh
         working-directory: rust/pact_ffi
