@@ -128,7 +128,7 @@ fn extract_metadata(actual_response: &Response) -> HashMap<String, Value> {
   };
 
   actual_response.headers.clone().unwrap_or_default().iter().for_each(|(k,v)| {
-    if k == "pact_message_metadata" {
+    if k.to_lowercase() == "pact-message-metadata" {
       let json: String = v.first().unwrap_or(&"".to_string()).to_string();
       log::trace!("found raw metadata from headers: {:?}", json);
 
@@ -185,7 +185,7 @@ mod tests {
         headers: Some(hashmap! {
           "content-type".into() => vec!["application/json".into()],
           // must convert lowercase here, because the http framework actually lowercases this for us
-          "PACT_MESSAGE_METADATA".to_lowercase().into() => vec!["ewogICJDb250ZW50LVR5cGUiOiAiYXBwbGljYXRpb24vanNvbiIsCiAgInRvcGljIjogImJheiIsCiAgIm51bWJlciI6IDI3LAogICJjb21wbGV4IjogewogICAgImZvbyI6ICJiYXIiCiAgfQp9Cg==".into()],
+          "Pact-Message-Metadata".to_lowercase().into() => vec!["ewogICJDb250ZW50LVR5cGUiOiAiYXBwbGljYXRpb24vanNvbiIsCiAgInRvcGljIjogImJheiIsCiAgIm51bWJlciI6IDI3LAogICJjb21wbGV4IjogewogICAgImZvbyI6ICJiYXIiCiAgfQp9Cg==".into()],
         }),
         body: OptionalBody::default(),
         generators: Generators{
