@@ -174,7 +174,7 @@ impl Consumer {
 }
 
 impl PactJsonVerifier for Consumer {
-  fn verify_json(path: &str, pact_json: &Value, strict: bool) -> Vec<PactFileVerificationResult> {
+  fn verify_json(path: &str, pact_json: &Value, strict: bool, _spec_version: PactSpecification) -> Vec<PactFileVerificationResult> {
     let mut results = vec![];
 
     match pact_json {
@@ -244,7 +244,7 @@ impl Provider {
 }
 
 impl PactJsonVerifier for Provider {
-  fn verify_json(path: &str, pact_json: &Value, strict: bool) -> Vec<PactFileVerificationResult> {
+  fn verify_json(path: &str, pact_json: &Value, strict: bool, _spec_version: PactSpecification) -> Vec<PactFileVerificationResult> {
     let mut results = vec![];
 
     match pact_json {

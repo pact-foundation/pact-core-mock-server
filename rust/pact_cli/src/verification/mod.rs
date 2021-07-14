@@ -33,7 +33,7 @@ impl VerificationResult {
   }
 }
 
-pub fn verify_json(pact_json: &Value, spec_version: &PactSpecification, source: &str, strict: bool) -> Vec<PactFileVerificationResult> {
+pub fn verify_json(pact_json: &Value, spec_version: PactSpecification, source: &str, strict: bool) -> Vec<PactFileVerificationResult> {
   let spec_version = match spec_version {
     PactSpecification::Unknown => {
       let metadata = parse_meta_data(pact_json);
@@ -42,12 +42,12 @@ pub fn verify_json(pact_json: &Value, spec_version: &PactSpecification, source: 
     _ => spec_version.clone()
   };
   match spec_version {
-    PactSpecification::V4 => V4Pact::verify_json("/", pact_json, strict),
+    PactSpecification::V4 => V4Pact::verify_json("/", pact_json, strict, spec_version),
     _ => match pact_json {
       Value::Object(map) => if map.contains_key("messages") {
-        MessagePact::verify_json("/", pact_json, strict)
+        MessagePact::verify_json("/", pact_json, strict, spec_version)
       } else {
-        RequestResponsePact::verify_json("/", pact_json, strict)
+        RequestResponsePact::verify_json("/", pact_json, strict, spec_version)
       },
       _ => vec![PactFileVerificationResult::new("/", ResultLevel::ERROR,
                                                 &format!("Must be an Object, got {}", json_type_of(pact_json)))]

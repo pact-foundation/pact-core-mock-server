@@ -950,7 +950,7 @@ impl ReadWritePact for V4Pact {
 }
 
 impl PactJsonVerifier for V4Pact {
-  fn verify_json(_path: &str, pact_json: &Value, _strict: bool) -> Vec<PactFileVerificationResult> {
+  fn verify_json(_path: &str, pact_json: &Value, _strict: bool, _spec_version: PactSpecification) -> Vec<PactFileVerificationResult> {
     let mut results = vec![];
 
     match pact_json {

@@ -10,7 +10,7 @@ use super::verify_json;
 #[test]
 fn empty_json() {
   let json = json!({});
-  let results = verify_json(&json, &PactSpecification::V1, "", false);
+  let results = verify_json(&json, PactSpecification::V1, "", false);
 
   expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(be_empty());
 }
@@ -18,7 +18,7 @@ fn empty_json() {
 #[test]
 fn empty_json_strict() {
   let json = json!({});
-  let results = verify_json(&json, &PactSpecification::V1, "", true);
+  let results = verify_json(&json, PactSpecification::V1, "", true);
 
   expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to_not(be_empty());
   expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(have_count(2));
@@ -34,7 +34,7 @@ fn empty_json_strict() {
 #[test]
 fn invalid_json() {
   let json = json!(["this is a pact file!"]);
-  let results = verify_json(&json, &PactSpecification::V1, "", true);
+  let results = verify_json(&json, PactSpecification::V1, "", true);
 
   expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to_not(be_empty());
   expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(have_count(1));
@@ -59,7 +59,7 @@ fn with_extra_properties() {
     "interactions": [],
     "someOther": "property"
   });
-  let results = verify_json(&json, &PactSpecification::V1, "", false);
+  let results = verify_json(&json, PactSpecification::V1, "", false);
 
   expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(be_empty());
 
@@ -82,7 +82,7 @@ fn with_extra_properties_strict() {
     "interactions": [],
     "someOther": "property"
   });
-  let results = verify_json(&json, &PactSpecification::V1, "", true);
+  let results = verify_json(&json, PactSpecification::V1, "", true);
 
   expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to_not(be_empty());
   expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(have_count(1));
@@ -111,7 +111,7 @@ fn with_metadata() {
       "e": "f"
     }
   });
-  let results = verify_json(&json, &PactSpecification::V1, "", false);
+  let results = verify_json(&json, PactSpecification::V1, "", false);
 
   expect!(results.iter()).to(have_count(1));
   expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(be_empty());
@@ -135,7 +135,7 @@ fn with_invalid_metadata() {
     "interactions": [],
     "metadata": []
   });
-  let results = verify_json(&json, &PactSpecification::V1, "", false);
+  let results = verify_json(&json, PactSpecification::V1, "", false);
 
   expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(have_count(1));
 
@@ -163,7 +163,7 @@ fn with_spec_version_in_metadata() {
       }
     }
   });
-  let results = verify_json(&json, &PactSpecification::V1, "", false);
+  let results = verify_json(&json, PactSpecification::V1, "", false);
 
   expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(be_empty());
 }
@@ -184,7 +184,7 @@ fn with_old_spec_version_in_metadata() {
       }
     }
   });
-  let results = verify_json(&json, &PactSpecification::V1, "", false);
+  let results = verify_json(&json, PactSpecification::V1, "", false);
 
   expect!(results.iter()).to(have_count(2));
   expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(be_empty());
@@ -211,7 +211,7 @@ fn with_missing_spec_version_in_metadata() {
       }
     }
   });
-  let results = verify_json(&json, &PactSpecification::V1, "", false);
+  let results = verify_json(&json, PactSpecification::V1, "", false);
 
   expect!(results.iter()).to(have_count(2));
   expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(be_empty());
@@ -239,7 +239,7 @@ fn with_null_spec_version_in_metadata() {
       }
     }
   });
-  let results = verify_json(&json, &PactSpecification::V1, "", false);
+  let results = verify_json(&json, PactSpecification::V1, "", false);
 
   expect!(results.iter()).to(have_count(2));
   expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(be_empty());
@@ -267,7 +267,7 @@ fn with_incorrect_spec_version_in_metadata() {
       }
     }
   });
-  let results = verify_json(&json, &PactSpecification::V1, "", false);
+  let results = verify_json(&json, PactSpecification::V1, "", false);
 
   expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(have_count(1));
 
@@ -288,7 +288,7 @@ fn with_missing_consumer_name() {
     },
     "interactions": []
   });
-  let results = verify_json(&json, &PactSpecification::V1, "", false);
+  let results = verify_json(&json, PactSpecification::V1, "", false);
 
   expect!(results.iter()).to(have_count(2));
   expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(be_empty());
@@ -299,7 +299,7 @@ fn with_missing_consumer_name() {
   expect!(messages).to(be_equal_to(
     vec![("Missing name", "/consumer/name"), ("Interactions is empty", "/interactions")]));
 
-  let results = verify_json(&json, &PactSpecification::V1, "", true);
+  let results = verify_json(&json, PactSpecification::V1, "", true);
 
   expect!(results.iter()).to(have_count(2));
   expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(have_count(1));
@@ -323,7 +323,7 @@ fn with_additional_consumer_properties() {
     },
     "interactions": []
   });
-  let results = verify_json(&json, &PactSpecification::V1, "", false);
+  let results = verify_json(&json, PactSpecification::V1, "", false);
 
   expect!(results.iter()).to(have_count(2));
   expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(be_empty());
@@ -334,7 +334,7 @@ fn with_additional_consumer_properties() {
   expect!(messages).to(be_equal_to(
     vec![("Unknown attribute 'other_name'", "/consumer"), ("Interactions is empty", "/interactions")]));
 
-  let results = verify_json(&json, &PactSpecification::V1, "", true);
+  let results = verify_json(&json, PactSpecification::V1, "", true);
 
   expect!(results.iter()).to(have_count(2));
   expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(have_count(1));
@@ -356,7 +356,7 @@ fn with_missing_provider_name() {
     },
     "interactions": []
   });
-  let results = verify_json(&json, &PactSpecification::V1, "", false);
+  let results = verify_json(&json, PactSpecification::V1, "", false);
 
   expect!(results.iter()).to(have_count(2));
   expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(be_empty());
@@ -367,7 +367,7 @@ fn with_missing_provider_name() {
   expect!(messages).to(be_equal_to(
     vec![("Missing name", "/provider/name"), ("Interactions is empty", "/interactions")]));
 
-  let results = verify_json(&json, &PactSpecification::V1, "", true);
+  let results = verify_json(&json, PactSpecification::V1, "", true);
 
   expect!(results.iter()).to(have_count(2));
   expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(have_count(1));
@@ -391,7 +391,7 @@ fn with_additional_provider_properties() {
     },
     "interactions": []
   });
-  let results = verify_json(&json, &PactSpecification::V1, "", false);
+  let results = verify_json(&json, PactSpecification::V1, "", false);
 
   expect!(results.iter()).to(have_count(2));
   expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(be_empty());
@@ -402,7 +402,7 @@ fn with_additional_provider_properties() {
   expect!(messages).to(be_equal_to(
     vec![("Unknown attribute 'other_name'", "/provider"), ("Interactions is empty", "/interactions")]));
 
-  let results = verify_json(&json, &PactSpecification::V1, "", true);
+  let results = verify_json(&json, PactSpecification::V1, "", true);
 
   expect!(results.iter()).to(have_count(2));
   expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(have_count(1));
@@ -417,7 +417,7 @@ fn with_additional_provider_properties() {
 #[test]
 fn verify_interaction_no_description() {
   let interation_json = json!({});
-  let results = RequestResponseInteraction::verify_json("/interactions/0", &interation_json, false);
+  let results = RequestResponseInteraction::verify_json("/interactions/0", &interation_json, false, PactSpecification::V2);
   expect!(results.iter()).to(have_count(1));
   expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(be_empty());
   let messages: Vec<(&str, &str)> = results.iter()
@@ -426,7 +426,7 @@ fn verify_interaction_no_description() {
   expect!(messages).to(be_equal_to(
     vec![("Missing description", "/interactions/0")]));
 
-  let results = RequestResponseInteraction::verify_json("/interactions/0", &interation_json, true);
+  let results = RequestResponseInteraction::verify_json("/interactions/0", &interation_json, true, PactSpecification::V2);
   expect!(results.iter()).to(have_count(1));
   expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(have_count(1));
   let messages: Vec<(&str, &str)> = results.iter()
@@ -441,7 +441,7 @@ fn verify_interaction_invalid_description() {
   let interation_json = json!({
     "description": [1, 2, 3]
   });
-  let results = RequestResponseInteraction::verify_json("/interactions/0", &interation_json, false);
+  let results = RequestResponseInteraction::verify_json("/interactions/0", &interation_json, false, PactSpecification::V2);
   expect!(results.iter()).to(have_count(1));
   expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(have_count(1));
   let messages: Vec<(&str, &str)> = results.iter()
@@ -457,7 +457,7 @@ fn verify_interaction_extra_attributes() {
     "description": "test",
     "other": "test"
   });
-  let results = RequestResponseInteraction::verify_json("/interactions/0", &interation_json, false);
+  let results = RequestResponseInteraction::verify_json("/interactions/0", &interation_json, false, PactSpecification::V2);
   expect!(results.iter()).to(have_count(1));
   expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(be_empty());
   let messages: Vec<(&str, &str)> = results.iter()
@@ -466,7 +466,7 @@ fn verify_interaction_extra_attributes() {
   expect!(messages).to(be_equal_to(
     vec![("Unexpected attribute 'other'", "/interactions/0")]));
 
-  let results = RequestResponseInteraction::verify_json("/interactions/0", &interation_json, true);
+  let results = RequestResponseInteraction::verify_json("/interactions/0", &interation_json, true, PactSpecification::V2);
   expect!(results.iter()).to(have_count(1));
   expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(have_count(1));
   let messages: Vec<(&str, &str)> = results.iter()
@@ -479,7 +479,7 @@ fn verify_interaction_extra_attributes() {
 #[test]
 fn verify_interaction_invalid_interaction() {
   let interation_json = json!([1, 2, 3]);
-  let results = RequestResponseInteraction::verify_json("/interactions/0", &interation_json, false);
+  let results = RequestResponseInteraction::verify_json("/interactions/0", &interation_json, false, PactSpecification::V2);
   expect!(results.iter()).to(have_count(1));
   expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(have_count(1));
   let messages: Vec<(&str, &str)> = results.iter()
@@ -487,4 +487,36 @@ fn verify_interaction_invalid_interaction() {
     .collect();
   expect!(messages).to(be_equal_to(
     vec![("Must be an Object, got Array", "/interactions/0")]));
+}
+
+#[test]
+fn verify_interaction_invalid_provider_states() {
+  let interation_json = json!({
+    "description": "test",
+    "providerStates": "Some State"
+  });
+  let results = RequestResponseInteraction::verify_json("/interactions/0", &interation_json, false, PactSpecification::V2);
+  expect!(results.iter()).to(have_count(1));
+  expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(have_count(1));
+  let messages: Vec<(&str, &str)> = results.iter()
+    .map(|result| (result.message.as_str(), result.path.as_str()))
+    .collect();
+  expect!(messages).to(be_equal_to(
+    vec![("'providerStates' must be an Array, got String", "/interactions/0")]));
+}
+
+#[test]
+fn verify_interaction_deprecated_provider_state() {
+  let interation_json = json!({
+    "description": "test",
+    "providerState": "Some State"
+  });
+  let results = RequestResponseInteraction::verify_json("/interactions/0", &interation_json, false, PactSpecification::V3);
+  expect!(results.iter()).to(have_count(1));
+  expect!(results.iter().filter(|result| result.level == ResultLevel::ERROR)).to(be_empty());
+  let messages: Vec<(&str, &str)> = results.iter()
+    .map(|result| (result.message.as_str(), result.path.as_str()))
+    .collect();
+  expect!(messages).to(be_equal_to(
+    vec![("'providerState' is deprecated, use 'providerStates' instead", "/interactions/0")]));
 }

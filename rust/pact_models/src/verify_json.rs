@@ -5,7 +5,7 @@ use std::fmt::{Display, Formatter};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::fmt;
+use crate::{fmt, PactSpecification};
 
 /// Level of the result
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -53,7 +53,7 @@ impl PactFileVerificationResult {
 /// Trait for Pact JSON file format verifiers
 pub trait PactJsonVerifier {
   /// Verify the JSON format. Will return an error if the list contains any Error result
-  fn verify_json(path: &str, pact_json: &Value, strict: bool) -> Vec<PactFileVerificationResult>;
+  fn verify_json(path: &str, pact_json: &Value, strict: bool, spec_version: PactSpecification) -> Vec<PactFileVerificationResult>;
 }
 
 /// Type of the JSON element

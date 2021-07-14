@@ -177,7 +177,7 @@ fn handle_matches(args: &ArgMatches) -> Result<(), i32> {
   let files = load_files(args).map_err(|_| 1)?;
 
   let results = files.iter().map(|(source, pact_json)| {
-    let results = verify_json(pact_json, &spec_version, source, args.is_present("strict"));
+    let results = verify_json(pact_json, spec_version, source, args.is_present("strict"));
     VerificationResult::new(source, results)
   }).collect();
 

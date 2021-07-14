@@ -382,7 +382,7 @@ impl Display for RequestResponseInteraction {
 }
 
 impl PactJsonVerifier for RequestResponseInteraction {
-  fn verify_json(path: &str, pact_json: &Value, strict: bool) -> Vec<PactFileVerificationResult> {
+  fn verify_json(path: &str, pact_json: &Value, strict: bool, spec_version: PactSpecification) -> Vec<PactFileVerificationResult> {
     let mut results = vec![];
 
     match pact_json {
@@ -395,6 +395,33 @@ impl PactJsonVerifier for RequestResponseInteraction {
         } else {
           results.push(PactFileVerificationResult::new(path,
             if strict { ResultLevel::ERROR } else { ResultLevel::WARNING }, "Missing description"))
+        }
+
+        let provider_states = if values.contains_key("providerStates") {
+          values.get("providerStates").unwrap().clone()
+        } else if values.contains_key("providerState") {
+          if spec_version >= PactSpecification::V3 {
+            results.push(PactFileVerificationResult::new(path, ResultLevel::WARNING,
+              format!("'providerState' is deprecated, use 'providerStates' instead")))
+          }
+          Value::Array(vec![ values.get("providerState").unwrap().clone() ])
+        } else if values.contains_key("provider_state") {
+          results.push(PactFileVerificationResult::new(path, ResultLevel::WARNING,
+            format!("'provider_state' is deprecated, use 'providerStates' instead")));
+          Value::Array(vec![ values.get("provider_state").unwrap().clone() ])
+        } else {
+          Value::Array(vec![])
+        };
+
+        match provider_states {
+          Value::Array(states) => {
+            results.extend(states.iter().enumerate()
+              .flat_map(|(index, state)| {
+                ProviderState::verify_json(&*format!("{}/providerStates/{}", path, index), state, strict, spec_version)
+              }))
+          }
+          _ => results.push(PactFileVerificationResult::new(path, ResultLevel::ERROR,
+            format!("'providerStates' must be an Array, got {}", json_type_of(&provider_states))))
         }
 
         let valid_attr = hashset! {
@@ -411,26 +438,6 @@ impl PactJsonVerifier for RequestResponseInteraction {
       _ => results.push(PactFileVerificationResult::new(path, ResultLevel::ERROR,
         format!("Must be an Object, got {}", json_type_of(pact_json))))
     }
-
-    // "provider_state" -> "providerState"
-
-    // let id = pact_json.get("_id").map(|id| json_to_string(id));
-    //         let description = match pact_json.get("description") {
-    //             Some(v) => match *v {
-    //                 Value::String(ref s) => s.clone(),
-    //                 _ => v.to_string()
-    //             },
-    //             None => format!("Interaction {}", index)
-    //         };
-    //         let provider_states = ProviderState::from_json(pact_json);
-    //         let request = match pact_json.get("request") {
-    //             Some(v) => Request::from_json(v, spec_version),
-    //             None => Request::default()
-    //         };
-    //         let response = match pact_json.get("response") {
-    //             Some(v) => Response::from_json(v, spec_version),
-    //             None => Response::default()
-    //         };
 
     results
   }
@@ -874,13 +881,13 @@ impl ReadWritePact for RequestResponsePact {
 }
 
 impl PactJsonVerifier for RequestResponsePact {
-  fn verify_json(_path: &str, pact_json: &Value, strict: bool) -> Vec<PactFileVerificationResult> {
+  fn verify_json(_path: &str, pact_json: &Value, strict: bool, spec_version: PactSpecification) -> Vec<PactFileVerificationResult> {
     let mut results = vec![];
 
     match pact_json {
       Value::Object(values) => {
         if let Some(consumer) = values.get("consumer") {
-          results.extend(Consumer::verify_json("/consumer", consumer, strict));
+          results.extend(Consumer::verify_json("/consumer", consumer, strict, spec_version));
         } else if strict {
           results.push(PactFileVerificationResult::new("/consumer", ResultLevel::ERROR, "Missing consumer"))
         } else {
@@ -888,7 +895,7 @@ impl PactJsonVerifier for RequestResponsePact {
         }
 
         if let Some(provider) = values.get("provider") {
-          results.extend(Provider::verify_json("/provider", provider, strict));
+          results.extend(Provider::verify_json("/provider", provider, strict, spec_version));
         } else if strict {
           results.push(PactFileVerificationResult::new("/provider", ResultLevel::ERROR, "Missing provider"))
         } else {
@@ -902,7 +909,7 @@ impl PactJsonVerifier for RequestResponsePact {
             } else {
               results.extend(values.iter().enumerate()
                 .flat_map(|(index, interaction)| {
-                  RequestResponseInteraction::verify_json(&format!("/interactions/{}", index), interaction, strict)
+                  RequestResponseInteraction::verify_json(&format!("/interactions/{}", index), interaction, strict, spec_version)
                 }))
             }
             _ => results.push(PactFileVerificationResult::new("/interactions", ResultLevel::ERROR,
@@ -913,7 +920,7 @@ impl PactJsonVerifier for RequestResponsePact {
         }
 
         if let Some(metadata) = values.get("metadata") {
-          results.extend(verify_metadata(metadata));
+          results.extend(verify_metadata(metadata, spec_version));
         }
 
         let valid_attr = hashset! { "consumer", "provider", "interactions", "metadata" };
@@ -933,7 +940,7 @@ impl PactJsonVerifier for RequestResponsePact {
   }
 }
 
-pub(crate) fn verify_metadata(metadata: &Value) -> Vec<PactFileVerificationResult> {
+pub(crate) fn verify_metadata(metadata: &Value, _spec_version: PactSpecification) -> Vec<PactFileVerificationResult> {
   let mut results = vec![];
 
   match metadata {

@@ -10,6 +10,9 @@ use maplit::*;
 use serde::{Deserialize, Serialize};
 use serde_json::*;
 
+use crate::PactSpecification;
+use crate::verify_json::{PactFileVerificationResult, PactJsonVerifier, ResultLevel, json_type_of};
+
 /// Struct that encapsulates all the info about a provider state
 #[derive(Serialize, Deserialize, Debug, Clone, Eq)]
 pub struct ProviderState {
@@ -122,6 +125,45 @@ impl PartialEq for ProviderState {
 
   fn ne(&self, other: &Self) -> bool {
     self.name != other.name || self.params != other.params
+  }
+}
+
+impl PactJsonVerifier for ProviderState {
+  fn verify_json(path: &str, pact_json: &Value, strict: bool, _spec_version: PactSpecification) -> Vec<PactFileVerificationResult> {
+    let mut results = vec![];
+
+    match pact_json {
+      Value::String(_) => {}
+      Value::Object(values) => {
+        match values.get("name") {
+          None => results.push(PactFileVerificationResult::new(path, ResultLevel::ERROR,
+            "Provider state 'name' is required")),
+          Some(name) => if !name.is_string() {
+            results.push(PactFileVerificationResult::new(path, ResultLevel::ERROR,
+              format!("Provider state 'name' must be a String, got {}", json_type_of(pact_json))))
+          }
+        }
+
+        if let Some(params) = values.get("params") {
+          if !params.is_object() {
+            results.push(PactFileVerificationResult::new(path, ResultLevel::ERROR,
+              format!("Provider state 'params' must be an Object, got {}", json_type_of(pact_json))))
+          }
+        }
+
+        let valid_attr = hashset! { "name", "params" };
+        for key in values.keys() {
+          if !valid_attr.contains(key.as_str()) {
+            results.push(PactFileVerificationResult::new(path.to_owned(),
+              if strict { ResultLevel::ERROR } else { ResultLevel::WARNING }, format!("Unknown attribute '{}'", key)))
+          }
+        }
+      }
+      _ => results.push(PactFileVerificationResult::new(path, ResultLevel::ERROR,
+        format!("Must be a String or Object, got {}", json_type_of(pact_json))))
+    }
+
+    results
   }
 }
 
