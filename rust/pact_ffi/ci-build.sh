@@ -2,17 +2,20 @@
 
 set -e
 
+which cargo
+
 cargo install cbindgen
 rm -rf ./include
 
-echo -------------------------------------
-echo - Build library with CMake
-echo -------------------------------------
-mkdir -p build
-cd build
-cmake -DCMAKE_BUILD_TYPE=Debug ..
-cmake --build . -v
-cd ..
+#echo -------------------------------------
+#echo - Build library with CMake
+#echo -------------------------------------
+#mkdir -p build
+#cd build
+#cmake -DCMAKE_BUILD_TYPE=Debug ..
+#cmake --build . -v
+#cd ..
+cargo build
 
 echo -------------------------------------
 echo - Generate header with cbindgen

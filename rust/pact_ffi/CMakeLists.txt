@@ -144,14 +144,14 @@ endif()
 #################################################################################################
 
 # Uses the finder specified in `cmake/FindCargo.cmake`
-find_package(Cargo REQUIRED)
+find_package(Cargo)
 
 if(NOT CARGO_CHANNEL STREQUAL "nightly")
     message(FATAL_ERROR "${NAME_STRING} requires a nightly Cargo version to build.")
 endif()
 
 # Uses the finder specified in `cmake/FindCbindgen.cmake`
-find_package(Cbindgen REQUIRED)
+find_package(Cbindgen)
 
 # CMake can find Doxygen without a custom finder module.
 find_package(Doxygen)
