@@ -1,7 +1,5 @@
-use std::collections::hash_map::DefaultHasher;
 use std::env;
 use std::fs::{self, File};
-use std::hash::{Hash, Hasher};
 use std::io;
 
 use expectest::expect;
@@ -10,54 +8,18 @@ use maplit::*;
 use rand;
 use serde_json::json;
 
+use pact_models::bodies::OptionalBody;
+use pact_models::content_types::JSON;
 use pact_models::generators;
 use pact_models::generators::Generator;
 use pact_models::matchingrules;
 use pact_models::matchingrules::MatchingRule;
 use pact_models::provider_states::*;
+use pact_models::request::Request;
 use pact_models::response::Response;
+use pact_models::v4::synch_http::SynchronousHttp;
 
 use super::*;
-
-#[test]
-fn loading_interaction_from_json() {
-    let interaction_json = r#"{
-        "description": "String",
-        "providerState": "provider state"
-    }"#;
-    let interaction = RequestResponseInteraction::from_json(0, &serde_json::from_str(interaction_json).unwrap(), &PactSpecification::V1_1);
-    expect!(interaction.description).to(be_equal_to("String"));
-    expect!(interaction.provider_states).to(be_equal_to(vec![
-        ProviderState { name: s!("provider state"), params: hashmap!{} } ]));
-}
-
-#[test]
-fn defaults_to_number_if_no_description() {
-    let interaction_json = r#"{
-        "providerState": "provider state"
-    }"#;
-    let interaction = RequestResponseInteraction::from_json(0, &serde_json::from_str(interaction_json).unwrap(), &PactSpecification::V1_1);
-    expect!(interaction.description).to(be_equal_to("Interaction 0"));
-    expect!(interaction.provider_states).to(be_equal_to(vec![
-        ProviderState { name: s!("provider state"), params: hashmap!{} } ]));
-}
-
-#[test]
-fn defaults_to_empty_if_no_provider_state() {
-    let interaction_json = r#"{
-    }"#;
-    let interaction = RequestResponseInteraction::from_json(0, &serde_json::from_str(interaction_json).unwrap(), &PactSpecification::V1);
-    expect!(interaction.provider_states.iter()).to(be_empty());
-}
-
-#[test]
-fn defaults_to_none_if_provider_state_null() {
-    let interaction_json = r#"{
-        "providerState": null
-    }"#;
-    let interaction = RequestResponseInteraction::from_json(0, &serde_json::from_str(interaction_json).unwrap(), &PactSpecification::V1);
-    expect!(interaction.provider_states.iter()).to(be_empty());
-}
 
 #[test]
 fn load_empty_pact() {
@@ -424,75 +386,6 @@ fn load_pact_converts_methods_to_uppercase() {
         body: OptionalBody::Missing,
       .. Request::default()
     }));
-}
-
-#[test]
-fn response_to_json_with_defaults() {
-    let response = Response::default();
-    expect!(response.to_json(&PactSpecification::V3).to_string()).to(be_equal_to("{\"status\":200}"));
-}
-
-#[test]
-fn response_to_json_with_headers() {
-    let response = Response { headers: Some(hashmap!{
-        s!("HEADERA") => vec![s!("VALUEA")],
-        s!("HEADERB") => vec![s!("VALUEB1, VALUEB2")]
-    }), .. Response::default() };
-    expect!(response.to_json(&PactSpecification::V3).to_string()).to(
-        be_equal_to(r#"{"headers":{"HEADERA":"VALUEA","HEADERB":"VALUEB1, VALUEB2"},"status":200}"#)
-    );
-}
-
-#[test]
-fn response_to_json_with_json_body() {
-    let response = Response { headers: Some(hashmap!{
-        s!("Content-Type") => vec![s!("application/json")]
-    }), body: OptionalBody::Present(r#"{"key": "value"}"#.into(), None), .. Response::default() };
-    expect!(response.to_json(&PactSpecification::V3).to_string()).to(
-        be_equal_to(r#"{"body":{"key":"value"},"headers":{"Content-Type":"application/json"},"status":200}"#)
-    );
-}
-
-#[test]
-fn response_to_json_with_non_json_body() {
-    let response = Response { headers: Some(hashmap!{ s!("Content-Type") => vec![s!("text/plain")] }),
-        body: OptionalBody::Present("This is some text".into(), None), .. Response::default() };
-    expect!(response.to_json(&PactSpecification::V3).to_string()).to(
-        be_equal_to(r#"{"body":"This is some text","headers":{"Content-Type":"text/plain"},"status":200}"#)
-    );
-}
-
-#[test]
-fn response_to_json_with_empty_body() {
-    let response = Response { body: OptionalBody::Empty, .. Response::default() };
-    expect!(response.to_json(&PactSpecification::V3).to_string()).to(
-        be_equal_to(r#"{"body":"","status":200}"#)
-    );
-}
-
-#[test]
-fn response_to_json_with_null_body() {
-    let response = Response { body: OptionalBody::Null, .. Response::default() };
-    expect!(response.to_json(&PactSpecification::V3).to_string()).to(
-        be_equal_to(r#"{"body":null,"status":200}"#)
-    );
-}
-
-#[test]
-fn interaction_from_json_sets_the_id_if_loaded_from_broker() {
-  let json = json!({
-    "_id": "123456789",
-    "description": "Test Interaction",
-    "providerState": "Good state to be in",
-    "request": {
-      "method": "GET",
-      "path": "/"
-    },
-    "response": {
-      "status": 200
-    }
-  });
-  expect!(RequestResponseInteraction::from_json(0, &json, &PactSpecification::V3).id).to(be_some().value("123456789".to_string()));
 }
 
 #[test]
@@ -1005,134 +898,6 @@ fn pact_merge_removes_duplicates() {
 
     let merged_pact2 = pact.merge(&pact.clone());
     expect!(merged_pact2.unwrap().interactions().len()).to(be_equal_to(1));
-}
-
-#[test]
-fn interactions_do_not_conflict_if_they_have_different_descriptions() {
-    let interaction1 = RequestResponseInteraction {
-        description: s!("Test Interaction"),
-        provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
-        .. RequestResponseInteraction::default()
-    };
-    let interaction2 = RequestResponseInteraction {
-        description: s!("Test Interaction 2"),
-        provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
-        .. RequestResponseInteraction::default()
-    };
-    expect!(interaction1.conflicts_with(&interaction2).iter()).to(be_empty());
-}
-
-#[test]
-fn interactions_do_not_conflict_if_they_have_different_provider_states() {
-    let interaction1 = RequestResponseInteraction {
-        description: s!("Test Interaction"),
-        provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
-        .. RequestResponseInteraction::default()
-    };
-    let interaction2 = RequestResponseInteraction {
-        description: s!("Test Interaction"),
-        provider_states: vec![ProviderState { name: s!("Bad state to be in"), params: hashmap!{} }],
-        .. RequestResponseInteraction::default()
-    };
-    expect!(interaction1.conflicts_with(&interaction2).iter()).to(be_empty());
-}
-
-#[test]
-fn interactions_do_not_conflict_if_they_have_the_same_requests_and_responses() {
-    let interaction1 = RequestResponseInteraction {
-        description: s!("Test Interaction"),
-        provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
-        .. RequestResponseInteraction::default()
-    };
-    let interaction2 = RequestResponseInteraction {
-        description: s!("Test Interaction"),
-        provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
-        .. RequestResponseInteraction::default()
-    };
-    expect!(interaction1.conflicts_with(&interaction2).iter()).to(be_empty());
-}
-
-#[test]
-fn interactions_conflict_if_they_have_different_requests() {
-    let interaction1 = RequestResponseInteraction {
-        description: s!("Test Interaction"),
-        provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
-        .. RequestResponseInteraction::default()
-    };
-    let interaction2 = RequestResponseInteraction {
-        description: s!("Test Interaction"),
-        provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
-        request: Request { method: s!("POST"), .. Request::default() },
-        .. RequestResponseInteraction::default()
-    };
-    expect!(interaction1.conflicts_with(&interaction2).iter()).to_not(be_empty());
-}
-
-#[test]
-fn interactions_conflict_if_they_have_different_responses() {
-    let interaction1 = RequestResponseInteraction {
-        description: s!("Test Interaction"),
-        provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
-        .. RequestResponseInteraction::default()
-    };
-    let interaction2 = RequestResponseInteraction {
-        description: s!("Test Interaction"),
-        provider_states: vec![ProviderState { name: s!("Good state to be in"), params: hashmap!{} }],
-        response: Response { status: 400, .. Response::default() },
-        .. RequestResponseInteraction::default()
-    };
-    expect!(interaction1.conflicts_with(&interaction2).iter()).to_not(be_empty());
-}
-
-#[test]
-fn request_headers_do_not_conflict_if_they_have_been_serialised_and_deserialised_to_json() {
-    // headers are serialised in a hashmap; serializing and deserializing can can change the
-    // internal order of the keys in the hashmap, and this can confuse the differences_from code.
-    let original_request = Request {
-        method: "".to_string(),
-        path: "".to_string(),
-        query: None,
-        headers: Some(hashmap! {
-          "accept".to_string() => vec!["application/xml".to_string(), "application/json".to_string()],
-          "user-agent".to_string() => vec!["test".to_string(), "test2".to_string()],
-          "content-type".to_string() => vec!["text/plain".to_string()]
-        }),
-        body: OptionalBody::Missing,
-        matching_rules: Default::default(),
-        generators: Default::default(),
-    };
-
-    let json = serde_json::to_string(&original_request).expect("could not serialize");
-
-    let serialized_and_deserialized_request =
-        serde_json::from_str(&json).expect("could not deserialize");
-
-    expect!(original_request
-        .differences_from(&serialized_and_deserialized_request)
-        .iter())
-        .to(be_empty());
-}
-
-fn hash<T: Hash>(t: &T) -> u64 {
-    let mut s = DefaultHasher::new();
-    t.hash(&mut s);
-    s.finish()
-}
-
-#[test]
-fn hash_for_response() {
-    let response1 = Response::default();
-    let response2 = Response { status: 400, .. Response::default() };
-    let response3 = Response { headers: Some(hashmap!{
-        s!("H1") => vec![s!("A")]
-    }), .. Response::default() };
-    let response4 = Response { headers: Some(hashmap!{
-        s!("H1") => vec![s!("B")]
-    }), .. Response::default() };
-    expect!(hash(&response1)).to(be_equal_to(hash(&response1)));
-    expect!(hash(&response3)).to(be_equal_to(hash(&response3)));
-    expect!(hash(&response1)).to_not(be_equal_to(hash(&response2)));
-    expect!(hash(&response3)).to_not(be_equal_to(hash(&response4)));
 }
 
 #[test]

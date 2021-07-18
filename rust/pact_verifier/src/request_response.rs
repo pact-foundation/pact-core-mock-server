@@ -1,7 +1,9 @@
 use ansi_term::Colour::*;
-use crate::{MismatchResult, display_result};
-use pact_matching::models::RequestResponseInteraction;
+
 use pact_matching::Mismatch;
+use pact_models::sync_interaction::RequestResponseInteraction;
+
+use crate::{display_result, MismatchResult};
 
 pub fn display_request_response_result(
   interaction: &RequestResponseInteraction,

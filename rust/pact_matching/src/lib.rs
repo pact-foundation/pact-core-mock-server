@@ -353,6 +353,7 @@ use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
 use pact_models::generators::{apply_generators, GenerateValue, GeneratorCategory, GeneratorTestMode, VariantMatcher};
 use pact_models::http_parts::HttpPart;
+use pact_models::interaction::Interaction;
 use pact_models::json_utils::json_to_string;
 use pact_models::matchingrules::{calc_path_weight, Category, MatchingRule, MatchingRuleCategory, path_length, RuleList};
 use pact_models::PactSpecification;
@@ -362,7 +363,6 @@ use pact_models::response::Response;
 use crate::headers::{match_header_value, match_headers};
 use crate::matchers::*;
 use crate::models::generators::{DefaultVariantMatcher, generators_process_body};
-use crate::models::Interaction;
 use crate::models::matchingrules::DisplayForMismatch;
 
 /// Simple macro to convert a string slice to a `String` struct.

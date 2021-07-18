@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
+use std::str::from_utf8;
 
 use base64::encode;
 use log::warn;
 use maplit::hashmap;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
 use crate::{DifferenceType, PactSpecification};
 use crate::bodies::OptionalBody;
@@ -14,7 +15,6 @@ use crate::http_parts::HttpPart;
 use crate::json_utils::{body_from_json, headers_from_json, headers_to_json};
 use crate::matchingrules::{matchers_from_json, matchers_to_json, MatchingRules};
 use crate::v4::http_parts::HttpResponse;
-use std::str::from_utf8;
 
 /// Struct that defines the response.
 #[derive(Debug, Clone, Eq)]
@@ -206,6 +206,13 @@ impl Default for Response {
 
 #[cfg(test)]
 mod tests {
+  use std::collections::hash_map::DefaultHasher;
+  use std::hash::{Hash, Hasher};
+
+  use expectest::prelude::*;
+  use maplit::hashmap;
+
+  use crate::bodies::OptionalBody;
   use crate::PactSpecification;
   use crate::response::Response;
 
@@ -220,4 +227,77 @@ mod tests {
     assert_eq!(response.status, 200);
   }
 
+  #[test]
+  fn response_to_json_with_defaults() {
+    let response = Response::default();
+    expect!(response.to_json(&PactSpecification::V3).to_string()).to(be_equal_to("{\"status\":200}"));
+  }
+
+  #[test]
+  fn response_to_json_with_headers() {
+    let response = Response { headers: Some(hashmap!{
+        "HEADERA".to_string() => vec!["VALUEA".to_string()],
+        "HEADERB".to_string() => vec!["VALUEB1, VALUEB2".to_string()]
+    }), .. Response::default() };
+    expect!(response.to_json(&PactSpecification::V3).to_string()).to(
+      be_equal_to(r#"{"headers":{"HEADERA":"VALUEA","HEADERB":"VALUEB1, VALUEB2"},"status":200}"#)
+    );
+  }
+
+  #[test]
+  fn response_to_json_with_json_body() {
+    let response = Response { headers: Some(hashmap!{
+        "Content-Type".to_string() => vec!["application/json".to_string()]
+    }), body: OptionalBody::Present(r#"{"key": "value"}"#.into(), None), .. Response::default() };
+    expect!(response.to_json(&PactSpecification::V3).to_string()).to(
+      be_equal_to(r#"{"body":{"key":"value"},"headers":{"Content-Type":"application/json"},"status":200}"#)
+    );
+  }
+
+  #[test]
+  fn response_to_json_with_non_json_body() {
+    let response = Response { headers: Some(hashmap!{ "Content-Type".to_string() => vec!["text/plain".to_string()] }),
+      body: OptionalBody::Present("This is some text".into(), None), .. Response::default() };
+    expect!(response.to_json(&PactSpecification::V3).to_string()).to(
+      be_equal_to(r#"{"body":"This is some text","headers":{"Content-Type":"text/plain"},"status":200}"#)
+    );
+  }
+
+  #[test]
+  fn response_to_json_with_empty_body() {
+    let response = Response { body: OptionalBody::Empty, .. Response::default() };
+    expect!(response.to_json(&PactSpecification::V3).to_string()).to(
+      be_equal_to(r#"{"body":"","status":200}"#)
+    );
+  }
+
+  #[test]
+  fn response_to_json_with_null_body() {
+    let response = Response { body: OptionalBody::Null, .. Response::default() };
+    expect!(response.to_json(&PactSpecification::V3).to_string()).to(
+      be_equal_to(r#"{"body":null,"status":200}"#)
+    );
+  }
+
+  fn hash<T: Hash>(t: &T) -> u64 {
+    let mut s = DefaultHasher::new();
+    t.hash(&mut s);
+    s.finish()
+  }
+
+  #[test]
+  fn hash_for_response() {
+    let response1 = Response::default();
+    let response2 = Response { status: 400, .. Response::default() };
+    let response3 = Response { headers: Some(hashmap!{
+        "H1".to_string() => vec!["A".to_string()]
+    }), .. Response::default() };
+    let response4 = Response { headers: Some(hashmap!{
+        "H1".to_string() => vec!["B".to_string()]
+    }), .. Response::default() };
+    expect!(hash(&response1)).to(be_equal_to(hash(&response1)));
+    expect!(hash(&response3)).to(be_equal_to(hash(&response3)));
+    expect!(hash(&response1)).to_not(be_equal_to(hash(&response2)));
+    expect!(hash(&response3)).to_not(be_equal_to(hash(&response4)));
+  }
 }

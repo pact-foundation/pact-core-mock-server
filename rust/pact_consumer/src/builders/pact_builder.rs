@@ -1,10 +1,11 @@
-use pact_matching::models::*;
+use pact_matching::models::{Pact, RequestResponsePact};
+use pact_matching::models::v4::V4Pact;
 use pact_models::{Consumer, Provider};
+use pact_models::interaction::Interaction;
 
 use crate::prelude::*;
 
 use super::interaction_builder::InteractionBuilder;
-use pact_matching::models::v4::V4Pact;
 
 /// Builder for `Pact` objects.
 ///

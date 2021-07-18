@@ -522,4 +522,32 @@ mod tests {
     expect!(hash(&request3)).to_not(be_equal_to(hash(&request4)));
   }
 
+  #[test]
+  fn request_headers_do_not_conflict_if_they_have_been_serialised_and_deserialised_to_json() {
+    // headers are serialised in a hashmap; serializing and deserializing can can change the
+    // internal order of the keys in the hashmap, and this can confuse the differences_from code.
+    let original_request = Request {
+      method: "".to_string(),
+      path: "".to_string(),
+      query: None,
+      headers: Some(hashmap! {
+          "accept".to_string() => vec!["application/xml".to_string(), "application/json".to_string()],
+          "user-agent".to_string() => vec!["test".to_string(), "test2".to_string()],
+          "content-type".to_string() => vec!["text/plain".to_string()]
+        }),
+      body: OptionalBody::Missing,
+      matching_rules: Default::default(),
+      generators: Default::default(),
+    };
+
+    let json = serde_json::to_string(&original_request).expect("could not serialize");
+
+    let serialized_and_deserialized_request =
+      serde_json::from_str(&json).expect("could not deserialize");
+
+    expect!(original_request
+        .differences_from(&serialized_and_deserialized_request)
+        .iter())
+      .to(be_empty());
+  }
 }

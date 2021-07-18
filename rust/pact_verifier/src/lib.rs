@@ -25,11 +25,13 @@ pub use callback_executors::NullRequestFilterExecutor;
 use callback_executors::RequestFilterExecutor;
 use pact_matching::*;
 use pact_matching::models::*;
-use pact_matching::models::v4::V4Interaction;
 use pact_models::generators::GeneratorTestMode;
 use pact_models::http_utils::HttpAuth;
+use pact_models::interaction::Interaction;
 use pact_models::json_utils::json_to_string;
 use pact_models::provider_states::*;
+use pact_models::sync_interaction::RequestResponseInteraction;
+use pact_models::v4::interaction::V4Interaction;
 
 use crate::callback_executors::{ProviderStateError, ProviderStateExecutor};
 use crate::messages::{display_message_result, verify_message_from_provider};

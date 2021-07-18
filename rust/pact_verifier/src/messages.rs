@@ -7,10 +7,10 @@ use maplit::*;
 use serde_json::{json, Value};
 
 use pact_matching::{match_message, Mismatch};
-use pact_matching::models::Interaction;
-use pact_matching::models::message::Message;
 use pact_models::bodies::OptionalBody;
 use pact_models::http_parts::HttpPart;
+use pact_models::interaction::Interaction;
+use pact_models::message::Message;
 use pact_models::request::Request;
 use pact_models::response::Response;
 

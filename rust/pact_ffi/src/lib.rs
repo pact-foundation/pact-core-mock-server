@@ -12,8 +12,9 @@ use env_logger::Builder;
 use libc::c_char;
 
 use models::message::Message;
-use pact_matching::{self as pm, models::Interaction};
+use pact_matching::{self as pm};
 pub use pact_matching::Mismatch;
+use pact_models::interaction::Interaction;
 
 use crate::util::*;
 

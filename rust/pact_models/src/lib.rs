@@ -29,6 +29,10 @@ pub mod http_utils;
 pub mod http_parts;
 pub mod request;
 pub mod response;
+pub mod headers;
+pub mod interaction;
+pub mod sync_interaction;
+pub mod message;
 
 /// Enum defining the pact specification versions supported by the library
 #[repr(C)]

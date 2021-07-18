@@ -17,7 +17,6 @@ use tokio::time::{Duration, sleep};
 use pact_matching::Mismatch;
 use pact_matching::models::{Pact, PACT_RUST_VERSION, RequestResponsePact};
 use pact_matching::models::message_pact::MessagePact;
-use pact_matching::s;
 use pact_models::http_utils::HttpAuth;
 
 use crate::MismatchResult;
@@ -44,7 +43,7 @@ fn as_string(json: &serde_json::Value) -> String {
 fn content_type(response: &reqwest::Response) -> String {
     match response.headers().get("content-type") {
         Some(value) => value.to_str().unwrap_or("text/plain").into(),
-        None => s!("text/plain")
+        None => "text/plain".to_string()
     }
 }
 
@@ -522,7 +521,7 @@ impl Default for HALClient {
       client: reqwest::ClientBuilder::new()
         .build()
         .unwrap(),
-      url: s!(""),
+      url: "".to_string(),
       path_info: None,
       auth: None,
       retries: 3
@@ -626,7 +625,7 @@ pub async fn fetch_pacts_dynamically_from_broker(
   auth: Option<HttpAuth>
 ) -> Result<Vec<Result<(Box<dyn Pact + Send>, Option<PactVerificationContext>, Vec<Link>), PactBrokerError>>, PactBrokerError> {
     let mut hal_client = HALClient::with_url(broker_url, auth);
-    let template_values = hashmap!{ s!("provider") => provider_name.clone() };
+    let template_values = hashmap!{ "provider".to_string() => provider_name.clone() };
 
     hal_client = hal_client.navigate("pb:provider-pacts-for-verification", &template_values)
     .await
@@ -1009,8 +1008,8 @@ mod tests {
   use pact_consumer::*;
   use pact_consumer::prelude::*;
   use pact_matching::Mismatch::MethodMismatch;
-  use pact_matching::models::RequestResponseInteraction;
   use pact_models::{Consumer, PactSpecification, Provider};
+  use pact_models::sync_interaction::RequestResponseInteraction;
 
   use super::*;
   use super::{content_type, json_content_type};
@@ -1063,7 +1062,7 @@ mod tests {
                 .unwrap()
         );
 
-        expect!(content_type(&response)).to(be_equal_to(s!("application/hal+json; charset=utf-8")));
+        expect!(content_type(&response)).to(be_equal_to("application/hal+json; charset=utf-8".to_string()));
     }
 
     #[test]
@@ -1180,15 +1179,15 @@ mod tests {
   #[test]
   fn parse_link_url_replaces_all_tokens_in_href() {
     let client = HALClient::default();
-    let values = hashmap!{ s!("valA") => s!("A"), s!("valB") => s!("B") };
+    let values = hashmap!{ "valA".to_string() => "A".to_string(), "valB".to_string() => "B".to_string() };
 
-    let link = Link { name: s!("link"), href: Some(s!("http://localhost")), templated: false, title: None };
+    let link = Link { name: "link".to_string(), href: Some("http://localhost".to_string()), templated: false, title: None };
     expect!(client.clone().parse_link_url(&link, &values)).to(be_ok().value("http://localhost"));
 
-    let link = Link { name: s!("link"), href: Some(s!("http://{valA}/{valB}")), templated: false, title: None };
+    let link = Link { name: "link".to_string(), href: Some("http://{valA}/{valB}".to_string()), templated: false, title: None };
     expect!(client.clone().parse_link_url(&link, &values)).to(be_ok().value("http://A/B"));
 
-    let link = Link { name: s!("link"), href: Some(s!("http://{valA}/{valC}")), templated: false, title: None };
+    let link = Link { name: "link".to_string(), href: Some("http://{valA}/{valC}".to_string()), templated: false, title: None };
     expect!(client.clone().parse_link_url(&link, &values)).to(be_ok().value("http://A/{valC}"));
   }
 
@@ -1196,7 +1195,7 @@ mod tests {
     async fn fetch_link_returns_an_error_if_a_previous_resource_has_not_been_fetched() {
         let client = HALClient::with_url("http://localhost", None);
         let result = client.fetch_link("anything_will_do", &hashmap!{}).await;
-        expect!(result).to(be_err().value(s!("No previous resource has been fetched from the pact broker. URL: 'http://localhost', LINK: 'anything_will_do'")));
+        expect!(result).to(be_err().value("No previous resource has been fetched from the pact broker. URL: 'http://localhost', LINK: 'anything_will_do'".to_string()));
     }
 
     #[tokio::test]
@@ -1283,7 +1282,7 @@ mod tests {
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
         let result = client.clone().fetch_link("next", &hashmap!{}).await;
-        expect!(result).to(be_ok().value(serde_json::Value::String(s!("Yay! You found your way here"))));
+        expect!(result).to(be_ok().value(serde_json::Value::String("Yay! You found your way here".to_string())));
     }
 
     #[tokio::test]
@@ -1309,7 +1308,7 @@ mod tests {
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
         let result = client.clone().fetch_link("next", &hashmap!{}).await;
-        expect!(result).to(be_ok().value(serde_json::Value::String(s!("Yay! You found your way here"))));
+        expect!(result).to(be_ok().value(serde_json::Value::String("Yay! You found your way here".to_string())));
     }
 
     #[tokio::test]
@@ -1335,8 +1334,8 @@ mod tests {
         let result = client.clone().fetch("/").await;
         expect!(result.clone()).to(be_ok());
         client.path_info = result.ok();
-        let result = client.clone().fetch_link("document", &hashmap!{ s!("id") => s!("abc") }).await;
-        expect!(result).to(be_ok().value(serde_json::Value::String(s!("Yay! You found your way here"))));
+        let result = client.clone().fetch_link("document", &hashmap!{ "id".to_string() => "abc".to_string() }).await;
+        expect!(result).to(be_ok().value(serde_json::Value::String("Yay! You found your way here".to_string())));
     }
 
     #[tokio::test]
@@ -1385,13 +1384,13 @@ mod tests {
     #[tokio::test]
     async fn fetch_pacts_from_broker_returns_a_list_of_pacts() {
       try_init().unwrap_or(());
-        let pact = RequestResponsePact { consumer: Consumer { name: s!("Consumer") },
-            provider: Provider { name: s!("happy_provider") },
+        let pact = RequestResponsePact { consumer: Consumer { name: "Consumer".to_string() },
+            provider: Provider { name: "happy_provider".to_string() },
             .. RequestResponsePact::default() }
             .to_json(PactSpecification::V3).unwrap().to_string();
-        let pact2 = RequestResponsePact { consumer: Consumer { name: s!("Consumer2") },
-            provider: Provider { name: s!("happy_provider") },
-            interactions: vec![ RequestResponseInteraction { description: s!("a request friends"), .. RequestResponseInteraction::default() } ],
+        let pact2 = RequestResponsePact { consumer: Consumer { name: "Consumer2".to_string() },
+            provider: Provider { name: "happy_provider".to_string() },
+            interactions: vec![ RequestResponseInteraction { description: "a request friends".to_string(), .. RequestResponseInteraction::default() } ],
             .. RequestResponsePact::default() }
             .to_json(PactSpecification::V3).unwrap().to_string();
         let pact_broker = PactBuilder::new("RustPactVerifier", "PactBroker")
@@ -1470,8 +1469,8 @@ mod tests {
     async fn fetch_pacts_for_verification_from_broker_returns_a_list_of_pacts() {
       try_init().unwrap_or(());
 
-      let pact = RequestResponsePact { consumer: Consumer { name: s!("Consumer") },
-        provider: Provider { name: s!("happy_provider") },
+      let pact = RequestResponsePact { consumer: Consumer { name: "Consumer".to_string() },
+        provider: Provider { name: "happy_provider".to_string() },
         .. RequestResponsePact::default() }
         .to_json(PactSpecification::V3).unwrap().to_string();
 
@@ -1573,7 +1572,7 @@ mod tests {
       })
       .start_mock_server();
 
-    let result = fetch_pacts_dynamically_from_broker(pact_broker.url().as_str(), s!("happy_provider"), false, None, vec!("master".to_string()), vec!(ConsumerVersionSelector {
+    let result = fetch_pacts_dynamically_from_broker(pact_broker.url().as_str(), "happy_provider".to_string(), false, None, vec!("master".to_string()), vec!(ConsumerVersionSelector {
       consumer: None,
       tag: "prod".to_string(),
       fallback_tag: None,
@@ -1659,7 +1658,7 @@ mod tests {
       })
     .start_mock_server();
 
-    let result = fetch_pacts_dynamically_from_broker(pact_broker.url().as_str(), s!("sad_provider"), false, None, vec!("master".to_string()), vec!(ConsumerVersionSelector {
+    let result = fetch_pacts_dynamically_from_broker(pact_broker.url().as_str(), "sad_provider".to_string(), false, None, vec!("master".to_string()), vec!(ConsumerVersionSelector {
       consumer: None,
       tag: "prod".to_string(),
       fallback_tag: None,

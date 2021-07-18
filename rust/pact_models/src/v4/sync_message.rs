@@ -11,16 +11,19 @@ use itertools::Itertools;
 use log::*;
 use serde_json::{json, Value};
 
-use pact_models::bodies::OptionalBody;
-use pact_models::content_types::ContentType;
-use pact_models::json_utils::json_to_string;
-use pact_models::matchingrules::MatchingRules;
-use pact_models::provider_states::{self, ProviderState};
-
-use crate::models::{Interaction, RequestResponseInteraction};
-use crate::models::message::Message;
-use crate::models::v4::{AsynchronousMessage, SynchronousHttp, V4Interaction, V4InteractionType};
-use crate::models::v4::message_parts::MessageContents;
+use crate::bodies::OptionalBody;
+use crate::content_types::ContentType;
+use crate::interaction::Interaction;
+use crate::json_utils::json_to_string;
+use crate::matchingrules::MatchingRules;
+use crate::message::Message;
+use crate::provider_states::ProviderState;
+use crate::sync_interaction::RequestResponseInteraction;
+use crate::v4::async_message::AsynchronousMessage;
+use crate::v4::interaction::V4Interaction;
+use crate::v4::message_parts::MessageContents;
+use crate::v4::synch_http::SynchronousHttp;
+use crate::v4::V4InteractionType;
 
 /// Synchronous interactions as a request message to a sequence of response messages
 #[derive(Debug, Clone, Eq)]
@@ -83,7 +86,7 @@ impl SynchronousMessages {
         },
         None => Default::default()
       };
-      let provider_states = provider_states::ProviderState::from_json(json);
+      let provider_states = ProviderState::from_json(json);
       let request = json.get("request")
         .ok_or(anyhow!("JSON for SynchronousMessages does not contain a 'request' object"))?;
       let response = json.get("response")

@@ -17,19 +17,18 @@ use maplit::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
+use pact_models::{Consumer, http_utils, message, Provider};
 use pact_models::file_utils::with_read_lock;
-use pact_models::http_utils;
 use pact_models::http_utils::HttpAuth;
+use pact_models::interaction::Interaction;
+use pact_models::message::Message;
 use pact_models::PactSpecification;
 use pact_models::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerifier, ResultLevel};
 
-use crate::models::{Consumer, Interaction, Pact, ReadWritePact, RequestResponsePact};
+use crate::models::{Pact, ReadWritePact, RequestResponsePact};
 use crate::models::determine_spec_version;
-use crate::models::message;
-use crate::models::message::Message;
 use crate::models::PACT_RUST_VERSION;
 use crate::models::parse_meta_data;
-use crate::models::Provider;
 use crate::models::v4::V4Pact;
 
 /// Struct that represents a pact between the consumer and provider of a service.

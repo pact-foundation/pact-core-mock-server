@@ -4,12 +4,14 @@ use maplit::*;
 use reqwest::header::ACCEPT;
 
 use pact_matching::Mismatch;
-use pact_matching::models::{Interaction, RequestResponseInteraction, RequestResponsePact};
+use pact_matching::models::RequestResponsePact;
 use pact_models::bodies::OptionalBody;
+use pact_models::interaction::Interaction;
 use pact_models::matchingrules;
 use pact_models::matchingrules::MatchingRule;
 use pact_models::request::Request;
 use pact_models::response::Response;
+use pact_models::sync_interaction::RequestResponseInteraction;
 
 use crate::matching::{match_request, MatchResult};
 

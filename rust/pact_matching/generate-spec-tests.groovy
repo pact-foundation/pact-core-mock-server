@@ -22,12 +22,12 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
     pw.println('use expectest::prelude::*;')
     if (requestResponsePath == 'request' || requestResponsePath == 'response') {
       pw.println('#[allow(unused_imports)]')
-      pw.println('use pact_matching::models::{Interaction, http_interaction_from_json};')
+      pw.println('use pact_models::interaction::{Interaction, http_interaction_from_json};')
       pw.println('#[allow(unused_imports)]')
       pw.println('use pact_matching::{match_interaction_request, match_interaction_response};')
     } else if (requestResponsePath == 'message') {
       pw.println('#[allow(unused_imports)]')
-      pw.println('use pact_matching::models::{Interaction, message_interaction_from_json};')
+      pw.println('use pact_models::interaction::{Interaction, message_interaction_from_json};')
       pw.println('#[allow(unused_imports)]')
       pw.println('use pact_matching::match_interaction;')
     }

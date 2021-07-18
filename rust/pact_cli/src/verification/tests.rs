@@ -1,8 +1,8 @@
 use expectest::prelude::*;
 use serde_json:: json;
 
-use pact_matching::models::RequestResponseInteraction;
 use pact_models::PactSpecification;
+use pact_models::sync_interaction::RequestResponseInteraction;
 use pact_models::verify_json::{PactJsonVerifier, ResultLevel};
 
 use super::verify_json;

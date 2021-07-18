@@ -8,16 +8,14 @@ use anyhow::anyhow;
 use maplit::hashmap;
 use serde_json::{json, Value};
 
-use pact_models::{generators, matchingrules, PactSpecification};
-use pact_models::bodies::OptionalBody;
-use pact_models::content_types::ContentType;
-use pact_models::generators::generators_to_json;
-use pact_models::json_utils::hash_json;
-use pact_models::matchingrules::matchers_to_json;
-use pact_models::v4::http_parts::body_from_json;
-
-use crate::models::v4::metadata_to_headers;
-use pact_models::v4::calc_content_type;
+use crate::bodies::OptionalBody;
+use crate::content_types::ContentType;
+use crate::generators::{Generators, generators_from_json, generators_to_json};
+use crate::json_utils::{hash_json, json_to_string};
+use crate::matchingrules::{matchers_from_json, matchers_to_json, MatchingRules};
+use crate::PactSpecification;
+use crate::v4::calc_content_type;
+use crate::v4::http_parts::body_from_json;
 
 /// Contents of a message interaction
 #[derive(Default, Clone, Debug, Eq)]
@@ -27,9 +25,9 @@ pub struct MessageContents {
   /// Metadata associated with this message.
   pub metadata: HashMap<String, Value>,
   /// Matching rules
-  pub matching_rules: matchingrules::MatchingRules,
+  pub matching_rules: MatchingRules,
   /// Generators
-  pub generators: generators::Generators,
+  pub generators: Generators,
 }
 
 impl MessageContents {
@@ -46,8 +44,8 @@ impl MessageContents {
       Ok(MessageContents {
         metadata,
         contents: body_from_json(&json, "contents", &as_headers),
-        matching_rules: matchingrules::matchers_from_json(&json, &None),
-        generators: generators::generators_from_json(&json)
+        matching_rules: matchers_from_json(&json, &None),
+        generators: generators_from_json(&json)
       })
     } else {
       Err(anyhow!("Expected a JSON object for the message contents, got '{}'", json))
@@ -114,5 +112,15 @@ impl PartialEq for MessageContents {
   fn eq(&self, other: &Self) -> bool {
     self.contents == other.contents && self.metadata == other.metadata &&
       self.matching_rules == other.matching_rules && self.generators == other.generators
+  }
+}
+
+pub(crate) fn metadata_to_headers(metadata: &HashMap<String, Value>) -> Option<HashMap<String, Vec<String>>> {
+  if let Some(content_type) = metadata.get("contentType") {
+    Some(hashmap! {
+      "Content-Type".to_string() => vec![ json_to_string(content_type) ]
+    })
+  } else {
+    None
   }
 }

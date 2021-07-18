@@ -1,6 +1,6 @@
-use pact_matching::models::*;
-use pact_matching::models::v4::SynchronousHttp;
 use pact_models::provider_states::ProviderState;
+use pact_models::sync_interaction::RequestResponseInteraction;
+use pact_models::v4::synch_http::SynchronousHttp;
 
 use super::request_builder::RequestBuilder;
 use super::response_builder::ResponseBuilder;

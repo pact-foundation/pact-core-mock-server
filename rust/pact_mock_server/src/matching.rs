@@ -9,7 +9,7 @@ use itertools::Itertools;
 use serde_json::json;
 
 use pact_matching::Mismatch;
-use pact_matching::models::Interaction;
+use pact_models::interaction::Interaction;
 use pact_models::PactSpecification;
 use pact_models::request::Request;
 use pact_models::response::Response;

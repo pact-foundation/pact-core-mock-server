@@ -5,12 +5,11 @@ use std::iter::FromIterator;
 
 use maplit::*;
 
+use pact_models::headers::PARAMETERISED_HEADERS;
 use pact_models::matchingrules::MatchingRule;
 
 use crate::{matchers, MatchingContext, Mismatch};
 use crate::matchers::Matches;
-
-static PARAMETERISED_HEADER_TYPES: [&str; 2] = ["accept", "content-type"];
 
 fn strip_whitespace<'a, T: FromIterator<&'a str>>(val: &'a str, split_by: &'a str) -> T {
   val.split(split_by).map(|v| v.trim()).collect()
@@ -62,7 +61,7 @@ pub(crate) fn match_header_value(key: &str, expected: &str, actual: &str, contex
 
   let matcher_result = if context.matcher_is_defined(&path) {
     matchers::match_values(&path, context, &expected, &actual)
-  } else if PARAMETERISED_HEADER_TYPES.contains(&key.to_lowercase().as_str()) {
+  } else if PARAMETERISED_HEADERS.contains(&key.to_lowercase().as_str()) {
     match_parameter_header(expected.as_str(), actual.as_str(), key, "header")
   } else {
     Matches::matches_with(&expected, &actual, &MatchingRule::Equality)

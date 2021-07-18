@@ -1,13 +1,12 @@
 //! The `models` module provides all the structures required to model a Pact.
 
-use std::{fmt, fs};
 use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::default::Default;
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::Debug;
+use std::fs;
 use std::fs::File;
-use std::hash::Hash;
 use std::io::prelude::*;
 use std::io::SeekFrom;
 use std::path::Path;
@@ -22,426 +21,21 @@ use log::*;
 use maplit::{btreemap, hashset};
 use serde_json::{json, Value};
 
-use pact_models::{Consumer, DifferenceType, http_utils, PactSpecification, Provider};
-use pact_models::bodies::OptionalBody;
-use pact_models::content_types::*;
+use pact_models::{Consumer, http_utils, PactSpecification, Provider};
 use pact_models::file_utils::{with_read_lock, with_read_lock_for_open_file, with_write_lock};
-use pact_models::http_parts::HttpPart;
 use pact_models::http_utils::HttpAuth;
-use pact_models::json_utils::json_to_string;
-use pact_models::matchingrules::MatchingRules;
-use pact_models::provider_states::ProviderState;
-use pact_models::request::Request;
-use pact_models::response::Response;
+use pact_models::interaction::{Interaction, PactConflict};
+use pact_models::sync_interaction::RequestResponseInteraction;
 use pact_models::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerifier, ResultLevel};
 
-pub use crate::models::message::Message;
 pub use crate::models::message_pact::MessagePact;
-use crate::models::v4::{AsynchronousMessage, interaction_from_json, SynchronousHttp, V4Interaction, V4Pact};
-use crate::models::v4::sync_message::SynchronousMessages;
+use crate::models::v4::V4Pact;
 
 pub(crate) mod matchingrules;
 pub(crate) mod generators;
 
 /// Version of the library
 pub const PACT_RUST_VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
-
-/// Struct that defined an interaction conflict
-#[derive(Debug, Clone)]
-pub struct PactConflict {
-    /// Description of the interactions
-    pub interaction: String,
-    /// Conflict description
-    pub description: String
-}
-
-/// Interaction Trait
-pub trait Interaction: Debug {
-  /// The type of the interaction
-  fn type_of(&self) -> String;
-
-  /// If this is a request/response interaction
-  fn is_request_response(&self) -> bool;
-
-  /// Returns the request/response interaction if it is one
-  fn as_request_response(&self) -> Option<RequestResponseInteraction>;
-
-  /// If this is a message interaction
-  fn is_message(&self) -> bool;
-
-  /// Returns the message interaction if it is one
-  fn as_message(&self) -> Option<Message>;
-
-  /// Interaction ID. This will only be set if the Pact file was fetched from a Pact Broker
-  fn id(&self) -> Option<String>;
-
-  /// Description of this interaction. This needs to be unique in the pact file.
-  fn description(&self) -> String;
-
-  /// Optional provider states for the interaction.
-  /// See https://docs.pact.io/getting_started/provider_states for more info on provider states.
-  fn provider_states(&self) -> Vec<ProviderState>;
-
-  /// Body of the response or message
-  #[deprecated(
-    since = "0.8.14",
-    note = "Some interactions have multiple contents (like request/response), so it is impossible \
-      to know which to return for this method"
-  )]
-  fn contents(&self) -> OptionalBody;
-
-  /// The contents of the part to use for verification. For example, with HTTP interactions, this
-  /// will be the response body
-  fn contents_for_verification(&self) -> OptionalBody;
-
-  /// Determine the content type of the interaction. If a `Content-Type` header or metadata value is present, the
-  /// value of that value will be returned. Otherwise, the contents will be inspected.
-  #[deprecated(
-  since = "0.8.14",
-  note = "Some interactions have multiple contents (like request/response), so it is impossible \
-      to know which to return for this method"
-  )]
-  fn content_type(&self) -> Option<ContentType>;
-
-  /// If this is a V4 interaction
-  fn is_v4(&self) -> bool;
-
-  /// Returns the interaction in V4 format
-  fn as_v4(&self) -> Option<Box<dyn V4Interaction>>;
-
-  /// Returns the interaction in V4 format
-  fn as_v4_http(&self) -> Option<SynchronousHttp>;
-
-  /// Returns the interaction in V4 format
-  fn as_v4_async_message(&self) -> Option<AsynchronousMessage>;
-
-  /// Returns the interaction in V4 format
-  fn as_v4_sync_message(&self) -> Option<SynchronousMessages>;
-
-  /// Clones this interaction and wraps it in a Box
-  fn boxed(&self) -> Box<dyn Interaction + Send>;
-
-  /// Clones this interaction and wraps it in an Arc
-  fn arced(&self) -> Arc<dyn Interaction + Send>;
-
-  /// Clones this interaction and wraps it in an Arc and Mutex
-  fn thread_safe(&self) -> Arc<Mutex<dyn Interaction + Send + Sync>>;
-
-  /// Returns the matching rules associated with this interaction (if there are any)
-  fn matching_rules(&self) -> Option<MatchingRules>;
-
-  /// If this interaction is pending (V4 only)
-  fn pending(&self) -> bool { false }
-}
-
-impl Display for dyn Interaction {
-  fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-    if let Some(req_res) = self.as_request_response() {
-      std::fmt::Display::fmt(&req_res, f)
-    } else if let Some(mp) = self.as_message() {
-      std::fmt::Display::fmt(&mp, f)
-    } else if let Some(mp) = self.as_v4_http() {
-      std::fmt::Display::fmt(&mp, f)
-    } else if let Some(mp) = self.as_v4_async_message() {
-      std::fmt::Display::fmt(&mp, f)
-    } else {
-      Err(fmt::Error)
-    }
-  }
-}
-
-impl Clone for Box<dyn Interaction> {
-  fn clone(&self) -> Self {
-    if self.is_v4() {
-      if let Some(http) = self.as_v4_http() {
-        Box::new(http)
-      } else if let Some(message) = self.as_v4_async_message() {
-        Box::new(message)
-      } else {
-        panic!("Internal Error - Tried to clone an interaction that was not valid")
-      }
-    } else if let Some(req_res) = self.as_request_response() {
-      Box::new(req_res)
-    } else if let Some(mp) = self.as_message() {
-      Box::new(mp)
-    } else {
-      panic!("Internal Error - Tried to clone an interaction that was not valid")
-    }
-  }
-}
-
-/// Struct that defines an interaction (request and response pair)
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct RequestResponseInteraction {
-    /// Interaction ID. This will only be set if the Pact file was fetched from a Pact Broker
-    pub id: Option<String>,
-    /// Description of this interaction. This needs to be unique in the pact file.
-    pub description: String,
-    /// Optional provider states for the interaction.
-    /// See https://docs.pact.io/getting_started/provider_states for more info on provider states.
-    pub provider_states: Vec<ProviderState>,
-    /// Request of the interaction
-    pub request: Request,
-    /// Response of the interaction
-    pub response: Response
-}
-
-impl Interaction for RequestResponseInteraction {
-  fn type_of(&self) -> String {
-    "V3 Synchronous/HTTP".into()
-  }
-
-  fn is_request_response(&self) -> bool {
-    true
-  }
-
-  fn as_request_response(&self) -> Option<RequestResponseInteraction> {
-    Some(self.clone())
-  }
-
-  fn is_message(&self) -> bool {
-    false
-  }
-
-  fn as_message(&self) -> Option<Message> {
-    None
-  }
-
-  fn id(&self) -> Option<String> {
-    self.id.clone()
-  }
-
-  fn description(&self) -> String {
-    self.description.clone()
-  }
-
-  fn provider_states(&self) -> Vec<ProviderState> {
-    self.provider_states.clone()
-  }
-
-  fn contents(&self) -> OptionalBody {
-    self.response.body.clone()
-  }
-
-  fn contents_for_verification(&self) -> OptionalBody {
-    self.response.body.clone()
-  }
-
-  fn content_type(&self) -> Option<ContentType> {
-    self.response.content_type()
-  }
-
-  fn is_v4(&self) -> bool {
-    false
-  }
-
-  fn as_v4(&self) -> Option<Box<dyn V4Interaction>> {
-    self.as_v4_http().map(|i| i.boxed_v4())
-  }
-
-  fn as_v4_http(&self) -> Option<SynchronousHttp> {
-    Some(SynchronousHttp {
-      id: self.id.clone(),
-      key: None,
-      description: self.description.clone(),
-      provider_states: self.provider_states.clone(),
-      request: self.request.as_v4_request(),
-      response: self.response.as_v4_response(),
-      .. Default::default()
-    }.with_key())
-  }
-
-  fn as_v4_async_message(&self) -> Option<AsynchronousMessage> {
-    None
-  }
-
-  fn as_v4_sync_message(&self) -> Option<SynchronousMessages> {
-    None
-  }
-
-  fn boxed(&self) -> Box<dyn Interaction + Send> {
-    Box::new(self.clone())
-  }
-
-  fn arced(&self) -> Arc<dyn Interaction + Send> {
-    Arc::new(self.clone())
-  }
-
-  fn thread_safe(&self) -> Arc<Mutex<dyn Interaction + Send + Sync>> {
-    Arc::new(Mutex::new(self.clone()))
-  }
-
-  fn matching_rules(&self) -> Option<MatchingRules> {
-    None
-  }
-}
-
-impl RequestResponseInteraction {
-    /// Constructs an `Interaction` from the `Value` struct.
-    pub fn from_json(index: usize, pact_json: &Value, spec_version: &PactSpecification) -> RequestResponseInteraction {
-        let id = pact_json.get("_id").map(|id| json_to_string(id));
-        let description = match pact_json.get("description") {
-            Some(v) => match *v {
-                Value::String(ref s) => s.clone(),
-                _ => v.to_string()
-            },
-            None => format!("Interaction {}", index)
-        };
-        let provider_states = ProviderState::from_json(pact_json);
-        let request = match pact_json.get("request") {
-            Some(v) => Request::from_json(v, spec_version),
-            None => Request::default()
-        };
-        let response = match pact_json.get("response") {
-            Some(v) => Response::from_json(v, spec_version),
-            None => Response::default()
-        };
-      RequestResponseInteraction {
-          id,
-          description,
-          provider_states,
-          request,
-          response
-        }
-    }
-
-    /// Converts this interaction to a `Value` struct.
-    pub fn to_json(&self, spec_version: &PactSpecification) -> Value {
-        let mut value = json!({
-            s!("description"): Value::String(self.description.clone()),
-            s!("request"): self.request.to_json(spec_version),
-            s!("response"): self.response.to_json(spec_version)
-        });
-        if !self.provider_states.is_empty() {
-            let map = value.as_object_mut().unwrap();
-            match spec_version {
-                &PactSpecification::V3 => map.insert(s!("providerStates"),
-                                                     Value::Array(self.provider_states.iter().map(|p| p.to_json()).collect())),
-                _ => map.insert(s!("providerState"), Value::String(
-                    self.provider_states.first().unwrap().name.clone()))
-            };
-        }
-        value
-    }
-
-    /// Returns list of conflicts if this interaction conflicts with the other interaction.
-    ///
-    /// Two interactions conflict if they have the same description and provider state, but they request and
-    /// responses are not equal
-    pub fn conflicts_with(&self, other: &dyn Interaction) -> Vec<PactConflict> {
-      if let Some(other) = other.as_request_response() {
-        if self.description == other.description && self.provider_states == other.provider_states {
-          let mut conflicts = self.request.differences_from(&other.request).iter()
-            .filter(|difference| match difference.0 {
-              DifferenceType::MatchingRules | DifferenceType::Body => false,
-              _ => true
-            })
-            .map(|difference| PactConflict { interaction: self.description.clone(), description: difference.1.clone() })
-            .collect::<Vec<PactConflict>>();
-          for difference in self.response.differences_from(&other.response) {
-            match difference.0 {
-              DifferenceType::MatchingRules | DifferenceType::Body => (),
-              _ => conflicts.push(PactConflict { interaction: self.description.clone(), description: difference.1.clone() })
-            };
-          }
-          conflicts
-        } else {
-          vec![]
-        }
-      } else {
-        vec![PactConflict {
-          interaction: self.description.clone(),
-          description: format!("You can not combine message and request/response interactions")
-        }]
-      }
-    }
-
-  /// Generate the JSON schema properties for the given Pact specification
-  pub fn schema(_spec_version: PactSpecification) -> Value {
-    json!({})
-  }
-}
-
-impl Default for RequestResponseInteraction {
-  fn default() -> Self {
-    RequestResponseInteraction {
-      id: None,
-      description: s!("Default Interaction"),
-      provider_states: vec![],
-      request: Request::default(),
-      response: Response::default()
-    }
-  }
-}
-
-impl Display for RequestResponseInteraction {
-  fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-    write!(f, "Interaction ( id: {:?}, description: \"{}\", provider_states: {:?}, request: {}, response: {} )",
-           self.id, self.description, self.provider_states, self.request, self.response)
-  }
-}
-
-impl PactJsonVerifier for RequestResponseInteraction {
-  fn verify_json(path: &str, pact_json: &Value, strict: bool, spec_version: PactSpecification) -> Vec<PactFileVerificationResult> {
-    let mut results = vec![];
-
-    match pact_json {
-      Value::Object(values) => {
-        if let Some(description) = values.get("description") {
-          if !description.is_string() {
-            results.push(PactFileVerificationResult::new(path.to_owned() + "/description", ResultLevel::ERROR,
-                                                         format!("Must be a String, got {}", json_type_of(pact_json))))
-          }
-        } else {
-          results.push(PactFileVerificationResult::new(path,
-            if strict { ResultLevel::ERROR } else { ResultLevel::WARNING }, "Missing description"))
-        }
-
-        let provider_states = if values.contains_key("providerStates") {
-          values.get("providerStates").unwrap().clone()
-        } else if values.contains_key("providerState") {
-          if spec_version >= PactSpecification::V3 {
-            results.push(PactFileVerificationResult::new(path, ResultLevel::WARNING,
-              format!("'providerState' is deprecated, use 'providerStates' instead")))
-          }
-          Value::Array(vec![ values.get("providerState").unwrap().clone() ])
-        } else if values.contains_key("provider_state") {
-          results.push(PactFileVerificationResult::new(path, ResultLevel::WARNING,
-            format!("'provider_state' is deprecated, use 'providerStates' instead")));
-          Value::Array(vec![ values.get("provider_state").unwrap().clone() ])
-        } else {
-          Value::Array(vec![])
-        };
-
-        match provider_states {
-          Value::Array(states) => {
-            results.extend(states.iter().enumerate()
-              .flat_map(|(index, state)| {
-                ProviderState::verify_json(&*format!("{}/providerStates/{}", path, index), state, strict, spec_version)
-              }))
-          }
-          _ => results.push(PactFileVerificationResult::new(path, ResultLevel::ERROR,
-            format!("'providerStates' must be an Array, got {}", json_type_of(&provider_states))))
-        }
-
-        let valid_attr = hashset! {
-          "_id", "description", "providerState", "provider_state", "providerStates", "request",
-          "response" };
-        for (key, _) in values {
-          if !valid_attr.contains(key.as_str()) {
-            results.push(PactFileVerificationResult::new(path,
-              if strict { ResultLevel::ERROR } else { ResultLevel::WARNING },
-              &format!("Unexpected attribute '{}'", key)));
-          }
-        }
-      }
-      _ => results.push(PactFileVerificationResult::new(path, ResultLevel::ERROR,
-        format!("Must be an Object, got {}", json_type_of(pact_json))))
-    }
-
-    results
-  }
-}
 
 /// Trait for a Pact (request/response or message)
 pub trait Pact: Debug + ReadWritePact {
@@ -473,7 +67,6 @@ pub trait Pact: Debug + ReadWritePact {
   fn add_interaction(&mut self, interaction: &dyn Interaction) -> anyhow::Result<()>;
 }
 
-pub mod message;
 pub mod message_pact;
 pub mod v4;
 
@@ -989,24 +582,6 @@ pub(crate) fn verify_metadata(metadata: &Value, _spec_version: PactSpecification
   }
 
   results
-}
-
-/// Converts the JSON struct into an HTTP Interaction
-pub fn http_interaction_from_json(source: &str, json: &Value, spec: &PactSpecification) -> anyhow::Result<Box<dyn Interaction + Send>> {
-  match spec {
-    PactSpecification::V4 => interaction_from_json(source, 0, json)
-      .map(|i| i.boxed()),
-    _ => Ok(Box::new(RequestResponseInteraction::from_json(0, json, spec)))
-  }
-}
-
-/// Converts the JSON struct into a Message Interaction
-pub fn message_interaction_from_json(source: &str, json: &Value, spec: &PactSpecification) -> anyhow::Result<Box<dyn Interaction + Send>> {
-  match spec {
-    PactSpecification::V4 => interaction_from_json(source, 0, json)
-      .map(|i| i.boxed()),
-    _ => Message::from_json(0, json, spec).map(|i| i.boxed())
-  }
 }
 
 /// Reads the pact file and parses the resulting JSON into a `Pact` struct

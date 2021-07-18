@@ -9,6 +9,11 @@ use std::collections::HashMap;
 use crate::content_types::{ContentType, detect_content_type_from_bytes};
 
 pub mod http_parts;
+pub mod interaction;
+pub mod synch_http;
+pub mod message_parts;
+pub mod sync_message;
+pub mod async_message;
 
 /// V4 Interaction Type
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

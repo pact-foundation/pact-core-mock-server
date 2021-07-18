@@ -13,10 +13,11 @@ use pact_matching::models::*;
 use pact_matching::s;
 use pact_models::Consumer;
 use pact_models::provider_states::*;
+use pact_models::sync_interaction::RequestResponseInteraction;
 
-use crate::PactSource;
 use crate::callback_executors::HttpRequestProviderStateExecutor;
 use crate::pact_broker::Link;
+use crate::PactSource;
 
 use super::{execute_state_change, filter_consumers, filter_interaction, FilterInfo};
 

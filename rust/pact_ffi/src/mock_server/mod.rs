@@ -66,8 +66,7 @@ use serde_json::Value;
 use uuid::Uuid;
 
 use pact_matching::logging::fetch_buffer_contents;
-use pact_matching::models::{Pact, RequestResponseInteraction};
-use pact_matching::models::message::Message;
+use pact_matching::models::Pact;
 use pact_mock_server::{MANAGER, MockServerError, tls::TlsConfigBuilder, WritePactFileErr};
 use pact_mock_server::server_manager::ServerManager;
 use pact_models::bodies::OptionalBody::{Null, Present};
@@ -77,7 +76,9 @@ use pact_models::generators::Generators;
 use pact_models::http_parts::HttpPart;
 use pact_models::json_utils::json_to_string;
 use pact_models::matchingrules::{MatchingRule, MatchingRules, RuleLogic};
+use pact_models::message::Message;
 use pact_models::provider_states::ProviderState;
+use pact_models::sync_interaction::RequestResponseInteraction;
 use pact_models::time_utils::{parse_pattern, to_chrono_pattern};
 
 use crate::convert_cstr;

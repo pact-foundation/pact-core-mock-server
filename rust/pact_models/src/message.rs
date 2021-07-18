@@ -1,4 +1,4 @@
-//! The `message` module provides all functionality to deal with messages.
+//! The `message` module provides all functionality to deal with message interactions.
 
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
@@ -11,20 +11,21 @@ use maplit::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use pact_models::json_utils::{json_to_string, body_from_json};
-use pact_models::{generators, PactSpecification};
-use pact_models::bodies::OptionalBody;
-use pact_models::content_types::ContentType;
-use pact_models::generators::Generators;
-use pact_models::matchingrules;
-use pact_models::matchingrules::MatchingRules;
-use pact_models::provider_states::ProviderState;
-use pact_models::http_parts::HttpPart;
-
-use crate::models::{Interaction, RequestResponseInteraction};
-use crate::models::v4::{AsynchronousMessage, SynchronousHttp, V4Interaction};
-use crate::models::v4::message_parts::MessageContents;
-use crate::models::v4::sync_message::SynchronousMessages;
+use crate::bodies::OptionalBody;
+use crate::content_types::ContentType;
+use crate::generators::{Generators, generators_to_json};
+use crate::http_parts::HttpPart;
+use crate::interaction::Interaction;
+use crate::json_utils::{body_from_json, json_to_string};
+use crate::matchingrules::{matchers_from_json, matchers_to_json, MatchingRules};
+use crate::PactSpecification;
+use crate::provider_states::ProviderState;
+use crate::sync_interaction::RequestResponseInteraction;
+use crate::v4::async_message::AsynchronousMessage;
+use crate::v4::interaction::V4Interaction;
+use crate::v4::message_parts::MessageContents;
+use crate::v4::sync_message::SynchronousMessages;
+use crate::v4::synch_http::SynchronousHttp;
 
 /// Struct that defines a message.
 #[derive(PartialEq, Debug, Clone, Eq, Deserialize, Serialize)]
@@ -52,11 +53,11 @@ pub struct Message {
     /// Matching rules
     #[serde(rename = "matchingRules")]
     #[serde(default)]
-    pub matching_rules: matchingrules::MatchingRules,
+    pub matching_rules: MatchingRules,
 
     /// Generators
     #[serde(default)]
-    pub generators: generators::Generators
+    pub generators: Generators
 }
 
 impl Interaction for Message {
@@ -160,13 +161,13 @@ impl Message {
     pub fn default() -> Message {
       Message {
         id: None,
-        description: s!("message"),
+        description: "message".to_string(),
         provider_states: vec![],
         contents: OptionalBody::Missing,
         metadata: hashmap!{
           "contentType".into() => "application/json".into()
         },
-        matching_rules: matchingrules::MatchingRules::default(),
+        matching_rules: MatchingRules::default(),
         generators: Generators::default()
       }
     }
@@ -194,7 +195,7 @@ impl Message {
                   description,
                   provider_states,
                   contents: body_from_json(json, "contents", &None),
-                  matching_rules: matchingrules::matchers_from_json(json, &None),
+                  matching_rules: matchers_from_json(json, &None),
                   metadata,
                   generators: Generators::default()
                 })
@@ -208,18 +209,18 @@ impl Message {
     /// and for future use
     pub fn to_json(&self, spec_version: &PactSpecification) -> Value {
       let mut value = json!({
-          s!("description"): Value::String(self.description.clone()),
-          s!("metadata"): self.metadata
+          "description".to_string(): Value::String(self.description.clone()),
+          "metadata".to_string(): self.metadata
       });
       {
         let map = value.as_object_mut().unwrap();
 
         if self.matching_rules.is_not_empty() {
-            map.insert(s!("matchingRules"), matchingrules::matchers_to_json(
+            map.insert("matchingRules".to_string(), matchers_to_json(
             &self.matching_rules.clone(), spec_version));
         }
         if self.generators.is_not_empty() {
-          map.insert(s!("generators"), generators::generators_to_json(
+          map.insert("generators".to_string(), generators_to_json(
             &self.generators.clone(), spec_version));
         }
 
@@ -231,7 +232,7 @@ impl Message {
                 Ok(json_body) => { map.insert("contents".to_string(), json_body); },
               Err(err) => {
                 log::warn!("Failed to parse json body: {}", err);
-                map.insert(s!("contents"), Value::String(encode(body)));
+                map.insert("contents".to_string(), Value::String(encode(body)));
               }
             }
             } else if content_type.is_binary() {
@@ -323,8 +324,8 @@ mod tests {
   use expectest::prelude::*;
   use serde_json;
 
-  use pact_models::matchingrules;
-  use pact_models::matchingrules::MatchingRule;
+  use crate::matchingrules;
+  use crate::matchingrules::MatchingRule;
 
   use super::*;
 
@@ -338,7 +339,7 @@ mod tests {
         let message = Message::from_json(0, &serde_json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
         expect!(message.description).to(be_equal_to("String"));
         expect!(message.provider_states).to(be_equal_to(vec![ProviderState {
-            name: s!("provider state"),
+            name: "provider state".to_string(),
             params: hashmap!(),
         }]));
         expect!(message.matching_rules.rules.iter()).to(be_empty());
@@ -442,7 +443,7 @@ mod tests {
     #[test]
     fn message_mimetype_is_based_on_the_metadata() {
       let message = Message {
-        metadata: hashmap!{ s!("contentType") => Value::String("text/plain".to_string()) },
+        metadata: hashmap!{ "contentType".to_string() => Value::String("text/plain".to_string()) },
         .. Message::default()
       };
       expect!(message.message_content_type().unwrap_or_default().to_string()).to(be_equal_to("text/plain"));
@@ -482,7 +483,7 @@ mod tests {
         let message: Message = serde_json::from_str(message_json).unwrap();
         expect!(message.description).to(be_equal_to("String"));
         expect!(message.provider_states).to(be_equal_to(vec![ProviderState {
-            name: s!("provider state"),
+            name: "provider state".to_string(),
             params: hashmap!(),
         }]));
         expect!(message.matching_rules.rules.iter()).to(be_empty());
