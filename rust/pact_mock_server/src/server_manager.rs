@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 use log::*;
 use rustls::ServerConfig;
 
-use pact_matching::models::Pact;
+use pact_models::pact::Pact;
 
 use crate::mock_server::{MockServer, MockServerConfig};
 
@@ -230,7 +230,7 @@ mod tests {
 
   use env_logger;
 
-  use pact_matching::models::RequestResponsePact;
+  use pact_models::sync_pact::RequestResponsePact;
 
   use super::*;
 

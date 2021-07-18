@@ -1,7 +1,8 @@
-use pact_matching::models::{Pact, RequestResponsePact};
-use pact_matching::models::v4::V4Pact;
 use pact_models::{Consumer, Provider};
 use pact_models::interaction::Interaction;
+use pact_models::pact::Pact;
+use pact_models::sync_pact::RequestResponsePact;
+use pact_models::v4::pact::V4Pact;
 
 use crate::prelude::*;
 

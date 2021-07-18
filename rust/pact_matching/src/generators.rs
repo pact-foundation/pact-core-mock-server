@@ -138,7 +138,7 @@ mod tests {
   use pact_models::matchingrules::MatchingRule;
   use pact_models::matchingrules_list;
 
-  use crate::models::generators::DefaultVariantMatcher;
+  use crate::generators::DefaultVariantMatcher;
 
   #[test_env_log::test]
   fn array_contains_generator_test() {

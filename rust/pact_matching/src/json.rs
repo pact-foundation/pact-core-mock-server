@@ -17,7 +17,7 @@ use pact_models::time_utils::validate_datetime;
 use crate::{DiffConfig, MatchingContext, merge_result};
 use crate::binary_utils::{convert_data, match_content_type};
 use crate::matchers::*;
-use crate::models::matchingrules::{compare_lists_with_matchingrule, compare_maps_with_matchingrule};
+use crate::matchingrules::{compare_lists_with_matchingrule, compare_maps_with_matchingrule};
 
 use super::Mismatch;
 

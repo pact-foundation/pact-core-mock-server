@@ -362,8 +362,8 @@ use pact_models::response::Response;
 
 use crate::headers::{match_header_value, match_headers};
 use crate::matchers::*;
-use crate::models::generators::{DefaultVariantMatcher, generators_process_body};
-use crate::models::matchingrules::DisplayForMismatch;
+use crate::generators::{DefaultVariantMatcher, generators_process_body};
+use crate::matchingrules::DisplayForMismatch;
 
 /// Simple macro to convert a string slice to a `String` struct.
 #[macro_export]
@@ -371,13 +371,18 @@ macro_rules! s {
     ($e:expr) => ($e.to_string())
 }
 
-#[macro_use] pub mod models;
+
+/// Version of the library
+pub const PACT_RUST_VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
+
 mod matchers;
 pub mod json;
 mod xml;
 mod binary_utils;
 mod headers;
 pub mod logging;
+mod matchingrules;
+mod generators;
 
 #[derive(Debug, Clone)]
 /// Context used to apply matching logic

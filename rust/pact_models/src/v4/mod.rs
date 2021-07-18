@@ -14,6 +14,7 @@ pub mod synch_http;
 pub mod message_parts;
 pub mod sync_message;
 pub mod async_message;
+pub mod pact;
 
 /// V4 Interaction Type
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

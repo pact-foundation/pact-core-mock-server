@@ -22,12 +22,13 @@ use tokio_rustls::server::TlsStream;
 use tokio_rustls::TlsAcceptor;
 
 use pact_matching::logging::LOG_ID;
-use pact_matching::models::{Pact, RequestResponsePact};
 use pact_models::bodies::OptionalBody;
 use pact_models::generators::GeneratorTestMode;
 use pact_models::http_parts::HttpPart;
+use pact_models::pact::Pact;
 use pact_models::query_strings::parse_query_string;
 use pact_models::request::Request;
+use pact_models::sync_pact::RequestResponsePact;
 
 use crate::matching::{match_request, MatchResult};
 use crate::mock_server::MockServer;

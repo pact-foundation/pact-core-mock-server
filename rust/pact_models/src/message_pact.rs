@@ -17,19 +17,16 @@ use maplit::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use pact_models::{Consumer, http_utils, message, Provider};
-use pact_models::file_utils::with_read_lock;
-use pact_models::http_utils::HttpAuth;
-use pact_models::interaction::Interaction;
-use pact_models::message::Message;
-use pact_models::PactSpecification;
-use pact_models::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerifier, ResultLevel};
-
-use crate::models::{Pact, ReadWritePact, RequestResponsePact};
-use crate::models::determine_spec_version;
-use crate::models::PACT_RUST_VERSION;
-use crate::models::parse_meta_data;
-use crate::models::v4::V4Pact;
+use crate::{Consumer, http_utils, PactSpecification, Provider};
+use crate::file_utils::with_read_lock;
+use crate::http_utils::HttpAuth;
+use crate::interaction::Interaction;
+use crate::message::Message;
+use crate::pact::{determine_spec_version, Pact, parse_meta_data, ReadWritePact};
+use crate::sync_pact::RequestResponsePact;
+use crate::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerifier, ResultLevel};
+use crate::v4::pact::V4Pact;
+use crate::PACT_RUST_VERSION;
 
 /// Struct that represents a pact between the consumer and provider of a service.
 /// It contains a list of Messages instead of Interactions, but is otherwise
@@ -41,7 +38,7 @@ pub struct MessagePact {
     /// Provider side of the pact
     pub provider: Provider,
     /// List of messages between the consumer and provider.
-    pub messages: Vec<message::Message>,
+    pub messages: Vec<Message>,
     /// Metadata associated with this pact file.
     pub metadata: BTreeMap<String, BTreeMap<String, String>>,
     /// Specification version of this pact
@@ -143,11 +140,11 @@ impl MessagePact {
 
         let consumer = match pact_json.get("consumer") {
             Some(v) => Consumer::from_json(v),
-            None => Consumer { name: s!("consumer") }
+            None => Consumer { name: "consumer".to_string() }
         };
         let provider = match pact_json.get("provider") {
             Some(v) => Provider::from_json(v),
-            None => Provider { name: s!("provider") }
+            None => Provider { name: "provider".to_string() }
         };
 
         let messages = match pact_json.get("messages") {
@@ -178,8 +175,8 @@ impl MessagePact {
         let mut md_map: BTreeMap<String, Value> = self.metadata.iter()
             .map(|(k, v)| {
                 let key = match k.as_str() {
-                  "pact-specification" => s!("pactSpecification"),
-                  "pact-rust" => s!("pactRust"),
+                  "pact-specification" => "pactSpecification".to_string(),
+                  "pact-rust" => "pactRust".to_string(),
                   _ => k.clone()
                 };
                 (key, json!(v.iter()
@@ -189,11 +186,11 @@ impl MessagePact {
             .collect();
 
         md_map.insert(
-            s!("pactSpecification"),
+            "pactSpecification".to_string(),
             json!({"version" : pact_spec.version_str()}));
         md_map.insert(
-            s!("pactRust"),
-            json!({"version" : s!(PACT_RUST_VERSION.unwrap_or("unknown"))}));
+            "pactRust".to_string(),
+            json!({"version" : PACT_RUST_VERSION.unwrap_or("unknown").to_string()}));
         md_map
     }
 
@@ -236,8 +233,8 @@ impl MessagePact {
     /// Returns a default MessagePact struct
     pub fn default() -> MessagePact {
         MessagePact {
-            consumer: Consumer { name: s!("default_consumer") },
-            provider: Provider { name: s!("default_provider") },
+            consumer: Consumer { name: "default_consumer".to_string() },
+            provider: Provider { name: "default_provider".to_string() },
             messages: Vec::new(),
             metadata: MessagePact::default_metadata(),
             specification_version: PactSpecification::V3,
@@ -248,12 +245,12 @@ impl MessagePact {
     pub fn default_metadata()
     -> BTreeMap<String, BTreeMap<String, String>> {
         btreemap!{
-            s!("pact-specification") =>
-                btreemap!{ s!("version") =>
+            "pact-specification".to_string() =>
+                btreemap!{ "version".to_string() =>
                     PactSpecification::V3.version_str() },
-            s!("pact-rust") =>
-                btreemap!{ s!("version") =>
-                    s!(PACT_RUST_VERSION.unwrap_or("unknown")) },
+            "pact-rust".to_string() =>
+                btreemap!{ "version".to_string() =>
+                    PACT_RUST_VERSION.unwrap_or("unknown").to_string() },
         }
     }
 }
@@ -339,8 +336,8 @@ mod tests {
 
   #[test]
     fn default_file_name_is_based_in_the_consumer_and_provider() {
-        let pact = MessagePact { consumer: Consumer { name: s!("consumer") },
-            provider: Provider { name: s!("provider") },
+        let pact = MessagePact { consumer: Consumer { name: "consumer".to_string() },
+            provider: Provider { name: "provider".to_string() },
             messages: vec![],
             metadata: btreemap!{},
             specification_version: PactSpecification::V1_1
@@ -352,7 +349,7 @@ mod tests {
     fn load_empty_pact() {
         let pact_json = r#"{}"#;
         let pact = MessagePact::from_json(
-            &s!(""),
+            &"".to_string(),
             &serde_json::from_str(pact_json).unwrap()
         ).unwrap();
         expect!(pact.provider.name).to(be_equal_to("provider"));
@@ -366,7 +363,7 @@ mod tests {
     fn missing_metadata() {
         let pact_json = r#"{}"#;
         let pact = MessagePact::from_json(
-            &s!(""),
+            &"".to_string(),
             &serde_json::from_str(pact_json).unwrap()
         ).unwrap();
         expect!(pact.specification_version).to(be_equal_to(PactSpecification::V3));
@@ -379,7 +376,7 @@ mod tests {
             }
         }"#;
         let pact = MessagePact::from_json(
-            &s!(""),
+            &"".to_string(),
             &serde_json::from_str(pact_json).unwrap()
         ).unwrap();
         expect!(pact.specification_version).to(be_equal_to(PactSpecification::V3));
@@ -395,7 +392,7 @@ mod tests {
             }
         }"#;
         let pact = MessagePact::from_json(
-            &s!(""),
+            &"".to_string(),
             &serde_json::from_str(pact_json).unwrap()
         ).unwrap();
         expect!(pact.specification_version).to(be_equal_to(PactSpecification::V3));
@@ -411,7 +408,7 @@ mod tests {
             }
         }"#;
         let pact = MessagePact::from_json(
-            &s!(""),
+            &"".to_string(),
             &serde_json::from_str(pact_json).unwrap()
         ).unwrap();
         expect!(pact.specification_version).to(be_equal_to(PactSpecification::Unknown));
@@ -427,7 +424,7 @@ mod tests {
             }
         }"#;
         let pact = MessagePact::from_json(
-            &s!(""),
+            &"".to_string(),
             &serde_json::from_str(pact_json).unwrap()
         ).unwrap();
         expect!(pact.specification_version).to(be_equal_to(PactSpecification::V1));
@@ -443,7 +440,7 @@ mod tests {
             }
         }"#;
         let pact = MessagePact::from_json(
-            &s!(""),
+            &"".to_string(),
             &serde_json::from_str(pact_json).unwrap()
         ).unwrap();
         expect!(pact.specification_version).to(be_equal_to(PactSpecification::Unknown));
@@ -472,7 +469,7 @@ mod tests {
             ]
         }
         "#;
-        let pact = MessagePact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
+        let pact = MessagePact::from_json(&"".to_string(), &serde_json::from_str(pact_json).unwrap());
         expect!(pact.as_ref()).to(be_ok());
         let pact = pact.unwrap();
         expect!(&pact.provider.name).to(be_equal_to("Alice Service"));
@@ -512,7 +509,7 @@ mod tests {
             ]
         }
         "#;
-        let pact = MessagePact::from_json(&s!(""), &serde_json::from_str(pact_json).unwrap());
+        let pact = MessagePact::from_json(&"".to_string(), &serde_json::from_str(pact_json).unwrap());
         expect!(pact.as_ref()).to(be_ok());
         let pact = pact.unwrap();
         let contents = pact.to_json(PactSpecification::V3);

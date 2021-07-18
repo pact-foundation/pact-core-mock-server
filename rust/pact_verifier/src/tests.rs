@@ -9,11 +9,12 @@ use serde_json::json;
 
 use pact_consumer::*;
 use pact_consumer::prelude::*;
-use pact_matching::models::*;
-use pact_matching::s;
 use pact_models::Consumer;
+use pact_models::pact::Pact;
+use pact_models::PACT_RUST_VERSION;
 use pact_models::provider_states::*;
 use pact_models::sync_interaction::RequestResponseInteraction;
+use pact_models::sync_pact::RequestResponsePact;
 
 use crate::callback_executors::HttpRequestProviderStateExecutor;
 use crate::pact_broker::Link;
@@ -29,101 +30,101 @@ fn if_no_interaction_filter_is_defined_returns_true() {
 
 #[test]
 fn if_an_interaction_filter_is_defined_returns_false_if_the_description_does_not_match() {
-  let interaction = RequestResponseInteraction { description: s!("bob"), .. RequestResponseInteraction::default() };
-  expect!(filter_interaction(&interaction, &FilterInfo::Description(s!("fred")))).to(be_false());
+  let interaction = RequestResponseInteraction { description: "bob".to_string(), .. RequestResponseInteraction::default() };
+  expect!(filter_interaction(&interaction, &FilterInfo::Description("fred".to_string()))).to(be_false());
 }
 
 #[test]
 fn if_an_interaction_filter_is_defined_returns_true_if_the_description_does_match() {
-  let interaction = RequestResponseInteraction { description: s!("bob"), .. RequestResponseInteraction::default() };
-  expect!(filter_interaction(&interaction, &FilterInfo::Description(s!("bob")))).to(be_true());
+  let interaction = RequestResponseInteraction { description: "bob".to_string(), .. RequestResponseInteraction::default() };
+  expect!(filter_interaction(&interaction, &FilterInfo::Description("bob".to_string()))).to(be_true());
 }
 
 #[test]
 fn uses_regexs_to_match_the_description() {
-  let interaction = RequestResponseInteraction { description: s!("bobby"), .. RequestResponseInteraction::default() };
-  expect!(filter_interaction(&interaction, &FilterInfo::Description(s!("bob.*")))).to(be_true());
+  let interaction = RequestResponseInteraction { description: "bobby".to_string(), .. RequestResponseInteraction::default() };
+  expect!(filter_interaction(&interaction, &FilterInfo::Description("bob.*".to_string()))).to(be_true());
 }
 
 #[test]
 fn if_an_interaction_state_filter_is_defined_returns_false_if_the_state_does_not_match() {
-  let interaction = RequestResponseInteraction { provider_states: vec![ ProviderState::default(&s!("bob")) ], .. RequestResponseInteraction::default() };
-  expect!(filter_interaction(&interaction, &FilterInfo::State(s!("fred")))).to(be_false());
+  let interaction = RequestResponseInteraction { provider_states: vec![ ProviderState::default(&"bob".to_string()) ], .. RequestResponseInteraction::default() };
+  expect!(filter_interaction(&interaction, &FilterInfo::State("fred".to_string()))).to(be_false());
 }
 
 #[test]
 fn if_an_interaction_state_filter_is_defined_returns_true_if_the_state_does_match() {
-  let interaction = RequestResponseInteraction { provider_states: vec![ ProviderState::default(&s!("bob")) ], .. RequestResponseInteraction::default() };
-  expect!(filter_interaction(&interaction, &FilterInfo::State(s!("bob")))).to(be_true());
+  let interaction = RequestResponseInteraction { provider_states: vec![ ProviderState::default(&"bob".to_string()) ], .. RequestResponseInteraction::default() };
+  expect!(filter_interaction(&interaction, &FilterInfo::State("bob".to_string()))).to(be_true());
 }
 
 #[test]
 fn uses_regexs_to_match_the_state() {
-  let interaction = RequestResponseInteraction { provider_states: vec![ ProviderState::default(&s!("bobby")) ], .. RequestResponseInteraction::default() };
-  expect!(filter_interaction(&interaction, &FilterInfo::State(s!("bob.*")))).to(be_true());
+  let interaction = RequestResponseInteraction { provider_states: vec![ ProviderState::default(&"bobby".to_string()) ], .. RequestResponseInteraction::default() };
+  expect!(filter_interaction(&interaction, &FilterInfo::State("bob.*".to_string()))).to(be_true());
 }
 
 #[test]
 fn if_the_state_filter_is_empty_returns_false_if_the_interaction_state_is_defined() {
-  let interaction = RequestResponseInteraction { provider_states: vec![ ProviderState::default(&s!("bobby")) ], .. RequestResponseInteraction::default() };
-  expect!(filter_interaction(&interaction, &FilterInfo::State(s!("")))).to(be_false());
+  let interaction = RequestResponseInteraction { provider_states: vec![ ProviderState::default(&"bobby".to_string()) ], .. RequestResponseInteraction::default() };
+  expect!(filter_interaction(&interaction, &FilterInfo::State("".to_string()))).to(be_false());
 }
 
 #[test]
 fn if_the_state_filter_is_empty_returns_true_if_the_interaction_state_is_not_defined() {
   let interaction = RequestResponseInteraction { provider_states: vec![], .. RequestResponseInteraction::default() };
-  expect!(filter_interaction(&interaction, &FilterInfo::State(s!("")))).to(be_true());
+  expect!(filter_interaction(&interaction, &FilterInfo::State("".to_string()))).to(be_true());
 }
 
 #[test]
 fn if_the_state_filter_and_interaction_filter_is_defined_must_match_both() {
-  let interaction = RequestResponseInteraction { description: s!("freddy"), provider_states: vec![ ProviderState::default(&s!("bobby")) ], .. RequestResponseInteraction::default() };
-  expect!(filter_interaction(&interaction, &FilterInfo::DescriptionAndState(s!(".*ddy"), s!("bob.*")))).to(be_true());
+  let interaction = RequestResponseInteraction { description: "freddy".to_string(), provider_states: vec![ ProviderState::default(&"bobby".to_string()) ], .. RequestResponseInteraction::default() };
+  expect!(filter_interaction(&interaction, &FilterInfo::DescriptionAndState(".*ddy".to_string(), "bob.*".to_string()))).to(be_true());
 }
 
 #[test]
 fn if_the_state_filter_and_interaction_filter_is_defined_is_false_if_the_provider_state_does_not_match() {
-  let interaction = RequestResponseInteraction { description: s!("freddy"), provider_states: vec![ ProviderState::default(&s!("boddy")) ], .. RequestResponseInteraction::default() };
-  expect!(filter_interaction(&interaction, &FilterInfo::DescriptionAndState(s!(".*ddy"), s!("bob.*")))).to(be_false());
+  let interaction = RequestResponseInteraction { description: "freddy".to_string(), provider_states: vec![ ProviderState::default(&"boddy".to_string()) ], .. RequestResponseInteraction::default() };
+  expect!(filter_interaction(&interaction, &FilterInfo::DescriptionAndState(".*ddy".to_string(), "bob.*".to_string()))).to(be_false());
 }
 
 #[test]
 fn if_the_state_filter_and_interaction_filter_is_defined_is_false_if_the_description_does_not_match() {
-  let interaction = RequestResponseInteraction { description: s!("frebby"), provider_states: vec![ ProviderState::default(&s!("bobby")) ], .. RequestResponseInteraction::default() };
-  expect!(filter_interaction(&interaction, &FilterInfo::DescriptionAndState(s!(".*ddy"), s!("bob.*")))).to(be_false());
+  let interaction = RequestResponseInteraction { description: "frebby".to_string(), provider_states: vec![ ProviderState::default(&"bobby".to_string()) ], .. RequestResponseInteraction::default() };
+  expect!(filter_interaction(&interaction, &FilterInfo::DescriptionAndState(".*ddy".to_string(), "bob.*".to_string()))).to(be_false());
 }
 
 #[test]
 fn if_the_state_filter_and_interaction_filter_is_defined_is_false_if_both_do_not_match() {
-  let interaction = RequestResponseInteraction { description: s!("joe"), provider_states: vec![ ProviderState::default(&s!("author")) ], .. RequestResponseInteraction::default() };
-  expect!(filter_interaction(&interaction, &FilterInfo::DescriptionAndState(s!(".*ddy"), s!("bob.*")))).to(be_false());
+  let interaction = RequestResponseInteraction { description: "joe".to_string(), provider_states: vec![ ProviderState::default(&"author".to_string()) ], .. RequestResponseInteraction::default() };
+  expect!(filter_interaction(&interaction, &FilterInfo::DescriptionAndState(".*ddy".to_string(), "bob.*".to_string()))).to(be_false());
 }
 
 #[test]
 fn if_no_consumer_filter_is_defined_returns_true() {
   let consumers = vec![];
-  let result = Err(s!(""));
+  let result = Err("".to_string());
   expect!(filter_consumers(&consumers, &result)).to(be_true());
 }
 
 #[test]
 fn if_a_consumer_filter_is_defined_returns_false_if_the_consumer_name_does_not_match() {
-  let consumers = vec![s!("fred"), s!("joe")];
-  let result = Ok((Box::new(RequestResponsePact { consumer: Consumer { name: s!("bob") }, .. RequestResponsePact::default() }) as Box<dyn Pact>, None, PactSource::Unknown));
+  let consumers = vec!["fred".to_string(), "joe".to_string()];
+  let result = Ok((Box::new(RequestResponsePact { consumer: Consumer { name: "bob".to_string() }, .. RequestResponsePact::default() }) as Box<dyn Pact>, None, PactSource::Unknown));
   expect!(filter_consumers(&consumers, &result)).to(be_false());
 }
 
 #[test]
 fn if_a_consumer_filter_is_defined_returns_true_if_the_result_is_an_error() {
-  let consumers = vec![s!("fred"), s!("joe")];
-  let result = Err(s!(""));
+  let consumers = vec!["fred".to_string(), "joe".to_string()];
+  let result = Err("".to_string());
   expect!(filter_consumers(&consumers, &result)).to(be_true());
 }
 
 #[test]
 fn if_a_consumer_filter_is_defined_returns_true_if_the_consumer_name_does_match() {
-  let consumers = vec![s!("fred"), s!("joe"), s!("bob")];
-  let result = Ok((Box::new(RequestResponsePact { consumer: Consumer { name: s!("bob") }, .. RequestResponsePact::default() }) as Box<dyn Pact>, None, PactSource::Unknown));
+  let consumers = vec!["fred".to_string(), "joe".to_string(), "bob".to_string()];
+  let result = Ok((Box::new(RequestResponsePact { consumer: Consumer { name: "bob".to_string() }, .. RequestResponsePact::default() }) as Box<dyn Pact>, None, PactSource::Unknown));
   expect!(filter_consumers(&consumers, &result)).to(be_true());
 }
 
@@ -142,10 +143,10 @@ async fn test_state_change_with_parameters() {
     .start_mock_server();
 
   let provider_state = ProviderState {
-    name: s!("TestState"),
+    name: "TestState".to_string(),
     params: hashmap!{
-        s!("A") => json!("1"),
-        s!("B") => json!("2")
+        "A".to_string() => json!("1"),
+        "B".to_string() => json!("2")
       }
   };
 
@@ -178,10 +179,10 @@ async fn test_state_change_with_parameters_in_query() {
     .start_mock_server();
 
   let provider_state = ProviderState {
-    name: s!("TestState"),
+    name: "TestState".to_string(),
     params: hashmap!{
-        s!("A") => json!("1"),
-        s!("B") => json!("2")
+        "A".to_string() => json!("1"),
+        "B".to_string() => json!("2")
       }
   };
 
@@ -214,7 +215,7 @@ async fn test_state_change_returning_json_values() {
     .start_mock_server();
 
   let provider_state = ProviderState {
-    name: s!("TestState"),
+    name: "TestState".to_string(),
     params: hashmap!{}
   };
 

@@ -1,17 +1,20 @@
 //! Support for mock HTTP servers that verify pacts.
 
-use pact_matching::models::*;
-use pact_mock_server::matching::MatchResult;
-use pact_mock_server::*;
 use std::{
-    env,
-    fmt::Write as FmtWrite,
-    io::{self, prelude::*},
-    thread,
+  env,
+  fmt::Write as FmtWrite,
+  io::{self, prelude::*},
+  thread,
 };
+use std::sync::{Arc, Mutex};
+
 use url::Url;
+
+use pact_mock_server::*;
+use pact_mock_server::matching::MatchResult;
 use pact_mock_server::mock_server::{MockServerConfig, MockServerMetrics};
-use std::sync::{Mutex, Arc};
+use pact_models::pact::Pact;
+use pact_models::sync_pact::RequestResponsePact;
 
 /// This trait is implemented by types which allow us to start a mock server.
 pub trait StartMockServer {

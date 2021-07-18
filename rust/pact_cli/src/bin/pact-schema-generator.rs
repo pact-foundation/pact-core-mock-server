@@ -9,8 +9,8 @@ use log::*;
 use serde_json::{json, to_string_pretty};
 
 use pact_cli::setup_loggers;
-use pact_matching::models::RequestResponsePact;
 use pact_models::PactSpecification;
+use pact_models::sync_pact::RequestResponsePact;
 
 fn setup_app<'a, 'b>(program: &str, version: &'b str) -> App<'a, 'b> {
   App::new(program)

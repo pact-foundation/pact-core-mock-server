@@ -7,11 +7,11 @@ use std::sync::Mutex;
 use lazy_static::*;
 use maplit::*;
 
-use pact_matching::models::message_pact::MessagePact;
-use pact_matching::models::RequestResponsePact;
 use pact_models::{Consumer, Provider};
 use pact_models::message::Message;
+use pact_models::message_pact::MessagePact;
 use pact_models::sync_interaction::RequestResponseInteraction;
+use pact_models::sync_pact::RequestResponsePact;
 
 #[derive(Debug, Clone)]
 /// Pact handle inner struct

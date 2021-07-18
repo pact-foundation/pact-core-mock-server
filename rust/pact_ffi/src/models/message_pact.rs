@@ -1,15 +1,16 @@
 //! FFI wrapper for `MessagePact` from pact_matching.
 
-use crate::util::*;
-use crate::{as_mut, as_ref, ffi_fn, safe_str};
-use anyhow::{anyhow, Context};
-use libc::c_char;
 use std::iter::{self, Iterator};
 
-// Necessary to make 'cbindgen' generate an opaque struct on the C side.
-use crate::models::message::Message;
-pub use pact_matching::models::message_pact::MessagePact;
+use anyhow::{anyhow, Context};
+use libc::c_char;
+
 use pact_models::{Consumer, Provider};
+use pact_models::message::Message;
+use pact_models::message_pact::MessagePact;
+
+use crate::{as_mut, as_ref, ffi_fn, safe_str};
+use crate::util::*;
 
 ffi_fn! {
     /// Construct a new `MessagePact` from the JSON string.

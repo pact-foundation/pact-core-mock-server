@@ -10,9 +10,9 @@ use maplit::*;
 use reqwest::Client;
 use serde_json::Value;
 
-use pact_consumer::prelude::*;
 use pact_consumer::*;
-use pact_matching::models::read_pact;
+use pact_consumer::prelude::*;
+use pact_models::pact::read_pact;
 use pact_models::provider_states::ProviderState;
 use pact_verifier::{FilterInfo, NullRequestFilterExecutor, ProviderInfo, VerificationOptions, verify_pact_internal};
 use pact_verifier::callback_executors::{ProviderStateError, ProviderStateExecutor};

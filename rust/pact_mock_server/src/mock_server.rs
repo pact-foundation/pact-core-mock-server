@@ -14,8 +14,9 @@ use rustls::ServerConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use pact_matching::models::{Pact, RequestResponsePact, write_pact};
+use pact_models::pact::{Pact, write_pact};
 use pact_models::request::Request;
+use pact_models::sync_pact::RequestResponsePact;
 
 use crate::hyper_server;
 use crate::matching::MatchResult;

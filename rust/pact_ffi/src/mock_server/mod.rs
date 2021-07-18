@@ -66,7 +66,6 @@ use serde_json::Value;
 use uuid::Uuid;
 
 use pact_matching::logging::fetch_buffer_contents;
-use pact_matching::models::Pact;
 use pact_mock_server::{MANAGER, MockServerError, tls::TlsConfigBuilder, WritePactFileErr};
 use pact_mock_server::server_manager::ServerManager;
 use pact_models::bodies::OptionalBody::{Null, Present};
@@ -77,6 +76,7 @@ use pact_models::http_parts::HttpPart;
 use pact_models::json_utils::json_to_string;
 use pact_models::matchingrules::{MatchingRule, MatchingRules, RuleLogic};
 use pact_models::message::Message;
+use pact_models::pact::{Pact, write_pact};
 use pact_models::provider_states::ProviderState;
 use pact_models::sync_interaction::RequestResponseInteraction;
 use pact_models::time_utils::{parse_pattern, to_chrono_pattern};
@@ -1291,7 +1291,7 @@ pub extern fn pactffi_message_reify(message: handles::MessageHandle) -> *const c
 pub extern fn pactffi_write_message_pact_file(pact: handles::MessagePactHandle, directory: *const c_char, overwrite: bool) -> i32 {
   let result = pact.with_pact(&|_, inner| {
     let filename = path_from_dir(directory, Some(inner.default_file_name().as_str()));
-    pact_matching::models::write_pact(inner.boxed(), &filename.unwrap(), inner.specification_version(), overwrite)
+    write_pact(inner.boxed(), &filename.unwrap(), inner.specification_version(), overwrite)
   });
 
   match result {

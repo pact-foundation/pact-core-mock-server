@@ -159,3 +159,15 @@ pub fn message_interaction_from_json(source: &str, json: &Value, spec: &PactSpec
     _ => Message::from_json(0, json, spec).map(|i| i.boxed())
   }
 }
+
+pub(crate) fn parse_interactions(pact_json: &Value, spec_version: PactSpecification) -> Vec<RequestResponseInteraction> {
+  match pact_json.get("interactions") {
+    Some(v) => match *v {
+      Value::Array(ref array) => array.iter().enumerate().map(|(index, ijson)| {
+        RequestResponseInteraction::from_json(index, ijson, &spec_version)
+      }).collect(),
+      _ => vec![]
+    },
+    None => vec![]
+  }
+}

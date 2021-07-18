@@ -62,7 +62,7 @@
 //! server.
 //!
 //! ```rust
-//! # use pact_matching::models::Pact;
+//! # use pact_models::pact::Pact;
 //! # use std::io::Read;
 //! # use pact_consumer::prelude::*;
 //! # let alice_service = PactBuilder::new("Consumer", "Alice Service")

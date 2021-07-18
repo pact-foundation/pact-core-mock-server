@@ -1,11 +1,12 @@
 use std::path::Path;
 
 use clap::ArgMatches;
+use itertools::Itertools;
 use log::*;
 use serde_json::Value;
-use itertools::Itertools;
 
-use pact_matching::models::{ReadWritePact, Pact, RequestResponsePact};
+use pact_models::pact::{Pact, ReadWritePact};
+use pact_models::sync_pact::RequestResponsePact;
 
 use crate::handle_error;
 

@@ -15,9 +15,11 @@ use serde_with::skip_serializing_none;
 use tokio::time::{Duration, sleep};
 
 use pact_matching::Mismatch;
-use pact_matching::models::{Pact, PACT_RUST_VERSION, RequestResponsePact};
-use pact_matching::models::message_pact::MessagePact;
 use pact_models::http_utils::HttpAuth;
+use pact_models::message_pact::MessagePact;
+use pact_models::pact::Pact;
+use pact_models::PACT_RUST_VERSION;
+use pact_models::sync_pact::RequestResponsePact;
 
 use crate::MismatchResult;
 

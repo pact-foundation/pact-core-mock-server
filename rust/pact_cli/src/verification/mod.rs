@@ -5,9 +5,11 @@ use log::error;
 use serde::Serialize;
 use serde_json::Value;
 
-use pact_matching::models::{determine_spec_version, MessagePact, parse_meta_data, RequestResponsePact};
-use pact_matching::models::v4::V4Pact;
+use pact_models::message_pact::MessagePact;
+use pact_models::pact::{determine_spec_version, parse_meta_data};
 use pact_models::PactSpecification;
+use pact_models::sync_pact::RequestResponsePact;
+use pact_models::v4::pact::V4Pact;
 use pact_models::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerifier, ResultLevel};
 
 #[derive(Debug, Clone, Serialize)]

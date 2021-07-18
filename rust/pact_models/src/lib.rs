@@ -33,6 +33,13 @@ pub mod headers;
 pub mod interaction;
 pub mod sync_interaction;
 pub mod message;
+pub mod pact;
+pub mod sync_pact;
+pub mod message_pact;
+
+
+/// Version of the library
+pub const PACT_RUST_VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
 
 /// Enum defining the pact specification versions supported by the library
 #[repr(C)]

@@ -11,8 +11,8 @@ use reqwest::Client;
 
 use pact_consumer::{json_pattern, json_pattern_internal};
 use pact_consumer::prelude::*;
-use pact_matching::models::ReadWritePact;
-use pact_matching::models::RequestResponsePact;
+use pact_models::pact::ReadWritePact;
+use pact_models::sync_pact::RequestResponsePact;
 
 /// This is supposed to be a doctest in mod, but it's breaking there, so
 /// we have an executable copy here.
