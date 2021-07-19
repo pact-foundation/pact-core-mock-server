@@ -355,7 +355,8 @@ use pact_models::generators::{apply_generators, GenerateValue, GeneratorCategory
 use pact_models::http_parts::HttpPart;
 use pact_models::interaction::Interaction;
 use pact_models::json_utils::json_to_string;
-use pact_models::matchingrules::{calc_path_weight, Category, MatchingRule, MatchingRuleCategory, path_length, RuleList};
+use pact_models::matchingrules::{Category, MatchingRule, MatchingRuleCategory, RuleList};
+use pact_models::path_exp::{calc_path_weight, path_length};
 use pact_models::PactSpecification;
 use pact_models::request::Request;
 use pact_models::response::Response;
