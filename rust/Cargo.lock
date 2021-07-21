@@ -1013,8 +1013,8 @@ dependencies = [
  "glob",
  "log",
  "maplit",
- "pact_matching 0.9.5",
- "pact_models 0.0.6",
+ "pact_matching",
+ "pact_models",
  "serde",
  "serde_json",
  "simplelog 0.10.0",
@@ -1033,9 +1033,9 @@ dependencies = [
  "libc",
  "log",
  "maplit",
- "pact_matching 0.9.5",
- "pact_mock_server 0.7.20",
- "pact_models 0.0.6",
+ "pact_matching",
+ "pact_mock_server",
+ "pact_models",
  "quickcheck",
  "regex",
  "reqwest",
@@ -1066,9 +1066,9 @@ dependencies = [
  "multipart",
  "onig",
  "os_info",
- "pact_matching 0.9.5",
- "pact_mock_server 0.7.20",
- "pact_models 0.0.6",
+ "pact_matching",
+ "pact_mock_server",
+ "pact_models",
  "pact_verifier",
  "quickcheck",
  "rand 0.8.4",
@@ -1082,40 +1082,6 @@ dependencies = [
  "tokio",
  "uuid",
  "zeroize",
-]
-
-[[package]]
-name = "pact_matching"
-version = "0.9.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "097b1faebae5c39003ef5bba9ca32a820961da5bc0fd68e34200ad4cf58bcefa"
-dependencies = [
- "ansi_term 0.12.1",
- "anyhow",
- "base64",
- "bytes",
- "chrono",
- "difference",
- "hex",
- "http",
- "itertools",
- "lazy_static",
- "lenient_semver",
- "log",
- "maplit",
- "mime",
- "multipart",
- "nom",
- "onig",
- "pact_models 0.0.5",
- "rand 0.8.4",
- "semver 0.11.0",
- "serde",
- "serde_json",
- "sxd-document",
- "tokio",
- "tree_magic_mini",
- "uuid",
 ]
 
 [[package]]
@@ -1143,7 +1109,7 @@ dependencies = [
  "nom",
  "ntest",
  "onig",
- "pact_models 0.0.6",
+ "pact_models",
  "pretty_assertions",
  "quickcheck",
  "rand 0.8.4",
@@ -1155,32 +1121,6 @@ dependencies = [
  "test-env-log",
  "tokio",
  "tree_magic_mini",
- "uuid",
-]
-
-[[package]]
-name = "pact_mock_server"
-version = "0.7.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99607f61a3809f2d927f15fb2c6af1541da0b00b3f5600024e4c39d24a3f20d5"
-dependencies = [
- "anyhow",
- "bytes",
- "futures",
- "hyper",
- "hyper-rustls",
- "itertools",
- "lazy_static",
- "log",
- "maplit",
- "pact_matching 0.9.4",
- "pact_models 0.0.5",
- "rustls",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "tokio-rustls",
  "uuid",
 ]
 
@@ -1199,8 +1139,8 @@ dependencies = [
  "lazy_static",
  "log",
  "maplit",
- "pact_matching 0.9.5",
- "pact_models 0.0.6",
+ "pact_matching",
+ "pact_models",
  "quickcheck",
  "reqwest",
  "rustls",
@@ -1228,9 +1168,9 @@ dependencies = [
  "libc",
  "log",
  "maplit",
- "pact_matching 0.9.4",
- "pact_mock_server 0.7.19",
- "pact_models 0.0.5",
+ "pact_matching",
+ "pact_mock_server",
+ "pact_models",
  "quickcheck",
  "rand 0.8.4",
  "regex",
@@ -1241,40 +1181,6 @@ dependencies = [
  "url",
  "uuid",
  "webmachine-rust",
-]
-
-[[package]]
-name = "pact_models"
-version = "0.0.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23010ccd15fedbfaf3a12cc0de804b66029ca749910dcc67fc5a3c28c40aa55a"
-dependencies = [
- "anyhow",
- "base64",
- "bytes",
- "chrono",
- "chrono-tz",
- "fs2",
- "hex",
- "indextree",
- "itertools",
- "lazy_static",
- "lenient_semver",
- "log",
- "maplit",
- "mime",
- "nom",
- "onig",
- "parse-zoneinfo",
- "rand 0.8.4",
- "rand_regex",
- "regex",
- "regex-syntax",
- "reqwest",
- "serde",
- "serde_json",
- "sxd-document",
- "uuid",
 ]
 
 [[package]]
@@ -1337,9 +1243,9 @@ dependencies = [
  "maplit",
  "mime",
  "pact_consumer",
- "pact_matching 0.9.5",
- "pact_mock_server 0.7.20",
- "pact_models 0.0.6",
+ "pact_matching",
+ "pact_mock_server",
+ "pact_models",
  "quickcheck",
  "regex",
  "reqwest",
