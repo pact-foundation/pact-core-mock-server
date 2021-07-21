@@ -125,7 +125,8 @@ impl RequestResponsePact {
   }
 
   /// Creates a `Pact` from a `Value` struct.
-  pub fn from_json(file: &str, pact_json: &Value) -> RequestResponsePact {
+  pub fn from_json(file: &str, pact_json: &Value
+  ) -> anyhow::Result<RequestResponsePact> {
     let metadata = parse_meta_data(pact_json);
     let spec_version = determine_spec_version(file, &metadata);
 
@@ -137,13 +138,13 @@ impl RequestResponsePact {
       Some(v) => Provider::from_json(v),
       None => Provider { name: "provider".to_string() }
     };
-    RequestResponsePact {
+    Ok(RequestResponsePact {
       consumer,
       provider,
-      interactions: parse_interactions(pact_json, spec_version.clone()),
+      interactions: parse_interactions(pact_json, spec_version.clone())?,
       metadata,
-      specification_version: spec_version
-    }
+      specification_version: spec_version,
+    })
   }
 
   /// Creates a BTreeMap of the metadata of this pact.
@@ -167,8 +168,10 @@ impl RequestResponsePact {
   }
 
   /// Reads the pact file from a URL and parses the resulting JSON into a `Pact` struct
-  pub fn from_url(url: &str, auth: &Option<HttpAuth>) -> anyhow::Result<RequestResponsePact> {
-    http_utils::fetch_json_from_url(&url.to_string(), auth).map(|(ref url, ref json)| RequestResponsePact::from_json(url, json))
+  pub fn from_url(url: &str, auth: &Option<HttpAuth>
+  ) -> anyhow::Result<RequestResponsePact> {
+    let (url, json) = http_utils::fetch_json_from_url(&url.to_string(), auth)?;
+    RequestResponsePact::from_json(&url, &json)
   }
 
   /// Returns a default RequestResponsePact struct
@@ -223,7 +226,7 @@ impl ReadWritePact for RequestResponsePact {
     with_read_lock(path, 3, &mut |f| {
       let pact_json = serde_json::from_reader(f)
         .context("Failed to parse Pact JSON")?;
-      Ok(RequestResponsePact::from_json(&format!("{:?}", path), &pact_json))
+      RequestResponsePact::from_json(&format!("{:?}", path), &pact_json)
     })
   }
 

@@ -629,7 +629,8 @@ impl Generators {
   }
 
   /// Loads the generators for a JSON map
-  pub fn load_from_map(&mut self, map: &serde_json::Map<String, Value>) {
+  pub fn load_from_map(&mut self, map: &serde_json::Map<String, Value>
+  ) -> anyhow::Result<()> {
     for (k, v) in map {
       match v {
         &Value::Object(ref map) =>  match GeneratorCategory::from_str(k) {
@@ -649,6 +650,7 @@ impl Generators {
         _ => log::warn!("Ignoring invalid generator JSON '{}' -> {:?}", k, v)
       }
     }
+    Ok(())
   }
 
   pub(crate) fn parse_generator_from_map(&mut self, category: &GeneratorCategory,
@@ -755,19 +757,19 @@ pub fn apply_generators<F>(
 }
 
 /// Parses the generators from the Value structure
-pub fn generators_from_json(value: &Value) -> Generators {
+pub fn generators_from_json(value: &Value) -> anyhow::Result<Generators> {
   let mut generators = Generators::default();
   match value {
     &Value::Object(ref m) => match m.get("generators") {
       Some(gen_val) => match gen_val {
-        &Value::Object(ref m) => generators.load_from_map(m),
+        &Value::Object(ref m) => generators.load_from_map(m)?,
         _ => ()
       },
       None => ()
     },
     _ => ()
   }
-  generators
+  Ok(generators)
 }
 
 /// Generates a Value structure for the provided generators
@@ -1298,7 +1300,8 @@ mod tests {
 
   #[test]
   fn matchers_from_json_test() {
-    expect!(generators_from_json(&Value::Null).categories.iter()).to(be_empty());
+    let generators = generators_from_json(&Value::Null);
+    expect!(generators.unwrap().categories.iter()).to(be_empty());
   }
 
   #[test]

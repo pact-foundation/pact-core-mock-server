@@ -128,7 +128,8 @@ impl Default for Request {
 
 impl Request {
   /// Builds a `Request` from a `Value` struct.
-  pub fn from_json(request_json: &Value, spec_version: &PactSpecification) -> Request {
+  pub fn from_json(request_json: &Value, spec_version: &PactSpecification
+  ) -> anyhow::Result<Request> {
     let method_val = match request_json.get("method") {
       Some(v) => match *v {
         Value::String(ref s) => s.to_uppercase(),
@@ -151,15 +152,15 @@ impl Request {
       None => None
     };
     let headers = headers_from_json(request_json);
-    Request {
+    Ok(Request {
       method: method_val,
       path: path_val,
       query: query_val,
       headers: headers.clone(),
       body: body_from_json(request_json, "body", &headers),
-      matching_rules: matchers_from_json(request_json, &Some("requestMatchingRules".to_string())),
-      generators: generators_from_json(request_json)
-    }
+      matching_rules: matchers_from_json(request_json, &Some("requestMatchingRules".to_string()))?,
+      generators: generators_from_json(request_json)?,
+    })
   }
 
   /// Converts this `Request` to a `Value` struct.
@@ -279,7 +280,7 @@ mod tests {
       }
      "#).unwrap();
     let request = Request::from_json(&request_json, &PactSpecification::V1);
-    expect!(request.method).to(be_equal_to("GET"));
+    expect!(request.unwrap().method).to(be_equal_to("GET"));
   }
 
   #[test]
@@ -293,7 +294,7 @@ mod tests {
      "#).unwrap();
     println!("request_json: {}", request_json);
     let request = Request::from_json(&request_json, &PactSpecification::V1_1);
-    assert_eq!(request.path, "/".to_string());
+    assert_eq!(request.unwrap().path, "/".to_string());
   }
 
   #[test]

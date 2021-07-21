@@ -9,6 +9,7 @@ use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 
 #[cfg(test)] use expectest::prelude::*;
+use anyhow::{anyhow, Context as _};
 use log::*;
 use maplit::hashmap;
 use serde::{Deserialize, Serialize};
@@ -65,65 +66,68 @@ pub enum MatchingRule {
 impl MatchingRule {
 
   /// Builds a `MatchingRule` from a `Value` struct
-  pub fn from_json(value: &Value) -> Option<MatchingRule> {
+  pub fn from_json(value: &Value) -> anyhow::Result<MatchingRule> {
     match value {
       Value::Object(m) => match m.get("match") {
         Some(value) => {
           let val = json_to_string(value);
           match val.as_str() {
             "regex" => match m.get(&val) {
-              Some(s) => Some(MatchingRule::Regex(json_to_string(s))),
-              None => None
+              Some(s) => Ok(MatchingRule::Regex(json_to_string(s))),
+              None => Err(anyhow!("Regex matcher missing 'regex' field")),
             },
-            "equality" => Some(MatchingRule::Equality),
+            "equality" => Ok(MatchingRule::Equality),
             "include" => match m.get("value") {
-              Some(s) => Some(MatchingRule::Include(json_to_string(s))),
-              None => None
+              Some(s) => Ok(MatchingRule::Include(json_to_string(s))),
+              None => Err(anyhow!("Include matcher missing 'value' field")),
             },
             "type" => match (json_to_num(m.get("min").cloned()), json_to_num(m.get("max").cloned())) {
-              (Some(min), Some(max)) => Some(MatchingRule::MinMaxType(min, max)),
-              (Some(min), None) => Some(MatchingRule::MinType(min)),
-              (None, Some(max)) => Some(MatchingRule::MaxType(max)),
-              _ => Some(MatchingRule::Type)
+              (Some(min), Some(max)) => Ok(MatchingRule::MinMaxType(min, max)),
+              (Some(min), None) => Ok(MatchingRule::MinType(min)),
+              (None, Some(max)) => Ok(MatchingRule::MaxType(max)),
+              _ => Ok(MatchingRule::Type)
             },
-            "number" => Some(MatchingRule::Number),
-            "integer" => Some(MatchingRule::Integer),
-            "decimal" => Some(MatchingRule::Decimal),
-            "real" => Some(MatchingRule::Decimal),
-            "boolean" => Some(MatchingRule::Boolean),
+            "number" => Ok(MatchingRule::Number),
+            "integer" => Ok(MatchingRule::Integer),
+            "decimal" => Ok(MatchingRule::Decimal),
+            "real" => Ok(MatchingRule::Decimal),
+            "boolean" => Ok(MatchingRule::Boolean),
             "min" => match json_to_num(m.get(&val).cloned()) {
-              Some(min) => Some(MatchingRule::MinType(min)),
-              None => None
+              Some(min) => Ok(MatchingRule::MinType(min)),
+              None => Err(anyhow!("Min matcher missing 'min' field")),
             },
             "max" => match json_to_num(m.get(&val).cloned()) {
-              Some(max) => Some(MatchingRule::MaxType(max)),
-              None => None
+              Some(max) => Ok(MatchingRule::MaxType(max)),
+              None => Err(anyhow!("Max matcher missing 'max' field")),
             },
             "timestamp" => match m.get("format").or_else(|| m.get(&val)) {
-              Some(s) => Some(MatchingRule::Timestamp(json_to_string(s))),
-              None => None
+              Some(s) => Ok(MatchingRule::Timestamp(json_to_string(s))),
+              None => Err(anyhow!("Timestamp matcher missing 'timestamp' or 'format' field")),
             },
             "date" => match m.get("format").or_else(|| m.get(&val)) {
-              Some(s) => Some(MatchingRule::Date(json_to_string(s))),
-              None => None
+              Some(s) => Ok(MatchingRule::Date(json_to_string(s))),
+              None => Err(anyhow!("Date matcher missing 'date' or 'format' field")),
             },
             "time" => match m.get("format").or_else(|| m.get(&val)) {
-              Some(s) => Some(MatchingRule::Time(json_to_string(s))),
-              None => None
+              Some(s) => Ok(MatchingRule::Time(json_to_string(s))),
+              None => Err(anyhow!("Time matcher missing 'time' or 'format' field")),
             },
-            "null" => Some(MatchingRule::Null),
+            "null" => Ok(MatchingRule::Null),
             "contentType" => match m.get("value") {
-              Some(s) => Some(MatchingRule::ContentType(json_to_string(s))),
-              None => None
+              Some(s) => Ok(MatchingRule::ContentType(json_to_string(s))),
+              None => Err(anyhow!("ContentType matcher missing 'value' field")),
             },
             "arrayContains" => match m.get("variants") {
               Some(variants) => match variants {
                 Value::Array(variants) => {
-                  let values = variants.iter().map(|variant| {
+                  let mut values = Vec::new();
+                  for variant in variants {
                     let index = json_to_num(variant.get("index").cloned()).unwrap_or_default();
                     let mut category = MatchingRuleCategory::empty("body");
                     if let Some(rules) = variant.get("rules") {
-                      category.add_rules_from_json(rules);
+                      category.add_rules_from_json(rules)
+                        .with_context(||
+                          format!("Unable to parse matching rules: {:?}", rules))?;
                     } else {
                       category.add_rule("", MatchingRule::Equality, &RuleLogic::And);
                     }
@@ -141,45 +145,43 @@ impl MatchingRule {
                     } else {
                       HashMap::default()
                     };
-                    (index, category, generators)
-                  }).collect();
-                  Some(MatchingRule::ArrayContains(values))
+                    values.push((index, category, generators));
+                  }
+                  Ok(MatchingRule::ArrayContains(values))
                 }
-                _ => None
+                _ => Err(anyhow!("ArrayContains matcher 'variants' field is not an Array")),
               }
-              None => None
+              None => Err(anyhow!("ArrayContains matcher missing 'variants' field")),
             }
-            "values" => Some(MatchingRule::Values),
+            "values" => Ok(MatchingRule::Values),
             "statusCode" => match m.get("status") {
-              Some(s) => match HttpStatus::from_json(s) {
-                Ok(status) => Some(MatchingRule::StatusCode(status)),
-                Err(err) => {
-                  error!("Failed to parse status code matcher = {}", err);
-                  None
-                }
+              Some(s) => {
+                let status = HttpStatus::from_json(s)
+                  .context("Unable to parse status code for StatusCode matcher")?;
+                Ok(MatchingRule::StatusCode(status))
               },
-              None => Some(MatchingRule::StatusCode(HttpStatus::Success))
+              None => Ok(MatchingRule::StatusCode(HttpStatus::Success))
             },
-            _ => None
+            _ => Err(anyhow!("StatusCode matcher missing 'status' field")),
           }
         },
         None => if let Some(val) = m.get("regex") {
-          Some(MatchingRule::Regex(json_to_string(val)))
+          Ok(MatchingRule::Regex(json_to_string(val)))
         } else if let Some(val) = json_to_num(m.get("min").cloned()) {
-          Some(MatchingRule::MinType(val))
+          Ok(MatchingRule::MinType(val))
         } else if let Some(val) = json_to_num(m.get("max").cloned()) {
-          Some(MatchingRule::MaxType(val))
+          Ok(MatchingRule::MaxType(val))
         } else if let Some(val) = m.get("timestamp") {
-          Some(MatchingRule::Timestamp(json_to_string(val)))
+          Ok(MatchingRule::Timestamp(json_to_string(val)))
         } else if let Some(val) = m.get("time") {
-          Some(MatchingRule::Time(json_to_string(val)))
+          Ok(MatchingRule::Time(json_to_string(val)))
         } else if let Some(val) = m.get("date") {
-          Some(MatchingRule::Date(json_to_string(val)))
+          Ok(MatchingRule::Date(json_to_string(val)))
         } else {
-          None
+          Err(anyhow!("Matching rule missing 'match' field and unable to guess its type"))
         }
       },
-      _ => None
+      _ => Err(anyhow!("Matching rule JSON is not an Object")),
     }
   }
 
@@ -758,14 +760,19 @@ impl MatchingRuleCategory {
   }
 
   /// Adds a rule from the Value representation
-  pub fn rule_from_json(&mut self, key: &str, matcher_json: &Value, rule_logic: &RuleLogic) {
-    match MatchingRule::from_json(matcher_json) {
-      Some(matching_rule) => {
-        let rules = self.rules.entry(key.to_string()).or_insert_with(|| RuleList::empty(rule_logic));
-        rules.rules.push(matching_rule);
-      },
-      None => log::warn!("Could not parse matcher {:?}", matcher_json)
-    }
+  pub fn rule_from_json(
+    &mut self,
+    key: &str,
+    matcher_json: &Value,
+    rule_logic: &RuleLogic,
+  ) -> anyhow::Result<()> {
+    let matching_rule = MatchingRule::from_json(matcher_json)
+      .with_context(|| format!("Could not parse matcher JSON {:?}", matcher_json))?;
+
+    let rules = self.rules.entry(key.to_string())
+      .or_insert_with(|| RuleList::empty(rule_logic));
+    rules.rules.push(matching_rule);
+    Ok(())
   }
 
   /// Adds a rule to this category
@@ -862,7 +869,7 @@ impl MatchingRuleCategory {
   }
 
   /// Adds the rules to the category from the provided JSON
-  pub fn add_rules_from_json(&mut self, rules: &Value) {
+  pub fn add_rules_from_json(&mut self, rules: &Value) -> anyhow::Result<()> {
     if self.name == Category::PATH && rules.get("matchers").is_some() {
       let rule_logic = match rules.get("combine") {
         Some(val) => if json_to_string(val).to_uppercase() == "OR" {
@@ -875,22 +882,23 @@ impl MatchingRuleCategory {
       if let Some(matchers) = rules.get("matchers") {
         if let Value::Array(array) = matchers {
           for matcher in array {
-            self.rule_from_json("", &matcher, &rule_logic)
+            self.rule_from_json("", &matcher, &rule_logic)?;
           }
         }
       }
     } else if let Value::Object(m) = rules {
       if m.contains_key("matchers") {
-        self.add_rule_list("", rules);
+        self.add_rule_list("", rules)?;
       } else {
         for (k, v) in m {
-          self.add_rule_list(k, v);
+          self.add_rule_list(k, v)?;
         }
       }
     }
+    Ok(())
   }
 
-  fn add_rule_list(&mut self, k: &str, v: &Value) {
+  fn add_rule_list(&mut self, k: &str, v: &Value) -> anyhow::Result<()> {
     let rule_logic = match v.get("combine") {
       Some(val) => if json_to_string(val).to_uppercase() == "OR" {
         RuleLogic::Or
@@ -899,15 +907,12 @@ impl MatchingRuleCategory {
       },
       None => RuleLogic::And
     };
-    match v.get("matchers") {
-      Some(matchers) => match matchers {
-        &Value::Array(ref array) => for matcher in array {
-          self.rule_from_json(k, &matcher, &rule_logic)
-        },
-        _ => ()
-      },
-      None => ()
+    if let Some(&Value::Array(ref array)) = v.get("matchers") {
+      for matcher in array {
+        self.rule_from_json(k, &matcher, &rule_logic)?;
+      }
     }
+    Ok(())
   }
 
   /// Returns any generators associated with these matching rules
@@ -1069,38 +1074,48 @@ impl MatchingRules {
     }
   }
 
-  fn load_from_v2_map(&mut self, map: &serde_json::Map<String, Value>) {
+  fn load_from_v2_map(&mut self, map: &serde_json::Map<String, Value>
+  ) -> anyhow::Result<()> {
     for (key, v) in map {
       let path = key.split('.').collect::<Vec<&str>>();
       if key.starts_with("$.body") {
         if key == "$.body" {
-          self.add_v2_rule("body", "$", v);
+          self.add_v2_rule("body", "$", v)?;
         } else {
-          self.add_v2_rule("body", &("$".to_owned() + &key[6..]), v);
+          self.add_v2_rule("body", &("$".to_owned() + &key[6..]), v)?;
         }
       } else if key.starts_with("$.headers") {
-        self.add_v2_rule("header", path[2], v);
+        self.add_v2_rule("header", path[2], v)?;
       } else {
-        self.add_v2_rule(path[1], if path.len() > 2 { path[2] } else { "" }, v);
+        self.add_v2_rule(path[1], if path.len() > 2 { path[2] } else { "" }, v)?;
       }
     }
+    Ok(())
   }
 
-  fn load_from_v3_map(&mut self, map: &serde_json::Map<String, Value>) {
+  fn load_from_v3_map(&mut self, map: &serde_json::Map<String, Value>
+  ) -> anyhow::Result<()> {
     for (k, v) in map {
-      self.add_rules(k, v);
+      self.add_rules(k, v)?;
     }
+    Ok(())
   }
 
-  fn add_rules<S: Into<String>>(&mut self, category_name: S, rules: &Value) {
+  fn add_rules<S: Into<String>>(&mut self, category_name: S, rules: &Value
+  ) -> anyhow::Result<()> {
     let category = self.add_category(category_name.into());
     category.add_rules_from_json(rules)
   }
 
-  fn add_v2_rule<S: Into<String>>(&mut self, category_name: S, sub_category: S, rule: &Value) {
+  fn add_v2_rule<S: Into<String>>(
+    &mut self,
+    category_name: S,
+    sub_category: S,
+    rule: &Value,
+  ) -> anyhow::Result<()> {
     let category = self.add_category(category_name.into());
     let sub = sub_category.into();
-    category.rule_from_json(sub.as_str(), rule, &RuleLogic::And);
+    category.rule_from_json(sub.as_str(), rule, &RuleLogic::And)
   }
 
   fn to_v3_json(&self) -> Value {
@@ -1171,7 +1186,8 @@ impl Default for MatchingRules {
 }
 
 /// Parses the matching rules from the Value structure
-pub fn matchers_from_json(value: &Value, deprecated_name: &Option<String>) -> MatchingRules {
+pub fn matchers_from_json(value: &Value, deprecated_name: &Option<String>
+) -> anyhow::Result<MatchingRules> {
   let matchers_json = match (value.get("matchingRules"), deprecated_name.clone().and_then(|name| value.get(&name))) {
     (Some(v), _) => Some(v),
     (None, Some(v)) => Some(v),
@@ -1183,16 +1199,16 @@ pub fn matchers_from_json(value: &Value, deprecated_name: &Option<String>) -> Ma
     Some(value) => match value {
       &Value::Object(ref m) => {
         if m.keys().next().unwrap_or(&String::default()).starts_with("$") {
-          matching_rules.load_from_v2_map(m)
+          matching_rules.load_from_v2_map(m)?
         } else {
-          matching_rules.load_from_v3_map(m)
+          matching_rules.load_from_v3_map(m)?
         }
       },
       _ => ()
     },
     None => ()
   }
-  matching_rules
+  Ok(matching_rules)
 }
 
 /// Generates a Value structure for the provided matching rules
@@ -1306,7 +1322,9 @@ mod tests {
 
   #[test]
   fn matchers_from_json_test() {
-    expect!(matchers_from_json(&Value::Null, &None).rules.iter()).to(be_empty());
+    let matching_rules = matchers_from_json(&Value::Null, &None);
+    let matching_rules = matching_rules.unwrap();
+    expect!(matching_rules.rules.iter()).to(be_empty());
   }
 
   #[test]
@@ -1322,6 +1340,7 @@ mod tests {
     }}"#).unwrap();
 
     let matching_rules = matchers_from_json(&matching_rules_json, &None);
+    let matching_rules = matching_rules.unwrap();
 
     expect!(matching_rules.rules.iter()).to_not(be_empty());
     expect!(matching_rules.categories()).to(be_equal_to(hashset!{
@@ -1392,6 +1411,7 @@ mod tests {
     }}"#).unwrap();
 
     let matching_rules = matchers_from_json(&matching_rules_json, &None);
+    let matching_rules = matching_rules.unwrap();
 
     expect!(matching_rules.rules.iter()).to_not(be_empty());
     expect!(matching_rules.categories()).to(be_equal_to(hashset!{
@@ -1435,6 +1455,7 @@ mod tests {
     }}"#).unwrap();
 
     let matching_rules = matchers_from_json(&matching_rules_json, &None);
+    let matching_rules = matching_rules.unwrap();
 
     expect!(matching_rules.rules.iter()).to_not(be_empty());
     expect!(matching_rules.categories()).to(be_equal_to(hashset!{ Category::PATH }));
@@ -1483,87 +1504,87 @@ mod tests {
 
   #[test]
   fn matching_rule_from_json_test() {
-    expect!(MatchingRule::from_json(&Value::from_str("\"test string\"").unwrap())).to(be_none());
-    expect!(MatchingRule::from_json(&Value::from_str("null").unwrap())).to(be_none());
-    expect!(MatchingRule::from_json(&Value::from_str("{}").unwrap())).to(be_none());
-    expect!(MatchingRule::from_json(&Value::from_str("[]").unwrap())).to(be_none());
-    expect!(MatchingRule::from_json(&Value::from_str("true").unwrap())).to(be_none());
-    expect!(MatchingRule::from_json(&Value::from_str("false").unwrap())).to(be_none());
-    expect!(MatchingRule::from_json(&Value::from_str("100").unwrap())).to(be_none());
-    expect!(MatchingRule::from_json(&Value::from_str("100.10").unwrap())).to(be_none());
-    expect!(MatchingRule::from_json(&Value::from_str("{\"stuff\": 100}").unwrap())).to(be_none());
-    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"stuff\"}").unwrap())).to(be_none());
+    expect!(MatchingRule::from_json(&Value::from_str("\"test string\"").unwrap())).to(be_err());
+    expect!(MatchingRule::from_json(&Value::from_str("null").unwrap())).to(be_err());
+    expect!(MatchingRule::from_json(&Value::from_str("{}").unwrap())).to(be_err());
+    expect!(MatchingRule::from_json(&Value::from_str("[]").unwrap())).to(be_err());
+    expect!(MatchingRule::from_json(&Value::from_str("true").unwrap())).to(be_err());
+    expect!(MatchingRule::from_json(&Value::from_str("false").unwrap())).to(be_err());
+    expect!(MatchingRule::from_json(&Value::from_str("100").unwrap())).to(be_err());
+    expect!(MatchingRule::from_json(&Value::from_str("100.10").unwrap())).to(be_err());
+    expect!(MatchingRule::from_json(&Value::from_str("{\"stuff\": 100}").unwrap())).to(be_err());
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"stuff\"}").unwrap())).to(be_err());
 
     expect!(MatchingRule::from_json(&Value::from_str("{\"regex\": \"[0-9]\"}").unwrap())).to(
-      be_some().value(MatchingRule::Regex("[0-9]".to_string())));
+      be_ok().value(MatchingRule::Regex("[0-9]".to_string())));
     expect!(MatchingRule::from_json(&Value::from_str("{\"min\": 100}").unwrap())).to(
-      be_some().value(MatchingRule::MinType(100)));
+      be_ok().value(MatchingRule::MinType(100)));
     expect!(MatchingRule::from_json(&Value::from_str("{\"max\": 100}").unwrap())).to(
-      be_some().value(MatchingRule::MaxType(100)));
+      be_ok().value(MatchingRule::MaxType(100)));
     expect!(MatchingRule::from_json(&Value::from_str("{\"timestamp\": \"yyyy\"}").unwrap())).to(
-      be_some().value(MatchingRule::Timestamp("yyyy".to_string())));
+      be_ok().value(MatchingRule::Timestamp("yyyy".to_string())));
     expect!(MatchingRule::from_json(&Value::from_str("{\"date\": \"yyyy\"}").unwrap())).to(
-      be_some().value(MatchingRule::Date("yyyy".to_string())));
+      be_ok().value(MatchingRule::Date("yyyy".to_string())));
     expect!(MatchingRule::from_json(&Value::from_str("{\"time\": \"hh:mm\"}").unwrap())).to(
-      be_some().value(MatchingRule::Time("hh:mm".to_string())));
+      be_ok().value(MatchingRule::Time("hh:mm".to_string())));
 
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"regex\", \"regex\": \"[0-9]\"}").unwrap())).to(
-      be_some().value(MatchingRule::Regex("[0-9]".to_string())));
-    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"regex\"}").unwrap())).to(be_none());
+      be_ok().value(MatchingRule::Regex("[0-9]".to_string())));
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"regex\"}").unwrap())).to(be_err());
 
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"equality\"}").unwrap())).to(
-      be_some().value(MatchingRule::Equality));
+      be_ok().value(MatchingRule::Equality));
 
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"include\", \"value\": \"A\"}").unwrap())).to(
-      be_some().value(MatchingRule::Include("A".to_string())));
-    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"include\"}").unwrap())).to(be_none());
+      be_ok().value(MatchingRule::Include("A".to_string())));
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"include\"}").unwrap())).to(be_err());
 
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"type\", \"min\": 1}").unwrap())).to(
-      be_some().value(MatchingRule::MinType(1)));
+      be_ok().value(MatchingRule::MinType(1)));
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"type\", \"max\": \"1\"}").unwrap())).to(
-      be_some().value(MatchingRule::MaxType(1)));
+      be_ok().value(MatchingRule::MaxType(1)));
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"type\", \"min\": 1, \"max\": \"1\"}").unwrap())).to(
-      be_some().value(MatchingRule::MinMaxType(1, 1)));
+      be_ok().value(MatchingRule::MinMaxType(1, 1)));
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"type\"}").unwrap())).to(
-      be_some().value(MatchingRule::Type));
+      be_ok().value(MatchingRule::Type));
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"type\", \"value\": 100}").unwrap())).to(
-      be_some().value(MatchingRule::Type));
+      be_ok().value(MatchingRule::Type));
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"min\", \"min\": 1}").unwrap())).to(
-      be_some().value(MatchingRule::MinType(1)));
+      be_ok().value(MatchingRule::MinType(1)));
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"max\", \"max\": \"1\"}").unwrap())).to(
-      be_some().value(MatchingRule::MaxType(1)));
-    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"min\"}").unwrap())).to(be_none());
-    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"max\"}").unwrap())).to(be_none());
+      be_ok().value(MatchingRule::MaxType(1)));
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"min\"}").unwrap())).to(be_err());
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"max\"}").unwrap())).to(be_err());
 
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"number\"}").unwrap())).to(
-      be_some().value(MatchingRule::Number));
+      be_ok().value(MatchingRule::Number));
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"integer\"}").unwrap())).to(
-      be_some().value(MatchingRule::Integer));
+      be_ok().value(MatchingRule::Integer));
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"decimal\"}").unwrap())).to(
-      be_some().value(MatchingRule::Decimal));
+      be_ok().value(MatchingRule::Decimal));
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"real\"}").unwrap())).to(
-      be_some().value(MatchingRule::Decimal));
+      be_ok().value(MatchingRule::Decimal));
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"boolean\"}").unwrap())).to(
-      be_some().value(MatchingRule::Boolean));
+      be_ok().value(MatchingRule::Boolean));
 
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"timestamp\", \"timestamp\": \"A\"}").unwrap())).to(
-      be_some().value(MatchingRule::Timestamp("A".to_string())));
-    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"timestamp\"}").unwrap())).to(be_none());
+      be_ok().value(MatchingRule::Timestamp("A".to_string())));
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"timestamp\"}").unwrap())).to(be_err());
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"time\", \"time\": \"A\"}").unwrap())).to(
-      be_some().value(MatchingRule::Time("A".to_string())));
-    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"time\"}").unwrap())).to(be_none());
+      be_ok().value(MatchingRule::Time("A".to_string())));
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"time\"}").unwrap())).to(be_err());
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"date\", \"date\": \"A\"}").unwrap())).to(
-      be_some().value(MatchingRule::Date("A".to_string())));
-    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"date\"}").unwrap())).to(be_none());
+      be_ok().value(MatchingRule::Date("A".to_string())));
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"date\"}").unwrap())).to(be_err());
 
     expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"null\"}").unwrap())).to(
-      be_some().value(MatchingRule::Null));
+      be_ok().value(MatchingRule::Null));
 
     let json = json!({
       "match": "arrayContains",
       "variants": []
     });
-    expect!(MatchingRule::from_json(&json)).to(be_some().value(MatchingRule::ArrayContains(vec![])));
+    expect!(MatchingRule::from_json(&json)).to(be_ok().value(MatchingRule::ArrayContains(vec![])));
 
     let json = json!({
       "match": "arrayContains",
@@ -1576,7 +1597,7 @@ mod tests {
         }
       ]
     });
-    expect!(MatchingRule::from_json(&json)).to(be_some().value(
+    expect!(MatchingRule::from_json(&json)).to(be_ok().value(
       MatchingRule::ArrayContains(
         vec![
           (0, matchingrules_list! { "body"; [ MatchingRule::Equality ] }, HashMap::default())
@@ -1598,7 +1619,7 @@ mod tests {
       ]
     });
     let generators = hashmap!{ "a".to_string() => Generator::Uuid(None) };
-    expect!(MatchingRule::from_json(&json)).to(be_some().value(
+    expect!(MatchingRule::from_json(&json)).to(be_ok().value(
       MatchingRule::ArrayContains(
         vec![
           (0, matchingrules_list! { "body"; [ MatchingRule::Equality ] }, generators)
@@ -1609,7 +1630,7 @@ mod tests {
       "match": "statusCode",
       "status": "success"
     });
-    expect!(MatchingRule::from_json(&json)).to(be_some().value(
+    expect!(MatchingRule::from_json(&json)).to(be_ok().value(
       MatchingRule::StatusCode(HttpStatus::Success)
     ));
 
@@ -1617,7 +1638,7 @@ mod tests {
       "match": "statusCode",
       "status": [200, 201, 204]
     });
-    expect!(MatchingRule::from_json(&json)).to(be_some().value(
+    expect!(MatchingRule::from_json(&json)).to(be_ok().value(
       MatchingRule::StatusCode(HttpStatus::StatusCodes(vec![200, 201, 204]))
     ));
   }

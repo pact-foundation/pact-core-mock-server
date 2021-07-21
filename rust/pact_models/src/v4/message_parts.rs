@@ -44,8 +44,8 @@ impl MessageContents {
       Ok(MessageContents {
         metadata,
         contents: body_from_json(&json, "contents", &as_headers),
-        matching_rules: matchers_from_json(&json, &None),
-        generators: generators_from_json(&json)
+        matching_rules: matchers_from_json(&json, &None)?,
+        generators: generators_from_json(&json)?,
       })
     } else {
       Err(anyhow!("Expected a JSON object for the message contents, got '{}'", json))

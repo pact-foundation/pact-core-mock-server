@@ -131,7 +131,8 @@ impl Interaction for RequestResponseInteraction {
 
 impl RequestResponseInteraction {
   /// Constructs an `Interaction` from the `Value` struct.
-  pub fn from_json(index: usize, pact_json: &Value, spec_version: &PactSpecification) -> RequestResponseInteraction {
+  pub fn from_json(index: usize, pact_json: &Value, spec_version: &PactSpecification
+  ) -> anyhow::Result<RequestResponseInteraction> {
     let id = pact_json.get("_id").map(|id| json_to_string(id));
     let description = match pact_json.get("description") {
       Some(v) => match *v {
@@ -142,20 +143,20 @@ impl RequestResponseInteraction {
     };
     let provider_states = ProviderState::from_json(pact_json);
     let request = match pact_json.get("request") {
-      Some(v) => Request::from_json(v, spec_version),
+      Some(v) => Request::from_json(v, spec_version)?,
       None => Request::default()
     };
     let response = match pact_json.get("response") {
-      Some(v) => Response::from_json(v, spec_version),
+      Some(v) => Response::from_json(v, spec_version)?,
       None => Response::default()
     };
-    RequestResponseInteraction {
+    Ok(RequestResponseInteraction {
       id,
       description,
       provider_states,
       request,
-      response
-    }
+      response,
+    })
   }
 
   /// Converts this interaction to a `Value` struct.
@@ -315,6 +316,8 @@ mod tests {
         "providerState": "provider state"
     }"#;
     let interaction = RequestResponseInteraction::from_json(0, &serde_json::from_str(interaction_json).unwrap(), &PactSpecification::V1_1);
+    let interaction = interaction.unwrap();
+
     expect!(interaction.description).to(be_equal_to("String"));
     expect!(interaction.provider_states).to(be_equal_to(vec![
       ProviderState { name: "provider state".to_string(), params: hashmap!{} } ]));
@@ -326,6 +329,8 @@ mod tests {
         "providerState": "provider state"
     }"#;
     let interaction = RequestResponseInteraction::from_json(0, &serde_json::from_str(interaction_json).unwrap(), &PactSpecification::V1_1);
+    let interaction = interaction.unwrap();
+
     expect!(interaction.description).to(be_equal_to("Interaction 0"));
     expect!(interaction.provider_states).to(be_equal_to(vec![
       ProviderState { name: "provider state".into(), params: hashmap!{} } ]));
@@ -336,6 +341,8 @@ mod tests {
     let interaction_json = r#"{
     }"#;
     let interaction = RequestResponseInteraction::from_json(0, &serde_json::from_str(interaction_json).unwrap(), &PactSpecification::V1);
+    let interaction = interaction.unwrap();
+
     expect!(interaction.provider_states.iter()).to(be_empty());
   }
 
@@ -345,6 +352,8 @@ mod tests {
         "providerState": null
     }"#;
     let interaction = RequestResponseInteraction::from_json(0, &serde_json::from_str(interaction_json).unwrap(), &PactSpecification::V1);
+    let interaction = interaction.unwrap();
+
     expect!(interaction.provider_states.iter()).to(be_empty());
   }
 
@@ -362,7 +371,11 @@ mod tests {
         "status": 200
       }
     });
-    expect!(RequestResponseInteraction::from_json(0, &json, &PactSpecification::V3).id).to(be_some().value("123456789".to_string()));
+    let interaction =
+      RequestResponseInteraction::from_json(0, &json, &PactSpecification::V3);
+    let interaction = interaction.unwrap();
+
+    expect!(interaction.id).to(be_some().value("123456789".to_string()));
   }
 
   #[test]

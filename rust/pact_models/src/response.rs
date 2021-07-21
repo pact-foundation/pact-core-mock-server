@@ -34,19 +34,20 @@ pub struct Response {
 impl Response {
 
   /// Build a `Response` from a `Value` struct.
-  pub fn from_json(response: &Value, _: &PactSpecification) -> Response {
+  pub fn from_json(response: &Value, _: &PactSpecification
+  ) -> anyhow::Result<Response> {
     let status_val = match response.get("status") {
       Some(v) => v.as_u64().unwrap() as u16,
       None => 200
     };
     let headers = headers_from_json(response);
-    Response {
+    Ok(Response {
       status: status_val,
       headers: headers.clone(),
       body: body_from_json(response, "body", &headers),
-      matching_rules:  matchers_from_json(response, &Some("responseMatchingRules".to_string())),
-      generators:  generators_from_json(response)
-    }
+      matching_rules: matchers_from_json(response, &Some("responseMatchingRules".to_string()))?,
+      generators: generators_from_json(response)?,
+    })
   }
 
   /// Returns a default response: Status 200
@@ -224,7 +225,7 @@ mod tests {
       }
      "#).unwrap();
     let response = Response::from_json(&response_json, &PactSpecification::V1_1);
-    assert_eq!(response.status, 200);
+    assert_eq!(response.unwrap().status, 200);
   }
 
   #[test]

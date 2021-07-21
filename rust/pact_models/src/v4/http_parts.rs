@@ -41,7 +41,7 @@ pub struct HttpRequest {
 
 impl HttpRequest {
   /// Builds a `HttpRequest` from a JSON `Value` struct.
-  pub fn from_json(request_json: &Value) -> Self {
+  pub fn from_json(request_json: &Value) -> anyhow::Result<Self> {
     let method_val = match request_json.get("method") {
       Some(v) => match *v {
         Value::String(ref s) => s.to_uppercase(),
@@ -61,15 +61,15 @@ impl HttpRequest {
       None => None
     };
     let headers = headers_from_json(request_json);
-    HttpRequest {
+    Ok(HttpRequest {
       method: method_val,
       path: path_val,
       query: query_val,
       headers: headers.clone(),
       body: body_from_json(request_json, "body", &headers),
-      matching_rules: matchers_from_json(request_json, &None),
-      generators: generators_from_json(request_json)
-    }
+      matching_rules: matchers_from_json(request_json, &None)?,
+      generators: generators_from_json(request_json)?,
+    })
   }
 
   /// Converts this `HttpRequest` to a `Value` struct.
@@ -334,19 +334,19 @@ impl Hash for HttpResponse {
 
 impl HttpResponse {
   /// Build an `HttpResponse` from a JSON `Value` struct.
-  pub fn from_json(response: &Value) -> Self {
+  pub fn from_json(response: &Value) -> anyhow::Result<Self> {
     let status_val = match response.get("status") {
       Some(v) => v.as_u64().unwrap() as u16,
       None => 200
     };
     let headers = headers_from_json(response);
-    HttpResponse {
+    Ok(HttpResponse {
       status: status_val,
       headers: headers.clone(),
       body: body_from_json(response, "body", &headers),
-      matching_rules:  matchers_from_json(response, &None),
-      generators:  generators_from_json(response)
-    }
+      matching_rules: matchers_from_json(response, &None)?,
+      generators: generators_from_json(response)?,
+    })
   }
 
   /// Converts this response to a `Value` struct.
@@ -423,7 +423,7 @@ mod tests {
     }
    "#).unwrap();
     let request = HttpRequest::from_json(&request_json);
-    expect!(request.method).to(be_equal_to("GET"));
+    expect!(request.unwrap().method).to(be_equal_to("GET"));
   }
 
   #[test]
@@ -436,7 +436,7 @@ mod tests {
       }
      "#).unwrap();
     let request = HttpRequest::from_json(&request_json);
-    assert_eq!(request.path, "/".to_string());
+    assert_eq!(request.unwrap().path, "/".to_string());
   }
 
   #[test]
@@ -447,7 +447,7 @@ mod tests {
     }
    "#).unwrap();
     let response = HttpResponse::from_json(&response_json);
-    assert_eq!(response.status, 200);
+    assert_eq!(response.unwrap().status, 200);
   }
 
   #[test]
@@ -459,7 +459,7 @@ mod tests {
       }
     });
     let request = HttpRequest::from_json(&request_json);
-    expect!(request.body.content_type().unwrap()).to(be_equal_to("text/plain"));
+    expect!(request.unwrap().body.content_type().unwrap()).to(be_equal_to("text/plain"));
 
     let request_json = json!({
       "headers": {
@@ -470,7 +470,7 @@ mod tests {
       }
     });
     let request = HttpRequest::from_json(&request_json);
-    expect!(request.body.content_type().unwrap()).to(be_equal_to("text/html"));
+    expect!(request.unwrap().body.content_type().unwrap()).to(be_equal_to("text/html"));
 
     let request_json = json!({
       "headers": {
@@ -481,7 +481,7 @@ mod tests {
       }
     });
     let request = HttpRequest::from_json(&request_json);
-    expect!(request.body.content_type().unwrap()).to(be_equal_to("application/json;charset=utf-8"));
+    expect!(request.unwrap().body.content_type().unwrap()).to(be_equal_to("application/json;charset=utf-8"));
 
     let request_json = json!({
       "headers": {
@@ -492,7 +492,7 @@ mod tests {
       }
     });
       let request = HttpRequest::from_json(&request_json);
-      expect!(request.body.content_type().unwrap()).to(be_equal_to("application/json;charset=utf-8"));
+      expect!(request.unwrap().body.content_type().unwrap()).to(be_equal_to("application/json;charset=utf-8"));
 
       let request_json = json!({
       "body": {
@@ -500,7 +500,7 @@ mod tests {
       }
     });
     let request = HttpRequest::from_json(&request_json);
-    expect!(request.body.content_type().unwrap()).to(be_equal_to("application/json"));
+    expect!(request.unwrap().body.content_type().unwrap()).to(be_equal_to("application/json"));
   }
 
   #[test]

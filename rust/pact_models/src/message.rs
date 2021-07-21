@@ -195,9 +195,9 @@ impl Message {
                   description,
                   provider_states,
                   contents: body_from_json(json, "contents", &None),
-                  matching_rules: matchers_from_json(json, &None),
+                  matching_rules: matchers_from_json(json, &None)?,
                   metadata,
-                  generators: Generators::default()
+                  generators: Generators::default(),
                 })
             },
             _ => Err(anyhow!("Messages require Pact Specification version 3"))

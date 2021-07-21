@@ -601,7 +601,8 @@ pub async fn fetch_pacts_from_broker(
                   MessagePact::from_json(&href, &pact_json)
                     .map(|pact| (pact.boxed(), None, links))
                 } else {
-                  Ok((RequestResponsePact::from_json(&href, &pact_json).boxed(), None, links))
+                  RequestResponsePact::from_json(&href, &pact_json)
+                    .map(|pact| (pact.boxed(), None, links))
                 },
                 _ => Err(anyhow!("Link '{}' does not point to a valid pact file", href))
               }
@@ -734,7 +735,10 @@ pub async fn fetch_pacts_dynamically_from_broker(
                   Err(err) => Err(PactBrokerError::ContentError(format!("{}", err)))
                 }
               } else {
-                Ok((RequestResponsePact::from_json(&href, &pact_json).boxed(), Some(context), links))
+                match RequestResponsePact::from_json(&href, &pact_json) {
+                  Ok(pact) => Ok((pact.boxed(), Some(context), links)),
+                  Err(err) => Err(PactBrokerError::ContentError(format!("{}", err)))
+                }
               },
               _ => Err(PactBrokerError::ContentError(format!("Link '{}' does not point to a valid pact file", href)))
             }
