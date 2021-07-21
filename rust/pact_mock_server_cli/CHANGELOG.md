@@ -1,5 +1,16 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.7.5 - Bugfix Release
+
+* 3dccf866 - refacfor: moved the pact structs to the models crate (Ronald Holshausen, Sun Jul 18 16:58:14 2021 +1000)
+* ed73b98a - chore: fix compiler warnings (Ronald Holshausen, Wed Jul 7 13:54:53 2021 +1000)
+* 5c670814 - refactor: move expression_parser to pact_models crate (Ronald Holshausen, Fri Jun 11 10:51:51 2021 +1000)
+* 6932c6d5 - Revert "chore: remove unused imports" (Ronald Holshausen, Sat Jun 5 16:26:52 2021 +1000)
+* b4e26844 - fix: reqwest is dyn linked to openssl by default, which causes a SIGSEGV on alpine linux (Ronald Holshausen, Tue Jun 1 14:21:31 2021 +1000)
+* 913b7b17 - chore: correct CLI docker release files (Ronald Holshausen, Tue Jun 1 11:25:28 2021 +1000)
+* 13221ad9 - chore: Mock server CLI release build was overwriting the Windows exe with the SHA checksum (Ronald Holshausen, Sun May 30 18:30:44 2021 +1000)
+* 11885733 - bump version to 0.7.5 (Ronald Holshausen, Sun May 30 18:08:28 2021 +1000)
+
 # 0.7.4 - Upgraded crates + V4 features
 
 * 62a653c - chore: remove unused imports (Matt Fellows, Thu May 27 23:40:27 2021 +1000)
