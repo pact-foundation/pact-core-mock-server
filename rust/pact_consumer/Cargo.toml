@@ -1,6 +1,6 @@
 [package]
 name = "pact_consumer"
-version = "0.7.7"
+version = "0.7.8"
 authors = ["Ronald Holshausen <uglyog@gmail.com>", "Eric Kidd <git@randomhacks.net>"]
 edition = "2018"
 description = "Pact-Rust module that provides support for writing consumer pact tests"
