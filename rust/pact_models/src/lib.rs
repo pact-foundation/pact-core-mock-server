@@ -37,6 +37,30 @@ pub mod pact;
 pub mod sync_pact;
 pub mod message_pact;
 
+/// A "prelude" or a default list of import types to include.
+pub mod prelude {
+  pub use crate::{Consumer, Provider};
+  pub use crate::bodies::OptionalBody;
+  pub use crate::content_types::ContentType;
+  pub use crate::expression_parser::DataType;
+  pub use crate::generators::{Generator, GeneratorCategory, Generators};
+  pub use crate::interaction::Interaction;
+  pub use crate::matchingrules::{Category, MatchingRuleCategory, MatchingRules, RuleLogic};
+  pub use crate::message_pact::MessagePact;
+  pub use crate::pact::Pact;
+  pub use crate::PactSpecification;
+  pub use crate::provider_states::ProviderState;
+  pub use crate::request::Request;
+  pub use crate::response::Response;
+  pub use crate::sync_interaction::RequestResponseInteraction;
+  pub use crate::sync_pact::RequestResponsePact;
+  pub use crate::http_utils::HttpAuth;
+
+  pub mod v4 {
+    pub use crate::v4::pact::V4Pact;
+    pub use crate::v4::synch_http::SynchronousHttp;
+  }
+}
 
 /// Version of the library
 pub const PACT_RUST_VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
