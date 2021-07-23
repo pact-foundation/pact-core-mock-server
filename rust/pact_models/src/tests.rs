@@ -43,6 +43,8 @@ fn matchers_from_json_handles_missing_matchers() {
       }
      "#).unwrap();
   let matchers = matchers_from_json(&json, &Some("deprecatedName".to_string()));
+  let matchers = matchers.unwrap();
+
   expect!(matchers.rules.iter()).to(be_empty());
 }
 
@@ -57,6 +59,8 @@ fn matchers_from_json_handles_empty_matchers() {
       }
      "#).unwrap();
   let matchers = matchers_from_json(&json, &Some("deprecatedName".to_string()));
+  let matchers = matchers.unwrap();
+
   expect!(matchers.rules.iter()).to(be_empty());
 }
 
@@ -75,6 +79,8 @@ fn matchers_from_json_handles_matcher_with_no_matching_rules() {
       }
      "#).unwrap();
   let matchers = matchers_from_json(&json, &Some("deprecatedName".to_string()));
+  let matchers = matchers.unwrap();
+
   expect!(matchers).to(be_equal_to(matchingrules!{
         "body" => {
             "$.*.path" => [ ]
@@ -102,6 +108,8 @@ fn matchers_from_json_loads_matchers_correctly() {
       }
      "#).unwrap();
   let matchers = matchers_from_json(&json, &Some("deprecatedName".to_string()));
+  let matchers = matchers.unwrap();
+
   expect!(matchers).to(be_equal_to(matchingrules!{
         "body" => {
             "$.*.path" => [ MatchingRule::Regex("\\d+".to_string()) ]
@@ -129,6 +137,8 @@ fn matchers_from_json_loads_matchers_from_deprecated_name() {
       }
      "#).unwrap();
   let matchers = matchers_from_json(&json, &Some("deprecatedName".to_string()));
+  let matchers = matchers.unwrap();
+
   expect!(matchers).to(be_equal_to(matchingrules!{
         "body" => {
             "$.*.path" => [ MatchingRule::Regex(r#"\d+"#.to_string()) ]
@@ -146,6 +156,8 @@ fn generators_from_json_handles_missing_generators() {
       }
      "#).unwrap();
   let generators = generators_from_json(&json);
+  let generators = generators.unwrap();
+
   expect!(generators.categories.iter()).to(be_empty());
 }
 
@@ -160,6 +172,8 @@ fn generators_from_json_handles_empty_generators() {
       }
      "#).unwrap();
   let generators = generators_from_json(&json);
+  let generators = generators.unwrap();
+
   expect!(generators.categories.iter()).to(be_empty());
 }
 
@@ -178,6 +192,8 @@ fn generators_from_json_handles_generator_with_no_rules() {
       }
      "#).unwrap();
   let generators = generators_from_json(&json);
+  let generators = generators.unwrap();
+
   expect!(generators).to(be_equal_to(Generators::default()));
 }
 
@@ -206,6 +222,8 @@ fn generators_from_json_ignores_invalid_generators() {
       }
      "#).unwrap();
   let generators = generators_from_json(&json);
+  let generators = generators.unwrap();
+
   expect!(generators).to(be_equal_to(Generators::default()));
 }
 
@@ -231,6 +249,8 @@ fn generators_from_json_loads_generators_correctly() {
       }
      "#).unwrap();
   let generators = generators_from_json(&json);
+  let generators = generators.unwrap();
+
   expect!(generators).to(be_equal_to(generators!{
         "BODY" => {
             "$.*.path" => Generator::RandomInt(1, 10)

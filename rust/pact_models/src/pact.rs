@@ -97,7 +97,7 @@ pub fn load_pact_from_json(source: &str, json: &Value) -> anyhow::Result<Box<dyn
       let spec_version = determine_spec_version(source, &metadata);
       match spec_version {
         PactSpecification::V4 => v4::pact::from_json(&source, json),
-        _ => Ok(Box::new(RequestResponsePact::from_json(source, json)))
+        _ => Ok(Box::new(RequestResponsePact::from_json(source, json)?))
       }
     },
     _ => Err(anyhow!("Failed to parse Pact JSON from source '{}' - it is not a valid pact file", source))
@@ -370,6 +370,8 @@ mod tests {
   fn load_empty_pact() {
     let pact_json = r#"{}"#;
     let pact = RequestResponsePact::from_json(&"".to_string(), &serde_json::from_str(pact_json).unwrap());
+    let pact = pact.unwrap();
+
     expect!(pact.provider.name).to(be_equal_to("provider"));
     expect!(pact.consumer.name).to(be_equal_to("consumer"));
     expect!(pact.interactions.iter()).to(have_count(0));
@@ -381,6 +383,8 @@ mod tests {
   fn missing_metadata() {
     let pact_json = r#"{}"#;
     let pact = RequestResponsePact::from_json(&"".to_string(), &serde_json::from_str(pact_json).unwrap());
+    let pact = pact.unwrap();
+
     expect!(pact.specification_version).to(be_equal_to(PactSpecification::V3));
   }
 
@@ -391,6 +395,8 @@ mod tests {
         }
     }"#;
     let pact = RequestResponsePact::from_json(&"".to_string(), &serde_json::from_str(pact_json).unwrap());
+    let pact = pact.unwrap();
+
     expect!(pact.specification_version).to(be_equal_to(PactSpecification::V3));
   }
 
@@ -404,6 +410,8 @@ mod tests {
         }
     }"#;
     let pact = RequestResponsePact::from_json(&"".to_string(), &serde_json::from_str(pact_json).unwrap());
+    let pact = pact.unwrap();
+
     expect!(pact.specification_version).to(be_equal_to(PactSpecification::V3));
   }
 
@@ -417,6 +425,8 @@ mod tests {
         }
     }"#;
     let pact = RequestResponsePact::from_json(&"".to_string(), &serde_json::from_str(pact_json).unwrap());
+    let pact = pact.unwrap();
+
     expect!(pact.specification_version).to(be_equal_to(PactSpecification::Unknown));
   }
 
@@ -430,6 +440,8 @@ mod tests {
         }
     }"#;
     let pact = RequestResponsePact::from_json(&"".to_string(), &serde_json::from_str(pact_json).unwrap());
+    let pact = pact.unwrap();
+
     expect!(pact.specification_version).to(be_equal_to(PactSpecification::V1));
   }
 
@@ -443,6 +455,8 @@ mod tests {
         }
     }"#;
     let pact = RequestResponsePact::from_json(&"".to_string(), &serde_json::from_str(pact_json).unwrap());
+    let pact = pact.unwrap();
+
     expect!(pact.specification_version).to(be_equal_to(PactSpecification::Unknown));
   }
 
@@ -477,6 +491,8 @@ mod tests {
     }
     "#;
     let pact = RequestResponsePact::from_json(&"".to_string(), &serde_json::from_str(pact_json).unwrap());
+    let pact = pact.unwrap();
+
     expect!(&pact.provider.name).to(be_equal_to("Alice Service"));
     expect!(&pact.consumer.name).to(be_equal_to("Consumer"));
     expect!(pact.interactions.iter()).to(have_count(1));
@@ -546,6 +562,8 @@ mod tests {
     }
     "#;
     let pact = RequestResponsePact::from_json(&"".to_string(), &serde_json::from_str(pact_json).unwrap());
+    let pact = pact.unwrap();
+
     expect!(&pact.provider.name).to(be_equal_to("test_provider"));
     expect!(&pact.consumer.name).to(be_equal_to("test_consumer"));
     expect!(pact.metadata.iter()).to(have_count(2));
@@ -620,6 +638,8 @@ mod tests {
     }
     "#;
     let pact = RequestResponsePact::from_json(&"".to_string(), &serde_json::from_str(pact_json).unwrap());
+    let pact = pact.unwrap();
+
     expect!(&pact.provider.name).to(be_equal_to("test_provider"));
     expect!(&pact.consumer.name).to(be_equal_to("test_consumer"));
     expect!(pact.metadata.iter()).to(have_count(2));
@@ -691,6 +711,8 @@ mod tests {
     }
     "#;
     let pact = RequestResponsePact::from_json(&"".to_string(), &serde_json::from_str(pact_json).unwrap());
+    let pact = pact.unwrap();
+
     expect!(pact.interactions.iter()).to(have_count(1));
     let interaction = pact.interactions[0].clone();
     expect!(interaction.request).to(be_equal_to(Request {
@@ -721,6 +743,8 @@ mod tests {
     }
     "#;
     let pact = RequestResponsePact::from_json(&"".to_string(), &serde_json::from_str(pact_json).unwrap());
+    let pact = pact.unwrap();
+
     expect!(pact.interactions.iter()).to(have_count(1));
     let interaction = pact.interactions[0].clone();
     expect!(interaction.request).to(be_equal_to(Request {

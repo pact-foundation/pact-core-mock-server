@@ -93,8 +93,8 @@ impl SynchronousHttp {
         key,
         description,
         provider_states,
-        request: HttpRequest::from_json(&request),
-        response: HttpResponse::from_json(&response),
+        request: HttpRequest::from_json(&request)?,
+        response: HttpResponse::from_json(&response)?,
         comments,
         pending: json.get("pending")
           .map(|value| value.as_bool().unwrap_or_default()).unwrap_or_default()
