@@ -356,7 +356,6 @@ use pact_models::http_parts::HttpPart;
 use pact_models::interaction::Interaction;
 use pact_models::json_utils::json_to_string;
 use pact_models::matchingrules::{Category, MatchingRule, MatchingRuleCategory, RuleList};
-use pact_models::path_exp::{calc_path_weight, path_length};
 use pact_models::PactSpecification;
 use pact_models::request::Request;
 use pact_models::response::Response;
@@ -436,16 +435,16 @@ impl MatchingContext {
   /// If there is a wildcard matcher defined at the path in this context
   #[deprecated(since = "0.8.12", note = "Replaced with values matcher")]
   pub fn wildcard_matcher_is_defined(&self, path: &[&str]) -> bool {
-    !self.matchers_for_exact_path(path).filter(|&(val, _)| val.ends_with(".*")).is_empty()
+    !self.matchers_for_exact_path(path).filter(|&(val, _)| val.is_wildcard()).is_empty()
   }
 
   fn matchers_for_exact_path(&self, path: &[&str]) -> MatchingRuleCategory {
     match self.matchers.name {
       Category::HEADER | Category::QUERY => self.matchers.filter(|&(val, _)| {
-        path.len() == 1 && path[0] == *val
+        path.len() == 1 && Some(path[0]) == val.first_field()
       }),
       Category::BODY => self.matchers.filter(|&(val, _)| {
-        calc_path_weight(val, path).0 > 0 && path_length(val) == path.len()
+        val.matches_path_exactly(path)
       }),
       _ => self.matchers.filter(|_| false)
     }
@@ -1520,10 +1519,12 @@ pub fn generate_request(request: &Request, mode: &GeneratorTestMode, context: &H
   if !generators.is_empty() {
     debug!("Applying header generators...");
     apply_generators(mode, &generators, &mut |key, generator| {
-      if let Some(ref mut headers) = request.headers {
-        if headers.contains_key(key) {
-          if let Ok(v) = generator.generate_value(&headers.get(key).unwrap().clone(), context, &DefaultVariantMatcher.boxed()) {
-            headers.insert(key.clone(), v);
+      if let Some(header) = key.first_field() {
+        if let Some(ref mut headers) = request.headers {
+          if headers.contains_key(header) {
+            if let Ok(v) = generator.generate_value(&headers.get(header).unwrap().clone(), context, &DefaultVariantMatcher.boxed()) {
+              headers.insert(header.to_string(), v);
+            }
           }
         }
       }
@@ -1534,15 +1535,17 @@ pub fn generate_request(request: &Request, mode: &GeneratorTestMode, context: &H
   if !generators.is_empty() {
     debug!("Applying query generators...");
     apply_generators(mode, &generators, &mut |key, generator| {
-      if let Some(ref mut parameters) = request.query {
-        if let Some(parameter) = parameters.get_mut(key) {
-          let mut generated = parameter.clone();
-          for (index, val) in parameter.iter().enumerate() {
-            if let Ok(v) = generator.generate_value(val, context, &DefaultVariantMatcher.boxed()) {
-              generated[index] = v;
+      if let Some(param) = key.first_field() {
+        if let Some(ref mut parameters) = request.query {
+          if let Some(parameter) = parameters.get_mut(param) {
+            let mut generated = parameter.clone();
+            for (index, val) in parameter.iter().enumerate() {
+              if let Ok(v) = generator.generate_value(val, context, &DefaultVariantMatcher.boxed()) {
+                generated[index] = v;
+              }
             }
+            *parameter = generated;
           }
-          *parameter = generated;
         }
       }
     });
@@ -1575,15 +1578,17 @@ pub fn generate_response(response: &Response, mode: &GeneratorTestMode, context:
   if !generators.is_empty() {
     debug!("Applying header generators...");
     apply_generators(mode, &generators, &mut |key, generator| {
-      if let Some(ref mut headers) = response.headers {
-        if headers.contains_key(key) {
-          match generator.generate_value(&headers.get(key).unwrap().clone(), context, &DefaultVariantMatcher.boxed()) {
-            Ok(v) => {
-              debug!("Generated value for header: {} -> {:?}", key, v);
-              headers.insert(key.clone(), v)
-            },
-            Err(_) => None
-          };
+      if let Some(header) = key.first_field() {
+        if let Some(ref mut headers) = response.headers {
+          if headers.contains_key(header) {
+            match generator.generate_value(&headers.get(header).unwrap().clone(), context, &DefaultVariantMatcher.boxed()) {
+              Ok(v) => {
+                debug!("Generated value for header: {} -> {:?}", header, v);
+                headers.insert(header.to_string(), v)
+              },
+              Err(_) => None
+            };
+          }
         }
       }
     });

@@ -9,6 +9,7 @@ use crate::bodies::OptionalBody;
 use crate::content_types::{ContentType, detect_content_type_from_string};
 use crate::generators::{Generator, GeneratorCategory, Generators};
 use crate::matchingrules::{Category, MatchingRules};
+use crate::path_exp::DocPath;
 
 /// Trait to specify an HTTP part of an interaction. It encapsulates the shared parts of a request
 /// and response.
@@ -92,7 +93,7 @@ pub trait HttpPart {
   }
 
   /// Builds a map of generators from the generators and matching rules
-  fn build_generators(&self, category: &GeneratorCategory) -> HashMap<String, Generator> {
+  fn build_generators(&self, category: &GeneratorCategory) -> HashMap<DocPath, Generator> {
     let mut generators = hashmap!{};
     if let Some(generators_for_category) = self.generators().categories.get(category) {
       for (path, generator) in generators_for_category {

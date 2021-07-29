@@ -77,6 +77,7 @@ use pact_models::json_utils::json_to_string;
 use pact_models::matchingrules::{MatchingRule, MatchingRules, RuleLogic};
 use pact_models::message::Message;
 use pact_models::pact::{Pact, write_pact};
+use pact_models::path_exp::DocPath;
 use pact_models::provider_states::ProviderState;
 use pact_models::sync_interaction::RequestResponseInteraction;
 use pact_models::time_utils::{parse_pattern, to_chrono_pattern};
@@ -562,7 +563,7 @@ pub extern fn pactffi_with_request(
   let path = convert_cstr("path", path).unwrap_or_else(|| "/");
 
   interaction.with_interaction(&|_, mock_server_started, inner| {
-    let path = from_integration_json(&mut inner.request.matching_rules, &mut inner.request.generators, &path.to_string(), &"".to_string(), "path");
+    let path = from_integration_json(&mut inner.request.matching_rules, &mut inner.request.generators, &path.to_string(), DocPath::empty(), "path");
     inner.request.method = method.to_string();
     inner.request.path = path.to_string();
     !mock_server_started
@@ -586,7 +587,9 @@ pub extern fn pactffi_with_query_parameter(
     let value = convert_cstr("value", value).unwrap_or_default();
     interaction.with_interaction(&|_, mock_server_started, inner| {
       inner.request.query = inner.request.query.clone().map(|mut q| {
-        let value = from_integration_json(&mut inner.request.matching_rules, &mut inner.request.generators, &value.to_string(), &format!("{}[{}]", &name, index).to_string(), "query");
+        let mut path = DocPath::root();
+        path.push_field(name).push_index(index);
+        let value = from_integration_json(&mut inner.request.matching_rules, &mut inner.request.generators, &value.to_string(), path, "query");
         if q.contains_key(name) {
           let values = q.get_mut(name).unwrap();
           if index >= values.len() {
@@ -601,7 +604,9 @@ pub extern fn pactffi_with_query_parameter(
         };
         q
       }).or_else(|| {
-        let value = from_integration_json(&mut inner.request.matching_rules, &mut inner.request.generators, &value.to_string(), &format!("{}[{}]", &name, index).to_string(), "query");
+        let mut path = DocPath::root();
+        path.push_field(name).push_index(index);
+        let value = from_integration_json(&mut inner.request.matching_rules, &mut inner.request.generators, &value.to_string(), path, "query");
         let mut values: Vec<String> = Vec::new();
         values.resize_with(index + 1, Default::default);
         values[index] = value.to_string();
@@ -619,7 +624,13 @@ pub extern fn pactffi_with_query_parameter(
 ///
 /// For non-body values (headers, query, path etc.) extract out the value from any matchers
 /// and apply the matchers/generators to the model
-fn from_integration_json(rules: &mut MatchingRules, generators: &mut Generators, value: &str, path: &str, category: &str) -> String {
+fn from_integration_json(
+  rules: &mut MatchingRules,
+  generators: &mut Generators,
+  value: &str,
+  path: DocPath,
+  category: &str,
+) -> String {
   let category = rules.add_category(category);
 
   match serde_json::from_str(&value) {
@@ -701,17 +712,21 @@ pub extern fn pactffi_with_header(
         InteractionPart::Response => inner.response.headers.clone()
       };
 
+      let mut path = DocPath::root();
+      path.push_field(name);
       let value = match part {
-        InteractionPart::Request => from_integration_json(&mut inner.request.matching_rules,
-                                                          &mut inner.request.generators,
-                                                          &value.to_string(),
-                                                          &name.to_string(),
-                                                          "header"),
-        InteractionPart::Response => from_integration_json(&mut inner.response.matching_rules,
-                                                           &mut inner.response.generators,
-                                                           &value.to_string(),
-                                                           &name.to_string(),
-                                                           "header")
+        InteractionPart::Request => from_integration_json(
+          &mut inner.request.matching_rules,
+          &mut inner.request.generators,
+          &value.to_string(),
+          path,
+          "header"),
+        InteractionPart::Response => from_integration_json(
+          &mut inner.response.matching_rules,
+          &mut inner.response.generators,
+          &value.to_string(),
+          path,
+          "header")
       };
 
       let updated_headers = headers.map(|mut h| {
@@ -1001,7 +1016,8 @@ pub extern fn pactffi_with_binary_file(
                 }
               }
             };
-            inner.request.matching_rules.add_category("body").add_rule("$", MatchingRule::ContentType(content_type.into()), &RuleLogic::And);
+            inner.request.matching_rules.add_category("body").add_rule(
+              DocPath::root(), MatchingRule::ContentType(content_type.into()), &RuleLogic::And);
           },
           InteractionPart::Response => {
             inner.response.body = convert_ptr_to_body(body, size);
@@ -1015,7 +1031,8 @@ pub extern fn pactffi_with_binary_file(
                 }
               }
             }
-            inner.response.matching_rules.add_category("body").add_rule("$", MatchingRule::ContentType(content_type.into()), &RuleLogic::And);
+            inner.response.matching_rules.add_category("body").add_rule(
+              DocPath::root(), MatchingRule::ContentType(content_type.into()), &RuleLogic::And);
           }
         };
         !mock_server_started

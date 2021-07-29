@@ -6,6 +6,7 @@ use std::marker::PhantomData;
 use regex::Regex;
 
 use pact_models::matchingrules::{MatchingRule, MatchingRuleCategory, RuleLogic};
+use pact_models::path_exp::DocPath;
 
 use super::json_pattern::JsonPattern;
 use super::Pattern;
@@ -41,8 +42,8 @@ impl<Nested: Pattern> Pattern for Like<Nested> {
         self.example.to_example()
     }
 
-    fn extract_matching_rules(&self, path: &str, rules_out: &mut MatchingRuleCategory) {
-        rules_out.add_rule(&path.to_string(), MatchingRule::Type, &RuleLogic::And);
+    fn extract_matching_rules(&self, path: DocPath, rules_out: &mut MatchingRuleCategory) {
+        rules_out.add_rule(path.clone(), MatchingRule::Type, &RuleLogic::And);
         self.example.extract_matching_rules(path, rules_out);
     }
 }
@@ -59,7 +60,7 @@ fn like_is_pattern() {
     let matchable = Like::<JsonPattern>::new(json_pattern!("hello"));
     assert_eq!(matchable.to_example(), json!("hello"));
     let mut rules = MatchingRuleCategory::empty("body");
-    matchable.extract_matching_rules("$", &mut rules);
+    matchable.extract_matching_rules(DocPath::root(), &mut rules);
     assert_eq!(rules.to_v2_json(), hashmap!(s!("$.body") => json!({"match": "type"})));
 }
 
@@ -129,20 +130,25 @@ impl Pattern for EachLike {
         serde_json::Value::Array(repeat(element).take(self.min_len).collect())
     }
 
-    fn extract_matching_rules(&self, path: &str, rules_out: &mut MatchingRuleCategory) {
+    fn extract_matching_rules(&self, path: DocPath, rules_out: &mut MatchingRuleCategory) {
         rules_out.add_rule(
-            &path.to_string(),
+            path.clone(),
             MatchingRule::MinType(self.min_len),
             &RuleLogic::And
         );
+
+        let mut fields_path = path.clone();
+        fields_path.push_star_index().push_star();
         rules_out.add_rule(
-            &format!("{}[*].*", path),
+            fields_path,
             MatchingRule::Type,
             &RuleLogic::And
         );
-        let new_path = format!("{}[*]", path);
+
+        let mut example_path = path.clone();
+        example_path.push_star_index();
         self.example_element.extract_matching_rules(
-            &new_path,
+            example_path,
             rules_out,
         );
     }
@@ -159,7 +165,7 @@ fn each_like_is_pattern() {
     assert_eq!(matchable.to_example(), json!(["hello", "hello"]));
 
     let mut rules = MatchingRuleCategory::empty("body");
-    matchable.extract_matching_rules("$", &mut rules);
+    matchable.extract_matching_rules(DocPath::root(), &mut rules);
     let expected_rules = hashmap!(
         // Ruby omits the `type` here, but the Rust `pact_matching` library
         // claims to want `"type"` when `"min"` is used.
@@ -300,7 +306,7 @@ where
         From::from(self.example.clone())
     }
 
-    fn extract_matching_rules(&self, path: &str, rules_out: &mut MatchingRuleCategory) {
+    fn extract_matching_rules(&self, path: DocPath, rules_out: &mut MatchingRuleCategory) {
         rules_out.add_rule(path, MatchingRule::Regex(self.regex.to_string()),
             &RuleLogic::And);
     }
@@ -319,7 +325,7 @@ fn term_is_pattern() {
     assert_eq!(matchable.to_example(), json!("hello"));
 
     let mut rules = MatchingRuleCategory::empty("body");
-    matchable.extract_matching_rules("$", &mut rules);
+    matchable.extract_matching_rules(DocPath::root(), &mut rules);
     let expected_rules = hashmap!(
         s!("$.body") => json!({ "match": "regex", "regex": "[Hh]ello" })
     );

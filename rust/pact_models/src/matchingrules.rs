@@ -18,7 +18,7 @@ use serde_json::{json, Value};
 use crate::{HttpStatus, PactSpecification};
 use crate::generators::{Generator, GeneratorCategory, Generators};
 use crate::json_utils::{json_to_num, json_to_string};
-use crate::path_exp::{calc_path_weight, path_length};
+use crate::path_exp::DocPath;
 
 /// Set of all matching rules
 #[derive(Serialize, Deserialize, Debug, Clone, Eq)]
@@ -54,7 +54,7 @@ pub enum MatchingRule {
   /// Match binary data by its content type (magic file check)
   ContentType(String),
   /// Match array items in any order against a list of variants
-  ArrayContains(Vec<(usize, MatchingRuleCategory, HashMap<String, Generator>)>),
+  ArrayContains(Vec<(usize, MatchingRuleCategory, HashMap<DocPath, Generator>)>),
   /// Matcher for values in a map, ignoring the keys
   Values,
   /// Matches boolean values (booleans and the string values `true` and `false`)
@@ -129,7 +129,8 @@ impl MatchingRule {
                         .with_context(||
                           format!("Unable to parse matching rules: {:?}", rules))?;
                     } else {
-                      category.add_rule("", MatchingRule::Equality, &RuleLogic::And);
+                      category.add_rule(
+                        DocPath::empty(), MatchingRule::Equality, &RuleLogic::And);
                     }
                     let generators = if let Some(generators_json) = variant.get("generators") {
                       let mut g = Generators::default();
@@ -137,7 +138,8 @@ impl MatchingRule {
                       if let Value::Object(map) = generators_json {
                         for (k, v) in map {
                           if let Value::Object(ref map) = v {
-                            g.parse_generator_from_map(&cat, map, Some(k.clone()));
+                            let path = DocPath::new(k)?;
+                            g.parse_generator_from_map(&cat, map, Some(path));
                           }
                         }
                       }
@@ -224,7 +226,7 @@ impl MatchingRule {
             json["generators"] = Value::Object(generators.iter()
               .map(|(k, gen)| {
                 if let Some(json) = gen.to_json() {
-                  Some((k.clone(), json))
+                  Some((String::from(k), json))
                 } else {
                   None
                 }
@@ -412,14 +414,14 @@ fn hash_and_partial_eq_for_matching_rule() {
   let ac2 = MatchingRule::ArrayContains(vec![(0, MatchingRuleCategory::empty("body"), hashmap!{})]);
   let ac3 = MatchingRule::ArrayContains(vec![(1, MatchingRuleCategory::empty("body"), hashmap!{})]);
   let ac4 = MatchingRule::ArrayContains(vec![(0, MatchingRuleCategory::equality("body"), hashmap!{})]);
-  let ac5 = MatchingRule::ArrayContains(vec![(0, MatchingRuleCategory::empty("body"), hashmap!{ "A".to_string() => Generator::RandomBoolean })]);
+  let ac5 = MatchingRule::ArrayContains(vec![(0, MatchingRuleCategory::empty("body"), hashmap!{ DocPath::new_unwrap("A") => Generator::RandomBoolean })]);
   let ac6 = MatchingRule::ArrayContains(vec![
-    (0, MatchingRuleCategory::empty("body"), hashmap!{ "A".to_string() => Generator::RandomBoolean }),
-    (1, MatchingRuleCategory::empty("body"), hashmap!{ "A".to_string() => Generator::RandomDecimal(10) })
+    (0, MatchingRuleCategory::empty("body"), hashmap!{ DocPath::new_unwrap("A") => Generator::RandomBoolean }),
+    (1, MatchingRuleCategory::empty("body"), hashmap!{ DocPath::new_unwrap("A") => Generator::RandomDecimal(10) })
   ]);
   let ac7 = MatchingRule::ArrayContains(vec![
-    (0, MatchingRuleCategory::empty("body"), hashmap!{ "A".to_string() => Generator::RandomBoolean }),
-    (1, MatchingRuleCategory::equality("body"), hashmap!{ "A".to_string() => Generator::RandomDecimal(10) })
+    (0, MatchingRuleCategory::empty("body"), hashmap!{ DocPath::new_unwrap("A") => Generator::RandomBoolean }),
+    (1, MatchingRuleCategory::equality("body"), hashmap!{ DocPath::new_unwrap("A") => Generator::RandomDecimal(10) })
   ]);
 
   expect!(h(&ac1)).to(be_equal_to(h(&ac1)));
@@ -723,7 +725,7 @@ pub struct MatchingRuleCategory {
   /// Name of the category
   pub name: Category,
   /// Matching rules for this category
-  pub rules: HashMap<String, RuleList>
+  pub rules: HashMap<DocPath, RuleList>
 }
 
 impl MatchingRuleCategory {
@@ -744,7 +746,7 @@ impl MatchingRuleCategory {
     MatchingRuleCategory {
       name: name.into(),
       rules: hashmap! {
-        "".to_string() => RuleList::equality()
+        DocPath::empty() => RuleList::equality()
       }
     }
   }
@@ -762,29 +764,33 @@ impl MatchingRuleCategory {
   /// Adds a rule from the Value representation
   pub fn rule_from_json(
     &mut self,
-    key: &str,
+    key: DocPath,
     matcher_json: &Value,
     rule_logic: &RuleLogic,
   ) -> anyhow::Result<()> {
     let matching_rule = MatchingRule::from_json(matcher_json)
       .with_context(|| format!("Could not parse matcher JSON {:?}", matcher_json))?;
 
-    let rules = self.rules.entry(key.to_string())
+    let rules = self.rules.entry(key)
       .or_insert_with(|| RuleList::empty(rule_logic));
     rules.rules.push(matching_rule);
     Ok(())
   }
 
   /// Adds a rule to this category
-  pub fn add_rule(&mut self, key: &str, matcher: MatchingRule, rule_logic: &RuleLogic) {
-    let key = key.to_string();
+  pub fn add_rule(
+    &mut self,
+    key: DocPath,
+    matcher: MatchingRule,
+    rule_logic: &RuleLogic,
+  ) {
     let rules = self.rules.entry(key).or_insert_with(|| RuleList::empty(rule_logic));
     rules.rules.push(matcher);
   }
 
   /// Filters the matchers in the category by the predicate, and returns a new category
   pub fn filter<F>(&self, predicate: F) -> MatchingRuleCategory
-    where F : Fn(&(&String, &RuleList)) -> bool {
+    where F : Fn(&(&DocPath, &RuleList)) -> bool {
     MatchingRuleCategory {
       name: self.name.clone(),
       rules: self.rules.iter().filter(predicate)
@@ -793,7 +799,7 @@ impl MatchingRuleCategory {
   }
 
   fn max_by_path(&self, path: &[&str]) -> Option<RuleList> {
-    self.rules.iter().map(|(k, v)| (k, v, calc_path_weight(k.as_str(), path)))
+    self.rules.iter().map(|(k, v)| (k, v, k.path_weight(path)))
       .filter(|&(_, _, w)| w.0 > 0)
       .max_by_key(|&(_, _, w)| w.0 * w.1)
       .map(|(_, v, _)| v.clone())
@@ -802,7 +808,7 @@ impl MatchingRuleCategory {
   /// Returns a JSON Value representation in V3 format
   pub fn to_v3_json(&self) -> Value {
     Value::Object(self.rules.iter().fold(serde_json::Map::new(), |mut map, (category, rulelist)| {
-      map.insert(category.clone(), rulelist.to_v3_json());
+      map.insert(String::from(category), rulelist.to_v3_json());
       map
     }))
   }
@@ -816,7 +822,7 @@ impl MatchingRuleCategory {
         map.insert("$.path".to_string(), v.to_v2_json());
       }
       Category::BODY => for (k, v) in self.rules.clone() {
-        map.insert(k.replace("$", "$.body"), v.to_v2_json());
+        map.insert(String::from(k).replace("$", "$.body"), v.to_v2_json());
       }
       _ => for (k, v) in &self.rules {
         map.insert(format!("$.{}.{}", self.name, k), v.to_v2_json());
@@ -849,7 +855,7 @@ impl MatchingRuleCategory {
     match self.name {
       Category::HEADER| Category::QUERY | Category::BODY |
       Category::CONTENTS | Category::METADATA => self.filter(|(val, _)| {
-        calc_path_weight(val, path).0 > 0
+        val.matches_path(path)
       }),
       _ => self.clone()
     }
@@ -882,23 +888,23 @@ impl MatchingRuleCategory {
       if let Some(matchers) = rules.get("matchers") {
         if let Value::Array(array) = matchers {
           for matcher in array {
-            self.rule_from_json("", &matcher, &rule_logic)?;
+            self.rule_from_json(DocPath::empty(), &matcher, &rule_logic)?;
           }
         }
       }
     } else if let Value::Object(m) = rules {
       if m.contains_key("matchers") {
-        self.add_rule_list("", rules)?;
+        self.add_rule_list(DocPath::empty(), rules)?;
       } else {
         for (k, v) in m {
-          self.add_rule_list(k, v)?;
+          self.add_rule_list(DocPath::new(k)?, v)?;
         }
       }
     }
     Ok(())
   }
 
-  fn add_rule_list(&mut self, k: &str, v: &Value) -> anyhow::Result<()> {
+  fn add_rule_list(&mut self, k: DocPath, v: &Value) -> anyhow::Result<()> {
     let rule_logic = match v.get("combine") {
       Some(val) => if json_to_string(val).to_uppercase() == "OR" {
         RuleLogic::Or
@@ -909,20 +915,20 @@ impl MatchingRuleCategory {
     };
     if let Some(&Value::Array(ref array)) = v.get("matchers") {
       for matcher in array {
-        self.rule_from_json(k, &matcher, &rule_logic)?;
+        self.rule_from_json(k.clone(), &matcher, &rule_logic)?;
       }
     }
     Ok(())
   }
 
   /// Returns any generators associated with these matching rules
-  pub fn generators(&self) -> HashMap<String, Generator> {
+  pub fn generators(&self) -> HashMap<DocPath, Generator> {
     let mut generators = hashmap!{};
     for (base_path, rules) in &self.rules {
       for rule in &rules.rules {
         if rule.has_generators() {
           for generator in rule.generators() {
-            generators.insert(base_path.to_owned(), generator);
+            generators.insert(base_path.clone(), generator);
           }
         }
       }
@@ -1029,7 +1035,7 @@ impl MatchingRules {
   pub fn wildcard_matcher_is_defined<S>(&self, category: S, path: &Vec<&str>) -> bool
     where S: Into<Category> + Clone {
     match self.resolve_wildcard_matchers(category, path) {
-      Some(ref rules) => !rules.filter(|&(val, _)| val.ends_with(".*")).is_empty(),
+      Some(ref rules) => !rules.filter(|&(val, _)| val.is_wildcard()).is_empty(),
       None => false
     }
   }
@@ -1065,10 +1071,10 @@ impl MatchingRules {
     let category = category.into();
     match category {
       Category::BODY => self.rules_for_category(Category::BODY).map(|category| category.filter(|&(val, _)| {
-        calc_path_weight(val, path).0 > 0 && path_length(val) == path.len()
+        val.matches_path_exactly(path)
       })),
       Category::HEADER | Category::QUERY => self.rules_for_category(category.clone()).map(|category| category.filter(|&(val, _)| {
-        path.len() == 1 && path[0] == *val
+        path.len() == 1 && Some(path[0]) == val.first_field()
       })),
       _ => self.rules_for_category(category)
     }
@@ -1080,14 +1086,18 @@ impl MatchingRules {
       let path = key.split('.').collect::<Vec<&str>>();
       if key.starts_with("$.body") {
         if key == "$.body" {
-          self.add_v2_rule("body", "$", v)?;
+          self.add_v2_rule("body", DocPath::root(), v)?;
         } else {
-          self.add_v2_rule("body", &("$".to_owned() + &key[6..]), v)?;
+          self.add_v2_rule("body", DocPath::new(format!("${}", &key[6..]))?, v)?;
         }
       } else if key.starts_with("$.headers") {
-        self.add_v2_rule("header", path[2], v)?;
+        self.add_v2_rule("header", DocPath::new(path[2])?, v)?;
       } else {
-        self.add_v2_rule(path[1], if path.len() > 2 { path[2] } else { "" }, v)?;
+        self.add_v2_rule(
+          path[1],
+          if path.len() > 2 { DocPath::new(path[2])? } else { DocPath::empty() },
+          v,
+        )?;
       }
     }
     Ok(())
@@ -1110,18 +1120,17 @@ impl MatchingRules {
   fn add_v2_rule<S: Into<String>>(
     &mut self,
     category_name: S,
-    sub_category: S,
+    sub_category: DocPath,
     rule: &Value,
   ) -> anyhow::Result<()> {
     let category = self.add_category(category_name.into());
-    let sub = sub_category.into();
-    category.rule_from_json(sub.as_str(), rule, &RuleLogic::And)
+    category.rule_from_json(sub_category, rule, &RuleLogic::And)
   }
 
   fn to_v3_json(&self) -> Value {
     Value::Object(self.rules.iter().fold(serde_json::Map::new(), |mut map, (name, sub_category)| {
       match name {
-        Category::PATH => if let Some(rules) = sub_category.rules.get("") {
+        Category::PATH => if let Some(rules) = sub_category.rules.get(&DocPath::empty()) {
           map.insert(name.to_string(), rules.to_v3_json());
         }
         _ => {
@@ -1236,7 +1245,11 @@ macro_rules! matchingrules {
             let mut _category = _rules.add_category($name);
             $({
               $({
-                _category.add_rule(&$subname.to_string(), $matcher, &$crate::matchingrules::RuleLogic::And);
+                _category.add_rule(
+                  $crate::path_exp::DocPath::new_unwrap($subname),
+                  $matcher,
+                  &$crate::matchingrules::RuleLogic::And,
+                );
               })*
             })*
         })*
@@ -1257,7 +1270,11 @@ macro_rules! matchingrules_list {
     let mut _category = $crate::matchingrules::MatchingRuleCategory::empty($name);
     $(
       $(
-        _category.add_rule($subname, $matcher, &$crate::matchingrules::RuleLogic::And);
+        _category.add_rule(
+          $crate::path_exp::DocPath::new_unwrap($subname),
+          $matcher,
+          &$crate::matchingrules::RuleLogic::And,
+        );
       )*
     )*
     _category
@@ -1266,7 +1283,11 @@ macro_rules! matchingrules_list {
   ( $name:expr ; [ $( $matcher:expr ), * ] ) => {{
     let mut _category = $crate::matchingrules::MatchingRuleCategory::empty($name);
     $(
-      _category.add_rule("", $matcher, &$crate::matchingrules::RuleLogic::And);
+      _category.add_rule(
+        $crate::path_exp::DocPath::empty(),
+        $matcher,
+        &$crate::matchingrules::RuleLogic::And,
+      );
     )*
     _category
   }};
@@ -1310,7 +1331,7 @@ mod tests {
         "query".into() => MatchingRuleCategory {
             name: "query".into(),
             rules: hashmap!{
-              "".into() => RuleList {
+              DocPath::empty() => RuleList {
                 rules: vec![ MatchingRule::Equality ],
                 rule_logic: RuleLogic::And
               }
@@ -1348,24 +1369,24 @@ mod tests {
     }));
     expect!(matching_rules.rules_for_category("path")).to(be_some().value(MatchingRuleCategory {
       name: "path".into(),
-      rules: hashmap! { "".to_string() => RuleList { rules: vec![ MatchingRule::Regex("\\w+".to_string()) ], rule_logic: RuleLogic::And } }
+      rules: hashmap! { DocPath::empty() => RuleList { rules: vec![ MatchingRule::Regex("\\w+".to_string()) ], rule_logic: RuleLogic::And } }
     }));
     expect!(matching_rules.rules_for_category("query")).to(be_some().value(MatchingRuleCategory {
       name: "query".into(),
-      rules: hashmap!{ "Q1".to_string() => RuleList { rules: vec![ MatchingRule::Regex("\\d+".to_string()) ], rule_logic: RuleLogic::And } }
+      rules: hashmap!{ DocPath::new_unwrap("Q1") => RuleList { rules: vec![ MatchingRule::Regex("\\d+".to_string()) ], rule_logic: RuleLogic::And } }
     }));
     expect!(matching_rules.rules_for_category("header")).to(be_some().value(MatchingRuleCategory {
       name: "header".into(),
-      rules: hashmap!{ "HEADERY".to_string() => RuleList { rules: vec![
+      rules: hashmap!{ DocPath::new_unwrap("HEADERY") => RuleList { rules: vec![
         MatchingRule::Include("ValueA".to_string()) ], rule_logic: RuleLogic::And } }
     }));
     expect!(matching_rules.rules_for_category("body")).to(be_some().value(MatchingRuleCategory {
       name: "body".into(),
       rules: hashmap!{
-        "$.animals".to_string() => RuleList { rules: vec![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
-        "$.animals[*].*".to_string() => RuleList { rules: vec![ MatchingRule::Type ], rule_logic: RuleLogic::And },
-        "$.animals[*].children".to_string() => RuleList { rules: vec![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
-        "$.animals[*].children[*].*".to_string() => RuleList { rules: vec![ MatchingRule::Type ], rule_logic: RuleLogic::And }
+        DocPath::new_unwrap("$.animals") => RuleList { rules: vec![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
+        DocPath::new_unwrap("$.animals[*].*") => RuleList { rules: vec![ MatchingRule::Type ], rule_logic: RuleLogic::And },
+        DocPath::new_unwrap("$.animals[*].children") => RuleList { rules: vec![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
+        DocPath::new_unwrap("$.animals[*].children[*].*") => RuleList { rules: vec![ MatchingRule::Type ], rule_logic: RuleLogic::And }
       }
     }));
   }
@@ -1419,25 +1440,25 @@ mod tests {
     }));
     expect!(matching_rules.rules_for_category("path")).to(be_some().value(MatchingRuleCategory {
       name: "path".into(),
-      rules: hashmap! { String::default() => RuleList { rules: vec![ MatchingRule::Regex("\\w+".to_string()) ], rule_logic: RuleLogic::And } }
+      rules: hashmap! { DocPath::empty() => RuleList { rules: vec![ MatchingRule::Regex("\\w+".to_string()) ], rule_logic: RuleLogic::And } }
     }));
     expect!(matching_rules.rules_for_category("query")).to(be_some().value(MatchingRuleCategory {
       name: "query".into(),
-      rules: hashmap!{ "Q1".to_string() => RuleList { rules: vec![ MatchingRule::Regex("\\d+".to_string()) ], rule_logic: RuleLogic::And } }
+      rules: hashmap!{ DocPath::new_unwrap("Q1") => RuleList { rules: vec![ MatchingRule::Regex("\\d+".to_string()) ], rule_logic: RuleLogic::And } }
     }));
     expect!(matching_rules.rules_for_category("header")).to(be_some().value(MatchingRuleCategory {
       name: "header".into(),
-      rules: hashmap!{ "HEADERY".to_string() => RuleList { rules: vec![
+      rules: hashmap!{ DocPath::new_unwrap("HEADERY") => RuleList { rules: vec![
         MatchingRule::Include("ValueA".to_string()),
         MatchingRule::Include("ValueB".to_string()) ], rule_logic: RuleLogic::Or } }
     }));
     expect!(matching_rules.rules_for_category("body")).to(be_some().value(MatchingRuleCategory {
       name: "body".into(),
       rules: hashmap!{
-        "$.animals".to_string() => RuleList { rules: vec![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
-        "$.animals[*].*".to_string() => RuleList { rules: vec![ MatchingRule::Type ], rule_logic: RuleLogic::And },
-        "$.animals[*].children".to_string() => RuleList { rules: vec![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
-        "$.animals[*].children[*].*".to_string() => RuleList { rules: vec![ MatchingRule::Type ], rule_logic: RuleLogic::And }
+        DocPath::new_unwrap("$.animals") => RuleList { rules: vec![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
+        DocPath::new_unwrap("$.animals[*].*") => RuleList { rules: vec![ MatchingRule::Type ], rule_logic: RuleLogic::And },
+        DocPath::new_unwrap("$.animals[*].children") => RuleList { rules: vec![ MatchingRule::MinType(1) ], rule_logic: RuleLogic::And },
+        DocPath::new_unwrap("$.animals[*].children[*].*") => RuleList { rules: vec![ MatchingRule::Type ], rule_logic: RuleLogic::And }
       }
     }));
   }
@@ -1461,7 +1482,7 @@ mod tests {
     expect!(matching_rules.categories()).to(be_equal_to(hashset!{ Category::PATH }));
     expect!(matching_rules.rules_for_category("path")).to(be_some().value(MatchingRuleCategory {
       name: "path".into(),
-      rules: hashmap! { String::default() => RuleList { rules: vec![ MatchingRule::Regex("\\w+".to_string()) ], rule_logic: RuleLogic::And } }
+      rules: hashmap! { DocPath::empty() => RuleList { rules: vec![ MatchingRule::Regex("\\w+".to_string()) ], rule_logic: RuleLogic::And } }
     }));
   }
 
@@ -1618,7 +1639,7 @@ mod tests {
         }
       ]
     });
-    let generators = hashmap!{ "a".to_string() => Generator::Uuid(None) };
+    let generators = hashmap!{ DocPath::new_unwrap("a") => Generator::Uuid(None) };
     expect!(MatchingRule::from_json(&json)).to(be_ok().value(
       MatchingRule::ArrayContains(
         vec![

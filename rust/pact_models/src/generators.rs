@@ -28,7 +28,7 @@ use crate::expression_parser::{contains_expressions, DataType, DataValue, MapVal
 use crate::json_utils::{get_field_as_string, json_to_string, JsonToNum};
 use crate::matchingrules::{Category, MatchingRuleCategory};
 use crate::PactSpecification;
-use crate::path_exp::{parse_path_exp, PathToken};
+use crate::path_exp::{DocPath, PathToken};
 use crate::time_utils::{parse_pattern, to_chrono_pattern};
 
 /// Trait to represent matching logic to find a matching variant for the Array Contains generator
@@ -37,8 +37,8 @@ pub trait VariantMatcher: Debug {
   fn find_matching_variant(
     &self,
     value: &Value,
-    variants: &Vec<(usize, MatchingRuleCategory, HashMap<String, Generator>)>
-  ) -> Option<(usize, HashMap<String, Generator>)>;
+    variants: &Vec<(usize, MatchingRuleCategory, HashMap<DocPath, Generator>)>
+  ) -> Option<(usize, HashMap<DocPath, Generator>)>;
 
   /// Clones this matcher and returns it in a box
   fn boxed(&self) -> Box<dyn VariantMatcher>;
@@ -51,8 +51,8 @@ impl VariantMatcher for NoopVariantMatcher {
   fn find_matching_variant(
     &self,
     _value: &Value,
-    _variants: &Vec<(usize, MatchingRuleCategory, HashMap<String, Generator>)>
-  ) -> Option<(usize, HashMap<String, Generator>)> {
+    _variants: &Vec<(usize, MatchingRuleCategory, HashMap<DocPath, Generator>)>
+  ) -> Option<(usize, HashMap<DocPath, Generator>)> {
     None
   }
 
@@ -139,7 +139,7 @@ pub enum Generator {
   /// Generates a URL with the mock server as the base URL
   MockServerURL(String, String),
   /// List of variants which can have embedded generators
-  ArrayContains(Vec<(usize, MatchingRuleCategory, HashMap<String, Generator>)>)
+  ArrayContains(Vec<(usize, MatchingRuleCategory, HashMap<DocPath, Generator>)>)
 }
 
 impl Generator {
@@ -393,14 +393,14 @@ fn hash_and_partial_eq_for_matching_rule() {
   let ac2 = Generator::ArrayContains(vec![(0, MatchingRuleCategory::empty("body"), hashmap!{})]);
   let ac3 = Generator::ArrayContains(vec![(1, MatchingRuleCategory::empty("body"), hashmap!{})]);
   let ac4 = Generator::ArrayContains(vec![(0, MatchingRuleCategory::equality("body"), hashmap!{})]);
-  let ac5 = Generator::ArrayContains(vec![(0, MatchingRuleCategory::empty("body"), hashmap!{ "A".to_string() => Generator::RandomBoolean })]);
+  let ac5 = Generator::ArrayContains(vec![(0, MatchingRuleCategory::empty("body"), hashmap!{ DocPath::new_unwrap("A") => Generator::RandomBoolean })]);
   let ac6 = Generator::ArrayContains(vec![
-    (0, MatchingRuleCategory::empty("body"), hashmap!{ "A".to_string() => Generator::RandomBoolean }),
-    (1, MatchingRuleCategory::empty("body"), hashmap!{ "A".to_string() => Generator::RandomDecimal(10) })
+    (0, MatchingRuleCategory::empty("body"), hashmap!{ DocPath::new_unwrap("A") => Generator::RandomBoolean }),
+    (1, MatchingRuleCategory::empty("body"), hashmap!{ DocPath::new_unwrap("A") => Generator::RandomDecimal(10) })
   ]);
   let ac7 = Generator::ArrayContains(vec![
-    (0, MatchingRuleCategory::empty("body"), hashmap!{ "A".to_string() => Generator::RandomBoolean }),
-    (1, MatchingRuleCategory::equality("body"), hashmap!{ "A".to_string() => Generator::RandomDecimal(10) })
+    (0, MatchingRuleCategory::empty("body"), hashmap!{ DocPath::new_unwrap("A") => Generator::RandomBoolean }),
+    (1, MatchingRuleCategory::equality("body"), hashmap!{ DocPath::new_unwrap("A") => Generator::RandomDecimal(10) })
   ]);
 
   expect!(h(&ac1)).to(be_equal_to(h(&ac1)));
@@ -594,7 +594,7 @@ pub trait ContentTypeHandler<T> {
   /// Processes the body using the map of generators, returning a (possibly) updated body.
   fn process_body(
     &mut self,
-    generators: &HashMap<String, Generator>,
+    generators: &HashMap<DocPath, Generator>,
     mode: &GeneratorTestMode,
     context: &HashMap<&str, Value>,
     matcher: &Box<dyn VariantMatcher>
@@ -602,7 +602,7 @@ pub trait ContentTypeHandler<T> {
   /// Applies the generator to the key in the body.
   fn apply_key(
     &mut self,
-    key: &String,
+    key: &DocPath,
     generator: &dyn GenerateValue<T>,
     context: &HashMap<&str, Value>,
     matcher: &Box<dyn VariantMatcher>
@@ -614,7 +614,7 @@ pub trait ContentTypeHandler<T> {
 #[serde(transparent)]
 pub struct Generators {
   /// Map of generator categories to maps of generators
-  pub categories: HashMap<GeneratorCategory, HashMap<String, Generator>>
+  pub categories: HashMap<GeneratorCategory, HashMap<DocPath, Generator>>
 }
 
 impl Generators {
@@ -640,7 +640,8 @@ impl Generators {
             },
             _ => for (sub_k, sub_v) in map {
               match sub_v {
-                &Value::Object(ref map) => self.parse_generator_from_map(category, map, Some(sub_k.clone())),
+                &Value::Object(ref map) =>
+                  self.parse_generator_from_map(category, map, Some(DocPath::new(sub_k)?)),
                 _ => log::warn!("Ignoring invalid generator JSON '{}' -> {:?}", sub_k, sub_v)
               }
             }
@@ -653,8 +654,12 @@ impl Generators {
     Ok(())
   }
 
-  pub(crate) fn parse_generator_from_map(&mut self, category: &GeneratorCategory,
-                                         map: &serde_json::Map<String, Value>, subcat: Option<String>) {
+  pub(crate) fn parse_generator_from_map(
+    &mut self,
+    category: &GeneratorCategory,
+    map: &serde_json::Map<String, Value>,
+    subcat: Option<DocPath>,
+  ) {
     match map.get("type") {
       Some(gen_type) => match gen_type {
         &Value::String(ref gen_type) => match Generator::from_map(gen_type, map) {
@@ -675,7 +680,7 @@ impl Generators {
       let cat: String = name.clone().into();
       match name {
         &GeneratorCategory::PATH | &GeneratorCategory::METHOD | &GeneratorCategory::STATUS => {
-          match category.get("") {
+          match category.get(&DocPath::empty()) {
             Some(generator) => {
               let json = generator.to_json();
               if let Some(json) = json {
@@ -690,7 +695,7 @@ impl Generators {
           for (key, val) in category {
             let json = val.to_json();
             if let Some(json) = json {
-              generators.insert(key.clone(), json);
+              generators.insert(String::from(key), json);
             }
           }
           map.insert(cat.clone(), Value::Object(generators));
@@ -702,14 +707,18 @@ impl Generators {
 
   /// Adds the generator to the category (body, headers, etc.)
   pub fn add_generator(&mut self, category: &GeneratorCategory, generator: Generator) {
-    self.add_generator_with_subcategory(category, "", generator);
+    self.add_generator_with_subcategory(category, DocPath::empty(), generator);
   }
 
   /// Adds a generator to the category with a sub-category key (i.e. headers or query parameters)
-  pub fn add_generator_with_subcategory<S: Into<String>>(&mut self, category: &GeneratorCategory,
-                                                         subcategory: S, generator: Generator) {
+  pub fn add_generator_with_subcategory(
+    &mut self,
+    category: &GeneratorCategory,
+    subcategory: DocPath,
+    generator: Generator,
+  ) {
     let category_map = self.categories.entry(category.clone()).or_insert(HashMap::new());
-    category_map.insert(subcategory.into(), generator.clone());
+    category_map.insert(subcategory, generator.clone());
   }
 }
 
@@ -746,9 +755,9 @@ impl Default for Generators {
 /// If the mode applies, invoke the callback for each of the generators
 pub fn apply_generators<F>(
   mode: &GeneratorTestMode,
-  generators: &HashMap<String, Generator>,
+  generators: &HashMap<DocPath, Generator>,
   closure: &mut F
-) where F: FnMut(&String, &Generator) {
+) where F: FnMut(&DocPath, &Generator) {
   for (key, value) in generators {
     if value.corresponds_to_mode(mode) {
       closure(&key, &value)
@@ -803,7 +812,11 @@ macro_rules! generators {
       use std::str::FromStr;
       let _cat = $crate::generators::GeneratorCategory::from_str($category).unwrap();
     $(
-      _generators.add_generator_with_subcategory(&_cat, $subname, $generator);
+      _generators.add_generator_with_subcategory(
+        &_cat,
+        $crate::path_exp::DocPath::new_unwrap($subname),
+        $generator,
+      );
     )*
     }
   )*
@@ -1202,7 +1215,7 @@ impl JsonHandler {
 impl ContentTypeHandler<Value> for JsonHandler {
   fn process_body(
     &mut self,
-    generators: &HashMap<String, Generator>,
+    generators: &HashMap<DocPath, Generator>,
     mode: &GeneratorTestMode,
     context: &HashMap<&str, Value>,
     matcher: &Box<dyn VariantMatcher>
@@ -1216,41 +1229,43 @@ impl ContentTypeHandler<Value> for JsonHandler {
     Ok(OptionalBody::Present(self.value.to_string().into(), Some("application/json".into())))
   }
 
-  fn apply_key(&mut self, key: &String, generator: &dyn GenerateValue<Value>, context: &HashMap<&str, Value>, matcher: &Box<dyn VariantMatcher>) {
-    match parse_path_exp(key) {
-      Ok(path_exp) => {
-        let mut tree = Arena::new();
-        let root = tree.new_node("".into());
-        self.query_object_graph(&path_exp, &mut tree, root, self.value.clone());
-        let expanded_paths = root.descendants(&tree).fold(Vec::<String>::new(), |mut acc, node_id| {
-          let node = tree.index(node_id);
-          if !node.get().is_empty() && node.first_child().is_none() {
-            let path: Vec<String> = node_id.ancestors(&tree).map(|n| format!("{}", tree.index(n).get())).collect();
-            if path.len() == path_exp.len() {
-              acc.push(path.iter().rev().join("/"));
-            }
-          }
-          acc
-        });
-
-        if !expanded_paths.is_empty() {
-          for pointer_str in expanded_paths {
-            match self.value.pointer_mut(&pointer_str) {
-              Some(json_value) => match generator.generate_value(&json_value.clone(), context, matcher) {
-                Ok(new_value) => *json_value = new_value,
-                Err(_) => ()
-              },
-              None => ()
-            }
-          }
-        } else if path_exp.len() == 1 {
-          match generator.generate_value(&self.value.clone(), context, matcher) {
-            Ok(new_value) => self.value = new_value,
-            Err(_) => ()
-          }
+  fn apply_key(
+    &mut self,
+    key: &DocPath,
+    generator: &dyn GenerateValue<Value>,
+    context: &HashMap<&str, Value>,
+    matcher: &Box<dyn VariantMatcher>,
+  ) {
+    let path_exp = key;
+    let mut tree = Arena::new();
+    let root = tree.new_node("".into());
+    self.query_object_graph(path_exp.tokens(), &mut tree, root, self.value.clone());
+    let expanded_paths = root.descendants(&tree).fold(Vec::<String>::new(), |mut acc, node_id| {
+      let node = tree.index(node_id);
+      if !node.get().is_empty() && node.first_child().is_none() {
+        let path: Vec<String> = node_id.ancestors(&tree).map(|n| format!("{}", tree.index(n).get())).collect();
+        if path.len() == path_exp.len() {
+          acc.push(path.iter().rev().join("/"));
         }
-      },
-      Err(err) => log::warn!("Generator path '{}' is invalid, ignoring: {}", key, err)
+      }
+      acc
+    });
+
+    if !expanded_paths.is_empty() {
+      for pointer_str in expanded_paths {
+        match self.value.pointer_mut(&pointer_str) {
+          Some(json_value) => match generator.generate_value(&json_value.clone(), context, matcher) {
+            Ok(new_value) => *json_value = new_value,
+            Err(_) => ()
+          },
+          None => ()
+        }
+      }
+    } else if path_exp.len() == 1 {
+      match generator.generate_value(&self.value.clone(), context, matcher) {
+        Ok(new_value) => self.value = new_value,
+        Err(_) => ()
+      }
     }
   }
 }
@@ -1292,7 +1307,7 @@ mod tests {
                 GeneratorCategory::BODY => hashmap!{},
                 GeneratorCategory::HEADER => hashmap!{},
                 GeneratorCategory::QUERY => hashmap! {
-                    "a".to_string() => Generator::RandomInt(1, 10)
+                    DocPath::new_unwrap("a") => Generator::RandomInt(1, 10)
                 }
             }
         }.is_empty()).to(be_false());
@@ -1315,8 +1330,11 @@ mod tests {
     }).to(be_equal_to(expected));
 
     expected = Generators::default();
-    expected.add_generator_with_subcategory(&GeneratorCategory::BODY, "$.a.b",
-                                            Generator::RandomInt(1, 10));
+    expected.add_generator_with_subcategory(
+      &GeneratorCategory::BODY,
+      DocPath::new_unwrap("$.a.b"),
+      Generator::RandomInt(1, 10),
+    );
     expect!(generators!{
       "BODY" => {
         "$.a.b" => Generator::RandomInt(1, 10)
@@ -1483,12 +1501,12 @@ mod tests {
     generators.add_generator(&GeneratorCategory::STATUS, RandomInt(200, 299));
     generators.add_generator(&GeneratorCategory::PATH, Regex("\\d+".into()));
     generators.add_generator(&GeneratorCategory::METHOD, RandomInt(200, 299));
-    generators.add_generator_with_subcategory(&GeneratorCategory::BODY, "$.1", RandomDecimal(4));
-    generators.add_generator_with_subcategory(&GeneratorCategory::BODY, "$.2", RandomDecimal(4));
-    generators.add_generator_with_subcategory(&GeneratorCategory::HEADER, "A", RandomDecimal(4));
-    generators.add_generator_with_subcategory(&GeneratorCategory::HEADER, "B", RandomDecimal(4));
-    generators.add_generator_with_subcategory(&GeneratorCategory::QUERY, "a", RandomDecimal(4));
-    generators.add_generator_with_subcategory(&GeneratorCategory::QUERY, "b", RandomDecimal(4));
+    generators.add_generator_with_subcategory(&GeneratorCategory::BODY, DocPath::new_unwrap("$.1"), RandomDecimal(4));
+    generators.add_generator_with_subcategory(&GeneratorCategory::BODY, DocPath::new_unwrap("$.2"), RandomDecimal(4));
+    generators.add_generator_with_subcategory(&GeneratorCategory::HEADER, DocPath::new_unwrap("A"), RandomDecimal(4));
+    generators.add_generator_with_subcategory(&GeneratorCategory::HEADER, DocPath::new_unwrap("B"), RandomDecimal(4));
+    generators.add_generator_with_subcategory(&GeneratorCategory::QUERY, DocPath::new_unwrap("a"), RandomDecimal(4));
+    generators.add_generator_with_subcategory(&GeneratorCategory::QUERY, DocPath::new_unwrap("b"), RandomDecimal(4));
     let json = generators.to_json();
     expect(json).to(be_equal_to(json!({
       "body": {
@@ -1629,19 +1647,9 @@ mod tests {
     let map = json!({"a": 100, "b": "B", "c": "C"});
     let mut json_handler = JsonHandler { value: map };
 
-    json_handler.apply_key(&"$.b".to_string(), &Generator::RandomInt(0, 10), &hashmap!{}, &NoopVariantMatcher.boxed());
+    json_handler.apply_key(&DocPath::new_unwrap("$.b"), &Generator::RandomInt(0, 10), &hashmap!{}, &NoopVariantMatcher.boxed());
 
     expect!(&json_handler.value["b"]).to_not(be_equal_to(&json!("B")));
-  }
-
-  #[test]
-  fn json_generator_handles_invalid_path_expressions() {
-    let map = json!({"a": 100, "b": "B", "c": "C"});
-    let mut json_handler = JsonHandler { value: map };
-
-    json_handler.apply_key(&"$[".to_string(), &Generator::RandomInt(0, 10), &hashmap!{}, &NoopVariantMatcher.boxed());
-
-    expect!(json_handler.value).to(be_equal_to(json!({"a": 100, "b": "B", "c": "C"})));
   }
 
   #[test]
@@ -1649,7 +1657,7 @@ mod tests {
     let map = json!({"a": 100, "b": "B", "c": "C"});
     let mut json_handler = JsonHandler { value: map };
 
-    json_handler.apply_key(&"$.d".to_string(), &Generator::RandomInt(0, 10), &hashmap!{}, &NoopVariantMatcher.boxed());
+    json_handler.apply_key(&DocPath::new_unwrap("$.d"), &Generator::RandomInt(0, 10), &hashmap!{}, &NoopVariantMatcher.boxed());
 
     expect!(json_handler.value).to(be_equal_to(json!({"a": 100, "b": "B", "c": "C"})));
   }
@@ -1659,7 +1667,7 @@ mod tests {
     let map = json!(100);
     let mut json_handler = JsonHandler { value: map };
 
-    json_handler.apply_key(&"$.d".to_string(), &Generator::RandomInt(0, 10), &hashmap!{}, &NoopVariantMatcher.boxed());
+    json_handler.apply_key(&DocPath::new_unwrap("$.d"), &Generator::RandomInt(0, 10), &hashmap!{}, &NoopVariantMatcher.boxed());
 
     expect!(json_handler.value).to(be_equal_to(json!(100)));
   }
@@ -1669,7 +1677,7 @@ mod tests {
     let list = json!([100, 200, 300]);
     let mut json_handler = JsonHandler { value: list };
 
-    json_handler.apply_key(&"$[1]".to_string(), &Generator::RandomInt(0, 10), &hashmap!{}, &NoopVariantMatcher.boxed());
+    json_handler.apply_key(&DocPath::new_unwrap("$[1]"), &Generator::RandomInt(0, 10), &hashmap!{}, &NoopVariantMatcher.boxed());
 
     expect!(&json_handler.value[1]).to_not(be_equal_to(&json!(200)));
   }
@@ -1679,7 +1687,7 @@ mod tests {
     let list = json!([100, 200, 300]);
     let mut json_handler = JsonHandler { value: list };
 
-    json_handler.apply_key(&"$[3]".to_string(), &Generator::RandomInt(0, 10), &hashmap!{}, &NoopVariantMatcher.boxed());
+    json_handler.apply_key(&DocPath::new_unwrap("$[3]"), &Generator::RandomInt(0, 10), &hashmap!{}, &NoopVariantMatcher.boxed());
 
     expect!(json_handler.value).to(be_equal_to(json!([100, 200, 300])));
   }
@@ -1689,7 +1697,7 @@ mod tests {
     let list = json!(100);
     let mut json_handler = JsonHandler { value: list };
 
-    json_handler.apply_key(&"$[3]".to_string(), &Generator::RandomInt(0, 10), &hashmap!{}, &NoopVariantMatcher.boxed());
+    json_handler.apply_key(&DocPath::new_unwrap("$[3]"), &Generator::RandomInt(0, 10), &hashmap!{}, &NoopVariantMatcher.boxed());
 
     expect!(json_handler.value).to(be_equal_to(json!(100)));
   }
@@ -1699,7 +1707,7 @@ mod tests {
     let value = json!(100);
     let mut json_handler = JsonHandler { value };
 
-    json_handler.apply_key(&"$".to_string(), &Generator::RandomInt(0, 10), &hashmap!{}, &NoopVariantMatcher.boxed());
+    json_handler.apply_key(&DocPath::root(), &Generator::RandomInt(0, 10), &hashmap!{}, &NoopVariantMatcher.boxed());
 
     expect!(&json_handler.value).to_not(be_equal_to(&json!(100)));
 }
@@ -1713,7 +1721,7 @@ mod tests {
   });
     let mut json_handler = JsonHandler { value };
 
-    json_handler.apply_key(&"$.a[1].b['2']".to_string(), &Generator::RandomInt(3, 10), &hashmap!{}, &NoopVariantMatcher.boxed());
+    json_handler.apply_key(&DocPath::new_unwrap("$.a[1].b['2']"), &Generator::RandomInt(3, 10), &hashmap!{}, &NoopVariantMatcher.boxed());
 
     expect!(&json_handler.value["a"][1]["b"]["2"]).to_not(be_equal_to(&json!("2")));
   }
@@ -1727,7 +1735,7 @@ mod tests {
   });
     let mut json_handler = JsonHandler { value };
 
-    json_handler.apply_key(&"$.a[1].b['2']".to_string(), &Generator::RandomInt(0, 10), &hashmap!{}, &NoopVariantMatcher.boxed());
+    json_handler.apply_key(&DocPath::new_unwrap("$.a[1].b['2']"), &Generator::RandomInt(0, 10), &hashmap!{}, &NoopVariantMatcher.boxed());
 
     expect!(&json_handler.value).to(be_equal_to(&json!({
     "a": "A",
@@ -1745,7 +1753,7 @@ mod tests {
   });
     let mut json_handler = JsonHandler { value };
 
-    json_handler.apply_key(&"$.*".to_string(), &Generator::RandomInt(0, 10), &hashmap!{}, &NoopVariantMatcher.boxed());
+    json_handler.apply_key(&DocPath::new_unwrap("$.*"), &Generator::RandomInt(0, 10), &hashmap!{}, &NoopVariantMatcher.boxed());
 
     expect!(&json_handler.value["a"]).to_not(be_equal_to(&json!("A")));
     expect!(&json_handler.value["b"]).to_not(be_equal_to(&json!("B")));
@@ -1757,7 +1765,7 @@ mod tests {
     let value = json!(["A", "B", "C"]);
     let mut json_handler = JsonHandler { value };
 
-    json_handler.apply_key(&"$[*]".to_string(), &Generator::RandomInt(0, 10), &hashmap!{}, &NoopVariantMatcher.boxed());
+    json_handler.apply_key(&DocPath::new_unwrap("$[*]"), &Generator::RandomInt(0, 10), &hashmap!{}, &NoopVariantMatcher.boxed());
 
     expect!(&json_handler.value[0]).to_not(be_equal_to(&json!("A")));
     expect!(&json_handler.value[1]).to_not(be_equal_to(&json!("B")));
@@ -1773,7 +1781,7 @@ mod tests {
   });
     let mut json_handler = JsonHandler { value };
 
-    json_handler.apply_key(&"$.*[1].b[*]".to_string(), &Generator::RandomInt(3, 10), &hashmap!{}, &NoopVariantMatcher.boxed());
+    json_handler.apply_key(&DocPath::new_unwrap("$.*[1].b[*]"), &Generator::RandomInt(3, 10), &hashmap!{}, &NoopVariantMatcher.boxed());
 
     expect!(&json_handler.value["a"][0]).to(be_equal_to(&json!("A")));
     expect!(&json_handler.value["a"][1]["a"]).to(be_equal_to(&json!("A")));

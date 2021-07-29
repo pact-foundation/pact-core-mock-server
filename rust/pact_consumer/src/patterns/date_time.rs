@@ -3,6 +3,7 @@
 use std::marker::PhantomData;
 
 use pact_models::matchingrules::{MatchingRule, MatchingRuleCategory, RuleLogic};
+use pact_models::path_exp::DocPath;
 use pact_models::time_utils::parse_pattern;
 
 use crate::patterns::{JsonPattern, Pattern, StringPattern};
@@ -42,7 +43,7 @@ where
     From::from(self.example.clone())
   }
 
-  fn extract_matching_rules(&self, path: &str, rules_out: &mut MatchingRuleCategory) {
+  fn extract_matching_rules(&self, path: DocPath, rules_out: &mut MatchingRuleCategory) {
     rules_out.add_rule(path, MatchingRule::Timestamp(self.format.clone()), &RuleLogic::And);
   }
 }
@@ -56,7 +57,7 @@ fn datetime_is_pattern() {
   expect!(matchable.to_example()).to(be_equal_to("Wed, 4 Jul 2001 12:08:56 -0700"));
 
   let mut rules = MatchingRuleCategory::empty("body");
-  matchable.extract_matching_rules("$", &mut rules);
+  matchable.extract_matching_rules(DocPath::root(), &mut rules);
   let expected_rules = json!({
     "$": {
       "combine": "AND", "matchers": [

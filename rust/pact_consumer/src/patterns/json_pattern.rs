@@ -1,12 +1,12 @@
 //! Our `JsonPattern` type and supporting code.
 
 use pact_models::matchingrules::MatchingRuleCategory;
+use pact_models::path_exp::DocPath;
 use std::borrow::Cow;
 use std::collections::HashMap as Map;
 use std::iter::FromIterator;
 
 use super::Pattern;
-use crate::util::obj_key_for_path;
 
 /// A pattern which can be used to either:
 ///
@@ -72,19 +72,21 @@ impl Pattern for JsonPattern {
         }
     }
 
-    fn extract_matching_rules(&self, path: &str, rules_out: &mut MatchingRuleCategory) {
+    fn extract_matching_rules(&self, path: DocPath, rules_out: &mut MatchingRuleCategory) {
         match *self {
             JsonPattern::Json(_) => {}
             JsonPattern::Array(ref arr) => {
                 for (i, val) in arr.iter().enumerate() {
-                    let val_path = format!("{}[{}]", path, i);
-                    val.extract_matching_rules(&val_path, rules_out);
+                    let mut val_path = path.clone();
+                    val_path.push_index(i);
+                    val.extract_matching_rules(val_path, rules_out);
                 }
             }
             JsonPattern::Object(ref obj) => {
                 for (key, val) in obj {
-                    let val_path = format!("{}{}", path, obj_key_for_path(key));
-                    val.extract_matching_rules(&val_path, rules_out);
+                    let mut val_path = path.clone();
+                    val_path.push_field(key);
+                    val.extract_matching_rules(val_path, rules_out);
                 }
             }
             JsonPattern::Pattern(ref pattern) => {
@@ -126,7 +128,7 @@ fn json_pattern_is_pattern() {
         s!("$.body.array[0]") => json!({ "match": "type" })
     );
     let mut rules = MatchingRuleCategory::empty("body");
-    pattern.extract_matching_rules("$", &mut rules);
+    pattern.extract_matching_rules(DocPath::root(), &mut rules);
     assert_eq!(rules.to_v2_json(), expected_rules);
 }
 
