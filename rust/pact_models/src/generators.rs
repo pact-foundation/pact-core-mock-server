@@ -222,6 +222,70 @@ impl Generator {
       _ => true
     }
   }
+
+  /// Returns the type name of this generator
+  pub fn name(&self) -> String {
+    match self {
+      Generator::RandomInt(_, _) => "RandomInt",
+      Generator::Uuid(_) => "Uuid",
+      Generator::RandomDecimal(_) => "RandomDecimal",
+      Generator::RandomHexadecimal(_) => "RandomHexadecimal",
+      Generator::RandomString(_) => "RandomString",
+      Generator::Regex(_) => "Regex",
+      Generator::Date(_) => "Date",
+      Generator::Time(_) => "Time",
+      Generator::DateTime(_) => "DateTime",
+      Generator::RandomBoolean => "RandomBoolean",
+      Generator::ProviderStateGenerator(_, _) => "ProviderStateGenerator",
+      Generator::MockServerURL(_, _) => "MockServerURL",
+      Generator::ArrayContains(_) => "ArrayContains",
+    }.to_string()
+  }
+
+  /// Returns the values for this generator
+  pub fn values(&self) -> HashMap<&'static str, Value> {
+    let empty = hashmap!{};
+    match self {
+      Generator::RandomInt(min, max) => hashmap!{ "min" => json!(min), "max" => json!(max) },
+      Generator::Uuid(format) => if let Some(format) = format {
+        hashmap!{ "format" => Value::String(format.to_string()) }
+      } else {
+        empty
+      }
+      Generator::RandomDecimal(digits) => hashmap!{ "digits" => json!(digits) },
+      Generator::RandomHexadecimal(digits) => hashmap!{ "digits" => json!(digits) },
+      Generator::RandomString(digits) => hashmap!{ "digits" => json!(digits) },
+      Generator::Regex(r) => hashmap!{ "regex" => json!(r) },
+      Generator::Date(format) => if let Some(format) = format {
+        hashmap!{ "format" => Value::String(format.clone()) }
+      } else {
+        empty
+      }
+      Generator::Time(format) => if let Some(format) = format {
+        hashmap!{ "format" => Value::String(format.clone()) }
+      } else {
+        empty
+      }
+      Generator::DateTime(format) => if let Some(format) = format {
+        hashmap!{ "format" => Value::String(format.clone()) }
+      } else {
+        empty
+      }
+      Generator::RandomBoolean => empty,
+      Generator::ProviderStateGenerator(exp, data_type) => if let Some(data_type) = data_type {
+        hashmap!{ "expression" => Value::String(exp.clone()), "data_type" => data_type.into() }
+      } else {
+        hashmap!{ "expression" => Value::String(exp.clone()) }
+      }
+      Generator::MockServerURL(example, regex) => hashmap!{ "example" => json!(example), "regex" => json!(regex) },
+      Generator::ArrayContains(variants) => hashmap!{ "variants" => variants.iter().map(|(variant, rules, gens)| {
+          Value::Array(vec![json!(variant), rules.to_v3_json(), Value::Object(gens.iter().map(|(key, gen)| {
+            (key.clone(), gen.to_json().unwrap())
+          }).collect())])
+        }).collect()
+      }
+    }
+  }
 }
 
 impl Hash for Generator {

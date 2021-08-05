@@ -52,6 +52,25 @@ impl From<Value> for DataType {
   }
 }
 
+impl Into<Value> for DataType {
+  fn into(self) -> Value {
+    match self {
+      DataType::STRING => Value::String("STRING".to_string()),
+      DataType::INTEGER => Value::String("INTEGER".to_string()),
+      DataType::DECIMAL => Value::String("DECIMAL".to_string()),
+      DataType::FLOAT => Value::String("FLOAT".to_string()),
+      DataType::RAW => Value::String("RAW".to_string()),
+      DataType::BOOLEAN => Value::String("BOOLEAN".to_string()),
+    }
+  }
+}
+
+impl Into<Value> for &DataType {
+  fn into(self) -> Value {
+    (*self).into()
+  }
+}
+
 /// Data Value container for a generated value
 #[derive(Clone, Debug)]
 pub struct DataValue {

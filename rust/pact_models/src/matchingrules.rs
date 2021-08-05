@@ -257,6 +257,63 @@ impl MatchingRule {
       _ => vec![]
     }
   }
+
+  /// Returns the type name of this matching rule
+  pub fn name(&self) -> String {
+    match self {
+      MatchingRule::Equality => "equality",
+      MatchingRule::Regex(_) => "regex",
+      MatchingRule::Type => "type",
+      MatchingRule::MinType(_) => "min-type",
+      MatchingRule::MaxType(_) => "max-type",
+      MatchingRule::MinMaxType(_, _) => "min-max-type",
+      MatchingRule::Timestamp(_) => "datetime",
+      MatchingRule::Time(_) => "time",
+      MatchingRule::Date(_) => "date",
+      MatchingRule::Include(_) => "include",
+      MatchingRule::Number => "number",
+      MatchingRule::Integer => "integer",
+      MatchingRule::Decimal => "decimal",
+      MatchingRule::Null => "null",
+      MatchingRule::ContentType(_) => "content-type",
+      MatchingRule::ArrayContains(_) => "array-contains",
+      MatchingRule::Values => "values",
+      MatchingRule::Boolean => "boolean",
+      MatchingRule::StatusCode(_) => "status-code"
+    }.to_string()
+  }
+
+  /// Returns the type name of this matching rule
+  pub fn values(&self) -> HashMap<&'static str, Value> {
+    let empty = hashmap!{};
+    match self {
+      MatchingRule::Equality => empty,
+      MatchingRule::Regex(r) => hashmap!{ "regex" => Value::String(r.clone()) },
+      MatchingRule::Type => empty,
+      MatchingRule::MinType(min) => hashmap!{ "min" => json!(min) },
+      MatchingRule::MaxType(max) => hashmap!{ "max" => json!(max) },
+      MatchingRule::MinMaxType(min, max) => hashmap!{ "min" => json!(min), "max" => json!(max) },
+      MatchingRule::Timestamp(f) => hashmap!{ "format" => Value::String(f.clone()) },
+      MatchingRule::Time(f) => hashmap!{ "format" => Value::String(f.clone()) },
+      MatchingRule::Date(f) => hashmap!{ "format" => Value::String(f.clone()) },
+      MatchingRule::Include(s) => hashmap!{ "value" => Value::String(s.clone()) },
+      MatchingRule::Number => empty,
+      MatchingRule::Integer => empty,
+      MatchingRule::Decimal => empty,
+      MatchingRule::Null => empty,
+      MatchingRule::ContentType(ct) => hashmap!{ "content-type" => Value::String(ct.clone()) },
+      MatchingRule::ArrayContains(variants) => hashmap! { "variants" =>
+        variants.iter().map(|(variant, rules, gens)| {
+          Value::Array(vec![json!(variant), rules.to_v3_json(), Value::Object(gens.iter().map(|(key, gen)| {
+            (key.clone(), gen.to_json().unwrap())
+          }).collect())])
+        }).collect()
+      },
+      MatchingRule::Values => empty,
+      MatchingRule::Boolean => empty,
+      MatchingRule::StatusCode(sc) => hashmap!{ "status" => sc.to_json() }
+    }
+  }
 }
 
 impl Hash for MatchingRule {
