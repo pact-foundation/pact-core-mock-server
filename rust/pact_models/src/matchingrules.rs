@@ -307,7 +307,7 @@ impl MatchingRule {
       MatchingRule::ArrayContains(variants) => hashmap! { "variants" =>
         variants.iter().map(|(variant, rules, gens)| {
           Value::Array(vec![json!(variant), rules.to_v3_json(), Value::Object(gens.iter().map(|(key, gen)| {
-            (key.clone(), gen.to_json().unwrap())
+            (key.to_string(), gen.to_json().unwrap())
           }).collect())])
         }).collect()
       },
