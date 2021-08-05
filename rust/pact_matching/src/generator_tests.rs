@@ -8,6 +8,7 @@ use pact_models::bodies::OptionalBody;
 use pact_models::content_types::{JSON, TEXT};
 use pact_models::generators;
 use pact_models::generators::{ContentTypeHandler, Generator, JsonHandler};
+use pact_models::path_exp::DocPath;
 use pact_models::request::Request;
 use pact_models::response::Response;
 
@@ -146,19 +147,9 @@ fn applies_the_generator_to_a_json_map_entry() {
   let map = json!({"a": 100, "b": "B", "c": "C"});
   let mut json_handler = JsonHandler { value: map };
 
-  json_handler.apply_key(&s!("$.b"), &Generator::RandomInt(0, 10), &hashmap!{}, &DefaultVariantMatcher.boxed());
+  json_handler.apply_key(&DocPath::new_unwrap("$.b"), &Generator::RandomInt(0, 10), &hashmap!{}, &DefaultVariantMatcher.boxed());
 
   expect!(&json_handler.value["b"]).to_not(be_equal_to(&json!("B")));
-}
-
-#[test]
-fn json_generator_handles_invalid_path_expressions() {
-  let map = json!({"a": 100, "b": "B", "c": "C"});
-  let mut json_handler = JsonHandler { value: map };
-
-  json_handler.apply_key(&s!("$["), &Generator::RandomInt(0, 10), &hashmap!{}, &DefaultVariantMatcher.boxed());
-
-  expect!(json_handler.value).to(be_equal_to(json!({"a": 100, "b": "B", "c": "C"})));
 }
 
 #[test]
@@ -166,7 +157,7 @@ fn does_not_apply_the_generator_when_field_is_not_in_map() {
   let map = json!({"a": 100, "b": "B", "c": "C"});
   let mut json_handler = JsonHandler { value: map };
 
-  json_handler.apply_key(&s!("$.d"), &Generator::RandomInt(0, 10), &hashmap!{}, &DefaultVariantMatcher.boxed());
+  json_handler.apply_key(&DocPath::new_unwrap("$.d"), &Generator::RandomInt(0, 10), &hashmap!{}, &DefaultVariantMatcher.boxed());
 
   expect!(json_handler.value).to(be_equal_to(json!({"a": 100, "b": "B", "c": "C"})));
 }
@@ -176,7 +167,7 @@ fn does_not_apply_the_generator_when_not_a_map() {
   let map = json!(100);
   let mut json_handler = JsonHandler { value: map };
 
-  json_handler.apply_key(&s!("$.d"), &Generator::RandomInt(0, 10), &hashmap!{}, &DefaultVariantMatcher.boxed());
+  json_handler.apply_key(&DocPath::new_unwrap("$.d"), &Generator::RandomInt(0, 10), &hashmap!{}, &DefaultVariantMatcher.boxed());
 
   expect!(json_handler.value).to(be_equal_to(json!(100)));
 }
@@ -186,7 +177,7 @@ fn applies_the_generator_to_a_list_item() {
   let list = json!([100, 200, 300]);
   let mut json_handler = JsonHandler { value: list };
 
-  json_handler.apply_key(&s!("$[1]"), &Generator::RandomInt(0, 10), &hashmap!{}, &DefaultVariantMatcher.boxed());
+  json_handler.apply_key(&DocPath::new_unwrap("$[1]"), &Generator::RandomInt(0, 10), &hashmap!{}, &DefaultVariantMatcher.boxed());
 
   expect!(&json_handler.value[1]).to_not(be_equal_to(&json!(200)));
 }
@@ -196,7 +187,7 @@ fn does_not_apply_the_generator_when_index_is_not_in_list() {
   let list = json!([100, 200, 300]);
   let mut json_handler = JsonHandler { value: list };
 
-  json_handler.apply_key(&s!("$[3]"), &Generator::RandomInt(0, 10), &hashmap!{}, &DefaultVariantMatcher.boxed());
+  json_handler.apply_key(&DocPath::new_unwrap("$[3]"), &Generator::RandomInt(0, 10), &hashmap!{}, &DefaultVariantMatcher.boxed());
 
   expect!(json_handler.value).to(be_equal_to(json!([100, 200, 300])));
 }
@@ -206,7 +197,7 @@ fn does_not_apply_the_generator_when_not_a_list() {
   let list = json!(100);
   let mut json_handler = JsonHandler { value: list };
 
-  json_handler.apply_key(&s!("$[3]"), &Generator::RandomInt(0, 10), &hashmap!{}, &DefaultVariantMatcher.boxed());
+  json_handler.apply_key(&DocPath::new_unwrap("$[3]"), &Generator::RandomInt(0, 10), &hashmap!{}, &DefaultVariantMatcher.boxed());
 
   expect!(json_handler.value).to(be_equal_to(json!(100)));
 }
@@ -216,7 +207,7 @@ fn applies_the_generator_to_the_root() {
   let value = json!(100);
   let mut json_handler = JsonHandler { value };
 
-  json_handler.apply_key(&s!("$"), &Generator::RandomInt(0, 10), &hashmap!{}, &DefaultVariantMatcher.boxed());
+  json_handler.apply_key(&DocPath::root(), &Generator::RandomInt(0, 10), &hashmap!{}, &DefaultVariantMatcher.boxed());
 
   expect!(&json_handler.value).to_not(be_equal_to(&json!(100)));
 }
@@ -230,7 +221,7 @@ fn applies_the_generator_to_the_object_graph() {
   });
   let mut json_handler = JsonHandler { value };
 
-  json_handler.apply_key(&s!("$.a[1].b['2']"), &Generator::RandomInt(3, 10), &hashmap!{}, &DefaultVariantMatcher.boxed());
+  json_handler.apply_key(&DocPath::new_unwrap("$.a[1].b['2']"), &Generator::RandomInt(3, 10), &hashmap!{}, &DefaultVariantMatcher.boxed());
 
   expect!(&json_handler.value["a"][1]["b"]["2"]).to_not(be_equal_to(&json!("2")));
 }
@@ -244,7 +235,7 @@ fn does_not_apply_the_generator_to_the_object_graph_when_the_expression_does_not
   });
   let mut json_handler = JsonHandler { value };
 
-  json_handler.apply_key(&s!("$.a[1].b['2']"), &Generator::RandomInt(0, 10), &hashmap!{}, &DefaultVariantMatcher.boxed());
+  json_handler.apply_key(&DocPath::new_unwrap("$.a[1].b['2']"), &Generator::RandomInt(0, 10), &hashmap!{}, &DefaultVariantMatcher.boxed());
 
   expect!(&json_handler.value).to(be_equal_to(&json!({
     "a": "A",
@@ -262,7 +253,7 @@ fn applies_the_generator_to_all_map_entries() {
   });
   let mut json_handler = JsonHandler { value };
 
-  json_handler.apply_key(&s!("$.*"), &Generator::RandomInt(0, 10), &hashmap!{}, &DefaultVariantMatcher.boxed());
+  json_handler.apply_key(&DocPath::new_unwrap("$.*"), &Generator::RandomInt(0, 10), &hashmap!{}, &DefaultVariantMatcher.boxed());
 
   expect!(&json_handler.value["a"]).to_not(be_equal_to(&json!("A")));
   expect!(&json_handler.value["b"]).to_not(be_equal_to(&json!("B")));
@@ -274,7 +265,7 @@ fn applies_the_generator_to_all_list_items() {
   let value = json!(["A", "B", "C"]);
   let mut json_handler = JsonHandler { value };
 
-  json_handler.apply_key(&s!("$[*]"), &Generator::RandomInt(0, 10), &hashmap!{}, &DefaultVariantMatcher.boxed());
+  json_handler.apply_key(&DocPath::new_unwrap("$[*]"), &Generator::RandomInt(0, 10), &hashmap!{}, &DefaultVariantMatcher.boxed());
 
   expect!(&json_handler.value[0]).to_not(be_equal_to(&json!("A")));
   expect!(&json_handler.value[1]).to_not(be_equal_to(&json!("B")));
@@ -290,7 +281,7 @@ fn applies_the_generator_to_the_object_graph_with_wildcard() {
   });
   let mut json_handler = JsonHandler { value };
 
-  json_handler.apply_key(&s!("$.*[1].b[*]"), &Generator::RandomInt(3, 10), &hashmap!{}, &DefaultVariantMatcher.boxed());
+  json_handler.apply_key(&DocPath::new_unwrap("$.*[1].b[*]"), &Generator::RandomInt(3, 10), &hashmap!{}, &DefaultVariantMatcher.boxed());
 
   expect!(&json_handler.value["a"][0]).to(be_equal_to(&json!("A")));
   expect!(&json_handler.value["a"][1]["a"]).to(be_equal_to(&json!("A")));

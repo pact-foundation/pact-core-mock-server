@@ -3,6 +3,7 @@
 use std::borrow::Cow;
 
 use pact_models::matchingrules::MatchingRuleCategory;
+use pact_models::path_exp::DocPath;
 
 use super::Pattern;
 
@@ -35,7 +36,7 @@ impl Pattern for StringPattern {
         }
     }
 
-    fn extract_matching_rules(&self, path: &str, rules_out: &mut MatchingRuleCategory) {
+    fn extract_matching_rules(&self, path: DocPath, rules_out: &mut MatchingRuleCategory) {
         match *self {
             StringPattern::String(_) => {},
             StringPattern::Pattern(ref p) => {
@@ -67,7 +68,7 @@ fn string_pattern_is_pattern() {
         "$.query.val".to_string() => json!({ "match": "regex", "regex": "^[0-9]+$" })
     );
     let mut rules = MatchingRuleCategory::empty("query");
-    pattern.extract_matching_rules("val", &mut rules);
+    pattern.extract_matching_rules(DocPath::new_unwrap("val"), &mut rules);
     assert_eq!(rules.to_v2_json(), expected_rules);
 }
 

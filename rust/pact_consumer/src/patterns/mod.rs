@@ -2,6 +2,7 @@
 //! match them.
 
 use pact_models::matchingrules::MatchingRuleCategory;
+use pact_models::path_exp::DocPath;
 use std::fmt::Debug;
 
 #[macro_use]
@@ -53,5 +54,5 @@ pub trait Pattern: Debug {
     ///
     /// [ruby]:
     /// https://github.com/pact-foundation/pact-support/blob/master/lib/pact/matching_rules/extract.rb
-    fn extract_matching_rules(&self, path: &str, rules_out: &mut MatchingRuleCategory);
+    fn extract_matching_rules(&self, path: DocPath, rules_out: &mut MatchingRuleCategory);
 }

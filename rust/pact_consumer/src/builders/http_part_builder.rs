@@ -12,6 +12,7 @@ use pact_models::generators::{Generator, GeneratorCategory, Generators};
 use pact_models::matchingrules::MatchingRules;
 use pact_models::bodies::OptionalBody;
 use pact_models::expression_parser::DataType;
+use pact_models::path_exp::DocPath;
 
 use crate::prelude::*;
 
@@ -70,7 +71,9 @@ pub trait HttpPartBuilder {
         } else {
           headers.insert(name.clone(), vec![value.to_example()]);
         }
-        value.extract_matching_rules(&name, rules.add_category("header"))
+        let mut path = DocPath::root();
+        path.push_field(name);
+        value.extract_matching_rules(path, rules.add_category("header"))
       }
       self
     }
@@ -97,9 +100,15 @@ pub trait HttpPartBuilder {
       let expression = expression.into();
       let sub_category = name.into();
       self.header(&sub_category, value);
+      let mut sub_category_path = DocPath::root();
+      sub_category_path.push_field(sub_category);
       {
         let generators = self.generators();
-        generators.add_generator_with_subcategory(&GeneratorCategory::HEADER, sub_category,Generator::ProviderStateGenerator(expression, Some(DataType::STRING)))
+        generators.add_generator_with_subcategory(
+          &GeneratorCategory::HEADER,
+          sub_category_path,
+          Generator::ProviderStateGenerator(expression, Some(DataType::STRING)),
+        )
       }
       self
     }
@@ -183,7 +192,7 @@ pub trait HttpPartBuilder {
         {
             let (body_ref, rules) = self.body_and_matching_rules_mut();
             *body_ref = OptionalBody::Present(body.to_example().to_string().into(), Some("application/json".into()));
-            body.extract_matching_rules("$", rules.add_category("body"));
+            body.extract_matching_rules(DocPath::root(), rules.add_category("body"));
         }
         self
     }

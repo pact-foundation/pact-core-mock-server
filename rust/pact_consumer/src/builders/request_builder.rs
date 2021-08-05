@@ -13,6 +13,7 @@ use pact_models::bodies::OptionalBody;
 use pact_models::expression_parser::DataType;
 use pact_models::generators::{Generator, GeneratorCategory, Generators};
 use pact_models::matchingrules::{Category, MatchingRules};
+use pact_models::path_exp::DocPath;
 use pact_models::request::Request;
 
 use crate::prelude::*;
@@ -64,7 +65,7 @@ impl RequestBuilder {
         let path = path.into();
         self.request.path = path.to_example();
         path.extract_matching_rules(
-            "",
+            DocPath::empty(),
             self.request.matching_rules.add_category(Category::PATH),
         );
         self
@@ -117,9 +118,12 @@ impl RequestBuilder {
             .or_insert_with(Default::default)
             .push(value.to_example());
 
+        let mut path = DocPath::root();
+        path.push_field(key);
+
         // Extract our matching rules.
         value.extract_matching_rules(
-            &key,
+            path,
             self.request.matching_rules.add_category("query"),
         );
 

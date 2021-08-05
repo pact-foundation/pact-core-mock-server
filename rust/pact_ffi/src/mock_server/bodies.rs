@@ -11,6 +11,7 @@ use pact_models::bodies::OptionalBody;
 use pact_models::generators::{Generator, GeneratorCategory, Generators};
 use pact_models::json_utils::{json_to_num, json_to_string};
 use pact_models::matchingrules::{MatchingRule, MatchingRuleCategory, RuleLogic};
+use pact_models::path_exp::DocPath;
 use pact_models::request::Request;
 use pact_models::response::Response;
 
@@ -21,19 +22,20 @@ pub fn process_array(
   array: &[Value],
   matching_rules: &mut MatchingRuleCategory,
   generators: &mut Generators,
-  path: &str,
+  path: DocPath,
   type_matcher: bool,
   skip_matchers: bool
 ) -> Value {
   Value::Array(array.iter().enumerate().map(|(index, val)| {
-    let updated_path = if type_matcher {
-      format!("{}[*]", path)
+    let mut item_path = path.clone();
+    if type_matcher {
+      item_path.push_star_index();
     } else {
-      format!("{}[{}]", path, index)
-    };
+      item_path.push_index(index);
+    }
     match val {
-      Value::Object(ref map) => process_object(map, matching_rules, generators, &updated_path, false, skip_matchers),
-      Value::Array(ref array) => process_array(array, matching_rules, generators, &updated_path, false, skip_matchers),
+      Value::Object(ref map) => process_object(map, matching_rules, generators, item_path, false, skip_matchers),
+      Value::Array(ref array) => process_array(array, matching_rules, generators, item_path, false, skip_matchers),
       _ => val.clone()
     }
   }).collect())
@@ -44,7 +46,7 @@ pub fn process_object(
   obj: &Map<String, Value>,
   matching_rules: &mut MatchingRuleCategory,
   generators: &mut Generators,
-  path: &str,
+  path: DocPath,
   type_matcher: bool,
   skip_matchers: bool
 ) -> Value {
@@ -52,11 +54,12 @@ pub fn process_object(
     if !skip_matchers {
       let matching_rule = matcher_from_integration_json(obj);
       if let Some(rule) = &matching_rule {
-        matching_rules.add_rule(&path.to_string(), rule.clone(), &RuleLogic::And);
+        matching_rules.add_rule(path.clone(), rule.clone(), &RuleLogic::And);
       }
       if let Some(gen) = obj.get("pact:generator:type") {
         if let Some(generator) = Generator::from_map(&json_to_string(gen), obj) {
-          generators.add_generator_with_subcategory(&GeneratorCategory::BODY, path, generator);
+          generators.add_generator_with_subcategory(
+            &GeneratorCategory::BODY, path.clone(), generator);
         }
       }
       let (value, skip_matchers) = if let Some(rule) = matching_rule {
@@ -89,14 +92,15 @@ pub fn process_object(
     Value::Object(obj.iter()
       .filter(|(key, _)| !key.starts_with("pact:"))
       .map(|(key, val)| {
-      let updated_path = if type_matcher {
-        format!("{}.*", path)
+      let mut item_path = path.clone();
+      if type_matcher {
+        item_path.push_star();
       } else {
-        format!("{}.{}", path, key)
-      };
+        item_path.push_field(key);
+      }
       (key.clone(), match val {
-        Value::Object(ref map) => process_object(map, matching_rules, generators, &updated_path, false, skip_matchers),
-        Value::Array(ref array) => process_array(array, matching_rules, generators, &updated_path, false, skip_matchers),
+        Value::Object(ref map) => process_object(map, matching_rules, generators, item_path, false, skip_matchers),
+        Value::Array(ref array) => process_array(array, matching_rules, generators, item_path, false, skip_matchers),
         _ => val.clone()
       })
     }).collect())
@@ -162,7 +166,7 @@ pub fn matcher_from_integration_json(m: &Map<String, Value>) -> Option<MatchingR
                 let mut generators = Generators::default();
                 match variant {
                   Value::Object(map) => {
-                    process_object(map, &mut category, &mut generators, "$", false, false);
+                    process_object(map, &mut category, &mut generators, DocPath::root(), false, false);
                   }
                   _ => warn!("arrayContains: JSON for variant {} is not correctly formed: {}", index, variant)
                 }
@@ -185,8 +189,8 @@ pub fn matcher_from_integration_json(m: &Map<String, Value>) -> Option<MatchingR
 pub fn process_json(body: String, matching_rules: &mut MatchingRuleCategory, generators: &mut Generators) -> String {
   match serde_json::from_str(&body) {
     Ok(json) => match json {
-      Value::Object(ref map) => process_object(map, matching_rules, generators, &"$".to_string(), false, false).to_string(),
-      Value::Array(ref array) => process_array(array, matching_rules, generators, &"$".to_string(), false, false).to_string(),
+      Value::Object(ref map) => process_object(map, matching_rules, generators, DocPath::root(), false, false).to_string(),
+      Value::Array(ref array) => process_array(array, matching_rules, generators, DocPath::root(), false, false).to_string(),
       _ => body
     },
     Err(_) => body
@@ -196,8 +200,8 @@ pub fn process_json(body: String, matching_rules: &mut MatchingRuleCategory, gen
 /// Process a JSON body with embedded matching rules and generators
 pub fn process_json_value(body: &Value, matching_rules: &mut MatchingRuleCategory, generators: &mut Generators) -> String {
   match body {
-    Value::Object(ref map) => process_object(map, matching_rules, generators, &"$".to_string(), false, false).to_string(),
-    Value::Array(ref array) => process_array(array, matching_rules, generators, &"$".to_string(), false, false).to_string(),
+    Value::Object(ref map) => process_object(map, matching_rules, generators, DocPath::root(), false, false).to_string(),
+    Value::Array(ref array) => process_array(array, matching_rules, generators, DocPath::root(), false, false).to_string(),
     _ => body.to_string()
   }
 }
@@ -215,10 +219,12 @@ pub fn request_multipart(request: &mut Request, boundary: &str, body: OptionalBo
       });
     }
   };
+  let mut path = DocPath::root();
+  path.push_field(part_name);
   request.matching_rules.add_category("body")
-    .add_rule(&format!("$['{}']", part_name), MatchingRule::ContentType(content_type.into()), &RuleLogic::And);
+    .add_rule(path, MatchingRule::ContentType(content_type.into()), &RuleLogic::And);
   request.matching_rules.add_category("header")
-    .add_rule("Content-Type", MatchingRule::Regex(r"multipart/form-data;(\s*charset=[^;]*;)?\s*boundary=.*".into()), &RuleLogic::And);
+    .add_rule(DocPath::new_unwrap("Content-Type"), MatchingRule::Regex(r"multipart/form-data;(\s*charset=[^;]*;)?\s*boundary=.*".into()), &RuleLogic::And);
 }
 
 /// Setup the response as a multipart form upload
@@ -234,10 +240,12 @@ pub fn response_multipart(response: &mut Response, boundary: &str, body: Optiona
       });
     }
   }
+  let mut path = DocPath::root();
+  path.push_field(part_name);
   response.matching_rules.add_category("body")
-    .add_rule(&format!("$['{}']", part_name), MatchingRule::ContentType(content_type.into()), &RuleLogic::And);
+    .add_rule(path, MatchingRule::ContentType(content_type.into()), &RuleLogic::And);
   response.matching_rules.add_category("header")
-    .add_rule("Content-Type", MatchingRule::Regex(r"multipart/form-data;(\s*charset=[^;]*;)?\s*boundary=.*".into()), &RuleLogic::And);
+    .add_rule(DocPath::new_unwrap("Content-Type"), MatchingRule::Regex(r"multipart/form-data;(\s*charset=[^;]*;)?\s*boundary=.*".into()), &RuleLogic::And);
 }
 
 /// Representation of a multipart body
@@ -286,6 +294,7 @@ mod test {
   use pact_models::{generators, matchingrules_list};
   use pact_models::generators::{Generator, Generators};
   use pact_models::matchingrules::{MatchingRule, MatchingRuleCategory};
+  use pact_models::path_exp::DocPath;
 
   use crate::mock_server::bodies::process_object;
 
@@ -298,7 +307,7 @@ mod test {
     let mut matching_rules = MatchingRuleCategory::default();
     let mut generators = Generators::default();
     let result = process_object(json.as_object().unwrap(), &mut matching_rules,
-                                &mut generators, "$", false, false);
+                                &mut generators, DocPath::root(), false, false);
 
     expect!(result).to(be_equal_to(json));
   }
@@ -320,7 +329,7 @@ mod test {
     let mut matching_rules = MatchingRuleCategory::empty("body");
     let mut generators = Generators::default();
     let result = process_object(json.as_object().unwrap(), &mut matching_rules,
-                                &mut generators, "$", false, false);
+                                &mut generators, DocPath::root(), false, false);
 
     expect!(result).to(be_equal_to(json!({
       "a": "b",
@@ -348,7 +357,7 @@ mod test {
     let mut matching_rules = MatchingRuleCategory::empty("body");
     let mut generators = Generators::default();
     let result = process_object(json.as_object().unwrap(), &mut matching_rules,
-                                &mut generators, "$", false, false);
+                                &mut generators, DocPath::root(), false, false);
 
     expect!(result).to(be_equal_to(json!("b")));
     expect!(matching_rules).to(be_equal_to(matchingrules_list!{

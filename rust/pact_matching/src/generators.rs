@@ -10,6 +10,7 @@ use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
 use pact_models::generators::{ContentTypeHandler, GenerateValue, Generator, GeneratorTestMode, JsonHandler, VariantMatcher};
 use pact_models::matchingrules::MatchingRuleCategory;
+use pact_models::path_exp::DocPath;
 use pact_models::xml_utils::parse_bytes;
 
 use crate::{DiffConfig, MatchingContext};
@@ -24,7 +25,7 @@ pub struct XmlHandler<'a> {
 impl <'a> ContentTypeHandler<Document<'a>> for XmlHandler<'a> {
   fn process_body(
     &mut self,
-    _generators: &HashMap<String, Generator>,
+    _generators: &HashMap<DocPath, Generator>,
     _mode: &GeneratorTestMode,
     _context: &HashMap<&str, Value>,
     _matcher: &Box<dyn VariantMatcher>
@@ -35,7 +36,7 @@ impl <'a> ContentTypeHandler<Document<'a>> for XmlHandler<'a> {
 
   fn apply_key(
     &mut self,
-    _key: &String,
+    _key: &DocPath,
     _generator: &dyn GenerateValue<Document<'a>>,
     _context: &HashMap<&str, Value>,
     _matcher: &Box<dyn VariantMatcher>
@@ -50,7 +51,7 @@ pub fn generators_process_body(
   body: &OptionalBody,
   content_type: Option<ContentType>,
   context: &HashMap<&str, Value>,
-  generators: &HashMap<String, Generator>,
+  generators: &HashMap<DocPath, Generator>,
   matcher: &Box<dyn VariantMatcher>
 ) -> OptionalBody {
   match content_type {
@@ -95,9 +96,9 @@ pub fn generators_process_body(
 
 pub(crate) fn find_matching_variant<T>(
   value: &T,
-  variants: &Vec<(usize, MatchingRuleCategory, HashMap<String, Generator>)>,
+  variants: &Vec<(usize, MatchingRuleCategory, HashMap<DocPath, Generator>)>,
   callback: &dyn Fn(&Vec<&str>, &T, &MatchingContext) -> bool
-) -> Option<(usize, HashMap<String, Generator>)>
+) -> Option<(usize, HashMap<DocPath, Generator>)>
   where T: Clone + std::fmt::Debug {
   let result = variants.iter()
     .find(|(index, rules, _)| {
@@ -115,7 +116,11 @@ pub(crate) fn find_matching_variant<T>(
 pub(crate) struct DefaultVariantMatcher;
 
 impl VariantMatcher for DefaultVariantMatcher {
-  fn find_matching_variant(&self, value: &Value, variants: &Vec<(usize, MatchingRuleCategory, HashMap<String, Generator>)>) -> Option<(usize, HashMap<String, Generator>)> {
+  fn find_matching_variant(
+    &self,
+    value: &Value,
+    variants: &Vec<(usize, MatchingRuleCategory, HashMap<DocPath, Generator>)>
+  ) -> Option<(usize, HashMap<DocPath, Generator>)> {
     let callback = |path: &Vec<&str>, value: &Value, context: &MatchingContext| {
       compare(path, value, value, context).is_ok()
     };
@@ -137,6 +142,7 @@ mod tests {
   use pact_models::generators::{GenerateValue, Generator, VariantMatcher};
   use pact_models::matchingrules::MatchingRule;
   use pact_models::matchingrules_list;
+  use pact_models::path_exp::DocPath;
 
   use crate::generators::DefaultVariantMatcher;
 
@@ -146,12 +152,20 @@ mod tests {
       (0, matchingrules_list! {
         "body"; "$.href" => [ MatchingRule::Regex(".*(\\/orders\\/\\d+)$".into()) ]
       }, hashmap! {
-        "$.href".to_string() => Generator::MockServerURL("http://localhost:8080/orders/1234".into(), ".*(\\/orders\\/\\d+)$".into())
+        DocPath::new_unwrap("$.href") =>
+          Generator::MockServerURL(
+            "http://localhost:8080/orders/1234".into(),
+            ".*(\\/orders\\/\\d+)$".into(),
+          )
       }),
       (1, matchingrules_list! {
         "body"; "$.href" => [ MatchingRule::Regex(".*(\\/orders\\/\\d+)$".into()) ]
       }, hashmap! {
-        "$.href".to_string() => Generator::MockServerURL("http://localhost:8080/orders/1234".into(), ".*(\\/orders\\/\\d+)$".into())
+        DocPath::new_unwrap("$.href") =>
+          Generator::MockServerURL(
+            "http://localhost:8080/orders/1234".into(),
+            ".*(\\/orders\\/\\d+)$".into(),
+          )
       })
     ]);
     let value = json!([

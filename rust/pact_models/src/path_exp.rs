@@ -1,7 +1,15 @@
 //! Functions for dealing with path expressions
 
+use std::convert::TryFrom;
+use std::fmt::{Display, Formatter, Write};
+use std::hash::{Hash, Hasher};
 use std::iter::Peekable;
-use log::{trace, warn};
+
+use anyhow::anyhow;
+use lazy_static::lazy_static;
+use log::trace;
+use regex::{Captures, Regex};
+use serde::{Deserialize, Serialize};
 
 /// Struct to store path token
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,39 +43,204 @@ fn matches_token(path_fragment: &str, path_token: &PathToken) -> usize {
   }
 }
 
-/// Calculates the path weight for a path expression and a given path. Returns a tuple of the
-/// calculated weight and the number of path tokens matched
-pub fn calc_path_weight(path_exp: &str, path: &[&str]) -> (usize, usize) {
-  let weight = match parse_path_exp(path_exp) {
-    Ok(path_tokens) => {
-      trace!("Calculating weight for path tokens '{:?}' and path '{:?}'", path_tokens, path);
-      if path.len() >= path_tokens.len() {
-        (
-          path_tokens.iter().zip(path.iter())
-            .fold(1, |acc, (token, fragment)| acc * matches_token(fragment, token)),
-          path_tokens.len()
-        )
-      } else {
-        (0, path_tokens.len())
-      }
-    },
-    Err(err) => {
-      warn!("Failed to parse path expression - {}", err);
-      (0, 0)
-    }
-  };
-  trace!("Calculated weight {:?} for path '{}' and '{:?}'", weight, path_exp, path);
-  weight
+#[derive(Debug, Clone, Eq, Serialize, Deserialize)]
+#[serde(try_from = "String")]
+#[serde(into = "String")]
+pub struct DocPath {
+  path_tokens: Vec<PathToken>,
+  expr: String,
 }
 
-/// Parses the path expression and returns the number of tokens in the path
-pub fn path_length(path_exp: &str) -> usize {
-  match parse_path_exp(path_exp) {
-    Ok(path_tokens) => path_tokens.len(),
-    Err(err) => {
-      warn!("Failed to parse path expression - {}", err);
-      0
+impl DocPath {
+  pub fn new(expr: impl Into<String>) -> anyhow::Result<Self> {
+    let expr = expr.into();
+    let path_tokens = parse_path_exp(&expr)
+      .map_err(|e| anyhow!(e))?;
+    Ok(Self {
+      path_tokens,
+      expr,
+    })
+  }
+
+  /// Infallible construction for when the expression is statically known,
+  /// intended for unit tests.
+  ///
+  /// Invalid expressions will still cause panics.
+  pub fn new_unwrap(expr: &'static str) -> Self {
+    Self::new(expr).unwrap()
+  }
+
+  /// Construct a new DocPath with an empty expression.
+  ///
+  /// Warning: do not call any of the `push_*` methods on this DocPath,
+  /// as that would create an expression with invalid syntax
+  /// (because it would be missing the Root token).
+  pub fn empty() -> Self {
+    Self {
+      path_tokens: vec![],
+      expr: "".into(),
     }
+  }
+
+  /// Construct a new DocPath with the Root token.
+  pub fn root() -> Self {
+    Self {
+      path_tokens: vec![PathToken::Root],
+      expr: "$".into(),
+    }
+  }
+
+  pub fn tokens(&self) -> &Vec<PathToken> {
+    &self.path_tokens
+  }
+
+  /// Return the length, in parsed tokens.
+  pub fn len(&self) -> usize {
+    self.path_tokens.len()
+  }
+
+  /// Extract the string contents of the first Field token.
+  /// For use with Header and Query DocPaths.
+  pub fn first_field(&self) -> Option<&str> {
+    for token in self.path_tokens.iter() {
+      if let PathToken::Field(ref field) = token {
+        return Some(field);
+      }
+    }
+    return None;
+  }
+
+  pub fn is_root(&self) -> bool {
+    &self.path_tokens == &[PathToken::Root]
+  }
+
+  pub fn is_wildcard(&self) -> bool {
+    self.path_tokens.last() == Some(&PathToken::Star)
+  }
+
+  /// Calculates the path weight for this path expression and a given path.
+  /// Returns a tuple of the calculated weight and the number of path tokens matched.
+  pub fn path_weight(&self, path: &[&str]) -> (usize, usize) {
+    trace!("Calculating weight for path tokens '{:?}' and path '{:?}'",
+           self.path_tokens, path);
+    let weight = {
+      if path.len() >= self.len() {
+        (
+          self.path_tokens.iter().zip(path.iter())
+          .fold(1, |acc, (token, fragment)| acc * matches_token(fragment, token)),
+          self.len()
+        )
+      } else {
+        (0, self.len())
+      }
+    };
+    trace!("Calculated weight {:?} for path '{}' and '{:?}'",
+           weight, self, path);
+    weight
+  }
+
+  pub fn matches_path(&self, path: &[&str]) -> bool {
+    self.path_weight(path).0 > 0
+  }
+
+  pub fn matches_path_exactly(&self, path: &[&str]) -> bool {
+     self.len() == path.len() && self.matches_path(path)
+  }
+
+  pub fn push_field(&mut self, field: impl Into<String>) -> &mut Self {
+    let field = field.into();
+    write_obj_key_for_path(&mut self.expr, &field);
+    self.path_tokens.push(PathToken::Field(field));
+    self
+  }
+
+  pub fn push_index(&mut self, index: usize) -> &mut Self {
+    self.path_tokens.push(PathToken::Index(index));
+    // unwrap is safe, as write! is infallible for String
+    write!(self.expr, "[{}]", index).unwrap();
+    self
+  }
+
+  pub fn push_star(&mut self) -> &mut Self {
+    self.path_tokens.push(PathToken::Star);
+    self.expr.push_str(".*");
+    self
+  }
+
+  pub fn push_star_index(&mut self) -> &mut Self {
+    self.path_tokens.push(PathToken::StarIndex);
+    self.expr.push_str("[*]");
+    self
+  }
+}
+
+/// Format a JSON object key for use in a JSON path expression. If we were
+/// more concerned about performance, we might try to come up with a scheme
+/// to minimize string allocation here.
+fn write_obj_key_for_path(mut out: impl Write, key: &str) {
+  lazy_static! {
+    // Only use "." syntax for things which are obvious identifiers.
+    static ref IDENT: Regex = Regex::new(r#"^[_A-Za-z][_A-Za-z0-9]*$"#)
+      .expect("could not parse IDENT regex");
+    // Escape these characters when using string syntax.
+    static ref ESCAPE: Regex = Regex::new(r#"\\|'"#)
+      .expect("could not parse ESCAPE regex");
+  }
+
+  // unwrap is safe, as write! is infallible for String
+  if IDENT.is_match(key) {
+    write!(out, ".{}", key).unwrap();
+  } else {
+    write!(
+      out,
+      "['{}']",
+      ESCAPE.replace_all(key, |caps: &Captures| format!(r#"\{}"#, &caps[0]))
+    ).unwrap();
+  }
+}
+
+#[cfg(test)]
+fn obj_key_for_path(key: &str) -> String {
+  let mut out = String::new();
+  write_obj_key_for_path(&mut out, key);
+  out
+}
+
+impl From<DocPath> for String {
+  fn from(doc_path: DocPath) -> String {
+    doc_path.expr
+  }
+}
+
+impl From<&DocPath> for String {
+  fn from(doc_path: &DocPath) -> String {
+    doc_path.expr.clone()
+  }
+}
+
+impl TryFrom<String> for DocPath {
+  type Error = anyhow::Error;
+
+  fn try_from(path: String) -> Result<Self, Self::Error> {
+    DocPath::new(path)
+  }
+}
+
+impl PartialEq for DocPath {
+  fn eq(&self, other: &Self) -> bool {
+    self.expr == other.expr
+  }
+}
+
+impl Hash for DocPath {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    self.expr.hash(state);
+  }
+}
+
+impl Display for DocPath {
+  fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    write!(f, "{}", self.expr)
   }
 }
 
@@ -309,40 +482,60 @@ mod tests {
   }
 
   #[test]
+  fn docpath_empty() {
+    expect!(DocPath::empty().path_tokens)
+      .to(be_equal_to(DocPath::new_unwrap("").path_tokens));
+  }
+
+  #[test]
+  fn docpath_root() {
+    expect!(DocPath::root().path_tokens)
+      .to(be_equal_to(DocPath::new_unwrap("$").path_tokens));
+  }
+
+  #[test]
+  fn docpath_wildcard() {
+    expect!(DocPath::new_unwrap("").is_wildcard()).to(be_equal_to(false));
+    expect!(DocPath::new_unwrap("$.path").is_wildcard()).to(be_equal_to(false));
+    expect!(DocPath::new_unwrap("$.*").is_wildcard()).to(be_equal_to(true));
+    expect!(DocPath::new_unwrap("$.path.*").is_wildcard()).to(be_equal_to(true));
+  }
+
+  #[test]
   fn matches_path_matches_root_path_element() {
-    expect!(calc_path_weight("$", &vec!["$"]).0 > 0).to(be_true());
-    expect!(calc_path_weight("$", &vec![]).0 > 0).to(be_false());
+    expect!(DocPath::new_unwrap("$").path_weight(&vec!["$"]).0 > 0).to(be_true());
+    expect!(DocPath::new_unwrap("$").path_weight(&vec![]).0 > 0).to(be_false());
   }
 
   #[test]
   fn matches_path_matches_field_name() {
-    expect!(calc_path_weight("$.name", &vec!["$", "name"]).0 > 0).to(be_true());
-    expect!(calc_path_weight("$['name']", &vec!["$", "name"]).0 > 0).to(be_true());
-    expect!(calc_path_weight("$.name.other", &vec!["$", "name", "other"]).0 > 0).to(be_true());
-    expect!(calc_path_weight("$['name'].other", &vec!["$", "name", "other"]).0 > 0).to(be_true());
-    expect!(calc_path_weight("$.name", &vec!["$", "other"]).0 > 0).to(be_false());
-    expect!(calc_path_weight("$.name", &vec!["$", "name", "other"]).0 > 0).to(be_true());
-    expect!(calc_path_weight("$.other", &vec!["$", "name", "other"]).0 > 0).to(be_false());
-    expect!(calc_path_weight("$.name.other", &vec!["$", "name"]).0 > 0).to(be_false());
+    expect!(DocPath::new_unwrap("$.name").path_weight(&vec!["$", "name"]).0 > 0).to(be_true());
+    expect!(DocPath::new_unwrap("$['name']").path_weight(&vec!["$", "name"]).0 > 0).to(be_true());
+    expect!(DocPath::new_unwrap("$.name.other").path_weight(&vec!["$", "name", "other"]).0 > 0).to(be_true());
+    expect!(DocPath::new_unwrap("$['name'].other").path_weight(&vec!["$", "name", "other"]).0 > 0).to(be_true());
+    expect!(DocPath::new_unwrap("$.name").path_weight(&vec!["$", "other"]).0 > 0).to(be_false());
+    expect!(DocPath::new_unwrap("$.name").path_weight(&vec!["$", "name", "other"]).0 > 0).to(be_true());
+    expect!(DocPath::new_unwrap("$.other").path_weight(&vec!["$", "name", "other"]).0 > 0).to(be_false());
+    expect!(DocPath::new_unwrap("$.name.other").path_weight(&vec!["$", "name"]).0 > 0).to(be_false());
   }
 
   #[test]
   fn matches_path_matches_array_indices() {
-    expect!(calc_path_weight("$[0]", &vec!["$", "0"]).0 > 0).to(be_true());
-    expect!(calc_path_weight("$.name[1]", &vec!["$", "name", "1"]).0 > 0).to(be_true());
-    expect!(calc_path_weight("$.name", &vec!["$", "0"]).0 > 0).to(be_false());
-    expect!(calc_path_weight("$.name[1]", &vec!["$", "name", "0"]).0 > 0).to(be_false());
-    expect!(calc_path_weight("$[1].name", &vec!["$", "name", "1"]).0 > 0).to(be_false());
+    expect!(DocPath::new_unwrap("$[0]").path_weight(&vec!["$", "0"]).0 > 0).to(be_true());
+    expect!(DocPath::new_unwrap("$.name[1]").path_weight(&vec!["$", "name", "1"]).0 > 0).to(be_true());
+    expect!(DocPath::new_unwrap("$.name").path_weight(&vec!["$", "0"]).0 > 0).to(be_false());
+    expect!(DocPath::new_unwrap("$.name[1]").path_weight(&vec!["$", "name", "0"]).0 > 0).to(be_false());
+    expect!(DocPath::new_unwrap("$[1].name").path_weight(&vec!["$", "name", "1"]).0 > 0).to(be_false());
   }
 
   #[test]
   fn matches_path_matches_with_wildcard() {
-    expect!(calc_path_weight("$[*]", &vec!["$", "0"]).0 > 0).to(be_true());
-    expect!(calc_path_weight("$.*", &vec!["$", "name"]).0 > 0).to(be_true());
-    expect!(calc_path_weight("$.*.name", &vec!["$", "some", "name"]).0 > 0).to(be_true());
-    expect!(calc_path_weight("$.name[*]", &vec!["$", "name", "0"]).0 > 0).to(be_true());
-    expect!(calc_path_weight("$.name[*].name", &vec!["$", "name", "1", "name"]).0 > 0).to(be_true());
-    expect!(calc_path_weight("$[*]", &vec!["$", "name"]).0 > 0).to(be_false());
+    expect!(DocPath::new_unwrap("$[*]").path_weight(&vec!["$", "0"]).0 > 0).to(be_true());
+    expect!(DocPath::new_unwrap("$.*").path_weight(&vec!["$", "name"]).0 > 0).to(be_true());
+    expect!(DocPath::new_unwrap("$.*.name").path_weight(&vec!["$", "some", "name"]).0 > 0).to(be_true());
+    expect!(DocPath::new_unwrap("$.name[*]").path_weight(&vec!["$", "name", "0"]).0 > 0).to(be_true());
+    expect!(DocPath::new_unwrap("$.name[*].name").path_weight(&vec!["$", "name", "1", "name"]).0 > 0).to(be_true());
+    expect!(DocPath::new_unwrap("$[*]").path_weight(&vec!["$", "name"]).0 > 0).to(be_false());
   }
 
   #[test]
@@ -477,5 +670,20 @@ mod tests {
       be_err().value("Empty bracket expressions are not allowed in path expression \"$[]\" at index 2".to_string()));
     expect!(parse_path_exp("$[-1]")).to(
       be_err().value("Indexes can only consist of numbers or a \"*\", found \"-\" instead in path expression \"$[-1]\" at index 2".to_string()));
+  }
+
+  #[test]
+  fn obj_key_for_path_quotes_keys_when_necessary() {
+    assert_eq!(obj_key_for_path("foo"), ".foo");
+    assert_eq!(obj_key_for_path("_foo"), "._foo");
+    assert_eq!(obj_key_for_path("["), "['[']");
+
+    // I don't actually know how the JSON Path specification wants us to handle
+    // these cases, but we need to _something_ to avoid panics or passing
+    // `Result` around everywhere, so let's go with JavaScript string escape
+    // syntax.
+    assert_eq!(obj_key_for_path(r#"''"#), r#"['\'\'']"#);
+    assert_eq!(obj_key_for_path(r#"a'"#), r#"['a\'']"#);
+    assert_eq!(obj_key_for_path(r#"\"#), r#"['\\']"#);
   }
 }
