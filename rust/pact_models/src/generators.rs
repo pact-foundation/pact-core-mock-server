@@ -45,7 +45,7 @@ pub trait VariantMatcher: Debug {
 }
 
 #[derive(Clone, Debug)]
-struct NoopVariantMatcher;
+pub struct NoopVariantMatcher;
 
 impl VariantMatcher for NoopVariantMatcher {
   fn find_matching_variant(
