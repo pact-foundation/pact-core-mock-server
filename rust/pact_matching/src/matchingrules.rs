@@ -16,7 +16,7 @@ use crate::binary_utils::match_content_type;
 use crate::matchers::{match_values, Matches};
 
 impl <T: Debug + Display + PartialEq + Clone> Matches<&Vec<T>> for &Vec<T> {
-  fn matches_with(&self, actual: &Vec<T>, matcher: &MatchingRule) -> anyhow::Result<()> {
+  fn matches_with(&self, actual: &Vec<T>, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
     let result = match matcher {
       MatchingRule::Regex(ref regex) => {
         match Regex::new(regex) {
@@ -33,23 +33,23 @@ impl <T: Debug + Display + PartialEq + Clone> Matches<&Vec<T>> for &Vec<T> {
       }
       MatchingRule::Type => Ok(()),
       MatchingRule::MinType(min) => {
-        if actual.len() < *min {
+        if !cascaded && actual.len() < *min {
           Err(anyhow!("Expected list with length {} to have a minimum length of {}", actual.len(), min))
         } else {
           Ok(())
         }
       }
       MatchingRule::MaxType(max) => {
-        if actual.len() > *max {
+        if !cascaded && actual.len() > *max {
           Err(anyhow!("Expected list with length {} to have a maximum length of {}", actual.len(), max))
         } else {
           Ok(())
         }
       }
       MatchingRule::MinMaxType(min, max) => {
-        if actual.len() < *min {
+        if !cascaded && actual.len() < *min {
           Err(anyhow!("Expected list with length {} to have a minimum length of {}", actual.len(), min))
-        } else if actual.len() > *max {
+        } else if !cascaded && actual.len() > *max {
           Err(anyhow!("Expected list with length {} to have a maximum length of {}", actual.len(), max))
         } else {
           Ok(())
@@ -70,7 +70,7 @@ impl <T: Debug + Display + PartialEq + Clone> Matches<&Vec<T>> for &Vec<T> {
 }
 
 impl Matches<&[u8]> for Vec<u8> {
-  fn matches_with(&self, actual: &[u8], matcher: &MatchingRule) -> anyhow::Result<()> {
+  fn matches_with(&self, actual: &[u8], matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
     let result = match matcher {
       MatchingRule::Regex(regex) => {
         match Regex::new(regex) {
@@ -87,23 +87,23 @@ impl Matches<&[u8]> for Vec<u8> {
       }
       MatchingRule::Type => Ok(()),
       MatchingRule::MinType(min) => {
-        if actual.len() < *min {
+        if !cascaded && actual.len() < *min {
           Err(anyhow!("Expected list with length {} to have a minimum length of {}", actual.len(), min))
         } else {
           Ok(())
         }
       }
       MatchingRule::MaxType(max) => {
-        if actual.len() > *max {
+        if !cascaded && actual.len() > *max {
           Err(anyhow!("Expected list with length {} to have a maximum length of {}", actual.len(), max))
         } else {
           Ok(())
         }
       }
       MatchingRule::MinMaxType(min, max) => {
-        if actual.len() < *min {
+        if !cascaded && actual.len() < *min {
           Err(anyhow!("Expected list with length {} to have a minimum length of {}", actual.len(), min))
-        } else if actual.len() > *max {
+        } else if !cascaded && actual.len() > *max {
           Err(anyhow!("Expected list with length {} to have a maximum length of {}", actual.len(), max))
         } else {
           Ok(())
@@ -128,8 +128,8 @@ impl Matches<&[u8]> for Vec<u8> {
 }
 
 impl Matches<&[u8]> for &Vec<u8> {
-  fn matches_with(&self, actual: &[u8], matcher: &MatchingRule) -> anyhow::Result<()> {
-    (*self).matches_with(actual, matcher)
+  fn matches_with(&self, actual: &[u8], matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
+    (*self).matches_with(actual, matcher, cascaded)
   }
 }
 

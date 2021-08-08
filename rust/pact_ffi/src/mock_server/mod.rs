@@ -1017,7 +1017,7 @@ pub extern fn pactffi_with_binary_file(
               }
             };
             inner.request.matching_rules.add_category("body").add_rule(
-              DocPath::root(), MatchingRule::ContentType(content_type.into()), &RuleLogic::And);
+              DocPath::root(), MatchingRule::ContentType(content_type.into()), RuleLogic::And);
           },
           InteractionPart::Response => {
             inner.response.body = convert_ptr_to_body(body, size);
@@ -1032,7 +1032,7 @@ pub extern fn pactffi_with_binary_file(
               }
             }
             inner.response.matching_rules.add_category("body").add_rule(
-              DocPath::root(), MatchingRule::ContentType(content_type.into()), &RuleLogic::And);
+              DocPath::root(), MatchingRule::ContentType(content_type.into()), RuleLogic::And);
           }
         };
         !mock_server_started

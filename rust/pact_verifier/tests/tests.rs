@@ -152,3 +152,49 @@ async fn verifying_a_pact_with_pending_interactions() {
   expect!(result.results.get(0).unwrap().result.as_ref()).to(be_err());
   expect!(result.results.get(0).unwrap().pending).to(be_true());
 }
+
+#[tokio::test]
+async fn verifying_a_pact_with_min_type_matcher_and_child_arrays() {
+  try_init().unwrap_or(());
+
+  try_init().unwrap_or(());
+
+  let server = PactBuilder::new_v4("consumer", "Issue396Service")
+    .interaction("get data request", |i| {
+      i.test_name("verifying_a_pact_with_min_type_matcher_and_child_arrays");
+      i.request.method("GET");
+      i.request.path("/data");
+      i.response.ok().content_type("application/json").json_body(json_pattern!({
+          "parent": [
+            {
+              "child": [
+                "a"
+              ]
+            },
+            {
+              "child": [
+                "a"
+              ]
+            }
+          ]
+        }));
+    })
+    .start_mock_server();
+
+  let provider = ProviderInfo {
+    name: "Issue396Service".to_string(),
+    host: "127.0.0.1".to_string(),
+    port: server.url().port(),
+    .. ProviderInfo::default()
+  };
+
+  let pact_file = fixture_path("issue396.json");
+  let pact = read_pact(pact_file.as_path()).unwrap();
+  let options: VerificationOptions<NullRequestFilterExecutor> = VerificationOptions::default();
+  let provider_states = Arc::new(DummyProviderStateExecutor{});
+
+  let result = verify_pact_internal(&provider, &FilterInfo::None,
+                                    pact, &options, &provider_states, false).await;
+
+  expect!(result.results.get(0).unwrap().result.as_ref()).to(be_ok());
+}

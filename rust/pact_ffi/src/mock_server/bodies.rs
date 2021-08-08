@@ -54,7 +54,7 @@ pub fn process_object(
     if !skip_matchers {
       let matching_rule = matcher_from_integration_json(obj);
       if let Some(rule) = &matching_rule {
-        matching_rules.add_rule(path.clone(), rule.clone(), &RuleLogic::And);
+        matching_rules.add_rule(path.clone(), rule.clone(), RuleLogic::And);
       }
       if let Some(gen) = obj.get("pact:generator:type") {
         if let Some(generator) = Generator::from_map(&json_to_string(gen), obj) {
@@ -222,9 +222,10 @@ pub fn request_multipart(request: &mut Request, boundary: &str, body: OptionalBo
   let mut path = DocPath::root();
   path.push_field(part_name);
   request.matching_rules.add_category("body")
-    .add_rule(path, MatchingRule::ContentType(content_type.into()), &RuleLogic::And);
+    .add_rule(path, MatchingRule::ContentType(content_type.into()), RuleLogic::And);
   request.matching_rules.add_category("header")
-    .add_rule(DocPath::new_unwrap("Content-Type"), MatchingRule::Regex(r"multipart/form-data;(\s*charset=[^;]*;)?\s*boundary=.*".into()), &RuleLogic::And);
+    .add_rule(DocPath::new_unwrap("Content-Type"),
+              MatchingRule::Regex(r"multipart/form-data;(\s*charset=[^;]*;)?\s*boundary=.*".into()), RuleLogic::And);
 }
 
 /// Setup the response as a multipart form upload
@@ -243,9 +244,10 @@ pub fn response_multipart(response: &mut Response, boundary: &str, body: Optiona
   let mut path = DocPath::root();
   path.push_field(part_name);
   response.matching_rules.add_category("body")
-    .add_rule(path, MatchingRule::ContentType(content_type.into()), &RuleLogic::And);
+    .add_rule(path, MatchingRule::ContentType(content_type.into()), RuleLogic::And);
   response.matching_rules.add_category("header")
-    .add_rule(DocPath::new_unwrap("Content-Type"), MatchingRule::Regex(r"multipart/form-data;(\s*charset=[^;]*;)?\s*boundary=.*".into()), &RuleLogic::And);
+    .add_rule(DocPath::new_unwrap("Content-Type"),
+              MatchingRule::Regex(r"multipart/form-data;(\s*charset=[^;]*;)?\s*boundary=.*".into()), RuleLogic::And);
 }
 
 /// Representation of a multipart body

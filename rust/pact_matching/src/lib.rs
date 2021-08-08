@@ -428,7 +428,7 @@ impl MatchingContext {
   }
 
   /// Selected the best matcher from the context for the given path
-  pub fn select_best_matcher(&self, path: &[&str]) -> Option<RuleList> {
+  pub fn select_best_matcher(&self, path: &[&str]) -> RuleList {
     self.matchers.select_best_matcher(path)
   }
 
@@ -1040,7 +1040,7 @@ pub fn match_path(expected: &String, actual: &String, context: &MatchingContext)
   let matcher_result = if context.matcher_is_defined(&path) {
     match_values(&path, context, expected.clone(), actual.clone())
   } else {
-    expected.matches_with(actual, &MatchingRule::Equality).map_err(|err| vec![err])
+    expected.matches_with(actual, &MatchingRule::Equality, false).map_err(|err| vec![err])
       .map_err(|errors| errors.iter().map(|err| err.to_string()).collect())
   };
   matcher_result.map_err(|messages| messages.iter().map(|message| {
@@ -1058,7 +1058,7 @@ fn compare_query_parameter_value(key: &String, expected: &String, actual: &Strin
   let matcher_result = if context.matcher_is_defined(&path) {
     matchers::match_values(&path, context, expected.clone(), actual.clone())
   } else {
-    expected.matches_with(actual, &MatchingRule::Equality)
+    expected.matches_with(actual, &MatchingRule::Equality, false)
       .map_err(|error| vec![error.to_string()])
   };
   matcher_result.map_err(|messages| {
@@ -1253,7 +1253,7 @@ pub fn match_body(
   debug!("content type header matcher = '{:?}'", content_type_matcher);
   if expected_content_type.is_unknown() || actual_content_type.is_unknown() ||
     expected_content_type.is_equivalent_to(&actual_content_type) ||
-    (content_type_matcher.is_some() &&
+    (!content_type_matcher.is_empty() &&
       match_header_value("Content-Type", expected_content_type.to_string().as_str(),
                          actual_content_type.to_string().as_str(), header_context).is_ok()) {
     match_body_content(&expected_content_type, expected, actual, context)
@@ -1451,7 +1451,7 @@ fn match_metadata_value(key: &str, expected: &Value, actual: &Value, context: &M
     headers::match_parameter_header(expected.as_str().unwrap_or_default(),
                                     actual.as_str().unwrap_or_default(), key, "metadata")
   } else {
-    expected.matches_with(actual, &MatchingRule::Equality).map_err(|err| vec![err.to_string()])
+    expected.matches_with(actual, &MatchingRule::Equality, false).map_err(|err| vec![err.to_string()])
   };
   matcher_result.map_err(|messages| {
     messages.iter().map(|message| {

@@ -934,9 +934,8 @@ fn array_size_less_than_required() {
           },
           "body": {
             "animals": [
-              {
-                "name" : "Fred"
-              }
+              { "name" : "Fred" },
+              { "name" : "Bob" }
             ]
           }
         },

@@ -47,35 +47,38 @@ pub fn match_octet_stream(expected: &dyn HttpPart, actual: &dyn HttpPart, contex
   debug!("matching binary contents ({} bytes)", actual.len());
   let path = vec!["$"];
   if context.matcher_is_defined(&path) {
-    match context.select_best_matcher(&path) {
-      None => mismatches.push(Mismatch::BodyMismatch {
+    let matchers = context.select_best_matcher(&path);
+    if matchers.is_empty() {
+      mismatches.push(Mismatch::BodyMismatch {
         path: "$".into(),
         expected: Some(expected),
         actual: Some(actual),
-        mismatch: format!("No matcher found for category 'body' and path '{}'", path.iter().join("."))}),
-      Some(ref rulelist) => {
-        let results = rulelist.rules.iter().map(|rule|
-          expected.matches_with(&actual, rule)).collect::<Vec<anyhow::Result<()>>>();
-        match rulelist.rule_logic {
-          RuleLogic::And => for result in results {
-            if let Err(err) = result {
-              mismatches.push(Mismatch::BodyMismatch {
-                path: "$".into(),
-                expected: Some(expected.clone()),
-                actual: Some(actual.clone()),
-                mismatch: err.to_string() })
-            }
-          },
-          RuleLogic::Or => {
-            if results.iter().all(|result| result.is_err()) {
-              for result in results {
-                if let Err(err) = result {
-                  mismatches.push(Mismatch::BodyMismatch {
-                    path: "$".into(),
-                    expected: Some(expected.clone()),
-                    actual: Some(actual.clone()),
-                    mismatch: err.to_string() })
-                }
+        mismatch: format!("No matcher found for category 'body' and path '{}'", path.iter().join(".")),
+      })
+    } else {
+      let results = matchers.rules.iter().map(|rule|
+        expected.matches_with(&actual, rule, matchers.cascaded)).collect::<Vec<anyhow::Result<()>>>();
+      match matchers.rule_logic {
+        RuleLogic::And => for result in results {
+          if let Err(err) = result {
+            mismatches.push(Mismatch::BodyMismatch {
+              path: "$".into(),
+              expected: Some(expected.clone()),
+              actual: Some(actual.clone()),
+              mismatch: err.to_string(),
+            })
+          }
+        },
+        RuleLogic::Or => {
+          if results.iter().all(|result| result.is_err()) {
+            for result in results {
+              if let Err(err) = result {
+                mismatches.push(Mismatch::BodyMismatch {
+                  path: "$".into(),
+                  expected: Some(expected.clone()),
+                  actual: Some(actual.clone()),
+                  mismatch: err.to_string(),
+                })
               }
             }
           }
@@ -88,7 +91,7 @@ pub fn match_octet_stream(expected: &dyn HttpPart, actual: &dyn HttpPart, contex
       expected: Some(expected.clone()),
       actual: Some(actual.clone()),
       mismatch: format!("Expected binary data of {} bytes but received {} bytes",
-                        expected.len(), actual.len())
+                        expected.len(), actual.len()),
     });
   }
 
@@ -222,7 +225,7 @@ fn match_field(key: &String, expected: &String, actual: &String, context: &Match
     debug!("Calling match_values for path $.{}", key);
     match_values(&path, context, expected.as_str(), actual.as_str())
   } else {
-    expected.as_str().matches_with(actual.as_str(), &MatchingRule::Equality).map_err(|err|
+    expected.as_str().matches_with(actual.as_str(), &MatchingRule::Equality, false).map_err(|err|
       vec![format!("MIME part '{}': {}", key, err)]
     )
   };
@@ -248,7 +251,7 @@ fn first(bytes: &[u8], len: usize) -> &[u8] {
 }
 
 impl Matches<&MimeFile> for &MimeFile {
-  fn matches_with(&self, actual: &MimeFile, matcher: &MatchingRule) -> anyhow::Result<()> {
+  fn matches_with(&self, actual: &MimeFile, matcher: &MatchingRule, _cascaded: bool) -> anyhow::Result<()> {
     debug!("FilePart: comparing binary data to '{:?}' using {:?}", actual.content_type, matcher);
     match matcher {
       MatchingRule::Regex(ref regex) => {
@@ -307,7 +310,7 @@ fn match_file(key: &String, expected: &MimeFile, actual: &MimeFile, context: &Ma
     })
   } else {
     if expected.content_type == actual.content_type {
-      expected.matches_with(actual, &MatchingRule::Equality).map_err(|err|
+      expected.matches_with(actual, &MatchingRule::Equality, false).map_err(|err|
         vec![Mismatch::BodyMismatch {
           path: path.join("."),
           expected: None,

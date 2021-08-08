@@ -44,7 +44,7 @@ where
   }
 
   fn extract_matching_rules(&self, path: DocPath, rules_out: &mut MatchingRuleCategory) {
-    rules_out.add_rule(path, MatchingRule::Timestamp(self.format.clone()), &RuleLogic::And);
+    rules_out.add_rule(path, MatchingRule::Timestamp(self.format.clone()), RuleLogic::And);
   }
 }
 

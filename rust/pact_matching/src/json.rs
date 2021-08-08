@@ -33,19 +33,19 @@ fn type_of(json: &Value) -> String {
 }
 
 impl Matches<Value> for Value {
-  fn matches_with(&self, actual: Value, matcher: &MatchingRule) -> anyhow::Result<()> {
-    self.matches_with(&actual, matcher)
+  fn matches_with(&self, actual: Value, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
+    self.matches_with(&actual, matcher, cascaded)
   }
 }
 
 impl Matches<&Value> for &Value {
-  fn matches_with(&self, actual: &Value, matcher: &MatchingRule) -> anyhow::Result<()> {
-    (*self).matches_with(actual, matcher)
+  fn matches_with(&self, actual: &Value, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
+    (*self).matches_with(actual, matcher, cascaded)
   }
 }
 
 impl Matches<&Value> for Value {
-  fn matches_with(&self, actual: &Value, matcher: &MatchingRule) -> anyhow::Result<()> {
+  fn matches_with(&self, actual: &Value, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
     let result = match matcher {
       MatchingRule::Regex(regex) => {
         match Regex::new(regex) {
@@ -87,7 +87,7 @@ impl Matches<&Value> for Value {
       },
       MatchingRule::MinType(min) => {
         match (self, actual) {
-          (&Value::Array(_), &Value::Array(ref actual_array)) => if actual_array.len() < *min {
+          (&Value::Array(_), &Value::Array(ref actual_array)) => if !cascaded && actual_array.len() < *min {
             Err(anyhow!("Expected '{}' to have at least {} item(s)", json_to_string(actual), min))
           } else {
             Ok(())
@@ -102,7 +102,7 @@ impl Matches<&Value> for Value {
       },
       MatchingRule::MaxType(max) => {
         match (self, actual) {
-          (&Value::Array(_), &Value::Array(ref actual_array)) => if actual_array.len() > *max {
+          (&Value::Array(_), &Value::Array(ref actual_array)) => if !cascaded && actual_array.len() > *max {
             Err(anyhow!("Expected '{}' to have at most {} item(s)", json_to_string(actual), max))
           } else {
             Ok(())
@@ -117,9 +117,9 @@ impl Matches<&Value> for Value {
       },
       MatchingRule::MinMaxType(min, max) => {
         match (self, actual) {
-          (&Value::Array(_), &Value::Array(ref actual_array)) => if actual_array.len() < *min {
+          (&Value::Array(_), &Value::Array(ref actual_array)) => if !cascaded && actual_array.len() < *min {
             Err(anyhow!("Expected '{}' to have at least {} item(s)", json_to_string(actual), min))
-          } else if actual_array.len() > *max {
+          } else if !cascaded && actual_array.len() > *max {
             Err(anyhow!("Expected '{}' to have at most {} item(s)", json_to_string(actual), max))
           } else {
             Ok(())
@@ -327,7 +327,7 @@ fn compare_maps(path: &[&str], expected: &serde_json::Map<String, Value>, actual
 
     if context.matcher_is_defined(path) {
       debug!("compare_maps: Matcher is defined for path {}", spath);
-      for matcher in context.select_best_matcher(path).unwrap().rules {
+      for matcher in context.select_best_matcher(path).rules {
         result = merge_result(result,compare_maps_with_matchingrule(&matcher, path, &expected, &actual, &context, &mut |p, expected, actual| {
           compare(&p, expected, actual, context)
         }));
@@ -350,9 +350,9 @@ fn compare_lists(path: &[&str], expected: &Vec<Value>, actual: &Vec<Value>,
                  context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
   let spath = path.join(".");
   if context.matcher_is_defined(path) {
-    log::debug!("compare_lists: matcher defined for path '{}'", spath);
+    debug!("compare_lists: matcher defined for path '{}'", spath);
     let mut result = Ok(());
-    for matcher in context.select_best_matcher(path).unwrap().rules {
+    for matcher in context.select_best_matcher(path).rules {
       let values_result = compare_lists_with_matchingrule(&matcher, path, expected, actual, context, &|p, expected, actual, context| {
         compare(p, expected, actual, context)
       });
@@ -406,7 +406,7 @@ fn compare_values(path: &[&str], expected: &Value, actual: &Value, context: &Mat
     debug!("compare_values: Calling match_values for path {}", path.join("."));
     match_values(path, context, expected, actual)
   } else {
-    expected.matches_with(actual, &MatchingRule::Equality).map_err(|err| vec![err.to_string()])
+    expected.matches_with(actual, &MatchingRule::Equality, false).map_err(|err| vec![err.to_string()])
   };
   log::debug!("compare_values: Comparing '{:?}' to '{:?}' at path '{}' -> {:?}", expected, actual, path.join("."), matcher_result);
   matcher_result.map_err(|messages| {
@@ -728,111 +728,115 @@ mod tests {
     #[test]
     fn equality_matcher_test() {
         let matcher = MatchingRule::Equality;
-        expect!(Value::String("100".into()).matches_with(Value::String("100".into()), &matcher)).to(be_ok());
-        expect!(Value::String("100".into()).matches_with(Value::String("101".into()), &matcher)).to(be_err());
-        expect!(Value::String("100".into()).matches_with(json!(100), &matcher)).to(be_err());
+        expect!(Value::String("100".into()).matches_with(Value::String("100".into()), &matcher, false)).to(be_ok());
+        expect!(Value::String("100".into()).matches_with(Value::String("101".into()), &matcher, false)).to(be_err());
+        expect!(Value::String("100".into()).matches_with(json!(100), &matcher, false)).to(be_err());
     }
 
     #[test]
     fn regex_matcher_test() {
         let matcher = MatchingRule::Regex("^\\d+$".into());
-        expect!(Value::String("100".into()).matches_with(Value::String("100".into()), &matcher)).to(be_ok());
-        expect!(Value::String("100".into()).matches_with(Value::String("101".into()), &matcher)).to(be_ok());
-        expect!(Value::String("100".into()).matches_with(Value::String("10a".into()), &matcher)).to(be_err());
-        expect!(Value::String("100".into()).matches_with(json!(100), &matcher)).to(be_ok());
+        expect!(Value::String("100".into()).matches_with(Value::String("100".into()), &matcher, false)).to(be_ok());
+        expect!(Value::String("100".into()).matches_with(Value::String("101".into()), &matcher, false)).to(be_ok());
+        expect!(Value::String("100".into()).matches_with(Value::String("10a".into()), &matcher, false)).to(be_err());
+        expect!(Value::String("100".into()).matches_with(json!(100), &matcher, false)).to(be_ok());
     }
 
   #[test]
   fn includes_matcher_test() {
     let matcher = MatchingRule::Include("10".into());
-    expect!(Value::String("100".into()).matches_with(Value::String("100".into()), &matcher)).to(be_ok());
-    expect!(Value::String("100".into()).matches_with(Value::String("101".into()), &matcher)).to(be_ok());
-    expect!(Value::String("100".into()).matches_with(Value::String("1a0".into()), &matcher)).to(be_err());
-    expect!(Value::String("100".into()).matches_with(json!(100), &matcher)).to(be_ok());
+    expect!(Value::String("100".into()).matches_with(Value::String("100".into()), &matcher, false)).to(be_ok());
+    expect!(Value::String("100".into()).matches_with(Value::String("101".into()), &matcher, false)).to(be_ok());
+    expect!(Value::String("100".into()).matches_with(Value::String("1a0".into()), &matcher, false)).to(be_err());
+    expect!(Value::String("100".into()).matches_with(json!(100), &matcher, false)).to(be_ok());
   }
 
     #[test]
     fn type_matcher_test() {
         let matcher = MatchingRule::Type;
-        expect!(Value::String("100".into()).matches_with(Value::String("100".into()), &matcher)).to(be_ok());
-        expect!(Value::String("100".into()).matches_with(Value::String("101".into()), &matcher)).to(be_ok());
-        expect!(Value::String("100".into()).matches_with(Value::String("10a".into()), &matcher)).to(be_ok());
-        expect!(Value::String("100".into()).matches_with(json!(100), &matcher)).to(be_err());
+        expect!(Value::String("100".into()).matches_with(Value::String("100".into()), &matcher, false)).to(be_ok());
+        expect!(Value::String("100".into()).matches_with(Value::String("101".into()), &matcher, false)).to(be_ok());
+        expect!(Value::String("100".into()).matches_with(Value::String("10a".into()), &matcher, false)).to(be_ok());
+        expect!(Value::String("100".into()).matches_with(json!(100), &matcher, false)).to(be_err());
     }
 
     #[test]
     fn min_type_matcher_test() {
         let matcher = MatchingRule::MinType(2);
-        expect!(Value::Array(vec![]).matches_with(&Value::Array(vec![json!(100), json!(100)]), &matcher)).to(be_ok());
-        expect!(Value::Array(vec![]).matches_with(&Value::Array(vec![json!(100)]), &matcher)).to(be_err());
-        expect!(Value::String("100".into()).matches_with(&Value::String("101".into()), &matcher)).to(be_ok());
+        expect!(Value::Array(vec![]).matches_with(&Value::Array(vec![json!(100), json!(100)]), &matcher, false)).to(be_ok());
+        expect!(Value::Array(vec![]).matches_with(&Value::Array(vec![json!(100)]), &matcher, false)).to(be_err());
+        expect!(Value::Array(vec![]).matches_with(&Value::Array(vec![json!(100)]), &matcher, true)).to(be_ok());
+        expect!(Value::String("100".into()).matches_with(&Value::String("101".into()), &matcher, false)).to(be_ok());
     }
 
     #[test]
     fn max_type_matcher_test() {
         let matcher = MatchingRule::MaxType(1);
-        expect!(Value::Array(vec![]).matches_with(&Value::Array(vec![json!(100), json!(100)]), &matcher)).to(be_err());
-        expect!(Value::Array(vec![]).matches_with(&Value::Array(vec![json!(100)]), &matcher)).to(be_ok());
-        expect!(Value::String("100".into()).matches_with(&Value::String("101".into()), &matcher)).to(be_ok());
+        expect!(Value::Array(vec![]).matches_with(&Value::Array(vec![json!(100), json!(100)]), &matcher, false)).to(be_err());
+        expect!(Value::Array(vec![]).matches_with(&Value::Array(vec![json!(100), json!(100)]), &matcher, true)).to(be_ok());
+        expect!(Value::Array(vec![]).matches_with(&Value::Array(vec![json!(100)]), &matcher, false)).to(be_ok());
+        expect!(Value::String("100".into()).matches_with(&Value::String("101".into()), &matcher, false)).to(be_ok());
     }
 
     #[test]
     fn min_max_type_matcher_test() {
       let matcher = MatchingRule::MinMaxType(2, 3);
       expect!(Value::Array(vec![]).matches_with(&Value::Array(vec![json!(100), json!(100)]),
-        &matcher)).to(be_ok());
+        &matcher, false)).to(be_ok());
       expect!(Value::Array(vec![]).matches_with(&Value::Array(vec![json!(100), json!(100),
-        json!(100)]), &matcher)).to(be_ok());
+        json!(100)]), &matcher, false)).to(be_ok());
       expect!(Value::Array(vec![]).matches_with(&Value::Array(vec![json!(100), json!(100),
-        json!(100), json!(100)]), &matcher)).to(be_err());
-      expect!(Value::Array(vec![]).matches_with(&Value::Array(vec![json!(100)]), &matcher)).to(be_err());
-      expect!(Value::String("100".into()).matches_with(&Value::String("101".into()), &matcher)).to(be_ok());
+        json!(100), json!(100)]), &matcher, false)).to(be_err());
+      expect!(Value::Array(vec![]).matches_with(&Value::Array(vec![json!(100), json!(100),
+        json!(100), json!(100)]), &matcher, true)).to(be_ok());
+      expect!(Value::Array(vec![]).matches_with(&Value::Array(vec![json!(100)]), &matcher, false)).to(be_err());
+      expect!(Value::String("100".into()).matches_with(&Value::String("101".into()), &matcher, false)).to(be_ok());
     }
 
   #[test]
   fn integer_matcher_test() {
     let matcher = MatchingRule::Integer;
-    expect!(Value::String("100".into()).matches_with(&Value::String("100".into()), &matcher)).to(be_err());
-    expect!(Value::String("100".into()).matches_with(&json!(100), &matcher)).to(be_ok());
-    expect!(Value::String("100".into()).matches_with(&json!(100.02), &matcher)).to(be_err());
+    expect!(Value::String("100".into()).matches_with(&Value::String("100".into()), &matcher, false)).to(be_err());
+    expect!(Value::String("100".into()).matches_with(&json!(100), &matcher, false)).to(be_ok());
+    expect!(Value::String("100".into()).matches_with(&json!(100.02), &matcher, false)).to(be_err());
   }
 
   #[test]
   fn decimal_matcher_test() {
     let matcher = MatchingRule::Decimal;
-    expect!(Value::String("100".into()).matches_with(&Value::String("100".into()), &matcher)).to(be_err());
-    expect!(Value::String("100".into()).matches_with(&json!(100), &matcher)).to(be_err());
-    expect!(Value::String("100".into()).matches_with(&json!(100.01), &matcher)).to(be_ok());
+    expect!(Value::String("100".into()).matches_with(&Value::String("100".into()), &matcher, false)).to(be_err());
+    expect!(Value::String("100".into()).matches_with(&json!(100), &matcher, false)).to(be_err());
+    expect!(Value::String("100".into()).matches_with(&json!(100.01), &matcher, false)).to(be_ok());
   }
 
   #[test]
   fn number_matcher_test() {
     let matcher = MatchingRule::Number;
-    expect!(Value::String("100".into()).matches_with(&Value::String("100".into()), &matcher)).to(be_err());
-    expect!(Value::String("100".into()).matches_with(&json!(100), &matcher)).to(be_ok());
-    expect!(Value::String("100".into()).matches_with(&json!(100.01), &matcher)).to(be_ok());
+    expect!(Value::String("100".into()).matches_with(&Value::String("100".into()), &matcher, false)).to(be_err());
+    expect!(Value::String("100".into()).matches_with(&json!(100), &matcher, false)).to(be_ok());
+    expect!(Value::String("100".into()).matches_with(&json!(100.01), &matcher, false)).to(be_ok());
   }
 
   #[test]
   fn boolean_matcher_test() {
     let matcher = MatchingRule::Boolean;
-    expect!(Value::Bool(true).matches_with(&Value::String("100".into()), &matcher)).to(be_err());
-    expect!(Value::Bool(true).matches_with(&Value::Bool(false), &matcher)).to(be_ok());
-    expect!(Value::Bool(true).matches_with(&json!(100), &matcher)).to(be_err());
-    expect!(Value::Bool(true).matches_with(&Value::String("true".into()), &matcher)).to(be_ok());
-    expect!(Value::Bool(true).matches_with(&Value::String("false".into()), &matcher)).to(be_ok());
+    expect!(Value::Bool(true).matches_with(&Value::String("100".into()), &matcher, false)).to(be_err());
+    expect!(Value::Bool(true).matches_with(&Value::Bool(false), &matcher, false)).to(be_ok());
+    expect!(Value::Bool(true).matches_with(&json!(100), &matcher, false)).to(be_err());
+    expect!(Value::Bool(true).matches_with(&Value::String("true".into()), &matcher, false)).to(be_ok());
+    expect!(Value::Bool(true).matches_with(&Value::String("false".into()), &matcher, false)).to(be_ok());
   }
 
   #[test]
   fn null_matcher_test() {
     let matcher = MatchingRule::Null;
-    expect!(Value::String("100".into()).matches_with(&Value::String("100".into()), &matcher)).to(be_err());
-    expect!(Value::String("100".into()).matches_with(&Value::String("101".into()), &matcher)).to(be_err());
-    expect!(Value::String("100".into()).matches_with(&Value::String("10a".into()), &matcher)).to(be_err());
-    expect!(Value::String("100".into()).matches_with(&json!(100), &matcher)).to(be_err());
-    expect!(Value::String("100".into()).matches_with(&json!(100.2), &matcher)).to(be_err());
-    expect!(Value::String("100".into()).matches_with(&json!("null"), &matcher)).to(be_err());
-    expect!(Value::String("100".into()).matches_with(&Value::Null, &matcher)).to(be_ok());
+    expect!(Value::String("100".into()).matches_with(&Value::String("100".into()), &matcher, false)).to(be_err());
+    expect!(Value::String("100".into()).matches_with(&Value::String("101".into()), &matcher, false)).to(be_err());
+    expect!(Value::String("100".into()).matches_with(&Value::String("10a".into()), &matcher, false)).to(be_err());
+    expect!(Value::String("100".into()).matches_with(&json!(100), &matcher, false)).to(be_err());
+    expect!(Value::String("100".into()).matches_with(&json!(100.2), &matcher, false)).to(be_err());
+    expect!(Value::String("100".into()).matches_with(&json!("null"), &matcher, false)).to(be_err());
+    expect!(Value::String("100".into()).matches_with(&Value::Null, &matcher, false)).to(be_ok());
   }
 
   #[test_env_log::test]

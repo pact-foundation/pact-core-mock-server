@@ -11,9 +11,8 @@
     },
     "body": {
       "animals": [
-        {
-          "name" : "Fred"
-        }
+        { "name" : "Fred" },
+        { "name" : "Bob" }
       ]
     }
   },

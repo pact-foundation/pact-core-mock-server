@@ -43,7 +43,7 @@ impl<Nested: Pattern> Pattern for Like<Nested> {
     }
 
     fn extract_matching_rules(&self, path: DocPath, rules_out: &mut MatchingRuleCategory) {
-        rules_out.add_rule(path.clone(), MatchingRule::Type, &RuleLogic::And);
+        rules_out.add_rule(path.clone(), MatchingRule::Type, RuleLogic::And);
         self.example.extract_matching_rules(path, rules_out);
     }
 }
@@ -134,7 +134,7 @@ impl Pattern for EachLike {
         rules_out.add_rule(
             path.clone(),
             MatchingRule::MinType(self.min_len),
-            &RuleLogic::And
+            RuleLogic::And
         );
 
         let mut fields_path = path.clone();
@@ -142,7 +142,7 @@ impl Pattern for EachLike {
         rules_out.add_rule(
             fields_path,
             MatchingRule::Type,
-            &RuleLogic::And
+            RuleLogic::And
         );
 
         let mut example_path = path.clone();
@@ -308,7 +308,7 @@ where
 
     fn extract_matching_rules(&self, path: DocPath, rules_out: &mut MatchingRuleCategory) {
         rules_out.add_rule(path, MatchingRule::Regex(self.regex.to_string()),
-            &RuleLogic::And);
+            RuleLogic::And);
     }
 }
 
