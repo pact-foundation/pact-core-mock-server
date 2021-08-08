@@ -1507,7 +1507,7 @@ fn array_with_regular_expression_that_does_not_match_in_element_xml() {
             "$.body.animals": {"min": 1, "match": "type"},
             "$.body.animals.0": {"match": "type"},
             "$.body.animals.1": {"match": "type"},
-            "$.body.animals[*].alligator['@phoneNumber']": {"match": "regex", "regex": "\\d+"}
+            "$.body.animals.alligator['@phoneNumber']": {"match": "regex", "regex": "\\d+"}
           },
           "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><animals><alligator phoneNumber=\"0415674567\"/></animals>"
         },

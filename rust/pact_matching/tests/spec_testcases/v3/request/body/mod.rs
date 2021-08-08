@@ -1692,7 +1692,7 @@ fn array_with_regular_expression_that_does_not_match_in_element_xml() {
                   }
                 ]
               },
-              "$.animals[*].alligator['@phoneNumber']": {
+              "$.animals.alligator['@phoneNumber']": {
                 "matchers": [
                   {
                     "match": "regex",

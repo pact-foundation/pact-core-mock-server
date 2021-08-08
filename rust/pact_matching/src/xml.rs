@@ -154,12 +154,12 @@ fn path_to_string(path: &Vec<&str>) -> String {
 fn compare_element(path: &Vec<&str>, expected: &Element, actual: &Element,
   mismatches: &mut Vec<super::Mismatch>, context: &MatchingContext) {
   let matcher_result = if context.matcher_is_defined(&path) {
-    log::debug!("calling match_values {:?} on {:?}", path, actual);
+    debug!("calling match_values {:?} on {:?}", path, actual);
     match_values(&path, context, expected, actual)
   } else {
     expected.matches_with(actual, &MatchingRule::Equality).map_err(|err| vec![err.to_string()])
   };
-  log::debug!("Comparing '{:?}' to '{:?}' at path '{}' -> {:?}", expected, actual,
+  debug!("Comparing '{:?}' to '{:?}' at path '{}' -> {:?}", expected, actual,
     path_to_string(&path), matcher_result);
   match matcher_result {
     Err(messages) => {
@@ -795,9 +795,9 @@ mod tests {
     "#);
     let result = match_xml(&expected.clone(), &actual.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected 'hello world' to be equal to 'hello mars'")));
-    expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch { path: s!("$.foo.#text"),
+    expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch { path: "$.foo.#text".to_string(),
         expected: Some("hello world".into()),
-        actual: Some("hello mars".into()), mismatch: s!("") } ]));
+        actual: Some("hello mars".into()), mismatch: "".to_string() } ]));
 
     let result = match_xml(&expected, &actual, &MatchingContext::new(DiffConfig::AllowUnexpectedKeys, &matchingrules!{
         "body" => {
@@ -817,13 +817,13 @@ mod tests {
     "#);
     let result = match_xml(&expected.clone(), &actual.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected 'helloworld' to be equal to 'hellomars'")));
-    expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch { path: s!("$.foo.#text"),
+    expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch { path: "$.foo.#text".to_string(),
         expected: Some("helloworld".into()),
-        actual: Some("hellomars".into()), mismatch: s!("") } ]));
+        actual: Some("hellomars".into()), mismatch: "".to_string() } ]));
 
     let result = match_xml(&expected, &actual, &MatchingContext::new(DiffConfig::AllowUnexpectedKeys, &matchingrules!{
       "body" => {
-        "$.foo['#text']" => [ MatchingRule::Regex(s!("[a-z]+")) ]
+        "$.foo['#text']" => [ MatchingRule::Regex("[a-z]+".to_string()) ]
       }
     }.rules_for_category("body").unwrap()));
     expect!(result).to(be_ok());
@@ -1019,7 +1019,7 @@ mod tests {
     let expected = request!("<ns:foo xmlns:ns=\"urn:ns\"><ns:something>101</ns:something></ns:foo>");
     let actual = request!("<ns:foo xmlns:ns=\"urn:ns\"><ns:something>100</ns:something></ns:foo>");
     let matching_rules = matchingrules! {
-      "body" => { "$['urn:ns:foo']['urn:ns:something'].#text" => [ MatchingRule::Regex(s!("^[0-9]+$")) ] }
+      "body" => { "$['urn:ns:foo']['urn:ns:something'].#text" => [ MatchingRule::Regex("^[0-9]+$".to_string()) ] }
     };
     let result = match_xml(&expected, &actual, &MatchingContext::new(DiffConfig::NoUnexpectedKeys,
       &matching_rules.rules_for_category("body").unwrap()));
