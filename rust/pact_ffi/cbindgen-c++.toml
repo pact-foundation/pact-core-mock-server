@@ -8,7 +8,7 @@
 #==============================================================================
 
 # Generate bindings for the C language.
-language = "C"
+language = "C++"
 
 # Wrap generated file in an include guard.
 include_guard = "pact_ffi_h"

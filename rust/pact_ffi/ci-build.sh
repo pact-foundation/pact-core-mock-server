@@ -23,6 +23,10 @@ rustup run nightly cbindgen \
   --config cbindgen.toml \
   --crate pact_ffi \
   --output include/pact.h
+rustup run nightly cbindgen \
+  --config cbindgen-c++.toml \
+  --crate pact_ffi \
+  --output include/pact-c++.h
 
 #echo -------------------------------------
 #echo - Make library available for examples
