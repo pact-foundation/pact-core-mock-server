@@ -933,16 +933,29 @@ async fn publish_provider_tags(
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 /// Structure to represent a HAL link
 pub struct ConsumerVersionSelector {
   /// Application name to filter the results on
   pub consumer: Option<String>,
   /// Tag
-  pub tag: String,
+  pub tag: Option<String>,
   /// Fallback tag if Tag doesn't exist
   pub fallback_tag: Option<String>,
   /// Only select the latest (if false, this selects all pacts for a tag)
   pub latest: Option<bool>,
+  /// Applications that have been deployed or released
+  pub deployed_or_released: Option<bool>,
+  /// Applications that have been deployed
+  pub deployed: Option<bool>,
+  /// Applications that have been released
+  pub released: Option<bool>,
+  /// Applications in a given environment
+  pub environment: Option<String>,
+  /// Applications with the default branch set in the broker
+  pub main_branch: Option<bool>,
+  /// Applications with the given branch
+  pub branch: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -1580,9 +1593,15 @@ mod tests {
 
     let result = fetch_pacts_dynamically_from_broker(pact_broker.url().as_str(), "happy_provider".to_string(), false, None, vec!("master".to_string()), vec!(ConsumerVersionSelector {
       consumer: None,
-      tag: "prod".to_string(),
+      tag: Some("prod".to_string()),
       fallback_tag: None,
-      latest: None
+      latest: None,
+      branch: None,
+      deployed_or_released: None,
+      deployed: None,
+      released: None,
+      main_branch: None,
+      environment: None,
     }), None).await;
 
     match &result {
@@ -1666,9 +1685,15 @@ mod tests {
 
     let result = fetch_pacts_dynamically_from_broker(pact_broker.url().as_str(), "sad_provider".to_string(), false, None, vec!("master".to_string()), vec!(ConsumerVersionSelector {
       consumer: None,
-      tag: "prod".to_string(),
+      tag: Some("prod".to_string()),
       fallback_tag: None,
-      latest: None
+      latest: None,
+      branch: None,
+      deployed_or_released: None,
+      deployed: None,
+      released: None,
+      main_branch: None,
+      environment: None,
     }), None).await;
 
     match result {
