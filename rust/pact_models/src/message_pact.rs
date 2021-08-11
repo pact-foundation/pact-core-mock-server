@@ -14,6 +14,7 @@ use itertools::EitherOrBoth::{Both, Left, Right};
 use itertools::Itertools;
 use log::*;
 use maplit::*;
+use pact_plugin_driver::plugin_models::PluginDependency;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -23,10 +24,10 @@ use crate::http_utils::HttpAuth;
 use crate::interaction::Interaction;
 use crate::message::Message;
 use crate::pact::{determine_spec_version, Pact, parse_meta_data, ReadWritePact};
-use crate::sync_pact::RequestResponsePact;
-use crate::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerifier, ResultLevel};
-use crate::v4::pact::V4Pact;
 use crate::PACT_RUST_VERSION;
+use crate::sync_pact::RequestResponsePact;
+use crate::v4::pact::V4Pact;
+use crate::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerifier, ResultLevel};
 
 /// Struct that represents a pact between the consumer and provider of a service.
 /// It contains a list of Messages instead of Interactions, but is otherwise
@@ -123,6 +124,14 @@ impl Pact for MessagePact {
         Ok(())
       }
     }
+  }
+
+  fn requires_plugins(&self) -> bool {
+    false
+  }
+
+  fn plugins(&self) -> anyhow::Result<Vec<PluginDependency>> {
+    Ok(Vec::default())
   }
 }
 

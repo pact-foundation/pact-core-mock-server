@@ -87,7 +87,7 @@ async fn verify_pact_with_match_values_matcher() {
   let result = verify_pact_internal(&provider, &FilterInfo::None,
                                     pact, &options, &provider_states, false).await;
 
-  expect!(result.results.get(0).unwrap().result.as_ref()).to(be_ok());
+  expect!(result.unwrap().results.get(0).unwrap().result.as_ref()).to(be_ok());
 }
 
 #[tokio::test]
@@ -129,7 +129,7 @@ async fn verify_pact_with_attributes_with_special_values() {
   let result = verify_pact_internal(&provider, &FilterInfo::None,
                                     pact, &options, &provider_states, false).await;
 
-  expect!(result.results.get(0).unwrap().result.as_ref()).to(be_ok());
+  expect!(result.unwrap().results.get(0).unwrap().result.as_ref()).to(be_ok());
 }
 
 #[tokio::test]
@@ -149,14 +149,12 @@ async fn verifying_a_pact_with_pending_interactions() {
   let result = verify_pact_internal(&provider, &FilterInfo::None,
                                     pact, &options, &provider_states, false).await;
 
-  expect!(result.results.get(0).unwrap().result.as_ref()).to(be_err());
-  expect!(result.results.get(0).unwrap().pending).to(be_true());
+  expect!(result.as_ref().unwrap().results.get(0).unwrap().result.as_ref()).to(be_err());
+  expect!(result.as_ref().unwrap().results.get(0).unwrap().pending).to(be_true());
 }
 
 #[tokio::test]
 async fn verifying_a_pact_with_min_type_matcher_and_child_arrays() {
-  try_init().unwrap_or(());
-
   try_init().unwrap_or(());
 
   let server = PactBuilder::new_v4("consumer", "Issue396Service")
@@ -196,5 +194,5 @@ async fn verifying_a_pact_with_min_type_matcher_and_child_arrays() {
   let result = verify_pact_internal(&provider, &FilterInfo::None,
                                     pact, &options, &provider_states, false).await;
 
-  expect!(result.results.get(0).unwrap().result.as_ref()).to(be_ok());
+  expect!(result.unwrap().results.get(0).unwrap().result.as_ref()).to(be_ok());
 }

@@ -10,6 +10,7 @@ use itertools::{iproduct, Itertools};
 use itertools::EitherOrBoth::{Both, Left, Right};
 use log::warn;
 use maplit::{btreemap, hashset};
+use pact_plugin_driver::plugin_models::PluginDependency;
 use serde_json::{json, Value};
 
 use crate::{Consumer, http_utils, PactSpecification, Provider};
@@ -114,6 +115,14 @@ impl Pact for RequestResponsePact {
         Ok(())
       }
     }
+  }
+
+  fn requires_plugins(&self) -> bool {
+    false
+  }
+
+  fn plugins(&self) -> anyhow::Result<Vec<PluginDependency>> {
+    Ok(Vec::default())
   }
 }
 

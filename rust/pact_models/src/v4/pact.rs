@@ -8,7 +8,9 @@ use std::sync::{Arc, Mutex};
 use anyhow::{anyhow, Context};
 use itertools::EitherOrBoth::{Both, Left, Right};
 use itertools::Itertools;
+use log::warn;
 use maplit::btreemap;
+use pact_plugin_driver::plugin_models::PluginDependency;
 use serde_json::{json, Value};
 
 use crate::{Consumer, PactSpecification, Provider};
@@ -189,6 +191,40 @@ impl Pact for V4Pact {
       }
     }
   }
+
+  fn requires_plugins(&self) -> bool {
+    if let Some(plugins) = self.metadata.get("plugins") {
+      match plugins {
+        Value::Array(items) => !items.is_empty(),
+        _ => {
+          warn!("Ignoring invalid plugin configuration in metadata");
+          false
+        }
+      }
+    } else {
+      false
+    }
+  }
+
+  fn plugins(&self) -> anyhow::Result<Vec<PluginDependency>> {
+    if let Some(plugins) = self.metadata.get("plugins") {
+      match plugins {
+        Value::Array(items) => {
+          let mut deps = vec![];
+          for plugin in items {
+            deps.push(serde_json::from_value(plugin.clone())?);
+          }
+          Ok(deps)
+        }
+        _ => {
+          warn!("Ignoring invalid plugin configuration in metadata");
+          Ok(Vec::default())
+        }
+      }
+    } else {
+      Ok(Vec::default())
+    }
+  }
 }
 
 impl Default for V4Pact {
@@ -335,11 +371,11 @@ mod tests {
   use crate::provider_states::ProviderState;
   use crate::v4::async_message::AsynchronousMessage;
   use crate::v4::http_parts::{HttpRequest, HttpResponse};
-  use crate::v4::V4InteractionType;
   use crate::v4::message_parts::MessageContents;
   use crate::v4::pact::{from_json, V4Pact};
   use crate::v4::sync_message::SynchronousMessages;
   use crate::v4::synch_http::SynchronousHttp;
+  use crate::v4::V4InteractionType;
 
   #[test]
   fn load_empty_pact() {

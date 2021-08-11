@@ -13,6 +13,7 @@ use anyhow::{anyhow, Context};
 use lazy_static::lazy_static;
 use log::{debug, error, warn};
 use maplit::btreemap;
+use pact_plugin_driver::plugin_models::PluginDependency;
 use serde_json::{json, Value};
 
 use crate::{Consumer, http_utils, PactSpecification, Provider};
@@ -29,30 +30,48 @@ use crate::verify_json::{json_type_of, PactFileVerificationResult, ResultLevel};
 pub trait Pact: Debug + ReadWritePact {
   /// Consumer side of the pact
   fn consumer(&self) -> Consumer;
+
   /// Provider side of the pact
   fn provider(&self) -> Provider;
+
   /// Interactions in the Pact
   fn interactions(&self) -> Vec<&dyn Interaction>;
+
   /// Pact metadata
   fn metadata(&self) -> BTreeMap<String, BTreeMap<String, String>>;
+
   /// Converts this pact to a `Value` struct.
   fn to_json(&self, pact_spec: PactSpecification) -> anyhow::Result<Value>;
+
   /// Attempt to downcast to a concrete Pact
   fn as_request_response_pact(&self) -> anyhow::Result<RequestResponsePact>;
+
   /// Attempt to downcast to a concrete Message Pact
   fn as_message_pact(&self) -> anyhow::Result<MessagePact>;
+
   /// Attempt to downcast to a concrete V4 Pact
   fn as_v4_pact(&self) -> anyhow::Result<V4Pact>;
+
   /// Specification version of this Pact
   fn specification_version(&self) -> PactSpecification;
+
   /// Clones this Pact and wraps it in a Box
   fn boxed(&self) -> Box<dyn Pact + Send>;
+
   /// Clones this Pact and wraps it in an Arc
   fn arced(&self) -> Arc<dyn Pact + Send>;
+
   /// Clones this Pact and wraps it in an Arc and Mutex
   fn thread_safe(&self) -> Arc<Mutex<dyn Pact + Send + Sync>>;
+
   /// Adds an interactions in the Pact
   fn add_interaction(&mut self, interaction: &dyn Interaction) -> anyhow::Result<()>;
+
+  /// If this Pact needs any plugins loaded
+  fn requires_plugins(&self) -> bool;
+
+  /// Plugins required for this Pact
+  fn plugins(&self) -> anyhow::Result<Vec<PluginDependency>>;
 }
 
 

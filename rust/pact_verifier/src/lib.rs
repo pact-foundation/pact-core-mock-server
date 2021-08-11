@@ -29,6 +29,7 @@ use pact_models::http_utils::HttpAuth;
 use pact_models::interaction::Interaction;
 use pact_models::json_utils::json_to_string;
 use pact_models::pact::{load_pact_from_url, Pact, read_pact};
+use pact_models::plugins::load_plugins;
 use pact_models::provider_states::*;
 use pact_models::sync_interaction::RequestResponseInteraction;
 use pact_models::v4::interaction::V4Interaction;
@@ -541,13 +542,13 @@ pub fn verify_provider<F: RequestFilterExecutor, S: ProviderStateExecutor>(
   consumers: Vec<String>,
   options: VerificationOptions<F>,
   provider_state_executor: &Arc<S>
-) -> bool {
+) -> anyhow::Result<bool> {
   match tokio::runtime::Builder::new_multi_thread().enable_all().build() {
     Ok(runtime) => runtime.block_on(
       verify_provider_async(provider_info, source, filter, consumers, options, provider_state_executor)),
     Err(err) => {
       error!("Verify provider process failed to start the tokio runtime: {}", err);
-      false
+      Ok(false)
     }
   }
 }
@@ -560,7 +561,7 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
     consumers: Vec<String>,
     options: VerificationOptions<F>,
     provider_state_executor: &Arc<S>
-) -> bool {
+) -> anyhow::Result<bool> {
     let pact_results = fetch_pacts(source, consumers).await;
 
     let mut results: Vec<(Option<String>, Result<(), MismatchResult>)> = vec![];
@@ -581,15 +582,25 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
               Some(context) => context.verification_properties.pending,
               None => false
             };
-            let result = verify_pact_internal(&provider_info, &filter, pact, &options,
-                                              &provider_state_executor.clone(), pending).await;
-            for result in &result.results {
-              results.push((result.interaction_id.clone(), result.result.clone()));
-              if let Err(error) = &result.result {
-                if result.pending {
-                  pending_errors.push((result.description.clone(), error.clone()));
+            match verify_pact_internal(&provider_info, &filter, pact, &options,
+                                       &provider_state_executor.clone(), pending).await {
+              Ok(result) => for result in &result.results {
+                results.push((result.interaction_id.clone(), result.result.clone()));
+                if let Err(error) = &result.result {
+                  if result.pending {
+                    pending_errors.push((result.description.clone(), error.clone()));
+                  } else {
+                    errors.push((result.description.clone(), error.clone()));
+                  }
+                }
+              }
+              Err(err) => {
+                if pending {
+                  pending_errors.push(("Could not verify the provided pact".to_string(),
+                                       MismatchResult::Error(err.to_string(), None)));
                 } else {
-                  errors.push((result.description.clone(), error.clone()));
+                  errors.push(("Could not verify the provided pact".to_string(),
+                               MismatchResult::Error(err.to_string(), None)));
                 }
               }
             }
@@ -627,10 +638,10 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
       println!("\nFailures:\n");
       print_errors(&errors);
       println!("\nThere were {} pact failures\n", errors.len());
-      false
+      Ok(false)
     } else {
       println!();
-      true
+      Ok(true)
     }
 }
 
@@ -783,7 +794,12 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
   options: &VerificationOptions<F>,
   provider_state_executor: &Arc<S>,
   pending: bool
-) -> VerificationResult {
+) -> anyhow::Result<VerificationResult> {
+  if pact.requires_plugins() {
+    debug!("Pact file requires plugins, will load those now");
+    load_plugins(&pact.plugins()?).await?;
+  }
+
   let results: Vec<(&dyn Interaction, Result<Option<String>, MismatchResult>)> = futures::stream::iter(
     pact.interactions().iter().cloned()
   )
@@ -849,7 +865,7 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
 
   println!();
 
-  VerificationResult { results: errors }
+  Ok(VerificationResult { results: errors })
 }
 
 fn display_comments(interaction: Box<dyn V4Interaction>) {

@@ -43,6 +43,7 @@ uuid = { version = "0.8", features = ["v4"] }
 hex = "0.4.2"
 rand_regex = "0.15"
 regex-syntax = "0.6.21"
+pact-plugin-driver = { version =  "0.0.0", path = "../../../pact-plugins/drivers/rust/driver" }
 
 [dependencies.reqwest]
 version = "0.11"

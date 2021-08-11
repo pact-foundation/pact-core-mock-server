@@ -220,18 +220,16 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
       debug!("Pact source to verify = {}", s);
     };
 
-    if verify_provider_async(
+    verify_provider_async(
         provider,
         source,
         filter,
         matches.values_of_lossy("filter-consumer").unwrap_or_default(),
         options,
         &provider_state_executor
-    ).await {
-        Ok(())
-    } else {
-        Err(1)
-    }
+    ).await
+      .map_err(|_| 2)
+      .and_then(|result| if result { Ok(()) } else { Err(1) })
 }
 
 fn print_version(version: &str) {
