@@ -3,8 +3,11 @@ use std::str::from_utf8;
 use anyhow::anyhow;
 use bytes::Bytes;
 use itertools::Itertools;
+use lazy_static::lazy_static;
 use log::*;
+use maplit::hashmap;
 use onig::Regex;
+use pact_plugin_driver::catalogue_manager::{CatalogueEntry, CatalogueEntryProviderType, CatalogueEntryType};
 
 use pact_models::HttpStatus;
 use pact_models::matchingrules::{MatchingRule, RuleLogic};
@@ -12,6 +15,92 @@ use pact_models::time_utils::validate_datetime;
 
 use crate::binary_utils::match_content_type;
 use crate::MatchingContext;
+
+lazy_static! {
+  /// Content matcher/generator entries to add to the plugin catalogue
+  pub static ref CONTENT_MATCHER_CATALOGUE_ENTRIES: Vec<CatalogueEntry> = {
+    let mut entries = vec![];
+    entries.push(CatalogueEntry {
+      entry_type: CatalogueEntryType::CONTENT_MATCHER,
+      provider_type: CatalogueEntryProviderType::CORE,
+      plugin_name: "core".to_string(),
+      key: "xml".to_string(),
+      values: hashmap!{
+        "content-types".to_string() => "application/.*xml,text/xml".to_string(),
+        "implementation".to_string() => "io.pact.core.matchers.XmlBodyMatcher".to_string()
+      }
+    });
+    entries.push(CatalogueEntry {
+      entry_type: CatalogueEntryType::CONTENT_MATCHER,
+      provider_type: CatalogueEntryProviderType::CORE,
+      plugin_name: "core".to_string(),
+      key: "json".to_string(),
+      values: hashmap!{
+        "content-types".to_string() => "application/.*json,application/json-rpc,application/jsonrequest".to_string(),
+        "implementation".to_string() => "io.pact.core.matchers.JsonBodyMatcher".to_string()
+      }
+    });
+    entries.push(CatalogueEntry {
+      entry_type: CatalogueEntryType::CONTENT_MATCHER,
+      provider_type: CatalogueEntryProviderType::CORE,
+      plugin_name: "core".to_string(),
+      key: "text".to_string(),
+      values: hashmap!{
+        "content-types".to_string() => "text/plain".to_string(),
+        "implementation".to_string() => "io.pact.core.matchers.PlainTextBodyMatcher".to_string()
+      }
+    });
+    entries.push(CatalogueEntry {
+      entry_type: CatalogueEntryType::CONTENT_MATCHER,
+      provider_type: CatalogueEntryProviderType::CORE,
+      plugin_name: "core".to_string(),
+      key: "multipart-form-data".to_string(),
+      values: hashmap!{
+        "content-types".to_string() => "multipart/form-data,multipart/mixed".to_string(),
+        "implementation".to_string() => "io.pact.core.matchers.MultipartMessageBodyMatcher".to_string()
+      }
+    });
+    entries.push(CatalogueEntry {
+      entry_type: CatalogueEntryType::CONTENT_MATCHER,
+      provider_type: CatalogueEntryProviderType::CORE,
+      plugin_name: "core".to_string(),
+      key: "form-urlencoded".to_string(),
+      values: hashmap!{
+        "content-types".to_string() => "application/x-www-form-urlencoded".to_string(),
+        "implementation".to_string() => "io.pact.core.matchers.FormPostBodyMatcher".to_string()
+      }
+    });
+    entries.push(CatalogueEntry {
+      entry_type: CatalogueEntryType::CONTENT_GENERATOR,
+      provider_type: CatalogueEntryProviderType::CORE,
+      plugin_name: "core".to_string(),
+      key: "json".to_string(),
+      values: hashmap!{
+        "content-types".to_string() => "application/.*json,application/json-rpc,application/jsonrequest".to_string(),
+        "implementation".to_string() => "au.com.dius.pact.core.model.generators.JsonContentTypeHandler".to_string()
+      }
+    });
+    entries
+  };
+
+  pub static ref MATCHER_CATALOGUE_ENTRIES: Vec<CatalogueEntry> = {
+    let mut entries = vec![];
+    for matcher in ["v2-regex", "v2-type", "v3-number-type", "v3-integer-type", "v3-decimal-type",
+      "v3-date", "v3-time", "v3-datetime", "v2-min-type", "v2-max-type", "v2-minmax-type",
+      "v3-includes", "v3-null", "v4-equals-ignore-order", "v4-min-equals-ignore-order",
+      "v4-max-equals-ignore-order", "v4-minmax-equals-ignore-order", "v3-content-type",
+      "v4-array-contains", "v1-equality"] {
+      entries.push(CatalogueEntry {
+        entry_type: CatalogueEntryType::MATCHER,
+        provider_type: CatalogueEntryProviderType::CORE,
+        plugin_name: "core".to_string(),
+        key: matcher.to_string(),
+        values: hashmap!{}
+      });
+    }
+    entries
+  };
+}
 
 /// Trait for matching rule implementation
 pub trait Matches<A: Clone> {
@@ -582,7 +671,7 @@ mod tests {
   use expectest::expect;
   use expectest::prelude::*;
 
-  use pact_models::{matchingrules, matchingrules_list, matchingrules::RuleList};
+  use pact_models::{matchingrules, matchingrules::RuleList, matchingrules_list};
 
   use super::*;
 

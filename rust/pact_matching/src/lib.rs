@@ -360,10 +360,11 @@ use pact_models::PactSpecification;
 use pact_models::request::Request;
 use pact_models::response::Response;
 
+use crate::generators::{DefaultVariantMatcher, generators_process_body};
 use crate::headers::{match_header_value, match_headers};
 use crate::matchers::*;
-use crate::generators::{DefaultVariantMatcher, generators_process_body};
 use crate::matchingrules::DisplayForMismatch;
+pub use crate::matchers::{CONTENT_MATCHER_CATALOGUE_ENTRIES, MATCHER_CATALOGUE_ENTRIES};
 
 /// Simple macro to convert a string slice to a `String` struct.
 #[macro_export]

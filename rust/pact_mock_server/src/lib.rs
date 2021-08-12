@@ -11,6 +11,8 @@ use std::sync::Mutex;
 
 use lazy_static::*;
 use log::*;
+use maplit::hashmap;
+use pact_plugin_driver::catalogue_manager::{CatalogueEntry, CatalogueEntryProviderType, CatalogueEntryType};
 use rustls::ServerConfig;
 use serde_json::json;
 use uuid::Uuid;
@@ -44,6 +46,26 @@ lazy_static! {
   /// to serve requests.
   ///
   pub static ref MANAGER: Mutex<Option<ServerManager>> = Mutex::new(Option::None);
+
+  /// Mock server entries to add to the plugin catalogue
+  pub static ref MOCK_SERVER_CATALOGUE_ENTRIES: Vec<CatalogueEntry> = {
+    let mut entries = vec![];
+    entries.push(CatalogueEntry {
+      entry_type: CatalogueEntryType::INTERACTION,
+      provider_type: CatalogueEntryProviderType::CORE,
+      plugin_name: "core".to_string(),
+      key: "http".to_string(),
+      values: hashmap!{}
+    });
+    entries.push(CatalogueEntry {
+      entry_type: CatalogueEntryType::INTERACTION,
+      provider_type: CatalogueEntryProviderType::CORE,
+      plugin_name: "core".to_string(),
+      key: "https".to_string(),
+      values: hashmap!{}
+    });
+    entries
+  };
 }
 
 /// Starts a mock server with the given ID, pact and port number. The ID needs to be unique. A port
