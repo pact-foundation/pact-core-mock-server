@@ -6,17 +6,17 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, Context};
-use itertools::{iproduct, Itertools};
+use itertools::Itertools;
 use itertools::EitherOrBoth::{Both, Left, Right};
 use log::warn;
 use maplit::{btreemap, hashset};
-use pact_plugin_driver::plugin_models::PluginDependency;
 use serde_json::{json, Value};
 
 use crate::{Consumer, http_utils, PactSpecification, Provider};
 use crate::file_utils::with_read_lock;
 use crate::http_utils::HttpAuth;
 use crate::interaction::{Interaction, PactConflict, parse_interactions};
+use crate::iterator_utils::CartesianProductIterator;
 use crate::message_pact::MessagePact;
 use crate::pact::{determine_spec_version, metadata_schema, Pact, parse_meta_data, ReadWritePact, verify_metadata};
 use crate::PACT_RUST_VERSION;
@@ -48,8 +48,8 @@ impl Pact for RequestResponsePact {
     self.provider.clone()
   }
 
-  fn interactions(&self) -> Vec<&dyn Interaction> {
-    self.interactions.iter().map(|i| i as &dyn Interaction).collect()
+  fn interactions(&self) -> Vec<Box<dyn Interaction + Send>> {
+    self.interactions.iter().map(|i| i.boxed()).collect()
   }
 
   fn metadata(&self) -> BTreeMap<String, BTreeMap<String, String>> {
@@ -121,8 +121,8 @@ impl Pact for RequestResponsePact {
     false
   }
 
-  fn plugins(&self) -> anyhow::Result<Vec<PluginDependency>> {
-    Ok(Vec::default())
+  fn plugins(&self) -> Vec<Value> {
+    Vec::default()
   }
 }
 
@@ -241,8 +241,8 @@ impl ReadWritePact for RequestResponsePact {
 
   fn merge(&self, pact: &dyn Pact) -> anyhow::Result<Box<dyn Pact>> {
     if self.consumer.name == pact.consumer().name && self.provider.name == pact.provider().name {
-      let conflicts = iproduct!(self.interactions.clone(), pact.interactions().clone())
-        .map(|i| i.0.conflicts_with(i.1))
+      let conflicts = CartesianProductIterator::new(&self.interactions, &pact.interactions())
+        .map(|(i1, i2)| i1.conflicts_with(i2.as_ref()))
         .filter(|conflicts| !conflicts.is_empty())
         .collect::<Vec<Vec<PactConflict>>>();
       let num_conflicts = conflicts.len();

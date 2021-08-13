@@ -347,6 +347,7 @@ use bytes::Bytes;
 use lazy_static::*;
 use log::*;
 use maplit::hashmap;
+use pact_plugin_driver::catalogue_manager::find_content_matcher;
 use serde_json::{json, Value};
 
 use pact_models::bodies::OptionalBody;
@@ -362,16 +363,16 @@ use pact_models::response::Response;
 
 use crate::generators::{DefaultVariantMatcher, generators_process_body};
 use crate::headers::{match_header_value, match_headers};
+use crate::json::match_json;
 use crate::matchers::*;
-use crate::matchingrules::DisplayForMismatch;
 pub use crate::matchers::{CONTENT_MATCHER_CATALOGUE_ENTRIES, MATCHER_CATALOGUE_ENTRIES};
+use crate::matchingrules::DisplayForMismatch;
 
 /// Simple macro to convert a string slice to a `String` struct.
 #[macro_export]
 macro_rules! s {
     ($e:expr) => ($e.to_string())
 }
-
 
 /// Version of the library
 pub const PACT_RUST_VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
@@ -1178,22 +1179,52 @@ fn group_by<I, F, K>(items: I, f: F) -> HashMap<K, Vec<I::Item>>
   m
 }
 
-fn compare_bodies(content_type: &ContentType, expected: &dyn HttpPart, actual: &dyn HttpPart, context: &MatchingContext) -> BodyMatchResult {
+async fn compare_bodies(
+  content_type: &ContentType,
+  expected: &(dyn HttpPart + Send + Sync),
+  actual: &(dyn HttpPart + Send + Sync),
+  context: &MatchingContext
+) -> BodyMatchResult {
   let mut mismatches = vec![];
-  match BODY_MATCHERS.iter().find(|mt| mt.0(&content_type)) {
-    Some(ref match_fn) => {
-      debug!("Using body matcher for content type '{}'", content_type);
-      if let Err(m) = match_fn.1(expected, actual, &context) {
-        mismatches.extend_from_slice(&*m);
+  match find_content_matcher(content_type) {
+    Some(matcher) => {
+      debug!("Using content matcher {} for content type '{}'", matcher.catalogue_entry_key(), content_type);
+      if matcher.is_core() {
+        if let Err(m) = match matcher.catalogue_entry_key().as_str() {
+          // TODO: "core/content-matcher/form-urlencoded" => ,
+          "core/content-matcher/json" => match_json(expected, actual, context),
+          "core/content-matcher/multipart-form-data" => binary_utils::match_mime_multipart(expected, actual, context),
+          "core/content-matcher/text" => match_text(&expected.body().value(), &actual.body().value(), &context),
+          "core/content-matcher/xml" => xml::match_xml(expected, actual, context),
+          "core/content-matcher/binary" => binary_utils::match_octet_stream(expected, actual, context),
+          _ => {
+            warn!("There is no core content matcher for entry {}", matcher.catalogue_entry_key());
+            match_text(&expected.body().value(), &actual.body().value(), &context)
+          }
+        } {
+          mismatches.extend_from_slice(&*m);
+        }
+      } else {
+        if let Err(m) = matcher.match_contents(&expected.body(), &actual.body(), &context.matchers,
+          context.config == DiffConfig::AllowUnexpectedKeys).await {
+          for mismatch in m {
+            mismatches.push(Mismatch::BodyMismatch {
+              path: mismatch.path.clone(),
+              expected: Some(Bytes::from(mismatch.expected)),
+              actual: Some(Bytes::from(mismatch.actual)),
+              mismatch: mismatch.mismatch.clone()
+            });
+          }
+        }
       }
-    },
+    }
     None => {
-      debug!("No body matcher defined for content type '{}', using plain text matcher", content_type);
+      debug!("No content matcher defined for content type '{}', using plain text matcher", content_type);
       if let Err(m) = match_text(&expected.body().value(), &actual.body().value(), &context) {
         mismatches.extend_from_slice(&*m);
       }
     }
-  };
+  }
   if mismatches.is_empty() {
     BodyMatchResult::Ok
   } else {
@@ -1204,7 +1235,12 @@ fn compare_bodies(content_type: &ContentType, expected: &dyn HttpPart, actual: &
   }
 }
 
-fn match_body_content(content_type: &ContentType, expected: &dyn HttpPart, actual: &dyn HttpPart, context: &MatchingContext) -> BodyMatchResult {
+async fn match_body_content(
+  content_type: &ContentType,
+  expected: &(dyn HttpPart + Send + Sync),
+  actual: &(dyn HttpPart + Send + Sync),
+  context: &MatchingContext
+) -> BodyMatchResult {
   let expected_body = expected.body();
   let actual_body = actual.body();
   match (expected_body, actual_body) {
@@ -1235,14 +1271,14 @@ fn match_body_content(content_type: &ContentType, expected: &dyn HttpPart, actua
         mismatch: format!("Expected body {} but was empty", e),
         path: s!("/")}]})
     },
-    (_, _) => compare_bodies(content_type, expected, actual, context)
+    (_, _) => compare_bodies(content_type, expected, actual, context).await
   }
 }
 
 /// Matches the actual body to the expected one. This takes into account the content type of each.
-pub fn match_body(
-  expected: &dyn HttpPart,
-  actual: &dyn HttpPart,
+pub async fn match_body(
+  expected: &(dyn HttpPart + Send + Sync),
+  actual: &(dyn HttpPart + Send + Sync),
   context: &MatchingContext,
   header_context: &MatchingContext
 ) -> BodyMatchResult {
@@ -1250,14 +1286,14 @@ pub fn match_body(
   let actual_content_type = actual.content_type().unwrap_or_default();
   debug!("expected content type = '{}', actual content type = '{}'", expected_content_type,
          actual_content_type);
-  let content_type_matcher = header_context.select_best_matcher(&vec!["$", "Content-Type"]);
+  let content_type_matcher = header_context.select_best_matcher(&["$", "Content-Type"]);
   debug!("content type header matcher = '{:?}'", content_type_matcher);
   if expected_content_type.is_unknown() || actual_content_type.is_unknown() ||
     expected_content_type.is_equivalent_to(&actual_content_type) ||
     (!content_type_matcher.is_empty() &&
       match_header_value("Content-Type", expected_content_type.to_string().as_str(),
                          actual_content_type.to_string().as_str(), header_context).is_ok()) {
-    match_body_content(&expected_content_type, expected, actual, context)
+    match_body_content(&expected_content_type, expected, actual, context).await
   } else if expected.body().is_present() {
     BodyMatchResult::BodyTypeMismatch {
       expected_type: expected_content_type.to_string(),
@@ -1273,7 +1309,7 @@ pub fn match_body(
 }
 
 /// Matches the expected and actual requests
-pub fn match_request(expected: Request, actual: Request) -> RequestMatchResult {
+pub async fn match_request(expected: Request, actual: Request) -> RequestMatchResult {
   log::info!("comparing to expected {}", expected);
   log::debug!("     body: '{}'", expected.body.str_value());
   log::debug!("     matching_rules: {:?}", expected.matching_rules);
@@ -1290,12 +1326,12 @@ pub fn match_request(expected: Request, actual: Request) -> RequestMatchResult {
   let result = RequestMatchResult {
     method: match_method(&expected.method, &actual.method).err(),
     path: match_path(&expected.path, &actual.path, &path_context).err(),
-    body: match_body(&expected, &actual, &body_context, &header_context),
+    body: match_body(&expected, &actual, &body_context, &header_context).await,
     query: match_query(expected.query, actual.query, &query_context),
     headers: match_headers(expected.headers, actual.headers, &header_context)
   };
 
-  log::debug!("--> Mismatches: {:?}", result.mismatches());
+  debug!("--> Mismatches: {:?}", result.mismatches());
   result
 }
 
@@ -1325,7 +1361,7 @@ pub fn match_status(expected: u16, actual: u16, context: &MatchingContext) -> Re
 }
 
 /// Matches the actual and expected responses.
-pub fn match_response(expected: Response, actual: Response) -> Vec<Mismatch> {
+pub async fn match_response(expected: Response, actual: Response) -> Vec<Mismatch> {
   let mut mismatches = vec![];
 
   info!("comparing to expected response: {}", expected);
@@ -1337,7 +1373,7 @@ pub fn match_response(expected: Response, actual: Response) -> Vec<Mismatch> {
   let header_context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
     &expected.matching_rules.rules_for_category("header").unwrap_or_default());
 
-  mismatches.extend_from_slice(match_body(&expected, &actual, &body_context, &header_context)
+  mismatches.extend_from_slice(match_body(&expected, &actual, &body_context, &header_context).await
     .mismatches().as_slice());
   if let Err(m) = match_status(expected.status, actual.status, &status_context) {
     mismatches.extend_from_slice(&m);
@@ -1352,7 +1388,7 @@ pub fn match_response(expected: Response, actual: Response) -> Vec<Mismatch> {
 }
 
 /// Matches the actual message contents to the expected one. This takes into account the content type of each.
-pub fn match_message_contents(
+pub async fn match_message_contents(
   expected: &Box<dyn Interaction + Send>,
   actual: &Box<dyn Interaction + Send>,
   context: &MatchingContext
@@ -1367,10 +1403,10 @@ pub fn match_message_contents(
     let result = if expected.is_v4() || actual.is_v4() {
       let expected = expected.as_v4_async_message().unwrap();
       let actual = actual.as_v4_async_message().unwrap();
-      match_body_content(&expected_content_type, &expected, &actual, context)
+      match_body_content(&expected_content_type, &expected, &actual, context).await
     } else {
       let actual = actual.as_message().unwrap();
-      match_body_content(&expected_content_type, &expected_message, &actual, context)
+      match_body_content(&expected_content_type, &expected_message, &actual, context).await
     };
     match result {
       BodyMatchResult::BodyTypeMismatch { expected_type, actual_type, message, expected, actual } => {
@@ -1467,7 +1503,7 @@ fn match_metadata_value(key: &str, expected: &Value, actual: &Value, context: &M
 }
 
 /// Matches the actual and expected messages.
-pub fn match_message(expected: &Box<dyn Interaction + Send>, actual: &Box<dyn Interaction + Send>) -> Vec<Mismatch> {
+pub async fn match_message(expected: &Box<dyn Interaction + Send>, actual: &Box<dyn Interaction + Send>) -> Vec<Mismatch> {
   let mut mismatches = vec![];
 
   if expected.is_message() && actual.is_message() {
@@ -1485,7 +1521,8 @@ pub fn match_message(expected: &Box<dyn Interaction + Send>, actual: &Box<dyn In
     };
     let metadata_context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
                                                 &matching_rules.rules_for_category("metadata").unwrap_or_default());
-    mismatches.extend_from_slice(match_message_contents(expected, actual, &body_context).err().unwrap_or_default().as_slice());
+    let contents = match_message_contents(expected, actual, &body_context).await;
+    mismatches.extend_from_slice(contents.err().unwrap_or_default().as_slice());
     for values in match_message_metadata(expected, actual, &metadata_context).values() {
       mismatches.extend_from_slice(values.as_slice());
     }
@@ -1604,33 +1641,33 @@ pub fn generate_response(response: &Response, mode: &GeneratorTestMode, context:
 }
 
 /// Matches the request part of the interaction
-pub fn match_interaction_request(expected: Box<dyn Interaction>, actual: Box<dyn Interaction>, _spec_version: &PactSpecification) -> Result<RequestMatchResult, String> {
+pub async fn match_interaction_request(expected: Box<dyn Interaction>, actual: Box<dyn Interaction>, _spec_version: &PactSpecification) -> Result<RequestMatchResult, String> {
   if let Some(expected) = expected.as_request_response() {
-    Ok(match_request(expected.request, actual.as_request_response().unwrap().request))
+    Ok(match_request(expected.request, actual.as_request_response().unwrap().request).await)
   } else {
     Err(format!("match_interaction_request must be called with HTTP request/response interactions, got {}", expected.type_of()))
   }
 }
 
 /// Matches the response part of the interaction
-pub fn match_interaction_response(expected: Box<dyn Interaction>, actual: Box<dyn Interaction>, _spec_version: &PactSpecification) -> Result<Vec<Mismatch>, String> {
+pub async fn match_interaction_response(expected: Box<dyn Interaction>, actual: Box<dyn Interaction>, _spec_version: &PactSpecification) -> Result<Vec<Mismatch>, String> {
   if let Some(expected) = expected.as_request_response() {
-    Ok(match_response(expected.response, actual.as_request_response().unwrap().response))
+    Ok(match_response(expected.response, actual.as_request_response().unwrap().response).await)
   } else {
     Err(format!("match_interaction_response must be called with HTTP request/response interactions, got {}", expected.type_of()))
   }
 }
 
 /// Matches an interaction
-pub fn match_interaction(expected: Box<dyn Interaction + Send>, actual: Box<dyn Interaction + Send>, _spec_version: &PactSpecification) -> Result<Vec<Mismatch>, String> {
+pub async fn match_interaction(expected: Box<dyn Interaction + Send>, actual: Box<dyn Interaction + Send>, _spec_version: &PactSpecification) -> Result<Vec<Mismatch>, String> {
   if let Some(expected) = expected.as_request_response() {
-    let request_result = match_request(expected.request, actual.as_request_response().unwrap().request);
-    let response_result = match_response(expected.response, actual.as_request_response().unwrap().response);
+    let request_result = match_request(expected.request, actual.as_request_response().unwrap().request).await;
+    let response_result = match_response(expected.response, actual.as_request_response().unwrap().response).await;
     let mut mismatches = request_result.mismatches();
     mismatches.extend_from_slice(&*response_result);
     Ok(mismatches)
   } else if expected.is_message() {
-    Ok(match_message(&expected, &actual))
+    Ok(match_message(&expected, &actual).await)
   } else {
     Err(format!("match_interaction must be called with either an HTTP request/response interaction or a Message, got {}", expected.type_of()))
   }

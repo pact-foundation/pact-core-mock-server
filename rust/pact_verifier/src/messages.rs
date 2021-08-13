@@ -47,11 +47,11 @@ pub async fn verify_message_from_provider<F: RequestFilterExecutor>(
       let metadata = extract_metadata(actual_response);
       let actual = Message {
         contents: actual_response.body.clone(),
-        metadata: metadata,
+        metadata,
         .. Message::default()
       };
       log::debug!("actual message = {:?}", actual);
-      let mismatches = match_message(interaction, &actual.boxed());
+      let mismatches = match_message(interaction, &actual.boxed()).await;
       if mismatches.is_empty() {
         Ok(interaction.id().clone())
       } else {

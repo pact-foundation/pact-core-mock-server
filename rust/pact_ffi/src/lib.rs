@@ -129,7 +129,11 @@ ffi_fn! {
     fn pactffi_match_message(msg_1: *const Message, msg_2: *const Message) -> *const Mismatches {
         let msg_1: Box<dyn Interaction + Send> = unsafe { Box::from_raw(msg_1 as *mut Message) };
         let msg_2: Box<dyn Interaction + Send> = unsafe { Box::from_raw(msg_2 as *mut Message) };
-        let mismatches = Mismatches(pm::match_message(&msg_1, &msg_2));
+
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let mismatches = runtime.block_on(async move {
+            Mismatches(pm::match_message(&msg_1, &msg_2).await)
+        });
 
         ptr::raw_to(mismatches) as *const Mismatches
     } {

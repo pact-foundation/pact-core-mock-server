@@ -53,14 +53,14 @@ lazy_static! {
     entries.push(CatalogueEntry {
       entry_type: CatalogueEntryType::INTERACTION,
       provider_type: CatalogueEntryProviderType::CORE,
-      plugin_name: "core".to_string(),
+      plugin: None,
       key: "http".to_string(),
       values: hashmap!{}
     });
     entries.push(CatalogueEntry {
       entry_type: CatalogueEntryType::INTERACTION,
       provider_type: CatalogueEntryProviderType::CORE,
-      plugin_name: "core".to_string(),
+      plugin: None,
       key: "https".to_string(),
       values: hashmap!{}
     });

@@ -36,7 +36,7 @@ pub mod message;
 pub mod pact;
 pub mod sync_pact;
 pub mod message_pact;
-pub mod plugins;
+mod iterator_utils;
 
 /// A "prelude" or a default list of import types to include.
 pub mod prelude {

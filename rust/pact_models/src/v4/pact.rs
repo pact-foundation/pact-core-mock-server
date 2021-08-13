@@ -10,7 +10,6 @@ use itertools::EitherOrBoth::{Both, Left, Right};
 use itertools::Itertools;
 use log::warn;
 use maplit::btreemap;
-use pact_plugin_driver::plugin_models::PluginDependency;
 use serde_json::{json, Value};
 
 use crate::{Consumer, PactSpecification, Provider};
@@ -77,8 +76,8 @@ impl Pact for V4Pact {
     self.provider.clone()
   }
 
-  fn interactions(&self) -> Vec<&dyn Interaction> {
-    self.interactions.iter().map(|i| i.to_super()).collect()
+  fn interactions(&self) -> Vec<Box<dyn Interaction + Send>> {
+    self.interactions.iter().map(|i| i.boxed()).collect()
   }
 
   fn metadata(&self) -> BTreeMap<String, BTreeMap<String, String>> {
@@ -206,23 +205,23 @@ impl Pact for V4Pact {
     }
   }
 
-  fn plugins(&self) -> anyhow::Result<Vec<PluginDependency>> {
+  fn plugins(&self) -> Vec<Value> {
     if let Some(plugins) = self.metadata.get("plugins") {
       match plugins {
         Value::Array(items) => {
           let mut deps = vec![];
           for plugin in items {
-            deps.push(serde_json::from_value(plugin.clone())?);
+            deps.push(plugin.clone());
           }
-          Ok(deps)
+          deps
         }
         _ => {
           warn!("Ignoring invalid plugin configuration in metadata");
-          Ok(Vec::default())
+          Vec::default()
         }
       }
     } else {
-      Ok(Vec::default())
+      Vec::default()
     }
   }
 }
@@ -422,7 +421,8 @@ mod tests {
     expect!(&pact.provider().name).to(be_equal_to("Alice Service"));
     expect!(&pact.consumer().name).to(be_equal_to("Consumer"));
     expect!(pact.interactions().iter()).to(have_count(1));
-    let interaction = pact.interactions()[0];
+    let interactions = pact.interactions();
+    let interaction = interactions.first().unwrap();
     expect!(interaction.description()).to(be_equal_to("a retrieve Mallory request"));
     expect!(interaction.provider_states().iter()).to(be_empty());
     expect!(pact.specification_version()).to(be_equal_to(PactSpecification::V4));

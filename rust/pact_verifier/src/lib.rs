@@ -19,7 +19,7 @@ use itertools::Itertools;
 use log::*;
 use maplit::*;
 use pact_plugin_driver::catalogue_manager::register_core_entries;
-use pact_plugin_driver::plugin_manager::shutdown_plugins;
+use pact_plugin_driver::plugin_manager::{load_plugin, shutdown_plugins};
 use regex::Regex;
 use serde_json::Value;
 
@@ -32,7 +32,6 @@ use pact_models::http_utils::HttpAuth;
 use pact_models::interaction::Interaction;
 use pact_models::json_utils::json_to_string;
 use pact_models::pact::{load_pact_from_url, Pact, read_pact};
-use pact_models::plugins::load_plugins;
 use pact_models::provider_states::*;
 use pact_models::sync_interaction::RequestResponseInteraction;
 use pact_models::v4::interaction::V4Interaction;
@@ -240,7 +239,7 @@ async fn verify_response_from_provider<F: RequestFilterExecutor>(
   let expected_response = &interaction.response;
   match make_provider_request(provider, &pact_matching::generate_request(&interaction.request, &GeneratorTestMode::Provider, &verification_context), options, client).await {
     Ok(ref actual_response) => {
-      let mismatches = match_response(expected_response.clone(), actual_response.clone());
+      let mismatches = match_response(expected_response.clone(), actual_response.clone()).await;
       if mismatches.is_empty() {
         Ok(interaction.id.clone())
       } else {
@@ -809,17 +808,17 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
 ) -> anyhow::Result<VerificationResult> {
   if pact.requires_plugins() {
     debug!("Pact file requires plugins, will load those now");
-    load_plugins(&pact.plugins()?).await?;
+    for plugin_details in pact.plugins() {
+      load_plugin(&serde_json::from_value(plugin_details)?).await?;
+    }
   }
 
-  let results: Vec<(&dyn Interaction, Result<Option<String>, MismatchResult>)> = futures::stream::iter(
-    pact.interactions().iter().cloned()
+  let results: Vec<(Box<dyn Interaction + Send>, Result<Option<String>, MismatchResult>)> = futures::stream::iter(
+    pact.interactions()
   )
-    .filter(|interaction| futures::future::ready(filter_interaction(*interaction, filter)))
+    .filter(|interaction| futures::future::ready(filter_interaction(interaction.as_ref(), filter)))
     .then( |interaction| async move {
-      verify_interaction(provider_info, interaction, options, provider_state_executor)
-        .then(|result| futures::future::ready((interaction, result)))
-        .await
+      (interaction.boxed(), verify_interaction(provider_info, interaction.as_ref(), options, provider_state_executor).await)
     })
     .collect()
     .await;

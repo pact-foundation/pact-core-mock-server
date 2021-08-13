@@ -14,7 +14,6 @@ use itertools::EitherOrBoth::{Both, Left, Right};
 use itertools::Itertools;
 use log::*;
 use maplit::*;
-use pact_plugin_driver::plugin_models::PluginDependency;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -55,8 +54,8 @@ impl Pact for MessagePact {
     self.provider.clone()
   }
 
-  fn interactions(&self) -> Vec<&dyn Interaction> {
-    self.messages.iter().map(|i| i as &dyn Interaction).collect()
+  fn interactions(&self) -> Vec<Box<dyn Interaction + Send>> {
+    self.messages.iter().map(|i| i.boxed()).collect()
   }
 
   fn metadata(&self) -> BTreeMap<String, BTreeMap<String, String>> {
@@ -130,8 +129,8 @@ impl Pact for MessagePact {
     false
   }
 
-  fn plugins(&self) -> anyhow::Result<Vec<PluginDependency>> {
-    Ok(Vec::default())
+  fn plugins(&self) -> Vec<Value> {
+    Vec::default()
   }
 }
 

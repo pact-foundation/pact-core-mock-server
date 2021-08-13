@@ -13,7 +13,6 @@ use anyhow::{anyhow, Context};
 use lazy_static::lazy_static;
 use log::{debug, error, warn};
 use maplit::btreemap;
-use pact_plugin_driver::plugin_models::PluginDependency;
 use serde_json::{json, Value};
 
 use crate::{Consumer, http_utils, PactSpecification, Provider};
@@ -35,7 +34,7 @@ pub trait Pact: Debug + ReadWritePact {
   fn provider(&self) -> Provider;
 
   /// Interactions in the Pact
-  fn interactions(&self) -> Vec<&dyn Interaction>;
+  fn interactions(&self) -> Vec<Box<dyn Interaction + Send>>;
 
   /// Pact metadata
   fn metadata(&self) -> BTreeMap<String, BTreeMap<String, String>>;
@@ -70,10 +69,10 @@ pub trait Pact: Debug + ReadWritePact {
   /// If this Pact needs any plugins loaded
   fn requires_plugins(&self) -> bool;
 
-  /// Plugins required for this Pact
-  fn plugins(&self) -> anyhow::Result<Vec<PluginDependency>>;
+  /// Plugins required for this Pact. These will be taken from the 'plugins' key in the pact
+  /// metadata.
+  fn plugins(&self) -> Vec<Value>;
 }
-
 
 /// Reads the pact file and parses the resulting JSON into a `Pact` struct
 pub fn read_pact(file: &Path) -> anyhow::Result<Box<dyn Pact>> {

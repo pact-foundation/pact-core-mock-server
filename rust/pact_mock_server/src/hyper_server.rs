@@ -253,7 +253,7 @@ async fn handle_request(
     debug!("     body: '{}'", pact_request.body.str_value());
   }
 
-  let match_result = match_request(&pact_request, pact.interactions());
+  let match_result = match_request(&pact_request, pact.interactions()).await;
 
   matches.lock().unwrap().push(match_result.clone());
 

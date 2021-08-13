@@ -23,61 +23,65 @@ lazy_static! {
     entries.push(CatalogueEntry {
       entry_type: CatalogueEntryType::CONTENT_MATCHER,
       provider_type: CatalogueEntryProviderType::CORE,
-      plugin_name: "core".to_string(),
+      plugin: None,
       key: "xml".to_string(),
       values: hashmap!{
-        "content-types".to_string() => "application/.*xml,text/xml".to_string(),
-        "implementation".to_string() => "io.pact.core.matchers.XmlBodyMatcher".to_string()
+        "content-types".to_string() => "application/.*xml,text/xml".to_string()
       }
     });
     entries.push(CatalogueEntry {
       entry_type: CatalogueEntryType::CONTENT_MATCHER,
       provider_type: CatalogueEntryProviderType::CORE,
-      plugin_name: "core".to_string(),
+      plugin: None,
       key: "json".to_string(),
       values: hashmap!{
-        "content-types".to_string() => "application/.*json,application/json-rpc,application/jsonrequest".to_string(),
-        "implementation".to_string() => "io.pact.core.matchers.JsonBodyMatcher".to_string()
+        "content-types".to_string() => "application/.*json,application/json-rpc,application/jsonrequest".to_string()
       }
     });
     entries.push(CatalogueEntry {
       entry_type: CatalogueEntryType::CONTENT_MATCHER,
       provider_type: CatalogueEntryProviderType::CORE,
-      plugin_name: "core".to_string(),
+      plugin: None,
       key: "text".to_string(),
       values: hashmap!{
-        "content-types".to_string() => "text/plain".to_string(),
-        "implementation".to_string() => "io.pact.core.matchers.PlainTextBodyMatcher".to_string()
+        "content-types".to_string() => "text/plain".to_string()
       }
     });
     entries.push(CatalogueEntry {
       entry_type: CatalogueEntryType::CONTENT_MATCHER,
       provider_type: CatalogueEntryProviderType::CORE,
-      plugin_name: "core".to_string(),
+      plugin: None,
       key: "multipart-form-data".to_string(),
       values: hashmap!{
-        "content-types".to_string() => "multipart/form-data,multipart/mixed".to_string(),
-        "implementation".to_string() => "io.pact.core.matchers.MultipartMessageBodyMatcher".to_string()
+        "content-types".to_string() => "multipart/form-data,multipart/mixed".to_string()
       }
     });
+    // TODO:
+    // entries.push(CatalogueEntry {
+    //   entry_type: CatalogueEntryType::CONTENT_MATCHER,
+    //   provider_type: CatalogueEntryProviderType::CORE,
+    //   plugin: None,
+    //   key: "form-urlencoded".to_string(),
+    //   values: hashmap!{
+    //     "content-types".to_string() => "application/x-www-form-urlencoded".to_string()
+    //   }
+    // });
     entries.push(CatalogueEntry {
-      entry_type: CatalogueEntryType::CONTENT_MATCHER,
+      entry_type: CatalogueEntryType::CONTENT_GENERATOR,
       provider_type: CatalogueEntryProviderType::CORE,
-      plugin_name: "core".to_string(),
-      key: "form-urlencoded".to_string(),
+      plugin: None,
+      key: "json".to_string(),
       values: hashmap!{
-        "content-types".to_string() => "application/x-www-form-urlencoded".to_string(),
-        "implementation".to_string() => "io.pact.core.matchers.FormPostBodyMatcher".to_string()
+        "content-types".to_string() => "application/.*json,application/json-rpc,application/jsonrequest".to_string()
       }
     });
     entries.push(CatalogueEntry {
       entry_type: CatalogueEntryType::CONTENT_GENERATOR,
       provider_type: CatalogueEntryProviderType::CORE,
-      plugin_name: "core".to_string(),
-      key: "json".to_string(),
+      plugin: None,
+      key: "binary".to_string(),
       values: hashmap!{
-        "content-types".to_string() => "application/.*json,application/json-rpc,application/jsonrequest".to_string(),
-        "implementation".to_string() => "au.com.dius.pact.core.model.generators.JsonContentTypeHandler".to_string()
+        "content-types".to_string() => "application/octet-stream".to_string()
       }
     });
     entries
@@ -93,7 +97,7 @@ lazy_static! {
       entries.push(CatalogueEntry {
         entry_type: CatalogueEntryType::MATCHER,
         provider_type: CatalogueEntryProviderType::CORE,
-        plugin_name: "core".to_string(),
+        plugin: None,
         key: matcher.to_string(),
         values: hashmap!{}
       });
