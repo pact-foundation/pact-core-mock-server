@@ -100,7 +100,7 @@ impl MatchingRule {
               Some(max) => Ok(MatchingRule::MaxType(max)),
               None => Err(anyhow!("Max matcher missing 'max' field")),
             },
-            "timestamp" => match m.get("format").or_else(|| m.get(&val)) {
+            "timestamp" | "datetime" => match m.get("format").or_else(|| m.get(&val)) {
               Some(s) => Ok(MatchingRule::Timestamp(json_to_string(s))),
               None => Err(anyhow!("Timestamp matcher missing 'timestamp' or 'format' field")),
             },

@@ -668,7 +668,15 @@ fn print_errors(errors: &Vec<(String, MismatchResult)>) {
             let mismatch = mismatches.next().unwrap();
             println!("    {}.{}) {}", i + 1, j, mismatch.summary());
             println!("           {}", mismatch.ansi_description());
-            for mismatch in mismatches {
+            for mismatch in mismatches.sorted_by(|m1, m2| {
+              match (m1, m2) {
+                (Mismatch::QueryMismatch { parameter: p1, .. }, Mismatch::QueryMismatch { parameter: p2, .. }) => Ord::cmp(&p1, &p2),
+                (Mismatch::HeaderMismatch { key: p1, .. }, Mismatch::HeaderMismatch { key: p2, .. }) => Ord::cmp(&p1, &p2),
+                (Mismatch::BodyMismatch { path: p1, .. }, Mismatch::BodyMismatch { path: p2, .. }) => Ord::cmp(&p1, &p2),
+                (Mismatch::MetadataMismatch { key: p1, .. }, Mismatch::MetadataMismatch { key: p2, .. }) => Ord::cmp(&p1, &p2),
+                _ => Ord::cmp(m1, m2)
+              }
+            }) {
               println!("           {}", mismatch.ansi_description());
             }
 

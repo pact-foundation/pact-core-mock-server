@@ -377,7 +377,7 @@ macro_rules! s {
 /// Version of the library
 pub const PACT_RUST_VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
 
-mod matchers;
+pub mod matchers;
 pub mod json;
 mod xml;
 mod binary_utils;
@@ -515,7 +515,7 @@ lazy_static! {
 }
 
 /// Enum that defines the different types of mismatches that can occur.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialOrd, Ord, Eq)]
 pub enum Mismatch {
     /// Request Method mismatch
     MethodMismatch {

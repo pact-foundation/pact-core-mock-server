@@ -1,3 +1,5 @@
+//! Matching rule implementations
+
 use std::str::from_utf8;
 
 use anyhow::anyhow;
@@ -108,11 +110,13 @@ lazy_static! {
 
 /// Trait for matching rule implementation
 pub trait Matches<A: Clone> {
+  /// If the actual value matches self given the matching rule
   #[deprecated(since = "0.9.2", note="Use matches_with instead")]
   fn matches(&self, actual: &A, matcher: &MatchingRule) -> anyhow::Result<()> {
     self.matches_with(actual.clone(), matcher, false)
   }
 
+  /// If the actual value matches self given the matching rule
   fn matches_with(&self, actual: A, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()>;
 }
 
@@ -622,6 +626,7 @@ impl Matches<&Bytes> for Bytes {
   }
 }
 
+/// Match the provided values using the path and matching context
 pub fn match_values<E, A>(path: &[&str], context: &MatchingContext, expected: E, actual: A) -> Result<(), Vec<String>>
   where E: Matches<A>, A: Clone {
   let matching_rules = context.select_best_matcher(path);
