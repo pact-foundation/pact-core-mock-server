@@ -1,5 +1,14 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.1.1 - Bugfix Release
+
+* 8bcd1c7e - fix: min/max type matchers must not apply the limits when cascading (Ronald Holshausen, Sun Aug 8 15:50:40 2021 +1000)
+* cb1beb99 - feat(plugins): make NoopVariantMatcher public (Ronald Holshausen, Sat Aug 7 14:18:29 2021 +1000)
+* 33b308d8 - feat(plugins): fix after merging PR (Ronald Holshausen, Thu Aug 5 12:43:58 2021 +1000)
+* 4ca3e02b - Merge pull request #129 from mitre/docpath (Ronald Holshausen, Thu Aug 5 12:16:56 2021 +1000)
+* 41e66b30 - feat(plugins): updated matching rules + generators to support working with plugins (Ronald Holshausen, Thu Aug 5 11:58:56 2021 +1000)
+* 6124ed0b - refactor: Introduce DocPath struct for path expressions (Caleb Stepanian, Thu Jul 29 12:27:32 2021 -0400)
+
 # 0.1.0 - Final Version
 
 * 533c9e1f - chore: bump minor version of the Pact models crate (Ronald Holshausen, Fri Jul 23 13:15:32 2021 +1000)
