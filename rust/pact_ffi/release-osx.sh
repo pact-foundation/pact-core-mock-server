@@ -9,7 +9,6 @@ gzip -c ../target/release/libpact_ffi.a > ../target/artifacts/libpact_ffi-osx-x8
 openssl dgst -sha256 -r ../target/artifacts/libpact_ffi-osx-x86_64.a.gz > ../target/artifacts/libpact_ffi-osx-x86_64.a.gz.sha256
 
 # M1
-cargo clean
 export SDKROOT=$(xcrun -sdk macosx11.1 --show-sdk-path)
 export MACOSX_DEPLOYMENT_TARGET=$(xcrun -sdk macosx11.1 --show-sdk-platform-version)
 cargo build --target aarch64-apple-darwin --release
