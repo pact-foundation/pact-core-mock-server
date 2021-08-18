@@ -7,12 +7,16 @@ use serde_json;
 #[allow(unused_imports)]
 use expectest::prelude::*;
 #[allow(unused_imports)]
+use pact_matching::{CONTENT_MATCHER_CATALOGUE_ENTRIES, MATCHER_CATALOGUE_ENTRIES};
+#[allow(unused_imports)]
+use pact_plugin_driver::catalogue_manager::register_core_entries;
+#[allow(unused_imports)]
 use pact_models::interaction::{Interaction, http_interaction_from_json};
 #[allow(unused_imports)]
 use pact_matching::{match_interaction_request, match_interaction_response};
 
-#[test]
-fn empty_path_found_when_forward_slash_expected() {
+#[tokio::test]
+async fn empty_path_found_when_forward_slash_expected() {
     println!("FILE: tests/spec_testcases/v1_1/request/path/empty path found when forward slash expected.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -45,7 +49,11 @@ fn empty_path_found_when_forward_slash_expected() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_request(expected, actual, &PactSpecification::V1_1).unwrap().mismatches();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_request(expected, actual, &PactSpecification::V1_1).await.unwrap().mismatches();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -54,8 +62,8 @@ fn empty_path_found_when_forward_slash_expected() {
     }
 }
 
-#[test]
-fn unexpected_trailing_slash_in_path() {
+#[tokio::test]
+async fn unexpected_trailing_slash_in_path() {
     println!("FILE: tests/spec_testcases/v1_1/request/path/unexpected trailing slash in path.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -88,7 +96,11 @@ fn unexpected_trailing_slash_in_path() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_request(expected, actual, &PactSpecification::V1_1).unwrap().mismatches();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_request(expected, actual, &PactSpecification::V1_1).await.unwrap().mismatches();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -97,8 +109,8 @@ fn unexpected_trailing_slash_in_path() {
     }
 }
 
-#[test]
-fn forward_slash_found_when_empty_path_expected() {
+#[tokio::test]
+async fn forward_slash_found_when_empty_path_expected() {
     println!("FILE: tests/spec_testcases/v1_1/request/path/forward slash found when empty path expected.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -131,7 +143,11 @@ fn forward_slash_found_when_empty_path_expected() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_request(expected, actual, &PactSpecification::V1_1).unwrap().mismatches();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_request(expected, actual, &PactSpecification::V1_1).await.unwrap().mismatches();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -140,8 +156,8 @@ fn forward_slash_found_when_empty_path_expected() {
     }
 }
 
-#[test]
-fn incorrect_path() {
+#[tokio::test]
+async fn incorrect_path() {
     println!("FILE: tests/spec_testcases/v1_1/request/path/incorrect path.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -174,7 +190,11 @@ fn incorrect_path() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_request(expected, actual, &PactSpecification::V1_1).unwrap().mismatches();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_request(expected, actual, &PactSpecification::V1_1).await.unwrap().mismatches();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -183,8 +203,8 @@ fn incorrect_path() {
     }
 }
 
-#[test]
-fn missing_trailing_slash_in_path() {
+#[tokio::test]
+async fn missing_trailing_slash_in_path() {
     println!("FILE: tests/spec_testcases/v1_1/request/path/missing trailing slash in path.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -217,7 +237,11 @@ fn missing_trailing_slash_in_path() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_request(expected, actual, &PactSpecification::V1_1).unwrap().mismatches();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_request(expected, actual, &PactSpecification::V1_1).await.unwrap().mismatches();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -226,8 +250,8 @@ fn missing_trailing_slash_in_path() {
     }
 }
 
-#[test]
-fn matches() {
+#[tokio::test]
+async fn matches() {
     println!("FILE: tests/spec_testcases/v1_1/request/path/matches.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -260,7 +284,11 @@ fn matches() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_request(expected, actual, &PactSpecification::V1_1).unwrap().mismatches();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_request(expected, actual, &PactSpecification::V1_1).await.unwrap().mismatches();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());

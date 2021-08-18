@@ -37,20 +37,18 @@ use pact_ffi::mock_server::{
 use pact_ffi::mock_server::handles::InteractionPart;
 
 #[test]
-fn post_to_mock_server_with_misatches() {
+fn post_to_mock_server_with_mismatches() {
   let pact_json = include_str!("post-pact.json");
   let pact_json_c = CString::new(pact_json).expect("Could not construct C string from json");
   let address = CString::new("127.0.0.1:0").unwrap();
   let port = pactffi_create_mock_server(pact_json_c.as_ptr(), address.as_ptr(), false);
   expect!(port).to(be_greater_than(0));
 
-  let _result = catch_unwind(|| {
-    let client = Client::default();
-    client.post(format!("http://127.0.0.1:{}/path", port).as_str())
-      .header(CONTENT_TYPE, "application/json")
-      .body(r#"{"foo":"no-very-bar"}"#)
-      .send()
-  });
+  let client = Client::default();
+  client.post(format!("http://127.0.0.1:{}/path", port).as_str())
+    .header(CONTENT_TYPE, "application/json")
+    .body(r#"{"foo":"no-very-bar"}"#)
+    .send().expect("Sent POST request to mock server");
 
   let mismatches = unsafe {
     CStr::from_ptr(pactffi_mock_server_mismatches(port)).to_string_lossy().into_owned()

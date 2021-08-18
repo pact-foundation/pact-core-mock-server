@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.10.1 - Bugfix Release
+
+* 8bcd1c7e - fix: min/max type matchers must not apply the limits when cascading (Ronald Holshausen, Sun Aug 8 15:50:40 2021 +1000)
+* 0b347204 - chore: update spec test cases (Ronald Holshausen, Sun Aug 8 14:29:43 2021 +1000)
+* 6124ed0b - refactor: Introduce DocPath struct for path expressions (Caleb Stepanian, Thu Jul 29 12:27:32 2021 -0400)
+* 26f642e7 - bump version to 0.10.1 (Ronald Holshausen, Fri Jul 23 14:15:58 2021 +1000)
+
 # 0.10.0 - Final version after extracting models
 
 * 9baa714d - chore: bump minor version of matching crate (Ronald Holshausen, Fri Jul 23 14:03:20 2021 +1000)

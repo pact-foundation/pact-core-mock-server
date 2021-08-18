@@ -96,8 +96,14 @@ fn consumer_tags_to_selectors(tags: Vec<&str>) -> Vec<pact_verifier::ConsumerVer
     pact_verifier::ConsumerVersionSelector {
       consumer: None,
       fallback_tag: None,
-      tag: t.to_string(),
+      tag: Some(t.to_string()),
       latest: Some(true),
+      branch: None,
+      deployed_or_released: None,
+      deployed: None,
+      released: None,
+      main_branch: None,
+      environment: None,
     }
   }).collect()
 }

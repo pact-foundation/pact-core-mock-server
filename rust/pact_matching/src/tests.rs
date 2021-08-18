@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use expectest::prelude::*;
+use pact_plugin_driver::catalogue_manager::register_core_entries;
 
 use pact_models::{matchingrules, matchingrules_list};
 use pact_models::bodies::OptionalBody;
@@ -222,8 +223,8 @@ fn match_query_returns_a_mismatch_if_the_values_are_not_the_same() {
   });
 }
 
-#[test]
-fn body_does_not_match_if_different_content_types() {
+#[tokio::test]
+async fn body_does_not_match_if_different_content_types() {
   let expected = Request {
     method: s!("GET"),
     path: s!("/"),
@@ -241,7 +242,7 @@ fn body_does_not_match_if_different_content_types() {
     ..Request::default()
   };
   let result = match_body(&expected, &actual, &MatchingContext::default(),
-                          &MatchingContext::default());
+                          &MatchingContext::default()).await;
   let mismatches = result.mismatches();
   expect!(mismatches.iter()).to_not(be_empty());
   expect!(mismatches[0].clone()).to(be_equal_to(Mismatch::BodyTypeMismatch {
@@ -253,8 +254,8 @@ fn body_does_not_match_if_different_content_types() {
   }));
 }
 
-#[test]
-fn body_matching_uses_any_matcher_for_content_type_header() {
+#[tokio::test]
+async fn body_matching_uses_any_matcher_for_content_type_header() {
   let expected = Request {
     method: s!("GET"),
     path: s!("/"),
@@ -277,13 +278,13 @@ fn body_matching_uses_any_matcher_for_content_type_header() {
         "header" => { "Content-Type" => [ MatchingRule::Regex("application/.*json".into()) ] }
     }.rules_for_category("header").unwrap_or_default()
   );
-  let result = match_body(&expected, &actual, &MatchingContext::default(), &header_context);
+  let result = match_body(&expected, &actual, &MatchingContext::default(), &header_context).await;
   let mismatches = result.mismatches();
   expect!(mismatches.iter()).to(be_empty());
 }
 
-#[test]
-fn body_matches_if_expected_is_missing() {
+#[tokio::test]
+async fn body_matches_if_expected_is_missing() {
   let expected = Request {
     method: s!("GET"),
     path: s!("/"),
@@ -300,12 +301,12 @@ fn body_matches_if_expected_is_missing() {
     body: OptionalBody::Present("{}".into(), None),
     ..Request::default()
   };
-  let result = match_body(&expected, &actual, &MatchingContext::default(), &MatchingContext::default());
+  let result = match_body(&expected, &actual, &MatchingContext::default(), &MatchingContext::default()).await;
   expect!(result.mismatches().iter()).to(be_empty());
 }
 
-#[test]
-fn body_matches_with_extended_mime_types() {
+#[tokio::test]
+async fn body_matches_with_extended_mime_types() {
   let expected = Request {
     method: s!("GET"),
     path: s!("/"),
@@ -322,7 +323,9 @@ fn body_matches_with_extended_mime_types() {
     body: OptionalBody::Present(r#"{"test": true}"#.into(), None),
     ..Request::default()
   };
-  let result = match_body(&expected, &actual, &MatchingContext::default(), &MatchingContext::default());
+  register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+  register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+  let result = match_body(&expected, &actual, &MatchingContext::default(), &MatchingContext::default()).await;
   expect!(result.mismatches().iter()).to(be_empty());
 }
 
@@ -560,21 +563,21 @@ macro_rules! request {
   ($e:expr) => (Request { body: OptionalBody::Present($e.into(), None), .. Request::default() })
 }
 
-#[test]
-fn matching_text_body_be_true_when_bodies_are_equal() {
+#[tokio::test]
+async fn matching_text_body_be_true_when_bodies_are_equal() {
   let expected = request!("body value");
   let actual = request!("body value");
   let mismatches = compare_bodies(&TEXT.clone(), &expected, &actual,
-    &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys)).await;
   expect!(mismatches.mismatches().iter()).to(be_empty());
 }
 
-#[test]
-fn matching_text_body_be_false_when_bodies_are_not_equal() {
+#[tokio::test]
+async fn matching_text_body_be_false_when_bodies_are_not_equal() {
   let expected = request!("expected body value");
   let actual = request!("actual body value");
   let mismatches = compare_bodies(&TEXT.clone(), &expected, &actual,
-    &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys)).mismatches();
+    &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys)).await.mismatches();
   expect!(mismatches.iter()).to_not(be_empty());
   assert_eq!(mismatches[0], Mismatch::BodyMismatch {
     path: s!("$"),
@@ -584,8 +587,8 @@ fn matching_text_body_be_false_when_bodies_are_not_equal() {
   });
 }
 
-#[test]
-fn matching_text_body_must_use_defined_matcher() {
+#[tokio::test]
+async fn matching_text_body_must_use_defined_matcher() {
   let expected = request!("expected body value");
   let actual = request!("actualbodyvalue");
 
@@ -597,7 +600,7 @@ fn matching_text_body_must_use_defined_matcher() {
       }
     }.rules_for_category("body").unwrap_or_default()
   );
-  let mismatches = compare_bodies(&TEXT.clone(), &expected, &actual, &context);
+  let mismatches = compare_bodies(&TEXT.clone(), &expected, &actual, &context).await;
   expect!(mismatches.mismatches().iter()).to(be_empty());
 
   let context = MatchingContext::new(
@@ -608,7 +611,7 @@ fn matching_text_body_must_use_defined_matcher() {
       }
     }.rules_for_category("body").unwrap_or_default()
   );
-  let mismatches = compare_bodies(&TEXT.clone(), &expected, &actual, &context);
+  let mismatches = compare_bodies(&TEXT.clone(), &expected, &actual, &context).await;
   expect!(mismatches.mismatches().iter()).to_not(be_empty());
 }
 

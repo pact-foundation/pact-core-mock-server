@@ -7,12 +7,16 @@ use serde_json;
 #[allow(unused_imports)]
 use expectest::prelude::*;
 #[allow(unused_imports)]
+use pact_matching::{CONTENT_MATCHER_CATALOGUE_ENTRIES, MATCHER_CATALOGUE_ENTRIES};
+#[allow(unused_imports)]
+use pact_plugin_driver::catalogue_manager::register_core_entries;
+#[allow(unused_imports)]
 use pact_models::interaction::{Interaction, http_interaction_from_json};
 #[allow(unused_imports)]
 use pact_matching::{match_interaction_request, match_interaction_response};
 
-#[test]
-fn different_method() {
+#[tokio::test]
+async fn different_method() {
     println!("FILE: tests/spec_testcases/v1/request/method/different method.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -44,7 +48,11 @@ fn different_method() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_request(expected, actual, &PactSpecification::V1).unwrap().mismatches();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_request(expected, actual, &PactSpecification::V1).await.unwrap().mismatches();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -53,8 +61,8 @@ fn different_method() {
     }
 }
 
-#[test]
-fn method_is_different_case() {
+#[tokio::test]
+async fn method_is_different_case() {
     println!("FILE: tests/spec_testcases/v1/request/method/method is different case.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -86,7 +94,11 @@ fn method_is_different_case() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_request(expected, actual, &PactSpecification::V1).unwrap().mismatches();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_request(expected, actual, &PactSpecification::V1).await.unwrap().mismatches();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -95,8 +107,8 @@ fn method_is_different_case() {
     }
 }
 
-#[test]
-fn matches() {
+#[tokio::test]
+async fn matches() {
     println!("FILE: tests/spec_testcases/v1/request/method/matches.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -128,7 +140,11 @@ fn matches() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_request(expected, actual, &PactSpecification::V1).unwrap().mismatches();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_request(expected, actual, &PactSpecification::V1).await.unwrap().mismatches();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());

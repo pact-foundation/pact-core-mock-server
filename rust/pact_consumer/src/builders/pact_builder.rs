@@ -1,3 +1,5 @@
+use pact_matching::{CONTENT_MATCHER_CATALOGUE_ENTRIES, MATCHER_CATALOGUE_ENTRIES};
+use pact_mock_server::MOCK_SERVER_CATALOGUE_ENTRIES;
 use pact_models::{Consumer, Provider};
 use pact_models::interaction::Interaction;
 use pact_models::pact::Pact;
@@ -7,6 +9,7 @@ use pact_models::v4::pact::V4Pact;
 use crate::prelude::*;
 
 use super::interaction_builder::InteractionBuilder;
+use pact_plugin_driver::catalogue_manager::register_core_entries;
 
 /// Builder for `Pact` objects.
 ///
@@ -39,6 +42,9 @@ impl PactBuilder {
         C: Into<String>,
         P: Into<String>,
     {
+        register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+        register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+        register_core_entries(MOCK_SERVER_CATALOGUE_ENTRIES.as_ref());
         let mut pact = RequestResponsePact::default();
         pact.consumer = Consumer {
             name: consumer.into(),

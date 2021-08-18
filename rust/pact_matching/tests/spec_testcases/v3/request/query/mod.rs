@@ -7,12 +7,16 @@ use serde_json;
 #[allow(unused_imports)]
 use expectest::prelude::*;
 #[allow(unused_imports)]
+use pact_matching::{CONTENT_MATCHER_CATALOGUE_ENTRIES, MATCHER_CATALOGUE_ENTRIES};
+#[allow(unused_imports)]
+use pact_plugin_driver::catalogue_manager::register_core_entries;
+#[allow(unused_imports)]
 use pact_models::interaction::{Interaction, http_interaction_from_json};
 #[allow(unused_imports)]
 use pact_matching::{match_interaction_request, match_interaction_response};
 
-#[test]
-fn unexpected_param() {
+#[tokio::test]
+async fn unexpected_param() {
     println!("FILE: tests/spec_testcases/v3/request/query/unexpected param.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -50,7 +54,11 @@ fn unexpected_param() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_request(expected, actual, &PactSpecification::V3).unwrap().mismatches();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_request(expected, actual, &PactSpecification::V3).await.unwrap().mismatches();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -59,8 +67,8 @@ fn unexpected_param() {
     }
 }
 
-#[test]
-fn different_params() {
+#[tokio::test]
+async fn different_params() {
     println!("FILE: tests/spec_testcases/v3/request/query/different params.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -97,7 +105,11 @@ fn different_params() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_request(expected, actual, &PactSpecification::V3).unwrap().mismatches();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_request(expected, actual, &PactSpecification::V3).await.unwrap().mismatches();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -106,8 +118,8 @@ fn different_params() {
     }
 }
 
-#[test]
-fn same_parameter_different_values() {
+#[tokio::test]
+async fn same_parameter_different_values() {
     println!("FILE: tests/spec_testcases/v3/request/query/same parameter different values.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -142,7 +154,11 @@ fn same_parameter_different_values() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_request(expected, actual, &PactSpecification::V3).unwrap().mismatches();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_request(expected, actual, &PactSpecification::V3).await.unwrap().mismatches();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -151,8 +167,8 @@ fn same_parameter_different_values() {
     }
 }
 
-#[test]
-fn matches_with_equals_in_the_query_value() {
+#[tokio::test]
+async fn matches_with_equals_in_the_query_value() {
     println!("FILE: tests/spec_testcases/v3/request/query/matches with equals in the query value.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -189,7 +205,11 @@ fn matches_with_equals_in_the_query_value() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_request(expected, actual, &PactSpecification::V3).unwrap().mismatches();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_request(expected, actual, &PactSpecification::V3).await.unwrap().mismatches();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -198,8 +218,8 @@ fn matches_with_equals_in_the_query_value() {
     }
 }
 
-#[test]
-fn missing_params() {
+#[tokio::test]
+async fn missing_params() {
     println!("FILE: tests/spec_testcases/v3/request/query/missing params.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -237,7 +257,11 @@ fn missing_params() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_request(expected, actual, &PactSpecification::V3).unwrap().mismatches();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_request(expected, actual, &PactSpecification::V3).await.unwrap().mismatches();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -246,8 +270,8 @@ fn missing_params() {
     }
 }
 
-#[test]
-fn same_parameter_multiple_times_in_different_order() {
+#[tokio::test]
+async fn same_parameter_multiple_times_in_different_order() {
     println!("FILE: tests/spec_testcases/v3/request/query/same parameter multiple times in different order.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -282,7 +306,11 @@ fn same_parameter_multiple_times_in_different_order() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_request(expected, actual, &PactSpecification::V3).unwrap().mismatches();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_request(expected, actual, &PactSpecification::V3).await.unwrap().mismatches();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -291,8 +319,8 @@ fn same_parameter_multiple_times_in_different_order() {
     }
 }
 
-#[test]
-fn matches_with_regex() {
+#[tokio::test]
+async fn matches_with_regex() {
     println!("FILE: tests/spec_testcases/v3/request/query/matches with regex.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -341,7 +369,11 @@ fn matches_with_regex() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_request(expected, actual, &PactSpecification::V3).unwrap().mismatches();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_request(expected, actual, &PactSpecification::V3).await.unwrap().mismatches();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -350,8 +382,8 @@ fn matches_with_regex() {
     }
 }
 
-#[test]
-fn different_order() {
+#[tokio::test]
+async fn different_order() {
     println!("FILE: tests/spec_testcases/v3/request/query/different order.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -388,7 +420,11 @@ fn different_order() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_request(expected, actual, &PactSpecification::V3).unwrap().mismatches();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_request(expected, actual, &PactSpecification::V3).await.unwrap().mismatches();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -397,8 +433,8 @@ fn different_order() {
     }
 }
 
-#[test]
-fn same_parameter_multiple_times() {
+#[tokio::test]
+async fn same_parameter_multiple_times() {
     println!("FILE: tests/spec_testcases/v3/request/query/same parameter multiple times.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -435,7 +471,11 @@ fn same_parameter_multiple_times() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_request(expected, actual, &PactSpecification::V3).unwrap().mismatches();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_request(expected, actual, &PactSpecification::V3).await.unwrap().mismatches();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -444,8 +484,8 @@ fn same_parameter_multiple_times() {
     }
 }
 
-#[test]
-fn matches() {
+#[tokio::test]
+async fn matches() {
     println!("FILE: tests/spec_testcases/v3/request/query/matches.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -482,7 +522,11 @@ fn matches() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_request(expected, actual, &PactSpecification::V3).unwrap().mismatches();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_request(expected, actual, &PactSpecification::V3).await.unwrap().mismatches();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());

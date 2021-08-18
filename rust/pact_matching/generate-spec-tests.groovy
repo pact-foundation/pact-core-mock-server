@@ -20,6 +20,10 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
     pw.println('use serde_json;')
     pw.println('#[allow(unused_imports)]')
     pw.println('use expectest::prelude::*;')
+    pw.println('#[allow(unused_imports)]')
+    pw.println('use pact_matching::{CONTENT_MATCHER_CATALOGUE_ENTRIES, MATCHER_CATALOGUE_ENTRIES};')
+    pw.println('#[allow(unused_imports)]')
+    pw.println('use pact_plugin_driver::catalogue_manager::register_core_entries;')
     if (requestResponsePath == 'request' || requestResponsePath == 'response') {
       pw.println('#[allow(unused_imports)]')
       pw.println('use pact_models::interaction::{Interaction, http_interaction_from_json};')
@@ -39,8 +43,8 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
     dir.eachFileMatch(~/.*\.json/) {
       def json = new JsonSlurper().parse(it)
       def testBody = """
-        |#[test]
-        |fn ${it.name.replaceAll(' ', '_').replaceAll('-', '_').replaceAll('\\.json', '')}() {
+        |#[tokio::test]
+        |async fn ${it.name.replaceAll(' ', '_').replaceAll('-', '_').replaceAll('\\.json', '')}() {
         |    println!("FILE: ${it}");
         |    #[allow(unused_mut)]
         |    let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -60,7 +64,11 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
         |    println!("ACTUAL: {:?}", actual);
         |    println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
         |    let pact_match = pact.get("match").unwrap();
-        |    let result = match_interaction_request(expected, actual, &PactSpecification::$specVersion).unwrap().mismatches();
+        |
+        |    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+        |    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+        |    let result = match_interaction_request(expected, actual, &PactSpecification::$specVersion).await.unwrap().mismatches();
+        |
         |    println!("RESULT: {:?}", result);
         |    if pact_match.as_bool().unwrap() {
         |       expect!(result.iter()).to(be_empty());
@@ -79,7 +87,11 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
         |    println!("ACTUAL: {:?}", actual);
         |    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
         |    let pact_match = pact.get("match").unwrap();
-        |    let result = match_interaction_response(expected, actual, &PactSpecification::$specVersion).unwrap();
+        |
+        |    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+        |    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+        |    let result = match_interaction_response(expected, actual, &PactSpecification::$specVersion).await.unwrap();
+        |
         |    println!("RESULT: {:?}", result);
         |    if pact_match.as_bool().unwrap() {
         |       expect!(result.iter()).to(be_empty());
@@ -102,7 +114,11 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
         |    println!("ACTUAL: {:?}", actual);
         |    println!("BODY: {}", actual.as_message().unwrap().contents.str_value());
         |    let pact_match = pact.get("match").unwrap();
-        |    let result = match_interaction(expected, actual, &PactSpecification::$specVersion).unwrap();
+        |
+        |    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+        |    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+        |    let result = match_interaction(expected, actual, &PactSpecification::$specVersion).await.unwrap();
+        |
         |    println!("RESULT: {:?}", result);
         |    if pact_match.as_bool().unwrap() {
         |       expect!(result.iter()).to(be_empty());

@@ -7,12 +7,16 @@ use serde_json;
 #[allow(unused_imports)]
 use expectest::prelude::*;
 #[allow(unused_imports)]
+use pact_matching::{CONTENT_MATCHER_CATALOGUE_ENTRIES, MATCHER_CATALOGUE_ENTRIES};
+#[allow(unused_imports)]
+use pact_plugin_driver::catalogue_manager::register_core_entries;
+#[allow(unused_imports)]
 use pact_models::interaction::{Interaction, http_interaction_from_json};
 #[allow(unused_imports)]
 use pact_matching::{match_interaction_request, match_interaction_response};
 
-#[test]
-fn order_of_comma_separated_header_values_different() {
+#[tokio::test]
+async fn order_of_comma_separated_header_values_different() {
     println!("FILE: tests/spec_testcases/v2/request/headers/order of comma separated header values different.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -47,7 +51,11 @@ fn order_of_comma_separated_header_values_different() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_request(expected, actual, &PactSpecification::V2).unwrap().mismatches();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_request(expected, actual, &PactSpecification::V2).await.unwrap().mismatches();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -56,8 +64,8 @@ fn order_of_comma_separated_header_values_different() {
     }
 }
 
-#[test]
-fn whitespace_after_comma_different() {
+#[tokio::test]
+async fn whitespace_after_comma_different() {
     println!("FILE: tests/spec_testcases/v2/request/headers/whitespace after comma different.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -92,7 +100,11 @@ fn whitespace_after_comma_different() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_request(expected, actual, &PactSpecification::V2).unwrap().mismatches();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_request(expected, actual, &PactSpecification::V2).await.unwrap().mismatches();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -101,8 +113,8 @@ fn whitespace_after_comma_different() {
     }
 }
 
-#[test]
-fn header_value_is_different_case() {
+#[tokio::test]
+async fn header_value_is_different_case() {
     println!("FILE: tests/spec_testcases/v2/request/headers/header value is different case.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -137,7 +149,11 @@ fn header_value_is_different_case() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_request(expected, actual, &PactSpecification::V2).unwrap().mismatches();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_request(expected, actual, &PactSpecification::V2).await.unwrap().mismatches();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -146,8 +162,8 @@ fn header_value_is_different_case() {
     }
 }
 
-#[test]
-fn header_name_is_different_case() {
+#[tokio::test]
+async fn header_name_is_different_case() {
     println!("FILE: tests/spec_testcases/v2/request/headers/header name is different case.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -182,7 +198,11 @@ fn header_name_is_different_case() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_request(expected, actual, &PactSpecification::V2).unwrap().mismatches();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_request(expected, actual, &PactSpecification::V2).await.unwrap().mismatches();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -191,8 +211,8 @@ fn header_name_is_different_case() {
     }
 }
 
-#[test]
-fn matches_with_regex() {
+#[tokio::test]
+async fn matches_with_regex() {
     println!("FILE: tests/spec_testcases/v2/request/headers/matches with regex.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -230,7 +250,11 @@ fn matches_with_regex() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_request(expected, actual, &PactSpecification::V2).unwrap().mismatches();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_request(expected, actual, &PactSpecification::V2).await.unwrap().mismatches();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -239,8 +263,8 @@ fn matches_with_regex() {
     }
 }
 
-#[test]
-fn unexpected_header_found() {
+#[tokio::test]
+async fn unexpected_header_found() {
     println!("FILE: tests/spec_testcases/v2/request/headers/unexpected header found.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -273,7 +297,11 @@ fn unexpected_header_found() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_request(expected, actual, &PactSpecification::V2).unwrap().mismatches();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_request(expected, actual, &PactSpecification::V2).await.unwrap().mismatches();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -282,8 +310,8 @@ fn unexpected_header_found() {
     }
 }
 
-#[test]
-fn matches() {
+#[tokio::test]
+async fn matches() {
     println!("FILE: tests/spec_testcases/v2/request/headers/matches.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -320,7 +348,11 @@ fn matches() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_request(expected, actual, &PactSpecification::V2).unwrap().mismatches();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_request(expected, actual, &PactSpecification::V2).await.unwrap().mismatches();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -329,8 +361,8 @@ fn matches() {
     }
 }
 
-#[test]
-fn empty_headers() {
+#[tokio::test]
+async fn empty_headers() {
     println!("FILE: tests/spec_testcases/v2/request/headers/empty headers.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -362,7 +394,11 @@ fn empty_headers() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_request(expected, actual, &PactSpecification::V2).unwrap().mismatches();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_request(expected, actual, &PactSpecification::V2).await.unwrap().mismatches();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());

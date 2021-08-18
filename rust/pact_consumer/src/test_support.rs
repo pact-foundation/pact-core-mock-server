@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use anyhow::anyhow;
+use log::debug;
 use serde_json::Value;
 
 use pact_matching::{generate_request, match_request};
@@ -14,10 +16,10 @@ pub(crate) fn check_requests_match(
     expected_label: &str,
     expected: &Box<dyn Pact + Send>,
     context: &HashMap<&str, Value>
-) -> Result<(), String> {
+) -> anyhow::Result<()> {
     // First make sure we have the same number of interactions.
     if expected.interactions().len() != actual.interactions().len() {
-        return Err(format!(
+        return Err(anyhow!(
                 "the pact `{}` has {} interactions, but `{}` has {}",
                 expected_label,
                 expected.interactions().len(),
@@ -26,18 +28,24 @@ pub(crate) fn check_requests_match(
             ));
     }
 
+    let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
+
     // Next, check each interaction to see if it matches.
     for (e, a) in expected.interactions().iter().zip(actual.interactions()) {
         let actual_request = a.as_request_response().unwrap().request.clone();
+        debug!("actual_request = {:?}", actual_request);
         let generated_request = generate_request(&actual_request, &GeneratorTestMode::Provider, context);
-        let mismatches = match_request(e.as_request_response().unwrap().request.clone(),
-                                       generated_request);
+        debug!("generated_request = {:?}", generated_request);
+        let mismatches = runtime.block_on(async {
+            match_request(e.as_request_response().unwrap().request.clone(),
+                generated_request).await
+        });
         if !mismatches.all_matched() {
           let mut reasons = String::new();
           for mismatch in mismatches.mismatches() {
             reasons.push_str(&format!("- {}\n", mismatch.description()));
           }
-          return Err(format!(
+          return Err(anyhow!(
             "the pact `{}` does not match `{}` because:\n{}",
             expected_label,
             actual_label,

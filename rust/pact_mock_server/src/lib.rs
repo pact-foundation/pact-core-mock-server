@@ -12,11 +12,17 @@ use std::sync::Mutex;
 use lazy_static::*;
 use log::*;
 use maplit::hashmap;
-use pact_plugin_driver::catalogue_manager::{CatalogueEntry, CatalogueEntryProviderType, CatalogueEntryType};
+use pact_plugin_driver::catalogue_manager::{
+  CatalogueEntry,
+  CatalogueEntryProviderType,
+  CatalogueEntryType,
+  register_core_entries
+};
 use rustls::ServerConfig;
 use serde_json::json;
 use uuid::Uuid;
 
+use pact_matching::{CONTENT_MATCHER_CATALOGUE_ENTRIES, MATCHER_CATALOGUE_ENTRIES};
 use pact_models::pact::{load_pact_from_json, Pact};
 
 use crate::mock_server::MockServerConfig;
@@ -109,6 +115,10 @@ pub fn start_mock_server_with_config(
   addr: std::net::SocketAddr,
   config: MockServerConfig
 ) -> Result<i32, String> {
+  register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+  register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+  register_core_entries(MOCK_SERVER_CATALOGUE_ENTRIES.as_ref());
+
   MANAGER.lock().unwrap()
     .get_or_insert_with(ServerManager::new)
     .start_mock_server_with_addr(id, pact, addr, config)
@@ -160,6 +170,10 @@ pub fn start_tls_mock_server_with_config(
   tls: &ServerConfig,
   config: MockServerConfig
 ) -> Result<i32, String> {
+  register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+  register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+  register_core_entries(MOCK_SERVER_CATALOGUE_ENTRIES.as_ref());
+
   MANAGER.lock().unwrap()
     .get_or_insert_with(ServerManager::new)
     .start_tls_mock_server_with_addr(id, pact, addr, tls, config)
@@ -176,6 +190,10 @@ pub fn create_mock_server(
   pact_json: &str,
   addr: std::net::SocketAddr
 ) -> anyhow::Result<i32> {
+  register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+  register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+  register_core_entries(MOCK_SERVER_CATALOGUE_ENTRIES.as_ref());
+
   match serde_json::from_str(pact_json) {
     Ok(pact_json) => {
       let pact = load_pact_from_json("<create_mock_server>", &pact_json)?;

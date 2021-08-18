@@ -7,12 +7,16 @@ use serde_json;
 #[allow(unused_imports)]
 use expectest::prelude::*;
 #[allow(unused_imports)]
+use pact_matching::{CONTENT_MATCHER_CATALOGUE_ENTRIES, MATCHER_CATALOGUE_ENTRIES};
+#[allow(unused_imports)]
+use pact_plugin_driver::catalogue_manager::register_core_entries;
+#[allow(unused_imports)]
 use pact_models::interaction::{Interaction, http_interaction_from_json};
 #[allow(unused_imports)]
 use pact_matching::{match_interaction_request, match_interaction_response};
 
-#[test]
-fn array_with_regex_matcher() {
+#[tokio::test]
+async fn array_with_regex_matcher() {
     println!("FILE: tests/spec_testcases/v2/response/body/array with regex matcher.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -57,7 +61,11 @@ fn array_with_regex_matcher() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -66,8 +74,8 @@ fn array_with_regex_matcher() {
     }
 }
 
-#[test]
-fn different_value_found_at_index_xml() {
+#[tokio::test]
+async fn different_value_found_at_index_xml() {
     println!("FILE: tests/spec_testcases/v2/response/body/different value found at index xml.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -94,7 +102,11 @@ fn different_value_found_at_index_xml() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -103,8 +115,8 @@ fn different_value_found_at_index_xml() {
     }
 }
 
-#[test]
-fn unexpected_index_with_not_null_value() {
+#[tokio::test]
+async fn unexpected_index_with_not_null_value() {
     println!("FILE: tests/spec_testcases/v2/response/body/unexpected index with not null value.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -139,7 +151,11 @@ fn unexpected_index_with_not_null_value() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -148,8 +164,8 @@ fn unexpected_index_with_not_null_value() {
     }
 }
 
-#[test]
-fn missing_body() {
+#[tokio::test]
+async fn missing_body() {
     println!("FILE: tests/spec_testcases/v2/response/body/missing body.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -181,7 +197,11 @@ fn missing_body() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -190,8 +210,8 @@ fn missing_body() {
     }
 }
 
-#[test]
-fn unexpected_key_with_null_value() {
+#[tokio::test]
+async fn unexpected_key_with_null_value() {
     println!("FILE: tests/spec_testcases/v2/response/body/unexpected key with null value.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -227,7 +247,11 @@ fn unexpected_key_with_null_value() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -236,8 +260,8 @@ fn unexpected_key_with_null_value() {
     }
 }
 
-#[test]
-fn different_value_found_at_key() {
+#[tokio::test]
+async fn different_value_found_at_key() {
     println!("FILE: tests/spec_testcases/v2/response/body/different value found at key.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -272,7 +296,11 @@ fn different_value_found_at_key() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -281,8 +309,8 @@ fn different_value_found_at_key() {
     }
 }
 
-#[test]
-fn not_null_found_at_key_when_null_expected() {
+#[tokio::test]
+async fn not_null_found_at_key_when_null_expected() {
     println!("FILE: tests/spec_testcases/v2/response/body/not null found at key when null expected.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -317,7 +345,11 @@ fn not_null_found_at_key_when_null_expected() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -326,8 +358,8 @@ fn not_null_found_at_key_when_null_expected() {
     }
 }
 
-#[test]
-fn additional_property_with_type_matcher() {
+#[tokio::test]
+async fn additional_property_with_type_matcher() {
     println!("FILE: tests/spec_testcases/v2/response/body/additional property with type matcher.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -369,7 +401,11 @@ fn additional_property_with_type_matcher() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -378,8 +414,8 @@ fn additional_property_with_type_matcher() {
     }
 }
 
-#[test]
-fn matches_with_integers() {
+#[tokio::test]
+async fn matches_with_integers() {
     println!("FILE: tests/spec_testcases/v2/response/body/matches with integers.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -427,7 +463,11 @@ fn matches_with_integers() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -436,8 +476,8 @@ fn matches_with_integers() {
     }
 }
 
-#[test]
-fn different_value_found_at_key_xml() {
+#[tokio::test]
+async fn different_value_found_at_key_xml() {
     println!("FILE: tests/spec_testcases/v2/response/body/different value found at key xml.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -464,7 +504,11 @@ fn different_value_found_at_key_xml() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -473,8 +517,8 @@ fn different_value_found_at_key_xml() {
     }
 }
 
-#[test]
-fn number_found_in_array_when_string_expected() {
+#[tokio::test]
+async fn number_found_in_array_when_string_expected() {
     println!("FILE: tests/spec_testcases/v2/response/body/number found in array when string expected.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -509,7 +553,11 @@ fn number_found_in_array_when_string_expected() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -518,8 +566,8 @@ fn number_found_in_array_when_string_expected() {
     }
 }
 
-#[test]
-fn no_body_no_content_type_xml() {
+#[tokio::test]
+async fn no_body_no_content_type_xml() {
     println!("FILE: tests/spec_testcases/v2/response/body/no body no content type xml.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -544,7 +592,11 @@ fn no_body_no_content_type_xml() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -553,8 +605,8 @@ fn no_body_no_content_type_xml() {
     }
 }
 
-#[test]
-fn property_name_is_different_case() {
+#[tokio::test]
+async fn property_name_is_different_case() {
     println!("FILE: tests/spec_testcases/v2/response/body/property name is different case.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -589,7 +641,11 @@ fn property_name_is_different_case() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -598,8 +654,8 @@ fn property_name_is_different_case() {
     }
 }
 
-#[test]
-fn array_with_type_matcher_mismatch_xml() {
+#[tokio::test]
+async fn array_with_type_matcher_mismatch_xml() {
     println!("FILE: tests/spec_testcases/v2/response/body/array with type matcher mismatch xml.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -631,7 +687,11 @@ fn array_with_type_matcher_mismatch_xml() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -640,8 +700,8 @@ fn array_with_type_matcher_mismatch_xml() {
     }
 }
 
-#[test]
-fn array_in_different_order() {
+#[tokio::test]
+async fn array_in_different_order() {
     println!("FILE: tests/spec_testcases/v2/response/body/array in different order.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -676,7 +736,11 @@ fn array_in_different_order() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -685,8 +749,8 @@ fn array_in_different_order() {
     }
 }
 
-#[test]
-fn matches_with_floats() {
+#[tokio::test]
+async fn matches_with_floats() {
     println!("FILE: tests/spec_testcases/v2/response/body/matches with floats.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -732,7 +796,11 @@ fn matches_with_floats() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -741,8 +809,8 @@ fn matches_with_floats() {
     }
 }
 
-#[test]
-fn empty_body_no_content_type() {
+#[tokio::test]
+async fn empty_body_no_content_type() {
     println!("FILE: tests/spec_testcases/v2/response/body/empty body no content type.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -768,7 +836,11 @@ fn empty_body_no_content_type() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -777,8 +849,8 @@ fn empty_body_no_content_type() {
     }
 }
 
-#[test]
-fn objects_in_array_second_matches_xml() {
+#[tokio::test]
+async fn objects_in_array_second_matches_xml() {
     println!("FILE: tests/spec_testcases/v2/response/body/objects in array second matches xml.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -805,7 +877,11 @@ fn objects_in_array_second_matches_xml() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -814,8 +890,8 @@ fn objects_in_array_second_matches_xml() {
     }
 }
 
-#[test]
-fn array_with_type_matcher_mismatch() {
+#[tokio::test]
+async fn array_with_type_matcher_mismatch() {
     println!("FILE: tests/spec_testcases/v2/response/body/array with type matcher mismatch.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -857,7 +933,11 @@ fn array_with_type_matcher_mismatch() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -866,8 +946,8 @@ fn array_with_type_matcher_mismatch() {
     }
 }
 
-#[test]
-fn plain_text_that_matches() {
+#[tokio::test]
+async fn plain_text_that_matches() {
     println!("FILE: tests/spec_testcases/v2/response/body/plain text that matches.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -894,7 +974,11 @@ fn plain_text_that_matches() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -903,8 +987,8 @@ fn plain_text_that_matches() {
     }
 }
 
-#[test]
-fn array_with_type_matcher() {
+#[tokio::test]
+async fn array_with_type_matcher() {
     println!("FILE: tests/spec_testcases/v2/response/body/array with type matcher.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -949,7 +1033,11 @@ fn array_with_type_matcher() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -958,8 +1046,8 @@ fn array_with_type_matcher() {
     }
 }
 
-#[test]
-fn missing_body_no_content_type() {
+#[tokio::test]
+async fn missing_body_no_content_type() {
     println!("FILE: tests/spec_testcases/v2/response/body/missing body no content type.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -990,7 +1078,11 @@ fn missing_body_no_content_type() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -999,8 +1091,8 @@ fn missing_body_no_content_type() {
     }
 }
 
-#[test]
-fn objects_in_array_type_matching_xml() {
+#[tokio::test]
+async fn objects_in_array_type_matching_xml() {
     println!("FILE: tests/spec_testcases/v2/response/body/objects in array type matching xml.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -1038,7 +1130,11 @@ fn objects_in_array_type_matching_xml() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1047,8 +1143,8 @@ fn objects_in_array_type_matching_xml() {
     }
 }
 
-#[test]
-fn empty_body() {
+#[tokio::test]
+async fn empty_body() {
     println!("FILE: tests/spec_testcases/v2/response/body/empty body.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -1075,7 +1171,11 @@ fn empty_body() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1084,8 +1184,8 @@ fn empty_body() {
     }
 }
 
-#[test]
-fn string_found_in_array_when_number_expected() {
+#[tokio::test]
+async fn string_found_in_array_when_number_expected() {
     println!("FILE: tests/spec_testcases/v2/response/body/string found in array when number expected.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -1120,7 +1220,11 @@ fn string_found_in_array_when_number_expected() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1129,8 +1233,8 @@ fn string_found_in_array_when_number_expected() {
     }
 }
 
-#[test]
-fn array_at_top_level_xml() {
+#[tokio::test]
+async fn array_at_top_level_xml() {
     println!("FILE: tests/spec_testcases/v2/response/body/array at top level xml.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -1157,7 +1261,11 @@ fn array_at_top_level_xml() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1166,8 +1274,8 @@ fn array_at_top_level_xml() {
     }
 }
 
-#[test]
-fn objects_in_array_first_matches() {
+#[tokio::test]
+async fn objects_in_array_first_matches() {
     println!("FILE: tests/spec_testcases/v2/response/body/objects in array first matches.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -1207,7 +1315,11 @@ fn objects_in_array_first_matches() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1216,8 +1328,8 @@ fn objects_in_array_first_matches() {
     }
 }
 
-#[test]
-fn keys_out_of_order_match_xml() {
+#[tokio::test]
+async fn keys_out_of_order_match_xml() {
     println!("FILE: tests/spec_testcases/v2/response/body/keys out of order match xml.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -1244,7 +1356,11 @@ fn keys_out_of_order_match_xml() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1253,8 +1369,8 @@ fn keys_out_of_order_match_xml() {
     }
 }
 
-#[test]
-fn array_at_top_level() {
+#[tokio::test]
+async fn array_at_top_level() {
     println!("FILE: tests/spec_testcases/v2/response/body/array at top level.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -1307,7 +1423,11 @@ fn array_at_top_level() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1316,8 +1436,8 @@ fn array_at_top_level() {
     }
 }
 
-#[test]
-fn matches_with_type() {
+#[tokio::test]
+async fn matches_with_type() {
     println!("FILE: tests/spec_testcases/v2/response/body/matches with type.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -1360,7 +1480,11 @@ fn matches_with_type() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1369,8 +1493,8 @@ fn matches_with_type() {
     }
 }
 
-#[test]
-fn null_body_no_content_type() {
+#[tokio::test]
+async fn null_body_no_content_type() {
     println!("FILE: tests/spec_testcases/v2/response/body/null body no content type.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -1396,7 +1520,11 @@ fn null_body_no_content_type() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1405,8 +1533,8 @@ fn null_body_no_content_type() {
     }
 }
 
-#[test]
-fn array_with_type_matcher_xml() {
+#[tokio::test]
+async fn array_with_type_matcher_xml() {
     println!("FILE: tests/spec_testcases/v2/response/body/array with type matcher xml.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -1441,7 +1569,11 @@ fn array_with_type_matcher_xml() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1450,8 +1582,8 @@ fn array_with_type_matcher_xml() {
     }
 }
 
-#[test]
-fn missing_index_xml() {
+#[tokio::test]
+async fn missing_index_xml() {
     println!("FILE: tests/spec_testcases/v2/response/body/missing index xml.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -1478,7 +1610,11 @@ fn missing_index_xml() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1487,8 +1623,8 @@ fn missing_index_xml() {
     }
 }
 
-#[test]
-fn objects_in_array_no_matches_xml() {
+#[tokio::test]
+async fn objects_in_array_no_matches_xml() {
     println!("FILE: tests/spec_testcases/v2/response/body/objects in array no matches xml.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -1515,7 +1651,11 @@ fn objects_in_array_no_matches_xml() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1524,8 +1664,8 @@ fn objects_in_array_no_matches_xml() {
     }
 }
 
-#[test]
-fn no_body_no_content_type() {
+#[tokio::test]
+async fn no_body_no_content_type() {
     println!("FILE: tests/spec_testcases/v2/response/body/no body no content type.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -1556,7 +1696,11 @@ fn no_body_no_content_type() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1565,8 +1709,8 @@ fn no_body_no_content_type() {
     }
 }
 
-#[test]
-fn non_empty_body_found_when_empty_expected() {
+#[tokio::test]
+async fn non_empty_body_found_when_empty_expected() {
     println!("FILE: tests/spec_testcases/v2/response/body/non empty body found when empty expected.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -1599,7 +1743,11 @@ fn non_empty_body_found_when_empty_expected() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1608,8 +1756,8 @@ fn non_empty_body_found_when_empty_expected() {
     }
 }
 
-#[test]
-fn deeply_nested_objects() {
+#[tokio::test]
+async fn deeply_nested_objects() {
     println!("FILE: tests/spec_testcases/v2/response/body/deeply nested objects.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -1666,7 +1814,11 @@ fn deeply_nested_objects() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1675,8 +1827,8 @@ fn deeply_nested_objects() {
     }
 }
 
-#[test]
-fn missing_key_xml() {
+#[tokio::test]
+async fn missing_key_xml() {
     println!("FILE: tests/spec_testcases/v2/response/body/missing key xml.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -1703,7 +1855,11 @@ fn missing_key_xml() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1712,8 +1868,8 @@ fn missing_key_xml() {
     }
 }
 
-#[test]
-fn objects_in_array_no_matches() {
+#[tokio::test]
+async fn objects_in_array_no_matches() {
     println!("FILE: tests/spec_testcases/v2/response/body/objects in array no matches.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -1748,7 +1904,11 @@ fn objects_in_array_no_matches() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1757,8 +1917,8 @@ fn objects_in_array_no_matches() {
     }
 }
 
-#[test]
-fn objects_in_array_type_matching() {
+#[tokio::test]
+async fn objects_in_array_type_matching() {
     println!("FILE: tests/spec_testcases/v2/response/body/objects in array type matching.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -1803,7 +1963,11 @@ fn objects_in_array_type_matching() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1812,8 +1976,8 @@ fn objects_in_array_type_matching() {
     }
 }
 
-#[test]
-fn not_null_found_in_array_when_null_expected() {
+#[tokio::test]
+async fn not_null_found_in_array_when_null_expected() {
     println!("FILE: tests/spec_testcases/v2/response/body/not null found in array when null expected.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -1848,7 +2012,11 @@ fn not_null_found_in_array_when_null_expected() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1857,8 +2025,8 @@ fn not_null_found_in_array_when_null_expected() {
     }
 }
 
-#[test]
-fn array_at_top_level_with_matchers_xml() {
+#[tokio::test]
+async fn array_at_top_level_with_matchers_xml() {
     println!("FILE: tests/spec_testcases/v2/response/body/array at top level with matchers xml.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -1899,7 +2067,11 @@ fn array_at_top_level_with_matchers_xml() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1908,8 +2080,8 @@ fn array_at_top_level_with_matchers_xml() {
     }
 }
 
-#[test]
-fn different_value_found_at_index() {
+#[tokio::test]
+async fn different_value_found_at_index() {
     println!("FILE: tests/spec_testcases/v2/response/body/different value found at index.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -1944,7 +2116,11 @@ fn different_value_found_at_index() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -1953,8 +2129,8 @@ fn different_value_found_at_index() {
     }
 }
 
-#[test]
-fn matches_with_regex() {
+#[tokio::test]
+async fn matches_with_regex() {
     println!("FILE: tests/spec_testcases/v2/response/body/matches with regex.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -1996,7 +2172,11 @@ fn matches_with_regex() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -2005,8 +2185,8 @@ fn matches_with_regex() {
     }
 }
 
-#[test]
-fn objects_in_array_with_type_mismatching() {
+#[tokio::test]
+async fn objects_in_array_with_type_mismatching() {
     println!("FILE: tests/spec_testcases/v2/response/body/objects in array with type mismatching.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -2048,7 +2228,11 @@ fn objects_in_array_with_type_mismatching() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -2057,8 +2241,8 @@ fn objects_in_array_with_type_mismatching() {
     }
 }
 
-#[test]
-fn number_found_at_key_when_string_expected() {
+#[tokio::test]
+async fn number_found_at_key_when_string_expected() {
     println!("FILE: tests/spec_testcases/v2/response/body/number found at key when string expected.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -2093,7 +2277,11 @@ fn number_found_at_key_when_string_expected() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -2102,8 +2290,8 @@ fn number_found_at_key_when_string_expected() {
     }
 }
 
-#[test]
-fn objects_in_array_second_matches() {
+#[tokio::test]
+async fn objects_in_array_second_matches() {
     println!("FILE: tests/spec_testcases/v2/response/body/objects in array second matches.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -2137,7 +2325,11 @@ fn objects_in_array_second_matches() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -2146,8 +2338,8 @@ fn objects_in_array_second_matches() {
     }
 }
 
-#[test]
-fn array_in_different_order_xml() {
+#[tokio::test]
+async fn array_in_different_order_xml() {
     println!("FILE: tests/spec_testcases/v2/response/body/array in different order xml.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -2174,7 +2366,11 @@ fn array_in_different_order_xml() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -2183,8 +2379,8 @@ fn array_in_different_order_xml() {
     }
 }
 
-#[test]
-fn matches_with_regex_xml() {
+#[tokio::test]
+async fn matches_with_regex_xml() {
     println!("FILE: tests/spec_testcases/v2/response/body/matches with regex xml.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -2214,7 +2410,11 @@ fn matches_with_regex_xml() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -2223,8 +2423,8 @@ fn matches_with_regex_xml() {
     }
 }
 
-#[test]
-fn value_found_in_array_when_empty_expected_xml() {
+#[tokio::test]
+async fn value_found_in_array_when_empty_expected_xml() {
     println!("FILE: tests/spec_testcases/v2/response/body/value found in array when empty expected xml.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -2251,7 +2451,11 @@ fn value_found_in_array_when_empty_expected_xml() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -2260,8 +2464,8 @@ fn value_found_in_array_when_empty_expected_xml() {
     }
 }
 
-#[test]
-fn missing_index() {
+#[tokio::test]
+async fn missing_index() {
     println!("FILE: tests/spec_testcases/v2/response/body/missing index.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -2296,7 +2500,11 @@ fn missing_index() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -2305,8 +2513,8 @@ fn missing_index() {
     }
 }
 
-#[test]
-fn keys_out_of_order_match() {
+#[tokio::test]
+async fn keys_out_of_order_match() {
     println!("FILE: tests/spec_testcases/v2/response/body/keys out of order match.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -2339,7 +2547,11 @@ fn keys_out_of_order_match() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -2348,8 +2560,8 @@ fn keys_out_of_order_match() {
     }
 }
 
-#[test]
-fn null_body() {
+#[tokio::test]
+async fn null_body() {
     println!("FILE: tests/spec_testcases/v2/response/body/null body.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -2376,7 +2588,11 @@ fn null_body() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -2385,8 +2601,8 @@ fn null_body() {
     }
 }
 
-#[test]
-fn unexpected_key_with_non_empty_value_xml() {
+#[tokio::test]
+async fn unexpected_key_with_non_empty_value_xml() {
     println!("FILE: tests/spec_testcases/v2/response/body/unexpected key with non-empty value xml.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -2413,7 +2629,11 @@ fn unexpected_key_with_non_empty_value_xml() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -2422,8 +2642,8 @@ fn unexpected_key_with_non_empty_value_xml() {
     }
 }
 
-#[test]
-fn missing_body_xml() {
+#[tokio::test]
+async fn missing_body_xml() {
     println!("FILE: tests/spec_testcases/v2/response/body/missing body xml.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -2449,7 +2669,11 @@ fn missing_body_xml() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -2458,8 +2682,8 @@ fn missing_body_xml() {
     }
 }
 
-#[test]
-fn null_found_in_array_when_not_null_expected() {
+#[tokio::test]
+async fn null_found_in_array_when_not_null_expected() {
     println!("FILE: tests/spec_testcases/v2/response/body/null found in array when not null expected.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -2494,7 +2718,11 @@ fn null_found_in_array_when_not_null_expected() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -2503,8 +2731,8 @@ fn null_found_in_array_when_not_null_expected() {
     }
 }
 
-#[test]
-fn additional_property_with_type_matcher_that_does_not_match() {
+#[tokio::test]
+async fn additional_property_with_type_matcher_that_does_not_match() {
     println!("FILE: tests/spec_testcases/v2/response/body/additional property with type matcher that does not match.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -2546,7 +2774,11 @@ fn additional_property_with_type_matcher_that_does_not_match() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -2555,8 +2787,8 @@ fn additional_property_with_type_matcher_that_does_not_match() {
     }
 }
 
-#[test]
-fn unexpected_index_with_null_value() {
+#[tokio::test]
+async fn unexpected_index_with_null_value() {
     println!("FILE: tests/spec_testcases/v2/response/body/unexpected index with null value.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -2591,7 +2823,11 @@ fn unexpected_index_with_null_value() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -2600,8 +2836,8 @@ fn unexpected_index_with_null_value() {
     }
 }
 
-#[test]
-fn unexpected_key_with_not_null_value() {
+#[tokio::test]
+async fn unexpected_key_with_not_null_value() {
     println!("FILE: tests/spec_testcases/v2/response/body/unexpected key with not null value.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -2637,7 +2873,11 @@ fn unexpected_key_with_not_null_value() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -2646,8 +2886,8 @@ fn unexpected_key_with_not_null_value() {
     }
 }
 
-#[test]
-fn missing_body_found_when_empty_expected() {
+#[tokio::test]
+async fn missing_body_found_when_empty_expected() {
     println!("FILE: tests/spec_testcases/v2/response/body/missing body found when empty expected.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -2671,7 +2911,11 @@ fn missing_body_found_when_empty_expected() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -2680,8 +2924,8 @@ fn missing_body_found_when_empty_expected() {
     }
 }
 
-#[test]
-fn string_found_at_key_when_number_expected() {
+#[tokio::test]
+async fn string_found_at_key_when_number_expected() {
     println!("FILE: tests/spec_testcases/v2/response/body/string found at key when number expected.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -2716,7 +2960,11 @@ fn string_found_at_key_when_number_expected() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -2725,8 +2973,8 @@ fn string_found_at_key_when_number_expected() {
     }
 }
 
-#[test]
-fn unexpected_key_with_empty_value_xml() {
+#[tokio::test]
+async fn unexpected_key_with_empty_value_xml() {
     println!("FILE: tests/spec_testcases/v2/response/body/unexpected key with empty value xml.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -2753,7 +3001,11 @@ fn unexpected_key_with_empty_value_xml() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -2762,8 +3014,8 @@ fn unexpected_key_with_empty_value_xml() {
     }
 }
 
-#[test]
-fn missing_key() {
+#[tokio::test]
+async fn missing_key() {
     println!("FILE: tests/spec_testcases/v2/response/body/missing key.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -2799,7 +3051,11 @@ fn missing_key() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -2808,8 +3064,8 @@ fn missing_key() {
     }
 }
 
-#[test]
-fn objects_in_array_first_matches_xml() {
+#[tokio::test]
+async fn objects_in_array_first_matches_xml() {
     println!("FILE: tests/spec_testcases/v2/response/body/objects in array first matches xml.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -2836,7 +3092,11 @@ fn objects_in_array_first_matches_xml() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -2845,8 +3105,8 @@ fn objects_in_array_first_matches_xml() {
     }
 }
 
-#[test]
-fn matches_xml() {
+#[tokio::test]
+async fn matches_xml() {
     println!("FILE: tests/spec_testcases/v2/response/body/matches xml.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -2873,7 +3133,11 @@ fn matches_xml() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -2882,8 +3146,8 @@ fn matches_xml() {
     }
 }
 
-#[test]
-fn deeply_nested_objects_xml() {
+#[tokio::test]
+async fn deeply_nested_objects_xml() {
     println!("FILE: tests/spec_testcases/v2/response/body/deeply nested objects xml.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -2910,7 +3174,11 @@ fn deeply_nested_objects_xml() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -2919,8 +3187,8 @@ fn deeply_nested_objects_xml() {
     }
 }
 
-#[test]
-fn property_name_is_different_case_xml() {
+#[tokio::test]
+async fn property_name_is_different_case_xml() {
     println!("FILE: tests/spec_testcases/v2/response/body/property name is different case xml.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -2947,7 +3215,11 @@ fn property_name_is_different_case_xml() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -2956,8 +3228,8 @@ fn property_name_is_different_case_xml() {
     }
 }
 
-#[test]
-fn matches() {
+#[tokio::test]
+async fn matches() {
     println!("FILE: tests/spec_testcases/v2/response/body/matches.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -2996,7 +3268,11 @@ fn matches() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -3005,8 +3281,8 @@ fn matches() {
     }
 }
 
-#[test]
-fn array_at_top_level_with_matchers() {
+#[tokio::test]
+async fn array_at_top_level_with_matchers() {
     println!("FILE: tests/spec_testcases/v2/response/body/array at top level with matchers.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -3082,7 +3358,11 @@ fn array_at_top_level_with_matchers() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -3091,8 +3371,8 @@ fn array_at_top_level_with_matchers() {
     }
 }
 
-#[test]
-fn null_found_at_key_where_not_null_expected() {
+#[tokio::test]
+async fn null_found_at_key_where_not_null_expected() {
     println!("FILE: tests/spec_testcases/v2/response/body/null found at key where not null expected.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -3127,7 +3407,11 @@ fn null_found_at_key_where_not_null_expected() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -3136,8 +3420,8 @@ fn null_found_at_key_where_not_null_expected() {
     }
 }
 
-#[test]
-fn unexpected_index_with_non_empty_value_xml() {
+#[tokio::test]
+async fn unexpected_index_with_non_empty_value_xml() {
     println!("FILE: tests/spec_testcases/v2/response/body/unexpected index with non-empty value xml.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -3164,7 +3448,11 @@ fn unexpected_index_with_non_empty_value_xml() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -3173,8 +3461,8 @@ fn unexpected_index_with_non_empty_value_xml() {
     }
 }
 
-#[test]
-fn objects_in_array_with_type_mismatching_xml() {
+#[tokio::test]
+async fn objects_in_array_with_type_mismatching_xml() {
     println!("FILE: tests/spec_testcases/v2/response/body/objects in array with type mismatching xml.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -3209,7 +3497,11 @@ fn objects_in_array_with_type_mismatching_xml() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -3218,8 +3510,8 @@ fn objects_in_array_with_type_mismatching_xml() {
     }
 }
 
-#[test]
-fn plain_text_that_does_not_match() {
+#[tokio::test]
+async fn plain_text_that_does_not_match() {
     println!("FILE: tests/spec_testcases/v2/response/body/plain text that does not match.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -3246,7 +3538,11 @@ fn plain_text_that_does_not_match() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -3255,8 +3551,8 @@ fn plain_text_that_does_not_match() {
     }
 }
 
-#[test]
-fn array_with_regex_matcher_xml() {
+#[tokio::test]
+async fn array_with_regex_matcher_xml() {
     println!("FILE: tests/spec_testcases/v2/response/body/array with regex matcher xml.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -3291,7 +3587,11 @@ fn array_with_regex_matcher_xml() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());
@@ -3300,8 +3600,8 @@ fn array_with_regex_matcher_xml() {
     }
 }
 
-#[test]
-fn unexpected_index_with_missing_value_xml() {
+#[tokio::test]
+async fn unexpected_index_with_missing_value_xml() {
     println!("FILE: tests/spec_testcases/v2/response/body/unexpected index with missing value xml.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
@@ -3328,7 +3628,11 @@ fn unexpected_index_with_missing_value_xml() {
     println!("ACTUAL: {:?}", actual);
     println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
     let pact_match = pact.get("match").unwrap();
-    let result = match_interaction_response(expected, actual, &PactSpecification::V2).unwrap();
+
+    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    let result = match_interaction_response(expected, actual, &PactSpecification::V2).await.unwrap();
+
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
        expect!(result.iter()).to(be_empty());

@@ -2,7 +2,7 @@ from conans import ConanFile, VisualStudioBuildEnvironment, CMake, tools
 
 class CbindgenTestConan(ConanFile):
     name = "pact_ffi"
-    version = "0.0.1"
+    version = "0.0.2"
     description = "Pact/Rust FFI bindings"
     url = "https://pactfoundation.jfrog.io/artifactory/pactfoundation-conan/"
     homepage = "https://github.com/pact-foundation/pact-reference"
