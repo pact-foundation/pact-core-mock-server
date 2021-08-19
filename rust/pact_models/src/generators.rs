@@ -41,7 +41,7 @@ pub trait VariantMatcher: Debug {
   ) -> Option<(usize, HashMap<DocPath, Generator>)>;
 
   /// Clones this matcher and returns it in a box
-  fn boxed(&self) -> Box<dyn VariantMatcher>;
+  fn boxed(&self) -> Box<dyn VariantMatcher + Send + Sync>;
 }
 
 #[derive(Clone, Debug)]
@@ -56,7 +56,7 @@ impl VariantMatcher for NoopVariantMatcher {
     None
   }
 
-  fn boxed(&self) -> Box<dyn VariantMatcher> {
+  fn boxed(&self) -> Box<dyn VariantMatcher + Send + Sync> {
     Box::new(self.clone())
   }
 }
@@ -659,7 +659,12 @@ impl Into<Category> for GeneratorCategory {
 pub trait GenerateValue<T> {
   /// Generates a new value based on the source value. An error will be returned if the value can not
   /// be generated.
-  fn generate_value(&self, value: &T, context: &HashMap<&str, Value>, matcher: &Box<dyn VariantMatcher>) -> anyhow::Result<T>;
+  fn generate_value(
+    &self,
+    value: &T,
+    context: &HashMap<&str, Value>,
+    matcher: &Box<dyn VariantMatcher + Send + Sync>
+  ) -> anyhow::Result<T>;
 }
 
 /// Trait to define a handler for applying generators to data of a particular content type.
@@ -670,7 +675,7 @@ pub trait ContentTypeHandler<T> {
     generators: &HashMap<DocPath, Generator>,
     mode: &GeneratorTestMode,
     context: &HashMap<&str, Value>,
-    matcher: &Box<dyn VariantMatcher>
+    matcher: &Box<dyn VariantMatcher + Send + Sync>
   ) -> Result<OptionalBody, String>;
   /// Applies the generator to the key in the body.
   fn apply_key(
@@ -678,7 +683,7 @@ pub trait ContentTypeHandler<T> {
     key: &DocPath,
     generator: &dyn GenerateValue<T>,
     context: &HashMap<&str, Value>,
-    matcher: &Box<dyn VariantMatcher>
+    matcher: &Box<dyn VariantMatcher + Send + Sync>
   );
 }
 
@@ -967,7 +972,12 @@ pub fn generate_hexadecimal(digits: usize) -> String {
 }
 
 impl GenerateValue<u16> for Generator {
-  fn generate_value(&self, value: &u16, context: &HashMap<&str, Value>, _matcher: &Box<dyn VariantMatcher>) -> anyhow::Result<u16> {
+  fn generate_value(
+    &self,
+    value: &u16,
+    context: &HashMap<&str, Value>,
+    _matcher: &Box<dyn VariantMatcher + Send + Sync>
+  ) -> anyhow::Result<u16> {
     match self {
       &Generator::RandomInt(min, max) => Ok(rand::thread_rng().gen_range(min as u16..(max as u16).saturating_add(1))),
       &Generator::ProviderStateGenerator(ref exp, ref dt) =>
@@ -991,7 +1001,12 @@ fn strip_anchors(regex: &str) -> &str {
 }
 
 impl GenerateValue<String> for Generator {
-  fn generate_value(&self, _: &String, context: &HashMap<&str, Value>, _matcher: &Box<dyn VariantMatcher>) -> anyhow::Result<String> {
+  fn generate_value(
+    &self,
+    _: &String,
+    context: &HashMap<&str, Value>,
+    _matcher: &Box<dyn VariantMatcher + Send + Sync>
+  ) -> anyhow::Result<String> {
     let mut rnd = rand::thread_rng();
     let result = match self {
       Generator::RandomInt(min, max) => Ok(format!("{}", rnd.gen_range(*min..max.saturating_add(1)))),
@@ -1082,13 +1097,23 @@ impl GenerateValue<String> for Generator {
 }
 
 impl GenerateValue<Vec<String>> for Generator {
-  fn generate_value(&self, vals: &Vec<String>, context: &HashMap<&str, Value>, matcher: &Box<dyn VariantMatcher>) -> anyhow::Result<Vec<String>> {
+  fn generate_value(
+    &self,
+    vals: &Vec<String>,
+    context: &HashMap<&str, Value>,
+    matcher: &Box<dyn VariantMatcher + Send + Sync>
+  ) -> anyhow::Result<Vec<String>> {
     self.generate_value(&vals.first().cloned().unwrap_or_default(), context, matcher).map(|v| vec![v])
   }
 }
 
 impl GenerateValue<Value> for Generator {
-  fn generate_value(&self, value: &Value, context: &HashMap<&str, Value>, matcher: &Box<dyn VariantMatcher>) -> anyhow::Result<Value> {
+  fn generate_value(
+    &self, value:
+    &Value,
+    context: &HashMap<&str, Value>,
+    matcher: &Box<dyn VariantMatcher + Send + Sync>
+  ) -> anyhow::Result<Value> {
     debug!("Generating value from {:?} with context {:?}", self, context);
     let result = match self {
       Generator::RandomInt(min, max) => {
@@ -1301,7 +1326,7 @@ impl ContentTypeHandler<Value> for JsonHandler {
     generators: &HashMap<DocPath, Generator>,
     mode: &GeneratorTestMode,
     context: &HashMap<&str, Value>,
-    matcher: &Box<dyn VariantMatcher>
+    matcher: &Box<dyn VariantMatcher + Send + Sync>
   ) -> Result<OptionalBody, String> {
     for (key, generator) in generators {
       if generator.corresponds_to_mode(mode) {
@@ -1317,7 +1342,7 @@ impl ContentTypeHandler<Value> for JsonHandler {
     key: &DocPath,
     generator: &dyn GenerateValue<Value>,
     context: &HashMap<&str, Value>,
-    matcher: &Box<dyn VariantMatcher>,
+    matcher: &Box<dyn VariantMatcher + Send + Sync>,
   ) {
     let path_exp = key;
     let mut tree = Arena::new();

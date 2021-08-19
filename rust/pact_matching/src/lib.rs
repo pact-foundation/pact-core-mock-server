@@ -367,6 +367,7 @@ use crate::json::match_json;
 use crate::matchers::*;
 pub use crate::matchers::{CONTENT_MATCHER_CATALOGUE_ENTRIES, MATCHER_CATALOGUE_ENTRIES};
 use crate::matchingrules::DisplayForMismatch;
+use anyhow::Error;
 
 /// Simple macro to convert a string slice to a `String` struct.
 #[macro_export]
@@ -1540,7 +1541,7 @@ pub async fn match_message(expected: &Box<dyn Interaction + Send>, actual: &Box<
 }
 
 /// Generates the request by applying any defined generators
-pub fn generate_request(request: &Request, mode: &GeneratorTestMode, context: &HashMap<&str, Value>) -> Request {
+pub async fn generate_request(request: &Request, mode: &GeneratorTestMode, context: &HashMap<&str, Value>) -> Request {
   let mut request = request.clone();
 
   let generators = request.build_generators(&GeneratorCategory::PATH);
@@ -1592,15 +1593,18 @@ pub fn generate_request(request: &Request, mode: &GeneratorTestMode, context: &H
   let generators = request.build_generators(&GeneratorCategory::BODY);
   if !generators.is_empty() && request.body.is_present() {
     debug!("Applying body generators...");
-    request.body = generators_process_body(mode, &request.body, request.content_type(),
-                                         context, &generators, &DefaultVariantMatcher.boxed());
+    match generators_process_body(mode, &request.body, request.content_type(),
+                                  context, &generators, &DefaultVariantMatcher.boxed()).await {
+      Ok(body) => request.body = body,
+      Err(err) => error!("Failed to generate the body, will use the original: {}", err)
+    }
   }
 
   request
 }
 
 /// Generates the response by applying any defined generators
-pub fn generate_response(response: &Response, mode: &GeneratorTestMode, context: &HashMap<&str, Value>) -> Response {
+pub async fn generate_response(response: &Response, mode: &GeneratorTestMode, context: &HashMap<&str, Value>) -> Response {
   let mut response = response.clone();
   let generators = response.build_generators(&GeneratorCategory::STATUS);
   if !generators.is_empty() {
@@ -1634,8 +1638,11 @@ pub fn generate_response(response: &Response, mode: &GeneratorTestMode, context:
   let generators = response.build_generators(&GeneratorCategory::BODY);
   if !generators.is_empty() && response.body.is_present() {
     debug!("Applying body generators...");
-    response.body = generators_process_body(mode, &response.body, response.content_type(),
-                                            context, &generators, &DefaultVariantMatcher.boxed());
+    match generators_process_body(mode, &response.body, response.content_type(),
+      context, &generators, &DefaultVariantMatcher.boxed()).await {
+      Ok(body) => response.body = body,
+      Err(err) => error!("Failed to generate the body, will use the original: {}", err)
+    }
   }
   response
 }

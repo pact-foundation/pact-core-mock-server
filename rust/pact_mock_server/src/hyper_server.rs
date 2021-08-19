@@ -154,27 +154,28 @@ fn error_body(request: &Request, error: &String) -> String {
     body.to_string()
 }
 
-fn match_result_to_hyper_response(
+async fn match_result_to_hyper_response(
   request: &Request,
   match_result: MatchResult,
   mock_server: Arc<Mutex<MockServer>>
 ) -> Result<Response<Body>, InteractionError> {
-  let cors_preflight = {
+  let (context, cors_preflight) = {
     let ms = mock_server.lock().unwrap();
-    ms.config.cors_preflight
-  };
-
-  match match_result {
-    MatchResult::RequestMatch(_, ref response) => {
-      let ms = mock_server.lock().unwrap();
-      let context = hashmap!{
+    (
+      hashmap!{
         "mockServer" => json!({
           "href": ms.url(),
           "port": ms.port
         })
-      };
+      },
+      ms.config.cors_preflight
+    )
+  };
+
+  match match_result {
+    MatchResult::RequestMatch(_, ref response) => {
       debug!("Test context = {:?}", context);
-      let response = pact_matching::generate_response(response, &GeneratorTestMode::Consumer, &context);
+      let response = pact_matching::generate_response(response, &GeneratorTestMode::Consumer, &context).await;
       info!("Request matched, sending response {}", response);
       if response.has_text_body() {
         debug!("     body: '{}'", response.body.str_value());
@@ -257,7 +258,7 @@ async fn handle_request(
 
   matches.lock().unwrap().push(match_result.clone());
 
-  match_result_to_hyper_response(&pact_request, match_result, mock_server)
+  match_result_to_hyper_response(&pact_request, match_result, mock_server).await
 }
 
 // TODO: Should instead use some form of X-Pact headers
@@ -306,7 +307,7 @@ pub(crate) async fn create_and_bind(
       let mock_server = mock_server.clone();
       let mock_server_id = ms_id.clone();
 
-      LOG_ID.scope(mock_server_id.to_string(), async {
+      LOG_ID.scope(mock_server_id.to_string(), async move {
         Ok::<_, hyper::Error>(
           service_fn(move |req| {
             let pact = pact.clone();
@@ -314,7 +315,7 @@ pub(crate) async fn create_and_bind(
             let mock_server = mock_server.clone();
             let mock_server_id = mock_server_id.clone();
 
-            LOG_ID.scope(mock_server_id.to_string(), async {
+            LOG_ID.scope(mock_server_id.to_string(), async move {
               handle_mock_request_error(
                 handle_request(req, pact, matches, mock_server).await
               )
