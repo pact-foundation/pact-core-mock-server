@@ -1,3 +1,7 @@
+use log::debug;
+use maplit::hashmap;
+use serde_json::json;
+
 use pact_models::provider_states::ProviderState;
 use pact_models::sync_interaction::RequestResponseInteraction;
 use pact_models::v4::synch_http::SynchronousHttp;
@@ -7,6 +11,7 @@ use super::response_builder::ResponseBuilder;
 
 /// Builder for `Interaction` objects. Normally created via
 /// `PactBuilder::interaction`.
+#[derive(Clone, Debug)]
 pub struct InteractionBuilder {
     description: String,
     provider_states: Vec<ProviderState>,
@@ -18,12 +23,15 @@ pub struct InteractionBuilder {
 
     /// A builder for this interaction's `Response`.
     pub response: ResponseBuilder,
+    /// The interaction type (as stored in the plugin catalogue)
+    pub interaction_type: String,
 }
 
 impl InteractionBuilder {
   /// Create a new interaction.
-  pub fn new<D: Into<String>>(description: D) -> Self {
+  pub fn new<D: Into<String>>(description: D, interaction_type: D) -> Self {
     InteractionBuilder {
+      interaction_type: interaction_type.into(),
       description: description.into(),
       provider_states: vec![],
       comments: vec![],
@@ -69,14 +77,18 @@ impl InteractionBuilder {
 
   /// The interaction we've built (in V4 format).
   pub fn build_v4(&self) -> SynchronousHttp {
+    debug!("Building V4 HTTP interaction: {:?}", self);
     SynchronousHttp {
       id: None,
       key: None,
       description: self.description.clone(),
       provider_states: self.provider_states.clone(),
-      request: self.request.build().as_v4_request(),
-      response: self.response.build().as_v4_response(),
-      comments: Default::default(),
+      request: self.request.build_v4(),
+      response: self.response.build_v4(),
+      comments: hashmap!{
+        "text".to_string() => json!(self.comments),
+        "testname".to_string() => json!(self.test_name)
+      },
       pending: false
     }
   }

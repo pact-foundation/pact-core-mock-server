@@ -7,11 +7,13 @@ use std::hash::{Hash, Hasher};
 use base64::decode;
 use bytes::BytesMut;
 use log::*;
+use maplit::*;
 use serde_json::{json, Value};
 
 use crate::bodies::OptionalBody;
 use crate::content_types::{ContentType, detect_content_type_from_bytes};
 use crate::generators::{Generators, generators_from_json, generators_to_json};
+use crate::http_parts::HttpPart;
 use crate::json_utils::{headers_from_json, json_to_string};
 use crate::matchingrules::{matchers_from_json, matchers_to_json, MatchingRules};
 use crate::PactSpecification;
@@ -396,6 +398,35 @@ impl HttpResponse {
   /// Otherwise, the body will be inspected.
   pub fn content_type(&self) -> Option<ContentType> {
     calc_content_type(&self.body, &self.headers)
+  }
+}
+
+impl HttpPart for HttpResponse {
+  fn headers(&self) -> &Option<HashMap<String, Vec<String>>> {
+    &self.headers
+  }
+
+  fn headers_mut(&mut self) -> &mut HashMap<String, Vec<String>> {
+    if self.headers.is_none() {
+      self.headers = Some(hashmap!{});
+    }
+    self.headers.as_mut().unwrap()
+  }
+
+  fn body(&self) -> &OptionalBody {
+    &self.body
+  }
+
+  fn matching_rules(&self) -> &MatchingRules {
+    &self.matching_rules
+  }
+
+  fn generators(&self) -> &Generators {
+    &self.generators
+  }
+
+  fn lookup_content_type(&self) -> Option<String> {
+    self.lookup_header_value("content-type")
   }
 }
 

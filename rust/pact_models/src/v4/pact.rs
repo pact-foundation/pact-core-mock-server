@@ -224,6 +224,29 @@ impl Pact for V4Pact {
       Vec::default()
     }
   }
+
+  fn is_v4(&self) -> bool {
+    true
+  }
+
+  fn add_plugin(&mut self, name: &str, version: Option<String>) -> anyhow::Result<()> {
+    let plugin_json = json!({
+      "name": name,
+      "version": version
+    });
+    if let Some(plugins) = self.metadata.get_mut("plugins") {
+      match plugins {
+        Value::Array(items) => items.push(plugin_json),
+        _ => {
+          warn!("Ignoring invalid plugin configuration in metadata");
+          self.metadata.insert("plugins".to_string(), Value::Array(vec![plugin_json]));
+        }
+      }
+    } else {
+      self.metadata.insert("plugins".to_string(), Value::Array(vec![plugin_json]));
+    }
+    Ok(())
+  }
 }
 
 impl Default for V4Pact {

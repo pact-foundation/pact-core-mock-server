@@ -124,6 +124,14 @@ impl Pact for RequestResponsePact {
   fn plugins(&self) -> Vec<Value> {
     Vec::default()
   }
+
+  fn is_v4(&self) -> bool {
+    false
+  }
+
+  fn add_plugin(&mut self, _name: &str, _version: Option<String>) -> anyhow::Result<()> {
+    Err(anyhow!("Plugins can only be used with V4 format pacts"))
+  }
 }
 
 impl RequestResponsePact {

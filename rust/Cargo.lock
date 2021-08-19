@@ -1117,6 +1117,7 @@ name = "pact-plugin-driver"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "bytes",
  "home",
  "itertools",
  "lazy_static",
@@ -1157,6 +1158,7 @@ name = "pact_consumer"
 version = "0.7.8"
 dependencies = [
  "anyhow",
+ "bytes",
  "env_logger",
  "expectest",
  "futures",

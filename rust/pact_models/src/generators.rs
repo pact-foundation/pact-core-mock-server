@@ -286,6 +286,15 @@ impl Generator {
       }
     }
   }
+
+  /// Create a generator from a type and a map of attributes
+  pub fn create(generator_type: &str, attributes: &Value) -> anyhow::Result<Generator> {
+    match attributes {
+      Value::Object(o) => Generator::from_map(generator_type, o)
+        .ok_or_else(|| anyhow!("Could not create a generator from '{}' and {}", generator_type, attributes)),
+      _ => Err(anyhow!("'{}' is not a valid generator type", generator_type))
+    }
+  }
 }
 
 impl Hash for Generator {
@@ -783,6 +792,16 @@ impl Generators {
   ) {
     let category_map = self.categories.entry(category.clone()).or_insert(HashMap::new());
     category_map.insert(subcategory, generator.clone());
+  }
+
+  /// Add all the generators
+  pub fn add_generators(&mut self, generators: Generators) {
+    for (key, values) in &generators.categories {
+      let category_map = self.categories.entry(key.clone()).or_insert(HashMap::new());
+      for (path, gen) in values {
+        category_map.insert(path.clone(), gen.clone());
+      }
+    }
   }
 }
 

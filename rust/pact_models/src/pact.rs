@@ -72,6 +72,12 @@ pub trait Pact: Debug + ReadWritePact {
   /// Plugins required for this Pact. These will be taken from the 'plugins' key in the pact
   /// metadata.
   fn plugins(&self) -> Vec<Value>;
+
+  /// If this is a V4 Pact
+  fn is_v4(&self) -> bool;
+
+  /// Add the plugin to this Pact
+  fn add_plugin(&mut self, name: &str, version: Option<String>) -> anyhow::Result<()>;
 }
 
 /// Reads the pact file and parses the resulting JSON into a `Pact` struct

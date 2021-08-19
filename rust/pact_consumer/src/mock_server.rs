@@ -8,6 +8,7 @@ use std::{
 };
 use std::sync::{Arc, Mutex};
 
+use log::debug;
 use url::Url;
 
 use pact_mock_server::*;
@@ -15,6 +16,7 @@ use pact_mock_server::matching::MatchResult;
 use pact_mock_server::mock_server::{MockServerConfig, MockServerMetrics};
 use pact_models::pact::Pact;
 use pact_models::sync_pact::RequestResponsePact;
+use pact_plugin_driver::plugin_manager::shutdown_plugins;
 
 /// This trait is implemented by types which allow us to start a mock server.
 pub trait StartMockServer {
@@ -49,6 +51,7 @@ impl ValidatingMockServer {
   /// Create a new mock server which handles requests as described in the
   /// pact, and runs in a background thread
   pub fn start(pact: Box<dyn Pact + Send>) -> ValidatingMockServer {
+    debug!("Starting mock server from pact {:?}", pact);
     // Spawn new runtime in thread to prevent reactor execution context conflict
     let (pact_tx, pact_rx) = std::sync::mpsc::channel::<Box<dyn Pact + Send>>();
     pact_tx.send(pact).expect("INTERNAL ERROR: Could not pass pact into mock server thread");
@@ -138,6 +141,8 @@ impl ValidatingMockServer {
         self.done_rx
             .recv_timeout(std::time::Duration::from_secs(3))
             .expect("mock server thread should not panic");
+
+        shutdown_plugins();
 
         // Look up any mismatches which occurred.
         let mismatches = ms.mismatches();

@@ -15,13 +15,15 @@ use pact_models::generators::{Generator, GeneratorCategory, Generators};
 use pact_models::matchingrules::{Category, MatchingRules};
 use pact_models::path_exp::DocPath;
 use pact_models::request::Request;
+use pact_models::v4::http_parts::HttpRequest;
 
 use crate::prelude::*;
 use crate::util::GetDefaulting;
 
 /// Builder for `Request` objects. Normally created via `PactBuilder`.
+#[derive(Clone, Debug)]
 pub struct RequestBuilder {
-    request: Request,
+    request: HttpRequest,
 }
 
 impl RequestBuilder {
@@ -132,13 +134,18 @@ impl RequestBuilder {
 
     /// Build the specified `Request` object.
     pub fn build(&self) -> Request {
-         self.request.clone()
+         self.request.as_v3_request()
+    }
+
+    /// Build the specified `Request` object in V4 format.
+    pub fn build_v4(&self) -> HttpRequest {
+        self.request.clone()
     }
 }
 
 impl Default for RequestBuilder {
     fn default() -> Self {
-        RequestBuilder { request: Request::default() }
+        RequestBuilder { request: HttpRequest::default() }
     }
 }
 
@@ -166,15 +173,15 @@ impl HttpPartBuilder for RequestBuilder {
 fn path_pattern() {
     let greeting_regex = Regex::new("/greeting/.*").unwrap();
     let pattern = PactBuilder::new("C", "P")
-        .interaction("I", |i| {
+        .interaction("I", "", |i| {
             i.request.path(Term::new(greeting_regex, "/greeting/hello"));
         })
         .build();
     let good = PactBuilder::new("C", "P")
-        .interaction("I", |i| { i.request.path("/greeting/hi"); })
+        .interaction("I", "", |i| { i.request.path("/greeting/hi"); })
         .build();
     let bad = PactBuilder::new("C", "P")
-        .interaction("I", |i| { i.request.path("/farewell/bye"); })
+        .interaction("I", "", |i| { i.request.path("/farewell/bye"); })
         .build();
     assert_requests_match!(good, pattern);
     assert_requests_do_not_match!(bad, pattern);
@@ -183,13 +190,13 @@ fn path_pattern() {
 #[test]
 fn path_generator() {
     let actual = PactBuilder::new("C", "P")
-      .interaction("I", |i| {
+      .interaction("I", "", |i| {
           i.request.path_from_provider_state("/greeting/${greeting}", "/greeting/hi");
       })
       .build();
 
     let expected = PactBuilder::new("C", "P")
-      .interaction("I", |i| {
+      .interaction("I", "", |i| {
           i.request.path("/greeting/hello");
       })
       .build();
@@ -206,15 +213,15 @@ fn path_generator() {
 #[test]
 fn query_param_pattern() {
     let pattern = PactBuilder::new("C", "P")
-        .interaction("I", |i| {
+        .interaction("I", "", |i| {
             i.request.query_param("greeting", term!("^h.*$", "hello"));
         })
         .build();
     let good = PactBuilder::new("C", "P")
-        .interaction("I", |i| { i.request.query_param("greeting", "hi"); })
+        .interaction("I", "", |i| { i.request.query_param("greeting", "hi"); })
         .build();
     let bad = PactBuilder::new("C", "P")
-        .interaction("I", |i| { i.request.query_param("greeting", "bye"); })
+        .interaction("I", "", |i| { i.request.query_param("greeting", "bye"); })
         .build();
     assert_requests_match!(good, pattern);
     assert_requests_do_not_match!(bad, pattern);
@@ -223,7 +230,7 @@ fn query_param_pattern() {
 #[test]
 fn query_param_with_underscore() {
     let pattern = PactBuilder::new("C", "P")
-        .interaction("get a user", |i| {
+        .interaction("get a user", "", |i| {
             i.request
                 .path("/users")
                 // This `term!` was being ignored in `pact_matching`, but only
@@ -232,7 +239,7 @@ fn query_param_with_underscore() {
         })
         .build();
     let good = PactBuilder::new("C", "P")
-        .interaction("I", |i| {
+        .interaction("I", "", |i| {
             i.request
                 .path("/users")
                 // Call with a different ID than we expected.
@@ -246,20 +253,20 @@ fn term_does_not_require_anchors() {
     use crate::prelude::*;
 
     let pattern = PactBuilder::new("C", "P")
-        .interaction("I", |i| {
-            // Unfortunatley, we appear to need a leading "^" and trailing "$"
+        .interaction("I", "", |i| {
+            // Unfortunately, we appear to need a leading "^" and trailing "$"
             // on this regex, or else it will match the other examples below.
             i.request.path(term!("^/users/[0-9]+$", "/users/12"));
         })
         .build();
     let good = PactBuilder::new("C", "P")
-        .interaction("I", |i| { i.request.path("/users/2"); })
+        .interaction("I", "", |i| { i.request.path("/users/2"); })
         .build();
     let bad1 = PactBuilder::new("C", "P")
-        .interaction("I", |i| { i.request.path("/users/2/posts"); })
+        .interaction("I", "", |i| { i.request.path("/users/2/posts"); })
         .build();
     let bad2 = PactBuilder::new("C", "P")
-        .interaction("I", |i| { i.request.path("/account/1/users/2"); })
+        .interaction("I", "", |i| { i.request.path("/account/1/users/2"); })
         .build();
     assert_requests_match!(good, pattern);
     assert_requests_do_not_match!(bad1, pattern);

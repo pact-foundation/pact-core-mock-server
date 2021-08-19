@@ -1,17 +1,29 @@
 use std::collections::HashMap;
 
+use bytes::Bytes;
+use log::{debug, error};
 use maplit::*;
+use pact_plugin_driver::catalogue_manager::find_content_matcher;
+use pact_plugin_driver::content::ContentMatcher;
+use serde_json::{json, Value};
 
 use pact_models::bodies::OptionalBody;
 use pact_models::generators::Generators;
-use pact_models::matchingrules::MatchingRules;
+use pact_models::http_parts::HttpPart;
+use pact_models::matchingrules::{MatchingRules, MatchingRuleCategory};
+use pact_models::prelude::ContentType;
 use pact_models::response::Response;
+use pact_models::v4::http_parts::{body_from_json, HttpResponse};
 
 use crate::prelude::*;
+use anyhow::Error;
+use tokio::runtime::{Handle, Runtime};
+use futures::TryFutureExt;
 
 /// Builder for `Response` objects. Normally created via `PactBuilder`.
+#[derive(Clone, Debug)]
 pub struct ResponseBuilder {
-    response: Response,
+    response: HttpResponse,
 }
 
 impl ResponseBuilder {
@@ -64,13 +76,73 @@ impl ResponseBuilder {
 
     /// Build the specified `Response` object.
     pub fn build(&self) -> Response {
-        self.response.clone()
+        self.response.as_v3_response()
     }
+
+    /// Build the specified `Response` object in V4 format.
+    pub fn build_v4(&self) -> HttpResponse {
+      self.response.clone()
+    }
+
+  // TODO: This needs to setup rules/generators based on the content type
+  fn setup_core_matcher(&mut self, content_type: &ContentType, definition: Value) {
+    match definition {
+      Value::String(s) => self.response.body = OptionalBody::Present(Bytes::from(s), Some(content_type.clone())),
+      Value::Object(ref o) => if o.contains_key("contents") {
+        self.response.body = body_from_json(&definition, "contents", &None);
+      }
+      _ => {}
+    }
+  }
+
+  /// Set the body using the definition. If the body is being supplied by a plugin,
+  /// this is what is sent to the plugin to setup the body.
+  pub async fn contents(&mut self, content_type: ContentType, definition: Value) -> &mut Self {
+    match find_content_matcher(&content_type) {
+      Some(matcher) => {
+        debug!("Found a matcher for '{}': {:?}", content_type, matcher);
+        if matcher.is_core() {
+          debug!("Matcher is from the core framework");
+          self.setup_core_matcher(&content_type, definition);
+        } else {
+          let response = &mut self.response;
+          debug!("Plugin matcher, will get the plugin to provide the response contents");
+          match definition {
+            Value::Object(attributes) => {
+              let map = attributes.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+              let result = matcher.configure_content(&content_type, map).await;
+              match result {
+                Ok((body, rules, generators)) => {
+                  response.body = body.clone();
+                  if !response.has_header("content-type") {
+                    response.add_header("content-type", vec![content_type.to_string().as_str()]);
+                  }
+                  if let Some(rules) = rules {
+                    response.matching_rules.add_rules("body", rules);
+                  }
+                  if let Some(generators) = generators {
+                    response.generators.add_generators(generators);
+                  }
+                }
+                Err(err) => panic!("Failed to call out to plugin - {}", err)
+              }
+            }
+            _ => panic!("{} is not a valid value for contents", definition)
+          }
+        }
+      }
+      None => {
+        debug!("No matcher was found, will default to the core framework");
+        self.setup_core_matcher(&content_type, definition);
+      }
+    }
+    self
+  }
 }
 
 impl Default for ResponseBuilder {
     fn default() -> Self {
-        ResponseBuilder { response: Response::default() }
+        ResponseBuilder { response: HttpResponse::default() }
     }
 }
 

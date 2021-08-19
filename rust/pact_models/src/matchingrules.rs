@@ -71,101 +71,7 @@ impl MatchingRule {
       Value::Object(m) => match m.get("match") {
         Some(value) => {
           let val = json_to_string(value);
-          match val.as_str() {
-            "regex" => match m.get(&val) {
-              Some(s) => Ok(MatchingRule::Regex(json_to_string(s))),
-              None => Err(anyhow!("Regex matcher missing 'regex' field")),
-            },
-            "equality" => Ok(MatchingRule::Equality),
-            "include" => match m.get("value") {
-              Some(s) => Ok(MatchingRule::Include(json_to_string(s))),
-              None => Err(anyhow!("Include matcher missing 'value' field")),
-            },
-            "type" => match (json_to_num(m.get("min").cloned()), json_to_num(m.get("max").cloned())) {
-              (Some(min), Some(max)) => Ok(MatchingRule::MinMaxType(min, max)),
-              (Some(min), None) => Ok(MatchingRule::MinType(min)),
-              (None, Some(max)) => Ok(MatchingRule::MaxType(max)),
-              _ => Ok(MatchingRule::Type)
-            },
-            "number" => Ok(MatchingRule::Number),
-            "integer" => Ok(MatchingRule::Integer),
-            "decimal" => Ok(MatchingRule::Decimal),
-            "real" => Ok(MatchingRule::Decimal),
-            "boolean" => Ok(MatchingRule::Boolean),
-            "min" => match json_to_num(m.get(&val).cloned()) {
-              Some(min) => Ok(MatchingRule::MinType(min)),
-              None => Err(anyhow!("Min matcher missing 'min' field")),
-            },
-            "max" => match json_to_num(m.get(&val).cloned()) {
-              Some(max) => Ok(MatchingRule::MaxType(max)),
-              None => Err(anyhow!("Max matcher missing 'max' field")),
-            },
-            "timestamp" | "datetime" => match m.get("format").or_else(|| m.get(&val)) {
-              Some(s) => Ok(MatchingRule::Timestamp(json_to_string(s))),
-              None => Err(anyhow!("Timestamp matcher missing 'timestamp' or 'format' field")),
-            },
-            "date" => match m.get("format").or_else(|| m.get(&val)) {
-              Some(s) => Ok(MatchingRule::Date(json_to_string(s))),
-              None => Err(anyhow!("Date matcher missing 'date' or 'format' field")),
-            },
-            "time" => match m.get("format").or_else(|| m.get(&val)) {
-              Some(s) => Ok(MatchingRule::Time(json_to_string(s))),
-              None => Err(anyhow!("Time matcher missing 'time' or 'format' field")),
-            },
-            "null" => Ok(MatchingRule::Null),
-            "contentType" => match m.get("value") {
-              Some(s) => Ok(MatchingRule::ContentType(json_to_string(s))),
-              None => Err(anyhow!("ContentType matcher missing 'value' field")),
-            },
-            "arrayContains" => match m.get("variants") {
-              Some(variants) => match variants {
-                Value::Array(variants) => {
-                  let mut values = Vec::new();
-                  for variant in variants {
-                    let index = json_to_num(variant.get("index").cloned()).unwrap_or_default();
-                    let mut category = MatchingRuleCategory::empty("body");
-                    if let Some(rules) = variant.get("rules") {
-                      category.add_rules_from_json(rules)
-                        .with_context(||
-                          format!("Unable to parse matching rules: {:?}", rules))?;
-                    } else {
-                      category.add_rule(
-                        DocPath::empty(), MatchingRule::Equality, RuleLogic::And);
-                    }
-                    let generators = if let Some(generators_json) = variant.get("generators") {
-                      let mut g = Generators::default();
-                      let cat = GeneratorCategory::BODY;
-                      if let Value::Object(map) = generators_json {
-                        for (k, v) in map {
-                          if let Value::Object(ref map) = v {
-                            let path = DocPath::new(k)?;
-                            g.parse_generator_from_map(&cat, map, Some(path));
-                          }
-                        }
-                      }
-                      g.categories.get(&cat).cloned().unwrap_or_default()
-                    } else {
-                      HashMap::default()
-                    };
-                    values.push((index, category, generators));
-                  }
-                  Ok(MatchingRule::ArrayContains(values))
-                }
-                _ => Err(anyhow!("ArrayContains matcher 'variants' field is not an Array")),
-              }
-              None => Err(anyhow!("ArrayContains matcher missing 'variants' field")),
-            }
-            "values" => Ok(MatchingRule::Values),
-            "statusCode" => match m.get("status") {
-              Some(s) => {
-                let status = HttpStatus::from_json(s)
-                  .context("Unable to parse status code for StatusCode matcher")?;
-                Ok(MatchingRule::StatusCode(status))
-              },
-              None => Ok(MatchingRule::StatusCode(HttpStatus::Success))
-            },
-            _ => Err(anyhow!("StatusCode matcher missing 'status' field")),
-          }
+          MatchingRule::create(val.as_str(), value)
         },
         None => if let Some(val) = m.get("regex") {
           Ok(MatchingRule::Regex(json_to_string(val)))
@@ -314,6 +220,113 @@ impl MatchingRule {
       MatchingRule::Values => empty,
       MatchingRule::Boolean => empty,
       MatchingRule::StatusCode(sc) => hashmap!{ "status" => sc.to_json() }
+    }
+  }
+
+
+  /// Creates a `MatchingRule` from a type and a map of attributes
+  pub fn create(rule_type: &str, attributes: &Value) -> anyhow::Result<MatchingRule> {
+    let attributes = match attributes {
+      Value::Object(values) => values,
+      _ => {
+        error!("Matching rule attributes {} are not valid", attributes);
+        return Err(anyhow!("Matching rule attributes {} are not valid", attributes));
+      }
+    };
+    match rule_type {
+      "regex" => match attributes.get(rule_type) {
+        Some(s) => Ok(MatchingRule::Regex(json_to_string(s))),
+        None => Err(anyhow!("Regex matcher missing 'regex' field")),
+      },
+      "equality" => Ok(MatchingRule::Equality),
+      "include" => match attributes.get("value") {
+        Some(s) => Ok(MatchingRule::Include(json_to_string(s))),
+        None => Err(anyhow!("Include matcher missing 'value' field")),
+      },
+      "type" => match (json_to_num(attributes.get("min").cloned()), json_to_num(attributes.get("max").cloned())) {
+        (Some(min), Some(max)) => Ok(MatchingRule::MinMaxType(min, max)),
+        (Some(min), None) => Ok(MatchingRule::MinType(min)),
+        (None, Some(max)) => Ok(MatchingRule::MaxType(max)),
+        _ => Ok(MatchingRule::Type)
+      },
+      "number" => Ok(MatchingRule::Number),
+      "integer" => Ok(MatchingRule::Integer),
+      "decimal" => Ok(MatchingRule::Decimal),
+      "real" => Ok(MatchingRule::Decimal),
+      "boolean" => Ok(MatchingRule::Boolean),
+      "min" => match json_to_num(attributes.get(rule_type).cloned()) {
+        Some(min) => Ok(MatchingRule::MinType(min)),
+        None => Err(anyhow!("Min matcher missing 'min' field")),
+      },
+      "max" => match json_to_num(attributes.get(rule_type).cloned()) {
+        Some(max) => Ok(MatchingRule::MaxType(max)),
+        None => Err(anyhow!("Max matcher missing 'max' field")),
+      },
+      "timestamp" | "datetime" => match attributes.get("format").or_else(|| attributes.get(rule_type)) {
+        Some(s) => Ok(MatchingRule::Timestamp(json_to_string(s))),
+        None => Err(anyhow!("Timestamp matcher missing 'timestamp' or 'format' field")),
+      },
+      "date" => match attributes.get("format").or_else(|| attributes.get(rule_type)) {
+        Some(s) => Ok(MatchingRule::Date(json_to_string(s))),
+        None => Err(anyhow!("Date matcher missing 'date' or 'format' field")),
+      },
+      "time" => match attributes.get("format").or_else(|| attributes.get(rule_type)) {
+        Some(s) => Ok(MatchingRule::Time(json_to_string(s))),
+        None => Err(anyhow!("Time matcher missing 'time' or 'format' field")),
+      },
+      "null" => Ok(MatchingRule::Null),
+      "contentType" => match attributes.get("value") {
+        Some(s) => Ok(MatchingRule::ContentType(json_to_string(s))),
+        None => Err(anyhow!("ContentType matcher missing 'value' field")),
+      },
+      "arrayContains" => match attributes.get("variants") {
+        Some(variants) => match variants {
+          Value::Array(variants) => {
+            let mut values = Vec::new();
+            for variant in variants {
+              let index = json_to_num(variant.get("index").cloned()).unwrap_or_default();
+              let mut category = MatchingRuleCategory::empty("body");
+              if let Some(rules) = variant.get("rules") {
+                category.add_rules_from_json(rules)
+                  .with_context(||
+                    format!("Unable to parse matching rules: {:?}", rules))?;
+              } else {
+                category.add_rule(
+                  DocPath::empty(), MatchingRule::Equality, RuleLogic::And);
+              }
+              let generators = if let Some(generators_json) = variant.get("generators") {
+                let mut g = Generators::default();
+                let cat = GeneratorCategory::BODY;
+                if let Value::Object(map) = generators_json {
+                  for (k, v) in map {
+                    if let Value::Object(ref map) = v {
+                      let path = DocPath::new(k)?;
+                      g.parse_generator_from_map(&cat, map, Some(path));
+                    }
+                  }
+                }
+                g.categories.get(&cat).cloned().unwrap_or_default()
+              } else {
+                HashMap::default()
+              };
+              values.push((index, category, generators));
+            }
+            Ok(MatchingRule::ArrayContains(values))
+          }
+          _ => Err(anyhow!("ArrayContains matcher 'variants' field is not an Array")),
+        }
+        None => Err(anyhow!("ArrayContains matcher missing 'variants' field")),
+      }
+      "values" => Ok(MatchingRule::Values),
+      "statusCode" => match attributes.get("status") {
+        Some(s) => {
+          let status = HttpStatus::from_json(s)
+            .context("Unable to parse status code for StatusCode matcher")?;
+          Ok(MatchingRule::StatusCode(status))
+        },
+        None => Ok(MatchingRule::StatusCode(HttpStatus::Success))
+      },
+      _ => Err(anyhow!("{} is not a valid matching rule type", rule_type)),
     }
   }
 }
@@ -690,6 +703,13 @@ impl RuleList {
       .. self.clone()
     }
   }
+
+  /// Add all the rules from the list to this list
+  pub fn add_rules(&mut self, rules: &RuleList) {
+    for rule in &rules.rules {
+      self.add_rule(rule);
+    }
+  }
 }
 
 impl Hash for RuleList {
@@ -1025,6 +1045,17 @@ impl MatchingRuleCategory {
       .. self.clone()
     }
   }
+
+  /// Add all the rules from the provided rules
+  pub fn add_rules(&mut self, category: MatchingRuleCategory) {
+    for (path, rules) in &category.rules {
+      if self.rules.contains_key(path) {
+        self.rules.get_mut(path).unwrap().add_rules(rules)
+      } else {
+        self.rules.insert(path.clone(), rules.clone());
+      }
+    }
+  }
 }
 
 impl Hash for MatchingRuleCategory {
@@ -1187,12 +1218,12 @@ impl MatchingRules {
   fn load_from_v3_map(&mut self, map: &serde_json::Map<String, Value>
   ) -> anyhow::Result<()> {
     for (k, v) in map {
-      self.add_rules(k, v)?;
+      self.add_rules_private(k, v)?;
     }
     Ok(())
   }
 
-  fn add_rules<S: Into<String>>(&mut self, category_name: S, rules: &Value
+  fn add_rules_private<S: Into<String>>(&mut self, category_name: S, rules: &Value
   ) -> anyhow::Result<()> {
     let category = self.add_category(category_name.into());
     category.add_rules_from_json(rules)
@@ -1245,6 +1276,14 @@ impl MatchingRules {
         }
       }).collect()
     }
+  }
+
+  /// Add the rules to the category
+  pub fn add_rules<S>(&mut self, category: S, rules: MatchingRuleCategory) where S: Into<Category> {
+    let category = category.into();
+    let entry = self.rules.entry(category.clone())
+      .or_insert_with(|| MatchingRuleCategory::empty(category.clone()));
+    entry.add_rules(rules);
   }
 }
 
