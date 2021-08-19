@@ -15,8 +15,7 @@
         "symfony/http-client": "^5.3",
         "slim/slim": "^4.8",
         "slim/psr7": "^1.4",
-        "symfony/process": "^5.3",
-        "guzzlehttp/guzzle": "^7.3"
+        "symfony/process": "^5.3"
     },
     "scripts": {
         "consumer-1-matches": "MATCHING=1 php src/consumer-1.php",

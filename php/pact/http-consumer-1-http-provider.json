@@ -64,7 +64,8 @@
                 }
               ]
             }
-          }
+          },
+          "header": {}
         },
         "method": "POST",
         "path": "/api/books"
@@ -85,15 +86,6 @@
         },
         "matchingRules": {
           "body": {
-            "$.@id": {
-              "combine": "AND",
-              "matchers": [
-                {
-                  "match": "regex",
-                  "regex": "^\\/api\\/books\\/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$"
-                }
-              ]
-            },
             "$.author": {
               "combine": "AND",
               "matchers": [
@@ -126,8 +118,18 @@
                   "match": "type"
                 }
               ]
+            },
+            "$['@id']": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^\\/api\\/books\\/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$"
+                }
+              ]
             }
-          }
+          },
+          "header": {}
         },
         "status": 201
       }
@@ -135,7 +137,7 @@
   ],
   "metadata": {
     "pactRust": {
-      "version": "0.9.4"
+      "version": "0.1.2"
     },
     "pactSpecification": {
       "version": "3.0.0"

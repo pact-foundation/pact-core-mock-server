@@ -4,15 +4,9 @@ require __DIR__ . '/../vendor/autoload.php';
 
 use Symfony\Component\Process\Process;
 
-$app = new Process(['php', '-S', 'localhost:8001', __DIR__ . '/provider-app.php']);
-$app->start();
-$app->waitUntil(function ($type, $output) {
-    return false !== strpos($output, 'Development Server (http://localhost:8001) started');
-});
-
-$proxy = new Process(['php', '-S', 'localhost:8000', __DIR__ . '/provider-proxy.php']);
-$proxy->start();
-$proxy->waitUntil(function ($type, $output) {
+$process = new Process(['php', '-S', 'localhost:8000', '-t', __DIR__ . '/../public', __DIR__ . '/../public/proxy.php']);
+$process->start();
+$process->waitUntil(function ($type, $output) {
     return false !== strpos($output, 'Development Server (http://localhost:8000) started');
 });
 
@@ -33,7 +27,7 @@ message-consumer-2", __DIR__ . '/../pact');
 $code = file_get_contents(__DIR__ . '/../../rust/pact_ffi/include/pact.h');
 $ffi = FFI::cdef($code, __DIR__ . '/../../rust/target/debug/libpact_ffi.so');
 
-$ffi->init('LOG_LEVEL');
+$ffi->pactffi_init('LOG_LEVEL');
 
 $result = $ffi->pactffi_verify($args);
 
