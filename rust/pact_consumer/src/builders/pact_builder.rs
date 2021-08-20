@@ -1,13 +1,8 @@
 use std::future::Future;
-use std::sync::Arc;
-use std::sync::mpsc::channel;
 
-use anyhow::Error;
-use futures::TryFutureExt;
 use pact_plugin_driver::catalogue_manager::register_core_entries;
 use pact_plugin_driver::plugin_manager::load_plugin;
-use pact_plugin_driver::plugin_models::{PactPlugin, PluginDependency};
-use tokio::runtime::Handle;
+use pact_plugin_driver::plugin_models::PluginDependency;
 
 use pact_matching::{CONTENT_MATCHER_CATALOGUE_ENTRIES, MATCHER_CATALOGUE_ENTRIES};
 use pact_mock_server::MOCK_SERVER_CATALOGUE_ENTRIES;
@@ -20,7 +15,7 @@ use pact_models::v4::pact::V4Pact;
 use crate::prelude::*;
 
 use super::interaction_builder::InteractionBuilder;
-use std::thread;
+use std::path::PathBuf;
 
 /// Builder for `Pact` objects.
 ///
@@ -28,21 +23,26 @@ use std::thread;
 /// use pact_consumer::prelude::*;
 /// use pact_consumer::*;
 ///
+/// # tokio_test::block_on(async {
 /// let pact = PactBuilder::new("Greeting Client", "Greeting Server")
-///     .interaction("asks for a greeting", |i| {
+///     .interaction("asks for a greeting", "", |mut i| async move {
 ///         i.request.path("/greeting/hello");
 ///         i.response
 ///             .header("Content-Type", "application/json")
 ///             .json_body(json_pattern!({ "message": "hello" }));
+///         i
 ///     })
+///     .await
 ///     .build();
 ///
 /// // The request method and response status default as follows.
 /// assert_eq!(pact.interactions()[0].as_request_response().unwrap().request.method, "GET");
 /// assert_eq!(pact.interactions()[0].as_request_response().unwrap().response.status, 200);
+/// # });
 /// ```
 pub struct PactBuilder {
   pact: Box<dyn Pact + Send>,
+  output_dir: Option<PathBuf>
 }
 
 impl PactBuilder {
@@ -64,7 +64,7 @@ impl PactBuilder {
         pact.provider = Provider {
             name: provider.into(),
         };
-        PactBuilder { pact: pact.boxed() }
+        PactBuilder { pact: pact.boxed(), output_dir: None }
     }
 
     /// Create a new `PactBuilder` for a V4 specification Pact, specifying the names of the service
@@ -83,7 +83,7 @@ impl PactBuilder {
         provider: Provider { name: provider.into() },
         .. V4Pact::default()
       };
-      PactBuilder { pact: pact.boxed() }
+      PactBuilder { pact: pact.boxed(), output_dir: None }
     }
 
     /// Add a plugin to be used by the test
@@ -111,14 +111,15 @@ impl PactBuilder {
       self
     }
 
-    /// Add a new HTTP `Interaction` to the `Pact`.
+    /// Add a new HTTP `Interaction` to the `Pact`. Needs to return a clone of the method
+    /// that is passed in.
     pub async fn interaction<D, F, O>(&mut self, description: D, interaction_type: D, build_fn: F) -> &mut Self
     where
         D: Into<String>,
         F: FnOnce(InteractionBuilder) -> O,
         O: Future<Output=InteractionBuilder> + Send
     {
-        let mut interaction = InteractionBuilder::new(description.into(), interaction_type.into());
+        let interaction = InteractionBuilder::new(description.into(), interaction_type.into());
         let interaction = build_fn(interaction).await;
         self.push_interaction(&interaction.build())
     }
@@ -134,10 +135,16 @@ impl PactBuilder {
     pub fn build(&self) -> Box<dyn Pact + Send> {
       self.pact.boxed()
     }
+
+  /// Sets the output directory to write pact files to
+  pub fn output_dir<D: Into<PathBuf>>(&mut self, dir: D) -> &mut Self {
+    self.output_dir = Some(dir.into());
+    self
+  }
 }
 
 impl StartMockServer for PactBuilder {
     fn start_mock_server(&self) -> ValidatingMockServer {
-        ValidatingMockServer::start(self.build())
+        ValidatingMockServer::start(self.build(), self.output_dir.clone())
     }
 }

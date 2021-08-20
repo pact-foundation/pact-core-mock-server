@@ -1,9 +1,7 @@
 //! `generators` module includes all the classes to deal with V3 format generators
 
 use std::collections::HashMap;
-use std::future::Future;
 
-use anyhow::anyhow;
 use log::*;
 use pact_plugin_driver::catalogue_manager::find_content_generator;
 use serde_json::{self, Value};

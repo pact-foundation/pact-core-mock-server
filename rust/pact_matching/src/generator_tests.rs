@@ -14,22 +14,22 @@ use pact_models::response::Response;
 
 use super::*;
 
-#[test]
-fn returns_original_response_if_there_are_no_generators() {
+#[tokio::test]
+async fn returns_original_response_if_there_are_no_generators() {
   let response = Response::default();
-  expect!(generate_response(&response, &GeneratorTestMode::Provider, &hashmap!{})).to(be_equal_to(response));
+  expect!(generate_response(&response, &GeneratorTestMode::Provider, &hashmap!{}).await).to(be_equal_to(response));
 }
 
-#[test]
-fn applies_status_generator_for_status_to_the_copy_of_the_response() {
+#[tokio::test]
+async fn applies_status_generator_for_status_to_the_copy_of_the_response() {
   let response = Response { status: 200, generators: generators! {
     "STATUS" => Generator::RandomInt(400, 499)
   }, .. Response::default() };
-  expect!(generate_response(&response, &GeneratorTestMode::Provider, &hashmap!{}).status).to(be_greater_or_equal_to(400));
+  expect!(generate_response(&response, &GeneratorTestMode::Provider, &hashmap!{}).await.status).to(be_greater_or_equal_to(400));
 }
 
-#[test]
-fn applies_header_generator_for_headers_to_the_copy_of_the_response() {
+#[tokio::test]
+async fn applies_header_generator_for_headers_to_the_copy_of_the_response() {
   let response = Response { headers: Some(hashmap!{
       s!("A") => vec![s!("a")],
       s!("B") => vec![s!("b")]
@@ -39,26 +39,26 @@ fn applies_header_generator_for_headers_to_the_copy_of_the_response() {
       }
     }, .. Response::default()
   };
-  let headers = generate_response(&response, &GeneratorTestMode::Provider, &hashmap!{}).headers.unwrap().clone();
+  let headers = generate_response(&response, &GeneratorTestMode::Provider, &hashmap!{}).await.headers.unwrap().clone();
   expect!(headers.get("A").unwrap().first().unwrap()).to_not(be_equal_to("a"));
 }
 
-#[test]
-fn returns_original_request_if_there_are_no_generators() {
+#[tokio::test]
+async fn returns_original_request_if_there_are_no_generators() {
   let request = Request::default();
-  expect!(generate_request(&request, &GeneratorTestMode::Provider, &hashmap!{})).to(be_equal_to(request));
+  expect!(generate_request(&request, &GeneratorTestMode::Provider, &hashmap!{}).await).to(be_equal_to(request));
 }
 
-#[test]
-fn applies_path_generator_for_the_path_to_the_copy_of_the_request() {
+#[tokio::test]
+async fn applies_path_generator_for_the_path_to_the_copy_of_the_request() {
   let request = Request { path: s!("/path"), generators: generators! {
     "PATH" => Generator::RandomInt(1, 10)
   }, .. Request::default() };
-  expect!(generate_request(&request, &GeneratorTestMode::Provider, &hashmap!{}).path).to_not(be_equal_to("/path"));
+  expect!(generate_request(&request, &GeneratorTestMode::Provider, &hashmap!{}).await.path).to_not(be_equal_to("/path"));
 }
 
-#[test]
-fn applies_header_generator_for_headers_to_the_copy_of_the_request() {
+#[tokio::test]
+async fn applies_header_generator_for_headers_to_the_copy_of_the_request() {
   let request = Request { headers: Some(hashmap!{
       s!("A") => vec![s!("a")],
       s!("B") => vec![s!("b")]
@@ -68,12 +68,12 @@ fn applies_header_generator_for_headers_to_the_copy_of_the_request() {
       }
     }, .. Request::default()
   };
-  let headers = generate_request(&request, &GeneratorTestMode::Provider, &hashmap!{}).headers.unwrap().clone();
+  let headers = generate_request(&request, &GeneratorTestMode::Provider, &hashmap!{}).await.headers.unwrap().clone();
   expect!(headers.get("A").unwrap().first().unwrap()).to_not(be_equal_to("a"));
 }
 
-#[test]
-fn applies_query_generator_for_query_parameters_to_the_copy_of_the_request() {
+#[tokio::test]
+async fn applies_query_generator_for_query_parameters_to_the_copy_of_the_request() {
   let request = Request { query: Some(hashmap!{
       s!("A") => vec![ s!("a") ],
       s!("B") => vec![ s!("b") ]
@@ -83,38 +83,38 @@ fn applies_query_generator_for_query_parameters_to_the_copy_of_the_request() {
       }
     }, .. Request::default()
   };
-  let query = generate_request(&request, &GeneratorTestMode::Provider, &hashmap!{}).query.unwrap().clone();
+  let query = generate_request(&request, &GeneratorTestMode::Provider, &hashmap!{}).await.query.unwrap().clone();
   let query_val = &query.get("A").unwrap()[0];
   expect!(query_val).to_not(be_equal_to("a"));
 }
 
-#[test]
-fn apply_generator_to_empty_body_test() {
+#[tokio::test]
+async fn apply_generator_to_empty_body_test() {
   expect!(generators_process_body(&GeneratorTestMode::Provider, &OptionalBody::Empty,
-    Some(TEXT.clone()), &hashmap!{}, &hashmap!{}, &DefaultVariantMatcher.boxed())).to(be_equal_to(OptionalBody::Empty));
+    Some(TEXT.clone()), &hashmap!{}, &hashmap!{}, &DefaultVariantMatcher.boxed()).await.unwrap()).to(be_equal_to(OptionalBody::Empty));
   expect!(generators_process_body(&GeneratorTestMode::Provider, &OptionalBody::Null,
-    Some(TEXT.clone()), &hashmap!{}, &hashmap!{}, &DefaultVariantMatcher.boxed())).to(be_equal_to(OptionalBody::Null));
+    Some(TEXT.clone()), &hashmap!{}, &hashmap!{}, &DefaultVariantMatcher.boxed()).await.unwrap()).to(be_equal_to(OptionalBody::Null));
   expect!(generators_process_body(&GeneratorTestMode::Provider, &OptionalBody::Missing,
-    Some(TEXT.clone()), &hashmap!{}, &hashmap!{}, &DefaultVariantMatcher.boxed())).to(be_equal_to(OptionalBody::Missing));
+    Some(TEXT.clone()), &hashmap!{}, &hashmap!{}, &DefaultVariantMatcher.boxed()).await.unwrap()).to(be_equal_to(OptionalBody::Missing));
 }
 
-#[test]
-fn do_not_apply_generators_if_there_are_no_body_generators() {
+#[tokio::test]
+async fn do_not_apply_generators_if_there_are_no_body_generators() {
   let body = OptionalBody::Present("{\"a\":100,\"b\":\"B\"}".into(), Some(JSON.clone()));
   expect!(generators_process_body(&GeneratorTestMode::Provider, &body, Some(JSON.clone()),
-    &hashmap!{}, &hashmap!{}, &DefaultVariantMatcher.boxed())).to(
+    &hashmap!{}, &hashmap!{}, &DefaultVariantMatcher.boxed()).await.unwrap()).to(
     be_equal_to(body));
 }
 
-#[test]
-fn apply_generator_to_text_body_test() {
+#[tokio::test]
+async fn apply_generator_to_text_body_test() {
   let body = OptionalBody::Present("some text".into(), None);
   expect!(generators_process_body(&GeneratorTestMode::Provider, &body, Some(TEXT.clone()),
-    &hashmap!{}, &hashmap!{}, &DefaultVariantMatcher.boxed())).to(be_equal_to(body));
+    &hashmap!{}, &hashmap!{}, &DefaultVariantMatcher.boxed()).await.unwrap()).to(be_equal_to(body));
 }
 
-#[test]
-fn applies_body_generator_to_the_copy_of_the_request() {
+#[tokio::test]
+async fn applies_body_generator_to_the_copy_of_the_request() {
   let request = Request { body: OptionalBody::Present("{\"a\": 100, \"b\": \"B\"}".into(), None),
     generators: generators! {
       "BODY" => {
@@ -122,14 +122,14 @@ fn applies_body_generator_to_the_copy_of_the_request() {
       }
     }, .. Request::default()
   };
-  let generated_request = generate_request(&request, &GeneratorTestMode::Provider, &hashmap!{});
+  let generated_request = generate_request(&request, &GeneratorTestMode::Provider, &hashmap!{}).await;
   let body: Value = serde_json::from_str(generated_request.body.str_value()).unwrap();
   expect!(&body["a"]).to_not(be_equal_to(&json!(100)));
   expect!(&body["b"]).to(be_equal_to(&json!("B")));
 }
 
-#[test]
-fn applies_body_generator_to_the_copy_of_the_response() {
+#[tokio::test]
+async fn applies_body_generator_to_the_copy_of_the_response() {
   let response = Response { body: OptionalBody::Present("{\"a\": 100, \"b\": \"B\"}".into(), None),
     generators: generators! {
       "BODY" => {
@@ -137,7 +137,7 @@ fn applies_body_generator_to_the_copy_of_the_response() {
       }
     }, .. Response::default()
   };
-  let body: Value = serde_json::from_str(generate_response(&response, &GeneratorTestMode::Provider, &hashmap!{}).body.str_value()).unwrap();
+  let body: Value = serde_json::from_str(generate_response(&response, &GeneratorTestMode::Provider, &hashmap!{}).await.body.str_value()).unwrap();
   expect!(&body["a"]).to_not(be_equal_to(&json!(100)));
   expect!(&body["b"]).to(be_equal_to(&json!("B")));
 }

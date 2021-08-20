@@ -46,7 +46,7 @@ async fn verify_pact_with_match_values_matcher() {
   try_init().unwrap_or(());
 
   let server = PactBuilder::new("consumer", "matchValuesService")
-    .interaction("request requiring matching values", |i| {
+    .interaction("request requiring matching values", "", |mut i| async move {
       i.test_name("verify_pact_with_match_values_matcher");
       i.request.method("GET");
       i.request.path("/myapp/test");
@@ -69,7 +69,9 @@ async fn verify_pact_with_match_values_matcher() {
         },
         "field4": 50
       }"#);
+      i
     })
+    .await
     .start_mock_server();
 
   let provider = ProviderInfo {
@@ -95,7 +97,7 @@ async fn verify_pact_with_attributes_with_special_values() {
   try_init().unwrap_or(());
 
   let server = PactBuilder::new_v4("book_consumer", "book_provider")
-    .interaction("create book request", |i| {
+    .interaction("create book request", "", |mut i| async move {
       i.test_name("verify_pact_with_attributes_with_special_values");
       i.request.method("POST");
       i.request.path("/books");
@@ -111,7 +113,9 @@ async fn verify_pact_with_attributes_with_special_values() {
         "%publicationDate%": "1999-02-13T00:00:00+07:00",
         "reviews": []
       }));
+      i
     })
+    .await
     .start_mock_server();
 
   let provider = ProviderInfo {
@@ -158,7 +162,7 @@ async fn verifying_a_pact_with_min_type_matcher_and_child_arrays() {
   try_init().unwrap_or(());
 
   let server = PactBuilder::new_v4("consumer", "Issue396Service")
-    .interaction("get data request", |i| {
+    .interaction("get data request", "", |mut i| async move {
       i.test_name("verifying_a_pact_with_min_type_matcher_and_child_arrays");
       i.request.method("GET");
       i.request.path("/data");
@@ -176,7 +180,9 @@ async fn verifying_a_pact_with_min_type_matcher_and_child_arrays() {
             }
           ]
         }));
+      i
     })
+    .await
     .start_mock_server();
 
   let provider = ProviderInfo {

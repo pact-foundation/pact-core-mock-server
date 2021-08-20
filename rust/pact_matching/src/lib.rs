@@ -367,7 +367,6 @@ use crate::json::match_json;
 use crate::matchers::*;
 pub use crate::matchers::{CONTENT_MATCHER_CATALOGUE_ENTRIES, MATCHER_CATALOGUE_ENTRIES};
 use crate::matchingrules::DisplayForMismatch;
-use anyhow::Error;
 
 /// Simple macro to convert a string slice to a `String` struct.
 #[macro_export]
@@ -1220,10 +1219,8 @@ async fn compare_bodies(
       }
     }
     None => {
-      debug!("No content matcher defined for content type '{}', using plain text matcher", content_type);
-      if let Err(m) = match_text(&expected.body().value(), &actual.body().value(), &context) {
-        mismatches.extend_from_slice(&*m);
-      }
+      debug!("No content matcher defined for content type '{}', using core matcher implementation", content_type);
+      mismatches.extend(compare_bodies_core(content_type, expected, actual, context));
     }
   }
   if mismatches.is_empty() {
@@ -1234,6 +1231,25 @@ async fn compare_bodies(
       _ => String::default()
     }))
   }
+}
+
+fn compare_bodies_core(content_type: &ContentType, expected: &dyn HttpPart, actual: &dyn HttpPart, context: &MatchingContext) -> Vec<Mismatch> {
+  let mut mismatches = vec![];
+  match BODY_MATCHERS.iter().find(|mt| mt.0(&content_type)) {
+    Some(ref match_fn) => {
+      debug!("Using body matcher for content type '{}'", content_type);
+      if let Err(m) = match_fn.1(expected, actual, &context) {
+        mismatches.extend_from_slice(&*m);
+      }
+    },
+    None => {
+      debug!("No body matcher defined for content type '{}', using plain text matcher", content_type);
+      if let Err(m) = match_text(&expected.body().value(), &actual.body().value(), &context) {
+        mismatches.extend_from_slice(&*m);
+      }
+    }
+  };
+  mismatches
 }
 
 async fn match_body_content(

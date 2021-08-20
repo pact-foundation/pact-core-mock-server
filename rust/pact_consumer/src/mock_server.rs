@@ -17,6 +17,7 @@ use pact_mock_server::mock_server::{MockServerConfig, MockServerMetrics};
 use pact_models::pact::Pact;
 use pact_models::sync_pact::RequestResponsePact;
 use pact_plugin_driver::plugin_manager::shutdown_plugins;
+use std::path::PathBuf;
 
 /// This trait is implemented by types which allow us to start a mock server.
 pub trait StartMockServer {
@@ -26,7 +27,7 @@ pub trait StartMockServer {
 
 impl StartMockServer for RequestResponsePact {
   fn start_mock_server(&self) -> ValidatingMockServer {
-    ValidatingMockServer::start(self.boxed())
+    ValidatingMockServer::start(self.boxed(), None)
   }
 }
 
@@ -45,12 +46,14 @@ pub struct ValidatingMockServer {
     mock_server: Arc<Mutex<mock_server::MockServer>>,
     // Signal received when the server thread is done executing
     done_rx: std::sync::mpsc::Receiver<()>,
+    // Output directory to write pact files
+    output_dir: Option<PathBuf>,
 }
 
 impl ValidatingMockServer {
   /// Create a new mock server which handles requests as described in the
   /// pact, and runs in a background thread
-  pub fn start(pact: Box<dyn Pact + Send>) -> ValidatingMockServer {
+  pub fn start(pact: Box<dyn Pact + Send>, output_dir: Option<PathBuf>) -> ValidatingMockServer {
     debug!("Starting mock server from pact {:?}", pact);
     // Spawn new runtime in thread to prevent reactor execution context conflict
     let (pact_tx, pact_rx) = std::sync::mpsc::channel::<Box<dyn Pact + Send>>();
@@ -100,6 +103,7 @@ impl ValidatingMockServer {
       url: url_str.parse().expect("invalid mock server URL"),
       mock_server,
       done_rx,
+      output_dir
     }
   }
 
@@ -148,11 +152,18 @@ impl ValidatingMockServer {
         let mismatches = ms.mismatches();
 
         if mismatches.is_empty() {
-            // Success! Write out the generated pact file.
-            ms.write_pact(
-              &Some(
-                env::var("PACT_OUTPUT_DIR").unwrap_or_else(|_| "target/pacts".to_owned())),
-              env::var("PACT_OVERWRITE").unwrap_or_else(|_| "false".to_owned()) == "true")
+          // Success! Write out the generated pact file.
+          let output_dir = self.output_dir.as_ref().map(|dir| dir.to_string_lossy().to_string())
+            .unwrap_or_else(|| {
+              let val = env::var("PACT_OUTPUT_DIR");
+              debug!("env:PACT_OUTPUT_DIR = {:?}", val);
+              val.unwrap_or_else(|_| "target/pacts".to_owned())
+            });
+          let overwrite = env::var("PACT_OVERWRITE");
+          debug!("env:PACT_OVERWRITE = {:?}", overwrite);
+          ms.write_pact(
+            &Some(output_dir),
+            overwrite.unwrap_or_else(|_| "false".to_owned()) == "true")
             .map_err(|err| format!("error writing pact: {}", err))?;
             Ok(())
         } else {

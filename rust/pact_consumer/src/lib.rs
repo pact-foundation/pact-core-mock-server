@@ -31,20 +31,21 @@
 //!
 //! ```toml
 //! [dev-dependencies]
-//! pact_consumer = "0.4.0"
+//! pact_consumer = "0.7"
 //! ```
 //!
 //! Once this is done, you can then write the following inside a function marked
-//! with `#[test]`:
+//! with `#[tokio::test]`:
 //!
 //! ```
+//! # tokio_test::block_on(async {
 //! use pact_consumer::prelude::*;
 //!
 //! // Define the Pact for the test, specify the names of the consuming
 //! // application and the provider application.
 //! let pact = PactBuilder::new("Consumer", "Alice Service")
 //!     // Start a new interaction. We can add as many interactions as we want.
-//!     .interaction("a retrieve Mallory request", |i| {
+//!     .interaction("a retrieve Mallory request", "", |mut i| async move {
 //!         // Defines a provider state. It is optional.
 //!         i.given("there is some good mallory");
 //!         // Define the request, a GET (default) request to '/mallory'.
@@ -54,20 +55,25 @@
 //!         i.response
 //!             .content_type("text/plain")
 //!             .body("That is some good Mallory.");
+//!         // Return the interaction builder back to the pact framework
+//!         i
 //!     })
+//!     .await
 //!     .build();
+//! # });
 //! ```
 //!
 //! You can than use an HTTP client like `reqwest` to make requests against your
 //! server.
 //!
 //! ```rust
+//! # tokio_test::block_on(async {
 //! # use pact_models::pact::Pact;
 //! # use std::io::Read;
 //! # use pact_consumer::prelude::*;
 //! # let alice_service = PactBuilder::new("Consumer", "Alice Service")
 //! #     // Start a new interaction. We can add as many interactions as we want.
-//! #     .interaction("a retrieve Mallory request", |i| {
+//! #     .interaction("a retrieve Mallory request", "", |mut i| async move {
 //! #         // Defines a provider state. It is optional.
 //! #         i.given("there is some good mallory");
 //! #         // Define the request, a GET (default) request to '/mallory'.
@@ -77,18 +83,20 @@
 //! #         i.response
 //! #             .content_type("text/plain")
 //! #             .body("That is some good Mallory.");
-//! #     }).start_mock_server();
+//! #         // Return the interaction builder back to the pact framework
+//! #         i
+//! #     }).await.start_mock_server();
 //!
 //! // You would use your actual client code here.
 //! let mallory_url = alice_service.path("/mallory");
-//! let mut response = reqwest::blocking::get(mallory_url).expect("could not fetch URL");
-//! let mut body = String::new();
-//! response.read_to_string(&mut body).expect("could not read response body");
-//! assert_eq!(body, "That is some good Mallory.");
+//! let mut response = reqwest::get(mallory_url).await.expect("could not fetch URL")
+//!   .text().await.expect("Could not read response body");
+//! assert_eq!(response, "That is some good Mallory.");
 //!
 //! // When `alice_service` goes out of scope, your pact will be validated,
 //! // and the test will fail if the mock server didn't receive matching
 //! // requests.
+//! # });
 //! ```
 //!
 //! ## Matching using patterns
@@ -98,11 +106,12 @@
 //! `json_pattern!` macro:
 //!
 //! ```
+//! # tokio_test::block_on(async {
 //! use pact_consumer::prelude::*;
 //! use pact_consumer::*;
 //!
 //! PactBuilder::new("quotes client", "quotes service")
-//!     .interaction("add a new quote to the database", |i| {
+//!     .interaction("add a new quote to the database", "", |mut i| async move {
 //!         i.request
 //!             .post()
 //!             .path("/quotes")
@@ -125,7 +134,9 @@
 //!             // Return a location of "/quotes/12" to the client. When
 //!             // testing the server, allow it to return any numeric ID.
 //!             .header("Location", term!("^/quotes/[0-9]+$", "/quotes/12"));
+//!         i
 //!     });
+//! # });
 //! ```
 //!
 //! The key insight here is this "pact" can be used to test both the client and
@@ -170,8 +181,9 @@
 //!     comment: None,
 //! };
 //!
+//! # tokio_test::block_on(async move {
 //! PactBuilder::new("consumer", "provider")
-//!     .interaction("get all users", |i| {
+//!     .interaction("get all users", "", |mut i| async move {
 //!         i.given("a list of users in the database");
 //!         i.request.path("/users");
 //!         i.response
@@ -183,8 +195,11 @@
 //!                 // strings.
 //!                 strip_null_fields(serde_json::json!(example)),
 //!             ));
+//!         i
 //!     })
+//!     .await
 //!     .build();
+//! # });
 //! ```
 //!
 //! For more advice on writing good pacts, see [Best Practices][].

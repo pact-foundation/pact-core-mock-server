@@ -1,24 +1,20 @@
 use std::collections::HashMap;
 
 use bytes::Bytes;
-use log::{debug, error};
+use log::debug;
 use maplit::*;
 use pact_plugin_driver::catalogue_manager::find_content_matcher;
-use pact_plugin_driver::content::ContentMatcher;
-use serde_json::{json, Value};
+use serde_json::Value;
 
 use pact_models::bodies::OptionalBody;
 use pact_models::generators::Generators;
 use pact_models::http_parts::HttpPart;
-use pact_models::matchingrules::{MatchingRules, MatchingRuleCategory};
+use pact_models::matchingrules::MatchingRules;
 use pact_models::prelude::ContentType;
 use pact_models::response::Response;
 use pact_models::v4::http_parts::{body_from_json, HttpResponse};
 
 use crate::prelude::*;
-use anyhow::Error;
-use tokio::runtime::{Handle, Runtime};
-use futures::TryFutureExt;
 
 /// Builder for `Response` objects. Normally created via `PactBuilder`.
 #[derive(Clone, Debug)]

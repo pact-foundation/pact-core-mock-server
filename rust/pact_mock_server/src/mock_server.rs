@@ -239,6 +239,7 @@ impl MockServer {
 
   /// Mock server writes its pact out to the provided directory
   pub fn write_pact(&self, output_path: &Option<String>, overwrite: bool) -> anyhow::Result<()> {
+    trace!("write_pact: output_path = {:?}, overwrite = {}", output_path, overwrite);
     let pact = self.pact.lock().unwrap().boxed();
     let pact_file_name = pact.default_file_name();
     let filename = match *output_path {

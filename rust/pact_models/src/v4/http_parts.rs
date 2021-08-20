@@ -164,6 +164,35 @@ impl Hash for HttpRequest {
   }
 }
 
+impl HttpPart for HttpRequest {
+  fn headers(&self) -> &Option<HashMap<String, Vec<String>>> {
+    &self.headers
+  }
+
+  fn headers_mut(&mut self) -> &mut HashMap<String, Vec<String>> {
+    if self.headers.is_none() {
+      self.headers = Some(hashmap!{});
+    }
+    self.headers.as_mut().unwrap()
+  }
+
+  fn body(&self) -> &OptionalBody {
+    &self.body
+  }
+
+  fn matching_rules(&self) -> &MatchingRules {
+    &self.matching_rules
+  }
+
+  fn generators(&self) -> &Generators {
+    &self.generators
+  }
+
+  fn lookup_content_type(&self) -> Option<String> {
+    self.lookup_header_value("content-type")
+  }
+}
+
 pub fn body_from_json(json: &Value, attr_name: &str, headers: &Option<HashMap<String, Vec<String>>>) -> OptionalBody {
   match json.get(attr_name) {
     Some(body) => match *body {

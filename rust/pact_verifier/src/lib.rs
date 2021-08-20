@@ -237,7 +237,8 @@ async fn verify_response_from_provider<F: RequestFilterExecutor>(
   verification_context: &HashMap<&str, Value>
 ) -> Result<Option<String>, MismatchResult> {
   let expected_response = &interaction.response;
-  match make_provider_request(provider, &pact_matching::generate_request(&interaction.request, &GeneratorTestMode::Provider, &verification_context), options, client).await {
+  let request = pact_matching::generate_request(&interaction.request, &GeneratorTestMode::Provider, &verification_context).await;
+  match make_provider_request(provider, &request, options, client).await {
     Ok(ref actual_response) => {
       let mismatches = match_response(expected_response.clone(), actual_response.clone()).await;
       if mismatches.is_empty() {

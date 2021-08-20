@@ -14,10 +14,10 @@ pub use self::pact_builder::*;
 pub use self::request_builder::*;
 pub use self::response_builder::*;
 
-#[test]
-fn basic_builder_example() {
+#[tokio::test]
+async fn basic_builder_example() {
     let pact = PactBuilder::new("Consumer", "Provider")
-        .interaction("GET /greeting/hello", |i| {
+        .interaction("GET /greeting/hello", "", |mut i| {
             i.given("a greeting named hello");
             i.request.method("GET").path("/greeting/hello");
             i.response
@@ -26,7 +26,9 @@ fn basic_builder_example() {
                 .json_body(json_pattern!({
                     "message": "Hello!",
                 }));
+            futures::future::ready(i)
         })
+        .await
         .build();
 
     assert_eq!(pact.consumer().name, "Consumer");

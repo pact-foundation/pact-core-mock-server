@@ -69,10 +69,10 @@ impl MatchingRule {
   pub fn from_json(value: &Value) -> anyhow::Result<MatchingRule> {
     match value {
       Value::Object(m) => match m.get("match") {
-        Some(value) => {
-          let val = json_to_string(value);
+        Some(match_val) => {
+          let val = json_to_string(match_val);
           MatchingRule::create(val.as_str(), value)
-        },
+        }
         None => if let Some(val) = m.get("regex") {
           Ok(MatchingRule::Regex(json_to_string(val)))
         } else if let Some(val) = json_to_num(m.get("min").cloned()) {
@@ -226,6 +226,7 @@ impl MatchingRule {
 
   /// Creates a `MatchingRule` from a type and a map of attributes
   pub fn create(rule_type: &str, attributes: &Value) -> anyhow::Result<MatchingRule> {
+    trace!("rule_type: {}, attributes: {}", rule_type, attributes);
     let attributes = match attributes {
       Value::Object(values) => values,
       _ => {

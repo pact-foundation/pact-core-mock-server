@@ -133,13 +133,15 @@ async fn test_state_change_with_parameters() {
   try_init().unwrap_or(());
 
   let server = PactBuilder::new("RustPactVerifier", "SomeRunningProvider")
-    .interaction("a state change request", |i| {
+    .interaction("a state change request", "", |mut i| async move {
       i.request.method("POST");
       i.request.path("/");
       i.request.header("Content-Type", "application/json");
       i.request.body("{\"params\":{\"A\":\"1\",\"B\":\"2\"},\"action\":\"setup\",\"state\":\"TestState\"}");
       i.response.status(200);
+      i
     })
+    .await
     .start_mock_server();
 
   let provider_state = ProviderState {
@@ -165,7 +167,7 @@ async fn test_state_change_with_parameters_in_query() {
   try_init().unwrap_or(());
 
   let server = PactBuilder::new("RustPactVerifier", "SomeRunningProvider")
-    .interaction("a state change request with params in the query string", |i| {
+    .interaction("a state change request with params in the query string", "", |mut i| async move {
       i.comment("testing state change with parameters in the query");
       i.test_name("test_state_change_with_parameters_in_query");
       i.request.method("POST");
@@ -175,7 +177,9 @@ async fn test_state_change_with_parameters_in_query() {
       i.request.query_param("A", "1");
       i.request.query_param("B", "2");
       i.response.status(200);
+      i
     })
+    .await
     .start_mock_server();
 
   let provider_state = ProviderState {
@@ -203,7 +207,7 @@ async fn test_state_change_returning_json_values() {
   try_init().unwrap_or(());
 
   let server = PactBuilder::new("RustPactVerifier", "SomeRunningProvider")
-    .interaction("a state change request which returns a map of values", |i| {
+    .interaction("a state change request which returns a map of values", "", |mut i| async move {
       i.request.method("POST");
       i.request.path("/");
       i.request.header("Content-Type", "application/json");
@@ -211,7 +215,9 @@ async fn test_state_change_returning_json_values() {
       i.response.status(200);
       i.response.header("Content-Type", "application/json");
       i.response.body("{\"a\": \"A\", \"b\": 100}");
+      i
     })
+    .await
     .start_mock_server();
 
   let provider_state = ProviderState {
@@ -244,11 +250,13 @@ fn publish_result_does_nothing_if_not_from_broker() {
 
     runtime.block_on(async {
       let _server = PactBuilder::new("RustPactVerifier", "PactBroker")
-        .interaction("publish results", |i| {
+        .interaction("publish results", "", |mut i| async move {
           i.request.method("POST");
           i.request.path("/");
           i.response.status(201);
+          i
         })
+        .await
         .start_mock_server();
 
       let options = super::VerificationOptions {
@@ -271,7 +279,7 @@ async fn publish_successful_result_to_broker() {
   try_init().unwrap_or(());
 
   let server = PactBuilder::new("RustPactVerifier", "PactBroker")
-    .interaction("publish results", |i| {
+    .interaction("publish results", "", |mut i| async move {
       i.request.method("POST");
       i.request.path("/path/to/pact/verification");
       i.request.json_body(json_pattern!({
@@ -286,7 +294,9 @@ async fn publish_successful_result_to_broker() {
         })
       }));
       i.response.status(201);
+      i
     })
+    .await
     .start_mock_server();
 
   let options = super::VerificationOptions {

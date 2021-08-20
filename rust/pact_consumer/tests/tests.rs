@@ -1,9 +1,9 @@
 use std::{
   env,
   fs,
-  io::prelude::*,
   path::Path
 };
+use std::path::PathBuf;
 
 use expectest::expect;
 use expectest::prelude::*;
@@ -13,21 +13,20 @@ use pact_consumer::{json_pattern, json_pattern_internal};
 use pact_consumer::prelude::*;
 use pact_models::pact::ReadWritePact;
 use pact_models::sync_pact::RequestResponsePact;
+use rand::prelude::*;
 
 /// This is supposed to be a doctest in mod, but it's breaking there, so
 /// we have an executable copy here.
 ///
 /// This test is currently ignored because it has a race condition when running in CI. Probably
 /// because it is mutating environment variables that point to directories on disk
-#[test]
-#[ignore]
-fn mock_server_passing_validation() {
+#[tokio::test]
+async fn mock_server_passing_validation() {
     use expectest::*;
 
     let _ = env_logger::builder().is_test(true).try_init();
 
-    let output_dir = Path::new("target/pact_dir");
-    fs::remove_dir_all(output_dir).unwrap_or(());
+    let output_dir = output_dir("target/pact_dir");
 
     env::set_var("PACT_OUTPUT_DIR", &output_dir);
 
@@ -36,7 +35,7 @@ fn mock_server_passing_validation() {
       // application and the provider application.
       let alice_service = PactBuilder::new("Consumer", "Alice Service")
         // Start a new interaction. We can add as many interactions as we want.
-        .interaction("a retrieve Mallory request", |i| {
+        .interaction("a retrieve Mallory request", "", |mut i| async move {
           // Defines a provider state. It is optional.
           i.given("there is some good mallory");
           // Define the request, a GET (default) request to '/mallory'.
@@ -46,14 +45,17 @@ fn mock_server_passing_validation() {
             .ok()
             .content_type("text/plain")
             .body("That is some good Mallory.");
+
+          // Return the interaction back to the pact framework
+          i.clone()
         })
+        .await
         .start_mock_server();
 
       // You would use your actual client code here.
       let mallory_url = alice_service.path("/mallory");
-      let mut response = reqwest::blocking::get(mallory_url).expect("could not fetch URL");
-      let mut body = String::new();
-      response.read_to_string(&mut body).expect("could not read response body");
+      let response = reqwest::get(mallory_url).await.expect("could not fetch URL");
+      let body = response.text().await.expect("could not read response body");
       assert_eq!(body, "That is some good Mallory.");
     }
 
@@ -66,17 +68,33 @@ fn mock_server_passing_validation() {
     expect!(path_file.exists()).to(be_true());
 }
 
-#[test]
+fn output_dir(path: &str) -> PathBuf {
+  match Path::new(path).canonicalize() {
+    Ok(path) => {
+      fs::remove_dir_all(path.clone()).unwrap_or(());
+      path
+    }
+    Err(_) => {
+      let path = Path::new(path);
+      fs::create_dir_all(path.clone()).unwrap_or(());
+      path.canonicalize().unwrap()
+    }
+  }
+}
+
+#[tokio::test]
 #[should_panic]
-fn mock_server_failing_validation() {
+async fn mock_server_failing_validation() {
     let _ = env_logger::builder().is_test(true).try_init();
 
     let hello_service = PactBuilder::new("Hello CLI", "Hello Server")
-        .interaction("request a greeting", |i| {
-            i.request.path("/hello");
-            i.response.body("Hello!");
+        .interaction("request a greeting", "", |mut i| async move {
+          i.request.path("/hello");
+          i.response.body("Hello!");
+          i.clone()
         })
-        .start_mock_server();
+      .await
+      .start_mock_server();
     // Call with the wrong URL, which should lead to a panic at the end of
     // the function.
     let url = hello_service.path("/goodbye");
@@ -87,14 +105,12 @@ fn mock_server_failing_validation() {
 async fn duplicate_interactions() {
   let _ = env_logger::builder().is_test(true).try_init();
 
-  let output_dir = Path::new("/tmp/duplicate_interactions");
-  fs::remove_dir_all(output_dir).unwrap_or(());
-
-  env::set_var("PACT_OUTPUT_DIR", &output_dir);
+  let u8 = random::<u8>();
+  let output_dir = output_dir(&*format!("target/pact_dir_{:03}", u8));
 
   for _ in 1..3 {
     let mock_service = PactBuilder::new("consumer 1", "provider 1")
-      .interaction("tricky test", |interaction| {
+      .interaction("tricky test", "", |mut interaction| {
         interaction
           .request
           .put()
@@ -105,7 +121,10 @@ async fn duplicate_interactions() {
                       }))
           .path("/rolex.html");
         interaction.response.body("TrixR4Kidz");
+        futures::future::ready(interaction)
       })
+      .await
+      .output_dir(&output_dir)
       .start_mock_server();
 
     let mock_url = mock_service.url().as_ref();
@@ -127,8 +146,6 @@ async fn duplicate_interactions() {
       "TrixR4Kidz",
     );
   }
-
-  env::remove_var("PACT_OUTPUT_DIR");
 
   let path = output_dir.join("consumer 1-provider 1.json");
   let written_pact = RequestResponsePact::read_pact(path.as_path()).unwrap();
