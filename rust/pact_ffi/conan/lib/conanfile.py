@@ -2,7 +2,7 @@ from conans import ConanFile, VisualStudioBuildEnvironment, CMake, tools
 
 class CbindgenTestConan(ConanFile):
     name = "pact_ffi"
-    version = "0.0.2"
+    version = "0.0.3"
     description = "Pact/Rust FFI bindings"
     url = "https://pactfoundation.jfrog.io/artifactory/pactfoundation-conan/"
     homepage = "https://github.com/pact-foundation/pact-reference"
@@ -32,6 +32,8 @@ class CbindgenTestConan(ConanFile):
             raise Exception("Binary does not exist for these settings")
         tools.download(("https://github.com/pact-foundation/pact-reference/releases/download/libpact_ffi-v%s/pact.h"
                 % (str(self.version))), "include/pact.h")
+        tools.download(("https://github.com/pact-foundation/pact-reference/releases/download/libpact_ffi-v%s/pact-cpp.h"
+                        % (str(self.version))), "include/pact-cpp.h")
 
     def package(self):
         self.copy("libpact_ffi*.a", "lib", "")
