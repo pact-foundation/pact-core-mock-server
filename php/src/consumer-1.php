@@ -7,7 +7,7 @@ use Symfony\Component\HttpClient\HttpClient;
 $code = file_get_contents(__DIR__ . '/../../rust/pact_ffi/include/pact.h');
 $ffi = FFI::cdef($code, __DIR__ . '/../../rust/target/debug/libpact_ffi.so');
 
-$ffi->init('LOG_LEVEL');
+$ffi->pactffi_init('LOG_LEVEL');
 
 $pact = $ffi->pactffi_new_pact('http-consumer-1', 'http-provider');
 $ffi->pactffi_with_specification($pact, $ffi->PactSpecification_V3);
@@ -16,8 +16,8 @@ $interaction = $ffi->pactffi_new_interaction($pact, 'A POST request to create bo
 $ffi->pactffi_upon_receiving($interaction, 'A POST request to create book');
 $ffi->pactffi_given($interaction, 'Book Fixtures Loaded');
 $ffi->pactffi_with_request($interaction, 'POST', '/api/books');
-$ffi->pactffi_with_header($interaction, $ffi->Request, 'Content-Type', 0, 'application/json');
-$ffi->pactffi_with_body($interaction, $ffi->Request, 'application/json', '{
+$ffi->pactffi_with_header($interaction, $ffi->InteractionPart_Request, 'Content-Type', 0, 'application/json');
+$ffi->pactffi_with_body($interaction, $ffi->InteractionPart_Request, 'application/json', '{
     "isbn": {
         "pact:matcher:type": "type",
         "value": "0099740915"
@@ -41,8 +41,8 @@ $ffi->pactffi_with_body($interaction, $ffi->Request, 'application/json', '{
     }
   }');
 $ffi->pactffi_response_status($interaction, 201);
-$ffi->pactffi_with_header($interaction, $ffi->Response, 'Content-Type', 0, 'application/ld+json; charset=utf-8');
-$ffi->pactffi_with_body($interaction, $ffi->Response, 'application/ld+json; charset=utf-8', '{
+$ffi->pactffi_with_header($interaction, $ffi->InteractionPart_Response, 'Content-Type', 0, 'application/ld+json; charset=utf-8');
+$ffi->pactffi_with_body($interaction, $ffi->InteractionPart_Response, 'application/ld+json; charset=utf-8', '{
     "@context": "/api/contexts/Book",
     "@id": {
         "pact:matcher:type": "regex",

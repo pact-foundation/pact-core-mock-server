@@ -21,7 +21,9 @@
           }
         }
       },
-      "metadata": {},
+      "metadata": {
+        "contentType": "application/json"
+      },
       "providerStates": [
         {
           "name": "Provider has book"
@@ -31,7 +33,7 @@
   ],
   "metadata": {
     "pactRust": {
-      "version": "0.9.4"
+      "version": "0.1.2"
     },
     "pactSpecification": {
       "version": "3.0.0"
