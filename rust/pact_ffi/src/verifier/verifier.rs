@@ -1,11 +1,14 @@
 //! Exported verifier functions
-
+use crate::util::*;
+use crate::util::ptr;
 use std::env;
 use std::str;
-use std::str::FromStr;
+use std::str::{FromStr, from_utf8};
 use std::sync::Arc;
-
-use clap::{AppSettings, ArgMatches, ErrorKind};
+use libc::c_char;
+use std::ffi::{CString, CStr};
+use std::collections::HashMap;
+use clap::{AppSettings, ArgMatches, ErrorKind, Arg};
 use log::{debug, LevelFilter};
 use simplelog::{Config, TerminalMode, TermLogger};
 
@@ -14,6 +17,11 @@ use pact_models::http_utils::HttpAuth;
 use pact_models::PactSpecification;
 use pact_verifier::*;
 use pact_verifier::callback_executors::HttpRequestProviderStateExecutor;
+use serde::{Deserialize, Serialize};
+
+use serde_json::Number;
+use serde_json::json;
+use crate::util::string::to_c;
 
 use super::args;
 
@@ -243,4 +251,67 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
 fn print_version(version: &str) {
   println!("\npact verifier version     : v{}", version);
   println!("pact specification version: v{}", PactSpecification::V3.version_str());
+}
+
+#[derive(Serialize, Deserialize)]
+struct Argument {
+    name: Option<String>,
+    short: Option<String>,
+    long: Option<String>,
+    help: Option<String>,
+}
+
+/// Get the current CLI parameters, to then return as a JSON string
+#[no_mangle]
+pub extern "C" fn pactffi_verifier_cli_args() -> *const c_char {
+    let args: Vec<String> = env::args().collect();
+    let program = args[0].clone();
+    let app = args::setup_app(program, clap::crate_version!());
+
+    // Iterate through the args, extracting info from each to then add to a Vector of args
+    let mut args: Vec<Argument> = Vec::new();
+    for opt in app.p.opts.iter() {
+        let mut arg = Argument{ name: None, short: None, long: None, help: None };
+        // Name
+        let arg_name = opt.b.name;
+        arg.name = Some(arg_name.to_string());
+
+        // Short
+        match opt.s.short {
+            None => {}
+            Some(x) => {
+                let c_str = CString::new(opt.s.short.unwrap().to_string()).unwrap();
+                let short = c_str.to_str().unwrap();
+                arg.short = Some(short.to_string());
+            }
+        }
+
+        // Long
+        match opt.s.long {
+            None => {}
+            Some(x) => {
+                let c_str = CString::new(opt.s.long.unwrap().to_string()).unwrap();
+                let long = c_str.to_str().unwrap();
+                arg.long = Some(long.to_string());
+            }
+        }
+
+        // Help
+        match opt.b.help {
+            None => {}
+            Some(x) => {
+                let c_str = CString::new(opt.b.help.unwrap().to_string()).unwrap();
+                let help = c_str.to_str().unwrap();
+                arg.help = Some(help.to_string());
+            }
+        }
+
+        args.push(arg);
+    }
+
+    let json = serde_json::to_string(&args).unwrap();
+    //let k = j.unwrap();
+
+    let c_str = CString::new(json).unwrap();
+    c_str.into_raw() as *const c_char
 }
