@@ -1065,7 +1065,7 @@ dependencies = [
 
 [[package]]
 name = "pact_ffi"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "anyhow",
  "bytes",
@@ -1241,7 +1241,7 @@ dependencies = [
 
 [[package]]
 name = "pact_verifier"
-version = "0.10.11"
+version = "0.10.12"
 dependencies = [
  "ansi_term 0.12.1",
  "anyhow",
