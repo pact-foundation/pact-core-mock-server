@@ -1,6 +1,6 @@
 use crate::ffi_fn;
 use libc::c_char;
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 use std::ops::Not;
 
 // All of this module is `pub(crate)` and should not appear in the C header file
@@ -53,4 +53,14 @@ macro_rules! safe_str {
             " as UTF-8"
         ))?
     }};
+}
+
+/// Returns the Rust string from the C string pointer, returning the default value if the pointer
+/// is NULL
+pub(crate) fn if_null(s: *const c_char, default: &str) -> String {
+    if s.is_null() {
+        default.to_string()
+    } else {
+        unsafe { CStr::from_ptr(s).to_string_lossy().to_string() }
+    }
 }

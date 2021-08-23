@@ -6,13 +6,19 @@
 use std::ffi::{CStr, CString};
 use std::panic::catch_unwind;
 
-use libc::c_char;
+use anyhow::Context;
+use libc::{c_char, c_int, c_ushort, EXIT_FAILURE};
 use log::*;
 use std::env;
 
+use crate::{as_mut, ffi_fn, safe_str};
+use crate::util::*;
+use crate::util::string::if_null;
+use serde::Serialize;
+
 mod args;
 pub mod verifier;
-use serde::Serialize;
+pub mod handle;
 
 /// External interface to verifier a provider
 ///
@@ -59,6 +65,93 @@ pub unsafe extern fn pactffi_verify(args: *const c_char) -> i32 {
       3
     }
   }
+}
+
+ffi_fn! {
+    /// Get a Handle to a newly created verifier. You should call `pactffi_verifier_shutdown` when
+    /// done with the verifier to free all allocated resources
+    ///
+    /// # Safety
+    ///
+    /// This function is safe.
+    ///
+    /// # Error Handling
+    ///
+    /// Returns NULL on error.
+    fn pactffi_verifier_new() -> *mut handle::VerifierHandle {
+        let handle = handle::VerifierHandle::new();
+        ptr::raw_to(handle)
+    } {
+        ptr::null_mut_to::<handle::VerifierHandle>()
+    }
+}
+
+ffi_fn! {
+    /// Shutdown the verifier and release all resources
+    fn pactffi_verifier_shutdown(handle: *mut handle::VerifierHandle) {
+        ptr::drop_raw(handle);
+    }
+}
+
+ffi_fn! {
+    /// Set the provider details for the Pact verifier. Passing a NULL for any field will
+    /// use the default value for that field.
+    ///
+    /// # Safety
+    ///
+    /// All string fields must contain valid UTF-8. Invalid UTF-8
+    /// will be replaced with U+FFFD REPLACEMENT CHARACTER.
+    ///
+    fn pactffi_verifier_set_provider_info(
+      handle: *mut handle::VerifierHandle,
+      name: *const c_char,
+      scheme: *const c_char,
+      host: *const c_char,
+      port: c_ushort,
+      path: *const c_char
+    ) {
+      let handle = as_mut!(handle);
+      let name = if_null(name, "provider");
+      let scheme = if_null(scheme, "http");
+      let host = if_null(host, "localhost");
+      let path = if_null(path, "/");
+
+      handle.update_provider_info(name, scheme, host, port as u16, path);
+    }
+}
+
+ffi_fn! {
+    /// Adds a Pact file as a source to verify.
+    ///
+    /// # Safety
+    ///
+    /// All string fields must contain valid UTF-8. Invalid UTF-8
+    /// will be replaced with U+FFFD REPLACEMENT CHARACTER.
+    ///
+    fn pactffi_verifier_add_file_source(
+      handle: *mut handle::VerifierHandle,
+      file: *const c_char
+    ) {
+      let handle = as_mut!(handle);
+      let file = safe_str!(file);
+
+      handle.add_file_source(file);
+    }
+}
+
+ffi_fn! {
+    /// Runs the verification.
+    ///
+    /// # Error Handling
+    ///
+    /// Errors will be reported with a non-zero return value.
+    fn pactffi_verifier_execute(handle: *mut handle::VerifierHandle) -> c_int {
+      let handle = as_mut!(handle);
+
+      handle.execute()
+    } {
+      EXIT_FAILURE
+    }
 }
 
 #[derive(Serialize)]
@@ -112,7 +205,7 @@ pub extern "C" fn pactffi_verifier_cli_args() -> *const c_char {
     // Iterate through the args, extracting info from each to then add to a Vector of args
     let mut args: Vec<Argument> = Vec::new();
     for opt in app.p.opts.iter() {
-        let mut arg = Argument{ name: None, short: None, long: None, help: None };
+        let mut arg = Argument { name: None, short: None, long: None, help: None };
 
         // Name
         // TODO: Maybe superfluous as this is always the same as the long

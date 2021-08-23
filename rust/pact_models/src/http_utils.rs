@@ -49,12 +49,19 @@ impl Display for HttpAuth {
       HttpAuth::Token(ref t) =>
         write!(f, "Token({:*<width$})", t.get(0..4).unwrap_or(""), width = t.len()),
       HttpAuth::User(ref u, ref p) => {
+        let username = if u.is_empty() { "none" } else { u.as_str() };
         if let Some(pass) = p {
-          write!(f, "User({}, {:*<width$})", u, pass.get(0..4).unwrap_or(""), width = pass.len())
+          write!(f, "User({}, {:*<width$})", username, pass.get(0..4).unwrap_or(""), width = pass.len())
         } else {
-          write!(f, "User({}, [no password])", u)
+          write!(f, "User({}, [no password])", username)
         }
       }
     }
+  }
+}
+
+impl Default for HttpAuth {
+  fn default() -> Self {
+    HttpAuth::User("".to_string(), None)
   }
 }

@@ -57,7 +57,7 @@ prefix_with_name = true
 parse_deps = true
 
 # Only include `pact_matching` and `pact_models` (nothing else).
-include = ["pact_matching", "pact_models"]
+include = ["pact_matching", "pact_models", "pact'_verifier"]
 
 #==============================================================================
 # Macro Expansion Rules

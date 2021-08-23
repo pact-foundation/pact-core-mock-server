@@ -1,5 +1,9 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.8.7 - Bugfix Release
+
+* 38ccd5f6 - bump version to 0.8.7 (Ronald Holshausen, Wed Jul 21 13:38:53 2021 +1000)
+
 # 0.8.6 - Bugfix Release
 
 * b3a6f193 - chore: rename header PACT_MESSAGE_METADATA -> Pact-Message-Metadata (Matt Fellows, Tue Jul 13 11:32:25 2021 +1000)

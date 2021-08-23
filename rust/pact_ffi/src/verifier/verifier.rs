@@ -18,12 +18,15 @@ use super::args;
 
 fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
   let mut sources = vec![];
+
   if let Some(values) = matches.values_of("file") {
     sources.extend(values.map(|v| PactSource::File(s!(v))).collect::<Vec<PactSource>>());
   };
+
   if let Some(values) = matches.values_of("dir") {
     sources.extend(values.map(|v| PactSource::Dir(s!(v))).collect::<Vec<PactSource>>());
   };
+
   if let Some(values) = matches.values_of("url") {
     sources.extend(values.map(|v| {
       if matches.is_present("user") {
@@ -37,55 +40,43 @@ fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
       }
     }).collect::<Vec<PactSource>>());
   };
-  if let Some(values) = matches.values_of("broker-url") {
-    sources.extend(values.map(|v| {
-      if matches.is_present("user") || matches.is_present("token") {
-        let name = matches.value_of("provider-name").unwrap().to_string();
-        let pending = matches.is_present("enable-pending");
-        let wip = matches.value_of("include-wip-pacts-since").map(|wip| wip.to_string());
-        let provider_tags = matches.values_of("provider-tags")
+
+  if let Some(broker_url) = matches.value_of("broker-url") {
+    let name = matches.value_of("provider-name").map(|n| n.to_string()).unwrap_or_default();
+    let auth = matches.value_of("user").map(|user| {
+      HttpAuth::User(user.to_string(), matches.value_of("password").map(|p| p.to_string()))
+    }).or_else(|| matches.value_of("token").map(|t| HttpAuth::Token(t.to_string())));
+
+    let source = if matches.is_present("consumer-version-selectors") || matches.is_present("consumer-version-tags") {
+      let pending = matches.is_present("enable-pending");
+      let wip = matches.value_of("include-wip-pacts-since").map(|wip| wip.to_string());
+      let provider_tags = matches.values_of("provider-tags")
         .map_or_else(Vec::new, |tags| tags.map(|tag| tag.to_string()).collect());
 
-        let selectors = if matches.is_present("consumer-version-selectors") {
-          matches.values_of("consumer-version-selectors")
-            .map_or_else(Vec::new, |s| json_to_selectors(s.collect::<Vec<_>>()))
-        } else if matches.is_present("consumer-version-tags") {
-          matches.values_of("consumer-version-tags")
-            .map_or_else(Vec::new, |tags| consumer_tags_to_selectors(tags.collect::<Vec<_>>()))
-        } else {
-          vec![]
-        };
-
-        if matches.is_present("token") {
-          PactSource::BrokerWithDynamicConfiguration {
-            provider_name: name,
-            broker_url: v.into(),
-            enable_pending: pending,
-            include_wip_pacts_since: wip,
-            provider_tags,
-            selectors: selectors,
-            auth: matches.value_of("token").map(|token| HttpAuth::Token(token.to_string())),
-            links: vec![]
-          }
-        } else {
-        let auth = matches.value_of("user").map(|user| {
-          HttpAuth::User(user.to_string(), matches.value_of("password").map(|p| p.to_string()))
-        });
-          PactSource::BrokerWithDynamicConfiguration {
-            provider_name: name,
-            broker_url: v.into(),
-            enable_pending: pending,
-            include_wip_pacts_since: wip,
-            provider_tags,
-            selectors: selectors,
-            auth,
-            links: vec![]
-          }
-        }
+      let selectors = if matches.is_present("consumer-version-selectors") {
+        matches.values_of("consumer-version-selectors")
+          .map_or_else(Vec::new, |s| json_to_selectors(s.collect::<Vec<_>>()))
+      } else if matches.is_present("consumer-version-tags") {
+        matches.values_of("consumer-version-tags")
+          .map_or_else(Vec::new, |tags| consumer_tags_to_selectors(tags.collect::<Vec<_>>()))
       } else {
-        PactSource::BrokerUrl(s!(matches.value_of("provider-name").unwrap()), s!(v), None, vec![])
+        vec![]
+      };
+
+      PactSource::BrokerWithDynamicConfiguration {
+        provider_name: name,
+        broker_url: broker_url.into(),
+        enable_pending: pending,
+        include_wip_pacts_since: wip,
+        provider_tags,
+        selectors,
+        auth,
+        links: vec![]
       }
-    }).collect::<Vec<PactSource>>());
+    } else {
+      PactSource::BrokerUrl(name, broker_url.to_string(), auth, vec![])
+    };
+    sources.push(source);
   };
   sources
 }
