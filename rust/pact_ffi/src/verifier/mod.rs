@@ -160,6 +160,7 @@ struct Argument {
     short: Option<String>,
     long: Option<String>,
     help: Option<String>,
+    possible_values: Option<Vec<String>>
 }
 
 /// External interface to retrieve the options and arguments available when calling the CLI interface,
@@ -205,7 +206,7 @@ pub extern "C" fn pactffi_verifier_cli_args() -> *const c_char {
     // Iterate through the args, extracting info from each to then add to a Vector of args
     let mut args: Vec<Argument> = Vec::new();
     for opt in app.p.opts.iter() {
-        let mut arg = Argument { name: None, short: None, long: None, help: None };
+        let mut arg = Argument { name: None, short: None, long: None, help: None, possible_values: None };
 
         // Name
         // TODO: Maybe superfluous as this is always the same as the long
@@ -241,6 +242,20 @@ pub extern "C" fn pactffi_verifier_cli_args() -> *const c_char {
                 arg.help = Some(help.to_string());
             }
         }
+
+        // Possible Values
+        match opt.v.possible_vals {
+            None => {}
+            Some(_) => {
+                let mut possible_vals: Vec<String> = Vec::new();
+                let possible_values = opt.v.possible_vals.clone().unwrap();
+                for possible_val in possible_values.iter() {
+                    possible_vals.push(possible_val.to_string())
+                }
+                arg.possible_values = Some(possible_vals);
+            }
+        }
+
 
         args.push(arg);
     }
