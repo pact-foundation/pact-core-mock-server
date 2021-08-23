@@ -47,6 +47,11 @@ impl VerifierHandle {
   }
 
   /// Execute the verifier
+  ///
+  /// This will return an integer value based on the status of the verification:
+  /// * 0 - verification was successful
+  /// * 1 - verification was not successful
+  /// * 2 - failed to run the verification
   pub fn execute(&self) -> i32 {
     let filter = FilterInfo::None;
     let provider_state_executor = Arc::new(HttpRequestProviderStateExecutor {
@@ -66,18 +71,16 @@ impl VerifierHandle {
 
     let runtime = tokio::runtime::Runtime::new().unwrap();
     runtime.block_on(async {
-      if verify_provider_async(
+      verify_provider_async(
         self.provider.clone(),
         self.sources.clone(),
         filter,
         vec![],
         options,
         &provider_state_executor
-      ).await {
-        0
-      } else {
-        1
-      }
+      ).await
     })
+      .map(|result| if result { 0 } else { 2 })
+      .unwrap_or(2)
   }
 }
