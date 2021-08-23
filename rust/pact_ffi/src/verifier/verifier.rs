@@ -1,8 +1,10 @@
 //! Exported verifier functions
+
 use std::env;
 use std::str;
-use std::str::{FromStr};
+use std::str::FromStr;
 use std::sync::Arc;
+
 use clap::{AppSettings, ArgMatches, ErrorKind};
 use log::{debug, LevelFilter};
 use simplelog::{Config, TerminalMode, TermLogger};
@@ -12,7 +14,6 @@ use pact_models::http_utils::HttpAuth;
 use pact_models::PactSpecification;
 use pact_verifier::*;
 use pact_verifier::callback_executors::HttpRequestProviderStateExecutor;
-
 
 use super::args;
 
