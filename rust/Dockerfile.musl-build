@@ -1,5 +1,6 @@
-FROM rust:alpine3.12
+FROM rust:1.54-alpine3.13
 
-RUN apk --no-cache add bash musl-dev openssl-dev
+RUN apk --no-cache add bash musl-dev openssl-dev protoc
+RUN rustup component add rustfmt
 
 ENTRYPOINT ["/bin/bash"]
