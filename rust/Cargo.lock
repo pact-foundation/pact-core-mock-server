@@ -1416,7 +1416,7 @@ dependencies = [
 
 [[package]]
 name = "pact_models"
-version = "0.2.0-beta.0"
+version = "0.2.0-beta.1"
 dependencies = [
  "anyhow",
  "base64",
