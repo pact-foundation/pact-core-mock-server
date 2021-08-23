@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.0.2 - Bugfix Release
+
+* 9370327c - feat(FFI): Added initial verifier FFI prototype (Ronald Holshausen, Sun Aug 22 15:01:17 2021 +1000)
+* c274ca1a - fix: use the pacts for verification endpoint if the conusmer selectors are specified #133 (Ronald Holshausen, Sun Aug 22 11:51:22 2021 +1000)
+* 3215821e - chore: correct the OSX release (Ronald Holshausen, Tue Aug 17 12:47:20 2021 +1000)
+* 64cf38e9 - bump version to 0.0.2 (Ronald Holshausen, Tue Aug 17 11:00:54 2021 +1000)
+
 # 0.0.1 - M1 architecture support + Bugfixes
 
 * a9940325 - chore: release m1 arm package for new Mac hardware (Matt Fellows, Wed Aug 11 22:57:46 2021 +1000)

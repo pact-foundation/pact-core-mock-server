@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.10.11 - Bugfix Release
+
+* 0e62fe40 - chore: set regex version to 1 (Ronald Holshausen, Sun Aug 22 15:30:12 2021 +1000)
+* c274ca1a - fix: use the pacts for verification endpoint if the conusmer selectors are specified #133 (Ronald Holshausen, Sun Aug 22 11:51:22 2021 +1000)
+* f56b52b2 - bump version to 0.10.11 (Ronald Holshausen, Tue Aug 17 10:48:38 2021 +1000)
+
 # 0.10.10 - Bugfix Release
 
 * b5a7b779 - feat: support new selectors (Matt Fellows, Mon Aug 9 13:27:33 2021 +1000)

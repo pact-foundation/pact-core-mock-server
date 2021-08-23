@@ -208,6 +208,8 @@ impl HALClient {
     link: &'static str,
     template_values: &HashMap<String, String>
   ) -> Result<HALClient, PactBrokerError> {
+    trace!("navigate(link='{}', template_values={:?})", link, template_values);
+
     let client = if self.path_info.is_none() {
       let path_info = self.clone().fetch("/".into()).await?;
       self.update_path_info(path_info)
@@ -245,6 +247,8 @@ impl HALClient {
         link: &'static str,
         template_values: &HashMap<String, String>
     ) -> Result<serde_json::Value, PactBrokerError> {
+      trace!("fetch_link(link='{}', template_values={:?})", link, template_values);
+
         let link_data = self.find_link(link)?;
 
         self.fetch_url(&link_data, template_values).await
@@ -256,6 +260,8 @@ impl HALClient {
     link: &Link,
     template_values: &HashMap<String, String>
   ) -> Result<serde_json::Value, PactBrokerError> {
+    trace!("fetch_url(link={:?}, template_values={:?})", link, template_values);
+
       let link_url = if link.templated {
           log::debug!("Link URL is templated");
           self.clone().parse_link_url(&link, &template_values)
@@ -397,15 +403,19 @@ impl HALClient {
   }
 
   async fn post_json(&self, url: &str, body: &str) -> Result<serde_json::Value, PactBrokerError> {
+    trace!("post_json(url='{}', body='{}')", url, body);
+
     self.send_document(url, body, Method::POST).await
   }
 
   async fn put_json(&self, url: &str, body: &str) -> Result<serde_json::Value, PactBrokerError> {
+    trace!("put_json(url='{}', body='{}')", url, body);
+
     self.send_document(url, body, Method::PUT).await
   }
 
   async fn send_document(&self, url: &str, body: &str, method: Method) -> Result<serde_json::Value, PactBrokerError> {
-    log::debug!("Sending JSON to {} using {}: {}", url, method, body);
+    debug!("Sending JSON to {} using {}: {}", url, method, body);
 
     let url = url.parse::<reqwest::Url>()
       .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?;
@@ -552,6 +562,9 @@ pub async fn fetch_pacts_from_broker(
   provider_name: &str,
   auth: Option<HttpAuth>
 ) -> anyhow::Result<Vec<anyhow::Result<(Box<dyn Pact + Send>, Option<PactVerificationContext>, Vec<Link>)>>> {
+  trace!("fetch_pacts_from_broker(broker_url='{}', provider_name='{}', auth={})", broker_url,
+    provider_name, auth.clone().unwrap_or_default());
+
     let mut hal_client = HALClient::with_url(broker_url, auth);
     let template_values = hashmap!{ "provider".to_string() => provider_name.to_string() };
 
@@ -627,6 +640,11 @@ pub async fn fetch_pacts_dynamically_from_broker(
   consumer_version_selectors: Vec<ConsumerVersionSelector>,
   auth: Option<HttpAuth>
 ) -> Result<Vec<Result<(Box<dyn Pact + Send>, Option<PactVerificationContext>, Vec<Link>), PactBrokerError>>, PactBrokerError> {
+  trace!("fetch_pacts_dynamically_from_broker(broker_url='{}', provider_name='{}', pending={}, \
+    include_wip_pacts_since={:?}, provider_tags: {:?}, consumer_version_selectors: {:?}, auth={})",
+    broker_url, provider_name, pending, include_wip_pacts_since, provider_tags,
+    consumer_version_selectors, auth.clone().unwrap_or_default());
+
     let mut hal_client = HALClient::with_url(broker_url, auth);
     let template_values = hashmap!{ "provider".to_string() => provider_name.clone() };
 

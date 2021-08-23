@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.10.2 - upgrade nom to 7.0
+
+* 21be6bce - chore: upgrade nom to 7.0 #128 (Ronald Holshausen, Sun Aug 22 11:56:33 2021 +1000)
+* e07a1b84 - bump version to 0.10.2 (Ronald Holshausen, Tue Aug 17 10:22:37 2021 +1000)
+
 # 0.10.1 - Bugfix Release
 
 * 8bcd1c7e - fix: min/max type matchers must not apply the limits when cascading (Ronald Holshausen, Sun Aug 8 15:50:40 2021 +1000)

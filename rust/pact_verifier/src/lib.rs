@@ -693,6 +693,8 @@ fn print_errors(errors: &Vec<(String, MismatchResult)>) {
 }
 
 async fn fetch_pact(source: PactSource) -> Vec<Result<(Box<dyn Pact>, Option<PactVerificationContext>, PactSource), String>> {
+  trace!("fetch_pact(source={})", source);
+
   match source {
     PactSource::File(ref file) => vec![read_pact(Path::new(&file))
       .map_err(|err| format!("Failed to load pact '{}' - {}", file, err))
@@ -778,6 +780,8 @@ async fn fetch_pact(source: PactSource) -> Vec<Result<(Box<dyn Pact>, Option<Pac
 
 async fn fetch_pacts(source: Vec<PactSource>, consumers: Vec<String>)
   -> Vec<Result<(Box<dyn Pact>, Option<PactVerificationContext>, PactSource), String>> {
+  trace!("fetch_pacts(source={:?}, consumers={:?})", source, consumers);
+
   futures::stream::iter(source)
     .then(|pact_source| async {
       futures::stream::iter(fetch_pact(pact_source).await)

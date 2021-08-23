@@ -109,8 +109,8 @@ ask('Publish library to crates.io?: [Y]') {
 }
 
 ask('Publish Conan packages?: [Y]') {
-  executeOnShell "cd conan/lib && conan create . pact/beta && conan upload pact_ffi/${releaseVer}@pact/beta -r=pact-foundation"
-  executeOnShell "cd conan/dll && conan create . pact/beta && conan upload pact_ffi_dll/${releaseVer}@pact/beta -r=pact-foundation"
+  executeOnShell "cd conan/lib && conan create . pact/beta && CONAN_REVISIONS_ENABLED=1 conan upload pact_ffi/${releaseVer}@pact/beta -r=pact-foundation"
+  executeOnShell "cd conan/dll && conan create . pact/beta && CONAN_REVISIONS_ENABLED=1 conan upload pact_ffi_dll/${releaseVer}@pact/beta -r=pact-foundation"
 }
 
 def nextVer = Version.valueOf(releaseVer).incrementPatchVersion()
@@ -119,7 +119,7 @@ ask("Bump version to $nextVer?: [Y]") {
   executeOnShell "sed -i -e 's/version = \"${releaseVer}\"/version = \"${nextVer}\"/' conan/lib/conanfile.py"
   executeOnShell "sed -i -e 's/version = \"${releaseVer}\"/version = \"${nextVer}\"/' conan/dll/conanfile.py"
   executeOnShell("cargo update")
-  executeOnShell("git add Cargo.toml README.md")
+  executeOnShell("git add Cargo.toml README.md conan/lib/conanfile.py conan/dll/conanfile.py")
   executeOnShell("git add ../Cargo.lock")
   executeOnShell("git diff --cached")
   ask("Commit and push this change?: [Y]") {

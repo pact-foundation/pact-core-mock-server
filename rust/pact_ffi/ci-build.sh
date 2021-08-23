@@ -7,14 +7,14 @@ which cargo
 cargo install cbindgen
 rm -rf ./include
 
-#echo -------------------------------------
-#echo - Build library with CMake
-#echo -------------------------------------
-#mkdir -p build
-#cd build
-#cmake -DCMAKE_BUILD_TYPE=Debug ..
-#cmake --build . -v
-#cd ..
+echo -------------------------------------
+echo - Build library with CMake
+echo -------------------------------------
+mkdir -p build
+cd build
+cmake -DCMAKE_BUILD_TYPE=Debug ..
+cmake --build . -v
+cd ..
 
 echo -------------------------------------
 echo - Generate header with cbindgen
@@ -28,12 +28,12 @@ rustup run nightly cbindgen \
   --crate pact_ffi \
   --output include/pact-c++.h
 
-#echo -------------------------------------
-#echo - Make library available for examples
-#echo -------------------------------------
-#cd build
-#cmake --install . --prefix ./install
-#
+echo -------------------------------------
+echo - Make library available for examples
+echo -------------------------------------
+cd build
+cmake --install . --prefix ./install
+
 #echo -------------------------------------
 #echo - Running examples
 #echo -------------------------------------

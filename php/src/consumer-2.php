@@ -7,7 +7,7 @@ use Symfony\Component\HttpClient\HttpClient;
 $code = file_get_contents(__DIR__ . '/../../rust/pact_ffi/include/pact.h');
 $ffi = FFI::cdef($code, __DIR__ . '/../../rust/target/debug/libpact_ffi.so');
 
-$ffi->init('LOG_LEVEL');
+$ffi->pactffi_init('LOG_LEVEL');
 
 $pact = $ffi->pactffi_new_pact('http-consumer-2', 'http-provider');
 $ffi->pactffi_with_specification($pact, $ffi->PactSpecification_V3);
@@ -16,21 +16,27 @@ $interaction = $ffi->pactffi_new_interaction($pact, 'A PUT request to generate b
 $ffi->pactffi_upon_receiving($interaction, 'A PUT request to generate book cover');
 $ffi->pactffi_given($interaction, 'Book Fixtures Loaded');
 $ffi->pactffi_with_request($interaction, 'PUT', '/api/books/fb5a885f-f7e8-4a50-950f-c1a64a94d500/generate-cover');
-$ffi->pactffi_with_header($interaction, $ffi->Request, 'Content-Type', 0, 'application/json');
-$ffi->pactffi_with_body($interaction, $ffi->Request, 'application/json', '[]');
+$ffi->pactffi_with_header($interaction, $ffi->InteractionPart_Request, 'Content-Type', 0, 'application/json');
+$ffi->pactffi_with_body($interaction, $ffi->InteractionPart_Request, 'application/json', '[]');
 $ffi->pactffi_response_status($interaction, 204);
 
-$messagePact = $ffi->pactffi_new_message_pact('message-consumer-2', 'message-provider');
-$message = $ffi->pactffi_new_message($messagePact, 'Book Created');
-$ffi->pactffi_message_expects_to_receive($message, 'Book Created');
-$ffi->pactffi_message_given($message, 'Provider has book');
-$ffi->pactffi_message_with_contents($message, 'application/json', '{
+$contents = '{
     "uuid": {
         "pact:matcher:type": "regex",
         "regex": "^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$",
         "value": "fb5a885f-f7e8-4a50-950f-c1a64a94d500"
     }
-}', 0); // is size necessary?
+}';
+$length = \strlen($contents);
+$size   = $length + 1;
+$cData  = $ffi->new("uint8_t[{$size}]");
+FFI::memcpy($cData, $contents, $length);
+
+$messagePact = $ffi->pactffi_new_message_pact('message-consumer-2', 'message-provider');
+$message = $ffi->pactffi_new_message($messagePact, 'Book Created');
+$ffi->pactffi_message_expects_to_receive($message, 'Book Created');
+$ffi->pactffi_message_given($message, 'Provider has book');
+$ffi->pactffi_message_with_contents($message, 'application/json', $cData, $size);
 
 $port = $ffi->pactffi_create_mock_server_for_pact($pact, '127.0.0.1:0', false);
 echo sprintf("Mock server port=%d\n", $port);
