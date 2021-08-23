@@ -15,6 +15,8 @@ use crate::{as_mut, ffi_fn, safe_str};
 use crate::util::*;
 use crate::util::string::if_null;
 use serde::Serialize;
+use std::any::Any;
+use clap::{Arg, ArgSettings};
 
 mod args;
 pub mod verifier;
@@ -160,8 +162,15 @@ struct Argument {
     short: Option<String>,
     long: Option<String>,
     help: Option<String>,
-    possible_values: Option<Vec<String>>
+    possible_values: Option<Vec<String>>,
+    default_value: Option<String>,
 }
+
+// #[derive(Serialize)]
+// struct ArgumentsFlags {
+//     arguments: Vec<Argument>,
+//     flags: Vec<Argument>
+// }
 
 /// External interface to retrieve the options and arguments available when calling the CLI interface,
 /// returning them as a JSON string.
@@ -204,9 +213,12 @@ pub extern "C" fn pactffi_verifier_cli_args() -> *const c_char {
     let app = args::setup_app(program, clap::crate_version!());
 
     // Iterate through the args, extracting info from each to then add to a Vector of args
-    let mut args: Vec<Argument> = Vec::new();
+    let mut arguments: Vec<Argument> = Vec::new();
+    // let mut flags: Vec<Argument> = Vec::new();
+    // let mut args_flags = ArgumentsFlags { arguments:arguments, flags: flags};
+
     for opt in app.p.opts.iter() {
-        let mut arg = Argument { name: None, short: None, long: None, help: None, possible_values: None };
+        let mut arg = Argument { name: None, short: None, long: None, help: None, possible_values: None, default_value: None };
 
         // Name
         // TODO: Maybe superfluous as this is always the same as the long
@@ -243,7 +255,7 @@ pub extern "C" fn pactffi_verifier_cli_args() -> *const c_char {
             }
         }
 
-        // Possible Values
+        // Possible values
         match opt.v.possible_vals {
             None => {}
             Some(_) => {
@@ -256,11 +268,12 @@ pub extern "C" fn pactffi_verifier_cli_args() -> *const c_char {
             }
         }
 
-
-        args.push(arg);
+        arguments.push(arg);
     }
 
-    let json = serde_json::to_string(&args).unwrap();
+    // TODO: Also need to handle hopefully app.p.flags, where the takes_value(false) ones go
+
+    let json = serde_json::to_string(&arguments).unwrap();
     let c_str = CString::new(json).unwrap();
     c_str.into_raw() as *const c_char
 }
