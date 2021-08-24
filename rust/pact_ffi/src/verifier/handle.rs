@@ -4,7 +4,8 @@ use std::sync::Arc;
 
 use log::debug;
 
-use pact_verifier::{FilterInfo, NullRequestFilterExecutor, PactSource, ProviderInfo, VerificationOptions, verify_provider_async};
+use pact_models::prelude::HttpAuth;
+use pact_verifier::{FilterInfo, NullRequestFilterExecutor, PactSource, ProviderInfo, VerificationOptions, verify_provider_async, ConsumerVersionSelector};
 use pact_verifier::callback_executors::HttpRequestProviderStateExecutor;
 
 #[derive(Debug, Clone)]
@@ -44,6 +45,61 @@ impl VerifierHandle {
   /// Add a file source to be verified
   pub fn add_file_source(&mut self, file: &str) {
     self.sources.push(PactSource::File(file.to_string()));
+  }
+
+  /// Add a directory source to be verified. This will verify all pact files in the directory.
+  pub fn add_directory_source(&mut self, dir: &str) {
+    self.sources.push(PactSource::Dir(dir.to_string()));
+  }
+
+  /// Add a URL source to be verified. This will fetch the pact file from the URL. If a username
+  /// and password is given, then basic authentication will be used when fetching the pact file.
+  /// If a token is provided, then bearer token authentication will be used.
+  pub fn add_url_source(&mut self, url: &str, auth: &HttpAuth) {
+    if !auth.is_none() {
+      self.sources.push(PactSource::URL(url.to_string(), Some(auth.clone())));
+    } else {
+      self.sources.push(PactSource::URL(url.to_string(), None));
+    }
+  }
+
+  /// Add a Pact broker source to be verified. This will fetch all the pact files from the broker
+  /// that match the provider name. If a username
+  /// and password is given, the basic authentication will be used when fetching the pact file.
+  /// If a token is provided, then bearer token authentication will be used.
+  pub fn add_pact_broker_source(
+    &mut self,
+    url: &str,
+    provider_name: &str,
+    enable_pending: bool,
+    include_wip_pacts_since: Option<String>,
+    provider_tags: Vec<String>,
+    selectors: Vec<ConsumerVersionSelector>,
+    auth: &HttpAuth
+  ) {
+    if !auth.is_none() {
+      self.sources.push(PactSource::BrokerWithDynamicConfiguration {
+        provider_name: provider_name.to_string(),
+        broker_url: url.to_string(),
+        enable_pending,
+        include_wip_pacts_since,
+        provider_tags,
+        selectors,
+        auth: Some(auth.clone()),
+        links: vec![]
+      });
+    } else {
+      self.sources.push(PactSource::BrokerWithDynamicConfiguration {
+        provider_name: provider_name.to_string(),
+        broker_url: url.to_string(),
+        enable_pending,
+        include_wip_pacts_since,
+        provider_tags,
+        selectors,
+        auth: None,
+        links: vec![]
+      });
+    }
   }
 
   /// Execute the verifier

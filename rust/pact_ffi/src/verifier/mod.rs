@@ -7,8 +7,10 @@ use std::ffi::CStr;
 use std::panic::catch_unwind;
 
 use anyhow::Context;
-use libc::{c_char, c_int, c_ushort, EXIT_FAILURE};
+use libc::{c_char, c_int, c_uchar, c_ushort, EXIT_FAILURE};
 use log::*;
+
+use pact_models::prelude::HttpAuth;
 
 use crate::{as_mut, ffi_fn, safe_str};
 use crate::util::*;
@@ -134,6 +136,192 @@ ffi_fn! {
       let file = safe_str!(file);
 
       handle.add_file_source(file);
+    }
+}
+
+ffi_fn! {
+    /// Adds a Pact directory as a source to verify. All pacts from the directory that match the
+    /// provider name will be verified.
+    ///
+    /// # Safety
+    ///
+    /// All string fields must contain valid UTF-8. Invalid UTF-8
+    /// will be replaced with U+FFFD REPLACEMENT CHARACTER.
+    ///
+    fn pactffi_verifier_add_directory_source(
+      handle: *mut handle::VerifierHandle,
+      directory: *const c_char
+    ) {
+      let handle = as_mut!(handle);
+      let directory = safe_str!(directory);
+
+      handle.add_directory_source(directory);
+    }
+}
+
+ffi_fn! {
+    /// Adds a URL as a source to verify. The Pact file will be fetched from the URL.
+    ///
+    /// If a username and password is given, then basic authentication will be used when fetching
+    /// the pact file. If a token is provided, then bearer token authentication will be used.
+    ///
+    /// # Safety
+    ///
+    /// All string fields must contain valid UTF-8. Invalid UTF-8
+    /// will be replaced with U+FFFD REPLACEMENT CHARACTER.
+    ///
+    fn pactffi_verifier_url_source(
+      handle: *mut handle::VerifierHandle,
+      url: *const c_char,
+      username: *const c_char,
+      password: *const c_char,
+      token: *const c_char
+    ) {
+      let handle = as_mut!(handle);
+      let url = safe_str!(url);
+      let username = if_null(username, "");
+      let password = if_null(password, "");
+      let token = if_null(token, "");
+
+      let auth = if !username.is_empty() {
+        if !password.is_empty() {
+          HttpAuth::User(username, Some(password))
+        } else {
+          HttpAuth::User(username, None)
+        }
+      } else if !token.is_empty() {
+        HttpAuth::Token(token)
+      } else {
+        HttpAuth::None
+      };
+
+      handle.add_url_source(url, &auth);
+    }
+}
+
+ffi_fn! {
+    /// Adds a Pact broker as a source to verify. This will fetch all the pact files from the broker
+    /// that match the provider name.
+    ///
+    /// If a username and password is given, then basic authentication will be used when fetching
+    /// the pact file. If a token is provided, then bearer token authentication will be used.
+    ///
+    /// # Safety
+    ///
+    /// All string fields must contain valid UTF-8. Invalid UTF-8
+    /// will be replaced with U+FFFD REPLACEMENT CHARACTER.
+    ///
+    fn pactffi_verifier_broker_source(
+      handle: *mut handle::VerifierHandle,
+      url: *const c_char,
+      provider_name: *const c_char,
+      username: *const c_char,
+      password: *const c_char,
+      token: *const c_char
+    ) {
+      let handle = as_mut!(handle);
+      let url = safe_str!(url);
+      let provider_name = safe_str!(provider_name);
+      let username = if_null(username, "");
+      let password = if_null(password, "");
+      let token = if_null(token, "");
+
+      let auth = if !username.is_empty() {
+        if !password.is_empty() {
+          HttpAuth::User(username, Some(password))
+        } else {
+          HttpAuth::User(username, None)
+        }
+      } else if !token.is_empty() {
+        HttpAuth::Token(token)
+      } else {
+        HttpAuth::None
+      };
+
+      handle.add_pact_broker_source(url, provider_name, false, None, vec![], vec![], &auth);
+    }
+}
+
+ffi_fn! {
+    /// Adds a Pact broker as a source to verify. This will fetch all the pact files from the broker
+    /// that match the provider name and the consumer version selectors
+    /// (See `https://docs.pact.io/pact_broker/advanced_topics/consumer_version_selectors/`).
+    ///
+    /// The consumer version selectors must be passed in in JSON format.
+    ///
+    /// `enable_pending` is a boolean value. Set it to greater than zero to turn the option on.
+    ///
+    /// If the `include_wip_pacts_since` option is provided, it needs to be a date formatted in
+    /// ISO format (YYYY-MM-DD).
+    ///
+    /// If a username and password is given, then basic authentication will be used when fetching
+    /// the pact file. If a token is provided, then bearer token authentication will be used.
+    ///
+    /// # Safety
+    ///
+    /// All string fields must contain valid UTF-8. Invalid UTF-8
+    /// will be replaced with U+FFFD REPLACEMENT CHARACTER.
+    ///
+    fn pactffi_verifier_broker_source_with_selectors(
+      handle: *mut handle::VerifierHandle,
+      url: *const c_char,
+      provider_name: *const c_char,
+      username: *const c_char,
+      password: *const c_char,
+      token: *const c_char,
+      enable_pending: c_uchar,
+      include_wip_pacts_since: *const c_char,
+      provider_tags: *const *const c_char,
+      provider_tags_len: c_ushort
+    ) {
+      let handle = as_mut!(handle);
+      let url = safe_str!(url);
+      let provider_name = safe_str!(provider_name);
+      let username = if_null(username, "");
+      let password = if_null(password, "");
+      let token = if_null(token, "");
+      let wip_pacts = if_null(include_wip_pacts_since, "");
+
+      let auth = if !username.is_empty() {
+        if !password.is_empty() {
+          HttpAuth::User(username, Some(password))
+        } else {
+          HttpAuth::User(username, None)
+        }
+      } else if !token.is_empty() {
+        HttpAuth::Token(token)
+      } else {
+        HttpAuth::None
+      };
+
+      let wip = if !wip_pacts.is_empty() {
+        Some(wip_pacts)
+      } else {
+        None
+      };
+
+      let tags = if !provider_tags.is_null() && provider_tags_len > 0 {
+        let mut tags = Vec::with_capacity(provider_tags_len as usize);
+        for index in 0..(provider_tags_len - 1) {
+          let tag_ptr: * const c_char = unsafe { *(provider_tags.offset(index as isize)) };
+          tags.push(safe_str!(tag_ptr).to_string());
+        }
+        tags
+      } else {
+        vec![]
+      };
+
+    // let selectors = if matches.is_present("consumer-version-selectors") {
+    // matches.values_of("consumer-version-selectors")
+    // .map_or_else(Vec::new, |s| json_to_selectors(s.collect::<Vec<_>>()))
+    // } else if matches.is_present("consumer-version-tags") {
+    // matches.values_of("consumer-version-tags")
+    // .map_or_else(Vec::new, |tags| consumer_tags_to_selectors(tags.collect::<Vec<_>>()))
+    // } else {
+    // vec![]
+    // };
+
+      handle.add_pact_broker_source(url, provider_name, enable_pending > 0, wip, tags, vec![], &auth);
     }
 }
 
