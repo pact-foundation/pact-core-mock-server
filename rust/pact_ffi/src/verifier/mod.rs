@@ -164,6 +164,7 @@ struct Argument {
     help: Option<String>,
     possible_values: Option<Vec<String>>,
     default_value: Option<String>,
+    multiple: Option<bool>
 }
 
 // #[derive(Serialize)]
@@ -218,7 +219,7 @@ pub extern "C" fn pactffi_verifier_cli_args() -> *const c_char {
     // let mut args_flags = ArgumentsFlags { arguments:arguments, flags: flags};
 
     for opt in app.p.opts.iter() {
-        let mut arg = Argument { name: None, short: None, long: None, help: None, possible_values: None, default_value: None };
+        let mut arg = Argument { name: None, short: None, long: None, help: None, possible_values: None, default_value: None, multiple: Some(false) };
 
         // Name
         // TODO: Maybe superfluous as this is always the same as the long
@@ -266,6 +267,11 @@ pub extern "C" fn pactffi_verifier_cli_args() -> *const c_char {
                 }
                 arg.possible_values = Some(possible_vals);
             }
+        }
+
+        // Multiple
+        if opt.b.settings.is_set(ArgSettings::Multiple) {
+            arg.multiple = Some(true);
         }
 
         arguments.push(arg);
