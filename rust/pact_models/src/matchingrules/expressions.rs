@@ -229,8 +229,8 @@ fn parse_comma(lex: &mut Lexer<MatcherDefinitionToken>) -> anyhow::Result<()> {
 #[cfg(test)]
 mod test {
   use expectest::prelude::*;
-  use pact_models::matchingrules::MatchingRule;
-  use pact_models::generators::Generator::DateTime;
+  use crate::matchingrules::MatchingRule;
+  use crate::generators::Generator::DateTime;
 
   #[test]
   fn does_not_start_with_matching() {
