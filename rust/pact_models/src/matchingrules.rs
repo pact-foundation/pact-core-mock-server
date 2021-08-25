@@ -20,6 +20,8 @@ use crate::generators::{Generator, GeneratorCategory, Generators};
 use crate::json_utils::{json_to_num, json_to_string};
 use crate::path_exp::DocPath;
 
+pub mod expressions;
+
 /// Set of all matching rules
 #[derive(Serialize, Deserialize, Debug, Clone, Eq)]
 pub enum MatchingRule {
