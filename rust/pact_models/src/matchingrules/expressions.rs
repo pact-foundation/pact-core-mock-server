@@ -230,7 +230,7 @@ fn parse_comma(lex: &mut Lexer<MatcherDefinitionToken>) -> anyhow::Result<()> {
 mod test {
   use expectest::prelude::*;
   use crate::matchingrules::MatchingRule;
-  use crate::generators::Generator::DateTime;
+  use crate::generators::Generator::{DateTime, Date, Time};
 
   #[test]
   fn does_not_start_with_matching() {
@@ -251,6 +251,10 @@ mod test {
   fn parse_number_matcher() {
     expect!(super::parse_matcher_def("matching(number,100)").unwrap()).to(
       be_equal_to(("100".to_string(), Some(MatchingRule::Number), None)));
+    expect!(super::parse_matcher_def("matching(integer,100)").unwrap()).to(
+      be_equal_to(("100".to_string(), Some(MatchingRule::Integer), None)));
+    expect!(super::parse_matcher_def("matching(decimal,100)").unwrap()).to(
+      be_equal_to(("100".to_string(), Some(MatchingRule::Decimal), None)));
   }
 
   #[test]
@@ -259,5 +263,31 @@ mod test {
       be_equal_to(("2000-01-01".to_string(),
                    Some(MatchingRule::Timestamp("yyyy-MM-dd".to_string())),
                    Some(DateTime(Some("yyyy-MM-dd".to_string()))))));
+    expect!(super::parse_matcher_def("matching(date, 'yyyy-MM-dd','2000-01-01')").unwrap()).to(
+      be_equal_to(("2000-01-01".to_string(),
+                   Some(MatchingRule::Date("yyyy-MM-dd".to_string())),
+                   Some(Date(Some("yyyy-MM-dd".to_string()))))));
+    expect!(super::parse_matcher_def("matching(time, 'HH:mm:ss','12:00:00')").unwrap()).to(
+      be_equal_to(("12:00:00".to_string(),
+                   Some(MatchingRule::Time("HH:mm:ss".to_string())),
+                   Some(Time(Some("HH:mm:ss".to_string()))))));
+  }
+
+  #[test]
+  fn parse_regex_matcher() {
+    expect!(super::parse_matcher_def("matching(regex,'\\w+', 'Fred')").unwrap()).to(
+      be_equal_to(("Fred".to_string(), Some(MatchingRule::Regex("\\w+".to_string())), None)));
+  }
+
+  #[test]
+  fn parse_boolean_matcher() {
+    expect!(super::parse_matcher_def("matching(boolean,true)").unwrap()).to(
+      be_equal_to(("true".to_string(), Some(MatchingRule::Boolean), None)));
+  }
+
+  #[test]
+  fn parse_include_matcher() {
+    expect!(super::parse_matcher_def("matching(include,'Name')").unwrap()).to(
+      be_equal_to(("Name".to_string(), Some(MatchingRule::Include("Name".to_string())), None)));
   }
 }
