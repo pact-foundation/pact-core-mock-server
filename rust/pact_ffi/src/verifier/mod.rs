@@ -3,7 +3,7 @@
 
 #![warn(missing_docs)]
 
-use std::ffi::{CStr, CString};
+use std::ffi::{CStr, CString, OsStr};
 use std::panic::catch_unwind;
 
 use anyhow::Context;
@@ -158,20 +158,22 @@ ffi_fn! {
 
 #[derive(Serialize)]
 struct Argument {
-    name: Option<String>,
-    short: Option<String>,
     long: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    short: Option<String>,
     help: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     possible_values: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     default_value: Option<String>,
     multiple: Option<bool>
 }
 
-// #[derive(Serialize)]
-// struct ArgumentsFlags {
-//     arguments: Vec<Argument>,
-//     flags: Vec<Argument>
-// }
+#[derive(Serialize)]
+struct OptionsFlags {
+    options: Vec<Argument>,
+    flags: Vec<Argument>
+}
 
 /// External interface to retrieve the options and arguments available when calling the CLI interface,
 /// returning them as a JSON string.
@@ -182,26 +184,38 @@ struct Argument {
 ///
 /// # Example structure
 /// ```json
-/// [
+/// {
+///   "options": [
 ///     {
-///         "name": "broker-url",
-///         "short": "b",
-///         "long": "broker-url",
-///         "help": "URL of the pact broker to fetch pacts from to verify (requires the provider name parameter)"
+///       "long": "scheme",
+///       "help": "Provider URI scheme (defaults to http)",
+///       "possible_values": [
+///         "http",
+///         "https"
+///       ],
+///       "default_value": "http"
+///       "multiple": false,
 ///     },
 ///     {
-///         "name": "port",
-///         "short": "p",
-///         "long": "port",
-///         "help": "Provider port (defaults to protocol default 80/443)"
+///       "long": "file",
+///       "short": "f",
+///       "help": "Pact file to verify (can be repeated)",
+///       "multiple": true
 ///     },
 ///     {
-///         "name": "user",
-///         "short": null,
-///         "long": "user",
-///         "help": "Username to use when fetching pacts from URLS"
+///       "long": "user",
+///       "help": "Username to use when fetching pacts from URLS",
+///       "multiple": false
 ///     }
-/// ]
+///   ],
+///   "flags": [
+///     {
+///       "long": "disable-ssl-verification",
+///       "help": "Disables validation of SSL certificates",
+///       "multiple": false
+///     }
+///   ]
+/// }
 /// ```
 ///
 /// # Safety
@@ -214,72 +228,87 @@ pub extern "C" fn pactffi_verifier_cli_args() -> *const c_char {
     let app = args::setup_app(program, clap::crate_version!());
 
     // Iterate through the args, extracting info from each to then add to a Vector of args
-    let mut arguments: Vec<Argument> = Vec::new();
-    // let mut flags: Vec<Argument> = Vec::new();
-    // let mut args_flags = ArgumentsFlags { arguments:arguments, flags: flags};
+    let mut options: Vec<Argument> = Vec::new();
+    let mut flags: Vec<Argument> = Vec::new();
 
     for opt in app.p.opts.iter() {
-        let mut arg = Argument { name: None, short: None, long: None, help: None, possible_values: None, default_value: None, multiple: Some(false) };
-
-        // Name
-        // TODO: Maybe superfluous as this is always the same as the long
-        let arg_name = opt.b.name;
-        arg.name = Some(arg_name.to_string());
-
-        // Short
-        match opt.s.short {
-            None => {}
-            Some(_val) => {
-                let c_str = CString::new(_val.to_string()).unwrap();
-                let short = c_str.to_str().unwrap();
-                arg.short = Some(short.to_string());
-            }
-        }
-
-        // Long
-        match opt.s.long {
-            None => {}
-            Some(_val) => {
-                let c_str = CString::new(_val.to_string()).unwrap();
-                let long = c_str.to_str().unwrap();
-                arg.long = Some(long.to_string());
-            }
-        }
-
-        // Help
-        match opt.b.help {
-            None => {}
-            Some(_val) => {
-                let c_str = CString::new(_val.to_string()).unwrap();
-                let help = c_str.to_str().unwrap();
-                arg.help = Some(help.to_string());
-            }
-        }
-
-        // Possible values
-        match opt.v.possible_vals {
-            None => {}
-            Some(_) => {
-                let mut possible_vals: Vec<String> = Vec::new();
-                let possible_values = opt.v.possible_vals.clone().unwrap();
-                for possible_val in possible_values.iter() {
-                    possible_vals.push(possible_val.to_string())
-                }
-                arg.possible_values = Some(possible_vals);
-            }
-        }
-
-        // Multiple
-        if opt.b.settings.is_set(ArgSettings::Multiple) {
-            arg.multiple = Some(true);
-        }
-
-        arguments.push(arg);
+        let arg = parse_argument(opt.s.long, opt.s.short, opt.b.help, opt.v.possible_vals.clone(),opt.v.default_val, opt.b.settings.is_set(ArgSettings::Multiple));
+        options.push(arg);
     }
 
-    // TODO: Also need to handle hopefully app.p.flags, where the takes_value(false) ones go
+    for opt in app.p.flags.iter() {
+        let arg = parse_argument(opt.s.long, opt.s.short, opt.b.help, None, None,opt.b.settings.is_set(ArgSettings::Multiple));
+        flags.push(arg);
+    }
 
-    let json = serde_json::to_string(&arguments).unwrap();
+
+    let opts_flags = OptionsFlags { options:options, flags: flags};
+    let json = serde_json::to_string(&opts_flags).unwrap();
     let c_str = CString::new(json).unwrap();
     c_str.into_raw() as *const c_char
+}
+
+fn parse_argument(long: Option<&str>, short: Option<char>, help: Option<&str>, possible_values: Option<Vec<&str>>, default_value: Option<&OsStr>, multiple: bool) -> Argument {
+    let mut arg = Argument { short: None, long: None, help: None, possible_values: None, default_value: None, multiple: Some(false) };
+
+    // Long
+    match long {
+        None => {}
+        Some(_val) => {
+            let c_str = CString::new(_val.to_string()).unwrap();
+            let long = c_str.to_str().unwrap();
+            arg.long = Some(long.to_string());
+        }
+    }
+
+    // Short
+    match short {
+        None => {}
+        Some(_val) => {
+            let c_str = CString::new(_val.to_string()).unwrap();
+            let short = c_str.to_str().unwrap();
+            arg.short = Some(short.to_string());
+        }
+    }
+
+    // Help
+    match help {
+        None => {}
+        Some(_val) => {
+            let c_str = CString::new(_val.to_string()).unwrap();
+            let help = c_str.to_str().unwrap();
+            arg.help = Some(help.to_string());
+        }
+    }
+
+    // Possible values
+    match possible_values {
+        None => {}
+        Some(_) => {
+            let mut possible_vals: Vec<String> = Vec::new();
+            for possible_val in possible_values.unwrap().iter() {
+                possible_vals.push(possible_val.to_string())
+            }
+            arg.possible_values = Some(possible_vals);
+        }
+    }
+
+    // Default value
+    match default_value {
+        None => {}
+        Some(_val) =>
+            {
+                let x = _val.to_os_string().into_string().unwrap();
+                let c_str = CString::new(x).unwrap();
+                let default_val = c_str.to_str().unwrap();
+                arg.default_value = Some(default_val.to_string());
+            }
+    }
+
+    // Multiple
+    if multiple {
+        arg.multiple = Some(true);
+    }
+
+    arg
 }
