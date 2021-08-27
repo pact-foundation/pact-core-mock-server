@@ -13,7 +13,19 @@ pub enum HttpAuth {
   /// Username and Password
   User(String, Option<String>),
   /// Bearer token
-  Token(String)
+  Token(String),
+  /// No authentication
+  None
+}
+
+impl HttpAuth {
+  /// If no authentication is set
+  pub fn is_none(&self) -> bool {
+    match self {
+      HttpAuth::None => true,
+      _ => false
+    }
+  }
 }
 
 /// Fetches the JSON from a URL
@@ -23,7 +35,8 @@ pub fn fetch_json_from_url(url: &String, auth: &Option<HttpAuth>) -> anyhow::Res
     &Some(ref auth) => {
       match auth {
         &HttpAuth::User(ref username, ref password) => client.get(url).basic_auth(username.clone(), password.clone()),
-        &HttpAuth::Token(ref token) => client.get(url).bearer_auth(token.clone())
+        &HttpAuth::Token(ref token) => client.get(url).bearer_auth(token.clone()),
+        _ => client.get(url)
       }
     },
     &None => client.get(url)
@@ -56,6 +69,7 @@ impl Display for HttpAuth {
           write!(f, "User({}, [no password])", username)
         }
       }
+      _ => write!(f, "None")
     }
   }
 }
