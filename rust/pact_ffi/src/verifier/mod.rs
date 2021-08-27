@@ -14,9 +14,9 @@ use std::env;
 use crate::{as_mut, ffi_fn, safe_str};
 use crate::util::*;
 use crate::util::string::if_null;
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use std::any::Any;
-use clap::{Arg, ArgSettings};
+use clap::ArgSettings;
 
 mod args;
 pub mod verifier;
@@ -156,8 +156,8 @@ ffi_fn! {
     }
 }
 
-#[derive(Serialize)]
-struct Argument {
+#[derive(Serialize, Deserialize)]
+pub struct Argument {
     long: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     short: Option<String>,
@@ -169,10 +169,10 @@ struct Argument {
     multiple: Option<bool>
 }
 
-#[derive(Serialize)]
-struct OptionsFlags {
-    options: Vec<Argument>,
-    flags: Vec<Argument>
+#[derive(Serialize, Deserialize)]
+pub struct OptionsFlags {
+    pub options: Vec<Argument>,
+    pub flags: Vec<Argument>
 }
 
 /// External interface to retrieve the options and arguments available when calling the CLI interface,

@@ -35,6 +35,9 @@ use pact_ffi::mock_server::{
   pactffi_write_pact_file
 };
 use pact_ffi::mock_server::handles::InteractionPart;
+use pact_ffi::verifier::{pactffi_verifier_cli_args, OptionsFlags};
+use serde_json::Value;
+
 
 #[test]
 fn post_to_mock_server_with_misatches() {
@@ -242,4 +245,16 @@ fn message_consumer_feature_test() {
   expect!(reified.to_str().to_owned()).to(be_ok().value("{\"contents\":{\"id\":1},\"description\":\"a request to test the FFI interface\",\"matchingRules\":{\"body\":{\"$.id\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"type\"}]}}},\"metadata\":{\"contentType\":\"application/json\",\"message-queue-name\":\"message-queue-val\"},\"providerStates\":[{\"name\":\"a functioning FFI interface\"}]}".to_string()));
   let res = pactffi_write_message_pact_file(message_pact_handle.clone(), file_path.as_ptr(), true);
   expect!(res).to(be_eq(0));
+}
+
+#[test]
+fn pactffi_verifier_cli_args_test() {
+    let data = pactffi_verifier_cli_args();
+    let c_str: &CStr = unsafe { CStr::from_ptr(data) };
+    let str_slice: &str = c_str.to_str().unwrap();
+
+    let options_flags: OptionsFlags = serde_json::from_str(str_slice).unwrap();
+
+    assert!(options_flags.options.len() > 0);
+    assert!(options_flags.flags.len() > 0);
 }
