@@ -3,7 +3,7 @@
 
 #![warn(missing_docs)]
 
-use std::ffi::{CStr, CString, OsStr};
+use std::ffi::{CStr, CString, OsStr, OsString};
 use std::panic::catch_unwind;
 
 use anyhow::Context;
@@ -354,7 +354,9 @@ pub struct Argument {
     possible_values: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     default_value: Option<String>,
-    multiple: Option<bool>
+    multiple: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    env: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -393,7 +395,8 @@ pub struct OptionsFlags {
 ///     {
 ///       "long": "user",
 ///       "help": "Username to use when fetching pacts from URLS",
-///       "multiple": false
+///       "multiple": false,
+///       "env": "PACT_BROKER_USERNAME"
 ///     }
 ///   ],
 ///   "flags": [
@@ -420,12 +423,12 @@ pub extern "C" fn pactffi_verifier_cli_args() -> *const c_char {
     let mut flags: Vec<Argument> = Vec::new();
 
     for opt in app.p.opts.iter() {
-        let arg = parse_argument(opt.s.long, opt.s.short, opt.b.help, opt.v.possible_vals.clone(),opt.v.default_val, opt.b.settings.is_set(ArgSettings::Multiple));
+        let arg = parse_argument(opt.s.long, opt.s.short, opt.b.help, opt.v.possible_vals.clone(),opt.v.default_val, opt.b.settings.is_set(ArgSettings::Multiple), opt.v.env.clone());
         options.push(arg);
     }
 
     for opt in app.p.flags.iter() {
-        let arg = parse_argument(opt.s.long, opt.s.short, opt.b.help, None, None,opt.b.settings.is_set(ArgSettings::Multiple));
+        let arg = parse_argument(opt.s.long, opt.s.short, opt.b.help, None, None,opt.b.settings.is_set(ArgSettings::Multiple), None);
         flags.push(arg);
     }
 
@@ -436,8 +439,8 @@ pub extern "C" fn pactffi_verifier_cli_args() -> *const c_char {
     c_str.into_raw() as *const c_char
 }
 
-fn parse_argument(long: Option<&str>, short: Option<char>, help: Option<&str>, possible_values: Option<Vec<&str>>, default_value: Option<&OsStr>, multiple: bool) -> Argument {
-    let mut arg = Argument { short: None, long: None, help: None, possible_values: None, default_value: None, multiple: Some(false) };
+fn parse_argument(long: Option<&str>, short: Option<char>, help: Option<&str>, possible_values: Option<Vec<&str>>, default_value: Option<&OsStr>, multiple: bool, env: Option<(&OsStr, Option<OsString>)>) -> Argument {
+    let mut arg = Argument { short: None, long: None, help: None, possible_values: None, default_value: None, multiple: Some(false), env: None };
 
     // Long
     match long {
@@ -486,6 +489,7 @@ fn parse_argument(long: Option<&str>, short: Option<char>, help: Option<&str>, p
         None => {}
         Some(_val) =>
             {
+                let a = _val;
                 let x = _val.to_os_string().into_string().unwrap();
                 let c_str = CString::new(x).unwrap();
                 let default_val = c_str.to_str().unwrap();
@@ -496,6 +500,18 @@ fn parse_argument(long: Option<&str>, short: Option<char>, help: Option<&str>, p
     // Multiple
     if multiple {
         arg.multiple = Some(true);
+    }
+
+    // Env
+    match env {
+        None => {}
+        Some(_val) =>
+            {
+                let x = _val.0.to_os_string().into_string().unwrap();
+                let c_str = CString::new(x).unwrap();
+                let arg_val = c_str.to_str().unwrap();
+                arg.env = Some(arg_val.to_string());
+            }
     }
 
     arg
