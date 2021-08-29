@@ -12,7 +12,8 @@ use pact_verifier::callback_executors::HttpRequestProviderStateExecutor;
 /// Wraps a Pact verifier
 pub struct VerifierHandle {
   provider: ProviderInfo,
-  sources: Vec<PactSource>
+  sources: Vec<PactSource>,
+  state_change: Arc<HttpRequestProviderStateExecutor>
 }
 
 impl VerifierHandle {
@@ -20,7 +21,8 @@ impl VerifierHandle {
   pub fn new() -> VerifierHandle {
     VerifierHandle {
       provider: ProviderInfo::default(),
-      sources: Vec::new()
+      sources: Vec::new(),
+      state_change: Arc::new(HttpRequestProviderStateExecutor::default())
     }
   }
 
@@ -102,14 +104,23 @@ impl VerifierHandle {
     }
   }
 
+  /// Update the provider state
+  pub fn update_provider_state(
+    &mut self,
+    state_change_url: &str,
+    state_change_teardown: bool,
+    state_change_body: bool
+  ) {
+    self.state_change = Arc::new(HttpRequestProviderStateExecutor {
+      state_change_url: Some(state_change_url.to_string()),
+      state_change_teardown,
+      state_change_body
+    })
+  }
+
   /// Execute the verifier
   pub fn execute(&self) -> i32 {
     let filter = FilterInfo::None;
-    let provider_state_executor = Arc::new(HttpRequestProviderStateExecutor {
-      state_change_url: None,
-      state_change_teardown: false,
-      state_change_body: false
-    });
 
     let options = VerificationOptions {
       request_filter: None::<Arc<NullRequestFilterExecutor>>,
@@ -128,7 +139,7 @@ impl VerifierHandle {
         filter,
         vec![],
         options,
-        &provider_state_executor
+        &self.state_change.clone()
       ).await {
         0
       } else {
