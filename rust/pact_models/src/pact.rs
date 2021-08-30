@@ -534,7 +534,7 @@ mod tests {
     expect!(interaction.response).to(be_equal_to(Response {
       status: 200,
       headers: Some(hashmap!{ "Content-Type".to_string() => vec!["text/html".to_string()] }),
-      body: OptionalBody::Present("\"That is some good Mallory.\"".into(), Some("text/html".into())),
+      body: OptionalBody::Present("\"That is some good Mallory.\"".into(), Some("text/html".into()), None),
       .. Response::default()
     }));
     expect!(pact.specification_version).to(be_equal_to(PactSpecification::V3));
@@ -679,13 +679,13 @@ mod tests {
       path: "/".to_string(),
       query: Some(hashmap!{ "q".to_string() => vec!["p".to_string(), "p2".to_string()], "r".to_string() => vec!["s".to_string()] }),
       headers: Some(hashmap!{ "testreqheader".to_string() => vec!["testreqheadervalue".to_string()] }),
-      body: OptionalBody::Present("{\"test\":true}".into(), None),
+      body: OptionalBody::Present("{\"test\":true}".into(), None, None),
       .. Request::default()
     }));
     expect!(interaction.response).to(be_equal_to(Response {
       status: 200,
       headers: Some(hashmap!{ "testreqheader".to_string() => vec!["testreqheaderval".to_string()] }),
-      body: OptionalBody::Present("{\"responsetest\":true}".into(), None),
+      body: OptionalBody::Present("{\"responsetest\":true}".into(), None, None),
       .. Response::default()
     }));
   }
@@ -745,7 +745,7 @@ mod tests {
       query: Some(hashmap!{ "datetime".to_string() => vec!["2011-12-03T10:15:30+01:00".to_string()],
             "description".to_string() => vec!["hello world!".to_string()] }),
       headers: Some(hashmap!{ "testreqheader".to_string() => vec!["testreqheadervalue".to_string()] }),
-      body: OptionalBody::Present("{\"test\":true}".into(), None),
+      body: OptionalBody::Present("{\"test\":true}".into(), None, None),
       .. Request::default()
     }));
   }
@@ -1623,7 +1623,7 @@ mod tests {
         RequestResponseInteraction {
           description: "Test Interaction with matcher".to_string(),
           request: Request {
-            body: OptionalBody::Present(json!({ "related": [1, 2, 3] }).to_string().into(), Some(JSON.clone())),
+            body: OptionalBody::Present(json!({ "related": [1, 2, 3] }).to_string().into(), Some(JSON.clone()), None),
             matching_rules: matchingrules!{
             "body" => {
               "$.related" => [ MatchingRule::MinMaxType(0, 5) ]
@@ -1640,7 +1640,7 @@ mod tests {
         RequestResponseInteraction {
           description: "Test Interaction with matcher".to_string(),
           request: Request {
-            body: OptionalBody::Present(json!({ "related": [1, 2, 3] }).to_string().into(), Some(JSON.clone())),
+            body: OptionalBody::Present(json!({ "related": [1, 2, 3] }).to_string().into(), Some(JSON.clone()), None),
             matching_rules: matchingrules!{
             "body" => {
               "$.related" => [ MatchingRule::MinMaxType(1, 10) ]

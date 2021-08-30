@@ -467,7 +467,7 @@ mod tests {
         expect!(response).to(be_equal_to(HttpResponse {
           status: 200,
           headers: Some(hashmap!{ "Content-Type".to_string() => vec!["text/html".to_string()] }),
-          body: OptionalBody::Present("\"That is some good Mallory.\"".into(), Some("text/html".into())),
+          body: OptionalBody::Present("\"That is some good Mallory.\"".into(), Some("text/html".into()), None),
           .. HttpResponse::default()
         }));
         expect!(pending).to(be_false());
@@ -648,7 +648,7 @@ mod tests {
   "interactions": [
     {{
       "description": "Test Interaction",
-      "key": "b341297869a4287d",
+      "key": "7f50f8fcda779998",
       "pending": false,
       "providerStates": [
         {{

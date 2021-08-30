@@ -36,7 +36,7 @@ pub async fn verify_message_from_provider<F: RequestFilterExecutor>(
   }
   let message_request = Request {
     method: "POST".into(),
-    body: OptionalBody::Present(Bytes::from(request_body.to_string()), Some("application/json".into())),
+    body: OptionalBody::Present(Bytes::from(request_body.to_string()), Some("application/json".into()), None),
     headers: Some(hashmap! {
         "Content-Type".to_string() => vec!["application/json".to_string()]
     }),

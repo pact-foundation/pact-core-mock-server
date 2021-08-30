@@ -130,7 +130,7 @@ fn create_multipart_file() {
     }));
 
     let actual_req_body_str = match &i.request.body {
-      OptionalBody::Present(body, _) => body.clone(),
+      OptionalBody::Present(body, _, _) => body.clone(),
       _ => Bytes::new(),
     };
 

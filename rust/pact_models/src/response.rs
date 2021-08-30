@@ -68,7 +68,7 @@ impl Response {
         map.insert("headers".to_string(), headers_to_json(&self.headers.clone().unwrap()));
       }
       match self.body {
-        OptionalBody::Present(ref body, _) => {
+        OptionalBody::Present(ref body, _, _) => {
           if self.content_type().unwrap_or_default().is_json() {
             match serde_json::from_slice(body) {
               Ok(json_body) => { map.insert("body".to_string(), json_body); },
@@ -249,7 +249,7 @@ mod tests {
   fn response_to_json_with_json_body() {
     let response = Response { headers: Some(hashmap!{
         "Content-Type".to_string() => vec!["application/json".to_string()]
-    }), body: OptionalBody::Present(r#"{"key": "value"}"#.into(), None), .. Response::default() };
+    }), body: OptionalBody::Present(r#"{"key": "value"}"#.into(), None, None), .. Response::default() };
     expect!(response.to_json(&PactSpecification::V3).to_string()).to(
       be_equal_to(r#"{"body":{"key":"value"},"headers":{"Content-Type":"application/json"},"status":200}"#)
     );
@@ -258,7 +258,7 @@ mod tests {
   #[test]
   fn response_to_json_with_non_json_body() {
     let response = Response { headers: Some(hashmap!{ "Content-Type".to_string() => vec!["text/plain".to_string()] }),
-      body: OptionalBody::Present("This is some text".into(), None), .. Response::default() };
+      body: OptionalBody::Present("This is some text".into(), None, None), .. Response::default() };
     expect!(response.to_json(&PactSpecification::V3).to_string()).to(
       be_equal_to(r#"{"body":"This is some text","headers":{"Content-Type":"text/plain"},"status":200}"#)
     );

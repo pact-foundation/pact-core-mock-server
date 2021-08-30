@@ -1,6 +1,6 @@
 [package]
 name = "pact_matching"
-version = "0.10.3"
+version = "0.11.0-beta.0"
 authors = ["Ronald Holshausen <uglyog@gmail.com>"]
 edition = "2018"
 description = "Pact-Rust support library that implements request and response matching logic"
@@ -41,7 +41,7 @@ http = "0.2"
 mime = "0.3.16"
 bytes = { version = "1", features = ["serde"] }
 tokio = { version = "1", features = ["full"] }
-pact-plugin-driver = "0.0"
+pact-plugin-driver = { version = "0.0", path = "../../../pact-plugins/drivers/rust/driver" }
 
 [dev-dependencies]
 quickcheck = "1"

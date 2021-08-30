@@ -230,7 +230,7 @@ async fn body_does_not_match_if_different_content_types() {
     path: s!("/"),
     query: None,
     headers: Some(hashmap! { s!("Content-Type") => vec![s!("application/json")] }),
-    body: OptionalBody::Present(Bytes::new(), None),
+    body: OptionalBody::Present(Bytes::new(), None, None),
     ..Request::default()
   };
   let actual = Request {
@@ -261,7 +261,7 @@ async fn body_matching_uses_any_matcher_for_content_type_header() {
     path: s!("/"),
     query: None,
     headers: Some(hashmap! { s!("Content-Type") => vec![s!("application/json")] }),
-    body: OptionalBody::Present(Bytes::from("100"), None),
+    body: OptionalBody::Present(Bytes::from("100"), None, None),
     ..Request::default()
   };
   let actual = Request {
@@ -269,7 +269,7 @@ async fn body_matching_uses_any_matcher_for_content_type_header() {
     path: s!("/"),
     query: None,
     headers: Some(hashmap! { s!("Content-Type") => vec![s!("application/hal+json")] }),
-    body: OptionalBody::Present(Bytes::from("100"), None),
+    body: OptionalBody::Present(Bytes::from("100"), None, None),
     ..Request::default()
   };
   let header_context = MatchingContext::new(
@@ -298,7 +298,7 @@ async fn body_matches_if_expected_is_missing() {
     path: s!("/"),
     query: None,
     headers: Some(hashmap! { s!("Content-Type") => vec![s!("application/json")] }),
-    body: OptionalBody::Present("{}".into(), None),
+    body: OptionalBody::Present("{}".into(), None, None),
     ..Request::default()
   };
   let result = match_body(&expected, &actual, &MatchingContext::default(), &MatchingContext::default()).await;
@@ -312,7 +312,7 @@ async fn body_matches_with_extended_mime_types() {
     path: s!("/"),
     query: None,
     headers: Some(hashmap! { s!("Content-Type") => vec![s!("application/thrift+json")] }),
-    body: OptionalBody::Present(r#"{"test":true}"#.into(), None),
+    body: OptionalBody::Present(r#"{"test":true}"#.into(), None, None),
     ..Request::default()
   };
   let actual = Request {
@@ -320,7 +320,7 @@ async fn body_matches_with_extended_mime_types() {
     path: s!("/"),
     query: None,
     headers: Some(hashmap! { s!("Content-Type") => vec![s!("application/thrift+json")] }),
-    body: OptionalBody::Present(r#"{"test": true}"#.into(), None),
+    body: OptionalBody::Present(r#"{"test": true}"#.into(), None, None),
     ..Request::default()
   };
   register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
@@ -560,7 +560,7 @@ fn match_query_returns_a_mismatch_if_the_values_do_not_match_by_a_matcher() {
 }
 
 macro_rules! request {
-  ($e:expr) => (Request { body: OptionalBody::Present($e.into(), None), .. Request::default() })
+  ($e:expr) => (Request { body: OptionalBody::Present($e.into(), None, None), .. Request::default() })
 }
 
 #[tokio::test]

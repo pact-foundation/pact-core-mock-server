@@ -1262,12 +1262,12 @@ async fn match_body_content(
   let actual_body = actual.body();
   match (expected_body, actual_body) {
     (&OptionalBody::Missing, _) => BodyMatchResult::Ok,
-    (&OptionalBody::Null, &OptionalBody::Present(ref b, _)) => {
+    (&OptionalBody::Null, &OptionalBody::Present(ref b, _, _)) => {
       BodyMatchResult::BodyMismatches(hashmap!{ "$".into() => vec![Mismatch::BodyMismatch { expected: None, actual: Some(b.clone()),
         mismatch: format!("Expected empty body but received {}", actual_body),
         path: s!("/")}]})
     },
-    (&OptionalBody::Empty, &OptionalBody::Present(ref b, _)) => {
+    (&OptionalBody::Empty, &OptionalBody::Present(ref b, _, _)) => {
       BodyMatchResult::BodyMismatches(hashmap!{ "$".into() => vec![Mismatch::BodyMismatch { expected: None, actual: Some(b.clone()),
         mismatch: format!("Expected empty body but received {}", actual_body),
         path: s!("/")}]})

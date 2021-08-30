@@ -77,7 +77,7 @@ fn create_native_request(client: &Client, base_url: &str, request: &Request) -> 
   }
 
   match request.body {
-    OptionalBody::Present(ref s, _) => builder = builder.body(s.clone()),
+    OptionalBody::Present(ref s, _, _) => builder = builder.body(s.clone()),
     OptionalBody::Null => {
       if request.content_type().unwrap_or_default().is_json() {
         builder = builder.body("null");
@@ -117,7 +117,7 @@ fn extract_headers(headers: &HeaderMap) -> Option<HashMap<String, Vec<String>>> 
 async fn extract_body(response: reqwest::Response, pact_response: &Response) -> Result<OptionalBody, reqwest::Error> {
   let body = response.bytes().await?;
   if !body.is_empty() {
-    Ok(OptionalBody::Present(body, pact_response.content_type()))
+    Ok(OptionalBody::Present(body, pact_response.content_type(), None))
   } else {
     Ok(OptionalBody::Empty)
   }

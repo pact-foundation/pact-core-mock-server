@@ -1,8 +1,11 @@
 //! Module for handling content types
 
 use std::collections::BTreeMap;
+use std::convert::TryFrom;
+use std::fmt::{Display, Formatter};
 use std::str::{from_utf8, FromStr};
 
+use anyhow::anyhow;
 use itertools::Itertools;
 use lazy_static::*;
 use log::*;
@@ -264,6 +267,43 @@ pub fn detect_content_type_from_bytes(s: &[u8]) -> Option<ContentType> {
       }
     },
     Err(_) => None
+  }
+}
+
+/// Override of the content type
+#[derive(Debug, Clone, Copy, PartialOrd, PartialEq, Ord, Eq, Hash, Serialize, Deserialize)]
+pub enum ContentTypeOverride {
+  BINARY,
+  TEXT,
+  DEFAULT
+}
+
+impl Default for ContentTypeOverride {
+  fn default() -> Self {
+    ContentTypeOverride::DEFAULT
+  }
+}
+
+impl Display for ContentTypeOverride {
+  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    match self {
+      ContentTypeOverride::BINARY => write!(f, "BINARY"),
+      ContentTypeOverride::TEXT => write!(f, "TEXT"),
+      ContentTypeOverride::DEFAULT => write!(f, "DEFAULT")
+    }
+  }
+}
+
+impl TryFrom<&str> for ContentTypeOverride {
+  type Error = anyhow::Error;
+
+  fn try_from(value: &str) -> Result<Self, Self::Error> {
+    match value {
+      "BINARY" => Ok(ContentTypeOverride::BINARY),
+      "TEXT" => Ok(ContentTypeOverride::TEXT),
+      "DEFAULT" => Ok(ContentTypeOverride::DEFAULT),
+      _ => Err(anyhow!("'{}' is not a valid value for ContentTypeOverride", value))
+    }
   }
 }
 

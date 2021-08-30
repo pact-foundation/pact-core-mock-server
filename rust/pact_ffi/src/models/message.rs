@@ -106,7 +106,7 @@ ffi_fn! {
         metadata.insert(String::from("contentType"), JsonValue::String(content_type.to_string()));
 
         // Populate the OptionalBody with our content and content type.
-        let contents = OptionalBody::Present(body.into(), Some(content_type));
+        let contents = OptionalBody::Present(body.into(), Some(content_type), None);
 
         // Construct and return the message.
         let message = Message {

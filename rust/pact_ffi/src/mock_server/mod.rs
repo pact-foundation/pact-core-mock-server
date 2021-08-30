@@ -1108,7 +1108,7 @@ fn convert_ptr_to_body(body: *const u8, size: size_t) -> OptionalBody {
   } else if size == 0 {
     OptionalBody::Empty
   } else {
-    OptionalBody::Present(Bytes::from(unsafe { std::slice::from_raw_parts(body, size) }), None)
+    OptionalBody::Present(Bytes::from(unsafe { std::slice::from_raw_parts(body, size) }), None, None)
   }
 }
 
@@ -1239,12 +1239,12 @@ pub extern fn pactffi_message_with_contents(message: handles::MessageHandle, con
       if content_type.is_text() {
         let body = convert_cstr("body", body as *const c_char).unwrap_or_default();
         let category = inner.matching_rules.add_category("body");
-        OptionalBody::Present(Bytes::from(process_json(body.to_string(), category, &mut inner.generators)), Some(content_type))
+        OptionalBody::Present(Bytes::from(process_json(body.to_string(), category, &mut inner.generators)), Some(content_type), None)
       } else {
-        OptionalBody::Present(Bytes::from(unsafe { std::slice::from_raw_parts(body, size) }), Some(content_type))
+        OptionalBody::Present(Bytes::from(unsafe { std::slice::from_raw_parts(body, size) }), Some(content_type), None)
       }
     } else {
-      OptionalBody::Present(Bytes::from(unsafe { std::slice::from_raw_parts(body, size) }), None)
+      OptionalBody::Present(Bytes::from(unsafe { std::slice::from_raw_parts(body, size) }), None, None)
     };
 
     inner.contents = body;
@@ -1272,7 +1272,7 @@ pub extern fn pactffi_message_reify(message: handles::MessageHandle) -> *const c
   let res = message.with_message(&|_, inner| {
     match inner.body() {
       Null => "null".to_string(),
-      Present(_, _) => inner.to_json(&PactSpecification::V3.into()).to_string(),
+      Present(_, _, _) => inner.to_json(&PactSpecification::V3.into()).to_string(),
       _ => "".to_string()
     }
   });

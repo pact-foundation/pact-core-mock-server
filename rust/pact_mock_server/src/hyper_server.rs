@@ -91,7 +91,7 @@ fn extract_headers(headers: &hyper::HeaderMap) -> Result<Option<HashMap<String, 
 
 fn extract_body(bytes: bytes::Bytes, request: &Request) -> OptionalBody {
     if bytes.len() > 0 {
-      OptionalBody::Present(bytes, request.content_type())
+      OptionalBody::Present(bytes, request.content_type(), None)
     } else {
       OptionalBody::Empty
     }
@@ -191,7 +191,7 @@ async fn match_result_to_hyper_response(
       set_hyper_headers(&mut builder, &response.headers)?;
 
       builder.body(match response.body {
-        OptionalBody::Present(ref s, _) => Body::from(s.clone()),
+        OptionalBody::Present(ref s, _, _) => Body::from(s.clone()),
         _ => Body::empty()
       })
         .map_err(|_| InteractionError::ResponseBodyError)

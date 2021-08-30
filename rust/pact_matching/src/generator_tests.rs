@@ -100,7 +100,7 @@ async fn apply_generator_to_empty_body_test() {
 
 #[tokio::test]
 async fn do_not_apply_generators_if_there_are_no_body_generators() {
-  let body = OptionalBody::Present("{\"a\":100,\"b\":\"B\"}".into(), Some(JSON.clone()));
+  let body = OptionalBody::Present("{\"a\":100,\"b\":\"B\"}".into(), Some(JSON.clone()), None);
   expect!(generators_process_body(&GeneratorTestMode::Provider, &body, Some(JSON.clone()),
     &hashmap!{}, &hashmap!{}, &DefaultVariantMatcher.boxed()).await.unwrap()).to(
     be_equal_to(body));
@@ -108,14 +108,14 @@ async fn do_not_apply_generators_if_there_are_no_body_generators() {
 
 #[tokio::test]
 async fn apply_generator_to_text_body_test() {
-  let body = OptionalBody::Present("some text".into(), None);
+  let body = OptionalBody::Present("some text".into(), None, None);
   expect!(generators_process_body(&GeneratorTestMode::Provider, &body, Some(TEXT.clone()),
     &hashmap!{}, &hashmap!{}, &DefaultVariantMatcher.boxed()).await.unwrap()).to(be_equal_to(body));
 }
 
 #[tokio::test]
 async fn applies_body_generator_to_the_copy_of_the_request() {
-  let request = Request { body: OptionalBody::Present("{\"a\": 100, \"b\": \"B\"}".into(), None),
+  let request = Request { body: OptionalBody::Present("{\"a\": 100, \"b\": \"B\"}".into(), None, None),
     generators: generators! {
       "BODY" => {
         "$.a" => Generator::RandomInt(1, 10)
@@ -130,7 +130,7 @@ async fn applies_body_generator_to_the_copy_of_the_request() {
 
 #[tokio::test]
 async fn applies_body_generator_to_the_copy_of_the_response() {
-  let response = Response { body: OptionalBody::Present("{\"a\": 100, \"b\": \"B\"}".into(), None),
+  let response = Response { body: OptionalBody::Present("{\"a\": 100, \"b\": \"B\"}".into(), None, None),
     generators: generators! {
       "BODY" => {
         "$.a" => Generator::RandomInt(1, 10)

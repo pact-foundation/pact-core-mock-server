@@ -83,7 +83,7 @@ impl ResponseBuilder {
   // TODO: This needs to setup rules/generators based on the content type
   fn setup_core_matcher(&mut self, content_type: &ContentType, definition: Value) {
     match definition {
-      Value::String(s) => self.response.body = OptionalBody::Present(Bytes::from(s), Some(content_type.clone())),
+      Value::String(s) => self.response.body = OptionalBody::Present(Bytes::from(s), Some(content_type.clone()), None),
       Value::Object(ref o) => if o.contains_key("contents") {
         self.response.body = body_from_json(&definition, "contents", &None);
       }

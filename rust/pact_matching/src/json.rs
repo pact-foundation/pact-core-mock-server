@@ -440,7 +440,7 @@ mod tests {
   use super::*;
 
   macro_rules! request {
-    ($e:expr) => (Request { body: OptionalBody::Present($e.into(), None), .. Request::default() })
+    ($e:expr) => (Request { body: OptionalBody::Present($e.into(), None, None), .. Request::default() })
   }
 
   #[test]

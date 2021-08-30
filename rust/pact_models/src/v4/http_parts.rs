@@ -1,6 +1,7 @@
 //! V4 specification models - HTTP parts for SynchronousHttp
 
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 
@@ -11,7 +12,7 @@ use maplit::*;
 use serde_json::{json, Value};
 
 use crate::bodies::OptionalBody;
-use crate::content_types::{ContentType, detect_content_type_from_bytes};
+use crate::content_types::{ContentType, ContentTypeOverride, detect_content_type_from_bytes};
 use crate::generators::{Generators, generators_from_json, generators_to_json};
 use crate::http_parts::HttpPart;
 use crate::json_utils::{headers_from_json, json_to_string};
@@ -239,6 +240,23 @@ pub fn body_from_json(json: &Value, attr_name: &str, headers: &Option<HashMap<St
               None => (false, Default::default())
             };
 
+            let ct_override = body_attrs.get("contentTypeOverride")
+              .map(|val| {
+                match val {
+                  Value::String(s) => match ContentTypeOverride::try_from(s.as_str()) {
+                    Ok(val) => val,
+                    Err(err) => {
+                      warn!("'{}' is not a valid value for contentTypeOverride, ignoring - {}", s, err);
+                      ContentTypeOverride::DEFAULT
+                    }
+                  }
+                  _ => {
+                    warn!("'{}' is not a valid value for contentTypeOverride, ignoring", val);
+                    ContentTypeOverride::DEFAULT
+                  }
+                }
+              });
+
             let body_bytes = if encoded {
               match encoding.as_str() {
                 "base64" => {
@@ -268,7 +286,7 @@ pub fn body_from_json(json: &Value, attr_name: &str, headers: &Option<HashMap<St
               });
               let mut buf = BytesMut::new();
               buf.extend_from_slice(&*body_bytes);
-              OptionalBody::Present(buf.freeze(), Some(content_type))
+              OptionalBody::Present(buf.freeze(), Some(content_type), ct_override)
             }
           },
           None => OptionalBody::Missing
@@ -277,7 +295,7 @@ pub fn body_from_json(json: &Value, attr_name: &str, headers: &Option<HashMap<St
       Value::Null => OptionalBody::Null,
       _ => {
         warn!("Body in attribute '{}' from JSON file is not formatted correctly, will load it as plain text", attr_name);
-        OptionalBody::Present(body.to_string().into(), None)
+        OptionalBody::Present(body.to_string().into(), None, None)
       }
     },
     None => OptionalBody::Missing
@@ -469,7 +487,7 @@ mod tests {
   use serde_json::json;
 
   use crate::bodies::OptionalBody;
-  use crate::content_types::JSON;
+  use crate::content_types::{JSON, ContentTypeOverride};
   use crate::json_utils::headers_from_json;
   use crate::v4::http_parts::{body_from_json, HttpRequest, HttpResponse};
 
@@ -600,9 +618,13 @@ mod tests {
 
   #[test]
   fn http_request_to_json_with_json_body() {
-    let request = HttpRequest { headers: Some(hashmap!{
-    "Content-Type".to_string() => vec!["application/json".to_string()]
-  }), body: OptionalBody::Present(r#"{"key": "value"}"#.into(), Some("application/json".into())), .. HttpRequest::default() };
+    let request = HttpRequest {
+      headers: Some(hashmap! {
+        "Content-Type".to_string() => vec!["application/json".to_string()]
+      }),
+      body: OptionalBody::Present(r#"{"key": "value"}"#.into(), Some("application/json".into()), None),
+      ..HttpRequest::default()
+    };
     expect!(request.to_json().to_string()).to(
       be_equal_to(r#"{"body":{"content":{"key":"value"},"contentType":"application/json","encoded":false},"headers":{"Content-Type":["application/json"]},"method":"GET","path":"/"}"#)
     );
@@ -610,8 +632,11 @@ mod tests {
 
   #[test]
   fn http_request_to_json_with_non_json_body() {
-    let request = HttpRequest { headers: Some(hashmap!{ "Content-Type".to_string() => vec!["text/plain".to_string()] }),
-      body: OptionalBody::Present("This is some text".into(), Some("text/plain".into())), .. HttpRequest::default() };
+    let request = HttpRequest {
+      headers: Some(hashmap! { "Content-Type".to_string() => vec!["text/plain".to_string()] }),
+      body: OptionalBody::Present("This is some text".into(), Some("text/plain".into()), None),
+      ..HttpRequest::default()
+    };
     expect!(request.to_json().to_string()).to(
       be_equal_to(r#"{"body":{"content":"This is some text","contentType":"text/plain","encoded":false},"headers":{"Content-Type":["text/plain"]},"method":"GET","path":"/"}"#)
     );
@@ -652,9 +677,13 @@ mod tests {
 
   #[test]
   fn http_response_to_json_with_json_body() {
-    let response = HttpResponse { headers: Some(hashmap!{
+    let response = HttpResponse {
+      headers: Some(hashmap! {
         "Content-Type".to_string() => vec!["application/json".to_string()]
-    }), body: OptionalBody::Present(r#"{"key": "value"}"#.into(), Some("application/json".into())), .. HttpResponse::default() };
+    }),
+      body: OptionalBody::Present(r#"{"key": "value"}"#.into(), Some("application/json".into()), None),
+      ..HttpResponse::default()
+    };
     expect!(response.to_json().to_string()).to(
       be_equal_to(r#"{"body":{"content":{"key":"value"},"contentType":"application/json","encoded":false},"headers":{"Content-Type":["application/json"]},"status":200}"#)
     );
@@ -662,8 +691,11 @@ mod tests {
 
   #[test]
   fn http_response_to_json_with_non_json_body() {
-    let response = HttpResponse { headers: Some(hashmap!{ "Content-Type".to_string() => vec!["text/plain".to_string()] }),
-      body: OptionalBody::Present("This is some text".into(), "text/plain".parse().ok()), .. HttpResponse::default() };
+    let response = HttpResponse {
+      headers: Some(hashmap! { "Content-Type".to_string() => vec!["text/plain".to_string()] }),
+      body: OptionalBody::Present("This is some text".into(), "text/plain".parse().ok(), None),
+      ..HttpResponse::default()
+    };
     expect!(response.to_json().to_string()).to(
       be_equal_to(r#"{"body":{"content":"This is some text","contentType":"text/plain","encoded":false},"headers":{"Content-Type":["text/plain"]},"status":200}"#)
     );
@@ -756,7 +788,7 @@ mod tests {
     });
     let body = body_from_json(&json, "body", &None);
     expect!(body).to(be_equal_to(OptionalBody::Present("{\"test\":true}".into(),
-                                                       Some(JSON.clone()))));
+                                                       Some(JSON.clone()), None)));
   }
 
   #[test]
@@ -786,7 +818,7 @@ mod tests {
     let body = body_from_json(&json, "body", &None);
     expect!(body).to(be_equal_to(
       OptionalBody::Present("<?xml version=\"1.0\"?> <body></body>".into(),
-                            Some("application/xml".into()))));
+                            Some("application/xml".into()), None)));
   }
 
   #[test]
@@ -801,7 +833,7 @@ mod tests {
     });
     let headers = headers_from_json(&json);
     let body = body_from_json(&json, "body", &headers);
-    expect!(body).to(be_equal_to(OptionalBody::Present("\"This is a string\"".into(), Some("text/plain".into()))));
+    expect!(body).to(be_equal_to(OptionalBody::Present("\"This is a string\"".into(), Some("text/plain".into()), None)));
   }
 
   #[test]
@@ -816,7 +848,7 @@ mod tests {
     });
     let headers = headers_from_json(&json);
     let body = body_from_json(&json, "body", &headers);
-    expect!(body).to(be_equal_to(OptionalBody::Present("\"This is a string\"".into(), Some("text/html".into()))));
+    expect!(body).to(be_equal_to(OptionalBody::Present("\"This is a string\"".into(), Some("text/html".into()), None)));
   }
 
   #[test]
@@ -829,7 +861,7 @@ mod tests {
       }
     });
     let body = body_from_json(&json, "body", &None);
-    expect!(body).to(be_equal_to(OptionalBody::Present("\"This is actually a JSON string\"".into(), Some("application/json".into()))));
+    expect!(body).to(be_equal_to(OptionalBody::Present("\"This is actually a JSON string\"".into(), Some("application/json".into()), None)));
   }
 
   #[test]
@@ -844,7 +876,24 @@ mod tests {
     });
     let headers = headers_from_json(&json);
     let body = body_from_json(&json, "body", &headers);
-    expect!(body).to(be_equal_to(OptionalBody::Present("{\"test\":true}".into(), Some("application/json".into()))));
+    expect!(body).to(be_equal_to(OptionalBody::Present("{\"test\":true}".into(), Some("application/json".into()), None)));
   }
 
+  #[test]
+  fn body_with_an_overridden_content_type_format() {
+    let json = json!({
+      "body": {
+        "content": "Cg9wYWN0LWp2bS1kcml2ZXISBTAuMC4w",
+        "contentType": "application/stuff",
+        "contentTypeOverride": "BINARY",
+        "encoded": "base64"
+      }
+    });
+    let body = body_from_json(&json, "body", &None);
+    expect!(body).to(be_equal_to(
+      OptionalBody::Present(
+        "\npact-jvm-driver0.0.0".into(),
+        Some("application/stuff".into()),
+        Some(ContentTypeOverride::BINARY))));
+  }
 }

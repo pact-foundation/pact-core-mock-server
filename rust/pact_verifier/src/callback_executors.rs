@@ -95,7 +95,7 @@ impl ProviderStateExecutor for HttpRequestProviderStateExecutor {
                         "teardown".to_string()
                     }
                 });
-          state_change_request.body = OptionalBody::Present(json_body.to_string().into(), Some(JSON.clone()));
+          state_change_request.body = OptionalBody::Present(json_body.to_string().into(), Some(JSON.clone()), None);
           state_change_request.headers = Some(hashmap!{ "Content-Type".to_string() => vec!["application/json".to_string()] });
         } else {
           let mut query = hashmap!{ "state".to_string() => vec![provider_state.name.clone()] };

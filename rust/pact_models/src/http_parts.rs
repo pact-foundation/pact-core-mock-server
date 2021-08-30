@@ -36,7 +36,7 @@ pub trait HttpPart {
   /// the first 32 characters.
   fn detect_content_type(&self) -> Option<ContentType> {
     match *self.body() {
-      OptionalBody::Present(ref body, _) => {
+      OptionalBody::Present(ref body, _, _) => {
         let s: String = match from_utf8(body) {
           Ok(s) => s.to_string(),
           Err(_) => String::new()

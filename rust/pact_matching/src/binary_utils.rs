@@ -434,7 +434,7 @@ mod tests {
     let body = Bytes::from("not a multipart body");
     let request = Request {
       headers: Some(hashmap!{}),
-      body: OptionalBody::Present(body, None),
+      body: OptionalBody::Present(body, None, None),
       ..Request::default()
     };
     let context = MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys);
@@ -465,7 +465,7 @@ mod tests {
       --1234--\r\n");
     let expected = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=1234".into() ] }),
-      body: OptionalBody::Present(expected_body, None),
+      body: OptionalBody::Present(expected_body, None, None),
       ..Request::default()
     };
     let actual_body = Bytes::from("--1234\r\n\
@@ -482,7 +482,7 @@ mod tests {
       --1234--\r\n");
     let actual = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=1234".into() ] }),
-      body: OptionalBody::Present(actual_body, None),
+      body: OptionalBody::Present(actual_body, None, None),
       ..Request::default()
     };
     let context = MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys);
@@ -508,7 +508,7 @@ mod tests {
       --1234--\r\n");
     let expected = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=1234".into() ] }),
-      body: OptionalBody::Present(expected_body, None),
+      body: OptionalBody::Present(expected_body, None, None),
       ..Request::default()
     };
     let actual_body = Bytes::from("--1234\r\n\
@@ -517,7 +517,7 @@ mod tests {
       --1234--\r\n");
     let actual = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=1234".into() ] }),
-      body: OptionalBody::Present(actual_body, None),
+      body: OptionalBody::Present(actual_body, None, None),
       ..Request::default()
     };
     let context = MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys);
@@ -546,7 +546,7 @@ mod tests {
       --1234--\r\n");
     let expected = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=1234".into() ] }),
-      body: OptionalBody::Present(expected_body, None),
+      body: OptionalBody::Present(expected_body, None, None),
       ..Request::default()
     };
     let actual_body = Bytes::from("--4567\r\n\
@@ -563,7 +563,7 @@ mod tests {
       --4567--\r\n");
     let actual = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=4567".into() ] }),
-      body: OptionalBody::Present(actual_body, None),
+      body: OptionalBody::Present(actual_body, None, None),
       ..Request::default()
     };
     let context = MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys);
@@ -588,7 +588,7 @@ mod tests {
       --1234--\r\n");
     let expected = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=1234".into() ] }),
-      body: OptionalBody::Present(expected_body, None),
+      body: OptionalBody::Present(expected_body, None, None),
       matching_rules: matchingrules! {
         "body" => {
           "$.name" => [ MatchingRule::Regex(s!("^\\w+$")) ],
@@ -611,7 +611,7 @@ mod tests {
       --4567--\r\n");
     let actual = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=4567".into() ] }),
-      body: OptionalBody::Present(actual_body, None),
+      body: OptionalBody::Present(actual_body, None, None),
       ..Request::default()
     };
     let context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
@@ -638,7 +638,7 @@ mod tests {
       --1234--\r\n");
     let expected = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=1234".into() ] }),
-      body: OptionalBody::Present(expected_body, None),
+      body: OptionalBody::Present(expected_body, None, None),
       ..Request::default()
     };
     let actual_body = Bytes::from("--4567\r\n\
@@ -655,7 +655,7 @@ mod tests {
       --4567--\r\n");
     let actual = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=4567".into() ] }),
-      body: OptionalBody::Present(actual_body, None),
+      body: OptionalBody::Present(actual_body, None, None),
       ..Request::default()
     };
     let context = MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys);
@@ -683,7 +683,7 @@ mod tests {
       --1234--\r\n");
     let expected = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=1234".into() ] }),
-      body: OptionalBody::Present(expected_body, None),
+      body: OptionalBody::Present(expected_body, None, None),
       matching_rules: matchingrules! {
         "body" => {
           "$.file" => [ MatchingRule::ContentType("image/png".into()) ]
@@ -711,7 +711,7 @@ mod tests {
     actual_body.extend_from_slice("\r\n--4567--\r\n".as_bytes());
     let actual = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=4567".into() ] }),
-      body: OptionalBody::Present(actual_body.freeze(), None),
+      body: OptionalBody::Present(actual_body.freeze(), None, None),
       ..Request::default()
     };
     let context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
@@ -738,7 +738,7 @@ mod tests {
       --1234--\r\n");
     let expected = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=1234".into() ] }),
-      body: OptionalBody::Present(expected_body, None),
+      body: OptionalBody::Present(expected_body, None, None),
       matching_rules: matchingrules! {
         "body" => {
           "$.file" => [ MatchingRule::ContentType("application/jpeg".into()) ]
@@ -760,7 +760,7 @@ mod tests {
       --4567--\r\n");
     let actual = Request {
       headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=4567".into() ] }),
-      body: OptionalBody::Present(actual_body, None),
+      body: OptionalBody::Present(actual_body, None, None),
       ..Request::default()
     };
     let context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,

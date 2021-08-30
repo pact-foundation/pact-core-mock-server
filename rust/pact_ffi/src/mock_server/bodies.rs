@@ -268,7 +268,7 @@ pub fn file_as_multipart_body(file: &str, part_name: &str) -> Result<MultipartBo
   let http_buffer = multipart.send().map_err(format_multipart_error)?;
 
   Ok(MultipartBody {
-    body: OptionalBody::Present(Bytes::from(http_buffer.buf), Some("multipart/form-data".into())),
+    body: OptionalBody::Present(Bytes::from(http_buffer.buf), Some("multipart/form-data".into()), None),
     boundary: http_buffer.boundary
   })
 }
@@ -279,7 +279,7 @@ pub fn empty_multipart_body() -> Result<MultipartBody, String> {
   let http_buffer = multipart.send().map_err(format_multipart_error)?;
 
   Ok(MultipartBody {
-    body: OptionalBody::Present(Bytes::from(http_buffer.buf), Some("multipart/form-data".into())),
+    body: OptionalBody::Present(Bytes::from(http_buffer.buf), Some("multipart/form-data".into()), None),
     boundary: http_buffer.boundary
   })
 }

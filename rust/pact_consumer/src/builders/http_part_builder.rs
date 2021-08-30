@@ -150,7 +150,7 @@ pub trait HttpPartBuilder {
         let body = body.into();
         {
             let (body_ref, _) = self.body_and_matching_rules_mut();
-            *body_ref = OptionalBody::Present(body.into(), None);
+            *body_ref = OptionalBody::Present(body.into(), None, None);
         }
         self
     }
@@ -170,7 +170,7 @@ pub trait HttpPartBuilder {
     let body = body.into();
     {
       let (body_ref, _) = self.body_and_matching_rules_mut();
-      *body_ref = OptionalBody::Present(body.into(), content_type.into().parse().ok());
+      *body_ref = OptionalBody::Present(body.into(), content_type.into().parse().ok(), None);
     }
     self
   }
@@ -191,7 +191,7 @@ pub trait HttpPartBuilder {
         let body = body.into();
         {
             let (body_ref, rules) = self.body_and_matching_rules_mut();
-            *body_ref = OptionalBody::Present(body.to_example().to_string().into(), Some("application/json".into()));
+            *body_ref = OptionalBody::Present(body.to_example().to_string().into(), Some("application/json".into()), None);
             body.extract_matching_rules(DocPath::root(), rules.add_category("body"));
         }
         self

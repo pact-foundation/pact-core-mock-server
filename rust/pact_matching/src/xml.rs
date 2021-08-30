@@ -26,7 +26,7 @@ pub fn match_xml(expected: &dyn HttpPart, actual: &dyn HttpPart, context: &Match
     (OptionalBody::Missing, _) => (),
     (OptionalBody::Empty, _) => (),
     (OptionalBody::Null, _) => (),
-    (OptionalBody::Present(expected_body, _), OptionalBody::Present(actual_body, _)) => {
+    (OptionalBody::Present(expected_body, _, _), OptionalBody::Present(actual_body, _, _)) => {
       let expected_result = parse_bytes(expected_body);
       let actual_result = parse_bytes(actual_body);
 
@@ -396,7 +396,7 @@ mod tests {
 
   macro_rules! request {
     ($e:expr) => (Request {
-        body: OptionalBody::Present(Bytes::from($e), None), .. Request::default()
+        body: OptionalBody::Present(Bytes::from($e), None, None), .. Request::default()
       })
   }
 

@@ -9,7 +9,7 @@ use log::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::content_types::ContentType;
+use crate::content_types::{ContentType, ContentTypeOverride};
 
 /// Enum that defines the four main states that a body of a request and response can be in a pact
 /// file.
@@ -24,7 +24,7 @@ pub enum OptionalBody {
   /// from null values. It is treated as `Empty`.
   Null,
   /// A non-empty body that is present in the pact file.
-  Present(Bytes, Option<ContentType>)
+  Present(Bytes, Option<ContentType>, Option<ContentTypeOverride>)
 }
 
 impl OptionalBody {
@@ -32,7 +32,7 @@ impl OptionalBody {
   /// If the body is present in the pact file and not empty or null.
   pub fn is_present(&self) -> bool {
     match *self {
-      OptionalBody::Present(_, _) => true,
+      OptionalBody::Present(_, _, _) => true,
       _ => false
     }
   }
@@ -40,7 +40,7 @@ impl OptionalBody {
   /// Returns the body if present, otherwise returns the empty buffer.
   pub fn value(&self) -> Option<Bytes> {
     match self {
-      OptionalBody::Present(s, _) => Some(s.clone()),
+      OptionalBody::Present(s, _, _) => Some(s.clone()),
       _ => None
     }
   }
@@ -48,7 +48,7 @@ impl OptionalBody {
   /// Returns the body if present as a UTF-8 string, otherwise returns the empty string.
   pub fn str_value(&self) -> &str {
     match self {
-      OptionalBody::Present(s, _) => from_utf8(s).unwrap_or(""),
+      OptionalBody::Present(s, _, _) => from_utf8(s).unwrap_or(""),
       _ => ""
     }
   }
@@ -56,7 +56,7 @@ impl OptionalBody {
   /// If the body has a content type associated to it
   pub fn has_content_type(&self) -> bool {
     match self {
-      OptionalBody::Present(_, content_type) => content_type.is_some(),
+      OptionalBody::Present(_, content_type, _) => content_type.is_some(),
       _ => false
     }
   }
@@ -64,7 +64,7 @@ impl OptionalBody {
   /// Parsed content type of the body
   pub fn content_type(&self) -> Option<ContentType> {
     match self {
-      OptionalBody::Present(_, content_type) =>
+      OptionalBody::Present(_, content_type, _) =>
         content_type.clone(),
       _ => None
     }
@@ -73,8 +73,9 @@ impl OptionalBody {
   /// Converts this body into a V4 Pact file JSON format
   pub fn to_v4_json(&self) -> Value {
     match self {
-      OptionalBody::Present(bytes, _) => {
-        let content_type = self.content_type().unwrap_or_default();
+      OptionalBody::Present(bytes, content_type, ct_override) => {
+        let content_type = content_type.as_ref().cloned().unwrap_or_default();
+        let content_type_override = ct_override.unwrap_or_default();
         let (contents, encoded) = if content_type.is_json() {
           match serde_json::from_slice(bytes) {
             Ok(json_body) => (json_body, Value::Bool(false)),
@@ -83,7 +84,7 @@ impl OptionalBody {
               (Value::String(encode(bytes)), Value::String("base64".to_string()))
             }
           }
-        } else if content_type.is_binary() {
+        } else if content_type_override == ContentTypeOverride::BINARY || content_type.is_binary() {
           (Value::String(encode(bytes)), Value::String("base64".to_string()))
         } else {
           match from_utf8(bytes) {
@@ -91,11 +92,21 @@ impl OptionalBody {
             Err(_) => (Value::String(encode(bytes)), Value::String("base64".to_string()))
           }
         };
-        json!({
-          "content": contents,
-          "contentType": content_type.to_string(),
-          "encoded": encoded
-        })
+
+        if let Some(ct_override) = ct_override {
+          json!({
+            "content": contents,
+            "contentType": content_type.to_string(),
+            "contentTypeOverride": ct_override.to_string(),
+            "encoded": encoded
+          })
+        } else {
+          json!({
+            "content": contents,
+            "contentType": content_type.to_string(),
+            "encoded": encoded
+          })
+        }
       },
       OptionalBody::Empty => json!({"content": ""}),
       _ => Value::Null
@@ -108,7 +119,7 @@ impl From<String> for OptionalBody {
     if s.is_empty() {
       OptionalBody::Empty
     } else {
-      OptionalBody::Present(Bytes::from(s), None)
+      OptionalBody::Present(Bytes::from(s), None, None)
     }
   }
 }
@@ -120,7 +131,7 @@ impl <'a> From<&'a str> for OptionalBody {
     } else {
       let mut buf = BytesMut::with_capacity(0);
       buf.extend_from_slice(s.as_bytes());
-      OptionalBody::Present(buf.freeze(), None)
+      OptionalBody::Present(buf.freeze(), None, None)
     }
   }
 }
@@ -131,7 +142,7 @@ impl Display for OptionalBody {
       OptionalBody::Missing => write!(f, "Missing"),
       OptionalBody::Empty => write!(f, "Empty"),
       OptionalBody::Null => write!(f, "Null"),
-      OptionalBody::Present(ref s, ref content_type) => {
+      OptionalBody::Present(ref s, ref content_type, _) => {
         if let Some(content_type) = content_type {
           write!(f, "Present({} bytes, {})", s.len(), content_type)
         } else {
@@ -161,7 +172,7 @@ mod tests {
     expect!(format!("{}", OptionalBody::Missing)).to(be_equal_to("Missing"));
     expect!(format!("{}", OptionalBody::Empty)).to(be_equal_to("Empty"));
     expect!(format!("{}", OptionalBody::Null)).to(be_equal_to("Null"));
-    expect!(format!("{}", OptionalBody::Present("hello".into(), None))).to(be_equal_to("Present(5 bytes)"));
-    expect!(format!("{}", OptionalBody::Present("\"hello\"".into(), Some(JSON.clone())))).to(be_equal_to("Present(7 bytes, application/json)"));
+    expect!(format!("{}", OptionalBody::Present("hello".into(), None, None))).to(be_equal_to("Present(5 bytes)"));
+    expect!(format!("{}", OptionalBody::Present("\"hello\"".into(), Some(JSON.clone()), None))).to(be_equal_to("Present(7 bytes, application/json)"));
   }
 }

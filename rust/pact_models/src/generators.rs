@@ -1334,7 +1334,7 @@ impl ContentTypeHandler<Value> for JsonHandler {
         self.apply_key(key, generator, context, matcher);
       }
     };
-    Ok(OptionalBody::Present(self.value.to_string().into(), Some("application/json".into())))
+    Ok(OptionalBody::Present(self.value.to_string().into(), Some("application/json".into()), None))
   }
 
   fn apply_key(

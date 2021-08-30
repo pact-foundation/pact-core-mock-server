@@ -105,11 +105,11 @@ async fn match_request_returns_request_not_found_if_method_or_path_do_not_match(
 
 #[tokio::test]
 async fn match_request_returns_the_most_appropriate_mismatch_for_multiple_requests() {
-    let request = Request { method: "GET".to_string(), path: "/".to_string(), body: OptionalBody::Present("This is a body".into(), None),
+    let request = Request { method: "GET".to_string(), path: "/".to_string(), body: OptionalBody::Present("This is a body".into(), None, None),
       .. Request::default() };
     let request2 = Request { method: "GET".to_string(), path: "/".to_string(), query: Some(hashmap!{
         "QueryA".to_string() => vec!["Value A".to_string()]
-        }), body: OptionalBody::Present("This is a body".into(), None),
+        }), body: OptionalBody::Present("This is a body".into(), None, None),
       .. Request::default() };
     let request3 = Request { method: "GET".to_string(), path: "/".to_string(), query: Some(hashmap!{
         "QueryA".to_string() => vec!["Value A".to_string()]
@@ -132,7 +132,7 @@ async fn match_request_supports_v2_matchers() {
                 "a": 100,
                 "b": "one hundred"
             }
-            "#.into(), None
+            "#.into(), None, None
         ), .. Request::default() };
     let expected_request = Request { method: "GET".to_string(), path: "/".to_string(),
         headers: Some(hashmap!{ "Content-Type".to_string() => vec!["application/json".to_string()] }),
@@ -142,7 +142,7 @@ async fn match_request_supports_v2_matchers() {
                 "a": 1000,
                 "b": "One Thousand"
             }
-            "#.into(), None
+            "#.into(), None, None
         ), matching_rules: matchingrules!{
           "body" => {
             "$.*" => [ MatchingRule::Type ]
@@ -163,14 +163,14 @@ async fn match_request_supports_v2_matchers_with_xml() {
         headers: Some(hashmap!{ "Content-Type".to_string() => vec!["application/xml".to_string()] }), body: OptionalBody::Present(
             r#"<?xml version="1.0" encoding="UTF-8"?>
             <foo>hello<bar/>world</foo>
-            "#.into(), None
+            "#.into(), None, None
         ), .. Request::default() };
     let expected_request = Request { method: "GET".to_string(), path: "/".to_string(), query: None,
         headers: Some(hashmap!{ "Content-Type".to_string() => vec!["application/xml".to_string()] }),
         body: OptionalBody::Present(
             r#"<?xml version="1.0" encoding="UTF-8"?>
             <foo>hello<bar/>mars </foo>
-            "#.into(), None
+            "#.into(), None, None
         ), matching_rules: matchingrules!{
           "body" => {
             "$.foo['#text']" => [ MatchingRule::Regex("[a-z]+".into()) ]

@@ -166,21 +166,21 @@ pub fn body_from_json(request: &Value, fieldname: &str, headers: &Option<HashMap
           });
           if content_type.is_json() {
             match serde_json::from_str::<JsonParsable>(&s) {
-              Ok(_) => OptionalBody::Present(s.clone().into(), Some(content_type)),
-              Err(_) => OptionalBody::Present(format!("\"{}\"", s).into(), Some(content_type))
+              Ok(_) => OptionalBody::Present(s.clone().into(), Some(content_type), None),
+              Err(_) => OptionalBody::Present(format!("\"{}\"", s).into(), Some(content_type), None)
             }
           } else if content_type.is_text() {
-            OptionalBody::Present(s.clone().into(), Some(content_type))
+            OptionalBody::Present(s.clone().into(), Some(content_type), None)
           } else {
             match decode(s) {
-              Ok(bytes) => OptionalBody::Present(bytes.into(), None),
-              Err(_) => OptionalBody::Present(s.clone().into(), None)
+              Ok(bytes) => OptionalBody::Present(bytes.into(), None, None),
+              Err(_) => OptionalBody::Present(s.clone().into(), None, None)
             }
           }
         }
       },
       Value::Null => OptionalBody::Null,
-      _ => OptionalBody::Present(v.to_string().into(), None)
+      _ => OptionalBody::Present(v.to_string().into(), None, None)
     },
     None => OptionalBody::Missing
   }
@@ -248,7 +248,7 @@ mod tests {
      "#).unwrap();
     let headers = headers_from_json(&json);
     let body = body_from_json(&json, "body", &headers);
-    expect!(body).to(be_equal_to(OptionalBody::Present("\"This is a string\"".into(), Some("text/plain".into()))));
+    expect!(body).to(be_equal_to(OptionalBody::Present("\"This is a string\"".into(), Some("text/plain".into()), None)));
   }
 
   #[test]
@@ -263,7 +263,7 @@ mod tests {
      "#).unwrap();
     let headers = headers_from_json(&json);
     let body = body_from_json(&json, "body", &headers);
-    expect!(body).to(be_equal_to(OptionalBody::Present("\"This is a string\"".into(), Some("text/html".into()))));
+    expect!(body).to(be_equal_to(OptionalBody::Present("\"This is a string\"".into(), Some("text/html".into()), None)));
   }
 
   #[test]
@@ -278,7 +278,7 @@ mod tests {
      "#).unwrap();
     let headers = headers_from_json(&json);
     let body = body_from_json(&json, "body", &headers);
-    expect!(body).to(be_equal_to(OptionalBody::Present("\"This is actually a JSON string\"".into(), Some("application/json".into()))));
+    expect!(body).to(be_equal_to(OptionalBody::Present("\"This is actually a JSON string\"".into(), Some("application/json".into()), None)));
   }
 
   #[test]
@@ -293,7 +293,7 @@ mod tests {
      "#).unwrap();
     let headers = headers_from_json(&json);
     let body = body_from_json(&json, "body", &headers);
-    expect!(body).to(be_equal_to(OptionalBody::Present("\"This is actually a JSON string\"".into(), Some("application/json".into()))));
+    expect!(body).to(be_equal_to(OptionalBody::Present("\"This is actually a JSON string\"".into(), Some("application/json".into()), None)));
   }
 
   #[test]
@@ -308,7 +308,7 @@ mod tests {
      "#).unwrap();
     let headers = headers_from_json(&json);
     let body = body_from_json(&json, "body", &headers);
-    expect!(body).to(be_equal_to(OptionalBody::Present("{\"test\":true}".into(), Some("application/json".into()))));
+    expect!(body).to(be_equal_to(OptionalBody::Present("{\"test\":true}".into(), Some("application/json".into()), None)));
   }
 
   #[test]
@@ -354,7 +354,7 @@ mod tests {
       }
      "#).unwrap();
     let body = body_from_json(&json, "body", &None);
-    expect!(body).to(be_equal_to(OptionalBody::Present("{\"test\":true}".into(), None)));
+    expect!(body).to(be_equal_to(OptionalBody::Present("{\"test\":true}".into(), None, None)));
   }
 
   #[test]
@@ -382,6 +382,6 @@ mod tests {
       }
      "#).unwrap();
     let body = body_from_json(&json, "body", &None);
-    expect!(body).to(be_equal_to(OptionalBody::Present("<?xml version=\"1.0\"?> <body></body>".into(), Some("application/xml".into()))));
+    expect!(body).to(be_equal_to(OptionalBody::Present("<?xml version=\"1.0\"?> <body></body>".into(), Some("application/xml".into()), None)));
   }
 }

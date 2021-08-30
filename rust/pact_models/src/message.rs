@@ -225,7 +225,7 @@ impl Message {
         }
 
         match self.contents {
-          OptionalBody::Present(ref body, _) => {
+          OptionalBody::Present(ref body, _, _) => {
             let content_type = self.message_content_type().unwrap_or_default();
             if content_type.is_json() {
             match serde_json::from_slice(body) {
@@ -538,7 +538,7 @@ mod tests {
       "AAABMAAAAAAA=");
 
     let mut message = Message::from_json(0, &serde_json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
-    message.contents = OptionalBody::Present(Bytes::from(contents), Some(content_type));
+    message.contents = OptionalBody::Present(Bytes::from(contents), Some(content_type), None);
     let json = message.to_json(&PactSpecification::V3);
 
     expect!(json.get("contents").unwrap().as_str().unwrap()).to(be_equal_to(encoded));
