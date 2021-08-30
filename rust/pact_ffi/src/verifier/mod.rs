@@ -445,30 +445,24 @@ fn parse_argument(long: Option<&str>, short: Option<char>, help: Option<&str>, p
     // Long
     match long {
         None => {}
-        Some(_val) => {
-            let c_str = CString::new(_val.to_string()).unwrap();
-            let long = c_str.to_str().unwrap();
-            arg.long = Some(long.to_string());
+        Some(val) => {
+            arg.long = Some(val.to_string());
         }
     }
 
     // Short
     match short {
         None => {}
-        Some(_val) => {
-            let c_str = CString::new(_val.to_string()).unwrap();
-            let short = c_str.to_str().unwrap();
-            arg.short = Some(short.to_string());
+        Some(val) => {
+            arg.short = Some(val.to_string());
         }
     }
 
     // Help
     match help {
         None => {}
-        Some(_val) => {
-            let c_str = CString::new(_val.to_string()).unwrap();
-            let help = c_str.to_str().unwrap();
-            arg.help = Some(help.to_string());
+        Some(val) => {
+            arg.help = Some(val.to_string());
         }
     }
 
