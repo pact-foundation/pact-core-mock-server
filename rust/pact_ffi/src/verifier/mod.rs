@@ -17,7 +17,6 @@ use crate::{as_mut, ffi_fn, safe_str};
 use crate::util::*;
 use crate::util::string::if_null;
 use serde::{Serialize, Deserialize};
-use std::any::Any;
 use clap::ArgSettings;
 
 mod args;
@@ -344,7 +343,8 @@ ffi_fn! {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+/// Contain the various attributes of an argument given to the verifier
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Argument {
     long: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -359,9 +359,12 @@ pub struct Argument {
     env: Option<String>,
 }
 
-#[derive(Serialize, Deserialize)]
+/// Contain the lists of the two types of argument: options and flags
+#[derive(Debug, Serialize, Deserialize)]
 pub struct OptionsFlags {
+    /// Arguments which require a parameter, such as loglevel
     pub options: Vec<Argument>,
+    /// Arguments which are a bool, such as publish
     pub flags: Vec<Argument>
 }
 
@@ -469,9 +472,9 @@ fn parse_argument(long: Option<&str>, short: Option<char>, help: Option<&str>, p
     // Possible values
     match possible_values {
         None => {}
-        Some(_) => {
+        Some(val) => {
             let mut possible_vals: Vec<String> = Vec::new();
-            for possible_val in possible_values.unwrap().iter() {
+            for possible_val in val.iter() {
                 possible_vals.push(possible_val.to_string())
             }
             arg.possible_values = Some(possible_vals);
@@ -481,13 +484,9 @@ fn parse_argument(long: Option<&str>, short: Option<char>, help: Option<&str>, p
     // Default value
     match default_value {
         None => {}
-        Some(_val) =>
+        Some(val) =>
             {
-                let a = _val;
-                let x = _val.to_os_string().into_string().unwrap();
-                let c_str = CString::new(x).unwrap();
-                let default_val = c_str.to_str().unwrap();
-                arg.default_value = Some(default_val.to_string());
+                arg.default_value = Some(val.to_os_string().into_string().unwrap());
             }
     }
 
@@ -499,12 +498,9 @@ fn parse_argument(long: Option<&str>, short: Option<char>, help: Option<&str>, p
     // Env
     match env {
         None => {}
-        Some(_val) =>
+        Some(val) =>
             {
-                let x = _val.0.to_os_string().into_string().unwrap();
-                let c_str = CString::new(x).unwrap();
-                let arg_val = c_str.to_str().unwrap();
-                arg.env = Some(arg_val.to_string());
+                arg.env = Some(val.0.to_os_string().into_string().unwrap());
             }
     }
 
