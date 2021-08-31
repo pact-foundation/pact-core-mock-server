@@ -36,7 +36,6 @@ use pact_ffi::mock_server::{
 };
 use pact_ffi::mock_server::handles::InteractionPart;
 use pact_ffi::verifier::{pactffi_verifier_cli_args, OptionsFlags};
-use serde_json::Value;
 
 
 #[test]
