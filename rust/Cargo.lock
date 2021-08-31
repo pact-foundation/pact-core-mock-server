@@ -1093,6 +1093,7 @@ dependencies = [
  "regex",
  "regex-syntax",
  "reqwest",
+ "serde",
  "serde_json",
  "simplelog 0.9.0",
  "thiserror",

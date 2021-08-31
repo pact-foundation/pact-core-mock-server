@@ -3,18 +3,21 @@
 
 #![warn(missing_docs)]
 
-use std::ffi::CStr;
+use std::ffi::{CStr, CString, OsStr, OsString};
 use std::panic::catch_unwind;
 
 use anyhow::Context;
 use libc::{c_char, c_int, c_uchar, c_ushort, EXIT_FAILURE};
 use log::*;
+use std::env;
 
 use pact_models::prelude::HttpAuth;
 
 use crate::{as_mut, ffi_fn, safe_str};
 use crate::util::*;
 use crate::util::string::if_null;
+use serde::{Serialize, Deserialize};
+use clap::ArgSettings;
 
 mod args;
 pub mod verifier;
@@ -338,4 +341,168 @@ ffi_fn! {
     } {
       EXIT_FAILURE
     }
+}
+
+/// Contain the various attributes of an argument given to the verifier
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Argument {
+    long: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    short: Option<String>,
+    help: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    possible_values: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    default_value: Option<String>,
+    multiple: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    env: Option<String>,
+}
+
+/// Contain the lists of the two types of argument: options and flags
+#[derive(Debug, Serialize, Deserialize)]
+pub struct OptionsFlags {
+    /// Arguments which require a parameter, such as loglevel
+    pub options: Vec<Argument>,
+    /// Arguments which are a bool, such as publish
+    pub flags: Vec<Argument>
+}
+
+/// External interface to retrieve the options and arguments available when calling the CLI interface,
+/// returning them as a JSON string.
+///
+/// The purpose is to then be able to use in other languages which wrap the FFI library, to implement
+/// the same CLI functionality automatically without manual maintenance of arguments, help descriptions
+/// etc.
+///
+/// # Example structure
+/// ```json
+/// {
+///   "options": [
+///     {
+///       "long": "scheme",
+///       "help": "Provider URI scheme (defaults to http)",
+///       "possible_values": [
+///         "http",
+///         "https"
+///       ],
+///       "default_value": "http"
+///       "multiple": false,
+///     },
+///     {
+///       "long": "file",
+///       "short": "f",
+///       "help": "Pact file to verify (can be repeated)",
+///       "multiple": true
+///     },
+///     {
+///       "long": "user",
+///       "help": "Username to use when fetching pacts from URLS",
+///       "multiple": false,
+///       "env": "PACT_BROKER_USERNAME"
+///     }
+///   ],
+///   "flags": [
+///     {
+///       "long": "disable-ssl-verification",
+///       "help": "Disables validation of SSL certificates",
+///       "multiple": false
+///     }
+///   ]
+/// }
+/// ```
+///
+/// # Safety
+///
+/// Exported functions are inherently unsafe.
+#[no_mangle]
+pub extern "C" fn pactffi_verifier_cli_args() -> *const c_char {
+    let args: Vec<String> = env::args().collect();
+    let program = args[0].clone();
+    let app = args::setup_app(program, clap::crate_version!());
+
+    // Iterate through the args, extracting info from each to then add to a Vector of args
+    let mut options: Vec<Argument> = Vec::new();
+    let mut flags: Vec<Argument> = Vec::new();
+
+    for opt in app.p.opts.iter() {
+        let arg = parse_argument(opt.s.long, opt.s.short, opt.b.help, opt.v.possible_vals.clone(),opt.v.default_val, opt.b.settings.is_set(ArgSettings::Multiple), opt.v.env.clone());
+        options.push(arg);
+    }
+
+    for opt in app.p.flags.iter() {
+        let arg = parse_argument(opt.s.long, opt.s.short, opt.b.help, None, None,opt.b.settings.is_set(ArgSettings::Multiple), None);
+        flags.push(arg);
+    }
+
+
+    let opts_flags = OptionsFlags { options:options, flags: flags};
+    let json = serde_json::to_string(&opts_flags).unwrap();
+    let c_str = CString::new(json).unwrap();
+    c_str.into_raw() as *const c_char
+}
+
+fn parse_argument(long: Option<&str>, short: Option<char>, help: Option<&str>, possible_values: Option<Vec<&str>>, default_value: Option<&OsStr>, multiple: bool, env: Option<(&OsStr, Option<OsString>)>) -> Argument {
+    let mut arg = Argument { short: None, long: None, help: None, possible_values: None, default_value: None, multiple: Some(false), env: None };
+
+    // Long
+    match long {
+        None => {}
+        Some(val) => {
+            arg.long = Some(val.to_string());
+        }
+    }
+
+    // Short
+    match short {
+        None => {}
+        Some(val) => {
+            arg.short = Some(val.to_string());
+        }
+    }
+
+    // Help
+    match help {
+        None => {}
+        Some(val) => {
+            arg.help = Some(val.to_string());
+        }
+    }
+
+    // Possible values
+    match possible_values {
+        None => {}
+        Some(val) => {
+            let mut possible_vals: Vec<String> = Vec::new();
+            for possible_val in val.iter() {
+                possible_vals.push(possible_val.to_string())
+            }
+            arg.possible_values = Some(possible_vals);
+        }
+    }
+
+    // Default value
+    match default_value {
+        None => {}
+        Some(val) =>
+            {
+                arg.default_value = Some(val.to_os_string().into_string().unwrap());
+            }
+    }
+
+    // Multiple
+    if multiple {
+        arg.multiple = Some(true);
+    }
+
+    // Env
+    match env {
+        None => {}
+        Some(val) =>
+            {
+                arg.env = Some(val.0.to_os_string().into_string().unwrap());
+            }
+    }
+
+    arg
 }
