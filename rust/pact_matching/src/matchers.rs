@@ -10,6 +10,7 @@ use log::*;
 use maplit::hashmap;
 use onig::Regex;
 use pact_plugin_driver::catalogue_manager::{CatalogueEntry, CatalogueEntryProviderType, CatalogueEntryType};
+use semver::Version;
 
 use pact_models::HttpStatus;
 use pact_models::matchingrules::{MatchingRule, RuleLogic};
@@ -95,7 +96,7 @@ lazy_static! {
       "v3-date", "v3-time", "v3-datetime", "v2-min-type", "v2-max-type", "v2-minmax-type",
       "v3-includes", "v3-null", "v4-equals-ignore-order", "v4-min-equals-ignore-order",
       "v4-max-equals-ignore-order", "v4-minmax-equals-ignore-order", "v3-content-type",
-      "v4-array-contains", "v1-equality"] {
+      "v4-array-contains", "v1-equality", "v4-not-empty", "v4-semver"] {
       entries.push(CatalogueEntry {
         entry_type: CatalogueEntryType::MATCHER,
         provider_type: CatalogueEntryProviderType::CORE,
@@ -219,6 +220,19 @@ impl Matches<&str> for &str {
         match actual.parse::<u16>() {
           Ok(status_code) => match_status_code(status_code, status),
           Err(err) => Err(anyhow!("Unable to match '{}' using {:?} - {}", self, matcher, err))
+        }
+      }
+      MatchingRule::NotEmpty => {
+        if actual.is_empty() {
+          Err(anyhow!("Expected an non-empty string"))
+        } else {
+          Ok(())
+        }
+      }
+      MatchingRule::Semver => {
+        match Version::parse(actual) {
+          Ok(_) => Ok(()),
+          Err(err) => Err(anyhow!("'{}' is not a valid semantic version - {}", actual, err))
         }
       }
       _ => Err(anyhow!("Unable to match '{}' using {:?}", self, matcher))
@@ -620,6 +634,13 @@ impl Matches<&Bytes> for Bytes {
         }
       },
       MatchingRule::ContentType(content_type) => match_content_type(&actual, content_type),
+      MatchingRule::NotEmpty => {
+        if actual.is_empty() {
+          Err(anyhow!("Expected an non-empty string of bytes"))
+        } else {
+          Ok(())
+        }
+      }
       _ => Err(anyhow!("Unable to match '{:?}...' ({} bytes) using {:?}",
                        actual.split_at(10).0, actual.len(), matcher))
     }
@@ -679,6 +700,7 @@ fn match_status_code(status_code: u16, status: &HttpStatus) -> anyhow::Result<()
 mod tests {
   use expectest::expect;
   use expectest::prelude::*;
+  use serde_json::json;
 
   use pact_models::{matchingrules, matchingrules::RuleList, matchingrules_list};
 
@@ -1015,5 +1037,30 @@ mod tests {
     expect!(match_status_code(599, &HttpStatus::NonError)).to(be_err());
     expect!(match_status_code(555, &HttpStatus::Error)).to(be_ok());
     expect!(match_status_code(99, &HttpStatus::Error)).to(be_err());
+  }
+
+  #[test]
+  fn not_empty_matcher_test() {
+    let matcher = MatchingRule::NotEmpty;
+    expect!("100".to_string().matches_with("100", &matcher, false)).to(be_ok());
+    expect!("100".to_string().matches_with("", &matcher, false)).to(be_err());
+    expect!("100".to_string().matches_with(100, &matcher, false)).to(be_err());
+    expect!(100.matches_with(100.1, &matcher, false)).to(be_err());
+    expect!(vec![100].matches_with(&[100], &matcher, false)).to(be_ok());
+    expect!(vec![100].matches_with(&[], &matcher, false)).to(be_err());
+    expect!(json!([100]).matches_with(&json!([100]), &matcher, false)).to(be_ok());
+    expect!(json!([100]).matches_with(&json!([]), &matcher, false)).to(be_err());
+    expect!(json!({"num": 100}).matches_with(&json!({"num": 100}), &matcher, false)).to(be_ok());
+    expect!(json!({"num": 100}).matches_with(&json!({}), &matcher, false)).to(be_err());
+  }
+
+  #[test]
+  fn semver_matcher_test() {
+    let matcher = MatchingRule::Semver;
+    expect!("1.0.0".to_string().matches_with("1.0.0", &matcher, false)).to(be_ok());
+    expect!("1.0.0".to_string().matches_with("1", &matcher, false)).to(be_err());
+    expect!("1.0.0".to_string().matches_with("1.0.0-beta.1", &matcher, false)).to(be_ok());
+    expect!(json!("1.0.0").matches_with(&json!("1.0.0"), &matcher, false)).to(be_ok());
+    expect!(json!("1.0.0").matches_with(&json!("1"), &matcher, false)).to(be_err());
   }
 }

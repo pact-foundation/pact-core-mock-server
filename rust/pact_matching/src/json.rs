@@ -20,6 +20,7 @@ use crate::matchers::*;
 use crate::matchingrules::{compare_lists_with_matchingrule, compare_maps_with_matchingrule};
 
 use super::Mismatch;
+use semver::Version;
 
 fn type_of(json: &Value) -> String {
   match json {
@@ -182,6 +183,32 @@ impl Matches<&Value> for Value {
           Err(anyhow!("Expected '{}' to match a boolean", json_to_string(actual)))
         }
         _ => Err(anyhow!("Expected '{}' to match a boolean", json_to_string(actual)))
+      }
+      MatchingRule::NotEmpty => match actual {
+        Value::Null => Err(anyhow!("Expected non-empty but got a NULL")),
+        Value::String(s) => if s.is_empty() {
+          Err(anyhow!("Expected an non-empty string"))
+        } else {
+          Ok(())
+        }
+        Value::Array(a) => if a.is_empty() {
+          Err(anyhow!("Expected an non-empty array"))
+        } else {
+          Ok(())
+        }
+        Value::Object(o) => if o.is_empty() {
+          Err(anyhow!("Expected an non-empty object"))
+        } else {
+          Ok(())
+        }
+        _ => Ok(())
+      }
+      MatchingRule::Semver => match actual {
+        Value::String(s) => match Version::parse(s) {
+          Ok(_) => Ok(()),
+          Err(err) => Err(anyhow!("'{}' is not a valid semantic version - {}", s, err))
+        }
+        _ => Err(anyhow!("Expected something that matches a semantic version, but got '{}'", actual))
       }
       _ => Ok(())
     };

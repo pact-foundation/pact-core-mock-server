@@ -134,6 +134,11 @@ impl<'a> Matches<&'a Element<'a>> for &'a Element<'a> {
                   Err(anyhow!("Expected '{}' to be equal to '{}'", name(self.name()), name(actual.name())))
              }
           },
+          MatchingRule::NotEmpty => if actual.children().is_empty() {
+            Err(anyhow!("Expected '{}' to have at least one child", name(actual.name())))
+          } else {
+            Ok(())
+          },
           _ => Err(anyhow!("Unable to match {:?} using {:?}", self, matcher))
         };
         debug!("Comparing '{:?}' to '{:?}' using {:?} -> {:?}", self, actual, matcher, result);

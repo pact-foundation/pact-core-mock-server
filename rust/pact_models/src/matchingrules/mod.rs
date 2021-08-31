@@ -62,7 +62,11 @@ pub enum MatchingRule {
   /// Matches boolean values (booleans and the string values `true` and `false`)
   Boolean,
   /// Request status code matcher
-  StatusCode(HttpStatus)
+  StatusCode(HttpStatus),
+  /// Value must be the same type and not empty
+  NotEmpty,
+  /// Value must a semantic version
+  Semver
 }
 
 impl MatchingRule {
@@ -147,7 +151,9 @@ impl MatchingRule {
         }).collect::<Vec<Value>>()
       }),
       MatchingRule::Values => json!({ "match": "values" }),
-      MatchingRule::StatusCode(status) => json!({ "match": "statusCode", "status": status.to_json()})
+      MatchingRule::StatusCode(status) => json!({ "match": "statusCode", "status": status.to_json()}),
+      MatchingRule::NotEmpty => json!({ "match": "notEmpty" }),
+      MatchingRule::Semver => json!({ "match": "semver" })
     }
   }
 
@@ -189,7 +195,9 @@ impl MatchingRule {
       MatchingRule::ArrayContains(_) => "array-contains",
       MatchingRule::Values => "values",
       MatchingRule::Boolean => "boolean",
-      MatchingRule::StatusCode(_) => "status-code"
+      MatchingRule::StatusCode(_) => "status-code",
+      MatchingRule::NotEmpty => "not-empty",
+      MatchingRule::Semver => "semver"
     }.to_string()
   }
 
@@ -221,10 +229,11 @@ impl MatchingRule {
       },
       MatchingRule::Values => empty,
       MatchingRule::Boolean => empty,
-      MatchingRule::StatusCode(sc) => hashmap!{ "status" => sc.to_json() }
+      MatchingRule::StatusCode(sc) => hashmap!{ "status" => sc.to_json() },
+      MatchingRule::NotEmpty => empty,
+      MatchingRule::Semver => empty
     }
   }
-
 
   /// Creates a `MatchingRule` from a type and a map of attributes
   pub fn create(rule_type: &str, attributes: &Value) -> anyhow::Result<MatchingRule> {
@@ -329,6 +338,8 @@ impl MatchingRule {
         },
         None => Ok(MatchingRule::StatusCode(HttpStatus::Success))
       },
+      "notEmpty" => Ok(MatchingRule::NotEmpty),
+      "semver" => Ok(MatchingRule::Semver),
       _ => Err(anyhow!("{} is not a valid matching rule type", rule_type)),
     }
   }

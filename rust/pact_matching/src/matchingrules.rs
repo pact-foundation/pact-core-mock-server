@@ -62,6 +62,13 @@ impl <T: Debug + Display + PartialEq + Clone> Matches<&Vec<T>> for &Vec<T> {
           Err(anyhow!("Expected {:?} to be equal to {:?}", actual, self))
         }
       }
+      MatchingRule::NotEmpty => {
+        if actual.is_empty() {
+          Err(anyhow!("Expected an non-empty list"))
+        } else {
+          Ok(())
+        }
+      }
       _ => Err(anyhow!("Unable to match {:?} using {:?}", self, matcher))
     };
     debug!("Comparing '{:?}' to '{:?}' using {:?} -> {:?}", self, actual, matcher, result);
@@ -119,6 +126,13 @@ impl Matches<&[u8]> for Vec<u8> {
       MatchingRule::ContentType(ref expected_content_type) => {
         match_content_type(&actual, expected_content_type)
           .map_err(|err| anyhow!("Expected data to have a content type of '{}' but was {}", expected_content_type, err))
+      }
+      MatchingRule::NotEmpty => {
+        if actual.is_empty() {
+          Err(anyhow!("Expected an non-empty list"))
+        } else {
+          Ok(())
+        }
       }
       _ => Err(anyhow!("Unable to match {:?} using {:?}", self, matcher))
     };
