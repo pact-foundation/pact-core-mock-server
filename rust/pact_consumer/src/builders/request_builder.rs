@@ -175,7 +175,7 @@ impl RequestBuilder {
           match definition {
             Value::Object(attributes) => {
               let map = attributes.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
-              let result = matcher.configure_content(&content_type, map).await;
+              let result = matcher.configure_interation(&content_type, map).await;
               match result {
                 Ok((body, rules, generators)) => {
                   request.body = body.clone();
