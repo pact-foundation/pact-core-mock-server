@@ -343,11 +343,13 @@ use std::str::from_utf8;
 
 use ansi_term::*;
 use ansi_term::Colour::*;
+use anyhow::anyhow;
 use bytes::Bytes;
 use lazy_static::*;
 use log::*;
 use maplit::hashmap;
 use pact_plugin_driver::catalogue_manager::find_content_matcher;
+use pact_plugin_driver::plugin_models::PluginInteractionConfig;
 use serde_json::{json, Value};
 
 use pact_models::bodies::OptionalBody;
@@ -357,9 +359,9 @@ use pact_models::http_parts::HttpPart;
 use pact_models::interaction::Interaction;
 use pact_models::json_utils::json_to_string;
 use pact_models::matchingrules::{Category, MatchingRule, MatchingRuleCategory, RuleList};
+use pact_models::pact::Pact;
 use pact_models::PactSpecification;
-use pact_models::request::Request;
-use pact_models::response::Response;
+use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
 
 use crate::generators::{DefaultVariantMatcher, generators_process_body};
 use crate::headers::{match_header_value, match_headers};
@@ -394,15 +396,22 @@ pub struct MatchingContext {
   /// Configuration to apply when matching with the context
   pub config: DiffConfig,
   /// Specification version to apply when matching with the context
-  pub matching_spec: PactSpecification
+  pub matching_spec: PactSpecification,
+  /// Any plugin configuration available for the interaction
+  pub plugin_configuration: HashMap<String, PluginInteractionConfig>
 }
 
 impl MatchingContext {
   /// Creates a new context with the given config and matching rules
-  pub fn new(config: DiffConfig, matchers: &MatchingRuleCategory) -> Self {
+  pub fn new(
+    config: DiffConfig,
+    matchers: &MatchingRuleCategory,
+    plugin_configuration: &HashMap<String, PluginInteractionConfig>
+  ) -> Self {
     MatchingContext {
       matchers: matchers.clone(),
       config: config.clone(),
+      plugin_configuration: plugin_configuration.clone(),
       .. MatchingContext::default()
     }
   }
@@ -420,7 +429,8 @@ impl MatchingContext {
     MatchingContext {
       matchers: matchers.clone(),
       config: self.config.clone(),
-      matching_spec: self.matching_spec.clone()
+      matching_spec: self.matching_spec.clone(),
+      plugin_configuration: self.plugin_configuration.clone()
     }
   }
 
@@ -497,7 +507,8 @@ impl Default for MatchingContext {
     MatchingContext {
       matchers: Default::default(),
       config: DiffConfig::AllowUnexpectedKeys,
-      matching_spec: PactSpecification::V3
+      matching_spec: PactSpecification::V3,
+      plugin_configuration: Default::default()
     }
   }
 }
@@ -1205,15 +1216,18 @@ async fn compare_bodies(
           mismatches.extend_from_slice(&*m);
         }
       } else {
-        if let Err(m) = matcher.match_contents(&expected.body(), &actual.body(), &context.matchers,
-          context.config == DiffConfig::AllowUnexpectedKeys).await {
-          for mismatch in m {
-            mismatches.push(Mismatch::BodyMismatch {
-              path: mismatch.path.clone(),
-              expected: Some(Bytes::from(mismatch.expected)),
-              actual: Some(Bytes::from(mismatch.actual)),
-              mismatch: mismatch.mismatch.clone()
-            });
+        let plugin_config = context.plugin_configuration.get(&matcher.plugin_name()).cloned();
+        if let Err(map) = matcher.match_contents(&expected.body(), &actual.body(), &context.matchers,
+          context.config == DiffConfig::AllowUnexpectedKeys, plugin_config).await {
+          for (key, list) in map {
+            for mismatch in list {
+              mismatches.push(Mismatch::BodyMismatch {
+                path: mismatch.path.clone(),
+                expected: Some(Bytes::from(mismatch.expected)),
+                actual: Some(Bytes::from(mismatch.actual)),
+                mismatch: mismatch.mismatch.clone()
+              });
+            }
           }
         }
       }
@@ -1326,20 +1340,30 @@ pub async fn match_body(
 }
 
 /// Matches the expected and actual requests
-pub async fn match_request(expected: Request, actual: Request) -> RequestMatchResult {
-  log::info!("comparing to expected {}", expected);
-  log::debug!("     body: '{}'", expected.body.str_value());
-  log::debug!("     matching_rules: {:?}", expected.matching_rules);
-  log::debug!("     generators: {:?}", expected.generators);
+pub async fn match_request<'a>(
+  expected: HttpRequest,
+  actual: HttpRequest,
+  pact: &Box<dyn Pact + Send + Sync + 'a>,
+  interaction: &Box<dyn Interaction + Send + Sync>
+) -> RequestMatchResult {
+  info!("comparing to expected {}", expected);
+  debug!("     body: '{}'", expected.body.str_value());
+  debug!("     matching_rules: {:?}", expected.matching_rules);
+  debug!("     generators: {:?}", expected.generators);
 
+  let plugin_data = setup_plugin_config(pact, interaction);
   let path_context = MatchingContext::new(DiffConfig::NoUnexpectedKeys,
-                                          &expected.matching_rules.rules_for_category("path").unwrap_or_default());
+    &expected.matching_rules.rules_for_category("path").unwrap_or_default(),
+    &plugin_data);
   let body_context = MatchingContext::new(DiffConfig::NoUnexpectedKeys,
-                                          &expected.matching_rules.rules_for_category("body").unwrap_or_default());
+    &expected.matching_rules.rules_for_category("body").unwrap_or_default(),
+    &plugin_data);
   let query_context = MatchingContext::new(DiffConfig::NoUnexpectedKeys,
-                                          &expected.matching_rules.rules_for_category("query").unwrap_or_default());
+    &expected.matching_rules.rules_for_category("query").unwrap_or_default(),
+    &plugin_data);
   let header_context = MatchingContext::new(DiffConfig::NoUnexpectedKeys,
-                                          &expected.matching_rules.rules_for_category("header").unwrap_or_default());
+    &expected.matching_rules.rules_for_category("header").unwrap_or_default(),
+    &plugin_data);
   let result = RequestMatchResult {
     method: match_method(&expected.method, &actual.method).err(),
     path: match_path(&expected.path, &actual.path, &path_context).err(),
@@ -1378,17 +1402,26 @@ pub fn match_status(expected: u16, actual: u16, context: &MatchingContext) -> Re
 }
 
 /// Matches the actual and expected responses.
-pub async fn match_response(expected: Response, actual: Response) -> Vec<Mismatch> {
+pub async fn match_response<'a>(
+  expected: HttpResponse,
+  actual: HttpResponse,
+  pact: &Box<dyn Pact + Send + Sync + 'a>,
+  interaction: &Box<dyn Interaction + Send + Sync>
+) -> Vec<Mismatch> {
   let mut mismatches = vec![];
 
   info!("comparing to expected response: {}", expected);
+  let plugin_data = setup_plugin_config(pact, interaction);
 
   let status_context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
-    &expected.matching_rules.rules_for_category("status").unwrap_or_default());
+    &expected.matching_rules.rules_for_category("status").unwrap_or_default(),
+    &plugin_data);
   let body_context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
-    &expected.matching_rules.rules_for_category("body").unwrap_or_default());
+    &expected.matching_rules.rules_for_category("body").unwrap_or_default(),
+    &plugin_data);
   let header_context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
-    &expected.matching_rules.rules_for_category("header").unwrap_or_default());
+    &expected.matching_rules.rules_for_category("header").unwrap_or_default(),
+    &plugin_data);
 
   mismatches.extend_from_slice(match_body(&expected, &actual, &body_context, &header_context).await
     .mismatches().as_slice());
@@ -1404,10 +1437,27 @@ pub async fn match_response(expected: Response, actual: Response) -> Vec<Mismatc
   mismatches
 }
 
+fn setup_plugin_config<'a>(
+  pact: &Box<dyn Pact + Send + Sync + 'a>,
+  interaction: &Box<dyn Interaction + Send + Sync>
+) -> HashMap<String, PluginInteractionConfig> {
+  pact.plugin_data().iter().map(|data| {
+    let interaction_config = if let Some(v4_interaction) = interaction.as_v4() {
+      v4_interaction.plugin_config().get(&data.name).cloned().unwrap_or_default()
+    } else {
+      hashmap! {}
+    };
+    (data.name.clone(), PluginInteractionConfig {
+      pact_configuration: data.configuration.clone(),
+      interaction_configuration: interaction_config
+    })
+  }).collect()
+}
+
 /// Matches the actual message contents to the expected one. This takes into account the content type of each.
 pub async fn match_message_contents(
-  expected: &Box<dyn Interaction + Send>,
-  actual: &Box<dyn Interaction + Send>,
+  expected: &Box<dyn Interaction + Send + Sync>,
+  actual: &Box<dyn Interaction + Send + Sync>,
   context: &MatchingContext
 ) -> Result<(), Vec<Mismatch>> {
   let expected_message = expected.as_message().unwrap();
@@ -1456,8 +1506,8 @@ pub async fn match_message_contents(
 
 /// Matches the actual message metadata to the expected one.
 pub fn match_message_metadata(
-  expected: &Box<dyn Interaction + Send>,
-  actual: &Box<dyn Interaction + Send>,
+  expected: &Box<dyn Interaction + Send + Sync>,
+  actual: &Box<dyn Interaction + Send + Sync>,
   context: &MatchingContext
 ) -> HashMap<String, Vec<Mismatch>> {
   debug!("Matching message metadata for '{}'", expected.description());
@@ -1520,24 +1570,31 @@ fn match_metadata_value(key: &str, expected: &Value, actual: &Value, context: &M
 }
 
 /// Matches the actual and expected messages.
-pub async fn match_message(expected: &Box<dyn Interaction + Send>, actual: &Box<dyn Interaction + Send>) -> Vec<Mismatch> {
+pub async fn match_message<'a>(
+  expected: &Box<dyn Interaction + Send + Sync>,
+  actual: &Box<dyn Interaction + Send + Sync>,
+  pact: &Box<dyn Pact + Send + Sync + 'a>) -> Vec<Mismatch> {
   let mut mismatches = vec![];
 
   if expected.is_message() && actual.is_message() {
-    log::info!("comparing to expected message: {:?}", expected);
+    info!("comparing to expected message: {:?}", expected);
     let matching_rules = expected.matching_rules().unwrap_or_default();
+    let plugin_data = setup_plugin_config(pact, expected);
     let body_context = if expected.is_v4() {
       MatchingContext {
         matchers: matching_rules.rules_for_category("content").unwrap_or_default(),
         config: DiffConfig::AllowUnexpectedKeys,
-        matching_spec: PactSpecification::V4
+        matching_spec: PactSpecification::V4,
+        plugin_configuration: plugin_data.clone()
       }
     } else {
       MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
-                           &matching_rules.rules_for_category("body").unwrap_or_default())
+        &matching_rules.rules_for_category("body").unwrap_or_default(),
+        &plugin_data)
     };
     let metadata_context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
-                                                &matching_rules.rules_for_category("metadata").unwrap_or_default());
+      &matching_rules.rules_for_category("metadata").unwrap_or_default(),
+      &plugin_data);
     let contents = match_message_contents(expected, actual, &body_context).await;
     mismatches.extend_from_slice(contents.err().unwrap_or_default().as_slice());
     for values in match_message_metadata(expected, actual, &metadata_context).values() {
@@ -1557,7 +1614,7 @@ pub async fn match_message(expected: &Box<dyn Interaction + Send>, actual: &Box<
 }
 
 /// Generates the request by applying any defined generators
-pub async fn generate_request(request: &Request, mode: &GeneratorTestMode, context: &HashMap<&str, Value>) -> Request {
+pub async fn generate_request(request: &HttpRequest, mode: &GeneratorTestMode, context: &HashMap<&str, Value>) -> HttpRequest {
   let mut request = request.clone();
 
   let generators = request.build_generators(&GeneratorCategory::PATH);
@@ -1620,7 +1677,7 @@ pub async fn generate_request(request: &Request, mode: &GeneratorTestMode, conte
 }
 
 /// Generates the response by applying any defined generators
-pub async fn generate_response(response: &Response, mode: &GeneratorTestMode, context: &HashMap<&str, Value>) -> Response {
+pub async fn generate_response(response: &HttpResponse, mode: &GeneratorTestMode, context: &HashMap<&str, Value>) -> HttpResponse {
   let mut response = response.clone();
   let generators = response.build_generators(&GeneratorCategory::STATUS);
   if !generators.is_empty() {
@@ -1664,35 +1721,63 @@ pub async fn generate_response(response: &Response, mode: &GeneratorTestMode, co
 }
 
 /// Matches the request part of the interaction
-pub async fn match_interaction_request(expected: Box<dyn Interaction>, actual: Box<dyn Interaction>, _spec_version: &PactSpecification) -> Result<RequestMatchResult, String> {
-  if let Some(expected) = expected.as_request_response() {
-    Ok(match_request(expected.request, actual.as_request_response().unwrap().request).await)
+pub async fn match_interaction_request(
+  expected: Box<dyn Interaction + Send + Sync>,
+  actual: Box<dyn Interaction + Send + Sync>,
+  pact: Box<dyn Pact + Send + Sync>,
+  _spec_version: &PactSpecification
+) -> anyhow::Result<RequestMatchResult> {
+  if let Some(http_interaction) = expected.as_v4_http() {
+    let request = actual.as_v4_http()
+      .ok_or_else(|| anyhow!("Could not unpack actual request as a V4 Http Request"))?.request;
+    Ok(match_request(http_interaction.request, request, &pact, &expected).await)
   } else {
-    Err(format!("match_interaction_request must be called with HTTP request/response interactions, got {}", expected.type_of()))
+    Err(anyhow!("match_interaction_request must be called with HTTP request/response interactions, got {}", expected.type_of()))
   }
 }
 
 /// Matches the response part of the interaction
-pub async fn match_interaction_response(expected: Box<dyn Interaction>, actual: Box<dyn Interaction>, _spec_version: &PactSpecification) -> Result<Vec<Mismatch>, String> {
-  if let Some(expected) = expected.as_request_response() {
-    Ok(match_response(expected.response, actual.as_request_response().unwrap().response).await)
+pub async fn match_interaction_response(
+  expected: Box<dyn Interaction + Sync>,
+  actual: Box<dyn Interaction + Sync>,
+  pact: Box<dyn Pact + Send + Sync>,
+  _spec_version: &PactSpecification
+) -> anyhow::Result<Vec<Mismatch>> {
+  if let Some(expected) = expected.as_v4_http() {
+    let expected_response = expected.response.clone();
+    let expected = expected.boxed();
+    let response = actual.as_v4_http()
+      .ok_or_else(|| anyhow!("Could not unpack actual response as a V4 Http Response"))?.response;
+    Ok(match_response(expected_response, response, &pact, &expected).await)
   } else {
-    Err(format!("match_interaction_response must be called with HTTP request/response interactions, got {}", expected.type_of()))
+    Err(anyhow!("match_interaction_response must be called with HTTP request/response interactions, got {}", expected.type_of()))
   }
 }
 
 /// Matches an interaction
-pub async fn match_interaction(expected: Box<dyn Interaction + Send>, actual: Box<dyn Interaction + Send>, _spec_version: &PactSpecification) -> Result<Vec<Mismatch>, String> {
-  if let Some(expected) = expected.as_request_response() {
-    let request_result = match_request(expected.request, actual.as_request_response().unwrap().request).await;
-    let response_result = match_response(expected.response, actual.as_request_response().unwrap().response).await;
+pub async fn match_interaction(
+  expected: Box<dyn Interaction + Send + Sync>,
+  actual: Box<dyn Interaction + Send + Sync>,
+  pact: Box<dyn Pact + Send + Sync>,
+  _spec_version: &PactSpecification
+) -> anyhow::Result<Vec<Mismatch>> {
+  if let Some(expected) = expected.as_v4_http() {
+    let expected_request = expected.request.clone();
+    let expected_response = expected.response.clone();
+    let expected = expected.boxed();
+    let request = actual.as_v4_http()
+      .ok_or_else(|| anyhow!("Could not unpack actual request as a V4 Http Request"))?.request;
+    let request_result = match_request(expected_request, request, &pact, &expected).await;
+    let response = actual.as_v4_http()
+      .ok_or_else(|| anyhow!("Could not unpack actual response as a V4 Http Response"))?.response;
+    let response_result = match_response(expected_response, response, &pact, &expected).await;
     let mut mismatches = request_result.mismatches();
     mismatches.extend_from_slice(&*response_result);
     Ok(mismatches)
   } else if expected.is_message() {
-    Ok(match_message(&expected, &actual).await)
+    Ok(match_message(&expected, &actual, &pact).await)
   } else {
-    Err(format!("match_interaction must be called with either an HTTP request/response interaction or a Message, got {}", expected.type_of()))
+    Err(anyhow!("match_interaction must be called with either an HTTP request/response interaction or a Message, got {}", expected.type_of()))
   }
 }
 

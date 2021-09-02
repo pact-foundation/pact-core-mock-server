@@ -89,7 +89,8 @@ impl InteractionBuilder {
         "text".to_string() => json!(self.comments),
         "testname".to_string() => json!(self.test_name)
       },
-      pending: false
+      pending: false,
+      plugin_config: Default::default()
     }
   }
 }

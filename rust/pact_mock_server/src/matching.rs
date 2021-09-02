@@ -12,21 +12,23 @@ use serde_json::json;
 use pact_matching::{Mismatch, RequestMatchResult};
 use pact_models::interaction::Interaction;
 use pact_models::PactSpecification;
-use pact_models::request::Request;
-use pact_models::response::Response;
-use pact_models::prelude::RequestResponseInteraction;
+use pact_models::prelude::Pact;
+use pact_models::prelude::v4::SynchronousHttp;
+use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
+use pact_models::v4::V4InteractionType;
+use pact_models::v4::pact::V4Pact;
 
 /// Enum to define a match result
 #[derive(Debug, Clone, PartialEq)]
 pub enum MatchResult {
   /// Match result where the request was successfully matched
-  RequestMatch(Request, Response),
+  RequestMatch(HttpRequest, HttpResponse),
   /// Match result where there were a number of mismatches
-  RequestMismatch(Request, Vec<Mismatch>),
+  RequestMismatch(HttpRequest, Vec<Mismatch>),
   /// Match result where the request was not expected
-  RequestNotFound(Request),
+  RequestNotFound(HttpRequest),
   /// Match result where an expected request was not received
-  MissingRequest(Request)
+  MissingRequest(HttpRequest)
 }
 
 impl MatchResult {
@@ -65,13 +67,13 @@ impl MatchResult {
                 "type": "request-not-found",
                 "method": req.method,
                 "path": req.path,
-                "request": req.to_json(&PactSpecification::V3)
+                "request": req.as_v3_request().to_json(&PactSpecification::V3)
             }),
             &MatchResult::MissingRequest(ref request) => json!({
                 "type": "missing-request",
                 "method": request.method,
                 "path": request.path,
-                "request": request.to_json(&PactSpecification::V3)
+                "request": request.as_v3_request().to_json(&PactSpecification::V3)
             })
         }
     }
@@ -100,7 +102,7 @@ impl Display for MatchResult {
   }
 }
 
-fn mismatches_to_json(request: &Request, mismatches: &Vec<Mismatch>) -> serde_json::Value {
+fn mismatches_to_json(request: &HttpRequest, mismatches: &Vec<Mismatch>) -> serde_json::Value {
     json!({
         "type" : "request-mismatch",
         "method" : request.method,
@@ -112,19 +114,24 @@ fn mismatches_to_json(request: &Request, mismatches: &Vec<Mismatch>) -> serde_js
 ///
 /// Matches a request against a list of interactions
 ///
-pub async fn match_request(req: &Request, interactions: Vec<Box<dyn Interaction + Send>>) -> MatchResult {
+pub async fn match_request(
+  req: &HttpRequest,
+  pact: &V4Pact,
+) -> MatchResult {
+  let interactions = pact.filter_interactions(V4InteractionType::Synchronous_HTTP);
   let match_results = futures::stream::iter(interactions)
     .filter(|i| future::ready(i.is_request_response()))
     .then(|i| async move {
-      let interaction = i.as_request_response().unwrap();
-      (interaction.clone(), pact_matching::match_request(interaction.request.clone(), req.clone()).await)
-    }).collect::<Vec<(RequestResponseInteraction, RequestMatchResult)>>().await;
+      let interaction = i.as_v4_http().unwrap();
+      (interaction.clone(), pact_matching::match_request(interaction.request.clone(),
+        req.clone(), &pact.boxed(), &i).await)
+    }).collect::<Vec<(SynchronousHttp, RequestMatchResult)>>().await;
   let mut sorted = match_results.iter().sorted_by(|(_, i1), (_, i2)| {
     Ord::cmp(&i2.score(), &i1.score())
   });
   match sorted.next() {
     Some((interaction, result)) => {
-      let request_response_interaction = interaction.as_request_response().unwrap();
+      let request_response_interaction = interaction.as_v4_http().unwrap();
       if result.all_matched() {
         MatchResult::RequestMatch(request_response_interaction.request, request_response_interaction.response)
       } else if result.method_or_path_mismatch() {

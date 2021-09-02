@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use ansi_term::{ANSIGenericString, Style};
 use ansi_term::Colour::*;
 use bytes::Bytes;
+use log::debug;
 use maplit::*;
 use serde_json::{json, Value};
 
@@ -11,16 +12,17 @@ use pact_models::bodies::OptionalBody;
 use pact_models::http_parts::HttpPart;
 use pact_models::interaction::Interaction;
 use pact_models::message::Message;
-use pact_models::request::Request;
-use pact_models::response::Response;
+use pact_models::prelude::Pact;
+use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
 
 use crate::{MismatchResult, ProviderInfo, VerificationOptions};
 use crate::callback_executors::RequestFilterExecutor;
-use crate::provider_client::{make_provider_request, provider_client_error_to_string};
+use crate::provider_client::make_provider_request;
 
-pub async fn verify_message_from_provider<F: RequestFilterExecutor>(
+pub async fn verify_message_from_provider<'a, F: RequestFilterExecutor>(
   provider: &ProviderInfo,
-  interaction: &Box<dyn Interaction + Send>,
+  pact: &Box<dyn Pact + Send + Sync + 'a>,
+  interaction: &Box<dyn Interaction + Send + Sync>,
   options: &VerificationOptions<F>,
   client: &reqwest::Client,
   _: &HashMap<&str, Value>
@@ -34,13 +36,13 @@ pub async fn verify_message_from_provider<F: RequestFilterExecutor>(
         .map(|ps| ps.to_json()).collect()));
     }
   }
-  let message_request = Request {
+  let message_request = HttpRequest {
     method: "POST".into(),
     body: OptionalBody::Present(Bytes::from(request_body.to_string()), Some("application/json".into()), None),
     headers: Some(hashmap! {
         "Content-Type".to_string() => vec!["application/json".to_string()]
     }),
-    .. Request::default()
+    .. HttpRequest::default()
   };
   match make_provider_request(provider, &message_request, options, client).await {
     Ok(ref actual_response) => {
@@ -50,8 +52,8 @@ pub async fn verify_message_from_provider<F: RequestFilterExecutor>(
         metadata,
         .. Message::default()
       };
-      log::debug!("actual message = {:?}", actual);
-      let mismatches = match_message(interaction, &actual.boxed()).await;
+      debug!("actual message = {:?}", actual);
+      let mismatches = match_message(interaction, &actual.boxed(), pact).await;
       if mismatches.is_empty() {
         Ok(interaction.id().clone())
       } else {
@@ -64,7 +66,7 @@ pub async fn verify_message_from_provider<F: RequestFilterExecutor>(
       }
     },
     Err(err) => {
-      Err(MismatchResult::Error(provider_client_error_to_string(err), interaction.id().clone()))
+      Err(MismatchResult::Error(err.to_string(), interaction.id().clone()))
     }
   }
 }
@@ -120,7 +122,7 @@ fn display_result(body_result: ANSIGenericString<str>, metadata_result: Vec<(Str
   println!("      has a matching body ({})", body_result);
 }
 
-fn extract_metadata(actual_response: &Response) -> HashMap<String, Value> {
+fn extract_metadata(actual_response: &HttpResponse) -> HashMap<String, Value> {
   let content_type = "contentType".to_string();
 
   let mut default = hashmap!{

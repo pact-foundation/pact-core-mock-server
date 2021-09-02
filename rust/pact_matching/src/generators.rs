@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 
 use log::*;
+use maplit::hashmap;
 use pact_plugin_driver::catalogue_manager::find_content_generator;
 use serde_json::{self, Value};
 use sxd_document::dom::Document;
@@ -108,7 +109,8 @@ pub(crate) fn find_matching_variant<T>(
   let result = variants.iter()
     .find(|(index, rules, _)| {
       debug!("find_matching_variant: Comparing variant {} with value '{:?}'", index, value);
-      let context = MatchingContext::new(DiffConfig::NoUnexpectedKeys, rules);
+      let context = MatchingContext::new(DiffConfig::NoUnexpectedKeys,
+                                         rules, &hashmap!{});
       let matches = callback(&vec!["$"], value, &context);
       debug!("find_matching_variant: Comparing variant {} => {}", index, matches);
       matches

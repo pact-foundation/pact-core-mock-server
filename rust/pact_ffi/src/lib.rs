@@ -15,6 +15,8 @@ use models::message::Message;
 use pact_matching::{self as pm};
 pub use pact_matching::Mismatch;
 use pact_models::interaction::Interaction;
+use pact_models::v4::pact::V4Pact;
+use pact_models::pact::Pact;
 
 use crate::util::*;
 
@@ -127,12 +129,13 @@ ffi_fn! {
     /// Match a pair of messages, producing a collection of mismatches,
     /// which is empty if the two messages matched.
     fn pactffi_match_message(msg_1: *const Message, msg_2: *const Message) -> *const Mismatches {
-        let msg_1: Box<dyn Interaction + Send> = unsafe { Box::from_raw(msg_1 as *mut Message) };
-        let msg_2: Box<dyn Interaction + Send> = unsafe { Box::from_raw(msg_2 as *mut Message) };
+        let msg_1: Box<dyn Interaction + Send + Sync> = unsafe { Box::from_raw(msg_1 as *mut Message) };
+        let msg_2: Box<dyn Interaction + Send + Sync> = unsafe { Box::from_raw(msg_2 as *mut Message) };
 
         let runtime = tokio::runtime::Runtime::new().unwrap();
         let mismatches = runtime.block_on(async move {
-            Mismatches(pm::match_message(&msg_1, &msg_2).await)
+            // TODO: match_message also requires the Pact that the messages belong to
+            Mismatches(pm::match_message(&msg_1, &msg_2, &V4Pact::default().boxed()).await)
         });
 
         ptr::raw_to(mismatches) as *const Mismatches

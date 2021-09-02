@@ -23,6 +23,7 @@ use crate::sync_pact::RequestResponsePact;
 use crate::v4::interaction::{interactions_from_json, V4Interaction};
 use crate::v4::V4InteractionType;
 use crate::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerifier, ResultLevel};
+use crate::plugins::PluginData;
 
 /// V4 spec Struct that represents a pact between the consumer and provider of a service.
 #[derive(Debug, Clone)]
@@ -65,6 +66,14 @@ impl V4Pact {
     let interaction_types: HashSet<_> = self.interactions.iter().map(|i| i.v4_type()).collect();
     interaction_types.len() > 1
   }
+
+  /// Returns all the interactions of the given type
+  pub fn filter_interactions(&self, interaction_type: V4InteractionType) -> Vec<Box<dyn Interaction + Send + Sync>> {
+    self.interactions.iter()
+      .filter(|i| i.v4_type() == interaction_type)
+      .map(|i| i.boxed())
+      .collect()
+  }
 }
 
 impl Pact for V4Pact {
@@ -76,7 +85,7 @@ impl Pact for V4Pact {
     self.provider.clone()
   }
 
-  fn interactions(&self) -> Vec<Box<dyn Interaction + Send>> {
+  fn interactions(&self) -> Vec<Box<dyn Interaction + Send + Sync>> {
     self.interactions.iter().map(|i| i.boxed()).collect()
   }
 
@@ -169,11 +178,11 @@ impl Pact for V4Pact {
     PactSpecification::V4
   }
 
-  fn boxed(&self) -> Box<dyn Pact + Send> {
+  fn boxed(&self) -> Box<dyn Pact + Send + Sync> {
     Box::new(self.clone())
   }
 
-  fn arced(&self) -> Arc<dyn Pact + Send> {
+  fn arced(&self) -> Arc<dyn Pact + Send + Sync> {
     Arc::new(self.clone())
   }
 
@@ -205,18 +214,12 @@ impl Pact for V4Pact {
     }
   }
 
-  fn plugins(&self) -> Vec<Value> {
+  fn plugin_data(&self) -> Vec<PluginData> {
     if let Some(plugins) = self.metadata.get("plugins") {
-      match plugins {
-        Value::Array(items) => {
-          let mut deps = vec![];
-          for plugin in items {
-            deps.push(plugin.clone());
-          }
-          deps
-        }
-        _ => {
-          warn!("Ignoring invalid plugin configuration in metadata");
+      match serde_json::from_value(plugins.clone()) {
+        Ok(plugin_data) => plugin_data,
+        Err(err) => {
+          warn!("Ignoring invalid plugin configuration in metadata - {}", err);
           Vec::default()
         }
       }
@@ -282,7 +285,7 @@ impl ReadWritePact for V4Pact {
     })
   }
 
-  fn merge(&self, other: &dyn Pact) -> anyhow::Result<Box<dyn Pact>> {
+  fn merge(&self, other: &dyn Pact) -> anyhow::Result<Box<dyn Pact + Send + Sync>> {
     if self.consumer.name == other.consumer().name && self.provider.name == other.provider().name {
       Ok(Box::new(V4Pact {
         consumer: self.consumer.clone(),
@@ -346,7 +349,7 @@ impl PactJsonVerifier for V4Pact {
 }
 
 /// Creates a V4 Pact from the provided JSON struct
-pub fn from_json(source: &str, pact_json: &Value) -> anyhow::Result<Box<dyn Pact>> {
+pub fn from_json(source: &str, pact_json: &Value) -> anyhow::Result<Box<dyn Pact + Send + Sync>> {
   let metadata = meta_data_from_json(pact_json);
   let consumer = match pact_json.get("consumer") {
     Some(v) => Consumer::from_json(v),

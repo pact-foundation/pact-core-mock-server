@@ -27,8 +27,7 @@ use pact_models::generators::GeneratorTestMode;
 use pact_models::http_parts::HttpPart;
 use pact_models::pact::Pact;
 use pact_models::query_strings::parse_query_string;
-use pact_models::request::Request;
-use pact_models::sync_pact::RequestResponsePact;
+use pact_models::v4::http_parts::HttpRequest;
 
 use crate::matching::{match_request, MatchResult};
 use crate::mock_server::MockServer;
@@ -89,7 +88,7 @@ fn extract_headers(headers: &hyper::HeaderMap) -> Result<Option<HashMap<String, 
   }
 }
 
-fn extract_body(bytes: bytes::Bytes, request: &Request) -> OptionalBody {
+fn extract_body(bytes: bytes::Bytes, request: &HttpRequest) -> OptionalBody {
     if bytes.len() > 0 {
       OptionalBody::Present(bytes, request.content_type(), None)
     } else {
@@ -97,7 +96,7 @@ fn extract_body(bytes: bytes::Bytes, request: &Request) -> OptionalBody {
     }
 }
 
-async fn hyper_request_to_pact_request(req: hyper::Request<Body>) -> Result<Request, InteractionError> {
+async fn hyper_request_to_pact_request(req: hyper::Request<Body>) -> Result<HttpRequest, InteractionError> {
     let method = req.method().to_string();
     let path = extract_path(req.uri());
     let query = extract_query_string(req.uri());
@@ -107,15 +106,15 @@ async fn hyper_request_to_pact_request(req: hyper::Request<Body>) -> Result<Requ
         .await
         .map_err(|_| InteractionError::RequestBodyError)?;
 
-    let request = Request {
+    let request = HttpRequest {
       method,
       path,
       query,
       headers,
-      .. Request::default()
+      .. HttpRequest::default()
     };
 
-    Ok(Request {
+    Ok(HttpRequest {
       body: extract_body(body_bytes, &request),
       .. request.clone()
     })
@@ -149,13 +148,13 @@ fn set_hyper_headers(builder: &mut ResponseBuilder, headers: &Option<HashMap<Str
     Ok(())
 }
 
-fn error_body(request: &Request, error: &String) -> String {
+fn error_body(request: &HttpRequest, error: &String) -> String {
     let body = json!({ "error" : format!("{} : {:?}", error, request) });
     body.to_string()
 }
 
 async fn match_result_to_hyper_response(
-  request: &Request,
+  request: &HttpRequest,
   match_result: MatchResult,
   mock_server: Arc<Mutex<MockServer>>
 ) -> Result<Response<Body>, InteractionError> {
@@ -236,7 +235,7 @@ async fn match_result_to_hyper_response(
 
 async fn handle_request(
   req: hyper::Request<Body>,
-  pact: Arc<RequestResponsePact>,
+  pact: Arc<Mutex<dyn Pact + Send + Sync>>,
   matches: Arc<Mutex<Vec<MatchResult>>>,
   mock_server: Arc<Mutex<MockServer>>
 ) -> Result<Response<Body>, InteractionError> {
@@ -254,7 +253,11 @@ async fn handle_request(
     debug!("     body: '{}'", pact_request.body.str_value());
   }
 
-  let match_result = match_request(&pact_request, pact.interactions()).await;
+  let pact = {
+    let inner = pact.lock().unwrap();
+    inner.as_v4_pact().unwrap()
+  };
+  let match_result = match_request(&pact_request, &pact).await;
 
   matches.lock().unwrap().push(match_result.clone());
 
@@ -290,14 +293,14 @@ fn handle_mock_request_error(result: Result<Response<Body>, InteractionError>) -
 // The reason that the function itself is still async (even if it performs
 // no async operations) is that it needs a tokio context to be able to call try_bind.
 pub(crate) async fn create_and_bind(
-  pact: RequestResponsePact,
+  pact: Arc<Mutex<dyn Pact + Send + Sync>>,
   addr: SocketAddr,
   shutdown: impl std::future::Future<Output = ()>,
   matches: Arc<Mutex<Vec<MatchResult>>>,
   mock_server: Arc<Mutex<MockServer>>,
   mock_server_id: &String
 ) -> Result<(impl std::future::Future<Output = ()>, SocketAddr), hyper::Error> {
-  let pact = Arc::new(pact);
+  let pact = pact.clone();
   let ms_id = Arc::new(mock_server_id.clone());
 
   let server = Server::try_bind(&addr)?
@@ -356,15 +359,13 @@ impl hyper::server::accept::Accept for HyperAcceptor {
 }
 
 pub(crate) async fn create_and_bind_tls(
-  pact: RequestResponsePact,
+  pact: Arc<Mutex<dyn Pact + Send + Sync>>,
   addr: SocketAddr,
   shutdown: impl std::future::Future<Output = ()>,
   matches: Arc<Mutex<Vec<MatchResult>>>,
   tls_cfg: ServerConfig,
   mock_server: Arc<Mutex<MockServer>>
 ) -> Result<(impl std::future::Future<Output = ()>, SocketAddr), io::Error> {
-  let pact = Arc::new(pact);
-
   let tcp = TcpListener::bind(&addr).await?;
   let socket_addr = tcp.local_addr()?;
   let tls_acceptor = Arc::new(TlsAcceptor::from(Arc::new(tls_cfg)));
@@ -430,7 +431,7 @@ mod tests {
     let matches = Arc::new(Mutex::new(vec![]));
 
     let (future, _) = create_and_bind(
-      RequestResponsePact::default(),
+      RequestResponsePact::default().thread_safe(),
       ([0, 0, 0, 0], 0 as u16).into(),
       async {
           shutdown_rx.await.ok();

@@ -53,10 +53,10 @@ pub struct ValidatingMockServer {
 impl ValidatingMockServer {
   /// Create a new mock server which handles requests as described in the
   /// pact, and runs in a background thread
-  pub fn start(pact: Box<dyn Pact + Send>, output_dir: Option<PathBuf>) -> ValidatingMockServer {
+  pub fn start(pact: Box<dyn Pact + Send + Sync>, output_dir: Option<PathBuf>) -> ValidatingMockServer {
     debug!("Starting mock server from pact {:?}", pact);
     // Spawn new runtime in thread to prevent reactor execution context conflict
-    let (pact_tx, pact_rx) = std::sync::mpsc::channel::<Box<dyn Pact + Send>>();
+    let (pact_tx, pact_rx) = std::sync::mpsc::channel::<Box<dyn Pact + Send + Sync>>();
     pact_tx.send(pact).expect("INTERNAL ERROR: Could not pass pact into mock server thread");
     let (mock_server, done_rx) = std::thread::spawn(|| {
       let runtime = tokio::runtime::Builder::new_current_thread()

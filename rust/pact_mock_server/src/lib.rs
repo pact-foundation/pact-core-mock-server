@@ -89,7 +89,7 @@ lazy_static! {
 /// - If a mock server is not able to be started
 pub fn start_mock_server(
   id: String,
-  pact: Box<dyn Pact>,
+  pact: Box<dyn Pact + Send + Sync>,
   addr: std::net::SocketAddr
 ) -> Result<i32, String> {
   start_mock_server_with_config(id, pact, addr, MockServerConfig::default())
@@ -111,7 +111,7 @@ pub fn start_mock_server(
 /// - If a mock server is not able to be started
 pub fn start_mock_server_with_config(
   id: String,
-  pact: Box<dyn Pact>,
+  pact: Box<dyn Pact + Send + Sync>,
   addr: std::net::SocketAddr,
   config: MockServerConfig
 ) -> Result<i32, String> {

@@ -561,7 +561,7 @@ pub async fn fetch_pacts_from_broker(
   broker_url: &str,
   provider_name: &str,
   auth: Option<HttpAuth>
-) -> anyhow::Result<Vec<anyhow::Result<(Box<dyn Pact + Send>, Option<PactVerificationContext>, Vec<Link>)>>> {
+) -> anyhow::Result<Vec<anyhow::Result<(Box<dyn Pact + Send + Sync>, Option<PactVerificationContext>, Vec<Link>)>>> {
   trace!("fetch_pacts_from_broker(broker_url='{}', provider_name='{}', auth={})", broker_url,
     provider_name, auth.clone().unwrap_or_default());
 
@@ -639,7 +639,7 @@ pub async fn fetch_pacts_dynamically_from_broker(
   provider_tags: Vec<String>,
   consumer_version_selectors: Vec<ConsumerVersionSelector>,
   auth: Option<HttpAuth>
-) -> Result<Vec<Result<(Box<dyn Pact + Send>, Option<PactVerificationContext>, Vec<Link>), PactBrokerError>>, PactBrokerError> {
+) -> Result<Vec<Result<(Box<dyn Pact + Send + Sync>, Option<PactVerificationContext>, Vec<Link>), PactBrokerError>>, PactBrokerError> {
   trace!("fetch_pacts_dynamically_from_broker(broker_url='{}', provider_name='{}', pending={}, \
     include_wip_pacts_since={:?}, provider_tags: {:?}, consumer_version_selectors: {:?}, auth={})",
     broker_url, provider_name, pending, include_wip_pacts_since, provider_tags,

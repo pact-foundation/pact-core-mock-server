@@ -24,6 +24,7 @@ use crate::interaction::Interaction;
 use crate::message::Message;
 use crate::pact::{determine_spec_version, Pact, parse_meta_data, ReadWritePact};
 use crate::PACT_RUST_VERSION;
+use crate::plugins::PluginData;
 use crate::sync_pact::RequestResponsePact;
 use crate::v4::pact::V4Pact;
 use crate::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerifier, ResultLevel};
@@ -54,7 +55,7 @@ impl Pact for MessagePact {
     self.provider.clone()
   }
 
-  fn interactions(&self) -> Vec<Box<dyn Interaction + Send>> {
+  fn interactions(&self) -> Vec<Box<dyn Interaction + Send + Sync>> {
     self.messages.iter().map(|i| i.boxed()).collect()
   }
 
@@ -103,11 +104,11 @@ impl Pact for MessagePact {
     self.specification_version.clone()
   }
 
-  fn boxed(&self) -> Box<dyn Pact + Send> {
+  fn boxed(&self) -> Box<dyn Pact + Send + Sync> {
     Box::new(self.clone())
   }
 
-  fn arced(&self) -> Arc<dyn Pact + Send> {
+  fn arced(&self) -> Arc<dyn Pact + Send + Sync> {
     Arc::new(self.clone())
   }
 
@@ -129,7 +130,7 @@ impl Pact for MessagePact {
     false
   }
 
-  fn plugins(&self) -> Vec<Value> {
+  fn plugin_data(&self) -> Vec<PluginData> {
     Vec::default()
   }
 
@@ -280,7 +281,7 @@ impl ReadWritePact for MessagePact {
     })
   }
 
-  fn merge(&self, pact: &dyn Pact) -> anyhow::Result<Box<dyn Pact>> {
+  fn merge(&self, pact: &dyn Pact) -> anyhow::Result<Box<dyn Pact + Send + Sync>> {
     if self.consumer.name == pact.consumer().name && self.provider.name == pact.provider().name {
       let messages: Vec<Result<Message, String>> = self.messages.iter()
         .merge_join_by(pact.interactions().iter(), |a, b| {

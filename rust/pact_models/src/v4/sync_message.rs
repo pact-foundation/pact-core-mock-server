@@ -20,7 +20,7 @@ use crate::message::Message;
 use crate::provider_states::ProviderState;
 use crate::sync_interaction::RequestResponseInteraction;
 use crate::v4::async_message::AsynchronousMessage;
-use crate::v4::interaction::V4Interaction;
+use crate::v4::interaction::{V4Interaction, parse_plugin_config};
 use crate::v4::message_parts::MessageContents;
 use crate::v4::synch_http::SynchronousHttp;
 use crate::v4::V4InteractionType;
@@ -45,7 +45,10 @@ pub struct SynchronousMessages {
   pub response: Vec<MessageContents>,
 
   /// If this interaction is pending. Pending interactions will never fail the build if they fail
-  pub pending: bool
+  pub pending: bool,
+
+  /// Configuration added by plugins
+  pub plugin_config: HashMap<String, HashMap<String, Value>>
 }
 
 impl SynchronousMessages {
@@ -97,6 +100,7 @@ impl SynchronousMessages {
         response.iter()
           .map(|message| MessageContents::from_json(message))
           .collect::<Vec<anyhow::Result<MessageContents>>>();
+      let plugin_config = parse_plugin_config(json);
       if responses.iter().any(|res| res.is_err()) {
         let errors = responses.iter()
           .filter(|res| res.is_err())
@@ -113,7 +117,8 @@ impl SynchronousMessages {
           request: MessageContents::from_json(request)?,
           response: responses.iter().map(|res| res.as_ref().unwrap().clone()).collect(),
           pending: json.get("pending")
-            .map(|value| value.as_bool().unwrap_or_default()).unwrap_or_default()
+            .map(|value| value.as_bool().unwrap_or_default()).unwrap_or_default(),
+          plugin_config
         })
       }
     } else {
@@ -145,6 +150,14 @@ impl V4Interaction for SynchronousMessages {
         .map(|(k, v)| (k.clone(), v.clone())).collect());
     }
 
+    if !self.plugin_config.is_empty() {
+      let map = json.as_object_mut().unwrap();
+      map.insert("pluginConfiguration".to_string(), self.plugin_config.iter()
+        .map(|(k, v)|
+          (k.clone(), Value::Object(v.iter().map(|(k, v)| (k.clone(), v.clone())).collect()))
+        ).collect());
+    }
+
     json
   }
 
@@ -170,6 +183,10 @@ impl V4Interaction for SynchronousMessages {
 
   fn v4_type(&self) -> V4InteractionType {
     V4InteractionType::Synchronous_Messages
+  }
+
+  fn plugin_config(&self) -> HashMap<String, HashMap<String, Value>> {
+    self.plugin_config.clone()
   }
 }
 
@@ -238,11 +255,11 @@ impl Interaction for SynchronousMessages {
     Some(self.clone())
   }
 
-  fn boxed(&self) -> Box<dyn Interaction + Send> {
+  fn boxed(&self) -> Box<dyn Interaction + Send + Sync> {
     Box::new(self.clone())
   }
 
-  fn arced(&self) -> Arc<dyn Interaction + Send> {
+  fn arced(&self) -> Arc<dyn Interaction + Send + Sync> {
     Arc::new(self.clone())
   }
 
@@ -269,7 +286,8 @@ impl Default for SynchronousMessages {
       comments: Default::default(),
       request: Default::default(),
       response: Default::default(),
-      pending: false
+      pending: false,
+      plugin_config: Default::default()
     }
   }
 }

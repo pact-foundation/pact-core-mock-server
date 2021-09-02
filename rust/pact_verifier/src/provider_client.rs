@@ -1,6 +1,7 @@
 use std::collections::hash_map::HashMap;
 use std::convert::TryFrom;
 
+use anyhow::anyhow;
 use futures::future::*;
 use http::{HeaderMap, HeaderValue, Method};
 use http::header::{HeaderName, InvalidHeaderName, InvalidHeaderValue};
@@ -12,9 +13,7 @@ use reqwest::{Client, Error, RequestBuilder};
 
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
-use pact_models::http_parts::HttpPart;
-use pact_models::request::Request;
-use pact_models::response::Response;
+use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
 
 use super::*;
 
@@ -35,6 +34,27 @@ impl From<reqwest::Error> for ProviderClientError {
   }
 }
 
+impl Display for ProviderClientError {
+  fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    match self {
+      ProviderClientError::RequestMethodError(ref method, _) =>
+        write!(f, "Invalid request method: '{}'", method),
+      ProviderClientError::RequestHeaderNameError(ref name, _) =>
+        write!(f, "Invalid header name: '{}'", name),
+      ProviderClientError::RequestHeaderValueError(ref value, _) =>
+        write!(f, "Invalid header value: '{}'", value),
+      ProviderClientError::RequestBodyError(ref message) =>
+        write!(f, "Invalid request body: '{}'", message),
+      ProviderClientError::ResponseError(ref message) =>
+        write!(f, "Invalid response: {}", message),
+      ProviderClientError::ResponseStatusCodeError(ref code) =>
+        write!(f, "Invalid status code: {}", code)
+    }
+  }
+}
+
+impl std::error::Error for ProviderClientError {}
+
 pub fn join_paths(base: &str, path: &str) -> String {
   if !path.is_empty() && path != "/" {
     let mut full_path = base.trim_end_matches('/').to_string();
@@ -48,7 +68,7 @@ pub fn join_paths(base: &str, path: &str) -> String {
   }
 }
 
-fn create_native_request(client: &Client, base_url: &str, request: &Request) -> Result<RequestBuilder, ProviderClientError> {
+fn create_native_request(client: &Client, base_url: &str, request: &HttpRequest) -> Result<RequestBuilder, ProviderClientError> {
   let url = join_paths(base_url, &request.path.clone());
   let mut builder = client.request(Method::from_bytes(
     &request.method.clone().into_bytes()).unwrap_or(Method::GET), &url);
@@ -114,7 +134,7 @@ fn extract_headers(headers: &HeaderMap) -> Option<HashMap<String, Vec<String>>> 
   }
 }
 
-async fn extract_body(response: reqwest::Response, pact_response: &Response) -> Result<OptionalBody, reqwest::Error> {
+async fn extract_body(response: reqwest::Response, pact_response: &HttpResponse) -> anyhow::Result<OptionalBody> {
   let body = response.bytes().await?;
   if !body.is_empty() {
     Ok(OptionalBody::Present(body, pact_response.content_type(), None))
@@ -123,22 +143,20 @@ async fn extract_body(response: reqwest::Response, pact_response: &Response) -> 
   }
 }
 
-async fn native_response_to_pact_response(
-    native_response: reqwest::Response
-) -> Result<Response, reqwest::Error> {
+async fn native_response_to_pact_response(native_response: reqwest::Response) -> anyhow::Result<HttpResponse> {
   debug!("Received native response: {:?}", native_response);
 
   let status = native_response.status().as_u16();
   let headers = extract_headers(native_response.headers());
-  let response = Response {
+  let response = HttpResponse {
     status,
     headers,
-    .. Response::default()
+    .. HttpResponse::default()
   };
 
   let body = extract_body(native_response, &response).await?;
 
-  let response = Response {
+  let response = HttpResponse {
     body, .. response.clone()
   };
   info!("Received response: {}", response);
@@ -149,10 +167,10 @@ async fn native_response_to_pact_response(
 /// executing the request
 pub async fn make_provider_request<F: RequestFilterExecutor>(
   provider: &ProviderInfo,
-  request: &Request,
+  request: &HttpRequest,
   options: &VerificationOptions<F>,
   client: &reqwest::Client
-) -> Result<Response, ProviderClientError> {
+) -> anyhow::Result<HttpResponse> {
   let request_filter_option = options.request_filter.clone();
   let request = if request_filter_option.is_some() {
     let request_filter = request_filter_option.unwrap();
@@ -174,9 +192,9 @@ pub async fn make_provider_request<F: RequestFilterExecutor>(
   let request = create_native_request(client, &base_url, &request)?;
 
   let response = request.send()
+    .map_err(|err| anyhow!(err))
     .and_then(native_response_to_pact_response)
-    .await
-    .map_err(|err| ProviderClientError::ResponseError(err.to_string()))?;
+    .await?;
 
   debug!("response from call to provider = {:?}", response);
 
@@ -188,9 +206,9 @@ pub async fn make_provider_request<F: RequestFilterExecutor>(
 pub async fn make_state_change_request(
   client: &reqwest::Client,
   state_change_url: &str,
-  request: &Request
-) -> Result<HashMap<String, Value>, ProviderClientError> {
-  log::debug!("Sending {} to state change handler", request);
+  request: &HttpRequest
+) -> anyhow::Result<HashMap<String, Value>> {
+  debug!("Sending {} to state change handler", request);
 
   let request = create_native_request(client, state_change_url, request)?;
   let result = request.send().await;
@@ -220,30 +238,13 @@ pub async fn make_state_change_request(
           Ok(hashmap!{})
         }
       } else {
-        Err(ProviderClientError::ResponseStatusCodeError(response.status().as_u16()))
+        Err(ProviderClientError::ResponseStatusCodeError(response.status().as_u16()).into())
       }
     },
     Err(err) => {
       debug!("State change request failed with error {}", err);
-      Err(ProviderClientError::ResponseError(err.to_string()))
+      Err(ProviderClientError::ResponseError(err.to_string()).into())
     }
-  }
-}
-
-pub fn provider_client_error_to_string(err: ProviderClientError) -> String {
-  match err {
-    ProviderClientError::RequestMethodError(ref method, _) =>
-      format!("Invalid request method: '{}'", method),
-    ProviderClientError::RequestHeaderNameError(ref name, _) =>
-      format!("Invalid header name: '{}'", name),
-    ProviderClientError::RequestHeaderValueError(ref value, _) =>
-      format!("Invalid header value: '{}'", value),
-    ProviderClientError::RequestBodyError(ref message) =>
-      format!("Invalid request body: '{}'", message),
-    ProviderClientError::ResponseError(ref message) =>
-      format!("Invalid response: {}", message),
-    ProviderClientError::ResponseStatusCodeError(ref code) =>
-      format!("Invalid status code: {}", code)
   }
 }
 
@@ -257,6 +258,7 @@ mod tests {
 
   use pact_models::bodies::OptionalBody;
   use pact_models::request::Request;
+  use pact_models::v4::http_parts::HttpRequest;
 
   use super::{create_native_request, extract_headers, join_paths};
 
@@ -302,7 +304,7 @@ mod tests {
   fn convert_request_to_native_request_test() {
     let client = reqwest::Client::new();
     let base_url = "http://example.test:8080".to_string();
-    let request = Request::default();
+    let request = HttpRequest::default();
     let request_builder = create_native_request(&client, &base_url, &request).unwrap().build().unwrap();
 
     expect!(request_builder.method()).to(be_equal_to("GET"));
@@ -314,12 +316,12 @@ mod tests {
   fn convert_request_to_native_request_with_query_parameters() {
     let client = reqwest::Client::new();
     let base_url = "http://example.test:8080".to_string();
-    let request = Request {
+    let request = HttpRequest {
       query: Some(hashmap!{
         "a".to_string() => vec!["b".to_string()],
         "c".to_string() => vec!["d".to_string(), "e".to_string()]
       }),
-      .. Request::default()
+      .. HttpRequest::default()
     };
     let request_builder = create_native_request(&client, &base_url, &request).unwrap().build().unwrap();
 
@@ -331,12 +333,12 @@ mod tests {
   fn convert_request_to_native_request_with_headers() {
     let client = reqwest::Client::new();
     let base_url = "http://example.test:8080".to_string();
-    let request = Request {
+    let request = HttpRequest {
       headers: Some(hashmap! {
         "A".to_string() => vec!["B".to_string()],
         "B".to_string() => vec!["C".to_string(), "D".to_string()]
       }),
-      .. Request::default()
+      .. HttpRequest::default()
     };
     let request_builder = create_native_request(&client, &base_url, &request).unwrap().build().unwrap();
 
@@ -355,9 +357,9 @@ mod tests {
   fn convert_request_to_native_request_with_body() {
     let client = reqwest::Client::new();
     let base_url = "http://example.test:8080".to_string();
-    let request = Request {
+    let request = HttpRequest {
       body: OptionalBody::from("body"),
-      .. Request::default()
+      .. HttpRequest::default()
     };
     let request_builder = create_native_request(&client, &base_url, &request).unwrap().build().unwrap();
 
@@ -370,9 +372,9 @@ mod tests {
   fn convert_request_to_native_request_with_null_body() {
     let client = reqwest::Client::new();
     let base_url = "http://example.test:8080".to_string();
-    let request = Request {
+    let request = HttpRequest {
       body: OptionalBody::Null,
-      .. Request::default()
+      .. HttpRequest::default()
     };
     let request_builder = create_native_request(&client, &base_url, &request).unwrap().build().unwrap();
 
@@ -385,12 +387,12 @@ mod tests {
   fn convert_request_to_native_request_with_json_null_body() {
     let client = reqwest::Client::new();
     let base_url = "http://example.test:8080".to_string();
-    let request = Request {
+    let request = HttpRequest {
       headers: Some(hashmap! {
         "Content-Type".to_string() => vec!["application/json".to_string()]
       }),
       body: OptionalBody::Null,
-      .. Request::default()
+      .. HttpRequest::default()
     };
     let request_builder = create_native_request(&client, &base_url, &request).unwrap().build().unwrap();
 

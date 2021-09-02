@@ -112,11 +112,11 @@ impl Interaction for RequestResponseInteraction {
     None
   }
 
-  fn boxed(&self) -> Box<dyn Interaction + Send> {
+  fn boxed(&self) -> Box<dyn Interaction + Send + Sync> {
     Box::new(self.clone())
   }
 
-  fn arced(&self) -> Arc<dyn Interaction + Send> {
+  fn arced(&self) -> Arc<dyn Interaction + Send + Sync> {
     Arc::new(self.clone())
   }
 

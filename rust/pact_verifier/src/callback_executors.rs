@@ -11,14 +11,15 @@ use serde_json::{json, Value};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::JSON;
 use pact_models::provider_states::ProviderState;
-use pact_models::request::Request;
+use pact_models::v4::http_parts::HttpRequest;
 
-use crate::provider_client::{make_state_change_request, provider_client_error_to_string};
+use crate::provider_client::make_state_change_request;
+use std::fmt::{Display, Formatter};
 
 /// Trait for executors that call request filters
 pub trait RequestFilterExecutor {
   /// Mutates requests based on some criteria.
-  fn call(self: Arc<Self>, request: &Request) -> Request;
+  fn call(self: Arc<Self>, request: &HttpRequest) -> HttpRequest;
 }
 
 /// A "null" request filter executor, which does nothing, but permits
@@ -31,7 +32,7 @@ pub struct NullRequestFilterExecutor {
 }
 
 impl RequestFilterExecutor for NullRequestFilterExecutor {
-  fn call(self: Arc<Self>, _request: &Request) -> Request {
+  fn call(self: Arc<Self>, _request: &HttpRequest) -> HttpRequest {
     unimplemented!("NullRequestFilterExecutor should never be called")
   }
 }
@@ -45,11 +46,26 @@ pub struct ProviderStateError {
   pub interaction_id: Option<String>
 }
 
+impl Display for ProviderStateError {
+  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    write!(f, "Provider state failed: {}{}", self.interaction_id.as_ref()
+      .map(|id| format!("(interaction_id: {}) ", id)).unwrap_or_default(), self.description)
+  }
+}
+
+impl std::error::Error for ProviderStateError {}
+
 /// Trait for executors that call provider state callbacks
 #[async_trait]
 pub trait ProviderStateExecutor {
   /// Invoke the callback for the given provider state, returning an optional Map of values
-  async fn call(self: Arc<Self>, interaction_id: Option<String>, provider_state: &ProviderState, setup: bool, client: Option<&reqwest::Client>) -> Result<HashMap<String, Value>, ProviderStateError>;
+  async fn call(
+    self: Arc<Self>,
+    interaction_id: Option<String>,
+    provider_state: &ProviderState,
+    setup: bool,
+    client: Option<&reqwest::Client>
+  ) -> anyhow::Result<HashMap<String, Value>>;
 }
 
 /// Default provider state callback executor, which executes an HTTP request
@@ -81,10 +97,10 @@ impl ProviderStateExecutor for HttpRequestProviderStateExecutor {
     provider_state: &ProviderState,
     setup: bool,
     client: Option<&reqwest::Client>
-  ) -> Result<HashMap<String, Value>, ProviderStateError> {
+  ) -> anyhow::Result<HashMap<String, Value>> {
     match &self.state_change_url {
       Some(state_change_url) => {
-        let mut state_change_request = Request { method: "POST".to_string(), .. Request::default() };
+        let mut state_change_request = HttpRequest { method: "POST".to_string(), .. HttpRequest::default() };
         if self.state_change_body {
           let json_body = json!({
                     "state".to_string() : provider_state.name.clone(),
@@ -113,7 +129,7 @@ impl ProviderStateExecutor for HttpRequestProviderStateExecutor {
           state_change_request.query = Some(query);
         }
         make_state_change_request(client.unwrap_or(&reqwest::Client::default()), &state_change_url, &state_change_request).await
-          .map_err(|err| ProviderStateError { description: provider_client_error_to_string(err), interaction_id })
+          .map_err(|err| ProviderStateError { description: err.to_string(), interaction_id }.into())
       },
       None => {
         if setup {

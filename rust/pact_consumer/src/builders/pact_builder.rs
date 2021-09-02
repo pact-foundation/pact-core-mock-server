@@ -131,10 +131,10 @@ impl PactBuilder {
       self
     }
 
-    /// Return the `Pact` we've built.
-    pub fn build(&self) -> Box<dyn Pact + Send> {
-      self.pact.boxed()
-    }
+  /// Return the `Pact` we've built.
+  pub fn build(&self) -> Box<dyn Pact + Send + Sync> {
+    self.pact.boxed()
+  }
 
   /// Sets the output directory to write pact files to
   pub fn output_dir<D: Into<PathBuf>>(&mut self, dir: D) -> &mut Self {

@@ -15,11 +15,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use pact_models::pact::{Pact, write_pact};
-use pact_models::request::Request;
 use pact_models::sync_pact::RequestResponsePact;
 
 use crate::hyper_server;
 use crate::matching::MatchResult;
+use pact_models::v4::http_parts::HttpRequest;
 
 /// Mock server configuration
 #[derive(Debug, Default, Clone)]
@@ -88,7 +88,7 @@ impl MockServer {
   /// Create a new mock server, consisting of its state (self) and its executable server future.
   pub async fn new(
     id: String,
-    pact: Box<dyn Pact>,
+    pact: Box<dyn Pact + Send + Sync>,
     addr: std::net::SocketAddr,
     config: MockServerConfig
   ) -> Result<(Arc<Mutex<MockServer>>, impl std::future::Future<Output = ()>), String> {
@@ -109,7 +109,7 @@ impl MockServer {
     }));
 
     let (future, socket_addr) = hyper_server::create_and_bind(
-      pact.as_request_response_pact().unwrap(),
+      pact.thread_safe(),
       addr,
       async {
         shutdown_rx.await.ok();
@@ -156,7 +156,7 @@ impl MockServer {
     }));
 
     let (future, socket_addr) = hyper_server::create_and_bind_tls(
-      pact.as_request_response_pact().unwrap(),
+      pact.thread_safe(),
       addr,
       async {
         shutdown_rx.await.ok();
@@ -219,7 +219,7 @@ impl MockServer {
       let mismatches = matches.iter()
         .filter(|m| !m.matched() && !m.cors_preflight())
         .map(|m| m.clone());
-      let requests: Vec<Request> = matches.iter().map(|m| {
+      let requests: Vec<HttpRequest> = matches.iter().map(|m| {
         match m {
           MatchResult::RequestMatch(request, _) => Some(request),
           MatchResult::RequestMismatch(request, _) => Some(request),
@@ -231,7 +231,7 @@ impl MockServer {
       let pact = self.pact.lock().unwrap();
       let interactions = pact.interactions();
       let missing = interactions.iter()
-        .map(|i| i.as_request_response().unwrap().request)
+        .map(|i| i.as_v4_http().unwrap().request)
         .filter(|req| !requests.contains(req))
         .map(|req| MatchResult::MissingRequest(req.clone()));
       mismatches.chain(missing).collect()

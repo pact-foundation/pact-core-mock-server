@@ -90,10 +90,10 @@ pub trait Interaction: Debug {
   fn as_v4_sync_message(&self) -> Option<SynchronousMessages>;
 
   /// Clones this interaction and wraps it in a Box
-  fn boxed(&self) -> Box<dyn Interaction + Send>;
+  fn boxed(&self) -> Box<dyn Interaction + Send + Sync>;
 
   /// Clones this interaction and wraps it in an Arc
-  fn arced(&self) -> Arc<dyn Interaction + Send>;
+  fn arced(&self) -> Arc<dyn Interaction + Send + Sync>;
 
   /// Clones this interaction and wraps it in an Arc and Mutex
   fn thread_safe(&self) -> Arc<Mutex<dyn Interaction + Send + Sync>>;
@@ -143,7 +143,7 @@ impl Clone for Box<dyn Interaction> {
 
 
 /// Converts the JSON struct into an HTTP Interaction
-pub fn http_interaction_from_json(source: &str, json: &Value, spec: &PactSpecification) -> anyhow::Result<Box<dyn Interaction + Send>> {
+pub fn http_interaction_from_json(source: &str, json: &Value, spec: &PactSpecification) -> anyhow::Result<Box<dyn Interaction + Send + Sync>> {
   match spec {
     PactSpecification::V4 => interaction_from_json(source, 0, json)
       .map(|i| i.boxed()),
@@ -152,7 +152,7 @@ pub fn http_interaction_from_json(source: &str, json: &Value, spec: &PactSpecifi
 }
 
 /// Converts the JSON struct into a Message Interaction
-pub fn message_interaction_from_json(source: &str, json: &Value, spec: &PactSpecification) -> anyhow::Result<Box<dyn Interaction + Send>> {
+pub fn message_interaction_from_json(source: &str, json: &Value, spec: &PactSpecification) -> anyhow::Result<Box<dyn Interaction + Send + Sync>> {
   match spec {
     PactSpecification::V4 => interaction_from_json(source, 0, json)
       .map(|i| i.boxed()),

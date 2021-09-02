@@ -1,11 +1,11 @@
 //! Traits to represent a Pact
 
-use std::borrow::Borrow;
 use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::fs;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom, Write};
+use std::ops::Deref;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
@@ -24,6 +24,7 @@ use crate::sync_pact::RequestResponsePact;
 use crate::v4;
 use crate::v4::pact::V4Pact;
 use crate::verify_json::{json_type_of, PactFileVerificationResult, ResultLevel};
+use crate::plugins::PluginData;
 
 /// Trait for a Pact (request/response or message)
 pub trait Pact: Debug + ReadWritePact {
@@ -34,7 +35,7 @@ pub trait Pact: Debug + ReadWritePact {
   fn provider(&self) -> Provider;
 
   /// Interactions in the Pact
-  fn interactions(&self) -> Vec<Box<dyn Interaction + Send>>;
+  fn interactions(&self) -> Vec<Box<dyn Interaction + Send + Sync>>;
 
   /// Pact metadata
   fn metadata(&self) -> BTreeMap<String, BTreeMap<String, String>>;
@@ -55,10 +56,10 @@ pub trait Pact: Debug + ReadWritePact {
   fn specification_version(&self) -> PactSpecification;
 
   /// Clones this Pact and wraps it in a Box
-  fn boxed(&self) -> Box<dyn Pact + Send>;
+  fn boxed(&self) -> Box<dyn Pact + Send + Sync>;
 
   /// Clones this Pact and wraps it in an Arc
-  fn arced(&self) -> Arc<dyn Pact + Send>;
+  fn arced(&self) -> Arc<dyn Pact + Send + Sync>;
 
   /// Clones this Pact and wraps it in an Arc and Mutex
   fn thread_safe(&self) -> Arc<Mutex<dyn Pact + Send + Sync>>;
@@ -71,7 +72,7 @@ pub trait Pact: Debug + ReadWritePact {
 
   /// Plugins required for this Pact. These will be taken from the 'plugins' key in the pact
   /// metadata.
-  fn plugins(&self) -> Vec<Value>;
+  fn plugin_data(&self) -> Vec<PluginData>;
 
   /// If this is a V4 Pact
   fn is_v4(&self) -> bool;
@@ -81,13 +82,13 @@ pub trait Pact: Debug + ReadWritePact {
 }
 
 /// Reads the pact file and parses the resulting JSON into a `Pact` struct
-pub fn read_pact(file: &Path) -> anyhow::Result<Box<dyn Pact>> {
+pub fn read_pact(file: &Path) -> anyhow::Result<Box<dyn Pact + Send + Sync>> {
   let mut f = File::open(file)?;
   read_pact_from_file(&mut f, file)
 }
 
 /// Reads the pact from the file and parses the resulting JSON into a `Pact` struct
-pub fn read_pact_from_file(file: &mut File, path: &Path) -> anyhow::Result<Box<dyn Pact>> {
+pub fn read_pact_from_file(file: &mut File, path: &Path) -> anyhow::Result<Box<dyn Pact + Send + Sync>> {
   let buf = with_read_lock_for_open_file(path, file, 3, &mut |f| {
     let mut buf = String::new();
     f.read_to_string(&mut buf)?;
@@ -105,13 +106,13 @@ pub fn read_pact_from_file(file: &mut File, path: &Path) -> anyhow::Result<Box<d
 }
 
 /// Reads the pact file from a URL and parses the resulting JSON into a `Pact` struct
-pub fn load_pact_from_url(url: &str, auth: &Option<HttpAuth>) -> anyhow::Result<Box<dyn Pact>> {
+pub fn load_pact_from_url(url: &str, auth: &Option<HttpAuth>) -> anyhow::Result<Box<dyn Pact + Send + Sync>> {
   let (url, pact_json) = http_utils::fetch_json_from_url(&url.to_string(), auth)?;
   load_pact_from_json(&url, &pact_json)
 }
 
 /// Loads a Pact model from a JSON Value
-pub fn load_pact_from_json(source: &str, json: &Value) -> anyhow::Result<Box<dyn Pact>> {
+pub fn load_pact_from_json(source: &str, json: &Value) -> anyhow::Result<Box<dyn Pact + Send + Sync>> {
   match json {
     Value::Object(map) => if map.contains_key("messages") {
       let pact = MessagePact::from_json(source, json)?;
@@ -131,13 +132,13 @@ pub fn load_pact_from_json(source: &str, json: &Value) -> anyhow::Result<Box<dyn
 /// Trait for objects that can represent Pacts and can be read and written
 pub trait ReadWritePact {
   /// Reads the pact file and parses the resulting JSON into a `Pact` struct
-  fn read_pact(path: &Path) -> anyhow::Result<Self> where Self: std::marker::Sized;
+  fn read_pact(path: &Path) -> anyhow::Result<Self> where Self: std::marker::Sized + Send + Sync;
 
   /// Merges this pact with the other pact, and returns a new Pact with the interactions sorted.
   /// Returns an error if there is a merge conflict, which will occur if the other pact is a different
   /// type, or if a V3 Pact then if any interaction has the
   /// same description and provider state and the requests and responses are different.
-  fn merge(&self, other: &dyn Pact) -> anyhow::Result<Box<dyn Pact>>;
+  fn merge(&self, other: &dyn Pact) -> anyhow::Result<Box<dyn Pact + Send + Sync>>;
 
   /// Determines the default file name for the pact. This is based on the consumer and
   /// provider names.
@@ -169,7 +170,7 @@ pub fn write_pact(
             existing_pact.specification_version());
     }
 
-    let merged_pact = pact.merge(existing_pact.borrow())?;
+    let merged_pact = pact.merge(existing_pact.deref())?;
     let pact_json = serde_json::to_string_pretty(&merged_pact.to_json(pact_spec)?)?;
 
     with_write_lock(path, &mut f, 3, &mut |f| {

@@ -37,6 +37,9 @@ pub trait V4Interaction: Interaction + Send + Sync {
 
   /// Type of this V4 interaction
   fn v4_type(&self) -> V4InteractionType;
+
+  /// Any configuration added to the interaction from a plugin
+  fn plugin_config(&self) -> HashMap<String, HashMap<String, Value>>;
 }
 
 impl Display for dyn V4Interaction {
@@ -102,6 +105,30 @@ pub fn interaction_from_json(source: &str, index: usize, ijson: &Value) -> anyho
       warn!("Interaction {} has no type attribute. It will be ignored. Source: {}", index, source);
       Err(anyhow!("Interaction {} has no type attribute. It will be ignored. Source: {}", index, source))
     }
+  }
+}
+
+pub(crate) fn parse_plugin_config(json: &Value) -> HashMap<String, HashMap<String, Value>> {
+  if let Some(config) = json.get("pluginConfiguration") {
+    match config {
+      Value::Object(map) => map.iter()
+        .map(|(k, v)| {
+          let inner_config = match v {
+            Value::Object(o) => o.iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
+            _ => {
+              warn!("Plugin {} configuration is not correctly formatted, ignoring it", k);
+              Default::default()
+            }
+          };
+          (k.clone(), inner_config)
+        }).collect(),
+      _ => {
+        warn!("Plugin configuration is not correctly formatted, ignoring it");
+        Default::default()
+      }
+    }
+  } else {
+    Default::default()
   }
 }
 

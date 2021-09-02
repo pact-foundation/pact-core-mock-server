@@ -32,16 +32,17 @@ use pact_models::http_utils::HttpAuth;
 use pact_models::interaction::Interaction;
 use pact_models::json_utils::json_to_string;
 use pact_models::pact::{load_pact_from_url, Pact, read_pact};
+use pact_models::prelude::v4::SynchronousHttp;
 use pact_models::provider_states::*;
-use pact_models::sync_interaction::RequestResponseInteraction;
 use pact_models::v4::interaction::V4Interaction;
 
 use crate::callback_executors::{ProviderStateError, ProviderStateExecutor};
 use crate::messages::{display_message_result, verify_message_from_provider};
 use crate::pact_broker::{Link, PactVerificationContext, publish_verification_results, TestResult};
 pub use crate::pact_broker::{ConsumerVersionSelector, PactsForVerificationRequest};
-use crate::provider_client::{make_provider_request, provider_client_error_to_string};
+use crate::provider_client::make_provider_request;
 use crate::request_response::display_request_response_result;
+use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
 
 mod provider_client;
 pub mod pact_broker;
@@ -231,7 +232,8 @@ impl Clone for MismatchResult {
 
 async fn verify_response_from_provider<F: RequestFilterExecutor>(
   provider: &ProviderInfo,
-  interaction: &RequestResponseInteraction,
+  interaction: &SynchronousHttp,
+  pact: &Box<dyn Pact + Send + Sync>,
   options: &VerificationOptions<F>,
   client: &reqwest::Client,
   verification_context: &HashMap<&str, Value>
@@ -240,20 +242,20 @@ async fn verify_response_from_provider<F: RequestFilterExecutor>(
   let request = pact_matching::generate_request(&interaction.request, &GeneratorTestMode::Provider, &verification_context).await;
   match make_provider_request(provider, &request, options, client).await {
     Ok(ref actual_response) => {
-      let mismatches = match_response(expected_response.clone(), actual_response.clone()).await;
+      let mismatches = match_response(expected_response.clone(), actual_response.clone(), pact, &interaction.boxed()).await;
       if mismatches.is_empty() {
         Ok(interaction.id.clone())
       } else {
         Err(MismatchResult::Mismatches {
           mismatches,
-          expected: Box::new(interaction.clone()),
-          actual: Box::new(RequestResponseInteraction { response: actual_response.clone(), .. RequestResponseInteraction::default() }),
+          expected: interaction.boxed(),
+          actual: Box::new(SynchronousHttp { response: actual_response.clone(), .. SynchronousHttp::default() }),
           interaction_id: interaction.id.clone()
         })
       }
     },
     Err(err) => {
-      Err(MismatchResult::Error(provider_client_error_to_string(err), interaction.id.clone()))
+      Err(MismatchResult::Error(err.to_string(), interaction.id.clone()))
     }
   }
 }
@@ -269,13 +271,20 @@ async fn execute_state_change<S: ProviderStateExecutor>(
         println!("  Given {}", Style::new().bold().paint(provider_state.name.clone()));
     }
     let result = provider_state_executor.call(interaction_id, provider_state, setup, Some(client)).await;
-    log::debug!("State Change: \"{:?}\" -> {:?}", provider_state, result);
-    result.map_err(|err| MismatchResult::Error(err.description, err.interaction_id))
+    debug!("State Change: \"{:?}\" -> {:?}", provider_state, result);
+    result.map_err(|err| {
+      if let Some(err) = err.downcast_ref::<ProviderStateError>() {
+        MismatchResult::Error(err.description.clone(), err.interaction_id.clone())
+      } else {
+        MismatchResult::Error(err.to_string(), None)
+      }
+    })
 }
 
-async fn verify_interaction<F: RequestFilterExecutor, S: ProviderStateExecutor>(
+async fn verify_interaction<'a, F: RequestFilterExecutor, S: ProviderStateExecutor>(
   provider: &ProviderInfo,
-  interaction: &dyn Interaction,
+  interaction: &(dyn Interaction + Send + Sync),
+  pact: &Box<dyn Pact + Send + Sync + 'a>,
   options: &VerificationOptions<F>,
   provider_state_executor: &Arc<S>
 ) -> Result<Option<String>, MismatchResult> {
@@ -317,11 +326,11 @@ async fn verify_interaction<F: RequestFilterExecutor, S: ProviderStateExecutor>(
     .map(|(k, v)| (k.as_str(), v.clone())).collect(), client.clone()))
     .then(|(context, client)| async move {
     let mut result = Err(MismatchResult::Error("No interaction was verified".into(), interaction.id().clone()));
-    if let Some(interaction) = interaction.as_request_response() {
-      result = verify_response_from_provider(provider, &interaction, options, &client, &context).await;
+    if let Some(interaction) = interaction.as_v4_http() {
+      result = verify_response_from_provider(provider, &interaction, &pact.boxed(), options, &client, &context).await;
     }
     if interaction.is_message() {
-      result = verify_message_from_provider(provider, &interaction.boxed(), options, &client, &context).await;
+      result = verify_message_from_provider(provider, pact, &interaction.boxed(), options, &client, &context).await;
     }
     result
   }).await;
@@ -367,9 +376,9 @@ fn display_result(
   println!("      has a matching body ({})", body_result);
 }
 
-fn walkdir(dir: &Path) -> anyhow::Result<Vec<anyhow::Result<Box<dyn Pact>>>> {
+fn walkdir(dir: &Path) -> anyhow::Result<Vec<anyhow::Result<Box<dyn Pact + Send + Sync>>>> {
     let mut pacts = vec![];
-    log::debug!("Scanning {:?}", dir);
+    debug!("Scanning {:?}", dir);
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
@@ -482,7 +491,7 @@ fn filter_interaction(interaction: &dyn Interaction, filter: &FilterInfo) -> boo
   }
 }
 
-fn filter_consumers(consumers: &[String], res: &Result<(Box<dyn Pact>, Option<PactVerificationContext>, PactSource), String>) -> bool {
+fn filter_consumers(consumers: &[String], res: &Result<(Box<dyn Pact + Send + Sync>, Option<PactVerificationContext>, PactSource), String>) -> bool {
   consumers.is_empty() || res.is_err() || consumers.contains(&res.as_ref().unwrap().0.consumer().name)
 }
 
@@ -577,7 +586,19 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
     for pact_result in pact_results {
       match pact_result {
         Ok((pact, context, pact_source)) => {
+          if pact.requires_plugins() {
+            debug!("Pact file requires plugins, will load those now");
+            for plugin_details in pact.plugin_data() {
+              load_plugin(&PluginDependency {
+                name: plugin_details.name.clone(),
+                version: Some(plugin_details.version.clone()),
+                dependency_type: PluginDependencyType::Plugin
+              }).await?;
+            }
+          }
+
           display_notices(&context, VERIFICATION_NOTICE_BEFORE);
+
           println!("\nVerifying a pact between {} and {}",
           Style::new().bold().paint(pact.consumer().name.clone()),
           Style::new().bold().paint(pact.provider().name.clone()));
@@ -692,7 +713,7 @@ fn print_errors(errors: &Vec<(String, MismatchResult)>) {
   }
 }
 
-async fn fetch_pact(source: PactSource) -> Vec<Result<(Box<dyn Pact>, Option<PactVerificationContext>, PactSource), String>> {
+async fn fetch_pact(source: PactSource) -> Vec<Result<(Box<dyn Pact + Send + Sync>, Option<PactVerificationContext>, PactSource), String>> {
   trace!("fetch_pact(source={})", source);
 
   match source {
@@ -724,12 +745,14 @@ async fn fetch_pact(source: PactSource) -> Vec<Result<(Box<dyn Pact>, Option<Pac
           for result in pacts.iter() {
             match result {
               Ok((pact, _, links)) => {
-                log::debug!("Got pact with links {:?}", links);
-                if let Ok(pact) = pact.as_request_response_pact() {
-                  buffer.push(Ok((Box::new(pact) as Box<dyn Pact>, None, PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))))
+                debug!("Got pact with links {:?}", links);
+                if let Ok(pact) = pact.as_v4_pact() {
+                  buffer.push(Ok((Box::new(pact) as Box<dyn Pact + Send + Sync>, None, PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))))
+                } else if let Ok(pact) = pact.as_request_response_pact() {
+                  buffer.push(Ok((Box::new(pact) as Box<dyn Pact + Send + Sync>, None, PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))))
                 }
                 if let Ok(pact) = pact.as_message_pact() {
-                  buffer.push(Ok((Box::new(pact) as Box<dyn Pact>, None, PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))))
+                  buffer.push(Ok((Box::new(pact) as Box<dyn Pact + Send + Sync>, None, PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))))
                 }
               },
               &Err(ref err) => buffer.push(Err(format!("Failed to load pact from '{}' - {:?}", broker_url, err)))
@@ -758,12 +781,13 @@ async fn fetch_pact(source: PactSource) -> Vec<Result<(Box<dyn Pact>, Option<Pac
             match result {
               Ok((pact, context, links)) => {
                 log::debug!("Got pact with links {:?}", links);
-                if let Ok(pact) = pact.as_request_response_pact() {
-
-                  buffer.push(Ok((Box::new(pact) as Box<dyn Pact>, context.clone(), PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))))
+                if let Ok(pact) = pact.as_v4_pact() {
+                  buffer.push(Ok((Box::new(pact) as Box<dyn Pact + Send + Sync>, None, PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))))
+                } else if let Ok(pact) = pact.as_request_response_pact() {
+                  buffer.push(Ok((Box::new(pact) as Box<dyn Pact + Send + Sync>, context.clone(), PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))))
                 }
                 if let Ok(pact) = pact.as_message_pact() {
-                  buffer.push(Ok((Box::new(pact) as Box<dyn Pact>, context.clone(), PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))))
+                  buffer.push(Ok((Box::new(pact) as Box<dyn Pact + Send + Sync>, context.clone(), PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))))
                 }
               },
               &Err(ref err) => buffer.push(Err(format!("Failed to load pact from '{}' - {:?}", broker_url, err)))
@@ -779,7 +803,7 @@ async fn fetch_pact(source: PactSource) -> Vec<Result<(Box<dyn Pact>, Option<Pac
 }
 
 async fn fetch_pacts(source: Vec<PactSource>, consumers: Vec<String>)
-  -> Vec<Result<(Box<dyn Pact>, Option<PactVerificationContext>, PactSource), String>> {
+  -> Vec<Result<(Box<dyn Pact + Send + Sync>, Option<PactVerificationContext>, PactSource), String>> {
   trace!("fetch_pacts(source={:?}, consumers={:?})", source, consumers);
 
   futures::stream::iter(source)
@@ -814,24 +838,16 @@ pub struct VerificationResult {
 pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderStateExecutor>(
   provider_info: &ProviderInfo,
   filter: &FilterInfo,
-  pact: Box<dyn Pact + 'a>,
+  pact: Box<dyn Pact + Send + Sync + 'a>,
   options: &VerificationOptions<F>,
   provider_state_executor: &Arc<S>,
   pending: bool
 ) -> anyhow::Result<VerificationResult> {
-  if pact.requires_plugins() {
-    debug!("Pact file requires plugins, will load those now");
-    for plugin_details in pact.plugins() {
-      load_plugin(&serde_json::from_value(plugin_details)?).await?;
-    }
-  }
-
-  let results: Vec<(Box<dyn Interaction + Send>, Result<Option<String>, MismatchResult>)> = futures::stream::iter(
-    pact.interactions()
-  )
-    .filter(|interaction| futures::future::ready(filter_interaction(interaction.as_ref(), filter)))
-    .then( |interaction| async move {
-      (interaction.boxed(), verify_interaction(provider_info, interaction.as_ref(), options, provider_state_executor).await)
+  let interactions = pact.interactions();
+  let results: Vec<(Box<dyn Interaction + Send + Sync>, Result<Option<String>, MismatchResult>)> = futures::stream::iter(interactions.iter().map(|i| (&pact, i)))
+    .filter(|(_, interaction)| futures::future::ready(filter_interaction(interaction.as_ref(), filter)))
+    .then( |(pact, interaction)| async move {
+      (interaction.boxed(), verify_interaction(provider_info, interaction.as_ref(), &pact.boxed(), options, provider_state_executor).await)
     })
     .collect()
     .await;

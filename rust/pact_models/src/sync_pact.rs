@@ -6,8 +6,8 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, Context};
-use itertools::Itertools;
 use itertools::EitherOrBoth::{Both, Left, Right};
+use itertools::Itertools;
 use log::warn;
 use maplit::{btreemap, hashset};
 use serde_json::{json, Value};
@@ -20,6 +20,7 @@ use crate::iterator_utils::CartesianProductIterator;
 use crate::message_pact::MessagePact;
 use crate::pact::{determine_spec_version, metadata_schema, Pact, parse_meta_data, ReadWritePact, verify_metadata};
 use crate::PACT_RUST_VERSION;
+use crate::plugins::PluginData;
 use crate::sync_interaction::RequestResponseInteraction;
 use crate::v4::pact::V4Pact;
 use crate::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerifier, ResultLevel};
@@ -48,7 +49,7 @@ impl Pact for RequestResponsePact {
     self.provider.clone()
   }
 
-  fn interactions(&self) -> Vec<Box<dyn Interaction + Send>> {
+  fn interactions(&self) -> Vec<Box<dyn Interaction + Send + Sync>> {
     self.interactions.iter().map(|i| i.boxed()).collect()
   }
 
@@ -95,11 +96,11 @@ impl Pact for RequestResponsePact {
     self.specification_version.clone()
   }
 
-  fn boxed(&self) -> Box<dyn Pact + Send> {
+  fn boxed(&self) -> Box<dyn Pact + Send + Sync> {
     Box::new(self.clone())
   }
 
-  fn arced(&self) -> Arc<dyn Pact + Send> {
+  fn arced(&self) -> Arc<dyn Pact + Send + Sync> {
     Arc::new(self.clone())
   }
 
@@ -121,7 +122,7 @@ impl Pact for RequestResponsePact {
     false
   }
 
-  fn plugins(&self) -> Vec<Value> {
+  fn plugin_data(&self) -> Vec<PluginData> {
     Vec::default()
   }
 
@@ -247,7 +248,7 @@ impl ReadWritePact for RequestResponsePact {
     })
   }
 
-  fn merge(&self, pact: &dyn Pact) -> anyhow::Result<Box<dyn Pact>> {
+  fn merge(&self, pact: &dyn Pact) -> anyhow::Result<Box<dyn Pact + Send + Sync>> {
     if self.consumer.name == pact.consumer().name && self.provider.name == pact.provider().name {
       let conflicts = CartesianProductIterator::new(&self.interactions, &pact.interactions())
         .map(|(i1, i2)| i1.conflicts_with(i2.as_ref()))

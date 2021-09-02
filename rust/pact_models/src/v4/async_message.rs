@@ -23,7 +23,7 @@ use crate::PactSpecification;
 use crate::provider_states::ProviderState;
 use crate::sync_interaction::RequestResponseInteraction;
 use crate::v4::http_parts::body_from_json;
-use crate::v4::interaction::V4Interaction;
+use crate::v4::interaction::{V4Interaction, parse_plugin_config};
 use crate::v4::message_parts::{MessageContents, metadata_to_headers};
 use crate::v4::sync_message::SynchronousMessages;
 use crate::v4::synch_http::SynchronousHttp;
@@ -47,7 +47,10 @@ pub struct AsynchronousMessage {
   pub comments: HashMap<String, Value>,
 
   /// If this interaction is pending. Pending interactions will never fail the build if they fail
-  pub pending: bool
+  pub pending: bool,
+
+  /// Configuration added by plugins
+  pub plugin_config: HashMap<String, HashMap<String, Value>>
 }
 
 impl AsynchronousMessage {
@@ -102,6 +105,7 @@ impl AsynchronousMessage {
         _ => hashmap! {}
       };
       let as_headers = metadata_to_headers(&metadata);
+      let plugin_config = parse_plugin_config(json);
       Ok(AsynchronousMessage {
         id,
         key,
@@ -115,7 +119,8 @@ impl AsynchronousMessage {
         },
         comments,
         pending: json.get("pending")
-          .map(|value| value.as_bool().unwrap_or_default()).unwrap_or_default()
+          .map(|value| value.as_bool().unwrap_or_default()).unwrap_or_default(),
+        plugin_config
       })
     } else {
       Err(anyhow!("Expected a JSON object for the interaction, got '{}'", json))
@@ -166,6 +171,14 @@ impl V4Interaction for AsynchronousMessage {
         .map(|(k, v)| (k.clone(), v.clone())).collect());
     }
 
+    if !self.plugin_config.is_empty() {
+      let map = json.as_object_mut().unwrap();
+      map.insert("pluginConfiguration".to_string(), self.plugin_config.iter()
+        .map(|(k, v)|
+          (k.clone(), Value::Object(v.iter().map(|(k, v)| (k.clone(), v.clone())).collect()))
+        ).collect());
+    }
+
     json
   }
 
@@ -191,6 +204,10 @@ impl V4Interaction for AsynchronousMessage {
 
   fn v4_type(&self) -> V4InteractionType {
     V4InteractionType::Asynchronous_Messages
+  }
+
+  fn plugin_config(&self) -> HashMap<String, HashMap<String, Value>> {
+    self.plugin_config.clone()
   }
 }
 
@@ -267,11 +284,11 @@ impl Interaction for AsynchronousMessage {
     None
   }
 
-  fn boxed(&self) -> Box<dyn Interaction + Send> {
+  fn boxed(&self) -> Box<dyn Interaction + Send + Sync> {
     Box::new(self.clone())
   }
 
-  fn arced(&self) -> Arc<dyn Interaction + Send> {
+  fn arced(&self) -> Arc<dyn Interaction + Send + Sync> {
     Arc::new(self.clone())
   }
 
@@ -302,7 +319,8 @@ impl Default for AsynchronousMessage {
         generators: Default::default()
       },
       comments: Default::default(),
-      pending: false
+      pending: false,
+      plugin_config: Default::default()
     }
   }
 }

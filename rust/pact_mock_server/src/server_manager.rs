@@ -42,7 +42,7 @@ impl ServerManager {
     pub fn start_mock_server_with_addr(
       &mut self,
       id: String,
-      pact: Box<dyn Pact>,
+      pact: Box<dyn Pact + Send + Sync>,
       addr: SocketAddr,
       config: MockServerConfig
     ) -> Result<SocketAddr, String> {
@@ -95,7 +95,7 @@ impl ServerManager {
     pub fn start_mock_server(
       &mut self,
       id: String,
-      pact: Box<dyn Pact>,
+      pact: Box<dyn Pact + Send + Sync>,
       port: u16,
       config: MockServerConfig
     ) -> Result<u16, String> {
@@ -107,7 +107,7 @@ impl ServerManager {
   pub async fn start_mock_server_nonblocking(
     &mut self,
     id: String,
-    pact: Box<dyn Pact>,
+    pact: Box<dyn Pact + Send + Sync>,
     port: u16,
     config: MockServerConfig
   ) -> Result<u16, String> {
