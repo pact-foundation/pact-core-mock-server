@@ -1219,7 +1219,8 @@ async fn compare_bodies(
         let plugin_config = context.plugin_configuration.get(&matcher.plugin_name()).cloned();
         if let Err(map) = matcher.match_contents(&expected.body(), &actual.body(), &context.matchers,
           context.config == DiffConfig::AllowUnexpectedKeys, plugin_config).await {
-          for (key, list) in map {
+          // TODO: group the mismatches by key
+          for (_key, list) in map {
             for mismatch in list {
               mismatches.push(Mismatch::BodyMismatch {
                 path: mismatch.path.clone(),

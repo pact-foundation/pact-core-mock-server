@@ -13,5 +13,6 @@ pub struct PluginData {
   /// Plugin version
   pub version: String,
   /// Any configuration supplied by the plugin
+  #[serde(default)]
   pub configuration: HashMap<String, Value>
 }
