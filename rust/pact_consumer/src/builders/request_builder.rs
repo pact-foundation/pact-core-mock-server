@@ -7,6 +7,7 @@ use env_logger;
 use log::debug;
 use maplit::*;
 use pact_plugin_driver::catalogue_manager::find_content_matcher;
+use pact_plugin_driver::content::PluginConfiguration;
 #[cfg(test)]
 use regex::Regex;
 #[cfg(test)]
@@ -30,7 +31,8 @@ use crate::util::GetDefaulting;
 /// Builder for `Request` objects. Normally created via `PactBuilder`.
 #[derive(Clone, Debug)]
 pub struct RequestBuilder {
-    request: HttpRequest,
+  request: HttpRequest,
+  plugin_config: Option<PluginConfiguration>
 }
 
 impl RequestBuilder {
@@ -175,18 +177,20 @@ impl RequestBuilder {
           match definition {
             Value::Object(attributes) => {
               let map = attributes.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
-              let result = matcher.configure_interation(&content_type, map).await;
-              match result {
-                Ok((body, rules, generators)) => {
-                  request.body = body.clone();
+              match matcher.configure_interation(&content_type, map).await {
+                Ok(contents) => {
+                  request.body = contents.body.clone();
                   if !request.has_header("content-type") {
                     request.add_header("content-type", vec![content_type.to_string().as_str()]);
                   }
-                  if let Some(rules) = rules {
+                  if let Some(rules) = contents.rules {
                     request.matching_rules.add_rules("body", rules);
                   }
-                  if let Some(generators) = generators {
+                  if let Some(generators) = contents.generators {
                     request.generators.add_generators(generators);
+                  }
+                  if !contents.plugin_config.is_empty() {
+                    self.plugin_config = Some(contents.plugin_config.clone());
                   }
                 }
                 Err(err) => panic!("Failed to call out to plugin - {}", err)
@@ -207,7 +211,7 @@ impl RequestBuilder {
 
 impl Default for RequestBuilder {
     fn default() -> Self {
-        RequestBuilder { request: HttpRequest::default() }
+        RequestBuilder { request: HttpRequest::default(), plugin_config: None }
     }
 }
 

@@ -4,6 +4,7 @@ use bytes::Bytes;
 use log::debug;
 use maplit::*;
 use pact_plugin_driver::catalogue_manager::find_content_matcher;
+use pact_plugin_driver::content::PluginConfiguration;
 use serde_json::Value;
 
 use pact_models::bodies::OptionalBody;
@@ -19,7 +20,8 @@ use crate::prelude::*;
 /// Builder for `Response` objects. Normally created via `PactBuilder`.
 #[derive(Clone, Debug)]
 pub struct ResponseBuilder {
-    response: HttpResponse,
+  response: HttpResponse,
+  plugin_config: Option<PluginConfiguration>
 }
 
 impl ResponseBuilder {
@@ -106,18 +108,20 @@ impl ResponseBuilder {
           match definition {
             Value::Object(attributes) => {
               let map = attributes.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
-              let result = matcher.configure_interation(&content_type, map).await;
-              match result {
-                Ok((body, rules, generators)) => {
-                  response.body = body.clone();
+              match matcher.configure_interation(&content_type, map).await {
+                Ok(contents) => {
+                  response.body = contents.body.clone();
                   if !response.has_header("content-type") {
                     response.add_header("content-type", vec![content_type.to_string().as_str()]);
                   }
-                  if let Some(rules) = rules {
+                  if let Some(rules) = contents.rules {
                     response.matching_rules.add_rules("body", rules);
                   }
-                  if let Some(generators) = generators {
+                  if let Some(generators) = contents.generators {
                     response.generators.add_generators(generators);
+                  }
+                  if !contents.plugin_config.is_empty() {
+                    self.plugin_config = Some(contents.plugin_config.clone());
                   }
                 }
                 Err(err) => panic!("Failed to call out to plugin - {}", err)
@@ -138,7 +142,7 @@ impl ResponseBuilder {
 
 impl Default for ResponseBuilder {
     fn default() -> Self {
-        ResponseBuilder { response: HttpResponse::default() }
+        ResponseBuilder { response: HttpResponse::default(), plugin_config: None }
     }
 }
 
