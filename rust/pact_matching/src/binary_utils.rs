@@ -615,7 +615,7 @@ mod tests {
       ..Request::default()
     };
     let context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
-      &expected.matching_rules.rules_for_category("body").unwrap());
+      &expected.matching_rules.rules_for_category("body").unwrap(), &hashmap!{});
 
     let result = match_mime_multipart(&expected, &actual, &context);
 
@@ -715,7 +715,7 @@ mod tests {
       ..Request::default()
     };
     let context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
-      &expected.matching_rules.rules_for_category("body").unwrap());
+      &expected.matching_rules.rules_for_category("body").unwrap(), &hashmap!{});
 
     let result = match_mime_multipart(&expected, &actual, &context);
 
@@ -764,7 +764,7 @@ mod tests {
       ..Request::default()
     };
     let context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
-      &expected.matching_rules.rules_for_category("body").unwrap());
+      &expected.matching_rules.rules_for_category("body").unwrap(), &hashmap!{});
 
     let result = match_mime_multipart(&expected, &actual, &context);
 

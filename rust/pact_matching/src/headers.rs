@@ -306,10 +306,10 @@ mod tests {
     let context = MatchingContext::new(
       DiffConfig::AllowUnexpectedKeys,
       &matchingrules! {
-      "header" => {
-        "HEADER" => [ MatchingRule::Regex(s!("\\w+")) ]
-      }
-    }.rules_for_category("header").unwrap_or_default()
+        "header" => {
+          "HEADER" => [ MatchingRule::Regex(s!("\\w+")) ]
+        }
+      }.rules_for_category("header").unwrap_or_default(), &hashmap!{}
     );
     let mismatches = match_header_value("HEADER", "HEADERX", "HEADERY", &context);
     expect!(mismatches).to(be_ok());
@@ -323,7 +323,7 @@ mod tests {
           "header" => {
               "HEADER" => [ MatchingRule::Regex(s!("\\d+")) ]
           }
-      }.rules_for_category("header").unwrap_or_default()
+        }.rules_for_category("header").unwrap_or_default(), &hashmap!{}
     );
     let mismatches = match_header_value(&s!("HEADER"), &s!("HEADER"), &s!("HEADER"), &context);
     expect!(mismatches).to(be_err().value(vec![ Mismatch::HeaderMismatch {

@@ -157,21 +157,6 @@ impl Interaction for Message {
 }
 
 impl Message {
-    /// Returns a default message
-    pub fn default() -> Message {
-      Message {
-        id: None,
-        description: "message".to_string(),
-        provider_states: vec![],
-        contents: OptionalBody::Missing,
-        metadata: hashmap!{
-          "contentType".into() => "application/json".into()
-        },
-        matching_rules: MatchingRules::default(),
-        generators: Generators::default()
-      }
-    }
-
     /// Constructs a `Message` from the `Json` struct.
     pub fn from_json(index: usize, json: &Value, spec_version: &PactSpecification) -> anyhow::Result<Message> {
         match spec_version {
@@ -307,6 +292,22 @@ impl Display for Message {
   fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
     write!(f, "Message ( id: {:?}, description: \"{}\", provider_states: {:?}, contents: {}, metadata: {:?} )",
            self.id, self.description, self.provider_states, self.contents, self.metadata)
+  }
+}
+
+impl Default for Message {
+  fn default() -> Self {
+    Message {
+      id: None,
+      description: "message".to_string(),
+      provider_states: vec![],
+      contents: OptionalBody::Missing,
+      metadata: hashmap!{
+          "contentType".into() => "application/json".into()
+        },
+      matching_rules: MatchingRules::default(),
+      generators: Generators::default()
+    }
   }
 }
 

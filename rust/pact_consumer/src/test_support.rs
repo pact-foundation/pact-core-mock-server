@@ -12,9 +12,9 @@ use pact_models::pact::Pact;
 /// `expected`, and raise an error if anything fails.
 pub(crate) async fn check_requests_match(
     actual_label: &str,
-    actual: &Box<dyn Pact + Send>,
+    actual: &Box<dyn Pact + Send + Sync>,
     expected_label: &str,
-    expected: &Box<dyn Pact + Send>,
+    expected: &Box<dyn Pact + Send + Sync>,
     context: &HashMap<&str, Value>
 ) -> anyhow::Result<()> {
     // First make sure we have the same number of interactions.
@@ -30,12 +30,12 @@ pub(crate) async fn check_requests_match(
 
     // Next, check each interaction to see if it matches.
     for (e, a) in expected.interactions().iter().zip(actual.interactions()) {
-        let actual_request = a.as_request_response().unwrap().request.clone();
+        let actual_request = a.as_v4_http().unwrap().request.clone();
         debug!("actual_request = {:?}", actual_request);
         let generated_request = generate_request(&actual_request, &GeneratorTestMode::Provider, context).await;
         debug!("generated_request = {:?}", generated_request);
-        let mismatches = match_request(e.as_request_response().unwrap().request.clone(),
-                generated_request).await;
+        let mismatches = match_request(e.as_v4_http().unwrap().request.clone(),
+                generated_request, expected, e).await;
         if !mismatches.all_matched() {
           let mut reasons = String::new();
           for mismatch in mismatches.mismatches() {

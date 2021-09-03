@@ -14,6 +14,8 @@ use pact_plugin_driver::catalogue_manager::register_core_entries;
 use pact_models::interaction::{Interaction, http_interaction_from_json};
 #[allow(unused_imports)]
 use pact_matching::{match_interaction_request, match_interaction_response};
+#[allow(unused_imports)]
+use pact_models::prelude::{Pact, RequestResponsePact};
 
 #[tokio::test]
 async fn different_method() {
@@ -51,7 +53,8 @@ async fn different_method() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_request(expected, actual, &PactSpecification::V2).await.unwrap().mismatches();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_request(expected, actual, pact, &PactSpecification::V2).await.unwrap().mismatches();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -97,7 +100,8 @@ async fn method_is_different_case() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_request(expected, actual, &PactSpecification::V2).await.unwrap().mismatches();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_request(expected, actual, pact, &PactSpecification::V2).await.unwrap().mismatches();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -143,7 +147,8 @@ async fn matches() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_request(expected, actual, &PactSpecification::V2).await.unwrap().mismatches();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_request(expected, actual, pact, &PactSpecification::V2).await.unwrap().mismatches();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {

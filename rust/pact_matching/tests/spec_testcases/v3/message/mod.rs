@@ -14,4 +14,6 @@ use pact_plugin_driver::catalogue_manager::register_core_entries;
 use pact_models::interaction::{Interaction, message_interaction_from_json};
 #[allow(unused_imports)]
 use pact_matching::match_interaction;
+#[allow(unused_imports)]
+use pact_models::prelude::{MessagePact, Pact};
 mod body;

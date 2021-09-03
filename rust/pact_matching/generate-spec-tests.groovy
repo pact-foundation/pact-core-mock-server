@@ -29,11 +29,15 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
       pw.println('use pact_models::interaction::{Interaction, http_interaction_from_json};')
       pw.println('#[allow(unused_imports)]')
       pw.println('use pact_matching::{match_interaction_request, match_interaction_response};')
+      pw.println('#[allow(unused_imports)]')
+      pw.println('use pact_models::prelude::{Pact, RequestResponsePact};')
     } else if (requestResponsePath == 'message') {
       pw.println('#[allow(unused_imports)]')
       pw.println('use pact_models::interaction::{Interaction, message_interaction_from_json};')
       pw.println('#[allow(unused_imports)]')
       pw.println('use pact_matching::match_interaction;')
+      pw.println('#[allow(unused_imports)]')
+      pw.println('use pact_models::prelude::{MessagePact, Pact};')
     }
 
     dir.eachDir {
@@ -67,7 +71,8 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
         |
         |    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
         |    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-        |    let result = match_interaction_request(expected, actual, &PactSpecification::$specVersion).await.unwrap().mismatches();
+        |    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+        |    let result = match_interaction_request(expected, actual, pact, &PactSpecification::$specVersion).await.unwrap().mismatches();
         |
         |    println!("RESULT: {:?}", result);
         |    if pact_match.as_bool().unwrap() {
@@ -90,7 +95,8 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
         |
         |    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
         |    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-        |    let result = match_interaction_response(expected, actual, &PactSpecification::$specVersion).await.unwrap();
+        |    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+        |    let result = match_interaction_response(expected, actual, pact, &PactSpecification::$specVersion).await.unwrap();
         |
         |    println!("RESULT: {:?}", result);
         |    if pact_match.as_bool().unwrap() {
@@ -117,7 +123,8 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
         |
         |    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
         |    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-        |    let result = match_interaction(expected, actual, &PactSpecification::$specVersion).await.unwrap();
+        |    let pact = MessagePact { messages: vec![ expected.as_message().unwrap_or_default() ], .. MessagePact::default() }.boxed();
+        |    let result = match_interaction(expected, actual, pact, &PactSpecification::$specVersion).await.unwrap();
         |
         |    println!("RESULT: {:?}", result);
         |    if pact_match.as_bool().unwrap() {

@@ -15,7 +15,7 @@ use pact_consumer::prelude::*;
 use pact_models::pact::read_pact;
 use pact_models::provider_states::ProviderState;
 use pact_verifier::{FilterInfo, NullRequestFilterExecutor, ProviderInfo, VerificationOptions, verify_pact_internal};
-use pact_verifier::callback_executors::{ProviderStateError, ProviderStateExecutor};
+use pact_verifier::callback_executors::ProviderStateExecutor;
 
 /// Get the path to one of our sample *.json files.
 fn fixture_path(path: &str) -> PathBuf {
@@ -36,7 +36,7 @@ impl ProviderStateExecutor for DummyProviderStateExecutor {
     _provider_state: &ProviderState,
     _setup: bool,
     _client: Option<&Client>
-  ) -> Result<HashMap<String, Value>, ProviderStateError> {
+  ) -> anyhow::Result<HashMap<String, Value>> {
     Ok(hashmap!{})
   }
 }

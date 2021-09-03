@@ -160,7 +160,7 @@ mod tests {
 
   #[test]
     fn extract_metadata_default() {
-      let response = Response {
+      let response = HttpResponse {
         status: 200,
         headers: Some(hashmap! {
           "content-type".into() => vec!["application/json".into()],
@@ -182,7 +182,7 @@ mod tests {
 
     #[test]
     fn extract_metadata_from_base64_header() {
-      let response = Response {
+      let response = HttpResponse {
         status: 200,
         headers: Some(hashmap! {
           "content-type".into() => vec!["application/json".into()],

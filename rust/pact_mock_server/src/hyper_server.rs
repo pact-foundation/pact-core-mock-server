@@ -423,6 +423,8 @@ mod tests {
   use hyper::header::{ACCEPT, CONTENT_TYPE, USER_AGENT};
   use hyper::HeaderMap;
 
+  use pact_models::prelude::RequestResponsePact;
+
   use super::*;
 
   #[tokio::test]

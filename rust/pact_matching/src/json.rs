@@ -7,6 +7,7 @@ use anyhow::anyhow;
 use difference::*;
 use log::*;
 use onig::Regex;
+use semver::Version;
 use serde_json::{json, Value};
 
 use pact_models::http_parts::HttpPart;
@@ -20,7 +21,6 @@ use crate::matchers::*;
 use crate::matchingrules::{compare_lists_with_matchingrule, compare_maps_with_matchingrule};
 
 use super::Mismatch;
-use semver::Version;
 
 fn type_of(json: &Value) -> String {
   match json {
@@ -454,6 +454,7 @@ mod tests {
 
   use expectest::expect;
   use expectest::prelude::*;
+  use maplit::hashmap;
 
   use pact_models::{matchingrules, matchingrules_list};
   use pact_models::bodies::OptionalBody;
@@ -667,17 +668,14 @@ mod tests {
         actual: Some("[11,44,33,66]".into()), mismatch: s!("")}));
     expect!(mismatch.description()).to(be_equal_to(s!("$ -> Expected a List with 3 elements but received 4 elements")));
 
-    let result = match_json(&val2.clone(), &val4.clone(), &MatchingContext::new(DiffConfig::AllowUnexpectedKeys, &matchingrules!{
+    let context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys, &matchingrules! {
         "body" => {
             "$" => [ MatchingRule::Type ]
         }
-    }.rules_for_category("body").unwrap()));
+    }.rules_for_category("body").unwrap(), &hashmap!{});
+    let result = match_json(&val2.clone(), &val4.clone(), &context);
     expect!(result).to(be_ok());
-    let result = match_json(&val4, &val2, &MatchingContext::new(DiffConfig::AllowUnexpectedKeys, &matchingrules!{
-        "body" => {
-            "$" => [ MatchingRule::Type ]
-        }
-    }.rules_for_category("body").unwrap()));
+    let result = match_json(&val4, &val2, &context);
     expect!(result).to(be_ok());
   }
 
@@ -748,7 +746,7 @@ mod tests {
       "body" => {
         "$.*" => [ MatchingRule::Type ]
       }
-    }.rules_for_category("body").unwrap()));
+    }.rules_for_category("body").unwrap(), &hashmap!{}));
     expect!(result).to(be_ok());
   }
 
@@ -917,7 +915,9 @@ mod tests {
         "$.articles[*].variants.*.bundles.*.referencedArticles[*]" => [ MatchingRule::Type ]
       }
     };
-    let context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys, &matching_rules.rules_for_category("body").unwrap());
+    let context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
+                                       &matching_rules.rules_for_category("body").unwrap(),
+                                       &hashmap!{});
     let result = match_json(&val1, &val2, &context);
     expect!(result).to(be_ok());
   }
@@ -935,7 +935,7 @@ mod tests {
       "body" => {
         "$" => [ MatchingRule::ArrayContains(vec![]) ]
       }
-    }.rules_for_category("body").unwrap()));
+    }.rules_for_category("body").unwrap(), &hashmap!{}));
     expect!(result).to(be_ok());
   }
 
@@ -965,7 +965,7 @@ mod tests {
       "body" => {
         "$" => [ MatchingRule::ArrayContains(vec![]) ]
       }
-    }.rules_for_category("body").unwrap()));
+    }.rules_for_category("body").unwrap(), &hashmap!{}));
     expect!(result).to(be_err().value(vec![
       BodyMismatch {
         path: "$".to_string(),
@@ -1091,7 +1091,7 @@ mod tests {
           }, HashMap::default())])
         ]
       }
-    }.rules_for_category("body").unwrap());
+    }.rules_for_category("body").unwrap(), &hashmap!{});
     let result = match_json(&expected, &actual, &context);
     expect!(result).to(be_ok());
   }
@@ -1102,11 +1102,13 @@ mod tests {
     let expected = expected_json.as_object().unwrap();
     let actual_json = json!({"foo": "bar"});
     let actual = actual_json.as_object().unwrap();
-    let context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys, &MatchingRuleCategory::empty("body"));
+    let context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
+                                       &MatchingRuleCategory::empty("body"), &hashmap!{});
     let result = compare_maps(&vec!["$"], expected, actual, &context);
     expect!(result).to(be_ok());
 
-    let context = MatchingContext::new(DiffConfig::NoUnexpectedKeys, &MatchingRuleCategory::empty("body"));
+    let context = MatchingContext::new(DiffConfig::NoUnexpectedKeys,
+                                       &MatchingRuleCategory::empty("body"), &hashmap!{});
     let result = compare_maps(&vec!["$"], expected, actual, &context);
     expect!(result).to(be_err());
   }

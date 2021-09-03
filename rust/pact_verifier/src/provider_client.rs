@@ -257,7 +257,6 @@ mod tests {
   use maplit::*;
 
   use pact_models::bodies::OptionalBody;
-  use pact_models::request::Request;
   use pact_models::v4::http_parts::HttpRequest;
 
   use super::{create_native_request, extract_headers, join_paths};

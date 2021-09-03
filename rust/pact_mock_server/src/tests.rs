@@ -6,118 +6,123 @@ use reqwest::header::ACCEPT;
 
 use pact_matching::Mismatch;
 use pact_models::bodies::OptionalBody;
-use pact_models::interaction::Interaction;
 use pact_models::matchingrules;
 use pact_models::matchingrules::MatchingRule;
-use pact_models::request::Request;
-use pact_models::response::Response;
-use pact_models::sync_interaction::RequestResponseInteraction;
-use pact_models::sync_pact::RequestResponsePact;
+use pact_models::prelude::v4::{SynchronousHttp, V4Pact};
+use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
 
 use crate::matching::{match_request, MatchResult};
 
 use super::*;
+use pact_models::v4::interaction::V4Interaction;
 
 #[tokio::test]
 async fn match_request_returns_a_match_for_identical_requests() {
-    let request = Request::default();
-    let interaction = RequestResponseInteraction { request: request.clone(), .. RequestResponseInteraction::default() };
-    let interactions = vec![interaction.boxed()];
-    let result = match_request(&request, interactions).await;
+    let request = HttpRequest::default();
+    let interaction = SynchronousHttp { request: request.clone(), .. SynchronousHttp::default() };
+    let interactions = vec![interaction.boxed_v4()];
+    let pact = V4Pact { interactions, .. V4Pact::default() };
+    let result = match_request(&request, &pact).await;
     expect!(result).to(be_equal_to(MatchResult::RequestMatch(interaction.request.clone(),
       interaction.response.clone())));
 }
 
 #[tokio::test]
 async fn match_request_returns_a_not_found_for_no_interactions() {
-    let request = Request::default();
+    let request = HttpRequest::default();
     let interactions = vec![];
-    let result = match_request(&request, interactions).await;
+    let pact = V4Pact { interactions, .. V4Pact::default() };
+    let result = match_request(&request, &pact).await;
     expect!(result).to(be_equal_to(MatchResult::RequestNotFound(request)));
 }
 
 #[tokio::test]
 async fn match_request_returns_a_match_for_multiple_identical_requests() {
-    let request = Request::default();
-    let interaction = RequestResponseInteraction { request: request.clone(), .. RequestResponseInteraction::default() };
-    let interaction2 = RequestResponseInteraction {
+    let request = HttpRequest::default();
+    let interaction = SynchronousHttp { request: request.clone(), .. SynchronousHttp::default() };
+    let interaction2 = SynchronousHttp {
       description: "test2".to_string(),
       request: request.clone(),
-      ..RequestResponseInteraction::default()
+      ..SynchronousHttp::default()
     };
     let interactions = vec![
-      interaction.boxed(),
-      interaction2.boxed()
+      interaction.boxed_v4(),
+      interaction2.boxed_v4()
     ];
-    let result = match_request(&request, interactions).await;
+    let pact = V4Pact { interactions, .. V4Pact::default() };
+    let result = match_request(&request, &pact).await;
     expect!(result).to(be_equal_to(MatchResult::RequestMatch(interaction.request, interaction.response)));
 }
 
 #[tokio::test]
 async fn match_request_returns_a_match_for_multiple_requests() {
-    let request = Request { method: "GET".to_string(), .. Request::default() };
-    let request2 = Request { method: "POST".to_string(), path: "/post".to_string(), .. Request::default() };
-    let interaction = RequestResponseInteraction { request: request.clone(), .. RequestResponseInteraction::default() };
-    let interaction2 = RequestResponseInteraction {
+    let request = HttpRequest { method: "GET".to_string(), .. HttpRequest::default() };
+    let request2 = HttpRequest { method: "POST".to_string(), path: "/post".to_string(), .. HttpRequest::default() };
+    let interaction = SynchronousHttp { request: request.clone(), .. SynchronousHttp::default() };
+    let interaction2 = SynchronousHttp {
       description: "test2".to_string(),
       request: request2.clone(),
-      ..RequestResponseInteraction::default()
+      ..SynchronousHttp::default()
     };
     let interactions = vec![
-      interaction.boxed(),
-      interaction2.boxed()
+      interaction.boxed_v4(),
+      interaction2.boxed_v4()
     ];
-    let result = match_request(&request, interactions).await;
+    let pact = V4Pact { interactions, .. V4Pact::default() };
+    let result = match_request(&request, &pact).await;
     expect!(result).to(be_equal_to(MatchResult::RequestMatch(interaction.request, interaction.response)));
 }
 
 #[tokio::test]
 async fn match_request_returns_a_mismatch_for_incorrect_request() {
-    let request = Request::default();
-    let expected_request = Request { query: Some(hashmap!{ "QueryA".to_string() => vec!["Value A".to_string()] }),
-        .. Request::default() };
-    let interaction = RequestResponseInteraction {
+    let request = HttpRequest::default();
+    let expected_request = HttpRequest { query: Some(hashmap!{ "QueryA".to_string() => vec!["Value A".to_string()] }),
+        .. HttpRequest::default() };
+    let interaction = SynchronousHttp {
       request: expected_request,
-      ..RequestResponseInteraction::default()
+      ..SynchronousHttp::default()
     };
     let interactions = vec![
-      interaction.boxed()
+      interaction.boxed_v4()
     ];
-    let result = match_request(&request, interactions).await;
+    let pact = V4Pact { interactions, .. V4Pact::default() };
+    let result = match_request(&request, &pact).await;
     expect!(result.match_key()).to(be_equal_to("Request-Mismatch".to_string()));
 }
 
 #[tokio::test]
 async fn match_request_returns_request_not_found_if_method_or_path_do_not_match() {
-    let request = Request { method: "GET".to_string(), path: "/path".to_string(), .. Request::default() };
-    let expected_request = Request { method: "POST".to_string(), path: "/otherpath".to_string(),
-        .. Request::default() };
-    let interaction = RequestResponseInteraction {
+    let request = HttpRequest { method: "GET".to_string(), path: "/path".to_string(), .. HttpRequest::default() };
+    let expected_request = HttpRequest { method: "POST".to_string(), path: "/otherpath".to_string(),
+        .. HttpRequest::default() };
+    let interaction = SynchronousHttp {
       request: expected_request,
-      ..RequestResponseInteraction::default()
+      ..SynchronousHttp::default()
     };
     let interactions = vec![
-      interaction.boxed()
+      interaction.boxed_v4()
     ];
-    let result = match_request(&request, interactions).await;
+    let pact = V4Pact { interactions, .. V4Pact::default() };
+    let result = match_request(&request, &pact).await;
     expect!(result).to(be_equal_to(MatchResult::RequestNotFound(request)));
 }
 
 #[tokio::test]
 async fn match_request_returns_the_most_appropriate_mismatch_for_multiple_requests() {
-    let request = Request { method: "GET".to_string(), path: "/".to_string(), body: OptionalBody::Present("This is a body".into(), None, None),
-      .. Request::default() };
-    let request2 = Request { method: "GET".to_string(), path: "/".to_string(), query: Some(hashmap!{
+    let request = HttpRequest { method: "GET".to_string(), path: "/".to_string(), body: OptionalBody::Present("This is a body".into(), None, None),
+      .. HttpRequest::default() };
+    let request2 = HttpRequest { method: "GET".to_string(), path: "/".to_string(), query: Some(hashmap!{
         "QueryA".to_string() => vec!["Value A".to_string()]
         }), body: OptionalBody::Present("This is a body".into(), None, None),
-      .. Request::default() };
-    let request3 = Request { method: "GET".to_string(), path: "/".to_string(), query: Some(hashmap!{
+      .. HttpRequest::default() };
+    let request3 = HttpRequest { method: "GET".to_string(), path: "/".to_string(), query: Some(hashmap!{
         "QueryA".to_string() => vec!["Value A".to_string()]
-        }), body: OptionalBody::Missing, .. Request::default() };
-    let interaction = RequestResponseInteraction { description: "test".to_string(), request: request.clone(), .. RequestResponseInteraction::default() };
-    let interaction2 = RequestResponseInteraction { description: "test2".to_string(), request: request2.clone(), .. RequestResponseInteraction::default() };
-    let interactions = vec![interaction.boxed(), interaction2.boxed()];
-    let result = match_request(&request3, interactions).await;
+        }), body: OptionalBody::Missing, .. HttpRequest::default() };
+    let interaction = SynchronousHttp { description: "test".to_string(), request: request.clone(), .. SynchronousHttp::default() };
+    let interaction2 = SynchronousHttp { description: "test2".to_string(), request: request2.clone(), .. SynchronousHttp::default() };
+    let interactions = vec![interaction.boxed_v4(), interaction2.boxed_v4()];
+    let pact = V4Pact { interactions, .. V4Pact::default() };
+    let result = match_request(&request3, &pact).await;
     expect!(result).to(be_equal_to(MatchResult::RequestMismatch(interaction2.request,
         vec![Mismatch::BodyMismatch { path: "/".to_string(), expected: Some("This is a body".into()), actual: None,
         mismatch: "Expected body \'This is a body\' but was missing".to_string() }])));
@@ -125,7 +130,7 @@ async fn match_request_returns_the_most_appropriate_mismatch_for_multiple_reques
 
 #[tokio::test]
 async fn match_request_supports_v2_matchers() {
-    let request = Request { method: "GET".to_string(), path: "/".to_string(),
+    let request = HttpRequest { method: "GET".to_string(), path: "/".to_string(),
         headers: Some(hashmap!{ "Content-Type".to_string() => vec!["application/json".to_string()] }), body: OptionalBody::Present(
             r#"
             {
@@ -133,8 +138,8 @@ async fn match_request_supports_v2_matchers() {
                 "b": "one hundred"
             }
             "#.into(), None, None
-        ), .. Request::default() };
-    let expected_request = Request { method: "GET".to_string(), path: "/".to_string(),
+        ), .. HttpRequest::default() };
+    let expected_request = HttpRequest { method: "GET".to_string(), path: "/".to_string(),
         headers: Some(hashmap!{ "Content-Type".to_string() => vec!["application/json".to_string()] }),
         body: OptionalBody::Present(
             r#"
@@ -148,24 +153,26 @@ async fn match_request_supports_v2_matchers() {
             "$.*" => [ MatchingRule::Type ]
           }
         },
-      .. Request::default()
+      .. HttpRequest::default()
     };
-    let interaction = RequestResponseInteraction { request: expected_request, .. RequestResponseInteraction::default() };
+    let interaction = SynchronousHttp { request: expected_request, .. SynchronousHttp::default() };
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_request(&request, vec![interaction.boxed()]).await;
+    let interactions = vec![interaction.boxed_v4()];
+    let pact = V4Pact { interactions, .. V4Pact::default() };
+    let result = match_request(&request, &pact).await;
     expect!(result).to(be_equal_to(MatchResult::RequestMatch(interaction.request, interaction.response)));
 }
 
 #[tokio::test]
 async fn match_request_supports_v2_matchers_with_xml() {
-    let request = Request { method: "GET".to_string(), path: "/".to_string(), query: None,
+    let request = HttpRequest { method: "GET".to_string(), path: "/".to_string(), query: None,
         headers: Some(hashmap!{ "Content-Type".to_string() => vec!["application/xml".to_string()] }), body: OptionalBody::Present(
             r#"<?xml version="1.0" encoding="UTF-8"?>
             <foo>hello<bar/>world</foo>
             "#.into(), None, None
-        ), .. Request::default() };
-    let expected_request = Request { method: "GET".to_string(), path: "/".to_string(), query: None,
+        ), .. HttpRequest::default() };
+    let expected_request = HttpRequest { method: "GET".to_string(), path: "/".to_string(), query: None,
         headers: Some(hashmap!{ "Content-Type".to_string() => vec!["application/xml".to_string()] }),
         body: OptionalBody::Present(
             r#"<?xml version="1.0" encoding="UTF-8"?>
@@ -176,28 +183,30 @@ async fn match_request_supports_v2_matchers_with_xml() {
             "$.foo['#text']" => [ MatchingRule::Regex("[a-z]+".into()) ]
           }
         },
-      .. Request::default()
+      .. HttpRequest::default()
     };
-    let interaction = RequestResponseInteraction { request: expected_request, .. RequestResponseInteraction::default() };
-    let result = match_request(&request, vec![interaction.boxed()]).await;
+    let interaction = SynchronousHttp { request: expected_request, .. SynchronousHttp::default() };
+    let interactions = vec![interaction.boxed_v4()];
+    let pact = V4Pact { interactions, .. V4Pact::default() };
+    let result = match_request(&request, &pact).await;
     expect!(result).to(be_equal_to(MatchResult::RequestMatch(interaction.request, interaction.response)));
 }
 
 #[test]
 fn match_request_with_header_with_multiple_values() {
-  let pact = RequestResponsePact {
+  let pact = V4Pact {
     interactions: vec![
-      RequestResponseInteraction {
-        request: Request {
+      SynchronousHttp {
+        request: HttpRequest {
           headers: Some(hashmap! {
             "accept".to_string() => vec!["application/hal+json".to_string(), "application/json".to_string()]
           }),
-          .. Request::default()
+          .. HttpRequest::default()
         },
-        .. RequestResponseInteraction::default()
-      }
+        .. SynchronousHttp::default()
+      }.boxed_v4()
     ],
-    .. RequestResponsePact::default()
+    .. V4Pact::default()
   };
   let mut manager = ServerManager::new();
   let id = "match_request_with_header_with_multiple_values".to_string();
@@ -216,31 +225,31 @@ fn match_request_with_header_with_multiple_values() {
 
 #[tokio::test]
 async fn match_request_with_more_specific_request() {
-  let request1 = Request { path: "/animals/available".into(), .. Request::default() };
-  let request2 = Request { path: "/animals/available".into(), headers: Some(hashmap! {
+  let request1 = HttpRequest { path: "/animals/available".into(), .. HttpRequest::default() };
+  let request2 = HttpRequest { path: "/animals/available".into(), headers: Some(hashmap! {
       "Authorization".to_string() => vec!["Bearer token".to_string()]
     }),
-    .. Request::default() };
-  let interaction1 = RequestResponseInteraction {
+    .. HttpRequest::default() };
+  let interaction1 = SynchronousHttp {
     description: "test_more_general_request".into(),
     request: request1.clone(),
-    response: Response { status: 401, .. Response::default() },
-    .. RequestResponseInteraction::default()
+    response: HttpResponse { status: 401, .. HttpResponse::default() },
+    .. SynchronousHttp::default()
   };
-  let interaction2 = RequestResponseInteraction {
+  let interaction2 = SynchronousHttp {
     description: "test_more_specific_request".into(),
     request: request2.clone(),
-    response: Response { status: 200, .. Response::default() },
-    .. RequestResponseInteraction::default()
+    response: HttpResponse { status: 200, .. HttpResponse::default() },
+    .. SynchronousHttp::default()
   };
 
   let expected = interaction1.clone();
-  let result1 = match_request(&request1.clone(), vec![
-    interaction1.boxed(), interaction2.boxed()]).await;
+  let interactions = vec![interaction1.boxed_v4(), interaction2.boxed_v4()];
+  let pact = V4Pact { interactions, .. V4Pact::default() };
+  let result1 = match_request(&request1.clone(), &pact).await;
   expect!(result1).to(be_equal_to(MatchResult::RequestMatch(expected.request, expected.response)));
 
   let expected = interaction2.clone();
-  let result2 = match_request(&request2.clone(), vec![
-    interaction1.boxed(), interaction2.boxed()]).await;
+  let result2 = match_request(&request2.clone(), &pact).await;
   expect!(result2).to(be_equal_to(MatchResult::RequestMatch(expected.request, expected.response)));
 }

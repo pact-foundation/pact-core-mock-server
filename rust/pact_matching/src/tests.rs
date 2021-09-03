@@ -46,7 +46,7 @@ fn match_status_using_matchers() {
   };
   let context = MatchingContext::new(
     DiffConfig::AllowUnexpectedKeys,
-    &rules
+    &rules, &hashmap!{}
   );
   expect!(match_status(200, 204, &context)).to(be_ok());
   let result = match_status(200, 500, &context);
@@ -76,7 +76,7 @@ fn match_query_applies_matching_rules_when_param_has_an_underscore() {
   };
   let context = MatchingContext::new(
     DiffConfig::AllowUnexpectedKeys,
-    &rules.rules_for_category("query").unwrap_or_default()
+    &rules.rules_for_category("query").unwrap_or_default(), &hashmap!{}
   );
   let result = match_query(Some(expected), Some(actual), &context);
   expect!(result.values().flatten()).to(be_empty());
@@ -276,7 +276,7 @@ async fn body_matching_uses_any_matcher_for_content_type_header() {
     DiffConfig::AllowUnexpectedKeys,
     &matchingrules! {
         "header" => { "Content-Type" => [ MatchingRule::Regex("application/.*json".into()) ] }
-    }.rules_for_category("header").unwrap_or_default()
+    }.rules_for_category("header").unwrap_or_default(), &hashmap!{}
   );
   let result = match_body(&expected, &actual, &MatchingContext::default(), &header_context).await;
   let mismatches = result.mismatches();
@@ -491,7 +491,7 @@ fn match_path_returns_nothing_if_the_path_matches_with_a_matcher() {
     DiffConfig::AllowUnexpectedKeys,
     &matchingrules! {
         "path" => { "" => [ MatchingRule::Regex(s!("/path/\\d+")) ] }
-    }.rules_for_category("path").unwrap_or_default()
+    }.rules_for_category("path").unwrap_or_default(), &hashmap!{}
   );
   let result = match_path(&"/path/1234".to_string(), &"/path/5678".to_string(), &context);
   expect!(result).to(be_ok());
@@ -503,7 +503,7 @@ fn match_path_returns_a_mismatch_if_the_path_does_not_match_with_a_matcher() {
     DiffConfig::AllowUnexpectedKeys,
     &matchingrules! {
         "path" => { "" => [ MatchingRule::Regex(s!("/path/\\d+")) ] }
-    }.rules_for_category("path").unwrap_or_default()
+    }.rules_for_category("path").unwrap_or_default(), &hashmap!{}
   );
   let result = match_path(&"/path/1234".to_string(), &"/path/abc".to_string(), &context);
   expect!(result).to(be_err().value(vec![ Mismatch::PathMismatch {
@@ -521,7 +521,7 @@ fn match_query_returns_no_mismatch_if_the_values_are_not_the_same_but_match_by_a
       "query" => {
         "a" => [ MatchingRule::Regex(s!("\\w+")) ]
       }
-    }.rules_for_category("query").unwrap_or_default()
+    }.rules_for_category("query").unwrap_or_default(), &hashmap!{}
   );
   let mut query_map = HashMap::new();
   query_map.insert(s!("a"), vec![s!("b")]);
@@ -541,7 +541,7 @@ fn match_query_returns_a_mismatch_if_the_values_do_not_match_by_a_matcher() {
       "query" => {
         "a" => [ MatchingRule::Regex(s!("\\d+")) ]
       }
-    }.rules_for_category("query").unwrap_or_default()
+    }.rules_for_category("query").unwrap_or_default(), &hashmap!{}
   );
   let mut query_map = HashMap::new();
   query_map.insert(s!("a"), vec![s!("b")]);
@@ -598,7 +598,7 @@ async fn matching_text_body_must_use_defined_matcher() {
       "body" => {
         "$" => [ MatchingRule::Regex(s!("\\w+")) ]
       }
-    }.rules_for_category("body").unwrap_or_default()
+    }.rules_for_category("body").unwrap_or_default(), &hashmap!{}
   );
   let mismatches = compare_bodies(&TEXT.clone(), &expected, &actual, &context).await;
   expect!(mismatches.mismatches().iter()).to(be_empty());
@@ -609,7 +609,7 @@ async fn matching_text_body_must_use_defined_matcher() {
       "body" => {
         "$" => [ MatchingRule::Regex(s!("\\d+")) ]
       }
-    }.rules_for_category("body").unwrap_or_default()
+    }.rules_for_category("body").unwrap_or_default(), &hashmap!{}
   );
   let mismatches = compare_bodies(&TEXT.clone(), &expected, &actual, &context).await;
   expect!(mismatches.mismatches().iter()).to_not(be_empty());
@@ -628,7 +628,7 @@ fn values_matcher_defined() {
         "$.x[*].y" => [ MatchingRule::Values ],
         "$.y[*].y" => [ MatchingRule::Type ]
       }
-    }.rules_for_category("body").unwrap());
+    }.rules_for_category("body").unwrap(), &hashmap!{});
 
   expect!(context.values_matcher_defined(&["$"])).to(be_true());
   expect!(context.values_matcher_defined(&["$", "x"])).to(be_false());

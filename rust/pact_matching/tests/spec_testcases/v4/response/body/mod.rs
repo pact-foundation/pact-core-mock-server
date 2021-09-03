@@ -14,6 +14,8 @@ use pact_plugin_driver::catalogue_manager::register_core_entries;
 use pact_models::interaction::{Interaction, http_interaction_from_json};
 #[allow(unused_imports)]
 use pact_matching::{match_interaction_request, match_interaction_response};
+#[allow(unused_imports)]
+use pact_models::prelude::{Pact, RequestResponsePact};
 
 #[tokio::test]
 async fn array_with_regex_matcher() {
@@ -83,7 +85,8 @@ async fn array_with_regex_matcher() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -132,7 +135,8 @@ async fn unexpected_xml_namespace() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -181,7 +185,8 @@ async fn different_value_found_at_index_xml() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -245,7 +250,8 @@ async fn unexpected_index_with_not_null_value() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -298,7 +304,8 @@ async fn missing_body() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -356,7 +363,8 @@ async fn unexpected_key_with_null_value() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -413,7 +421,8 @@ async fn different_value_found_at_key() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -470,7 +479,8 @@ async fn not_null_found_at_key_when_null_expected() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -540,7 +550,8 @@ async fn additional_property_with_type_matcher() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -625,7 +636,8 @@ async fn matches_with_integers() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -674,7 +686,8 @@ async fn different_value_found_at_key_xml() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -739,7 +752,8 @@ async fn number_found_in_array_when_string_expected() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -782,7 +796,8 @@ async fn no_body_no_content_type_xml() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -839,7 +854,8 @@ async fn property_name_is_different_case() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -899,7 +915,8 @@ async fn array_with_type_matcher_mismatch_xml() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -962,7 +979,8 @@ async fn array_in_different_order() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -1023,7 +1041,8 @@ async fn plain_text_regex_matching() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -1084,7 +1103,8 @@ async fn plain_text_regex_matching_that_does_not_match() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -1161,7 +1181,8 @@ async fn matches_with_floats() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -1205,7 +1226,8 @@ async fn empty_body_no_content_type() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -1254,7 +1276,8 @@ async fn objects_in_array_second_matches_xml() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -1324,7 +1347,8 @@ async fn array_with_type_matcher_mismatch() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -1373,7 +1397,8 @@ async fn plain_text_that_matches() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -1450,7 +1475,8 @@ async fn array_with_type_matcher() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -1502,7 +1528,8 @@ async fn missing_body_no_content_type() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -1576,7 +1603,8 @@ async fn objects_in_array_type_matching_xml() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -1621,7 +1649,8 @@ async fn empty_body() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -1686,7 +1715,8 @@ async fn string_found_in_array_when_number_expected() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -1735,7 +1765,8 @@ async fn array_at_top_level_xml() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -1797,7 +1828,8 @@ async fn objects_in_array_first_matches() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -1846,7 +1878,8 @@ async fn keys_out_of_order_match_xml() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -1921,7 +1954,8 @@ async fn array_at_top_level() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -2006,7 +2040,8 @@ async fn matches_with_type() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -2055,7 +2090,8 @@ async fn different_xml_namespaces() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -2104,7 +2140,8 @@ async fn different_xml_namespace_prefixes() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -2148,7 +2185,8 @@ async fn null_body_no_content_type() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -2215,7 +2253,8 @@ async fn array_with_type_matcher_xml() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -2264,7 +2303,8 @@ async fn missing_index_xml() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -2313,7 +2353,8 @@ async fn objects_in_array_no_matches_xml() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -2365,7 +2406,8 @@ async fn no_body_no_content_type() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -2423,7 +2465,8 @@ async fn non_empty_body_found_when_empty_expected() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -2508,7 +2551,8 @@ async fn deeply_nested_objects() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -2557,7 +2601,8 @@ async fn missing_key_xml() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -2622,7 +2667,8 @@ async fn objects_in_array_no_matches() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -2704,7 +2750,8 @@ async fn objects_in_array_type_matching() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -2769,7 +2816,8 @@ async fn not_null_found_in_array_when_null_expected() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -2818,7 +2866,8 @@ async fn plain_text_empty_body() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -2901,7 +2950,8 @@ async fn array_at_top_level_with_matchers_xml() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -2964,7 +3014,8 @@ async fn different_value_found_at_index() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -3043,7 +3094,8 @@ async fn matches_with_regex() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -3115,7 +3167,8 @@ async fn objects_in_array_with_type_mismatching() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -3172,7 +3225,8 @@ async fn number_found_at_key_when_string_expected() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -3234,7 +3288,8 @@ async fn objects_in_array_second_matches() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -3283,7 +3338,8 @@ async fn array_in_different_order_xml() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -3344,7 +3400,8 @@ async fn matches_with_regex_xml() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -3393,7 +3450,8 @@ async fn value_found_in_array_when_empty_expected_xml() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -3455,7 +3513,8 @@ async fn missing_index() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -3516,7 +3575,8 @@ async fn keys_out_of_order_match() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -3561,7 +3621,8 @@ async fn null_body() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -3610,7 +3671,8 @@ async fn unexpected_key_with_non_empty_value_xml() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -3654,7 +3716,8 @@ async fn missing_body_xml() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -3719,7 +3782,8 @@ async fn null_found_in_array_when_not_null_expected() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -3789,7 +3853,8 @@ async fn additional_property_with_type_matcher_that_does_not_match() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -3853,7 +3918,8 @@ async fn unexpected_index_with_null_value() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -3911,7 +3977,8 @@ async fn unexpected_key_with_not_null_value() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -3949,7 +4016,8 @@ async fn missing_body_found_when_empty_expected() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -4006,7 +4074,8 @@ async fn string_found_at_key_when_number_expected() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -4055,7 +4124,8 @@ async fn unexpected_key_with_empty_value_xml() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -4113,7 +4183,8 @@ async fn missing_key() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -4169,7 +4240,8 @@ async fn plain_text_regex_matching_missing_body() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -4218,7 +4290,8 @@ async fn objects_in_array_first_matches_xml() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -4267,7 +4340,8 @@ async fn matches_xml() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -4316,7 +4390,8 @@ async fn deeply_nested_objects_xml() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -4365,7 +4440,8 @@ async fn property_name_is_different_case_xml() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -4405,7 +4481,8 @@ async fn plain_text_missing_body() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -4472,7 +4549,8 @@ async fn matches() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -4611,7 +4689,8 @@ async fn array_at_top_level_with_matchers() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -4668,7 +4747,8 @@ async fn null_found_at_key_where_not_null_expected() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -4717,7 +4797,8 @@ async fn unexpected_index_with_non_empty_value_xml() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -4784,7 +4865,8 @@ async fn objects_in_array_with_type_mismatching_xml() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -4833,7 +4915,8 @@ async fn plain_text_that_does_not_match() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -4901,7 +4984,8 @@ async fn array_with_regex_matcher_xml() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {
@@ -4950,7 +5034,8 @@ async fn unexpected_index_with_missing_value_xml() {
 
     register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
     register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-    let result = match_interaction_response(expected, actual, &PactSpecification::V4).await.unwrap();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V4).await.unwrap();
 
     println!("RESULT: {:?}", result);
     if pact_match.as_bool().unwrap() {

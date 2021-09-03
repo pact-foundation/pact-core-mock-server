@@ -652,7 +652,7 @@ mod tests {
       "body" => {
         "$.foo.*" => [ MatchingRule::Type ]
       }
-    }.rules_for_category("body").unwrap()));
+    }.rules_for_category("body").unwrap(), &hashmap!{}));
     expect!(result).to(be_ok());
   }
 
@@ -808,7 +808,7 @@ mod tests {
         "body" => {
             "$.foo['#text']" => [ MatchingRule::Regex(r"[a-z\s]+".into()) ]
         }
-    }.rules_for_category("body").unwrap()));
+    }.rules_for_category("body").unwrap(), &hashmap!{}));
     expect!(result).to(be_ok());
   }
 
@@ -830,7 +830,7 @@ mod tests {
       "body" => {
         "$.foo['#text']" => [ MatchingRule::Regex("[a-z]+".to_string()) ]
       }
-    }.rules_for_category("body").unwrap()));
+    }.rules_for_category("body").unwrap(), &hashmap!{}));
     expect!(result).to(be_ok());
   }
 
@@ -846,7 +846,7 @@ mod tests {
       "body" => {
         "$.foo" => [ MatchingRule::Type ]
       }
-    }.rules_for_category("body").unwrap()));
+    }.rules_for_category("body").unwrap(), &hashmap!{}));
     expect!(result).to(be_ok());
   }
 
@@ -920,7 +920,8 @@ mod tests {
         "$.providerService.attribute1.newattribute2.hiddenData" => [ MatchingRule::Regex("[a-zA-Z0-9]*".into()) ]
       }
     }.rules_for_category("body").unwrap();
-    let result = match_xml(&expected.clone(), &actual.clone(), &MatchingContext::new(DiffConfig::AllowUnexpectedKeys, &rules));
+    let result = match_xml(&expected.clone(), &actual.clone(),
+                           &MatchingContext::new(DiffConfig::AllowUnexpectedKeys, &rules, &hashmap!{}));
     expect!(result).to(be_ok());
   }
 
@@ -1015,7 +1016,7 @@ mod tests {
       "body" => { "$.foo['@urn:ns:something']" => [ MatchingRule::Regex(s!("^[0-9]+$")) ] }
     };
     let result = match_xml(&expected, &actual, &MatchingContext::new(DiffConfig::NoUnexpectedKeys,
-                                                                     &matching_rules.rules_for_category("body").unwrap()));
+                                                                     &matching_rules.rules_for_category("body").unwrap(), &hashmap!{}));
     expect!(result).to(be_ok());
   }
 
@@ -1027,7 +1028,7 @@ mod tests {
       "body" => { "$['urn:ns:foo']['urn:ns:something'].#text" => [ MatchingRule::Regex("^[0-9]+$".to_string()) ] }
     };
     let result = match_xml(&expected, &actual, &MatchingContext::new(DiffConfig::NoUnexpectedKeys,
-      &matching_rules.rules_for_category("body").unwrap()));
+      &matching_rules.rules_for_category("body").unwrap(), &hashmap!{}));
     expect!(result).to(be_ok());
   }
 
@@ -1118,7 +1119,8 @@ mod tests {
         "$.animals.*['@id']" => [ MatchingRule::Integer ]
       }
     }.rules_for_category("body").unwrap();
-    let result = match_xml(&expected.clone(), &actual.clone(), &MatchingContext::new(DiffConfig::NoUnexpectedKeys, &matching_rules));
+    let result = match_xml(&expected.clone(), &actual.clone(),
+                           &MatchingContext::new(DiffConfig::NoUnexpectedKeys, &matching_rules, &hashmap!{}));
     expect!(result).to(be_ok());
   }
 
@@ -1136,7 +1138,8 @@ mod tests {
         "$.foo['@somethingElse']" => [ MatchingRule::Boolean ]
       }
     }.rules_for_category("body").unwrap();
-    let result = match_xml(&expected.clone(), &actual.clone(), &MatchingContext::new(DiffConfig::NoUnexpectedKeys, &matching_rules));
+    let result = match_xml(&expected.clone(), &actual.clone(),
+                           &MatchingContext::new(DiffConfig::NoUnexpectedKeys, &matching_rules, &hashmap!{}));
     expect!(mismatch_message(&result)).to(be_equal_to("Expected \'101\' to match a boolean".to_string()));
     expect!(result).to(be_err().value(vec![
       Mismatch::BodyMismatch {
