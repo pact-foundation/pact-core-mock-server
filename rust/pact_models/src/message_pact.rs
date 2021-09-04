@@ -17,9 +17,9 @@ use maplit::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::{Consumer, http_utils, PactSpecification, Provider};
-use crate::file_utils::with_read_lock;
-use crate::http_utils::HttpAuth;
+use crate::{Consumer, PactSpecification, Provider};
+#[cfg(not(target_family = "wasm"))] use crate::file_utils::with_read_lock;
+#[cfg(not(target_family = "wasm"))] use crate::http_utils::{self, HttpAuth};
 use crate::interaction::Interaction;
 use crate::message::Message;
 use crate::pact::{determine_spec_version, Pact, parse_meta_data, ReadWritePact};
@@ -202,6 +202,7 @@ impl MessagePact {
 
     /// Reads the pact file from a URL and parses the resulting JSON
     /// into a `MessagePact` struct
+    #[cfg(not(target_family = "wasm"))]
     pub fn from_url(url: &String, auth: &Option<HttpAuth>) -> anyhow::Result<MessagePact> {
         let (url, json) = http_utils::fetch_json_from_url(url, auth)?;
         MessagePact::from_json(&url, &json)
@@ -210,6 +211,7 @@ impl MessagePact {
     /// Writes this pact out to the provided file path.
     /// All directories in the path will automatically created.
     /// If there is already a file at the path, it will be overwritten.
+    #[cfg(not(target_family = "wasm"))]
     pub fn overwrite_pact(
         &self,
         path: &Path,
@@ -256,6 +258,7 @@ impl MessagePact {
 }
 
 impl ReadWritePact for MessagePact {
+  #[cfg(not(target_family = "wasm"))]
   fn read_pact(path: &Path) -> anyhow::Result<MessagePact> {
     with_read_lock(path, 3, &mut |f| {
       let pact_json: Value = serde_json::from_reader(f)?;

@@ -15,9 +15,10 @@ use log::{debug, error, warn};
 use maplit::btreemap;
 use serde_json::{json, Value};
 
-use crate::{Consumer, http_utils, PactSpecification, Provider};
-use crate::file_utils::{with_read_lock_for_open_file, with_write_lock};
-use crate::http_utils::HttpAuth;
+use crate::{Consumer, PactSpecification, Provider};
+#[cfg(not(target_family = "wasm"))] use crate::http_utils;
+#[cfg(not(target_family = "wasm"))] use crate::file_utils::{with_read_lock_for_open_file, with_write_lock};
+#[cfg(not(target_family = "wasm"))] use crate::http_utils::HttpAuth;
 use crate::interaction::Interaction;
 use crate::message_pact::MessagePact;
 use crate::sync_pact::RequestResponsePact;
@@ -57,12 +58,14 @@ pub trait Pact: Debug + ReadWritePact {
 
 
 /// Reads the pact file and parses the resulting JSON into a `Pact` struct
+#[cfg(not(target_family = "wasm"))]
 pub fn read_pact(file: &Path) -> anyhow::Result<Box<dyn Pact>> {
   let mut f = File::open(file)?;
   read_pact_from_file(&mut f, file)
 }
 
 /// Reads the pact from the file and parses the resulting JSON into a `Pact` struct
+#[cfg(not(target_family = "wasm"))]
 pub fn read_pact_from_file(file: &mut File, path: &Path) -> anyhow::Result<Box<dyn Pact>> {
   let buf = with_read_lock_for_open_file(path, file, 3, &mut |f| {
     let mut buf = String::new();
@@ -81,6 +84,7 @@ pub fn read_pact_from_file(file: &mut File, path: &Path) -> anyhow::Result<Box<d
 }
 
 /// Reads the pact file from a URL and parses the resulting JSON into a `Pact` struct
+#[cfg(not(target_family = "wasm"))]
 pub fn load_pact_from_url(url: &str, auth: &Option<HttpAuth>) -> anyhow::Result<Box<dyn Pact>> {
   let (url, pact_json) = http_utils::fetch_json_from_url(&url.to_string(), auth)?;
   load_pact_from_json(&url, &pact_json)
@@ -107,6 +111,7 @@ pub fn load_pact_from_json(source: &str, json: &Value) -> anyhow::Result<Box<dyn
 /// Trait for objects that can represent Pacts and can be read and written
 pub trait ReadWritePact {
   /// Reads the pact file and parses the resulting JSON into a `Pact` struct
+  #[cfg(not(target_family = "wasm"))]
   fn read_pact(path: &Path) -> anyhow::Result<Self> where Self: std::marker::Sized;
 
   /// Merges this pact with the other pact, and returns a new Pact with the interactions sorted.
@@ -127,6 +132,7 @@ lazy_static!{
 /// Writes the pact out to the provided path. If there is an existing pact at the path, the two
 /// pacts will be merged together unless overwrite is true. Returns an error if the file can not
 /// be written or the pacts can not be merged.
+#[cfg(not(target_family = "wasm"))]
 pub fn write_pact(
   pact: Box<dyn Pact>,
   path: &Path,

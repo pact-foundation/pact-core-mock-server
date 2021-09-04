@@ -12,9 +12,9 @@ use log::warn;
 use maplit::{btreemap, hashset};
 use serde_json::{json, Value};
 
-use crate::{Consumer, http_utils, PactSpecification, Provider};
-use crate::file_utils::with_read_lock;
-use crate::http_utils::HttpAuth;
+use crate::{Consumer, PactSpecification, Provider};
+#[cfg(not(target_family = "wasm"))] use crate::file_utils::with_read_lock;
+#[cfg(not(target_family = "wasm"))] use crate::http_utils::{self, HttpAuth};
 use crate::interaction::{Interaction, PactConflict, parse_interactions};
 use crate::message_pact::MessagePact;
 use crate::pact::{determine_spec_version, metadata_schema, Pact, parse_meta_data, ReadWritePact, verify_metadata};
@@ -168,8 +168,8 @@ impl RequestResponsePact {
   }
 
   /// Reads the pact file from a URL and parses the resulting JSON into a `Pact` struct
-  pub fn from_url(url: &str, auth: &Option<HttpAuth>
-  ) -> anyhow::Result<RequestResponsePact> {
+  #[cfg(not(target_family = "wasm"))]
+  pub fn from_url(url: &str, auth: &Option<HttpAuth>) -> anyhow::Result<RequestResponsePact> {
     let (url, json) = http_utils::fetch_json_from_url(&url.to_string(), auth)?;
     RequestResponsePact::from_json(&url, &json)
   }
@@ -222,6 +222,7 @@ impl RequestResponsePact {
 }
 
 impl ReadWritePact for RequestResponsePact {
+  #[cfg(not(target_family = "wasm"))]
   fn read_pact(path: &Path) -> anyhow::Result<RequestResponsePact> {
     with_read_lock(path, 3, &mut |f| {
       let pact_json = serde_json::from_reader(f)
