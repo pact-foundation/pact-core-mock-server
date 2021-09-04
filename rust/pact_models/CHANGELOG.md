@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.1.3 - Bugfix Release
+
+* 46135a16 - chore: add verifier FFI functions for directory, URL and Pact broker sources (Ronald Holshausen, Tue Aug 24 10:14:46 2021 +1000)
+* c2a9c5cc - bump version to 0.1.3 (Ronald Holshausen, Sun Aug 22 15:15:16 2021 +1000)
+
 # 0.1.2 - upgrade nom to 7.0
 
 * 21be6bce - chore: upgrade nom to 7.0 #128 (Ronald Holshausen, Sun Aug 22 11:56:33 2021 +1000)
