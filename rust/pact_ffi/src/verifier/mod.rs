@@ -124,6 +124,30 @@ ffi_fn! {
 }
 
 ffi_fn! {
+    /// Set the provider state for the Pact verifier.
+    ///
+    /// `teardown` is a boolean value. Set it to greater than zero to turn the option on.
+    /// `body` is a boolean value. Set it to greater than zero to turn the option on.
+    ///
+    /// # Safety
+    ///
+    /// All string fields must contain valid UTF-8. Invalid UTF-8
+    /// will be replaced with U+FFFD REPLACEMENT CHARACTER.
+    ///
+    fn pactffi_verifier_update_provider_state(
+      handle: *mut handle::VerifierHandle,
+      url: *const c_char,
+      teardown: c_uchar,
+      body: c_uchar
+    ) {
+      let handle = as_mut!(handle);
+      let url = safe_str!(url);
+
+      handle.update_provider_state(url, teardown > 0, body > 0);
+    }
+}
+
+ffi_fn! {
     /// Adds a Pact file as a source to verify.
     ///
     /// # Safety

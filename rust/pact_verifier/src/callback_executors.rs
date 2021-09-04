@@ -53,6 +53,7 @@ pub trait ProviderStateExecutor {
 }
 
 /// Default provider state callback executor, which executes an HTTP request
+#[derive(Debug, Clone)]
 pub struct HttpRequestProviderStateExecutor {
   /// URL to post state change requests to
   pub state_change_url: Option<String>,
