@@ -2093,12 +2093,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tree_magic_db"
-version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e73fc24a5427b3b15e2b0bcad8ef61b5affb1da8ac89c8bf3f196c8692d57f02"
-
-[[package]]
 name = "tree_magic_mini"
 version = "3.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2110,7 +2104,6 @@ dependencies = [
  "nom",
  "once_cell",
  "petgraph",
- "tree_magic_db",
 ]
 
 [[package]]
