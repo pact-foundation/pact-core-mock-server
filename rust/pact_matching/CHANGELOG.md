@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.10.3 - Upgrade treemagic => upgrade nom => upgrade memchr
+
+* 42de0a5d - chore: skip tests requiring mime db in Windows (Ronald Holshausen, Sat Sep 4 14:46:32 2021 +1000)
+* 4e97e806 - chore: do not include tree_magic_db to keep the project license MIT (Ronald Holshausen, Sat Sep 4 14:15:42 2021 +1000)
+* 3cf339ae - chore: upgrade tree_magic_mini to 3.0.1 (Audun Halland, Tue Aug 31 11:08:48 2021 +0200)
+* cfdc475c - bump version to 0.10.3 (Ronald Holshausen, Sun Aug 22 15:22:12 2021 +1000)
+
 # 0.10.2 - upgrade nom to 7.0
 
 * 21be6bce - chore: upgrade nom to 7.0 #128 (Ronald Holshausen, Sun Aug 22 11:56:33 2021 +1000)
