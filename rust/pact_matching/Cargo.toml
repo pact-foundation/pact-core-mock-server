@@ -35,7 +35,7 @@ base64 = "0.13.0"
 uuid = { version = "0.8", features = ["v4"] }
 nom = "7.0"
 chrono = "0.4.19"
-tree_magic_mini = "2"
+tree_magic_mini = "3"
 multipart = { version = "0.17", default-features = false, features = ["server"] }
 http = "0.2"
 mime = "0.3.16"

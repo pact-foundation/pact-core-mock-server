@@ -1,5 +1,5 @@
 FROM rust:alpine3.12
 
-RUN apk --no-cache add bash musl-dev openssl-dev
+RUN apk --no-cache add bash musl-dev openssl-dev shared-mime-info sudo
 
 ENTRYPOINT ["/bin/bash"]
