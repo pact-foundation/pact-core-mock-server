@@ -56,6 +56,43 @@ pub trait Pact: Debug + ReadWritePact {
   fn add_interaction(&mut self, interaction: &dyn Interaction) -> anyhow::Result<()>;
 }
 
+impl Default for Box<dyn Pact> {
+  fn default() -> Self {
+    V4Pact::default().boxed()
+  }
+}
+
+impl Clone for Box<dyn Pact> {
+  fn clone(&self) -> Self {
+    self.boxed()
+  }
+}
+
+impl PartialEq for Box<dyn Pact> {
+  fn eq(&self, other: &Self) -> bool {
+    if let Ok(pact) = self.as_v4_pact() {
+      if let Ok(other) = other.as_v4_pact() {
+        pact == other
+      } else {
+        false
+      }
+    } else if let Ok(pact) = self.as_request_response_pact() {
+      if let Ok(other) = other.as_request_response_pact() {
+        pact == other
+      } else {
+        false
+      }
+    } else if let Ok(pact) = self.as_message_pact() {
+      if let Ok(other) = other.as_message_pact() {
+        pact == other
+      } else {
+        false
+      }
+    } else {
+      false
+    }
+  }
+}
 
 /// Reads the pact file and parses the resulting JSON into a `Pact` struct
 #[cfg(not(target_family = "wasm"))]

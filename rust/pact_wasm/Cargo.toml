@@ -24,6 +24,9 @@ console_error_panic_hook = "0.1.6"
 console_log = { version = "0.2", features = ["color"] }
 web-sys = { version = "0.3", features = ["console"] }
 getrandom = { version = "0.2", features = ["js"] }
+serde_json = "1.0.67"
+anyhow = "1.0.43"
+log = "0.4.14"
 
 [dev-dependencies]
 expectest = "0.12.0"
@@ -32,3 +35,4 @@ wasm-bindgen-test = "0.3.13"
 [profile.release]
 # Tell `rustc` to optimize for small code size.
 opt-level = "s"
+lto = true

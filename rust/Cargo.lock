@@ -1274,11 +1274,14 @@ dependencies = [
 name = "pact_wasm"
 version = "0.0.0"
 dependencies = [
+ "anyhow",
  "console_error_panic_hook",
  "console_log",
  "expectest",
  "getrandom 0.2.3",
+ "log",
  "pact_models",
+ "serde_json",
  "wasm-bindgen",
  "wasm-bindgen-test",
  "web-sys",

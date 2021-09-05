@@ -31,7 +31,7 @@ use crate::PACT_RUST_VERSION;
 /// Struct that represents a pact between the consumer and provider of a service.
 /// It contains a list of Messages instead of Interactions, but is otherwise
 /// identical to `struct Pact`.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct MessagePact {
     /// Consumer side of the pact
     pub consumer: Consumer,

@@ -67,6 +67,32 @@ impl Clone for Box<dyn V4Interaction> {
   }
 }
 
+impl PartialEq for Box<dyn V4Interaction> {
+  fn eq(&self, other: &Self) -> bool {
+    if let Some(http) = self.as_v4_http() {
+      if let Some(other) = other.as_v4_http() {
+        http == other
+      } else {
+        false
+      }
+    } else if let Some(message) = self.as_v4_async_message() {
+      if let Some(other) = other.as_v4_async_message() {
+        message == other
+      } else {
+        false
+      }
+    } else if let Some(message) = self.as_v4_sync_message() {
+      if let Some(other) = other.as_v4_sync_message() {
+        message == other
+      } else {
+        false
+      }
+    } else {
+      false
+    }
+  }
+}
+
 /// Load V4 format interactions from JSON struct
 pub fn interactions_from_json(json: &Value, source: &str) -> Vec<Box<dyn V4Interaction>> {
   match json.get("interactions") {

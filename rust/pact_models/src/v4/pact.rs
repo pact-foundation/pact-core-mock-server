@@ -24,7 +24,7 @@ use crate::v4::V4InteractionType;
 use crate::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerifier, ResultLevel};
 
 /// V4 spec Struct that represents a pact between the consumer and provider of a service.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct V4Pact {
   /// Consumer side of the pact
   pub consumer: Consumer,
