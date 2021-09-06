@@ -1,4 +1,4 @@
-FROM rust:alpine3.12
+FROM rust:1-alpine
 
 RUN apk --no-cache add bash musl-dev openssl-dev shared-mime-info sudo
 
