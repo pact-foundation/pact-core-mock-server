@@ -1,0 +1,2 @@
+# Pact WASM bindings
+

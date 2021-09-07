@@ -4,7 +4,7 @@ version = "0.11.0-beta.0"
 authors = ["Ronald Holshausen <uglyog@gmail.com>"]
 edition = "2018"
 description = "Pact-Rust support library that implements request and response matching logic"
-documentation = "https://docs.rs/pact_matching/0.10.3/pact_matching/"
+documentation = "https://docs.rs/pact_matching/"
 homepage = "http://www.pact.io"
 repository = "https://github.com/pact-foundation/pact-reference/blob/master/rust/pact_matching"
 readme = "README.md"
@@ -15,7 +15,7 @@ exclude = [
 ]
 
 [dependencies]
-pact_models = { version =  "0.2.0-beta.0", path = "../pact_models" }
+pact_models = { version =  "0.2.0-beta.2", path = "../pact_models" }
 anyhow = "1.0.40"
 serde = { version = "^1.0", features = ["derive"] }
 serde_json = "^1.0"
@@ -35,7 +35,7 @@ base64 = "0.13.0"
 uuid = { version = "0.8", features = ["v4"] }
 nom = "7.0"
 chrono = "0.4.19"
-tree_magic_mini = "2"
+tree_magic_mini = "3"
 multipart = { version = "0.17", default-features = false, features = ["server"] }
 http = "0.2"
 mime = "0.3.16"

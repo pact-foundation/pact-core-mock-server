@@ -8,5 +8,11 @@ members = [
     "pact_verifier",
     "pact_verifier_cli",
     "pact_cli",
-    "pact_ffi"
+    "pact_ffi",
+    "pact_wasm"
 ]
+
+[profile.release]
+# Tell `rustc` to optimize for small code size.
+opt-level = "s"
+lto = true

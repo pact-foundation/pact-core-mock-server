@@ -13,7 +13,7 @@ use maplit::btreemap;
 use serde_json::{json, Value};
 
 use crate::{Consumer, PactSpecification, Provider};
-use crate::file_utils::with_read_lock;
+#[cfg(not(target_family = "wasm"))] use crate::file_utils::with_read_lock;
 use crate::interaction::Interaction;
 use crate::json_utils::json_to_string;
 use crate::message_pact::MessagePact;
@@ -26,7 +26,7 @@ use crate::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerif
 use crate::plugins::PluginData;
 
 /// V4 spec Struct that represents a pact between the consumer and provider of a service.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct V4Pact {
   /// Consumer side of the pact
   pub consumer: Consumer,
@@ -264,6 +264,7 @@ impl Default for V4Pact {
 }
 
 impl ReadWritePact for V4Pact {
+  #[cfg(not(target_family = "wasm"))]
   fn read_pact(path: &Path) -> anyhow::Result<V4Pact> {
     let json = with_read_lock(path, 3, &mut |f| {
       serde_json::from_reader::<_, Value>(f).context("Failed to parse Pact JSON")

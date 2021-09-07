@@ -668,6 +668,7 @@ mod tests {
   }
 
   #[test]
+  #[cfg(not(target_os = "windows"))] // Requires shared mime-info db, not available on Windows
   fn match_mime_multipart_content_type_matcher() {
     let expected_body = Bytes::from("--1234\r\n\
       Content-Type: text/plain\r\n\
@@ -723,6 +724,7 @@ mod tests {
   }
 
   #[test]
+  #[cfg(not(target_os = "windows"))] // Requires shared mime-info db, not available on Windows
   fn match_mime_multipart_content_type_matcher_with_mismatch() {
     let expected_body = Bytes::from("--1234\r\n\
       Content-Type: text/plain\r\n\

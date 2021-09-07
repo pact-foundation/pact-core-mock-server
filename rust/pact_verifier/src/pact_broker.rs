@@ -292,7 +292,8 @@ impl HALClient {
     let request_builder = match self.auth {
         Some(ref auth) => match auth {
             HttpAuth::User(username, password) => self.client.get(url).basic_auth(username, password.clone()),
-            HttpAuth::Token(token) => self.client.get(url).bearer_auth(token)
+            HttpAuth::Token(token) => self.client.get(url).bearer_auth(token),
+            _ => self.client.get(url)
         },
         None => self.client.get(url)
     }.header("accept", "application/hal+json, application/json");
@@ -433,7 +434,8 @@ impl HALClient {
           .basic_auth(username, password.clone()),
         HttpAuth::Token(token) => self.client
           .request(method, url.clone())
-          .bearer_auth(token)
+          .bearer_auth(token),
+        _ => self.client.request(method, url.clone())
       },
       None => self.client.request(method, url.clone())
     }

@@ -19,13 +19,13 @@ pub mod json_utils;
 pub mod expression_parser;
 pub mod time_utils;
 mod timezone_db;
-pub mod file_utils;
+#[cfg(not(target_family = "wasm"))] pub mod file_utils;
 pub mod xml_utils;
 pub mod matchingrules;
 pub mod generators;
 pub mod path_exp;
 pub mod query_strings;
-pub mod http_utils;
+#[cfg(not(target_family = "wasm"))] pub mod http_utils;
 pub mod http_parts;
 pub mod request;
 pub mod response;
@@ -56,7 +56,7 @@ pub mod prelude {
   pub use crate::response::Response;
   pub use crate::sync_interaction::RequestResponseInteraction;
   pub use crate::sync_pact::RequestResponsePact;
-  pub use crate::http_utils::HttpAuth;
+  #[cfg(not(target_family = "wasm"))] pub use crate::http_utils::HttpAuth;
 
   pub mod v4 {
     pub use crate::v4::pact::V4Pact;

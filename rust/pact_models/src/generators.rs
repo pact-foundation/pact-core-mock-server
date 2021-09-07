@@ -18,7 +18,8 @@ use log::*;
 use maplit::hashmap;
 use rand::distributions::Alphanumeric;
 use rand::prelude::*;
-use onig::{Captures, Regex};
+#[cfg(not(target_family = "wasm"))] use onig::{Captures, Regex};
+#[cfg(target_family = "wasm")] use regex::{Captures, Regex};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use uuid::Uuid;
@@ -1000,6 +1001,21 @@ fn strip_anchors(regex: &str) -> &str {
     .strip_suffix('$').unwrap_or(regex)
 }
 
+#[cfg(not(target_family = "wasm"))]
+fn replace_with_regex(example: &String, url: String, re: Regex) -> String {
+  re.replace(example, |caps: &Captures| {
+    format!("{}{}", url, caps.at(1).unwrap())
+  }).to_string()
+}
+
+#[cfg(target_family = "wasm")]
+fn replace_with_regex(example: &String, url: String, re: Regex) -> String {
+  re.replace(example, |caps: &Captures| {
+    let m = caps.get(1).unwrap();
+    format!("{}{}", url, m.as_str())
+  }).to_string()
+}
+
 impl GenerateValue<String> for Generator {
   fn generate_value(
     &self,
@@ -1076,9 +1092,7 @@ impl GenerateValue<String> for Generator {
           Some(mock_server_details) => {
             match get_field_as_string("url", mock_server_details) {
               Some(url) => match Regex::new(regex) {
-                Ok(re) => Ok(re.replace(example, |caps: &Captures| {
-                  format!("{}{}", url, caps.at(1).unwrap())
-                }).to_string()),
+                Ok(re) => Ok(replace_with_regex(example, url, re)),
                 Err(err) => Err(anyhow!("MockServerURL: Failed to generate value: {}", err))
               },
               None => Err(anyhow!("MockServerURL: can not generate a value as there is no mock server URL in the test context"))
@@ -1205,9 +1219,7 @@ impl GenerateValue<Value> for Generator {
             Some(mock_server_details) => {
               match get_field_as_string("href", mock_server_details) {
                 Some(url) => match Regex::new(regex) {
-                  Ok(re) => Ok(Value::String(re.replace(example, |caps: &Captures| {
-                    format!("{}{}", url, caps.at(1).unwrap())
-                  }).to_string())),
+                  Ok(re) => Ok(Value::String(replace_with_regex(example, url, re))),
                   Err(err) => Err(anyhow!("MockServerURL: Failed to generate value: {}", err))
                 },
                 None => Err(anyhow!("MockServerURL: can not generate a value as there is no mock server URL in the test context"))

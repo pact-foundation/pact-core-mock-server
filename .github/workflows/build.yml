@@ -15,6 +15,9 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
           components: clippy
+      - name: Install shared mime info DB
+        if: runner.os == 'macOS'
+        run: brew install shared-mime-info
       - name: Tests
         uses: marcopolo/cargo@master # TODO: - use actions-rs/cargo@v1 when PR merged https://github.com/actions-rs/cargo/pull/59
         with:
