@@ -78,7 +78,21 @@ impl InteractionBuilder {
   /// The interaction we've built (in V4 format).
   pub fn build_v4(&self) -> SynchronousHttp {
     debug!("Building V4 HTTP interaction: {:?}", self);
-    // TODO: include any plugin config from the builders
+
+    let mut config = hashmap!{};
+    let request_config = self.request.plugin_config();
+    if !request_config.is_empty() {
+      for (key, value) in request_config {
+        config.insert(key.clone(), value.interaction_configuration.clone());
+      }
+    }
+    let response_config = self.response.plugin_config();
+    if !response_config.is_empty() {
+      for (key, value) in response_config {
+        config.insert(key.clone(), value.interaction_configuration.clone());
+      }
+    }
+
     SynchronousHttp {
       id: None,
       key: None,
@@ -91,8 +105,24 @@ impl InteractionBuilder {
         "testname".to_string() => json!(self.test_name)
       },
       pending: false,
-      plugin_config: Default::default(),
+      plugin_config: config.clone(),
       interaction_markup: "".to_string()
+    }
+  }
+
+  /// Any global plugin configuration returned from plugins
+  pub fn plugin_config(&self) {
+    let request_config = self.request.plugin_config();
+    if !request_config.is_empty() {
+      for (key, value) in request_config {
+        config.insert(key.clone(), value.interaction_configuration.clone());
+      }
+    }
+    let response_config = self.response.plugin_config();
+    if !response_config.is_empty() {
+      for (key, value) in response_config {
+        config.insert(key.clone(), value.interaction_configuration.clone());
+      }
     }
   }
 }

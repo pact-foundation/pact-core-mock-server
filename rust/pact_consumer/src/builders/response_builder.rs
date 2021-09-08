@@ -21,7 +21,7 @@ use crate::prelude::*;
 #[derive(Clone, Debug)]
 pub struct ResponseBuilder {
   response: HttpResponse,
-  plugin_config: Option<PluginConfiguration>
+  plugin_config: HashMap<String, PluginConfiguration>
 }
 
 impl ResponseBuilder {
@@ -121,7 +121,7 @@ impl ResponseBuilder {
                     response.generators.add_generators(generators);
                   }
                   if !contents.plugin_config.is_empty() {
-                    self.plugin_config = Some(contents.plugin_config.clone());
+                    self.plugin_config.insert(matcher.plugin_name(), contents.plugin_config.clone());
                   }
                 }
                 Err(err) => panic!("Failed to call out to plugin - {}", err)
@@ -138,11 +138,15 @@ impl ResponseBuilder {
     }
     self
   }
+
+  pub(crate) fn plugin_config(&self) -> HashMap<String, PluginConfiguration> {
+    self.plugin_config.clone()
+  }
 }
 
 impl Default for ResponseBuilder {
     fn default() -> Self {
-        ResponseBuilder { response: HttpResponse::default(), plugin_config: None }
+        ResponseBuilder { response: HttpResponse::default(), plugin_config: Default::default() }
     }
 }
 

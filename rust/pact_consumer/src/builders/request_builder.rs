@@ -32,7 +32,7 @@ use crate::util::GetDefaulting;
 #[derive(Clone, Debug)]
 pub struct RequestBuilder {
   request: HttpRequest,
-  plugin_config: Option<PluginConfiguration>
+  plugin_config: HashMap<String, PluginConfiguration>
 }
 
 impl RequestBuilder {
@@ -190,7 +190,7 @@ impl RequestBuilder {
                     request.generators.add_generators(generators);
                   }
                   if !contents.plugin_config.is_empty() {
-                    self.plugin_config = Some(contents.plugin_config.clone());
+                    self.plugin_config.insert(matcher.plugin_name(), contents.plugin_config.clone());
                   }
                 }
                 Err(err) => panic!("Failed to call out to plugin - {}", err)
@@ -207,11 +207,15 @@ impl RequestBuilder {
     }
     self
   }
+
+  pub(crate) fn plugin_config(&self) -> HashMap<String, PluginConfiguration> {
+    self.plugin_config.clone()
+  }
 }
 
 impl Default for RequestBuilder {
     fn default() -> Self {
-        RequestBuilder { request: HttpRequest::default(), plugin_config: None }
+        RequestBuilder { request: HttpRequest::default(), plugin_config: Default::default() }
     }
 }
 
