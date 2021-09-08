@@ -48,7 +48,10 @@ pub struct SynchronousMessages {
   pub pending: bool,
 
   /// Configuration added by plugins
-  pub plugin_config: HashMap<String, HashMap<String, Value>>
+  pub plugin_config: HashMap<String, HashMap<String, Value>>,
+
+  /// Text markup to use to render the interaction in a UI
+  pub interaction_markup: String
 }
 
 impl SynchronousMessages {
@@ -78,6 +81,7 @@ impl SynchronousMessages {
         },
         None => format!("Interaction {}", index)
       };
+
       let comments = match json.get("comments") {
         Some(v) => match v {
           Value::Object(map) => map.iter()
@@ -89,6 +93,7 @@ impl SynchronousMessages {
         },
         None => Default::default()
       };
+
       let provider_states = ProviderState::from_json(json);
       let request = json.get("request")
         .ok_or(anyhow!("JSON for SynchronousMessages does not contain a 'request' object"))?;
@@ -100,7 +105,11 @@ impl SynchronousMessages {
         response.iter()
           .map(|message| MessageContents::from_json(message))
           .collect::<Vec<anyhow::Result<MessageContents>>>();
+
       let plugin_config = parse_plugin_config(json);
+      let interaction_markup = json.get("interactionMarkup")
+        .map(|id| json_to_string(id)).unwrap_or_default();
+
       if responses.iter().any(|res| res.is_err()) {
         let errors = responses.iter()
           .filter(|res| res.is_err())
@@ -118,7 +127,8 @@ impl SynchronousMessages {
           response: responses.iter().map(|res| res.as_ref().unwrap().clone()).collect(),
           pending: json.get("pending")
             .map(|value| value.as_bool().unwrap_or_default()).unwrap_or_default(),
-          plugin_config
+          plugin_config,
+          interaction_markup
         })
       }
     } else {
@@ -156,6 +166,11 @@ impl V4Interaction for SynchronousMessages {
         .map(|(k, v)|
           (k.clone(), Value::Object(v.iter().map(|(k, v)| (k.clone(), v.clone())).collect()))
         ).collect());
+    }
+
+    if !self.interaction_markup.is_empty() {
+      let map = json.as_object_mut().unwrap();
+      map.insert("interactionMarkup".to_string(), Value::String(self.interaction_markup.clone()));
     }
 
     json
@@ -287,7 +302,8 @@ impl Default for SynchronousMessages {
       request: Default::default(),
       response: Default::default(),
       pending: false,
-      plugin_config: Default::default()
+      plugin_config: Default::default(),
+      interaction_markup: "".to_string()
     }
   }
 }

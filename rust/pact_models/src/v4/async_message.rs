@@ -50,7 +50,10 @@ pub struct AsynchronousMessage {
   pub pending: bool,
 
   /// Configuration added by plugins
-  pub plugin_config: HashMap<String, HashMap<String, Value>>
+  pub plugin_config: HashMap<String, HashMap<String, Value>>,
+
+  /// Text markup to use to render the interaction in a UI
+  pub interaction_markup: String
 }
 
 impl AsynchronousMessage {
@@ -86,6 +89,7 @@ impl AsynchronousMessage {
         },
         None => format!("Interaction {}", index)
       };
+
       let comments = match json.get("comments") {
         Some(v) => match v {
           Value::Object(map) => map.iter()
@@ -97,6 +101,7 @@ impl AsynchronousMessage {
         },
         None => Default::default()
       };
+
       let provider_states = ProviderState::from_json(json);
       let metadata = match json.get("metadata") {
         Some(&Value::Object(ref v)) => v.iter().map(|(k, v)| {
@@ -105,7 +110,11 @@ impl AsynchronousMessage {
         _ => hashmap! {}
       };
       let as_headers = metadata_to_headers(&metadata);
+
       let plugin_config = parse_plugin_config(json);
+      let interaction_markup = json.get("interactionMarkup")
+        .map(|id| json_to_string(id)).unwrap_or_default();
+
       Ok(AsynchronousMessage {
         id,
         key,
@@ -120,7 +129,8 @@ impl AsynchronousMessage {
         comments,
         pending: json.get("pending")
           .map(|value| value.as_bool().unwrap_or_default()).unwrap_or_default(),
-        plugin_config
+        plugin_config,
+        interaction_markup
       })
     } else {
       Err(anyhow!("Expected a JSON object for the interaction, got '{}'", json))
@@ -177,6 +187,11 @@ impl V4Interaction for AsynchronousMessage {
         .map(|(k, v)|
           (k.clone(), Value::Object(v.iter().map(|(k, v)| (k.clone(), v.clone())).collect()))
         ).collect());
+    }
+
+    if !self.interaction_markup.is_empty() {
+      let map = json.as_object_mut().unwrap();
+      map.insert("interactionMarkup".to_string(), Value::String(self.interaction_markup.clone()));
     }
 
     json
@@ -320,7 +335,8 @@ impl Default for AsynchronousMessage {
       },
       comments: Default::default(),
       pending: false,
-      plugin_config: Default::default()
+      plugin_config: Default::default(),
+      interaction_markup: "".to_string()
     }
   }
 }

@@ -78,6 +78,7 @@ impl InteractionBuilder {
   /// The interaction we've built (in V4 format).
   pub fn build_v4(&self) -> SynchronousHttp {
     debug!("Building V4 HTTP interaction: {:?}", self);
+    // TODO: include any plugin config from the builders
     SynchronousHttp {
       id: None,
       key: None,
@@ -90,7 +91,8 @@ impl InteractionBuilder {
         "testname".to_string() => json!(self.test_name)
       },
       pending: false,
-      plugin_config: Default::default()
+      plugin_config: Default::default(),
+      interaction_markup: "".to_string()
     }
   }
 }
