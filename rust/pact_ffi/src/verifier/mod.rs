@@ -7,7 +7,7 @@ use std::ffi::{CStr, CString, OsStr, OsString};
 use std::panic::catch_unwind;
 
 use anyhow::Context;
-use libc::{c_char, c_int, c_uchar, c_ushort, EXIT_FAILURE};
+use libc::{c_char, c_int, c_uchar, c_ushort, c_ulong, EXIT_FAILURE};
 use log::*;
 use std::env;
 
@@ -134,7 +134,7 @@ ffi_fn! {
     /// All string fields must contain valid UTF-8. Invalid UTF-8
     /// will be replaced with U+FFFD REPLACEMENT CHARACTER.
     ///
-    fn pactffi_verifier_update_provider_state(
+    fn pactffi_verifier_set_provider_state(
       handle: *mut handle::VerifierHandle,
       url: *const c_char,
       teardown: c_uchar,
@@ -144,6 +144,46 @@ ffi_fn! {
       let url = safe_str!(url);
 
       handle.update_provider_state(url, teardown > 0, body > 0);
+    }
+}
+
+ffi_fn! {
+    /// Set the verification options for the Pact verifier.
+    ///
+    /// `publish` is a boolean value. Set it to greater than zero to turn the option on.
+    /// `disable_ssl_verification` is a boolean value. Set it to greater than zero to turn the option on.
+    ///
+    /// # Safety
+    ///
+    /// All string fields must contain valid UTF-8. Invalid UTF-8
+    /// will be replaced with U+FFFD REPLACEMENT CHARACTER.
+    ///
+    fn pactffi_verifier_set_verification_options(
+      handle: *mut handle::VerifierHandle,
+      publish: c_uchar,
+      provider_version: *const c_char,
+      build_url: *const c_char,
+      disable_ssl_verification: c_uchar,
+      request_timeout: c_ulong,
+      provider_tags: *const *const c_char,
+      provider_tags_len: c_ushort
+    ) {
+      let handle = as_mut!(handle);
+      let provider_version = safe_str!(provider_version);
+      let build_url = safe_str!(build_url);
+
+      let tags = if !provider_tags.is_null() && provider_tags_len > 0 {
+        let mut tags = Vec::with_capacity(provider_tags_len as usize);
+        for index in 0..(provider_tags_len - 1) {
+          let tag_ptr: * const c_char = unsafe { *(provider_tags.offset(index as isize)) };
+          tags.push(safe_str!(tag_ptr).to_string());
+        }
+        tags
+      } else {
+        vec![]
+      };
+
+      handle.update_verification_options(publish > 0, provider_version, build_url, tags, disable_ssl_verification > 0, request_timeout as u64);
     }
 }
 

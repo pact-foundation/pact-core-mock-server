@@ -23,6 +23,7 @@ pub trait RequestFilterExecutor {
 
 /// A "null" request filter executor, which does nothing, but permits
 /// bypassing of typechecking issues where no filter should be applied.
+#[derive(Debug, Clone)]
 pub struct NullRequestFilterExecutor {
   // This field is added (and is private) to guarantee that this struct
   // is never instantiated accidentally, and is instead only able to be
