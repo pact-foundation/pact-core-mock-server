@@ -24,6 +24,7 @@ use pact_models::matchingrules::{Category, MatchingRules};
 use pact_models::path_exp::DocPath;
 use pact_models::request::Request;
 use pact_models::v4::http_parts::HttpRequest;
+use pact_models::v4::interaction::InteractionMarkup;
 
 use crate::prelude::*;
 use crate::util::GetDefaulting;
@@ -32,7 +33,8 @@ use crate::util::GetDefaulting;
 #[derive(Clone, Debug)]
 pub struct RequestBuilder {
   request: HttpRequest,
-  plugin_config: HashMap<String, PluginConfiguration>
+  plugin_config: HashMap<String, PluginConfiguration>,
+  interaction_markup: InteractionMarkup
 }
 
 impl RequestBuilder {
@@ -192,6 +194,10 @@ impl RequestBuilder {
                   if !contents.plugin_config.is_empty() {
                     self.plugin_config.insert(matcher.plugin_name(), contents.plugin_config.clone());
                   }
+                  self.interaction_markup = InteractionMarkup {
+                    markup: contents.interaction_markup,
+                    markup_type: contents.interaction_markup_type
+                  };
                 }
                 Err(err) => panic!("Failed to call out to plugin - {}", err)
               }
@@ -211,11 +217,19 @@ impl RequestBuilder {
   pub(crate) fn plugin_config(&self) -> HashMap<String, PluginConfiguration> {
     self.plugin_config.clone()
   }
+
+  pub(crate) fn interaction_markup(&self) -> InteractionMarkup {
+    self.interaction_markup.clone()
+  }
 }
 
 impl Default for RequestBuilder {
     fn default() -> Self {
-        RequestBuilder { request: HttpRequest::default(), plugin_config: Default::default() }
+        RequestBuilder {
+          request: HttpRequest::default(),
+          plugin_config: Default::default(),
+          interaction_markup: Default::default()
+        }
     }
 }
 

@@ -93,11 +93,11 @@ impl InteractionBuilder {
       },
       pending: false,
       plugin_config: self.plugin_config(),
-      interaction_markup: Default::default()
+      interaction_markup: self.request.interaction_markup().merge(self.response.interaction_markup())
     }
   }
 
-  /// Any global plugin configuration returned from plugins
+  /// Any plugin configuration returned from plugins
   pub fn plugin_config(&self) -> HashMap<String, HashMap<String, Value>> {
     let mut config = hashmap!{};
     let request_config = self.request.plugin_config();

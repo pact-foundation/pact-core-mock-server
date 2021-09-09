@@ -51,6 +51,27 @@ impl InteractionMarkup {
       "markupType": self.markup_type
     })
   }
+
+  /// Merges this markup with the other
+  pub fn merge(&self, other: InteractionMarkup) -> InteractionMarkup {
+    if self.is_empty() {
+      other.clone()
+    } else if other.is_empty() {
+      self.clone()
+    } else {
+      if self.markup_type != other.markup_type {
+        warn!("Merging different markup types: {} and {}", self.markup_type, other.markup_type);
+      }
+      let mut buffer = String::new();
+      buffer.push_str(self.markup.as_str());
+      buffer.push('\n');
+      buffer.push_str(other.markup.as_str());
+      InteractionMarkup {
+        markup: buffer,
+        markup_type: self.markup_type.clone()
+      }
+    }
+  }
 }
 
 /// V4 Interaction trait
