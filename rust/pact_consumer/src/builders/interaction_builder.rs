@@ -1,6 +1,6 @@
 use log::debug;
 use maplit::hashmap;
-use serde_json::json;
+use serde_json::{json, Value};
 
 use pact_models::provider_states::ProviderState;
 use pact_models::sync_interaction::RequestResponseInteraction;
@@ -8,6 +8,7 @@ use pact_models::v4::synch_http::SynchronousHttp;
 
 use super::request_builder::RequestBuilder;
 use super::response_builder::ResponseBuilder;
+use std::collections::HashMap;
 
 /// Builder for `Interaction` objects. Normally created via
 /// `PactBuilder::interaction`.
@@ -79,6 +80,25 @@ impl InteractionBuilder {
   pub fn build_v4(&self) -> SynchronousHttp {
     debug!("Building V4 HTTP interaction: {:?}", self);
 
+    SynchronousHttp {
+      id: None,
+      key: None,
+      description: self.description.clone(),
+      provider_states: self.provider_states.clone(),
+      request: self.request.build_v4(),
+      response: self.response.build_v4(),
+      comments: hashmap!{
+        "text".to_string() => json!(self.comments),
+        "testname".to_string() => json!(self.test_name)
+      },
+      pending: false,
+      plugin_config: self.plugin_config(),
+      interaction_markup: Default::default()
+    }
+  }
+
+  /// Any global plugin configuration returned from plugins
+  pub fn plugin_config(&self) -> HashMap<String, HashMap<String, Value>> {
     let mut config = hashmap!{};
     let request_config = self.request.plugin_config();
     if !request_config.is_empty() {
@@ -92,37 +112,6 @@ impl InteractionBuilder {
         config.insert(key.clone(), value.interaction_configuration.clone());
       }
     }
-
-    SynchronousHttp {
-      id: None,
-      key: None,
-      description: self.description.clone(),
-      provider_states: self.provider_states.clone(),
-      request: self.request.build_v4(),
-      response: self.response.build_v4(),
-      comments: hashmap!{
-        "text".to_string() => json!(self.comments),
-        "testname".to_string() => json!(self.test_name)
-      },
-      pending: false,
-      plugin_config: config.clone(),
-      interaction_markup: "".to_string()
-    }
-  }
-
-  /// Any global plugin configuration returned from plugins
-  pub fn plugin_config(&self) {
-    let request_config = self.request.plugin_config();
-    if !request_config.is_empty() {
-      for (key, value) in request_config {
-        config.insert(key.clone(), value.interaction_configuration.clone());
-      }
-    }
-    let response_config = self.response.plugin_config();
-    if !response_config.is_empty() {
-      for (key, value) in response_config {
-        config.insert(key.clone(), value.interaction_configuration.clone());
-      }
-    }
+    config
   }
 }

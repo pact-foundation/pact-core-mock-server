@@ -6,7 +6,7 @@ use std::fmt;
 
 use anyhow::anyhow;
 use log::warn;
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use crate::interaction::Interaction;
 use crate::json_utils::json_to_string;
@@ -14,6 +14,44 @@ use crate::v4::async_message::AsynchronousMessage;
 use crate::v4::sync_message::SynchronousMessages;
 use crate::v4::synch_http::SynchronousHttp;
 use crate::v4::V4InteractionType;
+
+/// Markup added to an interaction by a plugin
+#[derive(Debug, Clone, Default, Eq, PartialEq)]
+pub struct InteractionMarkup {
+  /// Markup contents
+  pub markup: String,
+  /// Type of markup (CommonMark or HTML)
+  pub markup_type: String
+}
+
+impl InteractionMarkup {
+  /// Load from a JSON value
+  pub fn from_json(json: &Value) -> InteractionMarkup {
+    match json {
+      Value::Object(values) => InteractionMarkup {
+        markup: values.get("markup").map(|val| json_to_string(val)).unwrap_or_default(),
+        markup_type: values.get("markupType").map(|val| json_to_string(val)).unwrap_or_default()
+      },
+      _ => {
+        warn!("{:?} is not a valid value for InteractionMarkup", json);
+        InteractionMarkup::default()
+      }
+    }
+  }
+
+  /// If this markup is empty
+  pub fn is_empty(&self) -> bool {
+    self.markup.is_empty()
+  }
+
+  /// Convert this markup to JSON form
+  pub fn to_json(&self) -> Value {
+    json!({
+      "markup": self.markup,
+      "markupType": self.markup_type
+    })
+  }
+}
 
 /// V4 Interaction trait
 pub trait V4Interaction: Interaction + Send + Sync {
@@ -40,6 +78,9 @@ pub trait V4Interaction: Interaction + Send + Sync {
 
   /// Any configuration added to the interaction from a plugin
   fn plugin_config(&self) -> HashMap<String, HashMap<String, Value>>;
+
+  /// Markup added to the interaction to render in UIs
+  fn interaction_markup(&self) -> InteractionMarkup;
 }
 
 impl Display for dyn V4Interaction {

@@ -20,7 +20,7 @@ use crate::message::Message;
 use crate::provider_states::ProviderState;
 use crate::sync_interaction::RequestResponseInteraction;
 use crate::v4::async_message::AsynchronousMessage;
-use crate::v4::interaction::{V4Interaction, parse_plugin_config};
+use crate::v4::interaction::{V4Interaction, parse_plugin_config, InteractionMarkup};
 use crate::v4::message_parts::MessageContents;
 use crate::v4::synch_http::SynchronousHttp;
 use crate::v4::V4InteractionType;
@@ -51,7 +51,7 @@ pub struct SynchronousMessages {
   pub plugin_config: HashMap<String, HashMap<String, Value>>,
 
   /// Text markup to use to render the interaction in a UI
-  pub interaction_markup: String
+  pub interaction_markup: InteractionMarkup
 }
 
 impl SynchronousMessages {
@@ -108,7 +108,7 @@ impl SynchronousMessages {
 
       let plugin_config = parse_plugin_config(json);
       let interaction_markup = json.get("interactionMarkup")
-        .map(|id| json_to_string(id)).unwrap_or_default();
+        .map(|markup| InteractionMarkup::from_json(markup)).unwrap_or_default();
 
       if responses.iter().any(|res| res.is_err()) {
         let errors = responses.iter()
@@ -170,7 +170,7 @@ impl V4Interaction for SynchronousMessages {
 
     if !self.interaction_markup.is_empty() {
       let map = json.as_object_mut().unwrap();
-      map.insert("interactionMarkup".to_string(), Value::String(self.interaction_markup.clone()));
+      map.insert("interactionMarkup".to_string(), self.interaction_markup.to_json());
     }
 
     json
@@ -202,6 +202,10 @@ impl V4Interaction for SynchronousMessages {
 
   fn plugin_config(&self) -> HashMap<String, HashMap<String, Value>> {
     self.plugin_config.clone()
+  }
+
+  fn interaction_markup(&self) -> InteractionMarkup {
+    self.interaction_markup.clone()
   }
 }
 
@@ -303,7 +307,7 @@ impl Default for SynchronousMessages {
       response: Default::default(),
       pending: false,
       plugin_config: Default::default(),
-      interaction_markup: "".to_string()
+      interaction_markup: Default::default()
     }
   }
 }
