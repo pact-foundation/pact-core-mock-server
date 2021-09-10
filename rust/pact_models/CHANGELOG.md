@@ -1,5 +1,22 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.2.0-beta.2 - Support for getting interaction markup from plugins
+
+* 997c063f - chore: update release script (Ronald Holshausen, Fri Sep 10 14:08:52 2021 +1000)
+* dc41e498 - chore: correct links in rust docs (Ronald Holshausen, Fri Sep 10 14:07:01 2021 +1000)
+* 37978075 - feat(plugins): support getting interaction markup from plugins (Ronald Holshausen, Thu Sep 9 12:09:06 2021 +1000)
+* f44ecc54 - feat(plugins): make the interaction markup type explicit (Ronald Holshausen, Thu Sep 9 11:47:32 2021 +1000)
+* a89eca23 - feat(plugins): support storing interaction markup for interactions in Pact files (Ronald Holshausen, Wed Sep 8 16:39:43 2021 +1000)
+* ceb1c35f - Merge branch 'master' into feat/plugins (Ronald Holshausen, Tue Sep 7 10:07:45 2021 +1000)
+* 067ded8f - feat: expose Pact models via WASM (Ronald Holshausen, Sun Sep 5 11:55:26 2021 +1000)
+* 80509c01 - chore: add crate to support WASM (Ronald Holshausen, Sat Sep 4 17:32:12 2021 +1000)
+* 7c12b03b - bump version to 0.1.4 (Ronald Holshausen, Sat Sep 4 15:30:35 2021 +1000)
+* 8fe00acd - chore: correct release script (Ronald Holshausen, Sat Sep 4 15:26:17 2021 +1000)
+* 53d5d75a - update changelog for release 0.1.3 (Ronald Holshausen, Sat Sep 4 15:25:43 2021 +1000)
+* 1dfe83fa - bump version to 0.2.0-beta.2 (Ronald Holshausen, Fri Sep 3 17:19:27 2021 +1000)
+* 689a35f4 - chore: fix release script (Ronald Holshausen, Fri Sep 3 17:16:45 2021 +1000)
+* 46135a16 - chore: add verifier FFI functions for directory, URL and Pact broker sources (Ronald Holshausen, Tue Aug 24 10:14:46 2021 +1000)
+
 # 0.1.3 - Bugfix Release
 
 * 46135a16 - chore: add verifier FFI functions for directory, URL and Pact broker sources (Ronald Holshausen, Tue Aug 24 10:14:46 2021 +1000)
