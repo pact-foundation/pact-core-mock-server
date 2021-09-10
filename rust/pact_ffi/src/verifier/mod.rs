@@ -172,16 +172,7 @@ ffi_fn! {
       let provider_version = safe_str!(provider_version);
       let build_url = safe_str!(build_url);
 
-      let tags = if !provider_tags.is_null() && provider_tags_len > 0 {
-        let mut tags = Vec::with_capacity(provider_tags_len as usize);
-        for index in 0..(provider_tags_len - 1) {
-          let tag_ptr: * const c_char = unsafe { *(provider_tags.offset(index as isize)) };
-          tags.push(safe_str!(tag_ptr).to_string());
-        }
-        tags
-      } else {
-        vec![]
-      };
+      let tags = get_tags(provider_tags, provider_tags_len);
 
       handle.update_verification_options(publish > 0, provider_version, build_url, tags, disable_ssl_verification > 0, request_timeout as u64);
     }
@@ -367,16 +358,7 @@ ffi_fn! {
         None
       };
 
-      let tags = if !provider_tags.is_null() && provider_tags_len > 0 {
-        let mut tags = Vec::with_capacity(provider_tags_len as usize);
-        for index in 0..(provider_tags_len - 1) {
-          let tag_ptr: * const c_char = unsafe { *(provider_tags.offset(index as isize)) };
-          tags.push(safe_str!(tag_ptr).to_string());
-        }
-        tags
-      } else {
-        vec![]
-      };
+      let tags = get_tags(provider_tags, provider_tags_len);
 
     // let selectors = if matches.is_present("consumer-version-selectors") {
     // matches.values_of("consumer-version-selectors")
@@ -569,4 +551,20 @@ fn parse_argument(long: Option<&str>, short: Option<char>, help: Option<&str>, p
     }
 
     arg
+}
+
+fn get_tags(provider_tags: *const *const c_char, provider_tags_len: c_ushort) -> Vec<String> {
+  if !provider_tags.is_null() && provider_tags_len > 0 {
+    let mut tags = Vec::with_capacity(provider_tags_len as usize);
+    for index in 0..(provider_tags_len - 1) {
+      let tag_ptr: *const c_char = unsafe { *(provider_tags.offset(index as isize)) };
+      let tag = if_null(tag_ptr, "");
+      if !tag.is_empty() {
+        tags.push(tag.to_string());
+      }
+    }
+    tags
+  } else {
+    vec![]
+  }
 }

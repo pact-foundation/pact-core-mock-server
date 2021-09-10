@@ -126,7 +126,7 @@ impl VerifierHandle {
     &mut self,
     publish: bool,
     provider_version: &str,
-    build_url: &str,
+    build_url: Option<String>,
     provider_tags: Vec<String>,
     disable_ssl_verification: bool,
     request_timeout: u64
@@ -134,7 +134,7 @@ impl VerifierHandle {
     self.options = VerificationOptions {
       publish,
       provider_version: Some(provider_version.to_string()),
-      build_url: Some(build_url.to_string()),
+      build_url,
       request_filter: None::<Arc<NullRequestFilterExecutor>>,
       provider_tags,
       disable_ssl_verification,
