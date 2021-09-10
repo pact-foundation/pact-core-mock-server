@@ -69,6 +69,7 @@ impl VerifierHandle {
   /// that match the provider name. If a username
   /// and password is given, the basic authentication will be used when fetching the pact file.
   /// If a token is provided, then bearer token authentication will be used.
+  #[allow(clippy::too_many_arguments)]
   pub fn add_pact_broker_source(
     &mut self,
     url: &str,
@@ -147,4 +148,10 @@ impl VerifierHandle {
       }
     })
   }
+}
+
+impl Default for VerifierHandle {
+   fn default() -> Self {
+       Self::new()
+   }
 }

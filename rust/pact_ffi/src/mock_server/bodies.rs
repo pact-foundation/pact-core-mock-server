@@ -159,24 +159,21 @@ pub fn matcher_from_integration_json(m: &Map<String, Value>) -> Option<MatchingR
           None => None
         }
         "arrayContains" => match m.get("variants") {
-          Some(variants) => match variants {
-            Value::Array(variants) => {
-              let values = variants.iter().enumerate().map(|(index, variant)| {
-                let mut category = MatchingRuleCategory::empty("body");
-                let mut generators = Generators::default();
-                match variant {
-                  Value::Object(map) => {
-                    process_object(map, &mut category, &mut generators, DocPath::root(), false, false);
-                  }
-                  _ => warn!("arrayContains: JSON for variant {} is not correctly formed: {}", index, variant)
+          Some(Value::Array(variants)) => {
+            let values = variants.iter().enumerate().map(|(index, variant)| {
+              let mut category = MatchingRuleCategory::empty("body");
+              let mut generators = Generators::default();
+              match variant {
+                Value::Object(map) => {
+                  process_object(map, &mut category, &mut generators, DocPath::root(), false, false);
                 }
-                (index, category, generators.categories.get(&GeneratorCategory::BODY).cloned().unwrap_or_default())
-              }).collect();
-              Some(MatchingRule::ArrayContains(values))
-            }
-            _ => None
+                _ => warn!("arrayContains: JSON for variant {} is not correctly formed: {}", index, variant)
+              }
+              (index, category, generators.categories.get(&GeneratorCategory::BODY).cloned().unwrap_or_default())
+            }).collect();
+            Some(MatchingRule::ArrayContains(values))
           }
-          None => None
+          _ => None
         }
         _ => None
       }
