@@ -50,7 +50,7 @@ pub trait Interaction: Debug {
   fn description(&self) -> String;
 
   /// Optional provider states for the interaction.
-  /// See https://docs.pact.io/getting_started/provider_states for more info on provider states.
+  /// See `<https://docs.pact.io/getting_started/provider_states>` for more info on provider states.
   fn provider_states(&self) -> Vec<ProviderState>;
 
   /// Body of the response or message

@@ -31,7 +31,7 @@ pub struct RequestResponseInteraction {
   /// Description of this interaction. This needs to be unique in the pact file.
   pub description: String,
   /// Optional provider states for the interaction.
-  /// See https://docs.pact.io/getting_started/provider_states for more info on provider states.
+  /// See `<https://docs.pact.io/getting_started/provider_states>` for more info on provider states.
   pub provider_states: Vec<ProviderState>,
   /// Request of the interaction
   pub request: Request,

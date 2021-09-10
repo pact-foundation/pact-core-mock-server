@@ -34,7 +34,7 @@ pub struct SynchronousHttp {
   /// A description for the interaction. Must be unique within the Pact file
   pub description: String,
   /// Optional provider states for the interaction.
-  /// See https://docs.pact.io/getting_started/provider_states for more info on provider states.
+  /// See `<https://docs.pact.io/getting_started/provider_states>` for more info on provider states.
   pub provider_states: Vec<ProviderState>,
   /// Request of the interaction
   pub request: HttpRequest,

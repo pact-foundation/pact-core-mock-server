@@ -37,7 +37,7 @@ pub struct Message {
     pub description: String,
 
     /// Optional provider state for the interaction.
-    /// See https://docs.pact.io/getting_started/provider_states for more info on provider states.
+    /// See `<https://docs.pact.io/getting_started/provider_states>` for more info on provider states.
     #[serde(rename = "providerStates")]
     #[serde(default)]
     pub provider_states: Vec<ProviderState>,
