@@ -59,7 +59,7 @@ impl ValidatingMockServer {
         .expect("new runtime");
 
       let (mock_server, server_future) = runtime.block_on(async move {
-        mock_server::MockServer::new("".into(), pact_rx.recv().unwrap(), ([0, 0, 0, 0], 0 as u16).into(),
+        mock_server::MockServer::new("".into(), pact_rx.recv().unwrap(), ([0, 0, 0, 0], 0).into(),
           MockServerConfig::default())
           .await
           .unwrap()

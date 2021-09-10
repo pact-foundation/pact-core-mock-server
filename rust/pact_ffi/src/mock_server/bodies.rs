@@ -113,15 +113,9 @@ pub fn matcher_from_integration_json(m: &Map<String, Value>) -> Option<MatchingR
     Some(value) => {
       let val = json_to_string(value);
       match val.as_str() {
-        "regex" => match m.get(&val) {
-          Some(s) => Some(MatchingRule::Regex(json_to_string(s))),
-          None => None
-        },
+        "regex" => m.get(&val).map(|s| MatchingRule::Regex(json_to_string(s))),
         "equality" => Some(MatchingRule::Equality),
-        "include" => match m.get("value") {
-          Some(s) => Some(MatchingRule::Include(json_to_string(s))),
-          None => None
-        },
+        "include" => m.get("value").map(|s| MatchingRule::Include(json_to_string(s))),
         "type" => match (json_to_num(m.get("min").cloned()), json_to_num(m.get("max").cloned())) {
           (Some(min), Some(max)) => Some(MatchingRule::MinMaxType(min, max)),
           (Some(min), None) => Some(MatchingRule::MinType(min)),
@@ -132,32 +126,14 @@ pub fn matcher_from_integration_json(m: &Map<String, Value>) -> Option<MatchingR
         "integer" => Some(MatchingRule::Integer),
         "decimal" => Some(MatchingRule::Decimal),
         "real" => Some(MatchingRule::Decimal),
-        "min" => match json_to_num(m.get(&val).cloned()) {
-          Some(min) => Some(MatchingRule::MinType(min)),
-          None => None
-        },
-        "max" => match json_to_num(m.get(&val).cloned()) {
-          Some(max) => Some(MatchingRule::MaxType(max)),
-          None => None
-        },
-        "timestamp" => match m.get("format").or_else(|| m.get(&val)) {
-          Some(s) => Some(MatchingRule::Timestamp(json_to_string(s))),
-          None => None
-        },
-        "date" => match m.get("format").or_else(|| m.get(&val)) {
-          Some(s) => Some(MatchingRule::Date(json_to_string(s))),
-          None => None
-        },
-        "time" => match m.get("format").or_else(|| m.get(&val)) {
-          Some(s) => Some(MatchingRule::Time(json_to_string(s))),
-          None => None
-        },
+        "min" => json_to_num(m.get(&val).cloned()).map(MatchingRule::MinType),
+        "max" => json_to_num(m.get(&val).cloned()).map(MatchingRule::MaxType),
+        "timestamp" => m.get("format").or_else(|| m.get(&val)).map(|s| MatchingRule::Timestamp(json_to_string(s))),
+        "date" => m.get("format").or_else(|| m.get(&val)).map(|s| MatchingRule::Date(json_to_string(s))),
+        "time" => m.get("format").or_else(|| m.get(&val)).map(|s| MatchingRule::Time(json_to_string(s))),
         "null" => Some(MatchingRule::Null),
         "values" => Some(MatchingRule::Values),
-        "contentType" => match m.get("value") {
-          Some(s) => Some(MatchingRule::ContentType(json_to_string(s))),
-          None => None
-        }
+        "contentType" => m.get("value").map(|s| MatchingRule::ContentType(json_to_string(s))),
         "arrayContains" => match m.get("variants") {
           Some(Value::Array(variants)) => {
             let values = variants.iter().enumerate().map(|(index, variant)| {

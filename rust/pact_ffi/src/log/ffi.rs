@@ -71,6 +71,10 @@ pub extern "C" fn pactffi_log_to_stderr(level_filter: LevelFilter) -> c_int {
 }
 
 /// Convenience function to direct all logging to a file.
+///
+/// # Safety
+/// This function will fail if the file_name pointer is invalid or does not point to a NULL
+/// terminated string.
 #[no_mangle]
 pub unsafe extern "C" fn pactffi_log_to_file(
     file_name: *const c_char,
@@ -290,6 +294,11 @@ pub extern "C" fn pactffi_logger_apply() -> c_int {
 ///
 /// Returns a NULL pointer if the buffer can't be fetched. This can occur is there is not
 /// sufficient memory to make a copy of the contents or the buffer contains non-UTF-8 characters.
+///
+/// # Safety
+///
+/// This function will fail if the log_id pointer is invalid or does not point to a NULL
+/// terminated string.
 #[no_mangle]
 pub unsafe extern "C" fn pactffi_fetch_log_buffer(log_id: *const c_char,) -> *const c_char {
   let id = if log_id.is_null() {

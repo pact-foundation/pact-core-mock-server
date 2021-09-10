@@ -460,7 +460,7 @@ pub extern "C" fn pactffi_verifier_cli_args() -> *const c_char {
     }
 
 
-    let opts_flags = OptionsFlags { options:options, flags: flags};
+    let opts_flags = OptionsFlags { options, flags };
     let json = serde_json::to_string(&opts_flags).unwrap();
     let c_str = CString::new(json).unwrap();
     c_str.into_raw() as *const c_char
