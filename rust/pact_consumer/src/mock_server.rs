@@ -8,7 +8,8 @@ use std::{
 };
 use std::sync::{Arc, Mutex};
 
-use log::debug;
+use async_trait::async_trait;
+use log::{debug, warn};
 use url::Url;
 
 use pact_mock_server::*;
@@ -16,18 +17,27 @@ use pact_mock_server::matching::MatchResult;
 use pact_mock_server::mock_server::{MockServerConfig, MockServerMetrics};
 use pact_models::pact::Pact;
 use pact_models::sync_pact::RequestResponsePact;
-use pact_plugin_driver::plugin_manager::shutdown_plugins;
 use std::path::PathBuf;
+use uuid::Uuid;
 
 /// This trait is implemented by types which allow us to start a mock server.
+#[async_trait]
 pub trait StartMockServer {
-    /// Start a mock server running in a background thread.
-    fn start_mock_server(&self) -> ValidatingMockServer;
+  /// Start a mock server running in a background thread.
+  fn start_mock_server(&self) -> ValidatingMockServer;
+
+  /// Start a mock server running in a task (requires a Tokio runtime to be already setup)
+  async fn start_mock_server_async(&self) -> ValidatingMockServer;
 }
 
+#[async_trait]
 impl StartMockServer for RequestResponsePact {
   fn start_mock_server(&self) -> ValidatingMockServer {
     ValidatingMockServer::start(self.boxed(), None)
+  }
+
+  async fn start_mock_server_async(&self) -> ValidatingMockServer {
+    ValidatingMockServer::start_async(self.boxed(), None).await
   }
 }
 
@@ -53,6 +63,9 @@ pub struct ValidatingMockServer {
 impl ValidatingMockServer {
   /// Create a new mock server which handles requests as described in the
   /// pact, and runs in a background thread
+  ///
+  /// Panics:
+  /// Will panic if the provided Pact can not be sent to the background thread.
   pub fn start(pact: Box<dyn Pact + Send + Sync>, output_dir: Option<PathBuf>) -> ValidatingMockServer {
     debug!("Starting mock server from pact {:?}", pact);
     // Spawn new runtime in thread to prevent reactor execution context conflict
@@ -65,8 +78,12 @@ impl ValidatingMockServer {
         .expect("new runtime");
 
       let (mock_server, server_future) = runtime.block_on(async move {
-        mock_server::MockServer::new("".into(), pact_rx.recv().unwrap(), ([0, 0, 0, 0], 0 as u16).into(),
-          MockServerConfig::default())
+        mock_server::MockServer::new(
+          Uuid::new_v4().to_string(),
+          pact_rx.recv().unwrap(),
+          ([0, 0, 0, 0], 0 as u16).into(),
+          MockServerConfig::default()
+        )
           .await
           .unwrap()
       });
@@ -89,6 +106,46 @@ impl ValidatingMockServer {
     })
     .join()
     .unwrap();
+
+    let (description, url_str) = {
+      let ms = mock_server.lock().unwrap();
+      let pact = ms.pact.lock().unwrap();
+      let description = format!(
+        "{}/{}", pact.consumer().name, pact.provider().name
+      );
+      (description, ms.url())
+    };
+    ValidatingMockServer {
+      description,
+      url: url_str.parse().expect("invalid mock server URL"),
+      mock_server,
+      done_rx,
+      output_dir
+    }
+  }
+
+  /// Create a new mock server which handles requests as described in the
+  /// pact, and runs in a background task in the current Tokio runtime.
+  ///
+  /// Panics:
+  /// Will panic if unable to get the URL to the spawned mock server
+  pub async fn start_async(pact: Box<dyn Pact + Send + Sync>, output_dir: Option<PathBuf>) -> ValidatingMockServer {
+    debug!("Starting mock server from pact {:?}", pact);
+
+    let (mock_server, server_future) = mock_server::MockServer::new(
+      Uuid::new_v4().to_string(),
+      pact,
+      ([0, 0, 0, 0], 0 as u16).into(),
+      MockServerConfig::default()
+    )
+      .await
+      .unwrap();
+
+    let (done_tx, done_rx) = std::sync::mpsc::channel::<()>();
+    tokio::spawn(async move {
+      dbg!(server_future.await);
+      let _ = done_tx.send(());
+    });
 
     let (description, url_str) = {
       let ms = mock_server.lock().unwrap();
@@ -142,11 +199,9 @@ impl ValidatingMockServer {
         }
 
         // Wait for the server thread to finish
-        self.done_rx
-            .recv_timeout(std::time::Duration::from_secs(3))
-            .expect("mock server thread should not panic");
-
-        shutdown_plugins();
+        if let Err(_) = self.done_rx.recv_timeout(std::time::Duration::from_secs(3)) {
+          warn!("Timed out waiting for mock server to finish");
+        }
 
         // Look up any mismatches which occurred.
         let mismatches = ms.mismatches();

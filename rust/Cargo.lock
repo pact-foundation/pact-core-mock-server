@@ -1271,6 +1271,7 @@ name = "pact_consumer"
 version = "0.7.8"
 dependencies = [
  "anyhow",
+ "async-trait",
  "bytes",
  "env_logger",
  "expectest",

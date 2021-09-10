@@ -181,6 +181,7 @@ impl RequestBuilder {
               let map = attributes.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
               match matcher.configure_interation(&content_type, map).await {
                 Ok(contents) => {
+                  debug!("Interaction contents = {:?}", contents);
                   request.body = contents.body.clone();
                   if !request.has_header("content-type") {
                     request.add_header("content-type", vec![content_type.to_string().as_str()]);

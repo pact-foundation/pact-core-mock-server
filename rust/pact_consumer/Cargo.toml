@@ -32,6 +32,7 @@ tokio = { version = "1", features = ["full"] }
 anyhow = "1.0.40"
 pact-plugin-driver = { version = "0.0", path = "../../../pact-plugins/drivers/rust/driver" }
 bytes = "1.0.1"
+async-trait = "0.1.51"
 
 [dev-dependencies]
 quickcheck = "1"

@@ -112,6 +112,7 @@ impl ResponseBuilder {
               let map = attributes.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
               match matcher.configure_interation(&content_type, map).await {
                 Ok(contents) => {
+                  debug!("Interaction contents = {:?}", contents);
                   response.body = contents.body.clone();
                   if !response.has_header("content-type") {
                     response.add_header("content-type", vec![content_type.to_string().as_str()]);

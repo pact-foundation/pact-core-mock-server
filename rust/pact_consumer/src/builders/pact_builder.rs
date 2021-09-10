@@ -1,9 +1,11 @@
 use std::future::Future;
+use std::path::PathBuf;
 
 use pact_plugin_driver::catalogue_manager::register_core_entries;
 use pact_plugin_driver::plugin_manager::load_plugin;
 use pact_plugin_driver::plugin_models::PluginDependency;
 
+use async_trait::async_trait;
 use pact_matching::{CONTENT_MATCHER_CATALOGUE_ENTRIES, MATCHER_CATALOGUE_ENTRIES};
 use pact_mock_server::MOCK_SERVER_CATALOGUE_ENTRIES;
 use pact_models::{Consumer, Provider};
@@ -15,7 +17,6 @@ use pact_models::v4::pact::V4Pact;
 use crate::prelude::*;
 
 use super::interaction_builder::InteractionBuilder;
-use std::path::PathBuf;
 
 /// Builder for `Pact` objects.
 ///
@@ -41,7 +42,7 @@ use std::path::PathBuf;
 /// # });
 /// ```
 pub struct PactBuilder {
-  pact: Box<dyn Pact + Send>,
+  pact: Box<dyn Pact + Send + Sync>,
   output_dir: Option<PathBuf>
 }
 
@@ -121,7 +122,7 @@ impl PactBuilder {
     {
         let interaction = InteractionBuilder::new(description.into(), interaction_type.into());
         let interaction = build_fn(interaction).await;
-        self.push_interaction(&interaction.build())
+        self.push_interaction(&interaction.build_v4())
     }
 
     /// Directly add a pre-built `Interaction` to our `Pact`. Normally it's
@@ -143,8 +144,13 @@ impl PactBuilder {
   }
 }
 
+#[async_trait]
 impl StartMockServer for PactBuilder {
-    fn start_mock_server(&self) -> ValidatingMockServer {
-        ValidatingMockServer::start(self.build(), self.output_dir.clone())
-    }
+  fn start_mock_server(&self) -> ValidatingMockServer {
+    ValidatingMockServer::start(self.build(), self.output_dir.clone())
+  }
+
+  async fn start_mock_server_async(&self) -> ValidatingMockServer {
+    ValidatingMockServer::start_async(self.build(), self.output_dir.clone()).await
+  }
 }
