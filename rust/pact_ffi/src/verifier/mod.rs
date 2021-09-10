@@ -7,7 +7,7 @@ use std::ffi::{CStr, CString, OsStr, OsString};
 use std::panic::catch_unwind;
 
 use anyhow::Context;
-use libc::{c_char, c_int, c_uchar, c_ushort, c_ulong, EXIT_FAILURE};
+use libc::{c_char, c_int, c_uchar, c_ushort, c_ulong, EXIT_FAILURE, EXIT_SUCCESS};
 use log::*;
 use std::env;
 
@@ -167,14 +167,24 @@ ffi_fn! {
       request_timeout: c_ulong,
       provider_tags: *const *const c_char,
       provider_tags_len: c_ushort
-    ) {
+    ) -> c_int {
       let handle = as_mut!(handle);
       let provider_version = safe_str!(provider_version);
-      let build_url = safe_str!(build_url);
+      let build_url = if_null(build_url, "");
+
+      let build_url = if !build_url.is_empty() {
+        Some(build_url)
+      } else {
+        None
+      };
 
       let tags = get_tags(provider_tags, provider_tags_len);
 
       handle.update_verification_options(publish > 0, provider_version, build_url, tags, disable_ssl_verification > 0, request_timeout as u64);
+
+      EXIT_SUCCESS
+    } {
+      EXIT_FAILURE
     }
 }
 
