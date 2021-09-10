@@ -16,9 +16,8 @@ impl <'a, I1: 'a, I2> Iterator for CartesianProductIterator<'a, I1, I2> {
   type Item = (&'a I1, &'a I2);
 
   fn next(&mut self) -> Option<Self::Item> {
-    if self.v1.is_empty() || self.v2.is_empty() {
-      None
-    } else if self.v1_idx == self.v1.len() && self.v2_idx == self.v2.len() {
+    if self.v1.is_empty() || self.v2.is_empty() || self.v1_idx == self.v1.len() &&
+      self.v2_idx == self.v2.len() {
       None
     } else if self.v2_idx == self.v2.len() {
       self.v2_idx = 1;
