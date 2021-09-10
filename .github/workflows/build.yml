@@ -40,6 +40,7 @@ jobs:
         with:
           toolchain: nightly
           override: true
+          components: rustfmt
       - name: Install doxygen
         if: runner.os == 'Linux'
         run: sudo apt-get install -y doxygen
