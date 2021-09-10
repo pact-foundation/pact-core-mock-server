@@ -18,7 +18,7 @@ exclude = [
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-pact_models = { version = "0.2.0-beta.2", path = "../pact_models" }
+pact_models = "0.2.0-beta.2"
 wasm-bindgen = "0.2.63"
 console_error_panic_hook = "0.1.6"
 console_log = { version = "0.2", features = ["color"] }
