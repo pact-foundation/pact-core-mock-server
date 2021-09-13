@@ -103,10 +103,9 @@ ask('Publish library to crates.io?: [Y]') {
 executeOnShell "cargo build --release"
 executeOnShell "gzip -c ../target/release/libpact_verifier.so > ../target/release/libpact_verifier-linux-x86_64-${releaseVer}.so.gz"
 
-def nextVer = Version.valueOf(releaseVer).incrementPatchVersion()
+def nextVer = Version.valueOf(releaseVer).incrementPreReleaseVersion()
 ask("Bump version to $nextVer?: [Y]") {
   executeOnShell "sed -i -e 's/version = \"${releaseVer}\"/version = \"${nextVer}\"/' Cargo.toml"
-  executeOnShell "sed -i -e 's/documentation = \"https:\\/\\/docs\\.rs\\/pact_verifier\\/${releaseVer}\\/pact_verifier\\/\"/documentation = \"https:\\/\\/docs\\.rs\\/pact_verifier\\/${nextVer}\\/pact_verifier\\/\"/' Cargo.toml"
   executeOnShell("git add Cargo.toml")
   executeOnShell("git add ../Cargo.lock")
   executeOnShell("git diff --cached")
