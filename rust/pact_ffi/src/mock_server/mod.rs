@@ -438,7 +438,7 @@ pub extern fn pactffi_mock_server_logs(mock_server_port: i32) -> *const c_char {
   });
 
   match result {
-    Ok(val) => val.unwrap_or_else(|| ptr::null()),
+    Ok(val) => val.unwrap_or_else(ptr::null),
     Err(cause) => {
       error!("Caught a general panic: {:?}", cause);
       ptr::null()
@@ -454,8 +454,8 @@ pub extern fn pactffi_mock_server_logs(mock_server_port: i32) -> *const c_char {
 /// Returns a new `PactHandle`.
 #[no_mangle]
 pub extern fn pactffi_new_pact(consumer_name: *const c_char, provider_name: *const c_char) -> handles::PactHandle {
-  let consumer = convert_cstr("consumer_name", consumer_name).unwrap_or_else(|| "Consumer");
-  let provider = convert_cstr("provider_name", provider_name).unwrap_or_else(|| "Provider");
+  let consumer = convert_cstr("consumer_name", consumer_name).unwrap_or("Consumer");
+  let provider = convert_cstr("provider_name", provider_name).unwrap_or("Provider");
   handles::PactHandle::new(consumer, provider)
 }
 
@@ -473,10 +473,10 @@ pub extern fn pactffi_new_interaction(pact: handles::PactHandle, description: *c
         ..RequestResponseInteraction::default()
       };
       inner.pact.interactions.push(interaction);
-      handles::InteractionHandle::new(pact.clone(), inner.pact.interactions.len())
-    }).unwrap_or_else(|| handles::InteractionHandle::new(pact.clone(), 0))
+      handles::InteractionHandle::new(pact, inner.pact.interactions.len())
+    }).unwrap_or_else(|| handles::InteractionHandle::new(pact, 0))
   } else {
-    handles::InteractionHandle::new(pact.clone(), 0)
+    handles::InteractionHandle::new(pact, 0)
   }
 }
 
@@ -559,13 +559,13 @@ pub extern fn pactffi_with_request(
   method: *const c_char,
   path: *const c_char
 ) -> bool {
-  let method = convert_cstr("method", method).unwrap_or_else(|| "GET");
-  let path = convert_cstr("path", path).unwrap_or_else(|| "/");
+  let method = convert_cstr("method", method).unwrap_or("GET");
+  let path = convert_cstr("path", path).unwrap_or("/");
 
   interaction.with_interaction(&|_, mock_server_started, inner| {
     let path = from_integration_json(&mut inner.request.matching_rules, &mut inner.request.generators, &path.to_string(), DocPath::empty(), "path");
     inner.request.method = method.to_string();
-    inner.request.path = path.to_string();
+    inner.request.path = path;
     !mock_server_started
   }).unwrap_or(false)
 }
@@ -595,11 +595,11 @@ pub extern fn pactffi_with_query_parameter(
           if index >= values.len() {
             values.resize_with(index + 1, Default::default);
           }
-          values[index] = value.to_string();
+          values[index] = value;
         } else {
           let mut values: Vec<String> = Vec::new();
           values.resize_with(index + 1, Default::default);
-          values[index] = value.to_string();
+          values[index] = value;
           q.insert(name.to_string(), values);
         };
         q
@@ -609,7 +609,7 @@ pub extern fn pactffi_with_query_parameter(
         let value = from_integration_json(&mut inner.request.matching_rules, &mut inner.request.generators, &value.to_string(), path, "query");
         let mut values: Vec<String> = Vec::new();
         values.resize_with(index + 1, Default::default);
-        values[index] = value.to_string();
+        values[index] = value;
         Some(hashmap!{ name.to_string() => values })
       });
       !mock_server_started
@@ -633,7 +633,7 @@ fn from_integration_json(
 ) -> String {
   let category = rules.add_category(category);
 
-  match serde_json::from_str(&value) {
+  match serde_json::from_str(value) {
     Ok(json) => match json {
       serde_json::Value::Object(ref map) => {
         let json: serde_json::Value = process_object(map, category, generators, path, false, false);
@@ -1069,8 +1069,8 @@ pub extern fn pactffi_with_multipart_file(
         match convert_ptr_to_mime_part_body(file, part_name) {
           Ok(body) => {
             match part {
-              InteractionPart::Request => request_multipart(&mut inner.request, &body.boundary, body.body, &content_type, part_name),
-              InteractionPart::Response => response_multipart(&mut inner.response, &body.boundary, body.body, &content_type, part_name)
+              InteractionPart::Request => request_multipart(&mut inner.request, &body.boundary, body.body, content_type, part_name),
+              InteractionPart::Response => response_multipart(&mut inner.response, &body.boundary, body.body, content_type, part_name)
             };
             if mock_server_started {
               Err("with_multipart_file: This Pact can not be modified, as the mock server has already started".to_string())
@@ -1155,8 +1155,8 @@ pub extern fn pactffi_new_message(pact: handles::MessagePactHandle, description:
         ..Message::default()
       };
       inner.messages.push(message);
-      handles::MessageHandle::new(pact.clone(), inner.messages.len())
-    }).unwrap_or_else(|| handles::MessageHandle::new(pact.clone(), 0))
+      handles::MessageHandle::new(pact, inner.messages.len())
+    }).unwrap_or_else(|| handles::MessageHandle::new(pact, 0))
   } else {
     handles::MessageHandle::new(pact, 0)
   }

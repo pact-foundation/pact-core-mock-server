@@ -85,15 +85,15 @@ pub unsafe extern "C" fn pactffi_init_with_log_level(level: *const c_char) {
 /// * `log_level` - String. One of TRACE, DEBUG, INFO, WARN, ERROR
 /// * `message` - Message to log
 ///
-/// Exported functions are inherently unsafe.
+/// # Safety
+/// This function will fail if any of the pointers passed to it are invalid.
 #[no_mangle]
 pub unsafe extern "C" fn pactffi_log_message(source: *const c_char, log_level: *const c_char, message: *const c_char) {
     let target = convert_cstr("target", source).unwrap_or("client");
 
     if !message.is_null() {
-        match convert_cstr("message", message) {
-            Some(message) => ::log::log!(target: target, log_level_from_c_char(log_level), "{}", message),
-            None => (),
+        if let Some(message) = convert_cstr("message", message) {
+            ::log::log!(target: target, log_level_from_c_char(log_level), "{}", message)
         }
     }
 }
@@ -203,7 +203,7 @@ ffi_fn! {
     fn pactffi_mismatch_type(mismatch: *const Mismatch) -> *const c_char {
         let mismatch = as_ref!(mismatch);
         let t = mismatch.mismatch_type();
-        string::to_c(&t)? as *const c_char
+        string::to_c(t)? as *const c_char
     } {
         ptr::null_to::<c_char>()
     }

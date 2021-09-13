@@ -14,7 +14,7 @@ pub async fn create_mock_server(host: &str, port: u16, matches: &ArgMatches<'_>)
   let file = matches.value_of("file").unwrap();
   log::info!("Creating mock server from file {}", file);
 
-  match RequestResponsePact::read_pact(&Path::new(file)) {
+  match RequestResponsePact::read_pact(Path::new(file)) {
     Ok(ref pact) => {
       let mut args = vec![];
       if matches.is_present("cors") {

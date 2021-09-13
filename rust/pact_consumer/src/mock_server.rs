@@ -81,7 +81,7 @@ impl ValidatingMockServer {
         mock_server::MockServer::new(
           Uuid::new_v4().to_string(),
           pact_rx.recv().unwrap(),
-          ([0, 0, 0, 0], 0 as u16).into(),
+          ([0, 0, 0, 0], 0).into(),
           MockServerConfig::default()
         )
           .await

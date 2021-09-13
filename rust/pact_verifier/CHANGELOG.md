@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.10.12 - Maintenance Release
+
+* 9e582360 - chore: add verifier ffi function update provider state (tienvx, Sun Aug 29 22:20:28 2021 +0700)
+* 46135a16 - chore: add verifier FFI functions for directory, URL and Pact broker sources (Ronald Holshausen, Tue Aug 24 10:14:46 2021 +1000)
+* e340d2f1 - bump version to 0.10.12 (Ronald Holshausen, Sun Aug 22 15:37:43 2021 +1000)
+
 # 0.10.11 - Bugfix Release
 
 * 0e62fe40 - chore: set regex version to 1 (Ronald Holshausen, Sun Aug 22 15:30:12 2021 +1000)

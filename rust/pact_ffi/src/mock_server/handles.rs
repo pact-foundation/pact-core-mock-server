@@ -166,10 +166,8 @@ impl MessageHandle {
   pub fn with_message<R>(&self, f: &dyn Fn(usize, &mut Message) -> R) -> Option<R> {
     let mut handles = MESSAGE_PACT_HANDLES.lock().unwrap();
     handles.get_mut(&self.pact).map(|inner| {
-      match inner.borrow_mut().messages.get_mut(self.message - 1) {
-        Some(inner_i) => Some(f(self.message - 1, inner_i)),
-        None => None
-      }
+      inner.borrow_mut().messages.get_mut(self.message - 1)
+        .map(|inner_i| f(self.message - 1, inner_i))
     }).flatten()
   }
 }

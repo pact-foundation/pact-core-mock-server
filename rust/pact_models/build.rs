@@ -39,21 +39,21 @@ fn main() -> io::Result<()> {
   let table = table.build();
   let timezone_db_path = Path::new(&env::var("OUT_DIR").unwrap()).join("timezone_db.rs");
   let mut timezone_db_file = File::create(&timezone_db_path)?;
-  write!(timezone_db_file, "use lazy_static::*;\n")?;
-  write!(timezone_db_file, "use maplit::*;\n")?;
-  write!(timezone_db_file, "use std::collections::HashSet;\n")?;
-  write!(timezone_db_file, "use std::collections::HashMap;\n")?;
-  write!(timezone_db_file, "\n")?;
-  write!(timezone_db_file, "lazy_static!{{\n")?;
-  write!(timezone_db_file, "  pub static ref ZONES: HashSet<&'static str> = hashset!(\n")?;
+  writeln!(timezone_db_file, "use lazy_static::*;")?;
+  writeln!(timezone_db_file, "use maplit::*;")?;
+  writeln!(timezone_db_file, "use std::collections::HashSet;")?;
+  writeln!(timezone_db_file, "use std::collections::HashMap;")?;
+  writeln!(timezone_db_file)?;
+  writeln!(timezone_db_file, "lazy_static!{{")?;
+  writeln!(timezone_db_file, "  pub static ref ZONES: HashSet<&'static str> = hashset!(")?;
 
   let zones = table.zonesets.keys().chain(table.links.keys()).collect::<BTreeSet<_>>();
   for zone in &zones {
-    write!(timezone_db_file, "    \"{}\",\n", zone)?;
+    writeln!(timezone_db_file, "    \"{}\",", zone)?;
   }
 
-  write!(timezone_db_file, "  );\n")?;
-  write!(timezone_db_file, "  pub static ref ZONES_ABBR: HashMap<&'static str, Vec<&'static str>> = hashmap!(\n")?;
+  writeln!(timezone_db_file, "  );")?;
+  writeln!(timezone_db_file, "  pub static ref ZONES_ABBR: HashMap<&'static str, Vec<&'static str>> = hashmap!(")?;
 
   let mut abbr : HashMap<String, Vec<String>> = hashmap!{};
   for zone in &zones {
@@ -68,15 +68,15 @@ fn main() -> io::Result<()> {
   }
 
   for (key, val) in abbr {
-    write!(timezone_db_file, "    \"{}\" => vec![\n", key)?;
+    writeln!(timezone_db_file, "    \"{}\" => vec![", key)?;
     for v in val {
-      write!(timezone_db_file, "      \"{}\",\n", v)?;
+      writeln!(timezone_db_file, "      \"{}\",", v)?;
     }
-    write!(timezone_db_file, "    ],\n")?;
+    writeln!(timezone_db_file, "    ],")?;
   }
 
-  write!(timezone_db_file, "  );\n")?;
-  write!(timezone_db_file, "}}\n")?;
+  writeln!(timezone_db_file, "  );")?;
+  writeln!(timezone_db_file, "}}")?;
 
   Ok(())
 }

@@ -13,7 +13,8 @@ use pact_verifier::callback_executors::HttpRequestProviderStateExecutor;
 pub struct VerifierHandle {
   provider: ProviderInfo,
   sources: Vec<PactSource>,
-  state_change: Arc<HttpRequestProviderStateExecutor>
+  state_change: Arc<HttpRequestProviderStateExecutor>,
+  options: VerificationOptions<NullRequestFilterExecutor>
 }
 
 impl VerifierHandle {
@@ -22,7 +23,8 @@ impl VerifierHandle {
     VerifierHandle {
       provider: ProviderInfo::default(),
       sources: Vec::new(),
-      state_change: Arc::new(HttpRequestProviderStateExecutor::default())
+      state_change: Arc::new(HttpRequestProviderStateExecutor::default()),
+      options: VerificationOptions::default()
     }
   }
 
@@ -69,6 +71,7 @@ impl VerifierHandle {
   /// that match the provider name. If a username
   /// and password is given, the basic authentication will be used when fetching the pact file.
   /// If a token is provided, then bearer token authentication will be used.
+  #[allow(clippy::too_many_arguments)]
   pub fn add_pact_broker_source(
     &mut self,
     url: &str,
@@ -118,6 +121,28 @@ impl VerifierHandle {
     })
   }
 
+  /// Update the verification options
+  pub fn update_verification_options(
+    &mut self,
+    publish: bool,
+    provider_version: &str,
+    build_url: Option<String>,
+    provider_tags: Vec<String>,
+    disable_ssl_verification: bool,
+    request_timeout: u64
+  ) {
+    self.options = VerificationOptions {
+      publish,
+      provider_version: Some(provider_version.to_string()),
+      build_url,
+      request_filter: None::<Arc<NullRequestFilterExecutor>>,
+      provider_tags,
+      disable_ssl_verification,
+      request_timeout,
+      .. VerificationOptions::default()
+    }
+  }
+
   /// Execute the verifier
   ///
   /// This will return an integer value based on the status of the verification:
@@ -126,11 +151,6 @@ impl VerifierHandle {
   /// * 2 - failed to run the verification
   pub fn execute(&self) -> i32 {
     let filter = FilterInfo::None;
-
-    let options = VerificationOptions {
-      request_filter: None::<Arc<NullRequestFilterExecutor>>,
-      .. VerificationOptions::default()
-    };
 
     for s in &self.sources {
       debug!("Pact source to verify = {}", s);
@@ -143,11 +163,17 @@ impl VerifierHandle {
         self.sources.clone(),
         filter,
         vec![],
-        options,
+        self.options.clone(),
         &self.state_change.clone()
       ).await
     })
       .map(|result| if result { 0 } else { 2 })
       .unwrap_or(2)
   }
+}
+
+impl Default for VerifierHandle {
+   fn default() -> Self {
+       Self::new()
+   }
 }
