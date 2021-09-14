@@ -18,15 +18,13 @@ use futures::stream::StreamExt;
 use itertools::Itertools;
 use log::*;
 use maplit::*;
-use pact_plugin_driver::catalogue_manager::register_core_entries;
 use pact_plugin_driver::plugin_manager::{load_plugin, shutdown_plugins};
 use regex::Regex;
 use serde_json::Value;
 
 pub use callback_executors::NullRequestFilterExecutor;
 use callback_executors::RequestFilterExecutor;
-use pact_matching::{CONTENT_MATCHER_CATALOGUE_ENTRIES, match_response, MATCHER_CATALOGUE_ENTRIES, Mismatch};
-use pact_mock_server::MOCK_SERVER_CATALOGUE_ENTRIES;
+use pact_matching::{match_response, Mismatch};
 use pact_models::generators::GeneratorTestMode;
 use pact_models::http_utils::HttpAuth;
 use pact_models::interaction::Interaction;
@@ -574,9 +572,7 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
     options: VerificationOptions<F>,
     provider_state_executor: &Arc<S>
 ) -> anyhow::Result<bool> {
-  register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
-  register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-  register_core_entries(MOCK_SERVER_CATALOGUE_ENTRIES.as_ref());
+    pact_matching::matchers::configure_core_catalogue();
 
     let pact_results = fetch_pacts(source, consumers).await;
 

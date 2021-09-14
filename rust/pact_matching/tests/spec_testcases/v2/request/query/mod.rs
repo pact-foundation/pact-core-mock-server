@@ -7,8 +7,6 @@ use serde_json;
 #[allow(unused_imports)]
 use expectest::prelude::*;
 #[allow(unused_imports)]
-use pact_matching::{CONTENT_MATCHER_CATALOGUE_ENTRIES, MATCHER_CATALOGUE_ENTRIES};
-#[allow(unused_imports)]
 use pact_plugin_driver::catalogue_manager::register_core_entries;
 #[allow(unused_imports)]
 use pact_models::interaction::{Interaction, http_interaction_from_json};
@@ -52,8 +50,7 @@ async fn trailing_ampersand() {
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
 
-    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
-    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    pact_matching::matchers::configure_core_catalogue();
     let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
     let result = match_interaction_request(expected, actual, pact, &PactSpecification::V2).await.unwrap().mismatches();
 
@@ -100,8 +97,7 @@ async fn unexpected_param() {
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
 
-    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
-    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    pact_matching::matchers::configure_core_catalogue();
     let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
     let result = match_interaction_request(expected, actual, pact, &PactSpecification::V2).await.unwrap().mismatches();
 
@@ -148,8 +144,7 @@ async fn different_params() {
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
 
-    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
-    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    pact_matching::matchers::configure_core_catalogue();
     let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
     let result = match_interaction_request(expected, actual, pact, &PactSpecification::V2).await.unwrap().mismatches();
 
@@ -196,8 +191,7 @@ async fn same_parameter_different_values() {
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
 
-    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
-    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    pact_matching::matchers::configure_core_catalogue();
     let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
     let result = match_interaction_request(expected, actual, pact, &PactSpecification::V2).await.unwrap().mismatches();
 
@@ -244,8 +238,7 @@ async fn matches_with_equals_in_the_query_value() {
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
 
-    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
-    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    pact_matching::matchers::configure_core_catalogue();
     let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
     let result = match_interaction_request(expected, actual, pact, &PactSpecification::V2).await.unwrap().mismatches();
 
@@ -292,8 +285,7 @@ async fn missing_params() {
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
 
-    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
-    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    pact_matching::matchers::configure_core_catalogue();
     let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
     let result = match_interaction_request(expected, actual, pact, &PactSpecification::V2).await.unwrap().mismatches();
 
@@ -339,8 +331,7 @@ async fn same_parameter_multiple_times_in_different_order() {
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
 
-    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
-    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    pact_matching::matchers::configure_core_catalogue();
     let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
     let result = match_interaction_request(expected, actual, pact, &PactSpecification::V2).await.unwrap().mismatches();
 
@@ -387,8 +378,7 @@ async fn different_order() {
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
 
-    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
-    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    pact_matching::matchers::configure_core_catalogue();
     let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
     let result = match_interaction_request(expected, actual, pact, &PactSpecification::V2).await.unwrap().mismatches();
 
@@ -434,8 +424,7 @@ async fn same_parameter_multiple_times() {
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
 
-    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
-    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    pact_matching::matchers::configure_core_catalogue();
     let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
     let result = match_interaction_request(expected, actual, pact, &PactSpecification::V2).await.unwrap().mismatches();
 
@@ -482,8 +471,7 @@ async fn matches() {
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
 
-    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
-    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    pact_matching::matchers::configure_core_catalogue();
     let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
     let result = match_interaction_request(expected, actual, pact, &PactSpecification::V2).await.unwrap().mismatches();
 

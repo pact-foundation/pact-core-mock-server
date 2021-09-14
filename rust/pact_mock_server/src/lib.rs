@@ -22,7 +22,6 @@ use rustls::ServerConfig;
 use serde_json::json;
 use uuid::Uuid;
 
-use pact_matching::{CONTENT_MATCHER_CATALOGUE_ENTRIES, MATCHER_CATALOGUE_ENTRIES};
 use pact_models::pact::{load_pact_from_json, Pact};
 
 use crate::mock_server::MockServerConfig;
@@ -54,7 +53,7 @@ lazy_static! {
   pub static ref MANAGER: Mutex<Option<ServerManager>> = Mutex::new(Option::None);
 
   /// Mock server entries to add to the plugin catalogue
-  pub static ref MOCK_SERVER_CATALOGUE_ENTRIES: Vec<CatalogueEntry> = {
+  static ref MOCK_SERVER_CATALOGUE_ENTRIES: Vec<CatalogueEntry> = {
     let mut entries = vec![];
     entries.push(CatalogueEntry {
       entry_type: CatalogueEntryType::INTERACTION,
@@ -72,6 +71,11 @@ lazy_static! {
     });
     entries
   };
+}
+
+/// Sets up all the core catalogue entries for mock servers
+pub fn configure_core_catalogue() {
+  register_core_entries(MOCK_SERVER_CATALOGUE_ENTRIES.as_ref());
 }
 
 /// Starts a mock server with the given ID, pact and port number. The ID needs to be unique. A port
@@ -115,9 +119,8 @@ pub fn start_mock_server_with_config(
   addr: std::net::SocketAddr,
   config: MockServerConfig
 ) -> Result<i32, String> {
-  register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
-  register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-  register_core_entries(MOCK_SERVER_CATALOGUE_ENTRIES.as_ref());
+  configure_core_catalogue();
+  pact_matching::matchers::configure_core_catalogue();
 
   MANAGER.lock().unwrap()
     .get_or_insert_with(ServerManager::new)
@@ -170,9 +173,8 @@ pub fn start_tls_mock_server_with_config(
   tls: &ServerConfig,
   config: MockServerConfig
 ) -> Result<i32, String> {
-  register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
-  register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-  register_core_entries(MOCK_SERVER_CATALOGUE_ENTRIES.as_ref());
+  configure_core_catalogue();
+  pact_matching::matchers::configure_core_catalogue();
 
   MANAGER.lock().unwrap()
     .get_or_insert_with(ServerManager::new)
@@ -190,9 +192,8 @@ pub fn create_mock_server(
   pact_json: &str,
   addr: std::net::SocketAddr
 ) -> anyhow::Result<i32> {
-  register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
-  register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-  register_core_entries(MOCK_SERVER_CATALOGUE_ENTRIES.as_ref());
+  configure_core_catalogue();
+  pact_matching::matchers::configure_core_catalogue();
 
   match serde_json::from_str(pact_json) {
     Ok(pact_json) => {

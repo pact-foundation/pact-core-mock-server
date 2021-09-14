@@ -7,8 +7,6 @@ use serde_json;
 #[allow(unused_imports)]
 use expectest::prelude::*;
 #[allow(unused_imports)]
-use pact_matching::{CONTENT_MATCHER_CATALOGUE_ENTRIES, MATCHER_CATALOGUE_ENTRIES};
-#[allow(unused_imports)]
 use pact_plugin_driver::catalogue_manager::register_core_entries;
 #[allow(unused_imports)]
 use pact_models::interaction::{Interaction, http_interaction_from_json};
@@ -50,8 +48,7 @@ async fn empty_path_found_when_forward_slash_expected() {
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
 
-    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
-    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    pact_matching::matchers::configure_core_catalogue();
     let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
     let result = match_interaction_request(expected, actual, pact, &PactSpecification::V4).await.unwrap().mismatches();
 
@@ -106,8 +103,7 @@ async fn matches_with_regex() {
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
 
-    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
-    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    pact_matching::matchers::configure_core_catalogue();
     let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
     let result = match_interaction_request(expected, actual, pact, &PactSpecification::V4).await.unwrap().mismatches();
 
@@ -152,8 +148,7 @@ async fn unexpected_trailing_slash_in_path() {
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
 
-    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
-    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    pact_matching::matchers::configure_core_catalogue();
     let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
     let result = match_interaction_request(expected, actual, pact, &PactSpecification::V4).await.unwrap().mismatches();
 
@@ -198,8 +193,7 @@ async fn forward_slash_found_when_empty_path_expected() {
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
 
-    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
-    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    pact_matching::matchers::configure_core_catalogue();
     let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
     let result = match_interaction_request(expected, actual, pact, &PactSpecification::V4).await.unwrap().mismatches();
 
@@ -244,8 +238,7 @@ async fn incorrect_path() {
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
 
-    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
-    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    pact_matching::matchers::configure_core_catalogue();
     let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
     let result = match_interaction_request(expected, actual, pact, &PactSpecification::V4).await.unwrap().mismatches();
 
@@ -290,8 +283,7 @@ async fn missing_trailing_slash_in_path() {
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
 
-    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
-    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    pact_matching::matchers::configure_core_catalogue();
     let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
     let result = match_interaction_request(expected, actual, pact, &PactSpecification::V4).await.unwrap().mismatches();
 
@@ -336,8 +328,7 @@ async fn matches() {
     println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
     let pact_match = pact.get("match").unwrap();
 
-    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
-    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
+    pact_matching::matchers::configure_core_catalogue();
     let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
     let result = match_interaction_request(expected, actual, pact, &PactSpecification::V4).await.unwrap().mismatches();
 

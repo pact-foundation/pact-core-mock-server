@@ -9,7 +9,12 @@ use lazy_static::lazy_static;
 use log::*;
 use maplit::hashmap;
 use onig::Regex;
-use pact_plugin_driver::catalogue_manager::{CatalogueEntry, CatalogueEntryProviderType, CatalogueEntryType};
+use pact_plugin_driver::catalogue_manager::{
+  CatalogueEntry,
+  CatalogueEntryProviderType,
+  CatalogueEntryType,
+  register_core_entries
+};
 use semver::Version;
 
 use pact_models::HttpStatus;
@@ -21,7 +26,7 @@ use crate::MatchingContext;
 
 lazy_static! {
   /// Content matcher/generator entries to add to the plugin catalogue
-  pub static ref CONTENT_MATCHER_CATALOGUE_ENTRIES: Vec<CatalogueEntry> = {
+  static ref CONTENT_MATCHER_CATALOGUE_ENTRIES: Vec<CatalogueEntry> = {
     let mut entries = vec![];
     entries.push(CatalogueEntry {
       entry_type: CatalogueEntryType::CONTENT_MATCHER,
@@ -90,7 +95,7 @@ lazy_static! {
     entries
   };
 
-  pub static ref MATCHER_CATALOGUE_ENTRIES: Vec<CatalogueEntry> = {
+  static ref MATCHER_CATALOGUE_ENTRIES: Vec<CatalogueEntry> = {
     let mut entries = vec![];
     for matcher in ["v2-regex", "v2-type", "v3-number-type", "v3-integer-type", "v3-decimal-type",
       "v3-date", "v3-time", "v3-datetime", "v2-min-type", "v2-max-type", "v2-minmax-type",
@@ -107,6 +112,12 @@ lazy_static! {
     }
     entries
   };
+}
+
+/// Sets up all the core catalogue entries for matchers and generators
+pub fn configure_core_catalogue() {
+  register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
+  register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
 }
 
 /// Trait for matching rule implementation

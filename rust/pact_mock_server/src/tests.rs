@@ -1,7 +1,6 @@
 use expectest::expect;
 use expectest::prelude::*;
 use maplit::*;
-use pact_plugin_driver::catalogue_manager::register_core_entries;
 use reqwest::header::ACCEPT;
 
 use pact_matching::Mismatch;
@@ -156,8 +155,6 @@ async fn match_request_supports_v2_matchers() {
       .. HttpRequest::default()
     };
     let interaction = SynchronousHttp { request: expected_request, .. SynchronousHttp::default() };
-    register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
-    register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
     let interactions = vec![interaction.boxed_v4()];
     let pact = V4Pact { interactions, .. V4Pact::default() };
     let result = match_request(&request, &pact).await;

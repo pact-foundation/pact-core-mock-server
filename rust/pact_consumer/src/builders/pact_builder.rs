@@ -54,9 +54,8 @@ impl PactBuilder {
         C: Into<String>,
         P: Into<String>,
     {
-        register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
-        register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-        register_core_entries(MOCK_SERVER_CATALOGUE_ENTRIES.as_ref());
+        pact_matching::matchers::configure_core_catalogue();
+        pact_mock_server::configure_core_catalogue();
 
         let mut pact = RequestResponsePact::default();
         pact.consumer = Consumer {
@@ -75,9 +74,8 @@ impl PactBuilder {
         C: Into<String>,
         P: Into<String>
     {
-      register_core_entries(CONTENT_MATCHER_CATALOGUE_ENTRIES.as_ref());
-      register_core_entries(MATCHER_CATALOGUE_ENTRIES.as_ref());
-      register_core_entries(MOCK_SERVER_CATALOGUE_ENTRIES.as_ref());
+      pact_matching::matchers::configure_core_catalogue();
+      pact_mock_server::configure_core_catalogue();
 
       let pact = V4Pact {
         consumer: Consumer { name: consumer.into() },

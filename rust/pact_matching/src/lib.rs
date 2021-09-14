@@ -367,7 +367,6 @@ use crate::generators::{DefaultVariantMatcher, generators_process_body};
 use crate::headers::{match_header_value, match_headers};
 use crate::json::match_json;
 use crate::matchers::*;
-pub use crate::matchers::{CONTENT_MATCHER_CATALOGUE_ENTRIES, MATCHER_CATALOGUE_ENTRIES};
 use crate::matchingrules::DisplayForMismatch;
 
 /// Simple macro to convert a string slice to a `String` struct.
