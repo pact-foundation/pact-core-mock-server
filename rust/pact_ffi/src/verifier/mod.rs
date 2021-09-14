@@ -566,7 +566,7 @@ fn parse_argument(long: Option<&str>, short: Option<char>, help: Option<&str>, p
 fn get_tags(provider_tags: *const *const c_char, provider_tags_len: c_ushort) -> Vec<String> {
   if !provider_tags.is_null() && provider_tags_len > 0 {
     let mut tags = Vec::with_capacity(provider_tags_len as usize);
-    for index in 0..(provider_tags_len - 1) {
+    for index in 0..provider_tags_len {
       let tag_ptr: *const c_char = unsafe { *(provider_tags.offset(index as isize)) };
       let tag = if_null(tag_ptr, "");
       if !tag.is_empty() {
