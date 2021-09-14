@@ -12,7 +12,7 @@ use maplit::*;
 use serde_json::{json, Value};
 
 use crate::bodies::OptionalBody;
-use crate::content_types::{ContentType, ContentTypeOverride, detect_content_type_from_bytes};
+use crate::content_types::{ContentType, ContentTypeHint, detect_content_type_from_bytes};
 use crate::generators::{Generators, generators_from_json, generators_to_json};
 use crate::http_parts::HttpPart;
 use crate::json_utils::{headers_from_json, json_to_string};
@@ -240,19 +240,19 @@ pub fn body_from_json(json: &Value, attr_name: &str, headers: &Option<HashMap<St
               None => (false, Default::default())
             };
 
-            let ct_override = body_attrs.get("contentTypeOverride")
+            let ct_override = body_attrs.get("contentTypeHint")
               .map(|val| {
                 match val {
-                  Value::String(s) => match ContentTypeOverride::try_from(s.as_str()) {
+                  Value::String(s) => match ContentTypeHint::try_from(s.as_str()) {
                     Ok(val) => val,
                     Err(err) => {
-                      warn!("'{}' is not a valid value for contentTypeOverride, ignoring - {}", s, err);
-                      ContentTypeOverride::DEFAULT
+                      warn!("'{}' is not a valid value for contentTypeHint, ignoring - {}", s, err);
+                      ContentTypeHint::DEFAULT
                     }
                   }
                   _ => {
-                    warn!("'{}' is not a valid value for contentTypeOverride, ignoring", val);
-                    ContentTypeOverride::DEFAULT
+                    warn!("'{}' is not a valid value for contentTypeHint, ignoring", val);
+                    ContentTypeHint::DEFAULT
                   }
                 }
               });
@@ -487,7 +487,7 @@ mod tests {
   use serde_json::json;
 
   use crate::bodies::OptionalBody;
-  use crate::content_types::{JSON, ContentTypeOverride};
+  use crate::content_types::{JSON, ContentTypeHint};
   use crate::json_utils::headers_from_json;
   use crate::v4::http_parts::{body_from_json, HttpRequest, HttpResponse};
 
@@ -885,7 +885,7 @@ mod tests {
       "body": {
         "content": "Cg9wYWN0LWp2bS1kcml2ZXISBTAuMC4w",
         "contentType": "application/stuff",
-        "contentTypeOverride": "BINARY",
+        "contentTypeHint": "BINARY",
         "encoded": "base64"
       }
     });
@@ -894,6 +894,6 @@ mod tests {
       OptionalBody::Present(
         "\npact-jvm-driver0.0.0".into(),
         Some("application/stuff".into()),
-        Some(ContentTypeOverride::BINARY))));
+        Some(ContentTypeHint::BINARY))));
   }
 }

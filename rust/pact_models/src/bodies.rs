@@ -9,7 +9,7 @@ use log::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::content_types::{ContentType, ContentTypeOverride};
+use crate::content_types::{ContentType, ContentTypeHint};
 
 /// Enum that defines the four main states that a body of a request and response can be in a pact
 /// file.
@@ -24,7 +24,7 @@ pub enum OptionalBody {
   /// from null values. It is treated as `Empty`.
   Null,
   /// A non-empty body that is present in the pact file.
-  Present(Bytes, Option<ContentType>, Option<ContentTypeOverride>)
+  Present(Bytes, Option<ContentType>, Option<ContentTypeHint>)
 }
 
 impl OptionalBody {
@@ -84,7 +84,7 @@ impl OptionalBody {
               (Value::String(encode(bytes)), Value::String("base64".to_string()))
             }
           }
-        } else if content_type_override == ContentTypeOverride::BINARY || content_type.is_binary() {
+        } else if content_type_override == ContentTypeHint::BINARY || content_type.is_binary() {
           (Value::String(encode(bytes)), Value::String("base64".to_string()))
         } else {
           match from_utf8(bytes) {
@@ -97,7 +97,7 @@ impl OptionalBody {
           json!({
             "content": contents,
             "contentType": content_type.to_string(),
-            "contentTypeOverride": ct_override.to_string(),
+            "contentTypeHint": ct_override.to_string(),
             "encoded": encoded
           })
         } else {

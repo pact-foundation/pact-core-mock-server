@@ -272,37 +272,37 @@ pub fn detect_content_type_from_bytes(s: &[u8]) -> Option<ContentType> {
 
 /// Override of the content type
 #[derive(Debug, Clone, Copy, PartialOrd, PartialEq, Ord, Eq, Hash, Serialize, Deserialize)]
-pub enum ContentTypeOverride {
+pub enum ContentTypeHint {
   BINARY,
   TEXT,
   DEFAULT
 }
 
-impl Default for ContentTypeOverride {
+impl Default for ContentTypeHint {
   fn default() -> Self {
-    ContentTypeOverride::DEFAULT
+    ContentTypeHint::DEFAULT
   }
 }
 
-impl Display for ContentTypeOverride {
+impl Display for ContentTypeHint {
   fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
     match self {
-      ContentTypeOverride::BINARY => write!(f, "BINARY"),
-      ContentTypeOverride::TEXT => write!(f, "TEXT"),
-      ContentTypeOverride::DEFAULT => write!(f, "DEFAULT")
+      ContentTypeHint::BINARY => write!(f, "BINARY"),
+      ContentTypeHint::TEXT => write!(f, "TEXT"),
+      ContentTypeHint::DEFAULT => write!(f, "DEFAULT")
     }
   }
 }
 
-impl TryFrom<&str> for ContentTypeOverride {
+impl TryFrom<&str> for ContentTypeHint {
   type Error = anyhow::Error;
 
   fn try_from(value: &str) -> Result<Self, Self::Error> {
     match value {
-      "BINARY" => Ok(ContentTypeOverride::BINARY),
-      "TEXT" => Ok(ContentTypeOverride::TEXT),
-      "DEFAULT" => Ok(ContentTypeOverride::DEFAULT),
-      _ => Err(anyhow!("'{}' is not a valid value for ContentTypeOverride", value))
+      "BINARY" => Ok(ContentTypeHint::BINARY),
+      "TEXT" => Ok(ContentTypeHint::TEXT),
+      "DEFAULT" => Ok(ContentTypeHint::DEFAULT),
+      _ => Err(anyhow!("'{}' is not a valid value for ContentTypeHint", value))
     }
   }
 }
