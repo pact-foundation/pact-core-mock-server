@@ -1,6 +1,6 @@
 //! Traits to represent a Pact
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 use std::fs;
 use std::fs::File;
@@ -16,16 +16,16 @@ use maplit::btreemap;
 use serde_json::{json, Value};
 
 use crate::{Consumer, PactSpecification, Provider};
-#[cfg(not(target_family = "wasm"))] use crate::http_utils;
 #[cfg(not(target_family = "wasm"))] use crate::file_utils::{with_read_lock_for_open_file, with_write_lock};
+#[cfg(not(target_family = "wasm"))] use crate::http_utils;
 #[cfg(not(target_family = "wasm"))] use crate::http_utils::HttpAuth;
 use crate::interaction::Interaction;
 use crate::message_pact::MessagePact;
+use crate::plugins::PluginData;
 use crate::sync_pact::RequestResponsePact;
 use crate::v4;
 use crate::v4::pact::V4Pact;
 use crate::verify_json::{json_type_of, PactFileVerificationResult, ResultLevel};
-use crate::plugins::PluginData;
 
 /// Trait for a Pact (request/response or message)
 pub trait Pact: Debug + ReadWritePact {
@@ -78,8 +78,14 @@ pub trait Pact: Debug + ReadWritePact {
   /// If this is a V4 Pact
   fn is_v4(&self) -> bool;
 
-  /// Add the plugin to this Pact
-  fn add_plugin(&mut self, name: &str, version: Option<String>) -> anyhow::Result<()>;
+  /// Add the plugin and plugin data to this Pact. If an entry already exists for the plugin,
+  /// the plugin data will be merged
+  fn add_plugin(
+    &mut self,
+    name: &str,
+    version: &str,
+    plugin_data: Option<HashMap<String, Value>>
+  ) -> anyhow::Result<()>;
 }
 
 impl Default for Box<dyn Pact> {
@@ -1166,7 +1172,7 @@ mod tests {
           .. Default::default()
         })
       ],
-      metadata: btreemap! {},
+      .. V4Pact::default()
     };
     let mut dir = env::temp_dir();
     let x = rand::random::<u16>();

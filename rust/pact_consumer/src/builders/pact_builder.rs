@@ -1,19 +1,17 @@
 use std::future::Future;
 use std::path::PathBuf;
 
-use pact_plugin_driver::catalogue_manager::register_core_entries;
-use pact_plugin_driver::plugin_manager::load_plugin;
-use pact_plugin_driver::plugin_models::PluginDependency;
-
 use async_trait::async_trait;
-use pact_matching::{CONTENT_MATCHER_CATALOGUE_ENTRIES, MATCHER_CATALOGUE_ENTRIES};
-use pact_mock_server::MOCK_SERVER_CATALOGUE_ENTRIES;
+use pact_plugin_driver::plugin_manager::{drop_plugin_access, load_plugin};
+use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
+
 use pact_models::{Consumer, Provider};
 use pact_models::interaction::Interaction;
 use pact_models::pact::Pact;
 use pact_models::sync_pact::RequestResponsePact;
 use pact_models::v4::pact::V4Pact;
 
+use crate::builders::message_builder::{MessageInteractionBuilder, MessageIterator};
 use crate::prelude::*;
 
 use super::interaction_builder::InteractionBuilder;
@@ -102,7 +100,7 @@ impl PactBuilder {
         dependency_type: Default::default()
       }).await;
       match result {
-        Ok(plugin) => self.pact.add_plugin(plugin.manifest.name.as_str(), Some(plugin.manifest.version))
+        Ok(plugin) => self.pact.add_plugin(plugin.manifest.name.as_str(), plugin.manifest.version.as_str(), None)
           .expect("Could not add plugin to pact"),
         Err(err) => panic!("Could not load plugin - {}", err)
       }
@@ -110,7 +108,7 @@ impl PactBuilder {
       self
     }
 
-    /// Add a new HTTP `Interaction` to the `Pact`. Needs to return a clone of the method
+    /// Add a new HTTP `Interaction` to the `Pact`. Needs to return a clone of the builder
     /// that is passed in.
     pub async fn interaction<D, F, O>(&mut self, description: D, interaction_type: D, build_fn: F) -> &mut Self
     where
@@ -140,6 +138,30 @@ impl PactBuilder {
     self.output_dir = Some(dir.into());
     self
   }
+
+  /// Add a new Asynchronous message `Interaction` to the `Pact`. Needs to return a clone of the builder
+  /// that is passed in.
+  pub async fn message_interaction<D, F, O>(&mut self, description: D, interaction_type: D, build_fn: F) -> &mut Self
+    where
+      D: Into<String>,
+      F: FnOnce(MessageInteractionBuilder) -> O,
+      O: Future<Output=MessageInteractionBuilder> + Send
+  {
+    let interaction = MessageInteractionBuilder::new(description.into(), interaction_type.into());
+    let interaction = build_fn(interaction).await;
+
+    if let Some(plugin_data) = interaction.plugin_config() {
+      let _ = self.pact.add_plugin(plugin_data.name.as_str(), plugin_data.version.as_str(),
+                           Some(plugin_data.configuration.clone()));
+    }
+
+    self.push_interaction(&interaction.build())
+  }
+
+  /// Returns an iterator over the asynchronous messages in the Pact
+  pub fn messages(&self) -> MessageIterator {
+    MessageIterator::new(self.pact.as_v4_pact().unwrap())
+  }
 }
 
 #[async_trait]
@@ -150,5 +172,19 @@ impl StartMockServer for PactBuilder {
 
   async fn start_mock_server_async(&self) -> ValidatingMockServer {
     ValidatingMockServer::start_async(self.build(), self.output_dir.clone()).await
+  }
+}
+
+impl Drop for PactBuilder {
+  fn drop(&mut self) {
+    // decrement access to any plugin loaded for the Pact
+    for plugin in self.pact.plugin_data() {
+      let dependency = PluginDependency {
+        name: plugin.name,
+        version: Some(plugin.version),
+        dependency_type: PluginDependencyType::Plugin
+      };
+      drop_plugin_access(&dependency);
+    }
   }
 }

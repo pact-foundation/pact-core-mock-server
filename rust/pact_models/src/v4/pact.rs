@@ -1,7 +1,7 @@
 //! V4 specification Pact
 
 use std::cmp::Ordering;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashSet, HashMap};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
@@ -35,7 +35,9 @@ pub struct V4Pact {
   /// List of messages between the consumer and provider.
   pub interactions: Vec<Box<dyn V4Interaction>>,
   /// Metadata associated with this pact.
-  pub metadata: BTreeMap<String, Value>
+  pub metadata: BTreeMap<String, Value>,
+  /// Plugin data associated with this pact
+  pub plugin_data: Vec<PluginData>
 }
 
 impl V4Pact {
@@ -53,6 +55,18 @@ impl V4Pact {
 
     md_map.insert("pactSpecification".to_string(), json!({"version" : PactSpecification::V4.version_str()}));
     md_map.insert("pactRust".to_string(), json!({"version" : PACT_RUST_VERSION.unwrap_or("unknown")}));
+
+    if !self.plugin_data.is_empty() {
+      let mut v = vec![];
+      for plugin in &self.plugin_data {
+        match plugin.to_json() {
+          Ok(json) => v.push(json),
+          Err(err) => warn!("Could not convert plugin data to JSON - {}", err)
+        }
+      }
+      md_map.insert("plugins".to_string(), Value::Array(v));
+    }
+
     Value::Object(md_map)
   }
 
@@ -73,6 +87,40 @@ impl V4Pact {
       .filter(|i| i.v4_type() == interaction_type)
       .map(|i| i.boxed())
       .collect()
+  }
+
+  fn add_plugin_data(&mut self, other_data: &PluginData) {
+    if let Some(data) = self.plugin_data.iter_mut()
+      .find(|data| data.name == other_data.name && data.version == other_data.version) {
+      data.merge(&other_data.configuration);
+    } else {
+      self.plugin_data.push(other_data.clone());
+    }
+  }
+
+  fn extract_plugin_data(metadata: &mut BTreeMap<String, Value>) -> Vec<PluginData> {
+    if let Some(plugin_data) = metadata.remove("plugins") {
+      match plugin_data {
+        Value::Array(items) => {
+          let mut v = vec![];
+
+          for item in &items {
+            match serde_json::from_value::<PluginData>(item.clone()) {
+              Ok(data) => v.push(data),
+              Err(err) => warn!("Could not convert '{}' into PluginData format - {}", item, err)
+            };
+          }
+
+          v
+        }
+        _ => {
+          warn!("'{}' is not valid plugin data", plugin_data);
+          vec![]
+        }
+      }
+    } else {
+      vec![]
+    }
   }
 }
 
@@ -201,53 +249,28 @@ impl Pact for V4Pact {
   }
 
   fn requires_plugins(&self) -> bool {
-    if let Some(plugins) = self.metadata.get("plugins") {
-      match plugins {
-        Value::Array(items) => !items.is_empty(),
-        _ => {
-          warn!("Ignoring invalid plugin configuration in metadata");
-          false
-        }
-      }
-    } else {
-      false
-    }
+    !self.plugin_data.is_empty()
   }
 
   fn plugin_data(&self) -> Vec<PluginData> {
-    if let Some(plugins) = self.metadata.get("plugins") {
-      match serde_json::from_value(plugins.clone()) {
-        Ok(plugin_data) => plugin_data,
-        Err(err) => {
-          warn!("Ignoring invalid plugin configuration in metadata - {}", err);
-          Vec::default()
-        }
-      }
-    } else {
-      Vec::default()
-    }
+    self.plugin_data.clone()
   }
 
   fn is_v4(&self) -> bool {
     true
   }
 
-  fn add_plugin(&mut self, name: &str, version: Option<String>) -> anyhow::Result<()> {
-    let plugin_json = json!({
-      "name": name,
-      "version": version
+  fn add_plugin(
+    &mut self,
+    name: &str,
+    version: &str,
+    plugin_data: Option<HashMap<String, Value>>
+  ) -> anyhow::Result<()> {
+    self.add_plugin_data(&PluginData {
+      name: name.to_string(),
+      version: version.to_string(),
+      configuration: plugin_data.unwrap_or_default()
     });
-    if let Some(plugins) = self.metadata.get_mut("plugins") {
-      match plugins {
-        Value::Array(items) => items.push(plugin_json),
-        _ => {
-          warn!("Ignoring invalid plugin configuration in metadata");
-          self.metadata.insert("plugins".to_string(), Value::Array(vec![plugin_json]));
-        }
-      }
-    } else {
-      self.metadata.insert("plugins".to_string(), Value::Array(vec![plugin_json]));
-    }
     Ok(())
   }
 }
@@ -258,7 +281,8 @@ impl Default for V4Pact {
       consumer: Default::default(),
       provider: Default::default(),
       interactions: vec![],
-      metadata: Default::default()
+      metadata: Default::default(),
+      plugin_data: vec![]
     }
   }
 }
@@ -269,7 +293,9 @@ impl ReadWritePact for V4Pact {
     let json = with_read_lock(path, 3, &mut |f| {
       serde_json::from_reader::<_, Value>(f).context("Failed to parse Pact JSON")
     })?;
-    let metadata = meta_data_from_json(&json);
+
+    let mut metadata = meta_data_from_json(&json);
+
     let consumer = match json.get("consumer") {
       Some(v) => Consumer::from_json(v),
       None => Consumer { name: "consumer".into() }
@@ -278,17 +304,21 @@ impl ReadWritePact for V4Pact {
       Some(v) => Provider::from_json(v),
       None => Provider { name: "provider".into() }
     };
+
+    let plugin_data = V4Pact::extract_plugin_data(&mut metadata);
+
     Ok(V4Pact {
       consumer,
       provider,
       interactions: interactions_from_json(&json, &*path.to_string_lossy()),
-      metadata
+      metadata,
+      plugin_data
     })
   }
 
   fn merge(&self, other: &dyn Pact) -> anyhow::Result<Box<dyn Pact + Send + Sync>> {
     if self.consumer.name == other.consumer().name && self.provider.name == other.provider().name {
-      Ok(Box::new(V4Pact {
+      let mut new_pact = V4Pact {
         consumer: self.consumer.clone(),
         provider: self.provider.clone(),
         interactions: self.interactions.iter()
@@ -321,8 +351,17 @@ impl ReadWritePact for V4Pact {
             }
           })
           .collect(),
-        metadata: self.metadata.clone()
-      }))
+        metadata: self.metadata.clone(),
+        plugin_data: self.plugin_data.clone()
+      };
+
+      if other.is_v4() {
+        for plugin in other.as_v4_pact().unwrap_or_default().plugin_data {
+          new_pact.add_plugin_data(&plugin);
+        }
+      }
+
+      Ok(Box::new(new_pact))
     } else {
       Err(anyhow!("Unable to merge pacts, as they have different consumers or providers"))
     }
@@ -332,6 +371,7 @@ impl ReadWritePact for V4Pact {
     format!("{}-{}.json", self.consumer.name, self.provider.name)
   }
 }
+
 
 impl PactJsonVerifier for V4Pact {
   fn verify_json(_path: &str, pact_json: &Value, _strict: bool, _spec_version: PactSpecification) -> Vec<PactFileVerificationResult> {
@@ -351,7 +391,8 @@ impl PactJsonVerifier for V4Pact {
 
 /// Creates a V4 Pact from the provided JSON struct
 pub fn from_json(source: &str, pact_json: &Value) -> anyhow::Result<Box<dyn Pact + Send + Sync>> {
-  let metadata = meta_data_from_json(pact_json);
+  let mut metadata = meta_data_from_json(pact_json);
+
   let consumer = match pact_json.get("consumer") {
     Some(v) => Consumer::from_json(v),
     None => Consumer { name: "consumer".into() }
@@ -360,11 +401,15 @@ pub fn from_json(source: &str, pact_json: &Value) -> anyhow::Result<Box<dyn Pact
     Some(v) => Provider::from_json(v),
     None => Provider { name: "provider".into() }
   };
+
+  let plugin_data = V4Pact::extract_plugin_data(&mut metadata);
+
   Ok(Box::new(V4Pact {
     consumer,
     provider,
     interactions: interactions_from_json(pact_json, source),
-    metadata
+    metadata,
+    plugin_data
   }))
 }
 
@@ -704,7 +749,8 @@ mod tests {
           .. SynchronousHttp::default()
         })
       ],
-      metadata: btreemap!{}
+      metadata: btreemap!{},
+      plugin_data: vec![]
     };
     let pact2 = V4Pact {
       consumer: Consumer { name: "merge_consumer".into() },
@@ -716,7 +762,8 @@ mod tests {
           .. SynchronousHttp::default()
         })
       ],
-      metadata: btreemap!{}
+      metadata: btreemap!{},
+      plugin_data: vec![]
     };
     let mut dir = env::temp_dir();
     let x = rand::random::<u16>();
@@ -800,7 +847,8 @@ mod tests {
           .. SynchronousHttp::default()
         })
       ],
-      metadata: btreemap!{}
+      metadata: btreemap!{},
+      plugin_data: vec![]
     };
     let pact2 = V4Pact {
       consumer: Consumer { name: "write_pact_test_consumer".into() },
@@ -814,7 +862,8 @@ mod tests {
           .. SynchronousHttp::default()
         })
       ],
-      metadata: btreemap!{}
+      metadata: btreemap!{},
+      plugin_data: vec![]
     };
     let mut dir = env::temp_dir();
     let x = rand::random::<u16>();
@@ -872,12 +921,14 @@ mod tests {
     let pact = V4Pact { consumer: Consumer { name: "test_consumer".to_string() },
       provider: Provider { name: "test_provider".to_string() },
       interactions: vec![],
-      metadata: btreemap!{}
+      metadata: btreemap!{},
+      plugin_data: vec![]
     };
     let pact2 = V4Pact { consumer: Consumer { name: "test_consumer2".to_string() },
       provider: Provider { name: "test_provider".to_string() },
       interactions: vec![],
-      metadata: btreemap!{}
+      metadata: btreemap!{},
+      plugin_data: vec![]
     };
     expect!(pact.merge(&pact2)).to(be_err());
   }
@@ -887,12 +938,14 @@ mod tests {
     let pact = V4Pact { consumer: Consumer { name: "test_consumer".to_string() },
       provider: Provider { name: "test_provider".to_string() },
       interactions: vec![],
-      metadata: btreemap!{}
+      metadata: btreemap!{},
+      plugin_data: vec![]
     };
     let pact2 = V4Pact { consumer: Consumer { name: "test_consumer".to_string() },
       provider: Provider { name: "test_provider2".to_string() },
       interactions: vec![],
-      metadata: btreemap!{}
+      metadata: btreemap!{},
+      plugin_data: vec![]
     };
     expect!(pact.merge(&pact2)).to(be_err());
   }

@@ -2,7 +2,7 @@
 //! that contains Messages instead of Interactions.
 
 use std::cmp::Ordering;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::fs::File;
 use std::io::prelude::*;
@@ -96,7 +96,8 @@ impl Pact for MessagePact {
       consumer: self.consumer.clone(),
       provider: self.provider.clone(),
       interactions,
-      metadata: self.metadata.iter().map(|(k, v)| (k.clone(), json!(v))).collect()
+      metadata: self.metadata.iter().map(|(k, v)| (k.clone(), json!(v))).collect(),
+      .. V4Pact::default()
     })
   }
 
@@ -138,7 +139,12 @@ impl Pact for MessagePact {
     false
   }
 
-  fn add_plugin(&mut self, _name: &str, _version: Option<String>) -> anyhow::Result<()> {
+  fn add_plugin(
+    &mut self,
+    _name: &str,
+    _version: &str,
+    _plugin_data: Option<HashMap<String, Value>>
+  ) -> anyhow::Result<()> {
     Err(anyhow!("Plugins can only be used with V4 format pacts"))
   }
 }

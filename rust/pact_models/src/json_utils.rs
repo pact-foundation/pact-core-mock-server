@@ -186,6 +186,32 @@ pub fn body_from_json(request: &Value, fieldname: &str, headers: &Option<HashMap
   }
 }
 
+/// Deep merges the other value into the given value
+pub fn json_deep_merge(value: &Value, other: &Value) -> Value {
+  match (value, other) {
+    (Value::Array(items), Value::Array(other_items)) => {
+      let mut values = items.clone();
+      values.extend(other_items.iter().cloned());
+      Value::Array(values)
+    },
+    (Value::Object(entries), Value::Object(other_entries)) => {
+      let map = entries.iter()
+        .chain(other_entries.iter())
+        .fold(serde_json::Map::new(), |mut m, (k, v)| {
+          let value = if let Some(value) = m.get(k) {
+            json_deep_merge(value, v)
+          } else {
+            v.clone()
+          };
+          m.insert(k.clone(), value);
+          m
+      });
+      Value::Object(map)
+    },
+    _ => other.clone()
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use expectest::expect;
@@ -383,5 +409,65 @@ mod tests {
      "#).unwrap();
     let body = body_from_json(&json, "body", &None);
     expect!(body).to(be_equal_to(OptionalBody::Present("<?xml version=\"1.0\"?> <body></body>".into(), Some("application/xml".into()), None)));
+  }
+
+  #[test]
+  fn deep_merge_with_primitives() {
+    let value = Value::Bool(true);
+    expect!(json_deep_merge(&value, &Value::Null)).to(be_equal_to(Value::Null));
+    expect!(json_deep_merge(&value, &Value::String("test".to_string()))).to(be_equal_to(Value::String("test".to_string())));
+  }
+
+  #[test]
+  fn deep_merge_with_empty_collections() {
+    let value = Value::Array(vec![]);
+    expect!(json_deep_merge(&value, &Value::Array(vec![]))).to(be_equal_to(Value::Array(vec![])));
+
+    let value = Value::Object(Default::default());
+    expect!(json_deep_merge(&value, &Value::Object(Default::default()))).to(be_equal_to(Value::Object(Default::default())));
+  }
+
+  #[test]
+  fn deep_merge_with_simple_objects() {
+    let value = json!({ "a": null });
+    expect!(json_deep_merge(&value, &json!({ "b": true }))).to(be_equal_to(json!({ "a": null, "b": true })));
+    expect!(json_deep_merge(&value, &json!({ "b": true, "a": false }))).to(be_equal_to(json!({ "a": false, "b": true })));
+  }
+
+  #[test]
+  fn deep_merge_with_simple_arrays() {
+    let value = json!([1, 2, 3]);
+    expect!(json_deep_merge(&value, &json!([4, 5]))).to(be_equal_to(json!([1, 2, 3, 4, 5])));
+  }
+
+
+  #[test]
+  fn deep_merge_with_collections_with_different_types() {
+    let value = json!({
+      "a": { "b": true },
+      "b": [ true ]
+    });
+    expect!(json_deep_merge(&value, &json!({ "a": true }))).to(be_equal_to(json!({ "a": true, "b": [ true ] })));
+    expect!(json_deep_merge(&value, &json!({ "b": true }))).to(be_equal_to(json!({ "a": { "b": true }, "b": true })));
+  }
+
+  #[test]
+  fn deep_merge_with_collections_recursively_merges_the_collections() {
+    let value = json!({
+      "a": { "b": true },
+      "b": [ true ]
+    });
+    let value2 = json!({
+      "a": { "b": false },
+      "b": [ false ]
+    });
+    expect!(json_deep_merge(&value, &value2)).to(be_equal_to(json!({
+      "a": { "b": false },
+      "b": [ true, false ]
+    })));
+    expect!(json_deep_merge(&value, &value)).to(be_equal_to(json!({
+      "a": { "b": true },
+      "b": [ true, true ]
+    })));
   }
 }

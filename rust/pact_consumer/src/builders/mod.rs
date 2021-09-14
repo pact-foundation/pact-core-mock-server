@@ -7,6 +7,7 @@ mod http_part_builder;
 mod pact_builder;
 mod request_builder;
 mod response_builder;
+mod message_builder;
 
 pub use self::interaction_builder::*;
 pub use self::http_part_builder::*;
