@@ -8,16 +8,20 @@
 //! * `matching(datetime, 'yyyy-MM-dd','2000-01-01')` - datetime matcher with format string
 //!
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Error};
 use log::debug;
 use logos::{Lexer, Logos};
 use crate::generators::Generator;
 use crate::matchingrules::MatchingRule;
+use crate::matchingrules::MatchingRule::NotEmpty;
 
 #[derive(Logos, Debug, PartialEq)]
 enum MatcherDefinitionToken {
   #[token("matching")]
   Matching,
+
+  #[token("notEmpty")]
+  NotEmpty,
 
   #[token("(")]
   LeftBracket,
@@ -60,23 +64,9 @@ pub fn parse_matcher_def(v: &str) -> anyhow::Result<(String, Option<MatchingRule
   debug!("First Token: {:?}", next);
   if let Some(token) = next {
     if token == MatcherDefinitionToken::Matching {
-      let next = lex.next().ok_or(anyhow!("'{}' is not a valid value definition, expected '('", v))?;
-      if next == MatcherDefinitionToken::LeftBracket {
-        let result = parse_matching_def(&mut lex)?;
-        let next = lex.next().ok_or(anyhow!("'{}' is not a valid value definition, expected ')'", v))?;
-        if next == MatcherDefinitionToken::RightBracket {
-          let next = lex.next();
-          if next.is_none() {
-            Ok(result)
-          } else {
-            Err(anyhow!("'{}' is not a valid value definition, got '{}' after the closing bracket", v, lex.remainder()))
-          }
-        } else {
-          Err(anyhow!("'{}' is not a valid value definition, expected closing bracket, got '{}'", v, lex.slice()))
-        }
-      } else {
-        Err(anyhow!("'{}' is not a valid value definition, expected '(', got '{}'", v, lex.remainder()))
-      }
+      parse_matching(v, &mut lex)
+    } else if token == MatcherDefinitionToken::NotEmpty {
+      parse_not_empty(v, &mut lex)
     } else {
       Ok((v.to_string(), None, None))
     }
@@ -85,12 +75,47 @@ pub fn parse_matcher_def(v: &str) -> anyhow::Result<(String, Option<MatchingRule
   }
 }
 
+fn parse_not_empty(v: &str, lex: &mut Lexer<MatcherDefinitionToken>) -> anyhow::Result<(String, Option<MatchingRule>, Option<Generator>)> {
+  let next = lex.next().ok_or(anyhow!("'{}' is not a valid value definition, expected '('", v))?;
+  if next == MatcherDefinitionToken::LeftBracket {
+    let value = parse_string(lex)?;
+    let next = lex.next().ok_or(anyhow!("'{}' is not a valid value definition, expected ')'", v))?;
+    if next == MatcherDefinitionToken::RightBracket {
+      Ok((value, Some(NotEmpty), None))
+    } else {
+      Err(anyhow!("'{}' is not a valid value definition, expected closing bracket, got '{}'", v, lex.slice()))
+    }
+  } else {
+    Err(anyhow!("'{}' is not a valid value definition, expected '(', got '{}'", v, lex.remainder()))
+  }
+}
+
+fn parse_matching(v: &str, mut lex: &mut Lexer<MatcherDefinitionToken>) -> anyhow::Result<(String, Option<MatchingRule>, Option<Generator>), Error> {
+  let next = lex.next().ok_or(anyhow!("'{}' is not a valid value definition, expected '('", v))?;
+  if next == MatcherDefinitionToken::LeftBracket {
+    let result = parse_matching_def(&mut lex)?;
+    let next = lex.next().ok_or(anyhow!("'{}' is not a valid value definition, expected ')'", v))?;
+    if next == MatcherDefinitionToken::RightBracket {
+      let next = lex.next();
+      if next.is_none() {
+        Ok(result)
+      } else {
+        Err(anyhow!("'{}' is not a valid value definition, got '{}' after the closing bracket", v, lex.remainder()))
+      }
+    } else {
+      Err(anyhow!("'{}' is not a valid value definition, expected closing bracket, got '{}'", v, lex.slice()))
+    }
+  } else {
+    Err(anyhow!("'{}' is not a valid value definition, expected '(', got '{}'", v, lex.remainder()))
+  }
+}
+
 fn parse_matching_def(lex: &mut logos::Lexer<MatcherDefinitionToken>) -> anyhow::Result<(String, Option<MatchingRule>, Option<Generator>)> {
   let next = lex.next()
     .ok_or(anyhow!("Not a valid matcher definition, expected a matcher type"))?;
   if next == MatcherDefinitionToken::Id {
     match lex.slice() {
-      "equality" => parse_equality(lex),
+      "equalTo" => parse_equality(lex),
       "regex" => parse_regex(lex),
       "type" => parse_type(lex),
       "datetime" => parse_datetime(lex),
@@ -101,6 +126,7 @@ fn parse_matching_def(lex: &mut logos::Lexer<MatcherDefinitionToken>) -> anyhow:
       "integer" => parse_integer(lex),
       "decimal" => parse_decimal(lex),
       "boolean" => parse_boolean(lex),
+      "contentType" => parse_content_type(lex),
       _ => Err(anyhow!("Not a valid matcher definition, expected the type of matcher, got '{}'", lex.slice()))
     }
   } else {
@@ -156,6 +182,14 @@ fn parse_include(lex: &mut Lexer<MatcherDefinitionToken>) -> anyhow::Result<(Str
   parse_comma(lex)?;
   let value = parse_string(lex)?;
   Ok((value.clone(), Some(MatchingRule::Include(value.clone())), None))
+}
+
+fn parse_content_type(lex: &mut Lexer<MatcherDefinitionToken>) -> anyhow::Result<(String, Option<MatchingRule>, Option<Generator>)> {
+  parse_comma(lex)?;
+  let ct = parse_string(lex)?;
+  parse_comma(lex)?;
+  let value = parse_string(lex)?;
+  Ok((value.clone(), Some(MatchingRule::ContentType(ct.clone())), None))
 }
 
 fn parse_number(lex: &mut Lexer<MatcherDefinitionToken>) -> anyhow::Result<(String, Option<MatchingRule>, Option<Generator>)> {
@@ -289,5 +323,23 @@ mod test {
   fn parse_include_matcher() {
     expect!(super::parse_matcher_def("matching(include,'Name')").unwrap()).to(
       be_equal_to(("Name".to_string(), Some(MatchingRule::Include("Name".to_string())), None)));
+  }
+
+  #[test]
+  fn parse_equals_matcher() {
+    expect!(super::parse_matcher_def("matching(equalTo,'Name')").unwrap()).to(
+      be_equal_to(("Name".to_string(), Some(MatchingRule::Equality), None)));
+  }
+
+  #[test]
+  fn parse_content_type_matcher() {
+    expect!(super::parse_matcher_def("matching(contentType,'Name', 'Value')").unwrap()).to(
+      be_equal_to(("Value".to_string(), Some(MatchingRule::ContentType("Name".to_string())), None)));
+  }
+
+  #[test]
+  fn parse_not_empty() {
+    expect!(super::parse_matcher_def("notEmpty('Value')").unwrap()).to(
+      be_equal_to(("Value".to_string(), Some(MatchingRule::NotEmpty), None)));
   }
 }
