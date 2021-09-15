@@ -19,7 +19,7 @@ use pact_models::v4::V4InteractionType;
 use pact_plugin_driver::catalogue_manager::find_content_matcher;
 use pact_plugin_driver::content::{ContentMatcher, InteractionContents};
 use pact_plugin_driver::plugin_models::PactPluginManifest;
-use serde_json::{json, Value};
+use serde_json::{json, Value, Map};
 use pact_models::plugins::PluginData;
 
 #[derive(Clone, Debug)]
@@ -107,35 +107,31 @@ impl MessageInteractionBuilder {
   }
 
   /// Configure the interaction contents from a map
-  pub async fn contents_from<V>(&mut self, contents: HashMap<&str, V>) -> &mut Self
-    where V: Clone, Value: From<V> {
-    let contents_map: HashMap<String, Value> = contents.iter()
-      .map(|(k, v)| {
-        (k.to_string(), Value::from(v.clone()))
-      })
-      .collect();
-    debug!("Configuring interaction from {:?}", contents_map);
+  pub async fn contents_from(&mut self, contents: Value) -> &mut Self {
+    debug!("Configuring interaction from {:?}", contents);
 
+    let contents_map = contents.as_object().cloned().unwrap_or(Map::default());
+    let contents_hashmap = contents_map.iter()
+      .map(|(k, v)| (k.clone(), v.clone())).collect();
     if let Some(content_type) = contents_map.get("content-type") {
       let ct = ContentType::parse(json_to_string(content_type).as_str()).unwrap();
       if let Some(content_matcher) = find_content_matcher(&ct) {
         debug!("Found a matcher for '{}': {:?}", ct, content_matcher);
         if content_matcher.is_core() {
           debug!("Content matcher is a core matcher, will use the internal implementation");
-          self.setup_core_matcher(&ct, &contents_map, Some(content_matcher));
+          self.setup_core_matcher(&ct, &contents_hashmap, Some(content_matcher));
         } else {
           debug!("Plugin matcher, will get the plugin to provide the interaction contents");
-          self.message_contents = content_matcher.configure_interation(&ct, contents_map).await.unwrap();
+          self.message_contents = content_matcher.configure_interation(&ct, contents_hashmap).await.unwrap();
           self.contents_plugin = content_matcher.plugin();
         }
       } else {
         debug!("No content matcher found, will use the internal implementation");
-        self.setup_core_matcher(&ct, &contents_map, None);
+        self.setup_core_matcher(&ct, &contents_hashmap, None);
       }
     } else {
       self.message_contents = InteractionContents {
-        body : OptionalBody::from(Value::Object(contents_map.iter()
-          .map(|(k, v)| (k.clone(), v.clone())).collect()).to_string()),
+        body : OptionalBody::from(Value::Object(contents_map.clone())),
         .. InteractionContents::default()
       };
     }

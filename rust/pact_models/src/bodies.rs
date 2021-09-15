@@ -136,6 +136,14 @@ impl <'a> From<&'a str> for OptionalBody {
   }
 }
 
+impl From<Value> for OptionalBody {
+  fn from(json: Value) -> Self {
+    OptionalBody::Present(Bytes::from(json.to_string()),
+                          Some(ContentType::from("application/json;charset=UTF-8")),
+                          None)
+  }
+}
+
 impl Display for OptionalBody {
   fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
     match *self {

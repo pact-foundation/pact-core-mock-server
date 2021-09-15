@@ -287,11 +287,11 @@ impl MatchingRule {
         None => Err(anyhow!("Time matcher missing 'time' or 'format' field")),
       },
       "null" => Ok(MatchingRule::Null),
-      "contentType" => match attributes.get("value") {
+      "contentType" | "content-type" => match attributes.get("value") {
         Some(s) => Ok(MatchingRule::ContentType(json_to_string(s))),
         None => Err(anyhow!("ContentType matcher missing 'value' field")),
       },
-      "arrayContains" => match attributes.get("variants") {
+      "arrayContains" | "array-contains" => match attributes.get("variants") {
         Some(variants) => match variants {
           Value::Array(variants) => {
             let mut values = Vec::new();
@@ -330,7 +330,7 @@ impl MatchingRule {
         None => Err(anyhow!("ArrayContains matcher missing 'variants' field")),
       }
       "values" => Ok(MatchingRule::Values),
-      "statusCode" => match attributes.get("status") {
+      "statusCode" | "status-code" => match attributes.get("status") {
         Some(s) => {
           let status = HttpStatus::from_json(s)
             .context("Unable to parse status code for StatusCode matcher")?;
@@ -338,7 +338,7 @@ impl MatchingRule {
         },
         None => Ok(MatchingRule::StatusCode(HttpStatus::Success))
       },
-      "notEmpty" => Ok(MatchingRule::NotEmpty),
+      "notEmpty" | "not-empty" => Ok(MatchingRule::NotEmpty),
       "semver" => Ok(MatchingRule::Semver),
       _ => Err(anyhow!("{} is not a valid matching rule type", rule_type)),
     }
