@@ -14,7 +14,8 @@ pub struct VerifierHandle {
   provider: ProviderInfo,
   sources: Vec<PactSource>,
   state_change: Arc<HttpRequestProviderStateExecutor>,
-  options: VerificationOptions<NullRequestFilterExecutor>
+  options: VerificationOptions<NullRequestFilterExecutor>,
+  consumers: Vec<String>
 }
 
 impl VerifierHandle {
@@ -24,7 +25,8 @@ impl VerifierHandle {
       provider: ProviderInfo::default(),
       sources: Vec::new(),
       state_change: Arc::new(HttpRequestProviderStateExecutor::default()),
-      options: VerificationOptions::default()
+      options: VerificationOptions::default(),
+      consumers: vec![]
     }
   }
 
@@ -143,6 +145,14 @@ impl VerifierHandle {
     }
   }
 
+  /// Update the consumer filter
+  pub fn update_consumers(
+    &mut self,
+    consumers: Vec<String>
+  ) {
+    self.consumers = consumers
+  }
+
   /// Execute the verifier
   pub fn execute(&self) -> i32 {
     let filter = FilterInfo::None;
@@ -157,7 +167,7 @@ impl VerifierHandle {
         self.provider.clone(),
         self.sources.clone(),
         filter,
-        vec![],
+        self.consumers.clone(),
         self.options.clone(),
         &self.state_change.clone()
       ).await {
