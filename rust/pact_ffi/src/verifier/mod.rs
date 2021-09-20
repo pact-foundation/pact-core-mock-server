@@ -178,13 +178,34 @@ ffi_fn! {
         None
       };
 
-      let tags = get_tags(provider_tags, provider_tags_len);
+      let tags = get_vector(provider_tags, provider_tags_len);
 
       handle.update_verification_options(publish > 0, provider_version, build_url, tags, disable_ssl_verification > 0, request_timeout as u64);
 
       EXIT_SUCCESS
     } {
       EXIT_FAILURE
+    }
+}
+
+ffi_fn! {
+    /// Set the consumer filters for the Pact verifier.
+    ///
+    /// # Safety
+    ///
+    /// All string fields must contain valid UTF-8. Invalid UTF-8
+    /// will be replaced with U+FFFD REPLACEMENT CHARACTER.
+    ///
+    fn pactffi_verifier_set_consumer_filters(
+      handle: *mut handle::VerifierHandle,
+      consumer_filters: *const *const c_char,
+      consumer_filters_len: c_ushort
+    ) {
+      let handle = as_mut!(handle);
+
+      let consumers = get_vector(consumer_filters, consumer_filters_len);
+
+      handle.update_consumers(consumers);
     }
 }
 
@@ -368,7 +389,7 @@ ffi_fn! {
         None
       };
 
-      let tags = get_tags(provider_tags, provider_tags_len);
+      let tags = get_vector(provider_tags, provider_tags_len);
 
     // let selectors = if matches.is_present("consumer-version-selectors") {
     // matches.values_of("consumer-version-selectors")
@@ -563,17 +584,17 @@ fn parse_argument(long: Option<&str>, short: Option<char>, help: Option<&str>, p
     arg
 }
 
-fn get_tags(provider_tags: *const *const c_char, provider_tags_len: c_ushort) -> Vec<String> {
-  if !provider_tags.is_null() && provider_tags_len > 0 {
-    let mut tags = Vec::with_capacity(provider_tags_len as usize);
-    for index in 0..(provider_tags_len - 1) {
-      let tag_ptr: *const c_char = unsafe { *(provider_tags.offset(index as isize)) };
-      let tag = if_null(tag_ptr, "");
-      if !tag.is_empty() {
-        tags.push(tag.to_string());
+fn get_vector(items_ptr: *const *const c_char, items_len: c_ushort) -> Vec<String> {
+  if !items_ptr.is_null() && items_len > 0 {
+    let mut items = Vec::with_capacity(items_len as usize);
+    for index in 0..items_len {
+      let item_ptr: *const c_char = unsafe { *(items_ptr.offset(index as isize)) };
+      let item = if_null(item_ptr, "");
+      if !item.is_empty() {
+        items.push(item.to_string());
       }
     }
-    tags
+    items
   } else {
     vec![]
   }

@@ -53,6 +53,7 @@ jobs:
         if: runner.os == 'Linux'
         working-directory: c/consumer-verification
         run: |
+          sudo apt update
           sudo apt install libcurl4-openssl-dev
           /usr/bin/aclocal
           autoconf
