@@ -141,7 +141,13 @@ ffi_fn! {
       body: c_uchar
     ) {
       let handle = as_mut!(handle);
-      let url = safe_str!(url);
+      let url = if_null(url, "");
+
+      let url = if !url.is_empty() {
+        Some(url)
+      } else {
+        None
+      };
 
       handle.update_provider_state(url, teardown > 0, body > 0);
     }

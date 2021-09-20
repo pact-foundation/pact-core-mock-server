@@ -112,12 +112,12 @@ impl VerifierHandle {
   /// Update the provider state
   pub fn update_provider_state(
     &mut self,
-    state_change_url: &str,
+    state_change_url: Option<String>,
     state_change_teardown: bool,
     state_change_body: bool
   ) {
     self.state_change = Arc::new(HttpRequestProviderStateExecutor {
-      state_change_url: Some(state_change_url.to_string()),
+      state_change_url,
       state_change_teardown,
       state_change_body
     })
