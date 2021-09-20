@@ -28,7 +28,7 @@ rand = "0.8"
 webmachine-rust = "0.2.2"
 regex = "1"
 lazy_static = "1.4.0"
-reqwest = { version = "0.11", default-features = false, features = ["rustls-tls", "blocking", "json"] }
+reqwest = { version = "0.11", default-features = false, features = ["rustls-tls-native-roots", "blocking", "json"] }
 url = "2.1.1"
 http = "0.2"
 futures = "0.3.0"
