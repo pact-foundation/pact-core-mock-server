@@ -1024,7 +1024,7 @@ dependencies = [
 
 [[package]]
 name = "pact_consumer"
-version = "0.7.8"
+version = "0.7.9"
 dependencies = [
  "anyhow",
  "env_logger",
