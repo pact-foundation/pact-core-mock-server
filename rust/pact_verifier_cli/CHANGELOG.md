@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.8.8 - support native TLS certs
+
+* df715cd5 - feat: support native TLS. Fixes #144 (Matt Fellows, Mon Sep 20 13:00:33 2021 +1000)
+* 4458a677 - bump version to 0.8.8 (Ronald Holshausen, Sun Aug 22 16:03:00 2021 +1000)
+
 # 0.8.7 - Bugfix Release
 
 * 38ccd5f6 - bump version to 0.8.7 (Ronald Holshausen, Wed Jul 21 13:38:53 2021 +1000)

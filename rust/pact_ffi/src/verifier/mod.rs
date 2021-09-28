@@ -3,21 +3,23 @@
 
 #![warn(missing_docs)]
 
+use std::env;
 use std::ffi::{CStr, CString, OsStr, OsString};
 use std::panic::catch_unwind;
+use std::str::from_utf8;
 
 use anyhow::Context;
-use libc::{c_char, c_int, c_uchar, c_ushort, c_ulong, EXIT_FAILURE, EXIT_SUCCESS};
+use clap::ArgSettings;
+use libc::{c_char, c_int, c_uchar, c_ulong, c_ushort, EXIT_FAILURE, EXIT_SUCCESS};
 use log::*;
-use std::env;
+use serde::{Deserialize, Serialize};
 
+use pact_matching::logging::fetch_buffer_contents;
 use pact_models::prelude::HttpAuth;
 
-use crate::{as_mut, ffi_fn, safe_str};
-use crate::util::*;
+use crate::{as_mut, as_ref, ffi_fn, safe_str};
+use crate::ptr;
 use crate::util::string::if_null;
-use serde::{Serialize, Deserialize};
-use clap::ArgSettings;
 
 mod args;
 pub mod verifier;
@@ -141,7 +143,13 @@ ffi_fn! {
       body: c_uchar
     ) {
       let handle = as_mut!(handle);
-      let url = safe_str!(url);
+      let url = if_null(url, "");
+
+      let url = if !url.is_empty() {
+        Some(url)
+      } else {
+        None
+      };
 
       handle.update_provider_state(url, teardown > 0, body > 0);
     }
@@ -391,6 +399,7 @@ ffi_fn! {
 
       let tags = get_vector(provider_tags, provider_tags_len);
 
+    // TODO: need a way to pass in the consumer version selectors
     // let selectors = if matches.is_present("consumer-version-selectors") {
     // matches.values_of("consumer-version-selectors")
     // .map_or_else(Vec::new, |s| json_to_selectors(s.collect::<Vec<_>>()))
@@ -598,4 +607,52 @@ fn get_vector(items_ptr: *const *const c_char, items_len: c_ushort) -> Vec<Strin
   } else {
     vec![]
   }
+}
+
+fn extract_verifier_logs(name: &str) -> *const c_char {
+  let key = format!("verify:{}", name);
+  let buffer = fetch_buffer_contents(&key);
+  match from_utf8(&buffer) {
+    Ok(contents) => {
+      match CString::new(contents.to_string()) {
+        Ok(c_str) => c_str.into_raw(),
+        Err(err) => {
+          eprintln!("Failed to copy in-memory log buffer - {}", err);
+          std::ptr::null()
+        }
+      }
+    }
+    Err(err) => {
+      eprintln!("Failed to convert in-memory log buffer to UTF-8 - {}", err);
+      std::ptr::null()
+    }
+  }
+}
+
+ffi_fn! {
+    /// Extracts the logs for the verification run. This needs the memory buffer log sink to be
+    /// setup before the verification is executed. The returned string will need to be freed with
+    /// the `free_string` function call to avoid leaking memory.
+    ///
+    /// Will return a NULL pointer if the logs for the verification can not be retrieved.
+    fn pactffi_verifier_logs(handle: *const handle::VerifierHandle) -> *const c_char {
+      let handle = as_ref!(handle);
+      extract_verifier_logs(&handle.provider_info().name)
+    } {
+      std::ptr::null()
+    }
+}
+
+ffi_fn! {
+    /// Extracts the logs for the verification run for the provider name. This needs the memory
+    /// buffer log sink to be setup before the verification is executed. The returned string will
+    /// need to be freed with the `free_string` function call to avoid leaking memory.
+    ///
+    /// Will return a NULL pointer if the logs for the verification can not be retrieved.
+    fn pactffi_verifier_logs_for_provider(provider_name: *const c_char) -> *const c_char {
+      let name = safe_str!(provider_name);
+      extract_verifier_logs(name)
+    } {
+      std::ptr::null()
+    }
 }

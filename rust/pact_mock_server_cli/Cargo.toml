@@ -1,6 +1,6 @@
 [package]
 name = "pact_mock_server_cli"
-version = "0.7.6"
+version = "0.7.7"
 authors = ["Ronald Holshausen <uglyog@gmail.com>"]
 edition = "2018"
 description = "Standalone pact mock server for consumer pact tests"
@@ -28,7 +28,7 @@ rand = "0.8"
 webmachine-rust = "0.2.2"
 regex = "1"
 lazy_static = "1.4.0"
-reqwest = { version = "0.11", default-features = false, features = ["rustls-tls", "blocking", "json"] }
+reqwest = { version = "0.11", default-features = false, features = ["rustls-tls-native-roots", "blocking", "json"] }
 url = "2.1.1"
 http = "0.2"
 futures = "0.3.0"

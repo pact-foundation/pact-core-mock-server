@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.7.21 - support native TLS certs
+
+* df715cd5 - feat: support native TLS. Fixes #144 (Matt Fellows, Mon Sep 20 13:00:33 2021 +1000)
+* c9165bd3 - bump version to 0.7.21 (Ronald Holshausen, Tue Aug 17 10:37:33 2021 +1000)
+
 # 0.8.0-beta.0 - Support for plugins with mock server
 
 * fd6f8f40 - chore: Bump pact_mock_server version to 0.8.0-beta.0 (Ronald Holshausen, Mon Sep 13 11:46:11 2021 +1000)

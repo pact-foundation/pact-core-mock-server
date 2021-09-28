@@ -1,5 +1,15 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.7.8 - Bugfixes + support native TLS certs
+
+* df715cd5 - feat: support native TLS. Fixes #144 (Matt Fellows, Mon Sep 20 13:00:33 2021 +1000)
+* 971b980e - chore: fix clippy warnings (Ronald Holshausen, Fri Sep 10 17:31:16 2021 +1000)
+* 8bcd1c7e - fix: min/max type matchers must not apply the limits when cascading (Ronald Holshausen, Sun Aug 8 15:50:40 2021 +1000)
+* 6124ed0b - refactor: Introduce DocPath struct for path expressions (Caleb Stepanian, Thu Jul 29 12:27:32 2021 -0400)
+* 9baa714d - chore: bump minor version of matching crate (Ronald Holshausen, Fri Jul 23 14:03:20 2021 +1000)
+* 533c9e1f - chore: bump minor version of the Pact models crate (Ronald Holshausen, Fri Jul 23 13:15:32 2021 +1000)
+* 0671221f - bump version to 0.7.8 (Ronald Holshausen, Fri Jul 23 11:00:25 2021 +1000)
+
 # 0.7.7 - Bugfix Release
 
 * ad7d3d54 - chore: pin the dependant versions for now (Ronald Holshausen, Fri Jul 23 10:42:52 2021 +1000)

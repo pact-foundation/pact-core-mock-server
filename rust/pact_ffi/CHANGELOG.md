@@ -1,5 +1,42 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.0.3 - support native TLS certs + updated verifier FFI functions
+
+* 42be9eb8 - feat: add FFI functions to extract logs from a verifcation run (Ronald Holshausen, Tue Sep 28 12:48:40 2021 +1000)
+* 40cf1ab9 - chore: mark pactffi_logger_attach_sink as unsafe #148 (Ronald Holshausen, Fri Sep 24 11:36:38 2021 +1000)
+* ab89152e - Merge pull request #150 from tienvx/make-state-change-url-optional (Ronald Holshausen, Tue Sep 21 09:20:54 2021 +1000)
+* df715cd5 - feat: support native TLS. Fixes #144 (Matt Fellows, Mon Sep 20 13:00:33 2021 +1000)
+* 339a9504 - feat: make state change url optional (tienvx, Mon Sep 20 12:13:29 2021 +0700)
+* dab70272 - feat: add verifier ffi function set consumer filters (tienvx, Tue Sep 14 23:47:14 2021 +0700)
+* 36f7e477 - fix: fix missing last tag (tienvx, Tue Sep 14 23:51:02 2021 +0700)
+* 4e02722e - Handle required and optional parameters (tienvx, Fri Sep 10 21:56:45 2021 +0700)
+* ad73c9af - Extract function get_tags to reuse code (tienvx, Fri Sep 10 21:55:36 2021 +0700)
+* 05f4c3de - feat: add verifier ffi function set verification options (tienvx, Wed Sep 8 23:48:13 2021 +0700)
+* 971b980e - chore: fix clippy warnings (Ronald Holshausen, Fri Sep 10 17:31:16 2021 +1000)
+* 0bb96329 - chore: fix clippy warnings (Ronald Holshausen, Fri Sep 10 17:15:17 2021 +1000)
+* b8e51313 - Merge pull request #137 from tienvx/ffi-function-update-provider-state (Ronald Holshausen, Sat Sep 4 13:04:50 2021 +1000)
+* 47e940a8 - test(ffi verifier): remove unused import (Mike Geeves, Tue Aug 31 10:11:37 2021 +0100)
+* d5167056 - feat(ffi verifier cli): simplify duplicated conversion for default_value, env, possible_values (Mike Geeves, Mon Aug 30 21:29:34 2021 +0100)
+* fd9ea9c3 - feat(ffi verifier cli): attributes long/short/help can be simplified (Mike Geeves, Mon Aug 30 21:06:23 2021 +0100)
+* 9e582360 - chore: add verifier ffi function update provider state (tienvx, Sun Aug 29 22:20:28 2021 +0700)
+* 55985d0a - feat(ffi verifier cli): add in support for ENVs (Mike Geeves, Fri Aug 27 15:59:56 2021 +0100)
+* 4a5cdb82 - Merge branch 'master' into feat/ffi_arguments (Mike Geeves, Fri Aug 27 09:57:52 2021 +0100)
+* 84957fb9 - feat(ffi verifier cli): verify we can deserialize the json from cli_args, and there are some args (Mike Geeves, Fri Aug 27 09:55:24 2021 +0100)
+* 906661cb - feat(ffi verifier cli): split out flags and options (Mike Geeves, Thu Aug 26 11:45:18 2021 +0100)
+* 491c23fb - feat(ffi verifier): add multiple to CLI JSON output (Mike Geeves, Wed Aug 25 15:58:00 2021 +0100)
+* 46135a16 - chore: add verifier FFI functions for directory, URL and Pact broker sources (Ronald Holshausen, Tue Aug 24 10:14:46 2021 +1000)
+* bbae32da - feat(ffi verify): add in default values, start looking at flags (Mike Geeves, Tue Aug 24 00:25:56 2021 +0100)
+* ffcabb63 - feat(ffi verifier): add possible_values (Mike Geeves, Mon Aug 23 10:21:16 2021 +0100)
+* 5a32f04d - feat(ffi verifier): bump serde version to latest (Mike Geeves, Mon Aug 23 09:55:31 2021 +0100)
+* f64b0ead - feat(ffi verifier): revert unwanted changes (Mike Geeves, Mon Aug 23 09:53:31 2021 +0100)
+* e8247e55 - feat(ffi verifier): merge master, fix conflicts (Mike Geeves, Mon Aug 23 09:51:24 2021 +0100)
+* e557ce27 - feat(ffi verifier): move pactffi_verifier_cli_args to mod.rs, tidy, add docs (Mike Geeves, Mon Aug 23 09:45:54 2021 +0100)
+* 4982bfc7 - chore: update FFI readme (Ronald Holshausen, Mon Aug 23 10:31:08 2021 +1000)
+* f8d98dcb - feat(ffi verifier): added a crude method to pull out CLI arguments, and make available via FFI (Mike Geeves, Sun Aug 22 19:45:42 2021 +0100)
+* 50fcd409 - chore: re-enable cmake build for pact-ffi (Ronald Holshausen, Sun Aug 22 16:20:25 2021 +1000)
+* eaefe4d2 - chore: correct the conan recipes (Ronald Holshausen, Sun Aug 22 16:18:50 2021 +1000)
+* 72125560 - bump version to 0.0.3 (Ronald Holshausen, Sun Aug 22 15:51:25 2021 +1000)
+
 # 0.0.2 - Bugfix Release
 
 * 9370327c - feat(FFI): Added initial verifier FFI prototype (Ronald Holshausen, Sun Aug 22 15:01:17 2021 +1000)

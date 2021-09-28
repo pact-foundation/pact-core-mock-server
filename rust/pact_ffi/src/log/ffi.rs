@@ -31,7 +31,7 @@ pub extern "C" fn pactffi_log_to_stdout(level_filter: LevelFilter) -> c_int {
         }
     };
 
-    let status = pactffi_logger_attach_sink(spec.as_ptr(), level_filter);
+    let status = unsafe { pactffi_logger_attach_sink(spec.as_ptr(), level_filter) };
     if status != 0 {
         return status;
     }
@@ -57,7 +57,7 @@ pub extern "C" fn pactffi_log_to_stderr(level_filter: LevelFilter) -> c_int {
         }
     };
 
-    let status = pactffi_logger_attach_sink(spec.as_ptr(), level_filter);
+    let status = unsafe { pactffi_logger_attach_sink(spec.as_ptr(), level_filter) };
     if status != 0 {
         return status;
     }
@@ -121,7 +121,7 @@ pub unsafe extern "C" fn pactffi_log_to_file(
 }
 
 
-/// Convenience function to direct all logging to a thread local memory buffer.
+/// Convenience function to direct all logging to a task local memory buffer.
 #[no_mangle]
 pub extern "C" fn pactffi_log_to_buffer(level_filter: LevelFilter) -> c_int {
   pactffi_logger_init();
@@ -134,7 +134,7 @@ pub extern "C" fn pactffi_log_to_buffer(level_filter: LevelFilter) -> c_int {
     }
   };
 
-  let status = pactffi_logger_attach_sink(spec.as_ptr(), level_filter);
+  let status = unsafe { pactffi_logger_attach_sink(spec.as_ptr(), level_filter) };
   if status != 0 {
     return status;
   }
@@ -228,12 +228,12 @@ pub extern "C" fn pactffi_logger_init() {
 #[allow(clippy::missing_safety_doc)]
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[no_mangle]
-pub extern "C" fn pactffi_logger_attach_sink(
+pub unsafe extern "C" fn pactffi_logger_attach_sink(
     sink_specifier: *const c_char,
     level_filter: LevelFilter,
 ) -> c_int {
     // Get the specifier from the raw C string.
-    let sink_specifier = unsafe { CStr::from_ptr(sink_specifier) };
+    let sink_specifier = CStr::from_ptr(sink_specifier);
     let sink_specifier = match sink_specifier.to_str() {
         Ok(sink_specifier) => sink_specifier,
         // TODO: Permit non-UTF8 strings, as some filesystems may have non-UTF8

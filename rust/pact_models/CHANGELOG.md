@@ -1,5 +1,14 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.1.4 - WASM support + native TLS certs
+
+* df715cd5 - feat: support native TLS. Fixes #144 (Matt Fellows, Mon Sep 20 13:00:33 2021 +1000)
+* 62db0e44 - chore: fix clippy warnings (Ronald Holshausen, Fri Sep 10 17:41:43 2021 +1000)
+* 067ded8f - feat: expose Pact models via WASM (Ronald Holshausen, Sun Sep 5 11:55:26 2021 +1000)
+* 80509c01 - chore: add crate to support WASM (Ronald Holshausen, Sat Sep 4 17:32:12 2021 +1000)
+* 7c12b03b - bump version to 0.1.4 (Ronald Holshausen, Sat Sep 4 15:30:35 2021 +1000)
+* 8fe00acd - chore: correct release script (Ronald Holshausen, Sat Sep 4 15:26:17 2021 +1000)
+
 # 0.2.0-beta.2 - Support for getting interaction markup from plugins
 
 * 997c063f - chore: update release script (Ronald Holshausen, Fri Sep 10 14:08:52 2021 +1000)
