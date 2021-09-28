@@ -1262,7 +1262,7 @@ dependencies = [
 
 [[package]]
 name = "pact_verifier_cli"
-version = "0.8.8"
+version = "0.8.9"
 dependencies = [
  "clap",
  "pact_ffi",
