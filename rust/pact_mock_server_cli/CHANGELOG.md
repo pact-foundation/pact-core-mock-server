@@ -1,5 +1,14 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.7.6 - support native TLS certs
+
+* df715cd5 - feat: support native TLS. Fixes #144 (Matt Fellows, Mon Sep 20 13:00:33 2021 +1000)
+* 971b980e - chore: fix clippy warnings (Ronald Holshausen, Fri Sep 10 17:31:16 2021 +1000)
+* 9baa714d - chore: bump minor version of matching crate (Ronald Holshausen, Fri Jul 23 14:03:20 2021 +1000)
+* 533c9e1f - chore: bump minor version of the Pact models crate (Ronald Holshausen, Fri Jul 23 13:15:32 2021 +1000)
+* 47177971 - Revert "chore: pin the pact_mock_server_cli dependencies" (Ronald Holshausen, Wed Jul 21 15:53:47 2021 +1000)
+* 3dbb2b1c - bump version to 0.7.6 (Ronald Holshausen, Wed Jul 21 15:49:42 2021 +1000)
+
 # 0.7.5 - Bugfix Release
 
 * 15e5d587 - chore: pin the pact_mock_server_cli dependencies (Ronald Holshausen, Wed Jul 21 15:14:08 2021 +1000)
