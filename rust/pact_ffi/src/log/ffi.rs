@@ -121,7 +121,7 @@ pub unsafe extern "C" fn pactffi_log_to_file(
 }
 
 
-/// Convenience function to direct all logging to a thread local memory buffer.
+/// Convenience function to direct all logging to a task local memory buffer.
 #[no_mangle]
 pub extern "C" fn pactffi_log_to_buffer(level_filter: LevelFilter) -> c_int {
   pactffi_logger_init();

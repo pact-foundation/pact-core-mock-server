@@ -30,6 +30,11 @@ impl VerifierHandle {
     }
   }
 
+  /// Retrieve the provider info from the handle
+  pub fn provider_info(&self) -> ProviderInfo {
+    self.provider.clone()
+  }
+
   /// Update the provider info
   pub fn update_provider_info(
     &mut self,

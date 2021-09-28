@@ -24,6 +24,7 @@ use serde_json::Value;
 pub use callback_executors::NullRequestFilterExecutor;
 use callback_executors::RequestFilterExecutor;
 use pact_matching::*;
+use pact_matching::logging::LOG_ID;
 use pact_models::generators::GeneratorTestMode;
 use pact_models::http_utils::HttpAuth;
 use pact_models::interaction::Interaction;
@@ -561,6 +562,7 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
     options: VerificationOptions<F>,
     provider_state_executor: &Arc<S>
 ) -> bool {
+  LOG_ID.scope(format!("verify:{}", provider_info.name), async {
     let pact_results = fetch_pacts(source, consumers).await;
 
     let mut results: Vec<(Option<String>, Result<(), MismatchResult>)> = vec![];
@@ -632,6 +634,7 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
       println!();
       true
     }
+  }).await
 }
 
 fn print_errors(errors: &Vec<(String, MismatchResult)>) {
