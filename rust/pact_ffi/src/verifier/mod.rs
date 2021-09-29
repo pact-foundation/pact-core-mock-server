@@ -335,7 +335,7 @@ ffi_fn! {
         HttpAuth::None
       };
 
-      handle.add_pact_broker_source(url, provider_name, false, None, vec![], vec![], &auth);
+      handle.add_pact_broker_source(url, provider_name, false, None, vec![], None, vec![], &auth);
     }
 }
 
@@ -369,11 +369,18 @@ ffi_fn! {
       enable_pending: c_uchar,
       include_wip_pacts_since: *const c_char,
       provider_tags: *const *const c_char,
-      provider_tags_len: c_ushort
+      provider_tags_len: c_ushort,
+      provider_branch: *const c_char
     ) {
       let handle = as_mut!(handle);
       let url = safe_str!(url);
       let provider_name = safe_str!(provider_name);
+      let provider_branch: Option<String> = if provider_branch.is_null() {
+        None
+      } else {
+        Some(safe_str!(provider_branch).to_string())
+      };
+
       let username = if_null(username, "");
       let password = if_null(password, "");
       let token = if_null(token, "");
@@ -410,7 +417,7 @@ ffi_fn! {
     // vec![]
     // };
 
-      handle.add_pact_broker_source(url, provider_name, enable_pending > 0, wip, tags, vec![], &auth);
+      handle.add_pact_broker_source(url, provider_name, enable_pending > 0, wip, tags, provider_branch, vec![], &auth);
     }
 }
 
