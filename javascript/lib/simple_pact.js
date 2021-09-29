@@ -11,42 +11,48 @@ var lib = ffi.Library(path.join(__dirname, dll), {
   pactffi_cleanup_mock_server: ['bool', ['int32']]
 });
 
-var pact = "{\n" +
-  "\"provider\": {\n" +
-  "  \"name\": \"Alice Service\"\n" +
-  "},\n" +
-  "\"consumer\": {\n" +
-  "  \"name\": \"Consumer\"\n" +
-  "},\n" +
-  "\"interactions\": [\n" +
-  "  {\n" +
-  "    \"description\": \"a retrieve Mallory request\",\n" +
-  "    \"request\": {\n" +
-  "      \"method\": \"GET\",\n" +
-  "      \"path\": \"/mallory\",\n" +
-  "      \"query\": \"name=ron&status=good\"\n" +
-  "    },\n" +
-  "    \"response\": {\n" +
-  "      \"status\": 200,\n" +
-  "      \"headers\": {\n" +
-  "        \"Content-Type\": \"text/html\"\n" +
-  "      },\n" +
-  "      \"body\": \"\\\"That is some good Mallory.\\\"\"\n" +
-  "    }\n" +
-  "  }\n" +
-  "],\n" +
-  "\"metadata\": {\n" +
-  "  \"pact-specification\": {\n" +
-  "    \"version\": \"1.0.0\"\n" +
-  "  },\n" +
-  "  \"pact-jvm\": {\n" +
-  "    \"version\": \"1.0.0\"\n" +
-  "  }\n" +
-  "}\n" +
-"}\n";
+var pact = `{
+  "provider": {
+    "name": "Alice Service"
+  },
+  "consumer": {
+    "name": "Consumer"
+  },
+  "interactions": [
+    {
+      "description": "a retrieve Mallory request",
+      "request": {
+        "method": "GET",
+        "path": "/mallory",
+        "query": "name=ron&status=good"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "text/html"
+        },
+        "body": "That is some good Mallory."
+      }
+    }
+  ],
+  "metadata": {
+    "pact-specification": {
+      "version": "1.0.0"
+    },
+    "pact-jvm": {
+      "version": "1.0.0"
+    }
+  }
+}`;
 
 var port = lib.pactffi_create_mock_server(pact, '127.0.0.1:0');
 console.log('Mock server port=' + port);
+
+if (!lib.pactffi_mock_server_matched(port)) {
+  console.log("No requests yet, as expected");
+} else {
+  console.log("Hmm, something smells a bit off.");
+}
 
 var options = {
   hostname: 'localhost',
