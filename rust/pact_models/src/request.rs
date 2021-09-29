@@ -9,7 +9,6 @@ use base64::encode;
 use itertools::Itertools;
 use log::warn;
 use maplit::hashmap;
-use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::{DifferenceType, PactSpecification};
@@ -22,7 +21,7 @@ use crate::query_strings::{query_from_json, query_to_json, v3_query_from_json};
 use crate::v4::http_parts::HttpRequest;
 
 /// Struct that defines the request.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq)]
+#[derive(Debug, Clone, Eq)]
 pub struct Request {
   /// Request method
   pub method: String,

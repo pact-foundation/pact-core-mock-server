@@ -8,7 +8,6 @@ use std::sync::{Arc, Mutex};
 use anyhow::anyhow;
 use base64::encode;
 use maplit::*;
-use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::bodies::OptionalBody;
@@ -28,7 +27,7 @@ use crate::v4::sync_message::SynchronousMessages;
 use crate::v4::synch_http::SynchronousHttp;
 
 /// Struct that defines a message.
-#[derive(PartialEq, Debug, Clone, Eq, Deserialize, Serialize)]
+#[derive(PartialEq, Debug, Clone, Eq)]
 pub struct Message {
     /// Interaction ID. This will only be set if the Pact file was fetched from a Pact Broker
     pub id: Option<String>,
@@ -38,25 +37,18 @@ pub struct Message {
 
     /// Optional provider state for the interaction.
     /// See `<https://docs.pact.io/getting_started/provider_states>` for more info on provider states.
-    #[serde(rename = "providerStates")]
-    #[serde(default)]
     pub provider_states: Vec<ProviderState>,
 
     /// The contents of the message
-    #[serde(default = "missing_body")]
     pub contents: OptionalBody,
 
     /// Metadata associated with this message.
-    #[serde(default)]
     pub metadata: HashMap<String, Value>,
 
     /// Matching rules
-    #[serde(rename = "matchingRules")]
-    #[serde(default)]
     pub matching_rules: MatchingRules,
 
     /// Generators
-    #[serde(default)]
     pub generators: Generators
 }
 
@@ -309,10 +301,6 @@ impl Default for Message {
       generators: Generators::default()
     }
   }
-}
-
-fn missing_body() -> OptionalBody {
-    OptionalBody::Missing
 }
 
 #[cfg(test)]

@@ -14,7 +14,6 @@ use itertools::EitherOrBoth::{Both, Left, Right};
 use itertools::Itertools;
 use log::*;
 use maplit::*;
-use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::{Consumer, PactSpecification, Provider};
@@ -32,7 +31,7 @@ use crate::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerif
 /// Struct that represents a pact between the consumer and provider of a service.
 /// It contains a list of Messages instead of Interactions, but is otherwise
 /// identical to `struct Pact`.
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MessagePact {
     /// Consumer side of the pact
     pub consumer: Consumer,

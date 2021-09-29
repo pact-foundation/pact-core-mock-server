@@ -113,7 +113,7 @@ impl FromStr for UuidFormat {
 }
 
 /// Trait to represent a generator
-#[derive(Serialize, Deserialize, Debug, Clone, Eq)]
+#[derive(Debug, Clone, Eq)]
 pub enum Generator {
   /// Generates a random integer between the min and max values
   RandomInt(i32, i32),
@@ -590,7 +590,7 @@ pub enum GeneratorTestMode {
 
 
 /// Category that the generator is applied to
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash)]
+#[derive(PartialEq, Debug, Clone, Eq, Hash)]
 pub enum GeneratorCategory {
   /// Request Method
   METHOD,
@@ -689,8 +689,7 @@ pub trait ContentTypeHandler<T> {
 }
 
 /// Data structure for representing a collection of generators
-#[derive(Serialize, Deserialize, Debug, Clone, Eq)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Eq)]
 pub struct Generators {
   /// Map of generator categories to maps of generators
   pub categories: HashMap<GeneratorCategory, HashMap<DocPath, Generator>>

@@ -113,7 +113,7 @@ impl MessageInteractionBuilder {
     let contents_map = contents.as_object().cloned().unwrap_or(Map::default());
     let contents_hashmap = contents_map.iter()
       .map(|(k, v)| (k.clone(), v.clone())).collect();
-    if let Some(content_type) = contents_map.get("content-type") {
+    if let Some(content_type) = contents_map.get("pact:content-type") {
       let ct = ContentType::parse(json_to_string(content_type).as_str()).unwrap();
       if let Some(content_matcher) = find_content_matcher(&ct) {
         debug!("Found a matcher for '{}': {:?}", ct, content_matcher);
@@ -158,7 +158,7 @@ impl MessageInteractionBuilder {
       .. InteractionContents::default()
     };
 
-    if let Some(content_matcher) = content_matcher {
+    if let Some(_content_matcher) = content_matcher {
       // TODO: get the content matcher to apply the matching rules and generators
       //     val (body, rules, generators, _, _) = contentMatcher.setupBodyFromConfig(bodyConfig)
       //     val matchingRules = MatchingRulesImpl()
@@ -214,8 +214,6 @@ impl Iterator for MessageIterator {
 impl Drop for MessageIterator {
   fn drop(&mut self) {
     if !::std::thread::panicking() {
-
-      dbg!(env::vars().collect::<Vec<(String, String)>>());
 
       // Write out the Pact file
       let output_dir = self.output_dir.as_ref().map(|dir| dir.to_string_lossy().to_string())

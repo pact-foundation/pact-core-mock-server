@@ -8,22 +8,59 @@ use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 
-#[cfg(test)] use expectest::prelude::*;
 use anyhow::{anyhow, Context as _};
+#[cfg(test)] use expectest::prelude::*;
+use itertools::Either;
 use log::*;
 use maplit::hashmap;
-use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 
 use crate::{HttpStatus, PactSpecification};
 use crate::generators::{Generator, GeneratorCategory, Generators};
 use crate::json_utils::{json_to_num, json_to_string};
+use crate::matchingrules::expressions::{MatchingReference, MatchingRuleDefinition, ValueType};
 use crate::path_exp::DocPath;
 
 pub mod expressions;
 
+fn generator_from_json(json: &Map<String, Value>) -> Option<Generator> {
+  if let Some(generator_json) = json.get("generator") {
+    match generator_json {
+      Value::Object(attributes) => if let Some(generator_type) = attributes.get("type") {
+        match generator_type {
+          Value::String(generator_type) => Generator::from_map(generator_type.as_str(), attributes),
+          _ => None
+        }
+      } else {
+        None
+      }
+      _ => None
+    }
+  } else {
+    None
+  }
+}
+
+fn rules_from_json(attributes: &Map<String, Value>) -> anyhow::Result<Vec<Either<MatchingRule, MatchingReference>>> {
+  match attributes.get("rules") {
+    Some(rules) => match rules {
+      Value::Array(rules) => {
+        let rules = rules.iter()
+          .map(|rule| MatchingRule::from_json(rule));
+        if let Some(err) = rules.clone().find(|rule| rule.is_err()) {
+          Err(anyhow!("Matching rule configuration is not correct - {}", err.unwrap_err()))
+        } else {
+          Ok(rules.map(|rule| Either::Left(rule.unwrap())).collect())
+        }
+      }
+      _ => Err(anyhow!("EachKey matcher config is not valid. Was expected an array but got {}", rules))
+    }
+    None => Ok(vec![])
+  }
+}
+
 /// Set of all matching rules
-#[derive(Serialize, Deserialize, Debug, Clone, Eq)]
+#[derive(Debug, Clone, Eq)]
 pub enum MatchingRule {
   /// Matcher using equals
   Equality,
@@ -66,7 +103,11 @@ pub enum MatchingRule {
   /// Value must be the same type and not empty
   NotEmpty,
   /// Value must a semantic version
-  Semver
+  Semver,
+  /// Matcher for keys in a map
+  EachKey(MatchingRuleDefinition),
+  /// Matcher for values in a collection. This delegates to the Values matcher for maps.
+  EachValue(MatchingRuleDefinition)
 }
 
 impl MatchingRule {
@@ -151,9 +192,47 @@ impl MatchingRule {
         }).collect::<Vec<Value>>()
       }),
       MatchingRule::Values => json!({ "match": "values" }),
-      MatchingRule::StatusCode(status) => json!({ "match": "statusCode", "status": status.to_json()}),
+      MatchingRule::StatusCode(status) => json!({ "match": "statusCode", "status": status.to_json() }),
       MatchingRule::NotEmpty => json!({ "match": "notEmpty" }),
-      MatchingRule::Semver => json!({ "match": "semver" })
+      MatchingRule::Semver => json!({ "match": "semver" }),
+      MatchingRule::EachKey(definition) => {
+        let mut json = json!({
+          "match": "eachKey",
+          "rules": definition.rules.iter()
+            .map(|rule| rule.as_ref().expect_left("Expected a matching rule, found an unresolved reference").to_json())
+          .collect::<Vec<Value>>()
+        });
+        let map = json.as_object_mut().unwrap();
+
+        if !definition.value.is_empty() {
+          map.insert("value".to_string(), Value::String(definition.value.clone()));
+        }
+
+        if let Some(generator) = &definition.generator {
+          map.insert("generator".to_string(), generator.to_json().unwrap_or_default());
+        }
+
+        Value::Object(map.clone())
+      }
+      MatchingRule::EachValue(definition) => {
+        let mut json = json!({
+          "match": "eachKey",
+          "rules": definition.rules.iter()
+            .map(|rule| rule.as_ref().expect_left("Expected a matching rule, found an unresolved reference").to_json())
+          .collect::<Vec<Value>>()
+        });
+        let map = json.as_object_mut().unwrap();
+
+        if !definition.value.is_empty() {
+          map.insert("value".to_string(), Value::String(definition.value.clone()));
+        }
+
+        if let Some(generator) = &definition.generator {
+          map.insert("generator".to_string(), generator.to_json().unwrap_or_default());
+        }
+
+        Value::Object(map.clone())
+      }
     }
   }
 
@@ -197,7 +276,9 @@ impl MatchingRule {
       MatchingRule::Boolean => "boolean",
       MatchingRule::StatusCode(_) => "status-code",
       MatchingRule::NotEmpty => "not-empty",
-      MatchingRule::Semver => "semver"
+      MatchingRule::Semver => "semver",
+      MatchingRule::EachKey(_) => "each-key",
+      MatchingRule::EachValue(_) => "each-value"
     }.to_string()
   }
 
@@ -231,7 +312,24 @@ impl MatchingRule {
       MatchingRule::Boolean => empty,
       MatchingRule::StatusCode(sc) => hashmap!{ "status" => sc.to_json() },
       MatchingRule::NotEmpty => empty,
-      MatchingRule::Semver => empty
+      MatchingRule::Semver => empty,
+      MatchingRule::EachKey(definition) | MatchingRule::EachValue(definition) => {
+        let mut map = hashmap! {
+          "rules" => Value::Array(definition.rules.iter()
+            .map(|rule| rule.as_ref().expect_left("Expected a matching rule, found an unresolved reference").to_json())
+            .collect())
+        };
+
+        if !definition.value.is_empty() {
+          map.insert("value", Value::String(definition.value.clone()));
+        }
+
+        if let Some(generator) = &definition.generator {
+          map.insert("generator", generator.to_json().unwrap_or_default());
+        }
+
+        map
+      }
     }
   }
 
@@ -340,6 +438,30 @@ impl MatchingRule {
       },
       "notEmpty" | "not-empty" => Ok(MatchingRule::NotEmpty),
       "semver" => Ok(MatchingRule::Semver),
+      "eachKey" | "each-key" => {
+        let generator = generator_from_json(&attributes);
+        let value = attributes.get("value").cloned().unwrap_or_default();
+        let rules = rules_from_json(attributes)?;
+        let definition = MatchingRuleDefinition {
+          value: json_to_string(&value),
+          value_type: ValueType::Unknown,
+          rules,
+          generator
+        };
+        Ok(MatchingRule::EachKey(definition))
+      }
+      "eachValue" | "each-value" => {
+        let generator = generator_from_json(&attributes);
+        let value = attributes.get("value").cloned().unwrap_or_default();
+        let rules = rules_from_json(attributes)?;
+        let definition = MatchingRuleDefinition {
+          value: json_to_string(&value),
+          value_type: ValueType::Unknown,
+          rules,
+          generator
+        };
+        Ok(MatchingRule::EachValue(definition))
+      }
       _ => Err(anyhow!("{} is not a valid matching rule type", rule_type)),
     }
   }
@@ -610,7 +732,7 @@ fn hash_and_partial_eq_for_matching_rule() {
 }
 
 /// Enumeration to define how to combine rules
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Copy, Eq, Hash, PartialOrd, Ord)]
+#[derive(PartialEq, Debug, Clone, Copy, Eq, Hash, PartialOrd, Ord)]
 pub enum RuleLogic {
   /// All rules must match
   And,
@@ -628,7 +750,7 @@ impl RuleLogic {
 }
 
 /// Data structure for representing a list of rules and the logic needed to combine them
-#[derive(Serialize, Deserialize, Debug, Clone, Eq)]
+#[derive(Debug, Clone, Eq)]
 pub struct RuleList {
   /// List of rules to apply
   pub rules: Vec<MatchingRule>,
@@ -749,7 +871,7 @@ impl Default for RuleList {
 }
 
 /// Category that the matching rule is applied to
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Eq, Hash, PartialOrd, Ord)]
+#[derive(PartialEq, Debug, Clone, Eq, Hash, PartialOrd, Ord)]
 pub enum Category {
   /// Request Method
   METHOD,
@@ -834,7 +956,7 @@ impl Display for Category {
 }
 
 /// Data structure for representing a category of matching rules
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, Default)]
+#[derive(Debug, Clone, Eq, Default)]
 pub struct MatchingRuleCategory {
   /// Name of the category
   pub name: Category,
@@ -1105,8 +1227,7 @@ impl Ord for MatchingRuleCategory {
 }
 
 /// Data structure for representing a collection of matchers
-#[derive(Serialize, Deserialize, Debug, Clone, Eq)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Eq)]
 pub struct MatchingRules {
   /// Categories of matching rules
   pub rules: HashMap<Category, MatchingRuleCategory>
@@ -1432,7 +1553,6 @@ mod tests {
   use expectest::prelude::*;
   use maplit::hashset;
   use serde_json::Value;
-
   use speculate::speculate;
 
   use crate::generators::*;

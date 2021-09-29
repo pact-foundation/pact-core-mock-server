@@ -51,6 +51,7 @@ impl JsonToNum<u16> for u16 {
 pub fn json_to_string(value: &Value) -> String {
   match value {
     Value::String(s) => s.clone(),
+    Value::Null => String::default(),
     _ => value.to_string()
   }
 }
