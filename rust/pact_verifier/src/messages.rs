@@ -30,12 +30,14 @@ pub async fn verify_message_from_provider<'a, F: RequestFilterExecutor>(
   let mut request_body = json!({
     "description": interaction.description()
   });
+
   if !interaction.provider_states().is_empty() {
     if let Some(map) = request_body.as_object_mut() {
       map.insert("providerStates".into(), Value::Array(interaction.provider_states().iter()
         .map(|ps| ps.to_json()).collect()));
     }
   }
+
   let message_request = HttpRequest {
     method: "POST".into(),
     body: OptionalBody::Present(Bytes::from(request_body.to_string()), Some("application/json".into()), None),
@@ -44,6 +46,7 @@ pub async fn verify_message_from_provider<'a, F: RequestFilterExecutor>(
     }),
     .. HttpRequest::default()
   };
+
   match make_provider_request(provider, &message_request, options, client).await {
     Ok(ref actual_response) => {
       let metadata = extract_metadata(actual_response);
@@ -52,7 +55,9 @@ pub async fn verify_message_from_provider<'a, F: RequestFilterExecutor>(
         metadata,
         .. Message::default()
       };
+
       debug!("actual message = {:?}", actual);
+
       let mismatches = match_message(interaction, &actual.boxed(), pact).await;
       if mismatches.is_empty() {
         Ok(interaction.id().clone())

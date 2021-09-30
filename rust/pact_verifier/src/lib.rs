@@ -321,6 +321,7 @@ async fn verify_interaction<'a, F: RequestFilterExecutor, S: ProviderStateExecut
   };
 
   info!("Running provider verification for '{}'", interaction.description());
+
   let result = futures::future::ready((provider_states_results.iter()
     .map(|(k, v)| (k.as_str(), v.clone())).collect(), client.clone()))
     .then(|(context, client)| async move {
@@ -843,7 +844,9 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
   pending: bool
 ) -> anyhow::Result<VerificationResult> {
   let interactions = pact.interactions();
-  let results: Vec<(Box<dyn Interaction + Send + Sync>, Result<Option<String>, MismatchResult>)> = futures::stream::iter(interactions.iter().map(|i| (&pact, i)))
+
+  let results: Vec<(Box<dyn Interaction + Send + Sync>, Result<Option<String>, MismatchResult>)> =
+    futures::stream::iter(interactions.iter().map(|i| (&pact, i)))
     .filter(|(_, interaction)| futures::future::ready(filter_interaction(interaction.as_ref(), filter)))
     .then( |(pact, interaction)| async move {
       (interaction.boxed(), verify_interaction(provider_info, interaction.as_ref(), &pact.boxed(), options, provider_state_executor).await)
@@ -863,6 +866,8 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
     }
     description.push_str(" - ");
     description.push_str(&interaction.description());
+
+    println!();
     if interaction.pending() {
       println!("  {} {}", interaction.description(), Yellow.paint("[PENDING]"));
     } else {
@@ -911,18 +916,28 @@ fn display_comments(interaction: Box<dyn V4Interaction>) {
   let comments = interaction.comments();
   if !comments.is_empty() {
     if let Some(testname) = comments.get("testname") {
-      println!("\n  Test Name: {}", json_to_string(testname));
-    }
-    if let Some(comment_text) = comments.get("text") {
-      println!("\n  Comments:");
-      match comment_text {
-        Value::Array(comment_text) => for value in comment_text {
-          println!("    {}", json_to_string(value));
-        }
-        _ => println!("    {}", comment_text)
+      let s = json_to_string(testname);
+      if !s.is_empty() {
+        println!("\n  Test Name: {}", s);
       }
     }
-    println!();
+    if let Some(comment_text) = comments.get("text") {
+      match comment_text {
+        Value::Array(comment_text) => if !comment_text.is_empty() {
+          println!("\n  Comments:");
+          for value in comment_text {
+            println!("    {}", json_to_string(value));
+          }
+          println!();
+        }
+        Value::String(comment) => if !comment.is_empty() {
+          println!("\n  Comments:");
+          println!("    {}", comment);
+          println!();
+        }
+        _ => {}
+      }
+    }
   }
 }
 

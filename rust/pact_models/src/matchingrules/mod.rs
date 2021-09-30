@@ -300,7 +300,7 @@ impl MatchingRule {
       MatchingRule::Integer => empty,
       MatchingRule::Decimal => empty,
       MatchingRule::Null => empty,
-      MatchingRule::ContentType(ct) => hashmap!{ "content-type" => Value::String(ct.clone()) },
+      MatchingRule::ContentType(ct) => hashmap!{ "value" => Value::String(ct.clone()) },
       MatchingRule::ArrayContains(variants) => hashmap! { "variants" =>
         variants.iter().map(|(variant, rules, gens)| {
           Value::Array(vec![json!(variant), rules.to_v3_json(), Value::Object(gens.iter().map(|(key, gen)| {

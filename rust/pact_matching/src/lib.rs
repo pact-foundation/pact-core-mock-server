@@ -1578,8 +1578,10 @@ pub async fn match_message<'a>(
 
   if expected.is_message() && actual.is_message() {
     info!("comparing to expected message: {:?}", expected);
+
     let matching_rules = expected.matching_rules().unwrap_or_default();
     let plugin_data = setup_plugin_config(pact, expected);
+
     let body_context = if expected.is_v4() {
       MatchingContext {
         matchers: matching_rules.rules_for_category("content").unwrap_or_default(),
@@ -1592,10 +1594,12 @@ pub async fn match_message<'a>(
         &matching_rules.rules_for_category("body").unwrap_or_default(),
         &plugin_data)
     };
+
     let metadata_context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
       &matching_rules.rules_for_category("metadata").unwrap_or_default(),
       &plugin_data);
     let contents = match_message_contents(expected, actual, &body_context).await;
+
     mismatches.extend_from_slice(contents.err().unwrap_or_default().as_slice());
     for values in match_message_metadata(expected, actual, &metadata_context).values() {
       mismatches.extend_from_slice(values.as_slice());
