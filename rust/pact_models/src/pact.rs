@@ -86,6 +86,9 @@ pub trait Pact: Debug + ReadWritePact {
     version: &str,
     plugin_data: Option<HashMap<String, Value>>
   ) -> anyhow::Result<()>;
+
+  /// Adds some version info to the Pact-Rust metadata section
+  fn add_md_version(&mut self, key: &str, version: &str);
 }
 
 impl Default for Box<dyn Pact> {

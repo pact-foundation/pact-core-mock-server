@@ -10,7 +10,7 @@ use itertools::EitherOrBoth::{Both, Left, Right};
 use itertools::Itertools;
 use log::warn;
 use maplit::btreemap;
-use serde_json::{json, Value};
+use serde_json::{json, Value, Map};
 
 use crate::{Consumer, PactSpecification, Provider};
 #[cfg(not(target_family = "wasm"))] use crate::file_utils::with_read_lock;
@@ -54,7 +54,14 @@ impl V4Pact {
       .collect();
 
     md_map.insert("pactSpecification".to_string(), json!({"version" : PactSpecification::V4.version_str()}));
-    md_map.insert("pactRust".to_string(), json!({"version" : PACT_RUST_VERSION.unwrap_or("unknown")}));
+    let version_entry = md_map.entry("pactRust")
+      .or_insert(Value::Object(Map::default()));
+    match version_entry {
+      Value::Object(map) => {
+        map.insert("version".to_string(), Value::String(PACT_RUST_VERSION.unwrap_or("unknown").to_string()));
+      }
+      _ => {}
+    }
 
     if !self.plugin_data.is_empty() {
       let mut v = vec![];
@@ -154,7 +161,9 @@ impl Pact for V4Pact {
       PactSpecification::V4 => Ok(json!({
         "consumer": self.consumer.to_json(),
         "provider": self.provider.to_json(),
-        "interactions": Value::Array(self.interactions.iter().map(|i| i.to_json()).collect()),
+        "interactions": Value::Array(self.interactions.iter()
+          .sorted_by(|a, b| Ord::cmp(&a.description(), &b.description()))
+          .map(|i| i.to_json()).collect()),
         "metadata": self.metadata_to_json()
       })),
       _ => if self.has_mixed_interactions() {
@@ -272,6 +281,21 @@ impl Pact for V4Pact {
       configuration: plugin_data.unwrap_or_default()
     });
     Ok(())
+  }
+
+  fn add_md_version(&mut self, key: &str, version: &str) {
+    if let Some(md) = self.metadata.get_mut("pactRust") {
+      match md {
+        Value::Object(map) => {
+          map.insert(key.to_string(), Value::String(version.to_string()));
+        }
+        _ => {}
+      }
+    } else {
+      self.metadata.insert("pactRust".to_string(), json!({
+        key: version
+      }));
+    }
   }
 }
 

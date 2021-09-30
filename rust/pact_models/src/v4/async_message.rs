@@ -9,14 +9,14 @@ use std::sync::{Arc, Mutex};
 use anyhow::anyhow;
 use log::warn;
 use maplit::hashmap;
-use serde_json::{json, Value};
+use serde_json::{json, Value, Map};
 
 use crate::bodies::OptionalBody;
 use crate::content_types::ContentType;
 use crate::generators::{Generators, generators_from_json, generators_to_json};
 use crate::http_parts::HttpPart;
 use crate::interaction::Interaction;
-use crate::json_utils::{hash_json, json_to_string};
+use crate::json_utils::{hash_json, json_to_string, is_empty};
 use crate::matchingrules::{matchers_from_json, matchers_to_json, MatchingRules};
 use crate::message::Message;
 use crate::PactSpecification;
@@ -175,10 +175,13 @@ impl V4Interaction for AsynchronousMessage {
       map.insert("generators".to_string(), generators_to_json(&self.contents.generators, &PactSpecification::V4));
     }
 
-    if !self.comments.is_empty() {
+    let comments: Map<String, Value> = self.comments.iter()
+      .filter(|(_k, v)| !is_empty(v))
+      .map(|(k, v)| (k.clone(), v.clone()))
+      .collect();
+    if !comments.is_empty() {
       let map = json.as_object_mut().unwrap();
-      map.insert("comments".to_string(), self.comments.iter()
-        .map(|(k, v)| (k.clone(), v.clone())).collect());
+      map.insert("comments".to_string(), Value::Object(comments));
     }
 
     if !self.plugin_config.is_empty() {

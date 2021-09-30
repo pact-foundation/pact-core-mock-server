@@ -12,6 +12,7 @@ use pact_models::sync_pact::RequestResponsePact;
 use pact_models::v4::pact::V4Pact;
 
 use crate::builders::message_builder::{MessageInteractionBuilder, MessageIterator};
+use crate::PACT_CONSUMER_VERSION;
 use crate::prelude::*;
 
 use super::interaction_builder::InteractionBuilder;
@@ -62,6 +63,11 @@ impl PactBuilder {
         pact.provider = Provider {
             name: provider.into(),
         };
+
+        if let Some(version) = PACT_CONSUMER_VERSION {
+          pact.add_md_version("pact_consumer", version);
+        }
+
         PactBuilder { pact: pact.boxed(), output_dir: None }
     }
 
@@ -75,11 +81,16 @@ impl PactBuilder {
       pact_matching::matchers::configure_core_catalogue();
       pact_mock_server::configure_core_catalogue();
 
-      let pact = V4Pact {
+      let mut pact = V4Pact {
         consumer: Consumer { name: consumer.into() },
         provider: Provider { name: provider.into() },
         .. V4Pact::default()
       };
+
+      if let Some(version) = PACT_CONSUMER_VERSION {
+        pact.add_md_version("pact_consumer", version);
+      }
+
       PactBuilder { pact: pact.boxed(), output_dir: None }
     }
 

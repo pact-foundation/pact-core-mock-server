@@ -234,3 +234,6 @@ pub mod prelude {
     pub use crate::patterns::{DateTime};
     pub use crate::util::strip_null_fields;
 }
+
+/// Consumer version
+pub const PACT_CONSUMER_VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");

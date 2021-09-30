@@ -213,6 +213,18 @@ pub fn json_deep_merge(value: &Value, other: &Value) -> Value {
   }
 }
 
+/// If the JSON value is empty
+pub fn is_empty(value: &Value) -> bool {
+  match value {
+    Value::Null => true,
+    Value::Bool(_) => false,
+    Value::Number(_) => false,
+    Value::String(s) => s.is_empty(),
+    Value::Array(a) => a.is_empty(),
+    Value::Object(o) => o.is_empty()
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use expectest::expect;

@@ -14,7 +14,7 @@ use itertools::EitherOrBoth::{Both, Left, Right};
 use itertools::Itertools;
 use log::*;
 use maplit::*;
-use serde_json::{json, Value};
+use serde_json::{json, Value, Map};
 
 use crate::{Consumer, PactSpecification, Provider};
 #[cfg(not(target_family = "wasm"))] use crate::file_utils::with_read_lock;
@@ -146,6 +146,16 @@ impl Pact for MessagePact {
   ) -> anyhow::Result<()> {
     Err(anyhow!("Plugins can only be used with V4 format pacts"))
   }
+
+  fn add_md_version(&mut self, key: &str, version: &str) {
+    if let Some(md) = self.metadata.get_mut("pactRust") {
+      md.insert(key.to_string(), version.to_string());
+    } else {
+      self.metadata.insert("pactRust".to_string(), btreemap! {
+        key.to_string() => version.to_string()
+      });
+    }
+  }
 }
 
 impl MessagePact {
@@ -210,9 +220,14 @@ impl MessagePact {
         md_map.insert(
             "pactSpecification".to_string(),
             json!({"version" : pact_spec.version_str()}));
-        md_map.insert(
-            "pactRust".to_string(),
-            json!({"version" : PACT_RUST_VERSION.unwrap_or("unknown").to_string()}));
+        let version_entry = md_map.entry("pactRust".to_string())
+          .or_insert(Value::Object(Map::default()));
+        match version_entry {
+          Value::Object(map) => {
+            map.insert("version".to_string(), Value::String(PACT_RUST_VERSION.unwrap_or("unknown").to_string()));
+          }
+          _ => {}
+        }
         md_map
     }
 
