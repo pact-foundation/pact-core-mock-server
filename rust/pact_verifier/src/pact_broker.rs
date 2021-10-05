@@ -639,6 +639,7 @@ pub async fn fetch_pacts_dynamically_from_broker(
   pending: bool,
   include_wip_pacts_since: Option<String>,
   provider_tags: Vec<String>,
+  provider_branch: Option<String>,
   consumer_version_selectors: Vec<ConsumerVersionSelector>,
   auth: Option<HttpAuth>
 ) -> Result<Vec<Result<(Box<dyn Pact + Send>, Option<PactVerificationContext>, Vec<Link>), PactBrokerError>>, PactBrokerError> {
@@ -665,6 +666,7 @@ pub async fn fetch_pacts_dynamically_from_broker(
     // Construct the Pacts for verification payload
     let pacts_for_verification = PactsForVerificationRequest {
       provider_version_tags: provider_tags,
+      provider_version_branch: provider_branch,
       include_wip_pacts_since,
       consumer_version_selectors,
       include_pending_status: pending,
@@ -799,9 +801,14 @@ pub async fn publish_verification_results(
   result: TestResult,
   version: String,
   build_url: Option<String>,
-  provider_tags: Vec<String>
+  provider_tags: Vec<String>,
+  branch: Option<String>
 ) -> Result<serde_json::Value, PactBrokerError> {
   let hal_client = HALClient::with_url(broker_url, auth.clone());
+
+  if branch.is_some() {
+    publish_provider_branch(&hal_client, &links, &branch.unwrap(), &version).await?;
+  }
 
   if !provider_tags.is_empty() {
     publish_provider_tags(&hal_client, &links, provider_tags, &version).await?;
@@ -951,6 +958,33 @@ async fn publish_provider_tags(
   }
 }
 
+async fn publish_provider_branch(
+  hal_client: &HALClient,
+  links: &[Link],
+  branch: &str,
+  version: &str) -> Result<(), PactBrokerError> {
+  let hal_client = hal_client.clone().with_doc_context(links)?
+    .navigate("pb:provider", &hashmap!{}).await?;
+
+    match hal_client.find_link("pb:branch-version") {
+    Ok(link) => {
+      let template_values = hashmap! {
+        "branch".to_string() => branch.to_string(),
+        "version".to_string() => version.to_string(),
+      };
+      match hal_client.clone().put_json(hal_client.clone().parse_link_url(&link, &template_values)?.as_str(), "{}").await {
+        Ok(_) => debug!("Pushed branch {} for provider version {}", branch, version),
+        Err(err) => {
+          error!("Failed to push branch {} for provider version {}", branch, version);
+          return Err(err);
+        }
+      }
+      Ok(())
+    },
+    Err(_) => Err(PactBrokerError::LinkError("Can't publish provider branch as there is no 'pb:branch-version' link. Please ugrade to Pact Broker version 2.86.0 or later for branch support".to_string()))
+  }
+}
+
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -1012,7 +1046,9 @@ pub struct PactsForVerificationRequest {
   /// Find WIP pacts after given date
   pub include_wip_pacts_since: Option<String>,
   /// Detailed pact selection criteria , see https://docs.pact.io/pact_broker/advanced_topics/consumer_version_selectors/
-  pub consumer_version_selectors: Vec<ConsumerVersionSelector>
+  pub consumer_version_selectors: Vec<ConsumerVersionSelector>,
+  /// Current provider version branch if used (instead of tags)
+  pub provider_version_branch: Option<String>
 }
 
 #[skip_serializing_none]
@@ -1563,6 +1599,7 @@ mod tests {
                 }),
                 "providerVersionTags": each_like!("master"),
                 "includePendingStatus": like!(false),
+                "providerVersionBranch": like!("main")
               }));
             i.response
               .header("Content-Type", "application/hal+json")
@@ -1611,33 +1648,33 @@ mod tests {
       })
       .start_mock_server();
 
-    let result = fetch_pacts_dynamically_from_broker(pact_broker.url().as_str(), "happy_provider".to_string(), false, None, vec!("master".to_string()), vec!(ConsumerVersionSelector {
-      consumer: None,
-      tag: Some("prod".to_string()),
-      fallback_tag: None,
-      latest: None,
-      branch: None,
-      deployed_or_released: None,
-      deployed: None,
-      released: None,
-      main_branch: None,
-      environment: None,
-    }), None).await;
+      let result = fetch_pacts_dynamically_from_broker(pact_broker.url().as_str(), "happy_provider".to_string(), false, None, vec!("master".to_string()), Some("main".to_string()), vec!(ConsumerVersionSelector {
+        consumer: None,
+        tag: Some("prod".to_string()),
+        fallback_tag: None,
+        latest: None,
+        branch: None,
+        deployed_or_released: None,
+        deployed: None,
+        released: None,
+        main_branch: None,
+        environment: None,
+      }), None).await;
 
-    match &result {
-      Ok(_) => (),
-      Err(err) => panic!("Expected an Ok result, got a error {}", err)
-    }
-
-    let pacts = &result.unwrap();
-    expect!(pacts.len()).to(be_equal_to(1));
-
-    for pact in pacts {
-      match pact {
+      match &result {
         Ok(_) => (),
         Err(err) => panic!("Expected an Ok result, got a error {}", err)
       }
-    }
+
+      let pacts = &result.unwrap();
+      expect!(pacts.len()).to(be_equal_to(1));
+
+      for pact in pacts {
+        match pact {
+          Ok(_) => (),
+          Err(err) => panic!("Expected an Ok result, got a error {}", err)
+        }
+      }
   }
 
   #[tokio::test]
@@ -1693,6 +1730,7 @@ mod tests {
             }),
             "providerVersionTags": each_like!("master"),
             "includePendingStatus": like!(false),
+            "providerVersionBranch": like!("main")
           }));
         i.response
           .json_body(json_pattern!({
@@ -1703,7 +1741,7 @@ mod tests {
       })
     .start_mock_server();
 
-    let result = fetch_pacts_dynamically_from_broker(pact_broker.url().as_str(), "sad_provider".to_string(), false, None, vec!("master".to_string()), vec!(ConsumerVersionSelector {
+    let result = fetch_pacts_dynamically_from_broker(pact_broker.url().as_str(), "sad_provider".to_string(), false, None, vec!("master".to_string()), Some("main".to_string()), vec!(ConsumerVersionSelector {
       consumer: None,
       tag: Some("prod".to_string()),
       fallback_tag: None,

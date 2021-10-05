@@ -72,6 +72,8 @@ pub enum PactSource {
       include_wip_pacts_since: Option<String>,
       /// Provider tags to use in determining pending status for return pacts
       provider_tags: Vec<String>,
+      /// Provider branch to use when publishing verification results
+      provider_branch: Option<String>,
       /// The set of selectors that identifies which pacts to verify
       selectors: Vec<ConsumerVersionSelector>,
       /// HTTP authentication details for accessing the Pact Broker
@@ -90,11 +92,11 @@ impl Display for PactSource {
       PactSource::BrokerUrl(ref provider_name, ref broker_url, _, _) => {
           write!(f, "PactBroker({}, provider_name='{}')", broker_url, provider_name)
       }
-      PactSource::BrokerWithDynamicConfiguration { ref provider_name, ref broker_url,ref enable_pending, ref include_wip_pacts_since, ref provider_tags, ref selectors, ref auth, links: _ } => {
+      PactSource::BrokerWithDynamicConfiguration { ref provider_name, ref broker_url,ref enable_pending, ref include_wip_pacts_since, ref provider_branch, ref provider_tags, ref selectors, ref auth, links: _ } => {
         if let Some(auth) = auth {
-          write!(f, "PactBrokerWithDynamicConfiguration({}, provider_name='{}', enable_ending={}, include_wip_since={:?}, provider_tagcs={:?}, consumer_version_selectors='{:?}, auth={}')", broker_url, provider_name, enable_pending, include_wip_pacts_since, provider_tags, selectors, auth)
+          write!(f, "PactBrokerWithDynamicConfiguration({}, provider_name='{}', enable_ending={}, include_wip_since={:?}, provider_tags={:?}, provider_branch={:?}, consumer_version_selectors='{:?}, auth={}')", broker_url, provider_name, enable_pending, include_wip_pacts_since, provider_tags, provider_branch, selectors, auth)
         } else {
-          write!(f, "PactBrokerWithDynamicConfiguration({}, provider_name='{}', enable_ending={}, include_wip_since={:?}, provider_tagcs={:?}, consumer_version_selectors='{:?}, auth=None')", broker_url, provider_name, enable_pending, include_wip_pacts_since, provider_tags, selectors)
+          write!(f, "PactBrokerWithDynamicConfiguration({}, provider_name='{}', enable_ending={}, include_wip_since={:?}, provider_tags={:?}, provider_branch={:?}, consumer_version_selectors='{:?}, auth=None')", broker_url, provider_name, enable_pending, include_wip_pacts_since, provider_tags, provider_branch, selectors)
 
         }
       }
@@ -499,7 +501,9 @@ pub struct VerificationOptions<F> where F: RequestFilterExecutor {
   /// Ignore invalid/self-signed SSL certificates
   pub disable_ssl_verification: bool,
   /// Timeout in ms for verification requests and state callbacks
-  pub request_timeout: u64
+  pub request_timeout: u64,
+  /// Provider branch used when publishing results
+  pub provider_branch: Option<String>,
 }
 
 impl <F: RequestFilterExecutor> Default for VerificationOptions<F> {
@@ -510,6 +514,7 @@ impl <F: RequestFilterExecutor> Default for VerificationOptions<F> {
       build_url: None,
       request_filter: None,
       provider_tags: vec![],
+      provider_branch: None,
       disable_ssl_verification: false,
       request_timeout: 5000
     }
@@ -712,13 +717,14 @@ async fn fetch_pact(source: PactSource) -> Vec<Result<(Box<dyn Pact>, Option<Pac
         Err(err) => vec![Err(format!("Could not load pacts from the pact broker '{}' - {:?}", broker_url, err))]
       }
     },
-    PactSource::BrokerWithDynamicConfiguration { provider_name, broker_url, enable_pending, include_wip_pacts_since, provider_tags, selectors, auth, links: _ } => {
+    PactSource::BrokerWithDynamicConfiguration { provider_name, broker_url, enable_pending, include_wip_pacts_since, provider_tags, provider_branch, selectors, auth, links: _ } => {
       let result = pact_broker::fetch_pacts_dynamically_from_broker(
         broker_url.as_str(),
         provider_name.clone(),
         enable_pending,
         include_wip_pacts_since,
         provider_tags,
+        provider_branch,
         selectors,
         auth.clone()
       ).await;
@@ -904,7 +910,8 @@ async fn publish_result<F: RequestFilterExecutor>(
       result,
       provider_version,
       options.build_url.clone(),
-      options.provider_tags.clone()
+      options.provider_tags.clone(),
+      options.provider_branch.clone()
     ).await;
 
     match &publish_result {
