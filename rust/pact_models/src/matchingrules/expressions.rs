@@ -502,67 +502,88 @@ mod test {
       be_equal_to(MatchingRuleDefinition::new("Name".to_string(), ValueType::String, MatchingRule::Type, None)));
   }
 
-  // #[test]
-  // fn parse_number_matcher() {
-  //   expect!(super::parse_matcher_def("matching(number,100)").unwrap()).to(
-  //     be_equal_to(("100".to_string(), Some(MatchingRule::Number), None)));
-  //   expect!(super::parse_matcher_def("matching(integer,100)").unwrap()).to(
-  //     be_equal_to(("100".to_string(), Some(MatchingRule::Integer), None)));
-  //   expect!(super::parse_matcher_def("matching(decimal,100)").unwrap()).to(
-  //     be_equal_to(("100".to_string(), Some(MatchingRule::Decimal), None)));
-  // }
-  //
-  // #[test]
-  // fn parse_datetime_matcher() {
-  //   expect!(super::parse_matcher_def("matching(datetime, 'yyyy-MM-dd','2000-01-01')").unwrap()).to(
-  //     be_equal_to(("2000-01-01".to_string(),
-  //                  Some(MatchingRule::Timestamp("yyyy-MM-dd".to_string())),
-  //                  Some(DateTime(Some("yyyy-MM-dd".to_string()))))));
-  //   expect!(super::parse_matcher_def("matching(date, 'yyyy-MM-dd','2000-01-01')").unwrap()).to(
-  //     be_equal_to(("2000-01-01".to_string(),
-  //                  Some(MatchingRule::Date("yyyy-MM-dd".to_string())),
-  //                  Some(Date(Some("yyyy-MM-dd".to_string()))))));
-  //   expect!(super::parse_matcher_def("matching(time, 'HH:mm:ss','12:00:00')").unwrap()).to(
-  //     be_equal_to(("12:00:00".to_string(),
-  //                  Some(MatchingRule::Time("HH:mm:ss".to_string())),
-  //                  Some(Time(Some("HH:mm:ss".to_string()))))));
-  // }
-  //
-  // #[test]
-  // fn parse_regex_matcher() {
-  //   expect!(super::parse_matcher_def("matching(regex,'\\w+', 'Fred')").unwrap()).to(
-  //     be_equal_to(("Fred".to_string(), Some(MatchingRule::Regex("\\w+".to_string())), None)));
-  // }
-  //
-  // #[test]
-  // fn parse_boolean_matcher() {
-  //   expect!(super::parse_matcher_def("matching(boolean,true)").unwrap()).to(
-  //     be_equal_to(("true".to_string(), Some(MatchingRule::Boolean), None)));
-  // }
-  //
-  // #[test]
-  // fn parse_include_matcher() {
-  //   expect!(super::parse_matcher_def("matching(include,'Name')").unwrap()).to(
-  //     be_equal_to(("Name".to_string(), Some(MatchingRule::Include("Name".to_string())), None)));
-  // }
-  //
-  // #[test]
-  // fn parse_equals_matcher() {
-  //   expect!(super::parse_matcher_def("matching(equalTo,'Name')").unwrap()).to(
-  //     be_equal_to(("Name".to_string(), Some(MatchingRule::Equality), None)));
-  // }
-  //
-  // #[test]
-  // fn parse_content_type_matcher() {
-  //   expect!(super::parse_matcher_def("matching(contentType,'Name', 'Value')").unwrap()).to(
-  //     be_equal_to(("Value".to_string(), Some(MatchingRule::ContentType("Name".to_string())), None)));
-  // }
-  //
-  // #[test]
-  // fn parse_not_empty() {
-  //   expect!(super::parse_matcher_def("notEmpty('Value')").unwrap()).to(
-  //     be_equal_to(("Value".to_string(), Some(MatchingRule::NotEmpty), None)));
-  // }
+  #[test]
+  fn parse_number_matcher() {
+    expect!(super::parse_matcher_def("matching(number,100)").unwrap()).to(
+      be_equal_to(MatchingRuleDefinition::new("100".to_string(), ValueType::Number, MatchingRule::Number, None)));
+    expect!(super::parse_matcher_def("matching(integer,100)").unwrap()).to(
+      be_equal_to(MatchingRuleDefinition::new("100".to_string(), ValueType::Integer, MatchingRule::Integer, None)));
+    expect!(super::parse_matcher_def("matching(decimal,100)").unwrap()).to(
+      be_equal_to(MatchingRuleDefinition::new("100".to_string(), ValueType::Decimal, MatchingRule::Decimal, None)));
+  }
+
+  #[test]
+  fn parse_datetime_matcher() {
+    expect!(super::parse_matcher_def("matching(datetime, 'yyyy-MM-dd','2000-01-01')").unwrap()).to(
+      be_equal_to(MatchingRuleDefinition::new("2000-01-01".to_string(),
+                   ValueType::String,
+                   MatchingRule::Timestamp("yyyy-MM-dd".to_string()),
+                   Some(DateTime(Some("yyyy-MM-dd".to_string()))))));
+    expect!(super::parse_matcher_def("matching(date, 'yyyy-MM-dd','2000-01-01')").unwrap()).to(
+      be_equal_to(MatchingRuleDefinition::new("2000-01-01".to_string(),
+                   ValueType::String,
+                   MatchingRule::Date("yyyy-MM-dd".to_string()),
+                   Some(Date(Some("yyyy-MM-dd".to_string()))))));
+    expect!(super::parse_matcher_def("matching(time, 'HH:mm:ss','12:00:00')").unwrap()).to(
+      be_equal_to(MatchingRuleDefinition::new("12:00:00".to_string(),
+                   ValueType::String,
+                   MatchingRule::Time("HH:mm:ss".to_string()),
+                   Some(Time(Some("HH:mm:ss".to_string()))))));
+  }
+
+  #[test]
+  fn parse_regex_matcher() {
+    expect!(super::parse_matcher_def("matching(regex,'\\w+', 'Fred')").unwrap()).to(
+      be_equal_to(MatchingRuleDefinition::new("Fred".to_string(),
+                                              ValueType::String,
+                                              MatchingRule::Regex("\\w+".to_string()),
+                                              None)));
+  }
+
+  #[test]
+  fn parse_boolean_matcher() {
+    expect!(super::parse_matcher_def("matching(boolean,true)").unwrap()).to(
+      be_equal_to(MatchingRuleDefinition::new("true".to_string(),
+                                              ValueType::Boolean,
+                                              MatchingRule::Boolean,
+                                              None)));
+  }
+
+  #[test]
+  fn parse_include_matcher() {
+    expect!(super::parse_matcher_def("matching(include,'Name')").unwrap()).to(
+      be_equal_to(MatchingRuleDefinition::new("Name".to_string(),
+                                              ValueType::String,
+                                              MatchingRule::Include("Name".to_string()),
+                                              None)));
+  }
+
+  #[test]
+  fn parse_equals_matcher() {
+    expect!(super::parse_matcher_def("matching(equalTo,'Name')").unwrap()).to(
+      be_equal_to(MatchingRuleDefinition::new("Name".to_string(),
+                                              ValueType::String,
+                                              MatchingRule::Equality,
+                                              None)));
+  }
+
+  #[test]
+  fn parse_content_type_matcher() {
+    expect!(super::parse_matcher_def("matching(contentType,'Name', 'Value')").unwrap()).to(
+      be_equal_to(MatchingRuleDefinition::new("Value".to_string(),
+                                              ValueType::Unknown,
+                                              MatchingRule::ContentType("Name".to_string()),
+                                              None)));
+  }
+
+  #[test]
+  fn parse_not_empty() {
+    expect!(super::parse_matcher_def("notEmpty('Value')").unwrap()).to(
+      be_equal_to(MatchingRuleDefinition::new("Value".to_string(),
+                                              ValueType::Unknown,
+                                              MatchingRule::NotEmpty,
+                                              None)));
+  }
 
   #[test]
   fn merging_types() {
