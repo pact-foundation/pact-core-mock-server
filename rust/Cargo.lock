@@ -1225,7 +1225,9 @@ dependencies = [
 
 [[package]]
 name = "pact-plugin-driver"
-version = "0.0.3"
+version = "0.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "07daf72218052670fafed53a44d1b50fc2861ff02d2804c14a10abc9ee8ed63c"
 dependencies = [
  "anyhow",
  "bytes",
@@ -1234,7 +1236,7 @@ dependencies = [
  "lazy_static",
  "log",
  "maplit",
- "pact_models 0.2.0-beta.4",
+ "pact_models 0.2.0-beta.2",
  "prost",
  "prost-types",
  "regex",
