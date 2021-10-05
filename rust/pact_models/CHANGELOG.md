@@ -1,5 +1,25 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.2.0-beta.3 - Fixes from master + Updated matching rule definitions
+
+* d608a028 - chore: re-enable matching definition tests (Ronald Holshausen, Tue Oct 5 15:06:11 2021 +1100)
+* 57ba661a - chore: fix tests after removing Deserialize, Serialize from Message (Ronald Holshausen, Tue Oct 5 14:55:58 2021 +1100)
+* 9fd9e652 - feat: do no write empty comments + added consumer version to metadata (Ronald Holshausen, Thu Sep 30 17:40:56 2021 +1000)
+* 5525b039 - feat(plugins): cleaned up the verfier output (Ronald Holshausen, Thu Sep 30 16:19:15 2021 +1000)
+* 6d23796f - feat(plugins): support each key and each value matchers (Ronald Holshausen, Wed Sep 29 11:10:46 2021 +1000)
+* 6f20282d - Merge branch 'master' into feat/plugins (Ronald Holshausen, Tue Sep 28 14:51:34 2021 +1000)
+* 1b994c8d - bump version to 0.1.5 (Ronald Holshausen, Tue Sep 28 13:25:36 2021 +1000)
+* 7d46a966 - update changelog for release 0.1.4 (Ronald Holshausen, Tue Sep 28 13:23:07 2021 +1000)
+* df715cd5 - feat: support native TLS. Fixes #144 (Matt Fellows, Mon Sep 20 13:00:33 2021 +1000)
+* 97ebf555 - feat(plugins): Updated matching rule definitions to include notEmpty and contentType (Ronald Holshausen, Wed Sep 15 12:30:01 2021 +1000)
+* 21a7ede5 - feat(plugins): support matching protobuf embedded messages (Ronald Holshausen, Wed Sep 15 12:14:54 2021 +1000)
+* 9bf9dc30 - feat(plugins): Add consumer message test builder + persist plugin data (Ronald Holshausen, Tue Sep 14 15:14:17 2021 +1000)
+* b71dcabf - refactor(plugins): rename ContentTypeOverride -> ContentTypeHint (Ronald Holshausen, Tue Sep 14 15:08:52 2021 +1000)
+* 03ebe632 - Merge branch 'master' into feat/plugins (Ronald Holshausen, Mon Sep 13 12:01:13 2021 +1000)
+* 62db0e44 - chore: fix clippy warnings (Ronald Holshausen, Fri Sep 10 17:41:43 2021 +1000)
+* 7cfe2883 - chore: fix clippy violation (Ronald Holshausen, Fri Sep 10 15:34:03 2021 +1000)
+* 24d4b39a - bump version to 0.2.0-beta.3 (Ronald Holshausen, Fri Sep 10 14:16:03 2021 +1000)
+
 # 0.1.4 - WASM support + native TLS certs
 
 * df715cd5 - feat: support native TLS. Fixes #144 (Matt Fellows, Mon Sep 20 13:00:33 2021 +1000)
