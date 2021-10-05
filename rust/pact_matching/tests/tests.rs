@@ -574,7 +574,16 @@ fn test_load_v4_combined_pact() {
       let pact_json = pact.to_json(PactSpecification::V4).unwrap();
       expect!(pact_json.get("consumer")).to(be_equal_to(pact_json_from_file.get("consumer")));
       expect!(pact_json.get("provider")).to(be_equal_to(pact_json_from_file.get("provider")));
-      expect!(pact_json.get("interactions")).to(be_equal_to(pact_json_from_file.get("interactions")));
+
+      let interactions = pact_json.get("interactions").unwrap().as_array().unwrap();
+      let interactions_from_file = pact_json_from_file.get("interactions").unwrap().as_array().unwrap();
+      expect!(interactions.len()).to(be_equal_to(interactions_from_file.len()));
+      for interaction in interactions {
+        let i2 = interactions_from_file.iter()
+          .find(|i| i.get("description") == interaction.get("description"))
+          .unwrap();
+        expect!(interaction).to(be_equal_to(i2));
+      }
 
       expect!(pact.metadata().get("pactSpecification").clone()).to(be_some().value(&btreemap!("version".to_string() => "4.0".to_string())));
       let metadata = pact_json.get("metadata").unwrap().as_object().unwrap();

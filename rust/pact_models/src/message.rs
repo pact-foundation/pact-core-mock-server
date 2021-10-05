@@ -445,7 +445,7 @@ mod tests {
     }
 
     #[test]
-    fn ignoring_v1_provider_state_when_deserializing_message() {
+    fn v1_provider_state_when_deserializing_message() {
         let message_json = r#"{
             "description": "String",
             "providerState": "provider state",
@@ -453,10 +453,10 @@ mod tests {
             "generators": {}
         }"#;
 
-        // This line should panic, because providerState is not the name of the field.
-        let message: Message = serde_json::from_str(message_json).unwrap();
+        let message_json: Value = serde_json::from_str(message_json).unwrap();
+        let message = Message::from_json(0, &message_json, &PactSpecification::V3).unwrap();
         expect!(message.description).to(be_equal_to("String"));
-        expect!(message.provider_states.iter()).to(be_empty());
+        expect!(message.provider_states.len()).to(be_equal_to(1));
         expect!(message.matching_rules.rules.iter()).to(be_empty());
     }
 
@@ -469,7 +469,8 @@ mod tests {
             "generators": {}
         }"#;
 
-        let message: Message = serde_json::from_str(message_json).unwrap();
+        let message_json: Value = serde_json::from_str(message_json).unwrap();
+        let message = Message::from_json(0, &message_json, &PactSpecification::V3).unwrap();
         expect!(message.description).to(be_equal_to("String"));
         expect!(message.provider_states).to(be_equal_to(vec![ProviderState {
             name: "provider state".to_string(),

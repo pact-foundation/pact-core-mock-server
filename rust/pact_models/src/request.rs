@@ -262,6 +262,7 @@ mod tests {
 
   use expectest::prelude::*;
   use maplit::hashmap;
+  use serde_json::Value;
 
   use crate::bodies::OptionalBody;
   use crate::content_types::{HTML, JSON, XML};
@@ -540,13 +541,14 @@ mod tests {
       generators: Default::default(),
     };
 
-    let json = serde_json::to_string(&original_request).expect("could not serialize");
+    let json = serde_json::to_string(&original_request
+      .to_json(&PactSpecification::V3)).expect("could not serialize");
 
-    let serialized_and_deserialized_request =
+    let serialized_and_deserialized_request: Value =
       serde_json::from_str(&json).expect("could not deserialize");
 
     expect!(original_request
-        .differences_from(&serialized_and_deserialized_request)
+        .differences_from(&Request::from_json(&serialized_and_deserialized_request, &PactSpecification::V3).unwrap())
         .iter())
       .to(be_empty());
   }

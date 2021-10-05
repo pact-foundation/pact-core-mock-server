@@ -253,7 +253,7 @@ mod tests {
   #[test]
   fn json_to_string_test() {
     expect!(json_to_string(&Value::from_str("\"test string\"").unwrap())).to(be_equal_to("test string".to_string()));
-    expect!(json_to_string(&Value::from_str("null").unwrap())).to(be_equal_to("null".to_string()));
+    expect!(json_to_string(&Value::from_str("null").unwrap())).to(be_equal_to("".to_string()));
     expect!(json_to_string(&Value::from_str("100").unwrap())).to(be_equal_to("100".to_string()));
     expect!(json_to_string(&Value::from_str("100.10").unwrap())).to(be_equal_to("100.1".to_string()));
     expect!(json_to_string(&Value::from_str("{}").unwrap())).to(be_equal_to("{}".to_string()));

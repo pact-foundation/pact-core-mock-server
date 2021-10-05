@@ -614,7 +614,7 @@ mod tests {
     expect!(result).to(be_ok());
 
     let result = match_json(&val1.clone(), &val2.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
-    expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected 'null' to be equal to '33'")));
+    expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected '' to be equal to '33'")));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch {
       path: s!("$"),
       expected: val1.clone().body.value(),
