@@ -220,6 +220,65 @@ fn http_consumer_feature_test() {
 }
 
 #[test]
+fn http_xml_consumer_feature_test() {
+  let consumer_name = CString::new("http-consumer").unwrap();
+  let provider_name = CString::new("http-provider").unwrap();
+  let pact_handle = pactffi_new_pact(consumer_name.as_ptr(), provider_name.as_ptr());
+  let description = CString::new("request_with_matchers").unwrap();
+  let interaction = pactffi_new_interaction(pact_handle.clone(), description.as_ptr());
+  let accept = CString::new("Accept").unwrap();
+  let content_type = CString::new("Content-Type").unwrap();
+  let response_body_with_matchers = CString::new(r#"{"version":"1.0","charset":"UTF-8","root":{"name":"ns1:projects","children":[{"pact:matcher:type":"type","value":{"name":"ns1:project","children":[{"name":"ns1:tasks","children":[{"pact:matcher:type":"type","value":{"name":"ns1:task","children":[],"attributes":{"id":{"pact:matcher:type":"integer","value":1},"name":{"pact:matcher:type":"type","value":"Task 1"},"done":{"pact:matcher:type":"type","value":true}}},"examples":5}],"attributes":{}}],"attributes":{"id":{"pact:matcher:type":"integer","value":1},"type":"activity","name":{"pact:matcher:type":"type","value":"Project 1"}}},"examples":2}],"attributes":{"id":"1234","xmlns:ns1":"http://some.namespace/and/more/stuff"}}}"#).unwrap();
+  let address = CString::new("127.0.0.1:0").unwrap();
+  let file_path = CString::new("/tmp/pact").unwrap();
+  let description = CString::new("a request to test the FFI interface").unwrap();
+  let method = CString::new("GET").unwrap();
+  let path = CString::new("/xml").unwrap();
+  let header = CString::new("application/xml").unwrap();
+
+  pactffi_upon_receiving(interaction.clone(), description.as_ptr());
+  pactffi_with_request(interaction.clone(), method.as_ptr(), path.as_ptr());
+  pactffi_with_header(interaction.clone(), InteractionPart::Request, accept.as_ptr(), 0, header.as_ptr());
+  // will respond with...
+  pactffi_with_header(interaction.clone(), InteractionPart::Response, content_type.as_ptr(), 0, header.as_ptr());
+  pactffi_with_body(interaction.clone(), InteractionPart::Response, header.as_ptr(), response_body_with_matchers.as_ptr());
+  pactffi_response_status(interaction.clone(), 200);
+  let port = pactffi_create_mock_server_for_pact(pact_handle.clone(), address.as_ptr(), false);
+
+  expect!(port).to(be_greater_than(0));
+
+  // Mock server has started, we can't now modify the pact
+  expect!(pactffi_upon_receiving(interaction.clone(), description.as_ptr())).to(be_false());
+
+  let _ = catch_unwind(|| {
+    let client = Client::default();
+    let result = client.get(format!("http://127.0.0.1:{}/xml", port).as_str())
+      .header("Accept", "application/xml")
+      .send();
+
+    match result {
+      Ok(res) => {
+        expect!(res.status()).to(be_eq(200));
+        expect!(res.headers().get("Content-Type").unwrap()).to(be_eq("application/xml"));
+        expect!(res.text().unwrap_or_default()).to(be_equal_to("<?xml version='1.0'?><ns1:projects id='1234' xmlns:ns1='http://some.namespace/and/more/stuff'><ns1:project id='1' name='Project 1' type='activity'><ns1:tasks><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/></ns1:tasks></ns1:project><ns1:project id='1' name='Project 1' type='activity'><ns1:tasks><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/></ns1:tasks></ns1:project></ns1:projects>"));
+      },
+      Err(_) => {
+        panic!("expected 200 response but request failed");
+      }
+    };
+  });
+
+  let mismatches = unsafe {
+    CStr::from_ptr(pactffi_mock_server_mismatches(port)).to_string_lossy().into_owned()
+  };
+
+  pactffi_write_pact_file(port, file_path.as_ptr(), true);
+  pactffi_cleanup_mock_server(port);
+
+  expect!(mismatches).to(be_equal_to("[]"));
+}
+
+#[test]
 fn message_consumer_feature_test() {
   let consumer_name = CString::new("message-consumer").unwrap();
   let provider_name = CString::new("message-provider").unwrap();
@@ -242,6 +301,33 @@ fn message_consumer_feature_test() {
   let res: *const c_char = pactffi_message_reify(message_handle.clone());
   let reified: &CStr = unsafe { CStr::from_ptr(res) };
   expect!(reified.to_str().to_owned()).to(be_ok().value("{\"contents\":{\"id\":1},\"description\":\"a request to test the FFI interface\",\"matchingRules\":{\"body\":{\"$.id\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"type\"}]}}},\"metadata\":{\"contentType\":\"application/json\",\"message-queue-name\":\"message-queue-val\"},\"providerStates\":[{\"name\":\"a functioning FFI interface\"}]}".to_string()));
+  let res = pactffi_write_message_pact_file(message_pact_handle.clone(), file_path.as_ptr(), true);
+  expect!(res).to(be_eq(0));
+}
+
+#[test]
+fn message_xml_consumer_feature_test() {
+  let consumer_name = CString::new("message-consumer").unwrap();
+  let provider_name = CString::new("message-provider").unwrap();
+  let description = CString::new("message_request_with_matchers").unwrap();
+  let content_type = CString::new("application/xml").unwrap();
+  let metadata_key = CString::new("message-queue-name").unwrap();
+  let metadata_val = CString::new("message-queue-val").unwrap();
+  let request_body_with_matchers = CString::new(r#"{"version":"1.0","charset":"UTF-8","root":{"name":"ns1:projects","children":[{"pact:matcher:type":"type","value":{"name":"ns1:project","children":[{"name":"ns1:tasks","children":[{"pact:matcher:type":"type","value":{"name":"ns1:task","children":[],"attributes":{"id":{"pact:matcher:type":"integer","value":1},"name":{"pact:matcher:type":"type","value":"Task 1"},"done":{"pact:matcher:type":"type","value":true}}},"examples":5}],"attributes":{}}],"attributes":{"id":{"pact:matcher:type":"integer","value":1},"type":"activity","name":{"pact:matcher:type":"type","value":"Project 1"}}},"examples":2}],"attributes":{"id":"1234","xmlns:ns1":"http://some.namespace/and/more/stuff"}}}"#).unwrap();
+  let file_path = CString::new("/tmp/pact").unwrap();
+  let given = CString::new("a functioning FFI interface").unwrap();
+  let receive_description = CString::new("a request to test the FFI interface").unwrap();
+
+  let message_pact_handle = pactffi_new_message_pact(consumer_name.as_ptr(), provider_name.as_ptr());
+  let message_handle = pactffi_new_message(message_pact_handle.clone(), description.as_ptr());
+  pactffi_message_given(message_handle.clone(), given.as_ptr());
+  pactffi_message_expects_to_receive(message_handle.clone(), receive_description.as_ptr());
+  let body_bytes = request_body_with_matchers.as_bytes();
+  pactffi_message_with_contents(message_handle.clone(), content_type.as_ptr(), body_bytes.as_ptr(), body_bytes.len());
+  pactffi_message_with_metadata(message_handle.clone(), metadata_key.as_ptr(), metadata_val.as_ptr());
+  let res: *const c_char = pactffi_message_reify(message_handle.clone());
+  let reified: &CStr = unsafe { CStr::from_ptr(res) };
+  expect!(reified.to_str().to_owned()).to(be_ok().value("{\"contents\":\"<?xml version='1.0'?><ns1:projects id='1234' xmlns:ns1='http://some.namespace/and/more/stuff'><ns1:project id='1' name='Project 1' type='activity'><ns1:tasks><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/></ns1:tasks></ns1:project><ns1:project id='1' name='Project 1' type='activity'><ns1:tasks><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/></ns1:tasks></ns1:project></ns1:projects>\",\"description\":\"a request to test the FFI interface\",\"matchingRules\":{\"body\":{\"$.ns1:projects.ns1:project\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"type\"}]},\"$.ns1:projects.ns1:project.ns1:tasks.ns1:task\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"type\"}]},\"$.ns1:projects.ns1:project.ns1:tasks.ns1:task['@done']\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"type\"}]},\"$.ns1:projects.ns1:project.ns1:tasks.ns1:task['@id']\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"integer\"}]},\"$.ns1:projects.ns1:project.ns1:tasks.ns1:task['@name']\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"type\"}]},\"$.ns1:projects.ns1:project['@id']\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"integer\"}]},\"$.ns1:projects.ns1:project['@name']\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"type\"}]}}},\"metadata\":{\"contentType\":\"application/json\",\"message-queue-name\":\"message-queue-val\"},\"providerStates\":[{\"name\":\"a functioning FFI interface\"}]}".to_string()));
   let res = pactffi_write_message_pact_file(message_pact_handle.clone(), file_path.as_ptr(), true);
   expect!(res).to(be_eq(0));
 }
