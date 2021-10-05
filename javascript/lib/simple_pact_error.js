@@ -4,64 +4,64 @@ const http = require('http');
 const net = require('net');
 const url = require('url');
 
-var dll = '../../rust/target/debug/libpact_mock_server_ffi';
+var dll = '../../rust/target/debug/libpact_ffi';
 var lib = ffi.Library(path.join(__dirname, dll), {
-  pactffi_create_mock_server: ['int32', ['string', 'int32']],
+  pactffi_create_mock_server: ['int32', ['string', 'string']],
   pactffi_mock_server_matched: ['bool', ['int32']],
   pactffi_mock_server_mismatches: ['string', ['int32']],
   pactffi_cleanup_mock_server: ['bool', ['int32']]
 });
 
-var pact = '{\n' +
-'      "provider": {\n' +
-'        "name": "test_provider"\n' +
-'      },\n' +
-'      "consumer": {\n' +
-'        "name": "test_consumer"\n' +
-'      },\n' +
-'      "interactions": [\n' +
-'        {\n' +
-'          "providerState": "test state",\n' +
-'          "description": "test interaction",\n' +
-'          "request": {\n' +
-'            "method": "POST",\n' +
-'            "path": "/",\n' +
-'            "body": {\n' +
-'              "complete": {\n' +
-'                "certificateUri": "http://...",\n' +
-'                "issues": {\n' +
-'                  "idNotFound": {}\n' +
-'                },\n' +
-'                "nevdis": {\n' +
-'                  "body": null,\n' +
-'                  "colour": null,\n' +
-'                  "engine": null\n' +
-'                },\n' +
-'                "body": 123456\n' +
-'              },\n' +
-'              "body": [\n' +
-'                1,\n' +
-'                2,\n' +
-'                3\n' +
-'              ]\n' +
-'            }\n' +
-'          },\n' +
-'          "response": {\n' +
-'            "status": 200\n' +
-'          }\n' +
-'        }\n' +
-'      ],\n' +
-'      "metadata": {\n' +
-'        "pact-specification": {\n' +
-'          "version": "2.0.0"\n' +
-'        },\n' +
-'        "pact-jvm": {\n' +
-'          "version": ""\n' +
-'        }\n' +
-'      }\n' +
-'    }';
+var pact = `{
+  "provider": {
+    "name": "test_provider"
+  },
+  "consumer": {
+    "name": "test_consumer"
+  },
+  "interactions": [
+    {
+      "providerState": "test state",
+      "description": "test interaction",
+      "request": {
+        "method": "POST",
+        "path": "/",
+        "body": {
+          "complete": {
+            "certificateUri": "http://...",
+            "issues": {
+              "idNotFound": {}
+            },
+            "nevdis": {
+              "body": null,
+              "colour": null,
+              "engine": null
+            },
+            "body": 123456
+          },
+          "body": [
+            1,
+            2,
+            3
+          ]
+        }
+      },
+      "response": {
+        "status": 200
+      }
+    }
+  ],
+  "metadata": {
+    "pact-specification": {
+      "version": "2.0.0"
+    },
+    "pact-jvm": {
+      "version": ""
+    }
+  }
+}`;
 
-var port = lib.pactffi_create_mock_server(pact, 0);
+var port = lib.pactffi_create_mock_server(pact, '127.0.0.1:0');
 console.log("Mock server port=" + port);
 
 if (!lib.pactffi_mock_server_matched(port)) {

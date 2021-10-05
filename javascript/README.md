@@ -1,5 +1,9 @@
-To run the javascript examples, the mock server DLL needs to be built using `cargo build`
-in the `rust/libpact_mock_server_ffi` directory.
+To run the JavaScript examples, the pact_ffi Crate (which now also contains the
+mock_server) first needs to be built using `cargo build` in the `rust/pact_ffi`
+directory.
+
+This should result in the appropriate library file(s) being created for your OS,
+i.e. `rust/target/debug/libpact_ffi.[dll|so|dylib]`
 
 1. run `npm install`
 2. run `npm run simple_pact`
