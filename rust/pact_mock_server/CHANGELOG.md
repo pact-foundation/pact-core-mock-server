@@ -1,5 +1,19 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.8.0-beta.1 - Fixes from master + Plugin support (driver version 0.0.3)
+
+* dfabfac0 - chore: use the published version of the models crate (Ronald Holshausen, Wed Oct 6 12:24:04 2021 +1100)
+* 2c47023c - chore: pin plugin driver version to 0.0.3 (Ronald Holshausen, Wed Oct 6 11:21:07 2021 +1100)
+* 288e2168 - chore: use the published version of the plugin driver lib (Ronald Holshausen, Tue Oct 5 15:36:06 2021 +1100)
+* 6d23796f - feat(plugins): support each key and each value matchers (Ronald Holshausen, Wed Sep 29 11:10:46 2021 +1000)
+* 6f20282d - Merge branch 'master' into feat/plugins (Ronald Holshausen, Tue Sep 28 14:51:34 2021 +1000)
+* 54615e1b - bump version to 0.7.22 (Ronald Holshausen, Tue Sep 28 13:41:40 2021 +1000)
+* 97c8de3c - update changelog for release 0.7.21 (Ronald Holshausen, Tue Sep 28 13:39:32 2021 +1000)
+* df715cd5 - feat: support native TLS. Fixes #144 (Matt Fellows, Mon Sep 20 13:00:33 2021 +1000)
+* ee3212a8 - refactor(plugins): do not expose the catalogue statics, but rather a function to initialise it (Ronald Holshausen, Tue Sep 14 15:13:12 2021 +1000)
+* b71dcabf - refactor(plugins): rename ContentTypeOverride -> ContentTypeHint (Ronald Holshausen, Tue Sep 14 15:08:52 2021 +1000)
+* e63ade0d - bump version to 0.8.0-beta.1 (Ronald Holshausen, Mon Sep 13 11:53:04 2021 +1000)
+
 # 0.7.21 - support native TLS certs
 
 * df715cd5 - feat: support native TLS. Fixes #144 (Matt Fellows, Mon Sep 20 13:00:33 2021 +1000)
