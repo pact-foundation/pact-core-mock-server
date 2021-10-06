@@ -1396,7 +1396,7 @@ dependencies = [
  "maplit",
  "pact-plugin-driver",
  "pact_matching",
- "pact_models 0.2.0-beta.4",
+ "pact_models 0.2.0-beta.3",
  "quickcheck",
  "reqwest",
  "rustls",
