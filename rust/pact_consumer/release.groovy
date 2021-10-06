@@ -48,7 +48,7 @@ def projectProps = new File('Cargo.toml').text
 def versionMatch = projectProps =~ /(?m)version\s*=\s*"(.*)"/
 def version = versionMatch[0][1]
 
-def prevTag = 'git describe --abbrev=0  --tags --match=pact_consumer-*'.execute().text.trim()
+def prevTag = 'git describe --abbrev=0  --tags --match=pact_consumer-* --first-parent'.execute().text.trim()
 def changelog = []
 executeOnShell("git log --pretty='* %h - %s (%an, %ad)' ${prevTag}..HEAD .".toString()) {
   println it
@@ -100,7 +100,7 @@ ask('Publish library to crates.io?: [Y]') {
   executeOnShell 'cargo publish'
 }
 
-def nextVer = Version.valueOf(releaseVer).incrementPatchVersion()
+def nextVer = Version.valueOf(releaseVer).incrementPreReleaseVersion()
 ask("Bump version to $nextVer?: [Y]") {
   executeOnShell "sed -i -e 's/version = \"${releaseVer}\"/version = \"${nextVer}\"/' Cargo.toml"
   executeOnShell "sed -i -e 's/documentation = \"https:\\/\\/docs.rs\\/pact_consumer\\/${releaseVer}\\/pact_consumer\\/\"/documentation = \"https:\\/\\/docs.rs\\/pact_consumer\\/${nextVer}\\/pact_consumer\\/\"/' Cargo.toml"
