@@ -1,12 +1,14 @@
 //! The `pact_matching` crate provides the core logic to performing matching on HTTP requests
-//! and responses. It implements the V3 Pact specification (https://github.com/pact-foundation/pact-specification/tree/version-3).
+//! and responses. It implements the [V3 Pact specification](https://github.com/pact-foundation/pact-specification/tree/version-3)
+//! and [V4 Pact specification](https://github.com/pact-foundation/pact-specification/tree/version-4).
 //!
 //! ## To use it
 //!
 //! To use it, add it to your dependencies in your cargo manifest.
 //!
-//! This crate provides two functions: [`match_request`](fn.match_request.html) and [`match_response`](fn.match_response.html).
-//! These functions take an expected and actual request or response
+//! This crate provides three functions: [`match_request`](fn.match_request.html), [`match_response`](fn.match_response.html)
+//! and [`match_message`](fn.match_message.html).
+//! These functions take an expected and actual request, response or message
 //! model from the [`models`)(models/index.html) module, and return a vector of mismatches.
 //!
 //! To compare any incoming request, it first needs to be converted to a [`models::Request`](models/struct.Request.html) and then can be compared. Same for
@@ -15,7 +17,7 @@
 //! ## Reading and writing Pact files
 //!
 //! The [`Pact`](models/struct.Pact.html) struct in the [`models`)(models/index.html) module has methods to read and write pact JSON files. It supports all the specification
-//! versions up to V3, but will converted a V1 and V1.1 spec file to a V2 format.
+//! versions up to V4, but will convert a V1, V1.1 or V2 spec file to a V3 format.
 //!
 //! ## Matching request and response parts
 //!
@@ -313,24 +315,32 @@
 //!
 //! The following matchers are supported:
 //!
-//! | matcher | example configuration | description |
-//! |---------|-----------------------|-------------|
-//! | Equality | `{ "match": "equality" }` | This is the default matcher, and relies on the equals operator |
-//! | Regex | `{ "match": "regex", "regex": "\\d+" }` | This executes a regular expression match against the string representation of a values. |
-//! | Type | `{ "match": "type" }` | This executes a type based match against the values, that is, they are equal if they are the same type. |
-//! | MinType | `{ "match": "type", "min": 2 }` | This executes a type based match against the values, that is, they are equal if they are the same type. In addition, if the values represent a collection, the length of the actual value is compared against the minimum. |
-//! | MaxType | `{ "match": "type", "max": 10 }` | This executes a type based match against the values, that is, they are equal if they are the same type. In addition, if the values represent a collection, the length of the actual value is compared against the maximum. |
-//! | MinMaxType | `{ "match": "type", "min": 1, "max": 10 }` | This executes a type based match against the values, that is, they are equal if they are the same type. In addition, if the values represent a collection, the length of the actual value is compared against the minimum and maximum. |
-//! | Timestamp | `{ "match": "timestamp", "timestamp": "yyyy-MM-dd HH:mm:ssZZZZZ" }` | Matches a string value against a Date/Time pattern. |
-//! | Time | `{ "match": "time", "time": "HH:mm:ssZZZZZ" }` | Matches a string value against a Time pattern. |
-//! | Date | `{ "match": "date", "date": "yyyy-MM-dd" }` | Matches a string value against a Date pattern. |
-//! | Include | `{ "match": "include", "value": "ello" }` | Checks if a string value contains the given sub-string. |
-//! | Number | `{ "match": "number" }` | Matches any numeric type. |
-//! | Integer | `{ "match": "integer" }` | Matches a number if it has no digits after the decimal point. |
-//! | Decimal | `{ "match": "decimal" }` | Matches a number if it has at least one digit after the decimal point. |
-//! | Null | `{ "match": "null" }` | Matches a JSON NULL value. This only makes sense to use with JSON. |
-//! | ContentType | `{ "match": "contentType", "value": "image/jpeg" }` | Checks if the value has the content type of the privided value. This is done by performing a magic test on the first few bytes of the value. |
-//! | ArrayContains | `{ "match": "arrayContains", "variants": [...] }` | Checks if all the variants are present in an array. |
+//! | matcher | Spec Version | example configuration | description |
+//! |---------|--------------|-----------------------|-------------|
+//! | Equality | V1 | `{ "match": "equality" }` | This is the default matcher, and relies on the equals operator |
+//! | Regex | V2 | `{ "match": "regex", "regex": "\\d+" }` | This executes a regular expression match against the string representation of a values. |
+//! | Type | V2 | `{ "match": "type" }` | This executes a type based match against the values, that is, they are equal if they are the same type. |
+//! | MinType | V2 | `{ "match": "type", "min": 2 }` | This executes a type based match against the values, that is, they are equal if they are the same type. In addition, if the values represent a collection, the length of the actual value is compared against the minimum. |
+//! | MaxType | V2 | `{ "match": "type", "max": 10 }` | This executes a type based match against the values, that is, they are equal if they are the same type. In addition, if the values represent a collection, the length of the actual value is compared against the maximum. |
+//! | MinMaxType | V2 | `{ "match": "type", "max": 10, "min": 2 }` | This executes a type based match against the values, that is, they are equal if they are the same type. In addition, if the values represent a collection, the length of the actual value is compared against the minimum and maximum. |
+//! | Include | V3 | `{ "match": "include", "value": "substr" }` | This checks if the string representation of a value contains the substring. |
+//! | Integer | V3 | `{ "match": "integer" }` | This checks if the type of the value is an integer. |
+//! | Decimal | V3 | `{ "match": "decimal" }` | This checks if the type of the value is a number with decimal places. |
+//! | Number | V3 | `{ "match": "number" }` | This checks if the type of the value is a number. |
+//! | Timestamp | V3 | `{ "match": "datetime", "format": "yyyy-MM-dd HH:ss:mm" }` | Matches the string representation of a value against the datetime format |
+//! | Time  | V3 | `{ "match": "time", "format": "HH:ss:mm" }` | Matches the string representation of a value against the time format |
+//! | Date  | V3 | `{ "match": "date", "format": "yyyy-MM-dd" }` | Matches the string representation of a value against the date format |
+//! | Null  | V3 | `{ "match": "null" }` | Match if the value is a null value (this is content specific, for JSON will match a JSON null) |
+//! | Boolean  | V3 | `{ "match": "boolean" }` | Match if the value is a boolean value (booleans and the string values `true` and `false`) |
+//! | ContentType  | V3 | `{ "match": "contentType", "value": "image/jpeg" }` | Match binary data by its content type (magic file check) |
+//! | Values  | V3 | `{ "match": "values" }` | Match the values in a map, ignoring the keys |
+//! | ArrayContains | V4 | `{ "match": "arrayContains", "variants": [...] }` | Checks if all the variants are present in an array. |
+//! | StatusCode | V4 | `{ "match": "statusCode", "status": "success" }` | Matches the response status code. |
+//! | NotEmpty | V4 | `{ "match": "notEmpty" }` | Value must be present and not empty (not null or the empty string) |
+//! | Semver | V4 | `{ "match": "semver" }` | Value must be valid based on the semver specification |
+//! | Semver | V4 | `{ "match": "semver" }` | Value must be valid based on the semver specification |
+//! | EachKey | V4 | `{ "match": "eachKey", "rules": [{"match": "regex", "regex": "\\$(\\.\\w+)+"}], "value": "$.test.one" }` | Allows defining matching rules to apply to the keys in a map |
+//! | EachValue | V4 | `{ "match": "eachValue", "rules": [{"match": "regex", "regex": "\\$(\\.\\w+)+"}], "value": "$.test.one" }` | Allows defining matching rules to apply to the values in a collection. For maps, delgates to the Values matcher. |
 
 #![warn(missing_docs)]
 

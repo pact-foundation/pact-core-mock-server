@@ -11,11 +11,11 @@ To use it, add it to your dependencies in your cargo manifest:
 
 ```toml
 [dependencies]
-pact_matching = "0.8.14"
+pact_matching = "0.11.0-beta.2"
 ```
 
-This crate provides two functions: `match_request` and `match_response`. These functions take an expected and actual request or response
-model from the `pact_models` crate, and return a vector of mismatches.
+This crate provides three functions: `match_request`, `match_response` and `match_message`. These functions take an 
+expected and actual request, response or message model from the `pact_models` crate, and return a vector of mismatches.
 
 To compare any incoming request, it first needs to be converted to a `pact_models::Request` and then can be compared. Same for
 any response.
@@ -23,7 +23,7 @@ any response.
 ## Reading and writing Pact files
 
 The `Pact` struct in the `pact_models` crate has methods to read and write pact JSON files. It supports all the specification
-versions up to V3, but will be converted a V1, V1.1 and V2 spec file to a V3 format.
+versions up to V4, but will convert a V1, V1.1 and V2 spec file to the V3 format.
 
 ## Matching request and response parts
 
@@ -321,15 +321,29 @@ So for the item with id 102, the matcher with path `$.item1.level[1].id` and wei
 
 The following matchers are supported:
 
-| matcher | example configuration | description |
-|---------|-----------------------|-------------|
-| Equality | `{ "match": "equality" }` | This is the default matcher, and relies on the equals operator |
-| Regex | `{ "match": "regex", "regex": "\\d+" }` | This executes a regular expression match against the string representation of a values. |
-| Type | `{ "match": "type" }` | This executes a type based match against the values, that is, they are equal if they are the same type. |
-| MinType | `{ "match": "type", "min": 2 }` | This executes a type based match against the values, that is, they are equal if they are the same type. In addition, if the values represent a collection, the length of the actual value is compared against the minimum. |
-| MaxType | `{ "match": "type", "max": 10 }` | This executes a type based match against the values, that is, they are equal if they are the same type. In addition, if the values represent a collection, the length of the actual value is compared against the maximum. |
-| MinMaxType | `{ "match": "type", "max": 10, "min": 2 }` | This executes a type based match against the values, that is, they are equal if they are the same type. In addition, if the values represent a collection, the length of the actual value is compared against the minimum and maximum. |
-| Include | `{ "match": "include", "value": "substr" }` | This checks if the string representation of a values contains the substring. |
-| Integer | `{ "match": "integer" }` | This checks if the type of the value is an integer. |
-| Decimal | `{ "match": "decimal" }` | This checks if the type of the value is a number with decimal places. |
-| Number | `{ "match": "number" }` | This checks if the type of the value is a number. |
+| matcher | Spec Version | example configuration | description |
+|---------|--------------|-----------------------|-------------|
+| Equality | V1 | `{ "match": "equality" }` | This is the default matcher, and relies on the equals operator |
+| Regex | V2 | `{ "match": "regex", "regex": "\\d+" }` | This executes a regular expression match against the string representation of a values. |
+| Type | V2 | `{ "match": "type" }` | This executes a type based match against the values, that is, they are equal if they are the same type. |
+| MinType | V2 | `{ "match": "type", "min": 2 }` | This executes a type based match against the values, that is, they are equal if they are the same type. In addition, if the values represent a collection, the length of the actual value is compared against the minimum. |
+| MaxType | V2 | `{ "match": "type", "max": 10 }` | This executes a type based match against the values, that is, they are equal if they are the same type. In addition, if the values represent a collection, the length of the actual value is compared against the maximum. |
+| MinMaxType | V2 | `{ "match": "type", "max": 10, "min": 2 }` | This executes a type based match against the values, that is, they are equal if they are the same type. In addition, if the values represent a collection, the length of the actual value is compared against the minimum and maximum. |
+| Include | V3 | `{ "match": "include", "value": "substr" }` | This checks if the string representation of a value contains the substring. |
+| Integer | V3 | `{ "match": "integer" }` | This checks if the type of the value is an integer. |
+| Decimal | V3 | `{ "match": "decimal" }` | This checks if the type of the value is a number with decimal places. |
+| Number | V3 | `{ "match": "number" }` | This checks if the type of the value is a number. |
+| Timestamp | V3 | `{ "match": "datetime", "format": "yyyy-MM-dd HH:ss:mm" }` | Matches the string representation of a value against the datetime format |
+| Time  | V3 | `{ "match": "time", "format": "HH:ss:mm" }` | Matches the string representation of a value against the time format |
+| Date  | V3 | `{ "match": "date", "format": "yyyy-MM-dd" }` | Matches the string representation of a value against the date format |
+| Null  | V3 | `{ "match": "null" }` | Match if the value is a null value (this is content specific, for JSON will match a JSON null) |
+| Boolean  | V3 | `{ "match": "boolean" }` | Match if the value is a boolean value (booleans and the string values `true` and `false`) |
+| ContentType  | V3 | `{ "match": "contentType", "value": "image/jpeg" }` | Match binary data by its content type (magic file check) |
+| Values  | V3 | `{ "match": "values" }` | Match the values in a map, ignoring the keys |
+| ArrayContains | V4 | `{ "match": "arrayContains", "variants": [...] }` | Checks if all the variants are present in an array. |
+| StatusCode | V4 | `{ "match": "statusCode", "status": "success" }` | Matches the response status code. |
+| NotEmpty | V4 | `{ "match": "notEmpty" }` | Value must be present and not empty (not null or the empty string) |
+| Semver | V4 | `{ "match": "semver" }` | Value must be valid based on the semver specification |
+| Semver | V4 | `{ "match": "semver" }` | Value must be valid based on the semver specification |
+| EachKey | V4 | `{ "match": "eachKey", "rules": [{"match": "regex", "regex": "\\$(\\.\\w+)+"}], "value": "$.test.one" }` | Allows defining matching rules to apply to the keys in a map |
+| EachValue | V4 | `{ "match": "eachValue", "rules": [{"match": "regex", "regex": "\\$(\\.\\w+)+"}], "value": "$.test.one" }` | Allows defining matching rules to apply to the values in a collection. For maps, delgates to the Values matcher. |
