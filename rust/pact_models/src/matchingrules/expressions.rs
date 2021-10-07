@@ -230,10 +230,10 @@ fn matching_definition_exp(lex: &mut Lexer<MatcherDefinitionToken>) -> anyhow::R
         })
       }
     } else if token == MatcherDefinitionToken::NotEmpty {
-      let value = parse_not_empty(lex)?;
+      let (value, value_type) = parse_not_empty(lex)?;
       Ok(MatchingRuleDefinition {
         value: value.clone(),
-        value_type: ValueType::Unknown,
+        value_type,
         rules: vec![ Either::Left(NotEmpty) ],
         generator: None
       })
@@ -245,14 +245,14 @@ fn matching_definition_exp(lex: &mut Lexer<MatcherDefinitionToken>) -> anyhow::R
   }
 }
 
-// LEFT_BRACKET string RIGHT_BRACKET
-fn parse_not_empty(lex: &mut Lexer<MatcherDefinitionToken>) -> anyhow::Result<String> {
+// LEFT_BRACKET primitiveValue RIGHT_BRACKET
+fn parse_not_empty(lex: &mut Lexer<MatcherDefinitionToken>) -> anyhow::Result<(String, ValueType)> {
   let next = lex.next().ok_or(anyhow!("expected '('"))?;
   if next == MatcherDefinitionToken::LeftBracket {
-    let value = parse_string(lex)?;
+    let result = parse_primitive_value(lex)?;
     let next = lex.next().ok_or(anyhow!("expected ')'"))?;
     if next == MatcherDefinitionToken::RightBracket {
-      Ok(value)
+      Ok(result)
     } else {
       Err(anyhow!("expected closing bracket, got '{}'", lex.slice()))
     }
@@ -580,7 +580,12 @@ mod test {
   fn parse_not_empty() {
     expect!(super::parse_matcher_def("notEmpty('Value')").unwrap()).to(
       be_equal_to(MatchingRuleDefinition::new("Value".to_string(),
-                                              ValueType::Unknown,
+                                              ValueType::String,
+                                              MatchingRule::NotEmpty,
+                                              None)));
+    expect!(super::parse_matcher_def("notEmpty(100)").unwrap()).to(
+      be_equal_to(MatchingRuleDefinition::new("100".to_string(),
+                                              ValueType::Integer,
                                               MatchingRule::NotEmpty,
                                               None)));
   }
