@@ -164,7 +164,7 @@ impl RequestBuilder {
     }
   }
 
-  /// Set the body using the definition. If the body is being supplied by a plugin,
+  /// Set the request body using the JSON data. If the body is being supplied by a plugin,
   /// this is what is sent to the plugin to setup the body.
   pub async fn contents(&mut self, content_type: ContentType, definition: Value) -> &mut Self {
     match find_content_matcher(&content_type) {
@@ -180,25 +180,41 @@ impl RequestBuilder {
             Value::Object(attributes) => {
               let map = attributes.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
               match matcher.configure_interation(&content_type, map).await {
-                Ok(contents) => {
+                Ok((contents, plugin_config)) => {
                   debug!("Interaction contents = {:?}", contents);
-                  request.body = contents.body.clone();
-                  if !request.has_header("content-type") {
-                    request.add_header("content-type", vec![content_type.to_string().as_str()]);
+                  debug!("Interaction plugin_config = {:?}", plugin_config);
+
+                  if let Some(contents) = contents.first() {
+                    request.body = contents.body.clone();
+                    if !request.has_header("content-type") {
+                      request.add_header("content-type", vec![content_type.to_string().as_str()]);
+                    }
+                    if let Some(rules) = &contents.rules {
+                      request.matching_rules.add_rules("body", rules.clone());
+                    }
+                    if let Some(generators) = &contents.generators {
+                      request.generators.add_generators(generators.clone());
+                    }
+                    if !contents.plugin_config.is_empty() {
+                      self.plugin_config.insert(matcher.plugin_name(), contents.plugin_config.clone());
+                    }
+                    self.interaction_markup = InteractionMarkup {
+                      markup: contents.interaction_markup.clone(),
+                      markup_type: contents.interaction_markup_type.clone()
+                    };
                   }
-                  if let Some(rules) = contents.rules {
-                    request.matching_rules.add_rules("body", rules);
+
+                  if let Some(plugin_config) = plugin_config {
+                    let plugin_name = matcher.plugin_name();
+                    if self.plugin_config.contains_key(&*plugin_name) {
+                      let entry = self.plugin_config.get_mut(&*plugin_name).unwrap();
+                      for (k, v) in plugin_config.pact_configuration {
+                        entry.pact_configuration.insert(k.clone(), v.clone());
+                      }
+                    } else {
+                      self.plugin_config.insert(plugin_name.to_string(), plugin_config.clone());
+                    }
                   }
-                  if let Some(generators) = contents.generators {
-                    request.generators.add_generators(generators);
-                  }
-                  if !contents.plugin_config.is_empty() {
-                    self.plugin_config.insert(matcher.plugin_name(), contents.plugin_config.clone());
-                  }
-                  self.interaction_markup = InteractionMarkup {
-                    markup: contents.interaction_markup,
-                    markup_type: contents.interaction_markup_type
-                  };
                 }
                 Err(err) => panic!("Failed to call out to plugin - {}", err)
               }

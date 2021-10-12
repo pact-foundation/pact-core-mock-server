@@ -111,25 +111,41 @@ impl ResponseBuilder {
             Value::Object(attributes) => {
               let map = attributes.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
               match matcher.configure_interation(&content_type, map).await {
-                Ok(contents) => {
+                Ok((contents, plugin_config)) => {
                   debug!("Interaction contents = {:?}", contents);
-                  response.body = contents.body.clone();
-                  if !response.has_header("content-type") {
-                    response.add_header("content-type", vec![content_type.to_string().as_str()]);
+                  debug!("Interaction plugin_config = {:?}", plugin_config);
+
+                  if let Some(contents) = contents.first() {
+                    response.body = contents.body.clone();
+                    if !response.has_header("content-type") {
+                      response.add_header("content-type", vec![content_type.to_string().as_str()]);
+                    }
+                    if let Some(rules) = &contents.rules {
+                      response.matching_rules.add_rules("body", rules.clone());
+                    }
+                    if let Some(generators) = &contents.generators {
+                      response.generators.add_generators(generators.clone());
+                    }
+                    if !contents.plugin_config.is_empty() {
+                      self.plugin_config.insert(matcher.plugin_name(), contents.plugin_config.clone());
+                    }
+                    self.interaction_markup = InteractionMarkup {
+                      markup: contents.interaction_markup.clone(),
+                      markup_type: contents.interaction_markup_type.clone()
+                    };
                   }
-                  if let Some(rules) = contents.rules {
-                    response.matching_rules.add_rules("body", rules);
+
+                  if let Some(plugin_config) = plugin_config {
+                    let plugin_name = matcher.plugin_name();
+                    if self.plugin_config.contains_key(&*plugin_name) {
+                      let entry = self.plugin_config.get_mut(&*plugin_name).unwrap();
+                      for (k, v) in plugin_config.pact_configuration {
+                        entry.pact_configuration.insert(k.clone(), v.clone());
+                      }
+                    } else {
+                      self.plugin_config.insert(plugin_name.to_string(), plugin_config.clone());
+                    }
                   }
-                  if let Some(generators) = contents.generators {
-                    response.generators.add_generators(generators);
-                  }
-                  if !contents.plugin_config.is_empty() {
-                    self.plugin_config.insert(matcher.plugin_name(), contents.plugin_config.clone());
-                  }
-                  self.interaction_markup = InteractionMarkup {
-                    markup: contents.interaction_markup,
-                    markup_type: contents.interaction_markup_type
-                  };
                 }
                 Err(err) => panic!("Failed to call out to plugin - {}", err)
               }

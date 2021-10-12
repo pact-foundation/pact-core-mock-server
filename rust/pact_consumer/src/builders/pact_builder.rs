@@ -2,16 +2,19 @@ use std::future::Future;
 use std::path::PathBuf;
 
 use async_trait::async_trait;
-use pact_plugin_driver::plugin_manager::{drop_plugin_access, load_plugin};
-use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
-
 use pact_models::{Consumer, Provider};
 use pact_models::interaction::Interaction;
 use pact_models::pact::Pact;
 use pact_models::sync_pact::RequestResponsePact;
+use pact_models::v4::async_message::AsynchronousMessage;
 use pact_models::v4::pact::V4Pact;
+use pact_models::v4::sync_message::SynchronousMessage;
+use pact_plugin_driver::plugin_manager::{drop_plugin_access, load_plugin};
+use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
 
-use crate::builders::message_builder::{MessageInteractionBuilder, MessageIterator};
+use crate::builders::message_builder::MessageInteractionBuilder;
+use crate::builders::message_iter::{asynchronous_messages_iter, MessageIterator, synchronous_messages_iter};
+use crate::builders::sync_message_builder::SyncMessageInteractionBuilder;
 use crate::PACT_CONSUMER_VERSION;
 use crate::prelude::*;
 
@@ -169,9 +172,34 @@ impl PactBuilder {
     self.push_interaction(&interaction.build())
   }
 
+
+  /// Add a new synchronous message `Interaction` to the `Pact`. Needs to return a clone of the builder
+  /// that is passed in.
+  pub async fn synchronous_message_interaction<D, F, O>(&mut self, description: D, interaction_type: D, build_fn: F) -> &mut Self
+    where
+      D: Into<String>,
+      F: FnOnce(SyncMessageInteractionBuilder) -> O,
+      O: Future<Output=SyncMessageInteractionBuilder> + Send
+  {
+    let interaction = SyncMessageInteractionBuilder::new(description.into(), interaction_type.into());
+    let interaction = build_fn(interaction).await;
+
+    if let Some(plugin_data) = interaction.plugin_config() {
+      let _ = self.pact.add_plugin(plugin_data.name.as_str(), plugin_data.version.as_str(),
+                                   Some(plugin_data.configuration.clone()));
+    }
+
+    self.push_interaction(&interaction.build())
+  }
+
   /// Returns an iterator over the asynchronous messages in the Pact
-  pub fn messages(&self) -> MessageIterator {
-    MessageIterator::new(self.pact.as_v4_pact().unwrap())
+  pub fn messages(&self) -> MessageIterator<AsynchronousMessage> {
+    asynchronous_messages_iter(self.pact.as_v4_pact().unwrap())
+  }
+
+  /// Returns an iterator over the synchronous req/res messages in the Pact
+  pub fn synchronous_messages(&self) -> MessageIterator<SynchronousMessage> {
+    synchronous_messages_iter(self.pact.as_v4_pact().unwrap())
   }
 }
 
