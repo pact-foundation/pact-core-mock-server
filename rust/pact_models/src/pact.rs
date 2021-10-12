@@ -425,6 +425,7 @@ mod tests {
 
   use expectest::prelude::*;
   use maplit::{btreemap, hashmap};
+  use pretty_assertions::assert_eq;
   use serde_json::{json, Value};
 
   use crate::{Consumer, PactSpecification, Provider};
@@ -876,7 +877,7 @@ mod tests {
     fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());
 
     expect!(result).to(be_ok());
-    expect!(pact_file).to(be_equal_to(format!(r#"{{
+    assert_eq!(pact_file, format!(r#"{{
   "consumer": {{
     "name": "write_pact_test_consumer"
   }},
@@ -895,7 +896,7 @@ mod tests {
   ],
   "metadata": {{
     "pactRust": {{
-      "version": "{}"
+      "models": "{}"
     }},
     "pactSpecification": {{
       "version": "2.0.0"
@@ -904,7 +905,7 @@ mod tests {
   "provider": {{
     "name": "write_pact_test_provider"
   }}
-}}"#, PACT_RUST_VERSION.unwrap())));
+}}"#, PACT_RUST_VERSION.unwrap()));
   }
 
   #[test]
@@ -976,7 +977,7 @@ mod tests {
   ],
   "metadata": {{
     "pactRust": {{
-      "version": "{}"
+      "models": "{}"
     }},
     "pactSpecification": {{
       "version": "2.0.0"
@@ -1047,7 +1048,7 @@ mod tests {
   ],
   "metadata": {{
     "pactRust": {{
-      "version": "{}"
+      "models": "{}"
     }},
     "pactSpecification": {{
       "version": "2.0.0"
@@ -1136,7 +1137,7 @@ mod tests {
   ],
   "metadata": {{
     "pactRust": {{
-      "version": "{}"
+      "models": "{}"
     }},
     "pactSpecification": {{
       "version": "3.0.0"
@@ -1234,7 +1235,7 @@ mod tests {
   ],
   "metadata": {{
     "pactRust": {{
-      "version": "{}"
+      "models": "{}"
     }},
     "pactSpecification": {{
       "version": "4.0"
@@ -1402,7 +1403,7 @@ mod tests {
   ],
   "metadata": {{
     "pactRust": {{
-      "version": "{}"
+      "models": "{}"
     }},
     "pactSpecification": {{
       "version": "2.0.0"
@@ -1498,7 +1499,7 @@ mod tests {
       ],
       "metadata": {
         "pactRust": {
-          "version": PACT_RUST_VERSION
+          "models": PACT_RUST_VERSION
         },
         "pactSpecification": {
           "version": "3.0.0"
@@ -1574,7 +1575,7 @@ mod tests {
   ],
   "metadata": {{
     "pactRust": {{
-      "version": "{}"
+      "models": "{}"
     }},
     "pactSpecification": {{
       "version": "3.0.0"
@@ -1658,7 +1659,7 @@ mod tests {
   ],
   "metadata": {{
     "pactRust": {{
-      "version": "{}"
+      "models": "{}"
     }},
     "pactSpecification": {{
       "version": "3.0.0"

@@ -253,7 +253,8 @@ impl MockServer {
   /// Mock server writes its pact out to the provided directory
   pub fn write_pact(&self, output_path: &Option<String>, overwrite: bool) -> anyhow::Result<()> {
     trace!("write_pact: output_path = {:?}, overwrite = {}", output_path, overwrite);
-    let pact = self.pact.lock().unwrap().boxed();
+    let mut pact = self.pact.lock().unwrap();
+    pact.add_md_version("mockserver", option_env!("CARGO_PKG_VERSION").unwrap_or("unknown"));
     let pact_file_name = pact.default_file_name();
     let filename = match *output_path {
       Some(ref path) => {
@@ -266,7 +267,7 @@ impl MockServer {
 
     info!("Writing pact out to '{}'", filename.display());
     let specification = pact.specification_version();
-    match write_pact(pact, filename.as_path(), specification, overwrite) {
+    match write_pact(pact.boxed(), filename.as_path(), specification, overwrite) {
       Ok(_) => Ok(()),
       Err(err) => {
         warn!("Failed to write pact to file - {}", err);

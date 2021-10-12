@@ -65,7 +65,7 @@ impl PactBuilder {
         };
 
         if let Some(version) = PACT_CONSUMER_VERSION {
-          pact.add_md_version("pact_consumer", version);
+          pact.add_md_version("consumer", version);
         }
 
         PactBuilder { pact: pact.boxed(), output_dir: None }
@@ -88,7 +88,7 @@ impl PactBuilder {
       };
 
       if let Some(version) = PACT_CONSUMER_VERSION {
-        pact.add_md_version("pact_consumer", version);
+        pact.add_md_version("consumer", version);
       }
 
       PactBuilder { pact: pact.boxed(), output_dir: None }

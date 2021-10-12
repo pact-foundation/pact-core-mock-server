@@ -197,14 +197,13 @@ impl RequestResponsePact {
       .collect();
 
     md_map.insert("pactSpecification".to_string(), json!({"version" : pact_spec.version_str()}));
+
     let version_entry = md_map.entry("pactRust".to_string())
       .or_insert(Value::Object(Map::default()));
-    match version_entry {
-      Value::Object(map) => {
-        map.insert("version".to_string(), Value::String(PACT_RUST_VERSION.unwrap_or("unknown").to_string()));
-      }
-      _ => {}
+    if let Value::Object(map) = version_entry {
+      map.insert("models".to_string(), Value::String(PACT_RUST_VERSION.unwrap_or("unknown").to_string()));
     }
+
     md_map
   }
 
@@ -229,8 +228,8 @@ impl RequestResponsePact {
   /// Returns the default metadata
   pub fn default_metadata() -> BTreeMap<String, BTreeMap<String, String>> {
     btreemap!{
-      "pact-specification".to_string() => btreemap!{ "version".to_string() => PactSpecification::V3.version_str() },
-      "pact-rust".to_string() => btreemap!{ "version".to_string() => PACT_RUST_VERSION.unwrap_or("unknown").to_string() }
+      "pactSpecification".to_string() => btreemap!{ "version".to_string() => PactSpecification::V3.version_str() },
+      "pactRust".to_string() => btreemap!{ "models".to_string() => PACT_RUST_VERSION.unwrap_or("unknown").to_string() }
     }
   }
 
@@ -395,9 +394,4 @@ impl PactJsonVerifier for RequestResponsePact {
 
     results
   }
-}
-
-#[cfg(test)]
-mod tests {
-
 }

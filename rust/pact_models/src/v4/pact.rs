@@ -54,13 +54,11 @@ impl V4Pact {
       .collect();
 
     md_map.insert("pactSpecification".to_string(), json!({"version" : PactSpecification::V4.version_str()}));
+
     let version_entry = md_map.entry("pactRust")
       .or_insert(Value::Object(Map::default()));
-    match version_entry {
-      Value::Object(map) => {
-        map.insert("version".to_string(), Value::String(PACT_RUST_VERSION.unwrap_or("unknown").to_string()));
-      }
-      _ => {}
+    if let Value::Object(map) = version_entry {
+      map.insert("models".to_string(), Value::String(PACT_RUST_VERSION.unwrap_or("unknown").to_string()));
     }
 
     if !self.plugin_data.is_empty() {
@@ -674,7 +672,7 @@ mod tests {
   ],
   "metadata": {{
     "pactRust": {{
-      "version": "{}"
+      "models": "{}"
     }},
     "pactSpecification": {{
       "version": "4.0"
@@ -749,7 +747,7 @@ mod tests {
   ],
   "metadata": {{
     "pactRust": {{
-      "version": "{}"
+      "models": "{}"
     }},
     "pactSpecification": {{
       "version": "4.0"
@@ -846,7 +844,7 @@ mod tests {
   ],
   "metadata": {{
     "pactRust": {{
-      "version": "{}"
+      "models": "{}"
     }},
     "pactSpecification": {{
       "version": "4.0"
@@ -1107,7 +1105,7 @@ mod tests {
   ],
   "metadata": {{
     "pactRust": {{
-      "version": "{}"
+      "models": "{}"
     }},
     "pactSpecification": {{
       "version": "2.0.0"
@@ -1204,7 +1202,7 @@ mod tests {
   ],
   "metadata": {{
     "pactRust": {{
-      "version": "{}"
+      "models": "{}"
     }},
     "pactSpecification": {{
       "version": "3.0.0"
@@ -1437,7 +1435,7 @@ mod tests {
   ],
   "metadata": {{
     "pactRust": {{
-      "version": "{}"
+      "models": "{}"
     }},
     "pactSpecification": {{
       "version": "4.0"

@@ -10,6 +10,7 @@ use maplit::*;
 use pact_models::{Consumer, Provider};
 use pact_models::message::Message;
 use pact_models::message_pact::MessagePact;
+use pact_models::prelude::Pact;
 use pact_models::sync_interaction::RequestResponseInteraction;
 use pact_models::sync_pact::RequestResponsePact;
 
@@ -58,12 +59,14 @@ impl PactHandle {
   pub fn new(consumer: &str, provider: &str) -> Self {
     let mut handles = PACT_HANDLES.lock().unwrap();
     let id = handles.len() + 1;
+    let mut pact = RequestResponsePact {
+      consumer: Consumer { name: consumer.to_string() },
+      provider: Provider { name: provider.to_string() },
+      ..RequestResponsePact::default()
+    };
+    pact.add_md_version("ffi", option_env!("CARGO_PKG_VERSION").unwrap_or("unknown"));
     handles.insert(id, RefCell::new(PactHandleInner {
-      pact: RequestResponsePact {
-        consumer: Consumer { name: consumer.to_string() },
-        provider: Provider { name: provider.to_string() },
-        .. RequestResponsePact::default()
-      },
+      pact,
       mock_server_started: false
     }));
     PactHandle {

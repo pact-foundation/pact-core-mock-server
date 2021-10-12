@@ -222,11 +222,8 @@ impl MessagePact {
             json!({"version" : pact_spec.version_str()}));
         let version_entry = md_map.entry("pactRust".to_string())
           .or_insert(Value::Object(Map::default()));
-        match version_entry {
-          Value::Object(map) => {
-            map.insert("version".to_string(), Value::String(PACT_RUST_VERSION.unwrap_or("unknown").to_string()));
-          }
-          _ => {}
+        if let Value::Object(map) = version_entry {
+          map.insert("models".to_string(), Value::String(PACT_RUST_VERSION.unwrap_or("unknown").to_string()));
         }
         md_map
     }
@@ -371,6 +368,7 @@ impl PactJsonVerifier for MessagePact {
 mod tests {
   use expectest::expect;
   use expectest::prelude::*;
+  use pretty_assertions::assert_eq;
 
   use super::*;
 
@@ -553,6 +551,11 @@ mod tests {
         expect!(pact.as_ref()).to(be_ok());
         let pact = pact.unwrap();
         let contents = pact.to_json(PactSpecification::V3);
-        expect!(contents.unwrap().to_string()).to(be_equal_to("{\"consumer\":{\"name\":\"Consumer\"},\"messages\":[{\"contents\":{\"hello\":\"world\"},\"description\":\"Message Description\",\"metadata\":{\"contentType\":\"application/json\"}}],\"metadata\":{\"pactRust\":{\"version\":\"".to_owned() + env!("CARGO_PKG_VERSION") + "\"},\"pactSpecification\":{\"version\":\"3.0.0\"}},\"provider\":{\"name\":\"Alice Service\"}}"));
+        assert_eq!(contents.unwrap().to_string(),
+          "{\"consumer\":{\"name\":\"Consumer\"},\"messages\":[\
+          {\"contents\":{\"hello\":\"world\"},\"description\":\"Message Description\",\
+          \"metadata\":{\"contentType\":\"application/json\"}}],\
+          \"metadata\":{\"pactRust\":{\"models\":\"".to_owned() + env!("CARGO_PKG_VERSION") +
+            "\"},\"pactSpecification\":{\"version\":\"3.0.0\"}},\"provider\":{\"name\":\"Alice Service\"}}");
     }
 }

@@ -56,6 +56,7 @@ rstest = "0.10.0"
 quickcheck = "1"
 hamcrest2 = "0.3.0"
 test-env-log = "0.2.3"
+pretty_assertions = "1.0.0"
 
 [build-dependencies]
 parse-zoneinfo = "0.3.0"
