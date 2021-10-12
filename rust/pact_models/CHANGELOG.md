@@ -1,5 +1,15 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.2.0-beta.4 - Enhancements for plugins
+
+* a52db737 - feat: record the version of the lib that created the pact in the metadata (Ronald Holshausen, Tue Oct 12 14:55:42 2021 +1100)
+* 35ff0993 - feat: record the version of the lib that created the pact in the metadata (Ronald Holshausen, Tue Oct 12 14:52:43 2021 +1100)
+* 5f4a578e - refactor: add method to set content type of a body (Ronald Holshausen, Tue Oct 12 14:40:46 2021 +1100)
+* d1016565 - refactor: renamed SynchronousMessages -> SynchronousMessage (Ronald Holshausen, Tue Oct 12 14:37:30 2021 +1100)
+* 407cc2e5 - fix: notEmpty matching rule defintion should be applied to any primitive value (Ronald Holshausen, Thu Oct 7 14:08:02 2021 +1100)
+* 48d662a8 - chore: add docs about the matching rule definition language (Ronald Holshausen, Thu Oct 7 13:29:16 2021 +1100)
+* 780a0c97 - bump version to 0.2.0-beta.4 (Ronald Holshausen, Tue Oct 5 15:12:12 2021 +1100)
+
 # 0.2.0-beta.3 - Fixes from master + Updated matching rule definitions
 
 * d608a028 - chore: re-enable matching definition tests (Ronald Holshausen, Tue Oct 5 15:06:11 2021 +1100)
