@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.8.0-beta.1 - Support consumer tests with synchronous messages (Protobuf)
+
+* 1dc6f543 - chore: bump pact_mock_server version (Ronald Holshausen, Tue Oct 12 16:36:51 2021 +1100)
+* 9bbbb52e - chore: bump pact matching crate version (Ronald Holshausen, Tue Oct 12 16:24:01 2021 +1100)
+* d0bfb8a8 - feat: Support consumer tests with synchronous messages (Ronald Holshausen, Tue Oct 12 15:51:08 2021 +1100)
+* 35ff0993 - feat: record the version of the lib that created the pact in the metadata (Ronald Holshausen, Tue Oct 12 14:52:43 2021 +1100)
+* acbe66f1 - bump version to 0.8.0-beta.1 (Ronald Holshausen, Wed Oct 6 13:04:36 2021 +1100)
+
 # 0.8.0-beta.0 - Plugin support with consumer tests
 
 * a81659e9 - chore: update release script (Ronald Holshausen, Wed Oct 6 12:51:24 2021 +1100)
