@@ -112,6 +112,14 @@ impl OptionalBody {
       _ => Value::Null
     }
   }
+
+  /// Set the content type of the body. If the body is missing or empty, this is a no-op.
+  pub fn set_content_type(&mut self, content_type: &ContentType) {
+    match self {
+      OptionalBody::Present(_, ct, _) => *ct = Some(content_type.clone()),
+      _ => {}
+    }
+  }
 }
 
 impl From<String> for OptionalBody {
@@ -138,6 +146,12 @@ impl <'a> From<&'a str> for OptionalBody {
 
 impl From<Value> for OptionalBody {
   fn from(json: Value) -> Self {
+    OptionalBody::from(&json)
+  }
+}
+
+impl From<&Value> for OptionalBody {
+  fn from(json: &Value) -> Self {
     OptionalBody::Present(Bytes::from(json.to_string()),
                           Some(ContentType::from("application/json;charset=UTF-8")),
                           None)
