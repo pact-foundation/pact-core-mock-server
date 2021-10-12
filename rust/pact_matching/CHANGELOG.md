@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.11.0-beta.2 - synchronous messages with plugins
+
+* d0bfb8a8 - feat: Support consumer tests with synchronous messages (Ronald Holshausen, Tue Oct 12 15:51:08 2021 +1100)
+* 48d662a8 - chore: add docs about the matching rule definition language (Ronald Holshausen, Thu Oct 7 13:29:16 2021 +1100)
+* 605aa158 - chore: Update the matching readme with the new V4 matchers (Ronald Holshausen, Thu Oct 7 10:49:48 2021 +1100)
+* de5bbeef - bump version to 0.11.0-beta.2 (Ronald Holshausen, Wed Oct 6 11:30:22 2021 +1100)
+
 # 0.11.0-beta.1 - Plugin support (driver version 0.0.3)
 
 * 2c47023c - chore: pin plugin driver version to 0.0.3 (Ronald Holshausen, Wed Oct 6 11:21:07 2021 +1100)
