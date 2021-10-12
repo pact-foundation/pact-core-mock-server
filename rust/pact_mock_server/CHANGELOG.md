@@ -1,12 +1,5 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
-# 0.8.0-beta.2 - Support for plugins
-
-* 3dbd609a - chore: bump version of pact-plugin-driver (Ronald Holshausen, Tue Oct 12 15:59:53 2021 +1100)
-* d0bfb8a8 - feat: Support consumer tests with synchronous messages (Ronald Holshausen, Tue Oct 12 15:51:08 2021 +1100)
-* 35ff0993 - feat: record the version of the lib that created the pact in the metadata (Ronald Holshausen, Tue Oct 12 14:52:43 2021 +1100)
-* 3df879d4 - bump version to 0.8.0-beta.2 (Ronald Holshausen, Wed Oct 6 12:30:24 2021 +1100)
-
 # 0.8.0-beta.1 - Fixes from master + Plugin support (driver version 0.0.3)
 
 * dfabfac0 - chore: use the published version of the models crate (Ronald Holshausen, Wed Oct 6 12:24:04 2021 +1100)
