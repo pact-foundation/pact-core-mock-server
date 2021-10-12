@@ -926,7 +926,7 @@ mod tests {
   ],
   "metadata": {{
     "pactRust": {{
-      "version": "{}"
+      "models": "{}"
     }},
     "pactSpecification": {{
       "version": "4.0"
