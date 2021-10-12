@@ -25,7 +25,7 @@ use crate::sync_interaction::RequestResponseInteraction;
 use crate::v4::http_parts::body_from_json;
 use crate::v4::interaction::{V4Interaction, parse_plugin_config, InteractionMarkup};
 use crate::v4::message_parts::{MessageContents, metadata_to_headers};
-use crate::v4::sync_message::SynchronousMessages;
+use crate::v4::sync_message::SynchronousMessage;
 use crate::v4::synch_http::SynchronousHttp;
 use crate::v4::V4InteractionType;
 
@@ -302,7 +302,7 @@ impl Interaction for AsynchronousMessage {
     Some(self.clone())
   }
 
-  fn as_v4_sync_message(&self) -> Option<SynchronousMessages> {
+  fn as_v4_sync_message(&self) -> Option<SynchronousMessage> {
     None
   }
 

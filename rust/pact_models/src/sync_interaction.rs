@@ -19,7 +19,7 @@ use crate::request::Request;
 use crate::response::Response;
 use crate::v4::async_message::AsynchronousMessage;
 use crate::v4::interaction::V4Interaction;
-use crate::v4::sync_message::SynchronousMessages;
+use crate::v4::sync_message::SynchronousMessage;
 use crate::v4::synch_http::SynchronousHttp;
 use crate::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerifier, ResultLevel};
 
@@ -108,7 +108,7 @@ impl Interaction for RequestResponseInteraction {
     None
   }
 
-  fn as_v4_sync_message(&self) -> Option<SynchronousMessages> {
+  fn as_v4_sync_message(&self) -> Option<SynchronousMessage> {
     None
   }
 

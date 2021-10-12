@@ -23,7 +23,7 @@ use crate::sync_interaction::RequestResponseInteraction;
 use crate::v4::async_message::AsynchronousMessage;
 use crate::v4::interaction::V4Interaction;
 use crate::v4::message_parts::MessageContents;
-use crate::v4::sync_message::SynchronousMessages;
+use crate::v4::sync_message::SynchronousMessage;
 use crate::v4::synch_http::SynchronousHttp;
 
 /// Struct that defines a message.
@@ -127,7 +127,7 @@ impl Interaction for Message {
     })
   }
 
-  fn as_v4_sync_message(&self) -> Option<SynchronousMessages> {
+  fn as_v4_sync_message(&self) -> Option<SynchronousMessage> {
     None
   }
 

@@ -11,7 +11,7 @@ use serde_json::{json, Value};
 use crate::interaction::Interaction;
 use crate::json_utils::json_to_string;
 use crate::v4::async_message::AsynchronousMessage;
-use crate::v4::sync_message::SynchronousMessages;
+use crate::v4::sync_message::SynchronousMessage;
 use crate::v4::synch_http::SynchronousHttp;
 use crate::v4::V4InteractionType;
 
@@ -181,7 +181,7 @@ pub fn interaction_from_json(source: &str, index: usize, ijson: &Value) -> anyho
         match i_type {
           V4InteractionType::Synchronous_HTTP => SynchronousHttp::from_json(ijson, index).map(|i| i.boxed_v4()),
           V4InteractionType::Asynchronous_Messages => AsynchronousMessage::from_json(ijson, index).map(|i| i.boxed_v4()),
-          V4InteractionType::Synchronous_Messages => SynchronousMessages::from_json(ijson, index).map(|i| i.boxed_v4())
+          V4InteractionType::Synchronous_Messages => SynchronousMessage::from_json(ijson, index).map(|i| i.boxed_v4())
         }
       },
       Err(_) => {

@@ -14,7 +14,7 @@ use crate::provider_states::ProviderState;
 use crate::sync_interaction::RequestResponseInteraction;
 use crate::v4::async_message::AsynchronousMessage;
 use crate::v4::interaction::{interaction_from_json, V4Interaction};
-use crate::v4::sync_message::SynchronousMessages;
+use crate::v4::sync_message::SynchronousMessage;
 use crate::v4::synch_http::SynchronousHttp;
 
 /// Struct that defined an interaction conflict
@@ -87,7 +87,7 @@ pub trait Interaction: Debug {
   fn as_v4_async_message(&self) -> Option<AsynchronousMessage>;
 
   /// Returns the interaction in V4 format
-  fn as_v4_sync_message(&self) -> Option<SynchronousMessages>;
+  fn as_v4_sync_message(&self) -> Option<SynchronousMessage>;
 
   /// Clones this interaction and wraps it in a Box
   fn boxed(&self) -> Box<dyn Interaction + Send + Sync>;

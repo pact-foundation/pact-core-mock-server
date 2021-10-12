@@ -21,7 +21,7 @@ use crate::sync_interaction::RequestResponseInteraction;
 use crate::v4::async_message::AsynchronousMessage;
 use crate::v4::http_parts::{HttpRequest, HttpResponse};
 use crate::v4::interaction::{InteractionMarkup, parse_plugin_config, V4Interaction};
-use crate::v4::sync_message::SynchronousMessages;
+use crate::v4::sync_message::SynchronousMessage;
 use crate::v4::V4InteractionType;
 
 /// V4 HTTP Interaction Type
@@ -263,7 +263,7 @@ impl Interaction for SynchronousHttp {
     None
   }
 
-  fn as_v4_sync_message(&self) -> Option<SynchronousMessages> {
+  fn as_v4_sync_message(&self) -> Option<SynchronousMessage> {
     None
   }
 

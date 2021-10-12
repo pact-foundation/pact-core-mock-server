@@ -27,7 +27,7 @@ use crate::v4::V4InteractionType;
 
 /// Synchronous interactions as a request message to a sequence of response messages
 #[derive(Debug, Clone, Eq)]
-pub struct SynchronousMessages {
+pub struct SynchronousMessage {
   /// Interaction ID. This will only be set if the Pact file was fetched from a Pact Broker
   pub id: Option<String>,
   /// Unique key for this interaction
@@ -54,7 +54,7 @@ pub struct SynchronousMessages {
   pub interaction_markup: InteractionMarkup
 }
 
-impl SynchronousMessages {
+impl SynchronousMessage {
   fn calc_hash(&self) -> String {
     let mut s = DefaultHasher::new();
     self.hash(&mut s);
@@ -62,15 +62,15 @@ impl SynchronousMessages {
   }
 
   /// Creates a new version with a calculated key
-  pub fn with_key(&self) -> SynchronousMessages {
-    SynchronousMessages {
+  pub fn with_key(&self) -> SynchronousMessage {
+    SynchronousMessage {
       key: Some(self.calc_hash()),
       .. self.clone()
     }
   }
 
   /// Parse the JSON into a SynchronousMessages structure
-  pub fn from_json(json: &Value, index: usize) -> anyhow::Result<SynchronousMessages> {
+  pub fn from_json(json: &Value, index: usize) -> anyhow::Result<SynchronousMessage> {
     if json.is_object() {
       let id = json.get("_id").map(|id| json_to_string(id));
       let key = json.get("key").map(|id| json_to_string(id));
@@ -117,7 +117,7 @@ impl SynchronousMessages {
           .join(", ");
         Err(anyhow!("Failed to parse SynchronousMessages responses - {}", errors))
       } else {
-        Ok(SynchronousMessages {
+        Ok(SynchronousMessage {
           id,
           key,
           description,
@@ -137,7 +137,7 @@ impl SynchronousMessages {
   }
 }
 
-impl V4Interaction for SynchronousMessages {
+impl V4Interaction for SynchronousMessage {
   fn to_json(&self) -> Value {
     let mut json = json!({
       "type": V4InteractionType::Synchronous_Messages.to_string(),
@@ -212,7 +212,7 @@ impl V4Interaction for SynchronousMessages {
   }
 }
 
-impl Interaction for SynchronousMessages {
+impl Interaction for SynchronousMessage {
   fn type_of(&self) -> String {
     format!("V4 {}", self.v4_type())
   }
@@ -273,7 +273,7 @@ impl Interaction for SynchronousMessages {
     None
   }
 
-  fn as_v4_sync_message(&self) -> Option<SynchronousMessages> {
+  fn as_v4_sync_message(&self) -> Option<SynchronousMessage> {
     Some(self.clone())
   }
 
@@ -298,9 +298,9 @@ impl Interaction for SynchronousMessages {
   }
 }
 
-impl Default for SynchronousMessages {
+impl Default for SynchronousMessage {
   fn default() -> Self {
-    SynchronousMessages {
+    SynchronousMessage {
       id: None,
       key: None,
       description: "Synchronous/Message Interaction".to_string(),
@@ -315,7 +315,7 @@ impl Default for SynchronousMessages {
   }
 }
 
-impl PartialEq for SynchronousMessages {
+impl PartialEq for SynchronousMessage {
   fn eq(&self, other: &Self) -> bool {
     self.description == other.description && self.provider_states == other.provider_states &&
       self.request == other.request && self.response == other.response &&
@@ -323,7 +323,7 @@ impl PartialEq for SynchronousMessages {
   }
 }
 
-impl Hash for SynchronousMessages {
+impl Hash for SynchronousMessage {
   fn hash<H: Hasher>(&self, state: &mut H) {
     self.description.hash(state);
     self.provider_states.hash(state);
@@ -333,7 +333,7 @@ impl Hash for SynchronousMessages {
   }
 }
 
-impl Display for SynchronousMessages {
+impl Display for SynchronousMessage {
   fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
     let pending = if self.pending { " [PENDING]" } else { "" };
     write!(f, "V4 Synchronous Message Interaction{} ( id: {:?}, description: \"{}\", provider_states: {:?}, request: {}, response: {:?} )",

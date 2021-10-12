@@ -468,7 +468,7 @@ mod tests {
   use crate::v4::http_parts::{HttpRequest, HttpResponse};
   use crate::v4::message_parts::MessageContents;
   use crate::v4::pact::{from_json, V4Pact};
-  use crate::v4::sync_message::SynchronousMessages;
+  use crate::v4::sync_message::SynchronousMessage;
   use crate::v4::synch_http::SynchronousHttp;
   use crate::v4::V4InteractionType;
 
@@ -692,7 +692,7 @@ mod tests {
       consumer: Consumer { name: "write_pact_test_consumer".into() },
       provider: Provider { name: "write_pact_test_provider".into() },
       interactions: vec![
-        Box::new(SynchronousMessages {
+        Box::new(SynchronousMessage {
           id: None,
           key: None,
           description: "Test Interaction".into(),
@@ -1466,13 +1466,13 @@ mod tests {
       .. V4Pact::default() };
     let pact4 = V4Pact {
       interactions: vec![
-        Box::new(SynchronousMessages::default())
+        Box::new(SynchronousMessage::default())
       ],
       .. V4Pact::default() };
     let pact5 = V4Pact {
       interactions: vec![
         Box::new(SynchronousHttp::default()),
-        Box::new(SynchronousMessages::default())
+        Box::new(SynchronousMessage::default())
       ],
       .. V4Pact::default() };
 
@@ -1514,13 +1514,13 @@ mod tests {
       .. V4Pact::default() };
     let pact4 = V4Pact {
       interactions: vec![
-        Box::new(SynchronousMessages::default())
+        Box::new(SynchronousMessage::default())
       ],
       .. V4Pact::default() };
     let pact5 = V4Pact {
       interactions: vec![
         Box::new(SynchronousHttp::default()),
-        Box::new(SynchronousMessages::default())
+        Box::new(SynchronousMessage::default())
       ],
       .. V4Pact::default() };
 
