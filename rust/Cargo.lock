@@ -1422,7 +1422,7 @@ dependencies = [
  "lazy_static",
  "log",
  "maplit",
- "pact-plugin-driver 0.0.3",
+ "pact-plugin-driver 0.0.4",
  "pact_matching",
  "pact_models 0.2.0-beta.4",
  "quickcheck",
