@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, Context};
 use lazy_static::lazy_static;
-use log::{debug, error, warn};
+use log::{debug, error, warn, trace};
 use maplit::btreemap;
 use serde_json::{json, Value};
 
@@ -165,15 +165,20 @@ pub fn load_pact_from_url(url: &str, auth: &Option<HttpAuth>) -> anyhow::Result<
 /// Loads a Pact model from a JSON Value
 pub fn load_pact_from_json(source: &str, json: &Value) -> anyhow::Result<Box<dyn Pact + Send + Sync>> {
   match json {
-    Value::Object(map) => if map.contains_key("messages") {
-      let pact = MessagePact::from_json(source, json)?;
-      Ok(Box::new(pact))
-    } else {
+    Value::Object(map) => {
       let metadata = parse_meta_data(json);
       let spec_version = determine_spec_version(source, &metadata);
+      trace!("load_pact_from_json: found spec version {} in metadata", spec_version);
       match spec_version {
         PactSpecification::V4 => v4::pact::from_json(&source, json),
-        _ => Ok(Box::new(RequestResponsePact::from_json(source, json)?))
+        _ => if map.contains_key("messages") {
+          trace!("load_pact_from_json: JSON has a messages attribute, will load as a message pact");
+          let pact = MessagePact::from_json(source, json)?;
+          Ok(Box::new(pact))
+        } else {
+          trace!("load_pact_from_json: loading JSON as a request/response pact");
+          Ok(Box::new(RequestResponsePact::from_json(source, json)?))
+        }
       }
     },
     _ => Err(anyhow!("Failed to parse Pact JSON from source '{}' - it is not a valid pact file", source))

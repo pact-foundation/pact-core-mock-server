@@ -3,23 +3,26 @@ use std::collections::HashMap;
 use ansi_term::{ANSIGenericString, Style};
 use ansi_term::Colour::*;
 use bytes::Bytes;
-use log::debug;
+use log::{debug, warn};
 use maplit::*;
 use serde_json::{json, Value};
 
-use pact_matching::{match_message, Mismatch};
+use pact_matching::{match_message, match_sync_message_response, Mismatch};
 use pact_models::bodies::OptionalBody;
 use pact_models::http_parts::HttpPart;
 use pact_models::interaction::Interaction;
 use pact_models::message::Message;
 use pact_models::prelude::Pact;
+use pact_models::v4::async_message::AsynchronousMessage;
 use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
+use pact_models::v4::message_parts::MessageContents;
+use pact_models::v4::sync_message::SynchronousMessage;
 
 use crate::{MismatchResult, ProviderInfo, VerificationOptions};
 use crate::callback_executors::RequestFilterExecutor;
 use crate::provider_client::make_provider_request;
 
-pub async fn verify_message_from_provider<'a, F: RequestFilterExecutor>(
+pub(crate) async fn verify_message_from_provider<'a, F: RequestFilterExecutor>(
   provider: &ProviderInfo,
   pact: &Box<dyn Pact + Send + Sync + 'a>,
   interaction: &Box<dyn Interaction + Send + Sync>,
@@ -50,10 +53,13 @@ pub async fn verify_message_from_provider<'a, F: RequestFilterExecutor>(
   match make_provider_request(provider, &message_request, options, client).await {
     Ok(ref actual_response) => {
       let metadata = extract_metadata(actual_response);
-      let actual = Message {
-        contents: actual_response.body.clone(),
-        metadata,
-        .. Message::default()
+      let actual = AsynchronousMessage {
+        contents: MessageContents {
+          metadata,
+          contents: actual_response.body.clone(),
+          .. MessageContents::default()
+        },
+        .. AsynchronousMessage::default()
       };
 
       debug!("actual message = {:?}", actual);
@@ -152,6 +158,76 @@ fn extract_metadata(actual_response: &HttpResponse) -> HashMap<String, Value> {
   });
 
   default
+}
+
+pub(crate) async fn verify_sync_message_from_provider<'a, F: RequestFilterExecutor>(
+  provider: &ProviderInfo,
+  pact: &Box<dyn Pact + Send + Sync + 'a>,
+  message: SynchronousMessage,
+  options: &VerificationOptions<F>,
+  client: &reqwest::Client,
+  _: &HashMap<&str, Value>
+) -> Result<Option<String>, MismatchResult> {
+  if message.response.len() > 1 {
+    warn!("Matching synchronous messages with more than one response is not currently supported, will only use the first response");
+  }
+
+  let mut request_body = json!({
+    "description": message.description(),
+    "request": message.request.to_json()
+  });
+
+  if !message.provider_states().is_empty() {
+    if let Some(map) = request_body.as_object_mut() {
+      map.insert("providerStates".into(), Value::Array(message.provider_states().iter()
+        .map(|ps| ps.to_json()).collect()));
+    }
+  }
+
+  let message_request = HttpRequest {
+    method: "POST".into(),
+    body: OptionalBody::Present(Bytes::from(request_body.to_string()), Some("application/json".into()), None),
+    headers: Some(hashmap! {
+        "Content-Type".to_string() => vec!["application/json".to_string()]
+    }),
+    .. HttpRequest::default()
+  };
+
+  match make_provider_request(provider, &message_request, options, client).await {
+    Ok(ref actual_response) => {
+      if actual_response.is_success() {
+        let metadata = extract_metadata(actual_response);
+        let actual_contents = MessageContents {
+          metadata,
+          contents: actual_response.body.clone(),
+          ..MessageContents::default()
+        };
+        let actual = SynchronousMessage {
+          response: vec![actual_contents],
+          .. SynchronousMessage::default()
+        };
+
+        debug!("actual message = {:?}", actual);
+
+        let mismatches = match_sync_message_response(&message, &message.response, &actual.response, pact).await;
+        if mismatches.is_empty() {
+          Ok(message.id().clone())
+        } else {
+          Err(MismatchResult::Mismatches {
+            mismatches,
+            expected: message.boxed(),
+            actual: actual.boxed(),
+            interaction_id: message.id().clone()
+          })
+        }
+      } else {
+        Err(MismatchResult::Error(format!("Request to fetch message from provider failed: status {}", actual_response.status), message.id().clone()))
+      }
+    },
+    Err(err) => {
+      Err(MismatchResult::Error(err.to_string(), message.id().clone()))
+    }
+  }
 }
 
 #[cfg(test)]

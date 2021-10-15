@@ -249,6 +249,16 @@ impl Message {
       }
     }
   }
+
+  /// Converts this message into a V4 message content
+  pub fn as_message_content(&self) -> MessageContents {
+    MessageContents {
+      contents: self.contents.clone(),
+      metadata: self.metadata.clone(),
+      matching_rules: self.matching_rules.clone(),
+      generators: self.generators.clone()
+    }
+  }
 }
 
 impl HttpPart for Message {

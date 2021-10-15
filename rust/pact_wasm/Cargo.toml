@@ -31,3 +31,8 @@ log = "0.4.14"
 [dev-dependencies]
 expectest = "0.12.0"
 wasm-bindgen-test = "0.3.13"
+
+[profile.release]
+# Tell `rustc` to optimize for small code size.
+opt-level = "s"
+lto = true

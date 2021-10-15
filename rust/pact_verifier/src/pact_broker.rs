@@ -2,11 +2,13 @@
 
 use std::collections::HashMap;
 
-use anyhow::anyhow;
 use futures::stream::*;
 use itertools::Itertools;
 use log::*;
 use maplit::*;
+use pact_models::http_utils::HttpAuth;
+use pact_models::pact::{load_pact_from_json, Pact};
+use pact_models::PACT_RUST_VERSION;
 use regex::{Captures, Regex};
 use reqwest::{Method, RequestBuilder};
 use serde::{Deserialize, Serialize};
@@ -15,11 +17,6 @@ use serde_with::skip_serializing_none;
 use tokio::time::{Duration, sleep};
 
 use pact_matching::Mismatch;
-use pact_models::http_utils::HttpAuth;
-use pact_models::message_pact::MessagePact;
-use pact_models::pact::Pact;
-use pact_models::PACT_RUST_VERSION;
-use pact_models::sync_pact::RequestResponsePact;
 
 use crate::MismatchResult;
 
@@ -611,16 +608,8 @@ pub async fn fetch_pacts_from_broker(
             Ok((pact_link, pact_json)) => {
               let href = pact_link.href.unwrap_or_default();
               let links = links_from_json(&pact_json);
-              match pact_json {
-                Value::Object(ref map) => if map.contains_key("messages") {
-                  MessagePact::from_json(&href, &pact_json)
-                    .map(|pact| (pact.boxed(), None, links))
-                } else {
-                  RequestResponsePact::from_json(&href, &pact_json)
-                    .map(|pact| (pact.boxed(), None, links))
-                },
-                _ => Err(anyhow!("Link '{}' does not point to a valid pact file", href))
-              }
+              load_pact_from_json(href.as_str(), &pact_json)
+                .map(|pact| (pact, None, links))
             },
             Err(err) => Err(err.into())
           }
@@ -689,7 +678,8 @@ pub async fn fetch_pacts_dynamically_from_broker(
     // Find all of the Pact links
     let pact_links = match response {
       Some(v) => {
-        let pfv: PactsForVerificationResponse = serde_json::from_value(v).unwrap_or(PactsForVerificationResponse { embedded: PactsForVerificationBody { pacts: vec!() } });
+        let pfv: PactsForVerificationResponse = serde_json::from_value(v)
+          .unwrap_or(PactsForVerificationResponse { embedded: PactsForVerificationBody { pacts: vec!() } });
 
         if pfv.embedded.pacts.len() == 0 {
           return Err(PactBrokerError::NotFound(format!("No pacts were found for this provider")))
@@ -748,20 +738,9 @@ pub async fn fetch_pacts_dynamically_from_broker(
           Ok((pact_link, pact_json, context)) => {
             let href = pact_link.href.unwrap_or_default();
             let links = links_from_json(&pact_json);
-            match pact_json {
-              Value::Object(ref map) => if map.contains_key("messages") {
-                match MessagePact::from_json(&href, &pact_json) {
-                  Ok(pact) => Ok((pact.boxed(), Some(context), links)),
-                  Err(err) => Err(PactBrokerError::ContentError(format!("{}", err)))
-                }
-              } else {
-                match RequestResponsePact::from_json(&href, &pact_json) {
-                  Ok(pact) => Ok((pact.boxed(), Some(context), links)),
-                  Err(err) => Err(PactBrokerError::ContentError(format!("{}", err)))
-                }
-              },
-              _ => Err(PactBrokerError::ContentError(format!("Link '{}' does not point to a valid pact file", href)))
-            }
+            load_pact_from_json(href.as_str(), &pact_json)
+              .map(|pact| (pact, Some(context), links))
+              .map_err(|err| PactBrokerError::ContentError(format!("{}", err)))
           },
           Err(err) => Err(err)
         }
@@ -1043,12 +1022,12 @@ mod tests {
   use env_logger::*;
   use expectest::expect;
   use expectest::prelude::*;
+  use pact_models::{Consumer, PactSpecification, Provider};
+  use pact_models::sync_interaction::RequestResponseInteraction;
 
   use pact_consumer::*;
   use pact_consumer::prelude::*;
   use pact_matching::Mismatch::MethodMismatch;
-  use pact_models::{Consumer, PactSpecification, Provider};
-  use pact_models::sync_interaction::RequestResponseInteraction;
 
   use super::*;
   use super::{content_type, json_content_type};

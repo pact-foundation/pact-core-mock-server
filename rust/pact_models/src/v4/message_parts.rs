@@ -11,8 +11,10 @@ use serde_json::{json, Value};
 use crate::bodies::OptionalBody;
 use crate::content_types::ContentType;
 use crate::generators::{Generators, generators_from_json, generators_to_json};
+use crate::http_parts::HttpPart;
 use crate::json_utils::{hash_json, json_to_string};
 use crate::matchingrules::{matchers_from_json, matchers_to_json, MatchingRules};
+use crate::message::Message;
 use crate::PactSpecification;
 use crate::v4::calc_content_type;
 use crate::v4::http_parts::body_from_json;
@@ -87,6 +89,17 @@ impl MessageContents {
   pub fn message_content_type(&self) -> Option<ContentType> {
     calc_content_type(&self.contents, &metadata_to_headers(&self.metadata))
   }
+
+  /// Convert this message contents to a V3 asynchronous message
+  pub fn as_v3_message(&self) -> Message {
+    Message {
+      contents: self.contents.clone(),
+      metadata: self.metadata.clone(),
+      matching_rules: self.matching_rules.clone(),
+      generators: self.generators.clone(),
+      .. Message::default()
+    }
+  }
 }
 
 impl Display for MessageContents {
@@ -112,6 +125,35 @@ impl PartialEq for MessageContents {
   fn eq(&self, other: &Self) -> bool {
     self.contents == other.contents && self.metadata == other.metadata &&
       self.matching_rules == other.matching_rules && self.generators == other.generators
+  }
+}
+
+impl HttpPart for MessageContents {
+  fn headers(&self) -> &Option<HashMap<String, Vec<String>>> {
+    unimplemented!()
+  }
+
+  fn headers_mut(&mut self) -> &mut HashMap<String, Vec<String>> {
+    unimplemented!()
+  }
+
+  fn body(&self) -> &OptionalBody {
+    &self.contents
+  }
+
+  fn matching_rules(&self) -> &MatchingRules {
+    &self.matching_rules
+  }
+
+  fn generators(&self) -> &Generators {
+    &self.generators
+  }
+
+  fn lookup_content_type(&self) -> Option<String> {
+    self.metadata.iter().find(|(k, _)| {
+      let key = k.to_ascii_lowercase();
+      key == "contenttype" || key == "content-type"
+    }).map(|(_, v)| json_to_string(&v[0]))
   }
 }
 

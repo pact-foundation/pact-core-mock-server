@@ -372,6 +372,8 @@ use pact_models::matchingrules::{Category, MatchingRule, MatchingRuleCategory, R
 use pact_models::pact::Pact;
 use pact_models::PactSpecification;
 use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
+use pact_models::v4::message_parts::MessageContents;
+use pact_models::v4::sync_message::SynchronousMessage;
 
 use crate::generators::{DefaultVariantMatcher, generators_process_body};
 use crate::headers::{match_header_value, match_headers};
@@ -1466,25 +1468,16 @@ fn setup_plugin_config<'a>(
 
 /// Matches the actual message contents to the expected one. This takes into account the content type of each.
 pub async fn match_message_contents(
-  expected: &Box<dyn Interaction + Send + Sync>,
-  actual: &Box<dyn Interaction + Send + Sync>,
+  expected: &MessageContents,
+  actual: &MessageContents,
   context: &MatchingContext
 ) -> Result<(), Vec<Mismatch>> {
-  let expected_message = expected.as_message().unwrap();
-  let expected_content_type = expected_message.message_content_type().unwrap_or_default();
-  let actual_content_type = actual.as_message()
-    .map(|m| HttpPart::content_type(&m)).flatten().unwrap_or_default();
+  let expected_content_type = expected.message_content_type().unwrap_or_default();
+  let actual_content_type = actual.message_content_type().unwrap_or_default();
   debug!("expected content type = '{}', actual content type = '{}'", expected_content_type,
          actual_content_type);
   if expected_content_type.is_equivalent_to(&actual_content_type) {
-    let result = if expected.is_v4() || actual.is_v4() {
-      let expected = expected.as_v4_async_message().unwrap();
-      let actual = actual.as_v4_async_message().unwrap();
-      match_body_content(&expected_content_type, &expected, &actual, context).await
-    } else {
-      let actual = actual.as_message().unwrap();
-      match_body_content(&expected_content_type, &expected_message, &actual, context).await
-    };
+    let result = match_body_content(&expected_content_type, expected, actual, context).await;
     match result {
       BodyMatchResult::BodyTypeMismatch { expected_type, actual_type, message, expected, actual } => {
         Err(vec![ Mismatch::BodyTypeMismatch {
@@ -1500,14 +1493,14 @@ pub async fn match_message_contents(
       },
       _ => Ok(())
     }
-  } else if expected_message.contents.is_present() {
+  } else if expected.contents.is_present() {
     Err(vec![ Mismatch::BodyTypeMismatch {
       expected: expected_content_type.to_string(),
       actual: actual_content_type.to_string(),
       mismatch: format!("Expected message with content type {} but was {}",
                         expected_content_type, actual_content_type),
-      expected_body: expected_message.contents.value(),
-      actual_body: actual.as_message().map(|m| m.contents.value()).unwrap_or_default()
+      expected_body: expected.contents.value(),
+      actual_body: actual.contents.value()
     } ])
   } else {
     Ok(())
@@ -1516,28 +1509,18 @@ pub async fn match_message_contents(
 
 /// Matches the actual message metadata to the expected one.
 pub fn match_message_metadata(
-  expected: &Box<dyn Interaction + Send + Sync>,
-  actual: &Box<dyn Interaction + Send + Sync>,
+  expected: &MessageContents,
+  actual: &MessageContents,
   context: &MatchingContext
 ) -> HashMap<String, Vec<Mismatch>> {
-  debug!("Matching message metadata for '{}'", expected.description());
+  debug!("Matching message metadata");
   let mut result = hashmap!{};
-  let expected_metadata = if let Some(expected) = expected.as_v4_async_message() {
-    expected.contents.metadata
-  } else {
-    expected.as_message().unwrap().metadata.iter()
-      .map(|(k, v)| (k.clone(), v.clone())).collect()
-  };
-  let actual_metadata = if let Some(actual) = actual.as_v4_async_message() {
-    actual.contents.metadata.clone()
-  } else {
-    actual.as_message().unwrap().metadata.iter()
-      .map(|(k, v)| (k.clone(), v.clone())).collect()
-  };
+  let expected_metadata = &expected.metadata;
+  let actual_metadata = &actual.metadata;
   debug!("Matching message metadata. Expected '{:?}', Actual '{:?}'", expected_metadata, actual_metadata);
 
   if !expected_metadata.is_empty() || context.config == DiffConfig::NoUnexpectedKeys {
-    for (key, value) in &expected_metadata {
+    for (key, value) in expected_metadata {
       match actual_metadata.get(key) {
         Some(actual_value) => {
           result.insert(key.clone(), match_metadata_value(key, value,
@@ -1588,6 +1571,8 @@ pub async fn match_message<'a>(
 
   if expected.is_message() && actual.is_message() {
     info!("comparing to expected message: {:?}", expected);
+    let expected_message = expected.as_message().unwrap();
+    let actual_message = actual.as_message().unwrap();
 
     let matching_rules = expected.matching_rules().unwrap_or_default();
     let plugin_data = setup_plugin_config(pact, expected);
@@ -1601,17 +1586,17 @@ pub async fn match_message<'a>(
       }
     } else {
       MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
-        &matching_rules.rules_for_category("body").unwrap_or_default(),
-        &plugin_data)
+                           &matching_rules.rules_for_category("body").unwrap_or_default(),
+                           &plugin_data)
     };
 
     let metadata_context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
-      &matching_rules.rules_for_category("metadata").unwrap_or_default(),
-      &plugin_data);
-    let contents = match_message_contents(expected, actual, &body_context).await;
+                                                &matching_rules.rules_for_category("metadata").unwrap_or_default(),
+                                                &plugin_data);
+    let contents = match_message_contents(&expected_message.as_message_content(), &actual_message.as_message_content(), &body_context).await;
 
     mismatches.extend_from_slice(contents.err().unwrap_or_default().as_slice());
-    for values in match_message_metadata(expected, actual, &metadata_context).values() {
+    for values in match_message_metadata(&expected_message.as_message_content(), &actual_message.as_message_content(), &metadata_context).values() {
       mismatches.extend_from_slice(values.as_slice());
     }
   } else {
@@ -1624,6 +1609,100 @@ pub async fn match_message<'a>(
     });
   }
 
+  mismatches
+}
+
+/// Matches synchronous request/response messages
+pub async fn match_sync_message<'a>(expected: SynchronousMessage, actual: SynchronousMessage, pact: &Box<dyn Pact + Send + Sync + 'a>) -> Vec<Mismatch> {
+  let mut mismatches = match_sync_message_request(&expected, &actual, pact).await;
+  let response_result = match_sync_message_response(&expected, &expected.response, &actual.response, pact).await;
+  mismatches.extend_from_slice(&*response_result);
+  mismatches
+}
+
+/// Match the request part of a synchronous request/response message
+pub async fn match_sync_message_request<'a>(
+  expected: &SynchronousMessage,
+  actual: &SynchronousMessage,
+  pact: &Box<dyn Pact + Send + Sync + 'a>
+) -> Vec<Mismatch> {
+  info!("comparing to expected message request: {:?}", expected);
+
+  let matching_rules = &expected.request.matching_rules;
+  let plugin_data = setup_plugin_config(pact, &expected.boxed());
+
+  let body_context = MatchingContext {
+    matchers: matching_rules.rules_for_category("content").unwrap_or_default(),
+    config: DiffConfig::AllowUnexpectedKeys,
+    matching_spec: PactSpecification::V4,
+    plugin_configuration: plugin_data.clone()
+  };
+
+  let metadata_context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
+                                              &matching_rules.rules_for_category("metadata").unwrap_or_default(),
+                                              &plugin_data);
+  let contents = match_message_contents(&expected.request, &actual.request, &body_context).await;
+
+  let mut mismatches = vec![];
+  mismatches.extend_from_slice(contents.err().unwrap_or_default().as_slice());
+  for values in match_message_metadata(&expected.request, &actual.request, &metadata_context).values() {
+    mismatches.extend_from_slice(values.as_slice());
+  }
+  mismatches
+}
+
+/// Match the response part of a synchronous request/response message
+pub async fn match_sync_message_response<'a>(
+  expected: &SynchronousMessage,
+  expected_responses: &Vec<MessageContents>,
+  actual_responses: &Vec<MessageContents>,
+  pact: &Box<dyn Pact + Send + Sync + 'a>
+) -> Vec<Mismatch> {
+  info!("comparing to expected message responses: {:?}", expected_responses);
+
+  let mut mismatches = vec![];
+
+  if expected_responses.len() != actual_responses.len() {
+    if !expected_responses.is_empty() && actual_responses.is_empty() {
+      mismatches.push(Mismatch::BodyTypeMismatch {
+        expected: "message response".into(),
+        actual: "".into(),
+        mismatch: "Expected a message with a response, but the actual response was empty".into(),
+        expected_body: None,
+        actual_body: None
+      });
+    } else if !expected_responses.is_empty() {
+      mismatches.push(Mismatch::BodyTypeMismatch {
+        expected: "message response".into(),
+        actual: "".into(),
+        mismatch: format!("Expected a message with {} responses, but the actual response had {}",
+                          expected_responses.len(), actual_responses.len()),
+        expected_body: None,
+        actual_body: None
+      });
+    }
+  } else {
+    let plugin_data = setup_plugin_config(pact, &expected.boxed());
+    for (expected_response, actual_response) in expected_responses.iter().zip(actual_responses) {
+      let matching_rules = &expected_response.matching_rules;
+      let body_context = MatchingContext {
+        matchers: matching_rules.rules_for_category("content").unwrap_or_default(),
+        config: DiffConfig::AllowUnexpectedKeys,
+        matching_spec: PactSpecification::V4,
+        plugin_configuration: plugin_data.clone()
+      };
+
+      let metadata_context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
+                                                  &matching_rules.rules_for_category("metadata").unwrap_or_default(),
+                                                  &plugin_data);
+      let contents = match_message_contents(&expected_response, &actual_response, &body_context).await;
+
+      mismatches.extend_from_slice(contents.err().unwrap_or_default().as_slice());
+      for values in match_message_metadata(&expected_response, &actual_response, &metadata_context).values() {
+        mismatches.extend_from_slice(values.as_slice());
+      }
+    }
+  }
   mismatches
 }
 
@@ -1788,7 +1867,7 @@ pub async fn match_interaction(
     let mut mismatches = request_result.mismatches();
     mismatches.extend_from_slice(&*response_result);
     Ok(mismatches)
-  } else if expected.is_message() {
+  } else if expected.is_message() || expected.is_v4() {
     Ok(match_message(&expected, &actual, &pact).await)
   } else {
     Err(anyhow!("match_interaction must be called with either an HTTP request/response interaction or a Message, got {}", expected.type_of()))

@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use anyhow::{anyhow, Context};
 use itertools::EitherOrBoth::{Both, Left, Right};
 use itertools::Itertools;
-use log::warn;
+use log::{warn, trace};
 use maplit::btreemap;
 use serde_json::{json, Value, Map};
 
@@ -413,6 +413,7 @@ impl PactJsonVerifier for V4Pact {
 
 /// Creates a V4 Pact from the provided JSON struct
 pub fn from_json(source: &str, pact_json: &Value) -> anyhow::Result<Box<dyn Pact + Send + Sync>> {
+  trace!("from_json: Loading a V4 pact from JSON");
   let mut metadata = meta_data_from_json(pact_json);
 
   let consumer = match pact_json.get("consumer") {

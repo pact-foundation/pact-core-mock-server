@@ -446,6 +446,11 @@ impl HttpResponse {
   pub fn content_type(&self) -> Option<ContentType> {
     calc_content_type(&self.body, &self.headers)
   }
+
+  /// If this response represents a success (status code < 400)
+  pub fn is_success(&self) -> bool {
+    self.status < 400
+  }
 }
 
 impl HttpPart for HttpResponse {
