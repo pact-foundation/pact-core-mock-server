@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.2.0-beta.5 - matching synchronous request/response messages
+
+* 2b4b7cc3 - feat(plugins): Support matching synchronous request/response messages (Ronald Holshausen, Fri Oct 15 16:01:50 2021 +1100)
+* de3e8296 - bump version to 0.2.0-beta.5 (Ronald Holshausen, Tue Oct 12 15:09:59 2021 +1100)
+
 # 0.2.0-beta.4 - Enhancements for plugins
 
 * a52db737 - feat: record the version of the lib that created the pact in the metadata (Ronald Holshausen, Tue Oct 12 14:55:42 2021 +1100)
