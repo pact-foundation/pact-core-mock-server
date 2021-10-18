@@ -1183,6 +1183,8 @@ dependencies = [
 [[package]]
 name = "pact-plugin-driver"
 version = "0.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4b5039edca4e104764c90cc90298d5a5c8e28c7bd963cf044ea8cdf6eb2560ff"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1193,7 +1195,7 @@ dependencies = [
  "log",
  "maplit",
  "os_info",
- "pact_models 0.2.0-beta.6",
+ "pact_models 0.2.0-beta.5",
  "prost",
  "prost-types",
  "regex",
@@ -1321,7 +1323,7 @@ dependencies = [
  "ntest",
  "onig",
  "pact-plugin-driver",
- "pact_models 0.2.0-beta.6",
+ "pact_models 0.2.0-beta.5",
  "pretty_assertions 0.6.1",
  "quickcheck",
  "rand 0.8.4",
@@ -1495,7 +1497,7 @@ dependencies = [
  "pact-plugin-driver",
  "pact_consumer",
  "pact_matching",
- "pact_models 0.2.0-beta.6",
+ "pact_models 0.2.0-beta.5",
  "quickcheck",
  "regex",
  "reqwest",

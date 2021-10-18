@@ -1023,6 +1023,7 @@ mod tests {
   use expectest::expect;
   use expectest::prelude::*;
   use pact_models::{Consumer, PactSpecification, Provider};
+  use pact_models::prelude::RequestResponsePact;
   use pact_models::sync_interaction::RequestResponseInteraction;
 
   use pact_consumer::*;
