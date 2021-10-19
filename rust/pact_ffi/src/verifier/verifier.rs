@@ -17,6 +17,7 @@ use pact_verifier::callback_executors::HttpRequestProviderStateExecutor;
 
 use super::args;
 
+#[deprecated(since = "0.1.0-beta.0", note = "use the handle based interface instead. See pact_ffi/src/verifier/handle.rs")]
 fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
   let mut sources = vec![];
 
@@ -82,6 +83,8 @@ fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
   sources
 }
 
+// Moved to the pact_verifier crate. See pact_verifier/src/selectors.rs
+#[deprecated(since = "0.1.0-beta.0", note = "Moved to the pact_verifier crate. See pact_verifier/src/selectors.rs")]
 fn consumer_tags_to_selectors(tags: Vec<&str>) -> Vec<pact_verifier::ConsumerVersionSelector> {
   tags.iter().map(|t| {
     pact_verifier::ConsumerVersionSelector {
@@ -99,34 +102,40 @@ fn consumer_tags_to_selectors(tags: Vec<&str>) -> Vec<pact_verifier::ConsumerVer
   }).collect()
 }
 
+// Moved to the pact_verifier crate. See pact_verifier/src/selectors.rs
+#[deprecated(since = "0.1.0-beta.0", note = "Moved to the pact_verifier crate. See pact_verifier/src/selectors.rs")]
 fn json_to_selectors(tags: Vec<&str>) -> Vec<pact_verifier::ConsumerVersionSelector> {
   tags.iter().map(|t| serde_json::from_str(t))
   .flatten()
   .collect()
 }
 
+#[deprecated(since = "0.1.0-beta.0", note = "use the handle based interface instead. See pact_ffi/src/verifier/handle.rs")]
 fn interaction_filter(matches: &ArgMatches) -> FilterInfo {
   if matches.is_present("filter-description") &&
       (matches.is_present("filter-state") || matches.is_present("filter-no-state")) {
       if matches.is_present("filter-state") {
-          FilterInfo::DescriptionAndState(s!(matches.value_of("filter-description").unwrap()),
-              s!(matches.value_of("filter-state").unwrap()))
+          FilterInfo::DescriptionAndState(matches.value_of("filter-description").unwrap().to_string(),
+              matches.value_of("filter-state").unwrap().to_string())
       } else {
-          FilterInfo::DescriptionAndState(s!(matches.value_of("filter-description").unwrap()),
-              s!(""))
+          FilterInfo::DescriptionAndState(matches.value_of("filter-description").unwrap().to_string(),
+              String::new())
       }
   } else if matches.is_present("filter-description") {
-      FilterInfo::Description(s!(matches.value_of("filter-description").unwrap()))
+      FilterInfo::Description(matches.value_of("filter-description").unwrap().to_string())
   } else if matches.is_present("filter-state") {
-      FilterInfo::State(s!(matches.value_of("filter-state").unwrap()))
+      FilterInfo::State(matches.value_of("filter-state").unwrap().to_string())
   } else if matches.is_present("filter-no-state") {
-      FilterInfo::State(s!(""))
+      FilterInfo::State(String::new())
   } else {
       FilterInfo::None
   }
 }
 
 /// Handles the command line arguments from the running process
+/// This method is now deprecated and duplicated in the verifier CLI module. FFI consumers
+/// should use the handle based interface instead
+#[deprecated(since = "0.1.0-beta.0", note = "use the handle based interface instead. See pact_ffi/src/verifier/handle.rs")]
 pub async fn handle_cli(version: &str) -> Result<(), i32> {
   let args: Vec<String> = env::args().collect();
   let program = args[0].clone();
@@ -162,6 +171,9 @@ pub async fn handle_cli(version: &str) -> Result<(), i32> {
 //
 // Currently, clap prints things out as if it were a CLI call
 #[allow(dead_code, missing_docs)]
+/// This method is now deprecated and duplicated in the verifier CLI module. FFI consumers
+/// should use the handle based interface instead
+#[deprecated(since = "0.1.0-beta.0", note = "use the handle based interface instead. See pact_ffi/src/verifier/handle.rs")]
 pub async fn handle_args(args: Vec<String>) -> Result<(), i32> {
   let program = "pact_verifier_cli".to_string();
   let version = format!("v{}", clap::crate_version!()).as_str().to_owned();
@@ -180,6 +192,7 @@ pub async fn handle_args(args: Vec<String>) -> Result<(), i32> {
   }
 }
 
+#[deprecated(since = "0.1.0-beta.0", note = "use the handle based interface instead. See pact_ffi/src/verifier/handle.rs")]
 async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
     let level = matches.value_of("loglevel").unwrap_or("warn");
     let log_level = match level {
