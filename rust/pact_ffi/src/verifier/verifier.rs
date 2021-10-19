@@ -6,7 +6,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use clap::{AppSettings, ArgMatches, ErrorKind};
-use log::{debug, LevelFilter};
+use log::{debug, error, LevelFilter};
 use simplelog::{Config, TerminalMode, TermLogger};
 
 use pact_matching::s;
@@ -226,7 +226,10 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
         options,
         &provider_state_executor
     ).await
-      .map_err(|_| 2)
+      .map_err(|err| {
+        error!("Verification failed with error: {}", err);
+        2
+      })
       .and_then(|result| if result { Ok(()) } else { Err(1) })
 }
 

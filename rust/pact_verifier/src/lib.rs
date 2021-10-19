@@ -606,7 +606,7 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
       match pact_result {
         Ok((pact, context, pact_source)) => {
           if pact.requires_plugins() {
-            debug!("Pact file requires plugins, will load those now");
+            info!("Pact file requires plugins, will load those now");
             for plugin_details in pact.plugin_data() {
               load_plugin(&PluginDependency {
                 name: plugin_details.name.clone(),
