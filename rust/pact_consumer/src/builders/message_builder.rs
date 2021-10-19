@@ -191,10 +191,15 @@ impl MessageInteractionBuilder {
   /// Any global plugin config required to add to the Pact
   pub fn plugin_config(&self) -> Option<PluginData> {
     self.contents_plugin.as_ref().map(|plugin| {
+      let config = if let Some(config) = self.plugin_config.get(plugin.name.as_str()) {
+        config.pact_configuration.clone()
+      } else {
+        hashmap!{}
+      };
       PluginData {
         name: plugin.name.clone(),
         version: plugin.version.clone(),
-        configuration: self.message_contents.plugin_config.pact_configuration.clone()
+        configuration: config
       }
     })
   }
