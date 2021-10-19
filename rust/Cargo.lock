@@ -1221,7 +1221,7 @@ dependencies = [
  "log",
  "maplit",
  "pact_matching",
- "pact_models 0.2.0-beta.6",
+ "pact_models 0.2.0-beta.5",
  "serde",
  "serde_json",
  "simplelog 0.10.2",
