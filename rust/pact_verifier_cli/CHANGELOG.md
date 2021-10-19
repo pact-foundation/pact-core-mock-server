@@ -1,5 +1,16 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.9.0-beta.0 - Pact Plugins Support
+
+* 1aa21870 - chore: update readme with details on plugins (Ronald Holshausen, Tue Oct 19 18:12:51 2021 +1100)
+* 5bbdbcfa - refactor: move the CLI functions back from the FFI crate (Ronald Holshausen, Tue Oct 19 18:03:29 2021 +1100)
+* e98a91fe - chore: update to latest verifier lib (Ronald Holshausen, Tue Oct 19 17:42:07 2021 +1100)
+* 918e5beb - fix: update to latest models and plugin driver crates (Ronald Holshausen, Tue Oct 19 17:09:48 2021 +1100)
+* 6f20282d - Merge branch 'master' into feat/plugins (Ronald Holshausen, Tue Sep 28 14:51:34 2021 +1000)
+* f14a02b2 - bump version to 0.8.9 (Ronald Holshausen, Tue Sep 28 14:20:41 2021 +1000)
+* 75e13fd8 - Merge branch 'master' into feat/plugins (Ronald Holshausen, Mon Aug 23 10:33:45 2021 +1000)
+* dfe3cd42 - chore: bump minor version of Pact verifier libs (Ronald Holshausen, Mon Aug 9 15:10:47 2021 +1000)
+
 # 0.8.8 - support native TLS certs
 
 * df715cd5 - feat: support native TLS. Fixes #144 (Matt Fellows, Mon Sep 20 13:00:33 2021 +1000)
