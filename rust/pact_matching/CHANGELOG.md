@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.11.0-beta.4 - Bugfix Release
+
+* 918e5beb - fix: update to latest models and plugin driver crates (Ronald Holshausen, Tue Oct 19 17:09:48 2021 +1100)
+* 8f8ad35a - bump version to 0.11.0-beta.4 (Ronald Holshausen, Tue Oct 19 11:17:01 2021 +1100)
+
 # 0.11.0-beta.3 - Support matching synchronous request/response messages
 
 * aa434ba3 - chore: update to latest driver crate (Ronald Holshausen, Tue Oct 19 11:09:46 2021 +1100)
