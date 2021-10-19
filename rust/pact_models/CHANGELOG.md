@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.2.0-beta.6 - Bugfix Release
+
+* 48a6be5f - fix: EachValue was outputting the wrong JSON (Ronald Holshausen, Tue Oct 19 16:35:17 2021 +1100)
+* 021a65e6 - bump version to 0.2.0-beta.6 (Ronald Holshausen, Mon Oct 18 13:00:22 2021 +1100)
+
 # 0.2.0-beta.5 - matching synchronous request/response messages
 
 * 2b4b7cc3 - feat(plugins): Support matching synchronous request/response messages (Ronald Holshausen, Fri Oct 15 16:01:50 2021 +1100)
