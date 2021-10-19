@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.11.0-beta.2 - Bugfix Release
+
+* 1677501d - refactor: moved consumer version selector functions from pact_ffi crate (Ronald Holshausen, Tue Oct 19 17:31:13 2021 +1100)
+* 918e5beb - fix: update to latest models and plugin driver crates (Ronald Holshausen, Tue Oct 19 17:09:48 2021 +1100)
+* 1539050c - bump version to 0.11.0-beta.2 (Ronald Holshausen, Tue Oct 19 11:44:42 2021 +1100)
+
 # 0.11.0-beta.1 - Plugin support with verifying pacts
 
 * 3819522d - chore: update to the latest matching and mock server crates (Ronald Holshausen, Tue Oct 19 11:34:18 2021 +1100)
