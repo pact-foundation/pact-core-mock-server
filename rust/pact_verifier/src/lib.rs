@@ -48,6 +48,7 @@ pub mod pact_broker;
 pub mod callback_executors;
 mod request_response;
 mod messages;
+pub mod selectors;
 
 /// Source for loading pacts
 #[derive(Debug, Clone)]
