@@ -21,7 +21,7 @@ serde = "1.0"
 serde_json = "1.0"
 pact_matching = { version = "0.11.0-beta.2", path = "../pact_matching" }
 pact_models = "0.2.0-beta.5"
-pact-plugin-driver = "0.0.5"
+pact-plugin-driver = "0.0.6"
 log = "0.4"
 maplit = "1.0.2"
 lazy_static = "1.4.0"

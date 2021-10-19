@@ -33,7 +33,7 @@ hyper-rustls = "0.22.1"
 rustls = "0.19.0"
 tokio-rustls = "0.22.0"
 thiserror = "1.0"
-pact-plugin-driver = "0.0.5"
+pact-plugin-driver = "0.0.6"
 
 [dev-dependencies]
 quickcheck = "1"
