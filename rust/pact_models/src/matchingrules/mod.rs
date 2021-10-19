@@ -216,7 +216,7 @@ impl MatchingRule {
       }
       MatchingRule::EachValue(definition) => {
         let mut json = json!({
-          "match": "eachKey",
+          "match": "eachValue",
           "rules": definition.rules.iter()
             .map(|rule| rule.as_ref().expect_left("Expected a matching rule, found an unresolved reference").to_json())
           .collect::<Vec<Value>>()
