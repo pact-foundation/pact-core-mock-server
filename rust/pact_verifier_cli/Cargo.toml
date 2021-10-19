@@ -1,6 +1,6 @@
 [package]
 name = "pact_verifier_cli"
-version = "0.9.0"
+version = "0.9.0-beta.0"
 authors = ["Ronald Holshausen <uglyog@gmail.com>"]
 edition = "2018"
 description = "Standalone pact verifier for provider pact verification"
@@ -14,7 +14,14 @@ exclude = [
 ]
 
 [dependencies]
-pact_ffi = { version = "0.0", path = "../pact_ffi" }
+pact_models = "0.2.0-beta.6"
+pact_verifier = { version = "0.11.0-beta.1", path = "../pact_verifier" }
 tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.11", default-features = false, features = ["rustls-tls-native-roots", "blocking", "json"] }
 clap = "2.33"
+regex = "1.5.4"
+log = "0.4.14"
+simplelog = "0.10.2"
+
+[dev-dependencies]
+expectest = "0.12.0"

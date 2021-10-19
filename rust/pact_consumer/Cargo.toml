@@ -16,9 +16,9 @@ exclude = [
 
 [dependencies]
 libc = "0.2.9"
-pact_models = "0.2.0-beta.5"
-pact_matching = { version = "0.11.0-beta.3", path = "../pact_matching" }
-pact_mock_server = { version = "0.8.0-beta.3", path = "../pact_mock_server" }
+pact_models = "0.2.0-beta.6"
+pact_matching = { version = "0.11.0-beta.4", path = "../pact_matching" }
+pact_mock_server = { version = "0.8.0-beta.4", path = "../pact_mock_server" }
 log = "0.4.0"
 maplit = "1.0.2"
 lazy_static = "1.4.0"
@@ -30,7 +30,7 @@ uuid = { version = "0.8", features = ["v4"] }
 futures = "0.3"
 tokio = { version = "1", features = ["full"] }
 anyhow = "1.0.40"
-pact-plugin-driver = "0.0.6"
+pact-plugin-driver = "0.0.7"
 bytes = "1.0.1"
 async-trait = "0.1.51"
 

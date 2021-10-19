@@ -1,6 +1,6 @@
 [package]
 name = "pact_ffi"
-version = "0.0.4"
+version = "0.1.0-beta.0"
 authors = ["Ronald Holshausen <ronald.holshausen@gmail.com>", "Matt Fellows <matt.fellows@onegeek.com.au>", "Andrew Lilley Brinker <abrinker@mitre.org>", "Caleb Stepanian <cstepanian@mitre.org>"]
 edition = "2018"
 description = "Pact interface for foreign languages."
@@ -15,7 +15,7 @@ exclude = [
 
 [dependencies]
 pact_matching = { version = "0.11.0-beta.3", path = "../pact_matching" }
-pact_models = "0.2.0-beta.5"
+pact_models = "0.2.0-beta.6"
 pact_mock_server = { version = "0.8.0-beta.3", path = "../pact_mock_server" }
 pact_verifier = { version = "0.11.0-beta.1", path = "../pact_verifier" }
 anyhow = "1.0.28"
