@@ -5,15 +5,14 @@ use std::{
 };
 use std::path::PathBuf;
 
-use expectest::expect;
 use expectest::prelude::*;
+use pact_models::pact::ReadWritePact;
+use pact_models::sync_pact::RequestResponsePact;
+use rand::prelude::*;
 use reqwest::Client;
 
 use pact_consumer::{json_pattern, json_pattern_internal};
 use pact_consumer::prelude::*;
-use pact_models::pact::ReadWritePact;
-use pact_models::sync_pact::RequestResponsePact;
-use rand::prelude::*;
 
 /// This is supposed to be a doctest in mod, but it's breaking there, so
 /// we have an executable copy here.

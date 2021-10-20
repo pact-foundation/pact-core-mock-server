@@ -107,7 +107,7 @@ fn json_pattern_is_pattern() {
 
     let _ = env_logger::builder().is_test(true).try_init();
 
-    // This is our pattern, combinging both example data and matching rules.
+    // This is our pattern, combining both example data and matching rules.
     let pattern = json_pattern!({
         "json": 1,
         "simple": Like::new(json_pattern!("a")),

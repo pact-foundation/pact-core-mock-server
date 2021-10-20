@@ -7,6 +7,8 @@ use log::*;
 use maplit::hashmap;
 use pact_models::content_types::ContentType;
 use pact_models::json_utils::json_to_string;
+use pact_models::matchingrules::MatchingRuleCategory;
+use pact_models::path_exp::DocPath;
 use pact_models::plugins::PluginData;
 use pact_models::prelude::{MatchingRules, OptionalBody, ProviderState};
 use pact_models::v4::async_message::AsynchronousMessage;
@@ -16,6 +18,9 @@ use pact_plugin_driver::catalogue_manager::find_content_matcher;
 use pact_plugin_driver::content::{ContentMatcher, InteractionContents, PluginConfiguration};
 use pact_plugin_driver::plugin_models::PactPluginManifest;
 use serde_json::{json, Map, Value};
+
+use crate::patterns::JsonPattern;
+use crate::prelude::Pattern;
 
 #[derive(Clone, Debug)]
 /// Asynchronous message interaction builder. Normally created via PactBuilder::message_interaction.
@@ -31,7 +36,8 @@ pub struct MessageInteractionBuilder {
 }
 
 impl MessageInteractionBuilder {
-  /// Create a new message interaction builder
+  /// Create a new message interaction builder, Description is the interaction description
+  /// and interaction_type is the type of message (leave empty for the default type).
   pub fn new<D: Into<String>>(description: D, interaction_type: D) -> MessageInteractionBuilder {
     MessageInteractionBuilder {
       description: description.into(),
@@ -202,5 +208,34 @@ impl MessageInteractionBuilder {
         configuration: config
       }
     })
+  }
+
+  /// Specify the body as `JsonPattern`, possibly including special matching
+  /// rules.
+  ///
+  /// ```
+  /// use pact_consumer::prelude::*;
+  /// use pact_consumer::*;
+  /// use pact_consumer::builders::MessageInteractionBuilder;
+  ///
+  /// MessageInteractionBuilder::new("hello message", "core/interaction/message").json_body(json_pattern!({
+  ///     "message": like!("Hello"),
+  /// }));
+  /// ```
+  pub fn json_body<B: Into<JsonPattern>>(&mut self, body: B) -> &mut Self {
+    let body = body.into();
+    {
+      let message_body = OptionalBody::Present(body.to_example().to_string().into(), Some("application/json".into()), None);
+      let mut rules = MatchingRuleCategory::empty("content");
+      body.extract_matching_rules(DocPath::root(), &mut rules);
+      self.message_contents.body = message_body;
+      if rules.is_not_empty() {
+        match &mut self.message_contents.rules {
+          None => self.message_contents.rules = Some(rules.clone()),
+          Some(mr) => mr.add_rules(rules.clone())
+        }
+      }
+    }
+    self
   }
 }

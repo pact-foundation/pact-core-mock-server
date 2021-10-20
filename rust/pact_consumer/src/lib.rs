@@ -31,7 +31,7 @@
 //!
 //! ```toml
 //! [dev-dependencies]
-//! pact_consumer = "0.7"
+//! pact_consumer = "0.8"
 //! ```
 //!
 //! Once this is done, you can then write the following inside a function marked
@@ -201,6 +201,64 @@
 //!     .build();
 //! # });
 //! ```
+//!
+//! ## Testing messages
+//!
+//! Testing message consumers is supported. There are two types: asynchronous messages and synchronous request/response.
+//!
+//! ### Asynchronous messages
+//!
+//! Asynchronous messages are you normal type of single shot or fire and forget type messages. They are typically sent to a
+//! message queue or topic as a notification or event. With Pact tests, we will be testing that our consumer of the messages
+//! works with the messages setup as the expectations in test. This should be the message handler code that processes the
+//! actual messages that come off the message queue in production.
+//!
+//! The generated Pact file from the test run can then be used to verify whatever created the messages adheres to the Pact
+//! file.
+//!
+//! ```rust
+//! # tokio_test::block_on(async {
+//! use pact_consumer::prelude::*;
+//! use pact_consumer::*;
+//! use expectest::prelude::*;
+//! use serde_json::{Value, from_slice};
+//!
+//! // Define the Pact for the test (you can setup multiple interactions by chaining the given or message_interaction calls)
+//! // For messages we need to use the V4 Pact format.
+//! let mut pact_builder = PactBuilder::new_v4("message-consumer", "message-provider"); // Define the message consumer and provider by name
+//! pact_builder
+//!   // Adds an interaction given the message description and type.
+//!   .message_interaction("Mallory Message", "core/interaction/message", |mut i| async move {
+//!     // defines a provider state. It is optional.
+//!     i.given("there is some good mallory".to_string());
+//!     // Can set the test name (optional)
+//!     i.test_name("a_message_consumer_side_of_a_pact_goes_a_little_something_like_this");
+//!     // Set the contents of the message. Here we use a JSON pattern, so that matching rules are applied
+//!     i.json_body(json_pattern!({
+//!       "mallory": like!("That is some good Mallory.")
+//!     }));
+//!     // Need to return the mutated interaction builder
+//!     i
+//!   })
+//!   .await;
+//!
+//! // This will return each message configured with the Pact builder. We need to process them
+//! // with out message handler (it should be the one used to actually process your messages).
+//! for message in pact_builder.messages() {
+//!   let bytes = message.contents.contents.value().unwrap();
+//!
+//!   // Process the message here as it would if it came off the queue
+//!   let message: Value = serde_json::from_slice(&bytes).unwrap();
+//!
+//!   // Make some assertions on the processed value
+//!   expect!(message.as_object().unwrap().get("mallory")).to(be_some().value("That is some good Mallory."));
+//! }
+//! # });
+//! ```
+//!
+//! ### Synchronous request/response messages
+//!
+//! ## Using Pact plugins
 //!
 //! For more advice on writing good pacts, see [Best Practices][].
 //!

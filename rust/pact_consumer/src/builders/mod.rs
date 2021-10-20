@@ -16,6 +16,8 @@ pub use self::http_part_builder::*;
 pub use self::pact_builder::*;
 pub use self::request_builder::*;
 pub use self::response_builder::*;
+pub use self::message_builder::*;
+pub use self::sync_message_builder::*;
 
 #[tokio::test]
 async fn basic_builder_example() {
