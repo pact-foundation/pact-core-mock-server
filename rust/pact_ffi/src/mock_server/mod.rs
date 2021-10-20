@@ -819,7 +819,8 @@ pub extern fn pactffi_with_body(
           OptionalBody::from(process_json(body.to_string(), category, &mut inner.request.generators))
         } else if inner.request.content_type().unwrap_or_default().is_xml() {
           let category = inner.request.matching_rules.add_category("body");
-          OptionalBody::Present(Bytes::from(process_xml(body.to_string(), category, &mut inner.request.generators).unwrap_or(vec![])), Some("application/xml".into()))
+          OptionalBody::Present(Bytes::from(process_xml(body.to_string(), category, &mut inner.request.generators).unwrap_or(vec![])),
+                                Some("application/xml".into()), None)
         } else {
           OptionalBody::from(body)
         };
@@ -841,7 +842,8 @@ pub extern fn pactffi_with_body(
           OptionalBody::from(process_json(body.to_string(), category, &mut inner.response.generators))
         } else if inner.response.content_type().unwrap_or_default().is_xml() {
           let category = inner.request.matching_rules.add_category("body");
-          OptionalBody::Present(Bytes::from(process_xml(body.to_string(), category, &mut inner.request.generators).unwrap_or(vec![])), Some("application/xml".into()))
+          OptionalBody::Present(Bytes::from(process_xml(body.to_string(), category, &mut inner.request.generators).unwrap_or(vec![])),
+                                Some("application/xml".into()), None)
         } else {
           OptionalBody::from(body)
         };
@@ -1257,7 +1259,7 @@ pub extern fn pactffi_message_with_contents(message: handles::MessageHandle, con
       let body_str = convert_cstr("body", body as *const c_char).unwrap_or_default();
 
       if content_type.is_xml() {
-        OptionalBody::Present(Bytes::from(process_xml(body_str.to_string(), category, &mut inner.generators).unwrap_or(vec![])), Some(content_type))
+        OptionalBody::Present(Bytes::from(process_xml(body_str.to_string(), category, &mut inner.generators).unwrap_or(vec![])), Some(content_type), None)
       } else if content_type.is_text() || content_type.is_json() {
         OptionalBody::Present(Bytes::from(process_json(body_str.to_string(), category, &mut inner.generators)), Some(content_type), None)
       } else {
