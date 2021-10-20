@@ -113,5 +113,8 @@ async fn a_message_consumer_side_of_a_pact_goes_a_little_something_like_this() {
 
 ### Synchronous request/response messages
 
+Synchronous request/response messages are a form of message interchange were a request message is sent to another service and
+one or more response messages are returned. Examples of this would be things like Websockets and gRPC. 
+
 ## Using Pact plugins
 
