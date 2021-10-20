@@ -74,7 +74,7 @@ use pact_models::content_types::ContentType;
 use pact_models::generators::Generators;
 use pact_models::http_parts::HttpPart;
 use pact_models::json_utils::json_to_string;
-use pact_models::matchingrules::{MatchingRule, MatchingRules, RuleLogic};
+use pact_models::matchingrules::{MatchingRule, MatchingRules, MatchingRuleCategory, RuleLogic};
 use pact_models::message::Message;
 use pact_models::pact::{Pact, write_pact};
 use pact_models::path_exp::DocPath;
@@ -97,6 +97,7 @@ use crate::models::pact_specification::PactSpecification;
 
 pub mod handles;
 pub mod bodies;
+mod xml;
 
 /// External interface to create a mock server. A pointer to the pact JSON as a C string is passed in,
 /// as well as the port for the mock server to run on. A value of 0 for the port will result in a
@@ -646,6 +647,16 @@ fn from_integration_json(
   }
 }
 
+fn process_xml(body: String, matching_rules: &mut MatchingRuleCategory, generators: &mut Generators) -> Result<Vec<u8>, String> {
+  match serde_json::from_str(&body) {
+    Ok(json) => match json {
+      Value::Object(ref map) => xml::generate_xml_body(map, matching_rules, generators),
+      _ => Err(format!("JSON document is invalid (expected an Object), have {}", json))
+    },
+    Err(err) => Err(format!("Failed to parse XML builder document: {}", err))
+  }
+}
+
 /// Sets the specification version for a given Pact model. Returns false if the interaction or Pact can't be
 /// modified (i.e. the mock server for it has already started) or the version is invalid
 ///
@@ -806,6 +817,9 @@ pub extern fn pactffi_with_body(
         let body = if inner.request.content_type().unwrap_or_default().is_json() {
           let category = inner.request.matching_rules.add_category("body");
           OptionalBody::from(process_json(body.to_string(), category, &mut inner.request.generators))
+        } else if inner.request.content_type().unwrap_or_default().is_xml() {
+          let category = inner.request.matching_rules.add_category("body");
+          OptionalBody::Present(Bytes::from(process_xml(body.to_string(), category, &mut inner.request.generators).unwrap_or(vec![])), Some("application/xml".into()))
         } else {
           OptionalBody::from(body)
         };
@@ -825,6 +839,9 @@ pub extern fn pactffi_with_body(
         let body = if inner.response.content_type().unwrap_or_default().is_json() {
           let category = inner.response.matching_rules.add_category("body");
           OptionalBody::from(process_json(body.to_string(), category, &mut inner.response.generators))
+        } else if inner.response.content_type().unwrap_or_default().is_xml() {
+          let category = inner.request.matching_rules.add_category("body");
+          OptionalBody::Present(Bytes::from(process_xml(body.to_string(), category, &mut inner.request.generators).unwrap_or(vec![])), Some("application/xml".into()))
         } else {
           OptionalBody::from(body)
         };
@@ -1236,10 +1253,13 @@ pub extern fn pactffi_message_with_contents(message: handles::MessageHandle, con
     let content_type = ContentType::parse(content_type).ok();
 
     let body = if let Some(content_type) = content_type {
-      if content_type.is_text() {
-        let body = convert_cstr("body", body as *const c_char).unwrap_or_default();
-        let category = inner.matching_rules.add_category("body");
-        OptionalBody::Present(Bytes::from(process_json(body.to_string(), category, &mut inner.generators)), Some(content_type), None)
+      let category = inner.matching_rules.add_category("body");
+      let body_str = convert_cstr("body", body as *const c_char).unwrap_or_default();
+
+      if content_type.is_xml() {
+        OptionalBody::Present(Bytes::from(process_xml(body_str.to_string(), category, &mut inner.generators).unwrap_or(vec![])), Some(content_type))
+      } else if content_type.is_text() || content_type.is_json() {
+        OptionalBody::Present(Bytes::from(process_json(body_str.to_string(), category, &mut inner.generators)), Some(content_type), None)
       } else {
         OptionalBody::Present(Bytes::from(unsafe { std::slice::from_raw_parts(body, size) }), Some(content_type), None)
       }

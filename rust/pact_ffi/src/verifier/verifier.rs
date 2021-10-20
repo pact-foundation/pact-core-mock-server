@@ -54,7 +54,7 @@ fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
       let wip = matches.value_of("include-wip-pacts-since").map(|wip| wip.to_string());
       let provider_tags = matches.values_of("provider-tags")
         .map_or_else(Vec::new, |tags| tags.map(|tag| tag.to_string()).collect());
-
+      let provider_branch = matches.value_of("provider-branch").map(|v| v.to_string());
       let selectors = if matches.is_present("consumer-version-selectors") {
         matches.values_of("consumer-version-selectors")
           .map_or_else(Vec::new, |s| json_to_selectors(s.collect::<Vec<_>>()))
@@ -71,6 +71,7 @@ fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
         enable_pending: pending,
         include_wip_pacts_since: wip,
         provider_tags,
+        provider_branch,
         selectors,
         auth,
         links: vec![]
@@ -222,6 +223,7 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
       request_filter: None::<Arc<NullRequestFilterExecutor>>,
       provider_tags: matches.values_of("provider-tags")
         .map_or_else(Vec::new, |tags| tags.map(|tag| tag.to_string()).collect()),
+      provider_branch: matches.value_of("provider-branch").map(|v| v.to_string()),
       disable_ssl_verification: matches.is_present("disable-ssl-verification"),
       request_timeout: matches.value_of("request-timeout")
         .map(|t| t.parse::<u64>().unwrap_or(5000)).unwrap_or(5000)

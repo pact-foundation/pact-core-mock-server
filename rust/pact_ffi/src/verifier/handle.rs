@@ -86,6 +86,7 @@ impl VerifierHandle {
     enable_pending: bool,
     include_wip_pacts_since: Option<String>,
     provider_tags: Vec<String>,
+    provider_branch: Option<String>,
     selectors: Vec<ConsumerVersionSelector>,
     auth: &HttpAuth
   ) {
@@ -96,6 +97,7 @@ impl VerifierHandle {
         enable_pending,
         include_wip_pacts_since,
         provider_tags,
+        provider_branch,
         selectors,
         auth: Some(auth.clone()),
         links: vec![]
@@ -107,6 +109,7 @@ impl VerifierHandle {
         enable_pending,
         include_wip_pacts_since,
         provider_tags,
+        provider_branch,
         selectors,
         auth: None,
         links: vec![]
