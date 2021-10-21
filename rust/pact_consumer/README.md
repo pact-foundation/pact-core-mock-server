@@ -173,3 +173,57 @@ async fn a_synchronous_message_consumer_side_of_a_pact_goes_a_little_something_l
 
 ## Using Pact plugins
 
+The consumer test builders support using Pact plugins. Plugins are defined in the [Pact plugins project](https://github.com/pact-foundation/pact-plugins).
+To use plugins requires the use of Pact specification V4 Pacts.
+
+To use a plugin, first you need to let the builder know to load the plugin and then configure the interaction based on
+the requirements for the plugin. Each plugin may have different requirements, so you will have to consult the plugin
+docs on what is required. The plugins will be loaded from the plugin directory. By default, this is `~/.pact/plugins` or 
+the value of the `PACT_PLUGIN_DIR` environment variable. 
+
+There are generic functions that take JSON data structures and pass these on to the plugin to
+setup the interaction. For request/response HTTP interactions, there is the `contents` function on the request and 
+response builders. For message interactions, the function is called `contents_from`.
+
+For example, if we use the CSV plugin from the plugins project, our test would look like:
+
+```rust
+#[tokio::test]
+async fn test_csv_client() {
+    // Create a new V4 Pact 
+    let csv_service = PactBuilder::new_v4("CsvClient", "CsvServer")
+    // Tell the builder we are using the CSV plugin  
+    .using_plugin("csv", None).await
+    // Add the interaction for the CSV request  
+    .interaction("request for a CSV report", "core/interaction/http", |mut i| async move {
+        // Path to the request we are going to make
+        i.request.path("/reports/report001.csv");
+        // Response we expect back
+        i.response
+          .ok()
+          // We use the generic "contents" function to send the expected response data to the plugin in JSON format 
+          .contents(ContentType::from("text/csv"), json!({
+            "csvHeaders": false,
+            "column:1": "matching(type,'Name')",
+            "column:2": "matching(number,100)",
+            "column:3": "matching(datetime, 'yyyy-MM-dd','2000-01-01')"
+          })).await;
+        i.clone()
+    })
+    .await
+    // Now start the mock server  
+    .start_mock_server_async()
+    .await;
+    
+    // Now we can make our actual request for the CSV file and validate the response
+    let client = CsvClient::new(csv_service.url().clone());
+    let data = client.fetch("report001.csv").await.unwrap();
+    
+    let columns: Vec<&str> = data.trim().split(",").collect();
+    expect!(columns.get(0)).to(be_some().value(&"Name"));
+    expect!(columns.get(1)).to(be_some().value(&"100"));
+    let date = columns.get(2).unwrap();
+    let re = Regex::new("\\d{4}-\\d{2}-\\d{2}").unwrap();
+    expect!(re.is_match(date)).to(be_true());
+}
+```
