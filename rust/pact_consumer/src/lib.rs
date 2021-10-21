@@ -379,7 +379,7 @@
 //! ```
 //!
 //! ## More Info
-//! 
+//!
 //! For more advice on writing good pacts, see [Best Practices][].
 //!
 //! [Best Practices]: https://docs.pact.io/best_practices/consumer.html
