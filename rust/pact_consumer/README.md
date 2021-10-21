@@ -116,5 +116,56 @@ async fn a_message_consumer_side_of_a_pact_goes_a_little_something_like_this() {
 Synchronous request/response messages are a form of message interchange were a request message is sent to another service and
 one or more response messages are returned. Examples of this would be things like Websockets and gRPC. 
 
+```rust
+use pact_consumer::prelude::*;
+use pact_consumer::*;
+use expectest::prelude::*;
+use serde_json::{Value, from_slice};
+
+// Define the Pact for the test (you can setup multiple interactions by chaining the given or message_interaction calls)
+// For synchronous messages we also need to use the V4 Pact format.
+let mut pact_builder = PactBuilder::new_v4("message-consumer", "message-provider"); // Define the message consumer and provider by name
+pact_builder
+  // Adds an interaction given the message description and type.
+  .synchronous_message_interaction("Mallory Message", "core/interaction/synchronous-message", |mut i| async move {
+    // defines a provider state. It is optional.
+    i.given("there is some good mallory".to_string());
+    // Can set the test name (optional)
+    i.test_name("a_synchronous_message_consumer_side_of_a_pact_goes_a_little_something_like_this");
+    // Set the contents of the request message. Here we use a JSON pattern, so that matching rules are applied.
+    // This is the request message that is going to be forwarded to the provider
+    i.request_json_body(json_pattern!({
+      "requestFor": like!("Some good Mallory, please.")
+    }));
+    // Add a response message we expect the provider to return. You can call this multiple times to add multiple messages.
+    i.response_json_body(json_pattern!({
+      "mallory": like!("That is some good Mallory.")
+    }));
+    // Need to return the mutated interaction builder
+    i
+  })
+  .await;
+
+// For our test we want to invoke our message handling code that is going to initialise the request
+// to the provider with the request message. But we need some mechanism to mock the response
+// with the resulting response message so we can confirm our message handler works with it.
+for message in pact_builder.synchronous_messages() {
+  // the request message we must make
+  let request_message_bytes = message.request.contents.value().unwrap();
+  // the response message we expect to receive from the provider
+  let response_message_bytes = message.response.first().unwrap().contents.value().unwrap();
+
+  // We use a mock here, assuming there is a Trait that controls the response message that our
+  // mock can implement.
+  let mock_provider = MockProvider { message: response_message_bytes };
+  // Invoke our message handler to send the request message from the Pact interaction and then
+  // wait for the response message. In this case it will be the response via the mock provider.
+  let response = MessageHandler::process(request_message_bytes, &mock_provider);
+
+  // Make some assertions on the processed value
+  expect!(response).to(be_ok().value("That is some good Mallory."));
+}
+```
+
 ## Using Pact plugins
 
