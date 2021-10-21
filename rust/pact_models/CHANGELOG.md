@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.2.0 - Pact V4 + Plugins release
+
+* e72d602a - chore: bump pact models to non-beta version (Ronald Holshausen, Thu Oct 21 17:47:17 2021 +1100)
+* 3fb9258a - bump version to 0.2.0-beta.7 (Ronald Holshausen, Tue Oct 19 16:41:08 2021 +1100)
+
 # 0.2.0-beta.6 - Bugfix Release
 
 * 48a6be5f - fix: EachValue was outputting the wrong JSON (Ronald Holshausen, Tue Oct 19 16:35:17 2021 +1100)
