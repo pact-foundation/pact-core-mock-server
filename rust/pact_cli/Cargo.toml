@@ -2,7 +2,7 @@
 name = "pact_cli"
 version = "0.0.0"
 authors = ["Ronald Holshausen <rholshausen@dius.com.au>"]
-edition = "2018"
+edition = "2021"
 description = "CLI utilities for Pact"
 homepage = "http://www.pact.io"
 repository = "https://github.com/pact-foundation/pact-reference/blob/master/rust/pact_cli"

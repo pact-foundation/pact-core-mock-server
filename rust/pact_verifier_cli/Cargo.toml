@@ -2,7 +2,7 @@
 name = "pact_verifier_cli"
 version = "0.9.0-beta.1"
 authors = ["Ronald Holshausen <uglyog@gmail.com>"]
-edition = "2018"
+edition = "2021"
 description = "Standalone pact verifier for provider pact verification"
 homepage = "http://www.pact.io"
 repository = "https://github.com/pact-foundation/pact-reference/blob/master/rust/pact_verifier_cli"

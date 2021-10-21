@@ -2,7 +2,7 @@
 name = "pact_ffi"
 version = "0.1.0-beta.0"
 authors = ["Ronald Holshausen <ronald.holshausen@gmail.com>", "Matt Fellows <matt.fellows@onegeek.com.au>", "Andrew Lilley Brinker <abrinker@mitre.org>", "Caleb Stepanian <cstepanian@mitre.org>"]
-edition = "2018"
+edition = "2021"
 description = "Pact interface for foreign languages."
 homepage = "http://www.pact.io"
 repository = "https://github.com/pact-foundation/pact-reference/blob/master/rust/pact_ffi"

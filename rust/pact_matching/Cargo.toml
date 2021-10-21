@@ -2,7 +2,7 @@
 name = "pact_matching"
 version = "0.11.0-beta.5"
 authors = ["Ronald Holshausen <uglyog@gmail.com>"]
-edition = "2018"
+edition = "2021"
 description = "Pact-Rust support library that implements request and response matching logic"
 documentation = "https://docs.rs/pact_matching/"
 homepage = "http://www.pact.io"

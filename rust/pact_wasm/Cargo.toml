@@ -2,7 +2,7 @@
 name = "pact_wasm"
 version = "0.0.1"
 authors = ["Ronald Holshausen <rholshausen@dius.com.au>"]
-edition = "2018"
+edition = "2021"
 description = "WASM bindings for Pact models"
 documentation = "https://docs.rs/pact_wasm"
 homepage = "http://www.pact.io"
