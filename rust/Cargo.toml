@@ -10,3 +10,6 @@ members = [
     "pact_cli",
     "pact_ffi"
 ]
+exclude = [
+    "pact_wasm"
+]
