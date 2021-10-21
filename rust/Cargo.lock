@@ -1195,7 +1195,7 @@ dependencies = [
  "log",
  "maplit",
  "os_info",
- "pact_models 0.2.0-beta.6",
+ "pact_models 0.2.0",
  "prost",
  "prost-types",
  "regex",
@@ -1221,7 +1221,7 @@ dependencies = [
  "log",
  "maplit",
  "pact_matching",
- "pact_models 0.2.0-beta.6",
+ "pact_models 0.2.0",
  "serde",
  "serde_json",
  "simplelog 0.10.2",
@@ -1245,7 +1245,7 @@ dependencies = [
  "pact-plugin-driver",
  "pact_matching",
  "pact_mock_server",
- "pact_models 0.2.0-beta.6",
+ "pact_models 0.2.0",
  "quickcheck",
  "rand 0.8.4",
  "regex",
@@ -1281,7 +1281,7 @@ dependencies = [
  "os_info",
  "pact_matching",
  "pact_mock_server",
- "pact_models 0.2.0-beta.6",
+ "pact_models 0.2.0",
  "pact_verifier",
  "quickcheck",
  "rand 0.8.4",
@@ -1325,7 +1325,7 @@ dependencies = [
  "ntest",
  "onig",
  "pact-plugin-driver",
- "pact_models 0.2.0-beta.6",
+ "pact_models 0.2.0",
  "pretty_assertions 0.6.1",
  "quickcheck",
  "rand 0.8.4",
@@ -1357,7 +1357,7 @@ dependencies = [
  "maplit",
  "pact-plugin-driver",
  "pact_matching",
- "pact_models 0.2.0-beta.6",
+ "pact_models 0.2.0",
  "quickcheck",
  "reqwest",
  "rustls",
@@ -1387,7 +1387,7 @@ dependencies = [
  "maplit",
  "pact_matching",
  "pact_mock_server",
- "pact_models 0.2.0-beta.6",
+ "pact_models 0.2.0",
  "quickcheck",
  "rand 0.8.4",
  "regex",
@@ -1402,9 +1402,9 @@ dependencies = [
 
 [[package]]
 name = "pact_models"
-version = "0.2.0-beta.6"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d32c09157fa8f31608178c6c20f9616a726fa67442a75f7acc8c1aec84271b5a"
+checksum = "dd9c89a0c0e8eb4517651ac19231be7489aae011aa2512da8305af94e165a925"
 dependencies = [
  "anyhow",
  "base64",
@@ -1437,7 +1437,7 @@ dependencies = [
 
 [[package]]
 name = "pact_models"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "base64",
@@ -1499,7 +1499,7 @@ dependencies = [
  "pact-plugin-driver",
  "pact_consumer",
  "pact_matching",
- "pact_models 0.2.0-beta.6",
+ "pact_models 0.2.0",
  "quickcheck",
  "regex",
  "reqwest",
@@ -1517,7 +1517,7 @@ dependencies = [
  "clap",
  "expectest",
  "log",
- "pact_models 0.2.0-beta.6",
+ "pact_models 0.2.0",
  "pact_verifier",
  "regex",
  "reqwest",
