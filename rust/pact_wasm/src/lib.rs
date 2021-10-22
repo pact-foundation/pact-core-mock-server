@@ -6,6 +6,12 @@ use pact_models::pact::load_pact_from_json;
 use pact_models::prelude::v4::V4Pact;
 use wasm_bindgen::prelude::*;
 
+/// Library version
+#[wasm_bindgen(js_name = libVersion)]
+pub fn lib_version() -> String {
+  option_env!("CARGO_PKG_VERSION").unwrap_or_default().to_string()
+}
+
 /// Struct for a Pact (request/response or message)
 #[wasm_bindgen]
 #[derive(Debug)]
@@ -28,9 +34,8 @@ impl Pact {
   }
 
   /// Provider side of the pact
-  #[wasm_bindgen(getter)]
+  #[wasm_bindgen(getter, js_name = specificationVersion)]
   pub fn specification_version(&self) -> String {
-    debug!("{:?}", self.pact.specification_version());
     self.pact.specification_version().to_string()
   }
 
