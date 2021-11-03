@@ -24,12 +24,12 @@ use super::Mismatch;
 
 fn type_of(json: &Value) -> String {
   match json {
-    &Value::Object(_) => "Map",
-    &Value::Array(_) => "List",
-    &Value::Null => "Null",
-    &Value::Bool(_) => "Boolean",
-    &Value::Number(_) => "Number",
-    &Value::String(_) => "String"
+    Value::Object(_) => "Map",
+    Value::Array(_) => "List",
+    Value::Null => "Null",
+    Value::Bool(_) => "Boolean",
+    Value::Number(_) => "Number",
+    Value::String(_) => "String"
   }.to_string()
 }
 
@@ -52,7 +52,7 @@ impl Matches<&Value> for Value {
         match Regex::new(regex) {
           Ok(re) => {
             let actual_str = match actual {
-              &Value::String(ref s) => s.clone(),
+              Value::String(ref s) => s.clone(),
               _ => actual.to_string()
             };
             if re.is_match(&actual_str) {
@@ -66,7 +66,7 @@ impl Matches<&Value> for Value {
       },
       MatchingRule::Include(substr) => {
         let actual_str = match actual {
-          &Value::String(ref s) => s.clone(),
+          Value::String(ref s) => s.clone(),
           _ => actual.to_string()
         };
         if actual_str.contains(substr) {
@@ -141,7 +141,7 @@ impl Matches<&Value> for Value {
         }
       },
       MatchingRule::Null => match actual {
-        &Value::Null => Ok(()),
+        Value::Null => Ok(()),
         _ => Err(anyhow!("Expected '{}' to be a null value", json_to_string(actual)))
       },
       MatchingRule::Integer => if actual.is_i64() || actual.is_u64() {
@@ -224,40 +224,34 @@ pub fn match_json(expected: &dyn HttpPart, actual: &dyn HttpPart, context: &Matc
 
   if expected_json.is_err() || actual_json.is_err() {
     let mut mismatches = vec![];
-    match expected_json {
-      Err(e) => {
-        mismatches.push(Mismatch::BodyMismatch {
-          path: "$".to_string(),
-          expected: expected.body().value(),
-          actual: actual.body().value(),
-          mismatch: format!("Failed to parse the expected body: '{}'", e),
-        });
-      },
-      _ => ()
+    if let Err(e) = expected_json {
+      mismatches.push(Mismatch::BodyMismatch {
+        path: "$".to_string(),
+        expected: expected.body().value(),
+        actual: actual.body().value(),
+        mismatch: format!("Failed to parse the expected body: '{}'", e),
+      });
     }
-    match actual_json {
-      Err(e) => {
-        mismatches.push(Mismatch::BodyMismatch {
-          path: "$".to_string(),
-          expected: expected.body().value(),
-          actual: actual.body().value(),
-          mismatch: format!("Failed to parse the actual body: '{}'", e),
-        });
-      },
-      _ => ()
+    if let Err(e) = actual_json {
+      mismatches.push(Mismatch::BodyMismatch {
+        path: "$".to_string(),
+        expected: expected.body().value(),
+        actual: actual.body().value(),
+        mismatch: format!("Failed to parse the actual body: '{}'", e),
+      });
     }
     Err(mismatches.clone())
   } else {
-    compare(&vec!["$"], &expected_json.unwrap(), &actual_json.unwrap(), context)
+    compare(&["$"], &expected_json.unwrap(), &actual_json.unwrap(), context)
   }
 }
 
 fn walk_json(json: &Value, path: &mut dyn Iterator<Item=&str>) -> Option<Value> {
   match path.next() {
     Some(p) => match json {
-      &Value::Object(_) => json.get(p).map(|json| json.clone()),
-      &Value::Array(ref array) => match usize::from_str(p) {
-        Ok(index) => array.get(index).map(|json| json.clone()),
+      Value::Object(_) => json.get(p).cloned(),
+      Value::Array(ref array) => match usize::from_str(p) {
+        Ok(index) => array.get(index).cloned(),
         Err(_) => None
       },
       _ => None
@@ -267,7 +261,7 @@ fn walk_json(json: &Value, path: &mut dyn Iterator<Item=&str>) -> Option<Value> 
 }
 
 /// Returns a diff of the expected versus the actual JSON bodies, focusing on a particular path
-pub fn display_diff(expected: &String, actual: &String, path: &str, indent: &str) -> String {
+pub fn display_diff(expected: &str, actual: &str, path: &str, indent: &str) -> String {
   let expected_body = if expected.is_empty() {
     Value::String("".into())
   } else {
@@ -355,8 +349,8 @@ fn compare_maps(path: &[&str], expected: &serde_json::Map<String, Value>, actual
     if context.matcher_is_defined(path) {
       debug!("compare_maps: Matcher is defined for path {}", spath);
       for matcher in context.select_best_matcher(path).rules {
-        result = merge_result(result,compare_maps_with_matchingrule(&matcher, path, &expected, &actual, &context, &mut |p, expected, actual| {
-          compare(&p, expected, actual, context)
+        result = merge_result(result,compare_maps_with_matchingrule(&matcher, path, &expected, &actual, context, &mut |p, expected, actual| {
+          compare(p, expected, actual, context)
         }));
       }
     } else {
@@ -373,7 +367,7 @@ fn compare_maps(path: &[&str], expected: &serde_json::Map<String, Value>, actual
   }
 }
 
-fn compare_lists(path: &[&str], expected: &Vec<Value>, actual: &Vec<Value>,
+fn compare_lists(path: &[&str], expected: &[Value], actual: &[Value],
                  context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
   let spath = path.join(".");
   if context.matcher_is_defined(path) {
@@ -409,7 +403,7 @@ fn compare_lists(path: &[&str], expected: &Vec<Value>, actual: &Vec<Value>,
   }
 }
 
-fn compare_list_content(path: &[&str], expected: &Vec<Value>, actual: &Vec<Value>, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
+fn compare_list_content(path: &[&str], expected: &[Value], actual: &[Value], context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
   let mut result = Ok(());
   for (index, value) in expected.iter().enumerate() {
     let ps = index.to_string();
@@ -429,7 +423,7 @@ fn compare_list_content(path: &[&str], expected: &Vec<Value>, actual: &Vec<Value
 }
 
 fn compare_values(path: &[&str], expected: &Value, actual: &Value, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
-  let matcher_result = if context.matcher_is_defined(&path) {
+  let matcher_result = if context.matcher_is_defined(path) {
     debug!("compare_values: Calling match_values for path {}", path.join("."));
     match_values(path, context, expected, actual)
   } else {

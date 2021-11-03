@@ -27,19 +27,19 @@ task_local! {
 }
 
 /// Fetches the contents from the id scoped in-memory buffer and empties the buffer.
-pub fn fetch_buffer_contents(id: &String) -> Bytes {
+pub fn fetch_buffer_contents(id: &str) -> Bytes {
   let mut inner = LOG_BUFFER.lock().unwrap();
-  let buffer = inner.entry(id.clone())
-    .or_insert(BytesMut::with_capacity(256));
+  let buffer = inner.entry(id.to_string())
+    .or_insert_with(|| BytesMut::with_capacity(256));
   buffer.split().freeze()
 }
 
 /// Writes the provided bytes to the task local ID scoped in-memory buffer. If there is no
 /// task local ID set, will write to the "global" buffer.
 pub fn write_to_log_buffer(buf: &[u8]) {
-  let id = LOG_ID.try_with(|id| id.clone()).unwrap_or("global".into());
+  let id = LOG_ID.try_with(|id| id.clone()).unwrap_or_else(|_| "global".into());
   let mut inner = LOG_BUFFER.lock().unwrap();
   let buffer = inner.entry(id)
-    .or_insert(BytesMut::with_capacity(256));
+    .or_insert_with(|| BytesMut::with_capacity(256));
   buffer.put(buf);
 }

@@ -17,6 +17,12 @@ use crate::matchers::{match_values, Matches};
 
 impl <T: Debug + Display + PartialEq + Clone> Matches<&Vec<T>> for &Vec<T> {
   fn matches_with(&self, actual: &Vec<T>, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
+    self.as_slice().matches_with(actual.as_slice(), matcher, cascaded)
+  }
+}
+
+impl <T: Debug + Display + PartialEq + Clone> Matches<&[T]> for &[T] {
+  fn matches_with(&self, actual: &[T], matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
     let result = match matcher {
       MatchingRule::Regex(ref regex) => {
         match Regex::new(regex) {
@@ -124,7 +130,7 @@ impl Matches<&[u8]> for Vec<u8> {
         }
       }
       MatchingRule::ContentType(ref expected_content_type) => {
-        match_content_type(&actual, expected_content_type)
+        match_content_type(actual, expected_content_type)
           .map_err(|err| anyhow!("Expected data to have a content type of '{}' but was {}", expected_content_type, err))
       }
       MatchingRule::NotEmpty => {
@@ -181,7 +187,7 @@ pub fn compare_maps_with_matchingrule<T: Display + Debug>(
   callback: &mut dyn FnMut(&Vec<&str>, &T, &T
   ) -> Result<(), Vec<Mismatch>>) -> Result<(), Vec<Mismatch>> {
   let mut result = Ok(());
-  if context.values_matcher_defined(&path) {
+  if context.values_matcher_defined(path) {
     debug!("Values matcher is defined for path {:?}", path);
     for (key, value) in actual.iter() {
       let mut p = path.to_vec();
@@ -189,11 +195,11 @@ pub fn compare_maps_with_matchingrule<T: Display + Debug>(
       if expected.contains_key(key) {
         result = merge_result(result, callback(&p, &expected[key], value));
       } else if !expected.is_empty() {
-        result = merge_result(result, callback(&p, &expected.values().next().unwrap(), value));
+        result = merge_result(result, callback(&p, expected.values().next().unwrap(), value));
       }
     }
   } else {
-    result = merge_result(result, context.match_keys(path, &expected, &actual));
+    result = merge_result(result, context.match_keys(path, expected, actual));
     for (key, value) in expected.iter() {
       if actual.contains_key(key) {
         let mut p = path.to_vec();
@@ -209,8 +215,8 @@ pub fn compare_maps_with_matchingrule<T: Display + Debug>(
 pub fn compare_lists_with_matchingrule<T: Display + Debug + PartialEq + Clone + Sized>(
   rule: &MatchingRule,
   path: &[&str],
-  expected: &Vec<T>,
-  actual: &Vec<T>,
+  expected: &[T],
+  actual: &[T],
   context: &MatchingContext,
   callback: &dyn Fn(&[&str], &T, &T, &MatchingContext) -> Result<(), Vec<Mismatch>>
 ) -> Result<(), Vec<Mismatch>> {
@@ -230,7 +236,7 @@ pub fn compare_lists_with_matchingrule<T: Display + Debug + PartialEq + Clone + 
             let context = context.clone_with(&rules);
             let predicate: &dyn Fn(&(usize, &T)) -> bool = &|&(actual_index, value)| {
               debug!("Comparing list item {} with value '{:?}' to '{:?}'", actual_index, value, expected_value);
-              callback(&vec!["$"], expected_value, value, &context).is_ok()
+              callback(&["$"], expected_value, value, &context).is_ok()
             };
             if actual.iter().enumerate().find(predicate).is_none() {
               result = merge_result(result,Err(vec![ Mismatch::BodyMismatch {

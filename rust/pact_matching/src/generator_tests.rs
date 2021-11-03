@@ -89,18 +89,18 @@ async fn applies_query_generator_for_query_parameters_to_the_copy_of_the_request
 #[tokio::test]
 async fn apply_generator_to_empty_body_test() {
   expect!(generators_process_body(&GeneratorTestMode::Provider, &OptionalBody::Empty,
-    Some(TEXT.clone()), &hashmap!{}, &hashmap!{}, &DefaultVariantMatcher.boxed()).await.unwrap()).to(be_equal_to(OptionalBody::Empty));
+    Some(TEXT.clone()), &hashmap!{}, &hashmap!{}, &DefaultVariantMatcher{}).await.unwrap()).to(be_equal_to(OptionalBody::Empty));
   expect!(generators_process_body(&GeneratorTestMode::Provider, &OptionalBody::Null,
-    Some(TEXT.clone()), &hashmap!{}, &hashmap!{}, &DefaultVariantMatcher.boxed()).await.unwrap()).to(be_equal_to(OptionalBody::Null));
+    Some(TEXT.clone()), &hashmap!{}, &hashmap!{}, &DefaultVariantMatcher{}).await.unwrap()).to(be_equal_to(OptionalBody::Null));
   expect!(generators_process_body(&GeneratorTestMode::Provider, &OptionalBody::Missing,
-    Some(TEXT.clone()), &hashmap!{}, &hashmap!{}, &DefaultVariantMatcher.boxed()).await.unwrap()).to(be_equal_to(OptionalBody::Missing));
+    Some(TEXT.clone()), &hashmap!{}, &hashmap!{}, &DefaultVariantMatcher{}).await.unwrap()).to(be_equal_to(OptionalBody::Missing));
 }
 
 #[tokio::test]
 async fn do_not_apply_generators_if_there_are_no_body_generators() {
   let body = OptionalBody::Present("{\"a\":100,\"b\":\"B\"}".into(), Some(JSON.clone()), None);
   expect!(generators_process_body(&GeneratorTestMode::Provider, &body, Some(JSON.clone()),
-    &hashmap!{}, &hashmap!{}, &DefaultVariantMatcher.boxed()).await.unwrap()).to(
+    &hashmap!{}, &hashmap!{}, &DefaultVariantMatcher{}).await.unwrap()).to(
     be_equal_to(body));
 }
 
@@ -108,7 +108,7 @@ async fn do_not_apply_generators_if_there_are_no_body_generators() {
 async fn apply_generator_to_text_body_test() {
   let body = OptionalBody::Present("some text".into(), None, None);
   expect!(generators_process_body(&GeneratorTestMode::Provider, &body, Some(TEXT.clone()),
-    &hashmap!{}, &hashmap!{}, &DefaultVariantMatcher.boxed()).await.unwrap()).to(be_equal_to(body));
+    &hashmap!{}, &hashmap!{}, &DefaultVariantMatcher{}).await.unwrap()).to(be_equal_to(body));
 }
 
 #[tokio::test]

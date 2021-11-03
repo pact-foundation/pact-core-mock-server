@@ -54,7 +54,7 @@ pub async fn generators_process_body(
   content_type: Option<ContentType>,
   context: &HashMap<&str, Value>,
   generators: &HashMap<DocPath, Generator>,
-  matcher: &Box<dyn VariantMatcher + Send + Sync>
+  matcher: &(dyn VariantMatcher + Send + Sync)
 ) -> anyhow::Result<OptionalBody> {
   match content_type {
     Some(content_type) => if content_type.is_json() {
@@ -63,7 +63,7 @@ pub async fn generators_process_body(
       match result {
         Ok(val) => {
           let mut handler = JsonHandler { value: val };
-          Ok(handler.process_body(&generators, mode, context, matcher).unwrap_or_else(|err| {
+          Ok(handler.process_body(generators, mode, context, &matcher.boxed()).unwrap_or_else(|err| {
             error!("Failed to generate the body: {}", err);
             body.clone()
           }))
@@ -78,7 +78,7 @@ pub async fn generators_process_body(
       match parse_bytes(&body.value().unwrap_or_default()) {
         Ok(val) => {
           let mut handler = XmlHandler { value: val.as_document() };
-          Ok(handler.process_body(&generators, mode, context, matcher).unwrap_or_else(|err| {
+          Ok(handler.process_body(generators, mode, context, &matcher.boxed()).unwrap_or_else(|err| {
             error!("Failed to generate the body: {}", err);
             body.clone()
           }))
@@ -102,7 +102,7 @@ pub async fn generators_process_body(
 
 pub(crate) fn find_matching_variant<T>(
   value: &T,
-  variants: &Vec<(usize, MatchingRuleCategory, HashMap<DocPath, Generator>)>,
+  variants: &[(usize, MatchingRuleCategory, HashMap<DocPath, Generator>)],
   callback: &dyn Fn(&Vec<&str>, &T, &MatchingContext) -> bool
 ) -> Option<(usize, HashMap<DocPath, Generator>)>
   where T: Clone + std::fmt::Debug {

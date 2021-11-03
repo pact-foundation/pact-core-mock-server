@@ -1,4 +1,4 @@
-use std::collections::btree_map::BTreeMap;
+use std::collections::btree_map::{BTreeMap, Entry};
 
 use anyhow::anyhow;
 use bytes::Bytes;
@@ -31,25 +31,19 @@ pub fn match_xml(expected: &dyn HttpPart, actual: &dyn HttpPart, context: &Match
       let actual_result = parse_bytes(actual_body);
 
       if expected_result.is_err() || actual_result.is_err() {
-        match expected_result {
-          Err(e) => {
-            mismatches.push(Mismatch::BodyMismatch {
-              path: "$".to_string(),
-              expected: expected.body().value(),
-              actual: actual.body().value(),
-              mismatch: format!("Failed to parse the expected body: '{:?}'", e)});
-          },
-          _ => ()
+        if let Err(e) = expected_result {
+          mismatches.push(Mismatch::BodyMismatch {
+            path: "$".to_string(),
+            expected: expected.body().value(),
+            actual: actual.body().value(),
+            mismatch: format!("Failed to parse the expected body: '{:?}'", e)});
         }
-        match actual_result {
-          Err(e) => {
-            mismatches.push(Mismatch::BodyMismatch {
-              path: "$".to_string(),
-              expected: expected.body().value(),
-              actual: actual.body().value(),
-              mismatch: format!("Failed to parse the actual body: '{:?}'", e)});
-          },
-          _ => ()
+        if let Err(e) = actual_result {
+          mismatches.push(Mismatch::BodyMismatch {
+            path: "$".to_string(),
+            expected: expected.body().value(),
+            actual: actual.body().value(),
+            mismatch: format!("Failed to parse the actual body: '{:?}'", e)});
         }
       } else {
         let expected_package = expected_result.unwrap();
@@ -61,7 +55,7 @@ pub fn match_xml(expected: &dyn HttpPart, actual: &dyn HttpPart, context: &Match
         let element = expected_root_node.unwrap().element().unwrap();
         let name = name(element.name());
         let path = vec!["$", name.as_str()];
-        compare_element(&path, &element, &actual_root_node.unwrap().element().unwrap(), &mut mismatches, &context);
+        compare_element(&path, &element, &actual_root_node.unwrap().element().unwrap(), &mut mismatches, context);
       }
     },
     _ => {
@@ -146,9 +140,9 @@ impl<'a> Matches<&'a Element<'a>> for &'a Element<'a> {
     }
 }
 
-fn path_to_string(path: &Vec<&str>) -> String {
+fn path_to_string(path: &[&str]) -> String {
   path.iter().enumerate().map(|(i, p)| {
-    if i > 0 && !p.starts_with("[") {
+    if i > 0 && !p.starts_with('[') {
       ".".to_owned() + p
     } else {
       p.to_string()
@@ -156,21 +150,21 @@ fn path_to_string(path: &Vec<&str>) -> String {
   }).collect()
 }
 
-fn compare_element(path: &Vec<&str>, expected: &Element, actual: &Element,
+fn compare_element(path: &[&str], expected: &Element, actual: &Element,
   mismatches: &mut Vec<super::Mismatch>, context: &MatchingContext) {
-  let matcher_result = if context.matcher_is_defined(&path) {
+  let matcher_result = if context.matcher_is_defined(path) {
     debug!("calling match_values {:?} on {:?}", path, actual);
-    match_values(&path, context, expected, actual)
+    match_values(path, context, expected, actual)
   } else {
     expected.matches_with(actual, &MatchingRule::Equality, false).map_err(|err| vec![err.to_string()])
   };
   debug!("Comparing '{:?}' to '{:?}' at path '{}' -> {:?}", expected, actual,
-    path_to_string(&path), matcher_result);
+    path_to_string(path), matcher_result);
   match matcher_result {
     Err(messages) => {
       for message in messages {
         mismatches.push(Mismatch::BodyMismatch {
-          path: path_to_string(&path),
+          path: path_to_string(path),
           expected: Some(name(expected.name()).into()),
           actual: Some(name(actual.name()).into()),
           mismatch: message.clone()
@@ -178,14 +172,14 @@ fn compare_element(path: &Vec<&str>, expected: &Element, actual: &Element,
       }
     },
     Ok(_) => {
-      compare_attributes(&path, expected, actual, mismatches, context);
-      compare_children(&path, expected, actual, mismatches, context);
-      compare_text(&path, expected, actual, mismatches, context);
+      compare_attributes(path, expected, actual, mismatches, context);
+      compare_children(path, expected, actual, mismatches, context);
+      compare_text(path, expected, actual, mismatches, context);
     }
   }
 }
 
-fn compare_attributes(path: &Vec<&str>, expected: &Element, actual: &Element,
+fn compare_attributes(path: &[&str], expected: &Element, actual: &Element,
     mismatches: &mut Vec<super::Mismatch>, context: &MatchingContext) {
     let expected_attributes: BTreeMap<String, String> = expected.attributes()
         .iter().map(|attr| (name(attr.name()), s!(attr.value()))).collect();
@@ -236,16 +230,15 @@ fn compare_attributes(path: &Vec<&str>, expected: &Element, actual: &Element,
 fn children<'a>(element: &Element<'a>) -> Vec<Element<'a>> {
   element.children().iter().cloned()
     .map(|child| child.element())
-    .filter(|child| child.is_some())
-    .map(|child| child.unwrap())
+    .flatten()
     .collect()
 }
 
-fn desc_children(children: &Vec<Element>) -> String {
+fn desc_children(children: &[Element]) -> String {
   children.iter().map(|child| name(child.name())).join(", ")
 }
 
-fn compare_children(path: &Vec<&str>, expected: &Element, actual: &Element,
+fn compare_children(path: &[&str], expected: &Element, actual: &Element,
   mismatches: &mut Vec<super::Mismatch>, context: &MatchingContext) {
   let expected_children = children(expected);
   let actual_children = children(actual);
@@ -261,19 +254,17 @@ fn compare_children(path: &Vec<&str>, expected: &Element, actual: &Element,
     let mut expected_children_by_name: BTreeMap<String, Vec<Element>> = btreemap!{};
     for child in &expected_children {
       let key = name(child.name());
-      if expected_children_by_name.contains_key(&key) {
-        expected_children_by_name.get_mut(&key).unwrap().push(child.clone());
-      } else {
-        expected_children_by_name.insert(key, vec![ child.clone() ]);
+      match expected_children_by_name.entry(key) {
+        Entry::Vacant(e) => { e.insert(vec![ *child ]); },
+        Entry::Occupied(mut e) => e.get_mut().push(*child)
       }
     }
     let mut actual_children_by_name: BTreeMap<String, Vec<Element>> = btreemap!{};
     for child in &actual_children {
       let key = name(child.name());
-      if actual_children_by_name.contains_key(&key) {
-        actual_children_by_name.get_mut(&key).unwrap().push(child.clone());
-      } else {
-        actual_children_by_name.insert(key, vec![ child.clone() ]);
+      match actual_children_by_name.entry(key) {
+        Entry::Vacant(e) => { e.insert(vec![ *child ]); },
+        Entry::Occupied(mut e) => e.get_mut().push(*child)
       }
     }
     for (key, group) in actual_children_by_name {
@@ -281,11 +272,11 @@ fn compare_children(path: &Vec<&str>, expected: &Element, actual: &Element,
       p.push(key.as_str());
       if expected_children_by_name.contains_key(&key) {
         let expected_children = expected_children_by_name.remove(&key).unwrap();
-        let expected = expected_children.iter().next().unwrap();
+        let expected = expected_children.first().unwrap();
         if context.type_matcher_defined(&p) {
           log::debug!("Matcher defined for path {}", path_to_string(&p));
           for child in group {
-            compare_element(&p, &expected, &child, mismatches, context);
+            compare_element(&p, expected, &child, mismatches, context);
           }
         } else {
           for pair in expected_children.iter().zip_longest(group) {
@@ -303,7 +294,7 @@ fn compare_children(path: &Vec<&str>, expected: &Element, actual: &Element,
                   mismatch: format!("Expected child <{}/> but was missing", name(expected.name()))});
               },
               EitherOrBoth::Both(expected, actual) => {
-                compare_element(&p, &expected, &actual, mismatches, context);
+                compare_element(&p, expected, &actual, mismatches, context);
               }
             }
           }
@@ -327,7 +318,7 @@ fn compare_children(path: &Vec<&str>, expected: &Element, actual: &Element,
   }
 }
 
-fn compare_text(path: &Vec<&str>, expected: &Element, actual: &Element,
+fn compare_text(path: &[&str], expected: &Element, actual: &Element,
     mismatches: &mut Vec<super::Mismatch>, context: &MatchingContext) {
     let expected_text = expected.children().iter().cloned()
         .filter(|child| child.text().is_some())
@@ -347,24 +338,21 @@ fn compare_text(path: &Vec<&str>, expected: &Element, actual: &Element,
     };
     debug!("Comparing text '{}' to '{}' at path '{}' -> {:?}", expected_text, actual_text,
         path_to_string(path), matcher_result);
-    match matcher_result {
-        Err(messages) => {
-          for message in messages {
-            mismatches.push(Mismatch::BodyMismatch {
-              path: path_to_string(path) + ".#text",
-              expected: Some(expected_text.clone().into()),
-              actual: Some(actual_text.clone().into()),
-              mismatch: message.clone()
-            })
-          }
-        },
-        Ok(_) => ()
+    if let Err(messages) = matcher_result {
+      for message in messages {
+        mismatches.push(Mismatch::BodyMismatch {
+          path: path_to_string(path) + ".#text",
+          expected: Some(expected_text.clone().into()),
+          actual: Some(actual_text.clone().into()),
+          mismatch: message.clone()
+        })
+      }
     }
 }
 
-fn compare_value(path: &Vec<&str>, expected: &String, actual: &String, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
-  let matcher_result = if context.matcher_is_defined(&path) {
-    match_values(path, context, expected.as_str(), actual.as_str())
+fn compare_value(path: &[&str], expected: &str, actual: &str, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
+  let matcher_result = if context.matcher_is_defined(path) {
+    match_values(path, context, expected, actual)
   } else {
     expected.matches_with(actual, &MatchingRule::Equality, false).map_err(|err| vec![err.to_string()])
   };
@@ -373,8 +361,8 @@ fn compare_value(path: &Vec<&str>, expected: &String, actual: &String, context: 
     messages.iter().map(|message| {
       Mismatch::BodyMismatch {
         path: path_to_string(path),
-        expected: Some(expected.clone().into()),
-        actual: Some(actual.clone().into()),
+        expected: Some(expected.to_string().into()),
+        actual: Some(actual.to_string().into()),
         mismatch: message.clone()
       }
     }).collect()

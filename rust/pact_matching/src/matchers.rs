@@ -644,7 +644,7 @@ impl Matches<&Bytes> for Bytes {
           Err(err) => Err(anyhow!("Could not convert actual bytes into a UTF-8 string - {}", err))
         }
       },
-      MatchingRule::ContentType(content_type) => match_content_type(&actual, content_type),
+      MatchingRule::ContentType(content_type) => match_content_type(actual, content_type),
       MatchingRule::NotEmpty => {
         if actual.is_empty() {
           Err(anyhow!("Expected an non-empty string of bytes"))

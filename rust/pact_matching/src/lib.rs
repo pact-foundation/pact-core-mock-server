@@ -421,7 +421,7 @@ impl MatchingContext {
   ) -> Self {
     MatchingContext {
       matchers: matchers.clone(),
-      config: config.clone(),
+      config,
       plugin_configuration: plugin_configuration.clone(),
       .. MatchingContext::default()
     }
@@ -430,7 +430,7 @@ impl MatchingContext {
   /// Creates a new empty context with the given config
   pub fn with_config(config: DiffConfig) -> Self {
     MatchingContext {
-      config: config.clone(),
+      config,
       .. MatchingContext::default()
     }
   }
@@ -440,7 +440,7 @@ impl MatchingContext {
     MatchingContext {
       matchers: matchers.clone(),
       config: self.config.clone(),
-      matching_spec: self.matching_spec.clone(),
+      matching_spec: self.matching_spec,
       plugin_configuration: self.plugin_configuration.clone()
     }
   }
@@ -940,14 +940,14 @@ impl RequestMatchResult {
     } else {
       score -= 1
     }
-    for (_, mismatches) in &self.query {
+    for mismatches in self.query.values() {
       if mismatches.is_empty() {
         score += 1;
       } else {
         score -= 1;
       }
     }
-    for (_, mismatches) in &self.headers {
+    for mismatches in self.headers.values() {
       if mismatches.is_empty() {
         score += 1;
       } else {
@@ -959,7 +959,7 @@ impl RequestMatchResult {
         score -= 1;
       },
       BodyMatchResult::BodyMismatches(results) => {
-        for (_, mismatches) in results {
+        for mismatches in results.values() {
           if mismatches.is_empty() {
             score += 1;
           } else {
@@ -1001,7 +1001,7 @@ pub fn match_text(expected: &Option<Bytes>, actual: &Option<Bytes>, context: &Ma
   if context.matcher_is_defined(&path) {
     let mut mismatches = vec![];
     let empty = Bytes::default();
-    let expected_str = match from_utf8(expected.as_ref().unwrap_or_else(|| &empty)) {
+    let expected_str = match from_utf8(expected.as_ref().unwrap_or(&empty)) {
       Ok(expected) => expected,
       Err(err) => {
         mismatches.push(Mismatch::BodyMismatch {
@@ -1013,7 +1013,7 @@ pub fn match_text(expected: &Option<Bytes>, actual: &Option<Bytes>, context: &Ma
         ""
       }
     };
-    let actual_str = match from_utf8(actual.as_ref().unwrap_or_else(|| &empty)) {
+    let actual_str = match from_utf8(actual.as_ref().unwrap_or(&empty)) {
       Ok(actual) => actual,
       Err(err) => {
         mismatches.push(Mismatch::BodyMismatch {
@@ -1050,19 +1050,19 @@ pub fn match_text(expected: &Option<Bytes>, actual: &Option<Bytes>, context: &Ma
 }
 
 /// Matches the actual request method to the expected one.
-pub fn match_method(expected: &String, actual: &String) -> Result<(), Mismatch> {
+pub fn match_method(expected: &str, actual: &str) -> Result<(), Mismatch> {
   if expected.to_lowercase() != actual.to_lowercase() {
-    Err(Mismatch::MethodMismatch { expected: expected.clone(), actual: actual.clone() })
+    Err(Mismatch::MethodMismatch { expected: expected.to_string(), actual: actual.to_string() })
   } else {
     Ok(())
   }
 }
 
 /// Matches the actual request path to the expected one.
-pub fn match_path(expected: &String, actual: &String, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
+pub fn match_path(expected: &str, actual: &str, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
   let path = vec![];
   let matcher_result = if context.matcher_is_defined(&path) {
-    match_values(&path, context, expected.clone(), actual.clone())
+    match_values(&path, context, expected.to_string(), actual.to_string())
   } else {
     expected.matches_with(actual, &MatchingRule::Equality, false).map_err(|err| vec![err])
       .map_err(|errors| errors.iter().map(|err| err.to_string()).collect())
@@ -1075,12 +1075,12 @@ pub fn match_path(expected: &String, actual: &String, context: &MatchingContext)
   }).collect())
 }
 
-fn compare_query_parameter_value(key: &String, expected: &String, actual: &String, index: usize,
+fn compare_query_parameter_value(key: &str, expected: &str, actual: &str, index: usize,
                                  context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
   let index = index.to_string();
-  let path = vec!["$", key.as_str(), index.as_str()];
+  let path = vec!["$", key, index.as_str()];
   let matcher_result = if context.matcher_is_defined(&path) {
-    matchers::match_values(&path, context, expected.clone(), actual.clone())
+    matchers::match_values(&path, context, expected.to_string(), actual.to_string())
   } else {
     expected.matches_with(actual, &MatchingRule::Equality, false)
       .map_err(|error| vec![error.to_string()])
@@ -1088,16 +1088,16 @@ fn compare_query_parameter_value(key: &String, expected: &String, actual: &Strin
   matcher_result.map_err(|messages| {
     messages.iter().map(|message| {
       Mismatch::QueryMismatch {
-        parameter: key.clone(),
-        expected: expected.clone(),
-        actual: actual.clone(),
+        parameter: key.to_string(),
+        expected: expected.to_string(),
+        actual: actual.to_string(),
         mismatch: message.clone(),
       }
     }).collect()
   })
 }
 
-fn compare_query_parameter_values(key: &String, expected: &Vec<String>, actual: &Vec<String>,
+fn compare_query_parameter_values(key: &str, expected: &[String], actual: &[String],
                                   context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
   let result: Vec<Mismatch> = expected.iter().enumerate().flat_map(|(index, val)| {
     if index < actual.len() {
@@ -1107,7 +1107,7 @@ fn compare_query_parameter_values(key: &String, expected: &Vec<String>, actual: 
       }
     } else {
       vec![ Mismatch::QueryMismatch {
-        parameter: key.clone(),
+        parameter: key.to_string(),
         expected: format!("{:?}", expected),
         actual: format!("{:?}", actual),
         mismatch: format!("Expected query parameter '{}' value '{}' but was missing", key, val)
@@ -1122,15 +1122,15 @@ fn compare_query_parameter_values(key: &String, expected: &Vec<String>, actual: 
   }
 }
 
-fn match_query_values(key: &String, expected: &Vec<String>, actual: &Vec<String>, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
+fn match_query_values(key: &str, expected: &[String], actual: &[String], context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
   if expected.is_empty() && !actual.is_empty() {
-    Err(vec![ Mismatch::QueryMismatch { parameter: key.clone(),
+    Err(vec![ Mismatch::QueryMismatch { parameter: key.to_string(),
       expected: format!("{:?}", expected),
       actual: format!("{:?}", actual),
       mismatch: format!("Expected an empty parameter list for '{}' but received {:?}", key, actual) } ])
   } else {
     let mismatch = if expected.len() != actual.len() {
-      Err(vec![ Mismatch::QueryMismatch { parameter: key.clone(),
+      Err(vec![ Mismatch::QueryMismatch { parameter: key.to_string(),
         expected: format!("{:?}", expected),
         actual: format!("{:?}", actual),
         mismatch: format!(
@@ -1195,7 +1195,7 @@ fn group_by<I, F, K>(items: I, f: F) -> HashMap<K, Vec<I::Item>>
   let mut m = hashmap!{};
   for item in items {
     let key = f(&item);
-    let values = m.entry(key).or_insert_with(|| vec![]);
+    let values = m.entry(key).or_insert_with(Vec::new);
     values.push(item);
   }
   m
@@ -1216,19 +1216,19 @@ async fn compare_bodies(
           // TODO: "core/content-matcher/form-urlencoded" => ,
           "core/content-matcher/json" => match_json(expected, actual, context),
           "core/content-matcher/multipart-form-data" => binary_utils::match_mime_multipart(expected, actual, context),
-          "core/content-matcher/text" => match_text(&expected.body().value(), &actual.body().value(), &context),
+          "core/content-matcher/text" => match_text(&expected.body().value(), &actual.body().value(), context),
           "core/content-matcher/xml" => xml::match_xml(expected, actual, context),
           "core/content-matcher/binary" => binary_utils::match_octet_stream(expected, actual, context),
           _ => {
             warn!("There is no core content matcher for entry {}", matcher.catalogue_entry_key());
-            match_text(&expected.body().value(), &actual.body().value(), &context)
+            match_text(&expected.body().value(), &actual.body().value(), context)
           }
         } {
           mismatches.extend_from_slice(&*m);
         }
       } else {
         let plugin_config = context.plugin_configuration.get(&matcher.plugin_name()).cloned();
-        if let Err(map) = matcher.match_contents(&expected.body(), &actual.body(), &context.matchers,
+        if let Err(map) = matcher.match_contents(expected.body(), actual.body(), &context.matchers,
           context.config == DiffConfig::AllowUnexpectedKeys, plugin_config).await {
           // TODO: group the mismatches by key
           for (_key, list) in map {
@@ -1261,16 +1261,16 @@ async fn compare_bodies(
 
 fn compare_bodies_core(content_type: &ContentType, expected: &dyn HttpPart, actual: &dyn HttpPart, context: &MatchingContext) -> Vec<Mismatch> {
   let mut mismatches = vec![];
-  match BODY_MATCHERS.iter().find(|mt| mt.0(&content_type)) {
-    Some(ref match_fn) => {
+  match BODY_MATCHERS.iter().find(|mt| mt.0(content_type)) {
+    Some(match_fn) => {
       debug!("Using body matcher for content type '{}'", content_type);
-      if let Err(m) = match_fn.1(expected, actual, &context) {
+      if let Err(m) = match_fn.1(expected, actual, context) {
         mismatches.extend_from_slice(&*m);
       }
     },
     None => {
       debug!("No body matcher defined for content type '{}', using plain text matcher", content_type);
-      if let Err(m) = match_text(&expected.body().value(), &actual.body().value(), &context) {
+      if let Err(m) = match_text(&expected.body().value(), &actual.body().value(), context) {
         mismatches.extend_from_slice(&*m);
       }
     }
@@ -1400,16 +1400,14 @@ pub fn match_status(expected: u16, actual: u16, context: &MatchingContext) -> Re
           mismatch: message.clone()
         }
       }).collect())
+  } else if expected != actual {
+    Err(vec![Mismatch::StatusMismatch {
+      expected,
+      actual,
+      mismatch: format!("expected {} but was {}", expected, actual)
+    }])
   } else {
-    if expected != actual {
-      Err(vec![Mismatch::StatusMismatch {
-        expected,
-        actual,
-        mismatch: format!("expected {} but was {}", expected, actual)
-      }])
-    } else {
-      Ok(())
-    }
+    Ok(())
   }
 }
 
@@ -1654,8 +1652,8 @@ pub async fn match_sync_message_request<'a>(
 /// Match the response part of a synchronous request/response message
 pub async fn match_sync_message_response<'a>(
   expected: &SynchronousMessage,
-  expected_responses: &Vec<MessageContents>,
-  actual_responses: &Vec<MessageContents>,
+  expected_responses: &[MessageContents],
+  actual_responses: &[MessageContents],
   pact: &Box<dyn Pact + Send + Sync + 'a>
 ) -> Vec<Mismatch> {
   info!("comparing to expected message responses: {:?}", expected_responses);
@@ -1695,10 +1693,10 @@ pub async fn match_sync_message_response<'a>(
       let metadata_context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
                                                   &matching_rules.rules_for_category("metadata").unwrap_or_default(),
                                                   &plugin_data);
-      let contents = match_message_contents(&expected_response, &actual_response, &body_context).await;
+      let contents = match_message_contents(expected_response, actual_response, &body_context).await;
 
       mismatches.extend_from_slice(contents.err().unwrap_or_default().as_slice());
-      for values in match_message_metadata(&expected_response, &actual_response, &metadata_context).values() {
+      for values in match_message_metadata(expected_response, actual_response, &metadata_context).values() {
         mismatches.extend_from_slice(values.as_slice());
       }
     }
@@ -1760,7 +1758,7 @@ pub async fn generate_request(request: &HttpRequest, mode: &GeneratorTestMode, c
   if !generators.is_empty() && request.body.is_present() {
     debug!("Applying body generators...");
     match generators_process_body(mode, &request.body, request.content_type(),
-                                  context, &generators, &DefaultVariantMatcher.boxed()).await {
+                                  context, &generators, &DefaultVariantMatcher{}).await {
       Ok(body) => request.body = body,
       Err(err) => error!("Failed to generate the body, will use the original: {}", err)
     }
@@ -1805,7 +1803,7 @@ pub async fn generate_response(response: &HttpResponse, mode: &GeneratorTestMode
   if !generators.is_empty() && response.body.is_present() {
     debug!("Applying body generators...");
     match generators_process_body(mode, &response.body, response.content_type(),
-      context, &generators, &DefaultVariantMatcher.boxed()).await {
+      context, &generators, &DefaultVariantMatcher{}).await {
       Ok(body) => response.body = body,
       Err(err) => error!("Failed to generate the body, will use the original: {}", err)
     }

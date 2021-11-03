@@ -16,7 +16,7 @@ fn strip_whitespace<'a, T: FromIterator<&'a str>>(val: &'a str, split_by: &'a st
 }
 
 fn parse_charset_parameters(parameters: &[&str]) -> HashMap<String, String> {
-  parameters.iter().map(|v| v.split("=").map(|p| p.trim()).collect::<Vec<&str>>())
+  parameters.iter().map(|v| v.split('=').map(|p| p.trim()).collect::<Vec<&str>>())
     .fold(HashMap::new(), |mut map, name_value| {
       map.insert(name_value[0].to_string(), name_value[1].to_string());
       map
@@ -44,7 +44,7 @@ pub(crate) fn match_parameter_header(expected: &str, actual: &str, header: &str,
       }
     }
   } else {
-    mismatches.push(header_mismatch.clone());
+    mismatches.push(header_mismatch);
   }
 
   if mismatches.is_empty() {
@@ -79,9 +79,9 @@ pub(crate) fn match_header_value(key: &str, expected: &str, actual: &str, contex
   })
 }
 
-fn find_entry<T>(map: &HashMap<String, T>, key: &String) -> Option<(String, T)> where T: Clone {
+fn find_entry<T>(map: &HashMap<String, T>, key: &str) -> Option<(String, T)> where T: Clone {
   match map.keys().find(|k| k.to_lowercase() == key.to_lowercase() ) {
-    Some(k) => map.get(k).map(|v| (key.clone(), v.clone()) ),
+    Some(k) => map.get(k).map(|v| (key.to_string(), v.clone()) ),
     None => None
   }
 }

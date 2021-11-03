@@ -35,7 +35,7 @@ pub fn match_content_type<S>(data: &[u8], expected_content_type: S) -> anyhow::R
 
 pub fn convert_data(data: &Value) -> Vec<u8> {
   match data {
-    &Value::String(ref s) => base64::decode(s.as_str()).unwrap_or_else(|_| s.clone().into_bytes()),
+    Value::String(s) => base64::decode(s.as_str()).unwrap_or_else(|_| s.clone().into_bytes()),
     _ => data.to_string().into_bytes()
   }
 }
@@ -137,27 +137,21 @@ pub fn match_mime_multipart(expected: &dyn HttpPart, actual: &dyn HttpPart, cont
   let expected_parts = parse_multipart(expected.body().value().unwrap_or_default().reader(), expected.headers());
 
   if expected_parts.is_err() || actual_parts.is_err() {
-    match expected_parts {
-      Err(e) => {
-        mismatches.push(Mismatch::BodyMismatch {
-          path: "$".into(),
-          expected: expected.body().value(),
-          actual: actual.body().value(),
-          mismatch: format!("Failed to parse the expected body as a MIME multipart body: '{}'", e)
-        });
-      },
-      _ => ()
+    if let Err(e) = expected_parts {
+      mismatches.push(Mismatch::BodyMismatch {
+        path: "$".into(),
+        expected: expected.body().value(),
+        actual: actual.body().value(),
+        mismatch: format!("Failed to parse the expected body as a MIME multipart body: '{}'", e)
+      });
     }
-    match actual_parts {
-      Err(e) => {
-        mismatches.push(Mismatch::BodyMismatch {
-          path: "$".into(),
-          expected: expected.body().value(),
-          actual: actual.body().value(),
-          mismatch: format!("Failed to parse the actual body as a MIME multipart body: '{}'", e)
-        });
-      },
-      _ => ()
+    if let Err(e) = actual_parts {
+      mismatches.push(Mismatch::BodyMismatch {
+        path: "$".into(),
+        expected: expected.body().value(),
+        actual: actual.body().value(),
+        mismatch: format!("Failed to parse the actual body as a MIME multipart body: '{}'", e)
+      });
     }
   } else {
     let actual_parts = actual_parts.unwrap();
@@ -219,13 +213,13 @@ fn match_mime_part(expected: &MimePart, actual: &MimePart, context: &MatchingCon
   }
 }
 
-fn match_field(key: &String, expected: &String, actual: &String, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
-  let path = vec![ROOT, key.as_str()];
+fn match_field(key: &str, expected: &str, actual: &str, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
+  let path = vec![ROOT, key];
   let matcher_result = if context.matcher_is_defined(&path) {
     debug!("Calling match_values for path $.{}", key);
-    match_values(&path, context, expected.as_str(), actual.as_str())
+    match_values(&path, context, expected, actual)
   } else {
-    expected.as_str().matches_with(actual.as_str(), &MatchingRule::Equality, false).map_err(|err|
+    expected.matches_with(actual, &MatchingRule::Equality, false).map_err(|err|
       vec![format!("MIME part '{}': {}", key, err)]
     )
   };
@@ -258,7 +252,7 @@ impl Matches<&MimeFile> for &MimeFile {
         match Regex::new(regex) {
           Ok(re) => {
             match from_utf8(&*actual.data) {
-              Ok(a) => if re.is_match(&a) {
+              Ok(a) => if re.is_match(a) {
                   Ok(())
                 } else {
                   Err(anyhow!("Expected binary file '{}' to match '{}'", actual.filename, regex))
@@ -296,8 +290,8 @@ impl Matches<&MimeFile> for &MimeFile {
   }
 }
 
-fn match_file(key: &String, expected: &MimeFile, actual: &MimeFile, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
-  let path = vec![ROOT, key.as_str()];
+fn match_file(key: &str, expected: &MimeFile, actual: &MimeFile, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
+  let path = vec![ROOT, key];
   let matcher_result = if context.matcher_is_defined(&path) {
     debug!("Calling match_values for path $.{}", key);
     match_values( &path, context, expected, actual).map_err(|errors| {
@@ -308,28 +302,26 @@ fn match_file(key: &String, expected: &MimeFile, actual: &MimeFile, context: &Ma
         mismatch: format!("MIME part '{}': {}", key, err)
       }).collect()
     })
+  } else if expected.content_type == actual.content_type {
+    expected.matches_with(actual, &MatchingRule::Equality, false).map_err(|err|
+      vec![Mismatch::BodyMismatch {
+        path: path.join("."),
+        expected: None,
+        actual: None,
+        mismatch: format!("MIME part '{}': {}", key, err)
+      }]
+    )
   } else {
-    if expected.content_type == actual.content_type {
-      expected.matches_with(actual, &MatchingRule::Equality, false).map_err(|err|
-        vec![Mismatch::BodyMismatch {
-          path: path.join("."),
-          expected: None,
-          actual: None,
-          mismatch: format!("MIME part '{}': {}", key, err)
-        }]
-      )
-    } else {
-      let expected_str = expected.content_type.as_ref().map(|mime| mime.to_string()).unwrap_or_else(|| format!("None"));
-      let actual_str = actual.content_type.as_ref().map(|mime| mime.to_string()).unwrap_or_else(|| format!("None"));
-      Err(vec![Mismatch::BodyTypeMismatch {
-        expected: expected_str.clone(),
-        actual: actual_str.clone(),
-        mismatch: format!("Expected MIME part '{}' with content type '{}' but was '{}'",
-                          key, expected_str, actual_str),
-        expected_body: None,
-        actual_body: None
-      }])
-    }
+    let expected_str = expected.content_type.as_ref().map(|mime| mime.to_string()).unwrap_or_else(|| "None".to_string());
+    let actual_str = actual.content_type.as_ref().map(|mime| mime.to_string()).unwrap_or_else(|| "None".to_string());
+    Err(vec![Mismatch::BodyTypeMismatch {
+      expected: expected_str.clone(),
+      actual: actual_str.clone(),
+      mismatch: format!("Expected MIME part '{}' with content type '{}' but was '{}'",
+                        key, expected_str, actual_str),
+      expected_body: None,
+      actual_body: None
+    }])
   };
   debug!("Comparing '{:?}' to '{:?}' at path '{}' -> {:?}", expected, actual, path.join("."), matcher_result);
   matcher_result
@@ -382,10 +374,10 @@ fn get_multipart_boundary(headers: &Option<HashMap<String, Vec<String>>>) -> Res
   let mime: mime::Mime = content_type.parse().map_err(|e| format!("invalid content-type: {}", e))?;
 
   if mime.type_() != mime::MULTIPART || mime.subtype() != mime::FORM_DATA {
-    return Err(format!("expected content-type to be multipart/form-data"));
+    return Err("expected content-type to be multipart/form-data".to_string());
   }
 
-  let boundary = mime.get_param(mime::BOUNDARY).ok_or_else(|| format!("no boundary in content-type"))?;
+  let boundary = mime.get_param(mime::BOUNDARY).ok_or_else(|| "no boundary in content-type".to_string())?;
 
   Ok(boundary.as_str().to_owned())
 }
