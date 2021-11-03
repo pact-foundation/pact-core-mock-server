@@ -20,14 +20,13 @@ pub trait JsonToNum<T> {
 impl JsonToNum<i32> for i32 {
   fn json_to_number(map: &serde_json::Map<String, Value>, field: &str, default: i32) -> i32 {
     match map.get(field) {
-      Some(val) => match val {
-        Value::Number(num) => match num.as_i64() {
+      Some(Value::Number(num)) => {
+         match num.as_i64() {
           Some(num) => num as i32,
           None => default
-        },
-        _ => default
+        }
       },
-      None => default
+      _ => default
     }
   }
 }
@@ -35,14 +34,13 @@ impl JsonToNum<i32> for i32 {
 impl JsonToNum<u16> for u16 {
   fn json_to_number(map: &serde_json::Map<String, Value>, field: &str, default: u16) -> u16 {
     match map.get(field) {
-      Some(val) => match val {
-        Value::Number(num) => match num.as_u64() {
+      Some(Value::Number(num)) => {
+        match num.as_u64() {
           Some(num) => num as u16,
           None => default
-        },
-        _ => default
+        }
       },
-      None => default
+      _ => default
     }
   }
 }
@@ -107,22 +105,21 @@ pub fn get_field_as_string(field: &str, map: &Map<String, Value>) -> Option<Stri
 /// Returns the headers from a JSON struct as Map String -> Vec<String>
 pub fn headers_from_json(request: &Value) -> Option<HashMap<String, Vec<String>>> {
   match request.get("headers") {
-    Some(v) => match *v {
-      Value::Object(ref m) => Some(m.iter().map(|(key, val)| {
+    Some(Value::Object(m)) => {
+      Some(m.iter().map(|(key, val)| {
         match val {
-          &Value::String(ref s) => (key.clone(), s.clone().split(',').map(|v| v.trim().to_string()).collect()),
-          &Value::Array(ref v) => (key.clone(), v.iter().map(|val| {
+          Value::String(s) => (key.clone(), s.clone().split(',').map(|v| v.trim().to_string()).collect()),
+          Value::Array(v) => (key.clone(), v.iter().map(|val| {
             match val {
-              &Value::String(ref s) => s.clone(),
+              Value::String(s) => s.clone(),
               _ => val.to_string()
             }
           }).collect()),
           _ => (key.clone(), vec![val.to_string()])
         }
-      }).collect()),
-      _ => None
+      }).collect())
     },
-    None => None
+    _ => None
   }
 }
 
@@ -144,7 +141,7 @@ enum JsonParsable {
 /// Returns the body from the JSON struct with the provided field name
 pub fn body_from_json(request: &Value, fieldname: &str, headers: &Option<HashMap<String, Vec<String>>>) -> OptionalBody {
   let content_type = match headers {
-    &Some(ref h) => match h.iter().find(|kv| kv.0.to_lowercase() == "content-type") {
+    Some(h) => match h.iter().find(|kv| kv.0.to_lowercase() == "content-type") {
       Some(kv) => {
         match ContentType::parse(kv.1[0].as_str()) {
           Ok(v) => Some(v),
@@ -153,7 +150,7 @@ pub fn body_from_json(request: &Value, fieldname: &str, headers: &Option<HashMap
       },
       None => None
     },
-    &None => None
+    None => None
   };
 
   match request.get(fieldname) {
@@ -166,7 +163,7 @@ pub fn body_from_json(request: &Value, fieldname: &str, headers: &Option<HashMap
             detect_content_type_from_string(s).unwrap_or_default()
           });
           if content_type.is_json() {
-            match serde_json::from_str::<JsonParsable>(&s) {
+            match serde_json::from_str::<JsonParsable>(s) {
               Ok(_) => OptionalBody::Present(s.clone().into(), Some(content_type), None),
               Err(_) => OptionalBody::Present(format!("\"{}\"", s).into(), Some(content_type), None)
             }

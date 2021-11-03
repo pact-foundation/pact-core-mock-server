@@ -31,10 +31,7 @@ impl OptionalBody {
 
   /// If the body is present in the pact file and not empty or null.
   pub fn is_present(&self) -> bool {
-    match *self {
-      OptionalBody::Present(_, _, _) => true,
-      _ => false
-    }
+    matches!(*self, OptionalBody::Present(_, _, _))
   }
 
   /// Returns the body if present, otherwise returns the empty buffer.
@@ -115,9 +112,8 @@ impl OptionalBody {
 
   /// Set the content type of the body. If the body is missing or empty, this is a no-op.
   pub fn set_content_type(&mut self, content_type: &ContentType) {
-    match self {
-      OptionalBody::Present(_, ct, _) => *ct = Some(content_type.clone()),
-      _ => {}
+    if let OptionalBody::Present(_, ct, _) = self {
+       *ct = Some(content_type.clone());
     }
   }
 }

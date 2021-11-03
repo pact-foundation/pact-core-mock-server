@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::fmt;
+use std::str::FromStr;
 
 use anyhow::anyhow;
 use log::warn;
@@ -55,7 +56,7 @@ impl InteractionMarkup {
   /// Merges this markup with the other
   pub fn merge(&self, other: InteractionMarkup) -> InteractionMarkup {
     if self.is_empty() {
-      other.clone()
+      other
     } else if other.is_empty() {
       self.clone()
     } else {
@@ -161,22 +162,20 @@ impl PartialEq for Box<dyn V4Interaction> {
 /// Load V4 format interactions from JSON struct
 pub fn interactions_from_json(json: &Value, source: &str) -> Vec<Box<dyn V4Interaction>> {
   match json.get("interactions") {
-    Some(v) => match *v {
-      Value::Array(ref array) => array.iter().enumerate().map(|(index, ijson)| {
+    Some(Value::Array(ref array)) => {
+      array.iter().enumerate().map(|(index, ijson)| {
         interaction_from_json(source, index, ijson).ok()
-      }).filter(|i| i.is_some())
-        .map(|i| i.unwrap())
-        .collect(),
-      _ => vec![]
+      }).flatten()
+        .collect()
     },
-    None => vec![]
+    _ => vec![]
   }
 }
 
 /// Create an interaction from a JSON struct
 pub fn interaction_from_json(source: &str, index: usize, ijson: &Value) -> anyhow::Result<Box<dyn V4Interaction>> {
   match ijson.get("type") {
-    Some(i_type) => match V4InteractionType::from_str(json_to_string(i_type).as_str()) {
+    Some(i_type) => match FromStr::from_str(json_to_string(i_type).as_str()) {
       Ok(i_type) => {
         match i_type {
           V4InteractionType::Synchronous_HTTP => SynchronousHttp::from_json(ijson, index).map(|i| i.boxed_v4()),

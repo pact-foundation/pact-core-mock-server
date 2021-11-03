@@ -1,13 +1,13 @@
 
 pub(crate) struct CartesianProductIterator<'a, I1, I2> {
-  v1: &'a Vec<I1>,
-  v2: &'a Vec<I2>,
+  v1: &'a [I1],
+  v2: &'a [I2],
   v1_idx: usize,
   v2_idx: usize
 }
 
 impl <'a, I1, I2> CartesianProductIterator<'a, I1, I2> {
-  pub fn new(v1: &'a Vec<I1>, v2: &'a Vec<I2>) -> Self {
+  pub fn new(v1: &'a [I1], v2: &'a [I2]) -> Self {
     CartesianProductIterator { v1, v2, v1_idx: 0, v2_idx: 0 }
   }
 }

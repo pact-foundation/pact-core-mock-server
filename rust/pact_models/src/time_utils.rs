@@ -42,13 +42,14 @@ use itertools::Itertools;
 use log::*;
 use nom::branch::alt;
 use nom::bytes::complete::{is_a, is_not, tag, tag_no_case, take_while_m_n};
-use nom::character::complete::{char, digit1, alphanumeric1};
-use nom::combinator::{value, opt};
+use nom::character::complete::{alphanumeric1, char, digit1};
+use nom::combinator::{opt, value};
 use nom::Err::{Error, Failure};
 use nom::error::{ErrorKind, ParseError};
 use nom::IResult;
 use nom::multi::many1;
-use nom::sequence::{delimited, preceded, terminated, tuple, separated_pair};
+use nom::sequence::{delimited, preceded, separated_pair, terminated, tuple};
+
 use crate::timezone_db::*;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -196,7 +197,7 @@ fn week_in_year_month_pattern(s: &str) -> IResult<&str, DateTimePatternToken, Da
       if result.len() > 2 {
         Err(Failure(DateTimePatternError::TooManyPatternLetters(
           format!("Too many pattern letters for Week in Month ('W' or 'F'): {}", result.len()), result.len())))
-      } else if result.starts_with("w") {
+      } else if result.starts_with('w') {
         Ok((remaining, DateTimePatternToken::WeekInYear))
       } else {
         Ok((remaining, DateTimePatternToken::WeekInMonth(result.starts_with('W'))))
@@ -340,15 +341,15 @@ fn second_pattern(s: &str) -> IResult<&str, DateTimePatternToken, DateTimePatter
 
 fn millisecond_pattern(s: &str) -> IResult<&str, DateTimePatternToken, DateTimePatternError<&str>> {
   is_a("S")(s)
-    .and_then(|(remaining, result)| {
-      Ok((remaining, DateTimePatternToken::Millisecond(result.len())))
+    .map(|(remaining, result)| {
+      (remaining, DateTimePatternToken::Millisecond(result.len()))
     })
 }
 
 fn nanosecond_pattern(s: &str) -> IResult<&str, DateTimePatternToken, DateTimePatternError<&str>> {
   is_a("n")(s)
-      .and_then(|(remaining, result)| {
-        Ok((remaining, DateTimePatternToken::Nanosecond(result.len())))
+      .map(|(remaining, result)| {
+        (remaining, DateTimePatternToken::Nanosecond(result.len()))
       })
 }
 
@@ -586,7 +587,7 @@ fn timezone_long_offset(s: &str, d: usize) -> IResult<&str, String, DateTimeErro
   match d {
     1 => preceded(is_a("+-"), tuple((hour_12_0, opt(minute))))(s)
         .map(|(remaining, result)| {
-          (remaining, result.0 + &result.1.unwrap_or("".to_string()))
+          (remaining, result.0 + &result.1.unwrap_or_else(|| "".to_string()))
         }),
     2 => preceded(is_a("+-"), tuple((hour_12_0, minute)))(s)
         .map(|(remaining, result)| {
@@ -594,11 +595,11 @@ fn timezone_long_offset(s: &str, d: usize) -> IResult<&str, String, DateTimeErro
         }),
     3 => preceded(is_a("+-"), tuple((hour_12_0, tag(":"), minute)))(s)
         .map(|(remaining, result)| {
-          (remaining, result.0 + &result.1 + &result.2)
+          (remaining, result.0 + result.1 + &result.2)
         }),
     4 => preceded(is_a("+-"), tuple((hour_12_0, minute, opt(second))))(s)
         .map(|(remaining, result)| {
-          (remaining, result.0 + &result.1 + &result.2.unwrap_or("".to_string()))
+          (remaining, result.0 + &result.1 + &result.2.unwrap_or_else(|| "".to_string()))
         }),
     _ => preceded(is_a("+-"), tuple((hour_12_0, tag(":"), minute, opt(tuple((tag(":"), second))))))(s)
         .map(|(remaining, result)| {
@@ -606,7 +607,7 @@ fn timezone_long_offset(s: &str, d: usize) -> IResult<&str, String, DateTimeErro
             Some((c, s)) => c.to_string() + s,
             None => "".to_string()
           };
-          (remaining, result.0 + &result.1 + &result.2 + &seconds)
+          (remaining, result.0 + result.1 + &result.2 + &seconds)
         })
   }
 }
@@ -636,9 +637,9 @@ fn timezone_id(s: &str) -> IResult<&str, String, DateTimeError<&str>> {
   separated_pair(alphanumeric1, char('/'), alphanumeric1)(s).and_then(|(remaining, result)| {
     let tz = format!("{}/{}", result.0, result.1);
     if ZONES.contains(tz.as_str()) {
-      Ok((remaining, tz.clone()))
+      Ok((remaining, tz))
     } else {
-      Err(Error(DateTimeError::InvalidTimezone(tz.clone())))
+      Err(Error(DateTimeError::InvalidTimezone(tz)))
     }
   })
 }
@@ -676,7 +677,7 @@ fn timezone_offset_gmt(s: &str, d: usize) -> IResult<&str, String, DateTimeError
         }),
     _ => preceded(alt((tag("GMT"), tag("UTC"))), tuple((is_a("+-"), hour_12_0, tag(":"), minute)))(s)
         .map(|(remaining, result)| {
-          (remaining, result.1 + &result.2 + &result.3)
+          (remaining, result.1 + result.2 + &result.3)
         })
   }
 }
@@ -714,6 +715,7 @@ fn quarter_num(s: &str, _count: usize) -> IResult<&str, String, DateTimeError<&s
   })
 }
 
+#[allow(clippy::comparison_chain)]
 fn quarter(s: &str, count: usize) -> IResult<&str, String, DateTimeError<&str>> {
   if count < 3 {
     quarter_num(s, count)
@@ -768,8 +770,8 @@ pub fn parse_pattern(s: &str) -> Result<Vec<DateTimePatternToken>, String> {
   }
 }
 
-fn validate_datetime_string(value: &String, pattern_tokens: &Vec<DateTimePatternToken>) -> Result<(), String> {
-  let mut buffer = value.as_str();
+fn validate_datetime_string(value: &str, pattern_tokens: &[DateTimePatternToken]) -> Result<(), String> {
+  let mut buffer = value;
   for token in pattern_tokens {
     let result = match token {
       DateTimePatternToken::Era(count) => era(buffer, *count),
@@ -806,7 +808,7 @@ fn validate_datetime_string(value: &String, pattern_tokens: &Vec<DateTimePattern
     buffer = result.0;
   }
 
-  if buffer.len() > 0 {
+  if !buffer.is_empty() {
     Err(format!("Remaining data after applying pattern {:?}", buffer))
   } else {
     Ok(())
@@ -814,15 +816,15 @@ fn validate_datetime_string(value: &String, pattern_tokens: &Vec<DateTimePattern
 }
 
 /// Validates the given datetime against the pattern
-pub fn validate_datetime(value: &String, format: &String) -> Result<(), String> {
-  match parse_pattern(format.as_str()) {
+pub fn validate_datetime(value: &str, format: &str) -> Result<(), String> {
+  match parse_pattern(format) {
     Ok(pattern_tokens) => validate_datetime_string(value, &pattern_tokens),
     Err(err) => Err(format!("Error parsing '{}': {:?}", value, err))
   }
 }
 
 /// Converts the date time pattern tokens to a chrono formatted string
-pub fn to_chrono_pattern(tokens: &Vec<DateTimePatternToken>) -> String {
+pub fn to_chrono_pattern(tokens: &[DateTimePatternToken]) -> String {
   let mut buffer = String::new();
 
   for token in tokens {
@@ -865,9 +867,9 @@ pub fn to_chrono_pattern(tokens: &Vec<DateTimePatternToken>) -> String {
 }
 
 /// Generates a date/time string from the current system clock using the provided format string
-pub fn generate_string(format: &String) -> Result<String, String> {
+pub fn generate_string(format: &str) -> Result<String, String> {
   trace!("generating date/time from '{}'", format);
-  match parse_pattern(format.as_str()) {
+  match parse_pattern(format) {
     Ok(pattern_tokens) => {
       trace!("parsed date/time patterns: {:?}", pattern_tokens);
       let chrono_pattern = to_chrono_pattern(&pattern_tokens);
@@ -894,26 +896,26 @@ mod tests {
 
   #[test]
   fn parse_date_and_time() {
-    expect!(validate_datetime(&"2001-01-02".into(), &"yyyy-MM-dd".into())).to(be_ok());
-    expect!(validate_datetime(&"2001-01-02 12:33:45".into(), &"yyyy-MM-dd HH:mm:ss".into())).to(be_ok());
+    expect!(validate_datetime("2001-01-02", "yyyy-MM-dd")).to(be_ok());
+    expect!(validate_datetime("2001-01-02 12:33:45", "yyyy-MM-dd HH:mm:ss")).to(be_ok());
 
-    expect!(validate_datetime(&"2001-13-02".into(), &"yyyy-MM-dd".into())).to(be_err());
-    expect!(validate_datetime(&"2001-01-02 25:33:45".into(), &"yyyy-MM-dd HH:mm:ss".into())).to(be_err());
+    expect!(validate_datetime("2001-13-02", "yyyy-MM-dd")).to(be_err());
+    expect!(validate_datetime("2001-01-02 25:33:45", "yyyy-MM-dd HH:mm:ss")).to(be_err());
 
-    expect!(validate_datetime(&"2001.07.04 AD at 12:08:56 PDT".into(), &"yyyy.MM.dd G 'at' HH:mm:ss z".into())).to(be_ok());
-    expect!(validate_datetime(&"Wed, Jul 4, '01".into(), &"EEE, MMM d, ''yy".into())).to(be_ok());
-    expect!(validate_datetime(&"12:08 PM".into(), &"h:mm a".into())).to(be_ok());
+    expect!(validate_datetime("2001.07.04 AD at 12:08:56 PDT", "yyyy.MM.dd G 'at' HH:mm:ss z")).to(be_ok());
+    expect!(validate_datetime("Wed, Jul 4, '01", "EEE, MMM d, ''yy")).to(be_ok());
+    expect!(validate_datetime("12:08 PM", "h:mm a")).to(be_ok());
 //    "hh 'o''clock' a, zzzz"	12 o'clock PM, Pacific Daylight Time
-    expect!(validate_datetime(&"0:08 PM, AEST".into(), &"K:mm a, z".into())).to(be_ok());
-    expect!(validate_datetime(&"02001.July.04 AD 12:08 PM".into(), &"yyyyy.MMMMM.dd G hh:mm a".into())).to(be_ok());
-    expect!(validate_datetime(&"Wed, 4 Jul 2001 12:08:56 -0700".into(), &"EEE, d MMM yyyy HH:mm:ss Z".into())).to(be_ok());
-    expect!(validate_datetime(&"010704120856-0700".into(), &"yyMMddHHmmssZ".into())).to(be_ok());
-    expect!(validate_datetime(&"2001-07-04T12:08:56.235-0700".into(), &"yyyy-MM-dd'T'HH:mm:ss.SSSZ".into())).to(be_ok());
-    expect!(validate_datetime(&"2001-07-04T12:08:56.235Z".into(), &"yyyy-MM-dd'T'HH:mm:ss.SSSX".into())).to(be_ok());
-    expect!(validate_datetime(&"2001-07-04T12:08:56.235-07:00".into(), &"yyyy-MM-dd'T'HH:mm:ss.SSSXXX".into())).to(be_ok());
-    expect!(validate_datetime(&"2001-W27-3".into(), &"YYYY-'W'ww-u".into())).to(be_ok());
+    expect!(validate_datetime("0:08 PM, AEST", "K:mm a, z")).to(be_ok());
+    expect!(validate_datetime("02001.July.04 AD 12:08 PM", "yyyyy.MMMMM.dd G hh:mm a")).to(be_ok());
+    expect!(validate_datetime("Wed, 4 Jul 2001 12:08:56 -0700", "EEE, d MMM yyyy HH:mm:ss Z")).to(be_ok());
+    expect!(validate_datetime("010704120856-0700", "yyMMddHHmmssZ")).to(be_ok());
+    expect!(validate_datetime("2001-07-04T12:08:56.235-0700", "yyyy-MM-dd'T'HH:mm:ss.SSSZ")).to(be_ok());
+    expect!(validate_datetime("2001-07-04T12:08:56.235Z", "yyyy-MM-dd'T'HH:mm:ss.SSSX")).to(be_ok());
+    expect!(validate_datetime("2001-07-04T12:08:56.235-07:00", "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")).to(be_ok());
+    expect!(validate_datetime("2001-W27-3", "YYYY-'W'ww-u")).to(be_ok());
 
-    expect!(validate_datetime(&"2020-01-01T10:00+01:00[Europe/Warsaw]".into(), &"yyyy-MM-dd'T'HH:mmXXX'['VV']'".into())).to(be_ok());
+    expect!(validate_datetime("2020-01-01T10:00+01:00[Europe/Warsaw]", "yyyy-MM-dd'T'HH:mmXXX'['VV']'")).to(be_ok());
   }
 
   #[test]
@@ -930,11 +932,11 @@ mod tests {
     expect!(result.unwrap_err().contains("Too many pattern letters for Era")).to(be_true());
 
 
-    expect!(validate_datetime(&"ad".into(), &"G".into())).to(be_ok());
-    expect!(validate_datetime(&"AD".into(), &"GG".into())).to(be_ok());
-    expect!(validate_datetime(&"bc".into(), &"GGG".into())).to(be_ok());
-    expect!(validate_datetime(&"BC".into(), &"G".into())).to(be_ok());
-    expect!(validate_datetime(&"BX".into(), &"G".into())).to(be_err());
+    expect!(validate_datetime("ad", "G")).to(be_ok());
+    expect!(validate_datetime("AD", "GG")).to(be_ok());
+    expect!(validate_datetime("bc", "GGG")).to(be_ok());
+    expect!(validate_datetime("BC", "G")).to(be_ok());
+    expect!(validate_datetime("BX", "G")).to(be_err());
   }
 
   #[test]
@@ -944,11 +946,11 @@ mod tests {
     expect!(parse_pattern("aa")).to(be_err());
     expect!(parse_pattern("aaaa")).to(be_err());
 
-    expect!(validate_datetime(&"am".into(), &"a".into())).to(be_ok());
-    expect!(validate_datetime(&"AM".into(), &"a".into())).to(be_ok());
-    expect!(validate_datetime(&"pm".into(), &"a".into())).to(be_ok());
-    expect!(validate_datetime(&"PM".into(), &"a".into())).to(be_ok());
-    expect!(validate_datetime(&"PX".into(), &"a".into())).to(be_err());
+    expect!(validate_datetime("am", "a")).to(be_ok());
+    expect!(validate_datetime("AM", "a")).to(be_ok());
+    expect!(validate_datetime("pm", "a")).to(be_ok());
+    expect!(validate_datetime("PM", "a")).to(be_ok());
+    expect!(validate_datetime("PX", "a")).to(be_err());
   }
 
   #[test]
@@ -964,13 +966,13 @@ mod tests {
     expect!(parse_pattern("YYyy")).to(
       be_ok().value(vec![DateTimePatternToken::Year(2), DateTimePatternToken::Year(2)]));
 
-    expect!(validate_datetime(&"2000".into(), &"yyyy".into())).to(be_ok());
-    expect!(validate_datetime(&"200000".into(), &"yyyyyy".into())).to(be_ok());
-    expect!(validate_datetime(&"20".into(), &"yy".into())).to(be_ok());
-    expect!(validate_datetime(&"2000".into(), &"YYYY".into())).to(be_ok());
-    expect!(validate_datetime(&"20".into(), &"YY".into())).to(be_ok());
-    expect!(validate_datetime(&"20".into(), &"yyyy".into())).to(be_ok());
-    expect!(validate_datetime(&"".into(), &"yyyy".into())).to(be_err());
+    expect!(validate_datetime("2000", "yyyy")).to(be_ok());
+    expect!(validate_datetime("200000", "yyyyyy")).to(be_ok());
+    expect!(validate_datetime("20", "yy")).to(be_ok());
+    expect!(validate_datetime("2000", "YYYY")).to(be_ok());
+    expect!(validate_datetime("20", "YY")).to(be_ok());
+    expect!(validate_datetime("20", "yyyy")).to(be_ok());
+    expect!(validate_datetime("", "yyyy")).to(be_err());
   }
 
   #[test]
@@ -983,19 +985,19 @@ mod tests {
       be_ok().value(vec![DateTimePatternToken::MonthNum(3)]));
     expect!(parse_pattern("MMMMMM")).to(be_err());
 
-    expect!(validate_datetime(&"jan".into(), &"M".into())).to(be_err());
-    expect!(validate_datetime(&"jan".into(), &"MMM".into())).to(be_ok());
-    expect!(validate_datetime(&"october".into(), &"MMM".into())).to(be_err());
-    expect!(validate_datetime(&"December".into(), &"MMMM".into())).to(be_ok());
-    expect!(validate_datetime(&"December".into(), &"L".into())).to(be_err());
-    expect!(validate_datetime(&"01".into(), &"L".into())).to(be_ok());
-    expect!(validate_datetime(&"10".into(), &"MM".into())).to(be_ok());
-    expect!(validate_datetime(&"100".into(), &"MM".into())).to(be_err());
-    expect!(validate_datetime(&"100".into(), &"LL".into())).to(be_err());
-    expect!(validate_datetime(&"13".into(), &"MM".into())).to(be_err());
-    expect!(validate_datetime(&"31".into(), &"MM".into())).to(be_err());
-    expect!(validate_datetime(&"00".into(), &"MM".into())).to(be_err());
-    expect!(validate_datetime(&"".into(), &"MMM".into())).to(be_err());
+    expect!(validate_datetime("jan", "M")).to(be_err());
+    expect!(validate_datetime("jan", "MMM")).to(be_ok());
+    expect!(validate_datetime("october", "MMM")).to(be_err());
+    expect!(validate_datetime("December", "MMMM")).to(be_ok());
+    expect!(validate_datetime("December", "L")).to(be_err());
+    expect!(validate_datetime("01", "L")).to(be_ok());
+    expect!(validate_datetime("10", "MM")).to(be_ok());
+    expect!(validate_datetime("100", "MM")).to(be_err());
+    expect!(validate_datetime("100", "LL")).to(be_err());
+    expect!(validate_datetime("13", "MM")).to(be_err());
+    expect!(validate_datetime("31", "MM")).to(be_err());
+    expect!(validate_datetime("00", "MM")).to(be_err());
+    expect!(validate_datetime("", "MMM")).to(be_err());
   }
 
   #[test]
@@ -1009,9 +1011,9 @@ mod tests {
     expect!(parse_pattern("'dd-''MM''-yyyy'")).to(
       be_ok().value(vec![DateTimePatternToken::Text("dd-'MM'-yyyy".chars().collect())]));
 
-    expect!(validate_datetime(&"ello".into(), &"'ello'".into())).to(be_ok());
-    expect!(validate_datetime(&"elo".into(), &"'ello'".into())).to(be_err());
-    expect!(validate_datetime(&"dd-MM-yyyy".into(), &"'dd-MM-yyyy'".into())).to(be_ok());
+    expect!(validate_datetime("ello", "'ello'")).to(be_ok());
+    expect!(validate_datetime("elo", "'ello'")).to(be_err());
+    expect!(validate_datetime("dd-MM-yyyy", "'dd-MM-yyyy'")).to(be_ok());
   }
 
   #[test]
@@ -1024,11 +1026,11 @@ mod tests {
     expect!(parse_pattern("F")).to(
       be_ok().value(vec![DateTimePatternToken::WeekInMonth(false)]));
 
-    expect!(validate_datetime(&"12".into(), &"w".into())).to(be_ok());
-    expect!(validate_datetime(&"3".into(), &"WW".into())).to(be_ok());
-    expect!(validate_datetime(&"57".into(), &"ww".into())).to(be_err());
-    expect!(validate_datetime(&"0".into(), &"W".into())).to(be_err());
-    expect!(validate_datetime(&"0".into(), &"F".into())).to(be_ok());
+    expect!(validate_datetime("12", "w")).to(be_ok());
+    expect!(validate_datetime("3", "WW")).to(be_ok());
+    expect!(validate_datetime("57", "ww")).to(be_err());
+    expect!(validate_datetime("0", "W")).to(be_err());
+    expect!(validate_datetime("0", "F")).to(be_ok());
   }
 
   #[test]
@@ -1041,11 +1043,11 @@ mod tests {
       be_ok().value(vec![DateTimePatternToken::DayInYear]));
     expect!(parse_pattern("ddd")).to(be_err());
 
-    expect!(validate_datetime(&"12".into(), &"d".into())).to(be_ok());
-    expect!(validate_datetime(&"03".into(), &"DD".into())).to(be_ok());
-    expect!(validate_datetime(&"32".into(), &"dd".into())).to(be_err());
-    expect!(validate_datetime(&"0".into(), &"D".into())).to(be_err());
-    expect!(validate_datetime(&"357".into(), &"D".into())).to(be_err());
+    expect!(validate_datetime("12", "d")).to(be_ok());
+    expect!(validate_datetime("03", "DD")).to(be_ok());
+    expect!(validate_datetime("32", "dd")).to(be_err());
+    expect!(validate_datetime("0", "D")).to(be_err());
+    expect!(validate_datetime("357", "D")).to(be_err());
   }
 
   #[test]
@@ -1057,13 +1059,13 @@ mod tests {
     expect!(parse_pattern("ee")).to(
       be_ok().value(vec![DateTimePatternToken::DayOfWeek(2)]));
 
-    expect!(validate_datetime(&"7".into(), &"c".into())).to(be_ok());
-    expect!(validate_datetime(&"Tue".into(), &"EEE".into())).to(be_ok());
-    expect!(validate_datetime(&"Tuesday".into(), &"EEEE".into())).to(be_ok());
-    expect!(validate_datetime(&"3".into(), &"E".into())).to(be_err());
-    expect!(validate_datetime(&"3".into(), &"e".into())).to(be_ok());
-    expect!(validate_datetime(&"32".into(), &"ee".into())).to(be_err());
-    expect!(validate_datetime(&"0".into(), &"c".into())).to(be_err());
+    expect!(validate_datetime("7", "c")).to(be_ok());
+    expect!(validate_datetime("Tue", "EEE")).to(be_ok());
+    expect!(validate_datetime("Tuesday", "EEEE")).to(be_ok());
+    expect!(validate_datetime("3", "E")).to(be_err());
+    expect!(validate_datetime("3", "e")).to(be_ok());
+    expect!(validate_datetime("32", "ee")).to(be_err());
+    expect!(validate_datetime("0", "c")).to(be_err());
   }
 
   #[test]
@@ -1078,20 +1080,20 @@ mod tests {
       be_ok().value(vec![DateTimePatternToken::Hour24ZeroBased]));
     expect!(parse_pattern("HHHH")).to(be_err());
 
-    expect!(validate_datetime(&"11".into(), &"k".into())).to(be_ok());
-    expect!(validate_datetime(&"11".into(), &"KK".into())).to(be_ok());
-    expect!(validate_datetime(&"11".into(), &"hh".into())).to(be_ok());
-    expect!(validate_datetime(&"11".into(), &"H".into())).to(be_ok());
+    expect!(validate_datetime("11", "k")).to(be_ok());
+    expect!(validate_datetime("11", "KK")).to(be_ok());
+    expect!(validate_datetime("11", "hh")).to(be_ok());
+    expect!(validate_datetime("11", "H")).to(be_ok());
 
-    expect!(validate_datetime(&"25".into(), &"kk".into())).to(be_err());
-    expect!(validate_datetime(&"0".into(), &"k".into())).to(be_err());
-    expect!(validate_datetime(&"0".into(), &"KK".into())).to(be_ok());
-    expect!(validate_datetime(&"12".into(), &"KK".into())).to(be_err());
-    expect!(validate_datetime(&"12".into(), &"h".into())).to(be_ok());
-    expect!(validate_datetime(&"0".into(), &"hh".into())).to(be_err());
-    expect!(validate_datetime(&"0".into(), &"H".into())).to(be_ok());
-    expect!(validate_datetime(&"23".into(), &"H".into())).to(be_ok());
-    expect!(validate_datetime(&"24".into(), &"HH".into())).to(be_err());
+    expect!(validate_datetime("25", "kk")).to(be_err());
+    expect!(validate_datetime("0", "k")).to(be_err());
+    expect!(validate_datetime("0", "KK")).to(be_ok());
+    expect!(validate_datetime("12", "KK")).to(be_err());
+    expect!(validate_datetime("12", "h")).to(be_ok());
+    expect!(validate_datetime("0", "hh")).to(be_err());
+    expect!(validate_datetime("0", "H")).to(be_ok());
+    expect!(validate_datetime("23", "H")).to(be_ok());
+    expect!(validate_datetime("24", "HH")).to(be_err());
   }
 
   #[test]
@@ -1109,14 +1111,14 @@ mod tests {
     expect!(parse_pattern("N")).to(
       be_ok().value(vec![DateTimePatternToken::NanosecondOfDay]));
 
-    expect!(validate_datetime(&"12".into(), &"m".into())).to(be_ok());
-    expect!(validate_datetime(&"03".into(), &"ss".into())).to(be_ok());
-    expect!(validate_datetime(&"030".into(), &"SSS".into())).to(be_ok());
-    expect!(validate_datetime(&"35392790".into(), &"A".into())).to(be_ok());
-    expect!(validate_datetime(&"35392790".into(), &"n".into())).to(be_ok());
-    expect!(validate_datetime(&"60".into(), &"m".into())).to(be_err());
-    expect!(validate_datetime(&"61".into(), &"s".into())).to(be_err());
-    expect!(validate_datetime(&"1000".into(), &"SS".into())).to(be_err());
+    expect!(validate_datetime("12", "m")).to(be_ok());
+    expect!(validate_datetime("03", "ss")).to(be_ok());
+    expect!(validate_datetime("030", "SSS")).to(be_ok());
+    expect!(validate_datetime("35392790", "A")).to(be_ok());
+    expect!(validate_datetime("35392790", "n")).to(be_ok());
+    expect!(validate_datetime("60", "m")).to(be_err());
+    expect!(validate_datetime("61", "s")).to(be_err());
+    expect!(validate_datetime("1000", "SS")).to(be_err());
   }
 
   #[test]
@@ -1130,55 +1132,55 @@ mod tests {
     expect!(parse_pattern("OOOO")).to(
       be_ok().value(vec![DateTimePatternToken::TimezoneOffsetGmt(4)]));
 
-    expect!(validate_datetime(&"-0700".into(), &"Z".into())).to(be_ok());
-    expect!(validate_datetime(&"1100".into(), &"ZZZZ".into())).to(be_err());
-    expect!(validate_datetime(&"GMT+10:00".into(), &"ZZZZ".into())).to(be_ok());
-    expect!(validate_datetime(&"+1030".into(), &"Z".into())).to(be_ok());
-    expect!(validate_datetime(&"-2400".into(), &"Z".into())).to(be_err());
-    expect!(validate_datetime(&"2361".into(), &"Z".into())).to(be_err());
-    expect!(validate_datetime(&"Z".into(), &"Z".into())).to(be_err());
-    expect!(validate_datetime(&"GMT".into(), &"ZZZZ".into())).to(be_ok());
-    expect!(validate_datetime(&"+10:00".into(), &"ZZZZZ".into())).to(be_ok());
+    expect!(validate_datetime("-0700", "Z")).to(be_ok());
+    expect!(validate_datetime("1100", "ZZZZ")).to(be_err());
+    expect!(validate_datetime("GMT+10:00", "ZZZZ")).to(be_ok());
+    expect!(validate_datetime("+1030", "Z")).to(be_ok());
+    expect!(validate_datetime("-2400", "Z")).to(be_err());
+    expect!(validate_datetime("2361", "Z")).to(be_err());
+    expect!(validate_datetime("Z", "Z")).to(be_err());
+    expect!(validate_datetime("GMT", "ZZZZ")).to(be_ok());
+    expect!(validate_datetime("+10:00", "ZZZZZ")).to(be_ok());
 
-    expect!(validate_datetime(&"Z".into(), &"X".into())).to(be_ok());
-    expect!(validate_datetime(&"Z".into(), &"x".into())).to(be_err());
-    expect!(validate_datetime(&"-0730".into(), &"X".into())).to(be_ok());
-    expect!(validate_datetime(&"+08".into(), &"X".into())).to(be_ok());
-    expect!(validate_datetime(&"-0730".into(), &"x".into())).to(be_ok());
-    expect!(validate_datetime(&"+0800".into(), &"x".into())).to(be_ok());
-    expect!(validate_datetime(&"-0730".into(), &"XX".into())).to(be_ok());
-    expect!(validate_datetime(&"+0800".into(), &"xx".into())).to(be_ok());
-    expect!(validate_datetime(&"-07:30".into(), &"XXX".into())).to(be_ok());
-    expect!(validate_datetime(&"+08:00".into(), &"xxx".into())).to(be_ok());
-    expect!(validate_datetime(&"-0730".into(), &"XXXX".into())).to(be_ok());
-    expect!(validate_datetime(&"+0800".into(), &"xxxx".into())).to(be_ok());
-    expect!(validate_datetime(&"-073000".into(), &"XXXX".into())).to(be_ok());
-    expect!(validate_datetime(&"+080000".into(), &"xxxx".into())).to(be_ok());
-    expect!(validate_datetime(&"-07:30:00".into(), &"XXXXX".into())).to(be_ok());
-    expect!(validate_datetime(&"+08:00:00".into(), &"xxxxx".into())).to(be_ok());
+    expect!(validate_datetime("Z", "X")).to(be_ok());
+    expect!(validate_datetime("Z", "x")).to(be_err());
+    expect!(validate_datetime("-0730", "X")).to(be_ok());
+    expect!(validate_datetime("+08", "X")).to(be_ok());
+    expect!(validate_datetime("-0730", "x")).to(be_ok());
+    expect!(validate_datetime("+0800", "x")).to(be_ok());
+    expect!(validate_datetime("-0730", "XX")).to(be_ok());
+    expect!(validate_datetime("+0800", "xx")).to(be_ok());
+    expect!(validate_datetime("-07:30", "XXX")).to(be_ok());
+    expect!(validate_datetime("+08:00", "xxx")).to(be_ok());
+    expect!(validate_datetime("-0730", "XXXX")).to(be_ok());
+    expect!(validate_datetime("+0800", "xxxx")).to(be_ok());
+    expect!(validate_datetime("-073000", "XXXX")).to(be_ok());
+    expect!(validate_datetime("+080000", "xxxx")).to(be_ok());
+    expect!(validate_datetime("-07:30:00", "XXXXX")).to(be_ok());
+    expect!(validate_datetime("+08:00:00", "xxxxx")).to(be_ok());
 
-    expect!(validate_datetime(&"1100".into(), &"XX".into())).to(be_err());
-    expect!(validate_datetime(&"1100".into(), &"xx".into())).to(be_err());
-    expect!(validate_datetime(&"+10".into(), &"XX".into())).to(be_err());
-    expect!(validate_datetime(&"+10".into(), &"xx".into())).to(be_err());
-    expect!(validate_datetime(&"-0730".into(), &"XXX".into())).to(be_err());
-    expect!(validate_datetime(&"+0800".into(), &"xxx".into())).to(be_err());
-    expect!(validate_datetime(&"-07:30".into(), &"XXXX".into())).to(be_err());
-    expect!(validate_datetime(&"+08:00".into(), &"xxxx".into())).to(be_err());
-    expect!(validate_datetime(&"-073000".into(), &"XXXXX".into())).to(be_err());
-    expect!(validate_datetime(&"+080000".into(), &"xxxxx".into())).to(be_err());
+    expect!(validate_datetime("1100", "XX")).to(be_err());
+    expect!(validate_datetime("1100", "xx")).to(be_err());
+    expect!(validate_datetime("+10", "XX")).to(be_err());
+    expect!(validate_datetime("+10", "xx")).to(be_err());
+    expect!(validate_datetime("-0730", "XXX")).to(be_err());
+    expect!(validate_datetime("+0800", "xxx")).to(be_err());
+    expect!(validate_datetime("-07:30", "XXXX")).to(be_err());
+    expect!(validate_datetime("+08:00", "xxxx")).to(be_err());
+    expect!(validate_datetime("-073000", "XXXXX")).to(be_err());
+    expect!(validate_datetime("+080000", "xxxxx")).to(be_err());
 
-    expect!(validate_datetime(&"GMT-7".into(), &"O".into())).to(be_ok());
-    expect!(validate_datetime(&"UTC+10".into(), &"O".into())).to(be_ok());
-    expect!(validate_datetime(&"UTC+9:30".into(), &"O".into())).to(be_ok());
-    expect!(validate_datetime(&"GMT+08:00".into(), &"OOOO".into())).to(be_ok());
-    expect!(validate_datetime(&"GMT+08".into(), &"OOOO".into())).to(be_err());
+    expect!(validate_datetime("GMT-7", "O")).to(be_ok());
+    expect!(validate_datetime("UTC+10", "O")).to(be_ok());
+    expect!(validate_datetime("UTC+9:30", "O")).to(be_ok());
+    expect!(validate_datetime("GMT+08:00", "OOOO")).to(be_ok());
+    expect!(validate_datetime("GMT+08", "OOOO")).to(be_err());
 
-    // expect!(validate_datetime(&"AEST".into(), &"z".into())).to(be_ok());
-    // expect!(validate_datetime(&"BST".into(), &"z".into())).to(be_ok());
-    // expect!(validate_datetime(&"UTC".into(), &"z".into())).to(be_ok());
-    // expect!(validate_datetime(&"aest".into(), &"z".into())).to(be_err());
-    // expect!(validate_datetime(&"AEST".into(), &"zzzz".into())).to(be_err());
+    // expect!(validate_datetime("AEST", "z")).to(be_ok());
+    // expect!(validate_datetime("BST", "z")).to(be_ok());
+    // expect!(validate_datetime("UTC", "z")).to(be_ok());
+    // expect!(validate_datetime("aest", "z")).to(be_err());
+    // expect!(validate_datetime("AEST", "zzzz")).to(be_err());
   }
 
   #[test]
@@ -1209,15 +1211,15 @@ mod tests {
       be_ok().value(vec![DateTimePatternToken::QuarterOfYearNum(1)]));
     expect!(parse_pattern("qqq")).to(be_err());
 
-    expect!(validate_datetime(&"2".into(), &"Q".into())).to(be_ok());
-    expect!(validate_datetime(&"2".into(), &"q".into())).to(be_ok());
-    expect!(validate_datetime(&"02".into(), &"QQ".into())).to(be_ok());
-    expect!(validate_datetime(&"02".into(), &"qq".into())).to(be_ok());
-    expect!(validate_datetime(&"Q2".into(), &"QQ".into())).to(be_err());
-    expect!(validate_datetime(&"Q2".into(), &"QQQ".into())).to(be_ok());
-    expect!(validate_datetime(&"Q2".into(), &"qq".into())).to(be_err());
-    expect!(validate_datetime(&"2nd quarter".into(), &"QQQQ".into())).to(be_ok());
-    expect!(validate_datetime(&"5th quarter".into(), &"QQQQ".into())).to(be_err());
+    expect!(validate_datetime("2", "Q")).to(be_ok());
+    expect!(validate_datetime("2", "q")).to(be_ok());
+    expect!(validate_datetime("02", "QQ")).to(be_ok());
+    expect!(validate_datetime("02", "qq")).to(be_ok());
+    expect!(validate_datetime("Q2", "QQ")).to(be_err());
+    expect!(validate_datetime("Q2", "QQQ")).to(be_ok());
+    expect!(validate_datetime("Q2", "qq")).to(be_err());
+    expect!(validate_datetime("2nd quarter", "QQQQ")).to(be_ok());
+    expect!(validate_datetime("5th quarter", "QQQQ")).to(be_err());
   }
 
   #[test]

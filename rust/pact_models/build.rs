@@ -9,11 +9,12 @@ use std::fs;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 use std::collections::BTreeSet;
+use std::collections::hash_map::Entry;
 use maplit::*;
 use std::collections::HashMap;
 
 fn strip_comments(mut line: String) -> String {
-  line.find('#').map(|pos| line.truncate(pos));
+  if let Some(pos) = line.find('#') { line.truncate(pos) }
   line
 }
 
@@ -59,10 +60,9 @@ fn main() -> io::Result<()> {
   for zone in &zones {
     let timespans = table.timespans(zone).unwrap().rest;
     for (_, timespan) in timespans {
-      if abbr.contains_key(&timespan.name) {
-        abbr.get_mut(&timespan.name).unwrap().push(zone.to_string());
-      } else {
-        abbr.insert(timespan.name, vec![zone.to_string()]);
+      match abbr.entry(timespan.name) {
+        Entry::Vacant(e) => { e.insert(vec![zone.to_string()]); },
+        Entry::Occupied(mut e) => e.get_mut().push(zone.to_string())
       }
     }
   }

@@ -122,9 +122,9 @@ impl AsynchronousMessage {
         provider_states,
         contents: MessageContents {
           metadata,
-          contents: body_from_json(&json, "contents", &as_headers),
-          matching_rules: matchers_from_json(&json, &None)?,
-          generators: generators_from_json(&json)?,
+          contents: body_from_json(json, "contents", &as_headers),
+          matching_rules: matchers_from_json(json, &None)?,
+          generators: generators_from_json(json)?,
         },
         comments,
         pending: json.get("pending")

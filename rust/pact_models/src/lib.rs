@@ -201,7 +201,7 @@ impl Consumer {
       },
       None => "consumer".to_string()
     };
-    Consumer { name: val.clone() }
+    Consumer { name: val }
   }
 
   /// Converts this `Consumer` to a `Value` struct.
@@ -271,7 +271,7 @@ impl Provider {
       },
       None => "provider".to_string()
     };
-    Provider { name: val.clone() }
+    Provider { name: val }
   }
 
   /// Converts this `Provider` to a `Value` struct.

@@ -32,7 +32,7 @@ pub enum DataType {
 impl DataType {
   /// Wraps the generated value in a DataValue
   pub fn wrap(&self, result: anyhow::Result<Value>) -> anyhow::Result<DataValue> {
-    result.map(|val| DataValue { wrapped: val.clone(), data_type: *self })
+    result.map(|val| DataValue { wrapped: val, data_type: *self })
   }
 }
 
@@ -52,6 +52,7 @@ impl From<Value> for DataType {
   }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<Value> for DataType {
   fn into(self) -> Value {
     match self {
@@ -65,6 +66,7 @@ impl Into<Value> for DataType {
   }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<Value> for &DataType {
   fn into(self) -> Value {
     (*self).into()
@@ -348,13 +350,13 @@ pub struct MapValueResolver<'a> {
 
 impl ValueResolver<String> for MapValueResolver<'_> {
   fn resolve_value(&self, name: &str) -> Option<String> {
-    self.context.get(name.into()).map(|val| json_to_string(val))
+    self.context.get(name).map(|val| json_to_string(val))
   }
 }
 
 impl ValueResolver<Value> for MapValueResolver<'_> {
   fn resolve_value(&self, name: &str) -> Option<Value> {
-    self.context.get(name.into()).cloned()
+    self.context.get(name).cloned()
   }
 }
 
@@ -381,7 +383,7 @@ fn replace_expressions(value: &str, value_resolver: &dyn ValueResolver<Value>) -
       result.push(json!(&buffer[0..index]));
     }
     let end_position = buffer.find('}')
-      .ok_or(anyhow!("Missing closing brace in expression string '{}'", value))?;
+      .ok_or_else(|| anyhow!("Missing closing brace in expression string '{}'", value))?;
     if end_position - index > 2 {
       let lookup_key = &buffer[(index + 2)..end_position];
       if let Some(lookup) = value_resolver.resolve_value(lookup_key) {

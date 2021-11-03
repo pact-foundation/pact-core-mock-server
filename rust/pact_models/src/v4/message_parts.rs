@@ -45,9 +45,9 @@ impl MessageContents {
       let as_headers = metadata_to_headers(&metadata);
       Ok(MessageContents {
         metadata,
-        contents: body_from_json(&json, "contents", &as_headers),
-        matching_rules: matchers_from_json(&json, &None)?,
-        generators: generators_from_json(&json)?,
+        contents: body_from_json(json, "contents", &as_headers),
+        matching_rules: matchers_from_json(json, &None)?,
+        generators: generators_from_json(json)?,
       })
     } else {
       Err(anyhow!("Expected a JSON object for the message contents, got '{}'", json))
@@ -158,11 +158,9 @@ impl HttpPart for MessageContents {
 }
 
 pub(crate) fn metadata_to_headers(metadata: &HashMap<String, Value>) -> Option<HashMap<String, Vec<String>>> {
-  if let Some(content_type) = metadata.get("contentType") {
-    Some(hashmap! {
+  metadata.get("contentType").map(|content_type| {
+    hashmap! {
       "Content-Type".to_string() => vec![ json_to_string(content_type) ]
-    })
-  } else {
-    None
-  }
+    }
+  })
 }

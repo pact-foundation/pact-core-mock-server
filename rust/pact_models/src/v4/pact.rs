@@ -149,8 +149,7 @@ impl Pact for V4Pact {
           .map(|(k, v)| (k.clone(), json_to_string(v))).collect())),
         _ => None
       }
-    }).filter(|v| v.is_some())
-      .map(|v| v.unwrap())
+    }).flatten()
       .collect()
   }
 
@@ -180,8 +179,7 @@ impl Pact for V4Pact {
   fn as_request_response_pact(&self) -> anyhow::Result<RequestResponsePact> {
     let interactions = self.interactions.iter()
       .map(|i| i.as_request_response())
-      .filter(|i| i.is_some())
-      .map(|i| i.unwrap())
+      .flatten()
       .collect();
     let metadata = self.metadata.iter().map(|(k, v)| {
       match v {
@@ -189,8 +187,7 @@ impl Pact for V4Pact {
           .map(|(k, v)| (k.clone(), v.to_string())).collect())),
         _ => None
       }
-    }).filter(|val| val.is_some())
-      .map(|val| val.unwrap())
+    }).flatten()
       .collect();
     Ok(RequestResponsePact {
       consumer: self.consumer.clone(),
@@ -204,8 +201,7 @@ impl Pact for V4Pact {
   fn as_message_pact(&self) -> anyhow::Result<MessagePact> {
     let interactions = self.interactions.iter()
       .map(|i| i.as_message())
-      .filter(|i| i.is_some())
-      .map(|i| i.unwrap())
+      .flatten()
       .collect();
     let metadata = self.metadata.iter().map(|(k, v)| {
       match v {
@@ -213,8 +209,7 @@ impl Pact for V4Pact {
           .map(|(k, v)| (k.clone(), v.to_string())).collect())),
         _ => None
       }
-    }).filter(|val| val.is_some())
-      .map(|val| val.unwrap())
+    }).flatten()
       .collect();
     Ok(MessagePact {
       consumer: self.consumer.clone(),
@@ -283,11 +278,8 @@ impl Pact for V4Pact {
 
   fn add_md_version(&mut self, key: &str, version: &str) {
     if let Some(md) = self.metadata.get_mut("pactRust") {
-      match md {
-        Value::Object(map) => {
-          map.insert(key.to_string(), Value::String(version.to_string()));
-        }
-        _ => {}
+      if let Value::Object(map) = md {
+        map.insert(key.to_string(), Value::String(version.to_string()));
       }
     } else {
       self.metadata.insert("pactRust".to_string(), json!({
@@ -438,12 +430,10 @@ pub fn from_json(source: &str, pact_json: &Value) -> anyhow::Result<Box<dyn Pact
 
 fn meta_data_from_json(pact_json: &Value) -> BTreeMap<String, Value> {
   match pact_json.get("metadata") {
-    Some(v) => match *v {
-      Value::Object(ref obj) => obj.iter()
-        .map(|(k, v)| (k.clone(), v.clone())).collect(),
-      _ => btreemap!{}
-    },
-    None => btreemap!{}
+    Some(Value::Object(ref obj)) => {
+       obj.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
+    }
+    _ => btreemap!{}
   }
 }
 

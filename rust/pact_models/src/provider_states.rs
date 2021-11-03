@@ -25,9 +25,9 @@ pub struct ProviderState {
 impl ProviderState {
 
   /// Creates a default state with the given name
-  pub fn default(name: &String) -> ProviderState {
+  pub fn default(name: &str) -> ProviderState {
     ProviderState {
-      name: name.clone(),
+      name: name.to_string(),
       params: hashmap!{}
     }
   }
@@ -67,7 +67,7 @@ impl ProviderState {
         Value::Array(ref a) => a.iter().map(|i| ProviderState::from_json_v3(i)).collect(),
         _ => vec![]
       },
-      None => match pact_json.get("providerState").or(pact_json.get("provider_state")) {
+      None => match pact_json.get("providerState").or_else(|| pact_json.get("provider_state")) {
         Some(v) => match *v {
           Value::String(ref s) => if s.is_empty() {
             vec![]
@@ -121,10 +121,6 @@ impl Hash for ProviderState {
 impl PartialEq for ProviderState {
   fn eq(&self, other: &Self) -> bool {
     self.name == other.name && self.params == other.params
-  }
-
-  fn ne(&self, other: &Self) -> bool {
-    self.name != other.name || self.params != other.params
   }
 }
 

@@ -96,11 +96,11 @@ impl SynchronousMessage {
 
       let provider_states = ProviderState::from_json(json);
       let request = json.get("request")
-        .ok_or(anyhow!("JSON for SynchronousMessages does not contain a 'request' object"))?;
+        .ok_or_else(|| anyhow!("JSON for SynchronousMessages does not contain a 'request' object"))?;
       let response = json.get("response")
-        .ok_or(anyhow!("JSON for SynchronousMessages does not contain a 'response' array"))?
+        .ok_or_else(|| anyhow!("JSON for SynchronousMessages does not contain a 'response' array"))?
         .as_array()
-        .ok_or(anyhow!("JSON for SynchronousMessages does not contain a 'response' array"))?;
+        .ok_or_else(|| anyhow!("JSON for SynchronousMessages does not contain a 'response' array"))?;
       let responses =
         response.iter()
           .map(|message| MessageContents::from_json(message))

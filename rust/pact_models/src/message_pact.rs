@@ -257,10 +257,7 @@ impl MessagePact {
         let mut file = File::create(path)?;
 
         file.write_all(
-            format!("{}",
-                serde_json::to_string_pretty(
-                    &self.to_json(pact_spec)?)?
-            ).as_bytes()
+          serde_json::to_string_pretty(&self.to_json(pact_spec)?)?.as_bytes()
         )?;
 
         Ok(())
@@ -333,7 +330,7 @@ impl ReadWritePact for MessagePact {
             .filter(|i| i.is_ok())
             .map(|i| i.as_ref().unwrap().clone()).collect(),
           metadata: self.metadata.clone(),
-          specification_version: self.specification_version.clone()
+          specification_version: self.specification_version
         }))
       } else {
         Err(anyhow!("Unable to merge pacts: {}", errors.join(", ")))

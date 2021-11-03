@@ -229,15 +229,15 @@ fn is_match(regex: &Regex, string: &str) -> bool {
 }
 
 /// Try detect the content type from the contents of a string
-pub fn detect_content_type_from_string(s: &String) -> Option<ContentType> {
+pub fn detect_content_type_from_string(s: &str) -> Option<ContentType> {
   log::debug!("Detecting content type from contents: '{}'", s);
-  if is_match(&XMLREGEXP, s.as_str()) {
+  if is_match(&XMLREGEXP, s) {
     Some(XML.clone())
   } else if is_match(&HTMLREGEXP, s.to_uppercase().as_str()) {
     Some(HTML.clone())
-  } else if is_match(&XMLREGEXP2, s.as_str()) {
+  } else if is_match(&XMLREGEXP2, s) {
     Some(XML.clone())
-  } else if is_match(&JSONREGEXP, s.as_str()) {
+  } else if is_match(&JSONREGEXP, s) {
     Some(JSON.clone())
   } else {
     Some(TEXT.clone())

@@ -6,6 +6,7 @@ use std::fmt;
 use anyhow::anyhow;
 use crate::bodies::OptionalBody;
 use std::collections::HashMap;
+use std::str::FromStr;
 use crate::content_types::{ContentType, detect_content_type_from_bytes};
 
 pub mod http_parts;
@@ -44,9 +45,11 @@ impl Display for V4InteractionType {
   }
 }
 
-impl V4InteractionType {
+impl FromStr for V4InteractionType {
+  type Err = anyhow::Error;
+
   /// Returns the V4 interaction type from the string value
-  pub fn from_str(type_str: &str) -> anyhow::Result<V4InteractionType> {
+  fn from_str(type_str: &str) -> anyhow::Result<V4InteractionType> {
     match type_str {
       "Synchronous/HTTP" => Ok(V4InteractionType::Synchronous_HTTP),
       "Asynchronous/Messages" => Ok(V4InteractionType::Asynchronous_Messages),
