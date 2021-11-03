@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.11.0 - Pact V4 release
+
+* e62cefdc - chore: fix clippy warnings (Ronald Holshausen, Wed Nov 3 16:52:24 2021 +1100)
+* bd2bd0ec - chore: drop beta from pact_matching version (Ronald Holshausen, Wed Nov 3 13:28:35 2021 +1100)
+* 296b4370 - chore: update project to Rust 2021 edition (Ronald Holshausen, Fri Oct 22 10:44:48 2021 +1100)
+* a561f883 - chore: use the non-beta models crate (Ronald Holshausen, Thu Oct 21 18:10:27 2021 +1100)
+* 9f674ca3 - bump version to 0.11.0-beta.5 (Ronald Holshausen, Tue Oct 19 17:16:10 2021 +1100)
+
 # 0.11.0-beta.4 - Bugfix Release
 
 * 918e5beb - fix: update to latest models and plugin driver crates (Ronald Holshausen, Tue Oct 19 17:09:48 2021 +1100)
