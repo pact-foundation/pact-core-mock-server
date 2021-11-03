@@ -8,7 +8,7 @@ jobs:
     strategy:
       matrix:
         operating-system: [ ubuntu-latest, windows-latest, macos-latest ]
-        rust: [ stable, beta ]
+        rust: [ stable ]
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -18,7 +18,6 @@ jobs:
       - name: Install shared mime info DB
         if: runner.os == 'macOS'
         run: brew install shared-mime-info
-      - run: rustc --version
       - name: Tests
         uses: marcopolo/cargo@master # TODO: - use actions-rs/cargo@v1 when PR merged https://github.com/actions-rs/cargo/pull/59
         with:
