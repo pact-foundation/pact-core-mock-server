@@ -1,5 +1,16 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.9.0 - Pact V4 release
+
+* 8d05ddcc - chore: remove beta version from verifier cli (Ronald Holshausen, Thu Nov 4 16:25:02 2021 +1100)
+* 400a1231 - chore: drop beta from pact_verifier version (Ronald Holshausen, Thu Nov 4 15:56:22 2021 +1100)
+* 296b4370 - chore: update project to Rust 2021 edition (Ronald Holshausen, Fri Oct 22 10:44:48 2021 +1100)
+* a561f883 - chore: use the non-beta models crate (Ronald Holshausen, Thu Oct 21 18:10:27 2021 +1100)
+* 0c72c80e - chore: fixes after merging from master (Ronald Holshausen, Wed Oct 20 14:46:54 2021 +1100)
+* ec265d83 - Merge branch 'master' into feat/plugins (Ronald Holshausen, Wed Oct 20 14:40:37 2021 +1100)
+* 87944c79 - bump version to 0.9.0-beta.1 (Ronald Holshausen, Tue Oct 19 18:25:48 2021 +1100)
+* 1ce39437 - docs: update verifier CLI docs with consumer version selectors (Matt Fellows, Tue Oct 12 13:26:20 2021 +1100)
+
 # 0.9.0-beta.0 - Pact Plugins Support
 
 * 1aa21870 - chore: update readme with details on plugins (Ronald Holshausen, Tue Oct 19 18:12:51 2021 +1100)
