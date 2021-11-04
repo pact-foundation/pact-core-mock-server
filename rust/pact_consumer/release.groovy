@@ -105,7 +105,7 @@ ask("Bump version to $nextVer?: [Y]") {
   executeOnShell "sed -i -e 's/version = \"${releaseVer}\"/version = \"${nextVer}\"/' Cargo.toml"
   executeOnShell "sed -i -e 's/pact_consumer = \"${releaseVer}\"/pact_consumer = \"${nextVer}\"/' README.md"
   executeOnShell("cargo update")
-  executeOnShell("git add Cargo.toml")
+  executeOnShell("git add Cargo.toml README.md")
   executeOnShell("git add ../Cargo.lock")
   executeOnShell("git diff --cached")
   ask("Commit and push this change?: [Y]") {
