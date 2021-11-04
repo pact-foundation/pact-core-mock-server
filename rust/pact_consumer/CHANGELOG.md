@@ -1,5 +1,20 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.8.0 - Pact V4 release
+
+* 6dfec56a - chore: drop beta from pact_consumer version (Ronald Holshausen, Thu Nov 4 16:08:47 2021 +1100)
+* fc4580b8 - chore: drop beta from pact_mock_server version (Ronald Holshausen, Thu Nov 4 15:28:51 2021 +1100)
+* bd2bd0ec - chore: drop beta from pact_matching version (Ronald Holshausen, Wed Nov 3 13:28:35 2021 +1100)
+* 296b4370 - chore: update project to Rust 2021 edition (Ronald Holshausen, Fri Oct 22 10:44:48 2021 +1100)
+* a561f883 - chore: use the non-beta models crate (Ronald Holshausen, Thu Oct 21 18:10:27 2021 +1100)
+* e72d602a - chore: bump pact models to non-beta version (Ronald Holshausen, Thu Oct 21 17:47:17 2021 +1100)
+* 75dd211c - feat: update readme with plugin example (Ronald Holshausen, Thu Oct 21 11:53:52 2021 +1100)
+* be6c02b1 - feat: update readme with sync req/res message examples (Ronald Holshausen, Thu Oct 21 11:18:41 2021 +1100)
+* e6610312 - feat: update readme with sync req/res message examples (Ronald Holshausen, Thu Oct 21 11:15:05 2021 +1100)
+* 3b7aee5f - feat: update tests and docs with sync req/res message examples (Ronald Holshausen, Thu Oct 21 10:28:08 2021 +1100)
+* 1427aa33 - feat: update tests and docs with message examples (Ronald Holshausen, Wed Oct 20 16:49:29 2021 +1100)
+* 45511b6e - bump version to 0.8.0-beta.4 (Ronald Holshausen, Tue Oct 19 17:51:58 2021 +1100)
+
 # 0.8.0-beta.3 - Bugfix Release
 
 * df67b723 - fix: async message builder was not setting the pact plugin config correctly (Ronald Holshausen, Tue Oct 19 17:44:35 2021 +1100)
