@@ -68,8 +68,20 @@ impl Interaction for RequestResponseInteraction {
     self.description.clone()
   }
 
+  fn set_id(&mut self, id: Option<String>) {
+    self.id = id;
+  }
+
+  fn set_description(&mut self, description: &str) {
+    self.description = description.to_string();
+  }
+
   fn provider_states(&self) -> Vec<ProviderState> {
     self.provider_states.clone()
+  }
+
+  fn provider_states_mut(&mut self) -> &mut Vec<ProviderState> {
+    &mut self.provider_states
   }
 
   fn contents(&self) -> OptionalBody {
@@ -109,6 +121,18 @@ impl Interaction for RequestResponseInteraction {
   }
 
   fn as_v4_sync_message(&self) -> Option<SynchronousMessage> {
+    None
+  }
+
+  fn as_v4_http_mut(&mut self) -> Option<&mut SynchronousHttp> {
+    None
+  }
+
+  fn as_v4_async_message_mut(&mut self) -> Option<&mut AsynchronousMessage> {
+    None
+  }
+
+  fn as_v4_sync_message_mut(&mut self) -> Option<&mut SynchronousMessage> {
     None
   }
 

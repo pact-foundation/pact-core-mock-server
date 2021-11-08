@@ -74,7 +74,8 @@ fn create_header_with_multiple_values() {
   pactffi_with_header(interaction.clone(), InteractionPart::Request, name.as_ptr(), 1, value_2.as_ptr());
   pactffi_with_header(interaction.clone(), InteractionPart::Request, name.as_ptr(), 0, value_1.as_ptr());
   interaction.with_interaction(&|_, _, i| {
-    expect!(i.request.headers.as_ref()).to(be_some().value(&hashmap!{
+    let interaction = i.as_v4_http().unwrap();
+    expect!(interaction.request.headers.as_ref()).to(be_some().value(&hashmap!{
       "accept".to_string() => vec!["application/hal+json".to_string(), "application/json".to_string()]
     }));
   });
@@ -95,7 +96,8 @@ fn create_query_parameter_with_multiple_values() {
   pactffi_with_query_parameter(interaction.clone(), name.as_ptr(), 0, value_1.as_ptr());
   pactffi_with_query_parameter(interaction.clone(), name.as_ptr(), 1, value_2.as_ptr());
   interaction.with_interaction(&|_, _, i| {
-    expect!(i.request.query.as_ref()).to(be_some().value(&hashmap!{
+    let interaction = i.as_v4_http().unwrap();
+    expect!(interaction.request.query.as_ref()).to(be_some().value(&hashmap!{
       "q".to_string() => vec!["1".to_string(), "2".to_string(), "3".to_string()]
     }));
   });
@@ -115,7 +117,8 @@ fn create_multipart_file() {
   pactffi_with_multipart_file(interaction.clone(), InteractionPart::Request, content_type.as_ptr(), file.as_ptr(), part_name.as_ptr());
 
   interaction.with_interaction(&|_, _, i| {
-    let boundary = match &i.request.headers {
+    let interaction = i.as_v4_http().unwrap();
+    let boundary = match &interaction.request.headers {
       Some(hashmap) => {
         hashmap.get("Content-Type")
           .map(|vec| vec[0].as_str())
@@ -127,11 +130,11 @@ fn create_multipart_file() {
       None => ""
     };
 
-    expect!(i.request.headers.as_ref()).to(be_some().value(&hashmap!{
+    expect!(interaction.request.headers.as_ref()).to(be_some().value(&hashmap!{
       "Content-Type".to_string() => vec![format!("multipart/form-data; boundary={}", boundary)],
     }));
 
-    let actual_req_body_str = match &i.request.body {
+    let actual_req_body_str = match &interaction.request.body {
       OptionalBody::Present(body, _, _) => body.clone(),
       _ => Bytes::new(),
     };
@@ -145,7 +148,7 @@ fn create_multipart_file() {
   });
 }
 
-#[test]
+#[test_env_log::test]
 fn http_consumer_feature_test() {
   let consumer_name = CString::new("http-consumer").unwrap();
   let provider_name = CString::new("http-provider").unwrap();
@@ -325,7 +328,7 @@ fn message_xml_consumer_feature_test() {
   pactffi_message_with_metadata(message_handle.clone(), metadata_key.as_ptr(), metadata_val.as_ptr());
   let res: *const c_char = pactffi_message_reify(message_handle.clone());
   let reified: &CStr = unsafe { CStr::from_ptr(res) };
-  expect!(reified.to_str().to_owned()).to(be_ok().value("{\"contents\":\"<?xml version='1.0'?><ns1:projects id='1234' xmlns:ns1='http://some.namespace/and/more/stuff'><ns1:project id='1' name='Project 1' type='activity'><ns1:tasks><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/></ns1:tasks></ns1:project><ns1:project id='1' name='Project 1' type='activity'><ns1:tasks><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/></ns1:tasks></ns1:project></ns1:projects>\",\"description\":\"a request to test the FFI interface\",\"matchingRules\":{\"body\":{\"$.ns1:projects.ns1:project\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"type\"}]},\"$.ns1:projects.ns1:project.ns1:tasks.ns1:task\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"type\"}]},\"$.ns1:projects.ns1:project.ns1:tasks.ns1:task['@done']\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"type\"}]},\"$.ns1:projects.ns1:project.ns1:tasks.ns1:task['@id']\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"integer\"}]},\"$.ns1:projects.ns1:project.ns1:tasks.ns1:task['@name']\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"type\"}]},\"$.ns1:projects.ns1:project['@id']\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"integer\"}]},\"$.ns1:projects.ns1:project['@name']\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"type\"}]}}},\"metadata\":{\"contentType\":\"application/json\",\"message-queue-name\":\"message-queue-val\"},\"providerStates\":[{\"name\":\"a functioning FFI interface\"}]}".to_string()));
+  expect!(reified.to_str().to_owned()).to(be_ok().value("{\"contents\":\"<?xml version='1.0'?><ns1:projects id='1234' xmlns:ns1='http://some.namespace/and/more/stuff'><ns1:project id='1' name='Project 1' type='activity'><ns1:tasks><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/></ns1:tasks></ns1:project><ns1:project id='1' name='Project 1' type='activity'><ns1:tasks><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/></ns1:tasks></ns1:project></ns1:projects>\",\"description\":\"a request to test the FFI interface\",\"matchingRules\":{\"body\":{\"$.ns1:projects.ns1:project\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"type\"}]},\"$.ns1:projects.ns1:project.ns1:tasks.ns1:task\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"type\"}]},\"$.ns1:projects.ns1:project.ns1:tasks.ns1:task['@done']\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"type\"}]},\"$.ns1:projects.ns1:project.ns1:tasks.ns1:task['@id']\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"integer\"}]},\"$.ns1:projects.ns1:project.ns1:tasks.ns1:task['@name']\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"type\"}]},\"$.ns1:projects.ns1:project['@id']\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"integer\"}]},\"$.ns1:projects.ns1:project['@name']\":{\"combine\":\"AND\",\"matchers\":[{\"match\":\"type\"}]}}},\"metadata\":{\"contentType\":\"application/xml\",\"message-queue-name\":\"message-queue-val\"},\"providerStates\":[{\"name\":\"a functioning FFI interface\"}]}".to_string()));
   let res = pactffi_write_message_pact_file(message_pact_handle.clone(), file_path.as_ptr(), true);
   expect!(res).to(be_eq(0));
 }

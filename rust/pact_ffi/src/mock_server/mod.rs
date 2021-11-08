@@ -45,7 +45,6 @@
 
 use std::{ptr, str};
 use std::any::Any;
-use std::collections::BTreeMap;
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::panic::catch_unwind;
@@ -60,6 +59,20 @@ use libc::{c_char, c_ushort, size_t};
 use log::*;
 use maplit::*;
 use onig::Regex;
+use pact_models::bodies::OptionalBody::{Null, Present};
+use pact_models::bodies::OptionalBody;
+use pact_models::content_types::ContentType;
+use pact_models::generators::Generators;
+use pact_models::http_parts::HttpPart;
+use pact_models::json_utils::json_to_string;
+use pact_models::matchingrules::{MatchingRule, MatchingRuleCategory, MatchingRules, RuleLogic};
+use pact_models::pact::{Pact, ReadWritePact, write_pact};
+use pact_models::path_exp::DocPath;
+use pact_models::prelude::Interaction;
+use pact_models::prelude::v4::SynchronousHttp;
+use pact_models::provider_states::ProviderState;
+use pact_models::time_utils::{parse_pattern, to_chrono_pattern};
+use pact_models::v4::interaction::V4Interaction;
 use rand::prelude::*;
 use serde_json::json;
 use serde_json::Value;
@@ -68,19 +81,7 @@ use uuid::Uuid;
 use pact_matching::logging::fetch_buffer_contents;
 use pact_mock_server::{MANAGER, MockServerError, tls::TlsConfigBuilder, WritePactFileErr};
 use pact_mock_server::server_manager::ServerManager;
-use pact_models::bodies::OptionalBody::{Null, Present};
-use pact_models::bodies::OptionalBody;
-use pact_models::content_types::ContentType;
-use pact_models::generators::Generators;
-use pact_models::http_parts::HttpPart;
-use pact_models::json_utils::json_to_string;
-use pact_models::matchingrules::{MatchingRule, MatchingRules, MatchingRuleCategory, RuleLogic};
-use pact_models::message::Message;
-use pact_models::pact::{Pact, write_pact};
-use pact_models::path_exp::DocPath;
-use pact_models::provider_states::ProviderState;
-use pact_models::sync_interaction::RequestResponseInteraction;
-use pact_models::time_utils::{parse_pattern, to_chrono_pattern};
+use pact_models::v4::async_message::AsynchronousMessage;
 
 use crate::convert_cstr;
 use crate::mock_server::bodies::{
@@ -228,7 +229,7 @@ pub extern fn pactffi_create_mock_server_for_pact(pact: handles::PactHandle, add
     let addr_c_str = unsafe {
       if addr_str.is_null() {
         log::error!("Got a null pointer instead of listener address");
-        return -1;
+        return -5;
       }
       CStr::from_ptr(addr_str)
     };
@@ -460,7 +461,7 @@ pub extern fn pactffi_new_pact(consumer_name: *const c_char, provider_name: *con
   handles::PactHandle::new(consumer, provider)
 }
 
-/// Creates a new Interaction and returns a handle to it.
+/// Creates a new HTTP Interaction and returns a handle to it.
 ///
 /// * `description` - The interaction description. It needs to be unique for each interaction.
 ///
@@ -469,11 +470,11 @@ pub extern fn pactffi_new_pact(consumer_name: *const c_char, provider_name: *con
 pub extern fn pactffi_new_interaction(pact: handles::PactHandle, description: *const c_char) -> handles::InteractionHandle {
   if let Some(description) = convert_cstr("description", description) {
     pact.with_pact(&|_, inner| {
-      let interaction = RequestResponseInteraction {
+      let interaction = SynchronousHttp {
         description: description.to_string(),
-        ..RequestResponseInteraction::default()
+        ..SynchronousHttp::default()
       };
-      inner.pact.interactions.push(interaction);
+      inner.pact.interactions.push(interaction.boxed_v4());
       handles::InteractionHandle::new(pact, inner.pact.interactions.len())
     }).unwrap_or_else(|| handles::InteractionHandle::new(pact, 0))
   } else {
@@ -489,7 +490,7 @@ pub extern fn pactffi_new_interaction(pact: handles::PactHandle, description: *c
 pub extern fn pactffi_upon_receiving(interaction: handles::InteractionHandle, description: *const c_char) -> bool {
   if let Some(description) = convert_cstr("description", description) {
     interaction.with_interaction(&|_, mock_server_started, inner| {
-      inner.description = description.to_string();
+      inner.set_description(description);
       !mock_server_started
     }).unwrap_or(false)
   } else {
@@ -505,7 +506,7 @@ pub extern fn pactffi_upon_receiving(interaction: handles::InteractionHandle, de
 pub extern fn pactffi_given(interaction: handles::InteractionHandle, description: *const c_char) -> bool {
   if let Some(description) = convert_cstr("description", description) {
     interaction.with_interaction(&|_, mock_server_started, inner| {
-      inner.provider_states.push(ProviderState::default(&description.to_string()));
+      inner.provider_states_mut().push(ProviderState::default(&description.to_string()));
       !mock_server_started
     }).unwrap_or(false)
   } else {
@@ -530,11 +531,11 @@ pub extern fn pactffi_given_with_param(interaction: handles::InteractionHandle, 
           Ok(json) => json,
           Err(_) => json!(value)
         };
-        match inner.provider_states.iter().find_position(|state| state.name == description) {
+        match inner.provider_states().iter().find_position(|state| state.name == description) {
           Some((index, _)) => {
-            inner.provider_states.get_mut(index).unwrap().params.insert(name.to_string(), value);
+            inner.provider_states_mut().get_mut(index).unwrap().params.insert(name.to_string(), value);
           },
-          None => inner.provider_states.push(ProviderState {
+          None => inner.provider_states_mut().push(ProviderState {
             name: description.to_string(),
             params: hashmap!{ name.to_string() => value }
           })
@@ -564,10 +565,15 @@ pub extern fn pactffi_with_request(
   let path = convert_cstr("path", path).unwrap_or("/");
 
   interaction.with_interaction(&|_, mock_server_started, inner| {
-    let path = from_integration_json(&mut inner.request.matching_rules, &mut inner.request.generators, &path.to_string(), DocPath::empty(), "path");
-    inner.request.method = method.to_string();
-    inner.request.path = path;
-    !mock_server_started
+    if let Some(reqres) = inner.as_v4_http_mut() {
+      let path = from_integration_json(&mut reqres.request.matching_rules, &mut reqres.request.generators, &path.to_string(), DocPath::empty(), "path");
+      reqres.request.method = method.to_string();
+      reqres.request.path = path;
+      !mock_server_started
+    } else {
+      error!("Interaction is not an HTTP interaction, is {}", inner.type_of());
+      false
+    }
   }).unwrap_or(false)
 }
 
@@ -587,33 +593,38 @@ pub extern fn pactffi_with_query_parameter(
   if let Some(name) = convert_cstr("name", name) {
     let value = convert_cstr("value", value).unwrap_or_default();
     interaction.with_interaction(&|_, mock_server_started, inner| {
-      inner.request.query = inner.request.query.clone().map(|mut q| {
-        let mut path = DocPath::root();
-        path.push_field(name).push_index(index);
-        let value = from_integration_json(&mut inner.request.matching_rules, &mut inner.request.generators, &value.to_string(), path, "query");
-        if q.contains_key(name) {
-          let values = q.get_mut(name).unwrap();
-          if index >= values.len() {
+      if let Some(reqres) = inner.as_v4_http_mut() {
+        reqres.request.query = reqres.request.query.clone().map(|mut q| {
+          let mut path = DocPath::root();
+          path.push_field(name).push_index(index);
+          let value = from_integration_json(&mut reqres.request.matching_rules, &mut reqres.request.generators, &value.to_string(), path, "query");
+          if q.contains_key(name) {
+            let values = q.get_mut(name).unwrap();
+            if index >= values.len() {
+              values.resize_with(index + 1, Default::default);
+            }
+            values[index] = value;
+          } else {
+            let mut values: Vec<String> = Vec::new();
             values.resize_with(index + 1, Default::default);
-          }
-          values[index] = value;
-        } else {
+            values[index] = value;
+            q.insert(name.to_string(), values);
+          };
+          q
+        }).or_else(|| {
+          let mut path = DocPath::root();
+          path.push_field(name).push_index(index);
+          let value = from_integration_json(&mut reqres.request.matching_rules, &mut reqres.request.generators, &value.to_string(), path, "query");
           let mut values: Vec<String> = Vec::new();
           values.resize_with(index + 1, Default::default);
           values[index] = value;
-          q.insert(name.to_string(), values);
-        };
-        q
-      }).or_else(|| {
-        let mut path = DocPath::root();
-        path.push_field(name).push_index(index);
-        let value = from_integration_json(&mut inner.request.matching_rules, &mut inner.request.generators, &value.to_string(), path, "query");
-        let mut values: Vec<String> = Vec::new();
-        values.resize_with(index + 1, Default::default);
-        values[index] = value;
-        Some(hashmap!{ name.to_string() => values })
-      });
-      !mock_server_started
+          Some(hashmap! { name.to_string() => values })
+        });
+        !mock_server_started
+      } else {
+        error!("Interaction is not an HTTP interaction, is {}", inner.type_of());
+        false
+      }
     }).unwrap_or(false)
   } else {
     warn!("Ignoring query parameter with empty or null name");
@@ -648,6 +659,7 @@ fn from_integration_json(
 }
 
 fn process_xml(body: String, matching_rules: &mut MatchingRuleCategory, generators: &mut Generators) -> Result<Vec<u8>, String> {
+  trace!("process_xml");
   match serde_json::from_str(&body) {
     Ok(json) => match json {
       Value::Object(ref map) => xml::generate_xml_body(map, matching_rules, generators),
@@ -665,7 +677,7 @@ fn process_xml(body: String, matching_rules: &mut MatchingRuleCategory, generato
 #[no_mangle]
 pub extern fn pactffi_with_specification(pact: handles::PactHandle, version: PactSpecification) -> bool {
   pact.with_pact(&|_, inner| {
-    inner.pact.specification_version = version.into();
+    inner.specification_version = version.into();
     !inner.mock_server_started
   }).unwrap_or(false)
 }
@@ -690,9 +702,7 @@ pub extern fn pactffi_with_pact_metadata(
     let value = convert_cstr("value", value).unwrap_or_default();
 
     if !namespace.is_empty() {
-      let mut child = BTreeMap::new();
-      child.insert(name.to_string(), value.to_string());
-      inner.pact.metadata.insert(namespace.to_string(), child);
+      inner.pact.metadata.insert(namespace.to_string(), json!({ name: value }));
     } else {
       log::warn!("no namespace provided for metadata {:?} => {:?}. Ignoring", name, value);
     }
@@ -718,53 +728,58 @@ pub extern fn pactffi_with_header(
   if let Some(name) = convert_cstr("name", name) {
     let value = convert_cstr("value", value).unwrap_or_default();
     interaction.with_interaction(&|_, mock_server_started, inner| {
-      let headers = match part {
-        InteractionPart::Request => inner.request.headers.clone(),
-        InteractionPart::Response => inner.response.headers.clone()
-      };
+      if let Some(reqres) = inner.as_v4_http_mut() {
+        let headers = match part {
+          InteractionPart::Request => reqres.request.headers.clone(),
+          InteractionPart::Response => reqres.response.headers.clone()
+        };
 
-      let mut path = DocPath::root();
-      path.push_field(name);
-      let value = match part {
-        InteractionPart::Request => from_integration_json(
-          &mut inner.request.matching_rules,
-          &mut inner.request.generators,
-          &value.to_string(),
-          path,
-          "header"),
-        InteractionPart::Response => from_integration_json(
-          &mut inner.response.matching_rules,
-          &mut inner.response.generators,
-          &value.to_string(),
-          path,
-          "header")
-      };
+        let mut path = DocPath::root();
+        path.push_field(name);
+        let value = match part {
+          InteractionPart::Request => from_integration_json(
+            &mut reqres.request.matching_rules,
+            &mut reqres.request.generators,
+            &value.to_string(),
+            path,
+            "header"),
+          InteractionPart::Response => from_integration_json(
+            &mut reqres.response.matching_rules,
+            &mut reqres.response.generators,
+            &value.to_string(),
+            path,
+            "header")
+        };
 
-      let updated_headers = headers.map(|mut h| {
-        if h.contains_key(name) {
-          let values = h.get_mut(name).unwrap();
-          if index >= values.len() {
+        let updated_headers = headers.map(|mut h| {
+          if h.contains_key(name) {
+            let values = h.get_mut(name).unwrap();
+            if index >= values.len() {
+              values.resize_with(index + 1, Default::default);
+            }
+            values[index] = value.to_string();
+          } else {
+            let mut values: Vec<String> = Vec::new();
             values.resize_with(index + 1, Default::default);
-          }
-          values[index] = value.to_string();
-        } else {
+            values[index] = value.to_string();
+            h.insert(name.to_string(), values);
+          };
+          h
+        }).or_else(|| {
           let mut values: Vec<String> = Vec::new();
           values.resize_with(index + 1, Default::default);
           values[index] = value.to_string();
-          h.insert(name.to_string(), values);
+          Some(hashmap! { name.to_string() => values })
+        });
+        match part {
+          InteractionPart::Request => reqres.request.headers = updated_headers,
+          InteractionPart::Response => reqres.response.headers = updated_headers
         };
-        h
-      }).or_else(|| {
-        let mut values: Vec<String> = Vec::new();
-        values.resize_with(index + 1, Default::default);
-        values[index] = value.to_string();
-        Some(hashmap!{ name.to_string() => values })
-      });
-      match part {
-        InteractionPart::Request => inner.request.headers = updated_headers,
-        InteractionPart::Response => inner.response.headers = updated_headers
-      };
-      !mock_server_started
+        !mock_server_started
+      } else {
+        error!("Interaction is not an HTTP interaction, is {}", inner.type_of());
+        false
+      }
     }).unwrap_or(false)
   } else {
     warn!("Ignoring header with empty or null name");
@@ -779,8 +794,13 @@ pub extern fn pactffi_with_header(
 #[no_mangle]
 pub extern fn pactffi_response_status(interaction: handles::InteractionHandle, status: c_ushort) -> bool {
   interaction.with_interaction(&|_, mock_server_started, inner| {
-    inner.response.status = status;
-    !mock_server_started
+    if let Some(reqres) = inner.as_v4_http_mut() {
+      reqres.response.status = status;
+      !mock_server_started
+    } else {
+      error!("Interaction is not an HTTP interaction, is {}", inner.type_of());
+      false
+    }
   }).unwrap_or(false)
 }
 
@@ -802,55 +822,60 @@ pub extern fn pactffi_with_body(
   let body = convert_cstr("body", body).unwrap_or_default();
   let content_type_header = "Content-Type".to_string();
   interaction.with_interaction(&|_, mock_server_started, inner| {
-    match part {
-      InteractionPart::Request => {
-        if !inner.request.has_header(&content_type_header) {
-          match inner.request.headers {
-            Some(ref mut headers) => {
-              headers.insert(content_type_header.clone(), vec![ content_type.to_string() ]);
-            },
-            None => {
-              inner.request.headers = Some(hashmap! { content_type_header.clone() => vec![ content_type.to_string() ]});
+    if let Some(reqres) = inner.as_v4_http_mut() {
+      match part {
+        InteractionPart::Request => {
+          if !reqres.request.has_header(&content_type_header) {
+            match reqres.request.headers {
+              Some(ref mut headers) => {
+                headers.insert(content_type_header.clone(), vec![content_type.to_string()]);
+              },
+              None => {
+                reqres.request.headers = Some(hashmap! { content_type_header.clone() => vec![ content_type.to_string() ]});
+              }
             }
           }
-        }
-        let body = if inner.request.content_type().unwrap_or_default().is_json() {
-          let category = inner.request.matching_rules.add_category("body");
-          OptionalBody::from(process_json(body.to_string(), category, &mut inner.request.generators))
-        } else if inner.request.content_type().unwrap_or_default().is_xml() {
-          let category = inner.request.matching_rules.add_category("body");
-          OptionalBody::Present(Bytes::from(process_xml(body.to_string(), category, &mut inner.request.generators).unwrap_or(vec![])),
-                                Some("application/xml".into()), None)
-        } else {
-          OptionalBody::from(body)
-        };
-        inner.request.body = body;
-      },
-      InteractionPart::Response => {
-        if !inner.response.has_header(&content_type_header) {
-          match inner.response.headers {
-            Some(ref mut headers) => {
-              headers.insert(content_type_header.clone(), vec![ content_type.to_string() ]);
-            },
-            None => {
-              inner.response.headers = Some(hashmap! { content_type_header.clone() => vec![ content_type.to_string() ]});
+          let body = if reqres.request.content_type().unwrap_or_default().is_json() {
+            let category = reqres.request.matching_rules.add_category("body");
+            OptionalBody::from(process_json(body.to_string(), category, &mut reqres.request.generators))
+          } else if reqres.request.content_type().unwrap_or_default().is_xml() {
+            let category = reqres.request.matching_rules.add_category("body");
+            OptionalBody::Present(Bytes::from(process_xml(body.to_string(), category, &mut reqres.request.generators).unwrap_or(vec![])),
+                                  Some("application/xml".into()), None)
+          } else {
+            OptionalBody::from(body)
+          };
+          reqres.request.body = body;
+        },
+        InteractionPart::Response => {
+          if !reqres.response.has_header(&content_type_header) {
+            match reqres.response.headers {
+              Some(ref mut headers) => {
+                headers.insert(content_type_header.clone(), vec![content_type.to_string()]);
+              },
+              None => {
+                reqres.response.headers = Some(hashmap! { content_type_header.clone() => vec![ content_type.to_string() ]});
+              }
             }
           }
+          let body = if reqres.response.content_type().unwrap_or_default().is_json() {
+            let category = reqres.response.matching_rules.add_category("body");
+            OptionalBody::from(process_json(body.to_string(), category, &mut reqres.response.generators))
+          } else if reqres.response.content_type().unwrap_or_default().is_xml() {
+            let category = reqres.request.matching_rules.add_category("body");
+            OptionalBody::Present(Bytes::from(process_xml(body.to_string(), category, &mut reqres.request.generators).unwrap_or(vec![])),
+                                  Some("application/xml".into()), None)
+          } else {
+            OptionalBody::from(body)
+          };
+          reqres.response.body = body;
         }
-        let body = if inner.response.content_type().unwrap_or_default().is_json() {
-          let category = inner.response.matching_rules.add_category("body");
-          OptionalBody::from(process_json(body.to_string(), category, &mut inner.response.generators))
-        } else if inner.response.content_type().unwrap_or_default().is_xml() {
-          let category = inner.request.matching_rules.add_category("body");
-          OptionalBody::Present(Bytes::from(process_xml(body.to_string(), category, &mut inner.request.generators).unwrap_or(vec![])),
-                                Some("application/xml".into()), None)
-        } else {
-          OptionalBody::from(body)
-        };
-        inner.response.body = body;
-      }
-    };
-    !mock_server_started
+      };
+      !mock_server_started
+    } else {
+      error!("Interaction is not an HTTP interaction, is {}", inner.type_of());
+      false
+    }
   }).unwrap_or(false)
 }
 
@@ -1022,39 +1047,44 @@ pub extern fn pactffi_with_binary_file(
   match convert_cstr("content_type", content_type) {
     Some(content_type) => {
       interaction.with_interaction(&|_, mock_server_started, inner| {
-        match part {
-          InteractionPart::Request => {
-            inner.request.body = convert_ptr_to_body(body, size);
-            if !inner.request.has_header(&content_type_header) {
-              match inner.request.headers {
-                Some(ref mut headers) => {
-                  headers.insert(content_type_header.clone(), vec!["application/octet-stream".to_string()]);
-                },
-                None => {
-                  inner.request.headers = Some(hashmap! { content_type_header.clone() => vec!["application/octet-stream".to_string()]});
+        if let Some(reqres) = inner.as_v4_http_mut() {
+          match part {
+            InteractionPart::Request => {
+              reqres.request.body = convert_ptr_to_body(body, size);
+              if !reqres.request.has_header(&content_type_header) {
+                match reqres.request.headers {
+                  Some(ref mut headers) => {
+                    headers.insert(content_type_header.clone(), vec!["application/octet-stream".to_string()]);
+                  },
+                  None => {
+                    reqres.request.headers = Some(hashmap! { content_type_header.clone() => vec!["application/octet-stream".to_string()]});
+                  }
+                }
+              };
+              reqres.request.matching_rules.add_category("body").add_rule(
+                DocPath::root(), MatchingRule::ContentType(content_type.into()), RuleLogic::And);
+            },
+            InteractionPart::Response => {
+              reqres.response.body = convert_ptr_to_body(body, size);
+              if !reqres.response.has_header(&content_type_header) {
+                match reqres.response.headers {
+                  Some(ref mut headers) => {
+                    headers.insert(content_type_header.clone(), vec!["application/octet-stream".to_string()]);
+                  },
+                  None => {
+                    reqres.response.headers = Some(hashmap! { content_type_header.clone() => vec!["application/octet-stream".to_string()]});
+                  }
                 }
               }
-            };
-            inner.request.matching_rules.add_category("body").add_rule(
-              DocPath::root(), MatchingRule::ContentType(content_type.into()), RuleLogic::And);
-          },
-          InteractionPart::Response => {
-            inner.response.body = convert_ptr_to_body(body, size);
-            if !inner.response.has_header(&content_type_header) {
-              match inner.response.headers {
-                Some(ref mut headers) => {
-                  headers.insert(content_type_header.clone(), vec!["application/octet-stream".to_string()]);
-                },
-                None => {
-                  inner.response.headers = Some(hashmap! { content_type_header.clone() => vec!["application/octet-stream".to_string()]});
-                }
-              }
+              reqres.response.matching_rules.add_category("body").add_rule(
+                DocPath::root(), MatchingRule::ContentType(content_type.into()), RuleLogic::And);
             }
-            inner.response.matching_rules.add_category("body").add_rule(
-              DocPath::root(), MatchingRule::ContentType(content_type.into()), RuleLogic::And);
-          }
-        };
-        !mock_server_started
+          };
+          !mock_server_started
+        } else {
+          error!("Interaction is not an HTTP interaction, is {}", inner.type_of());
+          false
+        }
       }).unwrap_or(false)
     },
     None => {
@@ -1087,14 +1117,19 @@ pub extern fn pactffi_with_multipart_file(
       match interaction.with_interaction(&|_, mock_server_started, inner| {
         match convert_ptr_to_mime_part_body(file, part_name) {
           Ok(body) => {
-            match part {
-              InteractionPart::Request => request_multipart(&mut inner.request, &body.boundary, body.body, content_type, part_name),
-              InteractionPart::Response => response_multipart(&mut inner.response, &body.boundary, body.body, content_type, part_name)
-            };
-            if mock_server_started {
-              Err("with_multipart_file: This Pact can not be modified, as the mock server has already started".to_string())
+            if let Some(reqres) = inner.as_v4_http_mut() {
+              match part {
+                InteractionPart::Request => request_multipart(&mut reqres.request, &body.boundary, body.body, content_type, part_name),
+                InteractionPart::Response => response_multipart(&mut reqres.response, &body.boundary, body.body, content_type, part_name)
+              };
+              if mock_server_started {
+                Err("with_multipart_file: This Pact can not be modified, as the mock server has already started".to_string())
+              } else {
+                Ok(())
+              }
             } else {
-              Ok(())
+              error!("Interaction is not an HTTP interaction, is {}", inner.type_of());
+              Err(format!("with_multipart_file: Interaction is not an HTTP interaction, is {}", inner.type_of()))
             }
           },
           Err(err) => Err(format!("with_multipart_file: failed to generate multipart body - {}", err))
@@ -1168,13 +1203,13 @@ pub extern fn pactffi_new_message_pact(consumer_name: *const c_char, provider_na
 #[no_mangle]
 pub extern fn pactffi_new_message(pact: handles::MessagePactHandle, description: *const c_char) -> handles::MessageHandle {
   if let Some(description) = convert_cstr("description", description) {
-    pact.with_pact(&|_, inner| {
-      let message = Message {
+    pact.with_pact(&|_, inner, _| {
+      let message = AsynchronousMessage {
         description: description.to_string(),
-        ..Message::default()
+        ..AsynchronousMessage::default()
       };
-      inner.messages.push(message);
-      handles::MessageHandle::new(pact, inner.messages.len())
+      inner.interactions.push(message.boxed_v4());
+      handles::MessageHandle::new(pact, inner.interactions.len())
     }).unwrap_or_else(|| handles::MessageHandle::new(pact, 0))
   } else {
     handles::MessageHandle::new(pact, 0)
@@ -1187,8 +1222,8 @@ pub extern fn pactffi_new_message(pact: handles::MessagePactHandle, description:
 #[no_mangle]
 pub extern fn pactffi_message_expects_to_receive(message: handles::MessageHandle, description: *const c_char) {
   if let Some(description) = convert_cstr("description", description) {
-    message.with_message(&|_, inner| {
-      inner.description = description.to_string();
+    message.with_message(&|_, inner, _| {
+      inner.set_description(description);
     });
   }
 }
@@ -1199,8 +1234,8 @@ pub extern fn pactffi_message_expects_to_receive(message: handles::MessageHandle
 #[no_mangle]
 pub extern fn pactffi_message_given(message: handles::MessageHandle, description: *const c_char) {
   if let Some(description) = convert_cstr("description", description) {
-    message.with_message(&|_, inner| {
-      inner.provider_states.push(ProviderState::default(&description.to_string()));
+    message.with_message(&|_, inner, _| {
+      inner.provider_states_mut().push(ProviderState::default(&description.to_string()));
     });
   }
 }
@@ -1216,16 +1251,16 @@ pub extern fn pactffi_message_given_with_param(message: handles::MessageHandle, 
   if let Some(description) = convert_cstr("description", description) {
     if let Some(name) = convert_cstr("name", name) {
       let value = convert_cstr("value", value).unwrap_or_default();
-      message.with_message(&|_, inner| {
+      message.with_message(&|_, inner, _| {
         let value = match serde_json::from_str(value) {
           Ok(json) => json,
           Err(_) => json!(value)
         };
-        match inner.provider_states.iter().find_position(|state| state.name == description) {
+        match inner.provider_states().iter().find_position(|state| state.name == description) {
           Some((index, _)) => {
-            inner.provider_states.get_mut(index).unwrap().params.insert(name.to_string(), value);
+            inner.provider_states_mut().get_mut(index).unwrap().params.insert(name.to_string(), value);
           },
-          None => inner.provider_states.push(ProviderState {
+          None => inner.provider_states_mut().push(ProviderState {
             name: description.to_string(),
             params: hashmap!{ name.to_string() => value }
           })
@@ -1248,28 +1283,31 @@ pub extern fn pactffi_message_given_with_param(message: handles::MessageHandle, 
 /// * `content_type` - Expected content type (e.g. application/json, application/octet-stream)
 /// * `size` - number of bytes in the message body to read. This is not required for text bodies (JSON, XML, etc.).
 #[no_mangle]
-pub extern fn pactffi_message_with_contents(message: handles::MessageHandle, content_type: *const c_char, body: *const u8, size: size_t) {
+pub extern fn pactffi_message_with_contents(message_handle: handles::MessageHandle, content_type: *const c_char, body: *const u8, size: size_t) {
   let content_type = convert_cstr("content_type", content_type).unwrap_or("text/plain");
+  trace!("pactffi_message_with_contents(message_handle: {:?}, content_type: {:?}, body: {:?}, size: {})", message_handle, content_type, body, size);
 
-  message.with_message(&|_, inner| {
+  message_handle.with_message(&|_, inner, _| {
     let content_type = ContentType::parse(content_type).ok();
 
-    let body = if let Some(content_type) = content_type {
-      let category = inner.matching_rules.add_category("body");
-      let body_str = convert_cstr("body", body as *const c_char).unwrap_or_default();
+    if let Some(message) = inner.as_v4_async_message_mut() {
+      let body = if let Some(content_type) = content_type {
+        let category = message.contents.matching_rules.add_category("body");
+        let body_str = convert_cstr("body", body as *const c_char).unwrap_or_default();
 
-      if content_type.is_xml() {
-        OptionalBody::Present(Bytes::from(process_xml(body_str.to_string(), category, &mut inner.generators).unwrap_or(vec![])), Some(content_type), None)
-      } else if content_type.is_text() || content_type.is_json() {
-        OptionalBody::Present(Bytes::from(process_json(body_str.to_string(), category, &mut inner.generators)), Some(content_type), None)
+        if content_type.is_xml() {
+          OptionalBody::Present(Bytes::from(process_xml(body_str.to_string(), category, &mut message.contents.generators).unwrap_or(vec![])), Some(content_type), None)
+        } else if content_type.is_text() || content_type.is_json() {
+          OptionalBody::Present(Bytes::from(process_json(body_str.to_string(), category, &mut message.contents.generators)), Some(content_type), None)
+        } else {
+          OptionalBody::Present(Bytes::from(unsafe { std::slice::from_raw_parts(body, size) }), Some(content_type), None)
+        }
       } else {
-        OptionalBody::Present(Bytes::from(unsafe { std::slice::from_raw_parts(body, size) }), Some(content_type), None)
-      }
-    } else {
-      OptionalBody::Present(Bytes::from(unsafe { std::slice::from_raw_parts(body, size) }), None, None)
-    };
+        OptionalBody::Present(Bytes::from(unsafe { std::slice::from_raw_parts(body, size) }), None, None)
+      };
 
-    inner.contents = body;
+      message.contents.contents = body;
+    }
   });
 }
 
@@ -1278,10 +1316,14 @@ pub extern fn pactffi_message_with_contents(message: handles::MessageHandle, con
 /// * `key` - metadata key
 /// * `value` - metadata value.
 #[no_mangle]
-pub extern fn pactffi_message_with_metadata(message: handles::MessageHandle, key: *const c_char, value: *const c_char) {
+pub extern fn pactffi_message_with_metadata(message_handle: handles::MessageHandle, key: *const c_char, value: *const c_char) {
   if let Some(key) = convert_cstr("key", key) {
     let value = convert_cstr("value", value).unwrap_or_default();
-    message.with_message(&|_, inner| inner.metadata.insert(key.to_string(), Value::String(value.to_string())));
+    message_handle.with_message(&|_, inner, _| {
+      if let Some(message) = inner.as_v4_async_message_mut() {
+        message.contents.metadata.insert(key.to_string(), Value::String(value.to_string()));
+      }
+    });
   }
 }
 
@@ -1290,12 +1332,21 @@ pub extern fn pactffi_message_with_metadata(message: handles::MessageHandle, key
 /// Reification is the process of stripping away any matchers, and returning the original contents.
 /// NOTE: the returned string needs to be deallocated with the `free_string` function
 #[no_mangle]
-pub extern fn pactffi_message_reify(message: handles::MessageHandle) -> *const c_char {
-  let res = message.with_message(&|_, inner| {
-    match inner.body() {
-      Null => "null".to_string(),
-      Present(_, _, _) => inner.to_json(&PactSpecification::V3.into()).to_string(),
-      _ => "".to_string()
+pub extern fn pactffi_message_reify(message_handle: handles::MessageHandle) -> *const c_char {
+  let res = message_handle.with_message(&|_, inner, spec_version| {
+    trace!("pactffi_message_reify(message: {:?}, spec_version: {})", inner, spec_version);
+    if let Some(message) = inner.as_v4_async_message() {
+      match message.contents.contents {
+        Null => "null".to_string(),
+        Present(_, _, _) => if spec_version <= pact_models::PactSpecification::V3 {
+          message.as_message().unwrap_or_default().to_json(&spec_version).to_string()
+        } else {
+          message.to_json().to_string()
+        },
+        _ => "".to_string()
+      }
+    } else {
+      "".to_string()
     }
   });
 
@@ -1328,9 +1379,9 @@ pub extern fn pactffi_message_reify(message: handles::MessageHandle) -> *const c
 /// | 2 | The message pact for the given handle was not found |
 #[no_mangle]
 pub extern fn pactffi_write_message_pact_file(pact: handles::MessagePactHandle, directory: *const c_char, overwrite: bool) -> i32 {
-  let result = pact.with_pact(&|_, inner| {
+  let result = pact.with_pact(&|_, inner, spec_version| {
     let filename = path_from_dir(directory, Some(inner.default_file_name().as_str()));
-    write_pact(inner.boxed(), &filename.unwrap(), inner.specification_version(), overwrite)
+    write_pact(inner.boxed(), &filename.unwrap(), spec_version, overwrite)
   });
 
   match result {
@@ -1356,17 +1407,15 @@ pub extern fn pactffi_write_message_pact_file(pact: handles::MessagePactHandle, 
 /// * `value` - the value to set
 #[no_mangle]
 pub extern fn pactffi_with_message_pact_metadata(pact: handles::MessagePactHandle, namespace: *const c_char, name: *const c_char, value: *const c_char) {
-  pact.with_pact(&|_, inner| {
+  pact.with_pact(&|_, inner, _| {
     let namespace = convert_cstr("namespace", namespace).unwrap_or_default();
     let name = convert_cstr("name", name).unwrap_or_default();
     let value = convert_cstr("value", value).unwrap_or_default();
 
     if !namespace.is_empty() {
-      let mut child = BTreeMap::new();
-      child.insert(name.to_string(), value.to_string());
-      inner.metadata.insert(namespace.to_string(), child);
+      inner.metadata.insert(namespace.to_string(), json!({ name: value }));
     } else {
-      log::warn!("no namespace provided for metadata {:?} => {:?}. Ignoring", name, value);
+      warn!("no namespace provided for metadata {:?} => {:?}. Ignoring", name, value);
     }
   });
 }

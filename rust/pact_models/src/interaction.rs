@@ -49,13 +49,23 @@ pub trait Interaction: Debug {
   /// Description of this interaction. This needs to be unique in the pact file.
   fn description(&self) -> String;
 
+  /// Set the Interaction ID
+  fn set_id(&mut self, id: Option<String>);
+
+  /// Set the description of this interaction. This needs to be unique in the pact file.
+  fn set_description(&mut self, description: &str);
+
   /// Optional provider states for the interaction.
   /// See `<https://docs.pact.io/getting_started/provider_states>` for more info on provider states.
   fn provider_states(&self) -> Vec<ProviderState>;
 
+  /// Mutable Optional provider states for the interaction.
+  /// See `<https://docs.pact.io/getting_started/provider_states>` for more info on provider states.
+  fn provider_states_mut(&mut self) -> &mut Vec<ProviderState>;
+
   /// Body of the response or message
   #[deprecated(
-  since = "0.8.14",
+  since = "0.1.0",
   note = "Some interactions have multiple contents (like request/response), so it is impossible \
       to know which to return for this method"
   )]
@@ -68,7 +78,7 @@ pub trait Interaction: Debug {
   /// Determine the content type of the interaction. If a `Content-Type` header or metadata value is present, the
   /// value of that value will be returned. Otherwise, the contents will be inspected.
   #[deprecated(
-  since = "0.8.14",
+  since = "0.1.0",
   note = "Some interactions have multiple contents (like request/response), so it is impossible \
       to know which to return for this method"
   )]
@@ -89,6 +99,15 @@ pub trait Interaction: Debug {
   /// Returns the interaction in V4 format
   fn as_v4_sync_message(&self) -> Option<SynchronousMessage>;
 
+  /// Returns the interaction in V4 format
+  fn as_v4_http_mut(&mut self) -> Option<&mut SynchronousHttp>;
+
+  /// Returns the interaction in V4 format
+  fn as_v4_async_message_mut(&mut self) -> Option<&mut AsynchronousMessage>;
+
+  /// Returns the interaction in V4 format
+  fn as_v4_sync_message_mut(&mut self) -> Option<&mut SynchronousMessage>;
+
   /// Clones this interaction and wraps it in a Box
   fn boxed(&self) -> Box<dyn Interaction + Send + Sync>;
 
@@ -99,6 +118,11 @@ pub trait Interaction: Debug {
   fn thread_safe(&self) -> Arc<Mutex<dyn Interaction + Send + Sync>>;
 
   /// Returns the matching rules associated with this interaction (if there are any)
+  #[deprecated(
+  since = "0.2.1",
+  note = "Some interactions have multiple contents (like request/response), so it is impossible \
+      to know which to return for this method"
+  )]
   fn matching_rules(&self) -> Option<MatchingRules>;
 
   /// If this interaction is pending (V4 only)

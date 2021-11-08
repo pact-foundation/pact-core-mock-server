@@ -12,8 +12,7 @@ use pact_models::generators::{Generator, GeneratorCategory, Generators};
 use pact_models::json_utils::{json_to_num, json_to_string};
 use pact_models::matchingrules::{MatchingRule, MatchingRuleCategory, RuleLogic};
 use pact_models::path_exp::DocPath;
-use pact_models::request::Request;
-use pact_models::response::Response;
+use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
 
 const CONTENT_TYPE_HEADER: &str = "Content-Type";
 
@@ -160,6 +159,7 @@ pub fn matcher_from_integration_json(m: &Map<String, Value>) -> Option<MatchingR
 
 /// Process a JSON body with embedded matching rules and generators
 pub fn process_json(body: String, matching_rules: &mut MatchingRuleCategory, generators: &mut Generators) -> String {
+  trace!("process_json");
   match serde_json::from_str(&body) {
     Ok(json) => match json {
       Value::Object(ref map) => process_object(map, matching_rules, generators, DocPath::root(), false, false).to_string(),
@@ -180,7 +180,7 @@ pub fn process_json_value(body: &Value, matching_rules: &mut MatchingRuleCategor
 }
 
 /// Setup the request as a multipart form upload
-pub fn request_multipart(request: &mut Request, boundary: &str, body: OptionalBody, content_type: &str, part_name: &str) {
+pub fn request_multipart(request: &mut HttpRequest, boundary: &str, body: OptionalBody, content_type: &str, part_name: &str) {
   request.body = body;
   match request.headers {
     Some(ref mut headers) => {
@@ -202,7 +202,7 @@ pub fn request_multipart(request: &mut Request, boundary: &str, body: OptionalBo
 }
 
 /// Setup the response as a multipart form upload
-pub fn response_multipart(response: &mut Response, boundary: &str, body: OptionalBody, content_type: &str, part_name: &str) {
+pub fn response_multipart(response: &mut HttpResponse, boundary: &str, body: OptionalBody, content_type: &str, part_name: &str) {
   response.body = body;
   match response.headers {
     Some(ref mut headers) => {

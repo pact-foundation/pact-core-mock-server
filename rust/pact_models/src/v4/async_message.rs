@@ -1,6 +1,7 @@
 //! Models for asynchronous message interactions
 
 use std::collections::hash_map::DefaultHasher;
+use std::collections::hash_map::Entry::Vacant;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
@@ -251,12 +252,19 @@ impl Interaction for AsynchronousMessage {
   }
 
   fn as_message(&self) -> Option<Message> {
+    let mut metadata = self.contents.metadata.clone();
+    if let Some(content_type) = self.contents.contents.content_type() {
+      if let Vacant(entry) = metadata.entry("contentType".to_string()) {
+        entry.insert(json!( content_type.to_string() ));
+      }
+    }
+
     Some(Message {
       id: self.id.clone(),
       description: self.description.clone(),
       provider_states: self.provider_states.clone(),
       contents: self.contents.contents.clone(),
-      metadata: self.contents.metadata.clone(),
+      metadata,
       matching_rules: self.contents.matching_rules.rename("content", "body"),
       generators: self.contents.generators.clone()
     })
@@ -270,8 +278,20 @@ impl Interaction for AsynchronousMessage {
     self.description.clone()
   }
 
+  fn set_id(&mut self, id: Option<String>) {
+    self.id = id;
+  }
+
+  fn set_description(&mut self, description: &str) {
+    self.description = description.to_string();
+  }
+
   fn provider_states(&self) -> Vec<ProviderState> {
     self.provider_states.clone()
+  }
+
+  fn provider_states_mut(&mut self) -> &mut Vec<ProviderState> {
+    &mut self.provider_states
   }
 
   fn contents(&self) -> OptionalBody {
@@ -303,6 +323,18 @@ impl Interaction for AsynchronousMessage {
   }
 
   fn as_v4_sync_message(&self) -> Option<SynchronousMessage> {
+    None
+  }
+
+  fn as_v4_http_mut(&mut self) -> Option<&mut SynchronousHttp> {
+    None
+  }
+
+  fn as_v4_async_message_mut(&mut self) -> Option<&mut AsynchronousMessage> {
+    Some(self)
+  }
+
+  fn as_v4_sync_message_mut(&mut self) -> Option<&mut SynchronousMessage> {
     None
   }
 
