@@ -8,8 +8,6 @@ use maplit::*;
 use reqwest::blocking::Client;
 use reqwest::header::CONTENT_TYPE;
 
-use pact_models::bodies::OptionalBody;
-
 use pact_ffi::mock_server::{
   pactffi_cleanup_mock_server,
   pactffi_create_mock_server,
@@ -20,23 +18,25 @@ use pact_ffi::mock_server::{
   pactffi_message_with_contents,
   pactffi_message_with_metadata,
   pactffi_mock_server_mismatches,
-  pactffi_new_interaction,
   pactffi_new_message,
   pactffi_new_message_pact,
+  pactffi_with_multipart_file,
+  pactffi_write_message_pact_file,
+  pactffi_write_pact_file
+};
+use pact_ffi::mock_server::handles::{
+  InteractionPart,
+  pactffi_new_interaction,
   pactffi_new_pact,
   pactffi_response_status,
   pactffi_upon_receiving,
   pactffi_with_body,
   pactffi_with_header,
-  pactffi_with_multipart_file,
   pactffi_with_query_parameter,
-  pactffi_with_request,
-  pactffi_write_message_pact_file,
-  pactffi_write_pact_file
+  pactffi_with_request
 };
-use pact_ffi::mock_server::handles::InteractionPart;
-use pact_ffi::verifier::{pactffi_verifier_cli_args, OptionsFlags};
-
+use pact_ffi::verifier::{OptionsFlags, pactffi_verifier_cli_args};
+use pact_models::bodies::OptionalBody;
 
 #[test]
 fn post_to_mock_server_with_mismatches() {
