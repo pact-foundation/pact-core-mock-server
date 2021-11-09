@@ -101,8 +101,14 @@ pub trait V4Interaction: Interaction + Send + Sync {
   /// Any configuration added to the interaction from a plugin
   fn plugin_config(&self) -> HashMap<String, HashMap<String, Value>>;
 
+  /// Any configuration added to the interaction from a plugin
+  fn plugin_config_mut(&mut self) -> &mut HashMap<String, HashMap<String, Value>>;
+
   /// Markup added to the interaction to render in UIs
   fn interaction_markup(&self) -> InteractionMarkup;
+
+  /// Markup added to the interaction to render in UIs
+  fn interaction_markup_mut(&mut self) -> &mut InteractionMarkup;
 }
 
 impl Display for dyn V4Interaction {

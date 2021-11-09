@@ -55,12 +55,24 @@ impl HttpPart for Request {
     &self.body
   }
 
+  fn body_mut(&mut self) -> &mut OptionalBody {
+    &mut self.body
+  }
+
   fn matching_rules(&self) -> &MatchingRules {
     &self.matching_rules
   }
 
+  fn matching_rules_mut(&mut self) -> &mut MatchingRules {
+    &mut self.matching_rules
+  }
+
   fn generators(&self) -> &Generators {
     &self.generators
+  }
+
+  fn generators_mut(&mut self) -> &mut Generators {
+    &mut self.generators
   }
 
   fn lookup_content_type(&self) -> Option<String> {

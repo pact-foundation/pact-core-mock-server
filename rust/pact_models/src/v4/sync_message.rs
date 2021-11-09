@@ -207,8 +207,16 @@ impl V4Interaction for SynchronousMessage {
     self.plugin_config.clone()
   }
 
+  fn plugin_config_mut(&mut self) -> &mut HashMap<String, HashMap<String, Value>> {
+    &mut self.plugin_config
+  }
+
   fn interaction_markup(&self) -> InteractionMarkup {
     self.interaction_markup.clone()
+  }
+
+  fn interaction_markup_mut(&mut self) -> &mut InteractionMarkup {
+    &mut self.interaction_markup
   }
 }
 

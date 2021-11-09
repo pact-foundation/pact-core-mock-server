@@ -229,8 +229,16 @@ impl V4Interaction for AsynchronousMessage {
     self.plugin_config.clone()
   }
 
+  fn plugin_config_mut(&mut self) -> &mut HashMap<String, HashMap<String, Value>> {
+    &mut self.plugin_config
+  }
+
   fn interaction_markup(&self) -> InteractionMarkup {
     self.interaction_markup.clone()
+  }
+
+  fn interaction_markup_mut(&mut self) -> &mut InteractionMarkup {
+    &mut self.interaction_markup
   }
 }
 
@@ -423,12 +431,24 @@ impl HttpPart for AsynchronousMessage {
     &self.contents.contents
   }
 
+  fn body_mut(&mut self) -> &mut OptionalBody {
+    &mut self.contents.contents
+  }
+
   fn matching_rules(&self) -> &MatchingRules {
     &self.contents.matching_rules
   }
 
+  fn matching_rules_mut(&mut self) -> &mut MatchingRules {
+    &mut self.contents.matching_rules
+  }
+
   fn generators(&self) -> &Generators {
     &self.contents.generators
+  }
+
+  fn generators_mut(&mut self) -> &mut Generators {
+    &mut self.contents.generators
   }
 
   fn lookup_content_type(&self) -> Option<String> {

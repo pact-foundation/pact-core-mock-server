@@ -23,11 +23,20 @@ pub trait HttpPart {
   /// Returns the body of the HTTP part.
   fn body(&self) -> &OptionalBody;
 
+  /// Returns a mutable pointer to the body of the HTTP part.
+  fn body_mut(&mut self) -> &mut OptionalBody;
+
   /// Returns the matching rules of the HTTP part.
   fn matching_rules(&self) -> &MatchingRules;
 
+  /// Returns the matching rules of the HTTP part.
+  fn matching_rules_mut(&mut self) -> &mut MatchingRules;
+
   /// Returns the generators of the HTTP part.
   fn generators(&self) -> &Generators;
+
+  /// Returns the generators of the HTTP part.
+  fn generators_mut(&mut self) -> &mut Generators;
 
   /// Lookup up the content type for the part
   fn lookup_content_type(&self) -> Option<String>;
