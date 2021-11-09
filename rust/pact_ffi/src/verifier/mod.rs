@@ -1,4 +1,4 @@
-//! The `pact_verifier` crate provides a number of exported functions using C bindings for
+//! The `verifier` module provides a number of exported functions using C bindings for
 //! controlling the pact verification process. These can be used in any language that supports C bindings.
 
 #![warn(missing_docs)]

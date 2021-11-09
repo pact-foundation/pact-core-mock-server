@@ -195,6 +195,14 @@ impl MessageHandle {
     }
   }
 
+  /// Creates a new handle to a message
+  pub fn new_v4(pact: PactHandle, message: usize) -> MessageHandle {
+    MessageHandle {
+      pact: pact.pact,
+      message
+    }
+  }
+
   /// Invokes the closure with the inner model
   pub fn with_pact<R>(&self, f: &dyn Fn(usize, &mut V4Pact, PactSpecification) -> R) -> Option<R> {
     let mut handles = PACT_HANDLES.lock().unwrap();
@@ -1075,4 +1083,25 @@ pub(crate) fn path_from_dir(directory: *const c_char, file_name: Option<&str>) -
     }
     full_path
   })
+}
+
+/// Creates a new V4 asynchronous message and returns a handle to it.
+///
+/// * `description` - The message description. It needs to be unique for each Message.
+///
+/// Returns a new `MessageHandle`.
+#[no_mangle]
+pub extern fn pactffi_new_async_message(pact: PactHandle, description: *const c_char) -> MessageHandle {
+  if let Some(description) = convert_cstr("description", description) {
+    pact.with_pact(&|_, inner| {
+      let message = AsynchronousMessage {
+        description: description.to_string(),
+        ..AsynchronousMessage::default()
+      };
+      inner.pact.interactions.push(message.boxed_v4());
+      MessageHandle::new_v4(pact, inner.pact.interactions.len())
+    }).unwrap_or_else(|| MessageHandle::new_v4(pact, 0))
+  } else {
+    MessageHandle::new_v4(pact, 0)
+  }
 }

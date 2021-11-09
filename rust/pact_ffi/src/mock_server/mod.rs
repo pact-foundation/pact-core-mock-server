@@ -1,4 +1,4 @@
-//! The `pact_mock_server` crate provides a number of exported functions using C bindings for
+//! The `mock_server` module provides a number of exported functions using C bindings for
 //! controlling the mock server. These can be used in any language that supports C bindings.
 //!
 //! ## [create_mock_server](fn.create_mock_server_ffi.html)

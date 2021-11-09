@@ -175,7 +175,7 @@ impl RequestBuilder {
           self.setup_core_matcher(&content_type, definition);
         } else {
           let request = &mut self.request;
-          debug!("Plugin matcher, will get the plugin to provide the response contents");
+          debug!("Plugin matcher, will get the plugin to provide the request contents");
           match definition {
             Value::Object(attributes) => {
               let map = attributes.iter().map(|(k, v)| (k.clone(), v.clone())).collect();

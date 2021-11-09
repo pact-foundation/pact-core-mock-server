@@ -26,6 +26,7 @@ pub mod models;
 pub(crate) mod util;
 pub mod mock_server;
 pub mod verifier;
+pub mod plugins;
 
 const VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "\0");
 
