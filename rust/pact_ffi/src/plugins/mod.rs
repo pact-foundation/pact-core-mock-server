@@ -1,17 +1,10 @@
 //! The `plugins` module provides exported functions using C bindings for using plugins with
 //! Pact tests.
 
-use std::os::raw::{c_char, c_uint};
-
 use anyhow::{anyhow, Context};
 use bytes::Bytes;
+use libc::{c_char, c_uint};
 use log::{debug, error};
-use pact_plugin_driver::catalogue_manager::find_content_matcher;
-use pact_plugin_driver::content::PluginConfiguration;
-use pact_plugin_driver::plugin_manager::{drop_plugin_access, load_plugin};
-use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
-use serde_json::Value;
-
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
 use pact_models::http_parts::HttpPart;
@@ -19,8 +12,13 @@ use pact_models::json_utils::body_from_json;
 use pact_models::pact::Pact;
 use pact_models::plugins::PluginData;
 use pact_models::v4::interaction::{InteractionMarkup, V4Interaction};
-use pact_models::v4::synch_http::SynchronousHttp;
 use pact_models::v4::V4InteractionType;
+use serde_json::Value;
+
+use pact_plugin_driver::catalogue_manager::find_content_matcher;
+use pact_plugin_driver::content::{InteractionContents, PluginConfiguration};
+use pact_plugin_driver::plugin_manager::{drop_plugin_access, load_plugin};
+use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
 
 use crate::{ffi_fn, safe_str};
 use crate::error::{catch_panic, set_error_msg};
@@ -36,7 +34,7 @@ ffi_fn! {
   ///
   /// Returns zero on success, and a positive integer value on failure.
   ///
-  /// Note that plugins run as seperate processes, so will need to be cleaned up afterwards by
+  /// Note that plugins run as separate processes, so will need to be cleaned up afterwards by
   /// calling `pactffi_cleanup_plugins` otherwise you have plugin processes left running.
   ///
   /// # Safety
@@ -54,6 +52,9 @@ ffi_fn! {
   fn pactffi_using_plugin(pact: PactHandle, plugin_name: *const c_char, plugin_version: *const c_char) -> c_uint {
     let plugin_name = safe_str!(plugin_name);
     let plugin_version = if_null(plugin_version, "");
+
+    pact_mock_server::configure_core_catalogue();
+    pact_matching::matchers::configure_core_catalogue();
 
      let runtime = tokio::runtime::Runtime::new().unwrap();
      let result = runtime.block_on(load_plugin(&PluginDependency {
@@ -103,7 +104,7 @@ ffi_fn! {
 /// Returns zero on success, and a positive integer value on failure.
 ///
 /// * `interaction` - Handle to the interaction to configure.
-/// * `part` - The part of the interaction to configure (request or response).
+/// * `part` - The part of the interaction to configure (request or response). It is ignored for messages.
 /// * `content_type` - NULL terminated C string of the content type of the part.
 /// * `contents` - NULL terminated C string of the JSON contents that gets passed to the plugin.
 ///
@@ -147,9 +148,47 @@ pub extern fn pactffi_interaction_contents(interaction: InteractionHandle, part:
     let result = interaction.with_interaction(&|_, started, inner| {
       if !started {
         match inner.v4_type() {
-          V4InteractionType::Synchronous_HTTP => {
-            setup_contents(inner.as_v4_http_mut().unwrap(), part, &content_type, &contents)
-          }
+          V4InteractionType::Synchronous_HTTP => setup_contents(inner, part, &content_type, &contents, &|interaction, contents, plugin_name, _| {
+            let part = get_part(interaction, part);
+            if let Some(contents) = contents.first() {
+              *part.body_mut() = contents.body.clone();
+              if !part.has_header("content-type") {
+                part.add_header("content-type", vec![content_type.to_string().as_str()]);
+              }
+              if let Some(rules) = &contents.rules {
+                part.matching_rules_mut().add_rules("body", rules.clone());
+              }
+              if let Some(generators) = &contents.generators {
+                part.generators_mut().add_generators(generators.clone());
+              }
+              if !contents.plugin_config.is_empty() {
+                interaction.plugin_config_mut().insert(plugin_name, contents.plugin_config.interaction_configuration.clone());
+              }
+              *interaction.interaction_markup_mut() = InteractionMarkup {
+                markup: contents.interaction_markup.clone(),
+                markup_type: contents.interaction_markup_type.clone()
+              };
+            }
+          }),
+          V4InteractionType::Asynchronous_Messages => setup_contents(inner, part, &content_type, &contents, &|interaction, contents, plugin_name, _| {
+            let message = interaction.as_v4_async_message_mut().unwrap();
+            if let Some(contents) = contents.first() {
+              message.contents.contents = contents.body.clone();
+              if let Some(rules) = &contents.rules {
+                message.contents.matching_rules.add_rules("body", rules.clone());
+              }
+              if let Some(generators) = &contents.generators {
+                message.contents.generators.add_generators(generators.clone());
+              }
+              if !contents.plugin_config.is_empty() {
+                message.plugin_config.insert(plugin_name, contents.plugin_config.interaction_configuration.clone());
+              }
+              message.interaction_markup = InteractionMarkup {
+                markup: contents.interaction_markup.clone(),
+                markup_type: contents.interaction_markup_type.clone()
+              };
+            }
+          }),
           _ => todo!("{} type of interaction is not supported yet", inner.v4_type())
         }
       } else {
@@ -183,28 +222,49 @@ pub extern fn pactffi_interaction_contents(interaction: InteractionHandle, part:
 }
 
 // TODO: This needs to setup rules/generators based on the content type
-fn setup_core_matcher(interaction: &mut SynchronousHttp, part: InteractionPart, content_type: &ContentType, definition: &Value) {
-  let part: &mut dyn HttpPart = match part {
-    InteractionPart::Request => &mut interaction.request,
-    InteractionPart::Response => &mut interaction.response
-  };
+fn setup_core_matcher(interaction: &mut dyn V4Interaction, part: InteractionPart, content_type: &ContentType, definition: &Value) -> anyhow::Result<()> {
+  let part = get_part(interaction, part);
   match definition {
     Value::String(s) => *part.body_mut() = OptionalBody::Present(Bytes::from(s.clone()), Some(content_type.clone()), None),
     Value::Object(ref o) => if o.contains_key("contents") {
       *part.body_mut() = body_from_json(&definition, "contents", &None);
     }
     _ => {}
+  };
+  Ok(())
+}
+
+fn get_part<'a>(interaction: &'a mut dyn V4Interaction, part: InteractionPart) -> &'a mut dyn HttpPart {
+  if interaction.is_request_response() {
+    let reqres = interaction.as_v4_http_mut().unwrap();
+    match part {
+      InteractionPart::Request => &mut reqres.request,
+      InteractionPart::Response => &mut reqres.response
+    }
+  } else if interaction.is_v4_sync_message() {
+    let message = interaction.as_v4_sync_message_mut().unwrap();
+    match part {
+      InteractionPart::Request => &mut message.request,
+      InteractionPart::Response => message.response.get_mut(0).expect("Message did not have a response")
+    }
+  } else {
+    interaction.as_v4_async_message_mut().unwrap()
   }
 }
 
-fn setup_contents(interaction: &mut SynchronousHttp, part: InteractionPart, content_type: &ContentType, definition: &Value) -> anyhow::Result<Option<(String, String, PluginConfiguration)>> {
+fn setup_contents(
+  interaction: &mut dyn V4Interaction,
+  part: InteractionPart,
+  content_type: &ContentType,
+  definition: &Value,
+  callback: &dyn Fn(&mut dyn V4Interaction, Vec<InteractionContents>, String, String)
+) -> anyhow::Result<Option<(String, String, PluginConfiguration)>> {
   match find_content_matcher(&content_type) {
     Some(matcher) => {
       debug!("Found a matcher for '{}': {:?}", content_type, matcher);
       if matcher.is_core() {
         debug!("Matcher is from the core framework");
-        setup_core_matcher(interaction, part, &content_type, definition);
-        Ok(None)
+        setup_core_matcher(interaction, part, &content_type, definition).map(|_| None)
       } else {
         debug!("Plugin matcher, will get the plugin to provide the part contents");
         match definition {
@@ -216,31 +276,7 @@ fn setup_contents(interaction: &mut SynchronousHttp, part: InteractionPart, cont
               Ok((contents, plugin_config)) => {
                 debug!("Interaction contents = {:?}", contents);
                 debug!("Interaction plugin_config = {:?}", plugin_config);
-
-                let part: &mut dyn HttpPart = match part {
-                  InteractionPart::Request => &mut interaction.request,
-                  InteractionPart::Response => &mut interaction.response
-                };
-                if let Some(contents) = contents.first() {
-                  *part.body_mut() = contents.body.clone();
-                  if !part.has_header("content-type") {
-                    part.add_header("content-type", vec![content_type.to_string().as_str()]);
-                  }
-                  if let Some(rules) = &contents.rules {
-                    part.matching_rules_mut().add_rules("body", rules.clone());
-                  }
-                  if let Some(generators) = &contents.generators {
-                    part.generators_mut().add_generators(generators.clone());
-                  }
-                  if !contents.plugin_config.is_empty() {
-                    interaction.plugin_config_mut().insert(matcher.plugin_name(), contents.plugin_config.interaction_configuration.clone());
-                  }
-                  *interaction.interaction_markup_mut() = InteractionMarkup {
-                    markup: contents.interaction_markup.clone(),
-                    markup_type: contents.interaction_markup_type.clone()
-                  };
-                }
-
+                callback(interaction, contents, matcher.plugin_name(), matcher.plugin_version());
                 Ok(plugin_config.map(|config| (matcher.plugin_name(), matcher.plugin_version(), config)))
               }
               Err(err) => Err(anyhow!("Failed to call out to plugin - {}", err))
@@ -252,8 +288,7 @@ fn setup_contents(interaction: &mut SynchronousHttp, part: InteractionPart, cont
     }
     None => {
       debug!("No matcher was found, will default to the core framework");
-      setup_core_matcher(interaction, part, &content_type, definition);
-      Ok(None)
+      setup_core_matcher(interaction, part, &content_type, definition).map(|_| None)
     }
   }
 }
@@ -272,7 +307,7 @@ mod tests {
   #[test]
   fn pactffi_interaction_contents_with_invalid_content_type() {
     let pact_handle = PactHandle::new("Test", "Test");
-    let i_handle = InteractionHandle::new(pact_handle, 0);
+    let i_handle = InteractionHandle::new(pact_handle, 0, 0);
     expect!(pactffi_interaction_contents(i_handle, InteractionPart::Request, null(), null())).to(be_equal_to(1));
 
     let content_type = CString::new("not valid").unwrap();
@@ -282,7 +317,7 @@ mod tests {
   #[test]
   fn pactffi_interaction_contents_with_invalid_contents() {
     let pact_handle = PactHandle::new("Test", "Test");
-    let i_handle = InteractionHandle::new(pact_handle, 0);
+    let i_handle = InteractionHandle::new(pact_handle, 0, 0);
     let content_type = CString::new("application/json").unwrap();
     expect!(pactffi_interaction_contents(i_handle, InteractionPart::Request, null(), null())).to(be_equal_to(1));
 

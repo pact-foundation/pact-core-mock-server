@@ -301,6 +301,10 @@ impl Interaction for SynchronousMessage {
     None
   }
 
+  fn is_v4_sync_message(&self) -> bool {
+    true
+  }
+
   fn as_v4_async_message_mut(&mut self) -> Option<&mut AsynchronousMessage> {
     None
   }

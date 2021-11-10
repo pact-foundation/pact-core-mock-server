@@ -90,17 +90,26 @@ pub trait Interaction: Debug {
   /// Returns the interaction in V4 format
   fn as_v4(&self) -> Option<Box<dyn V4Interaction>>;
 
+  /// If the interaction is V4 HTTP
+  fn is_v4_http(&self) -> bool { false }
+
   /// Returns the interaction in V4 format
   fn as_v4_http(&self) -> Option<SynchronousHttp>;
 
   /// Returns the interaction in V4 format
   fn as_v4_async_message(&self) -> Option<AsynchronousMessage>;
 
+  /// If the interaction is a V4 message
+  fn is_v4_async_message(&self) -> bool { false }
+
   /// Returns the interaction in V4 format
   fn as_v4_sync_message(&self) -> Option<SynchronousMessage>;
 
   /// Returns the interaction in V4 format
   fn as_v4_http_mut(&mut self) -> Option<&mut SynchronousHttp>;
+
+  /// If the interaction is a V4 synchronous request/response message
+  fn is_v4_sync_message(&self) -> bool { false }
 
   /// Returns the interaction in V4 format
   fn as_v4_async_message_mut(&mut self) -> Option<&mut AsynchronousMessage>;

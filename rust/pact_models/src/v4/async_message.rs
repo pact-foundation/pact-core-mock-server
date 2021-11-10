@@ -330,6 +330,10 @@ impl Interaction for AsynchronousMessage {
     Some(self.clone())
   }
 
+  fn is_v4_async_message(&self) -> bool {
+    true
+  }
+
   fn as_v4_sync_message(&self) -> Option<SynchronousMessage> {
     None
   }

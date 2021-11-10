@@ -4,14 +4,15 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::path::PathBuf;
-use std::ptr::null_mut;
+use std::ptr::{null_mut};
 use std::str::from_utf8;
 use std::sync::Mutex;
 
+use anyhow::anyhow;
 use bytes::Bytes;
 use itertools::Itertools;
 use lazy_static::*;
-use libc::{c_char, c_ushort, size_t};
+use libc::{c_char, c_uint, c_ushort, size_t};
 use log::*;
 use maplit::*;
 use serde_json::{json, Value};
@@ -33,9 +34,11 @@ use pact_models::v4::async_message::AsynchronousMessage;
 use pact_models::v4::interaction::V4Interaction;
 use pact_models::v4::synch_http::SynchronousHttp;
 
-use crate::convert_cstr;
+use crate::{convert_cstr, ffi_fn};
 use crate::mock_server::{StringResult, xml};
 use crate::mock_server::bodies::{empty_multipart_body, file_as_multipart_body, MultipartBody, process_json, process_object, request_multipart, response_multipart};
+use crate::models::iterators::PactMessageIterator;
+use crate::ptr;
 
 #[derive(Debug, Clone)]
 /// Pact handle inner struct
@@ -64,7 +67,9 @@ pub struct InteractionHandle {
   /// Pact reference
   pub pact: usize,
   /// Interaction reference
-  pub interaction: usize
+  pub interaction: usize,
+  /// Interaction Type
+  pub interaction_type: usize
 }
 
 #[repr(C)]
@@ -107,10 +112,11 @@ impl PactHandle {
 
 impl InteractionHandle {
   /// Creates a new handle to an Interaction
-  pub fn new(pact: PactHandle, interaction: usize) -> InteractionHandle {
+  pub fn new(pact: PactHandle, interaction: usize, interaction_type: usize) -> InteractionHandle {
     InteractionHandle {
       pact: pact.pact,
-      interaction
+      interaction,
+      interaction_type
     }
   }
 
@@ -238,7 +244,8 @@ impl MessageHandle {
 /// * `consumer_name` - The name of the consumer for the pact.
 /// * `provider_name` - The name of the provider for the pact.
 ///
-/// Returns a new `PactHandle`.
+/// Returns a new `PactHandle`. The handle will need to be freed with the `pactffi_free_pact_handle`
+/// method to release its resources.
 #[no_mangle]
 pub extern fn pactffi_new_pact(consumer_name: *const c_char, provider_name: *const c_char) -> PactHandle {
   let consumer = convert_cstr("consumer_name", consumer_name).unwrap_or("Consumer");
@@ -260,10 +267,30 @@ pub extern fn pactffi_new_interaction(pact: PactHandle, description: *const c_ch
         ..SynchronousHttp::default()
       };
       inner.pact.interactions.push(interaction.boxed_v4());
-      InteractionHandle::new(pact, inner.pact.interactions.len())
-    }).unwrap_or_else(|| InteractionHandle::new(pact, 0))
+      InteractionHandle::new(pact, inner.pact.interactions.len(), 0)
+    }).unwrap_or_else(|| InteractionHandle::new(pact, 0, 0))
   } else {
-    InteractionHandle::new(pact, 0)
+    InteractionHandle::new(pact, 0, 0)
+  }
+}
+
+/// Creates a new message interaction and return a handle to it
+/// * `description` - The interaction description. It needs to be unique for each interaction.
+///
+/// Returns a new `InteractionHandle`.
+#[no_mangle]
+pub extern fn pactffi_new_message_interaction(pact: PactHandle, description: *const c_char) -> InteractionHandle {
+  if let Some(description) = convert_cstr("description", description) {
+    pact.with_pact(&|_, inner| {
+      let interaction = AsynchronousMessage {
+        description: description.to_string(),
+        ..AsynchronousMessage::default()
+      };
+      inner.pact.interactions.push(interaction.boxed_v4());
+      InteractionHandle::new(pact, inner.pact.interactions.len(), 1)
+    }).unwrap_or_else(|| InteractionHandle::new(pact, 0, 1))
+  } else {
+    InteractionHandle::new(pact, 0, 1)
   }
 }
 
@@ -820,12 +847,40 @@ fn convert_ptr_to_mime_part_body(file: *const c_char, part_name: &str) -> Result
   }
 }
 
+ffi_fn! {
+    /// Get an iterator over all the messages of the Pact. The returned iterator needs to be
+    /// freed with `pactffi_pact_message_iter_delete`.
+    ///
+    /// # Safety
+    ///
+    /// The iterator contains a copy of the Pact, so it is always safe to use.
+    ///
+    /// # Error Handling
+    ///
+    /// On failure, this function will return a NULL pointer.
+    ///
+    /// This function may fail if any of the Rust strings contain embedded
+    /// null ('\0') bytes.
+    fn pactffi_pact_handle_get_message_iter(pact: PactHandle) -> *mut PactMessageIterator {
+        let message_pact = pact.with_pact(&|_, inner| {
+          // Ok to unwrap this, as the worse case given an HTTP Pact it will return a new message
+          // pact with no messages
+          inner.pact.as_message_pact().unwrap()
+        }).ok_or_else(|| anyhow!("Pact handle is not valid"))?;
+        let iter = PactMessageIterator::new(message_pact);
+        ptr::raw_to(iter)
+    } {
+        ptr::null_mut_to::<PactMessageIterator>()
+    }
+}
+
 /// Creates a new Pact Message model and returns a handle to it.
 ///
 /// * `consumer_name` - The name of the consumer for the pact.
 /// * `provider_name` - The name of the provider for the pact.
 ///
-/// Returns a new `MessagePactHandle`.
+/// Returns a new `MessagePactHandle`. The handle will need to be freed with the `pactffi_free_message_pact_handle`
+/// function to release its resources.
 #[no_mangle]
 pub extern fn pactffi_new_message_pact(consumer_name: *const c_char, provider_name: *const c_char) -> MessagePactHandle {
   let consumer = convert_cstr("consumer_name", consumer_name).unwrap_or("Consumer");
@@ -1104,4 +1159,32 @@ pub extern fn pactffi_new_async_message(pact: PactHandle, description: *const c_
   } else {
     MessageHandle::new_v4(pact, 0)
   }
+}
+
+/// Delete a Pact handle and free the resources used by it.
+///
+/// # Error Handling
+///
+/// On failure, this function will return a positive integer value.
+///
+/// * `1` - The handle is not valid or does not refer to a valid Pact. Could be that it was previously deleted.
+///
+#[no_mangle]
+pub extern fn pactffi_free_pact_handle(pact: PactHandle) -> c_uint {
+  let mut handles = PACT_HANDLES.lock().unwrap();
+  handles.remove(&pact.pact).map(|_| 0).unwrap_or(1)
+}
+
+/// Delete a Pact handle and free the resources used by it.
+///
+/// # Error Handling
+///
+/// On failure, this function will return a positive integer value.
+///
+/// * `1` - The handle is not valid or does not refer to a valid Pact. Could be that it was previously deleted.
+///
+#[no_mangle]
+pub extern fn pactffi_free_message_pact_handle(pact: MessagePactHandle) -> c_uint {
+  let mut handles = PACT_HANDLES.lock().unwrap();
+  handles.remove(&pact.pact).map(|_| 0).unwrap_or(1)
 }

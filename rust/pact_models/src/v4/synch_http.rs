@@ -275,6 +275,10 @@ impl Interaction for SynchronousHttp {
     Some(self.boxed_v4())
   }
 
+  fn is_v4_http(&self) -> bool {
+    true
+  }
+
   fn as_v4_http(&self) -> Option<SynchronousHttp> {
     Some(self.clone())
   }

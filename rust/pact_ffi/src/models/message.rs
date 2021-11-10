@@ -8,7 +8,7 @@ use crate::models::pact_specification::PactSpecification;
 use crate::util::*;
 use crate::{as_mut, as_ref, cstr, ffi_fn, safe_str};
 use anyhow::{anyhow, Context};
-use libc::{c_char, c_int, c_uint, EXIT_FAILURE, EXIT_SUCCESS};
+use libc::{c_char, c_int, c_uchar, c_uint, size_t, EXIT_FAILURE, EXIT_SUCCESS};
 use pact_models::{content_types::ContentType};
 use pact_models::bodies::OptionalBody;
 use serde_json::from_str as from_json_str;
@@ -133,7 +133,7 @@ ffi_fn! {
  */
 
 ffi_fn! {
-    /// Get the contents of a `Message`.
+    /// Get the contents of a `Message` in string form.
     ///
     /// # Safety
     ///
@@ -166,6 +166,54 @@ ffi_fn! {
         }
     } {
         ptr::null_to::<c_char>()
+    }
+}
+
+ffi_fn! {
+    /// Get the length of the contents of a `Message`.
+    ///
+    /// # Safety
+    ///
+    /// This function is safe.
+    ///
+    /// # Error Handling
+    ///
+    /// If the message is NULL, returns 0. If the body of the message
+    /// is missing, then this function also returns 0.
+    fn pactffi_message_get_contents_length(message: *const Message) -> size_t {
+        let message = as_ref!(message);
+
+        match &message.contents {
+            OptionalBody::Missing | OptionalBody::Empty | OptionalBody::Null => 0 as size_t,
+            OptionalBody::Present(bytes, _, _) => bytes.len() as size_t
+        }
+    } {
+        0 as size_t
+    }
+}
+
+ffi_fn! {
+    /// Get the contents of a `Message` as a pointer to an array of bytes.
+    ///
+    /// # Safety
+    ///
+    /// The number of bytes in the buffer will be returned by `pactffi_message_get_contents_length`.
+    /// It is safe to use the pointer while the message is not deleted or changed. Using the pointer
+    /// after the message is mutated or deleted may lead to undefined behaviour.
+    ///
+    /// # Error Handling
+    ///
+    /// If the message is NULL, returns NULL. If the body of the message
+    /// is missing, then this function also returns NULL.
+    fn pactffi_message_get_contents_bin(message: *const Message) -> *const c_uchar {
+        let message = as_ref!(message);
+
+        match &message.contents {
+            OptionalBody::Empty | OptionalBody::Null | OptionalBody::Missing => ptr::null_to::<c_uchar>(),
+            OptionalBody::Present(bytes, _, _) => bytes.as_ptr()
+        }
+    } {
+        ptr::null_to::<c_uchar>()
     }
 }
 
