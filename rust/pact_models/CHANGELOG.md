@@ -1,5 +1,15 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.2.1 - Update V4 models to support FFI + plugins
+
+* 15b8f08f - feat: add functions to return mutable references to the V4 model trait (Ronald Holshausen, Tue Nov 16 10:03:03 2021 +1100)
+* 7c150c8b - feat(plugins): Support message tests via FFI that use plugins (Ronald Holshausen, Wed Nov 10 17:03:49 2021 +1100)
+* fa83806c - feat: add mutable methods to Pact model traits (Ronald Holshausen, Tue Nov 9 16:04:16 2021 +1100)
+* 2027537d - refactor: update FFI to use V4 models internally (Ronald Holshausen, Mon Nov 8 16:44:39 2021 +1100)
+* b42b7ad9 - chore: fix clippy warnings and errors (Ronald Holshausen, Wed Nov 3 15:45:29 2021 +1100)
+* 296b4370 - chore: update project to Rust 2021 edition (Ronald Holshausen, Fri Oct 22 10:44:48 2021 +1100)
+* dac05481 - bump version to 0.2.1 (Ronald Holshausen, Thu Oct 21 17:52:39 2021 +1100)
+
 # 0.2.0 - Pact V4 + Plugins release
 
 * e72d602a - chore: bump pact models to non-beta version (Ronald Holshausen, Thu Oct 21 17:47:17 2021 +1100)
