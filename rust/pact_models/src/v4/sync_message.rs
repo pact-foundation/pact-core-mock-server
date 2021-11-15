@@ -285,6 +285,10 @@ impl Interaction for SynchronousMessage {
     Some(self.boxed_v4())
   }
 
+  fn as_v4_mut(&mut self) -> Option<&mut dyn V4Interaction> {
+    Some(self)
+  }
+
   fn as_v4_http(&self) -> Option<SynchronousHttp> {
     None
   }

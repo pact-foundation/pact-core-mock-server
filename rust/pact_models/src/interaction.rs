@@ -90,6 +90,10 @@ pub trait Interaction: Debug {
   /// Returns the interaction in V4 format
   fn as_v4(&self) -> Option<Box<dyn V4Interaction>>;
 
+  /// Returns a mutable reference for the  interaction. If the interaction is not a V4 format,
+  /// will return None. The `as_v4` method can convert to V4 format (via cloning the data).
+  fn as_v4_mut(&mut self) -> Option<&mut dyn V4Interaction>;
+
   /// If the interaction is V4 HTTP
   fn is_v4_http(&self) -> bool { false }
 

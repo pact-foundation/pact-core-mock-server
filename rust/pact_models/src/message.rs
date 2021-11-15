@@ -117,6 +117,10 @@ impl Interaction for Message {
     self.as_v4_async_message().map(|i| i.boxed_v4())
   }
 
+  fn as_v4_mut(&mut self) -> Option<&mut dyn V4Interaction> {
+    None
+  }
+
   fn as_v4_http(&self) -> Option<SynchronousHttp> {
     None
   }

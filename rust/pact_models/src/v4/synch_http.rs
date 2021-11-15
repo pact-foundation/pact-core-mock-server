@@ -275,6 +275,10 @@ impl Interaction for SynchronousHttp {
     Some(self.boxed_v4())
   }
 
+  fn as_v4_mut(&mut self) -> Option<&mut dyn V4Interaction> {
+    Some(self)
+  }
+
   fn is_v4_http(&self) -> bool {
     true
   }
