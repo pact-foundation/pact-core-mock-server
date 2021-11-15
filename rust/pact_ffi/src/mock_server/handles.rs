@@ -8,7 +8,7 @@ use std::ptr::{null_mut};
 use std::str::from_utf8;
 use std::sync::Mutex;
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use bytes::Bytes;
 use itertools::Itertools;
 use lazy_static::*;
@@ -32,12 +32,21 @@ use pact_models::prelude::v4::V4Pact;
 use pact_models::provider_states::ProviderState;
 use pact_models::v4::async_message::AsynchronousMessage;
 use pact_models::v4::interaction::V4Interaction;
+use pact_models::v4::sync_message::SynchronousMessage;
 use pact_models::v4::synch_http::SynchronousHttp;
 
-use crate::{convert_cstr, ffi_fn};
+use crate::{convert_cstr, ffi_fn, safe_str};
 use crate::mock_server::{StringResult, xml};
-use crate::mock_server::bodies::{empty_multipart_body, file_as_multipart_body, MultipartBody, process_json, process_object, request_multipart, response_multipart};
-use crate::models::iterators::PactMessageIterator;
+use crate::mock_server::bodies::{
+  empty_multipart_body,
+  file_as_multipart_body,
+  MultipartBody,
+  process_json,
+  process_object,
+  request_multipart,
+  response_multipart
+};
+use crate::models::iterators::{PactMessageIterator, PactSyncMessageIterator};
 use crate::ptr;
 
 #[derive(Debug, Clone)]
@@ -294,6 +303,26 @@ pub extern fn pactffi_new_message_interaction(pact: PactHandle, description: *co
   }
 }
 
+/// Creates a new synchronous message interaction (request/response) and return a handle to it
+/// * `description` - The interaction description. It needs to be unique for each interaction.
+///
+/// Returns a new `InteractionHandle`.
+#[no_mangle]
+pub extern fn pactffi_new_sync_message_interaction(pact: PactHandle, description: *const c_char) -> InteractionHandle {
+  if let Some(description) = convert_cstr("description", description) {
+    pact.with_pact(&|_, inner| {
+      let interaction = SynchronousMessage {
+        description: description.to_string(),
+        ..SynchronousMessage::default()
+      };
+      inner.pact.interactions.push(interaction.boxed_v4());
+      InteractionHandle::new(pact, inner.pact.interactions.len(), 1)
+    }).unwrap_or_else(|| InteractionHandle::new(pact, 0, 1))
+  } else {
+    InteractionHandle::new(pact, 0, 1)
+  }
+}
+
 /// Sets the description for the Interaction. Returns false if the interaction or Pact can't be
 /// modified (i.e. the mock server for it has already started)
 ///
@@ -324,6 +353,41 @@ pub extern fn pactffi_given(interaction: InteractionHandle, description: *const 
   } else {
     false
   }
+}
+
+ffi_fn! {
+    /// Sets the test name annotation for the interaction. This allows capturing the name of
+    /// the test as metadata. This can only be used with V4 interactions.
+    ///
+    /// # Safety
+    ///
+    /// The test name parameter must be a valid pointer to a NULL terminated string.
+    ///
+    /// # Error Handling
+    ///
+    /// If the test name can not be set, this will return a positive value.
+    ///
+    /// * `1` - Function panicked. Error message will be available by calling `pactffi_get_error_message`.
+    /// * `2` - Handle was not valid.
+    /// * `3` - Mock server was already started and the interation can not be modified.
+    /// * `4` - Not a V4 interaction.
+    fn pactffi_interaction_test_name(interaction: InteractionHandle, test_name: *const c_char) -> c_uint {
+      let test_name = safe_str!(test_name);
+      interaction.with_interaction(&|_, started, inner| {
+        if !started {
+          if let Some(i) = inner.as_v4_mut() {
+            i.comments_mut().insert("testname".to_string(), json!(test_name));
+            0
+          } else {
+            4
+          }
+        } else {
+          3
+        }
+      }).unwrap_or(2)
+    } {
+      1
+    }
 }
 
 /// Adds a provider state to the Interaction with a parameter key and value. Returns false if the interaction or Pact can't be
@@ -871,6 +935,32 @@ ffi_fn! {
         ptr::raw_to(iter)
     } {
         ptr::null_mut_to::<PactMessageIterator>()
+    }
+}
+
+ffi_fn! {
+    /// Get an iterator over all the synchronous request/response messages of the Pact.
+    /// The returned iterator needs to be freed with `pactffi_pact_sync_message_iter_delete`.
+    ///
+    /// # Safety
+    ///
+    /// The iterator contains a copy of the Pact, so it is always safe to use.
+    ///
+    /// # Error Handling
+    ///
+    /// On failure, this function will return a NULL pointer.
+    ///
+    /// This function may fail if any of the Rust strings contain embedded
+    /// null ('\0') bytes.
+    fn pactffi_pact_handle_get_sync_message_iter(pact: PactHandle) -> *mut PactSyncMessageIterator {
+        let v4_pact = pact.with_pact(&|_, inner| {
+          // Ok to unwrap this, as any non-v4 pact will be upgraded
+          inner.pact.as_v4_pact().unwrap()
+        }).ok_or_else(|| anyhow!("Pact handle is not valid"))?;
+        let iter = PactSyncMessageIterator::new(v4_pact);
+        ptr::raw_to(iter)
+    } {
+        ptr::null_mut_to::<PactSyncMessageIterator>()
     }
 }
 

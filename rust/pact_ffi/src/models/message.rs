@@ -4,17 +4,22 @@
  * # Imports
  *---------------------------------------------------------------------------------------------*/
 
-use crate::models::pact_specification::PactSpecification;
-use crate::util::*;
-use crate::{as_mut, as_ref, cstr, ffi_fn, safe_str};
-use anyhow::{anyhow, Context};
-use libc::{c_char, c_int, c_uchar, c_uint, size_t, EXIT_FAILURE, EXIT_SUCCESS};
-use pact_models::{content_types::ContentType};
-use pact_models::bodies::OptionalBody;
-use serde_json::from_str as from_json_str;
-use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 use std::ops::Drop;
+use std::sync::Mutex;
+
+use anyhow::{anyhow, Context};
+use libc::{c_char, c_int, c_uchar, c_uint, EXIT_FAILURE, EXIT_SUCCESS, size_t};
+use serde_json::from_str as from_json_str;
+use serde_json::Value as JsonValue;
+
+use pact_models::bodies::OptionalBody;
+use pact_models::content_types::ContentType;
+use pact_models::interaction::Interaction;
+
+use crate::{as_mut, as_ref, cstr, ffi_fn, safe_str};
+use crate::models::pact_specification::PactSpecification;
+use crate::util::*;
 
 /*===============================================================================================
  * # Re-Exports
@@ -324,7 +329,7 @@ ffi_fn! {
     /// Returns NULL if an error occurs.
     fn pactffi_message_get_provider_state_iter(message: *mut Message) -> *mut ProviderStateIterator {
         let message = as_mut!(message);
-        let iter = ProviderStateIterator { current: 0, message };
+        let iter = ProviderStateIterator::new(message);
         ptr::raw_to(iter)
     } {
         ptr::null_mut_to::<ProviderStateIterator>()
@@ -338,18 +343,27 @@ ffi_fn! {
     ///
     /// The underlying data must not change during iteration.
     ///
+    /// If a previous call panicked, then the internal mutex will have been poisoned and this
+    /// function will return NULL.
+    ///
     /// # Error Handling
     ///
     /// Returns NULL if an error occurs.
     fn pactffi_provider_state_iter_next(iter: *mut ProviderStateIterator) -> *mut ProviderState {
         let iter = as_mut!(iter);
-        let message = as_mut!(iter.message);
         let index = iter.next();
-        let provider_state = message
-            .provider_states
-            .get_mut(index)
-            .ok_or(anyhow::anyhow!("iter past the end of provider states"))?;
-       provider_state as *mut ProviderState
+        let guard = iter.message.lock().unwrap();
+        let message_ptr = unsafe { guard.as_mut() };
+        match message_ptr {
+            Some(message) => {
+                let provider_state = message
+                    .provider_states_mut()
+                    .get_mut(index)
+                    .ok_or(anyhow::anyhow!("iter past the end of provider states"))?;
+                provider_state as *mut ProviderState
+            }
+            None => ptr::null_mut_to::<ProviderState>()
+        }
     } {
         ptr::null_mut_to::<ProviderState>()
     }
@@ -367,10 +381,15 @@ ffi_fn! {
 #[allow(missing_debug_implementations)]
 pub struct ProviderStateIterator {
     current: usize,
-    message: *mut Message,
+    message: Mutex<*mut dyn Interaction>
 }
 
 impl ProviderStateIterator {
+    /// Create a new iterator
+    pub fn new(interaction: *mut dyn Interaction) -> Self {
+        ProviderStateIterator { current: 0, message: Mutex::new(interaction) }
+    }
+
     fn next(&mut self) -> usize {
         let idx = self.current;
         self.current += 1;

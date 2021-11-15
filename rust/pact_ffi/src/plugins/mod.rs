@@ -19,6 +19,8 @@ use pact_plugin_driver::catalogue_manager::find_content_matcher;
 use pact_plugin_driver::content::{InteractionContents, PluginConfiguration};
 use pact_plugin_driver::plugin_manager::{drop_plugin_access, load_plugin};
 use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
+use pact_models::prelude::{Generators, MatchingRules};
+use pact_models::v4::message_parts::MessageContents;
 
 use crate::{ffi_fn, safe_str};
 use crate::error::{catch_panic, set_error_msg};
@@ -189,7 +191,51 @@ pub extern fn pactffi_interaction_contents(interaction: InteractionHandle, part:
               };
             }
           }),
-          _ => todo!("{} type of interaction is not supported yet", inner.v4_type())
+          V4InteractionType::Synchronous_Messages => setup_contents(inner, part, &content_type, &contents, &|interaction, contents, plugin_name, _| {
+            let message = interaction.as_v4_sync_message_mut().unwrap();
+
+            if let Some(contents) = &contents.iter().find(|c| c.part_name == "request") {
+              message.request.contents = contents.body.clone();
+              if let Some(rules) = &contents.rules {
+                message.request.matching_rules.add_rules("body", rules.clone());
+              }
+              if let Some(generators) = &contents.generators {
+                message.request.generators.add_generators(generators.clone());
+              }
+              if !contents.plugin_config.is_empty() {
+                message.plugin_config.insert(plugin_name.clone(), contents.plugin_config.interaction_configuration.clone());
+              }
+              message.interaction_markup = InteractionMarkup {
+                markup: contents.interaction_markup.clone(),
+                markup_type: contents.interaction_markup_type.clone()
+              };
+            }
+
+            for c in contents.iter().filter(|c| c.part_name == "response") {
+              let mut matching_rules = MatchingRules::default();
+              matching_rules.add_rules("body", c.rules.as_ref().cloned().unwrap_or_default());
+              let mut generators = Generators::default();
+              if let Some(g) = &c.generators {
+                generators.add_generators(g.clone());
+              }
+              message.response.push(MessageContents {
+                contents: c.body.clone(),
+                metadata: c.metadata.clone().unwrap_or_default(),
+                matching_rules,
+                generators
+              });
+
+              if !c.plugin_config.is_empty() {
+                message.plugin_config.insert(plugin_name.clone(), c.plugin_config.interaction_configuration.clone());
+              }
+              if !c.interaction_markup.is_empty() {
+                message.interaction_markup = InteractionMarkup {
+                  markup: c.interaction_markup.clone(),
+                  markup_type: c.interaction_markup_type.clone()
+                };
+              }
+            }
+          })
         }
       } else {
         Err(anyhow!("Mock server is already started"))

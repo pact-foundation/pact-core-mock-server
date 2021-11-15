@@ -7,3 +7,4 @@ pub mod pact_specification;
 pub mod provider;
 pub mod provider_state;
 pub mod iterators;
+pub mod sync_message;
