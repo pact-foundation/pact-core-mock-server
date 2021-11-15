@@ -201,6 +201,8 @@ pub(crate) fn setup_app<'a, 'b>(program: String, version: &'b str) -> App<'a, 'b
       .long("consumer-version-selectors")
       .takes_value(true)
       .use_delimiter(false)
+      .multiple(true)
+      .number_of_values(1)
       .empty_values(false)
       .requires("broker-url")
       .conflicts_with("consumer-version-tags")
