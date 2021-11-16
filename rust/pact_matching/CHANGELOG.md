@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.11.1 - Updated to latest models crate
+
+* 5d974c4a - chore: update to latest models and plugin driver crates (Ronald Holshausen, Tue Nov 16 11:56:53 2021 +1100)
+* 1e76c400 - chore: correct readme (Ronald Holshausen, Wed Nov 3 17:09:56 2021 +1100)
+* b8da65c2 - bump version to 0.11.1 (Ronald Holshausen, Wed Nov 3 17:07:06 2021 +1100)
+
 # 0.11.0 - Pact V4 release
 
 * e62cefdc - chore: fix clippy warnings (Ronald Holshausen, Wed Nov 3 16:52:24 2021 +1100)
