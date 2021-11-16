@@ -3,6 +3,7 @@
 
 use anyhow::{anyhow, Context};
 use bytes::Bytes;
+use itertools::Itertools;
 use libc::{c_char, c_uint};
 use log::{debug, error};
 use pact_models::bodies::OptionalBody;
@@ -11,16 +12,15 @@ use pact_models::http_parts::HttpPart;
 use pact_models::json_utils::body_from_json;
 use pact_models::pact::Pact;
 use pact_models::plugins::PluginData;
+use pact_models::prelude::{Generators, MatchingRules};
 use pact_models::v4::interaction::{InteractionMarkup, V4Interaction};
+use pact_models::v4::message_parts::MessageContents;
 use pact_models::v4::V4InteractionType;
-use serde_json::Value;
-
 use pact_plugin_driver::catalogue_manager::find_content_matcher;
 use pact_plugin_driver::content::{InteractionContents, PluginConfiguration};
 use pact_plugin_driver::plugin_manager::{drop_plugin_access, load_plugin};
 use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
-use pact_models::prelude::{Generators, MatchingRules};
-use pact_models::v4::message_parts::MessageContents;
+use serde_json::Value;
 
 use crate::{ffi_fn, safe_str};
 use crate::error::{catch_panic, set_error_msg};
@@ -87,13 +87,14 @@ ffi_fn! {
   fn pactffi_cleanup_plugins(pact: PactHandle) {
     pact.with_pact(&|_, inner| {
       // decrement access to any plugin loaded for the Pact
-      for plugin in inner.pact.plugin_data() {
-        let dependency = PluginDependency {
-          name: plugin.name,
-          version: Some(plugin.version),
+      for plugin in inner.pact.plugin_data().iter().map(|plugin| {
+        PluginDependency {
+          name: plugin.name.clone(),
+          version: Some(plugin.version.clone()),
           dependency_type: PluginDependencyType::Plugin
-        };
-        drop_plugin_access(&dependency);
+        }
+      }).unique() {
+        drop_plugin_access(&plugin);
       }
     });
   }
