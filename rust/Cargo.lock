@@ -1344,7 +1344,7 @@ dependencies = [
 
 [[package]]
 name = "pact_mock_server"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "anyhow",
  "bytes",
