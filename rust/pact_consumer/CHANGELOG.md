@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.8.1 - Add plugin support to FFI functions
+
+* 5d974c4a - chore: update to latest models and plugin driver crates (Ronald Holshausen, Tue Nov 16 11:56:53 2021 +1100)
+* 20643590 - feat(plugins): add plugin support to FFI functions (Ronald Holshausen, Tue Nov 9 16:06:01 2021 +1100)
+* 188caf6a - chore: update release script (Ronald Holshausen, Thu Nov 4 16:19:38 2021 +1100)
+* c7dbfdb9 - bump version to 0.8.1 (Ronald Holshausen, Thu Nov 4 16:17:23 2021 +1100)
+
 # 0.8.0 - Pact V4 release
 
 * 6dfec56a - chore: drop beta from pact_consumer version (Ronald Holshausen, Thu Nov 4 16:08:47 2021 +1100)
