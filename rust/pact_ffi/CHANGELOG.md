@@ -1,5 +1,17 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.1.1 - Support V4 synchronous messages + protobuf plugin
+
+* 5d974c4a - chore: update to latest models and plugin driver crates (Ronald Holshausen, Tue Nov 16 11:56:53 2021 +1100)
+* 19beb0ea - feat(plugins): add support for synch messages via FFI (Ronald Holshausen, Tue Nov 16 10:06:07 2021 +1100)
+* df23ba3d - fix: allow multiple consumer version selectors (Matt Fellows, Mon Nov 15 14:28:04 2021 +1100)
+* 7c150c8b - feat(plugins): Support message tests via FFI that use plugins (Ronald Holshausen, Wed Nov 10 17:03:49 2021 +1100)
+* 20643590 - feat(plugins): add plugin support to FFI functions (Ronald Holshausen, Tue Nov 9 16:06:01 2021 +1100)
+* 62f7d36c - refactor: moved the message consumer FFI functions to the handles module (Ronald Holshausen, Mon Nov 8 17:42:26 2021 +1100)
+* 0cb367d9 - refactor: moved the HTTP consumer FFI functions to the handles module (Ronald Holshausen, Mon Nov 8 17:25:16 2021 +1100)
+* 2027537d - refactor: update FFI to use V4 models internally (Ronald Holshausen, Mon Nov 8 16:44:39 2021 +1100)
+* e1ff90c7 - bump version to 0.1.1 (Ronald Holshausen, Thu Nov 4 17:23:32 2021 +1100)
+
 # 0.1.0 - Pact V4 release
 
 * 59e21413 - feat: Pact V4 release (Ronald Holshausen, Thu Nov 4 16:54:56 2021 +1100)
