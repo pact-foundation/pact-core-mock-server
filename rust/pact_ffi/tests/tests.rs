@@ -1,5 +1,4 @@
 use std::ffi::{CStr, CString};
-use std::panic::catch_unwind;
 
 use bytes::Bytes;
 use expectest::prelude::*;
@@ -189,26 +188,26 @@ fn http_consumer_feature_test() {
   // Mock server has started, we can't now modify the pact
   expect!(pactffi_upon_receiving(interaction.clone(), description.as_ptr())).to(be_false());
 
-  let _ = catch_unwind(|| {
-    let client = Client::default();
-    let result = client.post(format!("http://127.0.0.1:{}/request/9999?foo=baz", port).as_str())
-      .header("Content-Type", "application/json")
-      .header("Authorization", "Bearer 9999")
-      .body(r#"{"id": 7}"#)
-      .send();
+  let client = Client::default();
+  let result = client.post(format!("http://127.0.0.1:{}/request/9999?foo=baz", port).as_str())
+    .header("Content-Type", "application/json")
+    .header("Authorization", "Bearer 9999")
+    .body(r#"{"id": 7}"#)
+    .send();
 
-    match result {
-      Ok(res) => {
-        expect!(res.status()).to(be_eq(200));
-        expect!(res.headers().get("My-Special-Content-Type").unwrap()).to(be_eq("application/json"));
-        let json: serde_json::Value = res.json().unwrap_or_default();
-        expect!(json.get("created").unwrap().as_str().unwrap()).to(be_eq("maybe"));
-      },
-      Err(_) => {
-        panic!("expected 200 response but request failed");
-      }
-    };
-  });
+  match result {
+    Ok(res) => {
+      dbg!("here");
+      expect!(res.status()).to(be_eq(200));
+      expect!(res.headers().get("My-Special-Content-Type").unwrap()).to(be_eq("application/json"));
+      let json: serde_json::Value = res.json().unwrap_or_default();
+      dbg!("about to check");
+      expect!(json.get("created").unwrap().as_str().unwrap()).to(be_eq("maybe"));
+    },
+    Err(_) => {
+      panic!("expected 200 response but request failed");
+    }
+  };
 
   let mismatches = unsafe {
     CStr::from_ptr(pactffi_mock_server_mismatches(port)).to_string_lossy().into_owned()
@@ -251,23 +250,21 @@ fn http_xml_consumer_feature_test() {
   // Mock server has started, we can't now modify the pact
   expect!(pactffi_upon_receiving(interaction.clone(), description.as_ptr())).to(be_false());
 
-  let _ = catch_unwind(|| {
-    let client = Client::default();
-    let result = client.get(format!("http://127.0.0.1:{}/xml", port).as_str())
-      .header("Accept", "application/xml")
-      .send();
+  let client = Client::default();
+  let result = client.get(format!("http://127.0.0.1:{}/xml", port).as_str())
+    .header("Accept", "application/xml")
+    .send();
 
-    match result {
-      Ok(res) => {
-        expect!(res.status()).to(be_eq(200));
-        expect!(res.headers().get("Content-Type").unwrap()).to(be_eq("application/xml"));
-        expect!(res.text().unwrap_or_default()).to(be_equal_to("<?xml version='1.0'?><ns1:projects id='1234' xmlns:ns1='http://some.namespace/and/more/stuff'><ns1:project id='1' name='Project 1' type='activity'><ns1:tasks><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/></ns1:tasks></ns1:project><ns1:project id='1' name='Project 1' type='activity'><ns1:tasks><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/></ns1:tasks></ns1:project></ns1:projects>"));
-      },
-      Err(_) => {
-        panic!("expected 200 response but request failed");
-      }
-    };
-  });
+  match result {
+    Ok(res) => {
+      expect!(res.status()).to(be_eq(200));
+      expect!(res.headers().get("Content-Type").unwrap()).to(be_eq("application/xml"));
+      expect!(res.text().unwrap_or_default()).to(be_equal_to("<?xml version='1.0'?><ns1:projects id='1234' xmlns:ns1='http://some.namespace/and/more/stuff'><ns1:project id='1' name='Project 1' type='activity'><ns1:tasks><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/></ns1:tasks></ns1:project><ns1:project id='1' name='Project 1' type='activity'><ns1:tasks><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/><ns1:task done='true' id='1' name='Task 1'/></ns1:tasks></ns1:project></ns1:projects>"));
+    },
+    Err(_) => {
+      panic!("expected 200 response but request failed");
+    }
+  };
 
   let mismatches = unsafe {
     CStr::from_ptr(pactffi_mock_server_mismatches(port)).to_string_lossy().into_owned()
