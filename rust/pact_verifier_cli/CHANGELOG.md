@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.9.1 - Fix for branches and consumer version selectors
+
+* 5d974c4a - chore: update to latest models and plugin driver crates (Ronald Holshausen, Tue Nov 16 11:56:53 2021 +1100)
+* df23ba3d - fix: allow multiple consumer version selectors (Matt Fellows, Mon Nov 15 14:28:04 2021 +1100)
+* 0af18303 - fix: add missing provider-branch to verifier CLI (Ronald Holshausen, Mon Nov 8 11:40:05 2021 +1100)
+* 2db1e1bb - bump version to 0.9.1 (Ronald Holshausen, Thu Nov 4 16:44:12 2021 +1100)
+
 # 0.9.0 - Pact V4 release
 
 * 8d05ddcc - chore: remove beta version from verifier cli (Ronald Holshausen, Thu Nov 4 16:25:02 2021 +1100)
