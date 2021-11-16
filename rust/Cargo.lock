@@ -1182,9 +1182,9 @@ dependencies = [
 
 [[package]]
 name = "pact-plugin-driver"
-version = "0.0.8"
+version = "0.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f40b35ded42b35b624c1e53763c48e9d8280596182d3f1215aad4d146a10897"
+checksum = "539892749ad3e5c25ad2762a21a10175e813b03687dfbb3420c87c3f415aa04a"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1196,33 +1196,6 @@ dependencies = [
  "maplit",
  "os_info",
  "pact_models 0.2.1",
- "prost",
- "prost-types",
- "regex",
- "reqwest",
- "serde",
- "serde_json",
- "sysinfo",
- "tokio",
- "tonic",
- "tonic-build",
- "uuid",
-]
-
-[[package]]
-name = "pact-plugin-driver"
-version = "0.0.9"
-dependencies = [
- "anyhow",
- "async-trait",
- "bytes",
- "home",
- "itertools",
- "lazy_static",
- "log",
- "maplit",
- "os_info",
- "pact_models 0.2.2",
  "prost",
  "prost-types",
  "regex",
@@ -1269,7 +1242,7 @@ dependencies = [
  "libc",
  "log",
  "maplit",
- "pact-plugin-driver 0.0.8",
+ "pact-plugin-driver",
  "pact_matching",
  "pact_mock_server",
  "pact_models 0.2.1",
@@ -1306,10 +1279,10 @@ dependencies = [
  "multipart",
  "onig",
  "os_info",
- "pact-plugin-driver 0.0.9",
+ "pact-plugin-driver",
  "pact_matching",
  "pact_mock_server",
- "pact_models 0.2.2",
+ "pact_models 0.2.1",
  "pact_verifier",
  "quickcheck",
  "rand 0.8.4",
@@ -1353,7 +1326,7 @@ dependencies = [
  "nom",
  "ntest",
  "onig",
- "pact-plugin-driver 0.0.8",
+ "pact-plugin-driver",
  "pact_models 0.2.1",
  "pretty_assertions 0.6.1",
  "quickcheck",
@@ -1384,7 +1357,7 @@ dependencies = [
  "lazy_static",
  "log",
  "maplit",
- "pact-plugin-driver 0.0.8",
+ "pact-plugin-driver",
  "pact_matching",
  "pact_models 0.2.1",
  "quickcheck",
@@ -1525,7 +1498,7 @@ dependencies = [
  "log",
  "maplit",
  "mime",
- "pact-plugin-driver 0.0.8",
+ "pact-plugin-driver",
  "pact_consumer",
  "pact_matching",
  "pact_models 0.2.1",

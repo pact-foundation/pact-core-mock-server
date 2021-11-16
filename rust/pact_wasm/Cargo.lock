@@ -637,9 +637,9 @@ checksum = "28988d872ab76095a6e6ac88d99b54fd267702734fd7ffe610ca27f533ddb95a"
 
 [[package]]
 name = "pact_models"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd9c89a0c0e8eb4517651ac19231be7489aae011aa2512da8305af94e165a925"
+checksum = "cbaf0b007c0e60194a9391e821be1b7054a53cbdb17c45efc0729f0346c07672"
 dependencies = [
  "anyhow",
  "base64",
