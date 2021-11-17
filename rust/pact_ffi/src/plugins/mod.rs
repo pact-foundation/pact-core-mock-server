@@ -354,7 +354,7 @@ mod tests {
   #[test]
   fn pactffi_interaction_contents_with_invalid_content_type() {
     let pact_handle = PactHandle::new("Test", "Test");
-    let i_handle = InteractionHandle::new(pact_handle, 0, 0);
+    let i_handle = InteractionHandle::new(pact_handle, 0);
     expect!(pactffi_interaction_contents(i_handle, InteractionPart::Request, null(), null())).to(be_equal_to(1));
 
     let content_type = CString::new("not valid").unwrap();
@@ -364,7 +364,7 @@ mod tests {
   #[test]
   fn pactffi_interaction_contents_with_invalid_contents() {
     let pact_handle = PactHandle::new("Test", "Test");
-    let i_handle = InteractionHandle::new(pact_handle, 0, 0);
+    let i_handle = InteractionHandle::new(pact_handle, 0);
     let content_type = CString::new("application/json").unwrap();
     expect!(pactffi_interaction_contents(i_handle, InteractionPart::Request, null(), null())).to(be_equal_to(1));
 

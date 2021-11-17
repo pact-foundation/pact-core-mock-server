@@ -7,7 +7,7 @@ use pact_models::bodies::OptionalBody;
 use pact_models::provider_states::ProviderState;
 use pact_models::v4::sync_message::SynchronousMessage;
 
-use crate::{as_mut, as_ref, cstr, ffi_fn, safe_str};
+use crate::{as_mut, as_ref, ffi_fn, safe_str};
 use crate::models::message::ProviderStateIterator;
 use crate::ptr;
 use crate::util::*;

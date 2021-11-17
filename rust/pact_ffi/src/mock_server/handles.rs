@@ -4,7 +4,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::path::PathBuf;
-use std::ptr::{null_mut};
+use std::ptr::null_mut;
 use std::str::from_utf8;
 use std::sync::Mutex;
 
@@ -15,8 +15,6 @@ use lazy_static::*;
 use libc::{c_char, c_uint, c_ushort, size_t};
 use log::*;
 use maplit::*;
-use serde_json::{json, Value};
-
 use pact_models::{Consumer, PactSpecification, Provider};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
@@ -34,6 +32,7 @@ use pact_models::v4::async_message::AsynchronousMessage;
 use pact_models::v4::interaction::V4Interaction;
 use pact_models::v4::sync_message::SynchronousMessage;
 use pact_models::v4::synch_http::SynchronousHttp;
+use serde_json::{json, Value};
 
 use crate::{convert_cstr, ffi_fn, safe_str};
 use crate::mock_server::{StringResult, xml};
@@ -51,6 +50,7 @@ use crate::ptr;
 
 #[derive(Debug, Clone)]
 /// Pact handle inner struct
+/// cbindgen:ignore
 pub struct PactHandleInner {
   pub(crate) pact: V4Pact,
   pub(crate) mock_server_started: bool,
@@ -58,27 +58,23 @@ pub struct PactHandleInner {
 }
 
 lazy_static! {
-  static ref PACT_HANDLES: Mutex<HashMap<usize, RefCell<PactHandleInner>>> = Mutex::new(hashmap![]);
+  static ref PACT_HANDLES: Mutex<HashMap<u16, RefCell<PactHandleInner>>> = Mutex::new(hashmap![]);
 }
 
-#[repr(C)]
+#[repr(transparent)]
 #[derive(Debug, Clone, Copy)]
 /// Wraps a Pact model struct
 pub struct PactHandle {
   /// Pact reference
-  pub pact: usize
+  pact_ref: u16
 }
 
-#[repr(C)]
+#[repr(transparent)]
 #[derive(Debug, Clone, Copy)]
 /// Wraps a Pact model struct
 pub struct InteractionHandle {
-  /// Pact reference
-  pub pact: usize,
   /// Interaction reference
-  pub interaction: usize,
-  /// Interaction Type
-  pub interaction_type: usize
+  interaction_ref: u32
 }
 
 #[repr(C)]
@@ -95,7 +91,7 @@ impl PactHandle {
   /// Creates a new handle to a Pact model
   pub fn new(consumer: &str, provider: &str) -> Self {
     let mut handles = PACT_HANDLES.lock().unwrap();
-    let id = handles.len() + 1;
+    let id = (handles.len() + 1) as u16;
     let mut pact = V4Pact {
       consumer: Consumer { name: consumer.to_string() },
       provider: Provider { name: provider.to_string() },
@@ -108,42 +104,46 @@ impl PactHandle {
       specification_version: PactSpecification::V3
     }));
     PactHandle {
-      pact: id
+      pact_ref: id
     }
   }
 
   /// Invokes the closure with the inner Pact model
-  pub(crate) fn with_pact<R>(&self, f: &dyn Fn(usize, &mut PactHandleInner) -> R) -> Option<R> {
+  pub(crate) fn with_pact<R>(&self, f: &dyn Fn(u16, &mut PactHandleInner) -> R) -> Option<R> {
     let mut handles = PACT_HANDLES.lock().unwrap();
-    handles.get_mut(&self.pact).map(|inner| f(self.pact - 1, &mut inner.borrow_mut()))
+    handles.get_mut(&self.pact_ref).map(|inner| f(self.pact_ref - 1, &mut inner.borrow_mut()))
   }
 }
 
 impl InteractionHandle {
   /// Creates a new handle to an Interaction
-  pub fn new(pact: PactHandle, interaction: usize, interaction_type: usize) -> InteractionHandle {
+  pub fn new(pact: PactHandle, interaction: u16) -> InteractionHandle {
+    let mut index = pact.pact_ref as u32;
+    index = index << 16;
+    index = index + interaction as u32;
     InteractionHandle {
-      pact: pact.pact,
-      interaction,
-      interaction_type
+      interaction_ref: index
     }
   }
 
   /// Invokes the closure with the inner Pact model
-  pub fn with_pact<R>(&self, f: &dyn Fn(usize, &mut PactHandleInner) -> R) -> Option<R> {
+  pub fn with_pact<R>(&self, f: &dyn Fn(u16, &mut PactHandleInner) -> R) -> Option<R> {
     let mut handles = PACT_HANDLES.lock().unwrap();
-    handles.get_mut(&self.pact).map(|inner| f(self.pact - 1, &mut inner.borrow_mut()))
+    let index = (self.interaction_ref >> 16) as u16;
+    handles.get_mut(&index).map(|inner| f(index - 1, &mut inner.borrow_mut()))
   }
 
   /// Invokes the closure with the inner Interaction model
-  pub fn with_interaction<R>(&self, f: &dyn Fn(usize, bool, &mut dyn V4Interaction) -> R) -> Option<R> {
+  pub fn with_interaction<R>(&self, f: &dyn Fn(u16, bool, &mut dyn V4Interaction) -> R) -> Option<R> {
     let mut handles = PACT_HANDLES.lock().unwrap();
-    handles.get_mut(&self.pact).map(|inner| {
+    let index = (self.interaction_ref >> 16) as u16;
+    let interaction = (self.interaction_ref & 0x0000FFFF) as u16;
+    handles.get_mut(&index).map(|inner| {
       let inner_mut = &mut *inner.borrow_mut();
       let interactions = &mut inner_mut.pact.interactions;
-      match interactions.get_mut(self.interaction - 1) {
+      match interactions.get_mut((interaction - 1) as usize) {
         Some(inner_i) => {
-          Some(f(self.interaction - 1, inner_mut.mock_server_started, inner_i.as_mut()))
+          Some(f(interaction - 1, inner_mut.mock_server_started, inner_i.as_mut()))
         },
         None => None
       }
@@ -151,29 +151,27 @@ impl InteractionHandle {
   }
 }
 
-#[repr(C)]
+#[repr(transparent)]
 #[derive(Debug, Clone, Copy)]
 /// Wraps a Pact model struct
 pub struct MessagePactHandle {
   /// Pact reference
-  pub pact: usize
+  pact_ref: u16
 }
 
-#[repr(C)]
+#[repr(transparent)]
 #[derive(Debug, Clone, Copy)]
 /// Wraps a Pact model struct
 pub struct MessageHandle {
-  /// Message Pact reference
-  pub pact: usize,
   /// Interaction reference
-  pub message: usize
+  interaction_ref: u32
 }
 
 impl MessagePactHandle {
   /// Creates a new handle to a Pact model
   pub fn new(consumer: &str, provider: &str) -> Self {
     let mut handles = PACT_HANDLES.lock().unwrap();
-    let id = handles.len() + 1;
+    let id = (handles.len() + 1) as u16;
     let mut pact = V4Pact {
       consumer: Consumer { name: consumer.to_string() },
       provider: Provider { name: provider.to_string() },
@@ -186,60 +184,67 @@ impl MessagePactHandle {
       specification_version: PactSpecification::V3
     }));
     MessagePactHandle {
-      pact: id
+      pact_ref: id
     }
   }
 
   /// Invokes the closure with the inner model
-  pub fn with_pact<R>(&self, f: &dyn Fn(usize, &mut V4Pact, PactSpecification) -> R) -> Option<R> {
+  pub fn with_pact<R>(&self, f: &dyn Fn(u16, &mut V4Pact, PactSpecification) -> R) -> Option<R> {
     let mut handles = PACT_HANDLES.lock().unwrap();
-    handles.get_mut(&self.pact).map(|inner| {
+    handles.get_mut(&self.pact_ref).map(|inner| {
       let mut ref_mut = inner.borrow_mut();
       let specification = ref_mut.specification_version;
-      f(self.pact - 1, &mut ref_mut.pact, specification)
+      f(self.pact_ref - 1, &mut ref_mut.pact, specification)
     })
   }
 }
 
 impl MessageHandle {
   /// Creates a new handle to a message
-  pub fn new(pact: MessagePactHandle, message: usize) -> MessageHandle {
+  pub fn new(pact: MessagePactHandle, message: u16) -> MessageHandle {
+    let mut index = pact.pact_ref as u32;
+    index = index << 16;
+    index = index + message as u32;
     MessageHandle {
-      pact: pact.pact,
-      message
+      interaction_ref: index
     }
   }
 
   /// Creates a new handle to a message
   pub fn new_v4(pact: PactHandle, message: usize) -> MessageHandle {
+    let mut index = pact.pact_ref as u32;
+    index = index << 16;
+    index = index + message as u32;
     MessageHandle {
-      pact: pact.pact,
-      message
+      interaction_ref: index
     }
   }
 
   /// Invokes the closure with the inner model
-  pub fn with_pact<R>(&self, f: &dyn Fn(usize, &mut V4Pact, PactSpecification) -> R) -> Option<R> {
+  pub fn with_pact<R>(&self, f: &dyn Fn(u16, &mut V4Pact, PactSpecification) -> R) -> Option<R> {
     let mut handles = PACT_HANDLES.lock().unwrap();
-    handles.get_mut(&self.pact).map(|inner| {
+    let index = self.interaction_ref as u16;
+    handles.get_mut(&index).map(|inner| {
       let mut ref_mut = inner.borrow_mut();
       let specification = ref_mut.specification_version;
-      f(self.pact - 1, & mut ref_mut.pact, specification)
+      f(index - 1, & mut ref_mut.pact, specification)
     })
   }
 
   /// Invokes the closure with the inner Interaction model
-  pub fn with_message<R>(&self, f: &dyn Fn(usize, &mut dyn V4Interaction, PactSpecification) -> R) -> Option<R> {
+  pub fn with_message<R>(&self, f: &dyn Fn(u16, &mut dyn V4Interaction, PactSpecification) -> R) -> Option<R> {
     let mut handles = PACT_HANDLES.lock().unwrap();
-    handles.get_mut(&self.pact).map(|inner| {
+    let index = (self.interaction_ref >> 16) as u16;
+    let interaction = self.interaction_ref as u16;
+    handles.get_mut(&index).map(|inner| {
       let mut ref_mut = inner.borrow_mut();
       let specification = ref_mut.specification_version;
-      ref_mut.pact.interactions.get_mut(self.message - 1)
+      ref_mut.pact.interactions.get_mut((interaction - 1) as usize)
         .map(|inner_i| {
           if inner_i.is_message() {
-            Some(f(self.message - 1, inner_i.as_mut(), specification))
+            Some(f(interaction - 1, inner_i.as_mut(), specification))
           } else {
-            error!("Interaction {} is not a message interaction, it is {}", self.message, inner_i.type_of());
+            error!("Interaction {:#x} is not a message interaction, it is {}", self.interaction_ref, inner_i.type_of());
             None
           }
         }).flatten()
@@ -276,10 +281,10 @@ pub extern fn pactffi_new_interaction(pact: PactHandle, description: *const c_ch
         ..SynchronousHttp::default()
       };
       inner.pact.interactions.push(interaction.boxed_v4());
-      InteractionHandle::new(pact, inner.pact.interactions.len(), 0)
-    }).unwrap_or_else(|| InteractionHandle::new(pact, 0, 0))
+      InteractionHandle::new(pact, inner.pact.interactions.len() as u16)
+    }).unwrap_or_else(|| InteractionHandle::new(pact, 0))
   } else {
-    InteractionHandle::new(pact, 0, 0)
+    InteractionHandle::new(pact, 0)
   }
 }
 
@@ -296,10 +301,10 @@ pub extern fn pactffi_new_message_interaction(pact: PactHandle, description: *co
         ..AsynchronousMessage::default()
       };
       inner.pact.interactions.push(interaction.boxed_v4());
-      InteractionHandle::new(pact, inner.pact.interactions.len(), 1)
-    }).unwrap_or_else(|| InteractionHandle::new(pact, 0, 1))
+      InteractionHandle::new(pact, inner.pact.interactions.len() as u16)
+    }).unwrap_or_else(|| InteractionHandle::new(pact, 0))
   } else {
-    InteractionHandle::new(pact, 0, 1)
+    InteractionHandle::new(pact, 0)
   }
 }
 
@@ -316,10 +321,10 @@ pub extern fn pactffi_new_sync_message_interaction(pact: PactHandle, description
         ..SynchronousMessage::default()
       };
       inner.pact.interactions.push(interaction.boxed_v4());
-      InteractionHandle::new(pact, inner.pact.interactions.len(), 1)
-    }).unwrap_or_else(|| InteractionHandle::new(pact, 0, 1))
+      InteractionHandle::new(pact, inner.pact.interactions.len() as u16)
+    }).unwrap_or_else(|| InteractionHandle::new(pact, 0))
   } else {
-    InteractionHandle::new(pact, 0, 1)
+    InteractionHandle::new(pact, 0)
   }
 }
 
@@ -994,7 +999,7 @@ pub extern fn pactffi_new_message(pact: MessagePactHandle, description: *const c
         ..AsynchronousMessage::default()
       };
       inner.interactions.push(message.boxed_v4());
-      MessageHandle::new(pact, inner.interactions.len())
+      MessageHandle::new(pact, inner.interactions.len() as u16)
     }).unwrap_or_else(|| MessageHandle::new(pact, 0))
   } else {
     MessageHandle::new(pact, 0)
@@ -1264,7 +1269,7 @@ pub extern fn pactffi_new_async_message(pact: PactHandle, description: *const c_
 #[no_mangle]
 pub extern fn pactffi_free_pact_handle(pact: PactHandle) -> c_uint {
   let mut handles = PACT_HANDLES.lock().unwrap();
-  handles.remove(&pact.pact).map(|_| 0).unwrap_or(1)
+  handles.remove(&pact.pact_ref).map(|_| 0).unwrap_or(1)
 }
 
 /// Delete a Pact handle and free the resources used by it.
@@ -1278,5 +1283,55 @@ pub extern fn pactffi_free_pact_handle(pact: PactHandle) -> c_uint {
 #[no_mangle]
 pub extern fn pactffi_free_message_pact_handle(pact: MessagePactHandle) -> c_uint {
   let mut handles = PACT_HANDLES.lock().unwrap();
-  handles.remove(&pact.pact).map(|_| 0).unwrap_or(1)
+  handles.remove(&pact.pact_ref).map(|_| 0).unwrap_or(1)
+}
+
+#[cfg(test)]
+mod tests {
+  use std::ffi::CString;
+
+  use expectest::prelude::*;
+
+  use crate::mock_server::handles::{
+    InteractionHandle,
+    pactffi_free_pact_handle,
+    pactffi_new_async_message,
+    pactffi_new_interaction,
+    PactHandle,
+    PACT_HANDLES
+  };
+
+  #[test]
+  fn pact_handles() {
+    let pact_handle = PactHandle::new("TestC", "TestP");
+    let description = CString::new("first interaction").unwrap();
+    let i_handle = pactffi_new_interaction(pact_handle, description.as_ptr());
+
+    let description2 = CString::new("second interaction").unwrap();
+    let i_handle2 = pactffi_new_async_message(pact_handle, description2.as_ptr());
+
+    expect!(i_handle.interaction_ref).to(be_equal_to(((pact_handle.pact_ref as u32) << 16) + 1));
+    expect!(i_handle2.interaction_ref).to(be_equal_to(((pact_handle.pact_ref as u32) << 16) + 2));
+
+    pact_handle.with_pact(&|pact_ref, inner| {
+      expect!(pact_ref).to(be_equal_to(0));
+      expect!(inner.pact.consumer.name.as_str()).to(be_equal_to("TestC"));
+      expect!(inner.pact.provider.name.as_str()).to(be_equal_to("TestP"));
+      expect!(inner.pact.interactions.len()).to(be_equal_to(2));
+    });
+
+    i_handle.with_interaction(&|i_ref, _, inner| {
+      expect!(i_ref).to(be_equal_to(0));
+      expect!(inner.description().as_str()).to(be_equal_to("first interaction"));
+      expect!(inner.type_of().as_str()).to(be_equal_to("V4 Synchronous/HTTP"));
+    });
+
+    i_handle2.with_message(&|i_ref, inner, _| {
+      expect!(i_ref).to(be_equal_to(1));
+      expect!(inner.description().as_str()).to(be_equal_to("second interaction"));
+      expect!(inner.type_of().as_str()).to(be_equal_to("V4 Asynchronous/Messages"));
+    });
+
+    pactffi_free_pact_handle(pact_handle);
+  }
 }
