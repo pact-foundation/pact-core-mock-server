@@ -989,6 +989,8 @@ pub struct ConsumerVersionSelector {
   pub main_branch: Option<bool>,
   /// Applications with the given branch
   pub branch: Option<String>,
+  /// Applications that match the the provider version branch sent during verification
+  pub matching_branch: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
