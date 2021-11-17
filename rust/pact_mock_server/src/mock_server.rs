@@ -273,7 +273,10 @@ impl MockServer {
     };
 
     info!("Writing pact out to '{}'", filename.display());
-    let specification = self.spec_version;
+    let specification = match self.spec_version {
+      PactSpecification::Unknown => PactSpecification::V3,
+      _ => self.spec_version
+    };
     match write_pact(pact.boxed(), filename.as_path(), specification, overwrite) {
       Ok(_) => Ok(()),
       Err(err) => {
