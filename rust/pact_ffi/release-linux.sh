@@ -3,6 +3,7 @@
 cargo clean
 mkdir -p ../target/artifacts
 cargo build --release
+rustup component add rustfmt --toolchain nightly-x86_64-unknown-linux-gnu
 rustup run nightly cbindgen \
   --config cbindgen.toml \
   --crate pact_ffi \
