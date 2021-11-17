@@ -1691,6 +1691,7 @@ mod tests {
         deployed: None,
         released: None,
         main_branch: None,
+        matching_branch: None,
         environment: None,
       }), None).await;
 
@@ -1790,6 +1791,7 @@ mod tests {
       deployed: None,
       released: None,
       main_branch: None,
+      matching_branch: None,
       environment: None,
     }), None).await;
 
