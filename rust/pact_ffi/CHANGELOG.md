@@ -1,5 +1,18 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.1.2 - Bugfix Release
+
+* 631167fa - chore: update to latest mock server crate (Ronald Holshausen, Wed Nov 17 15:13:32 2021 +1100)
+* 87e7f11e - chore: remove note from pactffi_write_pact_file (Ronald Holshausen, Wed Nov 17 14:55:22 2021 +1100)
+* 5d4a09c6 - feat: store the pact specification version with the mock server (Ronald Holshausen, Wed Nov 17 14:46:56 2021 +1100)
+* 4ccc5d02 - chore: update doc comment on pactffi_write_pact_file (Ronald Holshausen, Wed Nov 17 14:04:59 2021 +1100)
+* 675506e1 - feat: add pactffi_pact_handle_write_file which knows about the spec version (Ronald Holshausen, Wed Nov 17 13:58:45 2021 +1100)
+* 09f3b888 - refactor: make the pact handle types opaque (Ronald Holshausen, Wed Nov 17 13:27:06 2021 +1100)
+* aff4d301 - fix: FFI always detects + stores JSON bodies as plain text (Matt Fellows, Tue Nov 16 23:02:12 2021 +1100)
+* fc5be202 - fix: update to latest driver crate (Ronald Holshausen, Tue Nov 16 16:19:02 2021 +1100)
+* e4a445ba - fix: race condition when shutting down plugin via FFI (Ronald Holshausen, Tue Nov 16 16:01:18 2021 +1100)
+* f3c5e7c1 - bump version to 0.1.2 (Ronald Holshausen, Tue Nov 16 14:04:54 2021 +1100)
+
 # 0.1.1 - Support V4 synchronous messages + protobuf plugin
 
 * 5d974c4a - chore: update to latest models and plugin driver crates (Ronald Holshausen, Tue Nov 16 11:56:53 2021 +1100)
