@@ -99,6 +99,7 @@ fn consumer_tags_to_selectors(tags: Vec<&str>) -> Vec<pact_verifier::ConsumerVer
       released: None,
       main_branch: None,
       environment: None,
+      matching_branch: None,
     }
   }).collect()
 }
