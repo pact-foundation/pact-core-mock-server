@@ -1237,6 +1237,55 @@ pub(crate) fn path_from_dir(directory: *const c_char, file_name: Option<&str>) -
   })
 }
 
+ffi_fn! {
+  /// External interface to write out the pact file. This function should
+  /// be called if all the consumer tests have passed. The directory to write the file to is passed
+  /// as the second parameter. If a NULL pointer is passed, the current working directory is used.
+  ///
+  /// If overwrite is true, the file will be overwritten with the contents of the current pact.
+  /// Otherwise, it will be merged with any existing pact file.
+  ///
+  /// Returns 0 if the pact file was successfully written. Returns a positive code if the file can
+  /// not be written or the function panics.
+  ///
+  /// # Safety
+  ///
+  /// The directory parameter must either be NULL or point to a valid NULL terminated string.
+  ///
+  /// # Errors
+  ///
+  /// Errors are returned as positive values.
+  ///
+  /// | Error | Description |
+  /// |-------|-------------|
+  /// | 1 | The function panicked. |
+  /// | 2 | The pact file was not able to be written. |
+  /// | 3 | The pact for the given handle was not found. |
+  fn pactffi_pact_handle_write_file(pact: PactHandle, directory: *const c_char, overwrite: bool) -> i32 {
+    let result = pact.with_pact(&|_, inner| {
+      let pact_file = inner.pact.default_file_name();
+      let filename = path_from_dir(directory, Some(pact_file.as_str()));
+      write_pact(inner.pact.boxed(), &filename.unwrap_or_else(|| PathBuf::from(pact_file.as_str())), inner.specification_version, overwrite)
+    });
+
+    match result {
+      Some(write_result) => match write_result {
+        Ok(_) => 0,
+        Err(e) => {
+          log::error!("unable to write the pact file: {:}", e);
+          2
+        }
+      },
+      None => {
+        log::error!("unable to write the pact file, message pact for handle {:?} not found", &pact);
+        3
+      }
+    }
+  } {
+    1
+  }
+}
+
 /// Creates a new V4 asynchronous message and returns a handle to it.
 ///
 /// * `description` - The message description. It needs to be unique for each Message.
@@ -1293,12 +1342,10 @@ mod tests {
   use expectest::prelude::*;
 
   use crate::mock_server::handles::{
-    InteractionHandle,
     pactffi_free_pact_handle,
     pactffi_new_async_message,
     pactffi_new_interaction,
-    PactHandle,
-    PACT_HANDLES
+    PactHandle
   };
 
   #[test]
