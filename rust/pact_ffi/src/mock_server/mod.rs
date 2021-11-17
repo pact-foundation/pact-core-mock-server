@@ -345,6 +345,9 @@ pub extern fn pactffi_cleanup_mock_server(mock_server_port: i32) -> bool {
 /// Returns 0 if the pact file was successfully written. Returns a positive code if the file can
 /// not be written, or there is no mock server running on that port or the function panics.
 ///
+/// **NOTE:** This function does not know about the spec version, and will write the pact file
+/// in V4 format. If you require a Pact file in an earlier format, use `pactffi_pact_handle_write_file` instead.
+///
 /// # Errors
 ///
 /// Errors are returned as positive values.
