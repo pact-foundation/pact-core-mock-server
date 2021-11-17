@@ -184,7 +184,7 @@ impl Pact for V4Pact {
     let metadata = self.metadata.iter().map(|(k, v)| {
       match v {
         Value::Object(map) => Some((k.clone(), map.iter()
-          .map(|(k, v)| (k.clone(), v.to_string())).collect())),
+          .map(|(k, v)| (k.clone(), json_to_string(v))).collect())),
         _ => None
       }
     }).flatten()
@@ -206,7 +206,7 @@ impl Pact for V4Pact {
     let metadata = self.metadata.iter().map(|(k, v)| {
       match v {
         Value::Object(map) => Some((k.clone(), map.iter()
-          .map(|(k, v)| (k.clone(), v.to_string())).collect())),
+          .map(|(k, v)| (k.clone(), json_to_string(v))).collect())),
         _ => None
       }
     }).flatten()
