@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use pact_models::pact::{Pact, write_pact};
+use pact_models::PactSpecification;
 use pact_models::sync_pact::RequestResponsePact;
 use pact_models::v4::http_parts::HttpRequest;
 
@@ -27,7 +28,9 @@ use crate::matching::MatchResult;
 #[derive(Debug, Default, Clone)]
 pub struct MockServerConfig {
   /// If CORS Pre-Flight requests should be responded to
-  pub cors_preflight: bool
+  pub cors_preflight: bool,
+  /// Pact specification to use
+  pub pact_specification: PactSpecification
 }
 
 /// Mock server scheme
@@ -83,7 +86,9 @@ pub struct MockServer {
   /// Mock server config
   pub config: MockServerConfig,
   /// Metrics collected by the mock server
-  pub metrics: MockServerMetrics
+  pub metrics: MockServerMetrics,
+  /// Pact spec version to use
+  pub spec_version: PactSpecification
 }
 
 impl MockServer {
@@ -107,7 +112,8 @@ impl MockServer {
       matches: matches.clone(),
       shutdown_tx: RefCell::new(Some(shutdown_tx)),
       config: config.clone(),
-      metrics: MockServerMetrics::default()
+      metrics: MockServerMetrics::default(),
+      spec_version: pact_specification(config.pact_specification, pact.specification_version())
     }));
 
     let (future, socket_addr) = hyper_server::create_and_bind(
@@ -154,7 +160,8 @@ impl MockServer {
       matches: matches.clone(),
       shutdown_tx: RefCell::new(Some(shutdown_tx)),
       config: config.clone(),
-      metrics: MockServerMetrics::default()
+      metrics: MockServerMetrics::default(),
+      spec_version: pact_specification(config.pact_specification, pact.specification_version())
     }));
 
     let (future, socket_addr) = hyper_server::create_and_bind_tls(
@@ -266,7 +273,7 @@ impl MockServer {
     };
 
     info!("Writing pact out to '{}'", filename.display());
-    let specification = pact.specification_version();
+    let specification = self.spec_version;
     match write_pact(pact.boxed(), filename.as_path(), specification, overwrite) {
       Ok(_) => Ok(()),
       Err(err) => {
@@ -287,6 +294,13 @@ impl MockServer {
     }
 }
 
+fn pact_specification(spec1: PactSpecification, spec2: PactSpecification) -> PactSpecification {
+  match spec1 {
+    PactSpecification::Unknown => spec2,
+    _ => spec1
+  }
+}
+
 impl Clone for MockServer {
   /// Make a clone all of the MockServer fields.
   /// Note that the clone of the original server cannot be shut down directly.
@@ -301,7 +315,8 @@ impl Clone for MockServer {
       matches: self.matches.clone(),
       shutdown_tx: RefCell::new(None),
       config: self.config.clone(),
-      metrics: self.metrics.clone()
+      metrics: self.metrics.clone(),
+      spec_version: self.spec_version
     }
   }
 }
@@ -318,7 +333,8 @@ impl Default for MockServer {
       matches: Arc::new(Mutex::new(vec![])),
       shutdown_tx: RefCell::new(None),
       config: Default::default(),
-      metrics: Default::default()
+      metrics: Default::default(),
+      spec_version: Default::default()
     }
   }
 }

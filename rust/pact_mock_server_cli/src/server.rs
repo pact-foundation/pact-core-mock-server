@@ -22,6 +22,7 @@ use webmachine_rust::headers::*;
 use pact_mock_server::mock_server::MockServerConfig;
 use pact_mock_server::tls::TlsConfigBuilder;
 use pact_models::pact::load_pact_from_json;
+use pact_models::PactSpecification;
 
 use crate::{SERVER_MANAGER, SERVER_OPTIONS, ServerOpts};
 use crate::verify;
@@ -65,7 +66,8 @@ fn start_provider(context: &mut WebmachineContext, options: ServerOpts) -> Resul
           debug!("Loaded pact = {:?}", pact);
           let mock_server_id = Uuid::new_v4().to_string();
           let config = MockServerConfig {
-            cors_preflight: query_param_set(context, "cors")
+            cors_preflight: query_param_set(context, "cors"),
+            pact_specification: PactSpecification::default()
           };
           debug!("Mock server config = {:?}", config);
 

@@ -1361,7 +1361,7 @@ mod tests {
     expect!(i_handle2.interaction_ref).to(be_equal_to(((pact_handle.pact_ref as u32) << 16) + 2));
 
     pact_handle.with_pact(&|pact_ref, inner| {
-      expect!(pact_ref).to(be_equal_to(0));
+      expect!(pact_ref).to(be_equal_to(pact_handle.pact_ref - 1));
       expect!(inner.pact.consumer.name.as_str()).to(be_equal_to("TestC"));
       expect!(inner.pact.provider.name.as_str()).to(be_equal_to("TestP"));
       expect!(inner.pact.interactions.len()).to(be_equal_to(2));

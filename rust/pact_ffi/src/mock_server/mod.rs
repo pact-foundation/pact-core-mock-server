@@ -62,6 +62,7 @@ use uuid::Uuid;
 
 use pact_matching::logging::fetch_buffer_contents;
 use pact_mock_server::{MANAGER, MockServerError, tls::TlsConfigBuilder, WritePactFileErr};
+use pact_mock_server::mock_server::MockServerConfig;
 use pact_mock_server::server_manager::ServerManager;
 
 use crate::convert_cstr;
@@ -224,10 +225,12 @@ pub extern fn pactffi_create_mock_server_for_pact(pact: handles::PactHandle, add
 
     if let Ok(Ok(addr)) = str::from_utf8(addr_c_str.to_bytes()).map(|s| s.parse::<std::net::SocketAddr>()) {
       pact.with_pact(&move |_, inner| {
+        let config = MockServerConfig { cors_preflight: true, pact_specification: inner.specification_version };
         let server_result = match &tls_config {
-          Some(tls_config) => pact_mock_server::start_tls_mock_server(
-            Uuid::new_v4().to_string(), inner.pact.boxed(), addr, tls_config),
-          None => pact_mock_server::start_mock_server(Uuid::new_v4().to_string(), inner.pact.boxed(), addr)
+          Some(tls_config) => pact_mock_server::start_tls_mock_server_with_config(
+            Uuid::new_v4().to_string(), inner.pact.boxed(), addr, tls_config, config),
+          None => pact_mock_server::start_mock_server_with_config(Uuid::new_v4().to_string(),
+            inner.pact.boxed(), addr, config)
         };
         match server_result {
           Ok(ms_port) => {
