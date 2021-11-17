@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.8.2 - Support setting pact spec version on the mock servers
+
+* 9cfe897a - feat(mock server): default pact spec to V3 if unknown (Ronald Holshausen, Wed Nov 17 14:53:19 2021 +1100)
+* 5d4a09c6 - feat: store the pact specification version with the mock server (Ronald Holshausen, Wed Nov 17 14:46:56 2021 +1100)
+* fc5be202 - fix: update to latest driver crate (Ronald Holshausen, Tue Nov 16 16:19:02 2021 +1100)
+* 33891ccb - bump version to 0.8.2 (Ronald Holshausen, Tue Nov 16 12:17:47 2021 +1100)
+
 # 0.8.1 - Support for using plugins via FFI
 
 * 5d974c4a - chore: update to latest models and plugin driver crates (Ronald Holshausen, Tue Nov 16 11:56:53 2021 +1100)
