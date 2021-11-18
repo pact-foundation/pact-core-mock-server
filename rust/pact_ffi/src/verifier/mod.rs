@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 
 use pact_matching::logging::fetch_buffer_contents;
 use pact_models::prelude::HttpAuth;
+use pact_verifier::selectors::{consumer_tags_to_selectors, json_to_selectors};
 
 use crate::{as_mut, as_ref, ffi_fn, safe_str};
 use crate::ptr;
@@ -396,7 +397,11 @@ ffi_fn! {
       include_wip_pacts_since: *const c_char,
       provider_tags: *const *const c_char,
       provider_tags_len: c_ushort,
-      provider_branch: *const c_char
+      provider_branch: *const c_char,
+      consumer_version_selectors: *const *const c_char,
+      consumer_version_selectors_len: c_ushort,
+      consumer_version_tags: *const *const c_char,
+      consumer_version_tags_len: c_ushort
     ) {
       let handle = as_mut!(handle);
       let url = safe_str!(url);
@@ -430,20 +435,19 @@ ffi_fn! {
         None
       };
 
-      let tags = get_vector(provider_tags, provider_tags_len);
+      let provider_tags_vector = get_vector(provider_tags, provider_tags_len);
+      let consumer_version_selectors_vector = get_vector(consumer_version_selectors, consumer_version_selectors_len);
+      let consumer_version_tags_vector = get_vector(consumer_version_tags, consumer_version_tags_len);
 
-    // TODO: need a way to pass in the consumer version selectors
-    // let selectors = if matches.is_present("consumer-version-selectors") {
-    // matches.values_of("consumer-version-selectors")
-    // .map_or_else(Vec::new, |s| json_to_selectors(s.collect::<Vec<_>>()))
-    // } else if matches.is_present("consumer-version-tags") {
-    // matches.values_of("consumer-version-tags")
-    // .map_or_else(Vec::new, |tags| consumer_tags_to_selectors(tags.collect::<Vec<_>>()))
-    // } else {
-    // vec![]
-    // };
+      let selectors = if consumer_version_selectors_vector.len() > 0 {
+        json_to_selectors(consumer_version_selectors_vector.iter().map(|s| &**s).collect())
+      } else if consumer_version_tags_vector.len() > 0 {
+        consumer_tags_to_selectors(consumer_version_tags_vector.iter().map(|s| &**s).collect())
+      } else {
+        vec![]
+      };
 
-      handle.add_pact_broker_source(url, provider_name, enable_pending > 0, wip, tags, provider_branch, vec![], &auth);
+      handle.add_pact_broker_source(url, provider_name, enable_pending > 0, wip, provider_tags_vector, provider_branch, selectors, &auth);
     }
 }
 
