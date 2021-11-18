@@ -13,6 +13,7 @@ use pact_verifier::callback_executors::HttpRequestProviderStateExecutor;
 pub struct VerifierHandle {
   provider: ProviderInfo,
   sources: Vec<PactSource>,
+  filter: FilterInfo,
   state_change: Arc<HttpRequestProviderStateExecutor>,
   options: VerificationOptions<NullRequestFilterExecutor>,
   consumers: Vec<String>
@@ -24,6 +25,7 @@ impl VerifierHandle {
     VerifierHandle {
       provider: ProviderInfo::default(),
       sources: Vec::new(),
+      filter: FilterInfo::None,
       state_change: Arc::new(HttpRequestProviderStateExecutor::default()),
       options: VerificationOptions::default(),
       consumers: vec![]
@@ -50,6 +52,30 @@ impl VerifierHandle {
       host,
       port: if port == 0 { None } else { Some(port) },
       path
+    }
+  }
+
+  /// Update the filter info
+  pub fn update_filter_info(
+    &mut self,
+    filter_description: String,
+    filter_state: String,
+    filter_no_state: bool
+  ) {
+    self.filter = if !filter_description.is_empty() && (!filter_state.is_empty() || filter_no_state) {
+        if !filter_state.is_empty() {
+            FilterInfo::DescriptionAndState(filter_description, filter_state)
+        } else {
+            FilterInfo::DescriptionAndState(filter_description, String::new())
+        }
+    } else if !filter_description.is_empty() {
+        FilterInfo::Description(filter_description)
+    } else if !filter_state.is_empty() {
+        FilterInfo::State(filter_state)
+    } else if filter_no_state {
+        FilterInfo::State(String::new())
+    } else {
+        FilterInfo::None
     }
   }
 
@@ -168,8 +194,6 @@ impl VerifierHandle {
   /// * 1 - verification was not successful
   /// * 2 - failed to run the verification
   pub fn execute(&self) -> i32 {
-    let filter = FilterInfo::None;
-
     for s in &self.sources {
       debug!("Pact source to verify = {}", s);
     };
@@ -179,7 +203,7 @@ impl VerifierHandle {
       verify_provider_async(
         self.provider.clone(),
         self.sources.clone(),
-        filter,
+        self.filter.clone(),
         self.consumers.clone(),
         self.options.clone(),
         &self.state_change.clone()
