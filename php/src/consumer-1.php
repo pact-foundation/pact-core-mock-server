@@ -14,7 +14,7 @@ $ffi->pactffi_with_specification($pact, $ffi->PactSpecification_V3);
 
 $interaction = $ffi->pactffi_new_interaction($pact, 'A POST request to create book');
 $ffi->pactffi_upon_receiving($interaction, 'A POST request to create book');
-$ffi->pactffi_given($interaction, 'Book Fixtures Loaded');
+$ffi->pactffi_given($interaction, 'No book fixtures required');
 $ffi->pactffi_with_request($interaction, 'POST', '/api/books');
 $ffi->pactffi_with_header($interaction, $ffi->InteractionPart_Request, 'Content-Type', 0, 'application/json');
 $ffi->pactffi_with_body($interaction, $ffi->InteractionPart_Request, 'application/json', '{
