@@ -7,7 +7,7 @@
       "contents": {
         "uuid": "fb5a885f-f7e8-4a50-950f-c1a64a94d500"
       },
-      "description": "Book Created",
+      "description": "Book (id fb5a885f-f7e8-4a50-950f-c1a64a94d500) created message",
       "matchingRules": {
         "body": {
           "$.uuid": {
@@ -26,14 +26,15 @@
       },
       "providerStates": [
         {
-          "name": "Provider has book"
+          "name": "A book with id fb5a885f-f7e8-4a50-950f-c1a64a94d500 is required"
         }
       ]
     }
   ],
   "metadata": {
     "pactRust": {
-      "version": "0.1.4"
+      "ffi": "\"0.1.3\"",
+      "models": "0.2.1"
     },
     "pactSpecification": {
       "version": "3.0.0"

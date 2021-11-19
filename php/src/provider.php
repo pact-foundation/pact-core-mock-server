@@ -16,7 +16,7 @@ $ffi = FFI::cdef($code, __DIR__ . '/../../rust/target/debug/libpact_ffi.so');
 $ffi->pactffi_init('LOG_LEVEL');
 
 $tags = ['feature-x', 'master', 'test', 'prod'];
-$consumers = ['http-consumer-1', 'http-consumer-2'];
+$consumers = ['http-consumer-1', 'http-consumer-2', 'message-consumer-2'];
 
 function getCData(array $items): FFI\CData
 {
@@ -35,6 +35,7 @@ function getCData(array $items): FFI\CData
 
 $handle = $ffi->pactffi_verifier_new();
 $ffi->pactffi_verifier_set_provider_info($handle, 'http-provider', 'http', 'localhost', 8000, '/');
+$ffi->pactffi_verifier_set_filter_info($handle, '', 'book', false);
 $ffi->pactffi_verifier_set_provider_state($handle, 'http://localhost:8000/change-state', true, true);
 $ffi->pactffi_verifier_set_verification_options($handle, false, '1.0.0', null, false, 5000, getCData($tags), count($tags));
 $ffi->pactffi_verifier_set_consumer_filters($handle, getCData($consumers), count($consumers));
