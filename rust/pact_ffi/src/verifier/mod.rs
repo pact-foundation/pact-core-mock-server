@@ -127,6 +127,32 @@ ffi_fn! {
 }
 
 ffi_fn! {
+    /// Set the filters for the Pact verifier.
+    ///
+    /// If `filter_description` is not empty, it needs to be as a regular expression.
+    ///
+    /// `filter_no_state` is a boolean value. Set it to greater than zero to turn the option on.
+    ///
+    /// # Safety
+    ///
+    /// All string fields must contain valid UTF-8. Invalid UTF-8
+    /// will be replaced with U+FFFD REPLACEMENT CHARACTER.
+    ///
+    fn pactffi_verifier_set_filter_info(
+      handle: *mut handle::VerifierHandle,
+      filter_description: *const c_char,
+      filter_state: *const c_char,
+      filter_no_state: c_uchar
+    ) {
+      let handle = as_mut!(handle);
+      let filter_description = if_null(filter_description, "");
+      let filter_state = if_null(filter_state, "");
+
+      handle.update_filter_info(filter_description, filter_state, filter_no_state > 0);
+    }
+}
+
+ffi_fn! {
     /// Set the provider state for the Pact verifier.
     ///
     /// `teardown` is a boolean value. Set it to greater than zero to turn the option on.
