@@ -37,6 +37,7 @@ hex = "0.4.2"
 rand_regex = "0.15"
 regex-syntax = "0.6.21"
 logos = "0.12.0"
+ariadne = "0.1.3"
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 fs2 = "0.4.3"
@@ -56,6 +57,7 @@ quickcheck = "1"
 hamcrest2 = "0.3.0"
 test-env-log = "0.2.3"
 pretty_assertions = "1.0.0"
+trim-margin = "0.1.0"
 
 [build-dependencies]
 parse-zoneinfo = "0.3.0"
