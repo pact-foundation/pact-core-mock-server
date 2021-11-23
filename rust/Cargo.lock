@@ -1340,7 +1340,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sxd-document",
- "test-env-log",
+ "test-log",
  "tokio",
  "tree_magic_mini",
  "uuid",
@@ -1480,7 +1480,7 @@ dependencies = [
  "serde_json",
  "speculate",
  "sxd-document",
- "test-env-log",
+ "test-log",
  "trim-margin",
  "uuid",
 ]
@@ -2358,6 +2358,17 @@ name = "test-env-log"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "877189d680101869f65ef94168105d6c188b3a143c13a2d42cf8a09c4c704f8a"
+dependencies = [
+ "proc-macro2 1.0.32",
+ "quote 1.0.10",
+ "syn 1.0.81",
+]
+
+[[package]]
+name = "test-log"
+version = "0.2.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eb78caec569a40f42c078c798c0e35b922d9054ec28e166f0d6ac447563d91a4"
 dependencies = [
  "proc-macro2 1.0.32",
  "quote 1.0.10",

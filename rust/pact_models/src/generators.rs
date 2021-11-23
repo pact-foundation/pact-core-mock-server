@@ -1396,7 +1396,7 @@ mod tests {
   use expectest::expect;
   use expectest::prelude::*;
   use hamcrest2::*;
-  use test_env_log::test;
+  use test_log::test;
 
   use crate::generators::Generator::{RandomDecimal, RandomInt, Regex};
 

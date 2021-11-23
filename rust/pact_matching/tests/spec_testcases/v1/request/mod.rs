@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use test_env_log::test;
+use test_log::test;
 #[allow(unused_imports)]
 use pact_models::PactSpecification;
 #[allow(unused_imports)]

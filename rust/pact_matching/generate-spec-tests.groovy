@@ -13,7 +13,7 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
 
   testFile.withPrintWriter { pw ->
     pw.println('#[allow(unused_imports)]')
-    pw.println('use test_env_log::test;')
+    pw.println('use test_log::test;')
     pw.println('#[allow(unused_imports)]')
     pw.println('use pact_models::PactSpecification;')
     pw.println('#[allow(unused_imports)]')

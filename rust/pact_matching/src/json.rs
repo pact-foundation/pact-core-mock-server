@@ -858,7 +858,7 @@ mod tests {
     expect!(Value::String("100".into()).matches_with(&Value::Null, &matcher, false)).to(be_ok());
   }
 
-  #[test_env_log::test]
+  #[test_log::test]
   fn compare_maps_handles_wildcard_matchers() {
     let val1 = request!(r#"
     {

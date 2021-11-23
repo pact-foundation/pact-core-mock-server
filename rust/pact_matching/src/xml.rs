@@ -375,7 +375,7 @@ mod tests {
   use expectest::expect;
   use expectest::prelude::*;
   use ntest::test_case;
-  use test_env_log::test;
+  use test_log::test;
 
   use pact_models::bodies::OptionalBody;
   use pact_models::matchingrules;

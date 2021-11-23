@@ -153,7 +153,7 @@ mod tests {
 
   use crate::generators::DefaultVariantMatcher;
 
-  #[test_env_log::test]
+  #[test_log::test]
   fn array_contains_generator_test() {
     let generator = Generator::ArrayContains(vec![
       (0, matchingrules_list! {

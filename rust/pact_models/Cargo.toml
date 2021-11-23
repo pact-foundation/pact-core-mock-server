@@ -56,7 +56,7 @@ speculate = "0.1.2"
 rstest = "0.10.0"
 quickcheck = "1"
 hamcrest2 = "0.3.0"
-test-env-log = "0.2.3"
+test-log = "0.2.8"
 pretty_assertions = "1.0.0"
 trim-margin = "0.1.0"
 
