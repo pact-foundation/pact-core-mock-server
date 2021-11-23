@@ -16,6 +16,7 @@ use bytes::{BufMut, BytesMut};
 use itertools::Either;
 use log::warn;
 use logos::{Lexer, Logos};
+use semver::Version;
 
 use crate::generators::Generator;
 use crate::matchingrules::MatchingRule;
@@ -169,9 +170,7 @@ enum MatcherDefinitionToken {
 /// * `matching(datetime, 'yyyy-MM-dd','2000-01-01')` - datetime matcher with format string
 pub fn parse_matcher_def(v: &str) -> anyhow::Result<MatchingRuleDefinition> {
   let mut lex = MatcherDefinitionToken::lexer(v);
-  matching_definition(&mut lex, v).map_err(|err| {
-    anyhow!("'{}' is not a valid value definition: {}", v, err)
-  })
+  matching_definition(&mut lex, v)
 }
 
 // matchingDefinition returns [ MatchingRuleDefinition value ] :
@@ -303,7 +302,7 @@ fn parse_matching(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::R
 //   ;
 fn parse_matching_rule(lex: &mut logos::Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Result<(String, ValueType, Option<MatchingRule>, Option<Generator>, Option<MatchingReference>)> {
   let next = lex.next()
-    .ok_or_else(|| anyhow!("expected a matcher type"))?;
+    .ok_or_else(|| end_of_expression(v, "a matcher (equalTo, regex, etc.)"))?;
   if next == MatcherDefinitionToken::Id {
     match lex.slice() {
       "equalTo" => parse_equality(lex, v),
@@ -318,10 +317,54 @@ fn parse_matching_rule(lex: &mut logos::Lexer<MatcherDefinitionToken>, v: &str) 
       "decimal" => parse_decimal(lex, v),
       "boolean" => parse_boolean(lex, v),
       "contentType" => parse_content_type(lex, v),
-      _ => Err(anyhow!("expected the type of matcher, got '{}'", lex.slice()))
+      "semver" => parse_semver(lex, v),
+      _ => {
+        let mut buffer = BytesMut::new().writer();
+        let span = lex.span();
+        let report = Report::build(ReportKind::Error, "expression", span.start - 1)
+          .with_config(Config::default().with_color(false))
+          .with_message(format!("Expected the type of matcher, got '{}'", lex.slice()))
+          .with_label(Label::new(("expression", span)).with_message("This is not a valid matcher type"))
+          .with_note("Valid matchers are: equalTo, regex, type, datetime, date, time, include, number, integer, decimal, boolean, contentType, semver")
+          .finish();
+        report.write(("expression", Source::from(v)), &mut buffer)?;
+        let message = from_utf8(&*buffer.get_ref())?.to_string();
+        Err(anyhow!(message))
+      }
     }
   } else {
-    Err(anyhow!("expected the type of matcher, got '{}'", lex.slice()))
+    let mut buffer = BytesMut::new().writer();
+    let span = lex.span();
+    let report = Report::build(ReportKind::Error, "expression", span.start - 1)
+      .with_config(Config::default().with_color(false))
+      .with_message(format!("Expected the type of matcher, got '{}'", lex.slice()))
+      .with_label(Label::new(("expression", span)).with_message("Expected a matcher (equalTo, regex, etc.) here"))
+      .finish();
+    report.write(("expression", Source::from(v)), &mut buffer)?;
+    let message = from_utf8(&*buffer.get_ref())?.to_string();
+    Err(anyhow!(message))
+  }
+}
+
+// COMMA s=string { $rule = SemverMatcher.INSTANCE; $value = $s.contents; $type = ValueType.String; }
+fn parse_semver(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Result<(String, ValueType, Option<MatchingRule>, Option<Generator>, Option<MatchingReference>)> {
+  parse_comma(lex, v)?;
+  let value = parse_string(lex, v)?;
+
+  match Version::parse(value.as_str()) {
+    Ok(_) => Ok((value, ValueType::String, Some(MatchingRule::Semver), None, None)),
+    Err(err) => {
+      let mut buffer = BytesMut::new().writer();
+      let span = lex.span();
+      let report = Report::build(ReportKind::Error, "expression", span.start - 1)
+        .with_config(Config::default().with_color(false))
+        .with_message(format!("Expected a semver compatible string, got {} - {}", lex.slice(), err))
+        .with_label(Label::new(("expression", span)).with_message("This is not a valid semver value"))
+        .finish();
+      report.write(("expression", Source::from(v)), &mut buffer)?;
+      let message = from_utf8(&*buffer.get_ref())?.to_string();
+      Err(anyhow!(message))
+    }
   }
 }
 
@@ -467,11 +510,21 @@ fn parse_boolean(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Re
 }
 
 fn parse_string(lex: &mut logos::Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Result<String> {
-  let next = lex.next().ok_or_else(|| anyhow!("expected a starting quote"))?;
+  let next = lex.next().ok_or_else(|| end_of_expression(v, "a string"))?;
   if next == MatcherDefinitionToken::String {
     Ok(lex.slice().trim_matches('\'').to_string())
   } else {
-    Err(anyhow!("expected a starting quote, got '{}'", lex.slice()))
+    let mut buffer = BytesMut::new().writer();
+    let span = lex.span();
+    let report = Report::build(ReportKind::Error, "expression", span.start - 1)
+      .with_config(Config::default().with_color(false))
+      .with_message(format!("Expected a string value, got {}", lex.slice()))
+      .with_label(Label::new(("expression", span.clone())).with_message("Expected this to be a string"))
+      .with_note(format!("Surround the value in quotes: {}'{}'{}", &v[..span.start], lex.slice(), &v[span.end..]))
+      .finish();
+    report.write(("expression", Source::from(v)), &mut buffer)?;
+    let message = from_utf8(&*buffer.get_ref())?.to_string();
+    Err(anyhow!(message))
   }
 }
 
@@ -513,6 +566,7 @@ mod test {
 
   use crate::generators::Generator::{Date, DateTime, Time};
   use crate::matchingrules::MatchingRule;
+  use crate::matchingrules::MatchingRule::Type;
 
   use super::*;
 
@@ -697,5 +751,95 @@ mod test {
     expect!(ValueType::Boolean.merge(ValueType::Number )).to(be_equal_to(ValueType::Number));
     expect!(ValueType::Boolean.merge(ValueType::Integer)).to(be_equal_to(ValueType::Integer));
     expect!(ValueType::Boolean.merge(ValueType::Decimal)).to(be_equal_to(ValueType::Decimal));
+  }
+
+  #[test]
+  fn parse_semver_matcher() {
+    expect!(super::parse_matcher_def("matching(semver, '1.0.0')").unwrap()).to(
+      be_equal_to(MatchingRuleDefinition::new("1.0.0".to_string(),
+                                              ValueType::String,
+                                              MatchingRule::Semver,
+                                              None)));
+
+    expect!(as_string!(super::parse_matcher_def("matching(semver, '100')"))).to(
+      be_err().value(
+        "|Error: Expected a semver compatible string, got '100' - unexpected end of input while parsing major version number
+            |   ╭─[expression:1:17]
+            |   │
+            | 1 │ matching(semver, '100')
+            |   ·                  ──┬── \u{0020}
+            |   ·                    ╰──── This is not a valid semver value
+            |───╯
+            |
+            ".trim_margin().unwrap()));
+
+    expect!(as_string!(super::parse_matcher_def("matching(semver, 100)"))).to(
+      be_err().value(
+        "|Error: Expected a string value, got 100
+            |   ╭─[expression:1:17]
+            |   │
+            | 1 │ matching(semver, 100)
+            |   ·                  ─┬─ \u{0020}
+            |   ·                   ╰─── Expected this to be a string
+            |   ·\u{0020}
+            |   · Note: Surround the value in quotes: matching(semver, '100')
+            |───╯
+            |
+            ".trim_margin().unwrap()
+      ));
+  }
+
+  #[test]
+  fn parse_matching_rule_test() {
+    let mut lex = super::MatcherDefinitionToken::lexer("type, '1.0.0')");
+    expect!(super::parse_matching_rule(&mut lex, "matching(type, '1.0.0')").unwrap()).to(
+      be_equal_to(("1.0.0".to_string(), ValueType::String, Some(Type), None, None)));
+
+    let mut lex = super::MatcherDefinitionToken::lexer("match(");
+    lex.next();
+    lex.next();
+    expect!(as_string!(super::parse_matching_rule(&mut lex, "matching("))).to(
+      be_err().value(
+        "|Error: Expected a matcher (equalTo, regex, etc.), got the end of the expression
+            |   ╭─[expression:1:10]
+            |   │
+            | 1 │ matching(
+            |   ·          │\u{0020}
+            |   ·          ╰─ Expected a matcher (equalTo, regex, etc.) here
+            |───╯
+            |
+            ".trim_margin().unwrap()));
+
+    let mut lex = super::MatcherDefinitionToken::lexer("match(100, '100')");
+    lex.next();
+    lex.next();
+    expect!(as_string!(super::parse_matching_rule(&mut lex, "match(100, '100')"))).to(
+      be_err().value(
+        "|Error: Expected the type of matcher, got '100'
+            |   ╭─[expression:1:6]
+            |   │
+            | 1 │ match(100, '100')
+            |   ·       ─┬─ \u{0020}
+            |   ·        ╰─── Expected a matcher (equalTo, regex, etc.) here
+            |───╯
+            |
+            ".trim_margin().unwrap()));
+
+    let mut lex = super::MatcherDefinitionToken::lexer("match(testABBC, '100')");
+    lex.next();
+    lex.next();
+    expect!(as_string!(super::parse_matching_rule(&mut lex, "match(testABBC, '100')"))).to(
+      be_err().value(
+        "|Error: Expected the type of matcher, got 'testABBC'
+            |   ╭─[expression:1:6]
+            |   │
+            | 1 │ match(testABBC, '100')
+            |   ·       ────┬─── \u{0020}
+            |   ·           ╰───── This is not a valid matcher type
+            |   ·\u{0020}
+            |   · Note: Valid matchers are: equalTo, regex, type, datetime, date, time, include, number, integer, decimal, boolean, contentType, semver
+            |───╯
+            |
+            ".trim_margin().unwrap()));
   }
 }
