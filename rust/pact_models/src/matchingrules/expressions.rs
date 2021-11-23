@@ -157,6 +157,9 @@ enum MatcherDefinitionToken {
   #[regex(r"null")]
   Null,
 
+  #[token("$")]
+  Dollar,
+
   #[error]
   #[regex(r"[ \t\n\f]+", logos::skip)]
   Error
@@ -321,7 +324,7 @@ fn parse_matching_rule(lex: &mut logos::Lexer<MatcherDefinitionToken>, v: &str) 
       _ => {
         let mut buffer = BytesMut::new().writer();
         let span = lex.span();
-        let report = Report::build(ReportKind::Error, "expression", span.start - 1)
+        let report = Report::build(ReportKind::Error, "expression", span.start)
           .with_config(Config::default().with_color(false))
           .with_message(format!("Expected the type of matcher, got '{}'", lex.slice()))
           .with_label(Label::new(("expression", span)).with_message("This is not a valid matcher type"))
@@ -332,10 +335,12 @@ fn parse_matching_rule(lex: &mut logos::Lexer<MatcherDefinitionToken>, v: &str) 
         Err(anyhow!(message))
       }
     }
+  } else if next == MatcherDefinitionToken::Dollar {
+    parse_reference(lex, v)
   } else {
     let mut buffer = BytesMut::new().writer();
     let span = lex.span();
-    let report = Report::build(ReportKind::Error, "expression", span.start - 1)
+    let report = Report::build(ReportKind::Error, "expression", span.start)
       .with_config(Config::default().with_color(false))
       .with_message(format!("Expected the type of matcher, got '{}'", lex.slice()))
       .with_label(Label::new(("expression", span)).with_message("Expected a matcher (equalTo, regex, etc.) here"))
@@ -344,6 +349,11 @@ fn parse_matching_rule(lex: &mut logos::Lexer<MatcherDefinitionToken>, v: &str) 
     let message = from_utf8(&*buffer.get_ref())?.to_string();
     Err(anyhow!(message))
   }
+}
+
+fn parse_reference(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Result<(String, ValueType, Option<MatchingRule>, Option<Generator>, Option<MatchingReference>)> {
+  let name = parse_string(lex, v)?;
+  Ok((name.clone(), ValueType::Unknown, None, None, Some(MatchingReference { name })))
 }
 
 // COMMA s=string { $rule = SemverMatcher.INSTANCE; $value = $s.contents; $type = ValueType.String; }
@@ -356,7 +366,7 @@ fn parse_semver(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Res
     Err(err) => {
       let mut buffer = BytesMut::new().writer();
       let span = lex.span();
-      let report = Report::build(ReportKind::Error, "expression", span.start - 1)
+      let report = Report::build(ReportKind::Error, "expression", span.start)
         .with_config(Config::default().with_color(false))
         .with_message(format!("Expected a semver compatible string, got {} - {}", lex.slice(), err))
         .with_label(Label::new(("expression", span)).with_message("This is not a valid semver value"))
@@ -516,7 +526,7 @@ fn parse_string(lex: &mut logos::Lexer<MatcherDefinitionToken>, v: &str) -> anyh
   } else {
     let mut buffer = BytesMut::new().writer();
     let span = lex.span();
-    let report = Report::build(ReportKind::Error, "expression", span.start - 1)
+    let report = Report::build(ReportKind::Error, "expression", span.start)
       .with_config(Config::default().with_color(false))
       .with_message(format!("Expected a string value, got {}", lex.slice()))
       .with_label(Label::new(("expression", span.clone())).with_message("Expected this to be a string"))
@@ -535,7 +545,7 @@ fn parse_comma(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Resu
   } else {
     let mut buffer = BytesMut::new().writer();
     let span = lex.span();
-    let report = Report::build(ReportKind::Error, "expression", span.start - 1)
+    let report = Report::build(ReportKind::Error, "expression", span.start)
       .with_config(Config::default().with_color(false))
       .with_message(format!("Expected a comma, got '{}'", lex.slice()))
       .with_label(Label::new(("expression", span)).with_message("Expected a comma before this"))
@@ -686,7 +696,7 @@ mod test {
     expect!(as_string!(super::parse_comma(&mut lex, "100 notEmpty(100)"))).to(
       be_err().value(
         "|Error: Expected a comma, got 'notEmpty'
-            |   ╭─[expression:1:4]
+            |   ╭─[expression:1:5]
             |   │
             | 1 │ 100 notEmpty(100)
             |   ·     ────┬─── \u{0020}
@@ -700,7 +710,6 @@ mod test {
     lex2.next();
     expect!(as_string!(super::parse_comma(&mut lex2, "100"))).to(
       be_err().value(
-
         "|Error: Expected a comma, got the end of the expression
             |   ╭─[expression:1:4]
             |   │
@@ -764,7 +773,7 @@ mod test {
     expect!(as_string!(super::parse_matcher_def("matching(semver, '100')"))).to(
       be_err().value(
         "|Error: Expected a semver compatible string, got '100' - unexpected end of input while parsing major version number
-            |   ╭─[expression:1:17]
+            |   ╭─[expression:1:18]
             |   │
             | 1 │ matching(semver, '100')
             |   ·                  ──┬── \u{0020}
@@ -776,7 +785,7 @@ mod test {
     expect!(as_string!(super::parse_matcher_def("matching(semver, 100)"))).to(
       be_err().value(
         "|Error: Expected a string value, got 100
-            |   ╭─[expression:1:17]
+            |   ╭─[expression:1:18]
             |   │
             | 1 │ matching(semver, 100)
             |   ·                  ─┬─ \u{0020}
@@ -816,7 +825,7 @@ mod test {
     expect!(as_string!(super::parse_matching_rule(&mut lex, "match(100, '100')"))).to(
       be_err().value(
         "|Error: Expected the type of matcher, got '100'
-            |   ╭─[expression:1:6]
+            |   ╭─[expression:1:7]
             |   │
             | 1 │ match(100, '100')
             |   ·       ─┬─ \u{0020}
@@ -831,13 +840,54 @@ mod test {
     expect!(as_string!(super::parse_matching_rule(&mut lex, "match(testABBC, '100')"))).to(
       be_err().value(
         "|Error: Expected the type of matcher, got 'testABBC'
-            |   ╭─[expression:1:6]
+            |   ╭─[expression:1:7]
             |   │
             | 1 │ match(testABBC, '100')
             |   ·       ────┬─── \u{0020}
             |   ·           ╰───── This is not a valid matcher type
             |   ·\u{0020}
             |   · Note: Valid matchers are: equalTo, regex, type, datetime, date, time, include, number, integer, decimal, boolean, contentType, semver
+            |───╯
+            |
+            ".trim_margin().unwrap()));
+  }
+
+  #[test]
+  fn parse_matching_rule_with_reference_test() {
+    let mut lex = super::MatcherDefinitionToken::lexer("$'bob'");
+    expect!(super::parse_matching_rule(&mut lex, "matching($'bob')").unwrap()).to(
+      be_equal_to(("bob".to_string(), ValueType::Unknown, None, None, Some(MatchingReference {
+        name: "bob".to_string()
+      }))));
+
+    let mut lex = super::MatcherDefinitionToken::lexer("match($");
+    lex.next();
+    lex.next();
+    expect!(as_string!(super::parse_matching_rule(&mut lex, "matching($"))).to(
+      be_err().value(
+        "|Error: Expected a string, got the end of the expression
+            |   ╭─[expression:1:11]
+            |   │
+            | 1 │ matching($
+            |   ·           │\u{0020}
+            |   ·           ╰─ Expected a string here
+            |───╯
+            |
+            ".trim_margin().unwrap()));
+
+    let mut lex = super::MatcherDefinitionToken::lexer("match($100)");
+    lex.next();
+    lex.next();
+    expect!(as_string!(super::parse_matching_rule(&mut lex, "match($100)"))).to(
+      be_err().value(
+        "|Error: Expected a string value, got 100
+            |   ╭─[expression:1:8]
+            |   │
+            | 1 │ match($100)
+            |   ·        ─┬─ \u{0020}
+            |   ·         ╰─── Expected this to be a string
+            |   ·\u{0020}
+            |   · Note: Surround the value in quotes: match($'100')
             |───╯
             |
             ".trim_margin().unwrap()));
