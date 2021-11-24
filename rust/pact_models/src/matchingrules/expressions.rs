@@ -130,6 +130,12 @@ enum MatcherDefinitionToken {
   #[token("notEmpty")]
   NotEmpty,
 
+  #[token("eachKey")]
+  EachKey,
+
+  #[token("eachValue")]
+  EachValue,
+
   #[token("(")]
   LeftBracket,
 
@@ -172,8 +178,12 @@ enum MatcherDefinitionToken {
 /// * `matching(number,100)` - number matcher
 /// * `matching(datetime, 'yyyy-MM-dd','2000-01-01')` - datetime matcher with format string
 pub fn parse_matcher_def(v: &str) -> anyhow::Result<MatchingRuleDefinition> {
-  let mut lex = MatcherDefinitionToken::lexer(v);
-  matching_definition(&mut lex, v)
+  if v.is_empty() {
+    Err(anyhow!("Expected a matching rule definition, but got an empty string"))
+  } else {
+    let mut lex = MatcherDefinitionToken::lexer(v);
+    matching_definition(&mut lex, v)
+  }
 }
 
 // matchingDefinition returns [ MatchingRuleDefinition value ] :
@@ -240,14 +250,124 @@ fn matching_definition_exp(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> 
       Ok(MatchingRuleDefinition {
         value,
         value_type,
-        rules: vec![ Either::Left(NotEmpty) ],
+        rules: vec![Either::Left(NotEmpty)],
+        generator: None
+      })
+    } else if token == MatcherDefinitionToken::EachKey {
+      let definition = parse_each_key(lex, v)?;
+      Ok(definition)
+    } else if token == MatcherDefinitionToken::EachValue {
+      let definition = parse_each_value(lex, v)?;
+      Ok(definition)
+    } else {
+      let mut buffer = BytesMut::new().writer();
+      let span = lex.span();
+      let report = Report::build(ReportKind::Error, "expression", span.start)
+        .with_config(Config::default().with_color(false))
+        .with_message(format!("Expected a type of matching rule definition, but got '{}'", lex.slice()))
+        .with_label(Label::new(("expression", span)).with_message("Expected a matching rule definition here"))
+        .with_note("valid matching rule definitions are: matching, notEmpty, eachKey, eachValue")
+        .finish();
+      report.write(("expression", Source::from(v)), &mut buffer)?;
+      let message = from_utf8(&*buffer.get_ref())?.to_string();
+      Err(anyhow!(message))
+    }
+  } else {
+    let mut buffer = BytesMut::new().writer();
+    let span = lex.span();
+    let report = Report::build(ReportKind::Error, "expression", span.start)
+      .with_config(Config::default().with_color(false))
+      .with_message(format!("Expected a type of matching rule definition but got the end of the expression"))
+      .with_label(Label::new(("expression", span)).with_message("Expected a matching rule definition here"))
+      .with_note("valid matching rule definitions are: matching, notEmpty, eachKey, eachValue")
+      .finish();
+    report.write(("expression", Source::from(v)), &mut buffer)?;
+    let message = from_utf8(&*buffer.get_ref())?.to_string();
+    Err(anyhow!(message))
+  }
+}
+
+// LEFT_BRACKET e=matchingDefinitionExp RIGHT_BRACKET {
+//   if ($e.value != null) {
+//     $value = new MatchingRuleDefinition(null, ValueType.Unknown, List.of((Either<MatchingRule, MatchingReference>) new Either.A(new EachValueMatcher($e.value))), null);
+//   }
+// }
+fn parse_each_value(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Result<MatchingRuleDefinition> {
+  let next = lex.next()
+    .ok_or_else(|| end_of_expression(v, "an opening bracket"))?;
+  if next == MatcherDefinitionToken::LeftBracket {
+    let result = matching_definition_exp(lex, v)?;
+    let next = lex.next().ok_or_else(|| end_of_expression(v, "a closing bracket"))?;
+    if next == MatcherDefinitionToken::RightBracket {
+      Ok(MatchingRuleDefinition {
+        value: "".to_string(),
+        value_type: ValueType::Unknown,
+        rules: vec![ Either::Left(MatchingRule::EachValue(result)) ],
         generator: None
       })
     } else {
-      Err(anyhow!("expected type of matching rule (matching, notEmpty, eachKey, eachValue) but got '{}'", lex.slice()))
+      let mut buffer = BytesMut::new().writer();
+      let span = lex.span();
+      let report = Report::build(ReportKind::Error, "expression", span.start)
+        .with_config(Config::default().with_color(false))
+        .with_message(format!("Expected a closing bracket, got '{}'", lex.slice()))
+        .with_label(Label::new(("expression", span)).with_message("Expected a closing bracket before this"))
+        .finish();
+      report.write(("expression", Source::from(v)), &mut buffer)?;
+      let message = from_utf8(&*buffer.get_ref())?.to_string();
+      Err(anyhow!(message))
     }
   } else {
-    Err(anyhow!("expected type of matching rule (matching, notEmpty, eachKey, eachValue) but got EOS"))
+    let mut buffer = BytesMut::new().writer();
+    let span = lex.span();
+    let report = Report::build(ReportKind::Error, "expression", span.start)
+      .with_config(Config::default().with_color(false))
+      .with_message(format!("Expected an opening bracket, got '{}'", lex.slice()))
+      .with_label(Label::new(("expression", span)).with_message("Expected an opening bracket before this"))
+      .finish();
+    report.write(("expression", Source::from(v)), &mut buffer)?;
+    let message = from_utf8(&*buffer.get_ref())?.to_string();
+    Err(anyhow!(message))
+  }
+}
+
+// LEFT_BRACKET e=matchingDefinitionExp RIGHT_BRACKET { if ($e.value != null) { $value = new MatchingRuleDefinition(null, new EachKeyMatcher($e.value), null); } }
+fn parse_each_key(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Result<MatchingRuleDefinition> {
+  let next = lex.next()
+    .ok_or_else(|| end_of_expression(v, "an opening bracket"))?;
+  if next == MatcherDefinitionToken::LeftBracket {
+    let result = matching_definition_exp(lex, v)?;
+    let next = lex.next().ok_or_else(|| end_of_expression(v, "a closing bracket"))?;
+    if next == MatcherDefinitionToken::RightBracket {
+      Ok(MatchingRuleDefinition {
+        value: "".to_string(),
+        value_type: ValueType::Unknown,
+        rules: vec![ Either::Left(MatchingRule::EachKey(result)) ],
+        generator: None
+      })
+    } else {
+      let mut buffer = BytesMut::new().writer();
+      let span = lex.span();
+      let report = Report::build(ReportKind::Error, "expression", span.start)
+        .with_config(Config::default().with_color(false))
+        .with_message(format!("Expected a closing bracket, got '{}'", lex.slice()))
+        .with_label(Label::new(("expression", span)).with_message("Expected a closing bracket before this"))
+        .finish();
+      report.write(("expression", Source::from(v)), &mut buffer)?;
+      let message = from_utf8(&*buffer.get_ref())?.to_string();
+      Err(anyhow!(message))
+    }
+  } else {
+    let mut buffer = BytesMut::new().writer();
+    let span = lex.span();
+    let report = Report::build(ReportKind::Error, "expression", span.start)
+      .with_config(Config::default().with_color(false))
+      .with_message(format!("Expected an opening bracket, got '{}'", lex.slice()))
+      .with_label(Label::new(("expression", span)).with_message("Expected an opening bracket before this"))
+      .finish();
+    report.write(("expression", Source::from(v)), &mut buffer)?;
+    let message = from_utf8(&*buffer.get_ref())?.to_string();
+    Err(anyhow!(message))
   }
 }
 
@@ -576,7 +696,7 @@ mod test {
 
   use crate::generators::Generator::{Date, DateTime, Time};
   use crate::matchingrules::MatchingRule;
-  use crate::matchingrules::MatchingRule::Type;
+  use crate::matchingrules::MatchingRule::{Regex, Type};
 
   use super::*;
 
@@ -888,6 +1008,246 @@ mod test {
             |   ·         ╰─── Expected this to be a string
             |   ·\u{0020}
             |   · Note: Surround the value in quotes: match($'100')
+            |───╯
+            |
+            ".trim_margin().unwrap()));
+  }
+
+  #[test]
+  fn matching_definition_exp_test() {
+    let mut lex = super::MatcherDefinitionToken::lexer("notEmpty('test')");
+    expect!(super::matching_definition_exp(&mut lex, "notEmpty('test')")).to(
+      be_ok().value(MatchingRuleDefinition {
+        value: "test".to_string(),
+        value_type: ValueType::String,
+        rules: vec![ Either::Left(NotEmpty) ],
+        generator: None
+      })
+    );
+
+    let mut lex = super::MatcherDefinitionToken::lexer("matching(regex, '.*', 'aaabbb')");
+    expect!(super::matching_definition_exp(&mut lex, "matching(regex, '.*', 'aaabbb')")).to(
+      be_ok().value(MatchingRuleDefinition {
+        value: "aaabbb".to_string(),
+        value_type: ValueType::String,
+        rules: vec![ Either::Left(Regex(".*".to_string())) ],
+        generator: None
+      })
+    );
+
+    let mut lex = super::MatcherDefinitionToken::lexer("matching($'test')");
+    expect!(super::matching_definition_exp(&mut lex, "matching($'test')")).to(
+      be_ok().value(MatchingRuleDefinition {
+        value: "test".to_string(),
+        value_type: ValueType::Unknown,
+        rules: vec![ Either::Right(MatchingReference { name: "test".to_string() }) ],
+        generator: None
+      })
+    );
+
+    let mut lex = super::MatcherDefinitionToken::lexer("eachKey(matching(regex, '.*', 'aaabbb'))");
+    expect!(super::matching_definition_exp(&mut lex, "eachKey(matching(regex, '.*', 'aaabbb'))")).to(
+      be_ok().value(MatchingRuleDefinition {
+        value: "".to_string(),
+        value_type: ValueType::Unknown,
+        rules: vec![ Either::Left(MatchingRule::EachKey(MatchingRuleDefinition {
+          value: "aaabbb".to_string(),
+          value_type: ValueType::String,
+          rules: vec![ Either::Left(Regex(".*".to_string())) ],
+          generator: None
+        })) ],
+        generator: None
+      })
+    );
+
+    let mut lex = super::MatcherDefinitionToken::lexer("eachValue(matching(regex, '.*', 'aaabbb'))");
+    expect!(super::matching_definition_exp(&mut lex, "eachValue(matching(regex, '.*', 'aaabbb'))")).to(
+      be_ok().value(MatchingRuleDefinition {
+        value: "".to_string(),
+        value_type: ValueType::Unknown,
+        rules: vec![ Either::Left(MatchingRule::EachValue(MatchingRuleDefinition {
+          value: "aaabbb".to_string(),
+          value_type: ValueType::String,
+          rules: vec![ Either::Left(Regex(".*".to_string())) ],
+          generator: None
+        })) ],
+        generator: None
+      })
+    );
+
+    let mut lex = super::MatcherDefinitionToken::lexer("100");
+    lex.next();
+    expect!(as_string!(super::matching_definition_exp(&mut lex, "100"))).to(
+      be_err().value(
+        "|Error: Expected a type of matching rule definition but got the end of the expression
+            |   ╭─[expression:1:4]
+            |   │
+            | 1 │ 100
+            |   ·    │\u{0020}
+            |   ·    ╰─ Expected a matching rule definition here
+            |   ·\u{0020}
+            |   · Note: valid matching rule definitions are: matching, notEmpty, eachKey, eachValue
+            |───╯
+            |
+            ".trim_margin().unwrap()));
+
+    let mut lex = super::MatcherDefinitionToken::lexer("somethingElse('to test')");
+    expect!(as_string!(super::matching_definition_exp(&mut lex, "somethingElse('to test')"))).to(
+      be_err().value(
+        "|Error: Expected a type of matching rule definition, but got 'somethingElse'
+            |   ╭─[expression:1:1]
+            |   │
+            | 1 │ somethingElse('to test')
+            |   · ──────┬────── \u{0020}
+            |   ·       ╰──────── Expected a matching rule definition here
+            |   ·\u{0020}
+            |   · Note: valid matching rule definitions are: matching, notEmpty, eachKey, eachValue
+            |───╯
+            |
+            ".trim_margin().unwrap()));
+  }
+
+  #[test]
+  fn parse_each_key_test() {
+    let mut lex = super::MatcherDefinitionToken::lexer("(matching($'bob'))");
+    expect!(super::parse_each_key(&mut lex, "(matching($'bob'))").unwrap()).to(
+      be_equal_to(MatchingRuleDefinition {
+        value: "".to_string(),
+        value_type: ValueType::Unknown,
+        rules: vec![ Either::Left(MatchingRule::EachKey(MatchingRuleDefinition {
+          value: "bob".to_string(),
+          value_type: ValueType::Unknown,
+          rules: vec![ Either::Right(MatchingReference { name: "bob".to_string() }) ],
+          generator: None }))
+        ],
+        generator: None
+      }));
+
+    let mut lex = super::MatcherDefinitionToken::lexer("eachKey");
+    lex.next();
+    expect!(as_string!(super::parse_each_key(&mut lex, "eachKey"))).to(
+      be_err().value(
+        "|Error: Expected an opening bracket, got the end of the expression
+            |   ╭─[expression:1:8]
+            |   │
+            | 1 │ eachKey
+            |   ·        │\u{0020}
+            |   ·        ╰─ Expected an opening bracket here
+            |───╯
+            |
+            ".trim_margin().unwrap()));
+
+    let mut lex = super::MatcherDefinitionToken::lexer("eachKey matching");
+    lex.next();
+    expect!(as_string!(super::parse_each_key(&mut lex, "eachKey matching"))).to(
+      be_err().value(
+        "|Error: Expected an opening bracket, got 'matching'
+            |   ╭─[expression:1:9]
+            |   │
+            | 1 │ eachKey matching
+            |   ·         ────┬─── \u{0020}
+            |   ·             ╰───── Expected an opening bracket before this
+            |───╯
+            |
+            ".trim_margin().unwrap()));
+
+    let mut lex = super::MatcherDefinitionToken::lexer("eachKey(matching(type, 'test') stuff");
+    lex.next();
+    expect!(as_string!(super::parse_each_key(&mut lex, "eachKey(matching(type, 'test') stuff"))).to(
+      be_err().value(
+        "|Error: Expected a closing bracket, got 'stuff'
+            |   ╭─[expression:1:32]
+            |   │
+            | 1 │ eachKey(matching(type, 'test') stuff
+            |   ·                                ──┬── \u{0020}
+            |   ·                                  ╰──── Expected a closing bracket before this
+            |───╯
+            |
+            ".trim_margin().unwrap()));
+
+    let mut lex = super::MatcherDefinitionToken::lexer("eachKey(matching(type, 'test')");
+    lex.next();
+    expect!(as_string!(super::parse_each_key(&mut lex, "eachKey(matching(type, 'test')"))).to(
+      be_err().value(
+        "|Error: Expected a closing bracket, got the end of the expression
+            |   ╭─[expression:1:31]
+            |   │
+            | 1 │ eachKey(matching(type, 'test')
+            |   ·                               │\u{0020}
+            |   ·                               ╰─ Expected a closing bracket here
+            |───╯
+            |
+            ".trim_margin().unwrap()));
+  }
+
+  #[test]
+  fn parse_each_value_test() {
+    let mut lex = super::MatcherDefinitionToken::lexer("(matching($'bob'))");
+    expect!(super::parse_each_value(&mut lex, "(matching($'bob'))").unwrap()).to(
+      be_equal_to(MatchingRuleDefinition {
+        value: "".to_string(),
+        value_type: ValueType::Unknown,
+        rules: vec![ Either::Left(MatchingRule::EachValue(MatchingRuleDefinition {
+          value: "bob".to_string(),
+          value_type: ValueType::Unknown,
+          rules: vec![ Either::Right(MatchingReference { name: "bob".to_string() }) ],
+          generator: None }))
+        ],
+        generator: None
+      }));
+
+    let mut lex = super::MatcherDefinitionToken::lexer("eachKey");
+    lex.next();
+    expect!(as_string!(super::parse_each_value(&mut lex, "eachKey"))).to(
+      be_err().value(
+        "|Error: Expected an opening bracket, got the end of the expression
+            |   ╭─[expression:1:8]
+            |   │
+            | 1 │ eachKey
+            |   ·        │\u{0020}
+            |   ·        ╰─ Expected an opening bracket here
+            |───╯
+            |
+            ".trim_margin().unwrap()));
+
+    let mut lex = super::MatcherDefinitionToken::lexer("eachKey matching");
+    lex.next();
+    expect!(as_string!(super::parse_each_value(&mut lex, "eachKey matching"))).to(
+      be_err().value(
+        "|Error: Expected an opening bracket, got 'matching'
+            |   ╭─[expression:1:9]
+            |   │
+            | 1 │ eachKey matching
+            |   ·         ────┬─── \u{0020}
+            |   ·             ╰───── Expected an opening bracket before this
+            |───╯
+            |
+            ".trim_margin().unwrap()));
+
+    let mut lex = super::MatcherDefinitionToken::lexer("eachKey(matching(type, 'test') stuff");
+    lex.next();
+    expect!(as_string!(super::parse_each_value(&mut lex, "eachKey(matching(type, 'test') stuff"))).to(
+      be_err().value(
+        "|Error: Expected a closing bracket, got 'stuff'
+            |   ╭─[expression:1:32]
+            |   │
+            | 1 │ eachKey(matching(type, 'test') stuff
+            |   ·                                ──┬── \u{0020}
+            |   ·                                  ╰──── Expected a closing bracket before this
+            |───╯
+            |
+            ".trim_margin().unwrap()));
+
+    let mut lex = super::MatcherDefinitionToken::lexer("eachKey(matching(type, 'test')");
+    lex.next();
+    expect!(as_string!(super::parse_each_value(&mut lex, "eachKey(matching(type, 'test')"))).to(
+      be_err().value(
+        "|Error: Expected a closing bracket, got the end of the expression
+            |   ╭─[expression:1:31]
+            |   │
+            | 1 │ eachKey(matching(type, 'test')
+            |   ·                               │\u{0020}
+            |   ·                               ╰─ Expected a closing bracket here
             |───╯
             |
             ".trim_margin().unwrap()));
