@@ -4,13 +4,13 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
 
-use anyhow::*;
+use anyhow::anyhow;
+use itertools::Itertools;
 use log::error;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::json_utils::json_to_string;
-use itertools::Itertools;
 
 /// Data type to cast to for provider state context values
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone, Copy, Hash)]
