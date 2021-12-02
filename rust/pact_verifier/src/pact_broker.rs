@@ -352,28 +352,28 @@ impl HALClient {
     }
 
     fn parse_link_url(self, link: &Link, values: &HashMap<String, String>) -> Result<String, PactBrokerError> {
-        match link.href {
-            Some(ref href) => {
-                log::debug!("templated URL = {}", href);
-                let re = Regex::new(r"\{(\w+)\}").unwrap();
-                let final_url = re.replace_all(href, |caps: &Captures| {
-                    let lookup = caps.get(1).unwrap().as_str();
-                    log::debug!("Looking up value for key '{}'", lookup);
-                    match values.get(lookup) {
-                        Some(val) => val.clone(),
-                        None => {
-                            log::warn!("No value was found for key '{}', mapped values are {:?}",
-                                lookup, values);
-                            format!("{{{}}}", lookup)
-                        }
-                    }
-                });
-                log::debug!("final URL = {}", final_url);
-                Ok(final_url.to_string())
-            },
-            None => Err(PactBrokerError::LinkError(format!("Expected a HAL+JSON response from the pact broker, but got a link with no HREF. URL: '{}', LINK: '{}'",
-                self.url, link.name)))
-        }
+      match link.href {
+        Some(ref href) => {
+          debug!("templated URL = {}", href);
+          let re = Regex::new(r"\{(\w+)}").unwrap();
+          let final_url = re.replace_all(href, |caps: &Captures| {
+            let lookup = caps.get(1).unwrap().as_str();
+            trace!("Looking up value for key '{}'", lookup);
+            match values.get(lookup) {
+              Some(val) => urlencoding::encode(val.as_str()).to_string(),
+              None => {
+                warn!("No value was found for key '{}', mapped values are {:?}", lookup, values);
+                format!("{{{}}}", lookup)
+              }
+            }
+          });
+          debug!("final URL = {}", final_url);
+          Ok(final_url.to_string())
+        },
+        None => Err(PactBrokerError::LinkError(
+          format!("Expected a HAL+JSON response from the pact broker, but got a link with no HREF. URL: '{}', LINK: '{}'",
+          self.url, link.name)))
+      }
     }
 
   /// Iterate over all the links by name
@@ -1260,6 +1260,15 @@ mod tests {
 
     let link = Link { name: "link".to_string(), href: Some("http://{valA}/{valC}".to_string()), templated: false, title: None };
     expect!(client.clone().parse_link_url(&link, &values)).to(be_ok().value("http://A/{valC}"));
+  }
+
+  #[test]
+  fn parse_link_url_encodes_the_tokens_in_href() {
+    let client = HALClient::default();
+    let values = hashmap!{ "valA".to_string() => "A".to_string(), "valB".to_string() => "B/C".to_string() };
+
+    let link = Link { name: "link".to_string(), href: Some("http://{valA}/{valB}".to_string()), templated: false, title: None };
+    expect!(client.clone().parse_link_url(&link, &values)).to(be_ok().value("http://A/B%2FC"));
   }
 
     #[tokio::test]
