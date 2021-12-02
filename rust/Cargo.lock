@@ -1325,7 +1325,7 @@ dependencies = [
  "multipart",
  "onig",
  "os_info",
- "pact-plugin-driver 0.0.10",
+ "pact-plugin-driver 0.0.11",
  "pact_matching",
  "pact_mock_server",
  "pact_models 0.2.2",
