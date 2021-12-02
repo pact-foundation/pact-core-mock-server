@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.9.2 - Bugfix Release
+
+* 491e9259 - chore(pact_verifier_cli): upgrade to latest models crate (Ronald Holshausen, Thu Dec 2 12:22:11 2021 +1100)
+* 51a147df - chore: fix docker file (Ronald Holshausen, Tue Nov 16 13:56:24 2021 +1100)
+* 2780c93b - bump version to 0.9.2 (Ronald Holshausen, Tue Nov 16 13:18:59 2021 +1100)
+
 # 0.9.1 - Fix for branches and consumer version selectors
 
 * 5d974c4a - chore: update to latest models and plugin driver crates (Ronald Holshausen, Tue Nov 16 11:56:53 2021 +1100)
