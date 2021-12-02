@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.11.2 - Upgrade to latest models and plugins crates
+
+* c1eca940 - chore(pact_matching): upgrade to latest models and plugins crate (Ronald Holshausen, Thu Dec 2 11:49:32 2021 +1100)
+* 2db6a46f - refactor: test_env_log has been replaced with test_log (Ronald Holshausen, Tue Nov 23 16:15:02 2021 +1100)
+* fc5be202 - fix: update to latest driver crate (Ronald Holshausen, Tue Nov 16 16:19:02 2021 +1100)
+* 718cdbcf - bump version to 0.11.2 (Ronald Holshausen, Tue Nov 16 12:10:26 2021 +1100)
+
 # 0.11.1 - Updated to latest models crate
 
 * 5d974c4a - chore: update to latest models and plugin driver crates (Ronald Holshausen, Tue Nov 16 11:56:53 2021 +1100)
