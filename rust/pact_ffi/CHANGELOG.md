@@ -1,5 +1,15 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.1.3 - Bugfix Release
+
+* 4184e562 - chore(pact_ffi): upgrade to latest models, matching and verifier crates (Ronald Holshausen, Thu Dec 2 13:13:37 2021 +1100)
+* d43b1847 - Merge pull request #164 from tienvx/feat-filter-info (Ronald Holshausen, Fri Nov 19 11:38:41 2021 +1100)
+* 41e69a22 - feat: allow set filter info (tienvx, Thu Nov 18 08:56:36 2021 +0700)
+* 7c561f2a - feat: allow set consumer version selectors (tienvx, Thu Nov 18 00:12:31 2021 +0700)
+* 260deb70 - fix: support specifying matching_branch in verifications (Matt Fellows, Wed Nov 17 17:47:37 2021 +1100)
+* 86ea5779 - chore: fix FFI release build (Ronald Holshausen, Wed Nov 17 15:52:14 2021 +1100)
+* 5480733f - bump version to 0.1.3 (Ronald Holshausen, Wed Nov 17 15:20:29 2021 +1100)
+
 # 0.1.2 - Bugfix Release
 
 * 631167fa - chore: update to latest mock server crate (Ronald Holshausen, Wed Nov 17 15:13:32 2021 +1100)
