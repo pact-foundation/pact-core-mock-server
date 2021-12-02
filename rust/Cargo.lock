@@ -1372,7 +1372,7 @@ dependencies = [
  "nom",
  "ntest",
  "onig",
- "pact-plugin-driver 0.0.10",
+ "pact-plugin-driver 0.0.11",
  "pact_models 0.2.2",
  "pretty_assertions 0.6.1",
  "quickcheck",
