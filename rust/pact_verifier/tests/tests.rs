@@ -39,6 +39,10 @@ impl ProviderStateExecutor for DummyProviderStateExecutor {
   ) -> anyhow::Result<HashMap<String, Value>> {
     Ok(hashmap!{})
   }
+
+  fn teardown(self: &Self) -> bool {
+        return false
+    }
 }
 
 #[tokio::test]

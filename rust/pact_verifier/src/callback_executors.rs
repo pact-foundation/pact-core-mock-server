@@ -67,6 +67,9 @@ pub trait ProviderStateExecutor {
     setup: bool,
     client: Option<&reqwest::Client>
   ) -> anyhow::Result<HashMap<String, Value>>;
+
+  /// If a teardown call for the Executor should be performed
+  fn teardown(self: &Self)-> bool;
 }
 
 /// Default provider state callback executor, which executes an HTTP request
@@ -140,5 +143,11 @@ impl ProviderStateExecutor for HttpRequestProviderStateExecutor {
         Ok(hashmap!{})
       }
     }
+  }
+
+  fn teardown(
+    self: &Self,
+  ) -> bool {
+    return self.state_change_teardown;
   }
 }
