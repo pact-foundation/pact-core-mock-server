@@ -69,7 +69,7 @@ pub trait ProviderStateExecutor {
   ) -> anyhow::Result<HashMap<String, Value>>;
 
   /// If a teardown call for the Executor should be performed
-  async fn teardown(self: Arc<Self>)-> bool;
+  fn teardown(self: &Self)-> bool;
 }
 
 /// Default provider state callback executor, which executes an HTTP request
@@ -145,8 +145,8 @@ impl ProviderStateExecutor for HttpRequestProviderStateExecutor {
     }
   }
 
-  async fn teardown(
-    self: Arc<Self>,
+  fn teardown(
+    self: &Self,
   ) -> bool {
     return self.state_change_teardown;
   }

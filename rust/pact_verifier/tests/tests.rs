@@ -40,7 +40,7 @@ impl ProviderStateExecutor for DummyProviderStateExecutor {
     Ok(hashmap!{})
   }
 
-    async fn teardown(self: Arc<Self>) -> bool {
+  fn teardown(self: &Self) -> bool {
         return false
     }
 }

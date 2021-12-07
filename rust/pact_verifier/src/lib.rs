@@ -358,7 +358,7 @@ async fn verify_interaction<'a, F: RequestFilterExecutor, S: ProviderStateExecut
     result
   }).await;
 
-  if !interaction.provider_states().is_empty() && provider_state_executor.clone().teardown().await {
+  if !interaction.provider_states().is_empty() && provider_state_executor.teardown() {
     let sc_teardown_result = futures::stream::iter(
       interaction.provider_states().iter().map(|state| (state, client.clone())))
       .then(|(state, client)| async move {
