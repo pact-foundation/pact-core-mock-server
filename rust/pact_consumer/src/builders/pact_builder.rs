@@ -11,6 +11,7 @@ use pact_models::v4::pact::V4Pact;
 use pact_models::v4::sync_message::SynchronousMessage;
 use pact_plugin_driver::plugin_manager::{drop_plugin_access, load_plugin};
 use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
+use pact_matching::metrics::{MetricEvent, send_metrics};
 
 use crate::builders::message_builder::MessageInteractionBuilder;
 use crate::builders::message_iter::{asynchronous_messages_iter, MessageIterator, synchronous_messages_iter};
@@ -194,11 +195,23 @@ impl PactBuilder {
 
   /// Returns an iterator over the asynchronous messages in the Pact
   pub fn messages(&self) -> MessageIterator<AsynchronousMessage> {
+    send_metrics(MetricEvent::ConsumerTestRun {
+      interactions: self.pact.interactions().len(),
+      test_framework: "pact_consumer".to_string(),
+      app_name: "pact_consumer".to_string(),
+      app_version: env!("CARGO_PKG_VERSION").to_string()
+    });
     asynchronous_messages_iter(self.pact.as_v4_pact().unwrap())
   }
 
   /// Returns an iterator over the synchronous req/res messages in the Pact
   pub fn synchronous_messages(&self) -> MessageIterator<SynchronousMessage> {
+    send_metrics(MetricEvent::ConsumerTestRun {
+      interactions: self.pact.interactions().len(),
+      test_framework: "pact_consumer".to_string(),
+      app_name: "pact_consumer".to_string(),
+      app_version: env!("CARGO_PKG_VERSION").to_string()
+    });
     synchronous_messages_iter(self.pact.as_v4_pact().unwrap())
   }
 }

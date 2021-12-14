@@ -19,6 +19,7 @@ use pact_models::pact::Pact;
 use pact_models::sync_pact::RequestResponsePact;
 use std::path::PathBuf;
 use uuid::Uuid;
+use pact_matching::metrics::{MetricEvent, send_metrics};
 
 /// This trait is implemented by types which allow us to start a mock server.
 #[async_trait]
@@ -202,6 +203,17 @@ impl ValidatingMockServer {
         if let Err(_) = self.done_rx.recv_timeout(std::time::Duration::from_secs(3)) {
           warn!("Timed out waiting for mock server to finish");
         }
+
+      let interactions = {
+        let pact = ms.pact.lock().unwrap();
+        pact.interactions().len()
+      };
+      send_metrics(MetricEvent::ConsumerTestRun {
+        interactions,
+        test_framework: "pact_consumer".to_string(),
+        app_name: "pact_consumer".to_string(),
+        app_version: env!("CARGO_PKG_VERSION").to_string()
+      });
 
         // Look up any mismatches which occurred.
         let mismatches = ms.mismatches();
