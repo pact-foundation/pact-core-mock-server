@@ -7,6 +7,7 @@ use log::debug;
 use pact_models::prelude::HttpAuth;
 use pact_verifier::{FilterInfo, NullRequestFilterExecutor, PactSource, ProviderInfo, VerificationOptions, verify_provider_async, ConsumerVersionSelector};
 use pact_verifier::callback_executors::HttpRequestProviderStateExecutor;
+use pact_verifier::metrics::VerificationMetrics;
 
 #[derive(Debug, Clone)]
 /// Wraps a Pact verifier
@@ -16,11 +17,14 @@ pub struct VerifierHandle {
   filter: FilterInfo,
   state_change: Arc<HttpRequestProviderStateExecutor>,
   options: VerificationOptions<NullRequestFilterExecutor>,
-  consumers: Vec<String>
+  consumers: Vec<String>,
+  /// Calling application name and version
+  calling_app: Option<(String, String)>
 }
 
 impl VerifierHandle {
-  /// Create a new verifier and return the handle to it
+  /// Create a new verifier and return the handle to it (deprecated, use new_for_application)
+  #[deprecated(since = "0.1.4", note = "Use new_for_application instead")]
   pub fn new() -> VerifierHandle {
     VerifierHandle {
       provider: ProviderInfo::default(),
@@ -28,7 +32,21 @@ impl VerifierHandle {
       filter: FilterInfo::None,
       state_change: Arc::new(HttpRequestProviderStateExecutor::default()),
       options: VerificationOptions::default(),
-      consumers: vec![]
+      consumers: vec![],
+      calling_app: None
+    }
+  }
+
+  /// Create a new verifier and return the handle to it
+  pub fn new_for_application(calling_app_name: &str, calling_app_version: &str) -> VerifierHandle {
+    VerifierHandle {
+      provider: ProviderInfo::default(),
+      sources: Vec::new(),
+      filter: FilterInfo::None,
+      state_change: Arc::new(HttpRequestProviderStateExecutor::default()),
+      options: VerificationOptions::default(),
+      consumers: vec![],
+      calling_app: Some((calling_app_name.to_string(), calling_app_version.to_string()))
     }
   }
 
@@ -198,6 +216,9 @@ impl VerifierHandle {
       debug!("Pact source to verify = {}", s);
     };
 
+    let (calling_app_name, calling_app_version) = self.calling_app.clone().unwrap_or_else(|| {
+      ("pact_ffi".to_string(), env!("CARGO_PKG_VERSION").to_string())
+    });
     let runtime = tokio::runtime::Runtime::new().unwrap();
     runtime.block_on(async {
       verify_provider_async(
@@ -206,7 +227,12 @@ impl VerifierHandle {
         self.filter.clone(),
         self.consumers.clone(),
         self.options.clone(),
-        &self.state_change.clone()
+        &self.state_change.clone(),
+        Some(VerificationMetrics {
+          test_framework: "pact_ffi".to_string(),
+          app_name: calling_app_name.clone(),
+          app_version: calling_app_version.clone()
+        })
       ).await
     })
       .map(|result| if result { 0 } else { 2 })

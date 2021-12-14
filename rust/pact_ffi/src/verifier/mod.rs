@@ -75,7 +75,10 @@ pub unsafe extern fn pactffi_verify(args: *const c_char) -> i32 {
 
 ffi_fn! {
     /// Get a Handle to a newly created verifier. You should call `pactffi_verifier_shutdown` when
-    /// done with the verifier to free all allocated resources
+    /// done with the verifier to free all allocated resources.
+    ///
+    /// This function is deprecated. Use `pactffi_verifier_new_for_application` which allows the
+    /// calling application/framework name and version to be specified.
     ///
     /// # Safety
     ///
@@ -84,12 +87,37 @@ ffi_fn! {
     /// # Error Handling
     ///
     /// Returns NULL on error.
+    #[deprecated(since = "0.1.4", note = "Use pactffi_verifier_new_for_application instead")]
     fn pactffi_verifier_new() -> *mut handle::VerifierHandle {
         let handle = handle::VerifierHandle::new();
         ptr::raw_to(handle)
     } {
         ptr::null_mut_to::<handle::VerifierHandle>()
     }
+}
+
+ffi_fn! {
+  /// Get a Handle to a newly created verifier. You should call `pactffi_verifier_shutdown` when
+  /// done with the verifier to free all allocated resources
+  ///
+  /// # Safety
+  ///
+  /// This function is safe.
+  ///
+  /// # Error Handling
+  ///
+  /// Returns NULL on error.
+  fn pactffi_verifier_new_for_application(
+    name: *const c_char,
+    scheme: *const c_char
+  ) -> *mut handle::VerifierHandle {
+    let name = if_null(name, "unknown");
+    let version = if_null(scheme, "unknown");
+    let handle = handle::VerifierHandle::new_for_application(name.as_str(), version.as_str());
+    ptr::raw_to(handle)
+  } {
+    ptr::null_mut_to::<handle::VerifierHandle>()
+  }
 }
 
 ffi_fn! {

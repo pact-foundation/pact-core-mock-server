@@ -14,6 +14,7 @@ use pact_models::http_utils::HttpAuth;
 use pact_models::PactSpecification;
 use pact_verifier::*;
 use pact_verifier::callback_executors::HttpRequestProviderStateExecutor;
+use pact_verifier::metrics::VerificationMetrics;
 
 use super::args;
 
@@ -240,7 +241,12 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
         filter,
         matches.values_of_lossy("filter-consumer").unwrap_or_default(),
         options,
-        &provider_state_executor
+        &provider_state_executor,
+        Some(VerificationMetrics {
+          test_framework: "pact_ffi".to_string(),
+          app_name: "unknown".to_string(),
+          app_version: "unknown".to_string()
+        })
     ).await
       .map_err(|err| {
         error!("Verification failed with error: {}", err);

@@ -42,6 +42,8 @@ pub use crate::pact_broker::{ConsumerVersionSelector, PactsForVerificationReques
 use crate::provider_client::make_provider_request;
 use crate::request_response::display_request_response_result;
 use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
+use pact_matching::metrics::{MetricEvent, send_metrics};
+use crate::metrics::VerificationMetrics;
 
 mod provider_client;
 pub mod pact_broker;
@@ -49,6 +51,7 @@ pub mod callback_executors;
 mod request_response;
 mod messages;
 pub mod selectors;
+pub mod metrics;
 
 /// Source for loading pacts
 #[derive(Debug, Clone)]
@@ -579,11 +582,12 @@ pub fn verify_provider<F: RequestFilterExecutor, S: ProviderStateExecutor>(
   filter: FilterInfo,
   consumers: Vec<String>,
   options: VerificationOptions<F>,
-  provider_state_executor: &Arc<S>
+  provider_state_executor: &Arc<S>,
+  metrics_data: Option<VerificationMetrics>
 ) -> anyhow::Result<bool> {
   match tokio::runtime::Builder::new_multi_thread().enable_all().build() {
     Ok(runtime) => runtime.block_on(
-      verify_provider_async(provider_info, source, filter, consumers, options, provider_state_executor)),
+      verify_provider_async(provider_info, source, filter, consumers, options, provider_state_executor, metrics_data)),
     Err(err) => {
       error!("Verify provider process failed to start the tokio runtime: {}", err);
       Ok(false)
@@ -593,12 +597,13 @@ pub fn verify_provider<F: RequestFilterExecutor, S: ProviderStateExecutor>(
 
 /// Verify the provider with the given pact sources (async version)
 pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExecutor>(
-    provider_info: ProviderInfo,
-    source: Vec<PactSource>,
-    filter: FilterInfo,
-    consumers: Vec<String>,
-    options: VerificationOptions<F>,
-    provider_state_executor: &Arc<S>
+  provider_info: ProviderInfo,
+  source: Vec<PactSource>,
+  filter: FilterInfo,
+  consumers: Vec<String>,
+  options: VerificationOptions<F>,
+  provider_state_executor: &Arc<S>,
+  metrics_data: Option<VerificationMetrics>
 ) -> anyhow::Result<bool> {
   pact_matching::matchers::configure_core_catalogue();
 
@@ -697,6 +702,18 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
       println!();
       Ok(true)
     };
+
+    let metrics_data = metrics_data.unwrap_or_else(|| VerificationMetrics {
+      test_framework: "pact-rust".to_string(),
+      app_name: "pact_verifier".to_string(),
+      app_version: env!("CARGO_PKG_VERSION").to_string()
+    });
+    send_metrics(MetricEvent::ProviderVerificationRan {
+      tests_run: results.len(),
+      test_framework: metrics_data.test_framework,
+      app_name: metrics_data.app_name,
+      app_version: metrics_data.app_version
+    });
 
     shutdown_plugins();
 

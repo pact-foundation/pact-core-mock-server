@@ -247,6 +247,7 @@ use simplelog::{ColorChoice, Config, TerminalMode, TermLogger};
 
 use pact_verifier::{FilterInfo, NullRequestFilterExecutor, PactSource, ProviderInfo, VerificationOptions, verify_provider_async};
 use pact_verifier::callback_executors::HttpRequestProviderStateExecutor;
+use pact_verifier::metrics::VerificationMetrics;
 use pact_verifier::selectors::{consumer_tags_to_selectors, json_to_selectors};
 
 mod args;
@@ -327,7 +328,12 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
     filter,
     matches.values_of_lossy("filter-consumer").unwrap_or_default(),
     options,
-    &provider_state_executor
+    &provider_state_executor,
+    Some(VerificationMetrics {
+      test_framework: "pact_verifier_cli".to_string(),
+      app_name: "pact_verifier_cli".to_string(),
+      app_version: env!("CARGO_PKG_VERSION").to_string()
+    })
   ).await
     .map_err(|err| {
       error!("Verification failed with error: {}", err);
