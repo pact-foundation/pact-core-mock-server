@@ -398,6 +398,7 @@ mod headers;
 pub mod logging;
 mod matchingrules;
 mod generators;
+pub mod metrics;
 
 #[derive(Debug, Clone)]
 /// Context used to apply matching logic

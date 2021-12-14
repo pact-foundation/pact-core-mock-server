@@ -42,6 +42,12 @@ mime = "0.3.16"
 bytes = { version = "1", features = ["serde"] }
 tokio = { version = "1", features = ["full"] }
 pact-plugin-driver = "0.0.12"
+md5 = "0.7.0"
+
+[dependencies.reqwest]
+version = "0.11"
+default-features = false
+features = ["rustls-tls-native-roots", "json"]
 
 [dev-dependencies]
 quickcheck = "1"
