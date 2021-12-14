@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.11.3 - Bugfix Release
+
+* 48d061ef - feat: add metrics publishing to matching crate (Ronald Holshausen, Tue Dec 14 16:19:59 2021 +1100)
+* 4f1ba7d9 - chore: update to the latest plugin driver (Ronald Holshausen, Tue Dec 14 13:55:02 2021 +1100)
+* ecb6afbe - bump version to 0.11.3 (Ronald Holshausen, Thu Dec 2 11:58:27 2021 +1100)
+
 # 0.11.2 - Upgrade to latest models and plugins crates
 
 * c1eca940 - chore(pact_matching): upgrade to latest models and plugins crate (Ronald Holshausen, Thu Dec 2 11:49:32 2021 +1100)
