@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.8.2 - Maintenance Release
+
+* 8d8c7706 - chore: update models and mock server crates (Ronald Holshausen, Wed Dec 15 14:03:30 2021 +1100)
+* cba3f08e - feat: add metrics events for Pact-Rust consumer tests (Ronald Holshausen, Tue Dec 14 16:20:40 2021 +1100)
+* 4f1ba7d9 - chore: update to the latest plugin driver (Ronald Holshausen, Tue Dec 14 13:55:02 2021 +1100)
+* fc5be202 - fix: update to latest driver crate (Ronald Holshausen, Tue Nov 16 16:19:02 2021 +1100)
+* 24fc4e90 - bump version to 0.8.2 (Ronald Holshausen, Tue Nov 16 13:01:59 2021 +1100)
+
 # 0.8.1 - Add plugin support to FFI functions
 
 * 5d974c4a - chore: update to latest models and plugin driver crates (Ronald Holshausen, Tue Nov 16 11:56:53 2021 +1100)
