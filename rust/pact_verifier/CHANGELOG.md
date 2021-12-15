@@ -1,5 +1,14 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.12.0 - Bugfix + add metrics for validation
+
+* f8042d6b - feat: add metrics event for provider verification (Ronald Holshausen, Tue Dec 14 17:29:44 2021 +1100)
+* 4f1ba7d9 - chore: update to the latest plugin driver (Ronald Holshausen, Tue Dec 14 13:55:02 2021 +1100)
+* 6466545f - fix(verifier): provider state executor teardown function does not need to be async (Ronald Holshausen, Tue Dec 7 11:14:12 2021 +1100)
+* 1768141e - fix(verifier test): missing addition of teardown impl (Mike Geeves, Mon Dec 6 13:12:45 2021 +0000)
+* 5f782d67 - fix(verifier): the state_change_teardown option didn't appear to actually be used (Mike Geeves, Mon Dec 6 11:46:58 2021 +0000)
+* 04dd9ab2 - bump version to 0.11.3 (Ronald Holshausen, Thu Dec 2 12:15:29 2021 +1100)
+
 # 0.11.2 - Bugfix Release
 
 * 9f7e22dc - Revert "update changelog for release 0.11.2" (Ronald Holshausen, Thu Dec 2 11:46:17 2021 +1100)
