@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.1.4 - Maintenance Release
+
+* a1d03b95 - chore: update dependent pact crates (Ronald Holshausen, Wed Dec 15 16:34:39 2021 +1100)
+* f8042d6b - feat: add metrics event for provider verification (Ronald Holshausen, Tue Dec 14 17:29:44 2021 +1100)
+* 4f1ba7d9 - chore: update to the latest plugin driver (Ronald Holshausen, Tue Dec 14 13:55:02 2021 +1100)
+* 2f97c25f - bump version to 0.1.4 (Ronald Holshausen, Thu Dec 2 13:21:24 2021 +1100)
+
 # 0.1.3 - Bugfix Release
 
 * 4184e562 - chore(pact_ffi): upgrade to latest models, matching and verifier crates (Ronald Holshausen, Thu Dec 2 13:13:37 2021 +1100)
