@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.8.3 - Maintenance Release
+
+* 84355d3d - chore: Upgrade rustls in the mock server to 0.20.2 (Ronald Holshausen, Wed Dec 15 12:32:28 2021 +1100)
+* 4f1ba7d9 - chore: update to the latest plugin driver (Ronald Holshausen, Tue Dec 14 13:55:02 2021 +1100)
+* e21879f7 - bump version to 0.8.3 (Ronald Holshausen, Wed Nov 17 15:08:23 2021 +1100)
+
 # 0.8.2 - Support setting pact spec version on the mock servers
 
 * 9cfe897a - feat(mock server): default pact spec to V3 if unknown (Ronald Holshausen, Wed Nov 17 14:53:19 2021 +1100)
