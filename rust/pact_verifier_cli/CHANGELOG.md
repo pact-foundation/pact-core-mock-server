@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.9.4 - Bugfix Release
+
+* 00a00461 - fix: add a small delay at the end of validation to allow async tasks to finish (Ronald Holshausen, Wed Dec 15 15:37:30 2021 +1100)
+* d26fa4c5 - bump version to 0.9.4 (Ronald Holshausen, Wed Dec 15 13:56:30 2021 +1100)
+
 # 0.9.3 - Add metrics for provider verification
 
 * f8042d6b - feat: add metrics event for provider verification (Ronald Holshausen, Tue Dec 14 17:29:44 2021 +1100)
