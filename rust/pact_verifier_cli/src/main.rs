@@ -438,12 +438,22 @@ fn interaction_filter(matches: &ArgMatches) -> FilterInfo {
   }
 }
 
-#[tokio::main]
-async fn main() {
-  let result = handle_cli(clap::crate_version!()).await;
+fn main() {
+  let runtime = tokio::runtime::Builder::new_multi_thread()
+    .enable_all()
+    .build()
+    .expect("Could not start a Tokio runtime for running async tasks");
 
-  // Add a small delay to let asynchronous tasks to complete
-  sleep(Duration::from_millis(500)).await;
+  let result = runtime.block_on(async {
+    let result = handle_cli(clap::crate_version!()).await;
+
+    // Add a small delay to let asynchronous tasks to complete
+    sleep(Duration::from_millis(500)).await;
+
+    result
+  });
+
+  runtime.shutdown_timeout(Duration::from_millis(500));
 
   if let Err(err) = result {
     std::process::exit(err);
