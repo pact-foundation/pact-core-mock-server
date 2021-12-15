@@ -238,12 +238,14 @@
 use std::env;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::time::Duration;
 
 use clap::{AppSettings, ArgMatches, ErrorKind};
 use log::{debug, error, LevelFilter};
 use pact_models::{PACT_RUST_VERSION, PactSpecification};
 use pact_models::prelude::HttpAuth;
 use simplelog::{ColorChoice, Config, TerminalMode, TermLogger};
+use tokio::time::sleep;
 
 use pact_verifier::{FilterInfo, NullRequestFilterExecutor, PactSource, ProviderInfo, VerificationOptions, verify_provider_async};
 use pact_verifier::callback_executors::HttpRequestProviderStateExecutor;
@@ -438,8 +440,12 @@ fn interaction_filter(matches: &ArgMatches) -> FilterInfo {
 
 #[tokio::main]
 async fn main() {
-  match handle_cli(clap::crate_version!()).await {
-    Ok(_) => (),
-    Err(err) => std::process::exit(err)
+  let result = handle_cli(clap::crate_version!()).await;
+
+  // Add a small delay to let asynchronous tasks to complete
+  sleep(Duration::from_millis(500)).await;
+
+  if let Err(err) = result {
+    std::process::exit(err);
   }
 }
