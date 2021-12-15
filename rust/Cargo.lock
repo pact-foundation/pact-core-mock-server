@@ -1271,7 +1271,7 @@ dependencies = [
 
 [[package]]
 name = "pact_ffi"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "anyhow",
  "bytes",
