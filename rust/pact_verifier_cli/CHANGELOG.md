@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.9.3 - Add metrics for provider verification
+
+* f8042d6b - feat: add metrics event for provider verification (Ronald Holshausen, Tue Dec 14 17:29:44 2021 +1100)
+* 01171ccb - bump version to 0.9.3 (Ronald Holshausen, Thu Dec 2 12:32:36 2021 +1100)
+
 # 0.9.2 - Bugfix Release
 
 * 491e9259 - chore(pact_verifier_cli): upgrade to latest models crate (Ronald Holshausen, Thu Dec 2 12:22:11 2021 +1100)
