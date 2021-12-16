@@ -52,6 +52,7 @@ pub struct DocPath {
 }
 
 impl DocPath {
+  /// Construct a new document path from the provided string path
   pub fn new(expr: impl Into<String>) -> anyhow::Result<Self> {
     let expr = expr.into();
     let path_tokens = parse_path_exp(&expr)
@@ -90,6 +91,7 @@ impl DocPath {
     }
   }
 
+  /// Return the list of tokens that comprise this path.
   pub fn tokens(&self) -> &Vec<PathToken> {
     &self.path_tokens
   }
@@ -110,10 +112,12 @@ impl DocPath {
     return None;
   }
 
+  /// If this path is the root path (it has only one element, the root token `$`).
   pub fn is_root(&self) -> bool {
     &self.path_tokens == &[PathToken::Root]
   }
 
+  /// The path is a wildcard path if it ends in a star (`*`)
   pub fn is_wildcard(&self) -> bool {
     self.path_tokens.last() == Some(&PathToken::Star)
   }
@@ -139,14 +143,27 @@ impl DocPath {
     weight
   }
 
+  /// If this path matches the given path. It will match if the calculated path weight is greater
+  /// than zero (which means at least one token matched).
   pub fn matches_path(&self, path: &[&str]) -> bool {
     self.path_weight(path).0 > 0
   }
 
+  /// If the path matches the given path (the calculated path weight is greater than zero) and
+  /// both paths have the same length.
   pub fn matches_path_exactly(&self, path: &[&str]) -> bool {
      self.len() == path.len() && self.matches_path(path)
   }
 
+  /// Creates a new path by cloning this one and pushing the name onto the end
+  pub fn join(&self, field: impl Into<String>) -> Self {
+    let field = field.into();
+    let mut path = self.clone();
+    path.push_field(field);
+    path
+  }
+
+  /// Mutates this path by pushing a field value onto the end.
   pub fn push_field(&mut self, field: impl Into<String>) -> &mut Self {
     let field = field.into();
     write_obj_key_for_path(&mut self.expr, &field);
@@ -154,6 +171,7 @@ impl DocPath {
     self
   }
 
+  /// Mutates this path by pushing an index value onto the end.
   pub fn push_index(&mut self, index: usize) -> &mut Self {
     self.path_tokens.push(PathToken::Index(index));
     // unwrap is safe, as write! is infallible for String
@@ -161,12 +179,14 @@ impl DocPath {
     self
   }
 
+  /// Mutates this path by pushing a star value onto the end.
   pub fn push_star(&mut self) -> &mut Self {
     self.path_tokens.push(PathToken::Star);
     self.expr.push_str(".*");
     self
   }
 
+  /// Mutates this path by pushing a star index value onto the end.
   pub fn push_star_index(&mut self) -> &mut Self {
     self.path_tokens.push(PathToken::StarIndex);
     self.expr.push_str("[*]");
