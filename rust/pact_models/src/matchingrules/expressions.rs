@@ -577,7 +577,7 @@ fn parse_content_type(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyho
 //   }
 //   | 'null'
 //   ;
-fn parse_primitive_value(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Result<(String, ValueType)> {
+fn parse_primitive_value(lex: &mut Lexer<MatcherDefinitionToken>, _v: &str) -> anyhow::Result<(String, ValueType)> {
   let next = lex.next().ok_or_else(|| anyhow!("expected a primitive value"))?;
   match next {
     MatcherDefinitionToken::String => Ok((lex.slice().trim_matches('\'').to_string(), ValueType::String)),

@@ -26,6 +26,18 @@ pub enum PathToken {
   StarIndex
 }
 
+impl Display for PathToken {
+  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    match self {
+      PathToken::Root => write!(f, "$"),
+      PathToken::Field(n) => write!(f, "{}", n),
+      PathToken::Index(n) => write!(f, "{}", n),
+      PathToken::Star => write!(f, "*"),
+      PathToken::StarIndex => write!(f, "*")
+    }
+  }
+}
+
 fn matches_token(path_fragment: &str, path_token: &PathToken) -> usize {
   match path_token {
     PathToken::Root if path_fragment == "$" => 2,
@@ -191,6 +203,11 @@ impl DocPath {
     self.path_tokens.push(PathToken::StarIndex);
     self.expr.push_str("[*]");
     self
+  }
+
+  /// Convert this path to a vector of strings
+  pub fn to_vec(&self) -> Vec<String> {
+    self.path_tokens.iter().map(|t| t.to_string()).collect()
   }
 }
 
