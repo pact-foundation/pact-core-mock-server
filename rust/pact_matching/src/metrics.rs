@@ -177,7 +177,7 @@ pub fn send_metrics(event: MetricEvent) {
             "v" => "1",                                       // Version of the API
             "t" => "event",                                   // Hit type, Specifies the metric is for an event
             "tid" => GA_ACCOUNT,                              // Property ID
-            "uid" => uid.as_str(),                            // Anonymous Client ID.
+            "cid" => uid.as_str(),                            // Anonymous Client ID.
             "an" => event.app_name(),                         // App name.
             "aid" => event.app_name(),                        // App Id
             "av" => event.app_version(),                      // App version.
@@ -192,6 +192,7 @@ pub fn send_metrics(event: MetricEvent) {
             "ea" => event.action(),                           // Action
             "ev" => value.as_str()                            // Value
           };
+          debug!("Sending event to GA - {:?}", event_payload);
           let result = Client::new().post(GA_URL)
             .form(&event_payload)
             .send()
