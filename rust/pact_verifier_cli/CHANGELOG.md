@@ -2,6 +2,9 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 
 # 0.9.5 - Bugfix Release
 
+
+# 0.9.5 - Bugfix Release
+
 * c97f5d1a - fix: shutdown the tokio reactor correctly when there is an error (Ronald Holshausen, Wed Dec 15 16:28:37 2021 +1100)
 * 7c31d981 - bump version to 0.9.5 (Ronald Holshausen, Wed Dec 15 15:59:05 2021 +1100)
 
