@@ -16,7 +16,7 @@ use pact_models::path_exp::DocPath;
 use pact_models::xml_utils::parse_bytes;
 
 use crate::{DiffConfig, MatchingContext};
-use crate::json::compare;
+use crate::json::compare_json;
 
 /// Implementation of a content type handler for XML (currently unimplemented).
 pub struct XmlHandler<'a> {
@@ -129,7 +129,7 @@ impl VariantMatcher for DefaultVariantMatcher {
     variants: &Vec<(usize, MatchingRuleCategory, HashMap<DocPath, Generator>)>
   ) -> Option<(usize, HashMap<DocPath, Generator>)> {
     let callback = |path: &Vec<&str>, value: &Value, context: &MatchingContext| {
-      compare(path, value, value, context).is_ok()
+      compare_json(path, value, value, context).is_ok()
     };
     find_matching_variant(value, variants, &callback)
   }

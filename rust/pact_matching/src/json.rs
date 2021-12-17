@@ -242,7 +242,7 @@ pub fn match_json(expected: &dyn HttpPart, actual: &dyn HttpPart, context: &Matc
     }
     Err(mismatches.clone())
   } else {
-    compare(&["$"], &expected_json.unwrap(), &actual_json.unwrap(), context)
+    compare_json(&["$"], &expected_json.unwrap(), &actual_json.unwrap(), context)
   }
 }
 
@@ -302,7 +302,8 @@ pub fn display_diff(expected: &str, actual: &str, path: &str, indent: &str) -> S
   output
 }
 
-pub(crate) fn compare(path: &[&str], expected: &Value, actual: &Value, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
+/// Compares the actual JSON to the expected one
+pub fn compare_json(path: &[&str], expected: &Value, actual: &Value, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
   debug!("compare: Comparing path {}", path.join("."));
   match (expected, actual) {
     (&Value::Object(ref emap), &Value::Object(ref amap)) => compare_maps(path, emap, amap, context),
@@ -350,7 +351,7 @@ fn compare_maps(path: &[&str], expected: &serde_json::Map<String, Value>, actual
       debug!("compare_maps: Matcher is defined for path {}", spath);
       for matcher in context.select_best_matcher(path).rules {
         result = merge_result(result,compare_maps_with_matchingrule(&matcher, path, &expected, &actual, context, &mut |p, expected, actual| {
-          compare(p, expected, actual, context)
+          compare_json(p, expected, actual, context)
         }));
       }
     } else {
@@ -359,7 +360,7 @@ fn compare_maps(path: &[&str], expected: &serde_json::Map<String, Value>, actual
         let mut p = path.to_vec();
         p.push(key.as_str());
         if actual.contains_key(key) {
-          result = merge_result(result, compare(&p, value, &actual[key], context));
+          result = merge_result(result, compare_json(&p, value, &actual[key], context));
         }
       }
     };
@@ -375,7 +376,7 @@ fn compare_lists(path: &[&str], expected: &[Value], actual: &[Value],
     let mut result = Ok(());
     for matcher in context.select_best_matcher(path).rules {
       let values_result = compare_lists_with_matchingrule(&matcher, path, expected, actual, context, &|p, expected, actual, context| {
-        compare(p, expected, actual, context)
+        compare_json(p, expected, actual, context)
       });
       result = merge_result(result, values_result);
     }
@@ -411,7 +412,7 @@ fn compare_list_content(path: &[&str], expected: &[Value], actual: &[Value], con
     let mut p = path.to_vec();
     p.push(ps.as_str());
     if index < actual.len() {
-      result = merge_result(result, compare(&p, value, &actual[index], context));
+      result = merge_result(result, compare_json(&p, value, &actual[index], context));
     } else if !context.matcher_is_defined(&p) {
       result = merge_result(result,Err(vec![ Mismatch::BodyMismatch { path: path.join("."),
         expected: Some(json_to_string(&json!(expected)).into()),
