@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.11.4 - Bugfix Release
+
+* 8911d5b0 - chore: update to latest plugin driver crate (metrics fixes) (Ronald Holshausen, Mon Dec 20 12:11:35 2021 +1100)
+* 25d8cd9b - fix(metrics): swap uid for cid (Matt Fellows, Fri Dec 17 15:48:42 2021 +1100)
+* ef29bc17 - chore: make json::compare_json public so it can be used by other crates (Ronald Holshausen, Fri Dec 17 13:55:22 2021 +1100)
+* d4a46381 - bump version to 0.11.4 (Ronald Holshausen, Wed Dec 15 10:06:34 2021 +1100)
+
 # 0.11.3 - Bugfix Release
 
 * 48d061ef - feat: add metrics publishing to matching crate (Ronald Holshausen, Tue Dec 14 16:19:59 2021 +1100)
