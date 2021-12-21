@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.2.3 - Maintenance Release
+
+* 481762f0 - feat: add function to detect if a string is a matching definition (Ronald Holshausen, Tue Dec 21 13:06:31 2021 +1100)
+* 98e364b2 - chore: add docpath method to return a vector of strings (Ronald Holshausen, Thu Dec 16 17:16:36 2021 +1100)
+* c707a8c0 - feat: add a method to join a value onto a doc path (Ronald Holshausen, Thu Dec 16 16:03:27 2021 +1100)
+* 77892ab1 - bump version to 0.2.3 (Ronald Holshausen, Mon Nov 29 11:57:36 2021 +1100)
+
 # 0.2.2 - Fixes to the matching rule parser
 
 * 58039496 - chore: fix imports on expression parser (Ronald Holshausen, Mon Nov 29 11:49:49 2021 +1100)
