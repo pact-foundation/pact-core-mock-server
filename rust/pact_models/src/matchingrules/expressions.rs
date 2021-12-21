@@ -186,6 +186,27 @@ pub fn parse_matcher_def(v: &str) -> anyhow::Result<MatchingRuleDefinition> {
   }
 }
 
+/// Determines if a sting starts with a valid matching rule definition. This is used in the case
+/// where a value can be a matching rule definition or a plain string value
+pub fn is_matcher_def(v: &str) -> bool {
+  if v.is_empty() {
+    false
+  } else {
+    let mut lex = MatcherDefinitionToken::lexer(v);
+    let next = lex.next();
+    if let Some(token) = next {
+      if token == MatcherDefinitionToken::Matching || token == MatcherDefinitionToken::NotEmpty ||
+        token == MatcherDefinitionToken::EachKey || token == MatcherDefinitionToken::EachValue {
+        true
+      } else {
+        false
+      }
+    } else {
+      false
+    }
+  }
+}
+
 // matchingDefinition returns [ MatchingRuleDefinition value ] :
 //     matchingDefinitionExp { $value = $matchingDefinitionExp.value; } ( COMMA e=matchingDefinitionExp {  if ($value != null) { $value = $value.merge($e.value); } } )* EOF
 //     ;
