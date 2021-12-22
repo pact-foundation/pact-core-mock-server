@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.2.4 - Maintenance Release
+
+* b5fd82e5 - feat: add method to DocPath to return the parent path (Ronald Holshausen, Wed Dec 22 18:06:43 2021 +1100)
+* a3f74711 - fix: Docpath join was escaping * (Ronald Holshausen, Wed Dec 22 17:23:12 2021 +1100)
+* cc0775e2 - bump version to 0.2.4 (Ronald Holshausen, Tue Dec 21 13:16:32 2021 +1100)
+
 # 0.2.3 - Maintenance Release
 
 * 481762f0 - feat: add function to detect if a string is a matching definition (Ronald Holshausen, Tue Dec 21 13:06:31 2021 +1100)
