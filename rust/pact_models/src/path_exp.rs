@@ -11,6 +11,15 @@ use log::trace;
 use regex::{Captures, Regex};
 use serde::{Deserialize, Serialize};
 
+lazy_static! {
+  // Only use "." syntax for things which are obvious identifiers.
+  static ref IDENT: Regex = Regex::new(r#"^[_A-Za-z][_A-Za-z0-9]*$"#)
+    .expect("could not parse IDENT regex");
+  // Escape these characters when using string syntax.
+  static ref ESCAPE: Regex = Regex::new(r#"\\|'"#)
+    .expect("could not parse ESCAPE regex");
+}
+
 /// Struct to store path token
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PathToken {
@@ -213,21 +222,42 @@ impl DocPath {
   pub fn to_vec(&self) -> Vec<String> {
     self.path_tokens.iter().map(|t| t.to_string()).collect()
   }
+
+  /// Return the parent path from this one
+  pub fn parent(&self) -> Option<Self> {
+    if self.path_tokens.len() <= 1 {
+      None
+    } else {
+      let mut vec = self.path_tokens.clone();
+      vec.truncate(vec.len() - 1);
+      let expr = vec.iter().map(|p| {
+        match p {
+          PathToken::Field(s) => {
+            if IDENT.is_match(s.as_str()) {
+              format!(".{}", s)
+            } else {
+              format!(
+                "['{}']",
+                ESCAPE.replace_all(s.as_str(), |caps: &Captures| format!(r#"\{}"#, &caps[0]))
+              )
+            }
+          }
+          PathToken::Root | PathToken::Star | PathToken::StarIndex => p.to_string(),
+          PathToken::Index(n) => format!(".{}", n)
+        }
+      }).collect();
+      Some(DocPath {
+        path_tokens: vec,
+        expr
+      })
+    }
+  }
 }
 
 /// Format a JSON object key for use in a JSON path expression. If we were
 /// more concerned about performance, we might try to come up with a scheme
 /// to minimize string allocation here.
 fn write_obj_key_for_path(mut out: impl Write, key: &str) {
-  lazy_static! {
-    // Only use "." syntax for things which are obvious identifiers.
-    static ref IDENT: Regex = Regex::new(r#"^[_A-Za-z][_A-Za-z0-9]*$"#)
-      .expect("could not parse IDENT regex");
-    // Escape these characters when using string syntax.
-    static ref ESCAPE: Regex = Regex::new(r#"\\|'"#)
-      .expect("could not parse ESCAPE regex");
-  }
-
   // unwrap is safe, as write! is infallible for String
   if IDENT.is_match(key) {
     write!(out, ".{}", key).unwrap();
@@ -735,5 +765,23 @@ mod tests {
     expect!(DocPath::root().join("something else").to_string()).to(be_equal_to("$['something else']"));
     expect!(something.join("else").to_string()).to(be_equal_to("$.something.else"));
     expect!(something.join("*").to_string()).to(be_equal_to("$.something.*"));
+  }
+
+  #[test]
+  fn path_parent() {
+    let something = DocPath::root().join("something");
+    let something_else = something.join("else");
+    let something_star = something.join("*");
+    let something_escaped = something.join("e l s e");
+    let something_escaped2 = something_escaped.join("two");
+
+    expect!(something.parent()).to(be_some().value(DocPath::root()));
+    expect!(something_else.parent()).to(be_some().value(something.clone()));
+    expect!(something_star.parent()).to(be_some().value(something.clone()));
+    expect!(something_escaped.parent()).to(be_some().value(something.clone()));
+    expect!(something_escaped2.parent()).to(be_some().value(something_escaped.clone()));
+
+    expect!(DocPath::root().parent()).to(be_none());
+    expect!(DocPath::empty().parent()).to(be_none());
   }
 }
