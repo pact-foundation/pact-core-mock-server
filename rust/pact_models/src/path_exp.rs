@@ -171,7 +171,11 @@ impl DocPath {
   pub fn join(&self, field: impl Into<String>) -> Self {
     let field = field.into();
     let mut path = self.clone();
-    path.push_field(field);
+    if field == "*" {
+      path.push_star();
+    } else {
+      path.push_field(field);
+    }
     path
   }
 
@@ -722,5 +726,14 @@ mod tests {
     assert_eq!(obj_key_for_path(r#"''"#), r#"['\'\'']"#);
     assert_eq!(obj_key_for_path(r#"a'"#), r#"['a\'']"#);
     assert_eq!(obj_key_for_path(r#"\"#), r#"['\\']"#);
+  }
+
+  #[test]
+  fn path_join() {
+    let something = DocPath::root().join("something");
+    expect!(something.to_string()).to(be_equal_to("$.something"));
+    expect!(DocPath::root().join("something else").to_string()).to(be_equal_to("$['something else']"));
+    expect!(something.join("else").to_string()).to(be_equal_to("$.something.else"));
+    expect!(something.join("*").to_string()).to(be_equal_to("$.something.*"));
   }
 }
