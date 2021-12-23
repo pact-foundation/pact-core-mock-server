@@ -14,7 +14,7 @@ use anyhow::{anyhow, Error};
 use ariadne::{Config, Label, Report, ReportKind, Source};
 use bytes::{BufMut, BytesMut};
 use itertools::Either;
-use log::warn;
+use log::{trace, warn};
 use logos::{Lexer, Logos};
 use semver::Version;
 
@@ -103,6 +103,7 @@ impl MatchingRuleDefinition {
   /// Merges two matching rules definitions. This is used when multiple matching rules are
   /// provided for a single element.
   pub fn merge(&self, other: &MatchingRuleDefinition) -> MatchingRuleDefinition {
+    trace!("Merging {:?} with {:?}", self, other);
     if !self.value.is_empty() && !other.value.is_empty() {
       warn!("There are multiple matching rules with values for the same value. There is no \
         reliable way to combine them, so the later value ('{}') will be ignored.", other.value)
@@ -211,10 +212,10 @@ pub fn is_matcher_def(v: &str) -> bool {
 //     matchingDefinitionExp { $value = $matchingDefinitionExp.value; } ( COMMA e=matchingDefinitionExp {  if ($value != null) { $value = $value.merge($e.value); } } )* EOF
 //     ;
 fn matching_definition(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Result<MatchingRuleDefinition> {
-  let value = matching_definition_exp(lex, v)?;
+  let mut value = matching_definition_exp(lex, v)?;
   while let Some(next) = lex.next() {
     if next == MatcherDefinitionToken::Comma {
-      value.merge(&matching_definition_exp(lex, v)?);
+      value = value.merge(&matching_definition_exp(lex, v)?);
     } else {
       return Err(anyhow!("expected comma, got '{}'", lex.slice()));
     }
@@ -1272,5 +1273,110 @@ mod test {
             |───╯
             |
             ".trim_margin().unwrap()));
+  }
+
+  #[test_log::test]
+  fn parse_multiple_matcher_definitions() {
+    expect!(super::parse_matcher_def("eachKey(matching(regex, '\\$(\\.\\w+)+', '$.test.one')), eachValue(matching(type, null))").unwrap()).to(
+      be_equal_to(MatchingRuleDefinition {
+        value: "".to_string(),
+        value_type: ValueType::Unknown,
+        rules: vec![
+          Either::Left(MatchingRule::EachKey(MatchingRuleDefinition { value: "$.test.one".to_string(), value_type: ValueType::String, rules: vec![Either::Left(MatchingRule::Regex("\\$(\\.\\w+)+".to_string()))], generator: None } )),
+          Either::Left(MatchingRule::EachValue(MatchingRuleDefinition { value: "".to_string(), value_type: ValueType::Unknown, rules: vec![Either::Left(MatchingRule::Type)], generator: None } ))
+        ],
+        generator: None
+      }));
+  }
+
+  #[test_log::test]
+  fn merge_definitions() {
+    let basic = MatchingRuleDefinition {
+      value: "".to_string(),
+      value_type: ValueType::Unknown,
+      rules: vec![],
+      generator: None
+    };
+    let with_value = MatchingRuleDefinition {
+      value: "value".to_string(),
+      value_type: ValueType::Unknown,
+      rules: vec![],
+      generator: None
+    };
+    let with_type = MatchingRuleDefinition {
+      value: "value".to_string(),
+      value_type: ValueType::String,
+      rules: vec![],
+      generator: None
+    };
+    let with_generator = MatchingRuleDefinition {
+      value: "".to_string(),
+      value_type: ValueType::String,
+      rules: vec![],
+      generator: Some(Generator::Date(None))
+    };
+    let with_matching_rule = MatchingRuleDefinition {
+      value: "".to_string(),
+      value_type: ValueType::String,
+      rules: vec![ Either::Left(MatchingRule::Type) ],
+      generator: None
+    };
+    expect!(basic.merge(&basic)).to(be_equal_to(basic.clone()));
+    expect!(basic.merge(&with_value)).to(be_equal_to(with_value.clone()));
+    expect!(basic.merge(&with_type)).to(be_equal_to(with_type.clone()));
+    expect!(basic.merge(&with_generator)).to(be_equal_to(with_generator.clone()));
+    expect!(basic.merge(&with_matching_rule)).to(be_equal_to(with_matching_rule.clone()));
+    expect!(with_matching_rule.merge(&with_matching_rule)).to(be_equal_to(MatchingRuleDefinition {
+      value: "".to_string(),
+      value_type: ValueType::String,
+      rules: vec![ Either::Left(MatchingRule::Type), Either::Left(MatchingRule::Type) ],
+      generator: None
+    }));
+
+    let each_key = MatchingRuleDefinition {
+      value: "".to_string(),
+      value_type: ValueType::Unknown,
+      rules: vec![
+        Either::Left(MatchingRule::EachKey(MatchingRuleDefinition {
+          value: "$.test.one".to_string(),
+          value_type: ValueType::String,
+          rules: vec![ Either::Left(MatchingRule::Regex("\\$(\\.\\w+)+".to_string())) ],
+          generator: None
+        }))
+      ],
+      generator: None
+    };
+    let each_value = MatchingRuleDefinition {
+      value: "".to_string(),
+      value_type: ValueType::Unknown,
+      rules: vec![
+        Either::Left(MatchingRule::EachValue(MatchingRuleDefinition {
+          value: "".to_string(),
+          value_type: ValueType::String,
+          rules: vec![ Either::Left(MatchingRule::Type) ],
+          generator: None
+        }))
+      ],
+      generator: None
+    };
+    expect!(each_key.merge(&each_value)).to(be_equal_to(MatchingRuleDefinition {
+      value: "".to_string(),
+      value_type: ValueType::Unknown,
+      rules: vec![
+        Either::Left(MatchingRule::EachKey(MatchingRuleDefinition {
+          value: "$.test.one".to_string(),
+          value_type: ValueType::String,
+          rules: vec![ Either::Left(MatchingRule::Regex("\\$(\\.\\w+)+".to_string())) ],
+          generator: None
+        })),
+        Either::Left(MatchingRule::EachValue(MatchingRuleDefinition {
+          value: "".to_string(),
+          value_type: ValueType::String,
+          rules: vec![ Either::Left(MatchingRule::Type) ],
+          generator: None
+        }))
+      ],
+      generator: None
+    }));
   }
 }
