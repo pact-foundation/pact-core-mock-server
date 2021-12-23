@@ -338,6 +338,7 @@ impl MatchingRule {
     trace!("rule_type: {}, attributes: {}", rule_type, attributes);
     let attributes = match attributes {
       Value::Object(values) => values,
+      Value::Null => Map::default(),
       _ => {
         error!("Matching rule attributes {} are not valid", attributes);
         return Err(anyhow!("Matching rule attributes {} are not valid", attributes));
