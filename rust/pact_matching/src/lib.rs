@@ -396,7 +396,7 @@ mod xml;
 mod binary_utils;
 mod headers;
 pub mod logging;
-mod matchingrules;
+pub mod matchingrules;
 mod generators;
 pub mod metrics;
 
