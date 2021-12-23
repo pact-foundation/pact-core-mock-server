@@ -337,7 +337,7 @@ impl MatchingRule {
   pub fn create(rule_type: &str, attributes: &Value) -> anyhow::Result<MatchingRule> {
     trace!("rule_type: {}, attributes: {}", rule_type, attributes);
     let attributes = match attributes {
-      Value::Object(values) => values,
+      Value::Object(values) => values.clone(),
       Value::Null => Map::default(),
       _ => {
         error!("Matching rule attributes {} are not valid", attributes);
@@ -442,7 +442,7 @@ impl MatchingRule {
       "eachKey" | "each-key" => {
         let generator = generator_from_json(&attributes);
         let value = attributes.get("value").cloned().unwrap_or_default();
-        let rules = rules_from_json(attributes)?;
+        let rules = rules_from_json(&attributes)?;
         let definition = MatchingRuleDefinition {
           value: json_to_string(&value),
           value_type: ValueType::Unknown,
@@ -454,7 +454,7 @@ impl MatchingRule {
       "eachValue" | "each-value" => {
         let generator = generator_from_json(&attributes);
         let value = attributes.get("value").cloned().unwrap_or_default();
-        let rules = rules_from_json(attributes)?;
+        let rules = rules_from_json(&attributes)?;
         let definition = MatchingRuleDefinition {
           value: json_to_string(&value),
           value_type: ValueType::Unknown,
