@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.8.4 - Maintenance Release
+
+* 52bc1735 - chore: update pact_matching crate to 0.11.5 (Ronald Holshausen, Thu Dec 23 13:12:08 2021 +1100)
+* 5479a634 - chore: Update pact_models (0.2.4) and pact-plugin-driver (0.0.14) (Ronald Holshausen, Thu Dec 23 12:57:02 2021 +1100)
+* fc0a8360 - chore: update pact_matching to 0.11.4 (Ronald Holshausen, Mon Dec 20 12:19:36 2021 +1100)
+* 8911d5b0 - chore: update to latest plugin driver crate (metrics fixes) (Ronald Holshausen, Mon Dec 20 12:11:35 2021 +1100)
+* 71708291 - bump version to 0.8.4 (Ronald Holshausen, Wed Dec 15 13:20:28 2021 +1100)
+
 # 0.8.3 - Maintenance Release
 
 * 84355d3d - chore: Upgrade rustls in the mock server to 0.20.2 (Ronald Holshausen, Wed Dec 15 12:32:28 2021 +1100)
