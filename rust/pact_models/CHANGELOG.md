@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.2.5 - Bugfix Release
+
+* e1e0b43e - fix: matching definition parser was incorrectly merging multiple definitions (Ronald Holshausen, Thu Dec 23 11:48:09 2021 +1100)
+* 85bffe40 - bump version to 0.2.5 (Ronald Holshausen, Thu Dec 23 09:23:57 2021 +1100)
+
 # 0.2.4 - Maintenance Release
 
 * b5fd82e5 - feat: add method to DocPath to return the parent path (Ronald Holshausen, Wed Dec 22 18:06:43 2021 +1100)
