@@ -23,6 +23,7 @@ impl <T: Debug + Display + PartialEq + Clone> Matches<&Vec<T>> for &Vec<T> {
 
 impl <T: Debug + Display + PartialEq + Clone> Matches<&[T]> for &[T] {
   fn matches_with(&self, actual: &[T], matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
+    debug!("slice -> slice: comparing [{}] to [{}] using {:?}", std::any::type_name::<T>(), std::any::type_name::<T>(), matcher);
     let result = match matcher {
       MatchingRule::Regex(ref regex) => {
         match Regex::new(regex) {
@@ -82,8 +83,21 @@ impl <T: Debug + Display + PartialEq + Clone> Matches<&[T]> for &[T] {
   }
 }
 
+impl Matches<Vec<u8>> for Vec<u8> {
+  fn matches_with(&self, actual: Vec<u8>, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
+    self.matches_with(actual.as_slice(), matcher, cascaded)
+  }
+}
+
+impl Matches<&Vec<u8>> for Vec<u8> {
+  fn matches_with(&self, actual: &Vec<u8>, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
+    self.matches_with(actual.as_slice(), matcher, cascaded)
+  }
+}
+
 impl Matches<&[u8]> for Vec<u8> {
   fn matches_with(&self, actual: &[u8], matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
+    debug!("byte slice -> byte slice: comparing {:?} to {:?} using {:?}", self, actual, matcher);
     let result = match matcher {
       MatchingRule::Regex(regex) => {
         match Regex::new(regex) {

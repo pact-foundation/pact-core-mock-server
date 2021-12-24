@@ -473,13 +473,14 @@ impl Matches<u16> for u16 {
 
 impl Matches<i64> for String {
   fn matches_with(&self, actual: i64, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
+    debug!("String -> i64: comparing {} to {} using {:?}", self, actual, matcher);
     self.as_str().matches_with(actual, matcher, cascaded)
   }
 }
 
 impl Matches<i64> for &str {
   fn matches_with(&self, actual: i64, matcher: &MatchingRule, _cascaded: bool) -> anyhow::Result<()> {
-    debug!("String -> i32: comparing '{}' to {} using {:?}", self, actual, matcher);
+    debug!("String -> i64: comparing '{}' to {} using {:?}", self, actual, matcher);
     match matcher {
       MatchingRule::Regex(regex) => {
         match Regex::new(regex) {
@@ -603,6 +604,12 @@ impl Matches<bool> for bool {
   }
 }
 
+impl Matches<Bytes> for Bytes {
+  fn matches_with(&self, actual: Bytes, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
+    self.matches_with(&actual, matcher, cascaded)
+  }
+}
+
 impl Matches<&Bytes> for Bytes {
   fn matches_with(&self, actual: &Bytes, matcher: &MatchingRule, _cascaded: bool) -> anyhow::Result<()> {
     debug!("Bytes -> Bytes: comparing {} bytes to {} bytes using {:?}", self.len(), actual.len(), matcher);
@@ -661,6 +668,7 @@ impl Matches<&Bytes> for Bytes {
 /// Match the provided values using the path and matching context
 pub fn match_values<E, A>(path: &[&str], context: &MatchingContext, expected: E, actual: A) -> Result<(), Vec<String>>
   where E: Matches<A>, A: Clone {
+  trace!("match_values: {} -> {}", std::any::type_name::<E>(), std::any::type_name::<A>());
   let matching_rules = context.select_best_matcher(path);
   if matching_rules.is_empty() {
     Err(vec![format!("No matcher found for path '{}'", path.iter().join("."))])
@@ -1057,8 +1065,8 @@ mod tests {
     expect!("100".to_string().matches_with("", &matcher, false)).to(be_err());
     expect!("100".to_string().matches_with(100, &matcher, false)).to(be_err());
     expect!(100.matches_with(100.1, &matcher, false)).to(be_err());
-    expect!(vec![100].matches_with(&[100], &matcher, false)).to(be_ok());
-    expect!(vec![100].matches_with(&[], &matcher, false)).to(be_err());
+    expect!(vec![100].matches_with(vec![100], &matcher, false)).to(be_ok());
+    expect!(vec![100].matches_with(vec![], &matcher, false)).to(be_err());
     expect!(json!([100]).matches_with(&json!([100]), &matcher, false)).to(be_ok());
     expect!(json!([100]).matches_with(&json!([]), &matcher, false)).to(be_err());
     expect!(json!({"num": 100}).matches_with(&json!({"num": 100}), &matcher, false)).to(be_ok());
