@@ -1573,7 +1573,7 @@ pub async fn match_message<'a>(
     let expected_message = expected.as_message().unwrap();
     let actual_message = actual.as_message().unwrap();
 
-    let matching_rules = expected.matching_rules().unwrap_or_default();
+    let matching_rules = &expected_message.matching_rules;
     let plugin_data = setup_plugin_config(pact, expected);
 
     let body_context = if expected.is_v4() {

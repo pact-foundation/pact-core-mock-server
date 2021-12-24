@@ -8,10 +8,10 @@ use http::header::{HeaderMap, HeaderName};
 use itertools::Itertools;
 use log::*;
 use onig::Regex;
-use serde_json::Value;
-
+use pact_models::content_types::{ContentType, detect_content_type_from_bytes};
 use pact_models::http_parts::HttpPart;
 use pact_models::matchingrules::{MatchingRule, RuleLogic};
+use serde_json::Value;
 
 use crate::{MatchingContext, Mismatch};
 use crate::matchers::{match_values, Matches};
@@ -27,6 +27,11 @@ pub fn match_content_type<S>(data: &[u8], expected_content_type: S) -> anyhow::R
          expected, result, matches);
   if matches {
     Ok(())
+  } else if result == "text/plain" {
+    detect_content_type_from_bytes(data)
+      .and_then(|ct| if ct ==  ContentType::from(&expected) { Some(()) } else { None })
+      .ok_or_else(|| anyhow!("Expected binary contents to have content type '{}' but detected contents was '{}'",
+        expected, result))
   } else {
     Err(anyhow!("Expected binary contents to have content type '{}' but detected contents was '{}'",
       expected, result))
@@ -404,14 +409,13 @@ mod tests {
   use expectest::prelude::*;
   use hamcrest2::prelude::*;
   use maplit::*;
-
   use pact_models::bodies::OptionalBody;
   use pact_models::matchingrules;
   use pact_models::matchingrules::MatchingRule;
   use pact_models::request::Request;
 
   use crate::{DiffConfig, MatchingContext, Mismatch};
-  use crate::binary_utils::match_mime_multipart;
+  use crate::binary_utils::{match_content_type, match_mime_multipart};
 
   fn mismatch(m: &Mismatch) -> &str {
     match m {
@@ -766,5 +770,22 @@ mod tests {
     expect!(mismatches.iter().map(|m| mismatch(m)).collect::<Vec<&str>>()).to(be_equal_to(vec![
       "MIME part \'file\': Expected binary contents to have content type \'application/jpeg\' but detected contents was \'text/plain\'"
     ]));
+  }
+
+  #[test]
+  fn match_content_type_equals() {
+    expect!(match_content_type("some text".as_bytes(), "text/plain")).to(be_ok());
+
+    let bytes: [u8; 48] = [
+      0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0xff, 0xdb, 0x00, 0x43,
+      0x00, 0x10, 0x0b, 0x0c, 0x0e, 0x0c, 0x0a, 0x10, 0x0e, 0x0d, 0x0e, 0x12, 0x11, 0x10, 0x13, 0x18, 0x28, 0x1a, 0x18, 0x16, 0x16, 0x18, 0x31, 0x23
+    ];
+    expect!(match_content_type(&bytes, "image/jpeg")).to(be_ok());
+  }
+
+  #[test]
+  fn match_content_type_common_text_types() {
+    expect!(match_content_type("{\"val\": \"some text\"}".as_bytes(), "application/json")).to(be_ok());
+    expect!(match_content_type("<xml version=\"1.0\"><a/>".as_bytes(), "application/xml")).to(be_ok());
   }
 }
