@@ -466,6 +466,15 @@ impl MatchingRule {
       _ => Err(anyhow!("{} is not a valid matching rule type", rule_type)),
     }
   }
+
+  /// If this matching rule is a values matcher (ignores keys in maps)
+  pub fn is_values_matcher(&self) -> bool {
+    match self {
+      MatchingRule::Values => true,
+      MatchingRule::EachValue(_) => true,
+      _ => false
+    }
+  }
 }
 
 impl Hash for MatchingRule {
@@ -822,11 +831,7 @@ impl RuleList {
 
   /// If the values matcher is defined for the rule list
   pub fn values_matcher_defined(&self) -> bool {
-    self.rules.iter().any(|rule| match rule {
-      MatchingRule::Values => true,
-      MatchingRule::EachValue(_) => true,
-      _ => false
-    })
+    self.rules.iter().any(MatchingRule::is_values_matcher)
   }
 
   /// Add a matching rule to the rule list
