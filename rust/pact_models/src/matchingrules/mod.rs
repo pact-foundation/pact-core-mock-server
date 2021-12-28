@@ -824,6 +824,7 @@ impl RuleList {
   pub fn values_matcher_defined(&self) -> bool {
     self.rules.iter().any(|rule| match rule {
       MatchingRule::Values => true,
+      MatchingRule::EachValue(_) => true,
       _ => false
     })
   }
@@ -2028,5 +2029,35 @@ mod tests {
     expect!(MatchingRule::MinType(1).to_json().to_string()).to(be_equal_to("{\"match\":\"type\",\"min\":1}"));
     expect!(MatchingRule::MaxType(1).to_json().to_string()).to(be_equal_to("{\"match\":\"type\",\"max\":1}"));
     expect!(MatchingRule::MinMaxType(1, 10).to_json().to_string()).to(be_equal_to("{\"match\":\"type\",\"max\":10,\"min\":1}"));
+  }
+
+  #[test]
+  fn rule_list_values_matcher_defined() {
+    let rule_list_with_value_matcher = RuleList {
+      rules: vec![ MatchingRule::Type, MatchingRule::Values, MatchingRule::Null ],
+      rule_logic: RuleLogic::And,
+      cascaded: false
+    };
+
+    let rule_list_with_each_value_matcher = RuleList {
+      rules: vec![MatchingRule::Type, MatchingRule::EachValue(MatchingRuleDefinition {
+        value: "".to_string(),
+        value_type: ValueType::Unknown,
+        rules: vec![],
+        generator: None
+      }), MatchingRule::Null ],
+      rule_logic: RuleLogic::And,
+      cascaded: false
+    };
+
+    let rule_list_with_no_value_matcher = RuleList {
+      rules: vec![ MatchingRule::Type, MatchingRule::Boolean, MatchingRule::Null ],
+      rule_logic: RuleLogic::And,
+      cascaded: false
+    };
+
+    expect!(rule_list_with_value_matcher.values_matcher_defined()).to(be_true());
+    expect!(rule_list_with_each_value_matcher.values_matcher_defined()).to(be_true());
+    expect!(rule_list_with_no_value_matcher.values_matcher_defined()).to(be_false());
   }
 }
