@@ -344,7 +344,7 @@
 
 #![warn(missing_docs)]
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap};
 use std::fmt::{Debug, Display};
 use std::fmt::Formatter;
 use std::hash::Hash;
@@ -417,7 +417,7 @@ pub trait MatchingContext {
   fn values_matcher_defined(&self, path: &DocPath) -> bool;
 
   /// Matches the keys of the expected and actual maps
-  fn match_keys(&self, path: &DocPath, expected: &HashSet<String>, actual: &HashSet<String>) -> Result<(), Vec<Mismatch>>;
+  fn match_keys(&self, path: &DocPath, expected: &BTreeSet<String>, actual: &BTreeSet<String>) -> Result<(), Vec<Mismatch>>;
 
   /// Returns the plugin configuration associated with the context
   fn plugin_configuration(&self) -> &HashMap<String, PluginInteractionConfig>;
@@ -522,7 +522,7 @@ impl MatchingContext for CoreMatchingContext {
   }
 
   /// Matches the keys of the expected and actual maps
-  fn match_keys(&self, path: &DocPath, expected: &HashSet<String>, actual: &HashSet<String>) -> Result<(), Vec<Mismatch>> {
+  fn match_keys(&self, path: &DocPath, expected: &BTreeSet<String>, actual: &BTreeSet<String>) -> Result<(), Vec<Mismatch>> {
     let mut expected_keys = expected.iter().cloned().collect::<Vec<String>>();
     expected_keys.sort();
     let mut actual_keys = actual.iter().cloned().collect::<Vec<String>>();

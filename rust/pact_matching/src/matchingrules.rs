@@ -1,6 +1,6 @@
 //! `matchingrules` module includes all the classes to deal with V3 format matchers
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::{Debug, Display};
 use std::str::from_utf8;
 
@@ -199,24 +199,32 @@ impl <T: Display> DisplayForMismatch for HashSet<T> {
   }
 }
 
+impl <T: Display> DisplayForMismatch for BTreeSet<T> {
+  fn for_mismatch(&self) -> String {
+    let mut values = self.iter().map(|v| v.to_string()).collect::<Vec<String>>();
+    values.sort();
+    values.for_mismatch()
+  }
+}
+
 /// Delegate to the matching rule defined at the given path to compare the key/value maps.
 pub fn compare_maps_with_matchingrule<T: Display + Debug>(
   rule: &MatchingRule,
   path: &DocPath,
-  expected: &HashMap<String, T>,
-  actual: &HashMap<String, T>,
+  expected: &BTreeMap<String, T>,
+  actual: &BTreeMap<String, T>,
   context: &dyn MatchingContext,
   callback: &mut dyn FnMut(&DocPath, &T, &T) -> Result<(), Vec<Mismatch>>
 ) -> Result<(), Vec<Mismatch>> {
   let mut result = Ok(());
-  if context.values_matcher_defined(path) {
+  if rule.is_values_matcher() {
     debug!("Values matcher is defined for path {:?}", path);
     for (key, value) in actual.iter() {
       let p = path.join(key);
       if expected.contains_key(key) {
         result = merge_result(result, callback(&p, &expected[key], value));
-      } else if !expected.is_empty() {
-        result = merge_result(result, callback(&p, expected.values().next().unwrap(), value));
+      } else if let Some(first) = expected.values().next() {
+        result = merge_result(result, callback(&p, first, value));
       }
     }
   } else {
@@ -314,4 +322,145 @@ pub fn compare_lists_with_matchingrule<T: Display + Debug + PartialEq + Clone + 
   }
 
   result
+}
+
+#[cfg(test)]
+mod tests {
+  use std::cell::RefCell;
+  use std::collections::{BTreeSet, HashMap, HashSet};
+
+  use expectest::prelude::*;
+  use maplit::btreemap;
+  use pact_models::matchingrules::{MatchingRule, MatchingRuleCategory, RuleList};
+  use pact_models::matchingrules::expressions::{MatchingRuleDefinition, ValueType};
+  use pact_models::path_exp::DocPath;
+  use pact_plugin_driver::plugin_models::PluginInteractionConfig;
+
+  use crate::{DiffConfig, MatchingContext, Mismatch};
+  use crate::matchingrules::compare_maps_with_matchingrule;
+
+  struct MockContext {
+    pub calls: RefCell<Vec<String>>
+  }
+
+  impl MatchingContext for MockContext {
+    fn matcher_is_defined(&self, path: &DocPath) -> bool {
+      self.calls.borrow_mut().push(format!("matcher_is_defined({})", path));
+      true
+    }
+
+    fn select_best_matcher(&self, path: &DocPath) -> RuleList {
+      todo!()
+    }
+
+    fn type_matcher_defined(&self, path: &DocPath) -> bool {
+      todo!()
+    }
+
+    fn values_matcher_defined(&self, path: &DocPath) -> bool {
+      todo!()
+    }
+
+    fn match_keys(&self, path: &DocPath, expected: &BTreeSet<String>, actual: &BTreeSet<String>) -> Result<(), Vec<Mismatch>> {
+      self.calls.borrow_mut().push(format!("match_keys({}, {:?}, {:?})", path, expected, actual));
+      Ok(())
+    }
+
+    fn plugin_configuration(&self) -> &HashMap<String, PluginInteractionConfig> {
+      todo!()
+    }
+
+    fn matchers(&self) -> &MatchingRuleCategory {
+      todo!()
+    }
+
+    fn config(&self) -> DiffConfig {
+      todo!()
+    }
+
+    fn clone_with(&self, matchers: &MatchingRuleCategory) -> Box<dyn MatchingContext> {
+      todo!()
+    }
+  }
+
+  #[test]
+  fn compare_maps_with_matchingrule_with_no_value_matcher_at_path() {
+    let rule = MatchingRule::Type;
+    let expected = btreemap!{
+      "a".to_string() => "100".to_string(),
+      "b".to_string() => "101".to_string()
+    };
+    let actual = btreemap!{
+      "a".to_string() => "101".to_string()
+    };
+
+    let context = MockContext {
+      calls: RefCell::new(vec![])
+    };
+    let mut calls = vec![];
+    let mut callback = |p: &DocPath, a: &String, b: &String| {
+      calls.push(format!("{}, {}, {}", p, a, b));
+      Ok(())
+    };
+    let result = compare_maps_with_matchingrule(&rule, &DocPath::root(),
+      &expected, &actual, &context, &mut callback);
+
+    expect!(result).to(be_ok());
+
+    // We expect match keys to be called, then the callback of each key that is also in the
+    // actual map
+    let v = vec![
+      "match_keys($, {\"a\", \"b\"}, {\"a\"})".to_string()
+    ];
+    expect!(context.calls.into_inner()).to(be_equal_to(v));
+    let v = vec![
+      "$.a, 100, 101".to_string()
+    ];
+    expect!(calls).to(be_equal_to(v));
+  }
+
+  #[test]
+  fn compare_maps_with_matchingrule_with_value_matcher_at_path() {
+    let expected = btreemap!{
+      "a".to_string() => "100".to_string()
+    };
+    let actual = btreemap!{
+      "a".to_string() => "101".to_string(),
+      "b".to_string() => "102".to_string()
+    };
+
+    let context = MockContext {
+      calls: RefCell::new(vec![])
+    };
+    let mut calls = vec![];
+    let mut callback = |p: &DocPath, a: &String, b: &String| {
+      calls.push(format!("{}, {}, {}", p, a, b));
+      Ok(())
+    };
+    let result = compare_maps_with_matchingrule(&MatchingRule::Values, &DocPath::root(),
+      &expected, &actual, &context, &mut callback);
+    let rule = MatchingRule::EachValue(MatchingRuleDefinition {
+      value: "".to_string(),
+      value_type: ValueType::Unknown,
+      rules: vec![],
+      generator: None
+    });
+    let result2 = compare_maps_with_matchingrule(&rule, &DocPath::root(),
+      &expected, &actual, &context, &mut callback);
+
+    expect!(result).to(be_ok());
+    expect!(result2).to(be_ok());
+
+    // With a values matcher, we expect the callback to be called for each key in the actual map
+    // and no other methods called on the context
+    let v: Vec<String> = vec![];
+    expect!(context.calls.into_inner()).to(be_equal_to(v));
+    let v = vec![
+      "$.a, 100, 101".to_string(),
+      "$.b, 100, 102".to_string(),
+      "$.a, 100, 101".to_string(),
+      "$.b, 100, 102".to_string()
+    ];
+    expect!(calls).to(be_equal_to(v));
+  }
 }
