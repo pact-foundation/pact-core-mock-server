@@ -177,13 +177,15 @@ impl DocPath {
   }
 
   /// Creates a new path by cloning this one and pushing the name onto the end
-  pub fn join(&self, field: impl Into<String>) -> Self {
-    let field = field.into();
+  pub fn join(&self, part: impl Into<String>) -> Self {
+    let part = part.into();
     let mut path = self.clone();
-    if field == "*" {
+    if part == "*" {
       path.push_star();
+    } else if let Ok(index) = part.parse() {
+      path.push_index(index);
     } else {
-      path.push_field(field);
+      path.push_field(part);
     }
     path
   }
@@ -765,6 +767,7 @@ mod tests {
     expect!(DocPath::root().join("something else").to_string()).to(be_equal_to("$['something else']"));
     expect!(something.join("else").to_string()).to(be_equal_to("$.something.else"));
     expect!(something.join("*").to_string()).to(be_equal_to("$.something.*"));
+    expect!(something.join("101").to_string()).to(be_equal_to("$.something[101]"));
   }
 
   #[test]
