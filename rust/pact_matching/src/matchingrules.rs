@@ -1,6 +1,6 @@
 //! `matchingrules` module includes all the classes to deal with V3 format matchers
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::{Debug, Display};
 use std::str::from_utf8;
 
