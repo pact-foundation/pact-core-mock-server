@@ -210,6 +210,7 @@ impl <T: Display> DisplayForMismatch for BTreeSet<T> {
 /// Delegate to the matching rule defined at the given path to compare the key/value maps.
 pub fn compare_maps_with_matchingrule<T: Display + Debug>(
   rule: &MatchingRule,
+  cascaded: bool,
   path: &DocPath,
   expected: &BTreeMap<String, T>,
   actual: &BTreeMap<String, T>,
@@ -217,8 +218,8 @@ pub fn compare_maps_with_matchingrule<T: Display + Debug>(
   callback: &mut dyn FnMut(&DocPath, &T, &T) -> Result<(), Vec<Mismatch>>
 ) -> Result<(), Vec<Mismatch>> {
   let mut result = Ok(());
-  if rule.is_values_matcher() {
-    debug!("Values matcher is defined for path {:?}", path);
+  if !cascaded && rule.is_values_matcher() {
+    debug!("Values matcher is defined for path {}", path);
     for (key, value) in actual.iter() {
       let p = path.join(key);
       if expected.contains_key(key) {
@@ -402,7 +403,7 @@ mod tests {
       calls.push(format!("{}, {}, {}", p, a, b));
       Ok(())
     };
-    let result = compare_maps_with_matchingrule(&rule, &DocPath::root(),
+    let result = compare_maps_with_matchingrule(&rule, false, &DocPath::root(),
       &expected, &actual, &context, &mut callback);
 
     expect!(result).to(be_ok());
@@ -437,7 +438,7 @@ mod tests {
       calls.push(format!("{}, {}, {}", p, a, b));
       Ok(())
     };
-    let result = compare_maps_with_matchingrule(&MatchingRule::Values, &DocPath::root(),
+    let result = compare_maps_with_matchingrule(&MatchingRule::Values, false, &DocPath::root(),
       &expected, &actual, &context, &mut callback);
     let rule = MatchingRule::EachValue(MatchingRuleDefinition {
       value: "".to_string(),
@@ -445,7 +446,7 @@ mod tests {
       rules: vec![],
       generator: None
     });
-    let result2 = compare_maps_with_matchingrule(&rule, &DocPath::root(),
+    let result2 = compare_maps_with_matchingrule(&rule, false, &DocPath::root(),
       &expected, &actual, &context, &mut callback);
 
     expect!(result).to(be_ok());

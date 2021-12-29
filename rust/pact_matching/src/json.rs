@@ -305,7 +305,7 @@ pub fn display_diff(expected: &str, actual: &str, path: &str, indent: &str) -> S
 
 /// Compares the actual JSON to the expected one
 pub fn compare_json(path: &DocPath, expected: &Value, actual: &Value, context: &dyn MatchingContext) -> Result<(), Vec<Mismatch>> {
-  debug!("compare: Comparing path {}", path.join("."));
+  debug!("compare: Comparing path {}", path);
   match (expected, actual) {
     (&Value::Object(ref emap), &Value::Object(ref amap)) => compare_maps(path, emap, amap, context),
     (&Value::Object(_), _) => {
@@ -354,8 +354,9 @@ fn compare_maps(
 
     if context.matcher_is_defined(path) {
       debug!("compare_maps: Matcher is defined for path {}", path);
-      for matcher in context.select_best_matcher(path).rules {
-        result = merge_result(result,compare_maps_with_matchingrule(&matcher, path, &expected, &actual, context, &mut |p, expected, actual| {
+      let rule_list = context.select_best_matcher(path);
+      for matcher in rule_list.rules {
+        result = merge_result(result,compare_maps_with_matchingrule(&matcher, rule_list.cascaded, path, &expected, &actual, context, &mut |p, expected, actual| {
           compare_json(p, expected, actual, context)
         }));
       }
