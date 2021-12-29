@@ -4,11 +4,14 @@ use std::str::from_utf8;
 
 use anyhow::anyhow;
 use bytes::Bytes;
-use itertools::Itertools;
 use lazy_static::lazy_static;
 use log::*;
 use maplit::hashmap;
 use onig::Regex;
+use pact_models::HttpStatus;
+use pact_models::matchingrules::{MatchingRule, RuleList, RuleLogic};
+use pact_models::path_exp::DocPath;
+use pact_models::time_utils::validate_datetime;
 use pact_plugin_driver::catalogue_manager::{
   CatalogueEntry,
   CatalogueEntryProviderType,
@@ -17,12 +20,7 @@ use pact_plugin_driver::catalogue_manager::{
 };
 use semver::Version;
 
-use pact_models::HttpStatus;
-use pact_models::matchingrules::{MatchingRule, RuleLogic};
-use pact_models::time_utils::validate_datetime;
-
 use crate::binary_utils::match_content_type;
-use crate::MatchingContext;
 
 lazy_static! {
   /// Content matcher/generator entries to add to the plugin catalogue
@@ -665,13 +663,12 @@ impl Matches<&Bytes> for Bytes {
   }
 }
 
-/// Match the provided values using the path and matching context
-pub fn match_values<E, A>(path: &[&str], context: &MatchingContext, expected: E, actual: A) -> Result<(), Vec<String>>
+/// Match the provided values using the path and matching rules
+pub fn match_values<E, A>(path: &DocPath, matching_rules: &RuleList, expected: E, actual: A) -> Result<(), Vec<String>>
   where E: Matches<A>, A: Clone {
   trace!("match_values: {} -> {}", std::any::type_name::<E>(), std::any::type_name::<A>());
-  let matching_rules = context.select_best_matcher(path);
   if matching_rules.is_empty() {
-    Err(vec![format!("No matcher found for path '{}'", path.iter().join("."))])
+    Err(vec![format!("No matcher found for path '{}'", path)])
   } else {
     let results = matching_rules.rules.iter().map(|rule| {
       expected.matches_with(actual.clone(), rule, matching_rules.cascaded)
@@ -719,9 +716,8 @@ fn match_status_code(status_code: u16, status: &HttpStatus) -> anyhow::Result<()
 mod tests {
   use expectest::expect;
   use expectest::prelude::*;
-  use serde_json::json;
-
   use pact_models::{matchingrules, matchingrules::RuleList, matchingrules_list};
+  use serde_json::json;
 
   use super::*;
 

@@ -1,15 +1,15 @@
 //! `matchingrules` module includes all the classes to deal with V3 format matchers
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display};
-use std::str::{self, from_utf8};
+use std::str::from_utf8;
 
 use anyhow::anyhow;
 use log::*;
 use onig::Regex;
-use serde_json::{self, json, Value};
-
 use pact_models::matchingrules::{MatchingRule, MatchingRuleCategory};
+use pact_models::path_exp::DocPath;
+use serde_json::{self, json, Value};
 
 use crate::{MatchingContext, merge_result, Mismatch};
 use crate::binary_utils::match_content_type;
@@ -191,21 +191,28 @@ impl <T: Display> DisplayForMismatch for &[T] {
   }
 }
 
+impl <T: Display> DisplayForMismatch for HashSet<T> {
+  fn for_mismatch(&self) -> String {
+    let mut values = self.iter().map(|v| v.to_string()).collect::<Vec<String>>();
+    values.sort();
+    values.for_mismatch()
+  }
+}
+
 /// Delegate to the matching rule defined at the given path to compare the key/value maps.
 pub fn compare_maps_with_matchingrule<T: Display + Debug>(
-  _rule: &MatchingRule,
-  path: &[&str],
+  rule: &MatchingRule,
+  path: &DocPath,
   expected: &HashMap<String, T>,
   actual: &HashMap<String, T>,
-  context: &MatchingContext,
-  callback: &mut dyn FnMut(&Vec<&str>, &T, &T
-  ) -> Result<(), Vec<Mismatch>>) -> Result<(), Vec<Mismatch>> {
+  context: &dyn MatchingContext,
+  callback: &mut dyn FnMut(&DocPath, &T, &T) -> Result<(), Vec<Mismatch>>
+) -> Result<(), Vec<Mismatch>> {
   let mut result = Ok(());
   if context.values_matcher_defined(path) {
     debug!("Values matcher is defined for path {:?}", path);
     for (key, value) in actual.iter() {
-      let mut p = path.to_vec();
-      p.push(key);
+      let p = path.join(key);
       if expected.contains_key(key) {
         result = merge_result(result, callback(&p, &expected[key], value));
       } else if !expected.is_empty() {
@@ -213,11 +220,12 @@ pub fn compare_maps_with_matchingrule<T: Display + Debug>(
       }
     }
   } else {
-    result = merge_result(result, context.match_keys(path, expected, actual));
+    let expected_keys = expected.keys().cloned().collect();
+    let actual_keys = actual.keys().cloned().collect();
+    result = merge_result(result, context.match_keys(path, &expected_keys, &actual_keys));
     for (key, value) in expected.iter() {
       if actual.contains_key(key) {
-        let mut p = path.to_vec();
-        p.push(key);
+        let p = path.join(key);
         result = merge_result(result, callback(&p, value, &actual[key]));
       }
     }
@@ -228,11 +236,11 @@ pub fn compare_maps_with_matchingrule<T: Display + Debug>(
 /// Compare the expected and actual lists using the matching rule's logic
 pub fn compare_lists_with_matchingrule<T: Display + Debug + PartialEq + Clone + Sized>(
   rule: &MatchingRule,
-  path: &[&str],
+  path: &DocPath,
   expected: &[T],
   actual: &[T],
-  context: &MatchingContext,
-  callback: &dyn Fn(&[&str], &T, &T, &MatchingContext) -> Result<(), Vec<Mismatch>>
+  context: &dyn MatchingContext,
+  callback: &dyn Fn(&DocPath, &T, &T, &dyn MatchingContext) -> Result<(), Vec<Mismatch>>
 ) -> Result<(), Vec<Mismatch>> {
   let mut result = Ok(());
   match rule {
@@ -250,11 +258,11 @@ pub fn compare_lists_with_matchingrule<T: Display + Debug + PartialEq + Clone + 
             let context = context.clone_with(&rules);
             let predicate: &dyn Fn(&(usize, &T)) -> bool = &|&(actual_index, value)| {
               debug!("Comparing list item {} with value '{:?}' to '{:?}'", actual_index, value, expected_value);
-              callback(&["$"], expected_value, value, &context).is_ok()
+              callback(&DocPath::root(), expected_value, value, context.as_ref()).is_ok()
             };
             if actual.iter().enumerate().find(predicate).is_none() {
               result = merge_result(result,Err(vec![ Mismatch::BodyMismatch {
-                path: path.join("."),
+                path: path.to_string(),
                 expected: Some(expected_value.to_string().into()),
                 actual: Some(actual.for_mismatch().into()),
                 mismatch: format!("Variant at index {} ({}) was not found in the actual list", index, expected_value)
@@ -263,7 +271,7 @@ pub fn compare_lists_with_matchingrule<T: Display + Debug + PartialEq + Clone + 
           },
           None => {
             result = merge_result(result,Err(vec![ Mismatch::BodyMismatch {
-              path: path.join("."),
+              path: path.to_string(),
               expected: Some(expected.for_mismatch().into()),
               actual: Some(actual.for_mismatch().into()),
               mismatch: format!("ArrayContains: variant {} is missing from the expected list, which has {} items",
@@ -274,10 +282,10 @@ pub fn compare_lists_with_matchingrule<T: Display + Debug + PartialEq + Clone + 
       }
     }
     _ => {
-      if let Err(messages) = match_values(path, context, expected, actual) {
+      if let Err(messages) = match_values(path, &context.select_best_matcher(&path), expected, actual) {
         for message in messages {
           result = merge_result(result,Err(vec![ Mismatch::BodyMismatch {
-            path: path.join("."),
+            path: path.to_string(),
             expected: Some(expected.for_mismatch().into()),
             actual: Some(actual.for_mismatch().into()),
             mismatch: message.clone()
@@ -292,12 +300,11 @@ pub fn compare_lists_with_matchingrule<T: Display + Debug + PartialEq + Clone + 
       for (index, value) in expected_list.iter().enumerate() {
         let ps = index.to_string();
         debug!("Comparing list item {} with value '{:?}' to '{:?}'", index, actual.get(index), value);
-        let mut p = path.to_vec();
-        p.push(ps.as_str());
+        let p = path.join(ps);
         if index < actual.len() {
           result = merge_result(result, callback(&p, value, &actual[index], context));
         } else if !context.matcher_is_defined(&p) {
-          result = merge_result(result,Err(vec![ Mismatch::BodyMismatch { path: path.join("."),
+          result = merge_result(result,Err(vec![ Mismatch::BodyMismatch { path: path.to_string(),
             expected: Some(expected.for_mismatch().into()),
             actual: Some(actual.for_mismatch().into()),
             mismatch: format!("Expected {} but was missing", value) } ]))

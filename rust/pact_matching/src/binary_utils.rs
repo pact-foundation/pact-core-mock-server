@@ -5,18 +5,16 @@ use std::str::from_utf8;
 use anyhow::anyhow;
 use bytes::{Buf, Bytes};
 use http::header::{HeaderMap, HeaderName};
-use itertools::Itertools;
 use log::*;
 use onig::Regex;
 use pact_models::content_types::{ContentType, detect_content_type_from_bytes};
 use pact_models::http_parts::HttpPart;
 use pact_models::matchingrules::{MatchingRule, RuleLogic};
+use pact_models::path_exp::DocPath;
 use serde_json::Value;
 
 use crate::{MatchingContext, Mismatch};
 use crate::matchers::{match_values, Matches};
-
-static ROOT: &str = "$";
 
 pub fn match_content_type<S>(data: &[u8], expected_content_type: S) -> anyhow::Result<()>
   where S: Into<String> {
@@ -45,12 +43,16 @@ pub fn convert_data(data: &Value) -> Vec<u8> {
   }
 }
 
-pub fn match_octet_stream(expected: &dyn HttpPart, actual: &dyn HttpPart, context: &MatchingContext) -> Result<(), Vec<super::Mismatch>> {
+pub fn match_octet_stream(
+  expected: &dyn HttpPart,
+  actual: &dyn HttpPart,
+  context: &dyn MatchingContext
+) -> Result<(), Vec<super::Mismatch>> {
   let mut mismatches = vec![];
   let expected = expected.body().value().unwrap_or_default();
   let actual = actual.body().value().unwrap_or_default();
   debug!("matching binary contents ({} bytes)", actual.len());
-  let path = vec!["$"];
+  let path = DocPath::root();
   if context.matcher_is_defined(&path) {
     let matchers = context.select_best_matcher(&path);
     if matchers.is_empty() {
@@ -58,7 +60,7 @@ pub fn match_octet_stream(expected: &dyn HttpPart, actual: &dyn HttpPart, contex
         path: "$".into(),
         expected: Some(expected),
         actual: Some(actual),
-        mismatch: format!("No matcher found for category 'body' and path '{}'", path.iter().join(".")),
+        mismatch: format!("No matcher found for category 'body' and path '{}'", path),
       })
     } else {
       let results = matchers.rules.iter().map(|rule|
@@ -134,7 +136,11 @@ struct MimeFile {
   data: Bytes
 }
 
-pub fn match_mime_multipart(expected: &dyn HttpPart, actual: &dyn HttpPart, context: &MatchingContext) -> Result<(), Vec<super::Mismatch>> {
+pub fn match_mime_multipart(
+  expected: &dyn HttpPart,
+  actual: &dyn HttpPart,
+  context: &dyn MatchingContext
+) -> Result<(), Vec<super::Mismatch>> {
   let mut mismatches = vec![];
   debug!("matching MIME multipart contents");
 
@@ -189,7 +195,11 @@ pub fn match_mime_multipart(expected: &dyn HttpPart, actual: &dyn HttpPart, cont
   }
 }
 
-fn match_mime_part(expected: &MimePart, actual: &MimePart, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
+fn match_mime_part(
+  expected: &MimePart,
+  actual: &MimePart,
+  context: &dyn MatchingContext
+) -> Result<(), Vec<Mismatch>> {
   let key = expected.name();
 
   match (expected, actual) {
@@ -218,21 +228,26 @@ fn match_mime_part(expected: &MimePart, actual: &MimePart, context: &MatchingCon
   }
 }
 
-fn match_field(key: &str, expected: &str, actual: &str, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
-  let path = vec![ROOT, key];
+fn match_field(
+  key: &str,
+  expected: &str,
+  actual: &str,
+  context: &dyn MatchingContext
+) -> Result<(), Vec<Mismatch>> {
+  let path = DocPath::root().join(key);
   let matcher_result = if context.matcher_is_defined(&path) {
     debug!("Calling match_values for path $.{}", key);
-    match_values(&path, context, expected, actual)
+    match_values(&path, &context.select_best_matcher(&path), expected, actual)
   } else {
     expected.matches_with(actual, &MatchingRule::Equality, false).map_err(|err|
       vec![format!("MIME part '{}': {}", key, err)]
     )
   };
-  log::debug!("Comparing '{:?}' to '{:?}' at path '{}' -> {:?}", expected, actual, path.join("."), matcher_result);
+  debug!("Comparing '{:?}' to '{:?}' at path '{}' -> {:?}", expected, actual, path, matcher_result);
   matcher_result.map_err(|messages| {
     messages.iter().map(|message| {
       Mismatch::BodyMismatch {
-        path: path.join("."),
+        path: path.to_string(),
         expected: Some(Bytes::from(expected.as_bytes().to_vec())),
         actual: Some(Bytes::from(actual.as_bytes().to_vec())),
         mismatch: message.clone()
@@ -295,13 +310,18 @@ impl Matches<&MimeFile> for &MimeFile {
   }
 }
 
-fn match_file(key: &str, expected: &MimeFile, actual: &MimeFile, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
-  let path = vec![ROOT, key];
+fn match_file(
+  key: &str,
+  expected: &MimeFile,
+  actual: &MimeFile,
+  context: &dyn MatchingContext
+) -> Result<(), Vec<Mismatch>> {
+  let path = DocPath::root().join(key);
   let matcher_result = if context.matcher_is_defined(&path) {
     debug!("Calling match_values for path $.{}", key);
-    match_values( &path, context, expected, actual).map_err(|errors| {
+    match_values( &path, &context.select_best_matcher(&path), expected, actual).map_err(|errors| {
       errors.iter().map(|err| Mismatch::BodyMismatch {
-        path: path.join("."),
+        path: path.to_string(),
         expected: None,
         actual: None,
         mismatch: format!("MIME part '{}': {}", key, err)
@@ -310,7 +330,7 @@ fn match_file(key: &str, expected: &MimeFile, actual: &MimeFile, context: &Match
   } else if expected.content_type == actual.content_type {
     expected.matches_with(actual, &MatchingRule::Equality, false).map_err(|err|
       vec![Mismatch::BodyMismatch {
-        path: path.join("."),
+        path: path.to_string(),
         expected: None,
         actual: None,
         mismatch: format!("MIME part '{}': {}", key, err)
@@ -328,7 +348,7 @@ fn match_file(key: &str, expected: &MimeFile, actual: &MimeFile, context: &Match
       actual_body: None
     }])
   };
-  debug!("Comparing '{:?}' to '{:?}' at path '{}' -> {:?}", expected, actual, path.join("."), matcher_result);
+  debug!("Comparing '{:?}' to '{:?}' at path '{}' -> {:?}", expected, actual, path.to_string(), matcher_result);
   matcher_result
 }
 
@@ -414,7 +434,7 @@ mod tests {
   use pact_models::matchingrules::MatchingRule;
   use pact_models::request::Request;
 
-  use crate::{DiffConfig, MatchingContext, Mismatch};
+  use crate::{CoreMatchingContext, DiffConfig, Mismatch};
   use crate::binary_utils::{match_content_type, match_mime_multipart};
 
   fn mismatch(m: &Mismatch) -> &str {
@@ -433,7 +453,7 @@ mod tests {
       body: OptionalBody::Present(body, None, None),
       ..Request::default()
     };
-    let context = MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys);
+    let context = CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys);
 
     let result = match_mime_multipart(&request, &request, &context);
 
@@ -481,7 +501,7 @@ mod tests {
       body: OptionalBody::Present(actual_body, None, None),
       ..Request::default()
     };
-    let context = MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys);
+    let context = CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys);
 
     let result = match_mime_multipart(&expected, &actual, &context);
 
@@ -516,7 +536,7 @@ mod tests {
       body: OptionalBody::Present(actual_body, None, None),
       ..Request::default()
     };
-    let context = MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys);
+    let context = CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys);
 
     let result = match_mime_multipart(&expected, &actual, &context);
     let mismatches = result.unwrap_err();
@@ -562,7 +582,7 @@ mod tests {
       body: OptionalBody::Present(actual_body, None, None),
       ..Request::default()
     };
-    let context = MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys);
+    let context = CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys);
 
     let result = match_mime_multipart(&expected, &actual, &context);
     let mismatches = result.unwrap_err();
@@ -610,7 +630,7 @@ mod tests {
       body: OptionalBody::Present(actual_body, None, None),
       ..Request::default()
     };
-    let context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
+    let context = CoreMatchingContext::new(DiffConfig::AllowUnexpectedKeys,
       &expected.matching_rules.rules_for_category("body").unwrap(), &hashmap!{});
 
     let result = match_mime_multipart(&expected, &actual, &context);
@@ -654,7 +674,7 @@ mod tests {
       body: OptionalBody::Present(actual_body, None, None),
       ..Request::default()
     };
-    let context = MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys);
+    let context = CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys);
 
     let result = match_mime_multipart(&expected, &actual, &context);
     let mismatches = result.unwrap_err();
@@ -711,7 +731,7 @@ mod tests {
       body: OptionalBody::Present(actual_body.freeze(), None, None),
       ..Request::default()
     };
-    let context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
+    let context = CoreMatchingContext::new(DiffConfig::AllowUnexpectedKeys,
       &expected.matching_rules.rules_for_category("body").unwrap(), &hashmap!{});
 
     let result = match_mime_multipart(&expected, &actual, &context);
@@ -761,7 +781,7 @@ mod tests {
       body: OptionalBody::Present(actual_body, None, None),
       ..Request::default()
     };
-    let context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
+    let context = CoreMatchingContext::new(DiffConfig::AllowUnexpectedKeys,
       &expected.matching_rules.rules_for_category("body").unwrap(), &hashmap!{});
 
     let result = match_mime_multipart(&expected, &actual, &context);

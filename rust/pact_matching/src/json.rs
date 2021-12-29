@@ -13,6 +13,7 @@ use serde_json::{json, Value};
 use pact_models::http_parts::HttpPart;
 use pact_models::json_utils::json_to_string;
 use pact_models::matchingrules::MatchingRule;
+use pact_models::path_exp::DocPath;
 use pact_models::time_utils::validate_datetime;
 
 use crate::{DiffConfig, MatchingContext, merge_result};
@@ -218,7 +219,7 @@ impl Matches<&Value> for Value {
 }
 
 /// Matches the expected JSON to the actual, and populates the mismatches vector with any differences
-pub fn match_json(expected: &dyn HttpPart, actual: &dyn HttpPart, context: &MatchingContext) -> Result<(), Vec<super::Mismatch>> {
+pub fn match_json(expected: &dyn HttpPart, actual: &dyn HttpPart, context: &dyn MatchingContext) -> Result<(), Vec<super::Mismatch>> {
   let expected_json = serde_json::from_slice(&*expected.body().value().unwrap_or_default());
   let actual_json = serde_json::from_slice(&*actual.body().value().unwrap_or_default());
 
@@ -242,7 +243,7 @@ pub fn match_json(expected: &dyn HttpPart, actual: &dyn HttpPart, context: &Matc
     }
     Err(mismatches.clone())
   } else {
-    compare_json(&["$"], &expected_json.unwrap(), &actual_json.unwrap(), context)
+    compare_json(&DocPath::root(), &expected_json.unwrap(), &actual_json.unwrap(), context)
   }
 }
 
@@ -303,13 +304,13 @@ pub fn display_diff(expected: &str, actual: &str, path: &str, indent: &str) -> S
 }
 
 /// Compares the actual JSON to the expected one
-pub fn compare_json(path: &[&str], expected: &Value, actual: &Value, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
+pub fn compare_json(path: &DocPath, expected: &Value, actual: &Value, context: &dyn MatchingContext) -> Result<(), Vec<Mismatch>> {
   debug!("compare: Comparing path {}", path.join("."));
   match (expected, actual) {
     (&Value::Object(ref emap), &Value::Object(ref amap)) => compare_maps(path, emap, amap, context),
     (&Value::Object(_), _) => {
       Err(vec![ Mismatch::BodyMismatch {
-        path: path.join("."),
+        path: path.to_string(),
         expected: Some(json_to_string(expected).into()),
         actual: Some(json_to_string(actual).into()),
         mismatch: format!("Type mismatch: Expected {} {} but received {} {}",
@@ -319,7 +320,7 @@ pub fn compare_json(path: &[&str], expected: &Value, actual: &Value, context: &M
     (&Value::Array(ref elist), &Value::Array(ref alist)) => compare_lists(path, elist, alist, context),
     (&Value::Array(_), _) => {
       Err(vec![ Mismatch::BodyMismatch {
-        path: path.join("."),
+        path: path.to_string(),
         expected: Some(json_to_string(expected).into()),
         actual: Some(json_to_string(actual).into()),
         mismatch: format!("Type mismatch: Expected {} {} but received {} {}",
@@ -330,11 +331,15 @@ pub fn compare_json(path: &[&str], expected: &Value, actual: &Value, context: &M
   }
 }
 
-fn compare_maps(path: &[&str], expected: &serde_json::Map<String, Value>, actual: &serde_json::Map<String, Value>,
-                context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
-  let spath = path.join(".");
+fn compare_maps(
+  path: &DocPath,
+  expected: &serde_json::Map<String, Value>,
+  actual: &serde_json::Map<String, Value>,
+  context: &dyn MatchingContext
+) -> Result<(), Vec<Mismatch>> {
+  let spath = path.to_string();
   debug!("compare_maps: Comparing maps at {}: {:?} -> {:?}", spath, expected, actual);
-  if expected.is_empty() && context.config == DiffConfig::NoUnexpectedKeys && !actual.is_empty() {
+  if expected.is_empty() && context.config() == DiffConfig::NoUnexpectedKeys && !actual.is_empty() {
     debug!("compare_maps: Expected map is empty, but actual is not");
     Err(vec![ Mismatch::BodyMismatch {
       path: spath,
@@ -348,17 +353,18 @@ fn compare_maps(path: &[&str], expected: &serde_json::Map<String, Value>, actual
     let actual = actual.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
 
     if context.matcher_is_defined(path) {
-      debug!("compare_maps: Matcher is defined for path {}", spath);
+      debug!("compare_maps: Matcher is defined for path {}", path);
       for matcher in context.select_best_matcher(path).rules {
         result = merge_result(result,compare_maps_with_matchingrule(&matcher, path, &expected, &actual, context, &mut |p, expected, actual| {
           compare_json(p, expected, actual, context)
         }));
       }
     } else {
-      result = merge_result(result, context.match_keys(path, &expected, &actual));
+      let expected_keys = expected.keys().cloned().collect();
+      let actual_keys = actual.keys().cloned().collect();
+      result = merge_result(result, context.match_keys(path, &expected_keys, &actual_keys));
       for (key, value) in expected.iter() {
-        let mut p = path.to_vec();
-        p.push(key.as_str());
+        let p = path.join(key);
         if actual.contains_key(key) {
           result = merge_result(result, compare_json(&p, value, &actual[key], context));
         }
@@ -368,11 +374,15 @@ fn compare_maps(path: &[&str], expected: &serde_json::Map<String, Value>, actual
   }
 }
 
-fn compare_lists(path: &[&str], expected: &[Value], actual: &[Value],
-                 context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
-  let spath = path.join(".");
+fn compare_lists(
+  path: &DocPath,
+  expected: &[Value],
+  actual: &[Value],
+  context: &dyn MatchingContext
+) -> Result<(), Vec<Mismatch>> {
+  let spath = path.to_string();
   if context.matcher_is_defined(path) {
-    debug!("compare_lists: matcher defined for path '{}'", spath);
+    debug!("compare_lists: matcher defined for path '{}'", path);
     let mut result = Ok(());
     for matcher in context.select_best_matcher(path).rules {
       let values_result = compare_lists_with_matchingrule(&matcher, path, expected, actual, context, &|p, expected, actual, context| {
@@ -404,17 +414,22 @@ fn compare_lists(path: &[&str], expected: &[Value], actual: &[Value],
   }
 }
 
-fn compare_list_content(path: &[&str], expected: &[Value], actual: &[Value], context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
+fn compare_list_content(
+  path: &DocPath,
+  expected: &[Value],
+  actual: &[Value],
+  context: &dyn MatchingContext
+) -> Result<(), Vec<Mismatch>> {
   let mut result = Ok(());
   for (index, value) in expected.iter().enumerate() {
     let ps = index.to_string();
-    log::debug!("Comparing list item {} with value '{:?}' to '{:?}'", index, actual.get(index), value);
-    let mut p = path.to_vec();
-    p.push(ps.as_str());
+    debug!("Comparing list item {} with value '{:?}' to '{:?}'", index, actual.get(index), value);
+    let p = path.join(ps);
     if index < actual.len() {
       result = merge_result(result, compare_json(&p, value, &actual[index], context));
     } else if !context.matcher_is_defined(&p) {
-      result = merge_result(result,Err(vec![ Mismatch::BodyMismatch { path: path.join("."),
+      result = merge_result(result,Err(vec![ Mismatch::BodyMismatch {
+        path: path.to_string(),
         expected: Some(json_to_string(&json!(expected)).into()),
         actual: Some(json_to_string(&json!(actual)).into()),
         mismatch: format!("Expected {} but was missing", json_to_string(value)) } ]))
@@ -423,18 +438,23 @@ fn compare_list_content(path: &[&str], expected: &[Value], actual: &[Value], con
   result
 }
 
-fn compare_values(path: &[&str], expected: &Value, actual: &Value, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
+fn compare_values(
+  path: &DocPath,
+  expected: &Value,
+  actual: &Value,
+  context: &dyn MatchingContext
+) -> Result<(), Vec<Mismatch>> {
   let matcher_result = if context.matcher_is_defined(path) {
-    debug!("compare_values: Calling match_values for path {}", path.join("."));
-    match_values(path, context, expected, actual)
+    debug!("compare_values: Calling match_values for path {}", path);
+    match_values(path, &context.select_best_matcher(&path), expected, actual)
   } else {
     expected.matches_with(actual, &MatchingRule::Equality, false).map_err(|err| vec![err.to_string()])
   };
-  log::debug!("compare_values: Comparing '{:?}' to '{:?}' at path '{}' -> {:?}", expected, actual, path.join("."), matcher_result);
+  log::debug!("compare_values: Comparing '{:?}' to '{:?}' at path '{}' -> {:?}", expected, actual, path.to_string(), matcher_result);
   matcher_result.map_err(|messages| {
     messages.iter().map(|message| {
       Mismatch::BodyMismatch {
-        path: path.join("."),
+        path: path.to_string(),
         expected: Some(format!("{}", expected).into()),
         actual: Some(format!("{}", actual).into()),
         mismatch: message.clone()
@@ -456,7 +476,7 @@ mod tests {
   use pact_models::matchingrules::{MatchingRule, MatchingRuleCategory};
   use pact_models::request::Request;
 
-  use crate::DiffConfig;
+  use crate::{CoreMatchingContext, DiffConfig};
   use crate::Mismatch;
   use crate::Mismatch::BodyMismatch;
 
@@ -470,7 +490,7 @@ mod tests {
   fn match_json_handles_invalid_expected_json() {
     let expected = request!(r#"{"json": "is bad"#);
     let actual = request!("{}");
-    let result = match_json(&expected.clone(), &actual.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    let result = match_json(&expected.clone(), &actual.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     expect!(result).to(be_err().value(vec![Mismatch::BodyMismatch {
       path: s!("$"),
       expected: expected.body.value(),
@@ -482,7 +502,7 @@ mod tests {
   fn match_json_handles_invalid_actual_json() {
     let expected = request!("{}");
     let actual = request!(r#"{json: "is bad"}"#);
-    let result = match_json(&expected.clone(), &actual.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    let result = match_json(&expected.clone(), &actual.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     expect!(result).to(be_err().value(
       vec![
         Mismatch::BodyMismatch {
@@ -509,7 +529,7 @@ mod tests {
   fn match_json_handles_expecting_a_map_but_getting_a_list() {
     let expected = request!(r#"{}"#);
     let actual = request!(r#"[]"#);
-    let result = match_json(&expected.clone(), &actual.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    let result = match_json(&expected.clone(), &actual.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     expect!(mismatch_message(&result)).to(be_equal_to(s!("Type mismatch: Expected Map {} but received List []")));
     expect!(result).to(be_err().value(vec![Mismatch::BodyMismatch {
       path: s!("$"),
@@ -523,7 +543,7 @@ mod tests {
   fn match_json_handles_expecting_a_list_but_getting_a_map() {
     let expected = request!(r#"[{}]"#);
     let actual = request!(r#"{}"#);
-    let result = match_json(&expected.clone(), &actual.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    let result = match_json(&expected.clone(), &actual.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     expect!(mismatch_message(&result)).to(be_equal_to(s!("Type mismatch: Expected List [{}] but received Map {}")));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch {
       path: s!("$"),
@@ -537,10 +557,10 @@ mod tests {
   fn match_json_handles_comparing_strings() {
     let val1 = request!(r#""string value""#);
     let val2 = request!(r#""other value""#);
-    let result = match_json(&val1.clone(), &val1.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    let result = match_json(&val1.clone(), &val1.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     expect!(result).to(be_ok());
 
-    let result = match_json(&val1.clone(), &val2.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    let result = match_json(&val1.clone(), &val2.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected 'string value' to be equal to 'other value'")));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch {
       path: s!("$"),
@@ -554,10 +574,10 @@ mod tests {
   fn match_json_handles_comparing_integers() {
     let val1 = request!(r#"100"#);
     let val2 = request!(r#"200"#);
-    let result = match_json(&val1.clone(), &val1.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    let result = match_json(&val1.clone(), &val1.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     expect!(result).to(be_ok());
 
-    let result = match_json(&val1.clone(), &val2.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    let result = match_json(&val1.clone(), &val2.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected '100' to be equal to '200'")));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch {
       path: s!("$"),
@@ -571,10 +591,10 @@ mod tests {
   fn match_json_handles_comparing_floats() {
     let val1 = request!(r#"100.01"#);
     let val2 = request!(r#"100.02"#);
-    let result = match_json(&val1.clone(), &val1.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    let result = match_json(&val1.clone(), &val1.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     expect!(result).to(be_ok());
 
-    let result = match_json(&val1.clone(), &val2.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    let result = match_json(&val1.clone(), &val2.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected '100.01' to be equal to '100.02'")));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch {
       path: s!("$"),
@@ -588,10 +608,10 @@ mod tests {
   fn match_json_handles_comparing_booleans() {
     let val1 = request!(r#"true"#);
     let val2 = request!(r#"false"#);
-    let result = match_json(&val1.clone(), &val1.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    let result = match_json(&val1.clone(), &val1.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     expect!(result).to(be_ok());
 
-    let result = match_json(&val1.clone(), &val2.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    let result = match_json(&val1.clone(), &val2.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected 'true' to be equal to 'false'")));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch {
       path: s!("$"),
@@ -605,10 +625,10 @@ mod tests {
   fn match_json_handles_comparing_nulls() {
     let val1 = request!(r#"null"#);
     let val2 = request!(r#"33"#);
-    let result = match_json(&val1.clone(), &val1.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    let result = match_json(&val1.clone(), &val1.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     expect!(result).to(be_ok());
 
-    let result = match_json(&val1.clone(), &val2.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    let result = match_json(&val1.clone(), &val2.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected '' to be equal to '33'")));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch {
       path: s!("$"),
@@ -625,45 +645,45 @@ mod tests {
     let val3 = request!(r#"[11,44,33]"#);
     let val4 = request!(r#"[11,44,33, 66]"#);
 
-    let result = match_json(&val1.clone(), &val1.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    let result = match_json(&val1.clone(), &val1.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     expect!(result).to(be_ok());
 
-    let result = match_json(&val2.clone(), &val2.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    let result = match_json(&val2.clone(), &val2.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     expect!(result).to(be_ok());
 
-    let result = match_json(&val3.clone(), &val3.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    let result = match_json(&val3.clone(), &val3.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     expect!(result).to(be_ok());
 
-    let result = match_json(&val1.clone(), &val2.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
-    expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected an empty List but received [11,22,33]")));
+    let result = match_json(&val1.clone(), &val2.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    expect!(mismatch_message(&result)).to(be_equal_to("Expected an empty List but received [11,22,33]".to_string()));
     expect!(result).to(be_err());
 
-    let result = match_json(&val2.clone(), &val3.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
-    expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected '22' to be equal to '44'")));
-    expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch { path: s!("$.1"),
-        expected: Some("22".into()), actual: Some("44".into()), mismatch: s!("") } ]));
+    let result = match_json(&val2.clone(), &val3.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    expect!(mismatch_message(&result)).to(be_equal_to("Expected '22' to be equal to '44'".to_string()));
+    expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch { path: "$[1]".to_string(),
+        expected: Some("22".into()), actual: Some("44".into()), mismatch: "".to_string() } ]));
 
-    let result = match_json(&val3.clone(), &val4.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
-    expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected a List with 3 elements but received 4 elements")));
-    expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch { path: s!("$"),
+    let result = match_json(&val3.clone(), &val4.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    expect!(mismatch_message(&result)).to(be_equal_to("Expected a List with 3 elements but received 4 elements".to_string()));
+    expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch { path: "$".to_string(),
         expected: Some("[11,44,33]".into()),
-        actual: Some("[11,44,33,66]".into()), mismatch: s!("") } ]));
+        actual: Some("[11,44,33,66]".into()), mismatch: "".to_string() } ]));
 
-    let result = match_json(&val2.clone(), &val4.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    let result = match_json(&val2.clone(), &val4.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     let mismatches = result.unwrap_err();
     expect!(mismatches.iter()).to(have_count(2));
     let mismatch = mismatches[0].clone();
-    expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.1"),
+    expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: "$[1]".to_string(),
         expected: Some("22".into()),
-        actual: Some("44".into()), mismatch: s!("")}));
-    expect!(mismatch.description()).to(be_equal_to(s!("$.1 -> Expected '22' to be equal to '44'")));
+        actual: Some("44".into()), mismatch: "".to_string()}));
+    expect!(mismatch.description()).to(be_equal_to("$[1] -> Expected '22' to be equal to '44'".to_string()));
     let mismatch = mismatches[1].clone();
-    expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$"),
+    expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: "$".to_string(),
         expected: Some("[11,22,33]".into()),
-        actual: Some("[11,44,33,66]".into()), mismatch: s!("")}));
-    expect!(mismatch.description()).to(be_equal_to(s!("$ -> Expected a List with 3 elements but received 4 elements")));
+        actual: Some("[11,44,33,66]".into()), mismatch: "".to_string()}));
+    expect!(mismatch.description()).to(be_equal_to("$ -> Expected a List with 3 elements but received 4 elements".to_string()));
 
-    let context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys, &matchingrules! {
+    let context = CoreMatchingContext::new(DiffConfig::AllowUnexpectedKeys, &matchingrules! {
         "body" => {
             "$" => [ MatchingRule::Type ]
         }
@@ -681,63 +701,63 @@ mod tests {
     let val3 = request!(r#"{"a": 1, "b": 3}"#);
     let val4 = request!(r#"{"a": 1, "b": 2, "c": 3}"#);
 
-    let result = match_json(&val1.clone(), &val1.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    let result = match_json(&val1.clone(), &val1.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     expect!(result).to(be_ok());
 
-    let result = match_json(&val2.clone(), &val2.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    let result = match_json(&val2.clone(), &val2.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     expect!(result).to(be_ok());
 
-    let result = match_json(&val4.clone(), &val4.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    let result = match_json(&val4.clone(), &val4.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     expect!(result).to(be_ok());
 
-    let result = match_json(&val1.clone(), &val2.clone(), &MatchingContext::with_config(DiffConfig::NoUnexpectedKeys));
+    let result = match_json(&val1.clone(), &val2.clone(), &CoreMatchingContext::with_config(DiffConfig::NoUnexpectedKeys));
     expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected an empty Map but received {\"a\":1,\"b\":2}")));
 
-    let result = match_json(&val2.clone(), &val3.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    let result = match_json(&val2.clone(), &val3.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected '2' to be equal to '3'")));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch { path: s!("$.b"),
         expected: Some("2".into()), actual: Some("3".into()), mismatch: s!("") } ]));
 
-    let result = match_json(&val2.clone(), &val4.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    let result = match_json(&val2.clone(), &val4.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     expect!(result).to(be_ok());
 
-    let result = match_json(&val2.clone(), &val4.clone(), &MatchingContext::with_config(DiffConfig::NoUnexpectedKeys));
-    expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected a Map with keys a, b but received one with keys a, b, c")));
-    expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch { path: s!("$"),
-        expected: Some("{\"a\":\"1\",\"b\":\"2\"}".into()),
-        actual: Some("{\"a\":\"1\",\"b\":\"2\",\"c\":\"3\"}".into()), mismatch: "Expected a Map with keys a, b but received one with keys a, b, c".to_string()
+    let result = match_json(&val2.clone(), &val4.clone(), &CoreMatchingContext::with_config(DiffConfig::NoUnexpectedKeys));
+    expect!(mismatch_message(&result)).to(be_equal_to("Expected a Map with keys a, b but received one with keys a, b, c".to_string()));
+    expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch { path: "$".to_string(),
+        expected: Some("[\"a\",\"b\"]".into()),
+        actual: Some("[\"a\",\"b\",\"c\"]".into()), mismatch: "Expected a Map with keys a, b but received one with keys a, b, c".to_string()
     } ]));
 
-    let result = match_json(&val3.clone(), &val4.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    let result = match_json(&val3.clone(), &val4.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected '3' to be equal to '2'")));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch { path: s!("$.b"),
         expected: Some("3".into()),
         actual: Some("2".into()), mismatch: s!("") } ]));
 
-    let result = match_json(&val3.clone(), &val4.clone(), &MatchingContext::with_config(DiffConfig::NoUnexpectedKeys));
+    let result = match_json(&val3.clone(), &val4.clone(), &CoreMatchingContext::with_config(DiffConfig::NoUnexpectedKeys));
     let mismatches = result.unwrap_err();
     expect!(mismatches.iter()).to(have_count(2));
     let mismatch = mismatches[0].clone();
-    expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$"),
-        expected: Some("{\"a\":\"1\",\"b\":\"3\"}".into()),
-        actual: Some("{\"a\":\"1\",\"b\":\"2\",\"c\":\"3\"}".into()), mismatch: s!("")}));
-    expect!(mismatch.description()).to(be_equal_to(s!("$ -> Expected a Map with keys a, b but received one with keys a, b, c")));
+    expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: "$".to_string(),
+        expected: Some("[\"a\",\"b\"]".into()),
+        actual: Some("[\"a\",\"b\",\"c\"]".into()), mismatch: "".to_string()}));
+    expect!(mismatch.description()).to(be_equal_to("$ -> Expected a Map with keys a, b but received one with keys a, b, c".to_string()));
     let mismatch = mismatches[1].clone();
-    expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$.b"),
+    expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: "$.b".to_string(),
         expected: Some("3".into()),
-        actual: Some("2".into()), mismatch: s!("")}));
-    expect!(mismatch.description()).to(be_equal_to(s!("$.b -> Expected '3' to be equal to '2'")));
+        actual: Some("2".into()), mismatch: "".to_string()}));
+    expect!(mismatch.description()).to(be_equal_to("$.b -> Expected '3' to be equal to '2'".to_string()));
 
-    let result = match_json(&val4.clone(), &val2.clone(), &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    let result = match_json(&val4.clone(), &val2.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     let mismatches = result.unwrap_err();
     expect!(mismatches.iter()).to(have_count(1));
     let mismatch = mismatches[0].clone();
-    expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: s!("$"),
-        expected: Some("{\"a\":\"1\",\"b\":\"2\",\"c\":\"3\"}".into()),
-        actual: Some("{\"a\":\"1\",\"b\":\"2\"}".into()), mismatch: s!("")}));
-    expect!(mismatch.description()).to(be_equal_to(s!("$ -> Actual map is missing the following keys: c")));
+    expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: "$".to_string(),
+        expected: Some("[\"a\",\"b\",\"c\"]".into()),
+        actual: Some("[\"a\",\"b\"]".into()), mismatch: "".to_string()}));
+    expect!(mismatch.description()).to(be_equal_to("$ -> Actual map is missing the following keys: c".to_string()));
 
-    let result = match_json(&val3, &val2, &MatchingContext::new(DiffConfig::AllowUnexpectedKeys, &matchingrules!{
+    let result = match_json(&val3, &val2, &CoreMatchingContext::new(DiffConfig::AllowUnexpectedKeys, &matchingrules!{
       "body" => {
         "$.*" => [ MatchingRule::Type ]
       }
@@ -910,7 +930,7 @@ mod tests {
         "$.articles[*].variants.*.bundles.*.referencedArticles[*]" => [ MatchingRule::Type ]
       }
     };
-    let context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
+    let context = CoreMatchingContext::new(DiffConfig::AllowUnexpectedKeys,
                                        &matching_rules.rules_for_category("body").unwrap(),
                                        &hashmap!{});
     let result = match_json(&val1, &val2, &context);
@@ -926,7 +946,7 @@ mod tests {
     [10, 22, 6, 1, 5, 3, 2]
     "#);
 
-    let result = match_json(&val1, &val2, &MatchingContext::new(DiffConfig::AllowUnexpectedKeys, &matchingrules!{
+    let result = match_json(&val1, &val2, &CoreMatchingContext::new(DiffConfig::AllowUnexpectedKeys, &matchingrules!{
       "body" => {
         "$" => [ MatchingRule::ArrayContains(vec![]) ]
       }
@@ -943,7 +963,7 @@ mod tests {
     [10, 22, 6, 1, 5, 3, 2]
     "#);
 
-    let result = match_json(&val1, &val2, &MatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
+    let result = match_json(&val1, &val2, &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     expect!(result).to(be_err());
   }
 
@@ -956,7 +976,7 @@ mod tests {
     [10, 22, 6, 1, 5, 2]
     "#);
 
-    let result = match_json(&val1, &val2, &MatchingContext::new(DiffConfig::AllowUnexpectedKeys, &matchingrules!{
+    let result = match_json(&val1, &val2, &CoreMatchingContext::new(DiffConfig::AllowUnexpectedKeys, &matchingrules!{
       "body" => {
         "$" => [ MatchingRule::ArrayContains(vec![]) ]
       }
@@ -1063,7 +1083,7 @@ mod tests {
     }
     "#);
 
-    let context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys, &matchingrules! {
+    let context = CoreMatchingContext::new(DiffConfig::AllowUnexpectedKeys, &matchingrules! {
       "body" => {
         "$.entities" => [
           MatchingRule::ArrayContains(vec![(0, matchingrules_list! {
@@ -1097,14 +1117,14 @@ mod tests {
     let expected = expected_json.as_object().unwrap();
     let actual_json = json!({"foo": "bar"});
     let actual = actual_json.as_object().unwrap();
-    let context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
+    let context = CoreMatchingContext::new(DiffConfig::AllowUnexpectedKeys,
                                        &MatchingRuleCategory::empty("body"), &hashmap!{});
-    let result = compare_maps(&vec!["$"], expected, actual, &context);
+    let result = compare_maps(&DocPath::root(), expected, actual, &context);
     expect!(result).to(be_ok());
 
-    let context = MatchingContext::new(DiffConfig::NoUnexpectedKeys,
+    let context = CoreMatchingContext::new(DiffConfig::NoUnexpectedKeys,
                                        &MatchingRuleCategory::empty("body"), &hashmap!{});
-    let result = compare_maps(&vec!["$"], expected, actual, &context);
+    let result = compare_maps(&DocPath::root(), expected, actual, &context);
     expect!(result).to(be_err());
   }
 }

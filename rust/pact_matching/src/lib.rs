@@ -344,7 +344,7 @@
 
 #![warn(missing_docs)]
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display};
 use std::fmt::Formatter;
 use std::hash::Hash;
@@ -355,13 +355,10 @@ use ansi_term::*;
 use ansi_term::Colour::*;
 use anyhow::anyhow;
 use bytes::Bytes;
+use itertools::Itertools;
 use lazy_static::*;
 use log::*;
 use maplit::hashmap;
-use pact_plugin_driver::catalogue_manager::find_content_matcher;
-use pact_plugin_driver::plugin_models::PluginInteractionConfig;
-use serde_json::{json, Value};
-
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
 use pact_models::generators::{apply_generators, GenerateValue, GeneratorCategory, GeneratorTestMode, VariantMatcher};
@@ -371,9 +368,13 @@ use pact_models::json_utils::json_to_string;
 use pact_models::matchingrules::{Category, MatchingRule, MatchingRuleCategory, RuleList};
 use pact_models::pact::Pact;
 use pact_models::PactSpecification;
+use pact_models::path_exp::DocPath;
 use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
 use pact_models::v4::message_parts::MessageContents;
 use pact_models::v4::sync_message::SynchronousMessage;
+use pact_plugin_driver::catalogue_manager::find_content_matcher;
+use pact_plugin_driver::plugin_models::PluginInteractionConfig;
+use serde_json::{json, Value};
 
 use crate::generators::{DefaultVariantMatcher, generators_process_body};
 use crate::headers::{match_header_value, match_headers};
@@ -392,17 +393,48 @@ pub const PACT_RUST_VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSI
 
 pub mod matchers;
 pub mod json;
+pub mod logging;
+pub mod matchingrules;
+pub mod metrics;
+
 mod xml;
 mod binary_utils;
 mod headers;
-pub mod logging;
-pub mod matchingrules;
 mod generators;
-pub mod metrics;
+
+/// Context used to apply matching logic
+pub trait MatchingContext {
+  /// If there is a matcher defined at the path in this context
+  fn matcher_is_defined(&self, path: &DocPath) -> bool;
+
+  /// Selected the best matcher from the context for the given path
+  fn select_best_matcher(&self, path: &DocPath) -> RuleList;
+
+  /// If there is a type matcher defined at the path in this context
+  fn type_matcher_defined(&self, path: &DocPath) -> bool;
+
+  /// If there is a values matcher defined at the path in this context
+  fn values_matcher_defined(&self, path: &DocPath) -> bool;
+
+  /// Matches the keys of the expected and actual maps
+  fn match_keys(&self, path: &DocPath, expected: &HashSet<String>, actual: &HashSet<String>) -> Result<(), Vec<Mismatch>>;
+
+  /// Returns the plugin configuration associated with the context
+  fn plugin_configuration(&self) -> &HashMap<String, PluginInteractionConfig>;
+
+  /// Returns the matching rules for the matching context
+  fn matchers(&self) -> &MatchingRuleCategory;
+
+  /// Configuration to apply when matching with the context
+  fn config(&self) -> DiffConfig;
+
+  /// Clones the current context with the provided matching rules
+  fn clone_with(&self, matchers: &MatchingRuleCategory) -> Box<dyn MatchingContext>;
+}
 
 #[derive(Debug, Clone)]
-/// Context used to apply matching logic
-pub struct MatchingContext {
+/// Core implementation of a matching context
+pub struct CoreMatchingContext {
   /// Matching rules that apply when matching with the context
   pub matchers: MatchingRuleCategory,
   /// Configuration to apply when matching with the context
@@ -413,88 +445,93 @@ pub struct MatchingContext {
   pub plugin_configuration: HashMap<String, PluginInteractionConfig>
 }
 
-impl MatchingContext {
+impl CoreMatchingContext {
   /// Creates a new context with the given config and matching rules
   pub fn new(
     config: DiffConfig,
     matchers: &MatchingRuleCategory,
     plugin_configuration: &HashMap<String, PluginInteractionConfig>
   ) -> Self {
-    MatchingContext {
+    CoreMatchingContext {
       matchers: matchers.clone(),
       config,
       plugin_configuration: plugin_configuration.clone(),
-      .. MatchingContext::default()
+      .. CoreMatchingContext::default()
     }
   }
 
   /// Creates a new empty context with the given config
   pub fn with_config(config: DiffConfig) -> Self {
-    MatchingContext {
+    CoreMatchingContext {
       config,
-      .. MatchingContext::default()
+      .. CoreMatchingContext::default()
     }
   }
 
-  /// Clones the current context with the provided matching rules
-  pub fn clone_with(&self, matchers: &MatchingRuleCategory) -> Self {
-    MatchingContext {
-      matchers: matchers.clone(),
-      config: self.config.clone(),
-      matching_spec: self.matching_spec,
-      plugin_configuration: self.plugin_configuration.clone()
-    }
-  }
-
-  /// If there is a matcher defined at the path in this context
-  pub fn matcher_is_defined(&self, path: &[&str]) -> bool {
-    self.matchers.matcher_is_defined(path)
-  }
-
-  /// Selected the best matcher from the context for the given path
-  pub fn select_best_matcher(&self, path: &[&str]) -> RuleList {
-    self.matchers.select_best_matcher(path)
-  }
-
-  /// If there is a wildcard matcher defined at the path in this context
-  #[deprecated(since = "0.8.12", note = "Replaced with values matcher")]
-  pub fn wildcard_matcher_is_defined(&self, path: &[&str]) -> bool {
-    !self.matchers_for_exact_path(path).filter(|&(val, _)| val.is_wildcard()).is_empty()
-  }
-
-  fn matchers_for_exact_path(&self, path: &[&str]) -> MatchingRuleCategory {
+  fn matchers_for_exact_path(&self, path: &DocPath) -> MatchingRuleCategory {
     match self.matchers.name {
       Category::HEADER | Category::QUERY => self.matchers.filter(|&(val, _)| {
-        path.len() == 1 && Some(path[0]) == val.first_field()
+        path.len() == 1 && path.first_field() == val.first_field()
       }),
       Category::BODY => self.matchers.filter(|&(val, _)| {
-        val.matches_path_exactly(path)
+        let p = path.to_vec();
+        let p_slice = p.iter().map(|p| p.as_str()).collect_vec();
+        val.matches_path_exactly(p_slice.as_slice())
       }),
       _ => self.matchers.filter(|_| false)
     }
   }
+}
+
+impl Default for CoreMatchingContext {
+  fn default() -> Self {
+    CoreMatchingContext {
+      matchers: Default::default(),
+      config: DiffConfig::AllowUnexpectedKeys,
+      matching_spec: PactSpecification::V3,
+      plugin_configuration: Default::default()
+    }
+  }
+}
+
+impl MatchingContext for CoreMatchingContext {
+  /// If there is a matcher defined at the path in this context
+  fn matcher_is_defined(&self, path: &DocPath) -> bool {
+    let path = path.to_vec();
+    let path_slice = path.iter().map(|p| p.as_str()).collect_vec();
+    self.matchers.matcher_is_defined(path_slice.as_slice())
+  }
+
+  /// Selected the best matcher from the context for the given path
+  fn select_best_matcher(&self, path: &DocPath) -> RuleList {
+    let path = path.to_vec();
+    let path_slice = path.iter().map(|p| p.as_str()).collect_vec();
+    self.matchers.select_best_matcher(path_slice.as_slice())
+  }
 
   /// If there is a type matcher defined at the path in this context
-  pub fn type_matcher_defined(&self, path: &[&str]) -> bool {
-    self.matchers.resolve_matchers_for_path(path).type_matcher_defined()
+  fn type_matcher_defined(&self, path: &DocPath) -> bool {
+    let path = path.to_vec();
+    let path_slice = path.iter().map(|p| p.as_str()).collect_vec();
+    self.matchers.resolve_matchers_for_path(path_slice.as_slice()).type_matcher_defined()
   }
 
   /// If there is a values matcher defined at the path in this context
-  pub fn values_matcher_defined(&self, path: &[&str]) -> bool {
+  fn values_matcher_defined(&self, path: &DocPath) -> bool {
     self.matchers_for_exact_path(path).values_matcher_defined()
   }
 
   /// Matches the keys of the expected and actual maps
-  pub fn match_keys<T: Display + Debug>(&self, path: &[&str], expected: &HashMap<String, T>, actual: &HashMap<String, T>) -> Result<(), Vec<Mismatch>> {
-    let mut expected_keys = expected.keys().cloned().collect::<Vec<String>>();
+  fn match_keys(&self, path: &DocPath, expected: &HashSet<String>, actual: &HashSet<String>) -> Result<(), Vec<Mismatch>> {
+    let mut expected_keys = expected.iter().cloned().collect::<Vec<String>>();
     expected_keys.sort();
-    let mut actual_keys = actual.keys().cloned().collect::<Vec<String>>();
+    let mut actual_keys = actual.iter().cloned().collect::<Vec<String>>();
     actual_keys.sort();
-    let missing_keys: Vec<String> = expected.keys().filter(|key| !actual.contains_key(*key)).cloned().collect();
+    let missing_keys: Vec<String> = expected.iter().filter(|key| !actual.contains(*key)).cloned().collect();
     match self.config {
       DiffConfig::AllowUnexpectedKeys if !missing_keys.is_empty() => {
         Err(vec![Mismatch::BodyMismatch {
-          path: path.join("."),
+          path: path.to_string(),
           expected: Some(expected.for_mismatch().into()),
           actual: Some(actual.for_mismatch().into()),
           mismatch: format!("Actual map is missing the following keys: {}", missing_keys.join(", ")),
@@ -502,7 +539,7 @@ impl MatchingContext {
       }
       DiffConfig::NoUnexpectedKeys if expected_keys != actual_keys => {
         Err(vec![Mismatch::BodyMismatch {
-          path: path.join("."),
+          path: path.to_string(),
           expected: Some(expected.for_mismatch().into()),
           actual: Some(actual.for_mismatch().into()),
           mismatch: format!("Expected a Map with keys {} but received one with keys {}",
@@ -512,23 +549,33 @@ impl MatchingContext {
       _ => Ok(())
     }
   }
-}
 
-impl Default for MatchingContext {
-  fn default() -> Self {
-    MatchingContext {
-      matchers: Default::default(),
-      config: DiffConfig::AllowUnexpectedKeys,
-      matching_spec: PactSpecification::V3,
-      plugin_configuration: Default::default()
-    }
+  fn plugin_configuration(&self) -> &HashMap<String, PluginInteractionConfig> {
+    &self.plugin_configuration
+  }
+
+  fn matchers(&self) -> &MatchingRuleCategory {
+    &self.matchers
+  }
+
+  fn config(&self) -> DiffConfig {
+    self.config
+  }
+
+  fn clone_with(&self, matchers: &MatchingRuleCategory) -> Box<dyn MatchingContext> {
+    Box::new(CoreMatchingContext {
+      matchers: matchers.clone(),
+      config: self.config.clone(),
+      matching_spec: self.matching_spec,
+      plugin_configuration: self.plugin_configuration.clone()
+    })
   }
 }
 
 lazy_static! {
   static ref BODY_MATCHERS: [
     (fn(content_type: &ContentType) -> bool,
-    fn(expected: &dyn HttpPart, actual: &dyn HttpPart, context: &MatchingContext) -> Result<(), Vec<Mismatch>>); 4]
+    fn(expected: &dyn HttpPart, actual: &dyn HttpPart, context: &dyn MatchingContext) -> Result<(), Vec<Mismatch>>); 4]
      = [
       (|content_type| { content_type.is_json() }, json::match_json),
       (|content_type| { content_type.is_xml() }, xml::match_xml),
@@ -988,7 +1035,7 @@ impl RequestMatchResult {
 }
 
 /// Enum that defines the configuration options for performing a match.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DiffConfig {
     /// If unexpected keys are allowed and ignored during matching.
     AllowUnexpectedKeys,
@@ -997,8 +1044,8 @@ pub enum DiffConfig {
 }
 
 /// Matches the actual text body to the expected one.
-pub fn match_text(expected: &Option<Bytes>, actual: &Option<Bytes>, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
-  let path = vec!["$"];
+pub fn match_text(expected: &Option<Bytes>, actual: &Option<Bytes>, context: &dyn MatchingContext) -> Result<(), Vec<Mismatch>> {
+  let path = DocPath::root();
   if context.matcher_is_defined(&path) {
     let mut mismatches = vec![];
     let empty = Bytes::default();
@@ -1026,7 +1073,7 @@ pub fn match_text(expected: &Option<Bytes>, actual: &Option<Bytes>, context: &Ma
         ""
       }
     };
-    if let Err(messages) = match_values(&path, context, expected_str, actual_str) {
+    if let Err(messages) = match_values(&path, &context.select_best_matcher(&path), expected_str, actual_str) {
       for message in messages {
         mismatches.push(Mismatch::BodyMismatch {
           path: "$".to_string(),
@@ -1060,10 +1107,10 @@ pub fn match_method(expected: &str, actual: &str) -> Result<(), Mismatch> {
 }
 
 /// Matches the actual request path to the expected one.
-pub fn match_path(expected: &str, actual: &str, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
-  let path = vec![];
+pub fn match_path(expected: &str, actual: &str, context: &(dyn MatchingContext + Send + Sync)) -> Result<(), Vec<Mismatch>> {
+  let path = DocPath::empty();
   let matcher_result = if context.matcher_is_defined(&path) {
-    match_values(&path, context, expected.to_string(), actual.to_string())
+    match_values(&path, &context.select_best_matcher(&path), expected.to_string(), actual.to_string())
   } else {
     expected.matches_with(actual, &MatchingRule::Equality, false).map_err(|err| vec![err])
       .map_err(|errors| errors.iter().map(|err| err.to_string()).collect())
@@ -1076,12 +1123,17 @@ pub fn match_path(expected: &str, actual: &str, context: &MatchingContext) -> Re
   }).collect())
 }
 
-fn compare_query_parameter_value(key: &str, expected: &str, actual: &str, index: usize,
-                                 context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
+fn compare_query_parameter_value(
+  key: &str,
+  expected: &str,
+  actual: &str,
+  index: usize,
+  context: &dyn MatchingContext
+) -> Result<(), Vec<Mismatch>> {
   let index = index.to_string();
-  let path = vec!["$", key, index.as_str()];
+  let path = DocPath::root().join(key).join(index.as_str());
   let matcher_result = if context.matcher_is_defined(&path) {
-    matchers::match_values(&path, context, expected.to_string(), actual.to_string())
+    matchers::match_values(&path, &context.select_best_matcher(&path), expected.to_string(), actual.to_string())
   } else {
     expected.matches_with(actual, &MatchingRule::Equality, false)
       .map_err(|error| vec![error.to_string()])
@@ -1098,8 +1150,12 @@ fn compare_query_parameter_value(key: &str, expected: &str, actual: &str, index:
   })
 }
 
-fn compare_query_parameter_values(key: &str, expected: &[String], actual: &[String],
-                                  context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
+fn compare_query_parameter_values(
+  key: &str,
+  expected: &[String],
+  actual: &[String],
+  context: &dyn MatchingContext
+) -> Result<(), Vec<Mismatch>> {
   let result: Vec<Mismatch> = expected.iter().enumerate().flat_map(|(index, val)| {
     if index < actual.len() {
       match compare_query_parameter_value(key, val, &actual[index], index, context) {
@@ -1123,20 +1179,29 @@ fn compare_query_parameter_values(key: &str, expected: &[String], actual: &[Stri
   }
 }
 
-fn match_query_values(key: &str, expected: &[String], actual: &[String], context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
+fn match_query_values(
+  key: &str,
+  expected: &[String],
+  actual: &[String],
+  context: &dyn MatchingContext
+) -> Result<(), Vec<Mismatch>> {
   if expected.is_empty() && !actual.is_empty() {
-    Err(vec![ Mismatch::QueryMismatch { parameter: key.to_string(),
+    Err(vec![ Mismatch::QueryMismatch {
+      parameter: key.to_string(),
       expected: format!("{:?}", expected),
       actual: format!("{:?}", actual),
-      mismatch: format!("Expected an empty parameter list for '{}' but received {:?}", key, actual) } ])
+      mismatch: format!("Expected an empty parameter list for '{}' but received {:?}", key, actual)
+    } ])
   } else {
     let mismatch = if expected.len() != actual.len() {
-      Err(vec![ Mismatch::QueryMismatch { parameter: key.to_string(),
+      Err(vec![ Mismatch::QueryMismatch {
+        parameter: key.to_string(),
         expected: format!("{:?}", expected),
         actual: format!("{:?}", actual),
         mismatch: format!(
           "Expected query parameter '{}' with {} value(s) but received {} value(s)",
-          key, expected.len(), actual.len()) } ])
+          key, expected.len(), actual.len())
+      } ])
     } else {
       Ok(())
     };
@@ -1144,7 +1209,11 @@ fn match_query_values(key: &str, expected: &[String], actual: &[String], context
   }
 }
 
-fn match_query_maps(expected: HashMap<String, Vec<String>>, actual: HashMap<String, Vec<String>>, context: &MatchingContext) -> HashMap<String, Vec<Mismatch>> {
+fn match_query_maps(
+  expected: HashMap<String, Vec<String>>,
+  actual: HashMap<String, Vec<String>>,
+  context: &dyn MatchingContext
+) -> HashMap<String, Vec<Mismatch>> {
   let mut result: HashMap<String, Vec<Mismatch>> = hashmap!{};
   for (key, value) in &expected {
     match actual.get(key) {
@@ -1153,39 +1222,51 @@ fn match_query_maps(expected: HashMap<String, Vec<String>>, actual: HashMap<Stri
         let v = result.entry(key.clone()).or_default();
         v.extend(matches.err().unwrap_or_default());
       },
-      None => result.entry(key.clone()).or_default().push(Mismatch::QueryMismatch { parameter: key.clone(),
+      None => result.entry(key.clone()).or_default().push(Mismatch::QueryMismatch {
+        parameter: key.clone(),
         expected: format!("{:?}", value),
         actual: "".to_string(),
-        mismatch: format!("Expected query parameter '{}' but was missing", key) })
+        mismatch: format!("Expected query parameter '{}' but was missing", key)
+      })
     }
   }
   for (key, value) in &actual {
     match expected.get(key) {
       Some(_) => (),
-      None => result.entry(key.clone()).or_default().push(Mismatch::QueryMismatch { parameter: key.clone(),
+      None => result.entry(key.clone()).or_default().push(Mismatch::QueryMismatch {
+        parameter: key.clone(),
         expected: "".to_string(),
         actual: format!("{:?}", value),
-        mismatch: format!("Unexpected query parameter '{}' received", key) })
+        mismatch: format!("Unexpected query parameter '{}' received", key)
+      })
     }
   }
   result
 }
 
 /// Matches the actual query parameters to the expected ones.
-pub fn match_query(expected: Option<HashMap<String, Vec<String>>>, actual: Option<HashMap<String, Vec<String>>>, context: &MatchingContext) -> HashMap<String, Vec<Mismatch>> {
+pub fn match_query(
+  expected: Option<HashMap<String, Vec<String>>>,
+  actual: Option<HashMap<String, Vec<String>>>,
+  context: &(dyn MatchingContext + Send + Sync)
+) -> HashMap<String, Vec<Mismatch>> {
   match (actual, expected) {
     (Some(aqm), Some(eqm)) => match_query_maps(eqm, aqm, context),
     (Some(aqm), None) => aqm.iter().map(|(key, value)| {
-      (key.clone(), vec![Mismatch::QueryMismatch { parameter: key.clone(),
+      (key.clone(), vec![Mismatch::QueryMismatch {
+        parameter: key.clone(),
         expected: "".to_string(),
         actual: format!("{:?}", value),
-        mismatch: format!("Unexpected query parameter '{}' received", key) }])
+        mismatch: format!("Unexpected query parameter '{}' received", key)
+      }])
     }).collect(),
     (None, Some(eqm)) => eqm.iter().map(|(key, value)| {
-      (key.clone(), vec![Mismatch::QueryMismatch { parameter: key.clone(),
+      (key.clone(), vec![Mismatch::QueryMismatch {
+        parameter: key.clone(),
         expected: format!("{:?}", value),
         actual: "".to_string(),
-        mismatch: format!("Expected query parameter '{}' but was missing", key) }])
+        mismatch: format!("Expected query parameter '{}' but was missing", key)
+      }])
     }).collect(),
     (None, None) => hashmap!{}
   }
@@ -1206,7 +1287,7 @@ async fn compare_bodies(
   content_type: &ContentType,
   expected: &(dyn HttpPart + Send + Sync),
   actual: &(dyn HttpPart + Send + Sync),
-  context: &MatchingContext
+  context: &(dyn MatchingContext + Send + Sync)
 ) -> BodyMatchResult {
   let mut mismatches = vec![];
   match find_content_matcher(content_type) {
@@ -1228,9 +1309,9 @@ async fn compare_bodies(
           mismatches.extend_from_slice(&*m);
         }
       } else {
-        let plugin_config = context.plugin_configuration.get(&matcher.plugin_name()).cloned();
-        if let Err(map) = matcher.match_contents(expected.body(), actual.body(), &context.matchers,
-          context.config == DiffConfig::AllowUnexpectedKeys, plugin_config).await {
+        let plugin_config = context.plugin_configuration().get(&matcher.plugin_name()).cloned();
+        if let Err(map) = matcher.match_contents(expected.body(), actual.body(), &context.matchers(),
+          context.config() == DiffConfig::AllowUnexpectedKeys, plugin_config).await {
           // TODO: group the mismatches by key
           for (_key, list) in map {
             for mismatch in list {
@@ -1260,7 +1341,12 @@ async fn compare_bodies(
   }
 }
 
-fn compare_bodies_core(content_type: &ContentType, expected: &dyn HttpPart, actual: &dyn HttpPart, context: &MatchingContext) -> Vec<Mismatch> {
+fn compare_bodies_core(
+  content_type: &ContentType,
+  expected: &dyn HttpPart,
+  actual: &dyn HttpPart,
+  context: &dyn MatchingContext
+) -> Vec<Mismatch> {
   let mut mismatches = vec![];
   match BODY_MATCHERS.iter().find(|mt| mt.0(content_type)) {
     Some(match_fn) => {
@@ -1283,7 +1369,7 @@ async fn match_body_content(
   content_type: &ContentType,
   expected: &(dyn HttpPart + Send + Sync),
   actual: &(dyn HttpPart + Send + Sync),
-  context: &MatchingContext
+  context: &(dyn MatchingContext + Send + Sync)
 ) -> BodyMatchResult {
   let expected_body = expected.body();
   let actual_body = actual.body();
@@ -1323,14 +1409,14 @@ async fn match_body_content(
 pub async fn match_body(
   expected: &(dyn HttpPart + Send + Sync),
   actual: &(dyn HttpPart + Send + Sync),
-  context: &MatchingContext,
-  header_context: &MatchingContext
+  context: &(dyn MatchingContext + Send + Sync),
+  header_context: &(dyn MatchingContext + Send + Sync)
 ) -> BodyMatchResult {
   let expected_content_type = expected.content_type().unwrap_or_default();
   let actual_content_type = actual.content_type().unwrap_or_default();
   debug!("expected content type = '{}', actual content type = '{}'", expected_content_type,
          actual_content_type);
-  let content_type_matcher = header_context.select_best_matcher(&["$", "Content-Type"]);
+  let content_type_matcher = header_context.select_best_matcher(&DocPath::root().join("Content-Type"));
   debug!("content type header matcher = '{:?}'", content_type_matcher);
   if expected_content_type.is_unknown() || actual_content_type.is_unknown() ||
     expected_content_type.is_equivalent_to(&actual_content_type) ||
@@ -1365,16 +1451,16 @@ pub async fn match_request<'a>(
   debug!("     generators: {:?}", expected.generators);
 
   let plugin_data = setup_plugin_config(pact, interaction);
-  let path_context = MatchingContext::new(DiffConfig::NoUnexpectedKeys,
+  let path_context = CoreMatchingContext::new(DiffConfig::NoUnexpectedKeys,
     &expected.matching_rules.rules_for_category("path").unwrap_or_default(),
     &plugin_data);
-  let body_context = MatchingContext::new(DiffConfig::NoUnexpectedKeys,
+  let body_context = CoreMatchingContext::new(DiffConfig::NoUnexpectedKeys,
     &expected.matching_rules.rules_for_category("body").unwrap_or_default(),
     &plugin_data);
-  let query_context = MatchingContext::new(DiffConfig::NoUnexpectedKeys,
+  let query_context = CoreMatchingContext::new(DiffConfig::NoUnexpectedKeys,
     &expected.matching_rules.rules_for_category("query").unwrap_or_default(),
     &plugin_data);
-  let header_context = MatchingContext::new(DiffConfig::NoUnexpectedKeys,
+  let header_context = CoreMatchingContext::new(DiffConfig::NoUnexpectedKeys,
     &expected.matching_rules.rules_for_category("header").unwrap_or_default(),
     &plugin_data);
   let result = RequestMatchResult {
@@ -1390,10 +1476,10 @@ pub async fn match_request<'a>(
 }
 
 /// Matches the actual response status to the expected one.
-pub fn match_status(expected: u16, actual: u16, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
-  let path = vec![];
+pub fn match_status(expected: u16, actual: u16, context: &dyn MatchingContext) -> Result<(), Vec<Mismatch>> {
+  let path = DocPath::empty();
   if context.matcher_is_defined(&path) {
-    match_values(&path, context, expected, actual)
+    match_values(&path, &context.select_best_matcher(&path), expected, actual)
       .map_err(|messages| messages.iter().map(|message| {
         Mismatch::StatusMismatch {
           expected,
@@ -1424,13 +1510,13 @@ pub async fn match_response<'a>(
   info!("comparing to expected response: {}", expected);
   let plugin_data = setup_plugin_config(pact, interaction);
 
-  let status_context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
+  let status_context = CoreMatchingContext::new(DiffConfig::AllowUnexpectedKeys,
     &expected.matching_rules.rules_for_category("status").unwrap_or_default(),
     &plugin_data);
-  let body_context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
+  let body_context = CoreMatchingContext::new(DiffConfig::AllowUnexpectedKeys,
     &expected.matching_rules.rules_for_category("body").unwrap_or_default(),
     &plugin_data);
-  let header_context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
+  let header_context = CoreMatchingContext::new(DiffConfig::AllowUnexpectedKeys,
     &expected.matching_rules.rules_for_category("header").unwrap_or_default(),
     &plugin_data);
 
@@ -1469,7 +1555,7 @@ fn setup_plugin_config<'a>(
 pub async fn match_message_contents(
   expected: &MessageContents,
   actual: &MessageContents,
-  context: &MatchingContext
+  context: &(dyn MatchingContext + Send + Sync)
 ) -> Result<(), Vec<Mismatch>> {
   let expected_content_type = expected.message_content_type().unwrap_or_default();
   let actual_content_type = actual.message_content_type().unwrap_or_default();
@@ -1510,7 +1596,7 @@ pub async fn match_message_contents(
 pub fn match_message_metadata(
   expected: &MessageContents,
   actual: &MessageContents,
-  context: &MatchingContext
+  context: &dyn MatchingContext
 ) -> HashMap<String, Vec<Mismatch>> {
   debug!("Matching message metadata");
   let mut result = hashmap!{};
@@ -1518,7 +1604,7 @@ pub fn match_message_metadata(
   let actual_metadata = &actual.metadata;
   debug!("Matching message metadata. Expected '{:?}', Actual '{:?}'", expected_metadata, actual_metadata);
 
-  if !expected_metadata.is_empty() || context.config == DiffConfig::NoUnexpectedKeys {
+  if !expected_metadata.is_empty() || context.config() == DiffConfig::NoUnexpectedKeys {
     for (key, value) in expected_metadata {
       match actual_metadata.get(key) {
         Some(actual_value) => {
@@ -1537,11 +1623,16 @@ pub fn match_message_metadata(
   result
 }
 
-fn match_metadata_value(key: &str, expected: &Value, actual: &Value, context: &MatchingContext) -> Result<(), Vec<Mismatch>> {
+fn match_metadata_value(
+  key: &str,
+  expected: &Value,
+  actual: &Value,
+  context: &dyn MatchingContext
+) -> Result<(), Vec<Mismatch>> {
   debug!("Comparing metadata values for key '{}'", key);
-  let path = vec![key];
+  let path = DocPath::empty().join(key);
   let matcher_result = if context.matcher_is_defined(&path) {
-    matchers::match_values(&path, context, expected, actual)
+    matchers::match_values(&path, &context.select_best_matcher(&path), expected, actual)
   } else if key.to_ascii_lowercase() == "contenttype" || key.to_ascii_lowercase() == "content-type" {
     debug!("Comparing message context type '{}' => '{}'", expected, actual);
     headers::match_parameter_header(expected.as_str().unwrap_or_default(),
@@ -1577,19 +1668,19 @@ pub async fn match_message<'a>(
     let plugin_data = setup_plugin_config(pact, expected);
 
     let body_context = if expected.is_v4() {
-      MatchingContext {
+      CoreMatchingContext {
         matchers: matching_rules.rules_for_category("content").unwrap_or_default(),
         config: DiffConfig::AllowUnexpectedKeys,
         matching_spec: PactSpecification::V4,
         plugin_configuration: plugin_data.clone()
       }
     } else {
-      MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
+      CoreMatchingContext::new(DiffConfig::AllowUnexpectedKeys,
                            &matching_rules.rules_for_category("body").unwrap_or_default(),
                            &plugin_data)
     };
 
-    let metadata_context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
+    let metadata_context = CoreMatchingContext::new(DiffConfig::AllowUnexpectedKeys,
                                                 &matching_rules.rules_for_category("metadata").unwrap_or_default(),
                                                 &plugin_data);
     let contents = match_message_contents(&expected_message.as_message_content(), &actual_message.as_message_content(), &body_context).await;
@@ -1630,14 +1721,14 @@ pub async fn match_sync_message_request<'a>(
   let matching_rules = &expected.request.matching_rules;
   let plugin_data = setup_plugin_config(pact, &expected.boxed());
 
-  let body_context = MatchingContext {
+  let body_context = CoreMatchingContext {
     matchers: matching_rules.rules_for_category("content").unwrap_or_default(),
     config: DiffConfig::AllowUnexpectedKeys,
     matching_spec: PactSpecification::V4,
     plugin_configuration: plugin_data.clone()
   };
 
-  let metadata_context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
+  let metadata_context = CoreMatchingContext::new(DiffConfig::AllowUnexpectedKeys,
                                               &matching_rules.rules_for_category("metadata").unwrap_or_default(),
                                               &plugin_data);
   let contents = match_message_contents(&expected.request, &actual.request, &body_context).await;
@@ -1684,14 +1775,14 @@ pub async fn match_sync_message_response<'a>(
     let plugin_data = setup_plugin_config(pact, &expected.boxed());
     for (expected_response, actual_response) in expected_responses.iter().zip(actual_responses) {
       let matching_rules = &expected_response.matching_rules;
-      let body_context = MatchingContext {
+      let body_context = CoreMatchingContext {
         matchers: matching_rules.rules_for_category("content").unwrap_or_default(),
         config: DiffConfig::AllowUnexpectedKeys,
         matching_spec: PactSpecification::V4,
         plugin_configuration: plugin_data.clone()
       };
 
-      let metadata_context = MatchingContext::new(DiffConfig::AllowUnexpectedKeys,
+      let metadata_context = CoreMatchingContext::new(DiffConfig::AllowUnexpectedKeys,
                                                   &matching_rules.rules_for_category("metadata").unwrap_or_default(),
                                                   &plugin_data);
       let contents = match_message_contents(expected_response, actual_response, &body_context).await;

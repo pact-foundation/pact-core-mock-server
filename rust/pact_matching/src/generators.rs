@@ -4,18 +4,17 @@ use std::collections::HashMap;
 
 use log::*;
 use maplit::hashmap;
-use pact_plugin_driver::catalogue_manager::find_content_generator;
-use serde_json::{self, Value};
-use sxd_document::dom::Document;
-
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
 use pact_models::generators::{ContentTypeHandler, GenerateValue, Generator, GeneratorTestMode, JsonHandler, VariantMatcher};
 use pact_models::matchingrules::MatchingRuleCategory;
 use pact_models::path_exp::DocPath;
 use pact_models::xml_utils::parse_bytes;
+use pact_plugin_driver::catalogue_manager::find_content_generator;
+use serde_json::{self, Value};
+use sxd_document::dom::Document;
 
-use crate::{DiffConfig, MatchingContext};
+use crate::{CoreMatchingContext, DiffConfig, MatchingContext};
 use crate::json::compare_json;
 
 /// Implementation of a content type handler for XML (currently unimplemented).
@@ -103,15 +102,15 @@ pub async fn generators_process_body(
 pub(crate) fn find_matching_variant<T>(
   value: &T,
   variants: &[(usize, MatchingRuleCategory, HashMap<DocPath, Generator>)],
-  callback: &dyn Fn(&Vec<&str>, &T, &MatchingContext) -> bool
+  callback: &dyn Fn(&DocPath, &T, &dyn MatchingContext) -> bool
 ) -> Option<(usize, HashMap<DocPath, Generator>)>
   where T: Clone + std::fmt::Debug {
   let result = variants.iter()
     .find(|(index, rules, _)| {
       debug!("find_matching_variant: Comparing variant {} with value '{:?}'", index, value);
-      let context = MatchingContext::new(DiffConfig::NoUnexpectedKeys,
-                                         rules, &hashmap!{});
-      let matches = callback(&vec!["$"], value, &context);
+      let context = CoreMatchingContext::new(DiffConfig::NoUnexpectedKeys,
+        rules, &hashmap!{});
+      let matches = callback(&DocPath::root(), value, &context);
       debug!("find_matching_variant: Comparing variant {} => {}", index, matches);
       matches
     });
@@ -128,7 +127,7 @@ impl VariantMatcher for DefaultVariantMatcher {
     value: &Value,
     variants: &Vec<(usize, MatchingRuleCategory, HashMap<DocPath, Generator>)>
   ) -> Option<(usize, HashMap<DocPath, Generator>)> {
-    let callback = |path: &Vec<&str>, value: &Value, context: &MatchingContext| {
+    let callback = |path: &DocPath, value: &Value, context: &dyn MatchingContext| {
       compare_json(path, value, value, context).is_ok()
     };
     find_matching_variant(value, variants, &callback)
@@ -143,13 +142,12 @@ impl VariantMatcher for DefaultVariantMatcher {
 mod tests {
   use expectest::prelude::*;
   use maplit::hashmap;
-  use pretty_assertions::assert_eq;
-  use serde_json::json;
-
   use pact_models::generators::{GenerateValue, Generator, VariantMatcher};
   use pact_models::matchingrules::MatchingRule;
   use pact_models::matchingrules_list;
   use pact_models::path_exp::DocPath;
+  use pretty_assertions::assert_eq;
+  use serde_json::json;
 
   use crate::generators::DefaultVariantMatcher;
 
