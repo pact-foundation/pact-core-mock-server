@@ -344,7 +344,7 @@
 
 #![warn(missing_docs)]
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fmt::{Debug, Display};
 use std::fmt::Formatter;
 use std::hash::Hash;
@@ -355,10 +355,10 @@ use ansi_term::*;
 use ansi_term::Colour::*;
 use anyhow::anyhow;
 use bytes::Bytes;
-use itertools::Itertools;
+use itertools::{Either, Itertools};
 use lazy_static::*;
 use log::*;
-use maplit::hashmap;
+use maplit::{hashmap, hashset};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
 use pact_models::generators::{apply_generators, GenerateValue, GeneratorCategory, GeneratorTestMode, VariantMatcher};
@@ -415,6 +415,9 @@ pub trait MatchingContext {
 
   /// If there is a values matcher defined at the path in this context
   fn values_matcher_defined(&self, path: &DocPath) -> bool;
+
+  /// If a matcher defined at the path (ignoring parents)
+  fn direct_matcher_defined(&self, path: &DocPath, matchers: &HashSet<&str>) -> bool;
 
   /// Matches the keys of the expected and actual maps
   fn match_keys(&self, path: &DocPath, expected: &BTreeSet<String>, actual: &BTreeSet<String>) -> Result<(), Vec<Mismatch>>;
@@ -495,58 +498,110 @@ impl Default for CoreMatchingContext {
 }
 
 impl MatchingContext for CoreMatchingContext {
-  /// If there is a matcher defined at the path in this context
   fn matcher_is_defined(&self, path: &DocPath) -> bool {
     let path = path.to_vec();
     let path_slice = path.iter().map(|p| p.as_str()).collect_vec();
     self.matchers.matcher_is_defined(path_slice.as_slice())
   }
 
-  /// Selected the best matcher from the context for the given path
   fn select_best_matcher(&self, path: &DocPath) -> RuleList {
     let path = path.to_vec();
     let path_slice = path.iter().map(|p| p.as_str()).collect_vec();
     self.matchers.select_best_matcher(path_slice.as_slice())
   }
 
-  /// If there is a type matcher defined at the path in this context
   fn type_matcher_defined(&self, path: &DocPath) -> bool {
     let path = path.to_vec();
     let path_slice = path.iter().map(|p| p.as_str()).collect_vec();
     self.matchers.resolve_matchers_for_path(path_slice.as_slice()).type_matcher_defined()
   }
 
-  /// If there is a values matcher defined at the path in this context
   fn values_matcher_defined(&self, path: &DocPath) -> bool {
     self.matchers_for_exact_path(path).values_matcher_defined()
   }
 
-  /// Matches the keys of the expected and actual maps
+  fn direct_matcher_defined(&self, path: &DocPath, matchers: &HashSet<&str>) -> bool {
+    let actual = self.matchers_for_exact_path(path);
+    if matchers.is_empty() {
+      actual.is_not_empty()
+    } else {
+      actual.as_rule_list().rules.iter().any(|r| matchers.contains(r.name().as_str()))
+    }
+  }
+
   fn match_keys(&self, path: &DocPath, expected: &BTreeSet<String>, actual: &BTreeSet<String>) -> Result<(), Vec<Mismatch>> {
     let mut expected_keys = expected.iter().cloned().collect::<Vec<String>>();
     expected_keys.sort();
     let mut actual_keys = actual.iter().cloned().collect::<Vec<String>>();
     actual_keys.sort();
     let missing_keys: Vec<String> = expected.iter().filter(|key| !actual.contains(*key)).cloned().collect();
-    match self.config {
-      DiffConfig::AllowUnexpectedKeys if !missing_keys.is_empty() => {
-        Err(vec![Mismatch::BodyMismatch {
-          path: path.to_string(),
-          expected: Some(expected.for_mismatch().into()),
-          actual: Some(actual.for_mismatch().into()),
-          mismatch: format!("Actual map is missing the following keys: {}", missing_keys.join(", ")),
-        }])
+    let mut result = vec![];
+
+    if !self.direct_matcher_defined(path, &hashset! { "values", "each-value" }) {
+      match self.config {
+        DiffConfig::AllowUnexpectedKeys if !missing_keys.is_empty() => {
+          result.push(Mismatch::BodyMismatch {
+            path: path.to_string(),
+            expected: Some(expected.for_mismatch().into()),
+            actual: Some(actual.for_mismatch().into()),
+            mismatch: format!("Actual map is missing the following keys: {}", missing_keys.join(", ")),
+          });
+        }
+        DiffConfig::NoUnexpectedKeys if expected_keys != actual_keys => {
+          result.push(Mismatch::BodyMismatch {
+            path: path.to_string(),
+            expected: Some(expected.for_mismatch().into()),
+            actual: Some(actual.for_mismatch().into()),
+            mismatch: format!("Expected a Map with keys {} but received one with keys {}",
+                              expected_keys.join(", "), actual_keys.join(", ")),
+          });
+        }
+        _ => {}
       }
-      DiffConfig::NoUnexpectedKeys if expected_keys != actual_keys => {
-        Err(vec![Mismatch::BodyMismatch {
-          path: path.to_string(),
-          expected: Some(expected.for_mismatch().into()),
-          actual: Some(actual.for_mismatch().into()),
-          mismatch: format!("Expected a Map with keys {} but received one with keys {}",
-                            expected_keys.join(", "), actual_keys.join(", ")),
-        }])
+    }
+
+    if self.direct_matcher_defined(path, &Default::default()) {
+      let matchers = self.select_best_matcher(path);
+      for matcher in matchers.rules {
+        match matcher {
+          MatchingRule::EachKey(definition) => {
+            for sub_matcher in definition.rules {
+              match sub_matcher {
+                Either::Left(rule) => {
+                  for key in &actual_keys {
+                    let key_path = path.join(key);
+                    String::default().matches_with(key, &rule, false)
+                      .map_err(|err| {
+                        result.push(Mismatch::BodyMismatch {
+                          path: key_path.to_string(),
+                          expected: Some("".to_string().into()),
+                          actual: Some(key.clone().into()),
+                          mismatch: err.to_string(),
+                        });
+                      });
+                  }
+                }
+                Either::Right(name) => {
+                  result.push(Mismatch::BodyMismatch {
+                    path: path.to_string(),
+                    expected: Some(expected.for_mismatch().into()),
+                    actual: Some(actual.for_mismatch().into()),
+                    mismatch: format!("Expected a matching rule, found an unresolved reference '{}'",
+                      name.name),
+                  });
+                }
+              }
+            }
+          }
+          _ => {}
+        }
       }
-      _ => Ok(())
+    }
+
+    if result.is_empty() {
+      Ok(())
+    } else {
+      Err(result)
     }
   }
 

@@ -362,6 +362,10 @@ mod tests {
       todo!()
     }
 
+    fn direct_matcher_defined(&self, path: &DocPath, matchers: &HashSet<&str>) -> bool {
+      todo!()
+    }
+
     fn match_keys(&self, path: &DocPath, expected: &BTreeSet<String>, actual: &BTreeSet<String>) -> Result<(), Vec<Mismatch>> {
       self.calls.borrow_mut().push(format!("match_keys({}, {:?}, {:?})", path, expected, actual));
       Ok(())
