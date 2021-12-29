@@ -1,5 +1,14 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.2.6 - Bugfix Release
+
+* 7b2e8538 - fix: DocPath join needs to detect numeric values (Ronald Holshausen, Wed Dec 29 13:23:47 2021 +1100)
+* e5fd165d - refactor: Move is_values_matcher logic to MatchingRule (Ronald Holshausen, Wed Dec 29 10:05:03 2021 +1100)
+* 41a52319 - fix: values_matcher_defined should include EachValue matcher (Ronald Holshausen, Wed Dec 29 09:48:02 2021 +1100)
+* b7f967e0 - fix: `match` arms have incompatible types (Ronald Holshausen, Thu Dec 23 17:48:20 2021 +1100)
+* 39338c46 - fix: Some matching rules do not have associated configuration (Ronald Holshausen, Thu Dec 23 14:02:50 2021 +1100)
+* deb30e92 - bump version to 0.2.6 (Ronald Holshausen, Thu Dec 23 11:57:34 2021 +1100)
+
 # 0.2.5 - Bugfix Release
 
 * e1e0b43e - fix: matching definition parser was incorrectly merging multiple definitions (Ronald Holshausen, Thu Dec 23 11:48:09 2021 +1100)
