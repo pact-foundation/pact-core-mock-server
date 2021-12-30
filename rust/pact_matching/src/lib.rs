@@ -570,15 +570,14 @@ impl MatchingContext for CoreMatchingContext {
                 Either::Left(rule) => {
                   for key in &actual_keys {
                     let key_path = path.join(key);
-                    String::default().matches_with(key, &rule, false)
-                      .map_err(|err| {
-                        result.push(Mismatch::BodyMismatch {
-                          path: key_path.to_string(),
-                          expected: Some("".to_string().into()),
-                          actual: Some(key.clone().into()),
-                          mismatch: err.to_string(),
-                        });
+                    if let Err(err) = String::default().matches_with(key, &rule, false) {
+                      result.push(Mismatch::BodyMismatch {
+                        path: key_path.to_string(),
+                        expected: Some("".to_string().into()),
+                        actual: Some(key.clone().into()),
+                        mismatch: err.to_string(),
                       });
+                    }
                   }
                 }
                 Either::Right(name) => {
