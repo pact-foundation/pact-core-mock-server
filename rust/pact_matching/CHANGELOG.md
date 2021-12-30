@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.12.1 - Bugfix Release
+
+* dfa9f614 - fix: Values matcher should not be applied to a slice like Equality (Ronald Holshausen, Thu Dec 30 16:23:41 2021 +1100)
+* 3576c857 - chore: fix compiler warning (Ronald Holshausen, Thu Dec 30 14:24:58 2021 +1100)
+* aab26798 - bump version to 0.12.1 (Ronald Holshausen, Thu Dec 30 14:22:19 2021 +1100)
+
 # 0.12.0 - Support for matching Protobuf payloads
 
 * 1a01d111 - fix: correct the matching logic with lists and eachkey/eachvalue matchers (Ronald Holshausen, Thu Dec 30 13:34:21 2021 +1100)
