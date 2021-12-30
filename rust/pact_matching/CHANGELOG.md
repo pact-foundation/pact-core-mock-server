@@ -1,5 +1,19 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.12.0 - Support for matching Protobuf payloads
+
+* 1a01d111 - fix: correct the matching logic with lists and eachkey/eachvalue matchers (Ronald Holshausen, Thu Dec 30 13:34:21 2021 +1100)
+* 28f562e2 - fix: Each key matching was not implemented correctly (Ronald Holshausen, Wed Dec 29 17:20:05 2021 +1100)
+* 07e2a3b6 - fix: Values matchers must not cascade (Ronald Holshausen, Wed Dec 29 16:36:57 2021 +1100)
+* 60764855 - fix: missing import (Ronald Holshausen, Wed Dec 29 15:50:36 2021 +1100)
+* cd6fe27a - fix: map matching logic was not including the EachValue matcher (Ronald Holshausen, Wed Dec 29 15:47:09 2021 +1100)
+* 0a6e7d9d - refactor: Convert MatchingContext to a trait and use DocPath instead of string slices (Ronald Holshausen, Wed Dec 29 14:24:39 2021 +1100)
+* 41b406aa - fix: shared mime-info db not available on Windows (Ronald Holshausen, Wed Dec 29 10:13:43 2021 +1100)
+* a0c9d203 - fix: detect common text types when comparing content type (Ronald Holshausen, Fri Dec 24 16:19:43 2021 +1100)
+* ede663ec - fix: add matching implementations for Vec<u8> and &Vec<u8> (Ronald Holshausen, Fri Dec 24 15:24:48 2021 +1100)
+* 85a4ae53 - chore: Make pact_matching::matchingrules public so it can be used outside of the crate (Ronald Holshausen, Thu Dec 23 16:38:54 2021 +1100)
+* 8089b542 - bump version to 0.11.6 (Ronald Holshausen, Thu Dec 23 13:04:14 2021 +1100)
+
 # 0.11.5 - Maintenance Release
 
 * 5479a634 - chore: Update pact_models (0.2.4) and pact-plugin-driver (0.0.14) (Ronald Holshausen, Thu Dec 23 12:57:02 2021 +1100)
