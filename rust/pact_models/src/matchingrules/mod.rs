@@ -475,6 +475,16 @@ impl MatchingRule {
       _ => false
     }
   }
+
+  /// If this matcher should cascade to children
+  pub fn can_cascade(&self) -> bool {
+    match self {
+      MatchingRule::Values => false,
+      MatchingRule::EachValue(_) => false,
+      MatchingRule::EachKey(_) => false,
+      _ => true
+    }
+  }
 }
 
 impl Hash for MatchingRule {
