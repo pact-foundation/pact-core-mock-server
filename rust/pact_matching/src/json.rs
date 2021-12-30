@@ -385,8 +385,9 @@ fn compare_lists(
   if context.matcher_is_defined(path) {
     debug!("compare_lists: matcher defined for path '{}'", path);
     let mut result = Ok(());
-    for matcher in context.select_best_matcher(path).rules {
-      let values_result = compare_lists_with_matchingrule(&matcher, path, expected, actual, context, &|p, expected, actual, context| {
+    let rule_list = context.select_best_matcher(path);
+    for matcher in rule_list.rules {
+      let values_result = compare_lists_with_matchingrule(&matcher, path, expected, actual, context, rule_list.cascaded, &mut |p, expected, actual, context| {
         compare_json(p, expected, actual, context)
       });
       result = merge_result(result, values_result);
