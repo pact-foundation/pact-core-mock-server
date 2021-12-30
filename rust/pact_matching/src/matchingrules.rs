@@ -62,11 +62,11 @@ impl <T: Debug + Display + PartialEq + Clone> Matches<&[T]> for &[T] {
           Ok(())
         }
       }
-      MatchingRule::Equality | MatchingRule::Values => {
+      MatchingRule::Equality => {
         if *self == actual {
           Ok(())
         } else {
-          Err(anyhow!("Expected {:?} to be equal to {:?}", actual, self))
+          Err(anyhow!("Expected {} to be equal to {}", actual.for_mismatch(), self.for_mismatch()))
         }
       }
       MatchingRule::NotEmpty => {
@@ -79,7 +79,8 @@ impl <T: Debug + Display + PartialEq + Clone> Matches<&[T]> for &[T] {
       MatchingRule::ArrayContains(_) => Ok(()),
       MatchingRule::EachKey(_) => Ok(()),
       MatchingRule::EachValue(_) => Ok(()),
-      _ => Err(anyhow!("Unable to match {:?} using {:?}", self, matcher))
+      MatchingRule::Values => Ok(()),
+      _ => Err(anyhow!("Unable to match {} using {:?}", self.for_mismatch(), matcher))
     };
     debug!("Comparing '{:?}' to '{:?}' using {:?} -> {:?}", self, actual, matcher, result);
     result
