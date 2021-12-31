@@ -616,13 +616,13 @@ dependencies = [
 
 [[package]]
 name = "http"
-version = "0.2.5"
+version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1323096b05d41827dadeaee54c9981958c0f94e670bc94ed80037d1a7b8b186b"
+checksum = "31f4c6746584866f0feabcc69893c5b51beef3831656a968ed7ae254cdc4fd03"
 dependencies = [
  "bytes",
  "fnv",
- "itoa 0.4.8",
+ "itoa 1.0.1",
 ]
 
 [[package]]
@@ -1181,9 +1181,9 @@ dependencies = [
 
 [[package]]
 name = "pact-plugin-driver"
-version = "0.0.14"
+version = "0.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5301905fe94e2c28e4d08042e915f8a6b81b11f0c1b7af8560c6b82390e156bf"
+checksum = "15e8fe047c112fdcd98ef78fbc0fde08f920712725d57708fbb3b50ab65e75ad"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1200,6 +1200,7 @@ dependencies = [
  "prost-types",
  "regex",
  "reqwest",
+ "semver 1.0.4",
  "serde",
  "serde_json",
  "sysinfo",

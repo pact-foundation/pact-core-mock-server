@@ -41,7 +41,7 @@ http = "0.2"
 mime = "0.3.16"
 bytes = { version = "1", features = ["serde"] }
 tokio = { version = "1", features = ["full"] }
-pact-plugin-driver = "0.0.14"
+pact-plugin-driver = "0.0.15"
 md5 = "0.7.0"
 
 [dependencies.reqwest]
