@@ -1,6 +1,8 @@
 //! The `plugins` module provides exported functions using C bindings for using plugins with
 //! Pact tests.
 
+use std::time::Duration;
+
 use anyhow::{anyhow, Context};
 use bytes::Bytes;
 use itertools::Itertools;
@@ -21,6 +23,7 @@ use pact_plugin_driver::content::{InteractionContents, PluginConfiguration};
 use pact_plugin_driver::plugin_manager::{drop_plugin_access, load_plugin};
 use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
 use serde_json::Value;
+use tokio::time::sleep;
 
 use crate::{ffi_fn, safe_str};
 use crate::error::{catch_panic, set_error_msg};
@@ -58,12 +61,25 @@ ffi_fn! {
     pact_mock_server::configure_core_catalogue();
     pact_matching::matchers::configure_core_catalogue();
 
-     let runtime = tokio::runtime::Runtime::new().unwrap();
-     let result = runtime.block_on(load_plugin(&PluginDependency {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+      .enable_all()
+      .build()
+      .expect("Could not start a Tokio runtime for running async tasks");
+    let result = runtime.block_on(async {
+      let result = load_plugin(&PluginDependency {
         name: plugin_name.to_string(),
         version: if plugin_version.is_empty() { None } else { Some(plugin_version) },
         dependency_type: Default::default()
-      }));
+      });
+
+      // Add a small delay to let asynchronous tasks to complete
+      sleep(Duration::from_millis(500)).await;
+
+      result
+    });
+
+    runtime.shutdown_timeout(Duration::from_millis(500));
+
     match result {
       Ok(plugin) => pact.with_pact(&|_, inner| {
         inner.pact.add_plugin(plugin.manifest.name.as_str(), plugin.manifest.version.as_str(), None)
