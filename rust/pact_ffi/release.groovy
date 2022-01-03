@@ -41,7 +41,6 @@ ask('Execute Build?: [Y]') {
   executeOnShell 'cargo clean'
   executeOnShell 'mkdir -p ../target/artifacts'
   executeOnShell 'cargo build'
-  executeOnShell 'cargo doc'
   executeOnShell 'cargo test'
 }
 

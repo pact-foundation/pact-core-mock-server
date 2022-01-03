@@ -147,7 +147,7 @@ fn create_multipart_file() {
   });
 }
 
-#[test_env_log::test]
+#[test_log::test]
 fn http_consumer_feature_test() {
   let consumer_name = CString::new("http-consumer").unwrap();
   let provider_name = CString::new("http-provider").unwrap();
