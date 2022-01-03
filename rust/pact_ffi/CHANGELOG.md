@@ -1,5 +1,21 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.1.5 - Maintenance Release
+
+* 7dbdd456 - chore: update test log crate (Ronald Holshausen, Tue Jan 4 10:46:46 2022 +1100)
+* 1b16e30a - chore: test-env-log has been renamed to test-log (Ronald Holshausen, Tue Jan 4 10:43:51 2022 +1100)
+* 1cafd00a - fix: drop(from_raw(ptr))` if you intend to drop the `CString` (Ronald Holshausen, Tue Jan 4 10:39:16 2022 +1100)
+* fe22ae3a - fix: expected opaque type, found enum `Result` (Ronald Holshausen, Tue Jan 4 10:26:22 2022 +1100)
+* 213d1459 - fix: add a small delay after loading plugins via FFI to resolve a race condition (Ronald Holshausen, Tue Jan 4 09:56:33 2022 +1100)
+* 9c2810ad - chore: Upgrade pact-plugin-driver to 0.0.15 (Ronald Holshausen, Fri Dec 31 15:12:56 2021 +1100)
+* 0a6e7d9d - refactor: Convert MatchingContext to a trait and use DocPath instead of string slices (Ronald Holshausen, Wed Dec 29 14:24:39 2021 +1100)
+* 4d088317 - chore: Update pact_mock_server crate to 0.8.4 (Ronald Holshausen, Thu Dec 23 13:24:15 2021 +1100)
+* 52bc1735 - chore: update pact_matching crate to 0.11.5 (Ronald Holshausen, Thu Dec 23 13:12:08 2021 +1100)
+* 5479a634 - chore: Update pact_models (0.2.4) and pact-plugin-driver (0.0.14) (Ronald Holshausen, Thu Dec 23 12:57:02 2021 +1100)
+* fc0a8360 - chore: update pact_matching to 0.11.4 (Ronald Holshausen, Mon Dec 20 12:19:36 2021 +1100)
+* 8911d5b0 - chore: update to latest plugin driver crate (metrics fixes) (Ronald Holshausen, Mon Dec 20 12:11:35 2021 +1100)
+* 9153cc5b - bump version to 0.1.5 (Ronald Holshausen, Wed Dec 15 16:44:22 2021 +1100)
+
 # 0.1.4 - Maintenance Release
 
 * a1d03b95 - chore: update dependent pact crates (Ronald Holshausen, Wed Dec 15 16:34:39 2021 +1100)
