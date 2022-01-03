@@ -51,7 +51,7 @@ pact-plugin-driver = "0.0.16"
 expectest = "0.12.0"
 reqwest = { version = "0.11", default-features = false, features = ["rustls-tls-native-roots", "blocking", "json"] }
 quickcheck = "1"
-test-env-log = "0.2.7"
+test-log = "0.2.8"
 
 [lib]
 crate-type = ["cdylib", "staticlib", "rlib"]
