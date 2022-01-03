@@ -568,6 +568,5 @@ pub unsafe extern fn pactffi_free_string(s: *mut c_char) {
   if s.is_null() {
     return;
   }
-  CString::from_raw(s);
+  drop(CString::from_raw(s));
 }
-
