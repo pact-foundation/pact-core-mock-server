@@ -70,7 +70,7 @@ ffi_fn! {
         name: plugin_name.to_string(),
         version: if plugin_version.is_empty() { None } else { Some(plugin_version) },
         dependency_type: Default::default()
-      });
+      }).await;
 
       // Add a small delay to let asynchronous tasks to complete
       sleep(Duration::from_millis(500)).await;
