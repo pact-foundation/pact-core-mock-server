@@ -1274,7 +1274,7 @@ dependencies = [
  "libc",
  "log",
  "maplit",
- "pact-plugin-driver 0.0.15",
+ "pact-plugin-driver 0.0.16",
  "pact_matching",
  "pact_mock_server",
  "pact_models 0.2.6",
