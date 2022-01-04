@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.12.3 - Maintenance Release
+
+* e5961b33 - chore: Update pact_matching 0.12.1, pact_models 0.2.6 (Ronald Holshausen, Tue Jan 4 12:59:44 2022 +1100)
+* d670585a - chore: Update plugin driver to 0.0.16 (Ronald Holshausen, Tue Jan 4 09:37:21 2022 +1100)
+* 549788cd - bump version to 0.12.3 (Ronald Holshausen, Fri Dec 31 15:35:25 2021 +1100)
+
 # 0.12.2 - Maintenance Release
 
 * 9c2810ad - chore: Upgrade pact-plugin-driver to 0.0.15 (Ronald Holshausen, Fri Dec 31 15:12:56 2021 +1100)
