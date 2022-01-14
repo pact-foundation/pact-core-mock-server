@@ -20,7 +20,7 @@ anyhow = "1.0.40"
 serde = { version = "^1.0", features = ["derive"] }
 serde_json = "^1.0"
 hex = "0.4.2"
-log = "0.4"
+log = "=0.4.14" # This needs to be the same version across all the libs (i.e. plugin driver)
 onig = { version = "6.1.0", default-features = false }
 maplit = "1.0.2"
 lazy_static = "1.4.0"

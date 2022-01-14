@@ -20,7 +20,7 @@ tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.11", default-features = false, features = ["rustls-tls-native-roots", "blocking", "json"] }
 clap = "2.33"
 regex = "1.5.4"
-log = "0.4.14"
+log = "=0.4.14" # This needs to be the same version across all the libs (i.e. plugin driver)
 simplelog = "0.10.2"
 
 [dev-dependencies]
