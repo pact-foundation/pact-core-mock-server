@@ -10,7 +10,7 @@ use serde_json::{Map, Value};
 use pact_models::bodies::OptionalBody;
 use pact_models::generators::{Generator, GeneratorCategory, Generators};
 use pact_models::json_utils::{json_to_num, json_to_string};
-use pact_models::matchingrules::{MatchingRule, MatchingRuleCategory, RuleLogic};
+use pact_models::matchingrules::{MatchingRule, MatchingRuleCategory, RuleLogic, Category};
 use pact_models::path_exp::DocPath;
 use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
 
@@ -57,8 +57,17 @@ pub fn process_object(
       }
       if let Some(gen) = obj.get("pact:generator:type") {
         if let Some(generator) = Generator::from_map(&json_to_string(gen), obj) {
-          generators.add_generator_with_subcategory(
-            &GeneratorCategory::BODY, path.clone(), generator);
+          let category = match matching_rules.name {
+            Category::BODY => &GeneratorCategory::BODY,
+            Category::HEADER => &GeneratorCategory::HEADER,
+            Category::PATH => &GeneratorCategory::PATH,
+            Category::QUERY => &GeneratorCategory::QUERY,
+            _ => {
+              warn!("invalid generator category {} provided, defaulting to body", matching_rules.name);
+              &GeneratorCategory::BODY
+            }
+          };
+          generators.add_generator_with_subcategory(category, path.clone(), generator);
         }
       }
       let (value, skip_matchers) = if let Some(rule) = matching_rule {
