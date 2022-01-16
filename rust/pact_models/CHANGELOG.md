@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.2.7 - Bugfix Release
+
+* c2089645 - fix: log crate version must be fixed across all crates (including plugin driver) (Ronald Holshausen, Fri Jan 14 16:10:50 2022 +1100)
+* ff49f33a - chore: update docs on matching rule definitions (Ronald Holshausen, Wed Jan 5 15:07:26 2022 +1100)
+* 7b23378f - feat: some matching rules should not cascade (Ronald Holshausen, Thu Dec 30 13:32:04 2021 +1100)
+* 83c36db7 - bump version to 0.2.7 (Ronald Holshausen, Wed Dec 29 13:33:06 2021 +1100)
+
 # 0.2.6 - Bugfix Release
 
 * 7b2e8538 - fix: DocPath join needs to detect numeric values (Ronald Holshausen, Wed Dec 29 13:23:47 2021 +1100)
