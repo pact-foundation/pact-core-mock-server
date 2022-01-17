@@ -1,5 +1,14 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.12.2 - Bugfix Release
+
+* 80b241c5 - chore: Upgrade plugin driver crate to 0.0.17 (Ronald Holshausen, Mon Jan 17 11:22:48 2022 +1100)
+* 4f1ecff2 - chore: Upgrade pact-models to 0.2.7 (Ronald Holshausen, Mon Jan 17 10:53:26 2022 +1100)
+* c2089645 - fix: log crate version must be fixed across all crates (including plugin driver) (Ronald Holshausen, Fri Jan 14 16:10:50 2022 +1100)
+* d670585a - chore: Update plugin driver to 0.0.16 (Ronald Holshausen, Tue Jan 4 09:37:21 2022 +1100)
+* 9c2810ad - chore: Upgrade pact-plugin-driver to 0.0.15 (Ronald Holshausen, Fri Dec 31 15:12:56 2021 +1100)
+* f8e718ac - bump version to 0.12.2 (Ronald Holshausen, Fri Dec 31 10:05:17 2021 +1100)
+
 # 0.12.1 - Bugfix Release
 
 * dfa9f614 - fix: Values matcher should not be applied to a slice like Equality (Ronald Holshausen, Thu Dec 30 16:23:41 2021 +1100)
