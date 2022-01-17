@@ -1,5 +1,16 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.1.6 - Maintenance Release
+
+* 0c200ea5 - chore: Upgrade pact verifier crate to 0.12.4 (Ronald Holshausen, Mon Jan 17 17:07:18 2022 +1100)
+* 10c9b842 - chore: Upgrade pact_mock_server to 0.8.6 (Ronald Holshausen, Mon Jan 17 16:57:31 2022 +1100)
+* 5e4c68ef - chore: update pact matching to 0.12.2 (Ronald Holshausen, Mon Jan 17 16:29:21 2022 +1100)
+* 80b241c5 - chore: Upgrade plugin driver crate to 0.0.17 (Ronald Holshausen, Mon Jan 17 11:22:48 2022 +1100)
+* 4f1ecff2 - chore: Upgrade pact-models to 0.2.7 (Ronald Holshausen, Mon Jan 17 10:53:26 2022 +1100)
+* 63ab0d2d - fix: generators in process_object (Matt Fellows, Sat Jan 15 23:21:34 2022 +1100)
+* c2089645 - fix: log crate version must be fixed across all crates (including plugin driver) (Ronald Holshausen, Fri Jan 14 16:10:50 2022 +1100)
+* 255d6eba - bump version to 0.1.6 (Ronald Holshausen, Tue Jan 4 10:59:38 2022 +1100)
+
 # 0.1.5 - Maintenance Release
 
 * 7dbdd456 - chore: update test log crate (Ronald Holshausen, Tue Jan 4 10:46:46 2022 +1100)
