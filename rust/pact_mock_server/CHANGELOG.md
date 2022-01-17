@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.8.6 - Bugfix Release
+
+* 5e4c68ef - chore: update pact matching to 0.12.2 (Ronald Holshausen, Mon Jan 17 16:29:21 2022 +1100)
+* 80b241c5 - chore: Upgrade plugin driver crate to 0.0.17 (Ronald Holshausen, Mon Jan 17 11:22:48 2022 +1100)
+* 4f1ecff2 - chore: Upgrade pact-models to 0.2.7 (Ronald Holshausen, Mon Jan 17 10:53:26 2022 +1100)
+* c2089645 - fix: log crate version must be fixed across all crates (including plugin driver) (Ronald Holshausen, Fri Jan 14 16:10:50 2022 +1100)
+* b33ce2fa - bump version to 0.8.6 (Ronald Holshausen, Tue Jan 4 12:43:22 2022 +1100)
+
 # 0.8.5 - Maintenance Release
 
 * 8259c12a - chore: update pact_models 0.2.6, pact_matching 0.12.1, pact-plugin-driver 0.0.16 (Ronald Holshausen, Tue Jan 4 12:38:26 2022 +1100)
