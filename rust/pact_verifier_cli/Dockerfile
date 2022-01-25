@@ -1,4 +1,4 @@
-FROM ekidd/rust-musl-builder AS builder
+FROM rust-musl-2021 AS builder
 
 # Add our source code.
 ADD . ./
