@@ -126,7 +126,6 @@ impl VerifierHandle {
   pub fn add_pact_broker_source(
     &mut self,
     url: &str,
-    provider_name: &str,
     enable_pending: bool,
     include_wip_pacts_since: Option<String>,
     provider_tags: Vec<String>,
@@ -136,7 +135,7 @@ impl VerifierHandle {
   ) {
     if !auth.is_none() {
       self.sources.push(PactSource::BrokerWithDynamicConfiguration {
-        provider_name: provider_name.to_string(),
+        provider_name: self.provider.name.clone(),
         broker_url: url.to_string(),
         enable_pending,
         include_wip_pacts_since,
@@ -148,7 +147,7 @@ impl VerifierHandle {
       });
     } else {
       self.sources.push(PactSource::BrokerWithDynamicConfiguration {
-        provider_name: provider_name.to_string(),
+        provider_name: self.provider.name.clone(),
         broker_url: url.to_string(),
         enable_pending,
         include_wip_pacts_since,

@@ -366,14 +366,12 @@ ffi_fn! {
     fn pactffi_verifier_broker_source(
       handle: *mut handle::VerifierHandle,
       url: *const c_char,
-      provider_name: *const c_char,
       username: *const c_char,
       password: *const c_char,
       token: *const c_char
     ) {
       let handle = as_mut!(handle);
       let url = safe_str!(url);
-      let provider_name = safe_str!(provider_name);
       let username = if_null(username, "");
       let password = if_null(password, "");
       let token = if_null(token, "");
@@ -390,7 +388,7 @@ ffi_fn! {
         HttpAuth::None
       };
 
-      handle.add_pact_broker_source(url, provider_name, false, None, vec![], None, vec![], &auth);
+      handle.add_pact_broker_source(url, false, None, vec![], None, vec![], &auth);
     }
 }
 
@@ -417,7 +415,6 @@ ffi_fn! {
     fn pactffi_verifier_broker_source_with_selectors(
       handle: *mut handle::VerifierHandle,
       url: *const c_char,
-      provider_name: *const c_char,
       username: *const c_char,
       password: *const c_char,
       token: *const c_char,
@@ -433,7 +430,6 @@ ffi_fn! {
     ) {
       let handle = as_mut!(handle);
       let url = safe_str!(url);
-      let provider_name = safe_str!(provider_name);
       let provider_branch: Option<String> = if provider_branch.is_null() {
         None
       } else {
@@ -475,7 +471,7 @@ ffi_fn! {
         vec![]
       };
 
-      handle.add_pact_broker_source(url, provider_name, enable_pending > 0, wip, provider_tags_vector, provider_branch, selectors, &auth);
+      handle.add_pact_broker_source(url, enable_pending > 0, wip, provider_tags_vector, provider_branch, selectors, &auth);
     }
 }
 
