@@ -1,8 +1,12 @@
 use clap::{App, Arg};
 use regex::Regex;
 
-fn integer_value(v: String) -> Result<(), String> {
+fn port_value(v: String) -> Result<(), String> {
   v.parse::<u16>().map(|_| ()).map_err(|e| format!("'{}' is not a valid port value: {}", v, e) )
+}
+
+fn integer_value(v: String) -> Result<(), String> {
+  v.parse::<u64>().map(|_| ()).map_err(|e| format!("'{}' is not a valid integer value: {}", v, e) )
 }
 
 pub(crate) fn setup_app<'a, 'b>(program: String, version: &'b str) -> App<'a, 'b> {
@@ -69,7 +73,7 @@ pub(crate) fn setup_app<'a, 'b>(program: String, version: &'b str) -> App<'a, 'b
       .takes_value(true)
       .use_delimiter(false)
       .help("Provider port (defaults to protocol default 80/443)")
-      .validator(integer_value))
+      .validator(port_value))
     .arg(Arg::with_name("scheme")
       .long("scheme")
       .takes_value(true)
@@ -236,7 +240,7 @@ mod test {
 
   use quickcheck::{TestResult, quickcheck};
   use rand::Rng;
-  use super::integer_value;
+  use super::{integer_value, port_value};
   use expectest::prelude::*;
   use expectest::expect;
   use pact_matching::s;
@@ -257,7 +261,13 @@ mod test {
     }
     quickcheck(prop as fn(_) -> _);
 
-    expect!(integer_value(s!("1234"))).to(be_ok());
+    expect!(integer_value(s!("300000"))).to(be_ok());
     expect!(integer_value(s!("1234x"))).to(be_err());
+  }
+
+  #[test]
+  fn validates_port_value() {
+    expect!(port_value("1234".to_string())).to(be_ok());
+    expect!(port_value("1234x".to_string())).to(be_err());
   }
 }
