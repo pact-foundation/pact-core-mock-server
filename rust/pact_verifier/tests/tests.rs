@@ -89,9 +89,17 @@ async fn verify_pact_with_match_values_matcher() {
   let pact = read_pact(pact_file.as_path()).unwrap();
   let options: VerificationOptions<NullRequestFilterExecutor> = VerificationOptions::default();
   let provider_states = Arc::new(DummyProviderStateExecutor{});
+  let mut output = vec![];
 
-  let result = verify_pact_internal(&provider, &FilterInfo::None,
-                                    pact, &options, &provider_states, false).await;
+  let result = verify_pact_internal(
+    &provider,
+    &FilterInfo::None,
+    pact,
+    &options,
+    &provider_states,
+    false,
+    &mut output
+  ).await;
 
   expect!(result.unwrap().results.get(0).unwrap().result.as_ref()).to(be_ok());
 }
@@ -133,9 +141,17 @@ async fn verify_pact_with_attributes_with_special_values() {
   let pact = read_pact(pact_file.as_path()).unwrap();
   let options: VerificationOptions<NullRequestFilterExecutor> = VerificationOptions::default();
   let provider_states = Arc::new(DummyProviderStateExecutor{});
+  let mut output = vec![];
 
-  let result = verify_pact_internal(&provider, &FilterInfo::None,
-                                    pact, &options, &provider_states, false).await;
+  let result = verify_pact_internal(
+    &provider,
+    &FilterInfo::None,
+    pact,
+    &options,
+    &provider_states,
+    false,
+    &mut output
+  ).await;
 
   expect!(result.unwrap().results.get(0).unwrap().result.as_ref()).to(be_ok());
 }
@@ -153,9 +169,17 @@ async fn verifying_a_pact_with_pending_interactions() {
   let pact = read_pact(pact_file.as_path()).unwrap();
   let options: VerificationOptions<NullRequestFilterExecutor> = VerificationOptions::default();
   let provider_states = Arc::new(DummyProviderStateExecutor{});
+  let mut output = vec![];
 
-  let result = verify_pact_internal(&provider, &FilterInfo::None,
-                                    pact, &options, &provider_states, false).await;
+  let result = verify_pact_internal(
+    &provider,
+    &FilterInfo::None,
+    pact,
+    &options,
+    &provider_states,
+    false,
+    &mut output
+  ).await;
 
   expect!(result.as_ref().unwrap().results.get(0).unwrap().result.as_ref()).to(be_err());
   expect!(result.as_ref().unwrap().results.get(0).unwrap().pending).to(be_true());
@@ -200,9 +224,17 @@ async fn verifying_a_pact_with_min_type_matcher_and_child_arrays() {
   let pact = read_pact(pact_file.as_path()).unwrap();
   let options: VerificationOptions<NullRequestFilterExecutor> = VerificationOptions::default();
   let provider_states = Arc::new(DummyProviderStateExecutor{});
+  let mut output = vec![];
 
-  let result = verify_pact_internal(&provider, &FilterInfo::None,
-                                    pact, &options, &provider_states, false).await;
+  let result = verify_pact_internal(
+    &provider,
+    &FilterInfo::None,
+    pact,
+    &options,
+    &provider_states,
+    false,
+    &mut output
+  ).await;
 
   expect!(result.unwrap().results.get(0).unwrap().result.as_ref()).to(be_ok());
 }

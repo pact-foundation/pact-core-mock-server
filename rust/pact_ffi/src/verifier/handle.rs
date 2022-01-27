@@ -20,7 +20,9 @@ pub struct VerifierHandle {
   publish_options: Option<PublishOptions>,
   consumers: Vec<String>,
   /// Calling application name and version
-  calling_app: Option<(String, String)>
+  calling_app: Option<(String, String)>,
+  /// Output captured from the verifier
+  verifier_output: Vec<String>
 }
 
 impl VerifierHandle {
@@ -35,7 +37,8 @@ impl VerifierHandle {
       verification_options: VerificationOptions::default(),
       publish_options: None,
       consumers: vec![],
-      calling_app: None
+      calling_app: None,
+      verifier_output: vec![]
     }
   }
 
@@ -49,7 +52,8 @@ impl VerifierHandle {
       verification_options: VerificationOptions::default(),
       publish_options: None,
       consumers: vec![],
-      calling_app: Some((calling_app_name.to_string(), calling_app_version.to_string()))
+      calling_app: Some((calling_app_name.to_string(), calling_app_version.to_string())),
+      verifier_output: vec![]
     }
   }
 
@@ -229,16 +233,18 @@ impl VerifierHandle {
   /// * 0 - verification was successful
   /// * 1 - verification was not successful
   /// * 2 - failed to run the verification
-  pub fn execute(&self) -> i32 {
+  ///
+  /// Anu captured output from the verification will be stored against this handle
+  pub fn execute(&mut self) -> i32 {
     for s in &self.sources {
-      debug!("Pact source to verify = {}", s);
+      debug!("Pact source to verify = {s}");
     };
 
     let (calling_app_name, calling_app_version) = self.calling_app.clone().unwrap_or_else(|| {
       ("pact_ffi".to_string(), env!("CARGO_PKG_VERSION").to_string())
     });
     let runtime = tokio::runtime::Runtime::new().unwrap();
-    runtime.block_on(async {
+    match runtime.block_on(async {
       verify_provider_async(
         self.provider.clone(),
         self.sources.clone(),
@@ -253,9 +259,13 @@ impl VerifierHandle {
           app_version: calling_app_version.clone()
         })
       ).await
-    })
-      .map(|result| if result { 0 } else { 2 })
-      .unwrap_or(2)
+    }) {
+      Ok((result, output)) => {
+        self.verifier_output.extend_from_slice(&output);
+        if result { 0 } else { 2 }
+      }
+      Err(err) => 2
+    }
   }
 }
 

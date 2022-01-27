@@ -7,7 +7,8 @@ use crate::{display_result, MismatchResult};
 
 pub fn display_request_response_result(
   interaction: &RequestResponseInteraction,
-  match_result: &Result<Option<String>, MismatchResult>) {
+  match_result: &Result<Option<String>, MismatchResult>,
+  output: &mut Vec<String>) {
   match match_result {
     Ok(_) => {
       display_result(
@@ -15,12 +16,13 @@ pub fn display_request_response_result(
         Green.paint("OK"),
         interaction.response.headers.clone().map(|h| h.iter().map(|(k, v)| {
           (k.clone(), v.join(", "), Green.paint("OK"))
-        }).collect()), Green.paint("OK")
+        }).collect()), Green.paint("OK"),
+        output
       );
     },
     Err(ref err) => match *err {
       MismatchResult::Error(ref err_des, _) => {
-        println!("      {}", Red.paint(format!("Request Failed - {}", err_des)));
+        output.push(format!("      {}", Red.paint(format!("Request Failed - {}", err_des))));
       },
       MismatchResult::Mismatches { ref mismatches, .. } => {
         let status_result = if mismatches.iter().any(|m| m.mismatch_type() == "StatusMismatch") {
@@ -50,7 +52,7 @@ pub fn display_request_response_result(
           Green.paint("OK")
         };
 
-        display_result(interaction.response.status, status_result, header_results, body_result);
+        display_result(interaction.response.status, status_result, header_results, body_result, output);
       }
     }
   }
