@@ -140,13 +140,13 @@ lazy_static! {
 ///
 /// This function needs to run in the context of a Tokio runtime.
 pub fn send_metrics(event: MetricEvent) {
-  let do_not_track = match var("pact_do_not_track") {
-    Ok(val) => val == "true",
-    Err(_) => false
-  };
+  let do_not_track = var("PACT_DO_NOT_TRACK")
+    .or_else(|_| var("pact_do_not_track"))
+    .map(|v| v == "true")
+    .unwrap_or(false);
 
   if do_not_track {
-    debug!("'pact_do_not_track' environment variable is set, will not send metrics");
+    debug!("'PACT_DO_NOT_TRACK' environment variable is set, will not send metrics");
   } else {
     match tokio::runtime::Handle::try_current() {
       Ok(handle) => {
@@ -156,7 +156,7 @@ pub fn send_metrics(event: MetricEvent) {
           warn!(
             "\n\nPlease note:\n\
             Please note: we are tracking events anonymously to gather important usage statistics like Pact version \
-            and operating system. To disable tracking, set the 'pact_do_not_track' system property or environment \
+            and operating system. To disable tracking, set the 'PACT_DO_NOT_TRACK' environment \
             variable to 'true'.\n\n"
           );
           *warning_logged = true;
