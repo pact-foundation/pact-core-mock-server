@@ -5,7 +5,7 @@ use std::sync::Arc;
 use log::debug;
 
 use pact_models::prelude::HttpAuth;
-use pact_verifier::{FilterInfo, NullRequestFilterExecutor, PactSource, ProviderInfo, VerificationOptions, verify_provider_async, ConsumerVersionSelector};
+use pact_verifier::{FilterInfo, NullRequestFilterExecutor, PactSource, ProviderInfo, VerificationOptions, verify_provider_async, ConsumerVersionSelector, PublishOptions};
 use pact_verifier::callback_executors::HttpRequestProviderStateExecutor;
 use pact_verifier::metrics::VerificationMetrics;
 
@@ -16,7 +16,8 @@ pub struct VerifierHandle {
   sources: Vec<PactSource>,
   filter: FilterInfo,
   state_change: Arc<HttpRequestProviderStateExecutor>,
-  options: VerificationOptions<NullRequestFilterExecutor>,
+  verification_options: VerificationOptions<NullRequestFilterExecutor>,
+  publish_options: Option<PublishOptions>,
   consumers: Vec<String>,
   /// Calling application name and version
   calling_app: Option<(String, String)>
@@ -31,7 +32,8 @@ impl VerifierHandle {
       sources: Vec::new(),
       filter: FilterInfo::None,
       state_change: Arc::new(HttpRequestProviderStateExecutor::default()),
-      options: VerificationOptions::default(),
+      verification_options: VerificationOptions::default(),
+      publish_options: None,
       consumers: vec![],
       calling_app: None
     }
@@ -44,7 +46,8 @@ impl VerifierHandle {
       sources: Vec::new(),
       filter: FilterInfo::None,
       state_change: Arc::new(HttpRequestProviderStateExecutor::default()),
-      options: VerificationOptions::default(),
+      verification_options: VerificationOptions::default(),
+      publish_options: None,
       consumers: vec![],
       calling_app: Some((calling_app_name.to_string(), calling_app_version.to_string()))
     }
@@ -175,26 +178,42 @@ impl VerifierHandle {
     })
   }
 
-  /// Update the verification options
+  /// Update options used when running a verification
+  /// 
+  /// # Args
+  /// 
+  /// - disable_ssl_verification - Disable SSL verification on all HTTPS requests
+  /// - request_timeout - Timeout for all requests to the provider
   pub fn update_verification_options(
     &mut self,
-    publish: bool,
-    provider_version: &str,
-    build_url: Option<String>,
-    provider_tags: Vec<String>,
     disable_ssl_verification: bool,
     request_timeout: u64
   ) {
-    self.options = VerificationOptions {
-      publish,
+    self.verification_options = VerificationOptions {
+      request_filter: None::<Arc<NullRequestFilterExecutor>>,
+      disable_ssl_verification,
+      request_timeout
+    }
+  }
+
+  /// Update the details used when publishing results
+  /// 
+  /// # Args
+  /// 
+  /// - `provider_version` - Version of the provider
+  pub fn update_publish_options(
+    &mut self,
+    provider_version: &str,
+    build_url: Option<String>,
+    provider_tags: Vec<String>,
+    provider_branch: Option<String>
+  ) {
+    self.publish_options = Some(PublishOptions {
       provider_version: Some(provider_version.to_string()),
       build_url,
-      request_filter: None::<Arc<NullRequestFilterExecutor>>,
       provider_tags,
-      disable_ssl_verification,
-      request_timeout,
-      .. VerificationOptions::default()
-    }
+      provider_branch,
+    })
   }
 
   /// Update the consumer filter
@@ -226,7 +245,8 @@ impl VerifierHandle {
         self.sources.clone(),
         self.filter.clone(),
         self.consumers.clone(),
-        self.options.clone(),
+        &self.verification_options,
+        self.publish_options.as_ref(),
         &self.state_change.clone(),
         Some(VerificationMetrics {
           test_framework: "pact_ffi".to_string(),

@@ -109,10 +109,10 @@ ffi_fn! {
   /// Returns NULL on error.
   fn pactffi_verifier_new_for_application(
     name: *const c_char,
-    scheme: *const c_char
+    version: *const c_char
   ) -> *mut handle::VerifierHandle {
     let name = if_null(name, "unknown");
-    let version = if_null(scheme, "unknown");
+    let version = if_null(version, "unknown");
     let handle = handle::VerifierHandle::new_for_application(name.as_str(), version.as_str());
     ptr::raw_to(handle)
   } {
@@ -211,9 +211,8 @@ ffi_fn! {
 }
 
 ffi_fn! {
-    /// Set the verification options for the Pact verifier.
+    /// Set the options used by the verifier when calling the provider
     ///
-    /// `publish` is a boolean value. Set it to greater than zero to turn the option on.
     /// `disable_ssl_verification` is a boolean value. Set it to greater than zero to turn the option on.
     ///
     /// # Safety
@@ -223,32 +222,69 @@ ffi_fn! {
     ///
     fn pactffi_verifier_set_verification_options(
       handle: *mut handle::VerifierHandle,
-      publish: c_uchar,
-      provider_version: *const c_char,
-      build_url: *const c_char,
       disable_ssl_verification: c_uchar,
-      request_timeout: c_ulong,
-      provider_tags: *const *const c_char,
-      provider_tags_len: c_ushort
+      request_timeout: c_ulong
     ) -> c_int {
       let handle = as_mut!(handle);
-      let provider_version = safe_str!(provider_version);
-      let build_url = if_null(build_url, "");
 
-      let build_url = if !build_url.is_empty() {
-        Some(build_url)
-      } else {
-        None
-      };
-
-      let tags = get_vector(provider_tags, provider_tags_len);
-
-      handle.update_verification_options(publish > 0, provider_version, build_url, tags, disable_ssl_verification > 0, request_timeout as u64);
+      handle.update_verification_options(disable_ssl_verification > 0, request_timeout as u64);
 
       EXIT_SUCCESS
     } {
       EXIT_FAILURE
     }
+}
+
+ffi_fn! {
+  /// Set the options used when publishing verification results to the Pact Broker
+  ///
+  /// # Args
+  /// 
+  /// - `handle` - The pact verifier handle to update
+  /// - `provider_version` - Version of the provider to publish
+  /// - `build_url` - URL to the build which ran the verification
+  /// - `provider_tags` - Collection of tags for the provider
+  /// - `provider_tags_len` - Number of provider tags supplied
+  /// - `provider_branch` - Name of the branch used for verification
+  ///
+  /// # Safety
+  ///
+  /// All string fields must contain valid UTF-8. Invalid UTF-8
+  /// will be replaced with U+FFFD REPLACEMENT CHARACTER.
+  ///
+  fn pactffi_verifier_set_publish_options(
+    handle: *mut handle::VerifierHandle,
+    provider_version: *const c_char,
+    build_url: *const c_char,
+    provider_tags: *const *const c_char,
+    provider_tags_len: c_ushort,
+    provider_branch: *const c_char
+  ) -> c_int {
+    let handle = as_mut!(handle);
+    let provider_version = safe_str!(provider_version);
+    let build_url = if_null(build_url, "");
+    let provider_branch = if_null(provider_branch, "");
+
+    let build_url = if !build_url.is_empty() {
+      Some(build_url)
+    } else {
+      None
+    };
+
+    let tags = get_vector(provider_tags, provider_tags_len);
+
+    let branch = if !provider_branch.is_empty() {
+      Some(provider_branch)
+    } else {
+      None
+    };
+
+    handle.update_publish_options(provider_version, build_url, tags, branch);
+
+    EXIT_SUCCESS
+  } {
+    EXIT_FAILURE
+  }
 }
 
 ffi_fn! {

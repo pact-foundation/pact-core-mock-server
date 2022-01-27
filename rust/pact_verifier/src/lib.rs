@@ -521,36 +521,45 @@ fn filter_consumers(consumers: &[String], res: &Result<(Box<dyn Pact + Send + Sy
   consumers.is_empty() || res.is_err() || consumers.contains(&res.as_ref().unwrap().0.consumer().name)
 }
 
-/// Options to use when running the verification
+/// Options for publishing results to the Pact Broker
 #[derive(Debug, Clone)]
-pub struct VerificationOptions<F> where F: RequestFilterExecutor {
-  /// If results should be published back to the broker
-  pub publish: bool,
+pub struct PublishOptions {
   /// Provider version being published
   pub provider_version: Option<String>,
   /// Build URL to associate with the published results
   pub build_url: Option<String>,
-  /// Request filter callback
-  pub request_filter: Option<Arc<F>>,
   /// Tags to use when publishing results
   pub provider_tags: Vec<String>,
+  /// Provider branch used when publishing results
+  pub provider_branch: Option<String>,
+}
+
+impl Default for PublishOptions {
+  fn default() -> Self {
+    PublishOptions {
+      provider_version: None,
+      build_url: None,
+      provider_tags: vec![],
+      provider_branch: None,
+    }
+  }
+}
+
+/// Options to use when running the verification
+#[derive(Debug, Clone)]
+pub struct VerificationOptions<F> where F: RequestFilterExecutor {
+  /// Request filter callback
+  pub request_filter: Option<Arc<F>>,
   /// Ignore invalid/self-signed SSL certificates
   pub disable_ssl_verification: bool,
   /// Timeout in ms for verification requests and state callbacks
   pub request_timeout: u64,
-  /// Provider branch used when publishing results
-  pub provider_branch: Option<String>,
 }
 
 impl <F: RequestFilterExecutor> Default for VerificationOptions<F> {
   fn default() -> Self {
     VerificationOptions {
-      publish: false,
-      provider_version: None,
-      build_url: None,
       request_filter: None,
-      provider_tags: vec![],
-      provider_branch: None,
       disable_ssl_verification: false,
       request_timeout: 5000
     }
@@ -581,13 +590,14 @@ pub fn verify_provider<F: RequestFilterExecutor, S: ProviderStateExecutor>(
   source: Vec<PactSource>,
   filter: FilterInfo,
   consumers: Vec<String>,
-  options: VerificationOptions<F>,
+  verification_options: &VerificationOptions<F>,
+  publish_options: Option<&PublishOptions>,
   provider_state_executor: &Arc<S>,
   metrics_data: Option<VerificationMetrics>
 ) -> anyhow::Result<bool> {
   match tokio::runtime::Builder::new_multi_thread().enable_all().build() {
     Ok(runtime) => runtime.block_on(
-      verify_provider_async(provider_info, source, filter, consumers, options, provider_state_executor, metrics_data)),
+      verify_provider_async(provider_info, source, filter, consumers, verification_options, publish_options, provider_state_executor, metrics_data)),
     Err(err) => {
       error!("Verify provider process failed to start the tokio runtime: {}", err);
       Ok(false)
@@ -601,7 +611,8 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
   source: Vec<PactSource>,
   filter: FilterInfo,
   consumers: Vec<String>,
-  options: VerificationOptions<F>,
+  verification_options: &VerificationOptions<F>,
+  publish_options: Option<&PublishOptions>,
   provider_state_executor: &Arc<S>,
   metrics_data: Option<VerificationMetrics>
 ) -> anyhow::Result<bool> {
@@ -640,7 +651,7 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
               Some(context) => context.verification_properties.pending,
               None => false
             };
-            match verify_pact_internal(&provider_info, &filter, pact, &options,
+            match verify_pact_internal(&provider_info, &filter, pact, &verification_options,
                                        &provider_state_executor.clone(), pending).await {
               Ok(result) => for result in &result.results {
                 results.push((result.interaction_id.clone(), result.result.clone()));
@@ -663,8 +674,8 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
               }
             }
 
-            if options.publish {
-              publish_result(&results, &pact_source, &options).await;
+            if let Some(publish) = publish_options {
+              publish_result(&results, &pact_source, &publish).await;
 
               if !errors.is_empty() || !pending_errors.is_empty() {
                 display_notices(&context, VERIFICATION_NOTICE_AFTER_ERROR_RESULT_AND_PUBLISH);
@@ -971,10 +982,10 @@ fn display_comments(interaction: Box<dyn V4Interaction>) {
   }
 }
 
-async fn publish_result<F: RequestFilterExecutor>(
+async fn publish_result(
   results: &[(Option<String>, Result<(), MismatchResult>)],
   source: &PactSource,
-  options: &VerificationOptions<F>
+  options: &PublishOptions
 ) {
   if let PactSource::BrokerUrl(_, broker_url, auth, links) = source.clone() {
     info!("Publishing verification results back to the Pact Broker");

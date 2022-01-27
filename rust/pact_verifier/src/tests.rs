@@ -259,14 +259,11 @@ fn publish_result_does_nothing_if_not_from_broker() {
         .await
         .start_mock_server();
 
-      let options = super::VerificationOptions {
-        publish: true,
+      let options = super::PublishOptions {
         provider_version: None,
         build_url: None,
-        request_filter: None::<Arc<super::NullRequestFilterExecutor>>,
         provider_tags: vec![],
-        disable_ssl_verification: false,
-        .. super::VerificationOptions::default()
+        .. super::PublishOptions::default()
       };
       super::publish_result(&vec![], &PactSource::File("/tmp/test".into()), &options).await;
     })
@@ -299,15 +296,11 @@ async fn publish_successful_result_to_broker() {
     .await
     .start_mock_server();
 
-  let options = super::VerificationOptions {
-    publish: true,
+  let options = super::PublishOptions {
     provider_version: Some("1".into()),
-    build_url: None,
-    request_filter: None::<Arc<super::NullRequestFilterExecutor>>,
-    provider_tags: vec![],
-    disable_ssl_verification: false,
-    .. super::VerificationOptions::default()
+    .. super::PublishOptions::default()
   };
+
   let links = vec![
     Link {
       name: "pb:publish-verification-results".to_string(),
@@ -316,6 +309,7 @@ async fn publish_successful_result_to_broker() {
       title: None
     }
   ];
+  
   let source = PactSource::BrokerUrl("Test".to_string(), server.url().to_string(), None, links);
   super::publish_result(&vec![(Some("1".to_string()), Ok(()))], &source, &options).await;
 }

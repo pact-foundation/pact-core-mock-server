@@ -247,7 +247,7 @@ use pact_models::prelude::HttpAuth;
 use simplelog::{ColorChoice, Config, TerminalMode, TermLogger};
 use tokio::time::sleep;
 
-use pact_verifier::{FilterInfo, NullRequestFilterExecutor, PactSource, ProviderInfo, VerificationOptions, verify_provider_async};
+use pact_verifier::{FilterInfo, NullRequestFilterExecutor, PactSource, ProviderInfo, VerificationOptions, verify_provider_async, PublishOptions};
 use pact_verifier::callback_executors::HttpRequestProviderStateExecutor;
 use pact_verifier::metrics::VerificationMetrics;
 use pact_verifier::selectors::{consumer_tags_to_selectors, json_to_selectors};
@@ -307,17 +307,23 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
     state_change_teardown: matches.is_present("state-change-teardown")
   });
 
-  let options = VerificationOptions {
-    publish: matches.is_present("publish"),
-    provider_version: matches.value_of("provider-version").map(|v| v.to_string()),
-    build_url: matches.value_of("build-url").map(|v| v.to_string()),
+  let verification_options = VerificationOptions {
     request_filter: None::<Arc<NullRequestFilterExecutor>>,
-    provider_tags: matches.values_of("provider-tags")
-      .map_or_else(Vec::new, |tags| tags.map(|tag| tag.to_string()).collect()),
     disable_ssl_verification: matches.is_present("disable-ssl-verification"),
     request_timeout: matches.value_of("request-timeout")
       .map(|t| t.parse::<u64>().unwrap_or(5000)).unwrap_or(5000),
-    provider_branch: matches.value_of("provider-branch").map(|v| v.to_string())
+  };
+
+  let publish_options = if matches.is_present("publish") {
+    Some(PublishOptions {
+      provider_version: matches.value_of("provider-version").map(|v| v.to_string()),
+      build_url: matches.value_of("build-url").map(|v| v.to_string()),
+      provider_tags: matches.values_of("provider-tags")
+        .map_or_else(Vec::new, |tags| tags.map(|tag| tag.to_string()).collect()),
+      provider_branch: matches.value_of("provider-branch").map(|v| v.to_string())
+    })
+  } else {
+    None
   };
 
   for s in &source {
@@ -329,7 +335,8 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
     source,
     filter,
     matches.values_of_lossy("filter-consumer").unwrap_or_default(),
-    options,
+    &verification_options,
+    publish_options.as_ref(),
     &provider_state_executor,
     Some(VerificationMetrics {
       test_framework: "pact_verifier_cli".to_string(),
