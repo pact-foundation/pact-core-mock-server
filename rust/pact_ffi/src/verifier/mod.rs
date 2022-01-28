@@ -753,3 +753,31 @@ ffi_fn! {
       std::ptr::null()
     }
 }
+
+ffi_fn! {
+    /// Extracts the standard output for the verification run. The returned string will need to be
+    /// freed with the `free_string` function call to avoid leaking memory.
+    ///
+    /// Will return a NULL pointer if the handle is invalid.
+    fn pactffi_verifier_output(handle: *const handle::VerifierHandle) -> *const c_char {
+      let handle = as_ref!(handle);
+      let output = CString::new(handle.output()).unwrap();
+      output.into_raw() as *const c_char
+    } {
+      std::ptr::null()
+    }
+}
+
+ffi_fn! {
+    /// Extracts the verification result as a JSON document. The returned string will need to be
+    /// freed with the `free_string` function call to avoid leaking memory.
+    ///
+    /// Will return a NULL pointer if the handle is invalid.
+    fn pactffi_verifier_json(handle: *const handle::VerifierHandle) -> *const c_char {
+      let handle = as_ref!(handle);
+      let output = CString::new(handle.json()).unwrap();
+      output.into_raw() as *const c_char
+    } {
+      std::ptr::null()
+    }
+}

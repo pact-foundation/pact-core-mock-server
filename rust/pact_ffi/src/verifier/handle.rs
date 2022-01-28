@@ -1,9 +1,11 @@
 //! Handle interface to creating a verifier
 
 use std::sync::Arc;
+use itertools::Itertools;
 
 use log::debug;
 use pact_models::prelude::HttpAuth;
+use serde_json::Value;
 
 use pact_verifier::{
   ConsumerVersionSelector,
@@ -276,6 +278,17 @@ impl VerifierHandle {
       }
       Err(_) => 2
     }
+  }
+
+  /// Return the captured standard output from the verification execution
+  pub fn output(&self) -> String {
+    self.verifier_output.output.iter().join("\n")
+  }
+
+  /// Return the verification results as a JSON document
+  pub fn json(&self) -> String {
+    let json: Value = (&self.verifier_output).into();
+    json.to_string()
   }
 }
 
