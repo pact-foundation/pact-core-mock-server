@@ -3,15 +3,15 @@ use ansi_term::Colour::*;
 use pact_matching::Mismatch;
 use pact_models::sync_interaction::RequestResponseInteraction;
 
-use crate::{display_result, MismatchResult};
+use crate::{generate_display_for_result, MismatchResult};
 
-pub fn display_request_response_result(
+pub fn process_request_response_result(
   interaction: &RequestResponseInteraction,
   match_result: &Result<Option<String>, MismatchResult>,
   output: &mut Vec<String>) {
   match match_result {
     Ok(_) => {
-      display_result(
+      generate_display_for_result(
         interaction.response.status,
         Green.paint("OK"),
         interaction.response.headers.clone().map(|h| h.iter().map(|(k, v)| {
@@ -52,7 +52,7 @@ pub fn display_request_response_result(
           Green.paint("OK")
         };
 
-        display_result(interaction.response.status, status_result, header_results, body_result, output);
+        generate_display_for_result(interaction.response.status, status_result, header_results, body_result, output);
       }
     }
   }

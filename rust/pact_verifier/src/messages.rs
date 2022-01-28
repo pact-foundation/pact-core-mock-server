@@ -82,16 +82,16 @@ pub(crate) async fn verify_message_from_provider<'a, F: RequestFilterExecutor>(
   }
 }
 
-pub fn display_message_result(
+pub fn process_message_result(
   interaction: &Message,
   match_result: &Result<Option<String>, MismatchResult>,
   output: &mut Vec<String>) {
   match match_result {
     Ok(_) => {
-      display_result(Green.paint("OK"),
-        interaction.metadata.iter()
+      generate_display_for_result(Green.paint("OK"),
+                                  interaction.metadata.iter()
           .map(|(k, v)| (k.clone(), serde_json::to_string(&v.clone()).unwrap_or_default(), Green.paint("OK"))).collect(),
-        output
+                                  output
       );
     },
     Err(ref err) => match *err {
@@ -118,13 +118,13 @@ pub fn display_message_result(
           Green.paint("OK")
         };
 
-        display_result(body_result, metadata_results, output);
+        generate_display_for_result(body_result, metadata_results, output);
       }
     }
   }
 }
 
-fn display_result(
+fn generate_display_for_result(
   body_result: ANSIGenericString<str>,
   metadata_result: Vec<(String, String, ANSIGenericString<str>)>,
   output: &mut Vec<String>

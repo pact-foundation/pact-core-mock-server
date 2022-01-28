@@ -259,7 +259,7 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
         error!("Verification failed with error: {}", err);
         2
       })
-      .and_then(|(result, _)| if result { Ok(()) } else { Err(1) })
+      .and_then(|result| if result.result { Ok(()) } else { Err(1) })
 }
 
 fn print_version(version: &str) {

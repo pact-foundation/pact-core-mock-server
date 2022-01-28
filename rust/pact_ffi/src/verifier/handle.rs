@@ -3,11 +3,21 @@
 use std::sync::Arc;
 
 use log::debug;
-
 use pact_models::prelude::HttpAuth;
-use pact_verifier::{FilterInfo, NullRequestFilterExecutor, PactSource, ProviderInfo, VerificationOptions, verify_provider_async, ConsumerVersionSelector, PublishOptions};
+
+use pact_verifier::{
+  ConsumerVersionSelector,
+  FilterInfo,
+  NullRequestFilterExecutor,
+  PactSource,
+  ProviderInfo,
+  PublishOptions,
+  VerificationOptions,
+  verify_provider_async
+};
 use pact_verifier::callback_executors::HttpRequestProviderStateExecutor;
 use pact_verifier::metrics::VerificationMetrics;
+use pact_verifier::verification_result::VerificationExecutionResult;
 
 #[derive(Debug, Clone)]
 /// Wraps a Pact verifier
@@ -22,7 +32,7 @@ pub struct VerifierHandle {
   /// Calling application name and version
   calling_app: Option<(String, String)>,
   /// Output captured from the verifier
-  verifier_output: Vec<String>
+  verifier_output: VerificationExecutionResult
 }
 
 impl VerifierHandle {
@@ -38,7 +48,7 @@ impl VerifierHandle {
       publish_options: None,
       consumers: vec![],
       calling_app: None,
-      verifier_output: vec![]
+      verifier_output: VerificationExecutionResult::new()
     }
   }
 
@@ -53,7 +63,7 @@ impl VerifierHandle {
       publish_options: None,
       consumers: vec![],
       calling_app: Some((calling_app_name.to_string(), calling_app_version.to_string())),
-      verifier_output: vec![]
+      verifier_output: VerificationExecutionResult::new()
     }
   }
 
@@ -260,11 +270,11 @@ impl VerifierHandle {
         })
       ).await
     }) {
-      Ok((result, output)) => {
-        self.verifier_output.extend_from_slice(&output);
-        if result { 0 } else { 2 }
+      Ok(result) => {
+        self.verifier_output = result.clone();
+        if result.result { 0 } else { 1 }
       }
-      Err(err) => 2
+      Err(_) => 2
     }
   }
 }

@@ -36,14 +36,15 @@ use pact_models::provider_states::*;
 use pact_models::v4::interaction::V4Interaction;
 
 use crate::callback_executors::{ProviderStateError, ProviderStateExecutor};
-use crate::messages::{display_message_result, verify_message_from_provider, verify_sync_message_from_provider};
+use crate::messages::{process_message_result, verify_message_from_provider, verify_sync_message_from_provider};
 use crate::pact_broker::{Link, PactVerificationContext, publish_verification_results, TestResult};
 pub use crate::pact_broker::{ConsumerVersionSelector, PactsForVerificationRequest};
 use crate::provider_client::make_provider_request;
-use crate::request_response::display_request_response_result;
+use crate::request_response::process_request_response_result;
 use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
 use pact_matching::metrics::{MetricEvent, send_metrics};
 use crate::metrics::VerificationMetrics;
+use crate::verification_result::VerificationExecutionResult;
 
 mod provider_client;
 pub mod pact_broker;
@@ -52,6 +53,7 @@ mod request_response;
 mod messages;
 pub mod selectors;
 pub mod metrics;
+pub mod verification_result;
 
 /// Source for loading pacts
 #[derive(Debug, Clone)]
@@ -383,7 +385,7 @@ async fn verify_interaction<'a, F: RequestFilterExecutor, S: ProviderStateExecut
   result
 }
 
-fn display_result(
+fn generate_display_for_result(
   status: u16,
   status_result: ANSIGenericString<str>,
   header_results: Option<Vec<(String, String, ANSIGenericString<str>)>>,
@@ -578,12 +580,13 @@ const VERIFICATION_NOTICE_AFTER_SUCCESSFUL_RESULT_AND_NO_PUBLISH: &str = "after_
 const VERIFICATION_NOTICE_AFTER_ERROR_RESULT_AND_PUBLISH: &str = "after_verification:success_false_published_true";
 const VERIFICATION_NOTICE_AFTER_ERROR_RESULT_AND_NO_PUBLISH: &str = "after_verification:success_false_published_false";
 
-fn display_notices(context: &Option<PactVerificationContext>, stage: &str, output: &mut Vec<String>) {
+fn process_notices(context: &Option<PactVerificationContext>, stage: &str, result: &mut VerificationExecutionResult) {
   if let Some(c) = context {
+    result.notices = c.verification_properties.notices.clone();
     for notice in &c.verification_properties.notices {
       if let Some(when) = notice.get("when") {
         if when.as_str() == stage {
-          output.push(notice.get("text").unwrap_or(&"".to_string()).clone());
+          result.output.push(notice.get("text").unwrap_or(&"".to_string()).clone());
         }
       }
     }
@@ -604,7 +607,7 @@ pub fn verify_provider<F: RequestFilterExecutor, S: ProviderStateExecutor>(
   match tokio::runtime::Builder::new_multi_thread().enable_all().build() {
     Ok(runtime) => runtime.block_on(
       verify_provider_async(provider_info, source, filter, consumers, verification_options, publish_options, provider_state_executor, metrics_data)
-    ).map(|(b, _)| b),
+    ).map(|result| result.result),
     Err(err) => {
       error!("Verify provider process failed to start the tokio runtime: {}", err);
       Ok(false)
@@ -622,7 +625,7 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
   publish_options: Option<&PublishOptions>,
   provider_state_executor: &Arc<S>,
   metrics_data: Option<VerificationMetrics>
-) -> anyhow::Result<(bool, Vec<String>)> {
+) -> anyhow::Result<VerificationExecutionResult> {
   pact_matching::matchers::configure_core_catalogue();
 
   LOG_ID.scope(format!("verify:{}", provider_info.name), async {
@@ -631,7 +634,8 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
     let mut results: Vec<(Option<String>, Result<(), MismatchResult>)> = vec![];
     let mut pending_errors: Vec<(String, MismatchResult)> = vec![];
     let mut errors: Vec<(String, MismatchResult)> = vec![];
-    let mut output = vec![];
+
+    let mut verification_result = VerificationExecutionResult::new();
 
     for pact_result in pact_results {
       match pact_result {
@@ -647,14 +651,16 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
             }
           }
 
-          display_notices(&context, VERIFICATION_NOTICE_BEFORE, &mut output);
+          process_notices(&context, VERIFICATION_NOTICE_BEFORE, &mut verification_result);
 
-          output.push(format!("\nVerifying a pact between {} and {}",
+          verification_result.output.push(format!("\nVerifying a pact between {} and {}",
             Style::new().bold().paint(pact.consumer().name.clone()),
             Style::new().bold().paint(pact.provider().name.clone())));
 
           if pact.interactions().is_empty() {
-            output.push(Yellow.paint("WARNING: Pact file has no interactions").to_string());
+            verification_result.output.push(
+              Yellow.paint("WARNING: Pact file has no interactions").to_string()
+            );
           } else {
             let pending = match &context {
               Some(context) => context.verification_properties.pending,
@@ -666,18 +672,23 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
               pact,
               &verification_options,
               &provider_state_executor.clone(),
-              pending,
-              &mut output
+              pending
             ).await;
             match verify_result {
-              Ok(result) => for result in &result.results {
-                results.push((result.interaction_id.clone(), result.result.clone()));
-                if let Err(error) = &result.result {
-                  if result.pending {
-                    pending_errors.push((result.description.clone(), error.clone()));
-                  } else {
-                    errors.push((result.description.clone(), error.clone()));
+              Ok(result) => {
+                for result in &result.results {
+                  results.push((result.interaction_id.clone(), result.result.clone()));
+                  if let Err(error) = &result.result {
+                    if result.pending {
+                      pending_errors.push((result.description.clone(), error.clone()));
+                    } else {
+                      errors.push((result.description.clone(), error.clone()));
+                    }
                   }
+                }
+
+                for output in &result.output {
+                  verification_result.output.push(output.clone());
                 }
               }
               Err(err) => {
@@ -695,15 +706,15 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
               publish_result(&results, &pact_source, &publish).await;
 
               if !errors.is_empty() || !pending_errors.is_empty() {
-                display_notices(&context, VERIFICATION_NOTICE_AFTER_ERROR_RESULT_AND_PUBLISH, &mut output);
+                process_notices(&context, VERIFICATION_NOTICE_AFTER_ERROR_RESULT_AND_PUBLISH, &mut verification_result);
               } else {
-                display_notices(&context, VERIFICATION_NOTICE_AFTER_SUCCESSFUL_RESULT_AND_PUBLISH, &mut output);
+                process_notices(&context, VERIFICATION_NOTICE_AFTER_SUCCESSFUL_RESULT_AND_PUBLISH, &mut verification_result);
               }
             } else {
               if !errors.is_empty() || pending_errors.is_empty() {
-                display_notices(&context, VERIFICATION_NOTICE_AFTER_ERROR_RESULT_AND_NO_PUBLISH, &mut output);
+                process_notices(&context, VERIFICATION_NOTICE_AFTER_ERROR_RESULT_AND_NO_PUBLISH, &mut verification_result);
               } else {
-                display_notices(&context, VERIFICATION_NOTICE_AFTER_SUCCESSFUL_RESULT_AND_NO_PUBLISH, &mut output);
+                process_notices(&context, VERIFICATION_NOTICE_AFTER_SUCCESSFUL_RESULT_AND_NO_PUBLISH, &mut verification_result);
               }
             }
           }
@@ -714,26 +725,6 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
         }
       }
     };
-
-    if !pending_errors.is_empty() {
-      output.push("\nPending Failures:\n".to_string());
-      print_errors(&pending_errors, &mut output);
-      output.push(format!("\nThere were {} non-fatal pact failures on pending pacts or interactions (see docs.pact.io/pending for more information)\n", pending_errors.len()));
-    }
-
-    let result = if !errors.is_empty() {
-      output.push("\nFailures:\n".to_string());
-      print_errors(&errors, &mut output);
-      output.push(format!("\nThere were {} pact failures\n", errors.len()));
-      Ok(false)
-    } else {
-      output.push(String::default());
-      Ok(true)
-    };
-
-    for line in &output {
-      println!("{line}");
-    }
 
     let metrics_data = metrics_data.unwrap_or_else(|| VerificationMetrics {
       test_framework: "pact-rust".to_string(),
@@ -747,13 +738,40 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
       app_version: metrics_data.app_version
     });
 
+    for (error, result) in &errors {
+      verification_result.errors.push((error.clone(), result.into()));
+    }
+    for (error, result) in &pending_errors {
+      verification_result.pending_errors.push((error.clone(), result.into()));
+    }
+
+    if !pending_errors.is_empty() {
+      verification_result.output.push("\nPending Failures:\n".to_string());
+      process_errors(&pending_errors, &mut verification_result.output);
+      verification_result.output.push(format!("\nThere were {} non-fatal pact failures on pending pacts or interactions (see docs.pact.io/pending for more information)\n", pending_errors.len()));
+    }
+
+    if !errors.is_empty() {
+      verification_result.output.push("\nFailures:\n".to_string());
+      process_errors(&errors, &mut verification_result.output);
+      verification_result.output.push(format!("\nThere were {} pact failures\n", errors.len()));
+      verification_result.result = false;
+    } else {
+      verification_result.output.push(String::default());
+      verification_result.result = true;
+    };
+
+    for line in &verification_result.output {
+      println!("{line}");
+    }
+
     shutdown_plugins();
 
-    result.map(|r| (r, output))
+    Ok(verification_result)
   }).await
 }
 
-fn print_errors(errors: &Vec<(String, MismatchResult)>, output: &mut Vec<String>) {
+fn process_errors(errors: &Vec<(String, MismatchResult)>, output: &mut Vec<String>) {
   for (i, &(ref description, ref mismatch)) in errors.iter().enumerate() {
     match *mismatch {
         MismatchResult::Error(ref err, _) => output.push(format!("{}) {} - {}\n", i + 1, description, err)),
@@ -893,7 +911,9 @@ pub struct VerificationInteractionResult {
 /// Result of verifying a Pact
 pub struct VerificationResult {
   /// Results that occurred
-  pub results: Vec<VerificationInteractionResult>
+  pub results: Vec<VerificationInteractionResult>,
+  /// Output from the verification
+  pub output: Vec<String>
 }
 
 /// Internal function, public for testing purposes
@@ -903,10 +923,10 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
   pact: Box<dyn Pact + Send + Sync + 'a>,
   options: &VerificationOptions<F>,
   provider_state_executor: &Arc<S>,
-  pending: bool,
-  output: &mut Vec<String>
+  pending: bool
 ) -> anyhow::Result<VerificationResult> {
   let interactions = pact.interactions();
+  let mut output = vec![];
 
   let results: Vec<(Box<dyn Interaction + Send + Sync>, Result<Option<String>, MismatchResult>)> =
     futures::stream::iter(interactions.iter().map(|i| (&pact, i)))
@@ -939,15 +959,15 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
 
     if interaction.is_v4() {
       if let Some(interaction) = interaction.as_v4() {
-        display_comments(interaction, output)
+        process_comments(interaction, &mut output)
       }
     }
 
     if let Some(interaction) = interaction.as_request_response() {
-      display_request_response_result(&interaction, &match_result, output)
+      process_request_response_result(&interaction, &match_result, &mut output)
     }
     if let Some(interaction) = interaction.as_message() {
-      display_message_result(&interaction, &match_result, output)
+      process_message_result(&interaction, &match_result, &mut output)
     }
 
     match match_result {
@@ -972,10 +992,10 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
 
   output.push(String::default());
 
-  Ok(VerificationResult { results: errors })
+  Ok(VerificationResult { results: errors, output: output.clone() })
 }
 
-fn display_comments(interaction: Box<dyn V4Interaction>, output: &mut Vec<String>) {
+fn process_comments(interaction: Box<dyn V4Interaction>, output: &mut Vec<String>) {
   let comments = interaction.comments();
   if !comments.is_empty() {
     if let Some(testname) = comments.get("testname") {
