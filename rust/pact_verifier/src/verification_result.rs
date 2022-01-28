@@ -1,6 +1,10 @@
 //! Structs for storing and returning the result of the verification execution
 
 use std::collections::HashMap;
+
+use itertools::Itertools;
+use serde_json::{json, Value};
+
 use pact_matching::Mismatch;
 
 /// Main struct for returning the verification execution result
@@ -28,6 +32,38 @@ impl VerificationExecutionResult {
       pending_errors: vec![],
       errors: vec![]
     }
+  }
+}
+
+impl Into<Value> for &VerificationExecutionResult {
+  fn into(self) -> Value {
+    json!({
+      "result": self.result,
+      "notices": self.notices.iter().map(|m| Value::Object(
+        m.iter().map(|(k, v)| (k.clone(), Value::String(v.clone()))).collect()
+      )).collect_vec(),
+      "output": self.output,
+      "pendingErrors": self.pending_errors.iter().map(|(e, r)| {
+        let err: Value = r.into();
+        json!({
+          "interaction": e,
+          "mismatch": err
+        })
+      }).collect_vec(),
+      "errors": self.errors.iter().map(|(e, r)| {
+        let err: Value = r.into();
+        json!({
+          "interaction": e,
+          "mismatch": err
+        })
+      }).collect_vec()
+    })
+  }
+}
+
+impl Into<Value> for VerificationExecutionResult {
+  fn into(self) -> Value {
+    (&self).into()
   }
 }
 
@@ -67,5 +103,156 @@ impl From<&crate::MismatchResult> for MismatchResult {
         }
       }
     }
+  }
+}
+
+impl Into<Value> for &MismatchResult {
+  fn into(self) -> Value {
+    match self {
+      MismatchResult::Mismatches { mismatches, interaction_id } => {
+        json!({
+          "type": "mismatches",
+          "mismatches": mismatches.iter().map(|i| i.to_json()).collect_vec(),
+          "interactionId": interaction_id.clone().unwrap_or_default()
+        })
+      }
+      MismatchResult::Error { error, interaction_id } => {
+        json!({
+          "type": "error",
+          "message": error,
+          "interactionId": interaction_id.clone().unwrap_or_default()
+        })
+      }
+    }
+  }
+}
+
+impl Into<Value> for MismatchResult {
+  fn into(self) -> Value {
+    (&self).into()
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use expectest::prelude::*;
+  use maplit::hashmap;
+  use serde_json::{json, Value};
+
+  use pact_matching::Mismatch;
+
+  use crate::VerificationExecutionResult;
+
+  use super::MismatchResult;
+
+  #[test]
+  fn match_result_to_json() {
+    let mismatch = MismatchResult::Mismatches {
+      mismatches: vec![
+        Mismatch::BodyMismatch {
+          path: "1.2.3.4".to_string(),
+          expected: Some("100".into()),
+          actual: Some("200".into()),
+          mismatch: "Expected 100 but got 200".to_string()
+        }
+      ],
+      interaction_id: None
+    };
+    let json: Value = mismatch.into();
+    expect!(json).to(be_equal_to(json!({
+      "interactionId": "",
+      "mismatches": [
+        {
+          "actual": "200",
+          "expected": "100",
+          "mismatch": "Expected 100 but got 200",
+          "path": "1.2.3.4",
+          "type": "BodyMismatch"
+        }
+      ],
+      "type": "mismatches"
+    })));
+
+    let error = MismatchResult::Error {
+      error: "It went bang, Mate!".to_string(),
+      interaction_id: Some("1234".to_string())
+    };
+    let json: Value = error.into();
+    expect!(json).to(be_equal_to(json!({
+      "interactionId": "1234",
+      "message": "It went bang, Mate!",
+      "type": "error"
+    })));
+  }
+
+  #[test]
+  fn verification_execution_result_to_json() {
+    let result = VerificationExecutionResult {
+      result: false,
+      notices: vec![
+        hashmap!{
+          "comment".to_string() => "This is a comment".to_string()
+        }
+      ],
+      output: vec![
+        "line 1".to_string(),
+        "line 2".to_string(),
+        "line 3".to_string(),
+        "line 4".to_string()
+      ],
+      pending_errors: vec![
+        (
+          "interaction 1".to_string(),
+          MismatchResult::Error {
+            error: "Boom!".to_string(),
+            interaction_id: None
+          }
+        )
+      ],
+      errors: vec![
+        (
+          "interaction 2".to_string(),
+          MismatchResult::Error {
+            error: "Boom!".to_string(),
+            interaction_id: None
+          }
+        )
+      ]
+    };
+    let json: Value = result.into();
+    expect!(json).to(be_equal_to(json!({
+      "errors": [
+        {
+          "interaction": "interaction 2".to_string(),
+          "mismatch": {
+            "interactionId": "".to_string(),
+            "message": "Boom!".to_string(),
+            "type": "error".to_string()
+          }
+        }
+      ],
+      "notices": [
+        {
+          "comment": "This is a comment".to_string()
+        }
+      ],
+      "output": [
+        "line 1".to_string(),
+        "line 2".to_string(),
+        "line 3".to_string(),
+        "line 4".to_string()
+      ],
+      "pendingErrors": [
+        {
+          "interaction": "interaction 1".to_string(),
+          "mismatch": {
+            "interactionId": "".to_string(),
+            "message": "Boom!".to_string(),
+            "type": "error".to_string()
+          }
+        }
+      ],
+      "result": false
+    })));
   }
 }

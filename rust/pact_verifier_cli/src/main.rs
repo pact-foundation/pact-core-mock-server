@@ -236,6 +236,8 @@
 #![type_length_limit="100000000"]
 
 use std::env;
+use std::fs::File;
+use std::io::Write;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -244,6 +246,7 @@ use clap::{AppSettings, ArgMatches, ErrorKind};
 use log::{debug, error, LevelFilter};
 use pact_models::{PACT_RUST_VERSION, PactSpecification};
 use pact_models::prelude::HttpAuth;
+use serde_json::Value;
 use simplelog::{ColorChoice, Config, TerminalMode, TermLogger};
 use tokio::time::sleep;
 
@@ -251,6 +254,7 @@ use pact_verifier::{FilterInfo, NullRequestFilterExecutor, PactSource, ProviderI
 use pact_verifier::callback_executors::HttpRequestProviderStateExecutor;
 use pact_verifier::metrics::VerificationMetrics;
 use pact_verifier::selectors::{consumer_tags_to_selectors, json_to_selectors};
+use pact_verifier::verification_result::VerificationExecutionResult;
 
 mod args;
 
@@ -348,7 +352,24 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
       error!("Verification failed with error: {}", err);
       2
     })
-    .and_then(|result| if result.result { Ok(()) } else { Err(1) })
+    .and_then(|result| {
+      if let Some(json_file) = matches.value_of("json-file") {
+        if let Err(err) = write_json_report(&result, json_file) {
+          error!("Failed to write JSON report to '{json_file}' - {err}");
+          return Err(2)
+        }
+      }
+
+      if result.result { Ok(()) } else { Err(1) }
+    })
+}
+
+fn write_json_report(result: &VerificationExecutionResult, file_name: &str) -> anyhow::Result<()> {
+  debug!("Writing JSON result of the verification to '{file_name}'");
+  let mut f = File::create(file_name)?;
+  let json: Value = result.into();
+  f.write_all(json.to_string().as_bytes())?;
+  Ok(())
 }
 
 fn print_version(version: &str) {
