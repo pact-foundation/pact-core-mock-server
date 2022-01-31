@@ -8,15 +8,16 @@
 use std::ffi::CStr;
 use std::str::FromStr;
 
+use ::log::warn;
 use env_logger::Builder;
 use libc::c_char;
+use pact_models::interaction::Interaction;
+use pact_models::pact::Pact;
+use pact_models::v4::pact::V4Pact;
 
 use models::message::Message;
-use pact_matching::{self as pm};
+use pact_matching as pm;
 pub use pact_matching::Mismatch;
-use pact_models::interaction::Interaction;
-use pact_models::v4::pact::V4Pact;
-use pact_models::pact::Pact;
 
 use crate::util::*;
 
@@ -52,7 +53,7 @@ pub unsafe extern fn pactffi_init(log_env_var: *const c_char) {
         match c_str.to_str() {
             Ok(str) => str,
             Err(err) => {
-                ::log::warn!("Failed to parse the environment variable name as a UTF-8 string: {}", err);
+                warn!("Failed to parse the environment variable name as a UTF-8 string: {}", err);
                 "LOG_LEVEL"
             }
         }
