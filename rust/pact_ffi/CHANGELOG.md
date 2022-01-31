@@ -1,5 +1,20 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.2.0 - Bugfixes + FFI functions to return the verifier output and results
+
+* 1d95f3cf - chore: Bump minor version of Pact FFI lib (Ronald Holshausen, Mon Jan 31 13:58:42 2022 +1100)
+* 739cb7b8 - chore: fix missing import on Windows (Ronald Holshausen, Mon Jan 31 11:16:55 2022 +1100)
+* 5ecf70a7 - feat: enable ANSI console output on Windows (Ronald Holshausen, Mon Jan 31 11:02:03 2022 +1100)
+* c676e821 - feat: add FFI functions to return the verifier output and results (Ronald Holshausen, Fri Jan 28 15:40:17 2022 +1100)
+* bf152233 - feat: Capture all the results from the verification process (Ronald Holshausen, Fri Jan 28 11:28:38 2022 +1100)
+* 5f148cdd - feat: capture all the output from the verifier (Ronald Holshausen, Thu Jan 27 16:08:02 2022 +1100)
+* f5aa34ea - Merge pull request #175 from pact-foundation/feat/fix-provider-timeout-value-validation (Ronald Holshausen, Thu Jan 27 13:41:56 2022 +1100)
+* c58a2fb7 - Merge pull request #174 from adamrodger/feat/provider-name (Ronald Holshausen, Thu Jan 27 13:39:26 2022 +1100)
+* 0ef3fb98 - fix: provider request timeout should be > 16bit integers. Fixes https://github.com/pact-foundation/pact-js/issues/761 (Matt Fellows, Wed Jan 26 22:12:35 2022 +1100)
+* 753c9599 - feat(ffi)!: Remove the need to repeat the provider name in verifier FFI (Adam Rodger, Wed Jan 26 10:17:23 2022 +0000)
+* 8bee40b0 - feat(ffi)!: Separate verification and publishing options (Adam Rodger, Tue Jan 25 16:31:29 2022 +0000)
+* bef310b2 - bump version to 0.1.7 (Ronald Holshausen, Mon Jan 17 17:20:07 2022 +1100)
+
 # 0.1.6 - Maintenance Release
 
 * 0c200ea5 - chore: Upgrade pact verifier crate to 0.12.4 (Ronald Holshausen, Mon Jan 17 17:07:18 2022 +1100)
