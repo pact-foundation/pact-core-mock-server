@@ -243,7 +243,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use clap::{AppSettings, ArgMatches, ErrorKind};
-use log::{debug, error, LevelFilter};
+use log::{debug, error, LevelFilter, warn};
 use pact_models::{PACT_RUST_VERSION, PactSpecification};
 use pact_models::prelude::HttpAuth;
 use serde_json::Value;
@@ -467,6 +467,8 @@ fn interaction_filter(matches: &ArgMatches) -> FilterInfo {
 }
 
 fn main() {
+  init_windows();
+
   let runtime = tokio::runtime::Builder::new_multi_thread()
     .enable_all()
     .build()
@@ -487,3 +489,13 @@ fn main() {
     std::process::exit(err);
   }
 }
+
+#[cfg(windows)]
+fn init_windows() {
+  if let Err(err) = ansi_term::enable_ansi_support() {
+    warn!("Could not enable ANSI console support - {err}");
+  }
+}
+
+#[cfg(not(windows))]
+fn init_windows() { }
