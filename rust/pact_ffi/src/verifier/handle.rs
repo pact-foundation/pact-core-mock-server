@@ -1,13 +1,25 @@
 //! Handle interface to creating a verifier
 
 use std::sync::Arc;
+use itertools::Itertools;
 
 use log::debug;
-
 use pact_models::prelude::HttpAuth;
-use pact_verifier::{FilterInfo, NullRequestFilterExecutor, PactSource, ProviderInfo, VerificationOptions, verify_provider_async, ConsumerVersionSelector, PublishOptions};
+use serde_json::Value;
+
+use pact_verifier::{
+  ConsumerVersionSelector,
+  FilterInfo,
+  NullRequestFilterExecutor,
+  PactSource,
+  ProviderInfo,
+  PublishOptions,
+  VerificationOptions,
+  verify_provider_async
+};
 use pact_verifier::callback_executors::HttpRequestProviderStateExecutor;
 use pact_verifier::metrics::VerificationMetrics;
+use pact_verifier::verification_result::VerificationExecutionResult;
 
 #[derive(Debug, Clone)]
 /// Wraps a Pact verifier
@@ -20,7 +32,9 @@ pub struct VerifierHandle {
   publish_options: Option<PublishOptions>,
   consumers: Vec<String>,
   /// Calling application name and version
-  calling_app: Option<(String, String)>
+  calling_app: Option<(String, String)>,
+  /// Output captured from the verifier
+  verifier_output: VerificationExecutionResult
 }
 
 impl VerifierHandle {
@@ -35,7 +49,8 @@ impl VerifierHandle {
       verification_options: VerificationOptions::default(),
       publish_options: None,
       consumers: vec![],
-      calling_app: None
+      calling_app: None,
+      verifier_output: VerificationExecutionResult::new()
     }
   }
 
@@ -49,7 +64,8 @@ impl VerifierHandle {
       verification_options: VerificationOptions::default(),
       publish_options: None,
       consumers: vec![],
-      calling_app: Some((calling_app_name.to_string(), calling_app_version.to_string()))
+      calling_app: Some((calling_app_name.to_string(), calling_app_version.to_string())),
+      verifier_output: VerificationExecutionResult::new()
     }
   }
 
@@ -229,16 +245,18 @@ impl VerifierHandle {
   /// * 0 - verification was successful
   /// * 1 - verification was not successful
   /// * 2 - failed to run the verification
-  pub fn execute(&self) -> i32 {
+  ///
+  /// Anu captured output from the verification will be stored against this handle
+  pub fn execute(&mut self) -> i32 {
     for s in &self.sources {
-      debug!("Pact source to verify = {}", s);
+      debug!("Pact source to verify = {s}");
     };
 
     let (calling_app_name, calling_app_version) = self.calling_app.clone().unwrap_or_else(|| {
       ("pact_ffi".to_string(), env!("CARGO_PKG_VERSION").to_string())
     });
     let runtime = tokio::runtime::Runtime::new().unwrap();
-    runtime.block_on(async {
+    match runtime.block_on(async {
       verify_provider_async(
         self.provider.clone(),
         self.sources.clone(),
@@ -253,9 +271,24 @@ impl VerifierHandle {
           app_version: calling_app_version.clone()
         })
       ).await
-    })
-      .map(|result| if result { 0 } else { 2 })
-      .unwrap_or(2)
+    }) {
+      Ok(result) => {
+        self.verifier_output = result.clone();
+        if result.result { 0 } else { 1 }
+      }
+      Err(_) => 2
+    }
+  }
+
+  /// Return the captured standard output from the verification execution
+  pub fn output(&self) -> String {
+    self.verifier_output.output.iter().join("\n")
+  }
+
+  /// Return the verification results as a JSON document
+  pub fn json(&self) -> String {
+    let json: Value = (&self.verifier_output).into();
+    json.to_string()
   }
 }
 

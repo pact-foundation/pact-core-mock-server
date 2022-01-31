@@ -11,68 +11,86 @@
 //! The pact verifier is bundled as a single binary executable `pact_verifier_cli`. Running this with out any options displays the standard help.
 //!
 //! ```console,ignore
-//! pact_verifier_cli v0.6.2
+//! pact_verifier_cli 0.9.7
 //! Standalone Pact verifier
 //!
 //! USAGE:
-//!     pact_verifier_cli [FLAGS] [OPTIONS] --broker-url <broker-url>... --dir <dir>... --file <file>... --provider-name <provider-name> --url <url>...
+//!     pact_verifier_cli [FLAGS] [OPTIONS] --broker-url <broker-url> --dir <dir>... --file <file>... --provider-name <provider-name> --url <url>...
 //!
 //! FLAGS:
-//!         --enable-pending           Enables Pending Pacts
-//!         --filter-no-state          Only validate interactions that have no defined provider state
-//!         --help                     Prints help information
-//!         --publish                  Enables publishing of verification results back to the Pact Broker. Requires the
-//!                                    broker-url and provider-version parameters.
-//!         --state-change-as-query    State change request data will be sent as query parameters instead of in the request
-//!                                    body
-//!         --state-change-teardown    State change teardown requests are to be made after each interaction
-//!     -v, --version                  Prints version information
+//!         --disable-ssl-verification    Disables validation of SSL certificates
+//!         --enable-pending              Enables Pending Pacts
+//!         --help                        Prints help information
+//!         --publish                     Enables publishing of verification results back to the Pact Broker. Requires the
+//!                                       broker-url and provider-version parameters.
+//!         --state-change-as-query       State change request data will be sent as query parameters instead of in the
+//!                                       request body
+//!         --state-change-teardown       State change teardown requests are to be made after each interaction
+//!     -v, --version                     Prints version information
 //!
 //! OPTIONS:
-//!         --base-path <base-path>                                Base path to add to all requests
-//!     -b, --broker-url <broker-url>...
+//!         --base-path <base-path>                                         Base path to add to all requests
+//!     -b, --broker-url <broker-url>
 //!             URL of the pact broker to fetch pacts from to verify (requires the provider name parameter) [env:
-//!             PACT_BROKER_BASE_URL=https://testdemo.pactflow.io]
+//!             PACT_BROKER_BASE_URL=]
 //!         --build-url <build-url>
 //!             URL of the build to associate with the published verification results.
 //!
+//!         --consumer-version-selectors <consumer-version-selectors>...
+//!             Consumer version selectors to use when fetching pacts from the Broker. Accepts a JSON string as per
+//!             https://docs.pact.io/pact_broker/advanced_topics/consumer_version_selectors/
 //!         --consumer-version-tags <consumer-version-tags>
 //!             Consumer tags to use when fetching pacts from the Broker. Accepts comma-separated values.
 //!
-//!     -d, --dir <dir>...                                         Directory of pact files to verify (can be repeated)
-//!     -f, --file <file>...                                       Pact file to verify (can be repeated)
+//!     -d, --dir <dir>...
+//!             Directory of pact files to verify (can be repeated)
+//!
+//!     -f, --file <file>...                                                Pact file to verify (can be repeated)
 //!     -c, --filter-consumer <filter-consumer>...
 //!             Consumer name to filter the pacts to be verified (can be repeated)
 //!
 //!         --filter-description <filter-description>
-//!             Only validate interactions whose descriptions match this filter
+//!             Only validate interactions whose descriptions match this filter [env: PACT_DESCRIPTION=]
+//!
+//!         --filter-no-state <filter-no-state>
+//!             Only validate interactions that have no defined provider state [env: PACT_PROVIDER_NO_STATE=]
 //!
 //!         --filter-state <filter-state>
-//!             Only validate interactions whose provider states match this filter
+//!             Only validate interactions whose provider states match this filter [env: PACT_PROVIDER_STATE=]
 //!
-//!     -h, --hostname <hostname>                                  Provider hostname (defaults to localhost)
+//!     -h, --hostname <hostname>                                           Provider hostname (defaults to localhost)
 //!         --include-wip-pacts-since <include-wip-pacts-since>
 //!             Allow pacts that don't match given consumer selectors (or tags) to  be verified, without causing the overall
 //!             task to fail. For more information, see https://pact.io/wip
+//!     -j, --json <json-file>                                              Generate a JSON report of the verification
 //!     -l, --loglevel <loglevel>
 //!             Log level (defaults to warn) [possible values: error, warn, info, debug,
 //!             trace, none]
 //!         --password <password>
 //!             Password to use when fetching pacts from URLS [env: PACT_BROKER_PASSWORD=]
 //!
-//!     -p, --port <port>                                          Provider port (defaults to protocol default 80/443)
-//!     -n, --provider-name <provider-name>                        Provider name (defaults to provider)
+//!     -p, --port <port>
+//!             Provider port (defaults to protocol default 80/443)
+//!
+//!         --provider-branch <provider-branch>                             Provider branch to use when publishing results
+//!     -n, --provider-name <provider-name>                                 Provider name (defaults to provider)
 //!         --provider-tags <provider-tags>
 //!             Provider tags to use when publishing results. Accepts comma-separated values.
 //!
 //!         --provider-version <provider-version>
 //!             Provider version that is being verified. This is required when publishing results.
 //!
-//!     -s, --state-change-url <state-change-url>                  URL to post state change requests to
-//!     -t, --token <token>
-//!             Bearer token to use when fetching pacts from URLS [env: PACT_BROKER_TOKEN=Dk8qO3_ZOqau8EeMaagK5w]
+//!         --request-timeout <request-timeout>
+//!             Sets the HTTP request timeout in milliseconds for requests to the target API and for state change requests.
 //!
-//!     -u, --url <url>...                                         URL of pact file to verify (can be repeated)
+//!         --scheme <scheme>
+//!             Provider URI scheme (defaults to http) [default: http]  [possible values: http, https]
+//!
+//!     -s, --state-change-url <state-change-url>                           URL to post state change requests to
+//!     -t, --token <token>
+//!             Bearer token to use when fetching pacts from URLS [env: PACT_BROKER_TOKEN=]
+//!
+//!     -u, --url <url>...                                                  URL of pact file to verify (can be repeated)
 //!         --user <user>
 //!             Username to use when fetching pacts from URLS [env: PACT_BROKER_USERNAME=]
 //! ```
@@ -236,14 +254,17 @@
 #![type_length_limit="100000000"]
 
 use std::env;
+use std::fs::File;
+use std::io::Write;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
 use clap::{AppSettings, ArgMatches, ErrorKind};
-use log::{debug, error, LevelFilter};
+use log::{debug, error, LevelFilter, warn};
 use pact_models::{PACT_RUST_VERSION, PactSpecification};
 use pact_models::prelude::HttpAuth;
+use serde_json::Value;
 use simplelog::{ColorChoice, Config, TerminalMode, TermLogger};
 use tokio::time::sleep;
 
@@ -251,6 +272,7 @@ use pact_verifier::{FilterInfo, NullRequestFilterExecutor, PactSource, ProviderI
 use pact_verifier::callback_executors::HttpRequestProviderStateExecutor;
 use pact_verifier::metrics::VerificationMetrics;
 use pact_verifier::selectors::{consumer_tags_to_selectors, json_to_selectors};
+use pact_verifier::verification_result::VerificationExecutionResult;
 
 mod args;
 
@@ -348,7 +370,24 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
       error!("Verification failed with error: {}", err);
       2
     })
-    .and_then(|result| if result { Ok(()) } else { Err(1) })
+    .and_then(|result| {
+      if let Some(json_file) = matches.value_of("json-file") {
+        if let Err(err) = write_json_report(&result, json_file) {
+          error!("Failed to write JSON report to '{json_file}' - {err}");
+          return Err(2)
+        }
+      }
+
+      if result.result { Ok(()) } else { Err(1) }
+    })
+}
+
+fn write_json_report(result: &VerificationExecutionResult, file_name: &str) -> anyhow::Result<()> {
+  debug!("Writing JSON result of the verification to '{file_name}'");
+  let mut f = File::create(file_name)?;
+  let json: Value = result.into();
+  f.write_all(json.to_string().as_bytes())?;
+  Ok(())
 }
 
 fn print_version(version: &str) {
@@ -446,6 +485,8 @@ fn interaction_filter(matches: &ArgMatches) -> FilterInfo {
 }
 
 fn main() {
+  init_windows();
+
   let runtime = tokio::runtime::Builder::new_multi_thread()
     .enable_all()
     .build()
@@ -466,3 +507,13 @@ fn main() {
     std::process::exit(err);
   }
 }
+
+#[cfg(windows)]
+fn init_windows() {
+  if let Err(err) = ansi_term::enable_ansi_support() {
+    warn!("Could not enable ANSI console support - {err}");
+  }
+}
+
+#[cfg(not(windows))]
+fn init_windows() { }

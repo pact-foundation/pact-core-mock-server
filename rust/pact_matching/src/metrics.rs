@@ -155,7 +155,7 @@ pub fn send_metrics(event: MetricEvent) {
         if *warning_logged == false {
           warn!(
             "\n\nPlease note:\n\
-            Please note: we are tracking events anonymously to gather important usage statistics like Pact version \
+            We are tracking events anonymously to gather important usage statistics like Pact version \
             and operating system. To disable tracking, set the 'PACT_DO_NOT_TRACK' environment \
             variable to 'true'.\n\n"
           );

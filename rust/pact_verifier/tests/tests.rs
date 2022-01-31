@@ -90,8 +90,14 @@ async fn verify_pact_with_match_values_matcher() {
   let options: VerificationOptions<NullRequestFilterExecutor> = VerificationOptions::default();
   let provider_states = Arc::new(DummyProviderStateExecutor{});
 
-  let result = verify_pact_internal(&provider, &FilterInfo::None,
-                                    pact, &options, &provider_states, false).await;
+  let result = verify_pact_internal(
+    &provider,
+    &FilterInfo::None,
+    pact,
+    &options,
+    &provider_states,
+    false
+  ).await;
 
   expect!(result.unwrap().results.get(0).unwrap().result.as_ref()).to(be_ok());
 }
@@ -134,8 +140,14 @@ async fn verify_pact_with_attributes_with_special_values() {
   let options: VerificationOptions<NullRequestFilterExecutor> = VerificationOptions::default();
   let provider_states = Arc::new(DummyProviderStateExecutor{});
 
-  let result = verify_pact_internal(&provider, &FilterInfo::None,
-                                    pact, &options, &provider_states, false).await;
+  let result = verify_pact_internal(
+    &provider,
+    &FilterInfo::None,
+    pact,
+    &options,
+    &provider_states,
+    false
+  ).await;
 
   expect!(result.unwrap().results.get(0).unwrap().result.as_ref()).to(be_ok());
 }
@@ -154,8 +166,14 @@ async fn verifying_a_pact_with_pending_interactions() {
   let options: VerificationOptions<NullRequestFilterExecutor> = VerificationOptions::default();
   let provider_states = Arc::new(DummyProviderStateExecutor{});
 
-  let result = verify_pact_internal(&provider, &FilterInfo::None,
-                                    pact, &options, &provider_states, false).await;
+  let result = verify_pact_internal(
+    &provider,
+    &FilterInfo::None,
+    pact,
+    &options,
+    &provider_states,
+    false
+  ).await;
 
   expect!(result.as_ref().unwrap().results.get(0).unwrap().result.as_ref()).to(be_err());
   expect!(result.as_ref().unwrap().results.get(0).unwrap().pending).to(be_true());
@@ -201,8 +219,14 @@ async fn verifying_a_pact_with_min_type_matcher_and_child_arrays() {
   let options: VerificationOptions<NullRequestFilterExecutor> = VerificationOptions::default();
   let provider_states = Arc::new(DummyProviderStateExecutor{});
 
-  let result = verify_pact_internal(&provider, &FilterInfo::None,
-                                    pact, &options, &provider_states, false).await;
+  let result = verify_pact_internal(
+    &provider,
+    &FilterInfo::None,
+    pact,
+    &options,
+    &provider_states,
+    false
+  ).await;
 
   expect!(result.unwrap().results.get(0).unwrap().result.as_ref()).to(be_ok());
 }

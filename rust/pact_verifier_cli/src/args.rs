@@ -233,7 +233,16 @@ pub(crate) fn setup_app<'a, 'b>(program: String, version: &'b str) -> App<'a, 'b
       .empty_values(false)
       .validator(integer_value)
       .help("Sets the HTTP request timeout in milliseconds for requests to the target API and for state change requests."))
-    }
+    .arg(Arg::with_name("json-file")
+      .short("j")
+      .long("json")
+      .takes_value(true)
+      .use_delimiter(false)
+      .multiple(false)
+      .number_of_values(1)
+      .empty_values(false)
+      .help("Generate a JSON report of the verification"))
+}
 
 #[cfg(test)]
 mod test {
