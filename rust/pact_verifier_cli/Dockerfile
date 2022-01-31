@@ -1,24 +1,22 @@
-FROM rust-musl-2021 AS builder
+FROM rust:1-alpine3.15 AS builder
 
 # Add our source code.
-ADD . ./
+ADD . /build
 
-# Fix permissions on source code.
-RUN sudo chown -R rust:rust /home/rust
-
-RUN sudo apt-get update && sudo apt-get install -y libclang-dev
+RUN apk --no-cache add gcc musl-dev protoc
+RUN rustup component add rustfmt
 
 # Fix the cargo manifest so it can be built standalone
-RUN sed -i -e 's/pact_verifier = {\s*version\s*=\s*"\([^"]*\).*/pact_verifier = "\1"/' Cargo.toml
+RUN sed -i -e 's/pact_verifier = {\s*version\s*=\s*"\([^"]*\).*/pact_verifier = "\1"/' /build/Cargo.toml
 
 # Build our application.
-RUN cargo build --release
+RUN cd build && cargo build --release
 
 # Now, we need to build our _real_ Docker container, copying in the executable.
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates
 COPY --from=builder \
-    /home/rust/src/target/x86_64-unknown-linux-musl/release/pact_verifier_cli \
+    /build/target/release/pact_verifier_cli \
     /usr/local/bin/
 
 ENTRYPOINT ["/usr/local/bin/pact_verifier_cli"]
