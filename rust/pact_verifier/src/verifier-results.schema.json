@@ -1,4 +1,146 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://example.com/product.schema.json"
+  "$id": "https://pact.io/pact_verifier/verifier-results.schema.json",
+  "description": "Schema for verification results in JSON format",
+  "type": "object",
+  "properties": {
+    "result": {
+      "description": "Boolean value for the overall result",
+      "type": "boolean"
+    },
+    "notices": {
+      "description": "All notices returned from the Pact broker",
+      "type": "object",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "output": {
+      "description": "All captured output from the verification process",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "errors": {
+      "description": "List of all verification errors",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "interaction": {
+            "description": "interaction description that failed",
+            "type": "string"
+          },
+          "mismatch": {
+            "description": "Will either be an error when the verification could not be completed, or a mismatch",
+            "type": "object",
+            "properties": {
+              "type": {
+                "description": "The type of mismatch/error",
+                "enum": ["mismatches", "error"]
+              },
+              "mismatches": {
+                "description": "The mismatches that occurred. Will be present if type=mismatches",
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/mismatch"
+                }
+              },
+              "message": {
+                "description": "The error message (if type=error)",
+                "type": "string"
+              },
+              "interactionId": {
+                "description": "Interaction ID from the Pact broker",
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "pendingErrors": {
+      "description": "List of all pending verification errors",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "interaction": {
+            "description": "interaction description that failed",
+            "type": "string"
+          },
+          "mismatch": {
+            "description": "Will either be an error when the verification could not be completed, or a mismatch",
+            "type": "object",
+            "properties": {
+              "type": {
+                "description": "The type of mismatch/error",
+                "enum": ["mismatches", "error"]
+              },
+              "mismatches": {
+                "description": "The mismatches that occurred. Will be present if type=mismatches",
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/mismatch"
+                }
+              },
+              "message": {
+                "description": "The error message (if type=error)",
+                "type": "string"
+              },
+              "interactionId": {
+                "description": "Interaction ID from the Pact broker",
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+},
+  "required": [ "result" ],
+  "$defs": {
+    "mismatch": {
+      "description": "Mismatch that occurred from verification",
+      "type": "object",
+      "properties": {
+        "type": {
+          "description": "The type of mismatch that occurred",
+          "enum": [ "MethodMismatch", "PathMismatch", "StatusMismatch", "QueryMismatch", "HeaderMismatch", "BodyTypeMismatch", "BodyMismatch", "MetadataMismatch" ]
+        },
+        "expected": {
+          "description": "The expected value"
+        },
+        "actual": {
+          "description": "The actual value"
+        },
+        "mismatch" : {
+          "description": "Description of the mismatch",
+          "type": "string"
+        },
+        "parameter" : {
+          "description": "The query parameter that the mismatch is for (type=QueryMismatch)",
+          "type": "string"
+        },
+        "key" : {
+          "description": "The header/metadata that the mismatch is for (type=HeaderMismatch or MetadataMismatch)",
+          "type": "string"
+        },
+        "expectedBody": {
+          "description": "The expected body (type=BodyTypeMismatch)",
+          "type": "object"
+        },
+        "actualBody": {
+          "description": "The actual body (type=BodyTypeMismatch)",
+          "type": "object"
+        },
+        "path" : {
+          "description": "The JSON-Path like expression that the mismatch is for (type=BodyMismatch)",
+          "type": "string"
+        }
+      }
+    }
+  }
 }
