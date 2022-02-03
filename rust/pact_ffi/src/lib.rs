@@ -46,8 +46,6 @@ pub extern "C" fn pactffi_version() -> *const c_char {
 /// log_env_var must be a valid NULL terminated UTF-8 string.
 #[no_mangle]
 pub unsafe extern fn pactffi_init(log_env_var: *const c_char) {
-    init_windows();
-
     let log_env_var = if !log_env_var.is_null() {
         let c_str = CStr::from_ptr(log_env_var);
         match c_str.to_str() {
@@ -66,16 +64,6 @@ pub unsafe extern fn pactffi_init(log_env_var: *const c_char) {
     builder.try_init().unwrap_or(());
 }
 
-#[cfg(windows)]
-fn init_windows() {
-    if let Err(err) = ansi_term::enable_ansi_support() {
-        warn!("Could not enable ANSI console support - {err}");
-    }
-}
-
-#[cfg(not(windows))]
-fn init_windows() { }
-
 /// Initialises logging, and sets the log level explicitly.
 ///
 /// # Safety
@@ -88,6 +76,19 @@ pub unsafe extern "C" fn pactffi_init_with_log_level(level: *const c_char) {
 
     builder.filter_level(log_level.to_level_filter());
     builder.try_init().unwrap_or(());
+}
+
+/// Enable ANSI coloured output on Windows.
+///
+/// # Safety
+///
+/// This function is safe.
+#[no_mangle]
+#[cfg(windows)]
+pub extern "C" fn enable_ansi_support() {
+  if let Err(err) = ansi_term::enable_ansi_support() {
+    warn!("Could not enable ANSI console support - {err}");
+  }
 }
 
 /// Log using the shared core logging facility.
