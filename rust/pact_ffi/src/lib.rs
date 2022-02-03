@@ -78,7 +78,7 @@ pub unsafe extern "C" fn pactffi_init_with_log_level(level: *const c_char) {
     builder.try_init().unwrap_or(());
 }
 
-/// Enable ANSI coloured output on Windows.
+/// Enable ANSI coloured output on Windows. On non-Windows platforms, this function is a no-op.
 ///
 /// # Safety
 ///
@@ -90,6 +90,15 @@ pub extern "C" fn pactffi_enable_ansi_support() {
     warn!("Could not enable ANSI console support - {err}");
   }
 }
+
+/// Enable ANSI coloured output on Windows. On non-Windows platforms, this function is a no-op.
+///
+/// # Safety
+///
+/// This function is safe.
+#[no_mangle]
+#[cfg(not(windows))]
+pub extern "C" fn pactffi_enable_ansi_support() { }
 
 /// Log using the shared core logging facility.
 ///
