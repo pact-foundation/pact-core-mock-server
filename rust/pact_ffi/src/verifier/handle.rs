@@ -290,6 +290,11 @@ impl VerifierHandle {
     let json: Value = (&self.verifier_output).into();
     json.to_string()
   }
+
+  #[cfg(test)]
+  pub fn set_output(&mut self, out: &str) {
+    self.verifier_output.output = out.split('\n').map(|s| s.to_string()).collect();
+  }
 }
 
 impl Default for VerifierHandle {

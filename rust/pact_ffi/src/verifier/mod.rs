@@ -10,12 +10,14 @@ use std::str::from_utf8;
 
 use anyhow::Context;
 use clap::ArgSettings;
+use lazy_static::lazy_static;
 use libc::{c_char, c_int, c_uchar, c_ulong, c_ushort, EXIT_FAILURE, EXIT_SUCCESS};
 use log::*;
+use pact_models::prelude::HttpAuth;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use pact_matching::logging::fetch_buffer_contents;
-use pact_models::prelude::HttpAuth;
 use pact_verifier::selectors::{consumer_tags_to_selectors, json_to_selectors};
 
 use crate::{as_mut, as_ref, ffi_fn, safe_str};
@@ -754,14 +756,27 @@ ffi_fn! {
     }
 }
 
+lazy_static! {
+  static ref ANSI_CODE_RE: Regex = Regex::new("\\x1B\\[(?:;?[0-9]{1,3})+[mGK]").unwrap();
+}
+
 ffi_fn! {
     /// Extracts the standard output for the verification run. The returned string will need to be
     /// freed with the `free_string` function call to avoid leaking memory.
     ///
+    /// * `strip_ansi` - This parameter controls ANSI escape codes. Setting it to a non-zero value
+    /// will cause the ANSI control codes to be stripped from the output.
+    ///
     /// Will return a NULL pointer if the handle is invalid.
-    fn pactffi_verifier_output(handle: *const handle::VerifierHandle) -> *const c_char {
+    fn pactffi_verifier_output(handle: *const handle::VerifierHandle, strip_ansi: c_uchar) -> *const c_char {
       let handle = as_ref!(handle);
-      let output = CString::new(handle.output()).unwrap();
+      let mut raw_output = handle.output();
+
+      if strip_ansi > 0 {
+        raw_output = ANSI_CODE_RE.replace_all(raw_output.as_str(), "").to_string();
+      }
+
+      let output = CString::new(raw_output).unwrap();
       output.into_raw() as *const c_char
     } {
       std::ptr::null()
@@ -780,4 +795,63 @@ ffi_fn! {
     } {
       std::ptr::null()
     }
+}
+
+#[cfg(test)]
+mod tests {
+  use std::ffi::CString;
+
+  use expectest::prelude::*;
+  use libc::c_char;
+
+  use crate::verifier::handle::VerifierHandle;
+  use crate::verifier::pactffi_verifier_output;
+
+  #[test]
+  fn pactffi_verifier_output_test() {
+    let output = "  Given [1mtest state[0m
+    [33mWARNING: State Change ignored as there is no state change URL provided[0m
+00:48:03 [0m[33m[WARN] [0m
+
+Please note:
+We are tracking events anonymously to gather important usage statistics like Pact version and operating system. To disable tracking, set the 'PACT_DO_NOT_TRACK' environment variable to 'true'.
+
+
+
+Verifying a pact between [1mtest_consumer[0m and [1mtest_provider[0m
+
+  test interaction
+      [31mRequest Failed - error sending request for url (http://localhost/): error trying to connect: tcp connect error: Connection refused (os error 111)[0m
+
+
+Failures:
+
+1) Verifying a pact between test_consumer and test_provider Given test state - test interaction - error sending request for url (http://localhost/): error trying to connect: tcp connect error: Connection refused (os error 111)
+
+
+There were 1 pact failures
+
+";
+    let mut handle = VerifierHandle::new_for_application("tests", "1.0.0");
+    handle.set_output(output);
+
+    let result = pactffi_verifier_output(&handle, 0);
+    let result2 = pactffi_verifier_output(&handle, 1);
+
+    let out1 = unsafe { CString::from_raw(result as *mut c_char) };
+    let out2 = unsafe { CString::from_raw(result2 as *mut c_char) };
+
+    let raw_output = out1.into_string().unwrap();
+    let stripped_output = out2.into_string().unwrap();
+
+    expect!(raw_output.as_str()).to(be_equal_to(output));
+    expect!(stripped_output.as_str()).to(be_equal_to("  Given test state\n    WARNING: State Change ignored as there is no state change URL provided\n\
+00:48:03 [WARN] \n\nPlease note:\n\
+We are tracking events anonymously to gather important usage statistics like Pact version and operating system. To disable tracking, set the 'PACT_DO_NOT_TRACK' environment variable to 'true'.\n\
+\n\n\nVerifying a pact between test_consumer and test_provider\n\n  test interaction\n      \
+      Request Failed - error sending request for url (http://localhost/): error trying to connect: tcp connect error: Connection refused (os error 111)\n\
+\n\nFailures:\n\n\
+1) Verifying a pact between test_consumer and test_provider Given test state - test interaction - error sending request for url (http://localhost/): error trying to connect: tcp connect error: Connection refused (os error 111)\n\
+\n\nThere were 1 pact failures\n\n"));
+  }
 }
