@@ -1,5 +1,14 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.2.1 - add option to strip ANSI control codes from verifier output
+
+* 506add91 - chore: bump pact_verifier version (Ronald Holshausen, Thu Feb 3 13:54:45 2022 +1100)
+* cc872209 - chore: add non-windows init ansi support function (Ronald Holshausen, Thu Feb 3 13:22:51 2022 +1100)
+* 7311e022 - feat(FFI): add option to strip ANSI control codes from verifier output (Ronald Holshausen, Thu Feb 3 12:29:02 2022 +1100)
+* c18e1ccc - chore: ANSI support function was missing pactffi prefix (Ronald Holshausen, Thu Feb 3 11:12:45 2022 +1100)
+* fbfd072f - feat(FFI): add an explicit function to enable ANSI terminal support on Windows (Ronald Holshausen, Thu Feb 3 11:11:30 2022 +1100)
+* 07806b05 - bump version to 0.2.1 (Ronald Holshausen, Mon Jan 31 14:28:33 2022 +1100)
+
 # 0.2.0 - Bugfixes + FFI functions to return the verifier output and results
 
 * 1d95f3cf - chore: Bump minor version of Pact FFI lib (Ronald Holshausen, Mon Jan 31 13:58:42 2022 +1100)
