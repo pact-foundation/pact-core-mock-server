@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.13.1 - Updated req/res logging for FFI calls
+
+* 4f47ff65 - feat: log request/response bodies at debug level (Ronald Holshausen, Thu Feb 3 13:14:35 2022 +1100)
+* 3423354a - chore: update schema for verification results JSON (Ronald Holshausen, Tue Feb 1 12:21:21 2022 +1100)
+* 4a407202 - chore: add draft schema for verification results JSON (Ronald Holshausen, Tue Feb 1 11:17:43 2022 +1100)
+* d093f7d7 - bump version to 0.13.1 (Ronald Holshausen, Mon Jan 31 11:52:34 2022 +1100)
+
 # 0.13.0 - Capture output/results from the verification process
 
 * d0fa29dc - feat: add json output to the verifier CLI (Ronald Holshausen, Fri Jan 28 15:21:17 2022 +1100)
