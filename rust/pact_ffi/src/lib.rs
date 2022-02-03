@@ -85,7 +85,7 @@ pub unsafe extern "C" fn pactffi_init_with_log_level(level: *const c_char) {
 /// This function is safe.
 #[no_mangle]
 #[cfg(windows)]
-pub extern "C" fn enable_ansi_support() {
+pub extern "C" fn pactffi_enable_ansi_support() {
   if let Err(err) = ansi_term::enable_ansi_support() {
     warn!("Could not enable ANSI console support - {err}");
   }
