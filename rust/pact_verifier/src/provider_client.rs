@@ -156,11 +156,9 @@ async fn native_response_to_pact_response(native_response: reqwest::Response) ->
 
   let body = extract_body(native_response, &response).await?;
 
-  let response = HttpResponse {
+  Ok(HttpResponse {
     body, .. response.clone()
-  };
-  info!("Received response: {}", response);
-  Ok(response)
+  })
 }
 
 /// This function makes the actual request to the provider, executing any request filter before
@@ -185,10 +183,10 @@ pub async fn make_provider_request<F: RequestFilterExecutor>(
     None => format!("{}://{}{}", provider.protocol, provider.host, provider.path),
   };
 
-  info!("Sending request to provider at {}", base_url);
-  debug!("Provider details = {:?}", provider);
-  debug!("Sending request {}", request);
-  trace!("body: {}", request.body.str_value());
+  info!("Sending request to provider at {base_url}");
+  debug!("Provider details = {provider:?}");
+  info!("Sending request {request}");
+  debug!("body:\n{}", request.body.str_value());
   let request = create_native_request(client, &base_url, &request)?;
 
   let response = request.send()
@@ -196,7 +194,8 @@ pub async fn make_provider_request<F: RequestFilterExecutor>(
     .and_then(native_response_to_pact_response)
     .await?;
 
-  debug!("response from call to provider = {:?}", response);
+  info!("Received response: {}", response);
+  debug!("body:\n{}", response.body.str_value());
 
   Ok(response)
 }

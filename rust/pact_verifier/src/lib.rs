@@ -356,7 +356,7 @@ async fn verify_interaction<'a, F: RequestFilterExecutor, S: ProviderStateExecut
     }
     // Verify a synchronous message (request/response)
     if let Some(message) = interaction.as_v4_sync_message() {
-      trace!("a synchronous message (request/response)");
+      trace!("Verifying a synchronous message (request/response)");
       result = verify_sync_message_from_provider(provider, pact, message, options, &client, &context).await;
     }
 
