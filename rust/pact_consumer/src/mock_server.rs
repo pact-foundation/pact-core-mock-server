@@ -144,7 +144,7 @@ impl ValidatingMockServer {
 
     let (done_tx, done_rx) = std::sync::mpsc::channel::<()>();
     tokio::spawn(async move {
-      dbg!(server_future.await);
+      server_future.await;
       let _ = done_tx.send(());
     });
 
