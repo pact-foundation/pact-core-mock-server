@@ -357,6 +357,7 @@ mod test {
     expect!(generators).to(be_equal_to(Generators::default()));
   }
 
+  // Issue #179
   #[test_log::test]
   fn process_object_with_nested_object_has_the_same_property_name_as_a_parent_object() {
     let json = json!({
@@ -439,6 +440,40 @@ mod test {
       "$.result.findings[*].details[*].type" => [ MatchingRule::Regex("(None|Information|Warning|Error)".into()) ],
       "$.result.findings[*].type" => [ MatchingRule::Regex("(None|Unspecified)".into()) ]
     }.to_v3_json().to_string()));
+    expect!(generators).to(be_equal_to(Generators::default()));
+  }
+
+  // Issue #179
+  #[test_log::test]
+  fn process_object_with_nested_object_with_type_matchers_and_decimal_matcher() {
+    let json = json!({
+      "pact:matcher:type": "type",
+      "value": {
+        "name": {
+          "pact:matcher:type": "type",
+          "value": "APL"
+        },
+        "price": {
+          "pact:matcher:type": "decimal",
+          "value": 1.23
+        }
+      }
+    });
+    let mut matching_rules = MatchingRuleCategory::default();
+    let mut generators = Generators::default();
+    let result = process_object(json.as_object().unwrap(), &mut matching_rules,
+                                &mut generators, DocPath::root(), false, false);
+
+    expect!(result).to(be_equal_to(json!({
+      "name": "APL",
+      "price": 1.23
+    })));
+    expect!(matching_rules).to(be_equal_to(matchingrules_list!{
+      "body";
+      "$" => [ MatchingRule::Type ],
+      "$.name" => [ MatchingRule::Type ],
+      "$.price" => [ MatchingRule::Decimal ]
+    }));
     expect!(generators).to(be_equal_to(Generators::default()));
   }
 }
