@@ -25,6 +25,8 @@ pub fn process_array(
   type_matcher: bool,
   skip_matchers: bool
 ) -> Value {
+  trace!(">>> process_array(array={array:?}, matching_rules={matching_rules:?}, generators={generators:?}, path={path}, type_matcher={type_matcher}, skip_matchers={skip_matchers})");
+  debug!("Path = {path}");
   Value::Array(array.iter().enumerate().map(|(index, val)| {
     let mut item_path = path.clone();
     if type_matcher {
@@ -49,13 +51,18 @@ pub fn process_object(
   type_matcher: bool,
   skip_matchers: bool
 ) -> Value {
-  if obj.contains_key("pact:matcher:type") {
+  trace!(">>> process_object(obj={obj:?}, matching_rules={matching_rules:?}, generators={generators:?}, path={path}, type_matcher={type_matcher}, skip_matchers={skip_matchers})");
+  debug!("Path = {path}");
+  let result = if obj.contains_key("pact:matcher:type") {
+    debug!("detected pact:matcher:type, will configure a matcher");
     if !skip_matchers {
       let matching_rule = matcher_from_integration_json(obj);
+      trace!("matching_rule = {matching_rule:?}");
       if let Some(rule) = &matching_rule {
         matching_rules.add_rule(path.clone(), rule.clone(), RuleLogic::And);
       }
       if let Some(gen) = obj.get("pact:generator:type") {
+        debug!("detected pact:generator:type, will configure a generators");
         if let Some(generator) = Generator::from_map(&json_to_string(gen), obj) {
           let category = match matching_rules.name {
             Category::BODY => &GeneratorCategory::BODY,
@@ -87,6 +94,7 @@ pub fn process_object(
         None => Value::Null
       }
     } else {
+      debug!("Skipping the matching rule (skip_matchers == true)");
       match obj.get("value") {
         Some(val) => match val {
           Value::Object(ref map) => process_object(map, matching_rules, generators, path, false, skip_matchers),
@@ -97,22 +105,20 @@ pub fn process_object(
       }
     }
   } else {
+    debug!("Configuring a normal object");
     Value::Object(obj.iter()
       .filter(|(key, _)| !key.starts_with("pact:"))
       .map(|(key, val)| {
-      let mut item_path = path.clone();
-      if type_matcher {
-        item_path.push_star();
-      } else {
-        item_path.push_field(key);
-      }
+      let mut item_path = path.join(key);
       (key.clone(), match val {
         Value::Object(ref map) => process_object(map, matching_rules, generators, item_path, false, skip_matchers),
         Value::Array(ref array) => process_array(array, matching_rules, generators, item_path, false, skip_matchers),
         _ => val.clone()
       })
     }).collect())
-  }
+  };
+  trace!("-> result = {result:?}");
+  result
 }
 
 /// Builds a `MatchingRule` from a `Value` struct used by language integrations
@@ -348,6 +354,91 @@ mod test {
       "body";
       "$" => [ MatchingRule::Regex("\\w+".into()) ]
     }));
+    expect!(generators).to(be_equal_to(Generators::default()));
+  }
+
+  #[test_log::test]
+  fn process_object_with_nested_object_has_the_same_property_name_as_a_parent_object() {
+    let json = json!({
+      "result": {
+        "pact:matcher:type": "type",
+        "value": {
+          "details": {
+            "pact:matcher:type": "type",
+            "value": [
+              {
+                "type": {
+                  "pact:matcher:type": "regex",
+                  "value": "Information",
+                  "regex": "(None|Information|Warning|Error)"
+                }
+              }
+            ],
+            "min": 1
+          },
+          "findings": {
+            "pact:matcher:type": "type",
+            "value": [
+              {
+                "details": {
+                  "pact:matcher:type": "type",
+                  "value": [
+                    {
+                      "type": {
+                        "pact:matcher:type": "regex",
+                        "value": "Information",
+                        "regex": "(None|Information|Warning|Error)"
+                      }
+                    }
+                  ],
+                  "min": 1
+                },
+                "type": {
+                  "pact:matcher:type": "regex",
+                  "value": "Unspecified",
+                  "regex": "(None|Unspecified)"
+                }
+              }
+            ],
+            "min": 1
+          }
+        }
+      }
+    });
+    let mut matching_rules = MatchingRuleCategory::default();
+    let mut generators = Generators::default();
+    let result = process_object(json.as_object().unwrap(), &mut matching_rules,
+                                &mut generators, DocPath::root(), false, false);
+
+    expect!(result).to(be_equal_to(json!({
+      "result": {
+        "details": [
+          {
+            "type": "Information"
+          }
+        ],
+        "findings": [
+          {
+            "details": [
+              {
+                "type": "Information"
+              }
+            ],
+            "type": "Unspecified"
+          }
+        ]
+      }
+    })));
+    expect!(matching_rules.to_v3_json().to_string()).to(be_equal_to(matchingrules_list!{
+      "body";
+      "$.result" => [ MatchingRule::Type ],
+      "$.result.details" => [ MatchingRule::MinType(1) ],
+      "$.result.details[*].type" => [ MatchingRule::Regex("(None|Information|Warning|Error)".into()) ],
+      "$.result.findings" => [ MatchingRule::MinType(1) ],
+      "$.result.findings[*].details" => [ MatchingRule::MinType(1) ],
+      "$.result.findings[*].details[*].type" => [ MatchingRule::Regex("(None|Information|Warning|Error)".into()) ],
+      "$.result.findings[*].type" => [ MatchingRule::Regex("(None|Unspecified)".into()) ]
+    }.to_v3_json().to_string()));
     expect!(generators).to(be_equal_to(Generators::default()));
   }
 }
