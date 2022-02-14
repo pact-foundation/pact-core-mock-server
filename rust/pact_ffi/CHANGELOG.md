@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.2.2 - Bugfix Release
+
+* 76889087 - fix(pact-ffi): intermediate JSON - add test for JSON with decimal matcher #179 (Ronald Holshausen, Mon Feb 14 13:04:16 2022 +1100)
+* b10453c3 - fix(pact-ffi): intermediate JSON - type matcher paths were being incorrectly allocated to children #179 (Ronald Holshausen, Mon Feb 14 12:45:43 2022 +1100)
+* 1555c682 - bump version to 0.2.2 (Ronald Holshausen, Thu Feb 3 14:12:46 2022 +1100)
+
 # 0.2.1 - add option to strip ANSI control codes from verifier output
 
 * 506add91 - chore: bump pact_verifier version (Ronald Holshausen, Thu Feb 3 13:54:45 2022 +1100)
