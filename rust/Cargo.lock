@@ -823,9 +823,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.117"
+version = "0.2.118"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e74d72e0f9b65b5b4ca49a346af3976df0f9c61d550727f349ecd559f251a26c"
+checksum = "06e509672465a0504304aa87f9f176f2b2b716ed8fb105ebe5c02dc6dce96a94"
 
 [[package]]
 name = "lock_api"
@@ -1251,7 +1251,7 @@ dependencies = [
  "pact_mock_server",
  "pact_models 0.2.7",
  "quickcheck",
- "rand 0.8.4",
+ "rand 0.8.5",
  "regex",
  "reqwest",
  "serde",
@@ -1290,7 +1290,7 @@ dependencies = [
  "pact_models 0.2.7",
  "pact_verifier",
  "quickcheck",
- "rand 0.8.4",
+ "rand 0.8.5",
  "rand_regex",
  "regex",
  "regex-syntax",
@@ -1336,7 +1336,7 @@ dependencies = [
  "pact_models 0.2.7",
  "pretty_assertions 0.6.1",
  "quickcheck",
- "rand 0.8.4",
+ "rand 0.8.5",
  "reqwest",
  "rstest",
  "semver 0.11.0",
@@ -1399,7 +1399,7 @@ dependencies = [
  "pact_mock_server",
  "pact_models 0.2.7",
  "quickcheck",
- "rand 0.8.4",
+ "rand 0.8.5",
  "regex",
  "reqwest",
  "serde_json",
@@ -1435,7 +1435,7 @@ dependencies = [
  "nom",
  "onig",
  "parse-zoneinfo",
- "rand 0.8.4",
+ "rand 0.8.5",
  "rand_regex",
  "regex",
  "regex-syntax",
@@ -1449,7 +1449,7 @@ dependencies = [
 
 [[package]]
 name = "pact_models"
-version = "0.2.8"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "ariadne",
@@ -1475,7 +1475,7 @@ dependencies = [
  "parse-zoneinfo",
  "pretty_assertions 1.1.0",
  "quickcheck",
- "rand 0.8.4",
+ "rand 0.8.5",
  "rand_regex",
  "regex",
  "regex-syntax",
@@ -1771,7 +1771,7 @@ checksum = "588f6378e4dd99458b60ec275b4477add41ce4fa9f64dcba6f15adccb19b50d6"
 dependencies = [
  "env_logger",
  "log",
- "rand 0.8.4",
+ "rand 0.8.5",
 ]
 
 [[package]]
@@ -1802,19 +1802,18 @@ dependencies = [
  "libc",
  "rand_chacha 0.2.2",
  "rand_core 0.5.1",
- "rand_hc 0.2.0",
+ "rand_hc",
 ]
 
 [[package]]
 name = "rand"
-version = "0.8.4"
+version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e7573632e6454cf6b99d7aac4ccca54be06da05aca2ef7423d22d27d4d4bcd8"
+checksum = "34af8d1a0e25924bc5b7c43c079c942339d8f0a8b57c39049bef581b46327404"
 dependencies = [
  "libc",
  "rand_chacha 0.3.1",
  "rand_core 0.6.3",
- "rand_hc 0.3.1",
 ]
 
 [[package]]
@@ -1865,21 +1864,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "rand_hc"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d51e9f596de227fda2ea6c84607f5558e196eeaf43c986b724ba4fb8fdf497e7"
-dependencies = [
- "rand_core 0.6.3",
-]
-
-[[package]]
 name = "rand_regex"
 version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b2a9fe2d7d9eeaf3279d1780452a5bbd26b31b27938787ef1c3e930d1e9cfbd"
 dependencies = [
- "rand 0.8.4",
+ "rand 0.8.5",
  "regex-syntax",
 ]
 
@@ -2594,7 +2584,7 @@ dependencies = [
  "indexmap",
  "pin-project",
  "pin-project-lite",
- "rand 0.8.4",
+ "rand 0.8.5",
  "slab",
  "tokio",
  "tokio-stream",
