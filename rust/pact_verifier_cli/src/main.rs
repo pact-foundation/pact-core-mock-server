@@ -334,6 +334,7 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
     disable_ssl_verification: matches.is_present("disable-ssl-verification"),
     request_timeout: matches.value_of("request-timeout")
       .map(|t| t.parse::<u64>().unwrap_or(5000)).unwrap_or(5000),
+    custom_headers: Default::default()
   };
 
   let publish_options = if matches.is_present("publish") {
@@ -364,7 +365,7 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
       test_framework: "pact_verifier_cli".to_string(),
       app_name: "pact_verifier_cli".to_string(),
       app_version: env!("CARGO_PKG_VERSION").to_string()
-    })
+    }),
   ).await
     .map_err(|err| {
       error!("Verification failed with error: {}", err);

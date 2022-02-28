@@ -562,6 +562,8 @@ pub struct VerificationOptions<F> where F: RequestFilterExecutor {
   pub disable_ssl_verification: bool,
   /// Timeout in ms for verification requests and state callbacks
   pub request_timeout: u64,
+  /// Custom headers to be added to the requests to the provider
+  pub custom_headers: HashMap<String, String>
 }
 
 impl <F: RequestFilterExecutor> Default for VerificationOptions<F> {
@@ -569,7 +571,8 @@ impl <F: RequestFilterExecutor> Default for VerificationOptions<F> {
     VerificationOptions {
       request_filter: None,
       disable_ssl_verification: false,
-      request_timeout: 5000
+      request_timeout: 5000,
+      custom_headers: Default::default()
     }
   }
 }

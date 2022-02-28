@@ -109,7 +109,7 @@ pub fn process_object(
     Value::Object(obj.iter()
       .filter(|(key, _)| !key.starts_with("pact:"))
       .map(|(key, val)| {
-      let mut item_path = path.join(key);
+      let item_path = path.join(key);
       (key.clone(), match val {
         Value::Object(ref map) => process_object(map, matching_rules, generators, item_path, false, skip_matchers),
         Value::Array(ref array) => process_array(array, matching_rules, generators, item_path, false, skip_matchers),
