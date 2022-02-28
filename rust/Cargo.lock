@@ -1535,6 +1535,7 @@ dependencies = [
  "clap",
  "expectest",
  "log",
+ "maplit",
  "pact_models 0.2.7",
  "pact_verifier",
  "regex",
