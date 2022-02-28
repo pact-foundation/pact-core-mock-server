@@ -1,9 +1,7 @@
 //! Handle interface to creating a verifier
 
-use std::collections::HashMap;
 use std::sync::Arc;
 use itertools::Itertools;
-use libc::clone;
 
 use log::debug;
 use pact_models::prelude::HttpAuth;
