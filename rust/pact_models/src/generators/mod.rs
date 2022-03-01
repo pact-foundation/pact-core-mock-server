@@ -33,6 +33,8 @@ use crate::path_exp::{DocPath, PathToken};
 use crate::time_utils::{parse_pattern, to_chrono_pattern};
 
 mod datetime_expressions;
+mod date_expression_parser;
+mod time_expression_parser;
 
 /// Trait to represent matching logic to find a matching variant for the Array Contains generator
 pub trait VariantMatcher: Debug {

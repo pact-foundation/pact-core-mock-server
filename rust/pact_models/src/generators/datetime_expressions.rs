@@ -57,16 +57,22 @@
 //! | 'last month @ last hour'                           | '1999-12-01T09:00Z' |
 
 use std::ops::{Add, Sub};
+
 use chrono::Duration;
 use chrono::prelude::*;
+use logos::{Lexer, Logos};
+
+use crate::generators::date_expression_parser::{DateExpressionToken, ParsedDateExpression};
 
 /// Enum representing the base for the date
-enum DateBase {
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum DateBase {
   NOW, TODAY, YESTERDAY, TOMORROW
 }
 
 /// Enum representing the base for the time
-enum TimeBase {
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum TimeBase {
   Now, Midnight, Noon,
   Am {  hour: u8 },
   Pm {  hour: u8 },
@@ -94,32 +100,33 @@ enum TimeBase {
 }
 
 /// Operation to apply to the base date
-enum Operation {
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum Operation {
   PLUS, MINUS
 }
 
 /// Offset type for dates
-enum DateOffsetType {
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum DateOffsetType {
   DAY, WEEK, MONTH, YEAR, MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY,
   SATURDAY, SUNDAY, JAN, FEB, MAR, APR, MAY, JUNE, JULY, AUG, SEP, OCT, NOV, DEC
 }
 
 /// Offset types for times
-enum TimeOffsetType {
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum TimeOffsetType {
   HOUR, MINUTE, SECOND, MILLISECOND
 }
 
 /// Struct to represent an adjustment to a base date-time
-struct Adjustment<T> {
-  adjustment_type: T,
-  value: u64,
-  operation: Operation
-}
-
-/// Struct storing the result of a parsed date expression
-struct ParsedDateExpression {
-  base: DateBase,
-  adjustments: Vec<Adjustment<DateOffsetType>>
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct Adjustment<T> {
+  /// The type of adjustmnent to make
+  pub adjustment_type: T,
+  /// The amount of the adjustment to make
+  pub value: u64,
+  /// If the adjustment is added or subtracted
+  pub operation: Operation
 }
 
 /// Struct storing the result of a parsed time expression
@@ -129,7 +136,8 @@ struct ParsedTimeExpression {
 }
 
 fn parse_date_expression(expression: &str) -> anyhow::Result<ParsedDateExpression> {
-  unimplemented!()
+  let mut lex = DateExpressionToken::lexer(expression);
+  crate::generators::date_expression_parser::expression(&mut lex, expression)
 }
 
 fn parse_time_expression(expression: &str) -> anyhow::Result<ParsedTimeExpression> {
