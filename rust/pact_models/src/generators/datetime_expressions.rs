@@ -57,12 +57,18 @@
 //! | 'last month @ last hour'                           | '1999-12-01T09:00Z' |
 
 use std::ops::{Add, Sub};
+use std::str::from_utf8;
 
+use anyhow::anyhow;
+use ariadne::{Config, Label, Report, ReportKind, Source};
+use bytes::{BytesMut, BufMut};
 use chrono::Duration;
 use chrono::prelude::*;
-use logos::{Lexer, Logos};
+use logos::{Lexer, Logos, Span};
+use logos_iter::LogosIter;
 
 use crate::generators::date_expression_parser::{DateExpressionToken, ParsedDateExpression};
+use crate::generators::time_expression_parser::{ParsedTimeExpression, TimeExpressionToken};
 
 /// Enum representing the base for the date
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -76,27 +82,26 @@ pub enum TimeBase {
   Now, Midnight, Noon,
   Am {  hour: u8 },
   Pm {  hour: u8 },
-  Next { hour: u8 },
+  Next { hour: u8 }
+}
 
-  // companion object {
-  // @JvmStatic
-  // fun of(hour: Int, ch: ClockHour): TimeBase {
-  // return when (ch) {
-  // ClockHour.AM -> when (hour) {
-  // in 1..12 -> Am(hour)
-  // else -> throw IllegalArgumentException("$hour is an invalid hour of the day")
-  // }
-  // ClockHour.PM -> when (hour) {
-  // in 1..12 -> Pm(hour)
-  // else -> throw IllegalArgumentException("$hour is an invalid hour of the day")
-  // }
-  // ClockHour.NEXT -> when (hour) {
-  // in 1..12 -> Next(hour)
-  // else -> throw IllegalArgumentException("$hour is an invalid hour of the day")
-  // }
-  // }
-  // }
-  // }
+impl TimeBase {
+  pub(crate) fn of(hour: u64, ch: ClockHour, exp: &str, span: Span) -> anyhow::Result<TimeBase> {
+    match ch {
+      ClockHour::AM => match hour {
+        1..=12 => Ok(TimeBase::Am { hour: hour as u8 }),
+        _ => Err(error(exp, "hour 1 to 12", Some(span)))
+      }
+      ClockHour::PM => match hour {
+        1..=12 => Ok(TimeBase::Pm { hour: hour as u8 }),
+        _ => Err(error(exp, "hour 1 to 12", Some(span)))
+      }
+      ClockHour::NEXT => match hour {
+        1..=12 => Ok(TimeBase::Next { hour: hour as u8 }),
+        _ => Err(error(exp, "hour 1 to 12", Some(span)))
+      }
+    }
+  }
 }
 
 /// Operation to apply to the base date
@@ -118,6 +123,12 @@ pub enum TimeOffsetType {
   HOUR, MINUTE, SECOND, MILLISECOND
 }
 
+/// AM, PM or the next available hour
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum ClockHour {
+  AM, PM, NEXT
+}
+
 /// Struct to represent an adjustment to a base date-time
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Adjustment<T> {
@@ -129,19 +140,14 @@ pub struct Adjustment<T> {
   pub operation: Operation
 }
 
-/// Struct storing the result of a parsed time expression
-struct ParsedTimeExpression {
-  base: TimeBase,
-  adjustments: Vec<Adjustment<TimeOffsetType>>
-}
-
 fn parse_date_expression(expression: &str) -> anyhow::Result<ParsedDateExpression> {
   let mut lex = DateExpressionToken::lexer(expression);
   crate::generators::date_expression_parser::expression(&mut lex, expression)
 }
 
 fn parse_time_expression(expression: &str) -> anyhow::Result<ParsedTimeExpression> {
-  unimplemented!()
+  let mut lex = TimeExpressionToken::lexer(expression).peekable_lexer();
+  crate::generators::time_expression_parser::expression(&mut lex, expression)
 }
 
 /// Parse the date part of an expression. This will parse the expression, and then apply the
@@ -160,6 +166,66 @@ pub fn execute_date_expression<Tz: TimeZone>(dt: &DateTime<Tz>, expression: &str
       }
       date
     })
+  }
+}
+
+/// Parse the time part of an expression
+pub fn execute_time_expression<Tz: TimeZone>(dt: &DateTime<Tz>, expression: &str) -> anyhow::Result<DateTime<Tz>> {
+  if expression.is_empty() {
+    Ok(dt.clone())
+  } else {
+    parse_time_expression(expression).map(|result| {
+      let time = dt.with_minute(0)
+        .map(|t| t.with_second(0))
+        .flatten()
+        .map(|t| t.with_nanosecond(0))
+        .flatten()
+        .unwrap_or(dt.clone());
+      let base_time = match result.base {
+        TimeBase::Now => dt,
+        TimeBase::Midnight => time.with_hour(0).unwrap_or(dt.clone()),
+        TimeBase::Noon => time.with_hour(12).unwrap_or(dt.clone()),
+        TimeBase::Am { hour } => time.with_hour(hour as u32).unwrap_or(dt.clone()),
+        TimeBase::Pm { hour } => time.with_hour((12 + hour) as u32).unwrap_or(dt.clone()),
+        TimeBase::Next { hour } => if dt.hour() >= 12 {
+          time.with_hour((12 + hour) as u32).unwrap_or(dt.clone())
+        } else {
+          time.with_hour(hour as u32).unwrap_or(dt.clone())
+        }
+      };
+
+      //           result.value.adjustments.forEach {
+      //             when (it.operation) {
+      //               Operation.PLUS -> {
+      //                 time = when (it.type) {
+      //                   TimeOffsetType.HOUR -> time.plusHours(it.value.toLong())
+      //                   TimeOffsetType.MINUTE -> time.plusMinutes(it.value.toLong())
+      //                   TimeOffsetType.SECOND -> time.plusSeconds(it.value.toLong())
+      //                   TimeOffsetType.MILLISECOND -> time.plus(it.value.toLong(), ChronoUnit.MILLIS)
+      //                 }
+      //               }
+      //               Operation.MINUS -> {
+      //                 time = when (it.type) {
+      //                   TimeOffsetType.HOUR -> time.minusHours(it.value.toLong())
+      //                   TimeOffsetType.MINUTE -> time.minusMinutes(it.value.toLong())
+      //                   TimeOffsetType.SECOND -> time.minusSeconds(it.value.toLong())
+      //                   TimeOffsetType.MILLISECOND -> time.minus(it.value.toLong(), ChronoUnit.MILLIS)
+      //                 }
+      //               }
+      //             }
+      //           }
+
+      base_time.clone()
+    })
+  }
+}
+
+/// Parse a date-time expression, given a base date-time
+pub fn execute_datetime_expression<Tz: TimeZone>(dt: &DateTime<Tz>, expression: &str) -> anyhow::Result<DateTime<Tz>> {
+  if expression.is_empty() {
+    Ok(dt.clone())
+  } else {
+    Ok(dt.clone())
   }
 }
 
@@ -305,22 +371,23 @@ fn base_date<Tz: TimeZone>(result: &ParsedDateExpression, base: &DateTime<Tz>) -
   }
 }
 
-/// Parse the time part of an expression
-pub fn execute_time_expression<Tz: TimeZone>(dt: &DateTime<Tz>, expression: &str) -> anyhow::Result<DateTime<Tz>> {
-  if expression.is_empty() {
-    Ok(dt.clone())
-  } else {
-    Ok(dt.clone())
-  }
-}
-
-/// Parse a date-time expression, given a base date-time
-pub fn execute_datetime_expression<Tz: TimeZone>(dt: &DateTime<Tz>, expression: &str) -> anyhow::Result<DateTime<Tz>> {
-  if expression.is_empty() {
-    Ok(dt.clone())
-  } else {
-    Ok(dt.clone())
-  }
+pub(crate) fn error(exp: &str, expected: &str, span: Option<Span>) -> anyhow::Error {
+  let mut buffer = BytesMut::new().writer();
+  let span = match span {
+    None => {
+      let i = exp.len();
+      i..i
+    }
+    Some(span) => span
+  };
+  let report = Report::build(ReportKind::Error, "expression", span.start)
+    .with_config(Config::default().with_color(false))
+    .with_message(format!("Expected {}", expected))
+    .with_label(Label::new(("expression", span)).with_message(format!("Expected {} here", expected)))
+    .finish();
+  report.write(("expression", Source::from(exp)), &mut buffer).unwrap();
+  let message = from_utf8(&*buffer.get_ref()).unwrap().to_string();
+  anyhow!(message)
 }
 
 #[cfg(test)]
@@ -359,30 +426,26 @@ mod tests {
   }
 
   #[rstest]
-  //     expression,            expected
-  #[case("",                    "value")]
-  #[case("now",                 "value")]
-  #[case("today",               "value")]
-  #[case("yesterday",           "100")]
-  #[case("tomorrow",            "100")]
-  #[case("+ 1 day",             "100")]
-  #[case("+ 1 week",            "100")]
-  #[case("- 2 weeks",           "value")]
-  #[case("+ 4 years",           "value")]
-  #[case("tomorrow+ 4 years",   "value")]
-  #[case("next week",           "100")]
-  #[case("last month",          "100")]
-  #[case("next fortnight",      "100")]
-  #[case("next monday",         "value")]
-  #[case("last wednesday",      "value")]
-  #[case("next mon",            "value")]
-  #[case("last december",       "100")]
-  #[case("next jan",            "100")]
-  #[case("next june + 2 weeks", "100")]
-  #[case("last mon + 2 weeks",  "100")]
+  //     expression,                  expected
+  #[case("",                          "10:00:00")]
+  #[case("now",                       "10:00:00")]
+  #[case("midnight",                  "00:00:00")]
+  #[case("noon",                      "12:00:00")]
+  #[case("1 o'clock",                 "13:00:00")]
+  #[case("1 o'clock am",              "01:00:00")]
+  #[case("1 o'clock pm",              "13:00:00")]
+  #[case("+ 1 hour",                  "11:00:00")]
+  #[case("- 2 minutes",               "09:58:00")]
+  #[case("+ 4 seconds",               "10:00:04")]
+  #[case("+ 4 milliseconds",          "10:00:00.004")]
+  #[case("midnight+ 4 minutes",       "00:04:00")]
+  #[case("next hour",                 "11:00:00")]
+  #[case("last minute",               "09:59:00")]
+  #[case("now + 2 hours - 4 minutes", "11:56:00")]
+  #[case(" + 2 hours - 4 minutes",    "11:56:00")]
   fn time_expressions(#[case] expression: &str, #[case] expected: &str) {
     let dt = Utc.ymd(2000, 1, 1).and_hms(10, 0, 0);
-    expect!(execute_time_expression(&dt, expression).unwrap().to_rfc2822()).to(be_equal_to(expected));
+    expect!(execute_time_expression(&dt, expression).unwrap().time().to_string()).to(be_equal_to(expected));
   }
 
   #[rstest]

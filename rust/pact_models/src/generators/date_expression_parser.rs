@@ -7,7 +7,7 @@ use ariadne::{Config, Label, Report, ReportKind, Source};
 use bytes::{BufMut, BytesMut};
 use logos::{Lexer, Logos, Span};
 
-use crate::generators::datetime_expressions::{Adjustment, Operation};
+use crate::generators::datetime_expressions::{Adjustment, error, Operation};
 use crate::generators::datetime_expressions::DateBase;
 use crate::generators::datetime_expressions::DateOffsetType;
 
@@ -397,25 +397,6 @@ fn offset(lex: &mut Lexer<DateExpressionToken>, exp: &str) -> anyhow::Result<(Da
   } else {
     Err(error(exp, "an offset type (month, week, tuesday, february, etc.)", Some(lex.span())))
   }
-}
-
-fn error(exp: &str, expected: &str, span: Option<Span>) -> anyhow::Error {
-  let mut buffer = BytesMut::new().writer();
-  let span = match span {
-    None => {
-      let i = exp.len();
-      i..i
-    }
-    Some(span) => span
-  };
-  let report = Report::build(ReportKind::Error, "expression", span.start)
-    .with_config(Config::default().with_color(false))
-    .with_message(format!("Expected {}", expected))
-    .with_label(Label::new(("expression", span)).with_message(format!("Expected {} here", expected)))
-    .finish();
-  report.write(("expression", Source::from(exp)), &mut buffer).unwrap();
-  let message = from_utf8(&*buffer.get_ref()).unwrap().to_string();
-  anyhow!(message)
 }
 
 #[cfg(test)]
