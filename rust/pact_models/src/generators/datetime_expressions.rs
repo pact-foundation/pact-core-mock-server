@@ -64,7 +64,7 @@ use ariadne::{Config, Label, Report, ReportKind, Source};
 use bytes::{BytesMut, BufMut};
 use chrono::Duration;
 use chrono::prelude::*;
-use logos::{Lexer, Logos, Span};
+use logos::{Logos, Span};
 use logos_iter::LogosIter;
 
 use crate::generators::date_expression_parser::{DateExpressionToken, ParsedDateExpression};
@@ -246,7 +246,7 @@ fn forward_date_by<Tz: TimeZone>(adjustment: &Adjustment<DateOffsetType>, date: 
     DateOffsetType::WEEK => date.clone().add(Duration::weeks(adjustment.value as i64)),
     DateOffsetType::MONTH => roll_month(date, adjustment.value as i64),
     DateOffsetType::YEAR => {
-      let mut date = date.clone();
+      let date = date.clone();
       let year = date.year();
       date.with_year(year + adjustment.value as i32).unwrap_or(date)
     },
@@ -348,7 +348,7 @@ fn reverse_date_by<Tz: TimeZone>(adjustment: &Adjustment<DateOffsetType>, date: 
     DateOffsetType::WEEK => date.clone().sub(Duration::weeks(adjustment.value as i64)),
     DateOffsetType::MONTH => roll_month(date, -(adjustment.value as i64)),
     DateOffsetType::YEAR => {
-      let mut date = date.clone();
+      let date = date.clone();
       let year = date.year();
       date.with_year(year - adjustment.value as i32).unwrap_or(date)
     },

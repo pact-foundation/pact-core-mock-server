@@ -1,11 +1,6 @@
 //! Parser for the time portion of a date-time expression
 
-use std::str::from_utf8;
-
-use anyhow::anyhow;
-use ariadne::{Config, Label, Report, ReportKind, Source};
-use bytes::{BufMut, BytesMut};
-use logos::{Lexer, Logos, Span};
+use logos::{Lexer, Logos};
 use logos_iter::{LogosIter, PeekableLexer};
 
 use crate::generators::datetime_expressions::{Adjustment, ClockHour, error, Operation, TimeBase, TimeOffsetType};
@@ -189,7 +184,7 @@ pub(crate) fn expression<'a>(lex: &'a mut PeekableLexer<'a, Lexer<'a, TimeExpres
 //     | INT oclock { $t = TimeBase.of($INT.int, $oclock.h); }
 //     ;
 fn base<'a>(
-  mut lex: PeekableLexer<'a, Lexer<'a, TimeExpressionToken>, TimeExpressionToken>,
+  lex: PeekableLexer<'a, Lexer<'a, TimeExpressionToken>, TimeExpressionToken>,
   exp: &str,
   token: TimeExpressionToken
 ) -> anyhow::Result<(TimeBase, PeekableLexer<'a, Lexer<'a, TimeExpressionToken>, TimeExpressionToken>)> {
@@ -199,7 +194,7 @@ fn base<'a>(
     TimeExpressionToken::Noon => Ok((TimeBase::Noon, lex.clone())),
     TimeExpressionToken::Digits(d) => {
       let span = lex.span().clone();
-      let mut lex = lex.clone();
+      let lex = lex.clone();
       let (hour, lex) = oclock(lex, exp)?;
       TimeBase::of(d, hour, exp, span).map(|t| (t, lex.clone()))
     }
@@ -260,7 +255,7 @@ fn adjustments<'a>(
 }
 
 fn adjustment<'a>(
-  mut lex: PeekableLexer<'a, Lexer<'a, TimeExpressionToken>, TimeExpressionToken>,
+  lex: PeekableLexer<'a, Lexer<'a, TimeExpressionToken>, TimeExpressionToken>,
   exp: &str,
   token: TimeExpressionToken
 ) -> anyhow::Result<(Adjustment<TimeOffsetType>, PeekableLexer<'a, Lexer<'a, TimeExpressionToken>, TimeExpressionToken>)> {
@@ -316,7 +311,7 @@ fn duration_type<'a>(
 //     | '-' { $o = Operation.MINUS; }
 //     ;
 fn operation<'a>(
-  mut lex: PeekableLexer<'a, Lexer<'a, TimeExpressionToken>, TimeExpressionToken>,
+  lex: PeekableLexer<'a, Lexer<'a, TimeExpressionToken>, TimeExpressionToken>,
   exp: &str,
   token: TimeExpressionToken
 ) -> anyhow::Result<(Operation, PeekableLexer<'a, Lexer<'a, TimeExpressionToken>, TimeExpressionToken>)> {
@@ -353,10 +348,10 @@ fn offset<'a>(
 mod tests {
   use expectest::prelude::*;
   use logos::Logos;
-  use logos_iter::{LogosIter, PeekableLexer};
+  use logos_iter::LogosIter;
   use trim_margin::MarginTrimmable;
 
-  use crate::generators::datetime_expressions::{Adjustment, DateBase, DateOffsetType, Operation, TimeBase, TimeOffsetType};
+  use crate::generators::datetime_expressions::{Adjustment, Operation, TimeBase, TimeOffsetType};
   use crate::generators::time_expression_parser::ParsedTimeExpression;
 
   macro_rules! as_string {

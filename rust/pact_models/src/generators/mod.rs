@@ -10,7 +10,7 @@ use std::ops::Index;
 use std::str::FromStr;
 
 use anyhow::anyhow;
-use chrono::Local;
+use chrono::{DateTime, Local};
 #[cfg(test)] use expectest::prelude::*;
 use indextree::{Arena, NodeId};
 use itertools::Itertools;
@@ -26,6 +26,7 @@ use uuid::Uuid;
 
 use crate::bodies::OptionalBody;
 use crate::expression_parser::{contains_expressions, DataType, DataValue, MapValueResolver, parse_expression};
+use crate::generators::datetime_expressions::{execute_date_expression, execute_datetime_expression, execute_time_expression};
 use crate::json_utils::{get_field_as_string, json_to_string, JsonToNum};
 use crate::matchingrules::{Category, MatchingRuleCategory};
 use crate::PactSpecification;
@@ -132,11 +133,11 @@ pub enum Generator {
   /// Generates a random string that matches the provided regex
   Regex(String),
   /// Generates a random date that matches either the provided format or the ISO format
-  Date(Option<String>),
+  Date(Option<String>, Option<String>),
   /// Generates a random time that matches either the provided format or the ISO format
-  Time(Option<String>),
+  Time(Option<String>, Option<String>),
   /// Generates a random timestamp that matches either the provided format or the ISO format
-  DateTime(Option<String>),
+  DateTime(Option<String>, Option<String>),
   /// Generates a random boolean value
   RandomBoolean,
   /// Generates a value that is looked up from the provider state context
@@ -161,17 +162,29 @@ impl Generator {
       Generator::RandomHexadecimal(digits) => Some(json!({ "type": "RandomHexadecimal", "digits": digits })),
       Generator::RandomString(size) => Some(json!({ "type": "RandomString", "size": size })),
       Generator::Regex(ref regex) => Some(json!({ "type": "Regex", "regex": regex })),
-      Generator::Date(ref format) => match format {
-        Some(ref format) => Some(json!({ "type": "Date", "format": format })),
-        None => Some(json!({ "type": "Date" }))
+      Generator::Date(format, exp) => {
+        match (format, exp) {
+          (Some(format), Some(exp)) => Some(json!({ "type": "Date", "format": format, "expression": exp })),
+          (Some(format), None) => Some(json!({ "type": "Date", "format": format })),
+          (None, Some(exp)) => Some(json!({ "type": "Date", "expression": exp })),
+          (None, None) => Some(json!({ "type": "Date" }))
+        }
       },
-      Generator::Time(ref format) => match format {
-        Some(ref format) => Some(json!({ "type": "Time", "format": format })),
-        None => Some(json!({ "type": "Time" }))
+      Generator::Time(format, exp) => {
+        match (format, exp) {
+          (Some(format), Some(exp)) => Some(json!({ "type": "Time", "format": format, "expression": exp })),
+          (Some(format), None) => Some(json!({ "type": "Time", "format": format })),
+          (None, Some(exp)) => Some(json!({ "type": "Time", "expression": exp })),
+          (None, None) => Some(json!({ "type": "Time" }))
+        }
       },
-      Generator::DateTime(ref format) => match format {
-        Some(ref format) => Some(json!({ "type": "DateTime", "format": format })),
-        None => Some(json!({ "type": "DateTime" }))
+      Generator::DateTime(format, exp) => {
+        match (format, exp) {
+          (Some(format), Some(exp)) => Some(json!({ "type": "DateTime", "format": format, "expression": exp })),
+          (Some(format), None) => Some(json!({ "type": "DateTime", "format": format })),
+          (None, Some(exp)) => Some(json!({ "type": "DateTime", "expression": exp })),
+          (None, None) => Some(json!({ "type": "DateTime" }))
+        }
       },
       Generator::RandomBoolean => Some(json!({ "type": "RandomBoolean" })),
       Generator::ProviderStateGenerator(ref expression, ref data_type) => {
@@ -203,9 +216,9 @@ impl Generator {
       "RandomHexadecimal" => Some(Generator::RandomHexadecimal(<u16>::json_to_number(map, "digits", 10))),
       "RandomString" => Some(Generator::RandomString(<u16>::json_to_number(map, "size", 10))),
       "Regex" => map.get("regex").map(|val| Generator::Regex(json_to_string(val))),
-      "Date" => Some(Generator::Date(get_field_as_string("format", map))),
-      "Time" => Some(Generator::Time(get_field_as_string("format", map))),
-      "DateTime" => Some(Generator::DateTime(get_field_as_string("format", map))),
+      "Date" => Some(Generator::Date(get_field_as_string("format", map), get_field_as_string("expression", map))),
+      "Time" => Some(Generator::Time(get_field_as_string("format", map), get_field_as_string("expression", map))),
+      "DateTime" => Some(Generator::DateTime(get_field_as_string("format", map), get_field_as_string("expression", map))),
       "RandomBoolean" => Some(Generator::RandomBoolean),
       "ProviderState" => map.get("expression").map(|f|
         Generator::ProviderStateGenerator(json_to_string(f), map.get("dataType")
@@ -237,9 +250,9 @@ impl Generator {
       Generator::RandomHexadecimal(_) => "RandomHexadecimal",
       Generator::RandomString(_) => "RandomString",
       Generator::Regex(_) => "Regex",
-      Generator::Date(_) => "Date",
-      Generator::Time(_) => "Time",
-      Generator::DateTime(_) => "DateTime",
+      Generator::Date(_, _) => "Date",
+      Generator::Time(_, _) => "Time",
+      Generator::DateTime(_, _) => "DateTime",
       Generator::RandomBoolean => "RandomBoolean",
       Generator::ProviderStateGenerator(_, _) => "ProviderStateGenerator",
       Generator::MockServerURL(_, _) => "MockServerURL",
@@ -261,20 +274,29 @@ impl Generator {
       Generator::RandomHexadecimal(digits) => hashmap!{ "digits" => json!(digits) },
       Generator::RandomString(digits) => hashmap!{ "digits" => json!(digits) },
       Generator::Regex(r) => hashmap!{ "regex" => json!(r) },
-      Generator::Date(format) => if let Some(format) = format {
-        hashmap!{ "format" => Value::String(format.clone()) }
-      } else {
-        empty
+      Generator::Date(format, exp) => {
+        match (format, exp) {
+          (Some(format), Some(exp)) => hashmap!{ "format" => Value::String(format.clone()), "expression" => Value::String(exp.clone()) },
+          (Some(format), None) => hashmap!{ "format" => Value::String(format.clone()) },
+          (None, Some(exp)) => hashmap!{ "expression" => Value::String(exp.clone()) },
+          (None, None) => empty
+        }
       }
-      Generator::Time(format) => if let Some(format) = format {
-        hashmap!{ "format" => Value::String(format.clone()) }
-      } else {
-        empty
+      Generator::Time(format, exp) => {
+        match (format, exp) {
+          (Some(format), Some(exp)) => hashmap!{ "format" => Value::String(format.clone()), "expression" => Value::String(exp.clone()) },
+          (Some(format), None) => hashmap!{ "format" => Value::String(format.clone()) },
+          (None, Some(exp)) => hashmap!{ "expression" => Value::String(exp.clone()) },
+          (None, None) => empty
+        }
       }
-      Generator::DateTime(format) => if let Some(format) = format {
-        hashmap!{ "format" => Value::String(format.clone()) }
-      } else {
-        empty
+      Generator::DateTime(format, exp) => {
+        match (format, exp) {
+          (Some(format), Some(exp)) => hashmap!{ "format" => Value::String(format.clone()), "expression" => Value::String(exp.clone()) },
+          (Some(format), None) => hashmap!{ "format" => Value::String(format.clone()) },
+          (None, Some(exp)) => hashmap!{ "expression" => Value::String(exp.clone()) },
+          (None, None) => empty
+        }
       }
       Generator::RandomBoolean => empty,
       Generator::ProviderStateGenerator(exp, data_type) => if let Some(data_type) = data_type {
@@ -314,9 +336,18 @@ impl Hash for Generator {
       Generator::RandomHexadecimal(digits) => digits.hash(state),
       Generator::RandomString(size) => size.hash(state),
       Generator::Regex(re) => re.hash(state),
-      Generator::DateTime(format) => format.hash(state),
-      Generator::Time(format) => format.hash(state),
-      Generator::Date(format) => format.hash(state),
+      Generator::DateTime(format, exp) => {
+        format.hash(state);
+        exp.hash(state);
+      },
+      Generator::Time(format, exp) => {
+        format.hash(state);
+        exp.hash(state);
+      },
+      Generator::Date(format, exp) => {
+        format.hash(state);
+        exp.hash(state);
+      },
       Generator::ProviderStateGenerator(str, datatype) => {
         str.hash(state);
         datatype.hash(state);
@@ -349,9 +380,9 @@ impl PartialEq for Generator {
       (Generator::RandomHexadecimal(digits1), Generator::RandomHexadecimal(digits2)) => digits1 == digits2,
       (Generator::RandomString(size1), Generator::RandomString(size2)) => size1 == size2,
       (Generator::Regex(re1), Generator::Regex(re2)) => re1 == re2,
-      (Generator::DateTime(format1), Generator::DateTime(format2)) => format1 == format2,
-      (Generator::Time(format1), Generator::Time(format2)) => format1 == format2,
-      (Generator::Date(format1), Generator::Date(format2)) => format1 == format2,
+      (Generator::DateTime(format1, exp1), Generator::DateTime(format2, exp2)) => format1 == format2 && exp1 == exp2,
+      (Generator::Time(format1, exp1), Generator::Time(format2, exp2)) => format1 == format2 && exp1 == exp2,
+      (Generator::Date(format1, exp1), Generator::Date(format2, exp2)) => format1 == format2 && exp1 == exp2,
       (Generator::ProviderStateGenerator(str1, data1), Generator::ProviderStateGenerator(str2, data2)) => str1 == str2 && data1 == data2,
       (Generator::MockServerURL(ex1, re1), Generator::MockServerURL(ex2, re2)) => ex1 == ex2 && re1 == re2,
       (Generator::ArrayContains(variants1), Generator::ArrayContains(variants2)) => variants1 == variants2,
@@ -421,29 +452,44 @@ fn hash_and_partial_eq_for_matching_rule() {
   expect!(h(&regex1)).to_not(be_equal_to(h(&regex2)));
   expect!(&regex1).to_not(be_equal_to(&regex2));
 
-  let datetime1 = Generator::DateTime(Some("yyyy-MM-dd HH:mm:ss".into()));
-  let datetime2 = Generator::DateTime(Some("yyyy-MM-ddTHH:mm:ss".into()));
+  let datetime1 = Generator::DateTime(Some("yyyy-MM-dd HH:mm:ss".into()), None);
+  let datetime2 = Generator::DateTime(Some("yyyy-MM-ddTHH:mm:ss".into()), None);
+  let datetime3 = Generator::DateTime(Some("yyyy-MM-ddTHH:mm:ss".into()), Some("today".into()));
 
   expect!(h(&datetime1)).to(be_equal_to(h(&datetime1)));
   expect!(&datetime1).to(be_equal_to(&datetime1));
   expect!(h(&datetime1)).to_not(be_equal_to(h(&datetime2)));
   expect!(&datetime1).to_not(be_equal_to(&datetime2));
+  expect!(h(&datetime1)).to_not(be_equal_to(h(&datetime3)));
+  expect!(&datetime1).to_not(be_equal_to(&datetime3));
+  expect!(h(&datetime3)).to(be_equal_to(h(&datetime3)));
+  expect!(&datetime3).to(be_equal_to(&datetime3));
 
-  let date1 = Generator::Date(Some("yyyy-MM-dd".into()));
-  let date2 = Generator::Date(Some("yy-MM-dd".into()));
+  let date1 = Generator::Date(Some("yyyy-MM-dd".into()), None);
+  let date2 = Generator::Date(Some("yy-MM-dd".into()), None);
+  let date3 = Generator::Date(Some("yy-MM-dd".into()), Some("today".into()));
 
   expect!(h(&date1)).to(be_equal_to(h(&date1)));
   expect!(&date1).to(be_equal_to(&date1));
   expect!(h(&date1)).to_not(be_equal_to(h(&date2)));
   expect!(&date1).to_not(be_equal_to(&date2));
+  expect!(h(&date1)).to_not(be_equal_to(h(&date3)));
+  expect!(&date1).to_not(be_equal_to(&date3));
+  expect!(h(&date3)).to(be_equal_to(h(&date3)));
+  expect!(&date3).to(be_equal_to(&date3));
 
-  let time1 = Generator::Time(Some("HH:mm:ss".into()));
-  let time2 = Generator::Time(Some("hh:mm:ss".into()));
+  let time1 = Generator::Time(Some("HH:mm:ss".into()), None);
+  let time2 = Generator::Time(Some("hh:mm:ss".into()), None);
+  let time3 = Generator::Time(Some("hh:mm:ss".into()), Some("now".into()));
 
   expect!(h(&time1)).to(be_equal_to(h(&time1)));
   expect!(&time1).to(be_equal_to(&time1));
   expect!(h(&time1)).to_not(be_equal_to(h(&time2)));
   expect!(&time1).to_not(be_equal_to(&time2));
+  expect!(h(&time1)).to_not(be_equal_to(h(&time3)));
+  expect!(&time1).to_not(be_equal_to(&time3));
+  expect!(h(&time3)).to(be_equal_to(h(&time3)));
+  expect!(&time3).to(be_equal_to(&time3));
 
   let psg1 = Generator::ProviderStateGenerator("string one".into(), Some(DataType::BOOLEAN));
   let psg2 = Generator::ProviderStateGenerator("string two".into(), None);
@@ -1056,35 +1102,56 @@ impl GenerateValue<String> for Generator {
           }
         }
       },
-      Generator::Date(ref format) => match format {
-        Some(pattern) => match parse_pattern(pattern) {
-          Ok(tokens) => Ok(Local::now().date().format(&to_chrono_pattern(&tokens)).to_string()),
-          Err(err) => {
-            warn!("Date format {} is not valid - {}", pattern, err);
-            Err(anyhow!("Date format {} is not valid - {}", pattern, err))
-          }
-        },
-        None => Ok(Local::now().naive_local().date().to_string())
+      Generator::Date(ref format, exp) => {
+        let base = match context.get("baseDate") {
+          None => Local::now(),
+          Some(d) => json_to_string(d).parse::<DateTime<Local>>()?
+        };
+        let date = execute_date_expression(&base, exp.clone().unwrap_or_default().as_str())?;
+        match format {
+          Some(pattern) => match parse_pattern(pattern) {
+            Ok(tokens) => Ok(date.date().format(&to_chrono_pattern(&tokens)).to_string()),
+            Err(err) => {
+              warn!("Date format {} is not valid - {}", pattern, err);
+              Err(anyhow!("Date format {} is not valid - {}", pattern, err))
+            }
+          },
+          None => Ok(date.naive_local().date().to_string())
+        }
       },
-      Generator::Time(ref format) => match format {
-        Some(pattern) => match parse_pattern(pattern) {
-          Ok(tokens) => Ok(Local::now().format(&to_chrono_pattern(&tokens)).to_string()),
-          Err(err) => {
-            warn!("Time format {} is not valid - {}", pattern, err);
-            Err(anyhow!("Time format {} is not valid - {}", pattern, err))
-          }
-        },
-        None => Ok(Local::now().time().format("%H:%M:%S").to_string())
+      Generator::Time(ref format, exp) => {
+        let base = match context.get("baseTime") {
+          None => Local::now(),
+          Some(d) => json_to_string(d).parse::<DateTime<Local>>()?
+        };
+        let time = execute_time_expression(&base, exp.clone().unwrap_or_default().as_str())?;
+        match format {
+          Some(pattern) => match parse_pattern(pattern) {
+            Ok(tokens) => Ok(time.format(&to_chrono_pattern(&tokens)).to_string()),
+            Err(err) => {
+              warn!("Time format {} is not valid - {}", pattern, err);
+              Err(anyhow!("Time format {} is not valid - {}", pattern, err))
+            }
+          },
+          None => Ok(time.time().format("%H:%M:%S").to_string())
+        }
       },
-      Generator::DateTime(ref format) => match format {
-        Some(pattern) => match parse_pattern(pattern) {
-          Ok(tokens) => Ok(Local::now().format(&to_chrono_pattern(&tokens)).to_string()),
-          Err(err) => {
-            warn!("DateTime format {} is not valid - {}", pattern, err);
-            Err(anyhow!("DateTime format {} is not valid - {}", pattern, err))
-          }
-        },
-        None => Ok(Local::now().format("%Y-%m-%dT%H:%M:%S.%3f%z").to_string())
+      Generator::DateTime(ref format, exp) => {
+        let base = match context.get("baseDateTime") {
+          None => Local::now(),
+          Some(d) => json_to_string(d).parse::<DateTime<Local>>()?
+        };
+        let date_time = execute_datetime_expression(&base, exp.clone().unwrap_or_default().as_str())?;
+        match format {
+          Some(pattern) => match parse_pattern(pattern) {
+            Ok(tokens) => Ok(date_time.format(&to_chrono_pattern(&tokens)).to_string()),
+            Err(err) => {
+              warn!("DateTime format {} is not valid - {}", pattern, err);
+              Err(anyhow!("DateTime format {} is not valid - {}", pattern, err))
+            }
+          },
+          None => Ok(date_time.format("%Y-%m-%dT%H:%M:%S.%3f%z").to_string())
+        }
       },
       Generator::RandomBoolean => Ok(format!("{}", rnd.gen::<bool>())),
       Generator::ProviderStateGenerator(ref exp, ref dt) =>
@@ -1179,35 +1246,56 @@ impl GenerateValue<Value> for Generator {
           }
         }
       },
-      Generator::Date(ref format) => match format {
-        Some(pattern) => match parse_pattern(pattern) {
-          Ok(tokens) => Ok(json!(Local::now().date().format(&to_chrono_pattern(&tokens)).to_string())),
-          Err(err) => {
-            warn!("Date format {} is not valid - {}", pattern, err);
-            Err(anyhow!("Could not generate a random date from {} - {}", pattern, err))
-          }
-        },
-        None => Ok(json!(Local::now().naive_local().date().to_string()))
+      Generator::Date(ref format, exp) => {
+        let base = match context.get("baseDate") {
+          None => Local::now(),
+          Some(d) => json_to_string(d).parse::<DateTime<Local>>()?
+        };
+        let date = execute_date_expression(&base, exp.clone().unwrap_or_default().as_str())?;
+        match format {
+          Some(pattern) => match parse_pattern(pattern) {
+            Ok(tokens) => Ok(json!(date.date().format(&to_chrono_pattern(&tokens)).to_string())),
+            Err(err) => {
+              warn!("Date format {} is not valid - {}", pattern, err);
+              Err(anyhow!("Could not generate a random date from {} - {}", pattern, err))
+            }
+          },
+          None => Ok(json!(date.naive_local().date().to_string()))
+        }
       },
-      Generator::Time(ref format) => match format {
-        Some(pattern) => match parse_pattern(pattern) {
-          Ok(tokens) => Ok(json!(Local::now().format(&to_chrono_pattern(&tokens)).to_string())),
-          Err(err) => {
-            warn!("Time format {} is not valid - {}", pattern, err);
-            Err(anyhow!("Could not generate a random time from {} - {}", pattern, err))
-          }
-        },
-        None => Ok(json!(Local::now().time().format("%H:%M:%S").to_string()))
+      Generator::Time(ref format, exp) => {
+        let base = match context.get("baseTime") {
+          None => Local::now(),
+          Some(d) => json_to_string(d).parse::<DateTime<Local>>()?
+        };
+        let time = execute_time_expression(&base, exp.clone().unwrap_or_default().as_str())?;
+        match format {
+          Some(pattern) => match parse_pattern(pattern) {
+            Ok(tokens) => Ok(json!(time.format(&to_chrono_pattern(&tokens)).to_string())),
+            Err(err) => {
+              warn!("Time format {} is not valid - {}", pattern, err);
+              Err(anyhow!("Could not generate a random time from {} - {}", pattern, err))
+            }
+          },
+          None => Ok(json!(time.time().format("%H:%M:%S").to_string()))
+        }
       },
-      Generator::DateTime(ref format) => match format {
-        Some(pattern) => match parse_pattern(pattern) {
-          Ok(tokens) => Ok(json!(Local::now().format(&to_chrono_pattern(&tokens)).to_string())),
-          Err(err) => {
-            warn!("DateTime format {} is not valid - {}", pattern, err);
-            Err(anyhow!("Could not generate a random date-time from {} - {}", pattern, err))
-          }
-        },
-        None => Ok(json!(Local::now().format("%Y-%m-%dT%H:%M:%S.%3f%z").to_string()))
+      Generator::DateTime(ref format, exp) => {
+        let base = match context.get("baseDateTime") {
+          None => Local::now(),
+          Some(d) => json_to_string(d).parse::<DateTime<Local>>()?
+        };
+        let date_time = execute_datetime_expression(&base, exp.clone().unwrap_or_default().as_str())?;
+        match format {
+          Some(pattern) => match parse_pattern(pattern) {
+            Ok(tokens) => Ok(json!(date_time.format(&to_chrono_pattern(&tokens)).to_string())),
+            Err(err) => {
+              warn!("DateTime format {} is not valid - {}", pattern, err);
+              Err(anyhow!("Could not generate a random date-time from {} - {}", pattern, err))
+            }
+          },
+          None => Ok(json!(date_time.format("%Y-%m-%dT%H:%M:%S.%3f%z").to_string()))
+        }
       },
       Generator::RandomBoolean => Ok(json!(rand::thread_rng().gen::<bool>())),
       Generator::ProviderStateGenerator(ref exp, ref dt) =>
@@ -1395,7 +1483,9 @@ impl ContentTypeHandler<Value> for JsonHandler {
 
 #[cfg(test)]
 mod tests {
+  use std::ops::Add;
   use std::str::FromStr;
+  use chrono::Duration;
 
   use expectest::expect;
   use expectest::prelude::*;
@@ -1516,26 +1606,29 @@ mod tests {
 
   #[test]
   fn date_generator_from_json_test() {
-    expect!(Generator::from_map("Date", &serde_json::Map::new())).to(be_some().value(Generator::Date(None)));
-    expect!(Generator::from_map("Date", &json!({ "min": 5 }).as_object().unwrap())).to(be_some().value(Generator::Date(None)));
-    expect!(Generator::from_map("Date", &json!({ "format": "yyyy-MM-dd" }).as_object().unwrap())).to(be_some().value(Generator::Date(Some("yyyy-MM-dd".to_string()))));
-    expect!(Generator::from_map("Date", &json!({ "format": 5 }).as_object().unwrap())).to(be_some().value(Generator::Date(Some("5".to_string()))));
+    expect!(Generator::from_map("Date", &serde_json::Map::new())).to(be_some().value(Generator::Date(None, None)));
+    expect!(Generator::from_map("Date", &json!({ "min": 5 }).as_object().unwrap())).to(be_some().value(Generator::Date(None, None)));
+    expect!(Generator::from_map("Date", &json!({ "format": "yyyy-MM-dd" }).as_object().unwrap())).to(be_some().value(Generator::Date(Some("yyyy-MM-dd".to_string()), None)));
+    expect!(Generator::from_map("Date", &json!({ "format": 5 }).as_object().unwrap())).to(be_some().value(Generator::Date(Some("5".to_string()), None)));
+    expect!(Generator::from_map("Date", &json!({ "expression": "now" }).as_object().unwrap())).to(be_some().value(Generator::Date(None, Some("now".to_string()))));
   }
 
   #[test]
   fn time_generator_from_json_test() {
-    expect!(Generator::from_map("Time", &serde_json::Map::new())).to(be_some().value(Generator::Time(None)));
-    expect!(Generator::from_map("Time", &json!({ "min": 5 }).as_object().unwrap())).to(be_some().value(Generator::Time(None)));
-    expect!(Generator::from_map("Time", &json!({ "format": "yyyy-MM-dd" }).as_object().unwrap())).to(be_some().value(Generator::Time(Some("yyyy-MM-dd".to_string()))));
-    expect!(Generator::from_map("Time", &json!({ "format": 5 }).as_object().unwrap())).to(be_some().value(Generator::Time(Some("5".to_string()))));
+    expect!(Generator::from_map("Time", &serde_json::Map::new())).to(be_some().value(Generator::Time(None, None)));
+    expect!(Generator::from_map("Time", &json!({ "min": 5 }).as_object().unwrap())).to(be_some().value(Generator::Time(None, None)));
+    expect!(Generator::from_map("Time", &json!({ "format": "yyyy-MM-dd" }).as_object().unwrap())).to(be_some().value(Generator::Time(Some("yyyy-MM-dd".to_string()), None)));
+    expect!(Generator::from_map("Time", &json!({ "format": 5 }).as_object().unwrap())).to(be_some().value(Generator::Time(Some("5".to_string()), None)));
+    expect!(Generator::from_map("Time", &json!({ "expression": "now" }).as_object().unwrap())).to(be_some().value(Generator::Time(None, Some("now".to_string()))));
   }
 
   #[test]
   fn datetime_generator_from_json_test() {
-    expect!(Generator::from_map("DateTime", &serde_json::Map::new())).to(be_some().value(Generator::DateTime(None)));
-    expect!(Generator::from_map("DateTime", &json!({ "min": 5 }).as_object().unwrap())).to(be_some().value(Generator::DateTime(None)));
-    expect!(Generator::from_map("DateTime", &json!({ "format": "yyyy-MM-dd" }).as_object().unwrap())).to(be_some().value(Generator::DateTime(Some("yyyy-MM-dd".to_string()))));
-    expect!(Generator::from_map("DateTime", &json!({ "format": 5 }).as_object().unwrap())).to(be_some().value(Generator::DateTime(Some("5".to_string()))));
+    expect!(Generator::from_map("DateTime", &serde_json::Map::new())).to(be_some().value(Generator::DateTime(None, None)));
+    expect!(Generator::from_map("DateTime", &json!({ "min": 5 }).as_object().unwrap())).to(be_some().value(Generator::DateTime(None, None)));
+    expect!(Generator::from_map("DateTime", &json!({ "format": "yyyy-MM-dd" }).as_object().unwrap())).to(be_some().value(Generator::DateTime(Some("yyyy-MM-dd".to_string()), None)));
+    expect!(Generator::from_map("DateTime", &json!({ "format": 5 }).as_object().unwrap())).to(be_some().value(Generator::DateTime(Some("5".to_string()), None)));
+    expect!(Generator::from_map("DateTime", &json!({ "expression": "now" }).as_object().unwrap())).to(be_some().value(Generator::DateTime(None, Some("now".to_string()))));
   }
 
   #[test]
@@ -1581,25 +1674,40 @@ mod tests {
       "type": "RandomBoolean"
     })));
 
-    expect!(Generator::Date(Some("yyyyMMdd".into())).to_json().unwrap()).to(be_equal_to(json!({
+    expect!(Generator::Date(Some("yyyyMMdd".into()), None).to_json().unwrap()).to(be_equal_to(json!({
       "type": "Date",
       "format": "yyyyMMdd"
     })));
-    expect!(Generator::Date(None).to_json().unwrap()).to(be_equal_to(json!({
+    expect!(Generator::Date(Some("yyyyMMdd".into()), Some("now".into())).to_json().unwrap()).to(be_equal_to(json!({
+      "type": "Date",
+      "format": "yyyyMMdd",
+      "expression": "now"
+    })));
+    expect!(Generator::Date(None, None).to_json().unwrap()).to(be_equal_to(json!({
       "type": "Date"
     })));
-    expect!(Generator::Time(Some("yyyyMMdd".into())).to_json().unwrap()).to(be_equal_to(json!({
+    expect!(Generator::Time(Some("yyyyMMdd".into()), None).to_json().unwrap()).to(be_equal_to(json!({
       "type": "Time",
       "format": "yyyyMMdd"
     })));
-    expect!(Generator::Time(None).to_json().unwrap()).to(be_equal_to(json!({
+    expect!(Generator::Time(Some("yyyyMMdd".into()), Some("now".into())).to_json().unwrap()).to(be_equal_to(json!({
+      "type": "Time",
+      "format": "yyyyMMdd",
+      "expression": "now"
+    })));
+    expect!(Generator::Time(None, None).to_json().unwrap()).to(be_equal_to(json!({
       "type": "Time"
     })));
-    expect!(Generator::DateTime(Some("yyyyMMdd".into())).to_json().unwrap()).to(be_equal_to(json!({
+    expect!(Generator::DateTime(Some("yyyyMMdd".into()), None).to_json().unwrap()).to(be_equal_to(json!({
       "type": "DateTime",
       "format": "yyyyMMdd"
     })));
-    expect!(Generator::DateTime(None).to_json().unwrap()).to(be_equal_to(json!({
+    expect!(Generator::DateTime(Some("yyyyMMdd".into()), Some("now".into())).to_json().unwrap()).to(be_equal_to(json!({
+      "type": "DateTime",
+      "format": "yyyyMMdd",
+      "expression": "now"
+    })));
+    expect!(Generator::DateTime(None, None).to_json().unwrap()).to(be_equal_to(json!({
       "type": "DateTime"
     })));
     expect!(Generator::ProviderStateGenerator("$a".into(), Some(DataType::INTEGER)).to_json().unwrap()).to(be_equal_to(json!({
@@ -1670,29 +1778,59 @@ mod tests {
 
   #[test]
   fn date_generator_test() {
-    let generated = Generator::Date(None).generate_value(&"".to_string(), &hashmap!{}, &NoopVariantMatcher.boxed());
+    let generated = Generator::Date(None, None).generate_value(&"".to_string(), &hashmap!{}, &NoopVariantMatcher.boxed());
     assert_that!(generated.unwrap(), matches_regex(r"^\d{4}-\d{2}-\d{2}$"));
 
-    let generated2 = Generator::Date(Some("yyyy-MM-ddZ".into())).generate_value(&"".to_string(), &hashmap!{}, &NoopVariantMatcher.boxed());
+    let generated2 = Generator::Date(Some("yyyy-MM-ddZ".into()), None).generate_value(&"".to_string(), &hashmap!{}, &NoopVariantMatcher.boxed());
     assert_that!(generated2.unwrap(), matches_regex(r"^\d{4}-\d{2}-\d{2}[-+]\d{4}$"));
+
+    let now = Local::now();
+    let generated3 = Generator::Date(Some("yyyy-MM-dd".into()), Some("+1 day".into())).generate_value(
+      &"".to_string(),
+      &hashmap!{
+        "baseDate" => json!(now.to_string())
+      },
+      &NoopVariantMatcher.boxed()
+    );
+    expect!(generated3.unwrap()).to(be_equal_to(now.add(Duration::days(1)).date().format("%Y-%m-%d").to_string()));
   }
 
   #[test]
   fn time_generator_test() {
-    let generated = Generator::Time(None).generate_value(&"".to_string(), &hashmap!{}, &NoopVariantMatcher.boxed());
+    let generated = Generator::Time(None, None).generate_value(&"".to_string(), &hashmap!{}, &NoopVariantMatcher.boxed());
     assert_that!(generated.unwrap(), matches_regex(r"^\d{2}:\d{2}:\d{2}$"));
 
-    let generated2 = Generator::Time(Some("HH:mm:ssZ".into())).generate_value(&"".to_string(), &hashmap!{}, &NoopVariantMatcher.boxed());
+    let generated2 = Generator::Time(Some("HH:mm:ssZ".into()), None).generate_value(&"".to_string(), &hashmap!{}, &NoopVariantMatcher.boxed());
     assert_that!(generated2.unwrap(), matches_regex(r"^\d{2}:\d{2}:\d{2}[-+]\d+$"));
+
+    let now = Local::now();
+    let generated3 = Generator::Time(Some("HH:mm:ss".into()), Some("+1 hour".into())).generate_value(
+      &"".to_string(),
+      &hashmap!{
+        "baseTime" => json!(now.to_string())
+      },
+      &NoopVariantMatcher.boxed()
+    );
+    expect!(generated3.unwrap()).to(be_equal_to(now.add(Duration::hours(1)).time().format("%H:%M:%S").to_string()));
   }
 
   #[test]
   fn datetime_generator_test() {
-    let generated = Generator::DateTime(None).generate_value(&"".to_string(), &hashmap!{}, &NoopVariantMatcher.boxed());
+    let generated = Generator::DateTime(None, None).generate_value(&"".to_string(), &hashmap!{}, &NoopVariantMatcher.boxed());
     assert_that!(generated.unwrap(), matches_regex(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}[-+]\d+$"));
 
-    let generated2 = Generator::DateTime(Some("yyyy-MM-dd HH:mm:ssZ".into())).generate_value(&"".to_string(), &hashmap!{}, &NoopVariantMatcher.boxed());
+    let generated2 = Generator::DateTime(Some("yyyy-MM-dd HH:mm:ssZ".into()), None).generate_value(&"".to_string(), &hashmap!{}, &NoopVariantMatcher.boxed());
     assert_that!(generated2.unwrap(), matches_regex(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[-+]\d+$"));
+
+    let now = Local::now();
+    let generated3 = Generator::DateTime(Some("yyyy-MM-dd HH:mm:ss".into()), Some("+1 day".into())).generate_value(
+      &"".to_string(),
+      &hashmap!{
+        "baseDateTime" => json!(now.to_string())
+      },
+      &NoopVariantMatcher.boxed()
+    );
+    expect!(generated3.unwrap()).to(be_equal_to(now.add(Duration::days(1)).format("%Y-%m-%d %H:%M:%S").to_string()));
   }
 
   #[test]
