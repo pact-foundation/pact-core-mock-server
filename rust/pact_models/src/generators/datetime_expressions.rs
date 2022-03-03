@@ -219,8 +219,22 @@ pub fn execute_time_expression<Tz: TimeZone>(dt: &DateTime<Tz>, expression: &str
 
 /// Parse a date-time expression, given a base date-time
 pub fn execute_datetime_expression<Tz: TimeZone>(dt: &DateTime<Tz>, expression: &str) -> anyhow::Result<DateTime<Tz>> {
-  if expression.is_empty() {
-    Ok(dt.clone())
+  if !expression.is_empty() {
+    if let Some((date_part, time_part)) = expression.split_once("@") {
+      let date_result = execute_date_expression(dt, date_part);
+      let time_result = match &date_result {
+        Ok(result) => execute_time_expression(result, time_part),
+        Err(_) => execute_time_expression(dt, time_part)
+      };
+      match (date_result, time_result) {
+        (Err(err1), Err(err2)) => Err(anyhow!("{err1}\n{err2}")),
+        (Err(err), Ok(_)) => Err(err),
+        (Ok(_), Err(err)) => Err(err),
+        (Ok(_), Ok(t)) => Ok(t)
+      }
+    } else {
+      execute_date_expression(dt, expression)
+    }
   } else {
     Ok(dt.clone())
   }
@@ -446,30 +460,21 @@ mod tests {
   }
 
   #[rstest]
-  //     expression,            expected
-  #[case("",                    "value")]
-  #[case("now",                 "value")]
-  #[case("today",               "value")]
-  #[case("yesterday",           "100")]
-  #[case("tomorrow",            "100")]
-  #[case("+ 1 day",             "100")]
-  #[case("+ 1 week",            "100")]
-  #[case("- 2 weeks",           "value")]
-  #[case("+ 4 years",           "value")]
-  #[case("tomorrow+ 4 years",   "value")]
-  #[case("next week",           "100")]
-  #[case("last month",          "100")]
-  #[case("next fortnight",      "100")]
-  #[case("next monday",         "value")]
-  #[case("last wednesday",      "value")]
-  #[case("next mon",            "value")]
-  #[case("last december",       "100")]
-  #[case("next jan",            "100")]
-  #[case("next june + 2 weeks", "100")]
-  #[case("last mon + 2 weeks",  "100")]
+  //     expression,                                         expected
+  #[case("today @ 1 o\'clock",                               "2000-01-01T13:00:00+00:00")]
+  #[case("yesterday @ midnight",                             "1999-12-31T00:00:00+00:00")]
+  #[case("yesterday @ midnight - 1 hour",                    "1999-12-30T23:00:00+00:00")]
+  #[case("tomorrow @ now",                                   "2000-01-02T10:00:00+00:00")]
+  #[case("+ 1 day @ noon",                                   "2000-01-02T12:00:00+00:00")]
+  #[case("+ 1 week @ +1 hour",                               "2000-01-08T11:00:00+00:00")]
+  #[case("- 2 weeks @ now + 1 hour",                         "1999-12-18T11:00:00+00:00")]
+  #[case("+ 4 years @ midnight",                             "2004-01-01T00:00:00+00:00")]
+  #[case("tomorrow+ 4 years @ 3 o\'clock + 40 milliseconds", "2004-01-02T15:00:00.040+00:00")]
+  #[case("next week @ next hour",                            "2000-01-08T11:00:00+00:00")]
+  #[case("last month @ last hour",                           "1999-12-01T09:00:00+00:00")]
   fn datetime_expressions(#[case] expression: &str, #[case] expected: &str) {
     let dt = Utc.ymd(2000, 1, 1).and_hms(10, 0, 0);
-    expect!(execute_datetime_expression(&dt, expression).unwrap().to_rfc2822()).to(be_equal_to(expected));
+    expect!(execute_datetime_expression(&dt, expression).unwrap().to_rfc3339()).to(be_equal_to(expected));
   }
 
   #[test]
