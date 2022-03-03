@@ -11,7 +11,7 @@
 //! The pact verifier is bundled as a single binary executable `pact_verifier_cli`. Running this with out any options displays the standard help.
 //!
 //! ```console,ignore
-//! pact_verifier_cli 0.9.7
+//! pact_verifier_cli 0.9.8
 //! Standalone Pact verifier
 //!
 //! USAGE:
@@ -42,6 +42,9 @@
 //!         --consumer-version-tags <consumer-version-tags>
 //!             Consumer tags to use when fetching pacts from the Broker. Accepts comma-separated values.
 //!
+//!         --header <custom-header>...
+//!             Add a custom header to be included in the calls to the provider. Values must be in the form KEY=VALUE, where
+//!             KEY and VALUE contain ASCII characters (32-127) only. Can be repeated.
 //!     -d, --dir <dir>...
 //!             Directory of pact files to verify (can be repeated)
 //!
@@ -262,13 +265,22 @@ use std::time::Duration;
 
 use clap::{AppSettings, ArgMatches, ErrorKind};
 use log::{debug, error, LevelFilter, warn};
+use maplit::hashmap;
 use pact_models::{PACT_RUST_VERSION, PactSpecification};
 use pact_models::prelude::HttpAuth;
 use serde_json::Value;
 use simplelog::{ColorChoice, Config, TerminalMode, TermLogger};
 use tokio::time::sleep;
 
-use pact_verifier::{FilterInfo, NullRequestFilterExecutor, PactSource, ProviderInfo, VerificationOptions, verify_provider_async, PublishOptions};
+use pact_verifier::{
+  FilterInfo,
+  NullRequestFilterExecutor,
+  PactSource,
+  ProviderInfo,
+  PublishOptions,
+  VerificationOptions,
+  verify_provider_async
+};
 use pact_verifier::callback_executors::HttpRequestProviderStateExecutor;
 use pact_verifier::metrics::VerificationMetrics;
 use pact_verifier::selectors::{consumer_tags_to_selectors, json_to_selectors};
@@ -329,11 +341,23 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
     state_change_teardown: matches.is_present("state-change-teardown")
   });
 
+  let mut custom_headers = hashmap!{};
+  if let Some(headers) = matches.values_of("custom-header") {
+    for header in headers {
+      let (key, value) = header.split_once('=').ok_or_else(|| {
+        error!("Custom header values must be in the form KEY=VALUE, where KEY and VALUE contain ASCII characters (32-127) only.");
+        3
+      })?;
+      custom_headers.insert(key.to_string(), value.to_string());
+    }
+  }
+
   let verification_options = VerificationOptions {
     request_filter: None::<Arc<NullRequestFilterExecutor>>,
     disable_ssl_verification: matches.is_present("disable-ssl-verification"),
     request_timeout: matches.value_of("request-timeout")
       .map(|t| t.parse::<u64>().unwrap_or(5000)).unwrap_or(5000),
+    custom_headers
   };
 
   let publish_options = if matches.is_present("publish") {
@@ -364,7 +388,7 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
       test_framework: "pact_verifier_cli".to_string(),
       app_name: "pact_verifier_cli".to_string(),
       app_version: env!("CARGO_PKG_VERSION").to_string()
-    })
+    }),
   ).await
     .map_err(|err| {
       error!("Verification failed with error: {}", err);

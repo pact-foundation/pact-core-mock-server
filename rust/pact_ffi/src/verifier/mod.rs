@@ -311,6 +311,26 @@ ffi_fn! {
 }
 
 ffi_fn! {
+    /// Adds a custom header to be added to the requests made to the provider.
+    ///
+    /// # Safety
+    ///
+    /// The header name and value must point to a valid NULL terminated string and must contain
+    /// valid UTF-8.
+    fn pactffi_verifier_add_custom_header(
+      handle: *mut handle::VerifierHandle,
+      header_name: *const c_char,
+      header_value: *const c_char
+    ) {
+      let handle = as_mut!(handle);
+      let header_name = safe_str!(header_name);
+      let header_value = safe_str!(header_value);
+
+      handle.add_custom_header(header_name, header_value);
+    }
+}
+
+ffi_fn! {
     /// Adds a Pact file as a source to verify.
     ///
     /// # Safety

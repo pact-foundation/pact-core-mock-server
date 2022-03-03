@@ -242,6 +242,13 @@ pub(crate) fn setup_app<'a, 'b>(program: String, version: &'b str) -> App<'a, 'b
       .number_of_values(1)
       .empty_values(false)
       .help("Generate a JSON report of the verification"))
+    .arg(Arg::with_name("custom-header")
+      .long("header")
+      .takes_value(true)
+      .use_delimiter(false)
+      .multiple(true)
+      .empty_values(false)
+      .help("Add a custom header to be included in the calls to the provider. Values must be in the form KEY=VALUE, where KEY and VALUE contain ASCII characters (32-127) only. Can be repeated."))
 }
 
 #[cfg(test)]

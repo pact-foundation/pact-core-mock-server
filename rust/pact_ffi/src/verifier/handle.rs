@@ -204,11 +204,8 @@ impl VerifierHandle {
     disable_ssl_verification: bool,
     request_timeout: u64
   ) {
-    self.verification_options = VerificationOptions {
-      request_filter: None::<Arc<NullRequestFilterExecutor>>,
-      disable_ssl_verification,
-      request_timeout
-    }
+    self.verification_options.disable_ssl_verification = disable_ssl_verification;
+    self.verification_options.request_timeout = request_timeout;
   }
 
   /// Update the details used when publishing results
@@ -294,6 +291,11 @@ impl VerifierHandle {
   #[cfg(test)]
   pub fn set_output(&mut self, out: &str) {
     self.verifier_output.output = out.split('\n').map(|s| s.to_string()).collect();
+  }
+
+  /// Add a custom header to be included in the call to the provider
+  pub fn add_custom_header(&mut self, header_name: &str, header_value: &str) {
+    self.verification_options.custom_headers.insert(header_name.to_string(), header_value.to_string());
   }
 }
 

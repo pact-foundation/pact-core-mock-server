@@ -13,19 +13,14 @@ use std::time::Duration;
 
 use ansi_term::*;
 use ansi_term::Colour::*;
+use anyhow::anyhow;
 use futures::prelude::*;
 use futures::stream::StreamExt;
+use http::{header, HeaderMap};
+use http::header::HeaderName;
 use itertools::Itertools;
 use log::*;
 use maplit::*;
-use pact_plugin_driver::plugin_manager::{load_plugin, shutdown_plugins};
-use regex::Regex;
-use serde_json::Value;
-
-pub use callback_executors::NullRequestFilterExecutor;
-use callback_executors::RequestFilterExecutor;
-use pact_matching::{match_response, Mismatch};
-use pact_matching::logging::LOG_ID;
 use pact_models::generators::GeneratorTestMode;
 use pact_models::http_utils::HttpAuth;
 use pact_models::interaction::Interaction;
@@ -34,16 +29,24 @@ use pact_models::pact::{load_pact_from_url, Pact, read_pact};
 use pact_models::prelude::v4::SynchronousHttp;
 use pact_models::provider_states::*;
 use pact_models::v4::interaction::V4Interaction;
+use pact_plugin_driver::plugin_manager::{load_plugin, shutdown_plugins};
+use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
+use regex::Regex;
+use serde_json::Value;
+
+pub use callback_executors::NullRequestFilterExecutor;
+use callback_executors::RequestFilterExecutor;
+use pact_matching::{match_response, Mismatch};
+use pact_matching::logging::LOG_ID;
+use pact_matching::metrics::{MetricEvent, send_metrics};
 
 use crate::callback_executors::{ProviderStateError, ProviderStateExecutor};
 use crate::messages::{process_message_result, verify_message_from_provider, verify_sync_message_from_provider};
+use crate::metrics::VerificationMetrics;
 use crate::pact_broker::{Link, PactVerificationContext, publish_verification_results, TestResult};
 pub use crate::pact_broker::{ConsumerVersionSelector, PactsForVerificationRequest};
 use crate::provider_client::make_provider_request;
 use crate::request_response::process_request_response_result;
-use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
-use pact_matching::metrics::{MetricEvent, send_metrics};
-use crate::metrics::VerificationMetrics;
 use crate::verification_result::VerificationExecutionResult;
 
 mod provider_client;
@@ -302,11 +305,21 @@ async fn verify_interaction<'a, F: RequestFilterExecutor, S: ProviderStateExecut
   options: &VerificationOptions<F>,
   provider_state_executor: &Arc<S>
 ) -> Result<Option<String>, MismatchResult> {
-  let client = Arc::new(reqwest::Client::builder()
-  .danger_accept_invalid_certs(options.disable_ssl_verification)
-  .timeout(Duration::from_millis(options.request_timeout))
-  .build()
-  .unwrap_or(reqwest::Client::new()));
+  let mut client_builder = reqwest::Client::builder()
+    .danger_accept_invalid_certs(options.disable_ssl_verification)
+    .timeout(Duration::from_millis(options.request_timeout));
+
+  if !options.custom_headers.is_empty() {
+    let headers = match setup_custom_headers(&options.custom_headers) {
+      Ok(headers) => headers,
+      Err(err) => {
+        return Err(MismatchResult::Error(err.to_string(), interaction.id()));
+      }
+    };
+    client_builder = client_builder.default_headers(headers);
+  }
+
+  let client = Arc::new(client_builder.build().unwrap_or(reqwest::Client::new()));
 
   let mut provider_states_results = hashmap!{};
   let sc_results = futures::stream::iter(
@@ -383,6 +396,26 @@ async fn verify_interaction<'a, F: RequestFilterExecutor, S: ProviderStateExecut
   }
 
   result
+}
+
+fn setup_custom_headers(custom_headers: &HashMap<String, String>) -> anyhow::Result<HeaderMap> {
+  let mut headers = header::HeaderMap::new();
+  for (key, value) in custom_headers {
+    let header_name = match HeaderName::try_from(key) {
+      Ok(name) => name,
+      Err(err) => {
+        return Err(anyhow!("Custom header '{key}' is invalid. Only ASCII characters (32-127) are permitted - {err}"));
+      }
+    };
+    let header_value = match header::HeaderValue::from_str(value.as_str()) {
+      Ok(value) => value,
+      Err(err) => {
+        return Err(anyhow!("Custom header '{key}' has an invalid value '{value}'. Only ASCII characters (32-127) are permitted - {err}"));
+      }
+    };
+    headers.append(header_name, header_value);
+  }
+  Ok(headers)
 }
 
 fn generate_display_for_result(
@@ -562,6 +595,8 @@ pub struct VerificationOptions<F> where F: RequestFilterExecutor {
   pub disable_ssl_verification: bool,
   /// Timeout in ms for verification requests and state callbacks
   pub request_timeout: u64,
+  /// Custom headers to be added to the requests to the provider
+  pub custom_headers: HashMap<String, String>
 }
 
 impl <F: RequestFilterExecutor> Default for VerificationOptions<F> {
@@ -569,7 +604,8 @@ impl <F: RequestFilterExecutor> Default for VerificationOptions<F> {
     VerificationOptions {
       request_filter: None,
       disable_ssl_verification: false,
-      request_timeout: 5000
+      request_timeout: 5000,
+      custom_headers: Default::default()
     }
   }
 }
