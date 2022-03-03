@@ -182,40 +182,37 @@ pub fn execute_time_expression<Tz: TimeZone>(dt: &DateTime<Tz>, expression: &str
         .flatten()
         .unwrap_or(dt.clone());
       let base_time = match result.base {
-        TimeBase::Now => dt,
+        TimeBase::Now => dt.clone(),
         TimeBase::Midnight => time.with_hour(0).unwrap_or(dt.clone()),
         TimeBase::Noon => time.with_hour(12).unwrap_or(dt.clone()),
         TimeBase::Am { hour } => time.with_hour(hour as u32).unwrap_or(dt.clone()),
         TimeBase::Pm { hour } => time.with_hour((12 + hour) as u32).unwrap_or(dt.clone()),
-        TimeBase::Next { hour } => if dt.hour() >= 12 {
+        TimeBase::Next { hour } => if dt.hour() < 12 {
           time.with_hour((12 + hour) as u32).unwrap_or(dt.clone())
         } else {
           time.with_hour(hour as u32).unwrap_or(dt.clone())
         }
       };
 
-      //           result.value.adjustments.forEach {
-      //             when (it.operation) {
-      //               Operation.PLUS -> {
-      //                 time = when (it.type) {
-      //                   TimeOffsetType.HOUR -> time.plusHours(it.value.toLong())
-      //                   TimeOffsetType.MINUTE -> time.plusMinutes(it.value.toLong())
-      //                   TimeOffsetType.SECOND -> time.plusSeconds(it.value.toLong())
-      //                   TimeOffsetType.MILLISECOND -> time.plus(it.value.toLong(), ChronoUnit.MILLIS)
-      //                 }
-      //               }
-      //               Operation.MINUS -> {
-      //                 time = when (it.type) {
-      //                   TimeOffsetType.HOUR -> time.minusHours(it.value.toLong())
-      //                   TimeOffsetType.MINUTE -> time.minusMinutes(it.value.toLong())
-      //                   TimeOffsetType.SECOND -> time.minusSeconds(it.value.toLong())
-      //                   TimeOffsetType.MILLISECOND -> time.minus(it.value.toLong(), ChronoUnit.MILLIS)
-      //                 }
-      //               }
-      //             }
-      //           }
+      let mut date_time = base_time.clone();
+      for adjustment in &result.adjustments {
+        date_time = match adjustment.operation {
+          Operation::PLUS => match adjustment.adjustment_type {
+            TimeOffsetType::HOUR => date_time.add(Duration::hours(adjustment.value as i64)),
+            TimeOffsetType::MINUTE => date_time.add(Duration::minutes(adjustment.value as i64)),
+            TimeOffsetType::SECOND => date_time.add(Duration::seconds(adjustment.value as i64)),
+            TimeOffsetType::MILLISECOND => date_time.add(Duration::milliseconds(adjustment.value as i64))
+          },
+          Operation::MINUS => match adjustment.adjustment_type {
+            TimeOffsetType::HOUR => date_time.sub(Duration::hours(adjustment.value as i64)),
+            TimeOffsetType::MINUTE => date_time.sub(Duration::minutes(adjustment.value as i64)),
+            TimeOffsetType::SECOND => date_time.sub(Duration::seconds(adjustment.value as i64)),
+            TimeOffsetType::MILLISECOND => date_time.sub(Duration::milliseconds(adjustment.value as i64))
+          }
+        }
+      }
 
-      base_time.clone()
+      date_time
     })
   }
 }
