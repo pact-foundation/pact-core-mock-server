@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.13.2 - Maintenance Release
+
+* 8894fdfd - chore: update pact_matching to 0.12.3 (Ronald Holshausen, Fri Mar 4 14:09:17 2022 +1100)
+* 8e864502 - chore: update all dependencies (Ronald Holshausen, Fri Mar 4 13:29:59 2022 +1100)
+* f52c3625 - feat: add for custom headers to the HTTP client used by the verifier #182 (Ronald Holshausen, Mon Feb 28 14:38:00 2022 +1100)
+* 74bd4531 - feat: add support for custom headers with the verifier FFI calls #182 (Ronald Holshausen, Mon Feb 28 13:58:46 2022 +1100)
+* 6634953f - bump version to 0.13.2 (Ronald Holshausen, Thu Feb 3 13:39:59 2022 +1100)
+
 # 0.13.1 - Updated req/res logging for FFI calls
 
 * 4f47ff65 - feat: log request/response bodies at debug level (Ronald Holshausen, Thu Feb 3 13:14:35 2022 +1100)
