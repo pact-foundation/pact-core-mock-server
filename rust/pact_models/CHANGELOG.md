@@ -1,5 +1,16 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.3.0 - Ported the date-time expressions from Pact-JVM
+
+* 0aa55cfe - feat: wired the date-time expression parsers into the generators (Ronald Holshausen, Thu Mar 3 18:01:46 2022 +1100)
+* 98b887f0 - feat: Implemented date-time expression parser (from Pact-JVM) (Ronald Holshausen, Thu Mar 3 16:34:42 2022 +1100)
+* 318037a7 - feat: Implemented time part in date-time expressions (Ronald Holshausen, Thu Mar 3 16:05:01 2022 +1100)
+* 66442251 - feat: Implement the base part of time expressions (Ronald Holshausen, Thu Mar 3 13:09:03 2022 +1100)
+* b8ea7240 - feat: Implemented date expression parser (from Pact-JVM) (Ronald Holshausen, Tue Mar 1 14:46:57 2022 +1100)
+* 2927e979 - feat: ported the date manipulation functions from Pact-JVM #180 (Ronald Holshausen, Thu Feb 17 16:14:52 2022 +1100)
+* 12a7b78c - chore: bump minor version (Ronald Holshausen, Wed Feb 16 15:06:35 2022 +1100)
+* c7d39ca6 - bump version to 0.2.8 (Ronald Holshausen, Mon Jan 17 10:47:48 2022 +1100)
+
 # 0.2.7 - Bugfix Release
 
 * c2089645 - fix: log crate version must be fixed across all crates (including plugin driver) (Ronald Holshausen, Fri Jan 14 16:10:50 2022 +1100)
