@@ -1,5 +1,16 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.2.3 - Support Custom headers + Date-Time expression parser
+
+* 16fbe7cf - feat: add musl target to the release build #185 (Ronald Holshausen, Fri Mar 4 16:23:39 2022 +1100)
+* b6433500 - chore: upgrade pact_verifier to 0.13.2 (Ronald Holshausen, Fri Mar 4 14:49:18 2022 +1100)
+* 5a4a8a1c - chore: update pact_mock_server to 0.8.7 (Ronald Holshausen, Fri Mar 4 14:24:23 2022 +1100)
+* 8894fdfd - chore: update pact_matching to 0.12.3 (Ronald Holshausen, Fri Mar 4 14:09:17 2022 +1100)
+* 8e864502 - chore: update all dependencies (Ronald Holshausen, Fri Mar 4 13:29:59 2022 +1100)
+* f52c3625 - feat: add for custom headers to the HTTP client used by the verifier #182 (Ronald Holshausen, Mon Feb 28 14:38:00 2022 +1100)
+* 74bd4531 - feat: add support for custom headers with the verifier FFI calls #182 (Ronald Holshausen, Mon Feb 28 13:58:46 2022 +1100)
+* c6d553e0 - bump version to 0.2.3 (Ronald Holshausen, Mon Feb 14 13:45:19 2022 +1100)
+
 # 0.2.2 - Bugfix Release
 
 * 76889087 - fix(pact-ffi): intermediate JSON - add test for JSON with decimal matcher #179 (Ronald Holshausen, Mon Feb 14 13:04:16 2022 +1100)
