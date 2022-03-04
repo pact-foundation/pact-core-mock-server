@@ -1,5 +1,14 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.9.8 - Custom headers + Date-Time expression parser
+
+* b6433500 - chore: upgrade pact_verifier to 0.13.2 (Ronald Holshausen, Fri Mar 4 14:49:18 2022 +1100)
+* 8e864502 - chore: update all dependencies (Ronald Holshausen, Fri Mar 4 13:29:59 2022 +1100)
+* 79324802 - feat: add support for custom headers via the verifier CLI #182 (Ronald Holshausen, Mon Feb 28 15:22:47 2022 +1100)
+* 74bd4531 - feat: add support for custom headers with the verifier FFI calls #182 (Ronald Holshausen, Mon Feb 28 13:58:46 2022 +1100)
+* eda9fc19 - chore: build verifier docker image using Rust base image (Ronald Holshausen, Mon Jan 31 13:46:58 2022 +1100)
+* 4a17ea36 - bump version to 0.9.8 (Ronald Holshausen, Mon Jan 31 13:05:31 2022 +1100)
+
 # 0.9.7 - Bugfixes + added JSON report option
 
 * 4b2556fa - chore: update readme/docs with new json option (Ronald Holshausen, Mon Jan 31 11:32:02 2022 +1100)
