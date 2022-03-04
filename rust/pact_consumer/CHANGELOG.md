@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.8.6 - Maintenance Release
+
+* 5a4a8a1c - chore: update pact_mock_server to 0.8.7 (Ronald Holshausen, Fri Mar 4 14:24:23 2022 +1100)
+* 8894fdfd - chore: update pact_matching to 0.12.3 (Ronald Holshausen, Fri Mar 4 14:09:17 2022 +1100)
+* 8e864502 - chore: update all dependencies (Ronald Holshausen, Fri Mar 4 13:29:59 2022 +1100)
+* 50c73c68 - chore: remove accidental debug statement (Ronald Holshausen, Mon Feb 14 09:04:22 2022 +1100)
+* 418e81f8 - bump version to 0.8.6 (Ronald Holshausen, Mon Jan 17 17:12:24 2022 +1100)
+
 # 0.8.5 - Bugfix Release
 
 * 10c9b842 - chore: Upgrade pact_mock_server to 0.8.6 (Ronald Holshausen, Mon Jan 17 16:57:31 2022 +1100)
