@@ -24,6 +24,7 @@ rustup run nightly cbindgen \
 cp include/*.h ../target/artifacts
 
 echo -- Build the musl release artifacts --
+sudo apt install musl-tools
 rustup target add x86_64-unknown-linux-musl
 cargo build --release --target=x86_64-unknown-linux-musl
 gzip -c ../target/x86_64-unknown-linux-musl/release/libpact_ffi.a > ../target/artifacts/libpact_ffi-linux-x86_64-musl.a.gz
