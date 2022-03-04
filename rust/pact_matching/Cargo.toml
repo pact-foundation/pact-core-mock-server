@@ -15,37 +15,37 @@ exclude = [
 ]
 
 [dependencies]
-pact_models = "0.2.7"
-anyhow = "1.0.40"
+pact_models = "0.3.0"
+anyhow = "1.0.55"
 serde = { version = "^1.0", features = ["derive"] }
 serde_json = "^1.0"
-hex = "0.4.2"
+hex = "0.4.3"
 log = "=0.4.14" # This needs to be the same version across all the libs (i.e. plugin driver)
-onig = { version = "6.1.0", default-features = false }
+onig = { version = "6.1.1", default-features = false }
 maplit = "1.0.2"
 lazy_static = "1.4.0"
-semver = "0.11.0"
+semver = "1.0.6"
 lenient_semver = "0.4.2"
-itertools = "0.10.0"
-rand = "0.8"
+itertools = "0.10.3"
+rand = "0.8.5"
 sxd-document = "0.3.2"
 ansi_term = "0.12.1"
 difference = "2.0.0"
 base64 = "0.13.0"
-uuid = { version = "0.8", features = ["v4"] }
-nom = "7.0"
+uuid = { version = "0.8.2", features = ["v4"] }
+nom = "7.1.0"
 chrono = "0.4.19"
-tree_magic_mini = "3"
-multipart = { version = "0.17", default-features = false, features = ["server"] }
-http = "0.2"
+tree_magic_mini = "3.0.3"
+multipart = { version = "0.18.0", default-features = false, features = ["server"] }
+http = "0.2.6"
 mime = "0.3.16"
 bytes = { version = "1", features = ["serde"] }
 tokio = { version = "1", features = ["full"] }
-pact-plugin-driver = "0.0.17"
+pact-plugin-driver = "0.0.18"
 md5 = "0.7.0"
 
 [dependencies.reqwest]
-version = "0.11"
+version = "0.11.9"
 default-features = false
 features = ["rustls-tls-native-roots", "json"]
 
