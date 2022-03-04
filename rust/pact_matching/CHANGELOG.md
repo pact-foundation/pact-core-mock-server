@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.12.3 - Maintenance Release
+
+* fbcec27a - chore: Upgrade pact-models to 0.3.0 (Ronald Holshausen, Fri Mar 4 12:23:49 2022 +1100)
+* 5f148cdd - feat: capture all the output from the verifier (Ronald Holshausen, Thu Jan 27 16:08:02 2022 +1100)
+* 43754e6d - fix: PACT_DO_NOT_TRACK should be upper case (Ronald Holshausen, Thu Jan 27 14:34:13 2022 +1100)
+* 5e4c68ef - chore: update pact matching to 0.12.2 (Ronald Holshausen, Mon Jan 17 16:29:21 2022 +1100)
+* 9bb56cfe - bump version to 0.12.3 (Ronald Holshausen, Mon Jan 17 11:29:51 2022 +1100)
+
 # 0.12.2 - Bugfix Release
 
 * 80b241c5 - chore: Upgrade plugin driver crate to 0.0.17 (Ronald Holshausen, Mon Jan 17 11:22:48 2022 +1100)
