@@ -1266,7 +1266,7 @@ dependencies = [
 
 [[package]]
 name = "pact_consumer"
-version = "0.8.6"
+version = "0.8.7"
 dependencies = [
  "anyhow",
  "async-trait",
