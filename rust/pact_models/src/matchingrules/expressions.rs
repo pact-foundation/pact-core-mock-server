@@ -618,7 +618,7 @@ fn parse_datetime(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::R
   let format = parse_string(lex, v)?;
   parse_comma(lex, v)?;
   let value = parse_string(lex, v)?;
-  Ok((value, ValueType::String, Some(MatchingRule::Timestamp(format.clone())), Some(Generator::DateTime(Some(format))), None))
+  Ok((value, ValueType::String, Some(MatchingRule::Timestamp(format.clone())), Some(Generator::DateTime(Some(format), None)), None))
 }
 
 // COMMA format=string COMMA s=string { $value = $s.contents; $type = ValueType.String; }
@@ -627,7 +627,7 @@ fn parse_date(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Resul
   let format = parse_string(lex, v)?;
   parse_comma(lex, v)?;
   let value = parse_string(lex, v)?;
-  Ok((value, ValueType::String, Some(MatchingRule::Date(format.clone())), Some(Generator::Date(Some(format))), None))
+  Ok((value, ValueType::String, Some(MatchingRule::Date(format.clone())), Some(Generator::Date(Some(format), None)), None))
 }
 
 // COMMA format=string COMMA s=string { $value = $s.contents; $type = ValueType.String; }
@@ -636,7 +636,7 @@ fn parse_time(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Resul
   let format = parse_string(lex, v)?;
   parse_comma(lex, v)?;
   let value = parse_string(lex, v)?;
-  Ok((value, ValueType::String, Some(MatchingRule::Time(format.clone())), Some(Generator::Time(Some(format))), None))
+  Ok((value, ValueType::String, Some(MatchingRule::Time(format.clone())), Some(Generator::Time(Some(format), None)), None))
 }
 
 // COMMA s=string { $rule = new IncludeMatcher($s.contents); $value = $s.contents; $type = ValueType.String; }
@@ -826,17 +826,17 @@ mod test {
       be_equal_to(MatchingRuleDefinition::new("2000-01-01".to_string(),
                    ValueType::String,
                    MatchingRule::Timestamp("yyyy-MM-dd".to_string()),
-                   Some(DateTime(Some("yyyy-MM-dd".to_string()))))));
+                   Some(DateTime(Some("yyyy-MM-dd".to_string()), None)))));
     expect!(super::parse_matcher_def("matching(date, 'yyyy-MM-dd','2000-01-01')").unwrap()).to(
       be_equal_to(MatchingRuleDefinition::new("2000-01-01".to_string(),
                    ValueType::String,
                    MatchingRule::Date("yyyy-MM-dd".to_string()),
-                   Some(Date(Some("yyyy-MM-dd".to_string()))))));
+                   Some(Date(Some("yyyy-MM-dd".to_string()), None)))));
     expect!(super::parse_matcher_def("matching(time, 'HH:mm:ss','12:00:00')").unwrap()).to(
       be_equal_to(MatchingRuleDefinition::new("12:00:00".to_string(),
                    ValueType::String,
                    MatchingRule::Time("HH:mm:ss".to_string()),
-                   Some(Time(Some("HH:mm:ss".to_string()))))));
+                   Some(Time(Some("HH:mm:ss".to_string()), None)))));
   }
 
   #[test]
@@ -1382,7 +1382,7 @@ mod test {
       value: "".to_string(),
       value_type: ValueType::String,
       rules: vec![],
-      generator: Some(Generator::Date(None))
+      generator: Some(Generator::Date(None, None))
     };
     let with_matching_rule = MatchingRuleDefinition {
       value: "".to_string(),
