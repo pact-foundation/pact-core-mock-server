@@ -745,7 +745,7 @@ pub extern fn pactffi_with_body(
             OptionalBody::Present(Bytes::from(process_json(body.to_string(), category, &mut reqres.response.generators)),
             Some("application/json".into()), None)
           } else if reqres.response.content_type().unwrap_or_default().is_xml() {
-            let category = reqres.request.matching_rules.add_category("body");
+            let category = reqres.response.matching_rules.add_category("body");
             OptionalBody::Present(Bytes::from(process_xml(body.to_string(), category, &mut reqres.response.generators).unwrap_or(vec![])),
             Some("application/xml".into()), None)
           } else {
