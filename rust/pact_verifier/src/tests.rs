@@ -142,7 +142,7 @@ async fn test_state_change_with_parameters() {
       i
     })
     .await
-    .start_mock_server();
+    .start_mock_server(None);
 
   let provider_state = ProviderState {
     name: "TestState".to_string(),
@@ -180,7 +180,7 @@ async fn test_state_change_with_parameters_in_query() {
       i
     })
     .await
-    .start_mock_server();
+    .start_mock_server(None);
 
   let provider_state = ProviderState {
     name: "TestState".to_string(),
@@ -218,7 +218,7 @@ async fn test_state_change_returning_json_values() {
       i
     })
     .await
-    .start_mock_server();
+    .start_mock_server(None);
 
   let provider_state = ProviderState {
     name: "TestState".to_string(),
@@ -257,7 +257,7 @@ fn publish_result_does_nothing_if_not_from_broker() {
           i
         })
         .await
-        .start_mock_server();
+        .start_mock_server(None);
 
       let options = super::PublishOptions {
         provider_version: None,
@@ -294,7 +294,7 @@ async fn publish_successful_result_to_broker() {
       i
     })
     .await
-    .start_mock_server();
+    .start_mock_server(None);
 
   let options = super::PublishOptions {
     provider_version: Some("1".into()),
@@ -304,7 +304,7 @@ async fn publish_successful_result_to_broker() {
   let links = vec![
     Link {
       name: "pb:publish-verification-results".to_string(),
-      href: Some(server.path("/path/to/pact/verification".to_string()).to_string()),
+      href: Some(server.path("/path/to/pact/verification").to_string()),
       templated: false,
       title: None
     }

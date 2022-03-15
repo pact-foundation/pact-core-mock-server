@@ -1087,7 +1087,7 @@ mod tests {
             futures::future::ready(i)
         })
         .await
-        .start_mock_server();
+        .start_mock_server(None);
 
     let client = HALClient::with_url(pact_broker.url().as_str(), None);
     let result = client.fetch("/hello").await;
@@ -1106,7 +1106,7 @@ mod tests {
           futures::future::ready(i)
       })
       .await
-      .start_mock_server();
+      .start_mock_server(None);
 
     let client = HALClient::with_url(pact_broker.url().as_str(), None);
     let result = client.fetch("/nonjson").await;
@@ -1167,7 +1167,7 @@ mod tests {
                 futures::future::ready(i)
             })
             .await
-            .start_mock_server();
+            .start_mock_server(None);
 
         let client = HALClient::with_url(pact_broker.url().as_str(), None);
         let result = client.clone().fetch("/nonhal").await;
@@ -1190,7 +1190,7 @@ mod tests {
         i
       })
       .await
-      .start_mock_server();
+      .start_mock_server(None);
 
     let client = HALClient::with_url(pact_broker.url().as_str(), None);
     let expected_requests = client.retries as usize;
@@ -1210,7 +1210,7 @@ mod tests {
         i
       })
       .await
-      .start_mock_server();
+      .start_mock_server(None);
 
     let client = HALClient::with_url(pact_broker.url().as_str(), None);
     let expected_requests = client.retries as usize;
@@ -1230,7 +1230,7 @@ mod tests {
         i
       })
       .await
-      .start_mock_server();
+      .start_mock_server(None);
 
     let client = HALClient::with_url(pact_broker.url().as_str(), None);
     let expected_requests = client.retries as usize;
@@ -1290,7 +1290,7 @@ mod tests {
                 i
             })
             .await
-            .start_mock_server();
+            .start_mock_server(None);
 
         let mut client = HALClient::with_url(pact_broker.url().as_str(), None);
         let result = client.clone().fetch("/").await;
@@ -1313,7 +1313,7 @@ mod tests {
                 i
             })
             .await
-            .start_mock_server();
+            .start_mock_server(None);
 
         let mut client = HALClient::with_url(pact_broker.url().as_str(), None);
         let result = client.clone().fetch("/").await;
@@ -1335,7 +1335,7 @@ mod tests {
             i
         })
         .await
-        .start_mock_server();
+        .start_mock_server(None);
 
     let mut client = HALClient::with_url(pact_broker.url().as_str(), None);
     let result = client.clone().fetch("/").await;
@@ -1365,7 +1365,7 @@ mod tests {
                 i
             })
             .await
-            .start_mock_server();
+            .start_mock_server(None);
 
         let mut client = HALClient::with_url(pact_broker.url().as_str(), None);
         let result = client.clone().fetch("/").await;
@@ -1395,7 +1395,7 @@ mod tests {
                 i
             })
             .await
-            .start_mock_server();
+            .start_mock_server(None);
 
         let mut client = HALClient::with_url(pact_broker.url().as_str(), None);
         let result = client.clone().fetch("/").await;
@@ -1425,7 +1425,7 @@ mod tests {
                 i
             })
             .await
-            .start_mock_server();
+            .start_mock_server(None);
 
         let mut client = HALClient::with_url(pact_broker.url().as_str(), None);
         let result = client.clone().fetch("/").await;
@@ -1467,7 +1467,7 @@ mod tests {
                 i
             })
             .await
-            .start_mock_server();
+            .start_mock_server(None);
 
         let result = fetch_pacts_from_broker(pact_broker.url().as_str(),
                                              "sad_provider", None).await;
@@ -1556,7 +1556,7 @@ mod tests {
                 i
             })
             .await
-            .start_mock_server();
+            .start_mock_server(None);
 
         let result = fetch_pacts_from_broker(pact_broker.url().as_str(),
           "happy_provider", None).await;
@@ -1688,7 +1688,7 @@ mod tests {
           i
       })
       .await
-      .start_mock_server();
+      .start_mock_server(None);
 
       let result = fetch_pacts_dynamically_from_broker(pact_broker.url().as_str(), "happy_provider".to_string(), false, None, vec!("master".to_string()), Some("main".to_string()), vec!(ConsumerVersionSelector {
         consumer: None,
@@ -1788,7 +1788,7 @@ mod tests {
         i
       })
     .await
-    .start_mock_server();
+    .start_mock_server(None);
 
     let result = fetch_pacts_dynamically_from_broker(pact_broker.url().as_str(), "sad_provider".to_string(), false, None, vec!("master".to_string()), Some("main".to_string()), vec!(ConsumerVersionSelector {
       consumer: None,

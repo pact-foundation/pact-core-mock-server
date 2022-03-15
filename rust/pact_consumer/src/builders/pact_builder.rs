@@ -18,6 +18,7 @@ use crate::builders::message_iter::{asynchronous_messages_iter, MessageIterator,
 use crate::builders::sync_message_builder::SyncMessageInteractionBuilder;
 use crate::PACT_CONSUMER_VERSION;
 use crate::prelude::*;
+use crate::mock_server::http_mock_server::ValidatingHttpMockServer;
 
 use super::interaction_builder::InteractionBuilder;
 
@@ -218,12 +219,12 @@ impl PactBuilder {
 
 #[async_trait]
 impl StartMockServer for PactBuilder {
-  fn start_mock_server(&self) -> ValidatingMockServer {
-    ValidatingMockServer::start(self.build(), self.output_dir.clone())
+  fn start_mock_server(&self, catalog_entry: Option<&str>) -> Box<dyn ValidatingMockServer> {
+    ValidatingHttpMockServer::start(self.build(), self.output_dir.clone())
   }
 
-  async fn start_mock_server_async(&self) -> ValidatingMockServer {
-    ValidatingMockServer::start_async(self.build(), self.output_dir.clone()).await
+  async fn start_mock_server_async(&self, catalog_entry: Option<&str>) -> Box<dyn ValidatingMockServer> {
+    ValidatingHttpMockServer::start_async(self.build(), self.output_dir.clone()).await
   }
 }
 

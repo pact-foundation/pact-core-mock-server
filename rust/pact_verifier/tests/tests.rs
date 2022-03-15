@@ -76,7 +76,7 @@ async fn verify_pact_with_match_values_matcher() {
       i
     })
     .await
-    .start_mock_server();
+    .start_mock_server(None);
 
   let provider = ProviderInfo {
     name: "MatchValuesProvider".to_string(),
@@ -126,7 +126,7 @@ async fn verify_pact_with_attributes_with_special_values() {
       i
     })
     .await
-    .start_mock_server();
+    .start_mock_server(None);
 
   let provider = ProviderInfo {
     name: "BookProvider".to_string(),
@@ -205,7 +205,7 @@ async fn verifying_a_pact_with_min_type_matcher_and_child_arrays() {
       i
     })
     .await
-    .start_mock_server();
+    .start_mock_server(None);
 
   let provider = ProviderInfo {
     name: "Issue396Service".to_string(),

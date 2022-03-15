@@ -49,7 +49,7 @@ async fn mock_server_passing_validation() {
           i.clone()
         })
         .await
-        .start_mock_server();
+        .start_mock_server(None);
 
       // You would use your actual client code here.
       let mallory_url = alice_service.path("/mallory");
@@ -93,7 +93,7 @@ async fn mock_server_failing_validation() {
           i.clone()
         })
       .await
-      .start_mock_server();
+      .start_mock_server(None);
     // Call with the wrong URL, which should lead to a panic at the end of
     // the function.
     let url = hello_service.path("/goodbye");
@@ -124,9 +124,9 @@ async fn duplicate_interactions() {
       })
       .await
       .output_dir(&output_dir)
-      .start_mock_server();
+      .start_mock_server(None);
 
-    let mock_url = mock_service.url().as_ref();
+    let mock_url = mock_service.url();
 
     assert_eq!(
       Client::new()

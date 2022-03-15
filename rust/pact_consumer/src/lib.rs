@@ -31,7 +31,7 @@
 //!
 //! ```toml
 //! [dev-dependencies]
-//! pact_consumer = "0.8"
+//! pact_consumer = "0.9"
 //! ```
 //!
 //! Once this is done, you can then write the following inside a function marked
@@ -85,7 +85,7 @@
 //! #             .body("That is some good Mallory.");
 //! #         // Return the interaction builder back to the pact framework
 //! #         i
-//! #     }).await.start_mock_server();
+//! #     }).await.start_mock_server(None);
 //!
 //! // You would use your actual client code here.
 //! let mallory_url = alice_service.path("/mallory");
@@ -362,7 +362,7 @@
 //!     })
 //!     .await
 //!     // Now start the mock server
-//!     .start_mock_server_async()
+//!     .start_mock_server_async(None)
 //!     .await;
 //!
 //!     // Now we can make our actual request for the CSV file and validate the response

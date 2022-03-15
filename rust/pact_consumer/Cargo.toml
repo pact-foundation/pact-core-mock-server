@@ -32,6 +32,7 @@ anyhow = "1.0.55"
 pact-plugin-driver = { version = "0.1.0", path = "../../../pact-plugins/drivers/rust/driver" }
 bytes = "1.1.0"
 async-trait = "0.1.52"
+tracing = "0.1.32"
 
 [dev-dependencies]
 quickcheck = "1"
