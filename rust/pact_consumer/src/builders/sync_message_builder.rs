@@ -114,7 +114,8 @@ impl SyncMessageInteractionBuilder {
       interaction_markup: InteractionMarkup {
         markup: self.interaction_markup(),
         markup_type: self.request_contents.interaction_markup_type.clone()
-      }
+      },
+      transport: None
     }
   }
 

@@ -93,7 +93,8 @@ impl InteractionBuilder {
       },
       pending: false,
       plugin_config: self.plugin_config(),
-      interaction_markup: self.request.interaction_markup().merge(self.response.interaction_markup())
+      interaction_markup: self.request.interaction_markup().merge(self.response.interaction_markup()),
+      transport: None
     }
   }
 
