@@ -109,6 +109,9 @@ pub trait V4Interaction: Interaction + Send + Sync {
 
   /// Markup added to the interaction to render in UIs
   fn interaction_markup_mut(&mut self) -> &mut InteractionMarkup;
+
+  /// Transport used with the interaction
+  fn transport(&self) -> Option<String>;
 }
 
 impl Display for dyn V4Interaction {

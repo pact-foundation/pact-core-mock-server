@@ -50,7 +50,10 @@ pub struct SynchronousHttp {
   pub plugin_config: HashMap<String, HashMap<String, Value>>,
 
   /// Text markup to use to render the interaction in a UI
-  pub interaction_markup: InteractionMarkup
+  pub interaction_markup: InteractionMarkup,
+
+  /// Transport mechanism used with this request and response
+  pub transport: Option<String>
 }
 
 impl SynchronousHttp {
@@ -102,6 +105,13 @@ impl SynchronousHttp {
       let interaction_markup = json.get("interactionMarkup")
         .map(|markup| InteractionMarkup::from_json(markup)).unwrap_or_default();
 
+      let transport = json.get("transport").map(|value| {
+        match value {
+          Value::String(s) => s.clone(),
+          _ => value.to_string()
+        }
+      });
+
       Ok(SynchronousHttp {
         id,
         key,
@@ -113,7 +123,8 @@ impl SynchronousHttp {
         pending: json.get("pending")
           .map(|value| value.as_bool().unwrap_or_default()).unwrap_or_default(),
         plugin_config,
-        interaction_markup
+        interaction_markup,
+        transport
       })
     } else {
       Err(anyhow!("Expected a JSON object for the interaction, got '{}'", json))
@@ -160,6 +171,11 @@ impl V4Interaction for SynchronousHttp {
       map.insert("interactionMarkup".to_string(), self.interaction_markup.to_json());
     }
 
+    if let Some(transport) = &self.transport {
+      let map = json.as_object_mut().unwrap();
+      map.insert("transport".to_string(), Value::String(transport.clone()));
+    }
+
     json
   }
 
@@ -201,6 +217,10 @@ impl V4Interaction for SynchronousHttp {
 
   fn interaction_markup_mut(&mut self) -> &mut InteractionMarkup {
     &mut self.interaction_markup
+  }
+
+  fn transport(&self) -> Option<String> {
+    self.transport.clone()
   }
 }
 
@@ -340,7 +360,8 @@ impl Default for SynchronousHttp {
       comments: Default::default(),
       pending: false,
       plugin_config: Default::default(),
-      interaction_markup: Default::default()
+      interaction_markup: Default::default(),
+      transport: None
     }
   }
 }
