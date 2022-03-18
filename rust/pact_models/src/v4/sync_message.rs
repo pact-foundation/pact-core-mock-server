@@ -195,7 +195,11 @@ impl V4Interaction for SynchronousMessage {
     json
   }
 
-  fn to_super(&self) -> &dyn Interaction {
+  fn to_super(&self) -> &(dyn Interaction + Send + Sync) {
+    self
+  }
+
+  fn to_super_mut(&mut self) -> &mut (dyn Interaction + Send + Sync) {
     self
   }
 

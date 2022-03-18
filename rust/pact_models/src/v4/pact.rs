@@ -142,6 +142,10 @@ impl Pact for V4Pact {
     self.interactions.iter().map(|i| i.boxed()).collect()
   }
 
+  fn interactions_mut(&mut self) -> Vec<&mut (dyn Interaction + Send + Sync)> {
+    self.interactions.iter_mut().map(|i| i.to_super_mut()).collect()
+  }
+
   fn metadata(&self) -> BTreeMap<String, BTreeMap<String, String>> {
     self.metadata.iter().map(|(k, v)| {
       match v {

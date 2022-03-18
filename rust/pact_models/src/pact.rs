@@ -38,6 +38,9 @@ pub trait Pact: Debug + ReadWritePact {
   /// Interactions in the Pact
   fn interactions(&self) -> Vec<Box<dyn Interaction + Send + Sync>>;
 
+  /// Mutable collection of interactions in the Pact
+  fn interactions_mut(&mut self) -> Vec<&mut (dyn Interaction + Send + Sync)>;
+
   /// Pact metadata
   fn metadata(&self) -> BTreeMap<String, BTreeMap<String, String>>;
 

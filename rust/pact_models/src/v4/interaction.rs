@@ -81,7 +81,10 @@ pub trait V4Interaction: Interaction + Send + Sync {
   fn to_json(&self) -> Value;
 
   /// Convert the interaction to its super trait
-  fn to_super(&self) -> &dyn Interaction;
+  fn to_super(&self) -> &(dyn Interaction + Send + Sync);
+
+  /// Convert the interaction to its super trait
+  fn to_super_mut(&mut self) -> &mut (dyn Interaction + Send + Sync);
 
   /// Key for this interaction
   fn key(&self) -> Option<String>;

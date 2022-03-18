@@ -58,6 +58,10 @@ impl Pact for MessagePact {
     self.messages.iter().map(|i| i.boxed()).collect()
   }
 
+  fn interactions_mut(&mut self) -> Vec<&mut (dyn Interaction + Send + Sync)> {
+    self.messages.iter_mut().map(|m| m as &mut (dyn Interaction + Send + Sync)).collect()
+  }
+
   fn metadata(&self) -> BTreeMap<String, BTreeMap<String, String>> {
     self.metadata.clone()
   }

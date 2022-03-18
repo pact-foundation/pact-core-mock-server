@@ -217,10 +217,14 @@ impl V4Interaction for AsynchronousMessage {
     json
   }
 
-  fn to_super(&self) -> &dyn Interaction {
+  fn to_super(&self) -> &(dyn Interaction + Send + Sync) {
     self
   }
 
+  fn to_super_mut(&mut self) -> &mut (dyn Interaction + Send + Sync) {
+    self
+  }
+  
   fn key(&self) -> Option<String> {
     self.key.clone()
   }
