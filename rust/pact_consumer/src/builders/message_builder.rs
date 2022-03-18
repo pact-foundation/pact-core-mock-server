@@ -105,7 +105,8 @@ impl MessageInteractionBuilder {
       interaction_markup: InteractionMarkup {
         markup: self.message_contents.interaction_markup.clone(),
         markup_type: self.message_contents.interaction_markup_type.clone()
-      }
+      },
+      transport: None
     }
   }
 
