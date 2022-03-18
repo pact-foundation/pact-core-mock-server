@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.3.1 - Plugin Support
+
+* 7fd87eb9 - feat: store the transport with V4 interactions to support mockservers from plugins (Ronald Holshausen, Fri Mar 18 14:30:20 2022 +1100)
+* 27e41386 - bump version to 0.3.1 (Ronald Holshausen, Fri Mar 4 11:32:56 2022 +1100)
+
 # 0.3.0 - Ported the date-time expressions from Pact-JVM
 
 * 0aa55cfe - feat: wired the date-time expression parsers into the generators (Ronald Holshausen, Thu Mar 3 18:01:46 2022 +1100)
