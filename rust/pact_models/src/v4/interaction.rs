@@ -115,6 +115,9 @@ pub trait V4Interaction: Interaction + Send + Sync {
 
   /// Transport used with the interaction
   fn transport(&self) -> Option<String>;
+
+  /// Set the transport used with the interaction
+  fn set_transport(&mut self, transport: Option<String>);
 }
 
 impl Display for dyn V4Interaction {

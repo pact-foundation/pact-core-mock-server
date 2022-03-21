@@ -264,6 +264,10 @@ impl V4Interaction for AsynchronousMessage {
   fn transport(&self) -> Option<String> {
     self.transport.clone()
   }
+
+  fn set_transport(&mut self, transport: Option<String>) {
+    self.transport = transport.clone();
+  }
 }
 
 impl Interaction for AsynchronousMessage {

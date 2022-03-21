@@ -242,6 +242,10 @@ impl V4Interaction for SynchronousMessage {
   fn transport(&self) -> Option<String> {
     self.transport.clone()
   }
+
+  fn set_transport(&mut self, transport: Option<String>) {
+    self.transport = transport.clone();
+  }
 }
 
 impl Interaction for SynchronousMessage {
