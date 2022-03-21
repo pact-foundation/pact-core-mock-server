@@ -1,8 +1,7 @@
 //! Interface to a standard HTTP mock server provided by Pact
 
-use std::{env, io, thread};
-use std::fmt::Write as FmtWrite;
-use std::io::Write;
+use std::{env, thread};
+use std::fmt::Write;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
@@ -17,6 +16,7 @@ use pact_mock_server::mock_server;
 use pact_mock_server::mock_server::{MockServerConfig, MockServerMetrics};
 
 use crate::mock_server::ValidatingMockServer;
+use crate::util::panic_or_print_error;
 
 /// A mock HTTP server that handles the requests described in a `Pact`, intended
 /// for use in tests, and validates that the requests made to that server are
@@ -71,7 +71,7 @@ impl ValidatingHttpMockServer {
         "test({})-pact-mock-server",
         thread::current().name().unwrap_or("<unknown>")
       );
-      std::thread::Builder::new()
+      thread::Builder::new()
         .name(tname)
         .spawn(move || {
           runtime.block_on(server_future);
@@ -237,20 +237,6 @@ impl ValidatingMockServer for ValidatingHttpMockServer {
 
   fn metrics(&self) -> MockServerMetrics {
     self.mock_server.lock().unwrap().metrics.clone()
-  }
-}
-
-/// Either panic with `msg`, or if we're already in the middle of a panic,
-/// just print `msg` to standard error.
-fn panic_or_print_error(msg: &str) {
-  if thread::panicking() {
-    // The current thread is panicking, so don't try to panic again, because
-    // double panics don't print useful explanations of why the test failed.
-    // Instead, just print to `stderr`. Ignore any errors, because there's
-    // not much we can do if we can't panic and we can't write to `stderr`.
-    let _ = writeln!(io::stderr(), "{}", msg);
-  } else {
-    panic!("{}", msg);
   }
 }
 

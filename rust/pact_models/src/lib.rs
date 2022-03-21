@@ -158,19 +158,6 @@ impl From<&String> for PactSpecification {
   }
 }
 
-// impl ToString for PactSpecification {
-//   fn to_string(&self) -> String {
-//     match *self {
-//       PactSpecification::V1 => "V1",
-//       PactSpecification::V1_1 => "V1.1",
-//       PactSpecification::V2 => "V2",
-//       PactSpecification::V3 => "V3",
-//       PactSpecification::V4 => "V4",
-//       _ => "unknown"
-//     }.into()
-//   }
-// }
-
 impl Display for PactSpecification {
   fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
     match *self {

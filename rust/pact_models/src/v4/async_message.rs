@@ -224,7 +224,7 @@ impl V4Interaction for AsynchronousMessage {
   fn to_super_mut(&mut self) -> &mut (dyn Interaction + Send + Sync) {
     self
   }
-  
+
   fn key(&self) -> Option<String> {
     self.key.clone()
   }

@@ -56,14 +56,14 @@ lazy_static! {
   static ref MOCK_SERVER_CATALOGUE_ENTRIES: Vec<CatalogueEntry> = {
     let mut entries = vec![];
     entries.push(CatalogueEntry {
-      entry_type: CatalogueEntryType::INTERACTION,
+      entry_type: CatalogueEntryType::TRANSPORT,
       provider_type: CatalogueEntryProviderType::CORE,
       plugin: None,
       key: "http".to_string(),
       values: hashmap!{}
     });
     entries.push(CatalogueEntry {
-      entry_type: CatalogueEntryType::INTERACTION,
+      entry_type: CatalogueEntryType::TRANSPORT,
       provider_type: CatalogueEntryProviderType::CORE,
       plugin: None,
       key: "https".to_string(),

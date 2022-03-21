@@ -5,7 +5,7 @@
 
 use std::cell::RefCell;
 use std::ffi::CString;
-use std::ops::DerefMut;
+use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
@@ -262,6 +262,17 @@ impl MockServer {
     trace!("write_pact: output_path = {:?}, overwrite = {}", output_path, overwrite);
     let mut pact = self.pact.lock().unwrap();
     pact.add_md_version("mockserver", option_env!("CARGO_PKG_VERSION").unwrap_or("unknown"));
+
+    let mut v4_pact = pact.as_v4_pact().unwrap_or_default();
+    let pact = if pact.is_v4() {
+      for interaction in &mut v4_pact.interactions {
+        interaction.set_transport(Some("http".to_string()));
+      }
+      &v4_pact as &(dyn Pact + Send + Sync)
+    } else {
+      pact.deref()
+    };
+
     let pact_file_name = pact.default_file_name();
     let filename = match *output_path {
       Some(ref path) => {

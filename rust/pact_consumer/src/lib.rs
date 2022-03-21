@@ -228,7 +228,7 @@
 //! let mut pact_builder = PactBuilder::new_v4("message-consumer", "message-provider"); // Define the message consumer and provider by name
 //! pact_builder
 //!   // Adds an interaction given the message description and type.
-//!   .message_interaction("Mallory Message", "core/interaction/message", |mut i| async move {
+//!   .message_interaction("Mallory Message", |mut i| async move {
 //!     // defines a provider state. It is optional.
 //!     i.given("there is some good mallory".to_string());
 //!     // Can set the test name (optional)
@@ -277,7 +277,7 @@
 //! let mut pact_builder = PactBuilder::new_v4("message-consumer", "message-provider"); // Define the message consumer and provider by name
 //! pact_builder
 //!   // Adds an interaction given the message description and type.
-//!   .synchronous_message_interaction("Mallory Message", "core/interaction/synchronous-message", |mut i| async move {
+//!   .synchronous_message_interaction("Mallory Message", |mut i| async move {
 //!     // defines a provider state. It is optional.
 //!     i.given("there is some good mallory".to_string());
 //!     // Can set the test name (optional)

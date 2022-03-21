@@ -107,7 +107,7 @@ async fn duplicate_interactions() {
   let u8 = random::<u8>();
   let output_dir = output_dir(&*format!("target/pact_dir_{:03}", u8));
 
-  for _ in 1..3 {
+  for _ in 1..=3 {
     let mock_service = PactBuilder::new("consumer 1", "provider 1")
       .interaction("tricky test", "", |mut interaction| {
         interaction
@@ -148,5 +148,7 @@ async fn duplicate_interactions() {
 
   let path = output_dir.join("consumer 1-provider 1.json");
   let written_pact = RequestResponsePact::read_pact(path.as_path()).unwrap();
+  let _ = fs::remove_dir_all(output_dir);
+
   expect!(written_pact.interactions.len()).to(be_equal_to(1));
 }

@@ -29,7 +29,6 @@ pub struct MessageInteractionBuilder {
   provider_states: Vec<ProviderState>,
   comments: Vec<String>,
   test_name: Option<String>,
-  interaction_type: String,
   message_contents: InteractionContents,
   contents_plugin: Option<PactPluginManifest>,
   plugin_config: HashMap<String, PluginConfiguration>
@@ -38,13 +37,12 @@ pub struct MessageInteractionBuilder {
 impl MessageInteractionBuilder {
   /// Create a new message interaction builder, Description is the interaction description
   /// and interaction_type is the type of message (leave empty for the default type).
-  pub fn new<D: Into<String>>(description: D, interaction_type: D) -> MessageInteractionBuilder {
+  pub fn new<D: Into<String>>(description: D) -> MessageInteractionBuilder {
     MessageInteractionBuilder {
       description: description.into(),
       provider_states: vec![],
       comments: vec![],
       test_name: None,
-      interaction_type: interaction_type.into(),
       message_contents: Default::default(),
       contents_plugin: None,
       plugin_config: Default::default()
@@ -219,7 +217,7 @@ impl MessageInteractionBuilder {
   /// use pact_consumer::*;
   /// use pact_consumer::builders::MessageInteractionBuilder;
   ///
-  /// MessageInteractionBuilder::new("hello message", "core/interaction/message").json_body(json_pattern!({
+  /// MessageInteractionBuilder::new("hello message").json_body(json_pattern!({
   ///     "message": like!("Hello"),
   /// }));
   /// ```

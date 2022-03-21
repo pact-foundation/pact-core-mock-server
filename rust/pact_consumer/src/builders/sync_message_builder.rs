@@ -26,7 +26,6 @@ pub struct SyncMessageInteractionBuilder {
   provider_states: Vec<ProviderState>,
   comments: Vec<String>,
   test_name: Option<String>,
-  interaction_type: String,
   request_contents: InteractionContents,
   response_contents: Vec<InteractionContents>,
   contents_plugin: Option<PactPluginManifest>,
@@ -35,13 +34,12 @@ pub struct SyncMessageInteractionBuilder {
 
 impl SyncMessageInteractionBuilder {
   /// Create a new message interaction builder
-  pub fn new<D: Into<String>>(description: D, interaction_type: D) -> SyncMessageInteractionBuilder {
+  pub fn new<D: Into<String>>(description: D) -> SyncMessageInteractionBuilder {
     SyncMessageInteractionBuilder {
       description: description.into(),
       provider_states: vec![],
       comments: vec![],
       test_name: None,
-      interaction_type: interaction_type.into(),
       request_contents: Default::default(),
       response_contents: vec![],
       contents_plugin: None,
@@ -267,7 +265,7 @@ impl SyncMessageInteractionBuilder {
   /// use pact_consumer::*;
   /// use pact_consumer::builders::SyncMessageInteractionBuilder;
   ///
-  /// SyncMessageInteractionBuilder::new("hello message", "core/interaction/synchronous-message").request_json_body(json_pattern!({
+  /// SyncMessageInteractionBuilder::new("hello message").request_json_body(json_pattern!({
   ///     "message": like!("Hello"),
   /// }));
   /// ```
@@ -297,7 +295,7 @@ impl SyncMessageInteractionBuilder {
   /// use pact_consumer::*;
   /// use pact_consumer::builders::SyncMessageInteractionBuilder;
   ///
-  /// SyncMessageInteractionBuilder::new("hello message", "core/interaction/synchronous-message").response_json_body(json_pattern!({
+  /// SyncMessageInteractionBuilder::new("hello message").response_json_body(json_pattern!({
   ///     "message": like!("Hello"),
   /// }));
   /// ```

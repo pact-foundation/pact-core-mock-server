@@ -65,7 +65,7 @@ async fn test_message_client() {
   let mut pact_builder = PactBuilder::new_v4("message-consumer", "message-provider");
 
   // Create a message interaction
-  pact_builder.message_interaction("hello message", "core/interaction/message", |mut i| async move {
+  pact_builder.message_interaction("hello message", |mut i| async move {
       i.test_name("test_message_client");
       i.json_body(json_pattern!({
           "name": like!("mai"),
@@ -99,7 +99,7 @@ async fn test_req_res_message_client() {
   let mut pact_builder = PactBuilder::new_v4("message-consumer", "message-provider");
 
   // Create a message interaction
-  pact_builder.synchronous_message_interaction("hello message", "core/interaction/synchronous-message", |mut i| async move {
+  pact_builder.synchronous_message_interaction("hello message", |mut i| async move {
     i.test_name("test_req_res_message_client");
     // Define the request message
     i.request_json_body(json_pattern!({

@@ -2,6 +2,9 @@
 //! Most of these are `pub(crate)`, which makes them available to the rest of
 //! the crate, but prevents them from winding up in our public API.
 
+use std::{io, thread};
+use std::io::Write;
+
 /// Internal helper method for `strip_null_fields`.
 fn strip_null_fields_mut(json: &mut serde_json::Value) {
     use serde_json::Value;
@@ -81,5 +84,19 @@ pub(crate) trait GetDefaulting<T: Default> {
 impl<T: Default> GetDefaulting<T> for Option<T> {
     fn get_defaulting(&mut self) -> &mut T {
         self.get_or_insert_with(Default::default)
+    }
+}
+
+/// Either panic with `msg`, or if we're already in the middle of a panic,
+/// just print `msg` to standard error.
+pub(crate) fn panic_or_print_error(msg: &str) {
+    if thread::panicking() {
+        // The current thread is panicking, so don't try to panic again, because
+        // double panics don't print useful explanations of why the test failed.
+        // Instead, just print to `stderr`. Ignore any errors, because there's
+        // not much we can do if we can't panic and we can't write to `stderr`.
+        let _ = writeln!(io::stderr(), "{}", msg);
+    } else {
+        panic!("{}", msg);
     }
 }
