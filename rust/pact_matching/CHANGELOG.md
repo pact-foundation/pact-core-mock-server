@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.12.4 - Maintenance Release
+
+* 9baf03a9 - chore: use the published version of the plugin driver (Ronald Holshausen, Thu Mar 24 13:36:01 2022 +1100)
+* 345b0011 - feat: support mock servers provided from plugins (Ronald Holshausen, Mon Mar 21 15:59:46 2022 +1100)
+* 68207eb6 - bump version to 0.12.4 (Ronald Holshausen, Fri Mar 4 14:00:31 2022 +1100)
+
 # 0.12.3 - Maintenance Release
 
 * fbcec27a - chore: Upgrade pact-models to 0.3.0 (Ronald Holshausen, Fri Mar 4 12:23:49 2022 +1100)
