@@ -33,7 +33,7 @@ rustls = "0.20.4"
 tokio-rustls = "0.23.2"
 rustls-pemfile = "0.3.0"
 thiserror = "1.0.30"
-pact-plugin-driver = { version = "0.1.0", path = "../../../pact-plugins/drivers/rust/driver" }
+pact-plugin-driver = "0.1.0"
 
 [dev-dependencies]
 quickcheck = "1"
