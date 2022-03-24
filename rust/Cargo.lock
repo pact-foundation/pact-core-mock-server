@@ -1550,7 +1550,6 @@ dependencies = [
  "maplit",
  "mime",
  "pact-plugin-driver",
- "pact_consumer",
  "pact_matching",
  "pact_models 0.3.2",
  "quickcheck",

@@ -1057,979 +1057,979 @@ pub struct PactVerificationProperties {
 
 #[cfg(test)]
 mod tests {
-  use env_logger::*;
-  use expectest::expect;
-  use expectest::prelude::*;
-  use pact_models::{Consumer, PactSpecification, Provider};
-  use pact_models::prelude::RequestResponsePact;
-  use pact_models::sync_interaction::RequestResponseInteraction;
-
-  use pact_consumer::*;
-  use pact_consumer::prelude::*;
-  use pact_matching::Mismatch::MethodMismatch;
-
-  use super::*;
-  use super::{content_type, json_content_type};
-
-  #[tokio::test]
-  async fn fetch_returns_an_error_if_there_is_no_pact_broker() {
-    let client = HALClient::with_url("http://idont.exist:6666", None);
-    expect!(client.fetch("/").await).to(be_err());
-  }
-
-  #[tokio::test]
-  async fn fetch_returns_an_error_if_it_does_not_get_a_success_response() {
-    let pact_broker = PactBuilder::new("RustPactVerifier", "PactBroker")
-        .interaction("a request to a non-existant path", "", |mut i| {
-            i.given("the pact broker has a valid pact");
-            i.request.path("/hello");
-            i.response.status(404);
-            futures::future::ready(i)
-        })
-        .await
-        .start_mock_server(None);
-
-    let client = HALClient::with_url(pact_broker.url().as_str(), None);
-    let result = client.fetch("/hello").await;
-    expect!(result).to(be_err().value(format!("Request to pact broker path \'/hello\' failed: 404 Not Found. URL: '{}'",
-        pact_broker.url())));
-  }
-
-  #[tokio::test]
-  async fn fetch_returns_an_error_if_it_does_not_get_a_hal_response() {
-    let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
-      .interaction("a request to a non-json resource", "", |mut i| {
-          i.request.path("/nonjson");
-          i.response
-              .header("Content-Type", "text/html")
-              .body("<html></html>");
-          futures::future::ready(i)
-      })
-      .await
-      .start_mock_server(None);
-
-    let client = HALClient::with_url(pact_broker.url().as_str(), None);
-    let result = client.fetch("/nonjson").await;
-    expect!(result).to(be_err().value(format!("Did not get a HAL response from pact broker path \'/nonjson\', content type is 'text/html'. URL: '{}'",
-      pact_broker.url())));
-  }
-
-    #[test]
-    fn content_type_test() {
-        let response = reqwest::Response::from(
-            http::response::Builder::new()
-                .header("content-type", "application/hal+json; charset=utf-8")
-                .body("null")
-                .unwrap()
-        );
-
-        expect!(content_type(&response)).to(be_equal_to("application/hal+json; charset=utf-8".to_string()));
-    }
-
-    #[test]
-    fn json_content_type_test() {
-        let response = reqwest::Response::from(
-            http::response::Builder::new()
-                .header("content-type", "application/json")
-                .body("null")
-                .unwrap()
-        );
-
-        expect!(json_content_type(&response)).to(be_true());
-    }
-
-    #[test]
-    fn json_content_type_utf8_test() {
-        let response = reqwest::Response::from(
-            http::response::Builder::new()
-                .header("content-type", "application/hal+json;charset=utf-8")
-                .body("null")
-                .unwrap()
-        );
-
-        expect!(json_content_type(&response)).to(be_true());
-    }
-
-    #[tokio::test]
-    async fn fetch_returns_an_error_if_it_does_not_get_a_valid_hal_response() {
-        let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
-            .interaction("a request to a non-hal resource", "", |mut i| {
-                i.request.path("/nonhal");
-                i.response.header("Content-Type", "application/hal+json");
-                futures::future::ready(i)
-            })
-            .await
-            .interaction("a request to a non-hal resource 2", "", |mut i| {
-                i.request.path("/nonhal2");
-                i.response
-                    .header("Content-Type", "application/hal+json")
-                    .body("<html>This is not JSON</html>");
-                futures::future::ready(i)
-            })
-            .await
-            .start_mock_server(None);
-
-        let client = HALClient::with_url(pact_broker.url().as_str(), None);
-        let result = client.clone().fetch("/nonhal").await;
-        expect!(result).to(be_err().value(format!("Did not get a valid HAL response body from pact broker path \'/nonhal\' - EOF while parsing a value at line 1 column 0. URL: '{}'",
-            pact_broker.url())));
-
-        let result = client.clone().fetch("/nonhal2").await;
-        expect!(result).to(be_err().value(format!("Did not get a valid HAL response body from pact broker path \'/nonhal2\' - expected value at line 1 column 1. URL: '{}'",
-            pact_broker.url())));
-    }
-
-  #[tokio::test]
-  async fn fetch_retries_the_request_on_50x_errors() {
-    let _ = env_logger::try_init();
-    let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
-      .interaction("a request to a hal resource", "", |mut i| async move {
-        i.given("server returns a gateway error");
-        i.request.path("/");
-        i.response.status(503);
-        i
-      })
-      .await
-      .start_mock_server(None);
-
-    let client = HALClient::with_url(pact_broker.url().as_str(), None);
-    let expected_requests = client.retries as usize;
-    let result = client.fetch("/").await;
-    expect!(result).to(be_err());
-    expect!(pact_broker.metrics().requests).to(be_equal_to(expected_requests ));
-  }
-
-  #[tokio::test]
-  async fn post_json_retries_the_request_on_50x_errors() {
-    let _ = env_logger::try_init();
-    let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
-      .interaction("a POST request", "", |mut i| async move {
-        i.given("server returns a gateway error");
-        i.request.path("/").method("POST");
-        i.response.status(503);
-        i
-      })
-      .await
-      .start_mock_server(None);
-
-    let client = HALClient::with_url(pact_broker.url().as_str(), None);
-    let expected_requests = client.retries as usize;
-    let result = client.post_json(pact_broker.url().as_str(), "{}").await;
-    expect!(result.clone()).to(be_err());
-    expect!(pact_broker.metrics().requests).to(be_equal_to(expected_requests ));
-  }
-
-  #[tokio::test]
-  async fn put_json_retries_the_request_on_50x_errors() {
-    let _ = env_logger::try_init();
-    let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
-      .interaction("a PUT request", "", |mut i| async move {
-        i.given("server returns a gateway error");
-        i.request.path("/").method("PUT");
-        i.response.status(503);
-        i
-      })
-      .await
-      .start_mock_server(None);
-
-    let client = HALClient::with_url(pact_broker.url().as_str(), None);
-    let expected_requests = client.retries as usize;
-    let result = client.put_json(pact_broker.url().as_str(), "{}").await;
-    expect!(result.clone()).to(be_err());
-    expect!(pact_broker.metrics().requests).to(be_equal_to(expected_requests ));
-  }
-
-  #[test]
-  fn parse_link_url_returns_error_if_there_is_no_href() {
-    let client = HALClient::default();
-    let link = Link { name: "link".to_string(), href: None, templated: false, title: None };
-    expect!(client.parse_link_url(&link, &hashmap!{})).to(be_err().value(
-      "Expected a HAL+JSON response from the pact broker, but got a link with no HREF. URL: '', LINK: 'link'"));
-  }
-
-  #[test]
-  fn parse_link_url_replaces_all_tokens_in_href() {
-    let client = HALClient::default();
-    let values = hashmap!{ "valA".to_string() => "A".to_string(), "valB".to_string() => "B".to_string() };
-
-    let link = Link { name: "link".to_string(), href: Some("http://localhost".to_string()), templated: false, title: None };
-    expect!(client.clone().parse_link_url(&link, &values)).to(be_ok().value("http://localhost"));
-
-    let link = Link { name: "link".to_string(), href: Some("http://{valA}/{valB}".to_string()), templated: false, title: None };
-    expect!(client.clone().parse_link_url(&link, &values)).to(be_ok().value("http://A/B"));
-
-    let link = Link { name: "link".to_string(), href: Some("http://{valA}/{valC}".to_string()), templated: false, title: None };
-    expect!(client.clone().parse_link_url(&link, &values)).to(be_ok().value("http://A/{valC}"));
-  }
-
-  #[test]
-  fn parse_link_url_encodes_the_tokens_in_href() {
-    let client = HALClient::default();
-    let values = hashmap!{ "valA".to_string() => "A".to_string(), "valB".to_string() => "B/C".to_string() };
-
-    let link = Link { name: "link".to_string(), href: Some("http://{valA}/{valB}".to_string()), templated: false, title: None };
-    expect!(client.clone().parse_link_url(&link, &values)).to(be_ok().value("http://A/B%2FC"));
-  }
-
-    #[tokio::test]
-    async fn fetch_link_returns_an_error_if_a_previous_resource_has_not_been_fetched() {
-        let client = HALClient::with_url("http://localhost", None);
-        let result = client.fetch_link("anything_will_do", &hashmap!{}).await;
-        expect!(result).to(be_err().value("No previous resource has been fetched from the pact broker. URL: 'http://localhost', LINK: 'anything_will_do'".to_string()));
-    }
-
-    #[tokio::test]
-    async fn fetch_link_returns_an_error_if_the_previous_resource_was_not_hal() {
-      try_init().unwrap_or(());
-        let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
-            .interaction("a request to a non-hal json resource", "", |mut i| async move {
-                i.request.path("/");
-                i.response
-                    .header("Content-Type", "application/hal+json")
-                    .body("{}");
-                i
-            })
-            .await
-            .start_mock_server(None);
-
-        let mut client = HALClient::with_url(pact_broker.url().as_str(), None);
-        let result = client.clone().fetch("/").await;
-        expect!(result.clone()).to(be_ok());
-        client.path_info = result.ok();
-        let result = client.clone().fetch_link("hal2", &hashmap!{}).await;
-        expect!(result).to(be_err().value(format!("Expected a HAL+JSON response from the pact broker, but got a response with no '_links'. URL: '{}', LINK: 'hal2'",
-            pact_broker.url())));
-    }
-
-    #[tokio::test]
-    async fn fetch_link_returns_an_error_if_the_previous_resource_links_are_not_correctly_formed() {
-      try_init().unwrap_or(());
-        let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
-            .interaction("a request to a hal resource with invalid links", "", |mut i| async move {
-                i.request.path("/");
-                i.response
-                    .header("Content-Type", "application/hal+json")
-                    .body("{\"_links\":[{\"next\":{\"href\":\"abc\"}},{\"prev\":{\"href\":\"def\"}}]}");
-                i
-            })
-            .await
-            .start_mock_server(None);
-
-        let mut client = HALClient::with_url(pact_broker.url().as_str(), None);
-        let result = client.clone().fetch("/").await;
-        expect!(result.clone()).to(be_ok());
-        client.path_info = result.ok();
-        let result = client.clone().fetch_link("any", &hashmap!{}).await;
-        expect!(result).to(be_err().value(format!("Link 'any' was not found in the response, only the following links where found: \"\". URL: '{}', LINK: 'any'",
-            pact_broker.url())));
-    }
-
-  #[tokio::test]
-  async fn fetch_link_returns_an_error_if_the_previous_resource_does_not_have_the_link() {
-    let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
-        .interaction("a request to a hal resource", "", |mut i| async move {
-            i.request.path("/");
-            i.response
-                .header("Content-Type", "application/hal+json")
-                .body("{\"_links\":{\"next\":{\"href\":\"/abc\"},\"prev\":{\"href\":\"/def\"}}}");
-            i
-        })
-        .await
-        .start_mock_server(None);
-
-    let mut client = HALClient::with_url(pact_broker.url().as_str(), None);
-    let result = client.clone().fetch("/").await;
-    expect!(result.clone()).to(be_ok());
-    client.path_info = result.ok();
-    let result = client.clone().fetch_link("any", &hashmap!{}).await;
-    expect!(result).to(be_err().value(format!("Link 'any' was not found in the response, only the following links where found: \"next, prev\". URL: '{}', LINK: 'any'",
-        pact_broker.url())));
-  }
-
-    #[tokio::test]
-    async fn fetch_link_returns_the_resource_for_the_link() {
-        let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
-            .interaction("a request to a hal resource", "", |mut i| async move {
-                i.request.path("/");
-                i.response
-                    .header("Content-Type", "application/hal+json")
-                    .body("{\"_links\":{\"next\":{\"href\":\"/abc\"},\"prev\":{\"href\":\"/def\"}}}");
-                i
-            })
-            .await
-            .interaction("a request to next", "", |mut i| async move {
-                i.request.path("/abc");
-                i.response
-                    .header("Content-Type", "application/json")
-                    .json_body(json_pattern!("Yay! You found your way here"));
-                i
-            })
-            .await
-            .start_mock_server(None);
-
-        let mut client = HALClient::with_url(pact_broker.url().as_str(), None);
-        let result = client.clone().fetch("/").await;
-        expect!(result.clone()).to(be_ok());
-        client.path_info = result.ok();
-        let result = client.clone().fetch_link("next", &hashmap!{}).await;
-        expect!(result).to(be_ok().value(serde_json::Value::String("Yay! You found your way here".to_string())));
-    }
-
-    #[tokio::test]
-    async fn fetch_link_returns_handles_absolute_resource_links() {
-        try_init().unwrap_or(());
-        let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
-            .interaction("a request to a hal resource with absolute paths", "", |mut i| async move {
-                i.request.path("/");
-                i.response
-                    .header("Content-Type", "application/hal+json")
-                    .body("{\"_links\":{\"next\":{\"href\":\"http://localhost/abc\"},\"prev\":{\"href\":\"http://localhost/def\"}}}");
-                i
-            })
-            .await
-            .interaction("a request to next", "", |mut i| async move {
-                i.request.path("/abc");
-                i.response
-                    .header("Content-Type", "application/json")
-                    .json_body(json_pattern!("Yay! You found your way here"));
-                i
-            })
-            .await
-            .start_mock_server(None);
-
-        let mut client = HALClient::with_url(pact_broker.url().as_str(), None);
-        let result = client.clone().fetch("/").await;
-        expect!(result.clone()).to(be_ok());
-        client.path_info = result.ok();
-        let result = client.clone().fetch_link("next", &hashmap!{}).await;
-        expect!(result).to(be_ok().value(serde_json::Value::String("Yay! You found your way here".to_string())));
-    }
-
-    #[tokio::test]
-    async fn fetch_link_returns_the_resource_for_the_templated_link() {
-      try_init().unwrap_or(());
-        let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
-            .interaction("a request to a templated hal resource", "", |mut i| async move {
-                i.request.path("/");
-                i.response
-                    .header("Content-Type", "application/hal+json")
-                    .body("{\"_links\":{\"document\":{\"href\":\"/doc/{id}\",\"templated\":true}}}");
-                i
-            })
-            .await
-            .interaction("a request for a document", "", |mut i| async move {
-                i.request.path("/doc/abc");
-                i.response
-                    .header("Content-Type", "application/json")
-                    .json_body(json_pattern!("Yay! You found your way here"));
-                i
-            })
-            .await
-            .start_mock_server(None);
-
-        let mut client = HALClient::with_url(pact_broker.url().as_str(), None);
-        let result = client.clone().fetch("/").await;
-        expect!(result.clone()).to(be_ok());
-        client.path_info = result.ok();
-        let result = client.clone().fetch_link("document", &hashmap!{ "id".to_string() => "abc".to_string() }).await;
-        expect!(result).to(be_ok().value(serde_json::Value::String("Yay! You found your way here".to_string())));
-    }
-
-    #[tokio::test]
-    async fn fetch_pacts_from_broker_returns_empty_list_if_there_are_no_pacts() {
-      try_init().unwrap_or(());
-        let pact_broker = PactBuilder::new("RustPactVerifier", "PactBroker")
-            .interaction("a request to the pact broker root", "", |mut i| async move {
-                i.request
-                    .path("/")
-                    .header("Accept", "application/hal+json")
-                    .header("Accept", "application/json");
-                i.response
-                    .header("Content-Type", "application/hal+json")
-                    .json_body(json_pattern!({
-                        "_links": {
-                            "pb:latest-provider-pacts": {
-                                "href": "http://localhost/pacts/provider/{provider}/latest",
-                                "templated": true,
-                            }
-                        }
-                    }));
-                i
-            })
-            .await
-            .interaction("a request for a providers pacts", "", |mut i| async move {
-                i.given("There are no pacts in the pact broker");
-                i.request
-                    .path("/pacts/provider/sad_provider/latest")
-                    .header("Accept", "application/hal+json")
-                    .header("Accept", "application/json");
-                i.response.status(404);
-                i
-            })
-            .await
-            .start_mock_server(None);
-
-        let result = fetch_pacts_from_broker(pact_broker.url().as_str(),
-                                             "sad_provider", None).await;
-        match result {
-          Ok(_) => {
-            panic!("Expected an error result, but got OK");
-          },
-          Err(err) => {
-            println!("err: {}", err);
-            expect!(err.to_string().starts_with("Link/Resource was not found - No pacts for provider 'sad_provider' where found in the pact broker")).to(be_true());
-          }
-        }
-    }
-
-    #[tokio::test]
-    async fn fetch_pacts_from_broker_returns_a_list_of_pacts() {
-      try_init().unwrap_or(());
-        let pact = RequestResponsePact { consumer: Consumer { name: "Consumer".to_string() },
-            provider: Provider { name: "happy_provider".to_string() },
-            .. RequestResponsePact::default() }
-            .to_json(PactSpecification::V3).unwrap().to_string();
-        let pact2 = RequestResponsePact { consumer: Consumer { name: "Consumer2".to_string() },
-            provider: Provider { name: "happy_provider".to_string() },
-            interactions: vec![ RequestResponseInteraction { description: "a request friends".to_string(), .. RequestResponseInteraction::default() } ],
-            .. RequestResponsePact::default() }
-            .to_json(PactSpecification::V3).unwrap().to_string();
-        let pact_broker = PactBuilder::new("RustPactVerifier", "PactBroker")
-            .interaction("a request to the pact broker root", "", |mut i| async move {
-                i.request
-                    .path("/")
-                    .header("Accept", "application/hal+json")
-                    .header("Accept", "application/json");
-                i.response
-                    .header("Content-Type", "application/hal+json")
-                    .json_body(json_pattern!({
-                        "_links": {
-                            "pb:latest-provider-pacts": {
-                                "href": "http://localhost/pacts/provider/{provider}/latest",
-                                "templated": true,
-                            }
-                        }
-                    }));
-                i
-            })
-            .await
-            .interaction("a request for a providers pacts", "", |mut i| async move {
-                i.given("There are two pacts in the pact broker");
-                i.request
-                    .path("/pacts/provider/happy_provider/latest")
-                    .header("Accept", "application/hal+json")
-                    .header("Accept", "application/json");
-                i.response
-                    .header("Content-Type", "application/hal+json")
-                    .json_body(json_pattern!({
-                        "_links":{
-                            "pacts":[
-                                {"href":"http://localhost/pacts/provider/happy_provider/consumer/Consumer/version/1.0.0"},
-                                {"href":"http://localhost/pacts/provider/happy_provider/consumer/Consumer2/version/1.0.0"}
-                            ]
-                        }
-                    }));
-                i
-            })
-            .await
-            .interaction("a request for the first provider pact", "", |mut i| async move {
-                i.given("There are two pacts in the pact broker");
-                i.request
-                    .path("/pacts/provider/happy_provider/consumer/Consumer/version/1.0.0")
-                    .header("Accept", "application/hal+json")
-                    .header("Accept", "application/json");
-                i.response
-                    .header("Content-Type", "application/json")
-                    .body(pact.clone());
-                i
-            })
-            .await
-            .interaction("a request for the second provider pact", "", |mut i| async move {
-                i.given("There are two pacts in the pact broker");
-                i.request
-                    .path("/pacts/provider/happy_provider/consumer/Consumer2/version/1.0.0")
-                    .header("Accept", "application/hal+json")
-                    .header("Accept", "application/json");
-                i.response
-                    .header("Content-Type", "application/json")
-                    .body(pact2.clone());
-                i
-            })
-            .await
-            .start_mock_server(None);
-
-        let result = fetch_pacts_from_broker(pact_broker.url().as_str(),
-          "happy_provider", None).await;
-        match &result {
-          Ok(_) => (),
-          Err(err) => panic!("Expected an Ok result, got a error {}", err)
-        }
-        let pacts = &result.unwrap();
-        expect!(pacts.len()).to(be_equal_to(2));
-        for pact in pacts {
-          match pact {
-            Ok(_) => (),
-            Err(err) => panic!("Expected an Ok result, got a error {}", err)
-          }
-        }
-    }
-
-    #[tokio::test]
-    async fn fetch_pacts_for_verification_from_broker_returns_a_list_of_pacts() {
-      try_init().unwrap_or(());
-
-      let pact = RequestResponsePact { consumer: Consumer { name: "Consumer".to_string() },
-        provider: Provider { name: "happy_provider".to_string() },
-        .. RequestResponsePact::default() }
-        .to_json(PactSpecification::V3).unwrap().to_string();
-
-      let pact_broker = PactBuilder::new("RustPactVerifier", "PactBroker")
-          .interaction("a request to the pact broker root", "", |mut i| async move {
-            i.given("Pacts for verification is enabled");
-            i.request
-              .path("/")
-              .header("Accept", "application/hal+json")
-              .header("Accept", "application/json");
-            i.response
-              .header("Content-Type", "application/hal+json")
-              .json_body(json_pattern!({
-                  "_links": {
-                    "pb:provider-pacts-for-verification": {
-                      "href": like!("http://localhost/pacts/provider/{provider}/for-verification"),
-                      "title": like!("Pact versions to be verified for the specified provider"),
-                      "templated": like!(true)
-                    }
-                  }
-              }));
-            i
-          })
-          .await
-          .interaction("a request to the pacts for verification endpoint", "", |mut i| async move {
-            i.given("There are pacts to be verified");
-            i.request
-              .get()
-              .path("/pacts/provider/happy_provider/for-verification")
-              .header("Accept", "application/hal+json")
-              .header("Accept", "application/json");
-            i.response
-              .header("Content-Type", "application/hal+json")
-              .json_body(json_pattern!({
-                "_links": {
-                    "self": {
-                      "href": like!("http://localhost/pacts/provider/happy_provider/for-verification"),
-                      "title": like!("Pacts to be verified")
-                    }
-                }
-            }));
-            i
-          })
-          .await
-          .interaction("a request to fetch pacts to be verified", "", |mut i| async move {
-            i.given("There are pacts to be verified");
-            i.request
-              .post()
-              .path("/pacts/provider/happy_provider/for-verification")
-              .header("Accept", "application/hal+json")
-              .header("Accept", "application/json")
-              .json_body(json_pattern!({
-                "consumerVersionSelectors": each_like!({
-                    "tag": "prod"
-                }),
-                "providerVersionTags": each_like!("master"),
-                "includePendingStatus": like!(false),
-                "providerVersionBranch": like!("main")
-              }));
-            i.response
-              .header("Content-Type", "application/hal+json")
-              .json_body(json_pattern!({
-                "_embedded": {
-                  "pacts": each_like!({
-                    "shortDescription": "latest prod",
-                    "verificationProperties": {
-                      "pending": false,
-                      "notices": [
-                        {
-                          "when": "before_verification",
-                          "text": "The pact at http://localhost/pacts/provider/happy_provider/consumer/Consumer/pact-version/12345678 is being verified because it matches the following configured selection criterion: latest pact for a consumer version tagged 'prod'"
-                        },
-                        {
-                          "when": "before_verification",
-                          "text": "This pact has previously been successfully verified by a version of happy_provider with tag 'master'. If this verification fails, it will fail the build. Read more at https://pact.io/pending"
-                        }
-                      ]
-                    },
-                    "_links": {
-                      "self": {
-                        "href": "http://localhost/pacts/provider/happy_provider/consumer/Consumer/pact-version/12345678",
-                        "name": "Pact between Consumer (239aa5048a7de54fe5f231116c6d603eab0c6fde) and happy_provider"
-                      }
-                    }
-                  })
-                },
-                "_links": {
-                  "self": {
-                    "href": like!("http://localhost/pacts/provider/happy_provider/for-verification"),
-                    "title":like!("Pacts to be verified")
-                  }
-                }
-              }));
-            i
-        })
-        .await
-        .interaction("a request for a pact by version", "", |mut i| async move {
-          i.given("There is a pact with version 12345678");
-          i.request
-            .path("/pacts/provider/happy_provider/consumer/Consumer/pact-version/12345678")
-            .header("Accept", "application/hal+json")
-            .header("Accept", "application/json");
-          i.response
-            .header("Content-Type", "application/json")
-            .body(pact.clone());
-          i
-      })
-      .await
-      .start_mock_server(None);
-
-      let result = fetch_pacts_dynamically_from_broker(pact_broker.url().as_str(), "happy_provider".to_string(), false, None, vec!("master".to_string()), Some("main".to_string()), vec!(ConsumerVersionSelector {
-        consumer: None,
-        tag: Some("prod".to_string()),
-        fallback_tag: None,
-        latest: None,
-        branch: None,
-        deployed_or_released: None,
-        deployed: None,
-        released: None,
-        main_branch: None,
-        matching_branch: None,
-        environment: None,
-      }), None).await;
-
-      match &result {
-        Ok(_) => (),
-        Err(err) => panic!("Expected an Ok result, got a error {}", err)
-      }
-
-      let pacts = &result.unwrap();
-      expect!(pacts.len()).to(be_equal_to(1));
-
-      for pact in pacts {
-        match pact {
-          Ok(_) => (),
-          Err(err) => panic!("Expected an Ok result, got a error {}", err)
-        }
-      }
-  }
-
-  #[tokio::test]
-  async fn fetch_pacts_for_verification_from_broker_returns_empty_list_if_there_are_no_pacts() {
-    try_init().unwrap_or(());
-
-    let pact_broker = PactBuilder::new("RustPactVerifier", "PactBroker")
-      .interaction("a request to the pact broker root", "", |mut i| async move {
-        i.given("Pacts for verification is enabled");
-        i.request
-          .path("/")
-          .header("Accept", "application/hal+json")
-          .header("Accept", "application/json");
-        i.response
-          .header("Content-Type", "application/hal+json")
-          .json_body(json_pattern!({
-              "_links": {
-                "pb:provider-pacts-for-verification": {
-                  "href": like!("http://localhost/pacts/provider/{provider}/for-verification"),
-                  "title": like!("Pact versions to be verified for the specified provider"),
-                  "templated": like!(true)
-                }
-              }
-          }));
-        i
-      })
-      .await
-      .interaction("a request to the pacts for verification endpoint", "", |mut i| async move {
-        i.request
-          .get()
-          .path("/pacts/provider/sad_provider/for-verification")
-          .header("Accept", "application/hal+json")
-          .header("Accept", "application/json");
-        i.response
-          .header("Content-Type", "application/hal+json")
-          .json_body(json_pattern!({
-            "_links": {
-                "self": {
-                  "href": like!("http://localhost/pacts/provider/sad_provider/for-verification"),
-                  "title": like!("Pacts to be verified")
-                }
-            }
-        }));
-        i
-      })
-      .await
-      .interaction("a request to fetch pacts to be verified", "", |mut i| async move {
-        i.given("There are no pacts to be verified");
-        i.request
-          .post()
-          .path("/pacts/provider/sad_provider/for-verification")
-          .header("Accept", "application/hal+json")
-          .header("Accept", "application/json")
-          .json_body(json_pattern!({
-            "consumerVersionSelectors": each_like!({
-                "tag": "prod"
-            }),
-            "providerVersionTags": each_like!("master"),
-            "includePendingStatus": like!(false),
-            "providerVersionBranch": like!("main")
-          }));
-        i.response
-          .json_body(json_pattern!({
-              "_embedded": {
-                "pacts": []
-              }
-            }));
-        i
-      })
-    .await
-    .start_mock_server(None);
-
-    let result = fetch_pacts_dynamically_from_broker(pact_broker.url().as_str(), "sad_provider".to_string(), false, None, vec!("master".to_string()), Some("main".to_string()), vec!(ConsumerVersionSelector {
-      consumer: None,
-      tag: Some("prod".to_string()),
-      fallback_tag: None,
-      latest: None,
-      branch: None,
-      deployed_or_released: None,
-      deployed: None,
-      released: None,
-      main_branch: None,
-      matching_branch: None,
-      environment: None,
-    }), None).await;
-
-    match result {
-      Ok(_) => {
-        panic!("Expected an error result, but got OK");
-      },
-      Err(err) => {
-        println!("err: {}", err);
-        expect!(err.to_string().starts_with("Link/Resource was not found - No pacts were found for this provider")).to(be_true());
-      }
-    }
-  }
-
-  #[test]
-  fn test_build_payload_with_success() {
-    let result = TestResult::Ok(vec![]);
-    let payload = super::build_payload(result, "1".to_string(), None);
-    expect!(payload).to(be_equal_to(json!({
-      "providerApplicationVersion": "1",
-      "success": true,
-      "testResults": [],
-      "verifiedBy": {
-        "implementation": "Pact-Rust",
-        "version": PACT_RUST_VERSION
-      }
-    })));
-  }
-
-  #[test]
-  fn test_build_payload_adds_the_build_url_if_provided() {
-    let result = TestResult::Ok(vec![]);
-    let payload = super::build_payload(result, "1".to_string(), Some("http://build-url".to_string()));
-    expect!(payload).to(be_equal_to(json!({
-      "providerApplicationVersion": "1",
-      "success": true,
-      "buildUrl": "http://build-url",
-      "testResults": [],
-      "verifiedBy": {
-        "implementation": "Pact-Rust",
-        "version": PACT_RUST_VERSION
-      }
-    })));
-  }
-
-  #[test]
-  fn test_build_payload_adds_a_result_for_each_interaction() {
-    let result = TestResult::Ok(vec![Some("1".to_string()), Some("2".to_string()), Some("3".to_string()), None]);
-    let payload = super::build_payload(result, "1".to_string(), Some("http://build-url".to_string()));
-    expect!(payload).to(be_equal_to(json!({
-      "providerApplicationVersion": "1",
-      "success": true,
-      "buildUrl": "http://build-url",
-      "testResults": [
-        { "interactionId": "1", "success": true },
-        { "interactionId": "2", "success": true },
-        { "interactionId": "3", "success": true }
-      ],
-      "verifiedBy": {
-        "implementation": "Pact-Rust",
-        "version": PACT_RUST_VERSION
-      }
-    })));
-  }
-
-  #[test]
-  fn test_build_payload_with_failure() {
-    let result = TestResult::Failed(vec![]);
-    let payload = super::build_payload(result, "1".to_string(), None);
-    expect!(payload).to(be_equal_to(json!({
-      "providerApplicationVersion": "1",
-      "success": false,
-      "testResults": [],
-      "verifiedBy": {
-        "implementation": "Pact-Rust",
-        "version": PACT_RUST_VERSION
-      }
-    })));
-  }
-
-  #[test]
-  fn test_build_payload_with_failure_with_mismatches() {
-    let result = TestResult::Failed(vec![
-      (Some("1234abc".to_string()), Some(MismatchResult::Mismatches {
-        mismatches: vec![
-          MethodMismatch { expected: "PUT".to_string(), actual: "POST".to_string() }
-        ],
-        expected: Box::new(RequestResponseInteraction::default()),
-        actual: Box::new(RequestResponseInteraction::default()),
-        interaction_id: Some("1234abc".to_string())
-      }))
-    ]);
-    let payload = super::build_payload(result, "1".to_string(), None);
-    expect!(payload).to(be_equal_to(json!({
-      "providerApplicationVersion": "1",
-      "success": false,
-      "testResults": [
-        {
-          "interactionId": "1234abc",
-          "mismatches": [
-            {
-              "attribute": "method", "description": "Expected method of PUT but received POST"
-            }
-          ],
-          "success": false
-        }
-      ],
-      "verifiedBy": {
-        "implementation": "Pact-Rust",
-        "version": PACT_RUST_VERSION
-      }
-    })));
-  }
-
-  #[test]
-  fn test_build_payload_with_failure_with_exception() {
-    let result = TestResult::Failed(vec![
-      (Some("1234abc".to_string()), Some(MismatchResult::Error("Bang".to_string(), Some("1234abc".to_string()))))
-    ]);
-    let payload = super::build_payload(result, "1".to_string(), None);
-    expect!(payload).to(be_equal_to(json!({
-      "providerApplicationVersion": "1",
-      "success": false,
-      "testResults": [
-        {
-          "exceptions": [
-            {
-              "message": "Bang"
-            }
-          ],
-          "interactionId": "1234abc",
-          "success": false
-        }
-      ],
-      "verifiedBy": {
-        "implementation": "Pact-Rust",
-        "version": PACT_RUST_VERSION
-      }
-    })));
-  }
-
-  #[test]
-  fn test_build_payload_with_mixed_results() {
-    let result = TestResult::Failed(vec![
-      (Some("1234abc".to_string()), Some(MismatchResult::Mismatches {
-        mismatches: vec![
-          MethodMismatch { expected: "PUT".to_string(), actual: "POST".to_string() }
-        ],
-        expected: Box::new(RequestResponseInteraction::default()),
-        actual: Box::new(RequestResponseInteraction::default()),
-        interaction_id: Some("1234abc".to_string())
-      })),
-      (Some("12345678".to_string()), Some(MismatchResult::Error("Bang".to_string(), Some("1234abc".to_string())))),
-      (Some("abc123".to_string()), None)
-    ]);
-    let payload = super::build_payload(result, "1".to_string(), None);
-    expect!(payload).to(be_equal_to(json!({
-      "providerApplicationVersion": "1",
-      "success": false,
-      "testResults": [
-        {
-          "interactionId": "1234abc",
-          "mismatches": [
-            {
-              "attribute": "method", "description": "Expected method of PUT but received POST"
-            }
-          ],
-          "success": false
-        },
-        {
-          "exceptions": [
-            {
-              "message": "Bang"
-            }
-          ],
-          "interactionId": "12345678",
-          "success": false
-        },
-        {
-          "interactionId": "abc123",
-          "success": true
-        }
-      ],
-      "verifiedBy": {
-        "implementation": "Pact-Rust",
-        "version": PACT_RUST_VERSION
-      }
-    })));
-  }
-
-  #[test]
-  fn build_link_from_json() {
-    let json = json!({
-      "href": "localhost"
-    });
-    let link = Link::from_json(&"link name".to_string(), json.as_object().unwrap());
-    expect!(link.name).to(be_equal_to("link name"));
-    expect!(link.href).to(be_some().value("localhost"));
-    expect!(link.templated).to(be_false());
-
-    let json2 = json!({
-      "templated": true
-    });
-    let link2 = Link::from_json(&"link name".to_string(), json2.as_object().unwrap());
-    expect!(link2.name).to(be_equal_to("link name"));
-    expect!(link2.href).to(be_none());
-    expect!(link2.templated).to(be_true());
-  }
-
-  #[test]
-  fn build_json_from_link() {
-    let link = Link {
-      name: "Link Name".to_string(),
-      href: Some("1234".to_string()),
-      templated: true,
-      title: None
-    };
-    let json = link.as_json();
-    expect!(json.to_string()).to(be_equal_to(
-      "{\"href\":\"1234\",\"templated\":true}"));
-
-    let link = Link {
-      name: "Link Name".to_string(),
-      href: Some("1234".to_string()),
-      templated: true,
-      title: Some("title".to_string())
-    };
-    let json = link.as_json();
-    expect!(json.to_string()).to(be_equal_to(
-      "{\"href\":\"1234\",\"templated\":true,\"title\":\"title\"}"));
-  }
+  // use env_logger::*;
+  // use expectest::expect;
+  // use expectest::prelude::*;
+  // use pact_models::{Consumer, PactSpecification, Provider};
+  // use pact_models::prelude::RequestResponsePact;
+  // use pact_models::sync_interaction::RequestResponseInteraction;
+  //
+  // use pact_consumer::*;
+  // use pact_consumer::prelude::*;
+  // use pact_matching::Mismatch::MethodMismatch;
+  //
+  // use super::*;
+  // use super::{content_type, json_content_type};
+  //
+  // #[tokio::test]
+  // async fn fetch_returns_an_error_if_there_is_no_pact_broker() {
+  //   let client = HALClient::with_url("http://idont.exist:6666", None);
+  //   expect!(client.fetch("/").await).to(be_err());
+  // }
+  //
+  // #[tokio::test]
+  // async fn fetch_returns_an_error_if_it_does_not_get_a_success_response() {
+  //   let pact_broker = PactBuilder::new("RustPactVerifier", "PactBroker")
+  //       .interaction("a request to a non-existant path", "", |mut i| {
+  //           i.given("the pact broker has a valid pact");
+  //           i.request.path("/hello");
+  //           i.response.status(404);
+  //           futures::future::ready(i)
+  //       })
+  //       .await
+  //       .start_mock_server(None);
+  //
+  //   let client = HALClient::with_url(pact_broker.url().as_str(), None);
+  //   let result = client.fetch("/hello").await;
+  //   expect!(result).to(be_err().value(format!("Request to pact broker path \'/hello\' failed: 404 Not Found. URL: '{}'",
+  //       pact_broker.url())));
+  // }
+  //
+  // #[tokio::test]
+  // async fn fetch_returns_an_error_if_it_does_not_get_a_hal_response() {
+  //   let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
+  //     .interaction("a request to a non-json resource", "", |mut i| {
+  //         i.request.path("/nonjson");
+  //         i.response
+  //             .header("Content-Type", "text/html")
+  //             .body("<html></html>");
+  //         futures::future::ready(i)
+  //     })
+  //     .await
+  //     .start_mock_server(None);
+  //
+  //   let client = HALClient::with_url(pact_broker.url().as_str(), None);
+  //   let result = client.fetch("/nonjson").await;
+  //   expect!(result).to(be_err().value(format!("Did not get a HAL response from pact broker path \'/nonjson\', content type is 'text/html'. URL: '{}'",
+  //     pact_broker.url())));
+  // }
+  //
+  //   #[test]
+  //   fn content_type_test() {
+  //       let response = reqwest::Response::from(
+  //           http::response::Builder::new()
+  //               .header("content-type", "application/hal+json; charset=utf-8")
+  //               .body("null")
+  //               .unwrap()
+  //       );
+  //
+  //       expect!(content_type(&response)).to(be_equal_to("application/hal+json; charset=utf-8".to_string()));
+  //   }
+  //
+  //   #[test]
+  //   fn json_content_type_test() {
+  //       let response = reqwest::Response::from(
+  //           http::response::Builder::new()
+  //               .header("content-type", "application/json")
+  //               .body("null")
+  //               .unwrap()
+  //       );
+  //
+  //       expect!(json_content_type(&response)).to(be_true());
+  //   }
+  //
+  //   #[test]
+  //   fn json_content_type_utf8_test() {
+  //       let response = reqwest::Response::from(
+  //           http::response::Builder::new()
+  //               .header("content-type", "application/hal+json;charset=utf-8")
+  //               .body("null")
+  //               .unwrap()
+  //       );
+  //
+  //       expect!(json_content_type(&response)).to(be_true());
+  //   }
+  //
+  //   #[tokio::test]
+  //   async fn fetch_returns_an_error_if_it_does_not_get_a_valid_hal_response() {
+  //       let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
+  //           .interaction("a request to a non-hal resource", "", |mut i| {
+  //               i.request.path("/nonhal");
+  //               i.response.header("Content-Type", "application/hal+json");
+  //               futures::future::ready(i)
+  //           })
+  //           .await
+  //           .interaction("a request to a non-hal resource 2", "", |mut i| {
+  //               i.request.path("/nonhal2");
+  //               i.response
+  //                   .header("Content-Type", "application/hal+json")
+  //                   .body("<html>This is not JSON</html>");
+  //               futures::future::ready(i)
+  //           })
+  //           .await
+  //           .start_mock_server(None);
+  //
+  //       let client = HALClient::with_url(pact_broker.url().as_str(), None);
+  //       let result = client.clone().fetch("/nonhal").await;
+  //       expect!(result).to(be_err().value(format!("Did not get a valid HAL response body from pact broker path \'/nonhal\' - EOF while parsing a value at line 1 column 0. URL: '{}'",
+  //           pact_broker.url())));
+  //
+  //       let result = client.clone().fetch("/nonhal2").await;
+  //       expect!(result).to(be_err().value(format!("Did not get a valid HAL response body from pact broker path \'/nonhal2\' - expected value at line 1 column 1. URL: '{}'",
+  //           pact_broker.url())));
+  //   }
+  //
+  // #[tokio::test]
+  // async fn fetch_retries_the_request_on_50x_errors() {
+  //   let _ = env_logger::try_init();
+  //   let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
+  //     .interaction("a request to a hal resource", "", |mut i| async move {
+  //       i.given("server returns a gateway error");
+  //       i.request.path("/");
+  //       i.response.status(503);
+  //       i
+  //     })
+  //     .await
+  //     .start_mock_server(None);
+  //
+  //   let client = HALClient::with_url(pact_broker.url().as_str(), None);
+  //   let expected_requests = client.retries as usize;
+  //   let result = client.fetch("/").await;
+  //   expect!(result).to(be_err());
+  //   expect!(pact_broker.metrics().requests).to(be_equal_to(expected_requests ));
+  // }
+  //
+  // #[tokio::test]
+  // async fn post_json_retries_the_request_on_50x_errors() {
+  //   let _ = env_logger::try_init();
+  //   let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
+  //     .interaction("a POST request", "", |mut i| async move {
+  //       i.given("server returns a gateway error");
+  //       i.request.path("/").method("POST");
+  //       i.response.status(503);
+  //       i
+  //     })
+  //     .await
+  //     .start_mock_server(None);
+  //
+  //   let client = HALClient::with_url(pact_broker.url().as_str(), None);
+  //   let expected_requests = client.retries as usize;
+  //   let result = client.post_json(pact_broker.url().as_str(), "{}").await;
+  //   expect!(result.clone()).to(be_err());
+  //   expect!(pact_broker.metrics().requests).to(be_equal_to(expected_requests ));
+  // }
+  //
+  // #[tokio::test]
+  // async fn put_json_retries_the_request_on_50x_errors() {
+  //   let _ = env_logger::try_init();
+  //   let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
+  //     .interaction("a PUT request", "", |mut i| async move {
+  //       i.given("server returns a gateway error");
+  //       i.request.path("/").method("PUT");
+  //       i.response.status(503);
+  //       i
+  //     })
+  //     .await
+  //     .start_mock_server(None);
+  //
+  //   let client = HALClient::with_url(pact_broker.url().as_str(), None);
+  //   let expected_requests = client.retries as usize;
+  //   let result = client.put_json(pact_broker.url().as_str(), "{}").await;
+  //   expect!(result.clone()).to(be_err());
+  //   expect!(pact_broker.metrics().requests).to(be_equal_to(expected_requests ));
+  // }
+  //
+  // #[test]
+  // fn parse_link_url_returns_error_if_there_is_no_href() {
+  //   let client = HALClient::default();
+  //   let link = Link { name: "link".to_string(), href: None, templated: false, title: None };
+  //   expect!(client.parse_link_url(&link, &hashmap!{})).to(be_err().value(
+  //     "Expected a HAL+JSON response from the pact broker, but got a link with no HREF. URL: '', LINK: 'link'"));
+  // }
+  //
+  // #[test]
+  // fn parse_link_url_replaces_all_tokens_in_href() {
+  //   let client = HALClient::default();
+  //   let values = hashmap!{ "valA".to_string() => "A".to_string(), "valB".to_string() => "B".to_string() };
+  //
+  //   let link = Link { name: "link".to_string(), href: Some("http://localhost".to_string()), templated: false, title: None };
+  //   expect!(client.clone().parse_link_url(&link, &values)).to(be_ok().value("http://localhost"));
+  //
+  //   let link = Link { name: "link".to_string(), href: Some("http://{valA}/{valB}".to_string()), templated: false, title: None };
+  //   expect!(client.clone().parse_link_url(&link, &values)).to(be_ok().value("http://A/B"));
+  //
+  //   let link = Link { name: "link".to_string(), href: Some("http://{valA}/{valC}".to_string()), templated: false, title: None };
+  //   expect!(client.clone().parse_link_url(&link, &values)).to(be_ok().value("http://A/{valC}"));
+  // }
+  //
+  // #[test]
+  // fn parse_link_url_encodes_the_tokens_in_href() {
+  //   let client = HALClient::default();
+  //   let values = hashmap!{ "valA".to_string() => "A".to_string(), "valB".to_string() => "B/C".to_string() };
+  //
+  //   let link = Link { name: "link".to_string(), href: Some("http://{valA}/{valB}".to_string()), templated: false, title: None };
+  //   expect!(client.clone().parse_link_url(&link, &values)).to(be_ok().value("http://A/B%2FC"));
+  // }
+  //
+  //   #[tokio::test]
+  //   async fn fetch_link_returns_an_error_if_a_previous_resource_has_not_been_fetched() {
+  //       let client = HALClient::with_url("http://localhost", None);
+  //       let result = client.fetch_link("anything_will_do", &hashmap!{}).await;
+  //       expect!(result).to(be_err().value("No previous resource has been fetched from the pact broker. URL: 'http://localhost', LINK: 'anything_will_do'".to_string()));
+  //   }
+  //
+  //   #[tokio::test]
+  //   async fn fetch_link_returns_an_error_if_the_previous_resource_was_not_hal() {
+  //     try_init().unwrap_or(());
+  //       let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
+  //           .interaction("a request to a non-hal json resource", "", |mut i| async move {
+  //               i.request.path("/");
+  //               i.response
+  //                   .header("Content-Type", "application/hal+json")
+  //                   .body("{}");
+  //               i
+  //           })
+  //           .await
+  //           .start_mock_server(None);
+  //
+  //       let mut client = HALClient::with_url(pact_broker.url().as_str(), None);
+  //       let result = client.clone().fetch("/").await;
+  //       expect!(result.clone()).to(be_ok());
+  //       client.path_info = result.ok();
+  //       let result = client.clone().fetch_link("hal2", &hashmap!{}).await;
+  //       expect!(result).to(be_err().value(format!("Expected a HAL+JSON response from the pact broker, but got a response with no '_links'. URL: '{}', LINK: 'hal2'",
+  //           pact_broker.url())));
+  //   }
+  //
+  //   #[tokio::test]
+  //   async fn fetch_link_returns_an_error_if_the_previous_resource_links_are_not_correctly_formed() {
+  //     try_init().unwrap_or(());
+  //       let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
+  //           .interaction("a request to a hal resource with invalid links", "", |mut i| async move {
+  //               i.request.path("/");
+  //               i.response
+  //                   .header("Content-Type", "application/hal+json")
+  //                   .body("{\"_links\":[{\"next\":{\"href\":\"abc\"}},{\"prev\":{\"href\":\"def\"}}]}");
+  //               i
+  //           })
+  //           .await
+  //           .start_mock_server(None);
+  //
+  //       let mut client = HALClient::with_url(pact_broker.url().as_str(), None);
+  //       let result = client.clone().fetch("/").await;
+  //       expect!(result.clone()).to(be_ok());
+  //       client.path_info = result.ok();
+  //       let result = client.clone().fetch_link("any", &hashmap!{}).await;
+  //       expect!(result).to(be_err().value(format!("Link 'any' was not found in the response, only the following links where found: \"\". URL: '{}', LINK: 'any'",
+  //           pact_broker.url())));
+  //   }
+  //
+  // #[tokio::test]
+  // async fn fetch_link_returns_an_error_if_the_previous_resource_does_not_have_the_link() {
+  //   let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
+  //       .interaction("a request to a hal resource", "", |mut i| async move {
+  //           i.request.path("/");
+  //           i.response
+  //               .header("Content-Type", "application/hal+json")
+  //               .body("{\"_links\":{\"next\":{\"href\":\"/abc\"},\"prev\":{\"href\":\"/def\"}}}");
+  //           i
+  //       })
+  //       .await
+  //       .start_mock_server(None);
+  //
+  //   let mut client = HALClient::with_url(pact_broker.url().as_str(), None);
+  //   let result = client.clone().fetch("/").await;
+  //   expect!(result.clone()).to(be_ok());
+  //   client.path_info = result.ok();
+  //   let result = client.clone().fetch_link("any", &hashmap!{}).await;
+  //   expect!(result).to(be_err().value(format!("Link 'any' was not found in the response, only the following links where found: \"next, prev\". URL: '{}', LINK: 'any'",
+  //       pact_broker.url())));
+  // }
+  //
+  //   #[tokio::test]
+  //   async fn fetch_link_returns_the_resource_for_the_link() {
+  //       let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
+  //           .interaction("a request to a hal resource", "", |mut i| async move {
+  //               i.request.path("/");
+  //               i.response
+  //                   .header("Content-Type", "application/hal+json")
+  //                   .body("{\"_links\":{\"next\":{\"href\":\"/abc\"},\"prev\":{\"href\":\"/def\"}}}");
+  //               i
+  //           })
+  //           .await
+  //           .interaction("a request to next", "", |mut i| async move {
+  //               i.request.path("/abc");
+  //               i.response
+  //                   .header("Content-Type", "application/json")
+  //                   .json_body(json_pattern!("Yay! You found your way here"));
+  //               i
+  //           })
+  //           .await
+  //           .start_mock_server(None);
+  //
+  //       let mut client = HALClient::with_url(pact_broker.url().as_str(), None);
+  //       let result = client.clone().fetch("/").await;
+  //       expect!(result.clone()).to(be_ok());
+  //       client.path_info = result.ok();
+  //       let result = client.clone().fetch_link("next", &hashmap!{}).await;
+  //       expect!(result).to(be_ok().value(serde_json::Value::String("Yay! You found your way here".to_string())));
+  //   }
+  //
+  //   #[tokio::test]
+  //   async fn fetch_link_returns_handles_absolute_resource_links() {
+  //       try_init().unwrap_or(());
+  //       let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
+  //           .interaction("a request to a hal resource with absolute paths", "", |mut i| async move {
+  //               i.request.path("/");
+  //               i.response
+  //                   .header("Content-Type", "application/hal+json")
+  //                   .body("{\"_links\":{\"next\":{\"href\":\"http://localhost/abc\"},\"prev\":{\"href\":\"http://localhost/def\"}}}");
+  //               i
+  //           })
+  //           .await
+  //           .interaction("a request to next", "", |mut i| async move {
+  //               i.request.path("/abc");
+  //               i.response
+  //                   .header("Content-Type", "application/json")
+  //                   .json_body(json_pattern!("Yay! You found your way here"));
+  //               i
+  //           })
+  //           .await
+  //           .start_mock_server(None);
+  //
+  //       let mut client = HALClient::with_url(pact_broker.url().as_str(), None);
+  //       let result = client.clone().fetch("/").await;
+  //       expect!(result.clone()).to(be_ok());
+  //       client.path_info = result.ok();
+  //       let result = client.clone().fetch_link("next", &hashmap!{}).await;
+  //       expect!(result).to(be_ok().value(serde_json::Value::String("Yay! You found your way here".to_string())));
+  //   }
+  //
+  //   #[tokio::test]
+  //   async fn fetch_link_returns_the_resource_for_the_templated_link() {
+  //     try_init().unwrap_or(());
+  //       let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
+  //           .interaction("a request to a templated hal resource", "", |mut i| async move {
+  //               i.request.path("/");
+  //               i.response
+  //                   .header("Content-Type", "application/hal+json")
+  //                   .body("{\"_links\":{\"document\":{\"href\":\"/doc/{id}\",\"templated\":true}}}");
+  //               i
+  //           })
+  //           .await
+  //           .interaction("a request for a document", "", |mut i| async move {
+  //               i.request.path("/doc/abc");
+  //               i.response
+  //                   .header("Content-Type", "application/json")
+  //                   .json_body(json_pattern!("Yay! You found your way here"));
+  //               i
+  //           })
+  //           .await
+  //           .start_mock_server(None);
+  //
+  //       let mut client = HALClient::with_url(pact_broker.url().as_str(), None);
+  //       let result = client.clone().fetch("/").await;
+  //       expect!(result.clone()).to(be_ok());
+  //       client.path_info = result.ok();
+  //       let result = client.clone().fetch_link("document", &hashmap!{ "id".to_string() => "abc".to_string() }).await;
+  //       expect!(result).to(be_ok().value(serde_json::Value::String("Yay! You found your way here".to_string())));
+  //   }
+  //
+  //   #[tokio::test]
+  //   async fn fetch_pacts_from_broker_returns_empty_list_if_there_are_no_pacts() {
+  //     try_init().unwrap_or(());
+  //       let pact_broker = PactBuilder::new("RustPactVerifier", "PactBroker")
+  //           .interaction("a request to the pact broker root", "", |mut i| async move {
+  //               i.request
+  //                   .path("/")
+  //                   .header("Accept", "application/hal+json")
+  //                   .header("Accept", "application/json");
+  //               i.response
+  //                   .header("Content-Type", "application/hal+json")
+  //                   .json_body(json_pattern!({
+  //                       "_links": {
+  //                           "pb:latest-provider-pacts": {
+  //                               "href": "http://localhost/pacts/provider/{provider}/latest",
+  //                               "templated": true,
+  //                           }
+  //                       }
+  //                   }));
+  //               i
+  //           })
+  //           .await
+  //           .interaction("a request for a providers pacts", "", |mut i| async move {
+  //               i.given("There are no pacts in the pact broker");
+  //               i.request
+  //                   .path("/pacts/provider/sad_provider/latest")
+  //                   .header("Accept", "application/hal+json")
+  //                   .header("Accept", "application/json");
+  //               i.response.status(404);
+  //               i
+  //           })
+  //           .await
+  //           .start_mock_server(None);
+  //
+  //       let result = fetch_pacts_from_broker(pact_broker.url().as_str(),
+  //                                            "sad_provider", None).await;
+  //       match result {
+  //         Ok(_) => {
+  //           panic!("Expected an error result, but got OK");
+  //         },
+  //         Err(err) => {
+  //           println!("err: {}", err);
+  //           expect!(err.to_string().starts_with("Link/Resource was not found - No pacts for provider 'sad_provider' where found in the pact broker")).to(be_true());
+  //         }
+  //       }
+  //   }
+  //
+  //   #[tokio::test]
+  //   async fn fetch_pacts_from_broker_returns_a_list_of_pacts() {
+  //     try_init().unwrap_or(());
+  //       let pact = RequestResponsePact { consumer: Consumer { name: "Consumer".to_string() },
+  //           provider: Provider { name: "happy_provider".to_string() },
+  //           .. RequestResponsePact::default() }
+  //           .to_json(PactSpecification::V3).unwrap().to_string();
+  //       let pact2 = RequestResponsePact { consumer: Consumer { name: "Consumer2".to_string() },
+  //           provider: Provider { name: "happy_provider".to_string() },
+  //           interactions: vec![ RequestResponseInteraction { description: "a request friends".to_string(), .. RequestResponseInteraction::default() } ],
+  //           .. RequestResponsePact::default() }
+  //           .to_json(PactSpecification::V3).unwrap().to_string();
+  //       let pact_broker = PactBuilder::new("RustPactVerifier", "PactBroker")
+  //           .interaction("a request to the pact broker root", "", |mut i| async move {
+  //               i.request
+  //                   .path("/")
+  //                   .header("Accept", "application/hal+json")
+  //                   .header("Accept", "application/json");
+  //               i.response
+  //                   .header("Content-Type", "application/hal+json")
+  //                   .json_body(json_pattern!({
+  //                       "_links": {
+  //                           "pb:latest-provider-pacts": {
+  //                               "href": "http://localhost/pacts/provider/{provider}/latest",
+  //                               "templated": true,
+  //                           }
+  //                       }
+  //                   }));
+  //               i
+  //           })
+  //           .await
+  //           .interaction("a request for a providers pacts", "", |mut i| async move {
+  //               i.given("There are two pacts in the pact broker");
+  //               i.request
+  //                   .path("/pacts/provider/happy_provider/latest")
+  //                   .header("Accept", "application/hal+json")
+  //                   .header("Accept", "application/json");
+  //               i.response
+  //                   .header("Content-Type", "application/hal+json")
+  //                   .json_body(json_pattern!({
+  //                       "_links":{
+  //                           "pacts":[
+  //                               {"href":"http://localhost/pacts/provider/happy_provider/consumer/Consumer/version/1.0.0"},
+  //                               {"href":"http://localhost/pacts/provider/happy_provider/consumer/Consumer2/version/1.0.0"}
+  //                           ]
+  //                       }
+  //                   }));
+  //               i
+  //           })
+  //           .await
+  //           .interaction("a request for the first provider pact", "", |mut i| async move {
+  //               i.given("There are two pacts in the pact broker");
+  //               i.request
+  //                   .path("/pacts/provider/happy_provider/consumer/Consumer/version/1.0.0")
+  //                   .header("Accept", "application/hal+json")
+  //                   .header("Accept", "application/json");
+  //               i.response
+  //                   .header("Content-Type", "application/json")
+  //                   .body(pact.clone());
+  //               i
+  //           })
+  //           .await
+  //           .interaction("a request for the second provider pact", "", |mut i| async move {
+  //               i.given("There are two pacts in the pact broker");
+  //               i.request
+  //                   .path("/pacts/provider/happy_provider/consumer/Consumer2/version/1.0.0")
+  //                   .header("Accept", "application/hal+json")
+  //                   .header("Accept", "application/json");
+  //               i.response
+  //                   .header("Content-Type", "application/json")
+  //                   .body(pact2.clone());
+  //               i
+  //           })
+  //           .await
+  //           .start_mock_server(None);
+  //
+  //       let result = fetch_pacts_from_broker(pact_broker.url().as_str(),
+  //         "happy_provider", None).await;
+  //       match &result {
+  //         Ok(_) => (),
+  //         Err(err) => panic!("Expected an Ok result, got a error {}", err)
+  //       }
+  //       let pacts = &result.unwrap();
+  //       expect!(pacts.len()).to(be_equal_to(2));
+  //       for pact in pacts {
+  //         match pact {
+  //           Ok(_) => (),
+  //           Err(err) => panic!("Expected an Ok result, got a error {}", err)
+  //         }
+  //       }
+  //   }
+  //
+  //   #[tokio::test]
+  //   async fn fetch_pacts_for_verification_from_broker_returns_a_list_of_pacts() {
+  //     try_init().unwrap_or(());
+  //
+  //     let pact = RequestResponsePact { consumer: Consumer { name: "Consumer".to_string() },
+  //       provider: Provider { name: "happy_provider".to_string() },
+  //       .. RequestResponsePact::default() }
+  //       .to_json(PactSpecification::V3).unwrap().to_string();
+  //
+  //     let pact_broker = PactBuilder::new("RustPactVerifier", "PactBroker")
+  //         .interaction("a request to the pact broker root", "", |mut i| async move {
+  //           i.given("Pacts for verification is enabled");
+  //           i.request
+  //             .path("/")
+  //             .header("Accept", "application/hal+json")
+  //             .header("Accept", "application/json");
+  //           i.response
+  //             .header("Content-Type", "application/hal+json")
+  //             .json_body(json_pattern!({
+  //                 "_links": {
+  //                   "pb:provider-pacts-for-verification": {
+  //                     "href": like!("http://localhost/pacts/provider/{provider}/for-verification"),
+  //                     "title": like!("Pact versions to be verified for the specified provider"),
+  //                     "templated": like!(true)
+  //                   }
+  //                 }
+  //             }));
+  //           i
+  //         })
+  //         .await
+  //         .interaction("a request to the pacts for verification endpoint", "", |mut i| async move {
+  //           i.given("There are pacts to be verified");
+  //           i.request
+  //             .get()
+  //             .path("/pacts/provider/happy_provider/for-verification")
+  //             .header("Accept", "application/hal+json")
+  //             .header("Accept", "application/json");
+  //           i.response
+  //             .header("Content-Type", "application/hal+json")
+  //             .json_body(json_pattern!({
+  //               "_links": {
+  //                   "self": {
+  //                     "href": like!("http://localhost/pacts/provider/happy_provider/for-verification"),
+  //                     "title": like!("Pacts to be verified")
+  //                   }
+  //               }
+  //           }));
+  //           i
+  //         })
+  //         .await
+  //         .interaction("a request to fetch pacts to be verified", "", |mut i| async move {
+  //           i.given("There are pacts to be verified");
+  //           i.request
+  //             .post()
+  //             .path("/pacts/provider/happy_provider/for-verification")
+  //             .header("Accept", "application/hal+json")
+  //             .header("Accept", "application/json")
+  //             .json_body(json_pattern!({
+  //               "consumerVersionSelectors": each_like!({
+  //                   "tag": "prod"
+  //               }),
+  //               "providerVersionTags": each_like!("master"),
+  //               "includePendingStatus": like!(false),
+  //               "providerVersionBranch": like!("main")
+  //             }));
+  //           i.response
+  //             .header("Content-Type", "application/hal+json")
+  //             .json_body(json_pattern!({
+  //               "_embedded": {
+  //                 "pacts": each_like!({
+  //                   "shortDescription": "latest prod",
+  //                   "verificationProperties": {
+  //                     "pending": false,
+  //                     "notices": [
+  //                       {
+  //                         "when": "before_verification",
+  //                         "text": "The pact at http://localhost/pacts/provider/happy_provider/consumer/Consumer/pact-version/12345678 is being verified because it matches the following configured selection criterion: latest pact for a consumer version tagged 'prod'"
+  //                       },
+  //                       {
+  //                         "when": "before_verification",
+  //                         "text": "This pact has previously been successfully verified by a version of happy_provider with tag 'master'. If this verification fails, it will fail the build. Read more at https://pact.io/pending"
+  //                       }
+  //                     ]
+  //                   },
+  //                   "_links": {
+  //                     "self": {
+  //                       "href": "http://localhost/pacts/provider/happy_provider/consumer/Consumer/pact-version/12345678",
+  //                       "name": "Pact between Consumer (239aa5048a7de54fe5f231116c6d603eab0c6fde) and happy_provider"
+  //                     }
+  //                   }
+  //                 })
+  //               },
+  //               "_links": {
+  //                 "self": {
+  //                   "href": like!("http://localhost/pacts/provider/happy_provider/for-verification"),
+  //                   "title":like!("Pacts to be verified")
+  //                 }
+  //               }
+  //             }));
+  //           i
+  //       })
+  //       .await
+  //       .interaction("a request for a pact by version", "", |mut i| async move {
+  //         i.given("There is a pact with version 12345678");
+  //         i.request
+  //           .path("/pacts/provider/happy_provider/consumer/Consumer/pact-version/12345678")
+  //           .header("Accept", "application/hal+json")
+  //           .header("Accept", "application/json");
+  //         i.response
+  //           .header("Content-Type", "application/json")
+  //           .body(pact.clone());
+  //         i
+  //     })
+  //     .await
+  //     .start_mock_server(None);
+  //
+  //     let result = fetch_pacts_dynamically_from_broker(pact_broker.url().as_str(), "happy_provider".to_string(), false, None, vec!("master".to_string()), Some("main".to_string()), vec!(ConsumerVersionSelector {
+  //       consumer: None,
+  //       tag: Some("prod".to_string()),
+  //       fallback_tag: None,
+  //       latest: None,
+  //       branch: None,
+  //       deployed_or_released: None,
+  //       deployed: None,
+  //       released: None,
+  //       main_branch: None,
+  //       matching_branch: None,
+  //       environment: None,
+  //     }), None).await;
+  //
+  //     match &result {
+  //       Ok(_) => (),
+  //       Err(err) => panic!("Expected an Ok result, got a error {}", err)
+  //     }
+  //
+  //     let pacts = &result.unwrap();
+  //     expect!(pacts.len()).to(be_equal_to(1));
+  //
+  //     for pact in pacts {
+  //       match pact {
+  //         Ok(_) => (),
+  //         Err(err) => panic!("Expected an Ok result, got a error {}", err)
+  //       }
+  //     }
+  // }
+  //
+  // #[tokio::test]
+  // async fn fetch_pacts_for_verification_from_broker_returns_empty_list_if_there_are_no_pacts() {
+  //   try_init().unwrap_or(());
+  //
+  //   let pact_broker = PactBuilder::new("RustPactVerifier", "PactBroker")
+  //     .interaction("a request to the pact broker root", "", |mut i| async move {
+  //       i.given("Pacts for verification is enabled");
+  //       i.request
+  //         .path("/")
+  //         .header("Accept", "application/hal+json")
+  //         .header("Accept", "application/json");
+  //       i.response
+  //         .header("Content-Type", "application/hal+json")
+  //         .json_body(json_pattern!({
+  //             "_links": {
+  //               "pb:provider-pacts-for-verification": {
+  //                 "href": like!("http://localhost/pacts/provider/{provider}/for-verification"),
+  //                 "title": like!("Pact versions to be verified for the specified provider"),
+  //                 "templated": like!(true)
+  //               }
+  //             }
+  //         }));
+  //       i
+  //     })
+  //     .await
+  //     .interaction("a request to the pacts for verification endpoint", "", |mut i| async move {
+  //       i.request
+  //         .get()
+  //         .path("/pacts/provider/sad_provider/for-verification")
+  //         .header("Accept", "application/hal+json")
+  //         .header("Accept", "application/json");
+  //       i.response
+  //         .header("Content-Type", "application/hal+json")
+  //         .json_body(json_pattern!({
+  //           "_links": {
+  //               "self": {
+  //                 "href": like!("http://localhost/pacts/provider/sad_provider/for-verification"),
+  //                 "title": like!("Pacts to be verified")
+  //               }
+  //           }
+  //       }));
+  //       i
+  //     })
+  //     .await
+  //     .interaction("a request to fetch pacts to be verified", "", |mut i| async move {
+  //       i.given("There are no pacts to be verified");
+  //       i.request
+  //         .post()
+  //         .path("/pacts/provider/sad_provider/for-verification")
+  //         .header("Accept", "application/hal+json")
+  //         .header("Accept", "application/json")
+  //         .json_body(json_pattern!({
+  //           "consumerVersionSelectors": each_like!({
+  //               "tag": "prod"
+  //           }),
+  //           "providerVersionTags": each_like!("master"),
+  //           "includePendingStatus": like!(false),
+  //           "providerVersionBranch": like!("main")
+  //         }));
+  //       i.response
+  //         .json_body(json_pattern!({
+  //             "_embedded": {
+  //               "pacts": []
+  //             }
+  //           }));
+  //       i
+  //     })
+  //   .await
+  //   .start_mock_server(None);
+  //
+  //   let result = fetch_pacts_dynamically_from_broker(pact_broker.url().as_str(), "sad_provider".to_string(), false, None, vec!("master".to_string()), Some("main".to_string()), vec!(ConsumerVersionSelector {
+  //     consumer: None,
+  //     tag: Some("prod".to_string()),
+  //     fallback_tag: None,
+  //     latest: None,
+  //     branch: None,
+  //     deployed_or_released: None,
+  //     deployed: None,
+  //     released: None,
+  //     main_branch: None,
+  //     matching_branch: None,
+  //     environment: None,
+  //   }), None).await;
+  //
+  //   match result {
+  //     Ok(_) => {
+  //       panic!("Expected an error result, but got OK");
+  //     },
+  //     Err(err) => {
+  //       println!("err: {}", err);
+  //       expect!(err.to_string().starts_with("Link/Resource was not found - No pacts were found for this provider")).to(be_true());
+  //     }
+  //   }
+  // }
+  //
+  // #[test]
+  // fn test_build_payload_with_success() {
+  //   let result = TestResult::Ok(vec![]);
+  //   let payload = super::build_payload(result, "1".to_string(), None);
+  //   expect!(payload).to(be_equal_to(json!({
+  //     "providerApplicationVersion": "1",
+  //     "success": true,
+  //     "testResults": [],
+  //     "verifiedBy": {
+  //       "implementation": "Pact-Rust",
+  //       "version": PACT_RUST_VERSION
+  //     }
+  //   })));
+  // }
+  //
+  // #[test]
+  // fn test_build_payload_adds_the_build_url_if_provided() {
+  //   let result = TestResult::Ok(vec![]);
+  //   let payload = super::build_payload(result, "1".to_string(), Some("http://build-url".to_string()));
+  //   expect!(payload).to(be_equal_to(json!({
+  //     "providerApplicationVersion": "1",
+  //     "success": true,
+  //     "buildUrl": "http://build-url",
+  //     "testResults": [],
+  //     "verifiedBy": {
+  //       "implementation": "Pact-Rust",
+  //       "version": PACT_RUST_VERSION
+  //     }
+  //   })));
+  // }
+  //
+  // #[test]
+  // fn test_build_payload_adds_a_result_for_each_interaction() {
+  //   let result = TestResult::Ok(vec![Some("1".to_string()), Some("2".to_string()), Some("3".to_string()), None]);
+  //   let payload = super::build_payload(result, "1".to_string(), Some("http://build-url".to_string()));
+  //   expect!(payload).to(be_equal_to(json!({
+  //     "providerApplicationVersion": "1",
+  //     "success": true,
+  //     "buildUrl": "http://build-url",
+  //     "testResults": [
+  //       { "interactionId": "1", "success": true },
+  //       { "interactionId": "2", "success": true },
+  //       { "interactionId": "3", "success": true }
+  //     ],
+  //     "verifiedBy": {
+  //       "implementation": "Pact-Rust",
+  //       "version": PACT_RUST_VERSION
+  //     }
+  //   })));
+  // }
+  //
+  // #[test]
+  // fn test_build_payload_with_failure() {
+  //   let result = TestResult::Failed(vec![]);
+  //   let payload = super::build_payload(result, "1".to_string(), None);
+  //   expect!(payload).to(be_equal_to(json!({
+  //     "providerApplicationVersion": "1",
+  //     "success": false,
+  //     "testResults": [],
+  //     "verifiedBy": {
+  //       "implementation": "Pact-Rust",
+  //       "version": PACT_RUST_VERSION
+  //     }
+  //   })));
+  // }
+  //
+  // #[test]
+  // fn test_build_payload_with_failure_with_mismatches() {
+  //   let result = TestResult::Failed(vec![
+  //     (Some("1234abc".to_string()), Some(MismatchResult::Mismatches {
+  //       mismatches: vec![
+  //         MethodMismatch { expected: "PUT".to_string(), actual: "POST".to_string() }
+  //       ],
+  //       expected: Box::new(RequestResponseInteraction::default()),
+  //       actual: Box::new(RequestResponseInteraction::default()),
+  //       interaction_id: Some("1234abc".to_string())
+  //     }))
+  //   ]);
+  //   let payload = super::build_payload(result, "1".to_string(), None);
+  //   expect!(payload).to(be_equal_to(json!({
+  //     "providerApplicationVersion": "1",
+  //     "success": false,
+  //     "testResults": [
+  //       {
+  //         "interactionId": "1234abc",
+  //         "mismatches": [
+  //           {
+  //             "attribute": "method", "description": "Expected method of PUT but received POST"
+  //           }
+  //         ],
+  //         "success": false
+  //       }
+  //     ],
+  //     "verifiedBy": {
+  //       "implementation": "Pact-Rust",
+  //       "version": PACT_RUST_VERSION
+  //     }
+  //   })));
+  // }
+  //
+  // #[test]
+  // fn test_build_payload_with_failure_with_exception() {
+  //   let result = TestResult::Failed(vec![
+  //     (Some("1234abc".to_string()), Some(MismatchResult::Error("Bang".to_string(), Some("1234abc".to_string()))))
+  //   ]);
+  //   let payload = super::build_payload(result, "1".to_string(), None);
+  //   expect!(payload).to(be_equal_to(json!({
+  //     "providerApplicationVersion": "1",
+  //     "success": false,
+  //     "testResults": [
+  //       {
+  //         "exceptions": [
+  //           {
+  //             "message": "Bang"
+  //           }
+  //         ],
+  //         "interactionId": "1234abc",
+  //         "success": false
+  //       }
+  //     ],
+  //     "verifiedBy": {
+  //       "implementation": "Pact-Rust",
+  //       "version": PACT_RUST_VERSION
+  //     }
+  //   })));
+  // }
+  //
+  // #[test]
+  // fn test_build_payload_with_mixed_results() {
+  //   let result = TestResult::Failed(vec![
+  //     (Some("1234abc".to_string()), Some(MismatchResult::Mismatches {
+  //       mismatches: vec![
+  //         MethodMismatch { expected: "PUT".to_string(), actual: "POST".to_string() }
+  //       ],
+  //       expected: Box::new(RequestResponseInteraction::default()),
+  //       actual: Box::new(RequestResponseInteraction::default()),
+  //       interaction_id: Some("1234abc".to_string())
+  //     })),
+  //     (Some("12345678".to_string()), Some(MismatchResult::Error("Bang".to_string(), Some("1234abc".to_string())))),
+  //     (Some("abc123".to_string()), None)
+  //   ]);
+  //   let payload = super::build_payload(result, "1".to_string(), None);
+  //   expect!(payload).to(be_equal_to(json!({
+  //     "providerApplicationVersion": "1",
+  //     "success": false,
+  //     "testResults": [
+  //       {
+  //         "interactionId": "1234abc",
+  //         "mismatches": [
+  //           {
+  //             "attribute": "method", "description": "Expected method of PUT but received POST"
+  //           }
+  //         ],
+  //         "success": false
+  //       },
+  //       {
+  //         "exceptions": [
+  //           {
+  //             "message": "Bang"
+  //           }
+  //         ],
+  //         "interactionId": "12345678",
+  //         "success": false
+  //       },
+  //       {
+  //         "interactionId": "abc123",
+  //         "success": true
+  //       }
+  //     ],
+  //     "verifiedBy": {
+  //       "implementation": "Pact-Rust",
+  //       "version": PACT_RUST_VERSION
+  //     }
+  //   })));
+  // }
+  //
+  // #[test]
+  // fn build_link_from_json() {
+  //   let json = json!({
+  //     "href": "localhost"
+  //   });
+  //   let link = Link::from_json(&"link name".to_string(), json.as_object().unwrap());
+  //   expect!(link.name).to(be_equal_to("link name"));
+  //   expect!(link.href).to(be_some().value("localhost"));
+  //   expect!(link.templated).to(be_false());
+  //
+  //   let json2 = json!({
+  //     "templated": true
+  //   });
+  //   let link2 = Link::from_json(&"link name".to_string(), json2.as_object().unwrap());
+  //   expect!(link2.name).to(be_equal_to("link name"));
+  //   expect!(link2.href).to(be_none());
+  //   expect!(link2.templated).to(be_true());
+  // }
+  //
+  // #[test]
+  // fn build_json_from_link() {
+  //   let link = Link {
+  //     name: "Link Name".to_string(),
+  //     href: Some("1234".to_string()),
+  //     templated: true,
+  //     title: None
+  //   };
+  //   let json = link.as_json();
+  //   expect!(json.to_string()).to(be_equal_to(
+  //     "{\"href\":\"1234\",\"templated\":true}"));
+  //
+  //   let link = Link {
+  //     name: "Link Name".to_string(),
+  //     href: Some("1234".to_string()),
+  //     templated: true,
+  //     title: Some("title".to_string())
+  //   };
+  //   let json = link.as_json();
+  //   expect!(json.to_string()).to(be_equal_to(
+  //     "{\"href\":\"1234\",\"templated\":true,\"title\":\"title\"}"));
+  // }
 }
