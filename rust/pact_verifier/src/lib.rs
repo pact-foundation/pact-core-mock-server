@@ -1,6 +1,6 @@
 //! The `pact_verifier` crate provides the core logic to performing verification of providers.
-//! It implements the V3 (https://github.com/pact-foundation/pact-specification/tree/version-3)
-//! and V4 Pact specification (https://github.com/pact-foundation/pact-specification/tree/version-4).
+//! It implements the V3 (`https://github.com/pact-foundation/pact-specification/tree/version-3`)
+//! and V4 Pact specification (`https://github.com/pact-foundation/pact-specification/tree/version-4`).
 #![warn(missing_docs)]
 
 use std::collections::HashMap;
