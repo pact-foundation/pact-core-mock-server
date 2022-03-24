@@ -1,5 +1,16 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.9.0 - Supports mock servers from plugins
+
+* 89027c87 - chore: update pact_matching (0.12.4) and pact_mock_server (0.8.8) (Ronald Holshausen, Thu Mar 24 14:09:45 2022 +1100)
+* 9baf03a9 - chore: use the published version of the plugin driver (Ronald Holshausen, Thu Mar 24 13:36:01 2022 +1100)
+* 345b0011 - feat: support mock servers provided from plugins (Ronald Holshausen, Mon Mar 21 15:59:46 2022 +1100)
+* 6772f111 - Merge branch 'master' into feat/plugin-mock-server (Ronald Holshausen, Fri Mar 18 14:55:41 2022 +1100)
+* 6818367f - chore: fix build after releasing models 0.3.1 (Ronald Holshausen, Fri Mar 18 14:55:26 2022 +1100)
+* efb5f12b - refactor: Split ValidatingMockServer into a trait and implementation (Ronald Holshausen, Tue Mar 15 17:07:15 2022 +1100)
+* e10841d7 - chore: bump consumer crate to 0.9.0 (Ronald Holshausen, Tue Mar 15 14:16:47 2022 +1100)
+* ae87a65d - bump version to 0.8.7 (Ronald Holshausen, Fri Mar 4 14:58:50 2022 +1100)
+
 # 0.8.6 - Maintenance Release
 
 * 5a4a8a1c - chore: update pact_mock_server to 0.8.7 (Ronald Holshausen, Fri Mar 4 14:24:23 2022 +1100)
