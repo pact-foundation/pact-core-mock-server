@@ -40,7 +40,7 @@ jobs:
           command: clippy
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: nightly-2022-04-12
           override: true
           components: rustfmt
       - name: Install doxygen
