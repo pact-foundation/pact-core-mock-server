@@ -40,6 +40,11 @@ jobs:
           command: clippy
       - uses: actions-rs/toolchain@v1
         with:
+          toolchain: nightly
+          override: true
+          components: rustfmt
+      - uses: actions-rs/toolchain@v1
+        with:
           toolchain: nightly-2022-04-12
           override: true
           components: rustfmt

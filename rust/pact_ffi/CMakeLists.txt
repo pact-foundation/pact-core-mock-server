@@ -273,7 +273,7 @@ set_source_files_properties(
 add_custom_command(
     OUTPUT ${CBINDGEN_HEADER_FILE}
     COMMAND
-        rustup run nightly
+        rustup run nightly-2022-04-12
         ${CBINDGEN_EXECUTABLE}
         --config ${CBINDGEN_CONFIG_FILE}
         --crate ${CRATE_NAME}

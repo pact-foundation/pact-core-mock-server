@@ -4,7 +4,7 @@ set -e
 
 which cargo
 
-cargo install cbindgen
+cargo install --force cbindgen
 rm -rf ./include
 
 echo -------------------------------------
