@@ -19,11 +19,12 @@ cd ..
 echo -------------------------------------
 echo - Generate header with cbindgen
 echo -------------------------------------
-rustup run nightly cbindgen \
+# Needs nightly-2022-04-12 due to rustc failures with later versions
+rustup run nightly-2022-04-12 cbindgen \
   --config cbindgen.toml \
   --crate pact_ffi \
   --output include/pact.h
-rustup run nightly cbindgen \
+rustup run nightly-2022-04-12 cbindgen \
   --config cbindgen-c++.toml \
   --crate pact_ffi \
   --output include/pact-c++.h
