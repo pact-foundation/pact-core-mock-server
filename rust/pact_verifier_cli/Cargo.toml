@@ -17,7 +17,7 @@ exclude = [
 pact_models = "0.3.2"
 pact_verifier = { version = "0.13.3", path = "../pact_verifier" }
 tokio = { version = "1", features = ["full"] }
-reqwest = { version = "0.11.9", default-features = false, features = ["rustls-tls-native-roots", "blocking", "json"] }
+reqwest = { version = "0.11.10", default-features = false, features = ["rustls-tls-native-roots", "blocking", "json"] }
 clap = "2.33.4"
 regex = "1.5.4"
 log = "=0.4.14" # This needs to be the same version across all the libs (i.e. plugin driver)
