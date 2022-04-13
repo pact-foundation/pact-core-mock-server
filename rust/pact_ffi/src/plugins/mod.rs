@@ -20,7 +20,7 @@ use pact_models::v4::message_parts::MessageContents;
 use pact_models::v4::V4InteractionType;
 use pact_plugin_driver::catalogue_manager::find_content_matcher;
 use pact_plugin_driver::content::{InteractionContents, PluginConfiguration};
-use pact_plugin_driver::plugin_manager::{drop_plugin_access, load_plugin};
+use pact_plugin_driver::plugin_manager::{drop_plugin_access, load_plugin, lookup_plugin};
 use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
 use serde_json::Value;
 use tokio::time::sleep;
@@ -58,27 +58,38 @@ ffi_fn! {
     let plugin_name = safe_str!(plugin_name);
     let plugin_version = if_null(plugin_version, "");
 
-    pact_mock_server::configure_core_catalogue();
-    pact_matching::matchers::configure_core_catalogue();
+    let dependency = PluginDependency {
+      name: plugin_name.to_string(),
+      version: if plugin_version.is_empty() { None } else { Some(plugin_version) },
+      dependency_type: Default::default()
+    };
+    let result = lookup_plugin(&dependency)
+      .and_then(|mut plugin| {
+        plugin.update_access();
+        Some(plugin)
+      })
+      .ok_or(())
+      .or_else(|_| {
+        pact_mock_server::configure_core_catalogue();
+        pact_matching::matchers::configure_core_catalogue();
 
-    let runtime = tokio::runtime::Builder::new_multi_thread()
-      .enable_all()
-      .build()
-      .expect("Could not start a Tokio runtime for running async tasks");
-    let result = runtime.block_on(async {
-      let result = load_plugin(&PluginDependency {
-        name: plugin_name.to_string(),
-        version: if plugin_version.is_empty() { None } else { Some(plugin_version) },
-        dependency_type: Default::default()
-      }).await;
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+          .enable_all()
+          .build()
+          .expect("Could not start a Tokio runtime for running async tasks");
+        let result = runtime.block_on(async {
+          let result = load_plugin(&dependency).await;
 
-      // Add a small delay to let asynchronous tasks to complete
-      sleep(Duration::from_millis(500)).await;
+          // Add a small delay to let asynchronous tasks to complete
+          sleep(Duration::from_millis(500)).await;
 
-      result
-    });
+          result
+        });
 
-    runtime.shutdown_timeout(Duration::from_millis(500));
+        runtime.shutdown_timeout(Duration::from_millis(500));
+
+        result
+      });
 
     match result {
       Ok(plugin) => pact.with_pact(&|_, inner| {
