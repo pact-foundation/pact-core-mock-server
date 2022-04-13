@@ -1,5 +1,16 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.9.9 - Bugfix Release
+
+* 136c8a82 - chore: Upgrade pact_verifier to 0.13.4 (Ronald Holshausen, Wed Apr 13 16:06:02 2022 +1000)
+* 49640c5f - chore: minor update to release scripts (Ronald Holshausen, Wed Apr 13 15:32:46 2022 +1000)
+* d043f6c7 - chore: upgrade pact_models to 0.3.3 (Ronald Holshausen, Wed Apr 13 15:24:33 2022 +1000)
+* 73ae0ef0 - fix: Upgrade reqwest to 0.11.10 to resolve #156 (Ronald Holshausen, Wed Apr 13 13:31:55 2022 +1000)
+* 776265ee - chore: bump pact_verifier to 0.13.3 (Ronald Holshausen, Thu Mar 24 15:05:01 2022 +1100)
+* 345b0011 - feat: support mock servers provided from plugins (Ronald Holshausen, Mon Mar 21 15:59:46 2022 +1100)
+* f709528d - fix: rust/pact_verifier_cli/Dockerfile to reduce vulnerabilities (snyk-bot, Thu Mar 17 22:19:46 2022 +0000)
+* a09fade9 - bump version to 0.9.9 (Ronald Holshausen, Fri Mar 4 15:22:53 2022 +1100)
+
 # 0.9.8 - Custom headers + Date-Time expression parser
 
 * b6433500 - chore: upgrade pact_verifier to 0.13.2 (Ronald Holshausen, Fri Mar 4 14:49:18 2022 +1100)
