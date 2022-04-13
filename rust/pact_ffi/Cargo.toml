@@ -46,7 +46,7 @@ simplelog = "0.9.0"
 tokio = { version = "1", features = ["full"] }
 sxd-document = "0.3.2"
 either = "1.6.1"
-pact-plugin-driver = "0.1.0"
+pact-plugin-driver = "0.1.2"
 
 [dev-dependencies]
 expectest = "0.12.0"
