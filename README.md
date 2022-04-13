@@ -13,7 +13,7 @@ written in Rust, as well as example projects in JavaScript and C (and a few othe
 ### Rust
 
 For Rust projects, you can use the Rust crates from this library in your project directly. Refer to the [Rust project
-readme](rust/README.md).
+readme](rust/README.md). Requires minimum Rust 1.59.0.
 
 ### Other languages
 
@@ -27,7 +27,8 @@ For examples:
 
 ## Building
 
-To build the libraries in this project, you need a working Rust environment. Refer to the [Rust Guide](https://www.rust-lang.org/learn/get-started).
+To build the libraries in this project, you need a working Rust environment.  Requires minimum Rust 1.59.0.
+Refer to the [Rust Guide](https://www.rust-lang.org/learn/get-started).
 
 The build tool used is `cargo`.
 
