@@ -1,5 +1,18 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.13.4 - Bugfix Release
+
+* 0df06dd2 - chore: Upgrade pact_matching to 0.12.5 (Ronald Holshausen, Wed Apr 13 15:38:49 2022 +1000)
+* 49640c5f - chore: minor update to release scripts (Ronald Holshausen, Wed Apr 13 15:32:46 2022 +1000)
+* d043f6c7 - chore: upgrade pact_models to 0.3.3 (Ronald Holshausen, Wed Apr 13 15:24:33 2022 +1000)
+* eee09ba6 - chore: Upgrade pact-plugin-driver to 0.1.3 (Ronald Holshausen, Wed Apr 13 14:07:36 2022 +1000)
+* 73ae0ef0 - fix: Upgrade reqwest to 0.11.10 to resolve #156 (Ronald Holshausen, Wed Apr 13 13:31:55 2022 +1000)
+* ffeca2e2 - chore: update to the latest plugin driver (Ronald Holshausen, Wed Apr 13 13:08:25 2022 +1000)
+* e93c5574 - fix: when loading plugins for Pact files, only take minor + major version into account (Ronald Holshausen, Thu Mar 24 16:50:00 2022 +1100)
+* 86409c98 - Revert "chore: disable Pact tests to resolve cyclic dependency issue" (Ronald Holshausen, Thu Mar 24 14:53:22 2022 +1100)
+* 8f1e9506 - chore: cleanup (Ronald Holshausen, Thu Mar 24 14:49:33 2022 +1100)
+* fd515bda - bump version to 0.13.4 (Ronald Holshausen, Thu Mar 24 14:48:13 2022 +1100)
+
 # 0.13.3 - Maintenance Release
 
 * f1f6c980 - chore: disable Pact tests to resolve cyclic dependency issue (Ronald Holshausen, Thu Mar 24 14:26:10 2022 +1100)
