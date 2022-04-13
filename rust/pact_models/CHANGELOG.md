@@ -1,5 +1,19 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.3.3 - Bugfix Release
+
+* 73ae0ef0 - fix: Upgrade reqwest to 0.11.10 to resolve #156 (Ronald Holshausen, Wed Apr 13 13:31:55 2022 +1000)
+* 42b1a461 - Merge branch 'master' into feat/plugin-mock-server (Ronald Holshausen, Mon Mar 21 16:01:33 2022 +1100)
+* 345b0011 - feat: support mock servers provided from plugins (Ronald Holshausen, Mon Mar 21 15:59:46 2022 +1100)
+* daa2c101 - feat: add mutable iteraction over Pact interactions (Ronald Holshausen, Fri Mar 18 16:55:34 2022 +1100)
+* 0bc98834 - bump version to 0.3.3 (Ronald Holshausen, Fri Mar 18 16:08:30 2022 +1100)
+* 0ca9f62b - update changelog for release 0.3.2 (Ronald Holshausen, Fri Mar 18 16:06:30 2022 +1100)
+* 01ac989b - fix: was missing setter to set the transport with V4 interactions (Ronald Holshausen, Fri Mar 18 16:04:00 2022 +1100)
+* a075f679 - bump version to 0.3.2 (Ronald Holshausen, Fri Mar 18 14:39:20 2022 +1100)
+* e82a67fb - update changelog for release 0.3.1 (Ronald Holshausen, Fri Mar 18 14:37:03 2022 +1100)
+* 7fd87eb9 - feat: store the transport with V4 interactions to support mockservers from plugins (Ronald Holshausen, Fri Mar 18 14:30:20 2022 +1100)
+* 27e41386 - bump version to 0.3.1 (Ronald Holshausen, Fri Mar 4 11:32:56 2022 +1100)
+
 # 0.3.2 - Maintenance Release
 
 * 01ac989b - fix: was missing setter to set the transport with V4 interactions (Ronald Holshausen, Fri Mar 18 16:04:00 2022 +1100)
