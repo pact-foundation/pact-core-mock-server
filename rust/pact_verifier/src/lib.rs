@@ -122,6 +122,7 @@ pub struct ProviderInfo {
     /// Provider Name
     pub name: String,
     /// Provider protocol, defaults to HTTP
+    // TODO: this should be renamed to transport and made optional
     pub protocol: String,
     /// Hostname of the provider
     pub host: String,

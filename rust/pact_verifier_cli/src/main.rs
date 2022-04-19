@@ -266,13 +266,15 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use clap::{AppSettings, ArgMatches, ErrorKind};
-use log::{debug, error, LevelFilter, warn};
+use log::{LevelFilter};
 use maplit::hashmap;
 use pact_models::{PACT_RUST_VERSION, PactSpecification};
 use pact_models::prelude::HttpAuth;
 use serde_json::Value;
 use simplelog::{ColorChoice, Config, TerminalMode, TermLogger};
 use tokio::time::sleep;
+use tracing::{debug, error, warn};
+use tracing_subscriber::FmtSubscriber;
 
 use pact_verifier::{
   FilterInfo,
@@ -328,6 +330,15 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
     _ => LevelFilter::from_str(level).unwrap()
   };
   TermLogger::init(log_level, Config::default(), TerminalMode::Mixed, ColorChoice::Auto).unwrap_or_default();
+  let subscriber = FmtSubscriber::builder()
+    .with_max_level(tracing_core::LevelFilter::from_str(level)
+      .unwrap_or(tracing_core::LevelFilter::INFO))
+    .with_thread_names(true)
+    .finish();
+  if let Err(err) = tracing::subscriber::set_global_default(subscriber) {
+    warn!("Failed to initialise global tracing subscriber - {err}");
+  };
+
   let provider = configure_provider(matches);
   let source = pact_source(matches);
   let filter = interaction_filter(matches);
