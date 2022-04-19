@@ -11,7 +11,7 @@
 //! The pact verifier is bundled as a single binary executable `pact_verifier_cli`. Running this with out any options displays the standard help.
 //!
 //! ```console,ignore
-//! pact_verifier_cli 0.9.8
+//! pact_verifier_cli 0.9.10
 //! Standalone Pact verifier
 //!
 //! USAGE:
@@ -86,12 +86,12 @@
 //!         --request-timeout <request-timeout>
 //!             Sets the HTTP request timeout in milliseconds for requests to the target API and for state change requests.
 //!
-//!         --scheme <scheme>
-//!             Provider URI scheme (defaults to http) [default: http]  [possible values: http, https]
-//!
 //!     -s, --state-change-url <state-change-url>                           URL to post state change requests to
 //!     -t, --token <token>
 //!             Bearer token to use when fetching pacts from URLS [env: PACT_BROKER_TOKEN=]
+//!
+//!         --transport <transport>
+//!             Provider protocol transport to use (http, https, grpc, etc.) [default: http]
 //!
 //!     -u, --url <url>...                                                  URL of pact file to verify (can be repeated)
 //!         --user <user>
@@ -121,9 +121,11 @@
 //!
 //! | Option | Description |
 //! |--------|-------------|
-//! | `-h, --hostname <hostname>` | The provider hostname, defaults to `localhost` |
+//! | `-h, --hostname <hostname>` | The provider hostname (defaults to `localhost`) |
 //! | `-p, --port <port>` | The provider port (defaults to 8080) |
 //! | `-n, --provider-name <provider-name>` | The name of the provider. Required if you are loading pacts from a pact broker |
+//! | `--base-path <base-path>` | If the provider is mounted on a sub-path, you can use this option to set the base path to add to all requests |
+//! | `--transport <transport>` | Protocol transport to use. Defaults to HTTP. |
 //!
 //! ### Filtering the interactions
 //!
@@ -326,13 +328,7 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
     _ => LevelFilter::from_str(level).unwrap()
   };
   TermLogger::init(log_level, Config::default(), TerminalMode::Mixed, ColorChoice::Auto).unwrap_or_default();
-  let provider = ProviderInfo {
-    host: matches.value_of("hostname").unwrap_or("localhost").to_string(),
-    port: matches.value_of("port").map(|port| port.parse::<u16>().unwrap()),
-    path: matches.value_of("base-path").unwrap_or("/").into(),
-    protocol: matches.value_of("scheme").unwrap_or("http").to_string(),
-    .. ProviderInfo::default()
-  };
+  let provider = configure_provider(matches);
   let source = pact_source(matches);
   let filter = interaction_filter(matches);
   let provider_state_executor = Arc::new(HttpRequestProviderStateExecutor {
@@ -404,6 +400,17 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
 
       if result.result { Ok(()) } else { Err(1) }
     })
+}
+
+pub(crate) fn configure_provider(matches: &ArgMatches) -> ProviderInfo {
+  ProviderInfo {
+    host: matches.value_of("hostname").unwrap_or("localhost").to_string(),
+    port: matches.value_of("port").map(|port| port.parse::<u16>().unwrap()),
+    path: matches.value_of("base-path").unwrap_or("/").into(),
+    protocol: matches.value_of("transport").unwrap_or("http").to_string(),
+    name: matches.value_of("provider-name").unwrap_or("provider").to_string(),
+    ..ProviderInfo::default()
+  }
 }
 
 fn write_json_report(result: &VerificationExecutionResult, file_name: &str) -> anyhow::Result<()> {
@@ -541,3 +548,50 @@ fn init_windows() {
 
 #[cfg(not(windows))]
 fn init_windows() { }
+
+#[cfg(test)]
+mod tests {
+  use expectest::prelude::*;
+
+  use crate::{args, configure_provider};
+
+  #[test]
+  fn parse_provider_args_defaults() {
+    let args = args::setup_app("test".to_string(), "1.0.0");
+    let matches = args.get_matches_from_safe(vec!["test", "-f", "test"]).unwrap();
+    let provider = configure_provider(&matches);
+
+    expect!(provider.host).to(be_equal_to("localhost"));
+    expect!(provider.port).to(be_none());
+    expect!(provider.name).to(be_equal_to("provider"));
+    expect!(provider.path).to(be_equal_to("/"));
+    expect!(provider.protocol).to(be_equal_to("http"));
+  }
+
+  #[test]
+  fn parse_provider_args() {
+    let args = args::setup_app("test".to_string(), "1.0.0");
+    let matches = args.get_matches_from_safe(vec![
+      "test", "-f", "test", "-h", "test.com", "-p", "1234", "-n", "test", "--transport", "https",
+      "--base-path", "/base/path"
+    ]).unwrap();
+    let provider = configure_provider(&matches);
+
+    expect!(provider.host).to(be_equal_to("test.com"));
+    expect!(provider.port).to(be_some().value(1234));
+    expect!(provider.name).to(be_equal_to("test"));
+    expect!(provider.path).to(be_equal_to("/base/path"));
+    expect!(provider.protocol).to(be_equal_to("https"));
+  }
+
+  #[test]
+  fn parse_provider_args_with_old_alias() {
+    let args = args::setup_app("test".to_string(), "1.0.0");
+    let matches = args.get_matches_from_safe(vec![
+      "test", "-f", "test", "--scheme", "https"
+    ]).unwrap();
+    let provider = configure_provider(&matches);
+
+    expect!(provider.protocol).to(be_equal_to("https"));
+  }
+}
