@@ -1,5 +1,25 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.2.5 - Maintenance Release
+
+* d41e2440 - fix(ffi): correct race condition in pactffi_using_plugin (Ronald Holshausen, Wed Apr 13 16:51:36 2022 +1000)
+* 136c8a82 - chore: Upgrade pact_verifier to 0.13.4 (Ronald Holshausen, Wed Apr 13 16:06:02 2022 +1000)
+* 1e8ae855 - chore: Upgrade pact_mock_server to 0.8.9 (Ronald Holshausen, Wed Apr 13 15:49:03 2022 +1000)
+* 0df06dd2 - chore: Upgrade pact_matching to 0.12.5 (Ronald Holshausen, Wed Apr 13 15:38:49 2022 +1000)
+* d043f6c7 - chore: upgrade pact_models to 0.3.3 (Ronald Holshausen, Wed Apr 13 15:24:33 2022 +1000)
+* eee09ba6 - chore: Upgrade pact-plugin-driver to 0.1.3 (Ronald Holshausen, Wed Apr 13 14:07:36 2022 +1000)
+* 73ae0ef0 - fix: Upgrade reqwest to 0.11.10 to resolve #156 (Ronald Holshausen, Wed Apr 13 13:31:55 2022 +1000)
+* ffeca2e2 - chore: update to the latest plugin driver (Ronald Holshausen, Wed Apr 13 13:08:25 2022 +1000)
+* efaba75b - chore: Update release for FFI to use the correct nightly Rust for cbindgen (Ronald Holshausen, Wed Apr 13 10:40:34 2022 +1000)
+* 610490ab - chore: trying to get the ffi cmake build working (Ronald Holshausen, Tue Apr 12 18:09:47 2022 +1000)
+* e13eb80d - chore: Update ci-build.sh to use the same nightly Rust as build (Ronald Holshausen, Tue Apr 12 17:49:21 2022 +1000)
+* 776265ee - chore: bump pact_verifier to 0.13.3 (Ronald Holshausen, Thu Mar 24 15:05:01 2022 +1100)
+* 89027c87 - chore: update pact_matching (0.12.4) and pact_mock_server (0.8.8) (Ronald Holshausen, Thu Mar 24 14:09:45 2022 +1100)
+* 9baf03a9 - chore: use the published version of the plugin driver (Ronald Holshausen, Thu Mar 24 13:36:01 2022 +1100)
+* 42b1a461 - Merge branch 'master' into feat/plugin-mock-server (Ronald Holshausen, Mon Mar 21 16:01:33 2022 +1100)
+* 345b0011 - feat: support mock servers provided from plugins (Ronald Holshausen, Mon Mar 21 15:59:46 2022 +1100)
+* 63b63358 - bump version to 0.2.5 (Matt Fellows, Mon Mar 21 11:29:45 2022 +1100)
+
 # 0.2.4 - Bugfix Release
 
 * 13f7c36f - fix: xml response matching rules (Matt Fellows, Wed Mar 9 17:07:56 2022 +1100)
