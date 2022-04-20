@@ -19,7 +19,6 @@ use futures::stream::StreamExt;
 use http::{header, HeaderMap};
 use http::header::HeaderName;
 use itertools::Itertools;
-use log::*;
 use maplit::*;
 use pact_models::generators::GeneratorTestMode;
 use pact_models::http_utils::HttpAuth;
@@ -33,6 +32,7 @@ use pact_plugin_driver::plugin_manager::{load_plugin, shutdown_plugins};
 use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
 use regex::Regex;
 use serde_json::Value;
+use tracing::{debug, error, info, trace};
 
 pub use callback_executors::NullRequestFilterExecutor;
 use callback_executors::RequestFilterExecutor;

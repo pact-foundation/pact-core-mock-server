@@ -1,5 +1,7 @@
 use std::collections::hash_map::HashMap;
 use std::convert::TryFrom;
+use std::fmt;
+use std::fmt::{Display, Formatter};
 
 use anyhow::anyhow;
 use futures::future::*;
@@ -8,14 +10,15 @@ use http::header::{HeaderName, InvalidHeaderName, InvalidHeaderValue};
 use http::header::CONTENT_TYPE;
 use http::method::InvalidMethod;
 use itertools::Itertools;
-use log::*;
-use reqwest::{Client, Error, RequestBuilder};
-
+use maplit::hashmap;
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
 use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
+use reqwest::{Client, Error, RequestBuilder};
+use serde_json::Value;
+use tracing::{debug, info};
 
-use super::*;
+use crate::{ProviderInfo, RequestFilterExecutor, VerificationOptions};
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -254,7 +257,6 @@ mod tests {
   use http::HeaderMap;
   use itertools::Itertools;
   use maplit::*;
-
   use pact_models::bodies::OptionalBody;
   use pact_models::v4::http_parts::HttpRequest;
 
