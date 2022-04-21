@@ -113,7 +113,7 @@ impl Interaction for Message {
     false
   }
 
-  fn as_v4(&self) -> Option<Box<dyn V4Interaction>> {
+  fn as_v4(&self) -> Option<Box<dyn V4Interaction + Send + Sync>> {
     self.as_v4_async_message().map(|i| i.boxed_v4())
   }
 

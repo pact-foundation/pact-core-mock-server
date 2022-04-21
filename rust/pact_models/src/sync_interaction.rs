@@ -100,7 +100,7 @@ impl Interaction for RequestResponseInteraction {
     false
   }
 
-  fn as_v4(&self) -> Option<Box<dyn V4Interaction>> {
+  fn as_v4(&self) -> Option<Box<dyn V4Interaction + Send + Sync>> {
     self.as_v4_http().map(|i| i.boxed_v4())
   }
 

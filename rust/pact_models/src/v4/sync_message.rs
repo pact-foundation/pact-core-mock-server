@@ -207,7 +207,7 @@ impl V4Interaction for SynchronousMessage {
     self.key.clone()
   }
 
-  fn boxed_v4(&self) -> Box<dyn V4Interaction> {
+  fn boxed_v4(&self) -> Box<dyn V4Interaction + Send + Sync> {
     Box::new(self.clone())
   }
 
@@ -309,7 +309,7 @@ impl Interaction for SynchronousMessage {
     true
   }
 
-  fn as_v4(&self) -> Option<Box<dyn V4Interaction>> {
+  fn as_v4(&self) -> Option<Box<dyn V4Interaction + Send + Sync>> {
     Some(self.boxed_v4())
   }
 

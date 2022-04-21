@@ -88,7 +88,7 @@ pub trait Interaction: Debug {
   fn is_v4(&self) -> bool;
 
   /// Returns the interaction in V4 format
-  fn as_v4(&self) -> Option<Box<dyn V4Interaction>>;
+  fn as_v4(&self) -> Option<Box<dyn V4Interaction + Send + Sync>>;
 
   /// Returns a mutable reference for the  interaction. If the interaction is not a V4 format,
   /// will return None. The `as_v4` method can convert to V4 format (via cloning the data).

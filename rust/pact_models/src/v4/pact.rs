@@ -33,7 +33,7 @@ pub struct V4Pact {
   /// Provider side of the pact
   pub provider: Provider,
   /// List of messages between the consumer and provider.
-  pub interactions: Vec<Box<dyn V4Interaction>>,
+  pub interactions: Vec<Box<dyn V4Interaction + Send + Sync>>,
   /// Metadata associated with this pact.
   pub metadata: BTreeMap<String, Value>,
   /// Plugin data associated with this pact
@@ -126,6 +126,18 @@ impl V4Pact {
     } else {
       vec![]
     }
+  }
+
+  /// Find the interaction with the given ID
+  pub fn find_interaction_with_id(&self, interaction_id: &str) -> Option<Box<dyn V4Interaction + Send + Sync>> {
+    self.interactions.iter()
+      .find(|i| if let Some(id) = i.id() {
+          id == interaction_id
+        } else {
+          false
+        }
+      )
+      .map(|i| i.boxed_v4())
   }
 }
 
