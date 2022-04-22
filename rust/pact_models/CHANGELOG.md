@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.4.0 - Updated V4 model interfaces
+
+* 6de6c229 - feat: Add functions to calc unique key to V4 interaction trait (Ronald Holshausen, Fri Apr 22 12:00:57 2022 +1000)
+* 7e3e2e18 - feat: add method to V4Pact to find an interaction by ID (Ronald Holshausen, Thu Apr 21 12:25:09 2022 +1000)
+* 49640c5f - chore: minor update to release scripts (Ronald Holshausen, Wed Apr 13 15:32:46 2022 +1000)
+* 97b49229 - bump version to 0.3.4 (Ronald Holshausen, Wed Apr 13 13:47:10 2022 +1000)
+
 # 0.3.3 - Bugfix Release
 
 * 73ae0ef0 - fix: Upgrade reqwest to 0.11.10 to resolve #156 (Ronald Holshausen, Wed Apr 13 13:31:55 2022 +1000)
