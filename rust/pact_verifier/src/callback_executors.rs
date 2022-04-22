@@ -1,11 +1,13 @@
 //! Executor abstraction for executing callbacks to user code (request filters, provider state change callbacks)
 
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
 use ansi_term::Colour::Yellow;
 use async_trait::async_trait;
 use maplit::*;
+use pact_plugin_driver::verification::InteractionVerificationData;
 use serde_json::{json, Value};
 
 use pact_models::bodies::OptionalBody;
@@ -14,12 +16,14 @@ use pact_models::provider_states::ProviderState;
 use pact_models::v4::http_parts::HttpRequest;
 
 use crate::provider_client::make_state_change_request;
-use std::fmt::{Display, Formatter};
 
 /// Trait for executors that call request filters
 pub trait RequestFilterExecutor {
-  /// Mutates requests based on some criteria.
+  /// Mutates HTTP requests based on some criteria.
   fn call(self: Arc<Self>, request: &HttpRequest) -> HttpRequest;
+
+  /// Callback to mutate request data. This form is used by plugins.
+  fn call_non_http(&self, request: &InteractionVerificationData) -> InteractionVerificationData;
 }
 
 /// A "null" request filter executor, which does nothing, but permits
@@ -34,6 +38,10 @@ pub struct NullRequestFilterExecutor {
 
 impl RequestFilterExecutor for NullRequestFilterExecutor {
   fn call(self: Arc<Self>, _request: &HttpRequest) -> HttpRequest {
+    unimplemented!("NullRequestFilterExecutor should never be called")
+  }
+
+  fn call_non_http(&self, _request: &InteractionVerificationData) -> InteractionVerificationData {
     unimplemented!("NullRequestFilterExecutor should never be called")
   }
 }

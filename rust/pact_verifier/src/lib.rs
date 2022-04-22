@@ -14,7 +14,6 @@ use std::time::Duration;
 use ansi_term::*;
 use ansi_term::Colour::*;
 use anyhow::anyhow;
-use futures::prelude::*;
 use futures::stream::StreamExt;
 use http::{header, HeaderMap};
 use http::header::HeaderName;
@@ -28,11 +27,15 @@ use pact_models::pact::{load_pact_from_url, Pact, read_pact};
 use pact_models::prelude::v4::SynchronousHttp;
 use pact_models::provider_states::*;
 use pact_models::v4::interaction::V4Interaction;
+use pact_plugin_driver::{catalogue_manager, plugin_manager};
+use pact_plugin_driver::catalogue_manager::{CatalogueEntry, CatalogueEntryProviderType};
 use pact_plugin_driver::plugin_manager::{load_plugin, shutdown_plugins};
 use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
+use pact_plugin_driver::verification::InteractionVerificationDetails;
 use regex::Regex;
+use reqwest::Client;
 use serde_json::Value;
-use tracing::{debug, error, info, trace};
+use tracing::{debug, debug_span, error, info, Instrument, trace};
 
 pub use callback_executors::NullRequestFilterExecutor;
 use callback_executors::RequestFilterExecutor;
@@ -299,6 +302,7 @@ async fn execute_state_change<S: ProviderStateExecutor>(
     })
 }
 
+/// Main implementation for verifying an interaction
 async fn verify_interaction<'a, F: RequestFilterExecutor, S: ProviderStateExecutor>(
   provider: &ProviderInfo,
   interaction: &(dyn Interaction + Send + Sync),
@@ -306,97 +310,191 @@ async fn verify_interaction<'a, F: RequestFilterExecutor, S: ProviderStateExecut
   options: &VerificationOptions<F>,
   provider_state_executor: &Arc<S>
 ) -> Result<Option<String>, MismatchResult> {
-  let mut client_builder = reqwest::Client::builder()
-    .danger_accept_invalid_certs(options.disable_ssl_verification)
-    .timeout(Duration::from_millis(options.request_timeout));
+  let client = Arc::new(configure_http_client(options)
+    .map_err(|err| MismatchResult::Error(err.to_string(), interaction.id()))?);
 
-  if !options.custom_headers.is_empty() {
-    let headers = match setup_custom_headers(&options.custom_headers) {
-      Ok(headers) => headers,
-      Err(err) => {
-        return Err(MismatchResult::Error(err.to_string(), interaction.id()));
-      }
-    };
-    client_builder = client_builder.default_headers(headers);
+  let context = execute_provider_states(interaction, provider_state_executor, &client, true).await?;
+  let provider_states_context = context
+    .iter()
+    .map(|(k, v)| (k.as_str(), v.clone()))
+    .collect();
+
+  info!("Running provider verification for '{}'", interaction.description());
+  trace!("Interaction to verify: {:?}", interaction);
+  let transport = if interaction.is_v4() {
+    interaction.as_v4()
+      .and_then(|i| i.transport())
+      .and_then(|t| catalogue_manager::lookup_entry(&*format!("transport/{}", t)))
+  } else {
+    None
+  };
+
+  let mut result = Err(MismatchResult::Error("No interaction was verified".into(), interaction.id().clone()));
+  if let Some(transport) = &transport {
+    trace!("Verifying interaction via {}", transport.key);
+    result = verify_interaction_using_transport(transport, provider, interaction, pact, options, &client, &provider_states_context).await;
+  } else {
+    result = verify_v3_interaction(provider, interaction, &pact, options, &client, &provider_states_context).await;
   }
 
-  let client = Arc::new(client_builder.build().unwrap_or(reqwest::Client::new()));
+  if !interaction.provider_states().is_empty() && provider_state_executor.teardown() {
+    execute_provider_states(interaction, provider_state_executor, &client, false).await?;
+  }
 
+  result
+}
+
+/// Verify an interaction using the provided transport
+async fn verify_interaction_using_transport<'a, F: RequestFilterExecutor>(
+  transport_entry: &CatalogueEntry,
+  provider: &ProviderInfo,
+  interaction: &(dyn Interaction + Send + Sync),
+  pact: &Box<dyn Pact + Send + Sync + 'a>,
+  options: &VerificationOptions<F>,
+  client: &Arc<Client>,
+  context: &HashMap<&str, Value>
+) -> Result<Option<String>, MismatchResult> {
+  if transport_entry.provider_type == CatalogueEntryProviderType::PLUGIN {
+    match pact.as_v4_pact() {
+      Ok(pact) => {
+        let context = context.iter().map(|(k, v)| (k.to_string(), v.clone())).collect();
+        // Get plugin to prepare the request data
+        let interaction = &*interaction.as_v4().unwrap();
+        let request_data = plugin_manager::prepare_validation_for_interaction(transport_entry, &pact,
+          interaction, &context)
+          .await
+          .map_err(|err| MismatchResult::Error(format!("Failed to prepare interaction for verification - {err}"), interaction.id()))?;
+
+        // Invoke any callback to mutate the data
+        let request = if let Some(filter) = &options.request_filter {
+          info!("Invoking request filter for request data");
+          filter.call_non_http(&request_data)
+        } else {
+          request_data.clone()
+        };
+
+        // Get the plugin to verify the request
+        match plugin_manager::verify_interaction(transport_entry, &request, &context, &pact, interaction).await {
+          Ok(result) => if result.ok {
+            Ok(interaction.id())
+          } else {
+            Err(MismatchResult::Mismatches {
+              mismatches: result.details.iter().filter_map(|mismatch| match mismatch {
+                InteractionVerificationDetails::Error(err) => {
+                  error!("Individual mismatch is an error: {err}");
+                  None // TODO: matching crate does not support storing an error against an item
+                }
+                InteractionVerificationDetails::Mismatch { expected, actual, mismatch, path } => {
+                  Some(Mismatch::BodyMismatch {
+                    path: path.clone(),
+                    expected: Some(expected.clone()),
+                    actual: Some(actual.clone()),
+                    mismatch: mismatch.clone()
+                  })
+                }
+              }).collect(),
+              expected: interaction.boxed(), // TODO: what is the point of storing the expected vs actual values here? Looks like to generate a diff, but only works with JSON
+              actual: interaction.boxed(),   // we don't have the actual values, plugin dealt with it
+              interaction_id: interaction.id()
+            })
+          }
+          Err(err) => {
+            Err(MismatchResult::Error(format!("Verification failed with an error - {err}"), interaction.id()))
+          }
+        }
+      },
+      Err(err) => Err(MismatchResult::Error(format!("Pacts must be V4 format to work with plugins - {err}"), interaction.id()))
+    }
+  } else {
+    verify_v3_interaction(provider, interaction, pact, options, client, context).await
+  }
+}
+
+/// Previous implementation (V3) of verification
+async fn verify_v3_interaction<'a, F: RequestFilterExecutor>(
+  provider: &ProviderInfo,
+  interaction: &(dyn Interaction + Send + Sync),
+  pact: &Box<dyn Pact + Send + Sync + 'a>,
+  options: &VerificationOptions<F>,
+  client: &Arc<Client>,
+  provider_states_context: &HashMap<&str, Value>
+) -> Result<Option<String>, MismatchResult> {
+  let mut result = Err(MismatchResult::Error("No interaction was verified".into(), interaction.id().clone()));
+
+  // Verify an HTTP interaction
+  if let Some(interaction) = interaction.as_v4_http() {
+    trace!("Verifying a HTTP interaction");
+    result = verify_response_from_provider(provider, &interaction, &pact.boxed(), options, &client, &provider_states_context).await;
+  }
+  // Verify an asynchronous message (single shot)
+  if interaction.is_message() {
+    trace!("Verifying an asynchronous message (single shot)");
+    result = verify_message_from_provider(provider, pact, &interaction.boxed(), options, &client, &provider_states_context).await;
+  }
+  // Verify a synchronous message (request/response)
+  if let Some(message) = interaction.as_v4_sync_message() {
+    trace!("Verifying a synchronous message (request/response)");
+    result = verify_sync_message_from_provider(provider, pact, message, options, &client, &provider_states_context).await;
+  }
+
+  result
+}
+
+/// Executes the provider states, returning a map of the results
+async fn execute_provider_states<S: ProviderStateExecutor>(
+  interaction: &(dyn Interaction + Send + Sync),
+  provider_state_executor: &Arc<S>,
+  client: &Arc<Client>,
+  is_setup: bool
+) -> Result<HashMap<String, Value>, MismatchResult> {
   let mut provider_states_results = hashmap!{};
-  let sc_results = futures::stream::iter(
-    interaction.provider_states().iter().map(|state| (state, client.clone())))
-    .then(|(state, client)| {
-      let state_name = state.name.clone();
-      info!("Running provider state change handler '{}' for '{}'", state_name, interaction.description());
-      async move {
-        execute_state_change(&state, true, interaction.id(), &client,
-                             provider_state_executor.clone())
-          .map_err(|err| {
-            error!("Provider state change for '{}' has failed - {:?}", state_name, err);
-            err
-          }).await
+
+  let sc_type = if is_setup { "setup" } else { "teardown" };
+  let mut sc_results = vec![];
+  for state in &interaction.provider_states() {
+    info!("Running {} provider state change handler '{}' for '{}'", sc_type, state.name, interaction.description());
+    match execute_state_change(state, is_setup, interaction.id(), client,
+                         provider_state_executor.clone()).await {
+      Ok(data) => {
+        sc_results.push(Ok(data));
       }
-    }).collect::<Vec<Result<HashMap<String, Value>, MismatchResult>>>().await;
+      Err(err) => {
+        error!("Provider {} state change for '{}' has failed - {:?}", sc_type, state.name, err);
+        sc_results.push(Err(err));
+      }
+    }
+  }
+
   if sc_results.iter().any(|result| result.is_err()) {
-    return Err(MismatchResult::Error("One or more of the state change handlers has failed".to_string(), interaction.id()))
+    return Err(MismatchResult::Error(
+      format!("One or more of the {} state change handlers has failed", sc_type), interaction.id()))
   } else {
     for result in sc_results {
-      if result.is_ok() {
-        for (k, v) in result.unwrap() {
+      if let Ok(data) = result {
+        for (k, v) in data {
           provider_states_results.insert(k, v);
         }
       }
     }
   };
 
-  info!("Running provider verification for '{}'", interaction.description());
+  Ok(provider_states_results)
+}
 
-  let result = futures::future::ready((provider_states_results.iter()
-    .map(|(k, v)| (k.as_str(), v.clone())).collect(), client.clone()))
-    .then(|(context, client)| async move {
-    let mut result = Err(MismatchResult::Error("No interaction was verified".into(), interaction.id().clone()));
+/// Configure the HTTP client to use for requests to the provider
+fn configure_http_client<F: RequestFilterExecutor>(
+  options: &VerificationOptions<F>
+) -> anyhow::Result<Client> {
+  let mut client_builder = reqwest::Client::builder()
+    .danger_accept_invalid_certs(options.disable_ssl_verification)
+    .timeout(Duration::from_millis(options.request_timeout));
 
-    trace!("Interaction to verify: {:?}", interaction);
-
-    // Verify an HTTP interaction
-    if let Some(interaction) = interaction.as_v4_http() {
-      trace!("Verifying a HTTP interaction");
-      result = verify_response_from_provider(provider, &interaction, &pact.boxed(), options, &client, &context).await;
-    }
-    // Verify an asynchronous message (single shot)
-    if interaction.is_message() {
-      trace!("Verifying an asynchronous message (single shot)");
-      result = verify_message_from_provider(provider, pact, &interaction.boxed(), options, &client, &context).await;
-    }
-    // Verify a synchronous message (request/response)
-    if let Some(message) = interaction.as_v4_sync_message() {
-      trace!("Verifying a synchronous message (request/response)");
-      result = verify_sync_message_from_provider(provider, pact, message, options, &client, &context).await;
-    }
-
-    result
-  }).await;
-
-  if !interaction.provider_states().is_empty() && provider_state_executor.teardown() {
-    let sc_teardown_result = futures::stream::iter(
-      interaction.provider_states().iter().map(|state| (state, client.clone())))
-      .then(|(state, client)| async move {
-        let state_name = state.name.clone();
-        info!("Running provider state change handler '{}' for '{}'", state_name, interaction.description());
-        execute_state_change(&state, false, interaction.id(), &client,
-                             provider_state_executor.clone())
-          .map_err(|err| {
-            error!("Provider state change teardown for '{}' has failed - {:?}", state.name, err);
-            err
-          }).await
-      }).collect::<Vec<Result<HashMap<String, Value>, MismatchResult>>>().await;
-
-    if sc_teardown_result.iter().any(|result| result.is_err()) {
-      return Err(MismatchResult::Error("One or more of the state change handlers has failed during teardown phase".to_string(), interaction.id()))
-    }
+  if !options.custom_headers.is_empty() {
+    let headers = setup_custom_headers(&options.custom_headers)?;
+    client_builder = client_builder.default_headers(headers);
   }
 
-  result
+  client_builder.build().map_err(|err| anyhow!(err))
 }
 
 fn setup_custom_headers(custom_headers: &HashMap<String, String>) -> anyhow::Result<HeaderMap> {
@@ -972,7 +1070,9 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
     futures::stream::iter(interactions.iter().map(|i| (&pact, i)))
     .filter(|(_, interaction)| futures::future::ready(filter_interaction(interaction.as_ref(), filter)))
     .then( |(pact, interaction)| async move {
-      (interaction.boxed(), verify_interaction(provider_info, interaction.as_ref(), &pact.boxed(), options, provider_state_executor).await)
+      let interaction_desc = interaction.description();
+      (interaction.boxed(), verify_interaction(provider_info, interaction.as_ref(), &pact.boxed(), options, provider_state_executor)
+        .instrument(debug_span!("verify_interaction", interaction = interaction_desc.as_str())).await)
     })
     .collect()
     .await;

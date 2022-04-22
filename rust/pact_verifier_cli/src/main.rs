@@ -273,7 +273,7 @@ use pact_models::prelude::HttpAuth;
 use serde_json::Value;
 use simplelog::{ColorChoice, Config, TerminalMode, TermLogger};
 use tokio::time::sleep;
-use tracing::{debug, error, Instrument, warn};
+use tracing::{debug, debug_span, error, Instrument, warn};
 use tracing_subscriber::FmtSubscriber;
 
 use pact_verifier::{
@@ -383,6 +383,7 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
     debug!("Pact source to verify = {}", s);
   };
 
+  let provider_name = provider.name.clone();
   verify_provider_async(
     provider,
     source,
@@ -396,7 +397,7 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
       app_name: "pact_verifier_cli".to_string(),
       app_version: env!("CARGO_PKG_VERSION").to_string()
     }),
-  ).instrument(tracing::info_span!("verify_provider")).await
+  ).instrument(debug_span!("verify_provider", provider_name = provider_name.as_str())).await
     .map_err(|err| {
       error!("Verification failed with error: {}", err);
       2
