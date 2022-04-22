@@ -34,7 +34,7 @@ use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
 use pact_plugin_driver::verification::InteractionVerificationDetails;
 use regex::Regex;
 use reqwest::Client;
-use serde_json::Value;
+use serde_json::{json, Value};
 use tracing::{debug, debug_span, error, info, Instrument, trace};
 
 pub use callback_executors::NullRequestFilterExecutor;
@@ -329,13 +329,12 @@ async fn verify_interaction<'a, F: RequestFilterExecutor, S: ProviderStateExecut
     None
   };
 
-  let mut result = Err(MismatchResult::Error("No interaction was verified".into(), interaction.id().clone()));
-  if let Some(transport) = &transport {
+  let result = if let Some(transport) = &transport {
     trace!("Verifying interaction via {}", transport.key);
-    result = verify_interaction_using_transport(transport, provider, interaction, pact, options, &client, &provider_states_context).await;
+    verify_interaction_using_transport(transport, provider, interaction, pact, options, &client, &provider_states_context).await
   } else {
-    result = verify_v3_interaction(provider, interaction, &pact, options, &client, &provider_states_context).await;
-  }
+    verify_v3_interaction(provider, interaction, &pact, options, &client, &provider_states_context).await
+  };
 
   if !interaction.provider_states().is_empty() && provider_state_executor.teardown() {
     execute_provider_states(interaction, provider_state_executor, &client, false).await?;
@@ -352,12 +351,21 @@ async fn verify_interaction_using_transport<'a, F: RequestFilterExecutor>(
   pact: &Box<dyn Pact + Send + Sync + 'a>,
   options: &VerificationOptions<F>,
   client: &Arc<Client>,
-  context: &HashMap<&str, Value>
+  config: &HashMap<&str, Value>
 ) -> Result<Option<String>, MismatchResult> {
   if transport_entry.provider_type == CatalogueEntryProviderType::PLUGIN {
     match pact.as_v4_pact() {
       Ok(pact) => {
-        let context = context.iter().map(|(k, v)| (k.to_string(), v.clone())).collect();
+        let mut context = hashmap!{
+          "host".to_string() => Value::String(provider.host.clone())
+        };
+        if let Some(port) = provider.port {
+          context.insert("port".to_string(), json!(port));
+        }
+        for (k, v) in config {
+          context.insert(k.to_string(), v.clone());
+        }
+
         // Get plugin to prepare the request data
         let interaction = &*interaction.as_v4().unwrap();
         let request_data = plugin_manager::prepare_validation_for_interaction(transport_entry, &pact,
@@ -406,7 +414,7 @@ async fn verify_interaction_using_transport<'a, F: RequestFilterExecutor>(
       Err(err) => Err(MismatchResult::Error(format!("Pacts must be V4 format to work with plugins - {err}"), interaction.id()))
     }
   } else {
-    verify_v3_interaction(provider, interaction, pact, options, client, context).await
+    verify_v3_interaction(provider, interaction, pact, options, client, config).await
   }
 }
 
