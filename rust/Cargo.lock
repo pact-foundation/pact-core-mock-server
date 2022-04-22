@@ -1228,6 +1228,8 @@ dependencies = [
 [[package]]
 name = "pact-plugin-driver"
 version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f5f0e396bf96ba74ca618c21d5f893bad7655e595a7cdc27a5bbba0884bfe823"
 dependencies = [
  "anyhow",
  "async-trait",

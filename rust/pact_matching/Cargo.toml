@@ -41,7 +41,7 @@ http = "0.2.6"
 mime = "0.3.16"
 bytes = { version = "1", features = ["serde"] }
 tokio = { version = "1", features = ["full"] }
-pact-plugin-driver = { version = "0.1.4", path = "../../../pact-plugins/drivers/rust/driver" }
+pact-plugin-driver = "0.1.4"
 md5 = "0.7.0"
 
 [dependencies.reqwest]
