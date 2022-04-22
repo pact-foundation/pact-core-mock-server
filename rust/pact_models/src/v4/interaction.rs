@@ -118,6 +118,12 @@ pub trait V4Interaction: Interaction + Send + Sync {
 
   /// Set the transport used with the interaction
   fn set_transport(&mut self, transport: Option<String>);
+
+  /// Creates a new version with a calculated key
+  fn with_unique_key(&self) -> Box<dyn V4Interaction + Send + Sync>;
+
+  /// Returns the current key if set, otherwise calculates a new one
+  fn unique_key(&self) -> String;
 }
 
 impl Display for dyn V4Interaction {

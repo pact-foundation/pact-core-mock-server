@@ -129,7 +129,7 @@ impl V4Pact {
   }
 
   /// Find the interaction with the given ID
-  pub fn find_interaction_with_id(&self, interaction_id: &str) -> Option<Box<dyn V4Interaction + Send + Sync>> {
+  pub fn find_interaction_with_id(&self, interaction_id: &str) -> Option<&Box<dyn V4Interaction + Send + Sync>> {
     self.interactions.iter()
       .find(|i| if let Some(id) = i.id() {
           id == interaction_id
@@ -137,7 +137,6 @@ impl V4Pact {
           false
         }
       )
-      .map(|i| i.boxed_v4())
   }
 }
 

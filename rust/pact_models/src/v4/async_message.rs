@@ -268,6 +268,17 @@ impl V4Interaction for AsynchronousMessage {
   fn set_transport(&mut self, transport: Option<String>) {
     self.transport = transport.clone();
   }
+
+  fn with_unique_key(&self) -> Box<dyn V4Interaction + Send + Sync> {
+    Box::new(self.with_key())
+  }
+
+  fn unique_key(&self) -> String {
+    match &self.key {
+      None => self.calc_hash(),
+      Some(key) => key.clone()
+    }
+  }
 }
 
 impl Interaction for AsynchronousMessage {
