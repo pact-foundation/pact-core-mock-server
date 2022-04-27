@@ -1,5 +1,18 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.13.5 - Supports verification via plugins
+
+* bcae77b4 - chore: upgrade pact_matching to 0.12.6 (Ronald Holshausen, Wed Apr 27 14:29:26 2022 +1000)
+* bc4f04df - feat: deal with verification output from plugins (Ronald Holshausen, Wed Apr 27 11:17:25 2022 +1000)
+* dba7252e - chore: Upgrade pact-plugin-driver to 0.1.5 (Ronald Holshausen, Tue Apr 26 13:56:22 2022 +1000)
+* 688e49e7 - chore: Upgrade pact-plugin-driver to 0.1.4 (Ronald Holshausen, Fri Apr 22 14:47:01 2022 +1000)
+* cdf72b05 - feat: forward provider details to plugin when verifying (Ronald Holshausen, Fri Apr 22 14:12:34 2022 +1000)
+* 2395143a - feat: forward verification to plugin for transports provided by the plugin (Ronald Holshausen, Fri Apr 22 12:02:05 2022 +1000)
+* 05c83b67 - chore: switch verifier over to tracing crate (Ronald Holshausen, Wed Apr 20 11:34:16 2022 +1000)
+* 75145a60 - chore: setup tracing for verifier CLI (Ronald Holshausen, Tue Apr 19 17:20:18 2022 +1000)
+* 96a9985a - chore: Upgrade pact_consumer to 0.9.1 (Ronald Holshausen, Wed Apr 13 16:20:14 2022 +1000)
+* 36dcfcbc - bump version to 0.13.5 (Ronald Holshausen, Wed Apr 13 16:02:02 2022 +1000)
+
 # 0.13.4 - Bugfix Release
 
 * 0df06dd2 - chore: Upgrade pact_matching to 0.12.5 (Ronald Holshausen, Wed Apr 13 15:38:49 2022 +1000)
