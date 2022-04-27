@@ -18,7 +18,7 @@ ansi_term = "0.12.1"
 anyhow = "1.0.55"
 pact_matching = { version = "0.12.6", path = "../pact_matching" }
 pact_models = "0.4.0"
-pact_mock_server = { version = "0.8.9", path = "../pact_mock_server" }
+pact_mock_server = { version = "0.8.10", path = "../pact_mock_server" }
 pact_verifier = { version = "0.13.4", path = "../pact_verifier" }
 libc = "0.2.119"
 zeroize = "1.5.3"
