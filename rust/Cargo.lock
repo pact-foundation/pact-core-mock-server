@@ -1268,7 +1268,7 @@ dependencies = [
  "glob",
  "log",
  "maplit",
- "pact_matching",
+ "pact_matching 0.12.7",
  "pact_models 0.4.0",
  "serde",
  "serde_json",
@@ -1291,7 +1291,7 @@ dependencies = [
  "log",
  "maplit",
  "pact-plugin-driver",
- "pact_matching",
+ "pact_matching 0.12.7",
  "pact_mock_server",
  "pact_models 0.4.0",
  "quickcheck",
@@ -1330,10 +1330,10 @@ dependencies = [
  "onig",
  "os_info",
  "pact-plugin-driver",
- "pact_matching",
+ "pact_matching 0.12.7",
  "pact_mock_server",
  "pact_models 0.4.0",
- "pact_verifier",
+ "pact_verifier 0.13.6",
  "quickcheck",
  "rand",
  "rand_regex",
@@ -1349,6 +1349,43 @@ dependencies = [
  "tokio",
  "uuid",
  "zeroize",
+]
+
+[[package]]
+name = "pact_matching"
+version = "0.12.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3cc523883bd04b2c7f9ead93c3866a3af9e2a16adf1413bdbfb0e296c97417fa"
+dependencies = [
+ "ansi_term 0.12.1",
+ "anyhow",
+ "base64",
+ "bytes",
+ "chrono",
+ "difference",
+ "hex",
+ "http",
+ "itertools",
+ "lazy_static",
+ "lenient_semver",
+ "log",
+ "maplit",
+ "md5",
+ "mime",
+ "multipart",
+ "nom",
+ "onig",
+ "pact-plugin-driver",
+ "pact_models 0.4.0",
+ "rand",
+ "reqwest",
+ "semver 1.0.7",
+ "serde",
+ "serde_json",
+ "sxd-document",
+ "tokio",
+ "tree_magic_mini",
+ "uuid",
 ]
 
 [[package]]
@@ -1410,7 +1447,7 @@ dependencies = [
  "log",
  "maplit",
  "pact-plugin-driver",
- "pact_matching",
+ "pact_matching 0.12.7",
  "pact_models 0.4.0",
  "quickcheck",
  "reqwest",
@@ -1440,7 +1477,7 @@ dependencies = [
  "libc",
  "log",
  "maplit",
- "pact_matching",
+ "pact_matching 0.12.7",
  "pact_mock_server",
  "pact_models 0.4.0",
  "quickcheck",
@@ -1540,6 +1577,40 @@ dependencies = [
 
 [[package]]
 name = "pact_verifier"
+version = "0.13.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "549f273bb986b0903e3d0a2c978800ee7fa7291dab98f0251717cea484dc0ee1"
+dependencies = [
+ "ansi_term 0.12.1",
+ "anyhow",
+ "async-trait",
+ "base64",
+ "bytes",
+ "difference",
+ "futures",
+ "http",
+ "itertools",
+ "lazy_static",
+ "libc",
+ "log",
+ "maplit",
+ "mime",
+ "pact-plugin-driver",
+ "pact_matching 0.12.6",
+ "pact_models 0.4.0",
+ "regex",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_with",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "urlencoding",
+]
+
+[[package]]
+name = "pact_verifier"
 version = "0.13.6"
 dependencies = [
  "ansi_term 0.12.1",
@@ -1560,7 +1631,7 @@ dependencies = [
  "mime",
  "pact-plugin-driver",
  "pact_consumer",
- "pact_matching",
+ "pact_matching 0.12.7",
  "pact_models 0.4.0",
  "quickcheck",
  "regex",
@@ -1585,7 +1656,7 @@ dependencies = [
  "log",
  "maplit",
  "pact_models 0.4.0",
- "pact_verifier",
+ "pact_verifier 0.13.5",
  "regex",
  "reqwest",
  "serde_json",
