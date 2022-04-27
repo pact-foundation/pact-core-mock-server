@@ -302,18 +302,21 @@ async fn execute_state_change<S: ProviderStateExecutor>(
     })
 }
 
-/// Main implementation for verifying an interaction
+/// Main implementation for verifying an interaction. Will return a tuple containing the
+/// result of the verification and any output collected
 async fn verify_interaction<'a, F: RequestFilterExecutor, S: ProviderStateExecutor>(
   provider: &ProviderInfo,
   interaction: &(dyn Interaction + Send + Sync),
   pact: &Box<dyn Pact + Send + Sync + 'a>,
   options: &VerificationOptions<F>,
   provider_state_executor: &Arc<S>
-) -> Result<Option<String>, MismatchResult> {
+) -> Result<(Option<String>, Vec<String>), (MismatchResult, Vec<String>)> {
   let client = Arc::new(configure_http_client(options)
-    .map_err(|err| MismatchResult::Error(err.to_string(), interaction.id()))?);
+    .map_err(|err| (MismatchResult::Error(err.to_string(), interaction.id()), vec![]))?);
 
-  let context = execute_provider_states(interaction, provider_state_executor, &client, true).await?;
+  let context = execute_provider_states(interaction, provider_state_executor, &client, true)
+    .await
+    .map_err(|e| (e, vec![]))?;
   let provider_states_context = context
     .iter()
     .map(|(k, v)| (k.as_str(), v.clone()))
@@ -333,11 +336,16 @@ async fn verify_interaction<'a, F: RequestFilterExecutor, S: ProviderStateExecut
     trace!("Verifying interaction via {}", transport.key);
     verify_interaction_using_transport(transport, provider, interaction, pact, options, &client, &provider_states_context).await
   } else {
-    verify_v3_interaction(provider, interaction, &pact, options, &client, &provider_states_context).await
+    verify_v3_interaction(provider, interaction, &pact, options, &client, &provider_states_context)
+      .await
+      .map(|r| (r, vec![]))
+      .map_err(|e| (e, vec![]))
   };
 
   if !interaction.provider_states().is_empty() && provider_state_executor.teardown() {
-    execute_provider_states(interaction, provider_state_executor, &client, false).await?;
+    execute_provider_states(interaction, provider_state_executor, &client, false)
+      .await
+      .map_err(|e| (e, vec![]))?;
   }
 
   result
@@ -352,7 +360,7 @@ async fn verify_interaction_using_transport<'a, F: RequestFilterExecutor>(
   options: &VerificationOptions<F>,
   client: &Arc<Client>,
   config: &HashMap<&str, Value>
-) -> Result<Option<String>, MismatchResult> {
+) -> Result<(Option<String>, Vec<String>), (MismatchResult, Vec<String>)> {
   if transport_entry.provider_type == CatalogueEntryProviderType::PLUGIN {
     match pact.as_v4_pact() {
       Ok(pact) => {
@@ -371,7 +379,9 @@ async fn verify_interaction_using_transport<'a, F: RequestFilterExecutor>(
         let request_data = plugin_manager::prepare_validation_for_interaction(transport_entry, &pact,
           interaction, &context)
           .await
-          .map_err(|err| MismatchResult::Error(format!("Failed to prepare interaction for verification - {err}"), interaction.id()))?;
+          .map_err(|err| {
+            (MismatchResult::Error(format!("Failed to prepare interaction for verification - {err}"), interaction.id()), vec![])
+          })?;
 
         // Invoke any callback to mutate the data
         let request = if let Some(filter) = &options.request_filter {
@@ -384,9 +394,9 @@ async fn verify_interaction_using_transport<'a, F: RequestFilterExecutor>(
         // Get the plugin to verify the request
         match plugin_manager::verify_interaction(transport_entry, &request, &context, &pact, interaction).await {
           Ok(result) => if result.ok {
-            Ok(interaction.id())
+            Ok((interaction.id(), result.output))
           } else {
-            Err(MismatchResult::Mismatches {
+            Err((MismatchResult::Mismatches {
               mismatches: result.details.iter().filter_map(|mismatch| match mismatch {
                 InteractionVerificationDetails::Error(err) => {
                   error!("Individual mismatch is an error: {err}");
@@ -404,17 +414,22 @@ async fn verify_interaction_using_transport<'a, F: RequestFilterExecutor>(
               expected: interaction.boxed(), // TODO: what is the point of storing the expected vs actual values here? Looks like to generate a diff, but only works with JSON
               actual: interaction.boxed(),   // we don't have the actual values, plugin dealt with it
               interaction_id: interaction.id()
-            })
+            }, result.output))
           }
           Err(err) => {
-            Err(MismatchResult::Error(format!("Verification failed with an error - {err}"), interaction.id()))
+            Err((MismatchResult::Error(format!("Verification failed with an error - {err}"), interaction.id()), vec![]))
           }
         }
       },
-      Err(err) => Err(MismatchResult::Error(format!("Pacts must be V4 format to work with plugins - {err}"), interaction.id()))
+      Err(err) => {
+        Err((MismatchResult::Error(format!("Pacts must be V4 format to work with plugins - {err}"), interaction.id()), vec![]))
+      }
     }
   } else {
-    verify_v3_interaction(provider, interaction, pact, options, client, config).await
+    verify_v3_interaction(provider, interaction, pact, options, client, config)
+      .await
+      .map(|r| (r, vec![]))
+      .map_err(|e| (e, vec![]))
   }
 }
 
@@ -1074,7 +1089,7 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
   let interactions = pact.interactions();
   let mut output = vec![];
 
-  let results: Vec<(Box<dyn Interaction + Send + Sync>, Result<Option<String>, MismatchResult>)> =
+  let results: Vec<(Box<dyn Interaction + Send + Sync>, Result<(Option<String>, Vec<String>), (MismatchResult, Vec<String>)>)> =
     futures::stream::iter(interactions.iter().map(|i| (&pact, i)))
     .filter(|(_, interaction)| futures::future::ready(filter_interaction(interaction.as_ref(), filter)))
     .then( |(pact, interaction)| async move {
@@ -1110,6 +1125,23 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
         process_comments(interaction, &mut output)
       }
     }
+
+    let match_result = match match_result {
+      Ok((id, out)) => {
+        if !out.is_empty() {
+          output.push(String::default());
+          output.extend(out.iter().map(|o| format!("  {}", o)));
+        }
+        Ok(id)
+      }
+      Err((err, out)) => {
+        if !out.is_empty() {
+          output.push(String::default());
+          output.extend(out.iter().map(|o| format!("  {}", o)));
+        }
+        Err(err)
+      }
+    };
 
     if let Some(interaction) = interaction.as_request_response() {
       process_request_response_result(&interaction, &match_result, &mut output)
