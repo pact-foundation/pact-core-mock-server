@@ -1,5 +1,16 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.9.10 - Supports verification via plugins
+
+* 8d58ea34 - fix: lock the pact crate versions so that updates do not break CLI install #189 (Ronald Holshausen, Wed Apr 27 16:01:54 2022 +1000)
+* 14a010a9 - chore: Upgrade pact_verifier to 0.13.5 (Ronald Holshausen, Wed Apr 27 15:21:15 2022 +1000)
+* cdf72b05 - feat: forward provider details to plugin when verifying (Ronald Holshausen, Fri Apr 22 14:12:34 2022 +1000)
+* 2395143a - feat: forward verification to plugin for transports provided by the plugin (Ronald Holshausen, Fri Apr 22 12:02:05 2022 +1000)
+* 05c83b67 - chore: switch verifier over to tracing crate (Ronald Holshausen, Wed Apr 20 11:34:16 2022 +1000)
+* 75145a60 - chore: setup tracing for verifier CLI (Ronald Holshausen, Tue Apr 19 17:20:18 2022 +1000)
+* 763488c4 - refactor: rename scheme parameter to transport (Ronald Holshausen, Tue Apr 19 17:03:30 2022 +1000)
+* 8815ec0e - bump version to 0.9.10 (Ronald Holshausen, Wed Apr 13 16:12:36 2022 +1000)
+
 # 0.9.9 - Bugfix Release
 
 * 136c8a82 - chore: Upgrade pact_verifier to 0.13.4 (Ronald Holshausen, Wed Apr 13 16:06:02 2022 +1000)
