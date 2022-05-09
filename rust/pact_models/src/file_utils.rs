@@ -2,12 +2,12 @@
 
 use std::fs::File;
 use std::path::Path;
-use log::*;
-use fs2::FileExt;
 use std::thread::sleep;
 use std::time::Duration;
 
 use anyhow::bail;
+use fs2::FileExt;
+use tracing::{error, trace, warn};
 
 /// Attempts to get a read lock on the open file before proceeding with the provided closure.
 /// Has an exponential back-off (100, 1000, 10000 ms), and will return an error if unable to get

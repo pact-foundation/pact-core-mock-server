@@ -11,9 +11,9 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, Context};
 use lazy_static::lazy_static;
-use log::{debug, error, warn, trace};
 use maplit::btreemap;
 use serde_json::{json, Value};
+use tracing::{debug, error, trace, warn};
 
 use crate::{Consumer, PactSpecification, Provider};
 #[cfg(not(target_family = "wasm"))] use crate::file_utils::{with_read_lock_for_open_file, with_write_lock};

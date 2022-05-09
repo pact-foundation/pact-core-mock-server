@@ -1,16 +1,16 @@
 //! V4 specification Pact
 
 use std::cmp::Ordering;
-use std::collections::{BTreeMap, HashSet, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, Context};
 use itertools::EitherOrBoth::{Both, Left, Right};
 use itertools::Itertools;
-use log::{warn, trace};
 use maplit::btreemap;
-use serde_json::{json, Value, Map};
+use serde_json::{json, Map, Value};
+use tracing::{trace, warn};
 
 use crate::{Consumer, PactSpecification, Provider};
 #[cfg(not(target_family = "wasm"))] use crate::file_utils::with_read_lock;
@@ -19,11 +19,11 @@ use crate::json_utils::json_to_string;
 use crate::message_pact::MessagePact;
 use crate::pact::{Pact, ReadWritePact};
 use crate::PACT_RUST_VERSION;
+use crate::plugins::PluginData;
 use crate::sync_pact::RequestResponsePact;
 use crate::v4::interaction::{interactions_from_json, V4Interaction};
 use crate::v4::V4InteractionType;
 use crate::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerifier, ResultLevel};
-use crate::plugins::PluginData;
 
 /// V4 spec Struct that represents a pact between the consumer and provider of a service.
 #[derive(Debug, Clone, PartialEq)]

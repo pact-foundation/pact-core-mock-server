@@ -4,9 +4,9 @@ use std::hash::{Hash, Hasher};
 use std::str::from_utf8;
 
 use base64::encode;
-use log::warn;
 use maplit::hashmap;
 use serde_json::{json, Value};
+use tracing::warn;
 
 use crate::{DifferenceType, PactSpecification};
 use crate::bodies::OptionalBody;

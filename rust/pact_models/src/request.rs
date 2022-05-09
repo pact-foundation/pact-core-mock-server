@@ -7,9 +7,9 @@ use std::str::from_utf8;
 
 use base64::encode;
 use itertools::Itertools;
-use log::warn;
 use maplit::hashmap;
 use serde_json::{json, Value};
+use tracing::warn;
 
 use crate::{DifferenceType, PactSpecification};
 use crate::bodies::OptionalBody;
@@ -278,9 +278,9 @@ mod tests {
 
   use crate::bodies::OptionalBody;
   use crate::content_types::{HTML, JSON, XML};
+  use crate::http_parts::HttpPart;
   use crate::PactSpecification;
   use crate::request::Request;
-  use crate::http_parts::HttpPart;
 
   #[test]
   fn request_from_json_defaults_to_get() {

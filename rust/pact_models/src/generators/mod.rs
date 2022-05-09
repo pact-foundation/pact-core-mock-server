@@ -14,14 +14,14 @@ use chrono::{DateTime, Local};
 #[cfg(test)] use expectest::prelude::*;
 use indextree::{Arena, NodeId};
 use itertools::Itertools;
-use log::*;
 use maplit::hashmap;
+#[cfg(not(target_family = "wasm"))] use onig::{Captures, Regex};
 use rand::distributions::Alphanumeric;
 use rand::prelude::*;
-#[cfg(not(target_family = "wasm"))] use onig::{Captures, Regex};
 #[cfg(target_family = "wasm")] use regex::{Captures, Regex};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use tracing::{debug, trace, warn};
 use uuid::Uuid;
 
 use crate::bodies::OptionalBody;
@@ -226,7 +226,7 @@ impl Generator {
       "MockServerURL" => Some(Generator::MockServerURL(get_field_as_string("example", map).unwrap_or_default(),
                                                        get_field_as_string("regex", map).unwrap_or_default())),
       _ => {
-        log::warn!("'{}' is not a valid generator type", gen_type);
+        warn!("'{}' is not a valid generator type", gen_type);
         None
       }
     }
@@ -770,13 +770,13 @@ impl Generators {
               match sub_v {
                 &Value::Object(ref map) =>
                   self.parse_generator_from_map(category, map, Some(DocPath::new(sub_k)?)),
-                _ => log::warn!("Ignoring invalid generator JSON '{}' -> {:?}", sub_k, sub_v)
+                _ => warn!("Ignoring invalid generator JSON '{}' -> {:?}", sub_k, sub_v)
               }
             }
           },
-          Err(err) => log::warn!("Ignoring generator with invalid category '{}' - {}", k, err)
+          Err(err) => warn!("Ignoring generator with invalid category '{}' - {}", k, err)
         },
-        _ => log::warn!("Ignoring invalid generator JSON '{}' -> {:?}", k, v)
+        _ => warn!("Ignoring invalid generator JSON '{}' -> {:?}", k, v)
       }
     }
     Ok(())
@@ -795,11 +795,11 @@ impl Generators {
             Some(s) => self.add_generator_with_subcategory(category, s, generator),
             None => self.add_generator(category, generator)
           },
-          None => log::warn!("Ignoring invalid generator JSON '{:?}' with invalid type attribute -> {:?}", category, map)
+          None => warn!("Ignoring invalid generator JSON '{:?}' with invalid type attribute -> {:?}", category, map)
         },
-        _ => log::warn!("Ignoring invalid generator JSON '{:?}' with invalid type attribute -> {:?}", category, map)
+        _ => warn!("Ignoring invalid generator JSON '{:?}' with invalid type attribute -> {:?}", category, map)
       },
-      None => log::warn!("Ignoring invalid generator JSON '{:?}' with no type attribute -> {:?}", category, map)
+      None => warn!("Ignoring invalid generator JSON '{:?}' with no type attribute -> {:?}", category, map)
     }
   }
 
@@ -1485,8 +1485,8 @@ impl ContentTypeHandler<Value> for JsonHandler {
 mod tests {
   use std::ops::Add;
   use std::str::FromStr;
-  use chrono::Duration;
 
+  use chrono::Duration;
   use expectest::expect;
   use expectest::prelude::*;
   use hamcrest2::*;

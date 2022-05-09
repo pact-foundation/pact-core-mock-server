@@ -83,9 +83,9 @@ use anyhow::{anyhow, Error};
 use ariadne::{Config, Label, Report, ReportKind, Source};
 use bytes::{BufMut, BytesMut};
 use itertools::Either;
-use log::{trace, warn};
 use logos::{Lexer, Logos};
 use semver::Version;
+use tracing::{trace, warn};
 
 use crate::generators::Generator;
 use crate::matchingrules::MatchingRule;

@@ -3,8 +3,9 @@ use std::str::from_utf8;
 
 use hex::FromHex;
 use itertools::Itertools;
-use log::*;
 use serde_json::Value;
+use tracing::{error, trace, warn};
+
 use crate::PactSpecification;
 
 /// Decodes a query string using a percent-encoding scheme
@@ -185,7 +186,7 @@ mod tests {
   use expectest::prelude::*;
   use maplit::hashmap;
 
-  use crate::query_strings::{decode_query, parse_query_string};
+  use crate::query_strings::parse_query_string;
 
   #[test]
   fn parse_query_string_test() {
@@ -245,44 +246,5 @@ mod tests {
   };
     let result = parse_query_string(&query);
     expect!(result).to(be_some().value(expected));
-  }
-
-  #[test]
-  #[ignore]
-  fn quickcheck_parse_query_string() {
-    use quickcheck::{TestResult, quickcheck};
-    use itertools::Itertools;
-
-    fn prop(s: String) -> TestResult {
-      if s.chars().all(|c| c.is_alphanumeric() || c == '+' || c == '&' || c == '%') {
-        let result = match parse_query_string(&s) {
-          Some(map) => {
-            if map.len() == 1 && !s.contains("=") {
-              *map.keys().next().unwrap() == decode_query(&s).unwrap()
-            } else {
-              let reconstructed_query = map.iter().map(|(k, v)| {
-                v.iter().map(|qv| format!("{}={}", k, qv)).join("&")
-              }).join("&");
-              let r = decode_query(&s).unwrap() == reconstructed_query;
-              // if !r {
-              //     dbg!(reconstructed_query);
-              //     dbg!(decode_query(&s) == reconstructed_query);
-              // }
-              r
-            }
-          },
-          None => s.is_empty()
-        };
-
-        // if !result {
-        //     dbg!(s);
-        //     dbg!(decode_query(&s));
-        // }
-        TestResult::from_bool(result)
-      } else {
-        TestResult::discard()
-      }
-    }
-    quickcheck(prop as fn(_) -> _);
   }
 }

@@ -8,23 +8,23 @@ use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
 
 use anyhow::anyhow;
-use log::warn;
 use maplit::hashmap;
-use serde_json::{json, Value, Map};
+use serde_json::{json, Map, Value};
+use tracing::warn;
 
 use crate::bodies::OptionalBody;
 use crate::content_types::ContentType;
 use crate::generators::{Generators, generators_from_json, generators_to_json};
 use crate::http_parts::HttpPart;
 use crate::interaction::Interaction;
-use crate::json_utils::{hash_json, json_to_string, is_empty};
+use crate::json_utils::{hash_json, is_empty, json_to_string};
 use crate::matchingrules::{matchers_from_json, matchers_to_json, MatchingRules};
 use crate::message::Message;
 use crate::PactSpecification;
 use crate::provider_states::ProviderState;
 use crate::sync_interaction::RequestResponseInteraction;
 use crate::v4::http_parts::body_from_json;
-use crate::v4::interaction::{V4Interaction, parse_plugin_config, InteractionMarkup};
+use crate::v4::interaction::{InteractionMarkup, parse_plugin_config, V4Interaction};
 use crate::v4::message_parts::{MessageContents, metadata_to_headers};
 use crate::v4::sync_message::SynchronousMessage;
 use crate::v4::synch_http::SynchronousHttp;

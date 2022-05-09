@@ -8,9 +8,9 @@ use std::sync::{Arc, Mutex};
 use anyhow::{anyhow, Context};
 use itertools::EitherOrBoth::{Both, Left, Right};
 use itertools::Itertools;
-use log::warn;
 use maplit::{btreemap, hashset};
-use serde_json::{json, Value, Map};
+use serde_json::{json, Map, Value};
+use tracing::warn;
 
 use crate::{Consumer, PactSpecification, Provider};
 #[cfg(not(target_family = "wasm"))] use crate::file_utils::with_read_lock;

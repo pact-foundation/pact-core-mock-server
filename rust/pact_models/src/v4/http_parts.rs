@@ -7,9 +7,9 @@ use std::hash::{Hash, Hasher};
 
 use base64::decode;
 use bytes::BytesMut;
-use log::*;
 use maplit::*;
 use serde_json::{json, Value};
+use tracing::warn;
 
 use crate::bodies::OptionalBody;
 use crate::content_types::{ContentType, ContentTypeHint, detect_content_type_from_bytes};

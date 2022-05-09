@@ -5,13 +5,13 @@ use std::cmp::Eq;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
-use log::*;
 use maplit::*;
 use serde::{Deserialize, Serialize};
 use serde_json::*;
+use tracing::warn;
 
 use crate::PactSpecification;
-use crate::verify_json::{PactFileVerificationResult, PactJsonVerifier, ResultLevel, json_type_of};
+use crate::verify_json::{json_type_of, PactFileVerificationResult, PactJsonVerifier, ResultLevel};
 
 /// Struct that encapsulates all the info about a provider state
 #[derive(Serialize, Deserialize, Debug, Clone, Eq)]
@@ -48,7 +48,7 @@ impl ProviderState {
       Some(v) => match *v {
         Value::Object(ref map) => map.iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
         _ => {
-          log::warn!("Provider state parameters must be a map");
+          warn!("Provider state parameters must be a map");
           hashmap!{}
         }
       },

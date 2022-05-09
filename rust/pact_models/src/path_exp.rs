@@ -7,9 +7,9 @@ use std::iter::Peekable;
 
 use anyhow::anyhow;
 use lazy_static::lazy_static;
-use log::trace;
 use regex::{Captures, Regex};
 use serde::{Deserialize, Serialize};
+use tracing::trace;
 
 lazy_static! {
   // Only use "." syntax for things which are obvious identifiers.
@@ -512,9 +512,10 @@ pub fn parse_path_exp(path: &str) -> Result<Vec<PathToken>, String> {
 
 #[cfg(test)]
 mod tests {
-  use super::*;
-  use expectest::prelude::*;
   use expectest::expect;
+  use expectest::prelude::*;
+
+  use super::*;
 
   #[test]
   fn matches_token_test_with_root() {

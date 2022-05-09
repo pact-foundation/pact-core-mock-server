@@ -9,6 +9,7 @@ use anyhow::anyhow;
 use base64::encode;
 use maplit::*;
 use serde_json::{json, Value};
+use tracing::warn;
 
 use crate::bodies::OptionalBody;
 use crate::content_types::ContentType;
@@ -237,7 +238,7 @@ impl Message {
             match serde_json::from_slice(body) {
                 Ok(json_body) => { map.insert("contents".to_string(), json_body); },
               Err(err) => {
-                log::warn!("Failed to parse json body: {}", err);
+                warn!("Failed to parse json body: {}", err);
                 map.insert("contents".to_string(), Value::String(encode(body)));
               }
             }
@@ -356,20 +357,20 @@ impl Default for Message {
 
 #[cfg(test)]
 mod tests {
-  use std::{env, fs};
-  use std::path::Path;
+    use std::{env, fs};
+    use std::path::Path;
 
-  use bytes::Bytes;
-  use expectest::expect;
-  use expectest::prelude::*;
-  use serde_json;
+    use bytes::Bytes;
+    use expectest::expect;
+    use expectest::prelude::*;
+    use serde_json;
 
-  use crate::matchingrules;
-  use crate::matchingrules::MatchingRule;
+    use crate::matchingrules;
+    use crate::matchingrules::MatchingRule;
 
-  use super::*;
+    use super::*;
 
-  #[test]
+    #[test]
     fn loading_message_from_json() {
         let message_json = r#"{
             "description": "String",

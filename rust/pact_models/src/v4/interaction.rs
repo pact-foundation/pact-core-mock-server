@@ -6,8 +6,8 @@ use std::fmt;
 use std::str::FromStr;
 
 use anyhow::anyhow;
-use log::warn;
 use serde_json::{json, Value};
+use tracing::warn;
 
 use crate::interaction::Interaction;
 use crate::json_utils::json_to_string;

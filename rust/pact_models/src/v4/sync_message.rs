@@ -8,8 +8,8 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::anyhow;
 use itertools::Itertools;
-use log::*;
 use serde_json::{json, Map, Value};
+use tracing::warn;
 
 use crate::bodies::OptionalBody;
 use crate::content_types::ContentType;

@@ -8,10 +8,10 @@ use std::str::{from_utf8, FromStr};
 use anyhow::anyhow;
 use itertools::Itertools;
 use lazy_static::*;
-use log::*;
 use mime::Mime;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use tracing::{debug, warn};
 
 /// Content type of a body
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, Hash)]
@@ -230,7 +230,7 @@ fn is_match(regex: &Regex, string: &str) -> bool {
 
 /// Try detect the content type from the contents of a string
 pub fn detect_content_type_from_string(s: &str) -> Option<ContentType> {
-  log::debug!("Detecting content type from contents: '{}'", s);
+  debug!("Detecting content type from contents: '{}'", s);
   if is_match(&XMLREGEXP, s) {
     Some(XML.clone())
   } else if is_match(&HTMLREGEXP, s.to_uppercase().as_str()) {

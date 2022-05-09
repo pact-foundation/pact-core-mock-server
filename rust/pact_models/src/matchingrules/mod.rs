@@ -11,9 +11,9 @@ use std::str::FromStr;
 use anyhow::{anyhow, Context as _};
 #[cfg(test)] use expectest::prelude::*;
 use itertools::Either;
-use log::*;
 use maplit::hashmap;
 use serde_json::{json, Map, Value};
+use tracing::{error, trace};
 
 use crate::{HttpStatus, PactSpecification};
 use crate::generators::{Generator, GeneratorCategory, Generators};

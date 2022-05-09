@@ -5,9 +5,9 @@ use std::str::from_utf8;
 
 use base64::encode;
 use bytes::{Bytes, BytesMut};
-use log::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use tracing::warn;
 
 use crate::content_types::{ContentType, ContentTypeHint};
 

@@ -39,7 +39,6 @@ use std::fmt::{Display, Formatter};
 
 use chrono::Local;
 use itertools::Itertools;
-use log::*;
 use nom::branch::alt;
 use nom::bytes::complete::{is_a, is_not, tag, tag_no_case, take_while_m_n};
 use nom::character::complete::{alphanumeric1, char, digit1};
@@ -49,6 +48,7 @@ use nom::error::{ErrorKind, ParseError};
 use nom::IResult;
 use nom::multi::many1;
 use nom::sequence::{delimited, preceded, separated_pair, terminated, tuple};
+use tracing::{debug, error, trace, warn};
 
 use crate::timezone_db::*;
 
@@ -832,7 +832,7 @@ pub fn to_chrono_pattern(tokens: &[DateTimePatternToken]) -> String {
       DateTimePatternToken::Era(_count) => buffer.push_str("AD"),
       DateTimePatternToken::Year(d) => buffer.push_str(if *d == 2 { "%y" } else { "%Y" }),
       DateTimePatternToken::WeekInYear => buffer.push_str("%U"),
-      DateTimePatternToken::WeekInMonth(_) => log::warn!("Chono does not support week in month"),
+      DateTimePatternToken::WeekInMonth(_) => warn!("Chono does not support week in month"),
       DateTimePatternToken::DayInYear => buffer.push_str("%j"),
       DateTimePatternToken::DayInMonth => buffer.push_str("%d"),
       DateTimePatternToken::Month(d) => buffer.push_str(if *d <= 2 { "%m" } else if *d > 3 { "%B" } else { "%b" }),
@@ -859,7 +859,7 @@ pub fn to_chrono_pattern(tokens: &[DateTimePatternToken]) -> String {
       DateTimePatternToken::TimezoneOffsetX(_d) => buffer.push_str("%:z"),
       DateTimePatternToken::TimezoneOffsetXZZero(_d) => buffer.push_str("%:z"),
       DateTimePatternToken::AmPm => buffer.push_str("%p"),
-      _ => log::warn!("Chono does not support {:?}", token)
+      _ => warn!("Chono does not support {:?}", token)
     };
   }
 

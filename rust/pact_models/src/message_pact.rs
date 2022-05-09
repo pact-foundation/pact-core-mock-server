@@ -12,9 +12,9 @@ use std::sync::{Arc, Mutex};
 use anyhow::{anyhow, bail};
 use itertools::EitherOrBoth::{Both, Left, Right};
 use itertools::Itertools;
-use log::*;
 use maplit::*;
-use serde_json::{json, Value, Map};
+use serde_json::{json, Map, Value};
+use tracing::debug;
 
 use crate::{Consumer, PactSpecification, Provider};
 #[cfg(not(target_family = "wasm"))] use crate::file_utils::with_read_lock;
@@ -367,13 +367,13 @@ impl PactJsonVerifier for MessagePact {
 
 #[cfg(test)]
 mod tests {
-  use expectest::expect;
-  use expectest::prelude::*;
-  use pretty_assertions::assert_eq;
+    use expectest::expect;
+    use expectest::prelude::*;
+    use pretty_assertions::assert_eq;
 
-  use super::*;
+    use super::*;
 
-  #[test]
+    #[test]
     fn default_file_name_is_based_in_the_consumer_and_provider() {
         let pact = MessagePact { consumer: Consumer { name: "consumer".to_string() },
             provider: Provider { name: "provider".to_string() },

@@ -7,8 +7,8 @@ use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
 
 use anyhow::anyhow;
-use log::warn;
 use serde_json::{json, Map, Value};
+use tracing::warn;
 
 use crate::bodies::OptionalBody;
 use crate::content_types::ContentType;

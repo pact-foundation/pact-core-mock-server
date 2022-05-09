@@ -6,9 +6,9 @@ use std::fmt::{Display, Formatter};
 
 use anyhow::anyhow;
 use itertools::Itertools;
-use log::error;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use tracing::error;
 
 use crate::json_utils::json_to_string;
 
