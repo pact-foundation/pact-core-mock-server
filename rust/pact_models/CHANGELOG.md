@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.4.1 - switch pact_models to use tracing crate
+
+* 9d30a441 - chore: switch pact_models to use tracing crate (Ronald Holshausen, Mon May 9 13:24:37 2022 +1000)
+* 0dd9a176 - bump version to 0.4.1 (Ronald Holshausen, Fri Apr 22 12:07:23 2022 +1000)
+
 # 0.4.0 - Updated V4 model interfaces
 
 * 6de6c229 - feat: Add functions to calc unique key to V4 interaction trait (Ronald Holshausen, Fri Apr 22 12:00:57 2022 +1000)
