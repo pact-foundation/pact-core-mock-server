@@ -20,7 +20,6 @@ anyhow = "1.0.57"
 serde = { version = "^1.0", features = ["derive"] }
 serde_json = "^1.0"
 hex = "0.4.3"
-log = "=0.4.14" # This needs to be the same version across all the libs (i.e. plugin driver)
 onig = { version = "6.3.1", default-features = false }
 maplit = "1.0.2"
 lazy_static = "1.4.0"
@@ -43,6 +42,8 @@ bytes = { version = "1.1.0", features = ["serde"] }
 tokio = { version = "1.18.2", features = ["full"] }
 pact-plugin-driver = "0.1.6"
 md5 = "0.7.0"
+tracing = "=0.1.34" # This needs to be the same version across all the libs (i.e. plugin driver)
+tracing-core = "=0.1.26"  # This needs to be the same version across all the pact libs (i.e. pact ffi)
 
 [dependencies.reqwest]
 version = "0.11.10"

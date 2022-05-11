@@ -357,7 +357,6 @@ use anyhow::anyhow;
 use bytes::Bytes;
 use itertools::{Either, Itertools};
 use lazy_static::*;
-use log::*;
 use maplit::{hashmap, hashset};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
@@ -375,6 +374,7 @@ use pact_models::v4::sync_message::SynchronousMessage;
 use pact_plugin_driver::catalogue_manager::find_content_matcher;
 use pact_plugin_driver::plugin_models::PluginInteractionConfig;
 use serde_json::{json, Value};
+use tracing::{debug, error, info, warn};
 
 use crate::generators::{DefaultVariantMatcher, generators_process_body};
 use crate::headers::{match_header_value, match_headers};

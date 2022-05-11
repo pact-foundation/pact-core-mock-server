@@ -5,7 +5,6 @@ use std::str::FromStr;
 use ansi_term::Colour::*;
 use anyhow::anyhow;
 use difference::*;
-use log::*;
 use onig::Regex;
 use semver::Version;
 use serde_json::{json, Value};
@@ -15,6 +14,7 @@ use pact_models::json_utils::json_to_string;
 use pact_models::matchingrules::MatchingRule;
 use pact_models::path_exp::DocPath;
 use pact_models::time_utils::validate_datetime;
+use tracing::debug;
 
 use crate::{DiffConfig, MatchingContext, merge_result};
 use crate::binary_utils::{convert_data, match_content_type};
@@ -452,7 +452,7 @@ fn compare_values(
   } else {
     expected.matches_with(actual, &MatchingRule::Equality, false).map_err(|err| vec![err.to_string()])
   };
-  log::debug!("compare_values: Comparing '{:?}' to '{:?}' at path '{}' -> {:?}", expected, actual, path.to_string(), matcher_result);
+  debug!("compare_values: Comparing '{:?}' to '{:?}' at path '{}' -> {:?}", expected, actual, path.to_string(), matcher_result);
   matcher_result.map_err(|messages| {
     messages.iter().map(|message| {
       Mismatch::BodyMismatch {

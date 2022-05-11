@@ -1376,7 +1376,6 @@ dependencies = [
  "itertools",
  "lazy_static",
  "lenient_semver",
- "log",
  "maplit",
  "md5",
  "mime",
@@ -1397,6 +1396,8 @@ dependencies = [
  "sxd-document",
  "test-log",
  "tokio",
+ "tracing",
+ "tracing-core",
  "tree_magic_mini",
  "uuid",
 ]

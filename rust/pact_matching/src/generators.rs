@@ -2,7 +2,6 @@
 
 use std::collections::HashMap;
 
-use log::*;
 use maplit::hashmap;
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
@@ -13,6 +12,7 @@ use pact_models::xml_utils::parse_bytes;
 use pact_plugin_driver::catalogue_manager::find_content_generator;
 use serde_json::{self, Value};
 use sxd_document::dom::Document;
+use tracing::{debug, error, warn};
 
 use crate::{CoreMatchingContext, DiffConfig, MatchingContext};
 use crate::json::compare_json;

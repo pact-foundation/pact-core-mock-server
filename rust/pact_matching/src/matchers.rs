@@ -5,7 +5,6 @@ use std::str::from_utf8;
 use anyhow::anyhow;
 use bytes::Bytes;
 use lazy_static::lazy_static;
-use log::*;
 use maplit::hashmap;
 use onig::Regex;
 use pact_models::HttpStatus;
@@ -19,6 +18,7 @@ use pact_plugin_driver::catalogue_manager::{
   register_core_entries
 };
 use semver::Version;
+use tracing::{debug, trace};
 
 use crate::binary_utils::match_content_type;
 
@@ -271,7 +271,7 @@ impl Matches<u64> for String {
 
 impl Matches<u64> for &str {
   fn matches_with(&self, actual: u64, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
-    log::debug!("String -> u64: comparing '{}' to {} using {:?}", self, actual, matcher);
+    debug!("String -> u64: comparing '{}' to {} using {:?}", self, actual, matcher);
     match matcher {
       MatchingRule::Regex(regex) => {
         match Regex::new(regex) {

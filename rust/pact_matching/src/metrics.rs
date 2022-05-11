@@ -12,9 +12,9 @@ use std::sync::Mutex;
 
 use anyhow::anyhow;
 use lazy_static::lazy_static;
-use log::{debug, warn};
 use maplit::hashmap;
 use reqwest::Client;
+use tracing::{debug, warn};
 use uuid::Uuid;
 
 static CIS: &'static [&str] = &[

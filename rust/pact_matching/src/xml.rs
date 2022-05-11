@@ -3,7 +3,6 @@ use std::collections::btree_map::{BTreeMap, Entry};
 use anyhow::anyhow;
 use bytes::Bytes;
 use itertools::{EitherOrBoth, Itertools};
-use log::*;
 use maplit::*;
 use onig::Regex;
 use sxd_document::dom::*;
@@ -14,6 +13,7 @@ use pact_models::http_parts::HttpPart;
 use pact_models::matchingrules::MatchingRule;
 use pact_models::path_exp::DocPath;
 use pact_models::xml_utils::parse_bytes;
+use tracing::debug;
 
 use crate::matchers::*;
 use crate::MatchingContext;
@@ -280,7 +280,7 @@ fn compare_children(
         let expected_children = expected_children_by_name.remove(&key).unwrap();
         let expected = expected_children.first().unwrap();
         if context.type_matcher_defined(&p) {
-          log::debug!("Matcher defined for path {}", p);
+          debug!("Matcher defined for path {}", p);
           for child in group {
             compare_element(&p, expected, &child, mismatches, context);
           }

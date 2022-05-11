@@ -5,11 +5,11 @@ use std::fmt::{Debug, Display};
 use std::str::from_utf8;
 
 use anyhow::anyhow;
-use log::*;
 use onig::Regex;
 use pact_models::matchingrules::{MatchingRule, MatchingRuleCategory, RuleList, RuleLogic};
 use pact_models::path_exp::DocPath;
 use serde_json::{self, json, Value};
+use tracing::debug;
 
 use crate::{Either, MatchingContext, merge_result, Mismatch};
 use crate::binary_utils::match_content_type;

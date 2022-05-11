@@ -5,13 +5,13 @@ use std::str::from_utf8;
 use anyhow::anyhow;
 use bytes::{Buf, Bytes};
 use http::header::{HeaderMap, HeaderName};
-use log::*;
 use onig::Regex;
 use pact_models::content_types::{ContentType, detect_content_type_from_bytes};
 use pact_models::http_parts::HttpPart;
 use pact_models::matchingrules::{MatchingRule, RuleLogic};
 use pact_models::path_exp::DocPath;
 use serde_json::Value;
+use tracing::debug;
 
 use crate::{MatchingContext, Mismatch};
 use crate::matchers::{match_values, Matches};
