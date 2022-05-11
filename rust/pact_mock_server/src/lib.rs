@@ -10,8 +10,8 @@
 use std::sync::Mutex;
 
 use lazy_static::*;
-use log::*;
 use maplit::hashmap;
+use pact_models::pact::{load_pact_from_json, Pact};
 use pact_plugin_driver::catalogue_manager::{
   CatalogueEntry,
   CatalogueEntryProviderType,
@@ -20,9 +20,8 @@ use pact_plugin_driver::catalogue_manager::{
 };
 use rustls::ServerConfig;
 use serde_json::json;
+use tracing::error;
 use uuid::Uuid;
-
-use pact_models::pact::{load_pact_from_json, Pact};
 
 use crate::mock_server::MockServerConfig;
 use crate::server_manager::ServerManager;
@@ -294,7 +293,7 @@ pub fn write_pact_file(
             mock_server.write_pact(&directory, overwrite)
                 .map(|_| ())
                 .map_err(|err| {
-                    log::error!("Failed to write pact to file - {}", err);
+                    error!("Failed to write pact to file - {}", err);
                     WritePactFileErr::IOError
                 })
         });
@@ -302,7 +301,7 @@ pub fn write_pact_file(
     match opt_result {
         Some(result) => result,
         None => {
-            log::error!("No mock server running on port {}", mock_server_port);
+            error!("No mock server running on port {}", mock_server_port);
             Err(WritePactFileErr::NoMockServer)
         }
     }

@@ -9,17 +9,16 @@ use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use log::*;
+use pact_models::pact::{Pact, write_pact};
+use pact_models::PactSpecification;
+use pact_models::sync_pact::RequestResponsePact;
+use pact_models::v4::http_parts::HttpRequest;
 use pact_plugin_driver::plugin_manager::drop_plugin_access;
 use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
 use rustls::ServerConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-
-use pact_models::pact::{Pact, write_pact};
-use pact_models::PactSpecification;
-use pact_models::sync_pact::RequestResponsePact;
-use pact_models::v4::http_parts::HttpRequest;
+use tracing::{debug, info, trace, warn};
 
 use crate::hyper_server;
 use crate::matching::MatchResult;

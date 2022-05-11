@@ -13,21 +13,21 @@ use hyper::http::header::{HeaderName, HeaderValue};
 use hyper::http::response::Builder as ResponseBuilder;
 use hyper::service::make_service_fn;
 use hyper::service::service_fn;
-use log::*;
 use maplit::*;
-use rustls::ServerConfig;
-use serde_json::json;
-use tokio::net::{TcpListener, TcpStream};
-use tokio_rustls::server::TlsStream;
-use tokio_rustls::TlsAcceptor;
-
-use pact_matching::logging::LOG_ID;
 use pact_models::bodies::OptionalBody;
 use pact_models::generators::GeneratorTestMode;
 use pact_models::http_parts::HttpPart;
 use pact_models::pact::Pact;
 use pact_models::query_strings::parse_query_string;
 use pact_models::v4::http_parts::HttpRequest;
+use rustls::ServerConfig;
+use serde_json::json;
+use tokio::net::{TcpListener, TcpStream};
+use tokio_rustls::server::TlsStream;
+use tokio_rustls::TlsAcceptor;
+use tracing::{debug, error, info, trace, warn};
+
+use pact_matching::logging::LOG_ID;
 
 use crate::matching::{match_request, MatchResult};
 use crate::mock_server::MockServer;
@@ -422,7 +422,6 @@ mod tests {
   use expectest::prelude::*;
   use hyper::header::{ACCEPT, CONTENT_TYPE, USER_AGENT};
   use hyper::HeaderMap;
-
   use pact_models::prelude::RequestResponsePact;
 
   use super::*;

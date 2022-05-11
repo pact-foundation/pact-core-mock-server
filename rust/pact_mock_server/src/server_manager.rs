@@ -6,10 +6,9 @@ use std::collections::BTreeMap;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
-use log::*;
-use rustls::ServerConfig;
-
 use pact_models::pact::Pact;
+use rustls::ServerConfig;
+use tracing::debug;
 
 use crate::mock_server::{MockServer, MockServerConfig};
 
@@ -161,7 +160,7 @@ impl ServerManager {
 
     /// Shut down a server by its local port number
     pub fn shutdown_mock_server_by_port(&mut self, port: u16) -> bool {
-      log::debug!("Shutting down mock server with port {}", port);
+      debug!("Shutting down mock server with port {}", port);
       let result = self
         .mock_servers
         .iter()
@@ -229,7 +228,6 @@ mod tests {
   use std::net::TcpStream;
 
   use env_logger;
-
   use pact_models::sync_pact::RequestResponsePact;
 
   use super::*;
