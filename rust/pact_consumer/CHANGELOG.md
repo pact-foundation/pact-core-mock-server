@@ -1,5 +1,15 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.9.3 - Maintenance Release
+
+* 91d72007 - chore: switch from logging crate to tracing crate (Ronald Holshausen, Wed May 11 17:50:30 2022 +1000)
+* 5c0f28fa - chore: Upgrade crate dependencies (Ronald Holshausen, Wed May 11 17:46:26 2022 +1000)
+* f6b942da - chore: Upgrade pact_mock_server to 0.8.11 (Ronald Holshausen, Wed May 11 17:00:46 2022 +1000)
+* 08f28e4a - chore: Upgrade pact_matching to 0.12.7 (Ronald Holshausen, Wed May 11 15:57:36 2022 +1000)
+* 37bfc5de - chore: Upgrade pact-plugin-driver to 0.1.6 (Ronald Holshausen, Wed May 11 11:56:23 2022 +1000)
+* 020b5715 - chore: upgrade pact_models to 0.4.1 (Ronald Holshausen, Wed May 11 11:36:57 2022 +1000)
+* eebe3bc2 - bump version to 0.9.3 (Ronald Holshausen, Wed Apr 27 15:52:57 2022 +1000)
+
 # 0.9.2 - Maintenance Release
 
 * 563ae9fc - chore: Upgrade pact_mock_server to 0.8.10 (Ronald Holshausen, Wed Apr 27 15:06:50 2022 +1000)
