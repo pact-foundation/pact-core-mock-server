@@ -4,16 +4,7 @@ use bytes::Bytes;
 #[cfg(test)]
 #[allow(unused_imports)]
 use env_logger;
-use log::debug;
 use maplit::*;
-use pact_plugin_driver::catalogue_manager::find_content_matcher;
-use pact_plugin_driver::content::PluginConfiguration;
-#[cfg(test)]
-use regex::Regex;
-#[cfg(test)]
-use serde_json::json;
-use serde_json::Value;
-
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
 use pact_models::expression_parser::DataType;
@@ -25,6 +16,14 @@ use pact_models::path_exp::DocPath;
 use pact_models::request::Request;
 use pact_models::v4::http_parts::HttpRequest;
 use pact_models::v4::interaction::InteractionMarkup;
+use pact_plugin_driver::catalogue_manager::find_content_matcher;
+use pact_plugin_driver::content::PluginConfiguration;
+#[cfg(test)]
+use regex::Regex;
+#[cfg(test)]
+use serde_json::json;
+use serde_json::Value;
+use tracing::debug;
 
 use crate::prelude::*;
 use crate::util::GetDefaulting;

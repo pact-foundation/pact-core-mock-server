@@ -2,13 +2,13 @@ use std::collections::VecDeque;
 use std::env;
 use std::path::PathBuf;
 
-use log::{debug, error, info};
 use pact_models::pact::{ReadWritePact, write_pact};
 use pact_models::prelude::Pact;
 use pact_models::prelude::v4::V4Pact;
 use pact_models::v4::async_message::AsynchronousMessage;
 use pact_models::v4::sync_message::SynchronousMessage;
 use pact_models::v4::V4InteractionType;
+use tracing::{debug, error, info};
 
 /// Iterator over the messages build with the PactBuilder
 pub struct MessageIterator<MT> {

@@ -3,7 +3,6 @@
 use std::collections::HashMap;
 
 use bytes::Bytes;
-use log::*;
 use maplit::hashmap;
 use pact_models::content_types::ContentType;
 use pact_models::json_utils::json_to_string;
@@ -18,6 +17,7 @@ use pact_plugin_driver::catalogue_manager::find_content_matcher;
 use pact_plugin_driver::content::{ContentMatcher, InteractionContents, PluginConfiguration};
 use pact_plugin_driver::plugin_models::PactPluginManifest;
 use serde_json::{json, Map, Value};
+use tracing::debug;
 
 use crate::patterns::JsonPattern;
 use crate::prelude::Pattern;

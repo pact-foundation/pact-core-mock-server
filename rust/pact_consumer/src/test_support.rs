@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
 use anyhow::anyhow;
-use log::debug;
-use serde_json::Value;
-
-use pact_matching::{generate_request, match_request};
 use pact_models::generators::GeneratorTestMode;
 use pact_models::pact::Pact;
+use serde_json::Value;
+use tracing::debug;
+
+use pact_matching::{generate_request, match_request};
 
 /// Check that all requests in `actual` match the patterns provide by
 /// `expected`, and raise an error if anything fails.

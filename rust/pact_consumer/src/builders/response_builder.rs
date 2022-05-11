@@ -1,12 +1,7 @@
 use std::collections::HashMap;
 
 use bytes::Bytes;
-use log::debug;
 use maplit::*;
-use pact_plugin_driver::catalogue_manager::find_content_matcher;
-use pact_plugin_driver::content::PluginConfiguration;
-use serde_json::Value;
-
 use pact_models::bodies::OptionalBody;
 use pact_models::generators::Generators;
 use pact_models::http_parts::HttpPart;
@@ -15,6 +10,10 @@ use pact_models::prelude::ContentType;
 use pact_models::response::Response;
 use pact_models::v4::http_parts::{body_from_json, HttpResponse};
 use pact_models::v4::interaction::InteractionMarkup;
+use pact_plugin_driver::catalogue_manager::find_content_matcher;
+use pact_plugin_driver::content::PluginConfiguration;
+use serde_json::Value;
+use tracing::debug;
 
 use crate::prelude::*;
 

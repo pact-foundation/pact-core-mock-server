@@ -1,14 +1,14 @@
-use log::debug;
-use maplit::hashmap;
-use serde_json::{json, Value};
+use std::collections::HashMap;
 
+use maplit::hashmap;
 use pact_models::provider_states::ProviderState;
 use pact_models::sync_interaction::RequestResponseInteraction;
 use pact_models::v4::synch_http::SynchronousHttp;
+use serde_json::{json, Value};
+use tracing::debug;
 
 use super::request_builder::RequestBuilder;
 use super::response_builder::ResponseBuilder;
-use std::collections::HashMap;
 
 /// Builder for `Interaction` objects. Normally created via
 /// `PactBuilder::interaction`.
