@@ -15,10 +15,10 @@ exclude = [
 ]
 
 [dependencies]
-anyhow = "1.0.55"
-libc = "0.2.119"
-serde = "1.0.136"
-serde_json = "1.0.79"
+anyhow = "1.0.57"
+libc = "0.2.125"
+serde = "1.0.137"
+serde_json = "1.0.81"
 pact_matching = { version = "0.12.7", path = "../pact_matching" }
 pact_models = "0.4.1"
 pact-plugin-driver = "0.1.6"
@@ -27,15 +27,15 @@ maplit = "1.0.2"
 lazy_static = "1.4.0"
 itertools = "0.10.3"
 ansi_term = "0.12.1"
-regex = "1.5.4"
+regex = "1.5.5"
 difference = "2.0.0"
 futures = "0.3.21"
 mime = "0.3.16"
 bytes = "1.1.0"
-tokio = { version = "1", features = ["full"] }
-http = "0.2.6"
-async-trait = "0.1.52"
-thiserror = "1.0.30"
+tokio = { version = "1.18.2", features = ["full"] }
+http = "0.2.7"
+async-trait = "0.1.53"
+thiserror = "1.0.31"
 base64 = "0.13.0"
 urlencoding = "2.1.0"
 tracing = { version = "0.1", features = [ "log-always" ] }
@@ -46,7 +46,7 @@ default-features = false
 features = ["rustls-tls-native-roots", "blocking", "json"]
 
 [dependencies.serde_with]
-version = "1.12.0"
+version = "1.13.0"
 features = ["json"]
 
 [lib]
