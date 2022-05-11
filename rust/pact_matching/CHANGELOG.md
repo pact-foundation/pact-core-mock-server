@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.12.7 - Maintenance Release
+
+* 6bf1e9aa - chore: switch from logging crate to tracing crate (Ronald Holshausen, Wed May 11 14:57:37 2022 +1000)
+* e8e5cb5a - chore: Upgrade dependencies (Ronald Holshausen, Wed May 11 12:57:29 2022 +1000)
+* 37bfc5de - chore: Upgrade pact-plugin-driver to 0.1.6 (Ronald Holshausen, Wed May 11 11:56:23 2022 +1000)
+* 020b5715 - chore: upgrade pact_models to 0.4.1 (Ronald Holshausen, Wed May 11 11:36:57 2022 +1000)
+* 45e1d194 - bump version to 0.12.7 (Ronald Holshausen, Wed Apr 27 14:21:29 2022 +1000)
+
 # 0.12.6 - Maintenance Release
 
 * dba7252e - chore: Upgrade pact-plugin-driver to 0.1.5 (Ronald Holshausen, Tue Apr 26 13:56:22 2022 +1000)
