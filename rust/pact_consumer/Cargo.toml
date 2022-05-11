@@ -17,7 +17,7 @@ exclude = [
 libc = "0.2.119"
 pact_models = "0.4.1"
 pact_matching = { version = "0.12.7", path = "../pact_matching" }
-pact_mock_server = { version = "0.8.10", path = "../pact_mock_server" }
+pact_mock_server = { version = "0.8.11", path = "../pact_mock_server" }
 log = "=0.4.14" # This needs to be the same version across all the libs (i.e. plugin driver)
 maplit = "1.0.2"
 lazy_static = "1.4.0"
