@@ -16,7 +16,7 @@ use pact_models::content_types::ContentType;
 use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
 use reqwest::{Client, Error, RequestBuilder};
 use serde_json::Value;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 use crate::{ProviderInfo, RequestFilterExecutor, VerificationOptions};
 
@@ -120,7 +120,7 @@ fn extract_headers(headers: &HeaderMap) -> Option<HashMap<String, Vec<String>>> 
         let parsed_vals: Vec<Result<String, ()>> = values.iter()
           .map(|val| val.to_str()
             .map(|v| v.to_string())
-            .map_err(|err| log::warn!("Failed to parse HTTP header value: {}", err))
+            .map_err(|err| warn!("Failed to parse HTTP header value: {}", err))
           ).collect();
        (name.as_str().into(), parsed_vals.iter().cloned()
             .filter(|val| val.is_ok())

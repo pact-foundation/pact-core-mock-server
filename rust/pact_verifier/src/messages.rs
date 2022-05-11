@@ -3,11 +3,7 @@ use std::collections::HashMap;
 use ansi_term::{ANSIGenericString, Style};
 use ansi_term::Colour::*;
 use bytes::Bytes;
-use log::{debug, warn};
 use maplit::*;
-use serde_json::{json, Value};
-
-use pact_matching::{match_message, match_sync_message_response, Mismatch};
 use pact_models::bodies::OptionalBody;
 use pact_models::http_parts::HttpPart;
 use pact_models::interaction::Interaction;
@@ -17,6 +13,10 @@ use pact_models::v4::async_message::AsynchronousMessage;
 use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
 use pact_models::v4::message_parts::MessageContents;
 use pact_models::v4::sync_message::SynchronousMessage;
+use serde_json::{json, Value};
+use tracing::{debug, trace, warn};
+
+use pact_matching::{match_message, match_sync_message_response, Mismatch};
 
 use crate::{MismatchResult, ProviderInfo, VerificationOptions};
 use crate::callback_executors::RequestFilterExecutor;
@@ -150,13 +150,13 @@ fn extract_metadata(actual_response: &HttpResponse) -> HashMap<String, Value> {
   actual_response.headers.clone().unwrap_or_default().iter().for_each(|(k,v)| {
     if k.to_lowercase() == "pact-message-metadata" {
       let json: String = v.first().unwrap_or(&"".to_string()).to_string();
-      log::trace!("found raw metadata from headers: {:?}", json);
+      trace!("found raw metadata from headers: {:?}", json);
 
       let decoded = base64::decode(&json.as_str()).unwrap_or_default();
-      log::trace!("have base64 decoded headers: {:?}", decoded);
+      trace!("have base64 decoded headers: {:?}", decoded);
 
       let metadata: HashMap<String, Value> = serde_json::from_slice(&decoded).unwrap_or_default();
-      log::trace!("have JSON metadata from headers: {:?}", metadata);
+      trace!("have JSON metadata from headers: {:?}", metadata);
 
       for (k, v) in metadata {
         default.insert(k, v);
@@ -240,7 +240,6 @@ pub(crate) async fn verify_sync_message_from_provider<'a, F: RequestFilterExecut
 #[cfg(test)]
 mod tests {
   use expectest::prelude::*;
-
   use pact_models::generators::Generators;
   use pact_models::matchingrules::MatchingRules;
 

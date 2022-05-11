@@ -1598,7 +1598,6 @@ dependencies = [
  "itertools",
  "lazy_static",
  "libc",
- "log",
  "maplit",
  "mime",
  "pact-plugin-driver",
@@ -1614,6 +1613,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
+ "tracing-core",
  "urlencoding",
 ]
 

@@ -4,7 +4,6 @@ use std::collections::HashMap;
 
 use futures::stream::*;
 use itertools::Itertools;
-use log::*;
 use maplit::*;
 use pact_models::http_utils::HttpAuth;
 use pact_models::pact::{load_pact_from_json, Pact};
@@ -15,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use serde_with::skip_serializing_none;
 use tokio::time::{Duration, sleep};
+use tracing::{debug, error, info, trace, warn};
 
 use pact_matching::Mismatch;
 
@@ -260,7 +260,7 @@ impl HALClient {
     trace!("fetch_url(link={:?}, template_values={:?})", link, template_values);
 
       let link_url = if link.templated {
-          log::debug!("Link URL is templated");
+          debug!("Link URL is templated");
           self.clone().parse_link_url(&link, &template_values)
       } else {
           link.href.clone()
