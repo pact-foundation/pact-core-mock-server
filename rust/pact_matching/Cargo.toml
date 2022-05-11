@@ -16,15 +16,15 @@ exclude = [
 
 [dependencies]
 pact_models = "0.4.1"
-anyhow = "1.0.55"
+anyhow = "1.0.57"
 serde = { version = "^1.0", features = ["derive"] }
 serde_json = "^1.0"
 hex = "0.4.3"
 log = "=0.4.14" # This needs to be the same version across all the libs (i.e. plugin driver)
-onig = { version = "6.1.1", default-features = false }
+onig = { version = "6.3.1", default-features = false }
 maplit = "1.0.2"
 lazy_static = "1.4.0"
-semver = "1.0.6"
+semver = "1.0.9"
 lenient_semver = "0.4.2"
 itertools = "0.10.3"
 rand = "0.8.5"
@@ -33,14 +33,14 @@ ansi_term = "0.12.1"
 difference = "2.0.0"
 base64 = "0.13.0"
 uuid = { version = "0.8.2", features = ["v4"] }
-nom = "7.1.0"
+nom = "7.1.1"
 chrono = "0.4.19"
 tree_magic_mini = "3.0.3"
 multipart = { version = "0.18.0", default-features = false, features = ["server"] }
-http = "0.2.6"
+http = "0.2.7"
 mime = "0.3.16"
-bytes = { version = "1", features = ["serde"] }
-tokio = { version = "1", features = ["full"] }
+bytes = { version = "1.1.0", features = ["serde"] }
+tokio = { version = "1.18.2", features = ["full"] }
 pact-plugin-driver = "0.1.6"
 md5 = "0.7.0"
 
@@ -52,9 +52,9 @@ features = ["rustls-tls-native-roots", "json"]
 [dev-dependencies]
 quickcheck = "1"
 expectest = "0.12.0"
-env_logger = "0.8.2"
+env_logger = "0.9.0"
 hamcrest2 = "0.3.0"
-test-log = "0.2.8"
-ntest = "0.7.2"
-pretty_assertions = "0.6.1"
-rstest = "0.10.0"
+test-log = "0.2.10"
+ntest = "0.7.5"
+pretty_assertions = "1.2.1"
+rstest = "0.12.0"
