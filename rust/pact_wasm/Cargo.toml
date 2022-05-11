@@ -18,7 +18,7 @@ exclude = [
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-pact_models = "0.4.0"
+pact_models = "0.4.1"
 wasm-bindgen = "0.2.79"
 console_error_panic_hook = "0.1.7"
 console_log = { version = "0.2.0", features = ["color"] }
