@@ -1,11 +1,11 @@
 //! Handle interface to creating a verifier
 
 use std::sync::Arc;
-use itertools::Itertools;
 
-use log::debug;
+use itertools::Itertools;
 use pact_models::prelude::HttpAuth;
 use serde_json::Value;
+use tracing::debug;
 
 use pact_verifier::{
   ConsumerVersionSelector,

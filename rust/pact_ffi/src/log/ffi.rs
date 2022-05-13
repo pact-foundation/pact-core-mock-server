@@ -8,6 +8,7 @@ use std::str::from_utf8;
 use fern::Dispatch;
 use libc::{c_char, c_int};
 use log::{error, LevelFilter as LogLevelFilter};
+use tracing_subscriber::FmtSubscriber;
 
 use pact_matching::logging::fetch_buffer_contents;
 
@@ -190,6 +191,15 @@ pub extern "C" fn pactffi_log_to_buffer(level_filter: LevelFilter) -> c_int {
 /// This function is always safe to call.
 #[no_mangle]
 pub extern "C" fn pactffi_logger_init() {
+  let subscriber = FmtSubscriber::builder()
+    .with_thread_names(true)
+    .with_max_level(tracing_core::LevelFilter::TRACE)
+    .finish();
+
+  if let Err(err) = tracing::subscriber::set_global_default(subscriber) {
+    eprintln!("ERROR: Failed to initialise global tracing subscriber - {err}");
+  };
+
   set_logger(Dispatch::new());
 }
 

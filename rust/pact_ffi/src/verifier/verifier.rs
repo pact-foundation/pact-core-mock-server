@@ -6,12 +6,12 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use clap::{AppSettings, ArgMatches, ErrorKind};
-use log::{debug, error, LevelFilter};
-use simplelog::{Config, TerminalMode, TermLogger};
-
-use pact_matching::s;
 use pact_models::http_utils::HttpAuth;
 use pact_models::PactSpecification;
+use tracing::{debug, error, warn};
+use tracing_core::LevelFilter;
+use tracing_subscriber::FmtSubscriber;
+
 use pact_verifier::*;
 use pact_verifier::callback_executors::HttpRequestProviderStateExecutor;
 use pact_verifier::metrics::VerificationMetrics;
@@ -23,23 +23,23 @@ fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
   let mut sources = vec![];
 
   if let Some(values) = matches.values_of("file") {
-    sources.extend(values.map(|v| PactSource::File(s!(v))).collect::<Vec<PactSource>>());
+    sources.extend(values.map(|v| PactSource::File(v.into())).collect::<Vec<PactSource>>());
   };
 
   if let Some(values) = matches.values_of("dir") {
-    sources.extend(values.map(|v| PactSource::Dir(s!(v))).collect::<Vec<PactSource>>());
+    sources.extend(values.map(|v| PactSource::Dir(v.into())).collect::<Vec<PactSource>>());
   };
 
   if let Some(values) = matches.values_of("url") {
     sources.extend(values.map(|v| {
       if matches.is_present("user") {
-        PactSource::URL(s!(v), matches.value_of("user").map(|user| {
+        PactSource::URL(v.into(), matches.value_of("user").map(|user| {
           HttpAuth::User(user.to_string(), matches.value_of("password").map(|p| p.to_string()))
         }))
       } else if matches.is_present("token") {
-        PactSource::URL(s!(v), matches.value_of("token").map(|token| HttpAuth::Token(token.to_string())))
+        PactSource::URL(v.into(), matches.value_of("token").map(|token| HttpAuth::Token(token.to_string())))
       } else {
-        PactSource::URL(s!(v), None)
+        PactSource::URL(v.into(), None)
       }
     }).collect::<Vec<PactSource>>());
   };
@@ -199,15 +199,23 @@ pub async fn handle_args(args: Vec<String>) -> Result<(), i32> {
 async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
     let level = matches.value_of("loglevel").unwrap_or("warn");
     let log_level = match level {
-        "none" => LevelFilter::Off,
+        "none" => LevelFilter::OFF,
         _ => LevelFilter::from_str(level).unwrap()
     };
-    TermLogger::init(log_level, Config::default(), TerminalMode::Mixed).unwrap_or_default();
+
+    let subscriber = FmtSubscriber::builder()
+      .with_max_level(log_level)
+      .with_thread_names(true)
+      .finish();
+    if let Err(err) = tracing::subscriber::set_global_default(subscriber) {
+      warn!("Failed to initialise global tracing subscriber - {err}");
+    };
+
     let provider = ProviderInfo {
-      host: s!(matches.value_of("hostname").unwrap_or("localhost")),
+      host: matches.value_of("hostname").unwrap_or("localhost").to_string(),
       port: matches.value_of("port").map(|port| port.parse::<u16>().unwrap()),
       path: matches.value_of("base-path").unwrap_or("/").into(),
-      protocol: s!(matches.value_of("scheme").unwrap_or("http")),
+      protocol: matches.value_of("scheme").unwrap_or("http").to_string(),
       .. ProviderInfo::default()
     };
     let source = pact_source(matches);

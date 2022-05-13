@@ -50,5 +50,9 @@ int main(void) {
         return EXIT_FAILURE;
     }
 
+    pactffi_log_message("example C", "debug", "This is a debug message");
+    pactffi_log_message("example C", "info", "This is an info message");
+    pactffi_log_message("example C", "error", "This is an error message");
+
     return EXIT_SUCCESS;
 }

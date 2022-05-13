@@ -7,7 +7,6 @@ use anyhow::{anyhow, Context};
 use bytes::Bytes;
 use itertools::Itertools;
 use libc::{c_char, c_uint};
-use log::{debug, error};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
 use pact_models::http_parts::HttpPart;
@@ -24,6 +23,7 @@ use pact_plugin_driver::plugin_manager::{drop_plugin_access, load_plugin, lookup
 use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
 use serde_json::Value;
 use tokio::time::sleep;
+use tracing::{debug, error};
 
 use crate::{ffi_fn, safe_str};
 use crate::error::{catch_panic, set_error_msg};

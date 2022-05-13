@@ -8,12 +8,14 @@
 use std::ffi::CStr;
 use std::str::FromStr;
 
-use ::log::warn;
-use env_logger::Builder;
 use libc::c_char;
 use pact_models::interaction::Interaction;
 use pact_models::pact::Pact;
 use pact_models::v4::pact::V4Pact;
+use tracing::{debug, error, info, trace, warn};
+use tracing_core::Level;
+use tracing_log::AsLog;
+use tracing_subscriber::FmtSubscriber;
 
 use models::message::Message;
 use pact_matching as pm;
@@ -31,15 +33,15 @@ pub mod plugins;
 
 const VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "\0");
 
-/// Get the current library version
+/// Returns the current library version
 #[no_mangle]
 pub extern "C" fn pactffi_version() -> *const c_char {
     VERSION.as_ptr() as *const c_char
 }
 
-
 /// Initialise the mock server library, can provide an environment variable name to use to
-/// set the log levels.
+/// set the log levels. This function should only be called once, as it tries to install a global
+/// tracing subscriber.
 ///
 /// # Safety
 ///
@@ -59,23 +61,31 @@ pub unsafe extern fn pactffi_init(log_env_var: *const c_char) {
         "LOG_LEVEL"
     };
 
-    let env = env_logger::Env::new().filter(log_env_var);
-    let mut builder = Builder::from_env(env);
-    builder.try_init().unwrap_or(());
+    let subscriber = FmtSubscriber::builder()
+      .with_env_filter(log_env_var)
+      .with_thread_names(true)
+      .finish();
+    if let Err(err) = tracing::subscriber::set_global_default(subscriber) {
+      eprintln!("Failed to initialise global tracing subscriber - {err}");
+    };
 }
 
-/// Initialises logging, and sets the log level explicitly.
+/// Initialises logging, and sets the log level explicitly. This function should only be called
+/// once, as it tries to install a global tracing subscriber.
 ///
 /// # Safety
 ///
 /// Exported functions are inherently unsafe.
 #[no_mangle]
 pub unsafe extern "C" fn pactffi_init_with_log_level(level: *const c_char) {
-    let mut builder = Builder::from_default_env();
-    let log_level = log_level_from_c_char(level);
-
-    builder.filter_level(log_level.to_level_filter());
-    builder.try_init().unwrap_or(());
+  let log_level = log_level_from_c_char(level);
+  let subscriber = FmtSubscriber::builder()
+    .with_max_level(log_level)
+    .with_thread_names(true)
+    .finish();
+  if let Err(err) = tracing::subscriber::set_global_default(subscriber) {
+    eprintln!("Failed to initialise global tracing subscriber - {err}");
+  };
 }
 
 /// Enable ANSI coloured output on Windows. On non-Windows platforms, this function is a no-op.
@@ -113,35 +123,41 @@ pub extern "C" fn pactffi_enable_ansi_support() { }
 /// This function will fail if any of the pointers passed to it are invalid.
 #[no_mangle]
 pub unsafe extern "C" fn pactffi_log_message(source: *const c_char, log_level: *const c_char, message: *const c_char) {
-    let target = convert_cstr("target", source).unwrap_or("client");
+  let target = convert_cstr("target", source).unwrap_or("client");
 
-    if !message.is_null() {
-        if let Some(message) = convert_cstr("message", message) {
-            ::log::log!(target: target, log_level_from_c_char(log_level), "{}", message)
-        }
+  if !message.is_null() {
+    if let Some(message) = convert_cstr("message", message) {
+      match log_level_from_c_char(log_level).as_log() {
+        ::log::Level::Error => error!(source = target, "{}", message),
+        ::log::Level::Warn => warn!(source = target, "{}", message),
+        ::log::Level::Info => info!(source = target, "{}", message),
+        ::log::Level::Debug => debug!(source = target, "{}", message),
+        ::log::Level::Trace => trace!(source = target, "{}", message)
+      }
     }
+  }
 }
 
-unsafe fn log_level_from_c_char(log_level: *const c_char) -> ::log::Level {
-    if !log_level.is_null() {
-        let level = convert_cstr("log_level", log_level).unwrap_or("INFO");
-        ::log::Level::from_str(level).unwrap_or(::log::Level::Info)
-    } else {
-        ::log::Level::Info
-    }
+unsafe fn log_level_from_c_char(log_level: *const c_char) -> Level {
+  if !log_level.is_null() {
+    let level = convert_cstr("log_level", log_level).unwrap_or("INFO");
+    Level::from_str(level).unwrap_or(tracing::Level::INFO)
+  } else {
+    Level::INFO
+  }
 }
 
 fn convert_cstr(name: &str, value: *const c_char) -> Option<&str> {
     unsafe {
         if value.is_null() {
-            ::log::warn!("{} is NULL!", name);
+            warn!("{} is NULL!", name);
             None
         } else {
             let c_str = CStr::from_ptr(value);
             match c_str.to_str() {
                 Ok(str) => Some(str),
                 Err(err) => {
-                    ::log::warn!("Failed to parse {} name as a UTF-8 string: {}", name, err);
+                    warn!("Failed to parse {} name as a UTF-8 string: {}", name, err);
                     None
                 }
             }

@@ -8,7 +8,7 @@ use pact_matching::logging::write_to_log_buffer;
 /// In-memory buffer for logging output. Sends output to static `LOG_BUFFER` in the pact_matching
 /// crate. If there is a task local ID found, will accumulate against that ID, otherwise will
 /// accumulate against the "global" ID.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub(crate) struct InMemBuffer { }
 
 impl Write for InMemBuffer {
