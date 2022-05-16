@@ -57,7 +57,6 @@ jobs:
         run: ./ci-build.sh
         working-directory: rust/pact_ffi
         shell: bash
-        if: runner.os == 'Linux'
       - name: Run the C FFI tests
         if: runner.os == 'Linux'
         working-directory: c/consumer-verification
