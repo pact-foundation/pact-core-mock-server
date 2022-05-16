@@ -1,0 +1,53 @@
+name: Pact-Rust FFI Build
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.operating-system }}
+    strategy:
+      matrix:
+        operating-system: [ ubuntu-latest, windows-latest, macos-latest ]
+        rust: [ stable ]
+    env:
+      pact_do_not_track: true
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust }}
+      - name: Install shared mime info DB
+        if: runner.os == 'macOS'
+        run: brew install shared-mime-info
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+          components: rustfmt
+      # cbingen needs this version as the latest version does not work. But the CMake build checks for the latest
+      # version, so we need both
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2022-04-12
+          override: true
+          components: rustfmt
+      - name: Install doxygen
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y doxygen
+      - name: Build pact_ffi with CMake
+        run: ./ci-build.sh
+        working-directory: rust/pact_ffi
+        shell: bash
+      - name: Run the C FFI tests
+        if: runner.os == 'Linux'
+        working-directory: c/consumer-verification
+        run: |
+          sudo apt update
+          sudo apt install libcurl4-openssl-dev
+          /usr/bin/aclocal
+          autoconf
+          automake --add-missing
+          ./configure
+          make
+          src/consumer-verification basic ../../rust/target/debug/libpact_ffi.so
+          src/consumer-verification error ../../rust/target/debug/libpact_ffi.so
