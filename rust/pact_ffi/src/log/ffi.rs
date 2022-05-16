@@ -5,7 +5,6 @@ use std::ffi::{CStr, CString};
 use std::ptr;
 use std::str::from_utf8;
 
-use fern::Dispatch;
 use libc::{c_char, c_int};
 use log::{error, LevelFilter as LogLevelFilter};
 use tracing_subscriber::FmtSubscriber;
@@ -14,7 +13,7 @@ use pact_matching::logging::fetch_buffer_contents;
 
 use crate::error::set_error_msg;
 use crate::log::level_filter::LevelFilter;
-use crate::log::logger::{add_sink, apply_logger, set_logger};
+use crate::log::logger::{add_sink, apply_logger, init_logger};
 use crate::log::sink::Sink;
 use crate::log::status::Status;
 use crate::util::string::to_c;
@@ -176,7 +175,7 @@ pub extern "C" fn pactffi_log_to_buffer(level_filter: LevelFilter) -> c_int {
 // /* handle the error */
 // ```
 
-/// Initialize the thread-local logger with no sinks.
+/// Initialize the FFI logger with no sinks.
 ///
 /// This initialized logger does nothing until `pactffi_logger_apply` has been called.
 ///
@@ -191,23 +190,14 @@ pub extern "C" fn pactffi_log_to_buffer(level_filter: LevelFilter) -> c_int {
 /// This function is always safe to call.
 #[no_mangle]
 pub extern "C" fn pactffi_logger_init() {
-  let subscriber = FmtSubscriber::builder()
-    .with_thread_names(true)
-    .with_max_level(tracing_core::LevelFilter::TRACE)
-    .finish();
-
-  if let Err(err) = tracing::subscriber::set_global_default(subscriber) {
-    eprintln!("ERROR: Failed to initialise global tracing subscriber - {err}");
-  };
-
-  set_logger(Dispatch::new());
+  init_logger();
 }
 
 /// Attach an additional sink to the thread-local logger.
 ///
 /// This logger does nothing until `pactffi_logger_apply` has been called.
 ///
-/// Three types of sinks can be specified:
+/// Types of sinks can be specified:
 ///
 /// - stdout (`pactffi_logger_attach_sink("stdout", LevelFilter_Info)`)
 /// - stderr (`pactffi_logger_attach_sink("stderr", LevelFilter_Debug)`)
@@ -234,7 +224,8 @@ pub extern "C" fn pactffi_logger_init() {
 /// # Safety
 ///
 /// This function checks the validity of the passed-in sink specifier, and errors
-/// out if the specifier isn't valid UTF-8.
+/// out if the specifier isn't valid UTF-8. Passing in an invalid or NULL pointer will result in
+/// undefined behaviour.
 #[allow(clippy::missing_safety_doc)]
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[no_mangle]
@@ -252,28 +243,15 @@ pub unsafe extern "C" fn pactffi_logger_attach_sink(
     };
 
     // Attempt to construct a sink from the specifier.
-    let sink = match Sink::try_from(sink_specifier) {
-        Ok(sink) => sink,
-        Err(err) => return Status::from(err) as c_int,
-    };
+    if let Err(err) = Sink::try_from(sink_specifier) {
+        return Status::from(err) as c_int;
+    }
 
     // Convert from our `#[repr(C)]` LevelFilter to the one from the `log` crate.
     let level_filter: LogLevelFilter = level_filter.into();
 
-    // Construct a dispatcher from the sink and level filter.
-    let dispatch = Into::<Dispatch>::into(sink)
-        .level(level_filter)
-        .format(|out, message, record| {
-            out.finish(format_args!(
-                "[{}][{}] {}",
-                record.level(),
-                record.target(),
-                message
-            ))
-        });
-
-    // Take the existing logger, if there is one, add a new sink to it, and put it back.
-    let status = match add_sink(dispatch) {
+    // Add the sink specifier and level filter to the current log data
+    let status = match add_sink(sink_specifier, level_filter) {
         Ok(_) => Status::Success,
         Err(err) => Status::from(err),
     };
@@ -281,9 +259,11 @@ pub unsafe extern "C" fn pactffi_logger_attach_sink(
     status as c_int
 }
 
-/// Apply the thread-local logger to the program.
+/// Apply the previously configured sinks and levels to the program. If no sinks have been setup,
+/// will set the log level to info and the target to standard out.
 ///
-/// Any attempts to modify the logger after the call to `logger_apply` will fail.
+/// This function will install a global tracing subscriber. Any attempts to modify the logger
+/// after the call to `logger_apply` will fail.
 #[no_mangle]
 pub extern "C" fn pactffi_logger_apply() -> c_int {
     let status = match apply_logger() {
@@ -310,7 +290,7 @@ pub extern "C" fn pactffi_logger_apply() -> c_int {
 /// This function will fail if the log_id pointer is invalid or does not point to a NULL
 /// terminated string.
 #[no_mangle]
-pub unsafe extern "C" fn pactffi_fetch_log_buffer(log_id: *const c_char,) -> *const c_char {
+pub unsafe extern "C" fn pactffi_fetch_log_buffer(log_id: *const c_char) -> *const c_char {
   let id = if log_id.is_null() {
     "global"
   } else {

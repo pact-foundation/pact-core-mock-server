@@ -34,8 +34,8 @@ pub(crate) enum Status {
     Success = 0,
 }
 
-impl From<SetLoggerError> for Status {
-    fn from(_err: SetLoggerError) -> Status {
+impl From<anyhow::Error> for Status {
+    fn from(_err: anyhow::Error) -> Status {
         Status::CantSetLogger
     }
 }

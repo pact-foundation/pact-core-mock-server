@@ -11,8 +11,6 @@ use std::ops::Not;
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use fern::Dispatch;
-
 use crate::log::inmem_buffer::InMemBuffer;
 
 /// A sink for logs to be written to, based on a provider specifier.
@@ -29,19 +27,6 @@ pub(crate) enum Sink {
 
     /// Write logs to a thread local memory buffer
     Buffer(InMemBuffer)
-}
-
-impl From<Sink> for Dispatch {
-  fn from(sink: Sink) -> Dispatch {
-    let dispatch = Dispatch::new();
-
-    match sink {
-      Sink::Stdout(stdout) => dispatch.chain(stdout),
-      Sink::Stderr(stderr) => dispatch.chain(stderr),
-      Sink::File(file) => dispatch.chain(file),
-      Sink::Buffer(buffer) => dispatch.chain(buffer.boxed())
-    }
-  }
 }
 
 impl<'a> TryFrom<&'a str> for Sink {

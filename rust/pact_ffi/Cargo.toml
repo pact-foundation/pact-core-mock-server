@@ -23,7 +23,6 @@ pact_verifier = { version = "0.13.6", path = "../pact_verifier" }
 libc = "0.2.125"
 zeroize = "1.5.5"
 thiserror = "1.0.31"
-fern = "0.6.1"
 serde_json = "1.0.81"
 serde = { version = "1.0.137", features = ["derive"] }
 bytes = "1.1.0"

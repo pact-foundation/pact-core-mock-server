@@ -401,15 +401,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "fern"
-version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3bdd7b0849075e79ee9a1836df22c717d1eba30451796fdc631b04565dd11e2a"
-dependencies = [
- "log",
-]
-
-[[package]]
 name = "fixedbitset"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1289,7 +1280,6 @@ dependencies = [
  "either",
  "env_logger 0.9.0",
  "expectest",
- "fern",
  "itertools",
  "lazy_static",
  "libc",
