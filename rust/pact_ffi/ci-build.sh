@@ -45,6 +45,11 @@ for i in examples/*; do
   cd build
   cmake ..
   cmake --build .
+
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    cp ../../../build/install/lib/*.dylib .
+  fi
+
   echo Running example
   ./example
   popd
