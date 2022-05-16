@@ -1,6 +1,7 @@
 ![Logo of the project](https://raw.githubusercontent.com/pact-foundation/pact-reference/master/images/logo.svg)
 
 [![Pact-Rust Build](https://github.com/pact-foundation/pact-reference/workflows/Pact-Rust%20Build/badge.svg)](https://github.com/pact-foundation/pact-reference/actions?query=workflow%3A%22Pact-Rust+Build%22)
+[![Pact-Rust FFI Build](https://github.com/pact-foundation/pact-reference/actions/workflows/build-ffi.yml/badge.svg)](https://github.com/pact-foundation/pact-reference/actions/workflows/build-ffi.yml)
 
 # Pact Reference Implementation
 > Reference implementations for Pact Specification written in Rust
