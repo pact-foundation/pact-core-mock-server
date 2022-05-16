@@ -35,17 +35,17 @@ echo -------------------------------------
 cd build
 cmake --install . --prefix ./install
 
-#echo -------------------------------------
-#echo - Running examples
-#echo -------------------------------------
-#cd ..
-#for i in examples/*; do
-#  pushd $i
-#  mkdir -p build
-#  cd build
-#  cmake ..
-#  cmake --build .
-#  echo Running example
-#  ./example
-#  popd
-#done
+echo -------------------------------------
+echo - Running examples
+echo -------------------------------------
+cd ..
+for i in examples/*; do
+  pushd $i
+  mkdir -p build
+  cd build
+  cmake ..
+  cmake --build .
+  echo Running example
+  ./example
+  popd
+done
