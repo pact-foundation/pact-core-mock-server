@@ -5,7 +5,7 @@
 
 use std::convert::TryFrom;
 use std::fmt::Debug;
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use std::io::{self, Stderr, Stdout};
 use std::ops::Not;
 use std::path::PathBuf;
@@ -49,7 +49,8 @@ impl<'a> TryFrom<&'a str> for Sink {
           match s.get(pat.len()..) {
             None => Err(SinkSpecifierError::MissingFilePath),
             Some(remainder) => {
-              match File::create(remainder) {
+              let file = OpenOptions::new().append(true).create(true).open(remainder);
+              match file {
                 Ok(file) => Ok(Sink::File(file)),
                 Err(source) => {
                   // PANIC SAFETY: This `unwrap` is fine because the `PathBuf` impl of `FromStr` has an associated

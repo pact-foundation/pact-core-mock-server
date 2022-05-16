@@ -21,6 +21,10 @@ ffi_fn! {
     ///
     /// It is explicitly allowed to pass a null pointer to this function;
     /// in that case the function will do nothing.
+    ///
+    /// # Safety
+    /// Passing an invalid pointer, or one that was not returned by a FFI function can result in
+    /// undefined behaviour.
     fn pactffi_string_delete(string: *mut c_char) {
         if string.is_null().not() {
             let string = unsafe { CString::from_raw(string) };

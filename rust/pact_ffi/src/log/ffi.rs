@@ -277,7 +277,7 @@ pub extern "C" fn pactffi_logger_apply() -> c_int {
 
 /// Fetch the in-memory logger buffer contents. This will only have any contents if the `buffer`
 /// sink has been configured to log to. The contents will be allocated on the heap and will need
-/// to be freed with `string_delete`.
+/// to be freed with `pactffi_string_delete`.
 ///
 /// Fetches the logs associated with the provided identifier, or uses the "global" one if the
 /// identifier is not specified (i.e. NULL).
