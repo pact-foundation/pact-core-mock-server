@@ -7,7 +7,6 @@ use std::str::from_utf8;
 
 use libc::{c_char, c_int};
 use log::{error, LevelFilter as LogLevelFilter};
-use tracing_subscriber::FmtSubscriber;
 
 use pact_matching::logging::fetch_buffer_contents;
 

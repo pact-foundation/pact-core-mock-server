@@ -3,9 +3,7 @@
 // All of this module is `pub(crate)` and should not appear in the C header file
 // or documentation.
 
-use crate::log::logger::LoggerError;
 use crate::log::sink::SinkSpecifierError;
-use log::SetLoggerError;
 
 /// An enum representing the status codes which can be returned to the C caller.
 pub(crate) enum Status {
@@ -25,6 +23,8 @@ pub(crate) enum Status {
     SpecifierNotUtf8 = -3,
 
     /// No logger has been initialized.
+    /// Deprecated: Logging is initialised with defaults.
+    #[allow(dead_code)]
     NoLogger = -2,
 
     /// Can't set the logger
@@ -52,15 +52,6 @@ impl From<SinkSpecifierError> for Status {
             SinkSpecifierError::CantMakeFile { .. } => {
                 Status::CantOpenSinkToFile
             }
-        }
-    }
-}
-
-impl From<LoggerError> for Status {
-    fn from(err: LoggerError) -> Status {
-        match err {
-            LoggerError::NoLogger => Status::NoLogger,
-            LoggerError::ApplyLoggerFailed(err) => err.into(),
         }
     }
 }

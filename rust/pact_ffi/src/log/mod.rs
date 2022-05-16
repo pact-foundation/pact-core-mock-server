@@ -5,7 +5,6 @@ mod level_filter;
 mod logger;
 mod sink;
 mod status;
-mod target;
 mod inmem_buffer;
 
 pub use crate::log::ffi::{
@@ -18,4 +17,3 @@ pub use crate::log::ffi::{
     pactffi_log_to_file,
     pactffi_log_to_buffer
 };
-pub(crate) use crate::log::target::TARGET;

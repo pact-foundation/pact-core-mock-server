@@ -47,6 +47,7 @@ pub mod handle;
 ///
 /// Exported functions are inherently unsafe. Deal.
 #[no_mangle]
+#[deprecated(since = "0.1.0", note = "use the handle based interface instead. See pact_ffi/src/verifier/handle.rs")]
 pub unsafe extern fn pactffi_verify(args: *const c_char) -> i32 {
   if args.is_null() {
     return 2;
@@ -57,6 +58,7 @@ pub unsafe extern fn pactffi_verify(args: *const c_char) -> i32 {
     runtime.block_on(async {
       let args_raw = CStr::from_ptr(args).to_string_lossy().into_owned();
       let args: Vec<String> = args_raw.lines().map(|s| s.to_string()).collect();
+      #[allow(deprecated)]
       let result = verifier::handle_args(args).await;
 
       match result {
@@ -79,7 +81,7 @@ ffi_fn! {
     /// Get a Handle to a newly created verifier. You should call `pactffi_verifier_shutdown` when
     /// done with the verifier to free all allocated resources.
     ///
-    /// This function is deprecated. Use `pactffi_verifier_new_for_application` which allows the
+    /// Deprecated: This function is deprecated. Use `pactffi_verifier_new_for_application` which allows the
     /// calling application/framework name and version to be specified.
     ///
     /// # Safety
@@ -91,6 +93,7 @@ ffi_fn! {
     /// Returns NULL on error.
     #[deprecated(since = "0.1.4", note = "Use pactffi_verifier_new_for_application instead")]
     fn pactffi_verifier_new() -> *mut handle::VerifierHandle {
+        #[allow(deprecated)]
         let handle = handle::VerifierHandle::new();
         ptr::raw_to(handle)
     } {

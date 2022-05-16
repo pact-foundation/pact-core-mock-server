@@ -24,13 +24,6 @@ impl Write for InMemBuffer {
   }
 }
 
-impl InMemBuffer {
-  /// Box this buffer
-  pub(crate) fn boxed(self) -> Box<dyn Write + Send> {
-    Box::new(self)
-  }
-}
-
 impl <'a> MakeWriter<'a> for InMemBuffer {
   type Writer = InMemBuffer;
 

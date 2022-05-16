@@ -15,6 +15,7 @@ use tracing_subscriber::FmtSubscriber;
 use pact_verifier::*;
 use pact_verifier::callback_executors::HttpRequestProviderStateExecutor;
 use pact_verifier::metrics::VerificationMetrics;
+use pact_verifier::selectors::{consumer_tags_to_selectors, json_to_selectors};
 
 use super::args;
 
@@ -85,34 +86,6 @@ fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
   sources
 }
 
-// Moved to the pact_verifier crate. See pact_verifier/src/selectors.rs
-#[deprecated(since = "0.1.0-beta.0", note = "Moved to the pact_verifier crate. See pact_verifier/src/selectors.rs")]
-fn consumer_tags_to_selectors(tags: Vec<&str>) -> Vec<pact_verifier::ConsumerVersionSelector> {
-  tags.iter().map(|t| {
-    pact_verifier::ConsumerVersionSelector {
-      consumer: None,
-      fallback_tag: None,
-      tag: Some(t.to_string()),
-      latest: Some(true),
-      branch: None,
-      deployed_or_released: None,
-      deployed: None,
-      released: None,
-      main_branch: None,
-      environment: None,
-      matching_branch: None,
-    }
-  }).collect()
-}
-
-// Moved to the pact_verifier crate. See pact_verifier/src/selectors.rs
-#[deprecated(since = "0.1.0-beta.0", note = "Moved to the pact_verifier crate. See pact_verifier/src/selectors.rs")]
-fn json_to_selectors(tags: Vec<&str>) -> Vec<pact_verifier::ConsumerVersionSelector> {
-  tags.iter().map(|t| serde_json::from_str(t))
-  .flatten()
-  .collect()
-}
-
 #[deprecated(since = "0.1.0-beta.0", note = "use the handle based interface instead. See pact_ffi/src/verifier/handle.rs")]
 fn interaction_filter(matches: &ArgMatches) -> FilterInfo {
   if matches.is_present("filter-description") &&
@@ -136,9 +109,9 @@ fn interaction_filter(matches: &ArgMatches) -> FilterInfo {
 }
 
 /// Handles the command line arguments from the running process
-/// This method is now deprecated and duplicated in the verifier CLI module. FFI consumers
-/// should use the handle based interface instead
-#[deprecated(since = "0.1.0-beta.0", note = "use the handle based interface instead. See pact_ffi/src/verifier/handle.rs")]
+/// Deprecated: This method is now deprecated and duplicated in the verifier CLI module. FFI consumers
+/// should use the handle based interface instead.
+#[deprecated(since = "0.1.0", note = "use the handle based interface instead. See pact_ffi/src/verifier/handle.rs")]
 pub async fn handle_cli(version: &str) -> Result<(), i32> {
   let args: Vec<String> = env::args().collect();
   let program = args[0].clone();
@@ -149,7 +122,10 @@ pub async fn handle_cli(version: &str) -> Result<(), i32> {
                   .get_matches_safe();
 
   match matches {
-    Ok(results) => handle_matches(&results).await,
+    Ok(results) => {
+      #[allow(deprecated)]
+      handle_matches(&results).await
+    },
     Err(ref err) => {
       match err.kind {
           ErrorKind::HelpDisplayed => {
@@ -169,14 +145,11 @@ pub async fn handle_cli(version: &str) -> Result<(), i32> {
   }
 }
 
-// TODO: it's possible to introspect the clap::Error and return it or wrapped error type
-// so that the caller could have more control over the error output.
-//
 // Currently, clap prints things out as if it were a CLI call
 #[allow(dead_code, missing_docs)]
-/// This method is now deprecated and duplicated in the verifier CLI module. FFI consumers
-/// should use the handle based interface instead
-#[deprecated(since = "0.1.0-beta.0", note = "use the handle based interface instead. See pact_ffi/src/verifier/handle.rs")]
+/// Deprecated: This method is now deprecated and duplicated in the verifier CLI module. FFI consumers
+/// should use the handle based interface instead.
+#[deprecated(since = "0.1.0", note = "use the handle based interface instead. See pact_ffi/src/verifier/handle.rs")]
 pub async fn handle_args(args: Vec<String>) -> Result<(), i32> {
   let program = "pact_verifier_cli".to_string();
   let version = format!("v{}", clap::crate_version!()).as_str().to_owned();
@@ -187,7 +160,10 @@ pub async fn handle_args(args: Vec<String>) -> Result<(), i32> {
                   .get_matches_from_safe(args);
 
   match matches {
-    Ok(results) => handle_matches(&results).await,
+    Ok(results) => {
+      #[allow(deprecated)]
+      handle_matches(&results).await
+    },
     Err(ref err) => {
       log::error!("error verifying Pact: {:?} {:?}", err.message, err);
       Err(4)
@@ -195,7 +171,7 @@ pub async fn handle_args(args: Vec<String>) -> Result<(), i32> {
   }
 }
 
-#[deprecated(since = "0.1.0-beta.0", note = "use the handle based interface instead. See pact_ffi/src/verifier/handle.rs")]
+#[deprecated(since = "0.1.0", note = "use the handle based interface instead. See pact_ffi/src/verifier/handle.rs")]
 async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
     let level = matches.value_of("loglevel").unwrap_or("warn");
     let log_level = match level {
@@ -218,7 +194,9 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
       protocol: matches.value_of("scheme").unwrap_or("http").to_string(),
       .. ProviderInfo::default()
     };
+    #[allow(deprecated)]
     let source = pact_source(matches);
+    #[allow(deprecated)]
     let filter = interaction_filter(matches);
     let provider_state_executor = Arc::new(HttpRequestProviderStateExecutor {
       state_change_url: matches.value_of("state-change-url").map(|s| s.to_string()),

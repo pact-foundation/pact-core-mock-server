@@ -9,7 +9,6 @@ use std::io::{stderr, stdout};
 use anyhow::anyhow;
 use log::{LevelFilter as LogLevelFilter, LevelFilter};
 use tracing_log::AsTrace;
-use tracing_subscriber::fmt::{MakeWriter, Subscriber, SubscriberBuilder};
 use tracing_subscriber::fmt::writer::{BoxMakeWriter, MakeWriterExt};
 use tracing_subscriber::FmtSubscriber;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -38,7 +37,7 @@ pub(crate) fn add_sink(sink_specifier: &str, level_filter: LogLevelFilter) -> an
 }
 
 /// Apply the logger-in-progress as the global logger.
-pub(crate) fn apply_logger() -> Result<(), LoggerError> {
+pub(crate) fn apply_logger() -> anyhow::Result<()> {
     LOGGER.with(|logger| {
       let mut logger_inner = logger.borrow_mut();
 
@@ -46,7 +45,7 @@ pub(crate) fn apply_logger() -> Result<(), LoggerError> {
         .max_by(|a, b| a.1.cmp(&b.1))
         .map(|l| l.1)
         .unwrap_or(LogLevelFilter::Info);
-      let mut subscriber_builder = FmtSubscriber::builder()
+      let subscriber_builder = FmtSubscriber::builder()
         .with_max_level(max_level.as_trace())
         .with_thread_names(true);
 
@@ -62,7 +61,7 @@ pub(crate) fn apply_logger() -> Result<(), LoggerError> {
       };
 
       logger_inner.clear();
-      subscriber.try_init().map_err(|err| LoggerError::ApplyLoggerFailed(anyhow!(err)))
+      subscriber.try_init().map_err(|err| anyhow!(err))
     })
 }
 
@@ -76,14 +75,4 @@ fn sink_to_make_writer(sink: &str, level: &LevelFilter) -> BoxMakeWriter {
     Sink::File(f) => BoxMakeWriter::new(f.with_max_level(level.as_trace().into_level().unwrap())),
     Sink::Buffer(b) => BoxMakeWriter::new(b.with_max_level(level.as_trace().into_level().unwrap()))
   }
-}
-
-/// An error arising from initializing, populating, and applying the logger.
-#[derive(Debug, thiserror::Error)]
-pub(crate) enum LoggerError {
-    #[error("no logger initialized")]
-    NoLogger,
-
-    #[error(transparent)]
-    ApplyLoggerFailed(#[from] anyhow::Error),
 }

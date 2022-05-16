@@ -301,6 +301,7 @@ impl VerifierHandle {
 
 impl Default for VerifierHandle {
    fn default() -> Self {
-       Self::new()
+     #[allow(deprecated)]
+     Self::new()
    }
 }
