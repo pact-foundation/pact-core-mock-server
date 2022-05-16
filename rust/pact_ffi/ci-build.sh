@@ -51,6 +51,11 @@ for i in examples/*; do
   fi
 
   echo Running example
-  ./example
+  if [[ "$OSTYPE" == "msys"* ]]; then
+    ./example.exe
+  else
+    ./example
+  fi
+
   popd
 done
