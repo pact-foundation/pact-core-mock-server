@@ -52,7 +52,7 @@ for i in examples/*; do
 
   echo Running example
   if [[ "$OSTYPE" == "msys"* ]]; then
-    ./example.exe
+    ./Debug/example.exe
   else
     ./example
   fi
