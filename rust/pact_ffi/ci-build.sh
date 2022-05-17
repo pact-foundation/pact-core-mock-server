@@ -46,13 +46,13 @@ for i in examples/*; do
   cmake ..
   cmake --build .
 
-  if [[ "$OSTYPE" == "darwin"* ]]; then
-    cp ../../../build/install/lib/*.dylib .
-  fi
-
-  echo Running example
+  echo "Running example $i"
   if [[ "$OSTYPE" == "msys"* ]]; then
+    cp ../../../build/install/lib/*.dll Debug/
     ./Debug/example.exe
+  elif [[ "$OSTYPE" == "darwin"* ]]; then
+    cp ../../../build/install/lib/*.dylib .
+    ./example
   else
     ./example
   fi
