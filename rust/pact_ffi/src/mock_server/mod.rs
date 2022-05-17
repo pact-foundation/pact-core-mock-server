@@ -1,5 +1,5 @@
 //! The `mock_server` module provides a number of exported functions using C bindings for
-//! controlling the mock server. These can be used in any language that supports C bindings.
+//! controlling a mock server. These can be used in any language that supports C bindings.
 //!
 //! ## [create_mock_server](fn.create_mock_server_ffi.html)
 //!
@@ -18,18 +18,18 @@
 //! This returns all the mismatches, un-expected requests and missing requests in JSON format, given the port number of the
 //! mock server.
 //!
-//! **IMPORTANT NOTE:** The JSON string for the result is allocated on the rust heap, and will have to be freed once the
-//! code using the mock server is complete. The [`cleanup_mock_server`](fn.cleanup_mock_server.html) function is provided for this purpose. If the mock
-//! server is not cleaned up properly, this will result in memory leaks as the rust heap will not be reclaimed.
+//! **IMPORTANT NOTE:** The JSON string for the result is allocated on the Rust heap, and will have to be freed once the
+//! code using the mock server is complete. The [`cleanup_mock_server`](fn.cleanup_mock_server.html) function is provided for this purpose.
+//! If the mock server is not cleaned up properly, this will result in memory leaks as the Rust heap will not be reclaimed.
 //!
 //! ## [cleanup_mock_server](fn.cleanup_mock_server.html)
 //!
 //! This function will try terminate the mock server with the given port number and cleanup any memory allocated for it by
-//! the [`mock_server_mismatches`](fn.mock_server_mismatches.html) function. Returns `true`, unless a mock server with the given port number does not exist,
-//! or the function fails in some way.
+//! the [`mock_server_mismatches`](fn.mock_server_mismatches.html) function. Returns `true`, unless
+//! a mock server with the given port number does not exist, or the function fails in some way.
 //!
-//! **NOTE:** Although `close()` on the listerner for the mock server is called, this does not currently work and the
-//! listerner will continue handling requests. In this case, it will always return a 501 once the mock server has been
+//! **NOTE:** Although `close()` on the listener for the mock server is called, this does not currently work and the
+//! listener will continue handling requests. In this case, it will always return a 501 once the mock server has been
 //! cleaned up.
 //!
 //! ## [write_pact_file](fn.write_pact_file.html)
@@ -72,9 +72,9 @@ pub mod handles;
 pub mod bodies;
 mod xml;
 
-/// External interface to create a mock server. A pointer to the pact JSON as a C string is passed in,
-/// as well as the port for the mock server to run on. A value of 0 for the port will result in a
-/// port being allocated by the operating system. The port of the mock server is returned.
+/// External interface to create a mock server. A pointer to the pact JSON as a NULL-terminated C
+/// string is passed in, as well as the port for the mock server to run on. A value of 0 for the
+/// port will result in a port being allocated by the operating system. The port of the mock server is returned.
 ///
 /// * `pact_str` - Pact JSON
 /// * `addr_str` - Address to bind to in the form name:port (i.e. 127.0.0.1:0)
@@ -162,11 +162,11 @@ pub extern fn pactffi_create_mock_server(pact_str: *const c_char, addr_str: *con
 /// Fetch the CA Certificate used to generate the self-signed certificate for the TLS mock server.
 ///
 /// **NOTE:** The string for the result is allocated on the heap, and will have to be freed
-/// by the caller using free_string
+/// by the caller using pactffi_string_delete.
 ///
 /// # Errors
 ///
-/// An empty string indicates an error reading the pem file
+/// An empty string indicates an error reading the pem file.
 #[no_mangle]
 pub extern fn pactffi_get_tls_ca_certificate() -> *mut c_char  {
   let cert_file = include_str!("ca.pem");
@@ -442,11 +442,13 @@ pub enum StringResult {
 }
 
 /// Generates a datetime value from the provided format string, using the current system date and time
-/// NOTE: The memory for the returned string needs to be freed with the free_string function
+/// NOTE: The memory for the returned string needs to be freed with the `pactffi_string_delete` function
 ///
 /// # Safety
 ///
-/// Exported functions are inherently unsafe.
+/// If the format string pointer is NULL or has invalid UTF-8 characters, an error result will be
+/// returned. If the format string pointer is not a valid pointer or is not a NULL-terminated string,
+/// this will lead to undefined behaviour.
 #[no_mangle]
 pub unsafe extern fn pactffi_generate_datetime_string(format: *const c_char) -> StringResult {
   if format.is_null() {
@@ -476,11 +478,12 @@ pub unsafe extern fn pactffi_generate_datetime_string(format: *const c_char) -> 
   }
 }
 
-/// Checks that the example string matches the given regex
+/// Checks that the example string matches the given regex.
 ///
 /// # Safety
 ///
-/// Exported functions are inherently unsafe.
+/// Both the regex and example pointers must be valid pointers to NULL-terminated strings. Invalid
+/// pointers will result in undefined behaviour.
 #[no_mangle]
 pub unsafe extern fn pactffi_check_regex(regex: *const c_char, example: *const c_char) -> bool {
   if regex.is_null() {
@@ -524,11 +527,12 @@ pub fn generate_regex_value_internal(regex: &str) -> Result<String, String> {
 }
 
 /// Generates an example string based on the provided regex.
-/// NOTE: The memory for the returned string needs to be freed with the free_string function
+/// NOTE: The memory for the returned string needs to be freed with the `pactffi_string_delete` function.
 ///
 /// # Safety
 ///
-/// Exported functions are inherently unsafe.
+/// The regex pointer must be a valid pointer to a NULL-terminated string. Invalid pointers will
+/// result in undefined behaviour.
 #[no_mangle]
 pub unsafe extern fn pactffi_generate_regex_value(regex: *const c_char) -> StringResult {
   if regex.is_null() {
@@ -557,11 +561,12 @@ pub unsafe extern fn pactffi_generate_regex_value(regex: *const c_char) -> Strin
 
 /// [DEPRECATED] Frees the memory allocated to a string by another function
 ///
-/// This function is deprecated. Use pactffi_string_delete instead.
+/// This function is deprecated. Use `pactffi_string_delete` instead.
 ///
 /// # Safety
 ///
-/// Exported functions are inherently unsafe.
+/// The string pointer can be NULL (which is a no-op), but if it is not a valid pointer the call
+/// will result in undefined behaviour.
 #[no_mangle]
 #[deprecated(since = "0.1.0", note = "Use pactffi_string_delete instead")]
 pub unsafe extern fn pactffi_free_string(s: *mut c_char) {
