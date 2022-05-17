@@ -310,6 +310,20 @@ async fn publish_successful_result_to_broker() {
     }
   ];
   
-  let source = PactSource::BrokerUrl("Test".to_string(), server.url().to_string(), None, links);
+  let source = PactSource::BrokerUrl("Test".to_string(), server.url().to_string(), None, links.clone());
+  super::publish_result(&vec![(Some("1".to_string()), Ok(()))], &source, &options).await;
+
+  // Same publish but with dynamic configuration as pact source:
+  let source = PactSource::BrokerWithDynamicConfiguration {
+    provider_name: "Test".to_string(),
+    broker_url: server.url().to_string(),
+    enable_pending: false,
+    include_wip_pacts_since: None,
+    provider_tags: vec![],
+    provider_branch: Some("branch".to_string()),
+    selectors: vec![],
+    auth: None,
+    links
+  };
   super::publish_result(&vec![(Some("1".to_string()), Ok(()))], &source, &options).await;
 }

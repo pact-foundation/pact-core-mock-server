@@ -1207,38 +1207,59 @@ fn process_comments(interaction: Box<dyn V4Interaction>, output: &mut Vec<String
 async fn publish_result(
   results: &[(Option<String>, Result<(), MismatchResult>)],
   source: &PactSource,
-  options: &PublishOptions
+  options: &PublishOptions,
 ) {
-  if let PactSource::BrokerUrl(_, broker_url, auth, links) = source.clone() {
-    info!("Publishing verification results back to the Pact Broker");
-    let result = if results.iter().all(|(_, result)| result.is_ok()) {
-      debug!("Publishing a successful result to {}", source);
-      TestResult::Ok(results.iter().map(|(id, _)| id.clone()).collect())
-    } else {
-      debug!("Publishing a failure result to {}", source);
-      TestResult::Failed(
-        results.iter()
+  let publish_result = match source.clone() {
+    PactSource::BrokerUrl(_, broker_url, auth, links) => {
+      publish_to_broker(results, source, &options.build_url, &options.provider_tags, &options.provider_branch, &options.provider_version, links, broker_url, auth).await
+    }
+    PactSource::BrokerWithDynamicConfiguration { broker_url, auth, links, provider_branch, provider_tags, .. } => {
+      publish_to_broker(results, source, &options.build_url, &provider_tags, &provider_branch, &options.provider_version, links, broker_url, auth).await
+    }
+    _ => {
+      info!("Not publishing results as publishing for pact source {:?} is not possible or not yet implemented", source);
+      return;
+    }
+  };
+  match &publish_result {
+    Ok(_) => info!("Results published to Pact Broker"),
+    Err(err) => error!("Publishing of verification results failed with an error: {}", err)
+  };
+}
+
+async fn publish_to_broker(
+  results: &[(Option<String>, Result<(), MismatchResult>)],
+  source: &PactSource,
+  build_url: &Option<String>,
+  provider_tags: &Vec<String>,
+  provider_branch: &Option<String>,
+  provider_version: &Option<String>,
+  links: Vec<Link>,
+  broker_url: String,
+  auth: Option<HttpAuth>,
+) -> Result<Value, pact_broker::PactBrokerError> {
+  info!("Publishing verification results back to the Pact Broker");
+  let result = if results.iter().all(|(_, result)| result.is_ok()) {
+    debug!("Publishing a successful result to {}", source);
+    TestResult::Ok(results.iter().map(|(id, _)| id.clone()).collect())
+  } else {
+    debug!("Publishing a failure result to {}", source);
+    TestResult::Failed(
+      results.iter()
         .map(|(id, result)| (id.clone(), result.as_ref().err().cloned()))
         .collect()
-      )
-    };
-    let provider_version = options.provider_version.clone().unwrap();
-    let publish_result = publish_verification_results(
-      links,
-      broker_url.as_str(),
-      auth.clone(),
-      result,
-      provider_version,
-      options.build_url.clone(),
-      options.provider_tags.clone(),
-      options.provider_branch.clone()
-    ).await;
-
-    match &publish_result {
-      Ok(_) => info!("Results published to Pact Broker"),
-      Err(err) => error!("Publishing of verification results failed with an error: {}", err)
-    };
-  }
+    )
+  };
+  publish_verification_results(
+    links,
+    broker_url.as_str(),
+    auth.clone(),
+    result,
+    provider_version.clone().unwrap(),
+    build_url.clone(),
+    provider_tags.clone(),
+    provider_branch.clone(),
+  ).await
 }
 
 #[cfg(test)]
