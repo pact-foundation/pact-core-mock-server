@@ -67,7 +67,8 @@ fn start_provider(context: &mut WebmachineContext, options: ServerOpts) -> Resul
           let mock_server_id = Uuid::new_v4().to_string();
           let config = MockServerConfig {
             cors_preflight: query_param_set(context, "cors"),
-            pact_specification: PactSpecification::default()
+            pact_specification: PactSpecification::default(),
+            transport_config: Default::default()
           };
           debug!("Mock server config = {:?}", config);
 
@@ -238,7 +239,7 @@ fn mock_server_resource<'a>() -> WebmachineResource<'a> {
       match context.metadata.get("subpath") {
         None => {
           let id = context.metadata.get("id").unwrap().clone();
-          SERVER_MANAGER.lock().unwrap().find_mock_server_by_id(&id, &|ms| ms.to_json())
+          SERVER_MANAGER.lock().unwrap().find_mock_server_by_id(&id, &|_, ms| ms.unwrap_left().to_json())
             .map(|json| json.to_string())
         }
         Some(_) => {

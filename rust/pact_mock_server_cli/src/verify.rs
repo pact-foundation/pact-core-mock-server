@@ -86,8 +86,8 @@ fn validate_port(port: u16, server_manager: &Mutex<ServerManager>) -> Result<Moc
 
 fn validate_uuid(id: &str, server_manager: &Mutex<ServerManager>) -> Result<MockServer, String> {
     server_manager.lock().unwrap()
-        .find_mock_server_by_id(&id.to_string(), &|ms| {
-            ms.clone()
+        .find_mock_server_by_id(&id.to_string(), &|_, ms| {
+            ms.unwrap_left().clone()
         })
         .ok_or(format!("No mock server running with id '{}'", id))
 }
