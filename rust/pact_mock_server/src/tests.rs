@@ -1,3 +1,4 @@
+use std::net::SocketAddr;
 use expectest::expect;
 use expectest::prelude::*;
 use maplit::*;
@@ -213,7 +214,9 @@ fn match_request_with_header_with_multiple_values() {
   let response = client.get(format!("http://127.0.0.1:{}", port).as_str())
     .header(ACCEPT, "application/hal+json, application/json").send();
 
-  let mismatches = manager.find_mock_server_by_id(&id, &|ms| ms.mismatches());
+  let mismatches = manager.find_mock_server_by_id(&id, &|_, ms| {
+    ms.unwrap_left().mismatches()
+  });
   manager.shutdown_mock_server_by_port(port);
 
   expect!(mismatches).to(be_some().value(vec![]));
@@ -249,4 +252,37 @@ async fn match_request_with_more_specific_request() {
   let expected = interaction2.clone();
   let result2 = match_request(&request2.clone(), &pact).await;
   expect!(result2).to(be_equal_to(MatchResult::RequestMatch(expected.request, expected.response)));
+}
+
+#[test]
+fn basic_mock_server_test() {
+  let pact = V4Pact {
+    interactions: vec![
+      SynchronousHttp {
+        request: HttpRequest {
+          headers: Some(hashmap! {
+            "accept".to_string() => vec!["application/json".to_string()]
+          }),
+          .. HttpRequest::default()
+        },
+        .. SynchronousHttp::default()
+      }.boxed_v4()
+    ],
+    .. V4Pact::default()
+  };
+  let id = "basic_mock_server_test".to_string();
+  let addr: SocketAddr = "127.0.0.1:0".parse().unwrap();
+  let port = start_mock_server_for_transport(id.clone(), pact.boxed(), addr, "http", MockServerConfig::default()).unwrap();
+
+  let client = reqwest::blocking::Client::new();
+  let response = client.get(format!("http://127.0.0.1:{}", port).as_str())
+    .header(ACCEPT, "application/json").send();
+
+  let all_matched = mock_server_matched(port);
+  let mismatches = mock_server_mismatches(port);
+  shutdown_mock_server(port);
+
+  expect!(all_matched).to(be_true());
+  expect!(mismatches).to(be_some().value("[]"));
+  expect!(response.unwrap().status()).to(be_equal_to(200));
 }

@@ -3,18 +3,36 @@
 //!
 
 use std::collections::BTreeMap;
-use std::net::SocketAddr;
+use std::future::Future;
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::{Arc, Mutex};
 
+use anyhow::anyhow;
+use itertools::Either;
 use pact_models::pact::Pact;
+use pact_plugin_driver::catalogue_manager::{CatalogueEntry, CatalogueEntryProviderType};
+use pact_plugin_driver::mock_server::MockServerDetails;
 use rustls::ServerConfig;
-use tracing::debug;
+use tracing::{debug, error};
+use url::Url;
 
 use crate::mock_server::{MockServer, MockServerConfig};
 
+/// Mock server that has been provided by a plugin
+#[derive(Debug, Clone)]
+pub struct PluginMockServer {
+  /// Details of the running mock server
+  pub mock_server_details: MockServerDetails,
+  /// Catalogue entry for the transport
+  pub catalogue_entry: CatalogueEntry,
+}
+
 struct ServerEntry {
-  mock_server: Arc<Mutex<MockServer>>,
-  join_handle: tokio::task::JoinHandle<()>,
+  /// Either a local mock server or a plugin provided one
+  mock_server: Either<Arc<Mutex<MockServer>>, PluginMockServer>,
+  /// Port the mock server is running on
+  port: u16,
+  join_handle: Option<tokio::task::JoinHandle<()>>
 }
 
 /// Struct to represent many mock servers running in a background thread
@@ -52,8 +70,9 @@ impl ServerManager {
       self.mock_servers.insert(
         id,
         ServerEntry {
-          mock_server,
-          join_handle: self.runtime.spawn(future),
+          mock_server: Either::Left(mock_server),
+          port: port.unwrap_or_else(|| addr.port()),
+          join_handle: Some(self.runtime.spawn(future))
         },
       );
 
@@ -79,8 +98,9 @@ impl ServerManager {
       self.mock_servers.insert(
         id,
         ServerEntry {
-          mock_server,
-          join_handle: self.runtime.spawn(future),
+          mock_server: Either::Left(mock_server),
+          port: port.unwrap_or_else(|| addr.port()),
+          join_handle: Some(self.runtime.spawn(future))
         }
       );
 
@@ -113,14 +133,13 @@ impl ServerManager {
     let addr= ([0, 0, 0, 0], port as u16).into();
     let (mock_server, future) = MockServer::new(id.clone(), pact, addr, config).await?;
 
-    let port = {
-      mock_server.lock().unwrap().port.clone()
-    };
+    let port = { mock_server.lock().unwrap().port.clone() };
     self.mock_servers.insert(
       id,
       ServerEntry {
-        mock_server,
-        join_handle: self.runtime.spawn(future),
+        mock_server: Either::Left(mock_server),
+        port: port.unwrap_or_else(|| addr.port()),
+        join_handle: Some(self.runtime.spawn(future))
       },
     );
 
@@ -140,86 +159,173 @@ impl ServerManager {
           .map(|addr| addr.port())
     }
 
-    /// Shut down a server by its id
-    pub fn shutdown_mock_server_by_id(&mut self, id: String) -> bool {
-      match self.mock_servers.remove(&id) {
-        Some(entry) => {
-          let mut ms = entry.mock_server.lock().unwrap();
+  /// Start a new mock server for the provided transport on the runtime. Returns the socket address
+  /// that the server is running on.
+  pub fn start_mock_server_for_transport(
+    &mut self,
+    id: String,
+    pact: Box<dyn Pact + Send + Sync>,
+    addr: SocketAddr,
+    transport: &CatalogueEntry,
+    config: MockServerConfig
+  ) -> anyhow::Result<SocketAddr> {
+    if transport.provider_type == CatalogueEntryProviderType::PLUGIN {
+      let mock_server_config = pact_plugin_driver::mock_server::MockServerConfig {
+        output_path: None,
+        host_interface: Some(addr.ip().to_string()),
+        port: addr.port() as u32,
+        tls: false
+      };
+      let result = self.runtime.block_on(pact_plugin_driver::plugin_manager::start_mock_server(transport, pact.boxed(), mock_server_config))?;
+      self.mock_servers.insert(
+        id,
+        ServerEntry {
+          mock_server: Either::Right(PluginMockServer {
+            mock_server_details: result.clone(),
+            catalogue_entry: transport.clone()
+          }),
+          port: result.port as u16,
+          join_handle: None
+        }
+      );
+
+      let url = Url::parse(&result.base_url)?;
+      (url.host_str().unwrap_or_default(), result.port as u16).to_socket_addrs()?.next()
+        .ok_or_else(|| anyhow!("Could not parse the result from the plugin as a socket address"))
+    } else {
+      self.start_mock_server_with_addr(id, pact, addr, config)
+        .map_err(|err| anyhow!(err))
+    }
+  }
+
+  /// Shut down a server by its id. This function will only shut down a local mock server, not one
+  /// provided by a plugin.
+  pub fn shutdown_mock_server_by_id(&mut self, id: String) -> bool {
+    match self.mock_servers.remove(&id) {
+      Some(entry) => match entry.mock_server {
+        Either::Left(mock_server) => {
+          let mut ms = mock_server.lock().unwrap();
           debug!("Shutting down mock server with ID {} - {:?}", id, ms.metrics);
           match ms.shutdown() {
             Ok(()) => {
-              self.runtime.block_on(entry.join_handle).unwrap();
+              self.runtime.block_on(entry.join_handle.unwrap()).unwrap();
               true
             }
             Err(_) => false,
           }
-        },
-        None => false,
-      }
-    }
-
-    /// Shut down a server by its local port number
-    pub fn shutdown_mock_server_by_port(&mut self, port: u16) -> bool {
-      debug!("Shutting down mock server with port {}", port);
-      let result = self
-        .mock_servers
-        .iter()
-        .find(|(_id, entry)| entry.mock_server.lock().unwrap().port.unwrap_or_default() == port)
-        .map(|(_id, entry)| entry.mock_server.lock().unwrap().id.clone());
-
-      if let Some(id) = result {
-        if let Some(entry) = self.mock_servers.remove(&id) {
-          let mut ms = entry.mock_server.lock().unwrap();
-          debug!("Shutting down mock server with port {} - {:?}", port, ms.metrics);
-          return match ms.shutdown() {
-            Ok(()) => {
-              self.runtime.block_on(entry.join_handle).unwrap();
-              true
-            }
-            Err(_) => false,
-          };
         }
-      }
+        Either::Right(plugin_mock_server) => {
+          match self.runtime.block_on(pact_plugin_driver::plugin_manager::shutdown_mock_server(&plugin_mock_server.mock_server_details)) {
+            Ok(_) => true,
+            Err(err) => {
+              error!("Failed to shutdown plugin mock server with ID {} - {}", id, err);
+              false
+            }
+          }
+        }
+      },
+      None => false,
+    }
+  }
 
+  /// Shut down a server by its local port number
+  pub fn shutdown_mock_server_by_port(&mut self, port: u16) -> bool {
+    debug!("Shutting down mock server with port {}", port);
+    let result = self
+      .mock_servers
+      .iter()
+      .find_map(|(id, entry)| {
+        if entry.port == port {
+          Some(id.clone())
+        } else {
+          None
+        }
+      });
+
+    if let Some(id) = result {
+      self.shutdown_mock_server_by_id(id)
+    } else {
       false
     }
+  }
 
-    /// Find mock server by id, and map it using supplied function if found
-    pub fn find_mock_server_by_id<R>(
-      &self,
-      id: &String,
-      f: &dyn Fn(&MockServer) -> R,
-    ) -> Option<R> {
-      match self.mock_servers.get(id) {
-        Some(entry) => Some(f(&entry.mock_server.lock().unwrap())),
-        None => None,
+  /// Find mock server by id, and map it using supplied function if found.
+  pub fn find_mock_server_by_id<R>(
+    &self,
+    id: &String,
+    f: &dyn Fn(&ServerManager, Either<&MockServer, &PluginMockServer>) -> R
+  ) -> Option<R> {
+    match self.mock_servers.get(id) {
+      Some(entry) => match &entry.mock_server {
+        Either::Left(mock_server) => {
+          let inner = mock_server.lock().unwrap();
+          Some(f(self, Either::Left(&inner)))
+        }
+        Either::Right(plugin_mock_server) => Some(f(self, Either::Right(plugin_mock_server)))
+      }
+      None => None,
+    }
+  }
+
+  /// Find a mock server by port number and and map it using supplied function if found.
+  pub fn find_mock_server_by_port<R>(
+    &self,
+    port: u16,
+    f: &dyn Fn(&ServerManager, Either<&MockServer, &PluginMockServer>) -> R
+  ) -> Option<R> {
+    match self.mock_servers
+      .iter()
+      .find(|(_id, entry)| entry.port == port)
+    {
+      Some((_id, entry)) => match &entry.mock_server {
+        Either::Left(mock_server) => {
+          let inner = mock_server.lock().unwrap();
+          Some(f(self, Either::Left(&inner)))
+        }
+        Either::Right(plugin_mock_server) => Some(f(self, Either::Right(&plugin_mock_server)))
+      }
+      None => None,
+    }
+  }
+
+  /// Find a mock server by port number and apply a mutating operation on it if successful. This will
+  /// only work for locally managed mock servers, not mock servers provided by plugins.
+  pub fn find_mock_server_by_port_mut<R>(
+    &mut self,
+    port: u16,
+    f: &dyn Fn(&mut MockServer) -> R,
+  ) -> Option<R> {
+    match self
+      .mock_servers
+      .iter_mut()
+      .find(|(_id, entry)| entry.port == port)
+    {
+      Some((_id, entry)) => match &mut entry.mock_server {
+        Either::Left(mock_server) => {
+          Some(f(&mut mock_server.lock().unwrap()))
+        }
+        Either::Right(_) => None
+      }
+      None => None,
+    }
+  }
+
+  /// Map all the running mock servers This will only work for locally managed mock servers,
+  /// not mock servers provided by plugins.
+  pub fn map_mock_servers<R>(&self, f: &dyn Fn(&MockServer) -> R) -> Vec<R> {
+    let mut results = vec![];
+    for (_id_, entry) in self.mock_servers.iter() {
+      if let Either::Left(mock_server) = &entry.mock_server {
+        results.push(f(&mock_server.lock().unwrap()));
       }
     }
+    return results;
+  }
 
-    /// Find a mock server by port number and apply a mutating operation on it if successful
-    pub fn find_mock_server_by_port_mut<R>(
-      &mut self,
-      port: u16,
-      f: &dyn Fn(&mut MockServer) -> R,
-    ) -> Option<R> {
-      match self
-        .mock_servers
-        .iter_mut()
-        .find(|(_id, entry)| entry.mock_server.lock().unwrap().port.unwrap_or_default() == port)
-      {
-        Some((_id, entry)) => Some(f(&mut entry.mock_server.lock().unwrap())),
-        None => None,
-      }
-    }
-
-    /// Map all the running mock servers
-    pub fn map_mock_servers<R>(&self, f: &dyn Fn(&MockServer) -> R) -> Vec<R> {
-      let mut results = vec![];
-      for (_id_, entry) in self.mock_servers.iter() {
-        results.push(f(&entry.mock_server.lock().unwrap()));
-      }
-      return results;
-    }
+  /// Execute a future on the Tokio runtime for the service manager
+  pub(crate) fn exec_async<OUT>(&self, future: impl Future<Output=OUT>) -> OUT {
+    self.runtime.block_on(future)
+  }
 }
 
 #[cfg(test)]

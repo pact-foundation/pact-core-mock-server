@@ -9,15 +9,20 @@
 
 use std::sync::Mutex;
 
+use anyhow::anyhow;
+use itertools::Either;
+use itertools::Itertools;
 use lazy_static::*;
 use maplit::hashmap;
 use pact_models::pact::{load_pact_from_json, Pact};
+use pact_plugin_driver::catalogue_manager;
 use pact_plugin_driver::catalogue_manager::{
   CatalogueEntry,
   CatalogueEntryProviderType,
   CatalogueEntryType,
   register_core_entries
 };
+use pact_plugin_driver::plugin_manager::get_mock_server_results;
 use rustls::ServerConfig;
 use serde_json::json;
 use tracing::error;
@@ -31,6 +36,7 @@ pub mod mock_server;
 pub mod server_manager;
 mod hyper_server;
 pub mod tls;
+mod utils;
 
 /// Mock server errors
 #[derive(thiserror::Error, Debug)]
@@ -181,6 +187,39 @@ pub fn start_tls_mock_server_with_config(
     .map(|addr| addr.port() as i32)
 }
 
+/// Starts a mock server for the provided transport. The ID needs to be unique. A port
+/// number of 0 will result in an auto-allocated port by the operating system. Returns the port
+/// that the mock server is running on wrapped in a `Result`.
+///
+/// * `id` - Unique ID for the mock server.
+/// * `pact` - Pact model to use for the mock server.
+/// * `addr` - Socket address that the server should listen on.
+/// * `transport` - Transport to use for the mock server.
+/// * `config` - Configuration for the mock server. Transport specific configuration must be specified in the `transport_config` field.
+///
+/// # Errors
+///
+/// An error will be returned if the mock server is not able to be started or the transport is not known.
+pub fn start_mock_server_for_transport(
+  id: String,
+  pact: Box<dyn Pact + Send + Sync>,
+  addr: std::net::SocketAddr,
+  transport: &str,
+  config: MockServerConfig
+) -> anyhow::Result<i32> {
+  configure_core_catalogue();
+  pact_matching::matchers::configure_core_catalogue();
+
+  let key = format!("transport/{}", transport);
+  let transport_entry = catalogue_manager::lookup_entry(key.as_str())
+    .ok_or_else(|| anyhow!("Transport '{}' is not a known transport", transport))?;
+
+  MANAGER.lock().unwrap()
+    .get_or_insert_with(ServerManager::new)
+    .start_mock_server_for_transport(id, pact, addr, &transport_entry, config)
+    .map(|addr| addr.port() as i32)
+}
+
 /// Creates a mock server. Requires the pact JSON as a string as well as the port for the mock
 /// server to run on. A value of 0 for the port will result in a
 /// port being allocated by the operating system. The port of the mock server is returned.
@@ -241,29 +280,76 @@ pub fn create_tls_mock_server(
 /// Function to check if a mock server has matched all its requests. The port number is
 /// passed in, and if all requests have been matched, true is returned. False is returned if there
 /// is no mock server on the given port, or if any request has not been successfully matched.
+///
+/// Note that for mock servers provided by plugins, if the call to the plugin fails, a value of false
+/// will also be returned.
 pub fn mock_server_matched(mock_server_port: i32) -> bool {
-    MANAGER.lock().unwrap()
-        .get_or_insert_with(ServerManager::new)
-        .find_mock_server_by_port_mut(mock_server_port as u16, &|mock_server| {
-            mock_server.mismatches().is_empty()
-        })
-        .unwrap_or(false)
+  MANAGER.lock().unwrap()
+    .get_or_insert_with(ServerManager::new)
+    .find_mock_server_by_port(mock_server_port as u16, &|server_manager, mock_server| {
+      match mock_server {
+        Either::Left(mock_server) => mock_server.mismatches().is_empty(),
+        Either::Right(plugin_mock_server) => {
+          let results = server_manager.exec_async(get_mock_server_results(&plugin_mock_server.mock_server_details));
+          match results {
+            Ok(results) => results.is_empty(),
+            Err(err) => {
+              error!("Request to plugin to get matching results failed - {}", err);
+              false
+            }
+          }
+        }
+      }
+    })
+    .unwrap_or(false)
 }
 
-/// Gets all the mismatches from a mock server. The port number of the mock
+/// Gets all the mismatches from a mock server in JSON format. The port number of the mock
 /// server is passed in, and the results are returned in JSON format as a String.
 ///
 /// If there is no mock server with the provided port number, `None` is returned.
 ///
-pub fn mock_server_mismatches(mock_server_port: i32) -> Option<std::string::String> {
-    MANAGER.lock().unwrap()
-        .get_or_insert_with(ServerManager::new)
-        .find_mock_server_by_port_mut(mock_server_port as u16, &|mock_server| {
-            let mismatches = mock_server.mismatches().iter()
+/// For mock servers provided by plugins, if the call to the plugin fails, a JSON value with an
+/// error attribute will be returned.
+pub fn mock_server_mismatches(mock_server_port: i32) -> Option<String> {
+  MANAGER.lock().unwrap()
+    .get_or_insert_with(ServerManager::new)
+    .find_mock_server_by_port(mock_server_port as u16, &|manager, mock_server| {
+      match mock_server {
+        Either::Left(mock_server) => {
+          let mismatches = mock_server.mismatches().iter()
             .map(|mismatch| mismatch.to_json() )
             .collect::<Vec<serde_json::Value>>();
-            json!(mismatches).to_string()
-        })
+          json!(mismatches).to_string()
+        }
+        Either::Right(plugin_mock_server) => {
+          let results = manager.exec_async(get_mock_server_results(&plugin_mock_server.mock_server_details));
+          match results {
+            Ok(results) => {
+              json!(results.iter().map(|item| {
+                json!({
+                  "path": item.path,
+                  "error": item.error,
+                  "mismatches": item.mismatches.iter().map(|mismatch| {
+                    json!({
+                      "expected": mismatch.expected,
+                      "actual": mismatch.actual,
+                      "mismatch": mismatch.mismatch,
+                      "path": mismatch.path,
+                      "diff": mismatch.diff.clone().unwrap_or_default()
+                    })
+                  }).collect_vec()
+                })
+              }).collect_vec())
+            },
+            Err(err) => {
+              error!("Request to plugin to get matching results failed - {}", err);
+              json!({ "error": format!("Request to plugin to get matching results failed - {}", err) })
+            }
+          }.to_string()
+        }
+      }
+    })
 }
 
 /// Write Pact File Errors

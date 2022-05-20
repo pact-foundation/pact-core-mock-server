@@ -4,10 +4,12 @@
 //!
 
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::ffi::CString;
 use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+use pact_models::json_utils::json_to_string;
 
 use pact_models::pact::{Pact, write_pact};
 use pact_models::PactSpecification;
@@ -17,19 +19,43 @@ use pact_plugin_driver::plugin_manager::drop_plugin_access;
 use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
 use rustls::ServerConfig;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{json, Value};
 use tracing::{debug, info, trace, warn};
 
 use crate::hyper_server;
 use crate::matching::MatchResult;
+use crate::utils::json_to_bool;
 
 /// Mock server configuration
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct MockServerConfig {
   /// If CORS Pre-Flight requests should be responded to
   pub cors_preflight: bool,
   /// Pact specification to use
-  pub pact_specification: PactSpecification
+  pub pact_specification: PactSpecification,
+  /// Configuration required for the transport used
+  pub transport_config: HashMap<String, Value>
+}
+
+impl MockServerConfig {
+  /// Convert a JSON value into a config struct. This method is tolerant of invalid JSON formats.
+  pub fn from_json(value: &Value) -> MockServerConfig {
+    let mut config = MockServerConfig::default();
+
+    if let Value::Object(map) = value {
+      for (k, v) in map {
+        if k == "corsPreflight" {
+          config.cors_preflight = json_to_bool(v).unwrap_or_default();
+        } else if k == "pactSpecification" {
+          config.pact_specification = PactSpecification::from(json_to_string(v));
+        } else {
+          config.transport_config.insert(k.clone(), v.clone());
+        }
+      }
+    }
+
+    config
+  }
 }
 
 /// Mock server scheme
@@ -349,5 +375,38 @@ impl Default for MockServer {
       metrics: Default::default(),
       spec_version: Default::default()
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use expectest::prelude::*;
+  use maplit::hashmap;
+  use pact_models::PactSpecification;
+  use serde_json::{json, Value};
+
+  use crate::MockServerConfig;
+
+  #[test]
+  fn test_mock_server_config_from_json() {
+    expect!(MockServerConfig::from_json(&Value::Null)).to(be_equal_to(MockServerConfig::default()));
+    expect!(MockServerConfig::from_json(&Value::Array(vec![]))).to(be_equal_to(MockServerConfig::default()));
+    expect!(MockServerConfig::from_json(&Value::String("s".into()))).to(be_equal_to(MockServerConfig::default()));
+    expect!(MockServerConfig::from_json(&Value::Bool(true))).to(be_equal_to(MockServerConfig::default()));
+    expect!(MockServerConfig::from_json(&json!(12334))).to(be_equal_to(MockServerConfig::default()));
+
+    expect!(MockServerConfig::from_json(&json!({
+      "corsPreflight": true,
+      "pactSpecification": "V4",
+      "tlsKey": "key",
+      "tlsCertificate": "cert"
+    }))).to(be_equal_to(MockServerConfig {
+      cors_preflight: true,
+      pact_specification: PactSpecification::V4,
+      transport_config: hashmap! {
+        "tlsKey".to_string() => json!("key"),
+        "tlsCertificate".to_string() => json!("cert")
+      }
+    }));
   }
 }
