@@ -47,17 +47,20 @@ use std::{ptr, str};
 use std::any::Any;
 use std::ffi::CStr;
 use std::ffi::CString;
+use std::net::ToSocketAddrs;
 use std::panic::catch_unwind;
 use std::str::from_utf8;
 
+use anyhow::Context;
 use chrono::Local;
 use libc::c_char;
-use log::*;
 use onig::Regex;
 use pact_models::pact::Pact;
 use pact_models::time_utils::{parse_pattern, to_chrono_pattern};
 use rand::prelude::*;
-use serde_json::json;
+use serde_json::{json, Value};
+use tokio_rustls::rustls::ServerConfig;
+use tracing::error;
 use uuid::Uuid;
 
 use pact_matching::logging::fetch_buffer_contents;
@@ -65,20 +68,23 @@ use pact_mock_server::{MANAGER, MockServerError, tls::TlsConfigBuilder, WritePac
 use pact_mock_server::mock_server::MockServerConfig;
 use pact_mock_server::server_manager::ServerManager;
 
-use crate::convert_cstr;
-use crate::mock_server::handles::path_from_dir;
+use crate::{convert_cstr, ffi_fn, safe_str};
+use crate::mock_server::handles::{PactHandle, path_from_dir};
+use crate::string::optional_str;
 
 pub mod handles;
 pub mod bodies;
 mod xml;
 
-/// External interface to create a mock server. A pointer to the pact JSON as a NULL-terminated C
+/// [DEPRECATED] External interface to create a HTTP mock server. A pointer to the pact JSON as a NULL-terminated C
 /// string is passed in, as well as the port for the mock server to run on. A value of 0 for the
 /// port will result in a port being allocated by the operating system. The port of the mock server is returned.
 ///
 /// * `pact_str` - Pact JSON
 /// * `addr_str` - Address to bind to in the form name:port (i.e. 127.0.0.1:0)
 /// * `tls` - boolean flag to indicate of the mock server should use TLS (using a self-signed certificate)
+///
+/// This function is deprecated and replaced with `pactffi_create_mock_server_for_transport`.
 ///
 /// # Errors
 ///
@@ -94,6 +100,7 @@ mod xml;
 /// | -6 | Could not create the TLS configuration with the self-signed certificate |
 ///
 #[no_mangle]
+#[deprecated(since = "0.1.7", note = "replaced with pactffi_create_mock_server_for_transport")]
 pub extern fn pactffi_create_mock_server(pact_str: *const c_char, addr_str: *const c_char, tls: bool) -> i32 {
   let result = catch_unwind(|| {
     let c_str = unsafe {
@@ -112,21 +119,9 @@ pub extern fn pactffi_create_mock_server(pact_str: *const c_char, addr_str: *con
       CStr::from_ptr(addr_str)
     };
 
-    let tls_config = if tls {
-      let key = include_str!("self-signed.key");
-      let cert = include_str!("self-signed.crt");
-      match TlsConfigBuilder::new()
-        .key(key.as_bytes())
-        .cert(cert.as_bytes())
-        .build() {
-        Ok(tls_config) => Some(tls_config),
-        Err(err) => {
-          error!("Failed to build TLS configuration - {}", err);
-          return -6;
-        }
-      }
-    } else {
-      None
+    let tls_config = match setup_tls_config(tls) {
+      Ok(config) => config,
+      Err(err) => return err
     };
 
     if let Ok(Ok(addr)) = str::from_utf8(addr_c_str.to_bytes()).map(|s| s.parse::<std::net::SocketAddr>()) {
@@ -175,13 +170,15 @@ pub extern fn pactffi_get_tls_ca_certificate() -> *mut c_char  {
   cert_str.into_raw()
 }
 
-/// External interface to create a mock server. A Pact handle is passed in,
+/// [DEPRECATED] External interface to create a HTTP mock server. A Pact handle is passed in,
 /// as well as the port for the mock server to run on. A value of 0 for the port will result in a
 /// port being allocated by the operating system. The port of the mock server is returned.
 ///
-/// * `pact` - Handle to a Pact model
-/// * `addr_str` - Address to bind to in the form name:port (i.e. 127.0.0.1:0)
+/// * `pact` - Handle to a Pact model created with created with `pactffi_new_pact`.
+/// * `addr_str` - Address to bind to in the form name:port (i.e. 127.0.0.1:0). Must be a valid UTF-8 NULL-terminated string.
 /// * `tls` - boolean flag to indicate of the mock server should use TLS (using a self-signed certificate)
+///
+/// This function is deprecated and replaced with `pactffi_create_mock_server_for_transport`.
 ///
 /// # Errors
 ///
@@ -189,43 +186,36 @@ pub extern fn pactffi_get_tls_ca_certificate() -> *mut c_char  {
 ///
 /// | Error | Description |
 /// |-------|-------------|
-/// | -1 | An invalid handle was received |
+/// | -1 | An invalid handle was received. Handles should be created with `pactffi_new_pact` |
 /// | -3 | The mock server could not be started |
 /// | -4 | The method panicked |
 /// | -5 | The address is not valid |
 /// | -6 | Could not create the TLS configuration with the self-signed certificate |
 ///
 #[no_mangle]
-pub extern fn pactffi_create_mock_server_for_pact(pact: handles::PactHandle, addr_str: *const c_char, tls: bool) -> i32 {
+#[tracing::instrument]
+pub extern fn pactffi_create_mock_server_for_pact(pact: PactHandle, addr_str: *const c_char, tls: bool) -> i32 {
   let result = catch_unwind(|| {
     let addr_c_str = unsafe {
       if addr_str.is_null() {
-        log::error!("Got a null pointer instead of listener address");
+        error!("Got a null pointer instead of listener address");
         return -5;
       }
       CStr::from_ptr(addr_str)
     };
 
-    let tls_config = if tls {
-      let key = include_str!("self-signed.key");
-      let cert = include_str!("self-signed.crt");
-      match TlsConfigBuilder::new()
-        .key(key.as_bytes())
-        .cert(cert.as_bytes())
-        .build() {
-        Ok(tls_config) => Some(tls_config),
-        Err(err) => {
-          error!("Failed to build TLS configuration - {}", err);
-          return -6;
-        }
-      }
-    } else {
-      None
+    let tls_config = match setup_tls_config(tls) {
+      Ok(config) => config,
+      Err(err) => return err
     };
 
-    if let Ok(Ok(addr)) = str::from_utf8(addr_c_str.to_bytes()).map(|s| s.parse::<std::net::SocketAddr>()) {
+    if let Ok(Ok(addr)) = from_utf8(addr_c_str.to_bytes()).map(|s| s.parse::<std::net::SocketAddr>()) {
       pact.with_pact(&move |_, inner| {
-        let config = MockServerConfig { cors_preflight: true, pact_specification: inner.specification_version };
+        let config = MockServerConfig {
+          cors_preflight: true,
+          pact_specification: inner.specification_version,
+          .. MockServerConfig::default()
+        };
         let server_result = match &tls_config {
           Some(tls_config) => pact_mock_server::start_tls_mock_server_with_config(
             Uuid::new_v4().to_string(), inner.pact.boxed(), addr, tls_config, config),
@@ -252,9 +242,117 @@ pub extern fn pactffi_create_mock_server_for_pact(pact: handles::PactHandle, add
   match result {
     Ok(val) => val,
     Err(cause) => {
-      log::error!("Caught a general panic: {:?}", cause);
+      error!("Caught a general panic: {:?}", cause);
       -4
     }
+  }
+}
+
+fn setup_tls_config(tls: bool) -> Result<Option<ServerConfig>, i32> {
+  if tls {
+    let key = include_str!("self-signed.key");
+    let cert = include_str!("self-signed.crt");
+    match TlsConfigBuilder::new()
+      .key(key.as_bytes())
+      .cert(cert.as_bytes())
+      .build() {
+      Ok(tls_config) => Ok(Some(tls_config)),
+      Err(err) => {
+        error!("Failed to build TLS configuration - {}", err);
+        Err(-6)
+      }
+    }
+  } else {
+    Ok(None)
+  }
+}
+
+ffi_fn! {
+  /// Create a mock server for the provided Pact handle and transport. If the transport is not
+  /// provided (it is a NULL pointer or an empty string), will default to an HTTP transport. The
+  /// address is the interface bind to, and will default to the loopback adapter if not specified.
+  /// Specifying a value of zero for the port will result in the operating system allocating the port.
+  ///
+  /// Parameters:
+  /// * `pact` - Handle to a Pact model created with created with `pactffi_new_pact`.
+  /// * `addr` - Address to bind to (i.e. `127.0.0.1` or `[::1]`). Must be a valid UTF-8 NULL-terminated string, or NULL or empty, in which case the loopback adapter is used.
+  /// * `port` - Port number to bind to. A value of zero will result in the operating system allocating an available port.
+  /// * `transport` - The transport to use (i.e. http, https, grpc). Must be a valid UTF-8 NULL-terminated string, or NULL or empty, in which case http will be used.
+  /// * `transport_config` - (OPTIONAL) Configuration for the transport as a valid JSON string. Set to NULL or empty if not required.
+  ///
+  /// The port of the mock server is returned.
+  ///
+  /// # Safety
+  /// NULL pointers or empty strings can be passed in for the address, transport and transport_config,
+  /// in which case a default value will be used. Passing in an invalid pointer will result in undefined behaviour.
+  ///
+  /// # Errors
+  ///
+  /// Errors are returned as negative values.
+  ///
+  /// | Error | Description |
+  /// |-------|-------------|
+  /// | -1 | An invalid handle was received. Handles should be created with `pactffi_new_pact` |
+  /// | -2 | transport_config is not valid JSON |
+  /// | -3 | The mock server could not be started |
+  /// | -4 | The method panicked |
+  /// | -5 | The address is not valid |
+  /// | -6 | Could not create the TLS configuration with the self-signed certificate |
+  ///
+  #[tracing::instrument]
+  fn pactffi_create_mock_server_for_transport(
+    pact: PactHandle,
+    addr: *const c_char,
+    port: u16,
+    transport: *const c_char,
+    transport_config: *const c_char
+  ) -> i32 {
+    let addr = safe_str!(addr);
+    let transport = safe_str!(transport);
+
+    let transport_config = match optional_str(transport_config).map(|config| str::parse::<Value>(config.as_str())) {
+      None => Ok(None),
+      Some(result) => match result {
+        Ok(value) => Ok(Some(MockServerConfig::from_json(&value))),
+        Err(err) => {
+          error!("Failed to parse transport_config as JSON - {}", err);
+          Err(-2)
+        }
+      }
+    };
+
+    match transport_config {
+      Ok(transport_config) => if let Ok(mut socket_addr) = (addr, port).to_socket_addrs() {
+        // Seems ok to unwrap this here, as it doesn't make sense that to_socket_addrs will return
+        // a success with an iterator that is empty
+        let socket_addr = socket_addr.next().unwrap();
+        pact.with_pact(&move |_, inner| {
+          let transport_config = transport_config.clone();
+          let config = MockServerConfig {
+            pact_specification: inner.specification_version,
+            .. transport_config.unwrap_or_default()
+          };
+
+          match pact_mock_server::start_mock_server_for_transport(Uuid::new_v4().to_string(),
+            inner.pact.boxed(), socket_addr, transport, config) {
+            Ok(ms_port) => {
+              inner.mock_server_started = true;
+              ms_port
+            },
+            Err(err) => {
+              error!("Failed to start mock server - {}", err);
+              -3
+            }
+          }
+        }).unwrap_or(-1)
+      } else {
+        error!("Failed to parse '{}' as an address", addr);
+        -2
+      }
+      Err(err) => err
+    }
+  } {
+    -4
   }
 }
 
@@ -332,7 +430,7 @@ pub extern fn pactffi_cleanup_mock_server(mock_server_port: i32) -> bool {
   match result {
     Ok(val) => val,
     Err(cause) => {
-      log::error!("Caught a general panic: {:?}", cause);
+      error!("Caught a general panic: {:?}", cause);
       false
     }
   }

@@ -60,11 +60,22 @@ macro_rules! safe_str {
 }
 
 /// Returns the Rust string from the C string pointer, returning the default value if the pointer
-/// is NULL
+/// is NULL. Non-UTF-8 characters will be replaced with the [`U+FFFD REPLACEMENT CHARACTER`][U+FFFD]
 pub(crate) fn if_null(s: *const c_char, default: &str) -> String {
-    if s.is_null() {
-        default.to_string()
+  optional_str(s).unwrap_or_else(|| default.to_string())
+}
+
+/// Returns the Rust string from the C string pointer, returning the None if the pointer
+/// is NULL ot the string is empty. Non-UTF-8 characters will be replaced with the [`U+FFFD REPLACEMENT CHARACTER`][U+FFFD]
+pub(crate) fn optional_str(s: *const c_char) -> Option<String> {
+  if s.is_null() {
+    None
+  } else {
+    let value = unsafe { CStr::from_ptr(s).to_string_lossy().to_string() };
+    if value.is_empty() {
+      None
     } else {
-        unsafe { CStr::from_ptr(s).to_string_lossy().to_string() }
+      Some(value)
     }
+  }
 }

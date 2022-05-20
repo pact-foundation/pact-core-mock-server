@@ -374,7 +374,7 @@ ffi_fn! {
     ///
     /// * `1` - Function panicked. Error message will be available by calling `pactffi_get_error_message`.
     /// * `2` - Handle was not valid.
-    /// * `3` - Mock server was already started and the interation can not be modified.
+    /// * `3` - Mock server was already started and the integration can not be modified.
     /// * `4` - Not a V4 interaction.
     fn pactffi_interaction_test_name(interaction: InteractionHandle, test_name: *const c_char) -> c_uint {
       let test_name = safe_str!(test_name);
@@ -585,7 +585,7 @@ pub extern fn pactffi_with_pact_metadata(
     if !namespace.is_empty() {
       inner.pact.metadata.insert(namespace.to_string(), json!({ name: value }));
     } else {
-      log::warn!("no namespace provided for metadata {:?} => {:?}. Ignoring", name, value);
+      warn!("no namespace provided for metadata {:?} => {:?}. Ignoring", name, value);
     }
     !inner.mock_server_started
   }).unwrap_or(false)

@@ -40,12 +40,13 @@ ffi_fn! {
   /// Returns zero on success, and a positive integer value on failure.
   ///
   /// Note that plugins run as separate processes, so will need to be cleaned up afterwards by
-  /// calling `pactffi_cleanup_plugins` otherwise you have plugin processes left running.
+  /// calling `pactffi_cleanup_plugins` otherwise you will have plugin processes left running.
   ///
   /// # Safety
   ///
   /// `plugin_name` must be a valid pointer to a NULL terminated string. `plugin_version` may be null,
-  /// and if not NULL must also be a valid pointer to a NULL terminated string.
+  /// and if not NULL must also be a valid pointer to a NULL terminated string. Invalid
+  /// pointers will result in undefined behaviour.
   ///
   /// # Errors
   ///
@@ -140,7 +141,8 @@ ffi_fn! {
 ///
 /// # Safety
 ///
-/// `content_type` and `contents` must be a valid pointers to NULL terminated strings.
+/// `content_type` and `contents` must be a valid pointers to NULL terminated strings. Invalid
+/// pointers will result in undefined behaviour.
 ///
 /// # Errors
 ///
