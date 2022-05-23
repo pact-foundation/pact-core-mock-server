@@ -1,5 +1,30 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.3.0 - Support mock servers from plugins
+
+* 5cd2ae5a - feat: add pactffi_create_mock_server_for_transport function (Ronald Holshausen, Fri May 20 16:09:36 2022 +1000)
+* d9b9fe72 - chore: Upgrade pact-plugin-driver to 0.1.7 (Ronald Holshausen, Fri May 20 15:56:23 2022 +1000)
+* 2b24b52b - chore(ffi): update mock server function docs (Ronald Holshausen, Tue May 17 13:45:44 2022 +1000)
+* bb6f6f47 - chore(CI): fix examples with cmake on Windows (Ronald Holshausen, Tue May 17 13:22:40 2022 +1000)
+* ec49b971 - chore(CI): fix examples with cmake on Windows (Ronald Holshausen, Mon May 16 18:03:43 2022 +1000)
+* 0b2ac979 - chore(CI): fix examples with cmake on Windows (Ronald Holshausen, Mon May 16 17:40:38 2022 +1000)
+* 2ae32295 - chore(ffi): fix examples with cmake on Windows (Ronald Holshausen, Mon May 16 17:07:25 2022 +1000)
+* 6d76df16 - chore(CI): copy OSX dylib to example build dir (Ronald Holshausen, Mon May 16 16:37:33 2022 +1000)
+* 888e6586 - chore: cleanup compiler warnings (Ronald Holshausen, Mon May 16 16:28:46 2022 +1000)
+* 1307dde0 - fix(ffi): OSX CMake file had the wring filename (Ronald Holshausen, Mon May 16 16:04:51 2022 +1000)
+* e1ddffc3 - feat(ffi): open log files in append mode (Ronald Holshausen, Mon May 16 15:31:16 2022 +1000)
+* d76e417c - chore: re-enable the FFI examples in CI (Ronald Holshausen, Mon May 16 14:29:22 2022 +1000)
+* b14fb2b1 - refactor: convert the FFI logging functions to setup a tracing subscriber (Ronald Holshausen, Mon May 16 14:18:22 2022 +1000)
+* f8471bb7 - chore: switch from log crate to tracing crate (Ronald Holshausen, Fri May 13 13:47:18 2022 +1000)
+* 1c97e1e6 - chore: Upgrade depedent crates (Ronald Holshausen, Thu May 12 11:04:34 2022 +1000)
+* 1a973502 - chore: bump minor version of FFI crate (Ronald Holshausen, Thu May 12 11:01:48 2022 +1000)
+* ee9d6bab - chore: Upgrade pact_verifier to 0.13.6 (Ronald Holshausen, Wed May 11 17:40:15 2022 +1000)
+* f6b942da - chore: Upgrade pact_mock_server to 0.8.11 (Ronald Holshausen, Wed May 11 17:00:46 2022 +1000)
+* 08f28e4a - chore: Upgrade pact_matching to 0.12.7 (Ronald Holshausen, Wed May 11 15:57:36 2022 +1000)
+* 37bfc5de - chore: Upgrade pact-plugin-driver to 0.1.6 (Ronald Holshausen, Wed May 11 11:56:23 2022 +1000)
+* 020b5715 - chore: upgrade pact_models to 0.4.1 (Ronald Holshausen, Wed May 11 11:36:57 2022 +1000)
+* e8d62b79 - bump version to 0.2.7 (Ronald Holshausen, Wed Apr 27 16:46:23 2022 +1000)
+
 # 0.2.6 - Maintenance Release
 
 * 14a010a9 - chore: Upgrade pact_verifier to 0.13.5 (Ronald Holshausen, Wed Apr 27 15:21:15 2022 +1000)
