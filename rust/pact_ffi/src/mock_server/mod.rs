@@ -297,7 +297,6 @@ ffi_fn! {
   /// | -3 | The mock server could not be started |
   /// | -4 | The method panicked |
   /// | -5 | The address is not valid |
-  /// | -6 | Could not create the TLS configuration with the self-signed certificate |
   ///
   #[tracing::instrument]
   fn pactffi_create_mock_server_for_transport(
@@ -346,8 +345,8 @@ ffi_fn! {
           }
         }).unwrap_or(-1)
       } else {
-        error!("Failed to parse '{}' as an address", addr);
-        -2
+        error!("Failed to parse '{}', {} as an address", addr, port);
+        -5
       }
       Err(err) => err
     }
