@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.9.4 - Maintenance Release
+
+* d9b9fe72 - chore: Upgrade pact-plugin-driver to 0.1.7 (Ronald Holshausen, Fri May 20 15:56:23 2022 +1000)
+* 6463c5ea - bump version to 0.9.4 (Ronald Holshausen, Wed May 11 17:59:26 2022 +1000)
+* ff607074 - chore: update readme (Ronald Holshausen, Wed May 11 17:56:49 2022 +1000)
+
 # 0.9.3 - Maintenance Release
 
 * 91d72007 - chore: switch from logging crate to tracing crate (Ronald Holshausen, Wed May 11 17:50:30 2022 +1000)
