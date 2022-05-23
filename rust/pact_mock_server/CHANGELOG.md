@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.9.0 - support for mock servers from plugin
+
+* 4f198f10 - feat: support for mock servers from plugins (Ronald Holshausen, Fri May 20 15:59:49 2022 +1000)
+* d9b9fe72 - chore: Upgrade pact-plugin-driver to 0.1.7 (Ronald Holshausen, Fri May 20 15:56:23 2022 +1000)
+* ac6b0058 - bump version to 0.8.12 (Ronald Holshausen, Wed May 11 16:55:52 2022 +1000)
+
 # 0.8.11 - Maintenance Release
 
 * c7bc0b68 - chore: switch from logging crate to tracing crate (Ronald Holshausen, Wed May 11 16:50:32 2022 +1000)
