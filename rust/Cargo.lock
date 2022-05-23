@@ -1269,7 +1269,7 @@ dependencies = [
 
 [[package]]
 name = "pact_ffi"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "ansi_term",
  "anyhow",
