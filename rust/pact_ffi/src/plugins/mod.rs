@@ -12,7 +12,6 @@ use pact_models::content_types::ContentType;
 use pact_models::http_parts::HttpPart;
 use pact_models::json_utils::body_from_json;
 use pact_models::pact::Pact;
-use pact_models::plugins::PluginData;
 use pact_models::prelude::{Generators, MatchingRules};
 use pact_models::v4::interaction::{InteractionMarkup, V4Interaction};
 use pact_models::v4::message_parts::MessageContents;
@@ -232,7 +231,7 @@ pub extern fn pactffi_interaction_contents(interaction: InteractionHandle, part:
               if let Some(generators) = &contents.generators {
                 message.request.generators.add_generators(generators.clone());
               }
-              if !contents.plugin_config.is_empty() {
+              if !contents.plugin_config.interaction_configuration.is_empty() {
                 message.plugin_config.insert(plugin_name.clone(), contents.plugin_config.interaction_configuration.clone());
               }
               message.interaction_markup = InteractionMarkup {
@@ -276,13 +275,12 @@ pub extern fn pactffi_interaction_contents(interaction: InteractionHandle, part:
       Some(value) => match value {
         Ok(plugin_config) => {
           if let Some((plugin, version, config)) = plugin_config {
-            interaction.with_pact(&|_, pact| {
-              pact.pact.plugin_data.push(PluginData {
-                name: plugin.clone(),
-                version: version.clone(),
-                configuration: config.pact_configuration.clone()
-              });
+            let add_plugin_result = interaction.with_pact(&|_, pact| {
+              pact.pact.add_plugin(plugin.as_str(), version.as_str(), Some(config.pact_configuration.clone()))
             });
+            if let Some(Err(err)) = add_plugin_result {
+              error!("Failed to add plugin configuration to pact - {}", err);
+            }
           }
           Ok(0)
         }
