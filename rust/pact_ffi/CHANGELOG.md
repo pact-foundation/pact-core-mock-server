@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.3.1 - Bugfix Release
+
+* 797d1cce - fix(ffi): plugin data was not merged into the Pact file correctly (Ronald Holshausen, Tue May 24 14:13:25 2022 +1000)
+* a78f2a1d - fix(ffi): pactffi_create_mock_server_for_transport was returning the wrong status for invalid address (Ronald Holshausen, Mon May 23 16:56:32 2022 +1000)
+* bf70164f - bump version to 0.3.1 (Ronald Holshausen, Mon May 23 15:33:59 2022 +1000)
+
 # 0.3.0 - Support mock servers from plugins
 
 * 5cd2ae5a - feat: add pactffi_create_mock_server_for_transport function (Ronald Holshausen, Fri May 20 16:09:36 2022 +1000)
