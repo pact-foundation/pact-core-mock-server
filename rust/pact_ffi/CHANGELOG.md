@@ -1,5 +1,15 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.3.2 - Bugfix Release
+
+* 42dcd525 - chore: Disable ANSI escape codes in logs as Pact .Net is unable to deal with them (Ronald Holshausen, Mon May 30 13:16:05 2022 +1000)
+* 61fc3771 - chore: Upgrade pact_verifier to 0.13.7 (Ronald Holshausen, Mon May 30 12:21:12 2022 +1000)
+* f42026d5 - chore: Upgrade pact_mock_server to 0.9.1 (Ronald Holshausen, Mon May 30 12:09:06 2022 +1000)
+* bcddbcfb - chore: Upgrade pact_matching to 0.12.8 (Ronald Holshausen, Mon May 30 11:52:26 2022 +1000)
+* 80256458 - chore: Upgrade pact-plugin-driver to 0.1.8 (Ronald Holshausen, Mon May 30 11:36:54 2022 +1000)
+* 873f0c93 - fix(ffi): resources were not freed correctly when the mock server is provided by a plugin (Ronald Holshausen, Mon May 30 11:05:20 2022 +1000)
+* e32caf8d - bump version to 0.3.2 (Ronald Holshausen, Tue May 24 15:55:23 2022 +1000)
+
 # 0.3.1 - Bugfix Release
 
 * 797d1cce - fix(ffi): plugin data was not merged into the Pact file correctly (Ronald Holshausen, Tue May 24 14:13:25 2022 +1000)
