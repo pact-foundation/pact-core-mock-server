@@ -1,5 +1,16 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.13.7 - Maintenance Release
+
+* bcddbcfb - chore: Upgrade pact_matching to 0.12.8 (Ronald Holshausen, Mon May 30 11:52:26 2022 +1000)
+* 80256458 - chore: Upgrade pact-plugin-driver to 0.1.8 (Ronald Holshausen, Mon May 30 11:36:54 2022 +1000)
+* 873f0c93 - fix(ffi): resources were not freed correctly when the mock server is provided by a plugin (Ronald Holshausen, Mon May 30 11:05:20 2022 +1000)
+* f80f6638 - chore: Upgrade pact_consumer to 0.9.4 (Ronald Holshausen, Mon May 23 14:41:57 2022 +1000)
+* d9b9fe72 - chore: Upgrade pact-plugin-driver to 0.1.7 (Ronald Holshausen, Fri May 20 15:56:23 2022 +1000)
+* f76ddd8e - feat: allow BrokerWithDynamicConfiguration to publish results (kageru, Tue May 17 11:42:14 2022 +0200)
+* 1d06f19f - chore: Upgrade pact_consumer to 0.9.3 (Ronald Holshausen, Wed May 11 18:03:10 2022 +1000)
+* b7c5cbec - bump version to 0.13.7 (Ronald Holshausen, Wed May 11 17:38:48 2022 +1000)
+
 # 0.13.6 - Maintenance Release
 
 * db94b1aa - chore: update readme (Ronald Holshausen, Wed May 11 17:30:50 2022 +1000)
