@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.9.1 - Bugfix Release
+
+* bcddbcfb - chore: Upgrade pact_matching to 0.12.8 (Ronald Holshausen, Mon May 30 11:52:26 2022 +1000)
+* 80256458 - chore: Upgrade pact-plugin-driver to 0.1.8 (Ronald Holshausen, Mon May 30 11:36:54 2022 +1000)
+* 873f0c93 - fix(ffi): resources were not freed correctly when the mock server is provided by a plugin (Ronald Holshausen, Mon May 30 11:05:20 2022 +1000)
+* b8ae4569 - bump version to 0.9.1 (Ronald Holshausen, Mon May 23 14:15:44 2022 +1000)
+
 # 0.9.0 - support for mock servers from plugin
 
 * 4f198f10 - feat: support for mock servers from plugins (Ronald Holshausen, Fri May 20 15:59:49 2022 +1000)
