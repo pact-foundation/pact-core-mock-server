@@ -3,6 +3,7 @@
 //!
 
 use std::collections::BTreeMap;
+use std::ffi::CString;
 use std::future::Future;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::{Arc, Mutex};
@@ -10,6 +11,7 @@ use std::sync::{Arc, Mutex};
 use anyhow::anyhow;
 use itertools::Either;
 use pact_models::pact::Pact;
+use pact_models::prelude::v4::V4Pact;
 use pact_plugin_driver::catalogue_manager::{CatalogueEntry, CatalogueEntryProviderType};
 use pact_plugin_driver::mock_server::MockServerDetails;
 use rustls::ServerConfig;
@@ -25,6 +27,8 @@ pub struct PluginMockServer {
   pub mock_server_details: MockServerDetails,
   /// Catalogue entry for the transport
   pub catalogue_entry: CatalogueEntry,
+  /// Pact for this mock server
+  pub pact: V4Pact
 }
 
 struct ServerEntry {
@@ -32,6 +36,8 @@ struct ServerEntry {
   mock_server: Either<Arc<Mutex<MockServer>>, PluginMockServer>,
   /// Port the mock server is running on
   port: u16,
+  /// List of resources that need to be cleaned up when the mock server completes
+  pub resources: Vec<CString>,
   join_handle: Option<tokio::task::JoinHandle<()>>
 }
 
@@ -72,6 +78,7 @@ impl ServerManager {
         ServerEntry {
           mock_server: Either::Left(mock_server),
           port: port.unwrap_or_else(|| addr.port()),
+          resources: vec![],
           join_handle: Some(self.runtime.spawn(future))
         },
       );
@@ -100,6 +107,7 @@ impl ServerManager {
         ServerEntry {
           mock_server: Either::Left(mock_server),
           port: port.unwrap_or_else(|| addr.port()),
+          resources: vec![],
           join_handle: Some(self.runtime.spawn(future))
         }
       );
@@ -139,6 +147,7 @@ impl ServerManager {
       ServerEntry {
         mock_server: Either::Left(mock_server),
         port: port.unwrap_or_else(|| addr.port()),
+        resources: vec![],
         join_handle: Some(self.runtime.spawn(future))
       },
     );
@@ -170,21 +179,29 @@ impl ServerManager {
     config: MockServerConfig
   ) -> anyhow::Result<SocketAddr> {
     if transport.provider_type == CatalogueEntryProviderType::PLUGIN {
+      let mut v4_pact = pact.as_v4_pact()?;
+      for interaction in v4_pact.interactions.iter_mut() {
+        if let None = interaction.transport() {
+          interaction.set_transport(transport.key.split("/").last().map(|i| i.to_string()));
+        }
+      }
       let mock_server_config = pact_plugin_driver::mock_server::MockServerConfig {
         output_path: None,
         host_interface: Some(addr.ip().to_string()),
         port: addr.port() as u32,
         tls: false
       };
-      let result = self.runtime.block_on(pact_plugin_driver::plugin_manager::start_mock_server(transport, pact.boxed(), mock_server_config))?;
+      let result = self.runtime.block_on(pact_plugin_driver::plugin_manager::start_mock_server(transport, v4_pact.boxed(), mock_server_config))?;
       self.mock_servers.insert(
         id,
         ServerEntry {
           mock_server: Either::Right(PluginMockServer {
             mock_server_details: result.clone(),
-            catalogue_entry: transport.clone()
+            catalogue_entry: transport.clone(),
+            pact: v4_pact
           }),
           port: result.port as u16,
+          resources: vec![],
           join_handle: None
         }
       );
@@ -325,6 +342,18 @@ impl ServerManager {
   /// Execute a future on the Tokio runtime for the service manager
   pub(crate) fn exec_async<OUT>(&self, future: impl Future<Output=OUT>) -> OUT {
     self.runtime.block_on(future)
+  }
+
+  /// Store a string that needs to be cleaned up when the mock server terminates
+  pub fn store_mock_server_resource(&mut self, port: u16, s: CString) -> bool {
+    if let Some((_, entry)) = self.mock_servers
+      .iter_mut()
+      .find(|(_id, entry)| entry.port == port) {
+      entry.resources.push(s);
+      true
+    } else {
+      false
+    }
   }
 }
 

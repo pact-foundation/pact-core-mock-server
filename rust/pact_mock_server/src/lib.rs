@@ -7,6 +7,7 @@
 
 #![warn(missing_docs)]
 
+use std::path::PathBuf;
 use std::sync::Mutex;
 
 use anyhow::anyhow;
@@ -14,7 +15,8 @@ use itertools::Either;
 use itertools::Itertools;
 use lazy_static::*;
 use maplit::hashmap;
-use pact_models::pact::{load_pact_from_json, Pact};
+use pact_models::pact::{load_pact_from_json, Pact, ReadWritePact, write_pact};
+use pact_models::PactSpecification;
 use pact_plugin_driver::catalogue_manager;
 use pact_plugin_driver::catalogue_manager::{
   CatalogueEntry,
@@ -25,7 +27,7 @@ use pact_plugin_driver::catalogue_manager::{
 use pact_plugin_driver::plugin_manager::get_mock_server_results;
 use rustls::ServerConfig;
 use serde_json::json;
-use tracing::error;
+use tracing::{error, info, warn};
 use uuid::Uuid;
 
 use crate::mock_server::MockServerConfig;
@@ -375,13 +377,39 @@ pub fn write_pact_file(
 ) -> Result<(), WritePactFileErr> {
     let opt_result = MANAGER.lock().unwrap()
         .get_or_insert_with(ServerManager::new)
-        .find_mock_server_by_port_mut(mock_server_port as u16, &|mock_server| {
-            mock_server.write_pact(&directory, overwrite)
+        .find_mock_server_by_port(mock_server_port as u16, &|_, ms| {
+          match ms {
+            Either::Left(mock_server) => {
+              mock_server.write_pact(&directory, overwrite)
                 .map(|_| ())
                 .map_err(|err| {
-                    error!("Failed to write pact to file - {}", err);
-                    WritePactFileErr::IOError
+                  error!("Failed to write pact to file - {}", err);
+                  WritePactFileErr::IOError
                 })
+            }
+            Either::Right(plugin_mock_server) => {
+              let mut pact = plugin_mock_server.pact.clone();
+              pact.add_md_version("mockserver", option_env!("CARGO_PKG_VERSION").unwrap_or("unknown"));
+              let pact_file_name = pact.default_file_name();
+              let filename = match directory {
+                Some(ref path) => {
+                  let mut path = PathBuf::from(path);
+                  path.push(pact_file_name);
+                  path
+                },
+                None => PathBuf::from(pact_file_name)
+              };
+
+              info!("Writing pact out to '{}'", filename.display());
+              match write_pact(pact.boxed(), filename.as_path(), PactSpecification::V4, overwrite) {
+                Ok(_) => Ok(()),
+                Err(err) => {
+                  warn!("Failed to write pact to file - {}", err);
+                  Err(WritePactFileErr::IOError)
+                }
+              }
+            }
+          }
         });
 
     match opt_result {

@@ -58,13 +58,13 @@ use onig::Regex;
 use pact_models::pact::Pact;
 use pact_models::time_utils::{parse_pattern, to_chrono_pattern};
 use rand::prelude::*;
-use serde_json::{json, Value};
+use serde_json::Value;
 use tokio_rustls::rustls::ServerConfig;
 use tracing::error;
 use uuid::Uuid;
 
 use pact_matching::logging::fetch_buffer_contents;
-use pact_mock_server::{MANAGER, MockServerError, tls::TlsConfigBuilder, WritePactFileErr};
+use pact_mock_server::{MANAGER, mock_server_mismatches, MockServerError, tls::TlsConfigBuilder, WritePactFileErr};
 use pact_mock_server::mock_server::MockServerConfig;
 use pact_mock_server::server_manager::ServerManager;
 
@@ -390,20 +390,16 @@ pub extern fn pactffi_mock_server_matched(mock_server_port: i32) -> bool {
 #[no_mangle]
 pub extern fn pactffi_mock_server_mismatches(mock_server_port: i32) -> *mut c_char {
   let result = catch_unwind(|| {
-    let result = MANAGER.lock().unwrap()
-      .get_or_insert_with(ServerManager::new)
-      .find_mock_server_by_port_mut(mock_server_port as u16, &|ref mut mock_server| {
-        let mismatches = mock_server.mismatches().iter()
-          .map(|mismatch| mismatch.to_json() )
-          .collect::<Vec<serde_json::Value>>();
-        let json = json!(mismatches);
-        let s = CString::new(json.to_string()).unwrap();
-        let p = s.as_ptr();
-        mock_server.resources.push(s);
-        p
-      });
+    let result = mock_server_mismatches(mock_server_port);
     match result {
-      Some(p) => p as *mut _,
+      Some(str) => {
+        let s = CString::new(str).unwrap();
+        let p = s.as_ptr() as *mut _;
+        MANAGER.lock().unwrap()
+          .get_or_insert_with(ServerManager::new)
+          .store_mock_server_resource(mock_server_port as u16, s);
+        p
+      },
       None => std::ptr::null_mut()
     }
   });
@@ -486,14 +482,18 @@ pub extern fn pactffi_write_pact_file(mock_server_port: i32, directory: *const c
 #[no_mangle]
 pub extern fn pactffi_mock_server_logs(mock_server_port: i32) -> *const c_char {
   let result = catch_unwind(|| {
-    MANAGER.lock().unwrap()
-      .get_or_insert_with(ServerManager::new)
-      .find_mock_server_by_port_mut(mock_server_port as u16, &|mock_server| {
-        match from_utf8(&fetch_buffer_contents(&mock_server.id)) {
+    let mut guard = MANAGER.lock().unwrap();
+    let manager = guard.get_or_insert_with(ServerManager::new);
+    let logs = manager.find_mock_server_by_port_mut(mock_server_port as u16, &|mock_server| {
+      fetch_buffer_contents(&mock_server.id)
+    });
+    match logs {
+      Some(bytes) => {
+        match from_utf8(&bytes) {
           Ok(contents) => match CString::new(contents.to_string()) {
             Ok(c_str) => {
               let p = c_str.as_ptr();
-              mock_server.resources.push(c_str);
+              manager.store_mock_server_resource(mock_server_port as u16, c_str);
               p
             },
             Err(err) => {
@@ -506,11 +506,16 @@ pub extern fn pactffi_mock_server_logs(mock_server_port: i32) -> *const c_char {
             ptr::null()
           }
         }
-      })
+      }
+      None => {
+        error!("No mock server found for port {}", mock_server_port);
+        ptr::null()
+      }
+    }
   });
 
   match result {
-    Ok(val) => val.unwrap_or_else(ptr::null),
+    Ok(val) => val,
     Err(cause) => {
       error!("Caught a general panic: {:?}", cause);
       ptr::null()

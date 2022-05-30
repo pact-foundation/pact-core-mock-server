@@ -101,6 +101,7 @@ pub struct MockServer {
   /// Address the mock server is bound to
   pub address: Option<String>,
   /// List of resources that need to be cleaned up when the mock server completes
+  #[deprecated(since = "0.9.1", note = "Resources should be stored on the mock server manager entry")]
   pub resources: Vec<CString>,
   /// Pact that this mock server is based on
   pub pact: Arc<Mutex<dyn Pact + Send + Sync>>,
