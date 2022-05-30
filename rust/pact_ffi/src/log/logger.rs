@@ -47,7 +47,9 @@ pub(crate) fn apply_logger() -> anyhow::Result<()> {
         .unwrap_or(LogLevelFilter::Info);
       let subscriber_builder = FmtSubscriber::builder()
         .with_max_level(max_level.as_trace())
-        .with_thread_names(true);
+        .with_thread_names(true)
+        .with_ansi(false) // Pact .Net can't deal with ANSI escape codes
+      ;
 
       let subscriber = if let Some((sink, level)) = logger_inner.first() {
         let initial_writer = sink_to_make_writer(sink.as_str(), level);

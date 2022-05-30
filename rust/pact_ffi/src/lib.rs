@@ -64,6 +64,7 @@ pub unsafe extern fn pactffi_init(log_env_var: *const c_char) {
     let subscriber = FmtSubscriber::builder()
       .with_env_filter(log_env_var)
       .with_thread_names(true)
+      .with_ansi(false) // Pact .Net can't deal with ANSI escape codes
       .finish();
     if let Err(err) = tracing::subscriber::set_global_default(subscriber) {
       eprintln!("Failed to initialise global tracing subscriber - {err}");
@@ -82,6 +83,7 @@ pub unsafe extern "C" fn pactffi_init_with_log_level(level: *const c_char) {
   let subscriber = FmtSubscriber::builder()
     .with_max_level(log_level)
     .with_thread_names(true)
+    .with_ansi(false) // Pact .Net can't deal with ANSI escape codes
     .finish();
   if let Err(err) = tracing::subscriber::set_global_default(subscriber) {
     eprintln!("Failed to initialise global tracing subscriber - {err}");
