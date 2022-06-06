@@ -7,7 +7,7 @@ use itertools::Itertools;
 use maplit::*;
 use pact_models::http_utils::HttpAuth;
 use pact_models::pact::{load_pact_from_json, Pact};
-use pact_models::PACT_RUST_VERSION;
+use pact_models::{http_utils, PACT_RUST_VERSION};
 use regex::{Captures, Regex};
 use reqwest::{Method, RequestBuilder};
 use serde::{Deserialize, Serialize};
@@ -540,12 +540,12 @@ impl Default for HALClient {
   }
 }
 
-fn links_from_json(json: &serde_json::Value) -> Vec<Link> {
+fn links_from_json(json: &Value) -> Vec<Link> {
    match json.get("_links") {
-    Some(json) => match *json {
-      serde_json::Value::Object(ref v) => {
-        v.iter().map(|(link, json)| match *json {
-          serde_json::Value::Object(ref attr) => Link::from_json(link, attr),
+    Some(json) => match json {
+      Value::Object(v) => {
+        v.iter().map(|(link, json)| match json {
+          Value::Object(attr) => Link::from_json(link, attr),
           _ => Link { name: link.clone(), .. Link::default() }
         }).collect()
       },
@@ -752,6 +752,20 @@ pub async fn fetch_pacts_dynamically_from_broker(
       .await;
 
     Ok(results)
+}
+
+/// Fetch the Pact from the given URL, using any required authentication. This will use a GET
+/// request to the given URL and parse the result into a Pact model. It will also look for any HAL
+/// links in the response, returning those if found.
+pub async fn fetch_pact_from_url(url: &str, auth: &Option<HttpAuth>) -> anyhow::Result<(Box<dyn Pact + Send + Sync>, Vec<Link>)> {
+  let url = url.to_string();
+  let auth = auth.clone();
+  let (url, pact_json) = tokio::task::spawn_blocking(move || {
+    http_utils::fetch_json_from_url(&url, &auth)
+  }).await??;
+  let pact = load_pact_from_json(&url, &pact_json)?;
+  let links = links_from_json(&pact_json);
+  Ok((pact, links))
 }
 
 /// Struct that wraps the result of a verification test

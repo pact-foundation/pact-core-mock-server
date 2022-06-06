@@ -328,3 +328,188 @@ async fn publish_successful_result_to_broker() {
   };
   super::publish_result(&vec![(Some("1".to_string()), Ok(()))], &source, &options).await;
 }
+
+#[test]
+fn is_pact_broker_source_test() {
+  let result = super::is_pact_broker_source(&vec![]);
+  expect!(result).to(be_false());
+
+  let result = super::is_pact_broker_source(&vec![
+    Link {
+      name: "".to_string(),
+      href: None,
+      templated: false,
+      title: None
+    }
+  ]);
+  expect!(result).to(be_false());
+
+  let result = super::is_pact_broker_source(&vec![
+    Link {
+      name: "pb:some_link".to_string(),
+      href: None,
+      templated: false,
+      title: None
+    }
+  ]);
+  expect!(result).to(be_false());
+
+  let result = super::is_pact_broker_source(&vec![
+    Link {
+      name: "pb:publish-verification-results".to_string(),
+      href: None,
+      templated: false,
+      title: Some("Publish verification results".to_string())
+    }
+  ]);
+  expect!(result).to(be_true());
+
+  let result = super::is_pact_broker_source(&vec![
+    Link {
+      name: "pb:some_link".to_string(),
+      href: None,
+      templated: false,
+      title: None
+    },
+    Link {
+      name: "pb:publish-verification-results".to_string(),
+      href: None,
+      templated: false,
+      title: Some("Publish verification results".to_string())
+    }
+  ]);
+  expect!(result).to(be_true());
+}
+
+#[tokio::test]
+async fn test_fetch_pact_from_url_with_links() {
+  try_init().unwrap_or(());
+
+  let path = "/pacts/provider/Pact%20Broker/consumer/JVM%20Pact%20Broker%20Client/version/4.3.9";
+  let server = PactBuilder::new("RustPactVerifier", "PactBroker")
+  .interaction("a request for a Pact from a webhook", "", |mut i| async move {
+      i.request.method("GET");
+      i.request.path(path);
+      i.response.status(200);
+      i.response.header("content-type", "application/hal+json");
+      i.response.body(json!({
+        "consumer": {
+          "name": "JVM Pact Broker Client"
+        },
+        "interactions": [],
+        "metadata": {
+          "pactSpecification": {
+            "version": "3.0.0"
+          }
+        },
+        "provider": {
+          "name": "Pact Broker"
+        },
+        "_links": {
+          "self": {
+            "title": "Pact",
+            "name": "Pact between JVM Pact Broker Client (4.3.9) and Pact Broker",
+            "href": "https://pact-foundation.pactflow.io/pacts/provider/Pact%20Broker/consumer/JVM%20Pact%20Broker%20Client/version/4.3.9"
+          },
+          "pb:consumer": {
+            "title": "Consumer",
+            "name": "JVM Pact Broker Client",
+            "href": "https://pact-foundation.pactflow.io/pacticipants/JVM%20Pact%20Broker%20Client"
+          },
+          "pb:consumer-version": {
+            "title": "Consumer version",
+            "name": "4.3.9",
+            "href": "https://pact-foundation.pactflow.io/pacticipants/JVM%20Pact%20Broker%20Client/versions/4.3.9"
+          },
+          "pb:provider": {
+            "title": "Provider",
+            "name": "Pact Broker",
+            "href": "https://pact-foundation.pactflow.io/pacticipants/Pact%20Broker"
+          },
+          "pb:pact-version": {
+            "title": "Pact content version permalink",
+            "name": "4b6df5417cd7e999f13e1a32635268527bd20dbf",
+            "href": "https://pact-foundation.pactflow.io/pacts/provider/Pact%20Broker/consumer/JVM%20Pact%20Broker%20Client/pact-version/4b6df5417cd7e999f13e1a32635268527bd20dbf"
+          },
+          "pb:latest-pact-version": {
+            "title": "Latest version of this pact",
+            "href": "https://pact-foundation.pactflow.io/pacts/provider/Pact%20Broker/consumer/JVM%20Pact%20Broker%20Client/latest"
+          },
+          "pb:all-pact-versions": {
+            "title": "All versions of this pact",
+            "href": "https://pact-foundation.pactflow.io/pacts/provider/Pact%20Broker/consumer/JVM%20Pact%20Broker%20Client/versions"
+          },
+          "pb:latest-untagged-pact-version": {
+            "title": "Latest untagged version of this pact",
+            "href": "https://pact-foundation.pactflow.io/pacts/provider/Pact%20Broker/consumer/JVM%20Pact%20Broker%20Client/latest-untagged"
+          },
+          "pb:latest-tagged-pact-version": {
+            "title": "Latest tagged version of this pact",
+            "href": "https://pact-foundation.pactflow.io/pacts/provider/Pact%20Broker/consumer/JVM%20Pact%20Broker%20Client/latest/{tag}",
+            "templated": true
+          },
+          "pb:previous-distinct": {
+            "title": "Previous distinct version of this pact",
+            "href": "https://pact-foundation.pactflow.io/pacts/provider/Pact%20Broker/consumer/JVM%20Pact%20Broker%20Client/version/4.3.9/previous-distinct"
+          },
+          "pb:diff-previous-distinct": {
+            "title": "Diff with previous distinct version of this pact",
+            "href": "https://pact-foundation.pactflow.io/pacts/provider/Pact%20Broker/consumer/JVM%20Pact%20Broker%20Client/version/4.3.9/diff/previous-distinct"
+          },
+          "pb:diff": {
+            "title": "Diff with another specified version of this pact",
+            "href": "https://pact-foundation.pactflow.io/pacts/provider/Pact%20Broker/consumer/JVM%20Pact%20Broker%20Client/pact-version/4b6df5417cd7e999f13e1a32635268527bd20dbf/diff/pact-version/{pactVersion}",
+            "templated": true
+          },
+          "pb:pact-webhooks": {
+            "title": "Webhooks for the pact between JVM Pact Broker Client and Pact Broker",
+            "href": "https://pact-foundation.pactflow.io/webhooks/provider/Pact%20Broker/consumer/JVM%20Pact%20Broker%20Client"
+          },
+          "pb:consumer-webhooks": {
+            "title": "Webhooks for all pacts with provider Pact Broker",
+            "href": "https://pact-foundation.pactflow.io/webhooks/consumer/Pact%20Broker"
+          },
+          "pb:tag-prod-version": {
+            "title": "PUT to this resource to tag this consumer version as 'production'",
+            "href": "https://pact-foundation.pactflow.io/pacticipants/JVM%20Pact%20Broker%20Client/versions/4.3.9/tags/prod"
+          },
+          "pb:tag-version": {
+            "title": "PUT to this resource to tag this consumer version",
+            "href": "https://pact-foundation.pactflow.io/pacticipants/JVM%20Pact%20Broker%20Client/versions/4.3.9/tags/{tag}"
+          },
+          "pb:publish-verification-results": {
+            "title": "Publish verification results",
+            "href": "https://pact-foundation.pactflow.io/pacts/provider/Pact%20Broker/consumer/JVM%20Pact%20Broker%20Client/pact-version/4b6df5417cd7e999f13e1a32635268527bd20dbf/metadata/Y3Y9NTY4/verification-results"
+          },
+          "pb:latest-verification-results": {
+            "href": "https://pact-foundation.pactflow.io/pacts/provider/Pact%20Broker/consumer/JVM%20Pact%20Broker%20Client/pact-version/4b6df5417cd7e999f13e1a32635268527bd20dbf/verification-results/latest"
+          },
+          "pb:triggered-webhooks": {
+            "title": "Webhooks triggered by the publication of this pact",
+            "href": "https://pact-foundation.pactflow.io/pacts/provider/Pact%20Broker/consumer/JVM%20Pact%20Broker%20Client/version/4.3.9/triggered-webhooks"
+          },
+          "pb:matrix-for-consumer-version": {
+            "title": "View matrix rows for the consumer version to which this pact belongs",
+            "href": "https://pact-foundation.pactflow.io/matrix?q[][pacticipant]=JVM+Pact+Broker+Client&q[][version]=4.3.9&latestby=cvpv"
+          },
+          "curies": [
+            {
+              "name": "pb",
+              "href": "https://pact-foundation.pactflow.io/doc/{rel}?context=pact",
+              "templated": true
+            }
+          ]
+        }
+      }).to_string());
+      i
+    })
+    .await
+    .start_mock_server(None);
+
+  let url = server.url().join(path).unwrap();
+  let result = super::fetch_pact(PactSource::URL(url.to_string(), None)).await;
+
+  let first_result = result.get(0).unwrap().as_ref();
+  let source = &first_result.clone().unwrap();
+  expect(source.2.to_string().starts_with("PactBroker(")).to(be_true());
+}

@@ -159,6 +159,7 @@ pub fn read_pact_from_file(file: &mut File, path: &Path) -> anyhow::Result<Box<d
 }
 
 /// Reads the pact file from a URL and parses the resulting JSON into a `Pact` struct
+// TODO: For next major version, refactor this to also return any associated HAL links
 #[cfg(not(target_family = "wasm"))]
 pub fn load_pact_from_url(url: &str, auth: &Option<HttpAuth>) -> anyhow::Result<Box<dyn Pact + Send + Sync>> {
   let (url, pact_json) = http_utils::fetch_json_from_url(&url.to_string(), auth)?;

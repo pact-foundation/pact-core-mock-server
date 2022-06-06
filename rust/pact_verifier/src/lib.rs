@@ -23,7 +23,7 @@ use pact_models::generators::GeneratorTestMode;
 use pact_models::http_utils::HttpAuth;
 use pact_models::interaction::Interaction;
 use pact_models::json_utils::json_to_string;
-use pact_models::pact::{load_pact_from_url, Pact, read_pact};
+use pact_models::pact::{Pact, read_pact};
 use pact_models::prelude::v4::SynchronousHttp;
 use pact_models::provider_states::*;
 use pact_models::v4::interaction::V4Interaction;
@@ -970,11 +970,13 @@ fn process_errors(errors: &Vec<(String, MismatchResult)>, output: &mut Vec<Strin
 async fn fetch_pact(source: PactSource) -> Vec<anyhow::Result<(Box<dyn Pact + Send + Sync>, Option<PactVerificationContext>, PactSource)>> {
   trace!("fetch_pact(source={})", source);
 
-  match source {
-    PactSource::File(ref file) => vec![read_pact(Path::new(&file))
-      .map_err(|err| anyhow!("Failed to load pact '{}' - {}", file, err))
-      .map(|pact| (pact, None, source))],
-    PactSource::Dir(ref dir) => match walkdir(Path::new(dir)) {
+  match &source {
+    PactSource::File(file) => vec![
+      read_pact(Path::new(&file))
+        .map_err(|err| anyhow!("Failed to load pact '{}' - {}", file, err))
+        .map(|pact| (pact, None, source))
+    ],
+    PactSource::Dir(dir) => match walkdir(Path::new(dir)) {
       Ok(pact_results) => pact_results.into_iter().map(|pact_result| {
           match pact_result {
               Ok(pact) => Ok((pact, None, source.clone())),
@@ -983,10 +985,20 @@ async fn fetch_pact(source: PactSource) -> Vec<anyhow::Result<(Box<dyn Pact + Se
       }).collect(),
       Err(err) => vec![Err(anyhow!("Could not load pacts from directory '{}' - {}", dir, err))]
     },
-    PactSource::URL(ref url, ref auth) => vec![load_pact_from_url(url, auth)
-      .map_err(|err| anyhow!("Failed to load pact '{}' - {}", url, err))
-      .map(|pact| (pact, None, source))],
-    PactSource::BrokerUrl(ref provider_name, ref broker_url, ref auth, _) => {
+    PactSource::URL(url, auth) => vec![
+      pact_broker::fetch_pact_from_url(url, auth).await
+        .map_err(|err| anyhow!("Failed to load pact '{}' - {}", url, err))
+        .map(|(pact, links)| {
+          if is_pact_broker_source(&links) {
+            let provider = pact.provider();
+            (pact, None, PactSource::BrokerUrl(provider.name.clone(), url.clone(),
+                                               auth.clone(), links.clone()))
+          } else {
+            (pact, None, source.clone())
+          }
+        })
+    ],
+    PactSource::BrokerUrl(provider_name, broker_url, auth, _) => {
       let result = pact_broker::fetch_pacts_from_broker(
         broker_url.as_str(),
         provider_name.as_str(),
@@ -1010,15 +1022,18 @@ async fn fetch_pact(source: PactSource) -> Vec<anyhow::Result<(Box<dyn Pact + Se
         Err(err) => vec![Err(anyhow!("Could not load pacts from the pact broker '{}' - {:?}", broker_url, err))]
       }
     },
-    PactSource::BrokerWithDynamicConfiguration { provider_name, broker_url, enable_pending, include_wip_pacts_since, provider_tags, provider_branch, selectors, auth, links: _ } => {
+    PactSource::BrokerWithDynamicConfiguration {
+      provider_name, broker_url, enable_pending, include_wip_pacts_since,
+      provider_tags, provider_branch, selectors,
+      auth, links: _ } => {
       let result = pact_broker::fetch_pacts_dynamically_from_broker(
         broker_url.as_str(),
         provider_name.clone(),
-        enable_pending,
-        include_wip_pacts_since,
-        provider_tags,
-        provider_branch,
-        selectors,
+        *enable_pending,
+        include_wip_pacts_since.clone(),
+        provider_tags.clone(),
+        provider_branch.clone(),
+        selectors.clone(),
         auth.clone()
       ).await;
 
@@ -1041,6 +1056,12 @@ async fn fetch_pact(source: PactSource) -> Vec<anyhow::Result<(Box<dyn Pact + Se
     },
     _ => vec![Err(anyhow!("Could not load pacts, unknown pact source {}", source))]
   }
+}
+
+// Checks if any of Pactbroker links exist. Actually looks for the pb:publish-verification-results
+// link
+fn is_pact_broker_source(links: &Vec<Link>) -> bool {
+  links.iter().any(|link| link.name == "pb:publish-verification-results")
 }
 
 async fn fetch_pacts(source: Vec<PactSource>, consumers: Vec<String>)
