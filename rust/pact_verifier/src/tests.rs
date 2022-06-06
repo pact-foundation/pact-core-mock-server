@@ -1,5 +1,6 @@
 use std::panic::catch_unwind;
 use std::sync::Arc;
+use anyhow::anyhow;
 
 use env_logger::*;
 use expectest::expect;
@@ -103,7 +104,7 @@ fn if_the_state_filter_and_interaction_filter_is_defined_is_false_if_both_do_not
 #[test]
 fn if_no_consumer_filter_is_defined_returns_true() {
   let consumers = vec![];
-  let result = Err("".to_string());
+  let result = Err(anyhow!(""));
   expect!(filter_consumers(&consumers, &result)).to(be_true());
 }
 
@@ -117,7 +118,7 @@ fn if_a_consumer_filter_is_defined_returns_false_if_the_consumer_name_does_not_m
 #[test]
 fn if_a_consumer_filter_is_defined_returns_true_if_the_result_is_an_error() {
   let consumers = vec!["fred".to_string(), "joe".to_string()];
-  let result = Err("".to_string());
+  let result = Err(anyhow!(""));
   expect!(filter_consumers(&consumers, &result)).to(be_true());
 }
 

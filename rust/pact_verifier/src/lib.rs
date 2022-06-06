@@ -78,7 +78,7 @@ pub enum PactSource {
     BrokerWithDynamicConfiguration {
       /// Name of the provider as named in the Pact Broker
       provider_name: String,
-      ///Base URL of the Pact Broker from which to retrieve the pacts
+      /// Base URL of the Pact Broker from which to retrieve the pacts
       broker_url: String,
       /// Allow pacts which are in pending state to be verified without causing the overall task to fail. For more information, see https://pact.io/pending
       enable_pending: bool,
@@ -680,7 +680,7 @@ fn filter_interaction(interaction: &dyn Interaction, filter: &FilterInfo) -> boo
   }
 }
 
-fn filter_consumers(consumers: &[String], res: &Result<(Box<dyn Pact + Send + Sync>, Option<PactVerificationContext>, PactSource), String>) -> bool {
+fn filter_consumers(consumers: &[String], res: &anyhow::Result<(Box<dyn Pact + Send + Sync>, Option<PactVerificationContext>, PactSource)>) -> bool {
   consumers.is_empty() || res.is_err() || consumers.contains(&res.as_ref().unwrap().0.consumer().name)
 }
 
@@ -967,24 +967,24 @@ fn process_errors(errors: &Vec<(String, MismatchResult)>, output: &mut Vec<Strin
   }
 }
 
-async fn fetch_pact(source: PactSource) -> Vec<Result<(Box<dyn Pact + Send + Sync>, Option<PactVerificationContext>, PactSource), String>> {
+async fn fetch_pact(source: PactSource) -> Vec<anyhow::Result<(Box<dyn Pact + Send + Sync>, Option<PactVerificationContext>, PactSource)>> {
   trace!("fetch_pact(source={})", source);
 
   match source {
     PactSource::File(ref file) => vec![read_pact(Path::new(&file))
-      .map_err(|err| format!("Failed to load pact '{}' - {}", file, err))
+      .map_err(|err| anyhow!("Failed to load pact '{}' - {}", file, err))
       .map(|pact| (pact, None, source))],
     PactSource::Dir(ref dir) => match walkdir(Path::new(dir)) {
       Ok(pact_results) => pact_results.into_iter().map(|pact_result| {
           match pact_result {
               Ok(pact) => Ok((pact, None, source.clone())),
-              Err(err) => Err(format!("Failed to load pact from '{}' - {}", dir, err))
+              Err(err) => Err(anyhow!("Failed to load pact from '{}' - {}", dir, err))
           }
       }).collect(),
-      Err(err) => vec![Err(format!("Could not load pacts from directory '{}' - {}", dir, err))]
+      Err(err) => vec![Err(anyhow!("Could not load pacts from directory '{}' - {}", dir, err))]
     },
     PactSource::URL(ref url, ref auth) => vec![load_pact_from_url(url, auth)
-      .map_err(|err| format!("Failed to load pact '{}' - {}", url, err))
+      .map_err(|err| anyhow!("Failed to load pact '{}' - {}", url, err))
       .map(|pact| (pact, None, source))],
     PactSource::BrokerUrl(ref provider_name, ref broker_url, ref auth, _) => {
       let result = pact_broker::fetch_pacts_from_broker(
@@ -1002,12 +1002,12 @@ async fn fetch_pact(source: PactSource) -> Vec<Result<(Box<dyn Pact + Send + Syn
                 trace!("Got pact with links {:?}", pact);
                 buffer.push(Ok((pact.boxed(), context.clone(), PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))));
               },
-              &Err(ref err) => buffer.push(Err(format!("Failed to load pact from '{}' - {:?}", broker_url, err)))
+              &Err(ref err) => buffer.push(Err(anyhow!("Failed to load pact from '{}' - {:?}", broker_url, err)))
             }
           }
           buffer
         },
-        Err(err) => vec![Err(format!("Could not load pacts from the pact broker '{}' - {:?}", broker_url, err))]
+        Err(err) => vec![Err(anyhow!("Could not load pacts from the pact broker '{}' - {:?}", broker_url, err))]
       }
     },
     PactSource::BrokerWithDynamicConfiguration { provider_name, broker_url, enable_pending, include_wip_pacts_since, provider_tags, provider_branch, selectors, auth, links: _ } => {
@@ -1031,20 +1031,20 @@ async fn fetch_pact(source: PactSource) -> Vec<Result<(Box<dyn Pact + Send + Syn
                 trace!("Got pact with links {:?}", pact);
                 buffer.push(Ok((pact.boxed(), context.clone(), PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))));
               },
-              &Err(ref err) => buffer.push(Err(format!("Failed to load pact from '{}' - {:?}", broker_url, err)))
+              &Err(ref err) => buffer.push(Err(anyhow!("Failed to load pact from '{}' - {:?}", broker_url, err)))
             }
           }
           buffer
         },
-        Err(err) => vec![Err(format!("Could not load pacts from the pact broker '{}' - {:?}", broker_url, err))]
+        Err(err) => vec![Err(anyhow!("Could not load pacts from the pact broker '{}' - {:?}", broker_url, err))]
       }
     },
-    _ => vec![Err("Could not load pacts, unknown pact source".to_string())]
+    _ => vec![Err(anyhow!("Could not load pacts, unknown pact source {}", source))]
   }
 }
 
 async fn fetch_pacts(source: Vec<PactSource>, consumers: Vec<String>)
-  -> Vec<Result<(Box<dyn Pact + Send + Sync>, Option<PactVerificationContext>, PactSource), String>> {
+  -> Vec<anyhow::Result<(Box<dyn Pact + Send + Sync>, Option<PactVerificationContext>, PactSource)>> {
   trace!("fetch_pacts(source={}, consumers={:?})", source.iter().map(|s| s.to_string()).join(", "), consumers);
 
   futures::stream::iter(source)
