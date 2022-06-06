@@ -189,7 +189,8 @@ impl VerifierHandle {
     self.state_change = Arc::new(HttpRequestProviderStateExecutor {
       state_change_url,
       state_change_teardown,
-      state_change_body
+      state_change_body,
+      .. HttpRequestProviderStateExecutor::default()
     })
   }
 

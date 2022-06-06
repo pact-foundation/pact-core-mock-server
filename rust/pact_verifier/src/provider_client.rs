@@ -19,6 +19,7 @@ use serde_json::Value;
 use tracing::{debug, info, warn};
 
 use crate::{ProviderInfo, RequestFilterExecutor, VerificationOptions};
+use crate::utils::with_retries;
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -206,16 +207,17 @@ pub async fn make_provider_request<F: RequestFilterExecutor>(
 }
 
 /// Make a state change request. If the response returns a JSON body, convert that into a HashMap
-/// and return it
+/// and return it. The request will be retried on 50x errors to a maximum of the `retries` parameter.
 pub async fn make_state_change_request(
   client: &reqwest::Client,
   state_change_url: &str,
-  request: &HttpRequest
+  request: &HttpRequest,
+  retries: u8
 ) -> anyhow::Result<HashMap<String, Value>> {
   debug!("Sending {} to state change handler", request);
 
   let request = create_native_request(client, state_change_url, request)?;
-  let result = request.send().await;
+  let result = with_retries(retries, request).await;
 
   match result {
     Ok(response) => {

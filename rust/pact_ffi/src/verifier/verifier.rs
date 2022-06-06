@@ -201,7 +201,8 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
     let provider_state_executor = Arc::new(HttpRequestProviderStateExecutor {
       state_change_url: matches.value_of("state-change-url").map(|s| s.to_string()),
       state_change_body: !matches.is_present("state-change-as-query"),
-      state_change_teardown: matches.is_present("state-change-teardown")
+      state_change_teardown: matches.is_present("state-change-teardown"),
+      .. HttpRequestProviderStateExecutor::default()
     });
 
     let verification_options = VerificationOptions {

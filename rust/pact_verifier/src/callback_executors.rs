@@ -88,7 +88,9 @@ pub struct HttpRequestProviderStateExecutor {
   /// If teardown state change requests should be made (default is false)
   pub state_change_teardown: bool,
   /// If state change request data should be sent in the body (true) or as query parameters (false)
-  pub state_change_body: bool
+  pub state_change_body: bool,
+  /// Number of times to retry the provider state request, zero means none
+  pub reties: u8
 }
 
 impl Default for HttpRequestProviderStateExecutor {
@@ -97,7 +99,8 @@ impl Default for HttpRequestProviderStateExecutor {
     HttpRequestProviderStateExecutor {
       state_change_url: None,
       state_change_teardown: false,
-      state_change_body: true
+      state_change_body: true,
+      reties: 3
     }
   }
 }
@@ -141,7 +144,7 @@ impl ProviderStateExecutor for HttpRequestProviderStateExecutor {
           }
           state_change_request.query = Some(query);
         }
-        make_state_change_request(client.unwrap_or(&reqwest::Client::default()), &state_change_url, &state_change_request).await
+        make_state_change_request(client.unwrap_or(&reqwest::Client::default()), &state_change_url, &state_change_request, self.reties).await
           .map_err(|err| ProviderStateError { description: err.to_string(), interaction_id }.into())
       },
       None => {

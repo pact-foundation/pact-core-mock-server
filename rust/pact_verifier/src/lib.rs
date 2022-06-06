@@ -60,6 +60,7 @@ mod messages;
 pub mod selectors;
 pub mod metrics;
 pub mod verification_result;
+mod utils;
 
 /// Source for loading pacts
 #[derive(Debug, Clone)]
