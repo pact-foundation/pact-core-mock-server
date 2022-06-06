@@ -256,7 +256,7 @@ async fn verify_response_from_provider<F: RequestFilterExecutor>(
   interaction: &SynchronousHttp,
   pact: &Box<dyn Pact + Send + Sync>,
   options: &VerificationOptions<F>,
-  client: &reqwest::Client,
+  client: &Client,
   verification_context: &HashMap<&str, Value>
 ) -> Result<Option<String>, MismatchResult> {
   let expected_response = &interaction.response;
@@ -285,12 +285,9 @@ async fn execute_state_change<S: ProviderStateExecutor>(
   provider_state: &ProviderState,
   setup: bool,
   interaction_id: Option<String>,
-  client: &reqwest::Client,
+  client: &Client,
   provider_state_executor: Arc<S>
 ) -> Result<HashMap<String, Value>, MismatchResult> {
-    if setup {
-        println!("  Given {}", Style::new().bold().paint(provider_state.name.clone()));
-    }
     let result = provider_state_executor.call(interaction_id, provider_state, setup, Some(client)).await;
     debug!("State Change: \"{:?}\" -> {:?}", provider_state, result);
     result.map_err(|err| {
@@ -1125,14 +1122,6 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
   for (interaction, match_result) in results {
     let mut description = format!("Verifying a pact between {} and {}",
       pact.consumer().name.clone(), pact.provider().name.clone());
-    if let Some((first, elements)) = interaction.provider_states().split_first() {
-      description.push_str(&format!(" Given {}", first.name));
-      for state in elements {
-        description.push_str(&format!(" And {}", state.name));
-      }
-    }
-    description.push_str(" - ");
-    description.push_str(&interaction.description());
 
     output.push(String::default());
     if interaction.pending() {
@@ -1140,6 +1129,19 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
     } else {
       output.push(format!("  {}", interaction.description()));
     };
+
+    if let Some((first, elements)) = interaction.provider_states().split_first() {
+      let s = format!(" Given {}", first.name);
+      description.push_str(&s);
+      output.push(format!("    {}", s));
+      for state in elements {
+        let s = format!(" And {}", state.name);
+        description.push_str(&s);
+        output.push(format!("    {}", s));
+      }
+    }
+    description.push_str(" - ");
+    description.push_str(&interaction.description());
 
     if interaction.is_v4() {
       if let Some(interaction) = interaction.as_v4() {

@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
-use ansi_term::Colour::Yellow;
 use async_trait::async_trait;
 use maplit::*;
 use pact_plugin_driver::verification::InteractionVerificationData;
@@ -14,6 +13,7 @@ use pact_models::bodies::OptionalBody;
 use pact_models::content_types::JSON;
 use pact_models::provider_states::ProviderState;
 use pact_models::v4::http_parts::HttpRequest;
+use tracing::warn;
 
 use crate::provider_client::make_state_change_request;
 
@@ -146,7 +146,7 @@ impl ProviderStateExecutor for HttpRequestProviderStateExecutor {
       },
       None => {
         if setup {
-          println!("    {}", Yellow.paint("WARNING: State Change ignored as there is no state change URL provided"));
+          warn!("State Change ignored as there is no state change URL provided for interaction {}", interaction_id.unwrap_or_default());
         }
         Ok(hashmap!{})
       }
