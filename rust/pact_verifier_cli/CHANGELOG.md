@@ -1,5 +1,17 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.9.11 - Bug fixes + Support publishing results from webhook calls
+
+* 731477f8 - chore: prep for release (Ronald Holshausen, Tue Jun 7 11:19:13 2022 +1000)
+* b3f98a2c - chore: Upgrade pact_verifier to 0.13.8 (Ronald Holshausen, Tue Jun 7 11:07:24 2022 +1000)
+* 18118e82 - feat: add retries to the provider state change calls #197 (Ronald Holshausen, Tue Jun 7 09:10:23 2022 +1000)
+* 6cae9b09 - fix: State change descriptions were not being displayed along with the interaction description (Ronald Holshausen, Mon Jun 6 17:09:44 2022 +1000)
+* 61fc3771 - chore: Upgrade pact_verifier to 0.13.7 (Ronald Holshausen, Mon May 30 12:21:12 2022 +1000)
+* f8471bb7 - chore: switch from log crate to tracing crate (Ronald Holshausen, Fri May 13 13:47:18 2022 +1000)
+* ee9d6bab - chore: Upgrade pact_verifier to 0.13.6 (Ronald Holshausen, Wed May 11 17:40:15 2022 +1000)
+* 020b5715 - chore: upgrade pact_models to 0.4.1 (Ronald Holshausen, Wed May 11 11:36:57 2022 +1000)
+* e1f4d4d9 - bump version to 0.9.11 (Ronald Holshausen, Wed Apr 27 16:09:01 2022 +1000)
+
 # 0.9.10 - Supports verification via plugins
 
 * 8d58ea34 - fix: lock the pact crate versions so that updates do not break CLI install #189 (Ronald Holshausen, Wed Apr 27 16:01:54 2022 +1000)
