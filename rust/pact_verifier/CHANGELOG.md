@@ -1,5 +1,14 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.13.8 - Support publishing results from webhook calls
+
+* 18118e82 - feat: add retries to the provider state change calls #197 (Ronald Holshausen, Tue Jun 7 09:10:23 2022 +1000)
+* 6cae9b09 - fix: State change descriptions were not being displayed along with the interaction description (Ronald Holshausen, Mon Jun 6 17:09:44 2022 +1000)
+* 1972a74a - feat: Detect Pactbroker responses from the URL content #199 (Ronald Holshausen, Mon Jun 6 14:48:06 2022 +1000)
+* 27f6cd32 - refactor: convert fetch_pact to use anyhow::Result #199 (Ronald Holshausen, Mon Jun 6 12:13:19 2022 +1000)
+* e671e3dd - chore: Upgrade pact_consumer to 0.9.5 (Ronald Holshausen, Mon May 30 12:30:00 2022 +1000)
+* 3088d117 - bump version to 0.13.8 (Ronald Holshausen, Mon May 30 12:16:57 2022 +1000)
+
 # 0.13.7 - Maintenance Release
 
 * bcddbcfb - chore: Upgrade pact_matching to 0.12.8 (Ronald Holshausen, Mon May 30 11:52:26 2022 +1000)
