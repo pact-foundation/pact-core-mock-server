@@ -156,8 +156,7 @@ impl Matches<&str> for String {
 
 impl Matches<&str> for &str {
   fn matches_with(&self, actual: &str, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
-    debug!("String -> String: comparing '{}' to '{}' using {:?} ({})", self, actual, matcher, cascaded);
-    match matcher {
+    let result = match matcher {
       MatchingRule::Regex(regex) => {
         match Regex::new(regex) {
           Ok(re) => {
@@ -244,22 +243,14 @@ impl Matches<&str> for &str {
           Err(err) => Err(anyhow!("'{}' is not a valid semantic version - {}", actual, err))
         }
       }
-      _ => if !cascaded || can_cascade(matcher) { // TODO: replace this MatchingRule::can_cascade when models next released
+      _ => if !cascaded || matcher.can_cascade() {
         Err(anyhow!("Unable to match '{}' using {:?}", self, matcher))
       } else {
         Ok(())
       }
-    }
-  }
-}
-
-// TODO: replace this MatchingRule::can_cascade when models next released
-fn can_cascade(rule: &MatchingRule) -> bool {
-  match rule {
-    MatchingRule::Values => false,
-    MatchingRule::EachValue(_) => false,
-    MatchingRule::EachKey(_) => false,
-    _ => true
+    };
+    debug!(cascaded, ?matcher, "String -> String: comparing '{}' to '{}' ==> {}", self, actual, result.is_ok());
+    result
   }
 }
 
@@ -301,7 +292,7 @@ impl Matches<u64> for &str {
       MatchingRule::Number | MatchingRule::Integer => Ok(()),
       MatchingRule::Decimal => Err(anyhow!("Expected {} to match a decimal number", actual)),
       MatchingRule::StatusCode(status) => match_status_code(actual as u16, status),
-      _ => if !cascaded || can_cascade(matcher) { // TODO: replace this MatchingRule::can_cascade when models next released
+      _ => if !cascaded || matcher.can_cascade() {
         Err(anyhow!("String: Unable to match {} using {:?}", self, matcher))
       } else {
         Ok(())
@@ -347,7 +338,7 @@ impl Matches<u64> for u64 {
       MatchingRule::Number | MatchingRule::Integer => Ok(()),
       MatchingRule::Decimal => Err(anyhow!("Expected {} to match a decimal number", actual)),
       MatchingRule::StatusCode(status) => match_status_code(actual as u16, status),
-      _ => if !cascaded || can_cascade(matcher) { // TODO: replace this MatchingRule::can_cascade when models next released
+      _ => if !cascaded || matcher.can_cascade() {
         Err(anyhow!("Unable to match {} using {:?}", self, matcher))
       } else {
         Ok(())
@@ -387,7 +378,7 @@ impl Matches<f64> for u64 {
       },
       MatchingRule::Number | MatchingRule::Decimal => Ok(()),
       MatchingRule::Integer => Err(anyhow!("Expected {} to match an integer number", actual)),
-      _ => if !cascaded || can_cascade(matcher) { // TODO: replace this MatchingRule::can_cascade when models next released
+      _ => if !cascaded || matcher.can_cascade() {
         Err(anyhow!("Unable to match {} using {:?}", self, matcher))
       } else {
         Ok(())
@@ -433,7 +424,7 @@ impl Matches<f64> for f64 {
       },
       MatchingRule::Number | MatchingRule::Decimal => Ok(()),
       MatchingRule::Integer => Err(anyhow!("Expected {} to match an integer number", actual)),
-      _ => if !cascaded || can_cascade(matcher) { // TODO: replace this MatchingRule::can_cascade when models next released
+      _ => if !cascaded || matcher.can_cascade() {
         Err(anyhow!("Unable to match {} using {:?}", self, matcher))
       } else {
         Ok(())
@@ -473,7 +464,7 @@ impl Matches<u64> for f64 {
       },
       MatchingRule::Number | MatchingRule::Integer => Ok(()),
       MatchingRule::Decimal => Err(anyhow!("Expected {} to match a decimal number", actual)),
-      _ => if !cascaded || can_cascade(matcher) { // TODO: replace this MatchingRule::can_cascade when models next released
+      _ => if !cascaded || matcher.can_cascade() {
         Err(anyhow!("Unable to match '{}' using {:?}", self, matcher))
       } else {
         Ok(())
@@ -541,7 +532,7 @@ impl Matches<i64> for &str {
       },
       MatchingRule::Number | MatchingRule::Integer => Ok(()),
       MatchingRule::Decimal => Err(anyhow!("Expected {} to match a decimal number", actual)),
-      _ => if !cascaded || can_cascade(matcher) { // TODO: replace this MatchingRule::can_cascade when models next released
+      _ => if !cascaded || matcher.can_cascade() {
         Err(anyhow!("Unable to match {} using {:?}", self, matcher))
       } else {
         Ok(())
@@ -586,7 +577,7 @@ impl Matches<i64> for i64 {
       },
       MatchingRule::Number | MatchingRule::Integer => Ok(()),
       MatchingRule::Decimal => Err(anyhow!("Expected {} to match a decimal number", actual)),
-      _ => if !cascaded || can_cascade(matcher) { // TODO: replace this MatchingRule::can_cascade when models next released
+      _ => if !cascaded || matcher.can_cascade() {
         Err(anyhow!("Unable to match {} using {:?}", self, matcher))
       } else {
         Ok(())
@@ -639,7 +630,7 @@ impl Matches<bool> for bool {
         Err(anyhow!("Expected {} (Boolean) to be equal to {} (Boolean)", self, actual))
       },
       MatchingRule::Boolean => Ok(()),
-      _ => if !cascaded || can_cascade(matcher) { // TODO: replace this MatchingRule::can_cascade when models next released
+      _ => if !cascaded || matcher.can_cascade() {
         Err(anyhow!("Boolean: Unable to match {} using {:?}", self, matcher))
       } else {
         Ok(())
@@ -703,7 +694,7 @@ impl Matches<&Bytes> for Bytes {
           Ok(())
         }
       }
-      _ => if !cascaded || can_cascade(matcher) { // TODO: replace this MatchingRule::can_cascade when models next released
+      _ => if !cascaded || matcher.can_cascade() {
         Err(anyhow!("Unable to match '{:?}...' ({} bytes) using {:?}", actual.split_at(10).0, actual.len(), matcher))
       } else {
         Ok(())

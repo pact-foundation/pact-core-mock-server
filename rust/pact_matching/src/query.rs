@@ -64,7 +64,7 @@ fn match_query_values(
             mismatch: msg.clone()
           }
         }).collect()),
-      compare_query_parameter_values(key, expected, actual, context)
+      compare_query_parameter_values(&path, expected, actual, context)
     )
   } else {
     if expected.is_empty() && !actual.is_empty() {
@@ -87,22 +87,23 @@ fn match_query_values(
       } else {
         Ok(())
       };
-      merge_result(compare_query_parameter_values(key, expected, actual, context), mismatch)
+      merge_result(compare_query_parameter_values(&path, expected, actual, context), mismatch)
     }
   }
 }
 
 fn compare_query_parameter_value(
-  key: &str,
+  path: &DocPath,
   expected: &str,
   actual: &str,
   index: usize,
   context: &dyn MatchingContext
 ) -> Result<(), Vec<Mismatch>> {
   let index = index.to_string();
-  let path = DocPath::root().join(key).join(index.as_str());
-  let matcher_result = if context.matcher_is_defined(&path) {
-    matchers::match_values(&path, &context.select_best_matcher(&path), expected.to_string(), actual.to_string())
+  let index_path = path.join(index.as_str());
+  let matcher_result = if context.matcher_is_defined(&index_path) {
+    matchers::match_values(&index_path, &context.select_best_matcher(&index_path),
+      expected.to_string(), actual.to_string())
   } else {
     expected.matches_with(actual, &MatchingRule::Equality, false)
       .map_err(|error| vec![error.to_string()])
@@ -110,30 +111,33 @@ fn compare_query_parameter_value(
   matcher_result.map_err(|messages| {
     messages.iter().map(|message| {
       Mismatch::QueryMismatch {
-        parameter: key.to_string(),
+        parameter: path.first_field().unwrap_or_default().to_string(),
         expected: expected.to_string(),
         actual: actual.to_string(),
-        mismatch: message.clone(),
+        mismatch: message.clone()
       }
     }).collect()
   })
 }
 
 fn compare_query_parameter_values(
-  key: &str,
+  path: &DocPath,
   expected: &[String],
   actual: &[String],
   context: &dyn MatchingContext
 ) -> Result<(), Vec<Mismatch>> {
   let result: Vec<Mismatch> = expected.iter().enumerate().flat_map(|(index, val)| {
     if index < actual.len() {
-      match compare_query_parameter_value(key, val, &actual[index], index, context) {
+      match compare_query_parameter_value(path, val, &actual[index], index, context) {
         Ok(_) => vec![],
         Err(errors) => errors
       }
+    } else if context.matcher_is_defined(path) {
+      vec![]
     } else {
+      let key = path.first_field().unwrap_or_default().to_string();
       vec![ Mismatch::QueryMismatch {
-        parameter: key.to_string(),
+        parameter: key.clone(),
         expected: format!("{:?}", expected),
         actual: format!("{:?}", actual),
         mismatch: format!("Expected query parameter '{}' value '{}' but was missing", key, val)
@@ -145,5 +149,31 @@ fn compare_query_parameter_values(
     Ok(())
   } else {
     Err(result)
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use expectest::prelude::*;
+  use maplit::hashmap;
+  use pact_models::matchingrules;
+
+  use crate::{CoreMatchingContext, DiffConfig, MatchingRule};
+
+  #[test]
+  fn compare_values_with_type_matcher() {
+    let expected = ["1".to_string(), "2".to_string(), "3".to_string(), "4".to_string()];
+    let actual = ["1".to_string(), "3".to_string()];
+    let rules = matchingrules! {
+      "query" => { "id" => [ MatchingRule::MinType(2) ] }
+    };
+    let context = CoreMatchingContext::new(
+      DiffConfig::AllowUnexpectedKeys,
+      &rules.rules_for_category("query").unwrap_or_default(),
+      &hashmap!{}
+    );
+
+    expect!(super::match_query_values("id", &expected, &actual, &context))
+      .to(be_ok());
   }
 }

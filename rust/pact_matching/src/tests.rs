@@ -242,6 +242,52 @@ fn match_query_with_min_type_matching_rules() {
   expect!(result.values().flatten()).to(be_empty());
 }
 
+#[test]
+fn match_query_returns_no_mismatch_if_the_values_are_not_the_same_but_match_by_a_matcher() {
+  let context = CoreMatchingContext::new(
+    DiffConfig::AllowUnexpectedKeys,
+    &matchingrules! {
+      "query" => {
+        "a" => [ MatchingRule::Regex("\\w+".to_string()) ]
+      }
+    }.rules_for_category("query").unwrap_or_default(), &hashmap!{}
+  );
+  let mut query_map = HashMap::new();
+  query_map.insert("a".to_string(), vec!["b".to_string()]);
+  let expected = Some(query_map);
+  query_map = HashMap::new();
+  query_map.insert("a".to_string(), vec!["c".to_string()]);
+  let actual = Some(query_map);
+  let result = match_query(expected, actual, &context);
+  expect!(result.get("a".into()).unwrap().iter()).to(be_empty());
+}
+
+#[test]
+fn match_query_returns_a_mismatch_if_the_values_do_not_match_by_a_matcher() {
+  let context = CoreMatchingContext::new(
+    DiffConfig::AllowUnexpectedKeys,
+    &matchingrules! {
+      "query" => {
+        "a" => [ MatchingRule::Regex("\\d+".to_string()) ]
+      }
+    }.rules_for_category("query").unwrap_or_default(), &hashmap!{}
+  );
+  let mut query_map = HashMap::new();
+  query_map.insert("a".to_string(), vec!["b".to_string()]);
+  let expected = Some(query_map);
+  query_map = HashMap::new();
+  query_map.insert("a".to_string(), vec!["b".to_string()]);
+  let actual = Some(query_map);
+  let result = match_query(expected, actual, &context);
+  expect!(result.iter()).to_not(be_empty());
+  assert_eq!(result.get("a".into()).unwrap()[0], Mismatch::QueryMismatch {
+    parameter: "a".to_string(),
+    expected: "[\"b\"]".to_string(),
+    actual: "[\"b\"]".to_string(),
+    mismatch: "Expected 'b' to match '\\d+'".to_string()
+  });
+}
+
 #[tokio::test]
 async fn body_does_not_match_if_different_content_types() {
   let expected = Request {
@@ -528,52 +574,6 @@ fn match_path_returns_a_mismatch_if_the_path_does_not_match_with_a_matcher() {
     actual: s!("/path/abc"),
     mismatch: s!(""),
   }]));
-}
-
-#[test]
-fn match_query_returns_no_mismatch_if_the_values_are_not_the_same_but_match_by_a_matcher() {
-  let context = CoreMatchingContext::new(
-    DiffConfig::AllowUnexpectedKeys,
-    &matchingrules! {
-      "query" => {
-        "a" => [ MatchingRule::Regex("\\w+".to_string()) ]
-      }
-    }.rules_for_category("query").unwrap_or_default(), &hashmap!{}
-  );
-  let mut query_map = HashMap::new();
-  query_map.insert("a".to_string(), vec!["b".to_string()]);
-  let expected = Some(query_map);
-  query_map = HashMap::new();
-  query_map.insert("a".to_string(), vec!["c".to_string()]);
-  let actual = Some(query_map);
-  let result = match_query(expected, actual, &context);
-  expect!(result.get("a".into()).unwrap().iter()).to(be_empty());
-}
-
-#[test]
-fn match_query_returns_a_mismatch_if_the_values_do_not_match_by_a_matcher() {
-  let context = CoreMatchingContext::new(
-    DiffConfig::AllowUnexpectedKeys,
-    &matchingrules! {
-      "query" => {
-        "a" => [ MatchingRule::Regex("\\d+".to_string()) ]
-      }
-    }.rules_for_category("query").unwrap_or_default(), &hashmap!{}
-  );
-  let mut query_map = HashMap::new();
-  query_map.insert("a".to_string(), vec!["b".to_string()]);
-  let expected = Some(query_map);
-  query_map = HashMap::new();
-  query_map.insert("a".to_string(), vec!["b".to_string()]);
-  let actual = Some(query_map);
-  let result = match_query(expected, actual, &context);
-  expect!(result.iter()).to_not(be_empty());
-  assert_eq!(result.get("a".into()).unwrap()[0], Mismatch::QueryMismatch {
-    parameter: "a".to_string(),
-    expected: "[\"b\"]".to_string(),
-    actual: "[\"b\"]".to_string(),
-    mismatch: "Expected 'b' to match '\\d+'".to_string()
-  });
 }
 
 macro_rules! request {
