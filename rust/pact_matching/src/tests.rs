@@ -68,10 +68,10 @@ fn match_query_returns_nothing_if_there_are_no_query_strings() {
 
 #[test]
 fn match_query_applies_matching_rules_when_param_has_an_underscore() {
-  let expected = hashmap! { s!("user_id") => vec![s!("1")] };
-  let actual = hashmap! { s!("user_id") => vec![s!("2")] };
+  let expected = hashmap! { "user_id".to_string() => vec!["1".to_string()] };
+  let actual = hashmap! { "user_id".to_string() => vec!["2".to_string()] };
   let rules = matchingrules! {
-    "query" => { "user_id" => [ MatchingRule::Regex(s!("^[0-9]+$")) ] }
+    "query" => { "user_id" => [ MatchingRule::Regex("^[0-9]+$".to_string()) ] }
   };
   let context = CoreMatchingContext::new(
     DiffConfig::AllowUnexpectedKeys,
@@ -85,141 +85,161 @@ fn match_query_applies_matching_rules_when_param_has_an_underscore() {
 fn match_query_returns_a_mismatch_if_there_is_no_expected_query_string() {
   let expected = None;
   let mut query_map = HashMap::new();
-  query_map.insert(s!("a"), vec![s!("b")]);
+  query_map.insert("a".to_string(), vec!["b".to_string()]);
   let actual = Some(query_map);
   let result = match_query(expected, actual, &CoreMatchingContext::default());
   let mismatches: Vec<Mismatch> = result.values().flatten().cloned().collect();
   expect!(mismatches.iter()).to_not(be_empty());
   assert_eq!(mismatches[0], Mismatch::QueryMismatch {
-    parameter: s!("a"),
-    expected: s!(""),
-    actual: s!("[\"b\"]"),
-    mismatch: s!("Unexpected query parameter 'a' received"),
+    parameter: "a".to_string(),
+    expected: "".to_string(),
+    actual: "[\"b\"]".to_string(),
+    mismatch: "Unexpected query parameter 'a' received".to_string(),
   });
 }
 
 #[test]
 fn match_query_returns_a_mismatch_if_there_is_no_actual_query_string() {
   let mut query_map = HashMap::new();
-  query_map.insert(s!("a"), vec![s!("b")]);
+  query_map.insert("a".to_string(), vec!["b".to_string()]);
   let expected = Some(query_map);
   let actual = None;
   let result = match_query(expected, actual, &CoreMatchingContext::default());
   let mismatches: Vec<Mismatch> = result.values().flatten().cloned().collect();
   expect!(mismatches.iter()).to_not(be_empty());
   assert_eq!(mismatches[0], Mismatch::QueryMismatch {
-    parameter: s!("a"),
-    expected: s!("[\"b\"]"),
-    actual: s!(""),
-    mismatch: s!("Expected query parameter 'a' but was missing"),
+    parameter: "a".to_string(),
+    expected: "[\"b\"]".to_string(),
+    actual: "".to_string(),
+    mismatch: "Expected query parameter 'a' but was missing".to_string()
   });
 }
 
 #[test]
 fn match_query_returns_a_mismatch_if_there_is_an_actual_query_parameter_that_is_not_expected() {
   let mut query_map = HashMap::new();
-  query_map.insert(s!("a"), vec![s!("b")]);
+  query_map.insert("a".to_string(), vec!["b".to_string()]);
   let expected = Some(query_map);
   query_map = HashMap::new();
-  query_map.insert(s!("a"), vec![s!("b")]);
-  query_map.insert(s!("c"), vec![s!("d")]);
+  query_map.insert("a".to_string(), vec!["b".to_string()]);
+  query_map.insert("c".to_string(), vec!["d".to_string()]);
   let actual = Some(query_map);
   let result = match_query(expected, actual, &CoreMatchingContext::default());
   let mismatches: Vec<Mismatch> = result.values().flatten().cloned().collect();
   expect!(mismatches.iter()).to_not(be_empty());
   assert_eq!(mismatches[0], Mismatch::QueryMismatch {
-    parameter: s!("c"),
-    expected: s!(""),
-    actual: s!("[\"d\"]"),
-    mismatch: s!("Unexpected query parameter 'c' received"),
+    parameter: "c".to_string(),
+    expected: "".to_string(),
+    actual: "[\"d\"]".to_string(),
+    mismatch: "Unexpected query parameter 'c' received".to_string(),
   });
 }
 
 #[test]
 fn match_query_returns_a_mismatch_if_there_is_an_expected_query_parameter_that_is_not_received() {
   let mut query_map = HashMap::new();
-  query_map.insert(s!("a"), vec![s!("b")]);
-  query_map.insert(s!("c"), vec![s!("d")]);
+  query_map.insert("a".to_string(), vec!["b".to_string()]);
+  query_map.insert("c".to_string(), vec!["d".to_string()]);
   let expected = Some(query_map);
   query_map = HashMap::new();
-  query_map.insert(s!("a"), vec![s!("b")]);
+  query_map.insert("a".to_string(), vec!["b".to_string()]);
   let actual = Some(query_map);
   let result = match_query(expected, actual, &CoreMatchingContext::default());
   let mismatches: Vec<Mismatch> = result.values().flatten().cloned().collect();
   expect!(mismatches.iter()).to_not(be_empty());
   assert_eq!(mismatches[0], Mismatch::QueryMismatch {
-    parameter: s!("c"),
-    expected: s!("[\"d\"]"),
-    actual: s!(""),
-    mismatch: s!("Expected query parameter 'c' but was missing"),
+    parameter: "c".to_string(),
+    expected: "[\"d\"]".to_string(),
+    actual: "".to_string(),
+    mismatch: "Expected query parameter 'c' but was missing".to_string(),
   });
 }
 
 #[test]
 fn match_query_returns_a_mismatch_if_there_is_an_empty_expected_query_parameter_and_a_non_empty_actual() {
   let mut query_map = HashMap::new();
-  query_map.insert(s!("a"), vec![s!("b")]);
-  query_map.insert(s!("c"), vec![]);
+  query_map.insert("a".to_string(), vec!["b".to_string()]);
+  query_map.insert("c".to_string(), vec![]);
   let expected = Some(query_map);
   query_map = HashMap::new();
-  query_map.insert(s!("a"), vec![s!("b")]);
-  query_map.insert(s!("c"), vec![s!("d")]);
+  query_map.insert("a".to_string(), vec!["b".to_string()]);
+  query_map.insert("c".to_string(), vec!["d".to_string()]);
   let actual = Some(query_map);
   let result = match_query(expected, actual, &CoreMatchingContext::default());
   let mismatches: Vec<Mismatch> = result.values().flatten().cloned().collect();
   expect!(mismatches.iter()).to_not(be_empty());
   assert_eq!(mismatches[0], Mismatch::QueryMismatch {
-    parameter: s!("c"),
-    expected: s!("[]"),
-    actual: s!("[\"d\"]"),
-    mismatch: s!("Expected an empty parameter list for 'c' but received [\"d\"]"),
+    parameter: "c".to_string(),
+    expected: "[]".to_string(),
+    actual: "[\"d\"]".to_string(),
+    mismatch: "Expected an empty parameter list for 'c' but received [\"d\"]".to_string(),
   });
 }
 
 #[test]
 fn match_query_returns_a_mismatch_if_the_query_values_have_different_lengths() {
   let mut query_map = HashMap::new();
-  query_map.insert(s!("a"), vec![s!("b")]);
-  query_map.insert(s!("c"), vec![s!("d"), s!("e")]);
+  query_map.insert("a".to_string(), vec!["b".to_string()]);
+  query_map.insert("c".to_string(), vec!["d".to_string(), "e".to_string()]);
   let expected = Some(query_map);
   query_map = HashMap::new();
-  query_map.insert(s!("a"), vec![s!("b")]);
-  query_map.insert(s!("c"), vec![s!("d")]);
+  query_map.insert("a".to_string(), vec!["b".to_string()]);
+  query_map.insert("c".to_string(), vec!["d".to_string()]);
   let actual = Some(query_map);
   let result = match_query(expected, actual, &CoreMatchingContext::default());
   let mismatches: Vec<Mismatch> = result.values().flatten().cloned().collect();
   assert_eq!(mismatches.len(), 2);
   assert_eq!(mismatches[0], Mismatch::QueryMismatch {
-    parameter: s!("c"),
-    expected: s!("[\"d\", \"e\"]"),
-    actual: s!("[\"d\"]"),
-    mismatch: s!("Expected query parameter 'c' with 2 value(s) but received 1 value(s)"),
+    parameter: "c".to_string(),
+    expected: "[\"d\", \"e\"]".to_string(),
+    actual: "[\"d\"]".to_string(),
+    mismatch: "Expected query parameter 'c' with 2 value(s) but received 1 value(s)".to_string(),
   });
   assert_eq!(mismatches[1], Mismatch::QueryMismatch {
-    parameter: s!("c"),
-    expected: s!("[\"d\", \"e\"]"),
-    actual: s!("[\"d\"]"),
-    mismatch: s!("Expected query parameter 'c' value 'e' but was missing"),
+    parameter: "c".to_string(),
+    expected: "[\"d\", \"e\"]".to_string(),
+    actual: "[\"d\"]".to_string(),
+    mismatch: "Expected query parameter 'c' value 'e' but was missing".to_string(),
   });
 }
 
 #[test]
 fn match_query_returns_a_mismatch_if_the_values_are_not_the_same() {
   let mut query_map = HashMap::new();
-  query_map.insert(s!("a"), vec![s!("b")]);
+  query_map.insert("a".to_string(), vec!["b".to_string()]);
   let expected = Some(query_map);
   query_map = HashMap::new();
-  query_map.insert(s!("a"), vec![s!("c")]);
+  query_map.insert("a".to_string(), vec!["c".to_string()]);
   let actual = Some(query_map);
   let result = match_query(expected, actual, &CoreMatchingContext::default());
   let mismatches: Vec<Mismatch> = result.values().flatten().cloned().collect();
   expect!(mismatches.iter()).to_not(be_empty());
   assert_eq!(mismatches.first().unwrap(), &Mismatch::QueryMismatch {
-    parameter: s!("a"),
-    expected: s!("b"),
-    actual: s!("c"),
-    mismatch: s!("Expected 'b' but received 'c' for query parameter 'a'")
+    parameter: "a".to_string(),
+    expected: "b".to_string(),
+    actual: "c".to_string(),
+    mismatch: "Expected 'b' but received 'c' for query parameter 'a'".to_string()
   });
+}
+
+#[test]
+fn match_query_with_min_type_matching_rules() {
+  let expected = hashmap! { "id".to_string() => vec!["1".to_string(), "2".to_string()] };
+  let actual = hashmap! { "id".to_string() => vec![
+    "1".to_string(),
+    "2".to_string(),
+    "3".to_string(),
+    "4".to_string()
+  ]};
+  let rules = matchingrules! {
+    "query" => { "id" => [ MatchingRule::MinType(2) ] }
+  };
+  let context = CoreMatchingContext::new(
+    DiffConfig::AllowUnexpectedKeys,
+    &rules.rules_for_category("query").unwrap_or_default(), &hashmap!{}
+  );
+  let result = match_query(Some(expected), Some(actual), &context);
+  expect!(result.values().flatten()).to(be_empty());
 }
 
 #[tokio::test]
@@ -516,15 +536,15 @@ fn match_query_returns_no_mismatch_if_the_values_are_not_the_same_but_match_by_a
     DiffConfig::AllowUnexpectedKeys,
     &matchingrules! {
       "query" => {
-        "a" => [ MatchingRule::Regex(s!("\\w+")) ]
+        "a" => [ MatchingRule::Regex("\\w+".to_string()) ]
       }
     }.rules_for_category("query").unwrap_or_default(), &hashmap!{}
   );
   let mut query_map = HashMap::new();
-  query_map.insert(s!("a"), vec![s!("b")]);
+  query_map.insert("a".to_string(), vec!["b".to_string()]);
   let expected = Some(query_map);
   query_map = HashMap::new();
-  query_map.insert(s!("a"), vec![s!("c")]);
+  query_map.insert("a".to_string(), vec!["c".to_string()]);
   let actual = Some(query_map);
   let result = match_query(expected, actual, &context);
   expect!(result.get("a".into()).unwrap().iter()).to(be_empty());
@@ -536,23 +556,23 @@ fn match_query_returns_a_mismatch_if_the_values_do_not_match_by_a_matcher() {
     DiffConfig::AllowUnexpectedKeys,
     &matchingrules! {
       "query" => {
-        "a" => [ MatchingRule::Regex(s!("\\d+")) ]
+        "a" => [ MatchingRule::Regex("\\d+".to_string()) ]
       }
     }.rules_for_category("query").unwrap_or_default(), &hashmap!{}
   );
   let mut query_map = HashMap::new();
-  query_map.insert(s!("a"), vec![s!("b")]);
+  query_map.insert("a".to_string(), vec!["b".to_string()]);
   let expected = Some(query_map);
   query_map = HashMap::new();
-  query_map.insert(s!("a"), vec![s!("b")]);
+  query_map.insert("a".to_string(), vec!["b".to_string()]);
   let actual = Some(query_map);
   let result = match_query(expected, actual, &context);
   expect!(result.iter()).to_not(be_empty());
   assert_eq!(result.get("a".into()).unwrap()[0], Mismatch::QueryMismatch {
-    parameter: s!("a"),
-    expected: s!("b"),
-    actual: s!("b"),
-    mismatch: s!(""),
+    parameter: "a".to_string(),
+    expected: "[\"b\"]".to_string(),
+    actual: "[\"b\"]".to_string(),
+    mismatch: "Expected 'b' to match '\\d+'".to_string()
   });
 }
 
