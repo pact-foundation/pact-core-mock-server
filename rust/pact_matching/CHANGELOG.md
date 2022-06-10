@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.12.9 - Bugfix Release
+
+* 0e3db9df - fix: comparing query paraneters where actual has less values but there is a type matcher (Ronald Holshausen, Fri Jun 10 15:17:45 2022 +1000)
+* 4e9d8374 - fix: min/max type matchers were not being applied to query parameters (Ronald Holshausen, Fri Jun 10 14:17:41 2022 +1000)
+* 09e63637 - bump version to 0.12.9 (Ronald Holshausen, Mon May 30 11:42:13 2022 +1000)
+
 # 0.12.8 - Maintenance Release
 
 * 80256458 - chore: Upgrade pact-plugin-driver to 0.1.8 (Ronald Holshausen, Mon May 30 11:36:54 2022 +1000)
