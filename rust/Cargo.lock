@@ -843,18 +843,18 @@ dependencies = [
 
 [[package]]
 name = "logos"
-version = "0.12.0"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "427e2abca5be13136da9afdbf874e6b34ad9001dd70f2b103b083a85daa7b345"
+checksum = "bf8b031682c67a8e3d5446840f9573eb7fe26efe7ec8d195c9ac4c0647c502f1"
 dependencies = [
  "logos-derive",
 ]
 
 [[package]]
 name = "logos-derive"
-version = "0.12.0"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56a7d287fd2ac3f75b11f19a1c8a874a7d55744bd91f7a1b3e7cf87d4343c36d"
+checksum = "a1d849148dbaf9661a6151d1ca82b13bb4c4c128146a88d05253b38d4e2f496c"
 dependencies = [
  "beef",
  "fnv",
@@ -862,7 +862,6 @@ dependencies = [
  "quote 1.0.18",
  "regex-syntax",
  "syn 1.0.96",
- "utf8-ranges",
 ]
 
 [[package]]
@@ -1227,7 +1226,7 @@ dependencies = [
  "glob",
  "log",
  "maplit",
- "pact_matching 0.12.9",
+ "pact_matching 0.12.10",
  "pact_models 0.4.1",
  "serde",
  "serde_json",
@@ -1248,7 +1247,7 @@ dependencies = [
  "lazy_static",
  "maplit",
  "pact-plugin-driver",
- "pact_matching 0.12.9",
+ "pact_matching 0.12.10",
  "pact_mock_server",
  "pact_models 0.4.1",
  "quickcheck",
@@ -1287,7 +1286,7 @@ dependencies = [
  "onig",
  "os_info",
  "pact-plugin-driver",
- "pact_matching 0.12.9",
+ "pact_matching 0.12.10",
  "pact_mock_server",
  "pact_models 0.4.1",
  "pact_verifier 0.13.9",
@@ -1314,9 +1313,9 @@ dependencies = [
 
 [[package]]
 name = "pact_matching"
-version = "0.12.8"
+version = "0.12.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c1c6476aebe71f923735b54ded8b64e5a6808602000327e6feac7c3396f8e13"
+checksum = "d050ab620e524609ed9dd5918a13c51c92f43eac6a77c70cb73f1f082edad6a5"
 dependencies = [
  "ansi_term",
  "anyhow",
@@ -1352,7 +1351,7 @@ dependencies = [
 
 [[package]]
 name = "pact_matching"
-version = "0.12.9"
+version = "0.12.10"
 dependencies = [
  "ansi_term",
  "anyhow",
@@ -1409,7 +1408,7 @@ dependencies = [
  "lazy_static",
  "maplit",
  "pact-plugin-driver",
- "pact_matching 0.12.9",
+ "pact_matching 0.12.10",
  "pact_models 0.4.1",
  "quickcheck",
  "reqwest",
@@ -1442,7 +1441,7 @@ dependencies = [
  "libc",
  "log",
  "maplit",
- "pact_matching 0.12.9",
+ "pact_matching 0.12.10",
  "pact_mock_server",
  "pact_models 0.4.1",
  "quickcheck",
@@ -1559,7 +1558,7 @@ dependencies = [
  "maplit",
  "mime",
  "pact-plugin-driver",
- "pact_matching 0.12.8",
+ "pact_matching 0.12.9",
  "pact_models 0.4.1",
  "regex",
  "reqwest",
@@ -1594,7 +1593,7 @@ dependencies = [
  "mime",
  "pact-plugin-driver",
  "pact_consumer",
- "pact_matching 0.12.9",
+ "pact_matching 0.12.10",
  "pact_models 0.4.1",
  "quickcheck",
  "regex",
@@ -2187,9 +2186,9 @@ dependencies = [
 
 [[package]]
 name = "semver"
-version = "1.0.9"
+version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8cb243bdfdb5936c8dc3c45762a19d12ab4550cdc753bc247637d4ec35a040fd"
+checksum = "a41d061efea015927ac527063765e73601444cdc344ba855bc7bd44578b25e1c"
 
 [[package]]
 name = "serde"
@@ -2893,12 +2892,6 @@ name = "urlencoding"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68b90931029ab9b034b300b797048cf23723400aa757e8a2bfb9d748102f9821"
-
-[[package]]
-name = "utf8-ranges"
-version = "1.0.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7fcfc827f90e53a02eaef5e535ee14266c1d569214c6aa70133a624d8a3164ba"
 
 [[package]]
 name = "uuid"
