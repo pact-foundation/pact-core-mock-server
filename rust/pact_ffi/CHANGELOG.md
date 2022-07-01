@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.3.3 - Bug fixes + Support publishing results from webhook calls
+
+* 9a6c846f - chore: Upgrade pact_matching to 0.12.9 (Ronald Holshausen, Fri Jun 10 15:46:07 2022 +1000)
+* b3f98a2c - chore: Upgrade pact_verifier to 0.13.8 (Ronald Holshausen, Tue Jun 7 11:07:24 2022 +1000)
+* 18118e82 - feat: add retries to the provider state change calls #197 (Ronald Holshausen, Tue Jun 7 09:10:23 2022 +1000)
+* 23c0c593 - bump version to 0.3.3 (Ronald Holshausen, Mon May 30 14:31:20 2022 +1000)
+
 # 0.3.2 - Bugfix Release
 
 * 42dcd525 - chore: Disable ANSI escape codes in logs as Pact .Net is unable to deal with them (Ronald Holshausen, Mon May 30 13:16:05 2022 +1000)
