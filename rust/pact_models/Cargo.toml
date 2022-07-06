@@ -26,7 +26,7 @@ mime = "0.3.16"
 base64 = "0.13.0"
 regex = "1.5.5"
 nom = "7.1.1"
-chrono = "0.4.19"
+chrono = { version = "0.4.19", features = ["std", "clock"], default-features = false }
 chrono-tz = "0.6.1"
 lenient_semver = "0.4.2"
 sxd-document = "0.3.2"
