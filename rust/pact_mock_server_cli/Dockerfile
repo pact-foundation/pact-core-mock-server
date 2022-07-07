@@ -17,7 +17,7 @@ RUN sudo apt-get clean && sudo apt-get update -y && sudo apt-get install llvm li
 RUN cargo build --release
 
 # Now, we need to build our _real_ Docker container, copying in the executable.
-FROM alpine:3.15
+FROM alpine:3.16
 RUN apk --no-cache add ca-certificates
 COPY --from=builder \
     /home/rust/src/target/x86_64-unknown-linux-musl/release/pact_mock_server_cli \
