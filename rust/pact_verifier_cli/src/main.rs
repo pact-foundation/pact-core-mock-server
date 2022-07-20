@@ -323,7 +323,8 @@ pub async fn handle_cli(version: &str) -> Result<(), i32> {
   }
 }
 
-async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
+async fn handle_matches(matches: &ArgMatches<'_>) -> Result<(), i32> {
+  let coloured_output = !matches.is_present("no-colour");
   let level = matches.value_of("loglevel").unwrap_or("warn");
   let log_level = match level {
     "none" => LevelFilter::Off,
@@ -336,7 +337,7 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
     .with_max_level(tracing_core::LevelFilter::from_str(level)
       .unwrap_or(tracing_core::LevelFilter::INFO))
     .with_thread_names(true)
-    .with_ansi(true)
+    .with_ansi(coloured_output)
     .finish();
   if let Err(err) = tracing::subscriber::set_global_default(subscriber) {
     eprintln!("WARNING: Failed to initialise global tracing subscriber - {err}");
@@ -368,7 +369,8 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
     disable_ssl_verification: matches.is_present("disable-ssl-verification"),
     request_timeout: matches.value_of("request-timeout")
       .map(|t| t.parse::<u64>().unwrap_or(5000)).unwrap_or(5000),
-    custom_headers
+    custom_headers,
+    coloured_output
   };
 
   let publish_options = if matches.is_present("publish") {

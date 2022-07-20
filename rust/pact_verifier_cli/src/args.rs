@@ -249,6 +249,10 @@ pub(crate) fn setup_app<'a, 'b>(program: String, version: &'b str) -> App<'a, 'b
       .multiple(true)
       .empty_values(false)
       .help("Add a custom header to be included in the calls to the provider. Values must be in the form KEY=VALUE, where KEY and VALUE contain ASCII characters (32-127) only. Can be repeated."))
+    .arg(Arg::with_name("no-colour")
+      .long("no-colour")
+      .visible_alias("no-color")
+      .help("Disables ANSI escape codes in the output"))
 }
 
 #[cfg(test)]
