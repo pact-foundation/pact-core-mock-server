@@ -271,7 +271,6 @@ use maplit::hashmap;
 use pact_models::{PACT_RUST_VERSION, PactSpecification};
 use pact_models::prelude::HttpAuth;
 use serde_json::Value;
-use simplelog::{ColorChoice, Config, TerminalMode, TermLogger};
 use tokio::time::sleep;
 use tracing::{debug, debug_span, error, Instrument, warn};
 use tracing_subscriber::FmtSubscriber;
@@ -289,6 +288,7 @@ use pact_verifier::callback_executors::HttpRequestProviderStateExecutor;
 use pact_verifier::metrics::VerificationMetrics;
 use pact_verifier::selectors::{consumer_tags_to_selectors, json_to_selectors};
 use pact_verifier::verification_result::VerificationExecutionResult;
+use tracing_log::LogTracer;
 
 mod args;
 
@@ -329,14 +329,17 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
     "none" => LevelFilter::Off,
     _ => LevelFilter::from_str(level).unwrap()
   };
-  TermLogger::init(log_level, Config::default(), TerminalMode::Mixed, ColorChoice::Auto).unwrap_or_default();
+  let _ = LogTracer::builder()
+      .with_max_level(log_level)
+      .init();
   let subscriber = FmtSubscriber::builder()
     .with_max_level(tracing_core::LevelFilter::from_str(level)
       .unwrap_or(tracing_core::LevelFilter::INFO))
     .with_thread_names(true)
+    .with_ansi(true)
     .finish();
   if let Err(err) = tracing::subscriber::set_global_default(subscriber) {
-    warn!("Failed to initialise global tracing subscriber - {err}");
+    eprintln!("WARNING: Failed to initialise global tracing subscriber - {err}");
   };
 
   let provider = configure_provider(matches);
