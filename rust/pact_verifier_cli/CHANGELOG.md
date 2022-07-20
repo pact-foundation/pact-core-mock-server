@@ -1,5 +1,14 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.9.12 - add --no-color option to verfier CLI
+
+* 701c93a6 - Merge pull request #204 from pact-foundation/snyk-fix-e3dc7fb516c9ab76c1050c65ab20c6fb (Ronald Holshausen, Tue Jul 19 22:47:31 2022 -0400)
+* 4530dbde - feat: add --no-color option to verfier CLI #203 (Ronald Holshausen, Wed Jul 20 12:45:20 2022 +1000)
+* 2b808db7 - chore: Update pact_verifier to 0.13.9 (Ronald Holshausen, Wed Jul 20 12:44:24 2022 +1000)
+* 05e6399d - fix(pact_verifier_cli): log entries were being duplicated (Ronald Holshausen, Wed Jul 20 10:45:13 2022 +1000)
+* c7f68871 - fix: rust/pact_verifier_cli/Dockerfile to reduce vulnerabilities (snyk-bot, Wed Jul 6 23:50:14 2022 +0000)
+* 6d5d830f - bump version to 0.9.12 (Ronald Holshausen, Tue Jun 7 12:17:10 2022 +1000)
+
 # 0.9.11 - Bug fixes + Support publishing results from webhook calls
 
 * 731477f8 - chore: prep for release (Ronald Holshausen, Tue Jun 7 11:19:13 2022 +1000)
