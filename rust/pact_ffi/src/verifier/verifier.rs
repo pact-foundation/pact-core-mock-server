@@ -210,7 +210,7 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
       disable_ssl_verification: matches.is_present("disable-ssl-verification"),
       request_timeout: matches.value_of("request-timeout")
         .map(|t| t.parse::<u64>().unwrap_or(5000)).unwrap_or(5000),
-      custom_headers: Default::default()
+      .. VerificationOptions::default()
     };
 
     let publish_options = if matches.is_present("publish") {

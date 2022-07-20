@@ -85,18 +85,27 @@ pub(crate) async fn verify_message_from_provider<'a, F: RequestFilterExecutor>(
 pub fn process_message_result(
   interaction: &Message,
   match_result: &Result<Option<String>, MismatchResult>,
-  output: &mut Vec<String>) {
+  output: &mut Vec<String>,
+  coloured: bool) {
+  let plain = Style::new();
   match match_result {
     Ok(_) => {
-      generate_display_for_result(Green.paint("OK"),
-                                  interaction.metadata.iter()
-          .map(|(k, v)| (k.clone(), serde_json::to_string(&v.clone()).unwrap_or_default(), Green.paint("OK"))).collect(),
-                                  output
-      );
+      let metadata_result = interaction.metadata.iter()
+        .map(|(k, v)| (
+          k.clone(),
+          serde_json::to_string(&v.clone()).unwrap_or_default(),
+          if coloured { Green.paint("OK") } else { plain.paint("OK") }
+        )).collect();
+      generate_display_for_result(if coloured { Green.paint("OK") } else { plain.paint("OK") },
+        metadata_result, output, coloured);
     },
     Err(ref err) => match *err {
       MismatchResult::Error(ref err_des, _) => {
-        output.push(format!("      {}", Red.paint(format!("Request Failed - {}", err_des))));
+        if coloured {
+          output.push(format!("      {}", Red.paint(format!("Request Failed - {}", err_des))));
+        } else {
+          output.push(format!("      {}", format!("Request Failed - {}", err_des)));
+        }
       },
       MismatchResult::Mismatches { ref mismatches, .. } => {
         let metadata_results = interaction.metadata.iter().map(|(k, v)| {
@@ -106,19 +115,19 @@ pub fn process_message_result(
               _ => false
             }
           }) {
-            Red.paint("FAILED")
+            if coloured { Red.paint("FAILED") } else { plain.paint("FAILED") }
           } else {
-            Green.paint("OK")
+            if coloured { Green.paint("OK") } else { plain.paint("OK") }
           })
         }).collect();
         let body_result = if mismatches.iter().any(|m| m.mismatch_type() == "BodyMismatch" ||
           m.mismatch_type() == "BodyTypeMismatch") {
-          Red.paint("FAILED")
+          if coloured { Red.paint("FAILED") } else { plain.paint("FAILED") }
         } else {
-          Green.paint("OK")
+          if coloured { Green.paint("OK") } else { plain.paint("OK") }
         };
 
-        generate_display_for_result(body_result, metadata_results, output);
+        generate_display_for_result(body_result, metadata_results, output, coloured);
       }
     }
   }
@@ -127,14 +136,16 @@ pub fn process_message_result(
 fn generate_display_for_result(
   body_result: ANSIGenericString<str>,
   metadata_result: Vec<(String, String, ANSIGenericString<str>)>,
-  output: &mut Vec<String>
+  output: &mut Vec<String>,
+  coloured: bool
 ) {
   output.push("    generates a message which".to_string());
   if !metadata_result.is_empty() {
     output.push("      includes metadata".to_string());
+    let style = if coloured { Style::new().bold() } else { Style::new() };
     for (key, value, result) in metadata_result {
-      output.push(format!("        \"{}\" with value {} ({})", Style::new().bold().paint(key),
-        Style::new().bold().paint(value), result));
+      output.push(format!("        \"{}\" with value {} ({})", style.paint(key),
+        style.paint(value), result));
     }
   }
   output.push(format!("      has a matching body ({})", body_result));

@@ -543,16 +543,18 @@ fn generate_display_for_result(
   status_result: ANSIGenericString<str>,
   header_results: Option<Vec<(String, String, ANSIGenericString<str>)>>,
   body_result: ANSIGenericString<str>,
-  output: &mut Vec<String>
+  output: &mut Vec<String>,
+  coloured: bool
 ) {
   output.push("    returns a response which".to_string());
-  output.push(format!("      has status code {} ({})", Style::new().bold().paint(format!("{}", status)),
+  let style = if coloured { Style::new().bold() } else { Style::new() };
+  output.push(format!("      has status code {} ({})", style.paint(format!("{}", status)),
       status_result));
   if let Some(header_results) = header_results {
     output.push("      includes headers".to_string());
     for (key, value, result) in header_results {
-      output.push(format!("        \"{}\" with value \"{}\" ({})", Style::new().bold().paint(key),
-               Style::new().bold().paint(value), result));
+      output.push(format!("        \"{}\" with value \"{}\" ({})", style.paint(key),
+               style.paint(value), result));
     }
   }
   output.push(format!("      has a matching body ({})", body_result));
@@ -716,7 +718,9 @@ pub struct VerificationOptions<F> where F: RequestFilterExecutor {
   /// Timeout in ms for verification requests and state callbacks
   pub request_timeout: u64,
   /// Custom headers to be added to the requests to the provider
-  pub custom_headers: HashMap<String, String>
+  pub custom_headers: HashMap<String, String>,
+  /// If coloured output should be used (using ANSI escape codes)
+  pub coloured_output: bool
 }
 
 impl <F: RequestFilterExecutor> Default for VerificationOptions<F> {
@@ -725,7 +729,8 @@ impl <F: RequestFilterExecutor> Default for VerificationOptions<F> {
       request_filter: None,
       disable_ssl_verification: false,
       request_timeout: 5000,
-      custom_headers: Default::default()
+      custom_headers: Default::default(),
+      coloured_output: true
     }
   }
 }
@@ -812,14 +817,23 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
 
           process_notices(&context, VERIFICATION_NOTICE_BEFORE, &mut verification_result);
 
-          verification_result.output.push(format!("\nVerifying a pact between {} and {}",
-            Style::new().bold().paint(pact.consumer().name.clone()),
-            Style::new().bold().paint(pact.provider().name.clone())));
+          if verification_options.coloured_output {
+            verification_result.output.push(format!("\nVerifying a pact between {} and {}",
+              Style::new().bold().paint(pact.consumer().name.clone()),
+              Style::new().bold().paint(pact.provider().name.clone())));
+          } else {
+            verification_result.output.push(format!("\nVerifying a pact between {} and {}",
+              pact.consumer().name, pact.provider().name));
+          }
 
           if pact.interactions().is_empty() {
-            verification_result.output.push(
-              Yellow.paint("WARNING: Pact file has no interactions").to_string()
-            );
+            if verification_options.coloured_output {
+              verification_result.output.push(
+                Yellow.paint("WARNING: Pact file has no interactions").to_string()
+              );
+            } else {
+              verification_result.output.push("WARNING: Pact file has no interactions".to_string());
+            }
           } else {
             let pending = match &context {
               Some(context) => context.verification_properties.pending,
@@ -906,13 +920,13 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
 
     if !pending_errors.is_empty() {
       verification_result.output.push("\nPending Failures:\n".to_string());
-      process_errors(&pending_errors, &mut verification_result.output);
+      process_errors(&pending_errors, &mut verification_result.output, verification_options.coloured_output);
       verification_result.output.push(format!("\nThere were {} non-fatal pact failures on pending pacts or interactions (see docs.pact.io/pending for more information)\n", pending_errors.len()));
     }
 
     if !errors.is_empty() {
       verification_result.output.push("\nFailures:\n".to_string());
-      process_errors(&errors, &mut verification_result.output);
+      process_errors(&errors, &mut verification_result.output, verification_options.coloured_output);
       verification_result.output.push(format!("\nThere were {} pact failures\n", errors.len()));
       verification_result.result = false;
     } else {
@@ -930,7 +944,7 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
   }).await
 }
 
-fn process_errors(errors: &Vec<(String, MismatchResult)>, output: &mut Vec<String>) {
+fn process_errors(errors: &Vec<(String, MismatchResult)>, output: &mut Vec<String>, coloured_output: bool) {
   for (i, &(ref description, ref mismatch)) in errors.iter().enumerate() {
     match *mismatch {
         MismatchResult::Error(ref err, _) => output.push(format!("{}) {} - {}\n", i + 1, description, err)),
@@ -941,7 +955,7 @@ fn process_errors(errors: &Vec<(String, MismatchResult)>, output: &mut Vec<Strin
           for (_, mut mismatches) in &mismatches.into_iter().group_by(|m| m.mismatch_type()) {
             let mismatch = mismatches.next().unwrap();
             output.push(format!("    {}.{}) {}", i + 1, j, mismatch.summary()));
-            output.push(format!("           {}", mismatch.ansi_description()));
+            output.push(format!("           {}", if coloured_output { mismatch.ansi_description() } else { mismatch.description() }));
             for mismatch in mismatches.sorted_by(|m1, m2| {
               match (m1, m2) {
                 (Mismatch::QueryMismatch { parameter: p1, .. }, Mismatch::QueryMismatch { parameter: p2, .. }) => Ord::cmp(&p1, &p2),
@@ -951,7 +965,7 @@ fn process_errors(errors: &Vec<(String, MismatchResult)>, output: &mut Vec<Strin
                 _ => Ord::cmp(m1, m2)
               }
             }) {
-              output.push(format!("           {}", mismatch.ansi_description()));
+              output.push(format!("           {}", if coloured_output { mismatch.ansi_description() } else { mismatch.description() }));
             }
 
             if let Mismatch::BodyMismatch{ref path, ..} = mismatch {
@@ -1126,7 +1140,8 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
 
     output.push(String::default());
     if interaction.pending() {
-      output.push(format!("  {} {}", interaction.description(), Yellow.paint("[PENDING]")));
+      output.push(format!("  {} {}", interaction.description(),
+        if options.coloured_output { Yellow.paint("[PENDING]") } else { Style::new().paint("[PENDING]") }));
     } else {
       output.push(format!("  {}", interaction.description()));
     };
@@ -1168,10 +1183,10 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
     };
 
     if let Some(interaction) = interaction.as_request_response() {
-      process_request_response_result(&interaction, &match_result, &mut output)
+      process_request_response_result(&interaction, &match_result, &mut output, options.coloured_output)
     }
     if let Some(interaction) = interaction.as_message() {
-      process_message_result(&interaction, &match_result, &mut output)
+      process_message_result(&interaction, &match_result, &mut output, options.coloured_output)
     }
 
     match match_result {

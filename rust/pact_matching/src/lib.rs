@@ -851,7 +851,7 @@ impl Mismatch {
       }
     }
 
-    /// Returns a formated string for this mismatch
+    /// Returns a formatted string for this mismatch
     pub fn description(&self) -> String {
       match self {
         Mismatch::MethodMismatch { expected: e, actual: a } => format!("expected {} but was {}", e, a),
