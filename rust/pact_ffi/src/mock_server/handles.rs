@@ -1,4 +1,100 @@
-//! Handles wrapping Rust models
+//! Handle interface wrapping Rust models for use via FFI calls.
+//!
+//! Example of setting up a Pact, starting a mock server and then sending requests to the mock
+//! server:
+//! ```
+//! use std::ffi::{CStr, CString};
+//! use expectest::prelude::*;
+//! use reqwest::blocking::Client;
+//! use pact_ffi::mock_server::handles::{
+//!   InteractionPart,
+//!   pactffi_new_interaction,
+//!   pactffi_new_pact,
+//!   pactffi_response_status,
+//!   pactffi_upon_receiving,
+//!   pactffi_with_body,
+//!   pactffi_with_header,
+//!   pactffi_with_query_parameter,
+//!   pactffi_with_request
+//! };
+//! use pact_ffi::mock_server::{pactffi_cleanup_mock_server, pactffi_create_mock_server_for_pact, pactffi_mock_server_mismatches, pactffi_write_pact_file};
+//!
+//! let consumer_name = CString::new("http-consumer").unwrap();
+//! let provider_name = CString::new("http-provider").unwrap();
+//! let pact_handle = pactffi_new_pact(consumer_name.as_ptr(), provider_name.as_ptr());
+//!
+//! let description = CString::new("request_with_matchers").unwrap();
+//! let interaction = pactffi_new_interaction(pact_handle.clone(), description.as_ptr());
+//!
+//! let special_header = CString::new("My-Special-Content-Type").unwrap();
+//! let content_type = CString::new("Content-Type").unwrap();
+//! let authorization = CString::new("Authorization").unwrap();
+//! let path_matcher = CString::new("{\"value\":\"/request/1234\",\"pact:matcher:type\":\"regex\", \"regex\":\"\\/request\\/[0-9]+\"}").unwrap();
+//! let value_header_with_matcher = CString::new("{\"value\":\"application/json\",\"pact:matcher:type\":\"dummy\"}").unwrap();
+//! let auth_header_with_matcher = CString::new("{\"value\":\"Bearer 1234\",\"pact:matcher:type\":\"regex\", \"regex\":\"Bearer [0-9]+\"}").unwrap();
+//! let query_param_matcher = CString::new("{\"value\":\"bar\",\"pact:matcher:type\":\"regex\", \"regex\":\"(bar|baz|bat)\"}").unwrap();
+//! let request_body_with_matchers = CString::new("{\"id\": {\"value\":1,\"pact:matcher:type\":\"type\"}}").unwrap();
+//! let response_body_with_matchers = CString::new("{\"created\": {\"value\":\"maybe\",\"pact:matcher:type\":\"regex\", \"regex\":\"(yes|no|maybe)\"}}").unwrap();
+//! let address = CString::new("127.0.0.1:0").unwrap();
+//! let file_path = CString::new("/tmp/pact").unwrap();
+//! let description = CString::new("a request to test the FFI interface").unwrap();
+//! let method = CString::new("POST").unwrap();
+//! let query =  CString::new("foo").unwrap();
+//! let header = CString::new("application/json").unwrap();
+//!
+//! // Setup the request
+//! pactffi_upon_receiving(interaction.clone(), description.as_ptr());
+//! pactffi_with_request(interaction.clone(), method  .as_ptr(), path_matcher.as_ptr());
+//! pactffi_with_header(interaction.clone(), InteractionPart::Request, content_type.as_ptr(), 0, value_header_with_matcher.as_ptr());
+//! pactffi_with_header(interaction.clone(), InteractionPart::Request, authorization.as_ptr(), 0, auth_header_with_matcher.as_ptr());
+//! pactffi_with_query_parameter(interaction.clone(), query.as_ptr(), 0, query_param_matcher.as_ptr());
+//! pactffi_with_body(interaction.clone(), InteractionPart::Request, header.as_ptr(), request_body_with_matchers.as_ptr());
+//!
+//! // will respond with...
+//! pactffi_with_header(interaction.clone(), InteractionPart::Response, content_type.as_ptr(), 0, value_header_with_matcher.as_ptr());
+//! pactffi_with_header(interaction.clone(), InteractionPart::Response, special_header.as_ptr(), 0, value_header_with_matcher.as_ptr());
+//! pactffi_with_body(interaction.clone(), InteractionPart::Response, header.as_ptr(), response_body_with_matchers.as_ptr());
+//! pactffi_response_status(interaction.clone(), 200);
+//!
+//! // Start the mock server
+//! let port = pactffi_create_mock_server_for_pact(pact_handle.clone(), address.as_ptr(), false);
+//!
+//! expect!(port).to(be_greater_than(0));
+//!
+//! // Mock server has started, we can't now modify the pact
+//! expect!(pactffi_upon_receiving(interaction.clone(), description.as_ptr())).to(be_false());
+//!
+//! // Interact with the mock server
+//! let client = Client::default();
+//! let result = client.post(format!("http://127.0.0.1:{}/request/9999?foo=baz", port).as_str())
+//!   .header("Content-Type", "application/json")
+//!   .header("Authorization", "Bearer 9999")
+//!   .body(r#"{"id": 7}"#)
+//!   .send();
+//!
+//! match result {
+//!   Ok(res) => {
+//!     expect!(res.status()).to(be_eq(200));
+//!     expect!(res.headers().get("My-Special-Content-Type").unwrap()).to(be_eq("application/json"));
+//!     let json: serde_json::Value = res.json().unwrap_or_default();
+//!     expect!(json.get("created").unwrap().as_str().unwrap()).to(be_eq("maybe"));
+//!   }
+//!   Err(_) => {
+//!     panic!("expected 200 response but request failed");
+//!   }
+//! };
+//!
+//! let mismatches = unsafe {
+//!   CStr::from_ptr(pactffi_mock_server_mismatches(port)).to_string_lossy().into_owned()
+//! };
+//!
+//! // Write out the pact file, then clean up the mock server
+//! pactffi_write_pact_file(port, file_path.as_ptr(), true);
+//! pactffi_cleanup_mock_server(port);
+//!
+//! // Should be no mismatches
+//! expect!(mismatches).to(be_equal_to("[]"));
+//! ```
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -10,6 +106,7 @@ use std::sync::Mutex;
 
 use anyhow::{anyhow, Context};
 use bytes::Bytes;
+use either::Either;
 use itertools::Itertools;
 use lazy_static::*;
 use libc::{c_char, c_uint, c_ushort, size_t};
@@ -18,11 +115,11 @@ use maplit::*;
 use pact_models::{Consumer, PactSpecification, Provider};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
-use pact_models::generators::Generators;
+use pact_models::generators::{Generator, GeneratorCategory, Generators};
 use pact_models::http_parts::HttpPart;
 use pact_models::interaction::Interaction;
 use pact_models::json_utils::json_to_string;
-use pact_models::matchingrules::{MatchingRule, MatchingRuleCategory, MatchingRules, RuleLogic};
+use pact_models::matchingrules::{Category, MatchingRule, MatchingRuleCategory, MatchingRules, RuleLogic};
 use pact_models::pact::{ReadWritePact, write_pact};
 use pact_models::path_exp::DocPath;
 use pact_models::prelude::Pact;
@@ -36,15 +133,7 @@ use serde_json::{json, Value};
 
 use crate::{convert_cstr, ffi_fn, safe_str};
 use crate::mock_server::{StringResult, xml};
-use crate::mock_server::bodies::{
-  empty_multipart_body,
-  file_as_multipart_body,
-  MultipartBody,
-  process_json,
-  process_object,
-  request_multipart,
-  response_multipart
-};
+use crate::mock_server::bodies::{empty_multipart_body, file_as_multipart_body, matcher_from_integration_json, MultipartBody, process_array, process_json, process_object, request_multipart, response_multipart};
 use crate::models::iterators::{PactMessageIterator, PactSyncMessageIterator};
 use crate::ptr;
 
@@ -464,7 +553,10 @@ pub extern fn pactffi_with_request(
 /// * `name` - the query parameter name.
 /// * `value` - the query parameter value.
 /// * `index` - the index of the value (starts at 0). You can use this to create a query parameter with multiple values
+///
+/// **DEPRECATED:** Use `pactffi_with_query_parameter_v2`, which deals with multiple values correctly
 #[no_mangle]
+#[deprecated]
 pub extern fn pactffi_with_query_parameter(
   interaction: InteractionHandle,
   name: *const c_char,
@@ -513,10 +605,120 @@ pub extern fn pactffi_with_query_parameter(
   }
 }
 
+/// Configures a query parameter for the Interaction. Returns false if the interaction or Pact can't be
+/// modified (i.e. the mock server for it has already started)
+///
+/// * `name` - the query parameter name.
+/// * `value` - the query parameter value. Either a simple string or a JSON document.
+/// * `index` - the index of the value (starts at 0). You can use this to create a query parameter with multiple values
+///
+/// To setup a query parameter with multiple values, you can either call this function multiple times
+/// with a different index value, i.e. to create `id=2&id=3`
+///
+/// ```c
+/// pactffi_with_query_parameter(handle, "id", 0, "2");
+/// pactffi_with_query_parameter(handle, "id", 1, "3");
+/// ```
+///
+/// Or you can call it once with a JSON value that contains multiple values:
+///
+/// ```c
+/// const char* value = "{\"value\": [\"2\",\"3\"]}";
+/// pactffi_with_query_parameter(handle, "id", 0, value);
+/// ```
+///
+/// To include matching rules for the query parameter, include the matching rule JSON format with
+/// the value as a single JSON document. I.e.
+///
+/// ```c
+/// const char* value = "{\"value\":\"2\", \"pact:matcher:type\":\"regex\", \"regex\":\"\\\\d+\"}";
+/// pactffi_with_query_parameter(handle, "id", 0, value);
+///
+/// # Safety
+/// The name and value parameters must be valid pointers to NULL terminated strings.
+/// ```
+#[no_mangle]
+pub extern fn pactffi_with_query_parameter_v2(
+  interaction: InteractionHandle,
+  name: *const c_char,
+  index: size_t,
+  value: *const c_char
+) -> bool {
+  if let Some(name) = convert_cstr("name", name) {
+    let value = convert_cstr("value", value).unwrap_or_default();
+    interaction.with_interaction(&|_, mock_server_started, inner| {
+      if let Some(reqres) = inner.as_v4_http_mut() {
+        let mut path = DocPath::root();
+        path.push_field(name);
+
+        let value = from_integration_json_v2(
+          &mut reqres.request.matching_rules,
+          &mut reqres.request.generators,
+          &value.to_string(),
+          path,
+          "query",
+          index
+        );
+        match value {
+          Either::Left(value) => {
+            reqres.request.query = update_query_map(index, name, reqres, &value);
+          }
+          Either::Right(values) => if index == 0 {
+            reqres.request.query = reqres.request.query.clone().map(|mut q| {
+              if q.contains_key(name) {
+                let vec = q.get_mut(name).unwrap();
+                vec.extend_from_slice(&values);
+              } else {
+                q.insert(name.to_string(), values.clone());
+              };
+              q
+            }).or_else(|| Some(hashmap! { name.to_string() => values }))
+          } else {
+            reqres.request.query = update_query_map(index, name, reqres, &values.first().cloned().unwrap_or_default());
+          }
+        }
+        !mock_server_started
+      } else {
+        error!("Interaction is not an HTTP interaction, is {}", inner.type_of());
+        false
+      }
+    }).unwrap_or(false)
+  } else {
+    warn!("Ignoring query parameter with empty or null name");
+    false
+  }
+}
+
+fn update_query_map(index: size_t, name: &str, reqres: &mut SynchronousHttp, value: &String) -> Option<HashMap<String, Vec<String>>> {
+  reqres.request.query.clone().map(|mut q| {
+    if q.contains_key(name) {
+      let values = q.get_mut(name).unwrap();
+      if index >= values.len() {
+        values.resize_with(index + 1, Default::default);
+      }
+      values[index] = value.clone();
+    } else {
+      let mut values: Vec<String> = Vec::new();
+      values.resize_with(index + 1, Default::default);
+      values[index] = value.clone();
+      q.insert(name.to_string(), values);
+    };
+    q
+  }).or_else(|| {
+    let mut values: Vec<String> = Vec::new();
+    values.resize_with(index + 1, Default::default);
+    values[index] = value.clone();
+    Some(hashmap! { name.to_string() => values })
+  })
+}
+
 /// Convert JSON matching rule structures into their internal representation (excl. bodies)
 ///
 /// For non-body values (headers, query, path etc.) extract out the value from any matchers
-/// and apply the matchers/generators to the model
+/// and apply the matchers/generators to the model.
+///
+/// Will either return a single value, or a vector if the JSON represents multiple values.
+#[deprecated]
 fn from_integration_json(
   rules: &mut MatchingRules,
   generators: &mut Generators,
@@ -528,14 +730,89 @@ fn from_integration_json(
 
   match serde_json::from_str(value) {
     Ok(json) => match json {
-      serde_json::Value::Object(ref map) => {
-        let json: serde_json::Value = process_object(map, category, generators, path, false, false);
+      Value::Object(ref map) => {
+        let json: Value = process_object(map, category, generators, path, false);
         // These are simple JSON primitives (strings), so we must unescape them
         json_to_string(&json)
       },
       _ => value.to_string()
     },
     Err(_) => value.to_string()
+  }
+}
+
+/// Convert JSON matching rule structures into their internal representation (excl. bodies)
+///
+/// For non-body values (headers, query, path etc.) extract out the value from any matchers
+/// and apply the matchers/generators to the model.
+///
+/// Will either return a single value, or a vector if the JSON represents multiple values.
+fn from_integration_json_v2(
+  rules: &mut MatchingRules,
+  generators: &mut Generators,
+  value: &str,
+  path: DocPath,
+  category: &str,
+  index: usize
+) -> Either<String, Vec<String>> {
+  let matching_rules = rules.add_category(category);
+  let mut path = path.clone();
+
+  match serde_json::from_str(value) {
+    Ok(json) => match json {
+      Value::Object(ref map) => {
+        let result = if map.contains_key("pact:matcher:type") {
+          debug!("detected pact:matcher:type, will configure a matcher");
+          let matching_rule = matcher_from_integration_json(map);
+          trace!("matching_rule = {matching_rule:?}");
+
+          let (path, result_value) = match map.get("value") {
+            Some(val) => match val {
+              Value::Array(array) => {
+                let array = process_array(&array, matching_rules, generators, path.clone(), true, false);
+                (path.clone(), array)
+              },
+              _ => (path.push_index(index).clone(), val.clone())
+            },
+            None => (path.push_index(index).clone(), Value::Null)
+          };
+
+          if let Some(rule) = &matching_rule {
+            matching_rules.add_rule(path.clone(), rule.clone(), RuleLogic::And);
+          }
+          if let Some(gen) = map.get("pact:generator:type") {
+            debug!("detected pact:generator:type, will configure a generators");
+            if let Some(generator) = Generator::from_map(&json_to_string(gen), map) {
+              let category = match matching_rules.name {
+                Category::BODY => &GeneratorCategory::BODY,
+                Category::HEADER => &GeneratorCategory::HEADER,
+                Category::PATH => &GeneratorCategory::PATH,
+                Category::QUERY => &GeneratorCategory::QUERY,
+                _ => {
+                  warn!("invalid generator category {} provided, defaulting to body", matching_rules.name);
+                  &GeneratorCategory::BODY
+                }
+              };
+              generators.add_generator_with_subcategory(category, path.clone(), generator);
+            }
+          }
+
+          result_value
+        } else {
+          debug!("Configuring a normal value using the 'value' attribute");
+          map.get("value").cloned().unwrap_or_default()
+        };
+        match result {
+          Value::Array(values) => Either::Right(values.iter().map(|v| json_to_string(v)).collect()),
+          _ => {
+            // These are simple JSON primitives (strings), so we must unescape them
+            Either::Left(json_to_string(&result))
+          }
+        }
+      },
+      _ => Either::Left(value.to_string())
+    },
+    Err(_) => Either::Left(value.to_string())
   }
 }
 
@@ -1338,15 +1615,23 @@ pub extern fn pactffi_free_message_pact_handle(pact: MessagePactHandle) -> c_uin
 #[cfg(test)]
 mod tests {
   use std::ffi::CString;
+  use either::Either;
 
   use expectest::prelude::*;
+  use maplit::hashmap;
+  use pact_models::matchingrules;
+  use pact_models::matchingrules::{Category, MatchingRule};
+  use pact_models::path_exp::DocPath;
+  use pact_models::prelude::{Generators, MatchingRules};
 
   use crate::mock_server::handles::{
     pactffi_free_pact_handle,
     pactffi_new_async_message,
     pactffi_new_interaction,
+    pactffi_with_query_parameter_v2,
     PactHandle
   };
+  use super::from_integration_json_v2;
 
   #[test]
   fn pact_handles() {
@@ -1380,5 +1665,145 @@ mod tests {
     });
 
     pactffi_free_pact_handle(pact_handle);
+  }
+
+  #[test]
+  fn simple_query_parameter() {
+    let pact_handle = PactHandle::new("TestC1", "TestP");
+    let description = CString::new("simple_query_parameter").unwrap();
+    let handle = pactffi_new_interaction(pact_handle, description.as_ptr());
+
+    let name = CString::new("id").unwrap();
+    let value = CString::new("100").unwrap();
+    pactffi_with_query_parameter_v2(handle, name.as_ptr(), 0, value.as_ptr());
+
+    let interaction = handle.with_interaction(&|_, _, inner| {
+      inner.as_v4_http().unwrap()
+    }).unwrap();
+
+    pactffi_free_pact_handle(pact_handle);
+
+    expect!(interaction.request.query.clone()).to(be_some().value(hashmap!{
+      "id".to_string() => vec!["100".to_string()]
+    }));
+    expect!(interaction.request.matching_rules.rules.get(&Category::QUERY).cloned().unwrap_or_default().is_empty()).to(be_true());
+  }
+
+  #[test]
+  fn query_parameter_with_matcher() {
+    let pact_handle = PactHandle::new("TestC2", "TestP");
+    let description = CString::new("query_parameter_with_matcher").unwrap();
+    let handle = pactffi_new_interaction(pact_handle, description.as_ptr());
+
+    let name = CString::new("id").unwrap();
+    let value = CString::new("{\"value\": \"100\", \"pact:matcher:type\": \"regex\", \"regex\": \"\\\\d+\"}").unwrap();
+    pactffi_with_query_parameter_v2(handle, name.as_ptr(), 0, value.as_ptr());
+
+    let interaction = handle.with_interaction(&|_, _, inner| {
+      inner.as_v4_http().unwrap()
+    }).unwrap();
+
+    pactffi_free_pact_handle(pact_handle);
+
+    expect!(interaction.request.query.clone()).to(be_some().value(hashmap!{
+      "id".to_string() => vec!["100".to_string()]
+    }));
+    expect!(&interaction.request.matching_rules).to(be_equal_to(&matchingrules! {
+      "query" => { "$.id[0]" => [ MatchingRule::Regex("\\d+".to_string()) ] }
+    }));
+  }
+
+  #[test]
+  fn query_parameter_with_multiple_values() {
+    let pact_handle = PactHandle::new("TestC3", "TestP");
+    let description = CString::new("query_parameter_with_multiple_values").unwrap();
+    let handle = pactffi_new_interaction(pact_handle, description.as_ptr());
+
+    let name = CString::new("id").unwrap();
+    let value = CString::new("{\"value\": [\"1\", \"2\"]}").unwrap();
+    pactffi_with_query_parameter_v2(handle, name.as_ptr(), 0, value.as_ptr());
+
+    let interaction = handle.with_interaction(&|_, _, inner| {
+      inner.as_v4_http().unwrap()
+    }).unwrap();
+
+    pactffi_free_pact_handle(pact_handle);
+
+    expect!(interaction.request.query.clone()).to(be_some().value(hashmap!{
+      "id".to_string() => vec!["1".to_string(), "2".to_string()]
+    }));
+    expect!(interaction.request.matching_rules.rules.get(&Category::QUERY).cloned().unwrap_or_default().is_empty()).to(be_true());
+  }
+
+  #[test]
+  fn query_parameter_with_multiple_values_with_matchers() {
+    let pact_handle = PactHandle::new("TestC4", "TestP");
+    let description = CString::new("query_parameter_with_multiple_values_with_matchers").unwrap();
+    let handle = pactffi_new_interaction(pact_handle, description.as_ptr());
+
+    let name = CString::new("id").unwrap();
+    let value = CString::new("{\"value\": \"100\", \"pact:matcher:type\": \"regex\", \"regex\": \"\\\\d+\"}").unwrap();
+    pactffi_with_query_parameter_v2(handle, name.as_ptr(), 0, value.as_ptr());
+    let value = CString::new("{\"value\": \"abc\", \"pact:matcher:type\": \"regex\", \"regex\": \"\\\\w+\"}").unwrap();
+    pactffi_with_query_parameter_v2(handle, name.as_ptr(), 1, value.as_ptr());
+
+    let interaction = handle.with_interaction(&|_, _, inner| {
+      inner.as_v4_http().unwrap()
+    }).unwrap();
+
+    pactffi_free_pact_handle(pact_handle);
+
+    expect!(interaction.request.query.clone()).to(be_some().value(hashmap!{
+      "id".to_string() => vec!["100".to_string(), "abc".to_string()]
+    }));
+    expect!(&interaction.request.matching_rules).to(be_equal_to(&matchingrules! {
+      "query" => {
+        "$.id[0]" => [ MatchingRule::Regex("\\d+".to_string()) ],
+        "$.id[1]" => [ MatchingRule::Regex("\\w+".to_string()) ]
+      }
+    }));
+  }
+
+  // Issue #205
+  #[test]
+  fn query_parameter_with_multiple_values_in_json() {
+    let pact_handle = PactHandle::new("TestC5", "TestP");
+    let description = CString::new("query_parameter_with_multiple_values").unwrap();
+    let handle = pactffi_new_interaction(pact_handle, description.as_ptr());
+
+    let name = CString::new("catId[]").unwrap();
+    let value = CString::new("{\"value\": [\"1\"], \"pact:matcher:type\": \"type\", \"min\": 1}").unwrap();
+    pactffi_with_query_parameter_v2(handle, name.as_ptr(), 0, value.as_ptr());
+
+    let interaction = handle.with_interaction(&|_, _, inner| {
+      inner.as_v4_http().unwrap()
+    }).unwrap();
+
+    pactffi_free_pact_handle(pact_handle);
+
+    expect!(interaction.request.query.clone()).to(be_some().value(hashmap!{
+      "catId[]".to_string() => vec!["1".to_string()]
+    }));
+    expect!(&interaction.request.matching_rules).to(be_equal_to(&matchingrules! {
+      "query" => { "$['catId[]']" => [ MatchingRule::MinType(1) ] }
+    }));
+  }
+
+  #[test]
+  fn from_integration_json_test() {
+    let mut rules = MatchingRules::default();
+    let mut generators = Generators::default();
+    let path = DocPath::root();
+
+    expect!(from_integration_json_v2(&mut rules, &mut generators, "100", path.clone(), "query", 0))
+      .to(be_equal_to(Either::Left("100".to_string())));
+    expect!(from_integration_json_v2(&mut rules, &mut generators, "kjhaksdhj", path.clone(), "query", 0))
+      .to(be_equal_to(Either::Left("kjhaksdhj".to_string())));
+    expect!(from_integration_json_v2(&mut rules, &mut generators, r#"{"value":"100"}"#, path.clone(), "query", 0))
+      .to(be_equal_to(Either::Left("100".to_string())));
+    expect!(from_integration_json_v2(&mut rules, &mut generators, r#"{"value":["100"]}"#, path.clone(), "query", 0))
+      .to(be_equal_to(Either::Right(vec!["100".to_string()])));
+    expect!(from_integration_json_v2(&mut rules, &mut generators, r#"{"value":["100","200"]}"#, path.clone(), "query", 0))
+      .to(be_equal_to(Either::Right(vec!["100".to_string(), "200".to_string()])));
   }
 }

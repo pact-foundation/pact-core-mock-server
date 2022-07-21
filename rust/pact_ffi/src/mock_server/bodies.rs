@@ -35,7 +35,7 @@ pub fn process_array(
       item_path.push_index(index);
     }
     match val {
-      Value::Object(ref map) => process_object(map, matching_rules, generators, item_path, false, skip_matchers),
+      Value::Object(ref map) => process_object(map, matching_rules, generators, item_path, skip_matchers),
       Value::Array(ref array) => process_array(array, matching_rules, generators, item_path, false, skip_matchers),
       _ => val.clone()
     }
@@ -48,10 +48,9 @@ pub fn process_object(
   matching_rules: &mut MatchingRuleCategory,
   generators: &mut Generators,
   path: DocPath,
-  type_matcher: bool,
   skip_matchers: bool
 ) -> Value {
-  trace!(">>> process_object(obj={obj:?}, matching_rules={matching_rules:?}, generators={generators:?}, path={path}, type_matcher={type_matcher}, skip_matchers={skip_matchers})");
+  trace!(">>> process_object(obj={obj:?}, matching_rules={matching_rules:?}, generators={generators:?}, path={path}, skip_matchers={skip_matchers})");
   debug!("Path = {path}");
   let result = if obj.contains_key("pact:matcher:type") {
     debug!("detected pact:matcher:type, will configure a matcher");
@@ -87,7 +86,7 @@ pub fn process_object(
       };
       match value {
         Some(val) => match val {
-          Value::Object(ref map) => process_object(map, matching_rules, generators, path, true, skip_matchers),
+          Value::Object(ref map) => process_object(map, matching_rules, generators, path, skip_matchers),
           Value::Array(array) => process_array(array, matching_rules, generators, path, true, skip_matchers),
           _ => val.clone()
         },
@@ -97,7 +96,7 @@ pub fn process_object(
       debug!("Skipping the matching rule (skip_matchers == true)");
       match obj.get("value") {
         Some(val) => match val {
-          Value::Object(ref map) => process_object(map, matching_rules, generators, path, false, skip_matchers),
+          Value::Object(ref map) => process_object(map, matching_rules, generators, path, skip_matchers),
           Value::Array(array) => process_array(array, matching_rules, generators, path, false, skip_matchers),
           _ => val.clone()
         },
@@ -111,7 +110,7 @@ pub fn process_object(
       .map(|(key, val)| {
       let item_path = path.join(key);
       (key.clone(), match val {
-        Value::Object(ref map) => process_object(map, matching_rules, generators, item_path, false, skip_matchers),
+        Value::Object(ref map) => process_object(map, matching_rules, generators, item_path, skip_matchers),
         Value::Array(ref array) => process_array(array, matching_rules, generators, item_path, false, skip_matchers),
         _ => val.clone()
       })
@@ -155,7 +154,7 @@ pub fn matcher_from_integration_json(m: &Map<String, Value>) -> Option<MatchingR
               let mut generators = Generators::default();
               match variant {
                 Value::Object(map) => {
-                  process_object(map, &mut category, &mut generators, DocPath::root(), false, false);
+                  process_object(map, &mut category, &mut generators, DocPath::root(), false);
                 }
                 _ => warn!("arrayContains: JSON for variant {} is not correctly formed: {}", index, variant)
               }
@@ -177,7 +176,7 @@ pub fn process_json(body: String, matching_rules: &mut MatchingRuleCategory, gen
   trace!("process_json");
   match serde_json::from_str(&body) {
     Ok(json) => match json {
-      Value::Object(ref map) => process_object(map, matching_rules, generators, DocPath::root(), false, false).to_string(),
+      Value::Object(ref map) => process_object(map, matching_rules, generators, DocPath::root(), false).to_string(),
       Value::Array(ref array) => process_array(array, matching_rules, generators, DocPath::root(), false, false).to_string(),
       _ => body
     },
@@ -188,7 +187,7 @@ pub fn process_json(body: String, matching_rules: &mut MatchingRuleCategory, gen
 /// Process a JSON body with embedded matching rules and generators
 pub fn process_json_value(body: &Value, matching_rules: &mut MatchingRuleCategory, generators: &mut Generators) -> String {
   match body {
-    Value::Object(ref map) => process_object(map, matching_rules, generators, DocPath::root(), false, false).to_string(),
+    Value::Object(ref map) => process_object(map, matching_rules, generators, DocPath::root(), false).to_string(),
     Value::Array(ref array) => process_array(array, matching_rules, generators, DocPath::root(), false, false).to_string(),
     _ => body.to_string()
   }
@@ -297,7 +296,7 @@ mod test {
     let mut matching_rules = MatchingRuleCategory::default();
     let mut generators = Generators::default();
     let result = process_object(json.as_object().unwrap(), &mut matching_rules,
-                                &mut generators, DocPath::root(), false, false);
+                                &mut generators, DocPath::root(), false);
 
     expect!(result).to(be_equal_to(json));
   }
@@ -319,7 +318,7 @@ mod test {
     let mut matching_rules = MatchingRuleCategory::empty("body");
     let mut generators = Generators::default();
     let result = process_object(json.as_object().unwrap(), &mut matching_rules,
-                                &mut generators, DocPath::root(), false, false);
+                                &mut generators, DocPath::root(), false);
 
     expect!(result).to(be_equal_to(json!({
       "a": "b",
@@ -347,7 +346,7 @@ mod test {
     let mut matching_rules = MatchingRuleCategory::empty("body");
     let mut generators = Generators::default();
     let result = process_object(json.as_object().unwrap(), &mut matching_rules,
-                                &mut generators, DocPath::root(), false, false);
+                                &mut generators, DocPath::root(), false);
 
     expect!(result).to(be_equal_to(json!("b")));
     expect!(matching_rules).to(be_equal_to(matchingrules_list!{
@@ -409,7 +408,7 @@ mod test {
     let mut matching_rules = MatchingRuleCategory::default();
     let mut generators = Generators::default();
     let result = process_object(json.as_object().unwrap(), &mut matching_rules,
-                                &mut generators, DocPath::root(), false, false);
+                                &mut generators, DocPath::root(), false);
 
     expect!(result).to(be_equal_to(json!({
       "result": {
@@ -462,7 +461,7 @@ mod test {
     let mut matching_rules = MatchingRuleCategory::default();
     let mut generators = Generators::default();
     let result = process_object(json.as_object().unwrap(), &mut matching_rules,
-                                &mut generators, DocPath::root(), false, false);
+                                &mut generators, DocPath::root(), false);
 
     expect!(result).to(be_equal_to(json!({
       "name": "APL",
