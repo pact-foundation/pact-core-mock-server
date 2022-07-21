@@ -14,10 +14,15 @@
 //!   pactffi_upon_receiving,
 //!   pactffi_with_body,
 //!   pactffi_with_header,
-//!   pactffi_with_query_parameter,
+//!   pactffi_with_query_parameter_v2,
 //!   pactffi_with_request
 //! };
-//! use pact_ffi::mock_server::{pactffi_cleanup_mock_server, pactffi_create_mock_server_for_pact, pactffi_mock_server_mismatches, pactffi_write_pact_file};
+//! use pact_ffi::mock_server::{
+//!   pactffi_cleanup_mock_server,
+//!   pactffi_create_mock_server_for_pact,
+//!   pactffi_mock_server_mismatches,
+//!   pactffi_write_pact_file
+//! };
 //!
 //! let consumer_name = CString::new("http-consumer").unwrap();
 //! let provider_name = CString::new("http-provider").unwrap();
@@ -47,7 +52,7 @@
 //! pactffi_with_request(interaction.clone(), method  .as_ptr(), path_matcher.as_ptr());
 //! pactffi_with_header(interaction.clone(), InteractionPart::Request, content_type.as_ptr(), 0, value_header_with_matcher.as_ptr());
 //! pactffi_with_header(interaction.clone(), InteractionPart::Request, authorization.as_ptr(), 0, auth_header_with_matcher.as_ptr());
-//! pactffi_with_query_parameter(interaction.clone(), query.as_ptr(), 0, query_param_matcher.as_ptr());
+//! pactffi_with_query_parameter_v2(interaction.clone(), query.as_ptr(), 0, query_param_matcher.as_ptr());
 //! pactffi_with_body(interaction.clone(), InteractionPart::Request, header.as_ptr(), request_body_with_matchers.as_ptr());
 //!
 //! // will respond with...
@@ -110,7 +115,7 @@ use either::Either;
 use itertools::Itertools;
 use lazy_static::*;
 use libc::{c_char, c_uint, c_ushort, size_t};
-use log::*;
+use tracing::*;
 use maplit::*;
 use pact_models::{Consumer, PactSpecification, Provider};
 use pact_models::bodies::OptionalBody;
@@ -1455,12 +1460,12 @@ pub extern fn pactffi_write_message_pact_file(pact: MessagePactHandle, directory
     Some(write_result) => match write_result {
       Ok(_) => 0,
       Err(e) => {
-        log::error!("unable to write the pact file: {:}", e);
+        error!("unable to write the pact file: {:}", e);
         1
       }
     },
     None => {
-      log::error!("unable to write the pact file, message pact for handle {:?} not found", &pact);
+      error!("unable to write the pact file, message pact for handle {:?} not found", &pact);
       2
     }
   }
@@ -1492,7 +1497,7 @@ pub extern fn pactffi_with_message_pact_metadata(pact: MessagePactHandle, namesp
 pub(crate) fn path_from_dir(directory: *const c_char, file_name: Option<&str>) -> Option<PathBuf> {
   let dir = unsafe {
     if directory.is_null() {
-      log::warn!("Directory to write to is NULL, defaulting to the current working directory");
+      warn!("Directory to write to is NULL, defaulting to the current working directory");
       None
     } else {
       let c_str = CStr::from_ptr(directory);
@@ -1549,12 +1554,12 @@ ffi_fn! {
       Some(write_result) => match write_result {
         Ok(_) => 0,
         Err(e) => {
-          log::error!("unable to write the pact file: {:}", e);
+          error!("unable to write the pact file: {:}", e);
           2
         }
       },
       None => {
-        log::error!("unable to write the pact file, message pact for handle {:?} not found", &pact);
+        error!("unable to write the pact file, message pact for handle {:?} not found", &pact);
         3
       }
     }
