@@ -115,7 +115,6 @@ use either::Either;
 use itertools::Itertools;
 use lazy_static::*;
 use libc::{c_char, c_uint, c_ushort, size_t};
-use tracing::*;
 use maplit::*;
 use pact_models::{Consumer, PactSpecification, Provider};
 use pact_models::bodies::OptionalBody;
@@ -135,6 +134,7 @@ use pact_models::v4::interaction::V4Interaction;
 use pact_models::v4::sync_message::SynchronousMessage;
 use pact_models::v4::synch_http::SynchronousHttp;
 use serde_json::{json, Value};
+use tracing::*;
 
 use crate::{convert_cstr, ffi_fn, safe_str};
 use crate::mock_server::{StringResult, xml};
@@ -621,15 +621,15 @@ pub extern fn pactffi_with_query_parameter(
 /// with a different index value, i.e. to create `id=2&id=3`
 ///
 /// ```c
-/// pactffi_with_query_parameter(handle, "id", 0, "2");
-/// pactffi_with_query_parameter(handle, "id", 1, "3");
+/// pactffi_with_query_parameter_v2(handle, "id", 0, "2");
+/// pactffi_with_query_parameter_v2(handle, "id", 1, "3");
 /// ```
 ///
 /// Or you can call it once with a JSON value that contains multiple values:
 ///
 /// ```c
 /// const char* value = "{\"value\": [\"2\",\"3\"]}";
-/// pactffi_with_query_parameter(handle, "id", 0, value);
+/// pactffi_with_query_parameter_v2(handle, "id", 0, value);
 /// ```
 ///
 /// To include matching rules for the query parameter, include the matching rule JSON format with
@@ -637,7 +637,7 @@ pub extern fn pactffi_with_query_parameter(
 ///
 /// ```c
 /// const char* value = "{\"value\":\"2\", \"pact:matcher:type\":\"regex\", \"regex\":\"\\\\d+\"}";
-/// pactffi_with_query_parameter(handle, "id", 0, value);
+/// pactffi_with_query_parameter_v2(handle, "id", 0, value);
 ///
 /// # Safety
 /// The name and value parameters must be valid pointers to NULL terminated strings.
@@ -880,6 +880,8 @@ pub extern fn pactffi_with_pact_metadata(
 /// * `name` - the header name.
 /// * `value` - the header value.
 /// * `index` - the index of the value (starts at 0). You can use this to create a header with multiple values
+///
+/// **DEPRECATED:** Use `pactffi_with_header_v2`, which deals with multiple values correctly
 #[no_mangle]
 pub extern fn pactffi_with_header(
   interaction: InteractionHandle,
@@ -934,6 +936,115 @@ pub extern fn pactffi_with_header(
           values[index] = value.to_string();
           Some(hashmap! { name.to_string() => values })
         });
+        match part {
+          InteractionPart::Request => reqres.request.headers = updated_headers,
+          InteractionPart::Response => reqres.response.headers = updated_headers
+        };
+        !mock_server_started
+      } else {
+        error!("Interaction is not an HTTP interaction, is {}", inner.type_of());
+        false
+      }
+    }).unwrap_or(false)
+  } else {
+    warn!("Ignoring header with empty or null name");
+    false
+  }
+}
+
+/// Configures a header for the Interaction. Returns false if the interaction or Pact can't be
+/// modified (i.e. the mock server for it has already started)
+///
+/// * `part` - The part of the interaction to add the header to (Request or Response).
+/// * `name` - the header name.
+/// * `value` - the header value.
+/// * `index` - the index of the value (starts at 0). You can use this to create a header with multiple values
+///
+/// To setup a header with multiple values, you can either call this function multiple times
+/// with a different index value, i.e. to create `x-id=2, 3`
+///
+/// ```c
+/// pactffi_with_header_v2(handle, InteractionPart::Request, "x-id", 0, "2");
+/// pactffi_with_header_v2(handle, InteractionPart::Request, "x-id", 1, "3");
+/// ```
+///
+/// Or you can call it once with a JSON value that contains multiple values:
+///
+/// ```c
+/// const char* value = "{\"value\": [\"2\",\"3\"]}";
+/// pactffi_with_header_v2(handle, InteractionPart::Request, "x-id", 0, value);
+/// ```
+///
+/// To include matching rules for the header, include the matching rule JSON format with
+/// the value as a single JSON document. I.e.
+///
+/// ```c
+/// const char* value = "{\"value\":\"2\", \"pact:matcher:type\":\"regex\", \"regex\":\"\\\\d+\"}";
+/// pactffi_with_header_v2(handle, InteractionPart::Request, "id", 0, value);
+///
+/// # Safety
+/// The name and value parameters must be valid pointers to NULL terminated strings.
+#[no_mangle]
+pub extern fn pactffi_with_header_v2(
+  interaction: InteractionHandle,
+  part: InteractionPart,
+  name: *const c_char,
+  index: size_t,
+  value: *const c_char
+) -> bool {
+  if let Some(name) = convert_cstr("name", name) {
+    let value = convert_cstr("value", value).unwrap_or_default();
+    interaction.with_interaction(&|_, mock_server_started, inner| {
+      if let Some(reqres) = inner.as_v4_http_mut() {
+        let headers = match part {
+          InteractionPart::Request => reqres.request.headers.clone(),
+          InteractionPart::Response => reqres.response.headers.clone()
+        };
+
+        let mut path = DocPath::root();
+        path.push_field(name);
+
+        let value = match part {
+          InteractionPart::Request => from_integration_json_v2(
+            &mut reqres.request.matching_rules,
+            &mut reqres.request.generators,
+            &value.to_string(),
+            path,
+            "header",
+            index
+          ),
+          InteractionPart::Response => from_integration_json_v2(
+            &mut reqres.response.matching_rules,
+            &mut reqres.response.generators,
+            &value.to_string(),
+            path,
+            "header",
+            index
+          )
+        };
+
+        let updated_headers = headers.map(|mut h| {
+          let entry = h.entry(name.to_string()).or_default();
+          match &value {
+            Either::Left(value) => {
+              if index >= entry.len() {
+                entry.resize_with(index + 1, Default::default);
+              }
+              entry[index] = value.clone();
+            }
+            Either::Right(values) => {
+              entry.extend_from_slice(values);
+            }
+          }
+          h
+        }).or_else(|| {
+          let values = match &value {
+            Either::Left(value) => vec![value.clone()],
+            Either::Right(values) => values.clone()
+          };
+          Some(hashmap! { name.to_string() => values })
+        });
+
         match part {
           InteractionPart::Request => reqres.request.headers = updated_headers,
           InteractionPart::Response => reqres.response.headers = updated_headers
@@ -1620,8 +1731,8 @@ pub extern fn pactffi_free_message_pact_handle(pact: MessagePactHandle) -> c_uin
 #[cfg(test)]
 mod tests {
   use std::ffi::CString;
-  use either::Either;
 
+  use either::Either;
   use expectest::prelude::*;
   use maplit::hashmap;
   use pact_models::matchingrules;
@@ -1630,17 +1741,20 @@ mod tests {
   use pact_models::prelude::{Generators, MatchingRules};
 
   use crate::mock_server::handles::{
+    InteractionPart,
     pactffi_free_pact_handle,
     pactffi_new_async_message,
     pactffi_new_interaction,
+    pactffi_with_header_v2,
     pactffi_with_query_parameter_v2,
     PactHandle
   };
+
   use super::from_integration_json_v2;
 
   #[test]
   fn pact_handles() {
-    let pact_handle = PactHandle::new("TestC", "TestP");
+    let pact_handle = PactHandle::new("TestHandlesC", "TestHandlesP");
     let description = CString::new("first interaction").unwrap();
     let i_handle = pactffi_new_interaction(pact_handle, description.as_ptr());
 
@@ -1652,8 +1766,8 @@ mod tests {
 
     pact_handle.with_pact(&|pact_ref, inner| {
       expect!(pact_ref).to(be_equal_to(pact_handle.pact_ref - 1));
-      expect!(inner.pact.consumer.name.as_str()).to(be_equal_to("TestC"));
-      expect!(inner.pact.provider.name.as_str()).to(be_equal_to("TestP"));
+      expect!(inner.pact.consumer.name.as_str()).to(be_equal_to("TestHandlesC"));
+      expect!(inner.pact.provider.name.as_str()).to(be_equal_to("TestHandlesP"));
       expect!(inner.pact.interactions.len()).to(be_equal_to(2));
     });
 
@@ -1810,5 +1924,102 @@ mod tests {
       .to(be_equal_to(Either::Right(vec!["100".to_string()])));
     expect!(from_integration_json_v2(&mut rules, &mut generators, r#"{"value":["100","200"]}"#, path.clone(), "query", 0))
       .to(be_equal_to(Either::Right(vec!["100".to_string(), "200".to_string()])));
+  }
+
+  #[test]
+  fn simple_header() {
+    let pact_handle = PactHandle::new("TestHC1", "TestHP");
+    let description = CString::new("simple_header").unwrap();
+    let handle = pactffi_new_interaction(pact_handle, description.as_ptr());
+
+    let name = CString::new("x-id").unwrap();
+    let value = CString::new("100").unwrap();
+    pactffi_with_header_v2(handle, InteractionPart::Request, name.as_ptr(), 0, value.as_ptr());
+
+    let interaction = handle.with_interaction(&|_, _, inner| {
+      inner.as_v4_http().unwrap()
+    }).unwrap();
+
+    pactffi_free_pact_handle(pact_handle);
+
+    expect!(interaction.request.headers.clone()).to(be_some().value(hashmap!{
+      "x-id".to_string() => vec!["100".to_string()]
+    }));
+    expect!(interaction.request.matching_rules.rules.get(&Category::HEADER).cloned().unwrap_or_default().is_empty()).to(be_true());
+  }
+
+  #[test]
+  fn header_with_matcher() {
+    let pact_handle = PactHandle::new("TestHC2", "TestHP");
+    let description = CString::new("header_with_matcher").unwrap();
+    let handle = pactffi_new_interaction(pact_handle, description.as_ptr());
+
+    let name = CString::new("x-id").unwrap();
+    let value = CString::new("{\"value\": \"100\", \"pact:matcher:type\": \"regex\", \"regex\": \"\\\\d+\"}").unwrap();
+    pactffi_with_header_v2(handle, InteractionPart::Request, name.as_ptr(), 0, value.as_ptr());
+
+    let interaction = handle.with_interaction(&|_, _, inner| {
+      inner.as_v4_http().unwrap()
+    }).unwrap();
+
+    pactffi_free_pact_handle(pact_handle);
+
+    expect!(interaction.request.headers.clone()).to(be_some().value(hashmap!{
+      "x-id".to_string() => vec!["100".to_string()]
+    }));
+    expect!(&interaction.request.matching_rules).to(be_equal_to(&matchingrules! {
+      "header" => { "$['x-id'][0]" => [ MatchingRule::Regex("\\d+".to_string()) ] }
+    }));
+  }
+
+  #[test]
+  fn header_with_multiple_values() {
+    let pact_handle = PactHandle::new("TestHC3", "TestHP");
+    let description = CString::new("header_with_multiple_values").unwrap();
+    let handle = pactffi_new_interaction(pact_handle, description.as_ptr());
+
+    let name = CString::new("x-id").unwrap();
+    let value = CString::new("{\"value\": [\"1\", \"2\"]}").unwrap();
+    pactffi_with_header_v2(handle, InteractionPart::Request, name.as_ptr(), 0, value.as_ptr());
+
+    let interaction = handle.with_interaction(&|_, _, inner| {
+      inner.as_v4_http().unwrap()
+    }).unwrap();
+
+    pactffi_free_pact_handle(pact_handle);
+
+    expect!(interaction.request.headers.clone()).to(be_some().value(hashmap!{
+      "x-id".to_string() => vec!["1".to_string(), "2".to_string()]
+    }));
+    expect!(interaction.request.matching_rules.rules.get(&Category::HEADER).cloned().unwrap_or_default().is_empty()).to(be_true());
+  }
+
+  #[test]
+  fn header_with_multiple_values_with_matchers() {
+    let pact_handle = PactHandle::new("TestHC4", "TestHP");
+    let description = CString::new("header_with_multiple_values_with_matchers").unwrap();
+    let handle = pactffi_new_interaction(pact_handle, description.as_ptr());
+
+    let name = CString::new("x-id").unwrap();
+    let value = CString::new("{\"value\": \"100\", \"pact:matcher:type\": \"regex\", \"regex\": \"\\\\d+\"}").unwrap();
+    pactffi_with_header_v2(handle, InteractionPart::Request, name.as_ptr(), 0, value.as_ptr());
+    let value = CString::new("{\"value\": \"abc\", \"pact:matcher:type\": \"regex\", \"regex\": \"\\\\w+\"}").unwrap();
+    pactffi_with_header_v2(handle, InteractionPart::Request, name.as_ptr(), 1, value.as_ptr());
+
+    let interaction = handle.with_interaction(&|_, _, inner| {
+      inner.as_v4_http().unwrap()
+    }).unwrap();
+
+    pactffi_free_pact_handle(pact_handle);
+
+    expect!(interaction.request.headers.clone()).to(be_some().value(hashmap!{
+      "x-id".to_string() => vec!["100".to_string(), "abc".to_string()]
+    }));
+    expect!(&interaction.request.matching_rules).to(be_equal_to(&matchingrules! {
+      "header" => {
+        "$['x-id'][0]" => [ MatchingRule::Regex("\\d+".to_string()) ],
+        "$['x-id'][1]" => [ MatchingRule::Regex("\\w+".to_string()) ]
+      }
+    }));
   }
 }
