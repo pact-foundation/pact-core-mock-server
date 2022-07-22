@@ -818,6 +818,11 @@ fn from_integration_json_v2(
                   &GeneratorCategory::BODY
                 }
               };
+              let path = if matching_rules.name == Category::PATH {
+                path.parent().unwrap_or(DocPath::root())
+              } else {
+                path.clone()
+              };
               generators.add_generator_with_subcategory(category, path.clone(), generator);
             }
           }
