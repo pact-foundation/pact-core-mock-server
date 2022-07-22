@@ -530,6 +530,14 @@ pub extern fn pactffi_given_with_param(interaction: InteractionHandle, descripti
 ///
 /// * `method` - The request method. Defaults to GET.
 /// * `path` - The request path. Defaults to `/`.
+///
+/// To include matching rules for the path (only regex really makes sense to use), include the
+/// matching rule JSON format with the value as a single JSON document. I.e.
+///
+/// ```c
+/// const char* value = "{\"value\":\"/path/to/100\", \"pact:matcher:type\":\"regex\", \"regex\":\"\\/path\\/to\\/\\\\d+\"}";
+/// pactffi_with_request(handle, "GET", value);
+///
 #[no_mangle]
 pub extern fn pactffi_with_request(
   interaction: InteractionHandle,
@@ -541,9 +549,16 @@ pub extern fn pactffi_with_request(
 
   interaction.with_interaction(&|_, mock_server_started, inner| {
     if let Some(reqres) = inner.as_v4_http_mut() {
-      let path = from_integration_json(&mut reqres.request.matching_rules, &mut reqres.request.generators, &path.to_string(), DocPath::empty(), "path");
+      let path = from_integration_json_v2(&mut reqres.request.matching_rules,
+        &mut reqres.request.generators, &path.to_string(), DocPath::empty(), "path", 0);
       reqres.request.method = method.to_string();
-      reqres.request.path = path;
+      reqres.request.path = match path {
+        Either::Left(value) => value,
+        Either::Right(values) => {
+          warn!("Received multiple values for the path ({:?}), will only use the first one", values);
+          values.first().cloned().unwrap_or_default()
+        }
+      };
       !mock_server_started
     } else {
       error!("Interaction is not an HTTP interaction, is {}", inner.type_of());
@@ -783,7 +798,12 @@ fn from_integration_json_v2(
           };
 
           if let Some(rule) = &matching_rule {
-            matching_rules.add_rule(path.clone(), rule.clone(), RuleLogic::And);
+            let path = if matching_rules.name == Category::PATH {
+              path.parent().unwrap_or(DocPath::root())
+            } else {
+              path.clone()
+            };
+            matching_rules.add_rule(path, rule.clone(), RuleLogic::And);
           }
           if let Some(gen) = map.get("pact:generator:type") {
             debug!("detected pact:generator:type, will configure a generators");
@@ -1740,15 +1760,7 @@ mod tests {
   use pact_models::path_exp::DocPath;
   use pact_models::prelude::{Generators, MatchingRules};
 
-  use crate::mock_server::handles::{
-    InteractionPart,
-    pactffi_free_pact_handle,
-    pactffi_new_async_message,
-    pactffi_new_interaction,
-    pactffi_with_header_v2,
-    pactffi_with_query_parameter_v2,
-    PactHandle
-  };
+  use crate::mock_server::handles::{InteractionPart, pactffi_free_pact_handle, pactffi_new_async_message, pactffi_new_interaction, pactffi_with_header_v2, pactffi_with_query_parameter_v2, pactffi_with_request, PactHandle};
 
   use super::from_integration_json_v2;
 
@@ -2020,6 +2032,50 @@ mod tests {
         "$['x-id'][0]" => [ MatchingRule::Regex("\\d+".to_string()) ],
         "$['x-id'][1]" => [ MatchingRule::Regex("\\w+".to_string()) ]
       }
+    }));
+  }
+
+  #[test]
+  fn simple_path() {
+    let pact_handle = PactHandle::new("TestPC1", "TestPP");
+    let description = CString::new("simple_path").unwrap();
+    let handle = pactffi_new_interaction(pact_handle, description.as_ptr());
+
+    let method = CString::new("PUT").unwrap();
+    let path = CString::new("/path/to/100").unwrap();
+    pactffi_with_request(handle, method.as_ptr(), path.as_ptr());
+
+    let interaction = handle.with_interaction(&|_, _, inner| {
+      inner.as_v4_http().unwrap()
+    }).unwrap();
+
+    pactffi_free_pact_handle(pact_handle);
+
+    expect!(interaction.request.method).to(be_equal_to("PUT"));
+    expect!(interaction.request.path).to(be_equal_to("/path/to/100"));
+    expect!(interaction.request.matching_rules.rules.get(&Category::PATH).cloned().unwrap_or_default().is_empty()).to(be_true());
+  }
+
+  #[test]
+  fn path_with_matcher() {
+    let pact_handle = PactHandle::new("TestPC2", "TestPP");
+    let description = CString::new("path_with_matcher").unwrap();
+    let handle = pactffi_new_interaction(pact_handle, description.as_ptr());
+
+    let method = CString::new("PUT").unwrap();
+    let path = CString::new("{\"value\": \"/path/to/100\", \"pact:matcher:type\": \"regex\", \"regex\": \"\\\\/path\\\\/to\\\\/\\\\d+\"}").unwrap();
+    pactffi_with_request(handle, method.as_ptr(), path.as_ptr());
+
+    let interaction = handle.with_interaction(&|_, _, inner| {
+      inner.as_v4_http().unwrap()
+    }).unwrap();
+
+    pactffi_free_pact_handle(pact_handle);
+
+    expect!(interaction.request.method).to(be_equal_to("PUT"));
+    expect!(interaction.request.path).to(be_equal_to("/path/to/100"));
+    expect!(&interaction.request.matching_rules).to(be_equal_to(&matchingrules! {
+      "path" => { "$" => [ MatchingRule::Regex("\\/path\\/to\\/\\d+".to_string()) ] }
     }));
   }
 }
