@@ -198,11 +198,9 @@ fn http_consumer_feature_test() {
 
   match result {
     Ok(res) => {
-      dbg!("here");
       expect!(res.status()).to(be_eq(200));
       expect!(res.headers().get("My-Special-Content-Type").unwrap()).to(be_eq("application/json"));
       let json: serde_json::Value = res.json().unwrap_or_default();
-      dbg!("about to check");
       expect!(json.get("created").unwrap().as_str().unwrap()).to(be_eq("maybe"));
     },
     Err(_) => {
