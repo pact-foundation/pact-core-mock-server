@@ -653,6 +653,7 @@ pub extern fn pactffi_with_query_parameter(
 /// ```c
 /// const char* value = "{\"value\":\"2\", \"pact:matcher:type\":\"regex\", \"regex\":\"\\\\d+\"}";
 /// pactffi_with_query_parameter_v2(handle, "id", 0, value);
+/// ```
 ///
 /// # Safety
 /// The name and value parameters must be valid pointers to NULL terminated strings.
@@ -1006,6 +1007,7 @@ pub extern fn pactffi_with_header(
 /// ```c
 /// const char* value = "{\"value\":\"2\", \"pact:matcher:type\":\"regex\", \"regex\":\"\\\\d+\"}";
 /// pactffi_with_header_v2(handle, InteractionPart::Request, "id", 0, value);
+/// ```
 ///
 /// # Safety
 /// The name and value parameters must be valid pointers to NULL terminated strings.
