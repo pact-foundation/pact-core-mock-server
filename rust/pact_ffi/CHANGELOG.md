@@ -1,5 +1,16 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.3.4 - Bugfix Release
+
+* e95d701d - fix(FFI): fix matching rule for paths #205 (Ronald Holshausen, Fri Jul 22 13:42:06 2022 +1000)
+* b0fdbb6e - fix(FFI): fix matching rule for paths #205 (Ronald Holshausen, Fri Jul 22 13:34:46 2022 +1000)
+* f634fa91 - fix(FFI): handle headers with multiple values correctly #205 (Ronald Holshausen, Fri Jul 22 13:12:15 2022 +1000)
+* f0cde4e9 - fix(FFI): update the example in docs to use new function #205 (Ronald Holshausen, Thu Jul 21 17:28:41 2022 +1000)
+* 52b70097 - fix(FFI): handle query parameters with multiple values correctly #205 (Ronald Holshausen, Thu Jul 21 17:20:48 2022 +1000)
+* 2b808db7 - chore: Update pact_verifier to 0.13.9 (Ronald Holshausen, Wed Jul 20 12:44:24 2022 +1000)
+* 40f7bdc4 - feat: add verification option to disable ANSI escape codes in output #203 (Ronald Holshausen, Wed Jul 20 12:18:12 2022 +1000)
+* d069b3f2 - bump version to 0.3.4 (Ronald Holshausen, Fri Jul 1 10:30:30 2022 +1000)
+
 # 0.3.3 - Bug fixes + Support publishing results from webhook calls
 
 * 9a6c846f - chore: Upgrade pact_matching to 0.12.9 (Ronald Holshausen, Fri Jun 10 15:46:07 2022 +1000)
