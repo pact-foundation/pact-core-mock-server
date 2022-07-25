@@ -30,7 +30,7 @@ lazy_static = "1.4.0"
 maplit = "1.0.2"
 rand = "0.8.5"
 chrono = "0.4.19"
-chrono-tz = "0.6.1"
+chrono-tz = "=0.6.1" # Pinned this version as 0.6.2 has a dependency that does not compile on Alpine
 env_logger = "0.9.0"
 itertools = "0.10.3"
 onig = { version = "6.3.1", default-features = false }
