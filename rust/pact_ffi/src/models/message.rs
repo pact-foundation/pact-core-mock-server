@@ -9,6 +9,7 @@ use std::ops::Drop;
 use std::sync::Mutex;
 
 use anyhow::{anyhow, Context};
+use bytes::Bytes;
 use libc::{c_char, c_int, c_uchar, c_uint, EXIT_FAILURE, EXIT_SUCCESS, size_t};
 use serde_json::from_str as from_json_str;
 use serde_json::Value as JsonValue;
@@ -20,6 +21,7 @@ use pact_models::interaction::Interaction;
 use crate::{as_mut, as_ref, cstr, ffi_fn, safe_str};
 use crate::models::pact_specification::PactSpecification;
 use crate::util::*;
+use crate::util::string::optional_str;
 
 /*===============================================================================================
  * # Re-Exports
@@ -172,6 +174,30 @@ ffi_fn! {
     } {
         ptr::null_to::<c_char>()
     }
+}
+
+ffi_fn! {
+  /// Sets the contents of the message.
+  ///
+  /// # Safety
+  ///
+  /// This function is safe.
+  ///
+  /// # Error Handling
+  ///
+  /// If the contents is a NULL pointer, it will set the message contents as null. If the content
+  /// type is a null pointer, or can't be parsed, it will set the content type as unknown.
+  fn pactffi_message_set_contents(message: *mut Message, contents: *const c_char, content_type: *const c_char) {
+    let message = as_mut!(message);
+
+    if contents.is_null() {
+      message.contents = OptionalBody::Null;
+    } else {
+      let contents = safe_str!(contents);
+      let content_type = optional_str(content_type).map(|ct| ContentType::parse(ct.as_str()).ok()).flatten();
+      message.contents = OptionalBody::Present(Bytes::from(contents), content_type, None);
+    }
+  }
 }
 
 ffi_fn! {
@@ -610,4 +636,38 @@ enum HashMapInsertStatus {
     SuccessOverwrite = -1,
     /// An error occured, and the value was not inserted
     Error = -2,
+}
+
+#[cfg(test)]
+mod tests {
+  use std::ffi::CString;
+
+  use expectest::prelude::*;
+  use libc::c_char;
+
+  use crate::models::message::{
+    pactffi_message_delete,
+    pactffi_message_get_contents,
+    pactffi_message_get_contents_length,
+    pactffi_message_new,
+    pactffi_message_set_contents
+  };
+  use crate::ptr::null_to;
+
+  #[test]
+  fn get_and_set_message_contents() {
+    let message = pactffi_message_new();
+    let message_contents = CString::new("This is a string").unwrap();
+
+    pactffi_message_set_contents(message, message_contents.as_ptr(), null_to::<c_char>());
+    let contents = pactffi_message_get_contents(message) as *mut c_char;
+    let len = pactffi_message_get_contents_length(message);
+
+    let str = unsafe { CString::from_raw(contents) };
+
+    pactffi_message_delete(message);
+
+    expect!(str.to_str().unwrap()).to(be_equal_to("This is a string"));
+    expect!(len).to(be_equal_to(16));
+  }
 }
