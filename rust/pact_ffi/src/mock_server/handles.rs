@@ -232,6 +232,7 @@ impl InteractionHandle {
     let mut handles = PACT_HANDLES.lock().unwrap();
     let index = (self.interaction_ref >> 16) as u16;
     let interaction = (self.interaction_ref & 0x0000FFFF) as u16;
+    trace!("with_interaction - index = {}, interaction = {}", index, interaction);
     handles.get_mut(&index).map(|inner| {
       let inner_mut = &mut *inner.borrow_mut();
       let interactions = &mut inner_mut.pact.interactions;
@@ -239,7 +240,11 @@ impl InteractionHandle {
         Some(inner_i) => {
           Some(f(interaction - 1, inner_mut.mock_server_started, inner_i.as_mut()))
         },
-        None => None
+        None => {
+          debug!("Did not find interaction for index = {}, interaction = {}, pact has {} interactions",
+            index, interaction, interactions.len());
+          None
+        }
       }
     }).flatten()
   }

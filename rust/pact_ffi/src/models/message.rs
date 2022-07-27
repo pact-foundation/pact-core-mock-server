@@ -15,7 +15,7 @@ use serde_json::from_str as from_json_str;
 use serde_json::Value as JsonValue;
 
 use pact_models::bodies::OptionalBody;
-use pact_models::content_types::ContentType;
+use pact_models::content_types::{ContentType, ContentTypeHint};
 use pact_models::interaction::Interaction;
 
 use crate::{as_mut, as_ref, cstr, ffi_fn, safe_str};
@@ -196,7 +196,7 @@ ffi_fn! {
     } else {
       let contents = safe_str!(contents);
       let content_type = optional_str(content_type).map(|ct| ContentType::parse(ct.as_str()).ok()).flatten();
-      message.contents = OptionalBody::Present(Bytes::from(contents), content_type, None);
+      message.contents = OptionalBody::Present(Bytes::from(contents), content_type, Some(ContentTypeHint::TEXT));
     }
   }
 }
@@ -270,7 +270,7 @@ ffi_fn! {
       let slice = unsafe { std::slice::from_raw_parts(contents, len) };
       let contents = Bytes::from(slice);
       let content_type = optional_str(content_type).map(|ct| ContentType::parse(ct.as_str()).ok()).flatten();
-      message.contents = OptionalBody::Present(contents, content_type, None);
+      message.contents = OptionalBody::Present(contents, content_type, Some(ContentTypeHint::BINARY));
     }
   }
 }
