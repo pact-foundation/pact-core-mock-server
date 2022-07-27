@@ -181,7 +181,8 @@ ffi_fn! {
   ///
   /// # Safety
   ///
-  /// This function is safe.
+  /// The message contents and content type must either be NULL pointers, or point to valid
+  /// UTF-8 encoded NULL-terminated strings. Otherwise behaviour is undefined.
   ///
   /// # Error Handling
   ///
@@ -246,6 +247,32 @@ ffi_fn! {
     } {
         ptr::null_to::<c_uchar>()
     }
+}
+
+ffi_fn! {
+  /// Sets the contents of the message as an array of bytes.
+  ///
+  /// # Safety
+  ///
+  /// The contents pointer must be valid for reads of `len` bytes, and it must be properly aligned
+  /// and consecutive. Otherwise behaviour is undefined.
+  ///
+  /// # Error Handling
+  ///
+  /// If the contents is a NULL pointer, it will set the message contents as null. If the content
+  /// type is a null pointer, or can't be parsed, it will set the content type as unknown.
+  fn pactffi_message_set_contents_bin(message: *mut Message, contents: *const c_uchar, len: size_t, content_type: *const c_char) {
+    let message = as_mut!(message);
+
+    if contents.is_null() {
+      message.contents = OptionalBody::Null;
+    } else {
+      let slice = unsafe { std::slice::from_raw_parts(contents, len) };
+      let contents = Bytes::from(slice);
+      let content_type = optional_str(content_type).map(|ct| ContentType::parse(ct.as_str()).ok()).flatten();
+      message.contents = OptionalBody::Present(contents, content_type, None);
+    }
+  }
 }
 
 /*-----------------------------------------------------------------------------------------------
