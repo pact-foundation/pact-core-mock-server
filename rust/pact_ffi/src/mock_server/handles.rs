@@ -138,8 +138,18 @@ use tracing::*;
 
 use crate::{convert_cstr, ffi_fn, safe_str};
 use crate::mock_server::{StringResult, xml};
-use crate::mock_server::bodies::{empty_multipart_body, file_as_multipart_body, matcher_from_integration_json, MultipartBody, process_array, process_json, process_object, request_multipart, response_multipart};
-use crate::models::iterators::{PactMessageIterator, PactSyncMessageIterator};
+use crate::mock_server::bodies::{
+  empty_multipart_body,
+  file_as_multipart_body,
+  matcher_from_integration_json,
+  MultipartBody,
+  process_array,
+  process_json,
+  process_object,
+  request_multipart,
+  response_multipart
+};
+use crate::models::iterators::{PactMessageIterator, PactSyncMessageIterator, PactSyncHttpIterator};
 use crate::ptr;
 
 #[derive(Debug, Clone)]
@@ -1409,6 +1419,32 @@ ffi_fn! {
         ptr::raw_to(iter)
     } {
         ptr::null_mut_to::<PactSyncMessageIterator>()
+    }
+}
+
+ffi_fn! {
+    /// Get an iterator over all the synchronous HTTP request/response interactions of the Pact.
+    /// The returned iterator needs to be freed with `pactffi_pact_sync_http_iter_delete`.
+    ///
+    /// # Safety
+    ///
+    /// The iterator contains a copy of the Pact, so it is always safe to use.
+    ///
+    /// # Error Handling
+    ///
+    /// On failure, this function will return a NULL pointer.
+    ///
+    /// This function may fail if any of the Rust strings contain embedded
+    /// null ('\0') bytes.
+    fn pactffi_pact_handle_get_sync_http_iter(pact: PactHandle) -> *mut PactSyncHttpIterator {
+        let v4_pact = pact.with_pact(&|_, inner| {
+          // Ok to unwrap this, as any non-v4 pact will be upgraded
+          inner.pact.as_v4_pact().unwrap()
+        }).ok_or_else(|| anyhow!("Pact handle is not valid"))?;
+        let iter = PactSyncHttpIterator::new(v4_pact);
+        ptr::raw_to(iter)
+    } {
+        ptr::null_mut_to::<PactSyncHttpIterator>()
     }
 }
 

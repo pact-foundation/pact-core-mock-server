@@ -81,7 +81,7 @@ ffi_fn! {
   /// Sets the request contents of the message.
   ///
   /// * `message` - the message to set the request contents for
-  /// * `contents` -pointer to contents to copy from. Must be a valid NULL-terminated UTF-8 string pointer.
+  /// * `contents` - pointer to contents to copy from. Must be a valid NULL-terminated UTF-8 string pointer.
   /// * `content_type` - pointer to the NULL-terminated UTF-8 string containing the content type of the data.
   ///
   /// # Safety

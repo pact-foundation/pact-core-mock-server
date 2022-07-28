@@ -4,6 +4,7 @@ use pact_models::message::Message;
 use pact_models::message_pact::MessagePact;
 use pact_models::v4::pact::V4Pact;
 use pact_models::v4::sync_message::SynchronousMessage;
+use pact_models::v4::synch_http::SynchronousHttp;
 use pact_models::v4::V4InteractionType;
 
 use crate::{as_mut, ffi_fn};
@@ -45,6 +46,8 @@ ffi_fn! {
     /// Get the next message from the message pact. As the messages returned are owned by the
     /// iterator, they do not need to be deleted but will be cleaned up when the iterator is
     /// deleted.
+    ///
+    /// Will return a NULL pointer when the iterator has advanced past the end of the list.
     ///
     /// # Safety
     ///
@@ -99,6 +102,8 @@ ffi_fn! {
     /// iterator, they do not need to be deleted but will be cleaned up when the iterator is
     /// deleted.
     ///
+    /// Will return a NULL pointer when the iterator has advanced past the end of the list.
+    ///
     /// # Safety
     ///
     /// This function is safe.
@@ -125,3 +130,63 @@ ffi_fn! {
     }
 }
 
+/// An iterator over synchronous HTTP request/response interactions in a pact.
+#[derive(Debug)]
+#[allow(missing_copy_implementations)]
+pub struct PactSyncHttpIterator {
+  current: usize,
+  interactions: Vec<SynchronousHttp>
+}
+
+impl PactSyncHttpIterator {
+  /// Create a new iterator over all synchronous HTTP request/response interactions in the pact
+  pub fn new(pact: V4Pact) -> Self {
+    PactSyncHttpIterator {
+      current: 0,
+      interactions: pact.filter_interactions(V4InteractionType::Synchronous_HTTP)
+        .iter()
+        .map(|i| i.as_v4_http().unwrap())
+        .collect()
+    }
+  }
+
+  /// Get the next interaction in the pact.
+  fn next(&mut self) -> Option<&mut SynchronousHttp> {
+    let idx = self.current;
+    self.current += 1;
+    self.interactions.get_mut(idx)
+  }
+}
+
+ffi_fn! {
+    /// Get the next synchronous HTTP request/response interaction from the pact. As the
+    /// interactions returned are owned by the iterator, they do not need to be deleted but
+    /// will be cleaned up when the iterator is deleted.
+    ///
+    /// Will return a NULL pointer when the iterator has advanced past the end of the list.
+    ///
+    /// # Safety
+    ///
+    /// This function is safe.
+    ///
+    /// Deleting an interaction returned by the iterator can lead to undefined behaviour.
+    ///
+    /// # Error Handling
+    ///
+    /// This function will return a NULL pointer if passed a NULL pointer or if an error occurs.
+    fn pactffi_pact_sync_http_iter_next(iter: *mut PactSyncHttpIterator) -> *mut SynchronousHttp {
+        let iter = as_mut!(iter);
+        let interaction = iter.next()
+            .ok_or(anyhow::anyhow!("iter past the end of the list"))?;
+        interaction as *mut SynchronousHttp
+    } {
+        ptr::null_mut_to::<SynchronousHttp>()
+    }
+}
+
+ffi_fn! {
+    /// Free the iterator when you're done using it.
+    fn pactffi_pact_sync_http_iter_delete(iter: *mut PactSyncHttpIterator) {
+        ptr::drop_raw(iter);
+    }
+}
