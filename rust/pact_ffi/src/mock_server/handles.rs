@@ -118,7 +118,7 @@ use libc::{c_char, c_uint, c_ushort, size_t};
 use maplit::*;
 use pact_models::{Consumer, PactSpecification, Provider};
 use pact_models::bodies::OptionalBody;
-use pact_models::content_types::ContentType;
+use pact_models::content_types::{ContentType, JSON, TEXT, XML};
 use pact_models::generators::{Generator, GeneratorCategory, Generators};
 use pact_models::http_parts::HttpPart;
 use pact_models::interaction::Interaction;
@@ -131,6 +131,7 @@ use pact_models::prelude::v4::V4Pact;
 use pact_models::provider_states::ProviderState;
 use pact_models::v4::async_message::AsynchronousMessage;
 use pact_models::v4::interaction::V4Interaction;
+use pact_models::v4::message_parts::MessageContents;
 use pact_models::v4::sync_message::SynchronousMessage;
 use pact_models::v4::synch_http::SynchronousHttp;
 use serde_json::{json, Value};
@@ -1143,6 +1144,11 @@ pub extern fn pactffi_response_status(interaction: InteractionHandle, status: c_
 /// * `content_type` - The content type of the body. Defaults to `text/plain`. Will be ignored if a content type
 ///   header is already set.
 /// * `body` - The body contents. For JSON payloads, matching rules can be embedded in the body.
+///
+/// For HTTP and async message interactions, this will overwrite the body. With async messages, the
+/// part parameter will be ignored. With sync messages, the request contents will be overwritten,
+/// while a new response will be appended.
+///
 #[no_mangle]
 pub extern fn pactffi_with_body(
   interaction: InteractionHandle,
@@ -1153,6 +1159,7 @@ pub extern fn pactffi_with_body(
   let content_type = convert_cstr("content_type", content_type).unwrap_or("text/plain");
   let body = convert_cstr("body", body).unwrap_or_default();
   let content_type_header = "Content-Type".to_string();
+
   interaction.with_interaction(&|_, mock_server_started, inner| {
     if let Some(reqres) = inner.as_v4_http_mut() {
       match part {
@@ -1170,11 +1177,11 @@ pub extern fn pactffi_with_body(
           let body = if reqres.request.content_type().unwrap_or_default().is_json() {
             let category = reqres.request.matching_rules.add_category("body");
             OptionalBody::Present(Bytes::from(process_json(body.to_string(), category, &mut reqres.request.generators)),
-            Some("application/json".into()), None)
+                                  Some(JSON.clone()), None)
           } else if reqres.request.content_type().unwrap_or_default().is_xml() {
             let category = reqres.request.matching_rules.add_category("body");
             OptionalBody::Present(Bytes::from(process_xml(body.to_string(), category, &mut reqres.request.generators).unwrap_or(vec![])),
-            Some("application/xml".into()), None)
+                                  Some(XML.clone()), None)
           } else {
             OptionalBody::from(body)
           };
@@ -1194,11 +1201,11 @@ pub extern fn pactffi_with_body(
           let body = if reqres.response.content_type().unwrap_or_default().is_json() {
             let category = reqres.response.matching_rules.add_category("body");
             OptionalBody::Present(Bytes::from(process_json(body.to_string(), category, &mut reqres.response.generators)),
-            Some("application/json".into()), None)
+                                  Some(JSON.clone()), None)
           } else if reqres.response.content_type().unwrap_or_default().is_xml() {
             let category = reqres.response.matching_rules.add_category("body");
             OptionalBody::Present(Bytes::from(process_xml(body.to_string(), category, &mut reqres.response.generators).unwrap_or(vec![])),
-            Some("application/xml".into()), None)
+                                  Some(XML.clone()), None)
           } else {
             OptionalBody::from(body)
           };
@@ -1206,8 +1213,59 @@ pub extern fn pactffi_with_body(
         }
       };
       !mock_server_started
+    } else if let Some(message) = inner.as_v4_async_message_mut() {
+      let ct = ContentType::parse(content_type).unwrap_or_else(|_| TEXT.clone());
+      let body = if ct.is_json() {
+        let category = message.contents.matching_rules.add_category("body");
+        OptionalBody::Present(Bytes::from(process_json(body.to_string(), category, &mut message.contents.generators)),
+                              Some(JSON.clone()), None)
+      } else if ct.is_xml() {
+        let category = message.contents.matching_rules.add_category("body");
+        OptionalBody::Present(Bytes::from(process_xml(body.to_string(), category, &mut message.contents.generators).unwrap_or(vec![])),
+                              Some(XML.clone()), None)
+      } else {
+        OptionalBody::from(body)
+      };
+      message.contents.contents = body;
+      message.contents.metadata.insert("contentType".to_string(), json!(content_type));
+      true
+    } else if let Some(message) = inner.as_v4_sync_message_mut() {
+      let ct = ContentType::parse(content_type).unwrap_or_else(|_| TEXT.clone());
+      match part {
+        InteractionPart::Request => {
+          let category = message.request.matching_rules.add_category("body");
+          let body = if ct.is_json() {
+            OptionalBody::Present(Bytes::from(process_json(body.to_string(), category, &mut message.request.generators)),
+                                  Some(JSON.clone()), None)
+          } else if ct.is_xml() {
+            OptionalBody::Present(Bytes::from(process_xml(body.to_string(), category, &mut message.request.generators).unwrap_or(vec![])),
+                                  Some(XML.clone()), None)
+          } else {
+            OptionalBody::from(body)
+          };
+          message.request.contents = body;
+          message.request.metadata.insert("contentType".to_string(), json!(content_type));
+        }
+        InteractionPart::Response => {
+          let mut response = MessageContents::default();
+          let category = response.matching_rules.add_category("body");
+          let body = if ct.is_json() {
+            OptionalBody::Present(Bytes::from(process_json(body.to_string(), category, &mut response.generators)),
+                                  Some(JSON.clone()), None)
+          } else if ct.is_xml() {
+            OptionalBody::Present(Bytes::from(process_xml(body.to_string(), category, &mut response.generators).unwrap_or(vec![])),
+                                  Some(XML.clone()), None)
+          } else {
+            OptionalBody::from(body)
+          };
+          response.contents = body;
+          response.metadata.insert("contentType".to_string(), json!(content_type));
+          message.response.push(response);
+        }
+      }
+      true
     } else {
-      error!("Interaction is not an HTTP interaction, is {}", inner.type_of());
+      error!("Interaction is an unknown type, is {}", inner.type_of());
       false
     }
   }).unwrap_or(false)
@@ -1820,12 +1878,13 @@ mod tests {
   use either::Either;
   use expectest::prelude::*;
   use maplit::hashmap;
+  use pact_models::content_types::JSON;
   use pact_models::matchingrules;
   use pact_models::matchingrules::{Category, MatchingRule};
   use pact_models::path_exp::DocPath;
   use pact_models::prelude::{Generators, MatchingRules};
 
-  use crate::mock_server::handles::{InteractionPart, pactffi_free_pact_handle, pactffi_new_async_message, pactffi_new_interaction, pactffi_with_header_v2, pactffi_with_query_parameter_v2, pactffi_with_request, PactHandle};
+  use crate::mock_server::handles::{InteractionPart, pactffi_free_pact_handle, pactffi_new_async_message, pactffi_new_interaction, pactffi_new_message_interaction, pactffi_new_sync_message_interaction, pactffi_with_body, pactffi_with_header_v2, pactffi_with_query_parameter_v2, pactffi_with_request, PactHandle};
 
   use super::from_integration_json_v2;
 
@@ -2142,5 +2201,30 @@ mod tests {
     expect!(&interaction.request.matching_rules).to(be_equal_to(&matchingrules! {
       "path" => { "$" => [ MatchingRule::Regex("\\/path\\/to\\/\\d+".to_string()) ] }
     }));
+  }
+
+  #[test]
+  fn pactffi_with_body_test() {
+    let pact_handle = PactHandle::new("WithBodyC", "WithBodyP");
+    let description = CString::new("first interaction").unwrap();
+    let i_handle = pactffi_new_interaction(pact_handle, description.as_ptr());
+
+    let json_ct = CString::new(JSON.to_string()).unwrap();
+    let body = CString::new("{\"test\":true}").unwrap();
+    let result = pactffi_with_body(i_handle, InteractionPart::Request, json_ct.as_ptr(), body.as_ptr());
+
+    let description2 = CString::new("second interaction").unwrap();
+    let i_handle2 = pactffi_new_message_interaction(pact_handle, description2.as_ptr());
+    let result2 = pactffi_with_body(i_handle2, InteractionPart::Request, json_ct.as_ptr(), body.as_ptr());
+
+    let description3 = CString::new("third interaction").unwrap();
+    let i_handle3 = pactffi_new_sync_message_interaction(pact_handle, description3.as_ptr());
+    let result3 = pactffi_with_body(i_handle3, InteractionPart::Request, json_ct.as_ptr(), body.as_ptr());
+
+    pactffi_free_pact_handle(pact_handle);
+
+    expect!(result).to(be_true());
+    expect!(result2).to(be_true());
+    expect!(result3).to(be_true());
   }
 }
