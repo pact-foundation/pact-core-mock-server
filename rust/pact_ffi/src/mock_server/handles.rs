@@ -102,12 +102,12 @@
 //! ```
 
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ffi::{CStr, CString};
 use std::path::PathBuf;
 use std::ptr::null_mut;
 use std::str::from_utf8;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, Context};
 use bytes::Bytes;
@@ -152,7 +152,7 @@ pub struct PactHandleInner {
 }
 
 lazy_static! {
-  static ref PACT_HANDLES: Mutex<HashMap<u16, RefCell<PactHandleInner>>> = Mutex::new(hashmap![]);
+  static ref PACT_HANDLES: Arc<Mutex<HashMap<u16, RefCell<PactHandleInner>>>> = Arc::new(Mutex::new(hashmap![]));
 }
 
 #[repr(transparent)]
@@ -185,7 +185,13 @@ impl PactHandle {
   /// Creates a new handle to a Pact model
   pub fn new(consumer: &str, provider: &str) -> Self {
     let mut handles = PACT_HANDLES.lock().unwrap();
-    let id = (handles.len() + 1) as u16;
+
+    let keys: HashSet<&u16> = handles.keys().collect();
+    let mut id: u16 = 1;
+    while keys.contains(&id) {
+      id = id + 1;
+    }
+
     let mut pact = V4Pact {
       consumer: Consumer { name: consumer.to_string() },
       provider: Provider { name: provider.to_string() },
@@ -205,7 +211,13 @@ impl PactHandle {
   /// Invokes the closure with the inner Pact model
   pub(crate) fn with_pact<R>(&self, f: &dyn Fn(u16, &mut PactHandleInner) -> R) -> Option<R> {
     let mut handles = PACT_HANDLES.lock().unwrap();
-    handles.get_mut(&self.pact_ref).map(|inner| f(self.pact_ref - 1, &mut inner.borrow_mut()))
+    trace!("with_pact - ref = {}, keys = {:?}", self.pact_ref, handles.keys());
+    handles.get_mut(&self.pact_ref).map(|inner| {
+      trace!("with_pact before - ref = {}, inner = {:?}", self.pact_ref, inner);
+      let result = f(self.pact_ref - 1, &mut inner.borrow_mut());
+      trace!("with_pact after - ref = {}, inner = {:?}", self.pact_ref, inner);
+      result
+    })
   }
 }
 
@@ -232,9 +244,13 @@ impl InteractionHandle {
     let mut handles = PACT_HANDLES.lock().unwrap();
     let index = (self.interaction_ref >> 16) as u16;
     let interaction = (self.interaction_ref & 0x0000FFFF) as u16;
+
     trace!("with_interaction - index = {}, interaction = {}", index, interaction);
+    trace!("with_interaction - keys = {:?}", handles.keys());
+
     handles.get_mut(&index).map(|inner| {
       let inner_mut = &mut *inner.borrow_mut();
+      trace!("with_interaction - inner = {:?}", inner_mut);
       let interactions = &mut inner_mut.pact.interactions;
       match interactions.get_mut((interaction - 1) as usize) {
         Some(inner_i) => {
@@ -1743,6 +1759,7 @@ pub extern fn pactffi_new_async_message(pact: PactHandle, description: *const c_
 #[no_mangle]
 pub extern fn pactffi_free_pact_handle(pact: PactHandle) -> c_uint {
   let mut handles = PACT_HANDLES.lock().unwrap();
+  trace!("pactffi_free_pact_handle - removing pact with index {}", pact.pact_ref);
   handles.remove(&pact.pact_ref).map(|_| 0).unwrap_or(1)
 }
 
