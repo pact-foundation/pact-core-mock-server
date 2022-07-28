@@ -1,16 +1,37 @@
 //! V4 Synchronous request/response messages
 
 use anyhow::{anyhow, Context};
+use bytes::Bytes;
 use libc::{c_char, c_int, c_uchar, c_uint, EXIT_FAILURE, EXIT_SUCCESS, size_t};
-
 use pact_models::bodies::OptionalBody;
+use pact_models::content_types::{ContentType, ContentTypeHint};
 use pact_models::provider_states::ProviderState;
+use pact_models::v4::message_parts::MessageContents;
 use pact_models::v4::sync_message::SynchronousMessage;
 
 use crate::{as_mut, as_ref, ffi_fn, safe_str};
 use crate::models::message::ProviderStateIterator;
 use crate::ptr;
 use crate::util::*;
+use crate::util::string::optional_str;
+
+ffi_fn! {
+    /// Get a mutable pointer to a newly-created default message on the heap.
+    ///
+    /// # Safety
+    ///
+    /// This function is safe.
+    ///
+    /// # Error Handling
+    ///
+    /// Returns NULL on error.
+    fn pactffi_sync_message_new() -> *mut SynchronousMessage {
+        let message = SynchronousMessage::default();
+        ptr::raw_to(message)
+    } {
+        ptr::null_mut_to::<SynchronousMessage>()
+    }
+}
 
 ffi_fn! {
     /// Destroy the `Message` being pointed to.
@@ -54,6 +75,35 @@ ffi_fn! {
     } {
         ptr::null_to::<c_char>()
     }
+}
+
+ffi_fn! {
+  /// Sets the request contents of the message.
+  ///
+  /// * `message` - the message to set the request contents for
+  /// * `contents` -pointer to contents to copy from. Must be a valid NULL-terminated UTF-8 string pointer.
+  /// * `content_type` - pointer to the NULL-terminated UTF-8 string containing the content type of the data.
+  ///
+  /// # Safety
+  ///
+  /// The message contents and content type must either be NULL pointers, or point to valid
+  /// UTF-8 encoded NULL-terminated strings. Otherwise behaviour is undefined.
+  ///
+  /// # Error Handling
+  ///
+  /// If the contents is a NULL pointer, it will set the message contents as null. If the content
+  /// type is a null pointer, or can't be parsed, it will set the content type as unknown.
+  fn pactffi_sync_message_set_request_contents(message: *mut SynchronousMessage, contents: *const c_char, content_type: *const c_char) {
+    let message = as_mut!(message);
+
+    if contents.is_null() {
+      message.request.contents = OptionalBody::Null;
+    } else {
+      let contents = safe_str!(contents);
+      let content_type = optional_str(content_type).map(|ct| ContentType::parse(ct.as_str()).ok()).flatten();
+      message.request.contents = OptionalBody::Present(Bytes::from(contents), content_type, Some(ContentTypeHint::TEXT));
+    }
+  }
 }
 
 ffi_fn! {
@@ -102,6 +152,42 @@ ffi_fn! {
     } {
         ptr::null_to::<c_uchar>()
     }
+}
+
+ffi_fn! {
+  /// Sets the request contents of the message as an array of bytes.
+  ///
+  /// * `message` - the message to set the request contents for
+  /// * `contents` - pointer to contents to copy from
+  /// * `len` - number of bytes to copy from the contents pointer
+  /// * `content_type` - pointer to the NULL-terminated UTF-8 string containing the content type of the data.
+  ///
+  /// # Safety
+  ///
+  /// The contents pointer must be valid for reads of `len` bytes, and it must be properly aligned
+  /// and consecutive. Otherwise behaviour is undefined.
+  ///
+  /// # Error Handling
+  ///
+  /// If the contents is a NULL pointer, it will set the message contents as null. If the content
+  /// type is a null pointer, or can't be parsed, it will set the content type as unknown.
+  fn pactffi_sync_message_set_request_contents_bin(
+    message: *mut SynchronousMessage,
+    contents: *const c_uchar,
+    len: size_t,
+    content_type: *const c_char
+  ) {
+    let message = as_mut!(message);
+
+    if contents.is_null() {
+      message.request.contents = OptionalBody::Null;
+    } else {
+      let slice = unsafe { std::slice::from_raw_parts(contents, len) };
+      let contents = Bytes::from(slice);
+      let content_type = optional_str(content_type).map(|ct| ContentType::parse(ct.as_str()).ok()).flatten();
+      message.request.contents = OptionalBody::Present(contents, content_type, Some(ContentTypeHint::BINARY));
+    }
+  }
 }
 
 ffi_fn! {
@@ -164,6 +250,50 @@ ffi_fn! {
 }
 
 ffi_fn! {
+  /// Sets the response contents of the message. If index is greater than the number of responses
+  /// in the message, the responses will be padded with default values.
+  ///
+  /// * `message` - the message to set the response contents for
+  /// * `index` - index of the response to set. 0 is the first response.
+  /// * `contents` - pointer to contents to copy from. Must be a valid NULL-terminated UTF-8 string pointer.
+  /// * `content_type` - pointer to the NULL-terminated UTF-8 string containing the content type of the data.
+  ///
+  /// # Safety
+  ///
+  /// The message contents and content type must either be NULL pointers, or point to valid
+  /// UTF-8 encoded NULL-terminated strings. Otherwise behaviour is undefined.
+  ///
+  /// # Error Handling
+  ///
+  /// If the contents is a NULL pointer, it will set the response contents as null. If the content
+  /// type is a null pointer, or can't be parsed, it will set the content type as unknown.
+  fn pactffi_sync_message_set_response_contents(
+    message: *mut SynchronousMessage,
+    index: size_t,
+    contents: *const c_char,
+    content_type: *const c_char
+  ) {
+    let message = as_mut!(message);
+
+    let response = match message.response.get_mut(index) {
+      Some(response) => response,
+      None => {
+        message.response.resize(index + 1, MessageContents::default());
+        message.response.get_mut(index).unwrap()
+      }
+    };
+
+    if contents.is_null() {
+      response.contents = OptionalBody::Null;
+    } else {
+      let contents = safe_str!(contents);
+      let content_type = optional_str(content_type).map(|ct| ContentType::parse(ct.as_str()).ok()).flatten();
+      response.contents = OptionalBody::Present(Bytes::from(contents), content_type, Some(ContentTypeHint::TEXT));
+    }
+  }
+}
+
+ffi_fn! {
     /// Get the length of the response contents of a `SynchronousMessage`.
     ///
     /// # Safety
@@ -215,6 +345,54 @@ ffi_fn! {
     } {
         ptr::null_to::<c_uchar>()
     }
+}
+
+ffi_fn! {
+  /// Sets the response contents of the message at the given index as an array of bytes. If index
+  /// is greater than the number of responses in the message, the responses will be padded with
+  /// default values.
+  ///
+  /// * `message` - the message to set the response contents for
+  /// * `index` - index of the response to set. 0 is the first response
+  /// * `contents` - pointer to contents to copy from
+  /// * `len` - number of bytes to copy
+  /// * `content_type` - pointer to the NULL-terminated UTF-8 string containing the content type of the data.
+  ///
+  /// # Safety
+  ///
+  /// The contents pointer must be valid for reads of `len` bytes, and it must be properly aligned
+  /// and consecutive. Otherwise behaviour is undefined.
+  ///
+  /// # Error Handling
+  ///
+  /// If the contents is a NULL pointer, it will set the message contents as null. If the content
+  /// type is a null pointer, or can't be parsed, it will set the content type as unknown.
+  fn pactffi_sync_message_set_response_contents_bin(
+    message: *mut SynchronousMessage,
+    index: size_t,
+    contents: *const c_uchar,
+    len: size_t,
+    content_type: *const c_char
+  ) {
+    let message = as_mut!(message);
+
+    let response = match message.response.get_mut(index) {
+      Some(response) => response,
+      None => {
+        message.response.resize(index + 1, MessageContents::default());
+        message.response.get_mut(index).unwrap()
+      }
+    };
+
+    if contents.is_null() {
+      response.contents = OptionalBody::Null;
+    } else {
+      let slice = unsafe { std::slice::from_raw_parts(contents, len) };
+      let contents = Bytes::from(slice);
+      let content_type = optional_str(content_type).map(|ct| ContentType::parse(ct.as_str()).ok()).flatten();
+      response.contents = OptionalBody::Present(contents, content_type, Some(ContentTypeHint::BINARY));
+    }
+  }
 }
 
 ffi_fn! {
@@ -321,5 +499,60 @@ ffi_fn! {
         ptr::raw_to(iter)
     } {
         ptr::null_mut_to::<ProviderStateIterator>()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+  use std::ffi::CString;
+
+  use expectest::prelude::*;
+  use libc::c_char;
+
+  use crate::models::sync_message::{
+    pactffi_sync_message_delete,
+    pactffi_sync_message_get_request_contents,
+    pactffi_sync_message_get_request_contents_length,
+    pactffi_sync_message_get_response_contents,
+    pactffi_sync_message_get_response_contents_length,
+    pactffi_sync_message_new,
+    pactffi_sync_message_set_request_contents,
+    pactffi_sync_message_set_response_contents
+  };
+  use crate::ptr::null_to;
+
+  #[test]
+    fn get_and_set_message_contents() {
+      let message = pactffi_sync_message_new();
+      let message_contents = CString::new("This is a string").unwrap();
+      let message_contents2 = CString::new("This is another string").unwrap();
+      let content_type = CString::new("text/plain").unwrap();
+
+      pactffi_sync_message_set_request_contents(message, message_contents.as_ptr(), null_to::<c_char>());
+      let contents = pactffi_sync_message_get_request_contents(message) as *mut c_char;
+      let len = pactffi_sync_message_get_request_contents_length(message);
+      let str = unsafe { CString::from_raw(contents) };
+
+      pactffi_sync_message_set_response_contents(message, 2, message_contents2.as_ptr(),
+        content_type.as_ptr());
+      let response_contents = pactffi_sync_message_get_response_contents(message, 0) as *mut c_char;
+      let response_len = pactffi_sync_message_get_response_contents_length(message, 0);
+      let response_contents1 = pactffi_sync_message_get_response_contents(message, 1) as *mut c_char;
+      let response_len1 = pactffi_sync_message_get_response_contents_length(message, 1);
+      let contents2 = pactffi_sync_message_get_response_contents(message, 2) as *mut c_char;
+      let response_len2 = pactffi_sync_message_get_response_contents_length(message, 2);
+      let response_str2 = unsafe { CString::from_raw(contents2) };
+
+      pactffi_sync_message_delete(message);
+
+      expect!(str.to_str().unwrap()).to(be_equal_to("This is a string"));
+      expect!(len).to(be_equal_to(16));
+
+      expect!(response_contents.is_null()).to(be_true());
+      expect!(response_len).to(be_equal_to(0));
+      expect!(response_contents1.is_null()).to(be_true());
+      expect!(response_len1).to(be_equal_to(0));
+      expect!(response_str2.to_str().unwrap()).to(be_equal_to("This is another string"));
+      expect!(response_len2).to(be_equal_to(22));
     }
 }
