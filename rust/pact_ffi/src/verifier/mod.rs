@@ -241,6 +241,30 @@ ffi_fn! {
 }
 
 ffi_fn! {
+    /// Enables or disables coloured output using ANSI escape codes in the verifier output. By default,
+    /// coloured output is enabled.
+    ///
+    /// `coloured_output` is a boolean value. Set it to greater than zero to turn the option on.
+    ///
+    /// # Safety
+    ///
+    /// This function is safe as long as the handle pointer points to a valid handle.
+    ///
+    fn pactffi_verifier_set_coloured_output(
+      handle: *mut handle::VerifierHandle,
+      coloured_output: c_uchar
+    ) -> c_int {
+      let handle = as_mut!(handle);
+
+      handle.set_use_coloured_output(coloured_output > 0);
+
+      EXIT_SUCCESS
+    } {
+      EXIT_FAILURE
+    }
+}
+
+ffi_fn! {
   /// Set the options used when publishing verification results to the Pact Broker
   ///
   /// # Args

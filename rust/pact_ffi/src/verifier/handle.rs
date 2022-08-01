@@ -209,6 +209,14 @@ impl VerifierHandle {
     self.verification_options.request_timeout = request_timeout;
   }
 
+  /// Enables or disables use of ANSI escape codes with the verifier output
+  pub fn set_use_coloured_output(
+    &mut self,
+    coloured_output: bool
+  ) {
+    self.verification_options.coloured_output = coloured_output;
+  }
+
   /// Update the details used when publishing results
   /// 
   /// # Args
