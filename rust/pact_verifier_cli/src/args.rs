@@ -1,28 +1,28 @@
 use clap::{App, Arg};
 use regex::Regex;
 
-fn port_value(v: String) -> Result<(), String> {
+fn port_value(v: &str) -> Result<(), String> {
   v.parse::<u16>().map(|_| ()).map_err(|e| format!("'{}' is not a valid port value: {}", v, e) )
 }
 
-fn integer_value(v: String) -> Result<(), String> {
+fn integer_value(v: &str) -> Result<(), String> {
   v.parse::<u64>().map(|_| ()).map_err(|e| format!("'{}' is not a valid integer value: {}", v, e) )
 }
 
-pub(crate) fn setup_app<'a, 'b>(program: String, version: &'b str) -> App<'a, 'b> {
+pub(crate) fn setup_app(program: String, version: &str) -> App {
   App::new(program)
     .version(version)
     .about("Standalone Pact verifier")
-    .version_short("v")
+    .version_short('v')
     .arg(Arg::with_name("loglevel")
-      .short("l")
+      .short('l')
       .long("loglevel")
       .takes_value(true)
       .use_delimiter(false)
       .possible_values(&["error", "warn", "info", "debug", "trace", "none"])
       .help("Log level (defaults to warn)"))
     .arg(Arg::with_name("file")
-      .short("f")
+      .short('f')
       .long("file")
       .required_unless_one(&["dir", "url", "broker-url"])
       .takes_value(true)
@@ -32,7 +32,7 @@ pub(crate) fn setup_app<'a, 'b>(program: String, version: &'b str) -> App<'a, 'b
       .empty_values(false)
       .help("Pact file to verify (can be repeated)"))
     .arg(Arg::with_name("dir")
-      .short("d")
+      .short('d')
       .long("dir")
       .required_unless_one(&["file", "url", "broker-url"])
       .takes_value(true)
@@ -42,7 +42,7 @@ pub(crate) fn setup_app<'a, 'b>(program: String, version: &'b str) -> App<'a, 'b
       .empty_values(false)
       .help("Directory of pact files to verify (can be repeated)"))
     .arg(Arg::with_name("url")
-      .short("u")
+      .short('u')
       .long("url")
       .required_unless_one(&["file", "dir", "broker-url"])
       .takes_value(true)
@@ -52,7 +52,7 @@ pub(crate) fn setup_app<'a, 'b>(program: String, version: &'b str) -> App<'a, 'b
       .empty_values(false)
       .help("URL of pact file to verify (can be repeated)"))
     .arg(Arg::with_name("broker-url")
-      .short("b")
+      .short('b')
       .long("broker-url")
       .env("PACT_BROKER_BASE_URL")
       .required_unless_one(&["file", "dir", "url"])
@@ -62,13 +62,13 @@ pub(crate) fn setup_app<'a, 'b>(program: String, version: &'b str) -> App<'a, 'b
       .empty_values(false)
       .help("URL of the pact broker to fetch pacts from to verify (requires the provider name parameter)"))
     .arg(Arg::with_name("hostname")
-      .short("h")
+      .short('h')
       .long("hostname")
       .takes_value(true)
       .use_delimiter(false)
       .help("Provider hostname (defaults to localhost)"))
     .arg(Arg::with_name("port")
-      .short("p")
+      .short('p')
       .long("port")
       .takes_value(true)
       .use_delimiter(false)
@@ -81,13 +81,13 @@ pub(crate) fn setup_app<'a, 'b>(program: String, version: &'b str) -> App<'a, 'b
       .default_value("http")
       .help("Provider protocol transport to use (http, https, grpc, etc.)"))
     .arg(Arg::with_name("provider-name")
-      .short("n")
+      .short('n')
       .long("provider-name")
       .takes_value(true)
       .use_delimiter(false)
       .help("Provider name (defaults to provider)"))
     .arg(Arg::with_name("state-change-url")
-      .short("s")
+      .short('s')
       .long("state-change-url")
       .takes_value(true)
       .use_delimiter(false)
@@ -123,7 +123,7 @@ pub(crate) fn setup_app<'a, 'b>(program: String, version: &'b str) -> App<'a, 'b
       .conflicts_with("filter-state")
       .help("Only validate interactions that have no defined provider state"))
     .arg(Arg::with_name("filter-consumer")
-      .short("c")
+      .short('c')
       .long("filter-consumer")
       .takes_value(true)
       .multiple(true)
@@ -148,7 +148,7 @@ pub(crate) fn setup_app<'a, 'b>(program: String, version: &'b str) -> App<'a, 'b
       .conflicts_with("token")
       .help("Password to use when fetching pacts from URLS"))
     .arg(Arg::with_name("token")
-      .short("t")
+      .short('t')
       .long("token")
       .env("PACT_BROKER_TOKEN")
       .takes_value(true)
@@ -234,7 +234,7 @@ pub(crate) fn setup_app<'a, 'b>(program: String, version: &'b str) -> App<'a, 'b
       .validator(integer_value)
       .help("Sets the HTTP request timeout in milliseconds for requests to the target API and for state change requests."))
     .arg(Arg::with_name("json-file")
-      .short("j")
+      .short('j')
       .long("json")
       .takes_value(true)
       .use_delimiter(false)
@@ -262,13 +262,13 @@ mod test {
 
   #[test]
   fn validates_port_value() {
-    expect!(port_value("1234".to_string())).to(be_ok());
-    expect!(port_value("1234x".to_string())).to(be_err());
+    expect!(port_value("1234")).to(be_ok());
+    expect!(port_value("1234x")).to(be_err());
   }
 
   #[test]
   fn validates_integer_value() {
-    expect!(integer_value("3000000".to_string())).to(be_ok());
-    expect!(integer_value("1234x".to_string())).to(be_err());
+    expect!(integer_value("3000000")).to(be_ok());
+    expect!(integer_value("1234x")).to(be_err());
   }
 }
