@@ -1392,13 +1392,27 @@ pub extern fn pactffi_with_binary_file(
 
 /// Adds a binary file as the body as a MIME multipart with the expected content type and example contents. Will use
 /// a mime type matcher to match the body. Returns an error if the interaction or Pact can't be
-/// modified (i.e. the mock server for it has already started)
+/// modified (i.e. the mock server for it has already started) or an error occurs.
 ///
 /// * `interaction` - Interaction handle to set the body for.
 /// * `part` - Request or response part.
 /// * `content_type` - Expected content type of the file.
 /// * `file` - path to the example file
 /// * `part_name` - name for the mime part
+///
+/// # Safety
+///
+/// The content type, file path and part name must be valid pointers to UTF-8 encoded NULL-terminated strings.
+/// Passing invalid pointers or pointers to strings that are not NULL terminated will lead to undefined
+/// behaviour.
+///
+/// # Error Handling
+///
+/// If the file path is a NULL pointer, it will set the body contents as as an empty mime-part.
+/// If the file path does not point to a valid file, or is not able to be read, it will return an
+/// error result. If the content type is a null pointer, or can't be parsed, it will return an error result.
+/// Returns an error if the interaction or Pact can't be modified (i.e. the mock server for it has
+/// already started), the interaction is not an HTTP interaction or some other error occurs.
 #[no_mangle]
 pub extern fn pactffi_with_multipart_file(
   interaction: InteractionHandle,
@@ -1410,7 +1424,7 @@ pub extern fn pactffi_with_multipart_file(
   let part_name = convert_cstr("part_name", part_name).unwrap_or("file");
   match convert_cstr("content_type", content_type) {
     Some(content_type) => {
-      match interaction.with_interaction(&|_, mock_server_started, inner| {
+      let result = interaction.with_interaction(&|_, mock_server_started, inner| {
         match convert_ptr_to_mime_part_body(file, part_name) {
           Ok(body) => {
             if let Some(reqres) = inner.as_v4_http_mut() {
@@ -1430,8 +1444,9 @@ pub extern fn pactffi_with_multipart_file(
           },
           Err(err) => Err(format!("with_multipart_file: failed to generate multipart body - {}", err))
         }
-      }) {
-        Some(result) => match result {
+      });
+      match result {
+        Some(inner_result) => match inner_result {
           Ok(_) => StringResult::Ok(null_mut()),
           Err(err) => {
             let error = CString::new(err).unwrap();
@@ -1445,7 +1460,7 @@ pub extern fn pactffi_with_multipart_file(
       }
     },
     None => {
-      warn!("with_multipart_file: Content type value is not valid (NULL or non-UTF-8)");
+      error!("with_multipart_file: Content type value is not valid (NULL or non-UTF-8)");
       let error = CString::new("with_multipart_file: Content type value is not valid (NULL or non-UTF-8)").unwrap();
       StringResult::Failed(error.into_raw())
     }
@@ -1470,7 +1485,7 @@ fn convert_ptr_to_mime_part_body(file: *const c_char, part_name: &str) -> Result
     let file = match c_str.to_str() {
       Ok(str) => Ok(str),
       Err(err) => {
-        warn!("convert_ptr_to_mime_part_body: Failed to parse file name as a UTF-8 string: {}", err);
+        error!("convert_ptr_to_mime_part_body: Failed to parse file name as a UTF-8 string: {}", err);
         Err(format!("convert_ptr_to_mime_part_body: Failed to parse file name as a UTF-8 string: {}", err))
       }
     }?;
