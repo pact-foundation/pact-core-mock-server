@@ -891,7 +891,7 @@ pub(crate) fn process_xml(body: String, matching_rules: &mut MatchingRuleCategor
 }
 
 /// Sets the specification version for a given Pact model. Returns false if the interaction or Pact can't be
-/// modified (i.e. the mock server for it has already started) or the version is invalid
+/// modified (i.e. the mock server for it has already started) or the version is invalid.
 ///
 /// * `pact` - Handle to a Pact model
 /// * `version` - the spec version to use
@@ -1145,10 +1145,21 @@ pub extern fn pactffi_response_status(interaction: InteractionHandle, status: c_
 ///   header is already set.
 /// * `body` - The body contents. For JSON payloads, matching rules can be embedded in the body.
 ///
-/// For HTTP and async message interactions, this will overwrite the body. With async messages, the
-/// part parameter will be ignored. With sync messages, the request contents will be overwritten,
-/// while a new response will be appended.
+/// For HTTP and async message interactions, this will overwrite the body. With asynchronous messages, the
+/// part parameter will be ignored. With synchronous messages, the request contents will be overwritten,
+/// while a new response will be appended to the message.
 ///
+/// # Safety
+///
+/// The interaction contents and content type must either be NULL pointers, or point to valid
+/// UTF-8 encoded NULL-terminated strings. Otherwise, behaviour is undefined.
+///
+/// # Error Handling
+///
+/// If the contents is a NULL pointer, it will set the body contents as null. If the content
+/// type is a null pointer, or can't be parsed, it will set the content type as TEXT.
+/// Returns false if the interaction or Pact can't be modified (i.e. the mock server for it has
+/// already started) or an error has occurred.
 #[no_mangle]
 pub extern fn pactffi_with_body(
   interaction: InteractionHandle,
@@ -1280,12 +1291,28 @@ pub extern fn pactffi_with_body(
 /// * `content_type` - Expected content type.
 /// * `body` - example body contents in bytes
 /// * `size` - number of bytes in the body
+///
+/// For HTTP and async message interactions, this will overwrite the body. With asynchronous messages, the
+/// part parameter will be ignored. With synchronous messages, the request contents will be overwritten,
+/// while a new response will be appended to the message.
+///
+/// # Safety
+///
+/// The content type must be a valid UTF-8 encoded NULL-terminated string. The body pointer must
+/// be valid for reads of `size` bytes, and it must be properly aligned and consecutive.
+///
+/// # Error Handling
+///
+/// If the body is a NULL pointer, it will set the body contents as null. If the content
+/// type is a null pointer, or can't be parsed, it will return false.
+/// Returns false if the interaction or Pact can't be modified (i.e. the mock server for it has
+/// already started) or an error has occurred.
 #[no_mangle]
 pub extern fn pactffi_with_binary_file(
   interaction: InteractionHandle,
   part: InteractionPart,
   content_type: *const c_char,
-  body: *const u8 ,
+  body: *const u8,
   size: size_t
 ) -> bool {
   let content_type_header = "Content-Type".to_string();
@@ -1299,10 +1326,10 @@ pub extern fn pactffi_with_binary_file(
               if !reqres.request.has_header(&content_type_header) {
                 match reqres.request.headers {
                   Some(ref mut headers) => {
-                    headers.insert(content_type_header.clone(), vec!["application/octet-stream".to_string()]);
+                    headers.insert(content_type_header.clone(), vec![content_type.to_string()]);
                   },
                   None => {
-                    reqres.request.headers = Some(hashmap! { content_type_header.clone() => vec!["application/octet-stream".to_string()]});
+                    reqres.request.headers = Some(hashmap! { content_type_header.clone() => vec![content_type.to_string()]});
                   }
                 }
               };
@@ -1326,14 +1353,38 @@ pub extern fn pactffi_with_binary_file(
             }
           };
           !mock_server_started
+        } else if let Some(message) = inner.as_v4_async_message_mut() {
+          message.contents.contents = convert_ptr_to_body(body, size);
+          message.contents.matching_rules.add_category("body").add_rule(
+            DocPath::root(), MatchingRule::ContentType(content_type.into()), RuleLogic::And);
+          message.contents.metadata.insert("contentType".to_string(), json!(content_type));
+          true
+        } else if let Some(sync_message) = inner.as_v4_sync_message_mut() {
+          match part {
+            InteractionPart::Request => {
+              sync_message.request.contents = convert_ptr_to_body(body, size);
+              sync_message.request.matching_rules.add_category("body").add_rule(
+                DocPath::root(), MatchingRule::ContentType(content_type.into()), RuleLogic::And);
+              sync_message.request.metadata.insert("contentType".to_string(), json!(content_type));
+            },
+            InteractionPart::Response => {
+              let mut response = MessageContents::default();
+              response.contents = convert_ptr_to_body(body, size);
+              response.matching_rules.add_category("body").add_rule(
+                DocPath::root(), MatchingRule::ContentType(content_type.into()), RuleLogic::And);
+              response.metadata.insert("contentType".to_string(), json!(content_type));
+              sync_message.response.push(response);
+            }
+          };
+          true
         } else {
-          error!("Interaction is not an HTTP interaction, is {}", inner.type_of());
+          error!("Interaction is an unknown type, is {}", inner.type_of());
           false
         }
       }).unwrap_or(false)
     },
     None => {
-      warn!("with_binary_file: Content type value is not valid (NULL or non-UTF-8)");
+      error!("with_binary_file: Content type value is not valid (NULL or non-UTF-8)");
       false
     }
   }
@@ -1884,7 +1935,7 @@ mod tests {
   use pact_models::path_exp::DocPath;
   use pact_models::prelude::{Generators, MatchingRules};
 
-  use crate::mock_server::handles::{InteractionPart, pactffi_free_pact_handle, pactffi_new_async_message, pactffi_new_interaction, pactffi_new_message_interaction, pactffi_new_sync_message_interaction, pactffi_with_body, pactffi_with_header_v2, pactffi_with_query_parameter_v2, pactffi_with_request, PactHandle};
+  use crate::mock_server::handles::*;
 
   use super::from_integration_json_v2;
 
@@ -2210,7 +2261,8 @@ mod tests {
     let i_handle = pactffi_new_interaction(pact_handle, description.as_ptr());
 
     let json_ct = CString::new(JSON.to_string()).unwrap();
-    let body = CString::new("{\"test\":true}").unwrap();
+    let json = "{\"test\":true}";
+    let body = CString::new(json).unwrap();
     let result = pactffi_with_body(i_handle, InteractionPart::Request, json_ct.as_ptr(), body.as_ptr());
 
     let description2 = CString::new("second interaction").unwrap();
@@ -2221,10 +2273,84 @@ mod tests {
     let i_handle3 = pactffi_new_sync_message_interaction(pact_handle, description3.as_ptr());
     let result3 = pactffi_with_body(i_handle3, InteractionPart::Request, json_ct.as_ptr(), body.as_ptr());
 
+    let interaction1 = i_handle.with_interaction(&|_, _, inner| {
+      inner.as_v4_http().unwrap()
+    }).unwrap();
+    let interaction2 = i_handle2.with_interaction(&|_, _, inner| {
+      inner.as_v4_async_message().unwrap()
+    }).unwrap();
+    let interaction3 = i_handle3.with_interaction(&|_, _, inner| {
+      inner.as_v4_sync_message().unwrap()
+    }).unwrap();
+
     pactffi_free_pact_handle(pact_handle);
 
     expect!(result).to(be_true());
     expect!(result2).to(be_true());
     expect!(result3).to(be_true());
+
+    let body1 = interaction1.request.body.value().unwrap();
+    expect!(body1.len()).to(be_equal_to(json.len()));
+    let headers = interaction1.request.headers.unwrap();
+    expect!(headers.get("Content-Type").unwrap().first().unwrap()).to(be_equal_to(&JSON.to_string()));
+
+    let body2 = interaction2.contents.contents.value().unwrap();
+    expect!(body2.len()).to(be_equal_to(json.len()));
+    expect!(interaction2.contents.metadata.get("contentType").unwrap().to_string()).to(be_equal_to("\"application/json\""));
+
+    let body3 = interaction3.request.contents.value().unwrap();
+    expect!(body3.len()).to(be_equal_to(json.len()));
+    expect!(interaction3.request.metadata.get("contentType").unwrap().to_string()).to(be_equal_to("\"application/json\""));
+  }
+
+  #[test]
+  fn pactffi_with_binary_file_test() {
+    let pact_handle = PactHandle::new("CBin", "PBin");
+    let description = CString::new("first interaction").unwrap();
+    let i_handle = pactffi_new_interaction(pact_handle, description.as_ptr());
+
+    let json_ct = CString::new(JSON.to_string()).unwrap();
+    let json = "{\"test\":true}";
+    let result = pactffi_with_binary_file(i_handle, InteractionPart::Request,
+      json_ct.as_ptr(), json.as_ptr(), json.len());
+
+    let description2 = CString::new("second interaction").unwrap();
+    let i_handle2 = pactffi_new_message_interaction(pact_handle, description2.as_ptr());
+    let result2 = pactffi_with_binary_file(i_handle2, InteractionPart::Request,
+      json_ct.as_ptr(), json.as_ptr(), json.len());
+
+    let description3 = CString::new("third interaction").unwrap();
+    let i_handle3 = pactffi_new_sync_message_interaction(pact_handle, description3.as_ptr());
+    let result3 = pactffi_with_binary_file(i_handle3, InteractionPart::Request,
+      json_ct.as_ptr(), json.as_ptr(), json.len());
+
+    let interaction1 = i_handle.with_interaction(&|_, _, inner| {
+      inner.as_v4_http().unwrap()
+    }).unwrap();
+    let interaction2 = i_handle2.with_interaction(&|_, _, inner| {
+      inner.as_v4_async_message().unwrap()
+    }).unwrap();
+    let interaction3 = i_handle3.with_interaction(&|_, _, inner| {
+      inner.as_v4_sync_message().unwrap()
+    }).unwrap();
+
+    pactffi_free_pact_handle(pact_handle);
+
+    expect!(result).to(be_true());
+    expect!(result2).to(be_true());
+    expect!(result3).to(be_true());
+
+    let body1 = interaction1.request.body.value().unwrap();
+    expect!(body1.len()).to(be_equal_to(json.len()));
+    let headers = interaction1.request.headers.unwrap();
+    expect!(headers.get("Content-Type").unwrap().first().unwrap()).to(be_equal_to(&JSON.to_string()));
+
+    let body2 = interaction2.contents.contents.value().unwrap();
+    expect!(body2.len()).to(be_equal_to(json.len()));
+    expect!(interaction2.contents.metadata.get("contentType").unwrap().to_string()).to(be_equal_to("\"application/json\""));
+
+    let body3 = interaction3.request.contents.value().unwrap();
+    expect!(body3.len()).to(be_equal_to(json.len()));
+    expect!(interaction3.request.metadata.get("contentType").unwrap().to_string()).to(be_equal_to("\"application/json\""));
   }
 }
