@@ -1,5 +1,20 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.3.5 - Support message interactions with FFI body functions
+
+* 4c957894 - feat(FFI): updated doc comments for pactffi_with_multipart_file (Ronald Holshausen, Mon Aug 1 11:48:37 2022 +1000)
+* 128ae7c3 - feat(FFI): update pactffi_with_binary_file function to support message interactions (Ronald Holshausen, Mon Aug 1 11:12:20 2022 +1000)
+* ded4dc62 - feat(FFI): update pactffi_with_body function to support message interactions (Ronald Holshausen, Thu Jul 28 14:52:53 2022 +1000)
+* 433ab442 - feat(FFI): add functions for getting/setting HTTP interaction bodies (Ronald Holshausen, Thu Jul 28 13:41:37 2022 +1000)
+* e9c332bf - feat(FFI) - add FFI functions to set the req/res bodies of sync messages (Ronald Holshausen, Thu Jul 28 11:14:24 2022 +1000)
+* 85207602 - fix(FFI): fixed race condition with Pact handle ids (Ronald Holshausen, Thu Jul 28 11:13:40 2022 +1000)
+* 1a6eed7c - chore: add some debug logs for handle access functions (Ronald Holshausen, Wed Jul 27 15:54:02 2022 +1000)
+* 8f112ad0 - feat: add FFI function to set a message contents as binary (Ronald Holshausen, Wed Jul 27 15:15:41 2022 +1000)
+* cf40b7de - feat: add FFI function to set a message contents (Ronald Holshausen, Wed Jul 27 14:52:41 2022 +1000)
+* 52cacd37 - chore: pinned dependency that does not compile on Alpine (Ronald Holshausen, Mon Jul 25 11:00:36 2022 +1000)
+* b80064d1 - chore: correct function docs (Ronald Holshausen, Mon Jul 25 10:46:04 2022 +1000)
+* eb8123aa - bump version to 0.3.5 (Ronald Holshausen, Mon Jul 25 10:21:25 2022 +1000)
+
 # 0.3.4 - Bugfix Release
 
 * e95d701d - fix(FFI): fix matching rule for paths #205 (Ronald Holshausen, Fri Jul 22 13:42:06 2022 +1000)
