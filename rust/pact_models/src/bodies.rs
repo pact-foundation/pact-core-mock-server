@@ -34,7 +34,7 @@ impl OptionalBody {
     matches!(*self, OptionalBody::Present(_, _, _))
   }
 
-  /// Returns the body if present, otherwise returns the empty buffer.
+  /// Returns the body if present, otherwise returns None.
   pub fn value(&self) -> Option<Bytes> {
     match self {
       OptionalBody::Present(s, _, _) => Some(s.clone()),
@@ -43,10 +43,36 @@ impl OptionalBody {
   }
 
   /// Returns the body if present as a UTF-8 string, otherwise returns the empty string.
+  #[deprecated(since = "0.4.2", note = "This does not deal with binary bodies, use display_string instead")]
   pub fn str_value(&self) -> &str {
     match self {
       OptionalBody::Present(s, _, _) => from_utf8(s).unwrap_or(""),
       _ => ""
+    }
+  }
+
+  /// For text bodies (are present and have either a content type hint of TEXT or a content type
+  /// that is a known textual form), returns the body as a UTF-8 string. Otherwise, if the body is
+  /// present, will display the first 32 bytes in hexidecimal form. Otherwise returns the empty string.
+  pub fn display_string(&self) -> String {
+    match self {
+      OptionalBody::Present(s, ct, hint) => {
+        let text = if let Some(hint) = hint {
+          *hint == ContentTypeHint::TEXT
+        } else if let Some(ct) = ct {
+          ct.is_text()
+        } else {
+          false
+        };
+        if text {
+          from_utf8(s)
+            .map(|s| s.to_string())
+            .unwrap_or_else(|_| self.display_bytes(32))
+        } else {
+          self.display_bytes(32)
+        }
+      },
+      _ => String::default()
     }
   }
 
@@ -116,6 +142,24 @@ impl OptionalBody {
        *ct = Some(content_type.clone());
     }
   }
+
+  pub(crate) fn display_bytes(&self, max_bytes: usize) -> String {
+    if let OptionalBody::Present(bytes, _, _) = self {
+      if bytes.len() <= max_bytes {
+        let b_str: String = bytes.iter().map(|b| format!("{:0X}", b)).collect();
+        format!("{} ({} bytes)", b_str, bytes.len())
+      } else {
+        let b_str: String = bytes
+          .slice(0..max_bytes)
+          .iter()
+          .map(|b| format!("{:0X}", b))
+          .collect();
+        format!("{}... ({} bytes)", b_str, bytes.len())
+      }
+    } else {
+      String::default()
+    }
+  }
 }
 
 impl From<String> for OptionalBody {
@@ -181,7 +225,7 @@ impl Default for OptionalBody {
 mod tests {
   use expectest::prelude::*;
 
-  use crate::content_types::JSON;
+  use crate::content_types::{ContentTypeHint, JSON, TEXT};
 
   use super::OptionalBody;
 
@@ -192,5 +236,29 @@ mod tests {
     expect!(format!("{}", OptionalBody::Null)).to(be_equal_to("Null"));
     expect!(format!("{}", OptionalBody::Present("hello".into(), None, None))).to(be_equal_to("Present(5 bytes)"));
     expect!(format!("{}", OptionalBody::Present("\"hello\"".into(), Some(JSON.clone()), None))).to(be_equal_to("Present(7 bytes, application/json)"));
+  }
+
+  #[test]
+  fn display_bytes_test() {
+    expect!(OptionalBody::Missing.display_bytes(8)).to(be_equal_to(""));
+    expect!(OptionalBody::Empty.display_bytes(8)).to(be_equal_to(""));
+    expect!(OptionalBody::Null.display_bytes(8)).to(be_equal_to(""));
+    expect!(OptionalBody::Present("hello".into(), None, None).display_bytes(8)).to(be_equal_to("68656C6C6F (5 bytes)"));
+    expect!(OptionalBody::Present("12345678".into(), None, None).display_bytes(8)).to(be_equal_to("3132333435363738 (8 bytes)"));
+    expect!(OptionalBody::Present("123456789012345".into(), None, None).display_bytes(8)).to(be_equal_to("3132333435363738... (15 bytes)"));
+  }
+
+  #[test]
+  fn display_string_test() {
+    expect!(OptionalBody::Missing.display_string()).to(be_equal_to(""));
+    expect!(OptionalBody::Empty.display_string()).to(be_equal_to(""));
+    expect!(OptionalBody::Null.display_string()).to(be_equal_to(""));
+
+    expect!(OptionalBody::Present("hello".into(), None, None).display_string()).to(be_equal_to("68656C6C6F (5 bytes)"));
+    expect!(OptionalBody::Present("12345678".into(), None, None).display_string()).to(be_equal_to("3132333435363738 (8 bytes)"));
+    expect!(OptionalBody::Present("123456789012345".into(), None, None).display_string()).to(be_equal_to("313233343536373839303132333435 (15 bytes)"));
+
+    expect!(OptionalBody::Present("hello".into(), Some(TEXT.clone()), None).display_string()).to(be_equal_to("hello"));
+    expect!(OptionalBody::Present("hello".into(), None, Some(ContentTypeHint::TEXT)).display_string()).to(be_equal_to("hello"));
   }
 }
