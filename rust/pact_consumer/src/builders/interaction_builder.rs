@@ -19,6 +19,9 @@ pub struct InteractionBuilder {
     comments: Vec<String>,
     test_name: Option<String>,
 
+    /// Protocol transport for this interaction
+    transport: Option<String>,
+
     /// A builder for this interaction's `Request`.
     pub request: RequestBuilder,
 
@@ -37,6 +40,7 @@ impl InteractionBuilder {
       provider_states: vec![],
       comments: vec![],
       test_name: None,
+      transport: None,
       request: RequestBuilder::default(),
       response: ResponseBuilder::default(),
     }
@@ -62,6 +66,13 @@ impl InteractionBuilder {
   /// page, and potentially in the test output.
   pub fn test_name<G: Into<String>>(&mut self, name: G) -> &mut Self {
     self.test_name = Some(name.into());
+    self
+  }
+
+  /// Sets the protocol transport for this interaction. This would be required when there are
+  /// different types of interactions in the Pact file (i.e. HTTP and messages).
+  pub fn transport<G: Into<String>>(&mut self, name: G) -> &mut Self {
+    self.transport = Some(name.into());
     self
   }
 
@@ -94,7 +105,7 @@ impl InteractionBuilder {
       pending: false,
       plugin_config: self.plugin_config(),
       interaction_markup: self.request.interaction_markup().merge(self.response.interaction_markup()),
-      transport: None
+      transport: self.transport.clone()
     }
   }
 
