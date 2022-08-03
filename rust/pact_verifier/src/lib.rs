@@ -44,7 +44,7 @@ use pact_matching::logging::LOG_ID;
 use pact_matching::metrics::{MetricEvent, send_metrics};
 
 use crate::callback_executors::{ProviderStateError, ProviderStateExecutor};
-use crate::messages::{process_message_result, verify_message_from_provider, verify_sync_message_from_provider};
+use crate::messages::{process_message_result, process_sync_message_result, verify_message_from_provider, verify_sync_message_from_provider};
 use crate::metrics::VerificationMetrics;
 use crate::pact_broker::{Link, PactVerificationContext, publish_verification_results, TestResult};
 pub use crate::pact_broker::{ConsumerVersionSelector, PactsForVerificationRequest};
@@ -1257,11 +1257,15 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
       }
     };
 
+    // TODO: Update this to use V4 models
     if let Some(interaction) = interaction.as_request_response() {
-      process_request_response_result(&interaction, &match_result, &mut output, options.coloured_output)
+      process_request_response_result(&interaction, &match_result, &mut output, options.coloured_output);
     }
     if let Some(interaction) = interaction.as_message() {
-      process_message_result(&interaction, &match_result, &mut output, options.coloured_output)
+      process_message_result(&interaction, &match_result, &mut output, options.coloured_output);
+    }
+    if let Some(interaction) = interaction.as_v4_sync_message() {
+      process_sync_message_result(&interaction, &match_result, &mut output, options.coloured_output);
     }
 
     match match_result {

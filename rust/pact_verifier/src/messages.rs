@@ -163,6 +163,63 @@ pub fn process_message_result(
   }
 }
 
+pub fn process_sync_message_result(
+  interaction: &SynchronousMessage,
+  match_result: &Result<Option<String>, MismatchResult>,
+  output: &mut Vec<String>,
+  coloured: bool
+) {
+  let plain = Style::new();
+  match match_result {
+    Ok(_) => {
+      for response in &interaction.response {
+        let metadata_result = response.metadata.iter()
+          .map(|(k, v)| (
+            k.clone(),
+            serde_json::to_string(&v.clone()).unwrap_or_default(),
+            if coloured { Green.paint("OK") } else { plain.paint("OK") }
+          )).collect();
+        generate_display_for_result(if coloured { Green.paint("OK") } else { plain.paint("OK") },
+                                    metadata_result, output, coloured);
+      }
+    },
+    Err(ref err) => match err {
+      MismatchResult::Error(err_des, _) => {
+        if coloured {
+          output.push(format!("      {}", Red.paint(format!("Request Failed - {}", err_des))));
+        } else {
+          output.push(format!("      {}", format!("Request Failed - {}", err_des)));
+        }
+      },
+      MismatchResult::Mismatches { mismatches, .. } => {
+        // TODO: need to be able to map the errors to the different responses (if there are multiple)
+        // Currently, just using the first one as there is no way to know which one it is for
+        let response = interaction.response.first().cloned().unwrap_or_default();
+        let metadata_results = response.metadata.iter().map(|(k, v)| {
+          (k.clone(), serde_json::to_string(&v.clone()).unwrap_or_default(), if mismatches.iter().any(|m| {
+            match *m {
+              Mismatch::MetadataMismatch { ref key, .. } => k == key,
+              _ => false
+            }
+          }) {
+            if coloured { Red.paint("FAILED") } else { plain.paint("FAILED") }
+          } else {
+            if coloured { Green.paint("OK") } else { plain.paint("OK") }
+          })
+        }).collect();
+        let body_result = if mismatches.iter().any(|m| m.mismatch_type() == "BodyMismatch" ||
+          m.mismatch_type() == "BodyTypeMismatch") {
+          if coloured { Red.paint("FAILED") } else { plain.paint("FAILED") }
+        } else {
+          if coloured { Green.paint("OK") } else { plain.paint("OK") }
+        };
+
+        generate_display_for_result(body_result, metadata_results, output, coloured);
+      }
+    }
+  }
+}
+
 fn generate_display_for_result(
   body_result: ANSIGenericString<str>,
   metadata_result: Vec<(String, String, ANSIGenericString<str>)>,
