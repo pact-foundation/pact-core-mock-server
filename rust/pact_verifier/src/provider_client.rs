@@ -182,10 +182,14 @@ pub async fn make_provider_request<F: RequestFilterExecutor>(
     request.clone()
   };
 
-  let base_url = match provider.port {
-    Some(port) => format!("{}://{}:{}{}", provider.protocol, provider.host, port, provider.path),
-    None => format!("{}://{}{}", provider.protocol, provider.host, provider.path),
-  };
+  let base_url = provider.transports.first()
+    .map(|trans| trans.base_url(&provider.host))
+    .unwrap_or_else(|| {
+      match provider.port {
+        Some(port) => format!("{}://{}:{}{}", provider.protocol, provider.host, port, provider.path),
+        None => format!("{}://{}{}", provider.protocol, provider.host, provider.path),
+      }
+    });
 
   info!("Sending request to provider at {base_url}");
   debug!("Provider details = {provider:?}");

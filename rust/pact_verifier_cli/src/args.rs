@@ -1,4 +1,4 @@
-use clap::{App, Arg};
+use clap::{App, Arg, ArgAction};
 use regex::Regex;
 
 fn port_value(v: &str) -> Result<(), String> {
@@ -7,6 +7,16 @@ fn port_value(v: &str) -> Result<(), String> {
 
 fn integer_value(v: &str) -> Result<(), String> {
   v.parse::<u64>().map(|_| ()).map_err(|e| format!("'{}' is not a valid integer value: {}", v, e) )
+}
+
+fn transport_value(v: &str) -> Result<(String, u16), String> {
+  let (transport, port) = v.split_once(':')
+    .ok_or_else(|| format!("'{}' is not a valid transport, it must be in the form TRANSPORT:PORT", v))?;
+  if transport.is_empty() {
+    return Err(format!("'{}' is not a valid transport, the transport part is empty", v));
+  }
+  port.parse::<u16>().map(|port| (transport.to_string(), port))
+    .map_err(|e| format!("'{}' is not a valid port value: {}", port, e) )
 }
 
 pub(crate) fn setup_app(program: String, version: &str) -> App {
@@ -80,6 +90,12 @@ pub(crate) fn setup_app(program: String, version: &str) -> App {
       .takes_value(true)
       .default_value("http")
       .help("Provider protocol transport to use (http, https, grpc, etc.)"))
+    .arg(Arg::with_name("transports")
+      .long("transports")
+      .takes_value(true)
+      .multiple_values(true)
+      .help("Allows multiple protocol transports to be configured (http, https, grpc, etc.) with their associated port numbers separated by a colon. For example, use --transports http:8080 grpc:5555 to configure both.")
+      .value_parser(transport_value))
     .arg(Arg::with_name("provider-name")
       .short('n')
       .long("provider-name")
@@ -257,7 +273,7 @@ pub(crate) fn setup_app(program: String, version: &str) -> App {
 
 #[cfg(test)]
 mod test {
-  use super::{integer_value, port_value};
+  use super::{integer_value, port_value, transport_value};
   use expectest::prelude::*;
 
   #[test]
@@ -270,5 +286,15 @@ mod test {
   fn validates_integer_value() {
     expect!(integer_value("3000000")).to(be_ok());
     expect!(integer_value("1234x")).to(be_err());
+  }
+
+  #[test]
+  fn validates_transport_value() {
+    expect!(transport_value("http:1234")).to(be_ok());
+    expect!(transport_value("1234x")).to(be_err());
+    expect!(transport_value(":1234")).to(be_err());
+    expect!(transport_value("x:")).to(be_err());
+    expect!(transport_value("x:x")).to(be_err());
+    expect!(transport_value("x:1234x")).to(be_err());
   }
 }

@@ -122,18 +122,53 @@ impl Display for PactSource {
 
 /// Information about the Provider to verify
 #[derive(Debug, Clone)]
+pub struct ProviderTransport {
+  /// Protocol Transport
+  pub transport: String,
+  /// Port to use for the transport
+  pub port: Option<u16>,
+  /// Base path to use for the transport (for protocols that support paths)
+  pub path: Option<String>
+}
+
+impl ProviderTransport {
+  /// Calculate a base URL for the transport
+  pub fn base_url(&self, hostname: &str) -> String {
+    match self.port {
+      Some(port) => format!("{}://{}:{}{}", self.transport, hostname, port, self.path.clone().unwrap_or_default()),
+      None => format!("{}://{}{}", self.transport, hostname, self.path.clone().unwrap_or_default())
+    }
+  }
+}
+
+impl Default for ProviderTransport {
+  fn default() -> Self {
+    ProviderTransport {
+      transport: "http".to_string(),
+      port: Some(8080),
+      path: None
+    }
+  }
+}
+
+/// Information about the Provider to verify
+#[derive(Debug, Clone)]
 pub struct ProviderInfo {
     /// Provider Name
     pub name: String,
     /// Provider protocol, defaults to HTTP
-    // TODO: this should be renamed to transport and made optional
+    #[deprecated(note = "Use transports instead")]
     pub protocol: String,
     /// Hostname of the provider
     pub host: String,
     /// Port the provider is running on, defaults to 8080
+    #[deprecated(note = "Use transports instead")]
     pub port: Option<u16>,
     /// Base path for the provider, defaults to /
-    pub path: String
+    #[deprecated(note = "Use transports instead")]
+    pub path: String,
+    /// Transports configured for the provider
+    pub transports: Vec<ProviderTransport>
 }
 
 impl Default for ProviderInfo {
@@ -144,7 +179,8 @@ impl Default for ProviderInfo {
       protocol: "http".to_string(),
       host: "localhost".to_string(),
       port: Some(8080),
-      path: "/".to_string()
+      path: "/".to_string(),
+      transports: vec![]
     }
   }
 }
@@ -365,9 +401,20 @@ async fn verify_interaction_using_transport<'a, F: RequestFilterExecutor>(
         let mut context = hashmap!{
           "host".to_string() => Value::String(provider.host.clone())
         };
-        if let Some(port) = provider.port {
+
+        let port = provider.transports.iter()
+          .find_map(|transport| {
+            if transport_entry.key.ends_with(&transport.transport) {
+              transport.port
+            } else {
+              None
+            }
+          })
+          .or_else(|| provider.port);
+        if let Some(port) = port {
           context.insert("port".to_string(), json!(port));
         }
+
         for (k, v) in config {
           context.insert(k.to_string(), v.clone());
         }

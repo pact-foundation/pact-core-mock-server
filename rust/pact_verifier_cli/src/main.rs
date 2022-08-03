@@ -300,6 +300,7 @@
 #![type_length_limit="100000000"]
 
 use std::env;
+use std::ffi::OsString;
 use std::fs::File;
 use std::io::Write;
 use std::str::FromStr;
@@ -323,7 +324,8 @@ use pact_verifier::{
   ProviderInfo,
   PublishOptions,
   VerificationOptions,
-  verify_provider_async
+  verify_provider_async,
+  ProviderTransport
 };
 use pact_verifier::callback_executors::HttpRequestProviderStateExecutor;
 use pact_verifier::metrics::VerificationMetrics;
@@ -462,12 +464,24 @@ async fn handle_matches(matches: &ArgMatches) -> Result<(), i32> {
 }
 
 pub(crate) fn configure_provider(matches: &ArgMatches) -> ProviderInfo {
+  // It is ok to unwrap values here, as they have all been validated by the CLI
+  let transports = matches.get_many::<(String, u16)>("transports")
+    .map(|values| {
+      values.map(|(transport, port)| {
+        ProviderTransport {
+          transport: transport.to_string(),
+          port: Some(*port),
+          path: None
+        }
+      }).collect()
+    }).unwrap_or_default();
   ProviderInfo {
     host: matches.value_of("hostname").unwrap_or("localhost").to_string(),
     port: matches.value_of("port").map(|port| port.parse::<u16>().unwrap()),
-    path: matches.value_of("base-path").unwrap_or("/").into(),
+    path: matches.value_of("base-path").unwrap_or("").into(),
     protocol: matches.value_of("transport").unwrap_or("http").to_string(),
     name: matches.value_of("provider-name").unwrap_or("provider").to_string(),
+    transports,
     ..ProviderInfo::default()
   }
 }
@@ -623,7 +637,7 @@ mod tests {
     expect!(provider.host).to(be_equal_to("localhost"));
     expect!(provider.port).to(be_none());
     expect!(provider.name).to(be_equal_to("provider"));
-    expect!(provider.path).to(be_equal_to("/"));
+    expect!(provider.path).to(be_equal_to(""));
     expect!(provider.protocol).to(be_equal_to("http"));
   }
 
