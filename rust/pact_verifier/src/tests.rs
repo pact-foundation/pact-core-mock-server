@@ -520,28 +520,32 @@ fn transport_base_url_test() {
   let transport = ProviderTransport {
     transport: "https".to_string(),
     port: None,
-    path: None
+    path: None,
+    scheme: Some("https".to_string())
   };
   expect!(transport.base_url("HOST")).to(be_equal_to("https://HOST"));
 
   let transport = ProviderTransport {
     transport: "https".to_string(),
     port: None,
-    path: Some("/a/b/c".to_string())
+    path: Some("/a/b/c".to_string()),
+    scheme: Some("https".to_string())
   };
   expect!(transport.base_url("HOST")).to(be_equal_to("https://HOST/a/b/c"));
 
   let transport = ProviderTransport {
     transport: "https".to_string(),
     port: Some(5678),
-    path: None
+    path: None,
+    scheme: Some("https".to_string())
   };
   expect!(transport.base_url("HOST")).to(be_equal_to("https://HOST:5678"));
 
   let transport = ProviderTransport {
     transport: "https".to_string(),
     port: Some(7765),
-    path: Some("/a/b/c".to_string())
+    path: Some("/a/b/c".to_string()),
+    scheme: None
   };
-  expect!(transport.base_url("HOST")).to(be_equal_to("https://HOST:7765/a/b/c"));
+  expect!(transport.base_url("HOST")).to(be_equal_to("http://HOST:7765/a/b/c"));
 }

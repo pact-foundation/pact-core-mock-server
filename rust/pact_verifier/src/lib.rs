@@ -128,15 +128,18 @@ pub struct ProviderTransport {
   /// Port to use for the transport
   pub port: Option<u16>,
   /// Base path to use for the transport (for protocols that support paths)
-  pub path: Option<String>
+  pub path: Option<String>,
+  /// Transport scheme to use. Will default to HTTP
+  pub scheme: Option<String>
 }
 
 impl ProviderTransport {
   /// Calculate a base URL for the transport
   pub fn base_url(&self, hostname: &str) -> String {
+    let scheme = self.scheme.clone().unwrap_or("http".to_string());
     match self.port {
-      Some(port) => format!("{}://{}:{}{}", self.transport, hostname, port, self.path.clone().unwrap_or_default()),
-      None => format!("{}://{}{}", self.transport, hostname, self.path.clone().unwrap_or_default())
+      Some(port) => format!("{}://{}:{}{}", scheme, hostname, port, self.path.clone().unwrap_or_default()),
+      None => format!("{}://{}{}", scheme, hostname, self.path.clone().unwrap_or_default())
     }
   }
 }
@@ -146,7 +149,8 @@ impl Default for ProviderTransport {
     ProviderTransport {
       transport: "http".to_string(),
       port: Some(8080),
-      path: None
+      path: None,
+      scheme: Some("http".to_string())
     }
   }
 }
@@ -297,8 +301,9 @@ async fn verify_response_from_provider<F: RequestFilterExecutor>(
   verification_context: &HashMap<&str, Value>
 ) -> Result<Option<String>, MismatchResult> {
   let expected_response = &interaction.response;
-  let request = pact_matching::generate_request(&interaction.request, &GeneratorTestMode::Provider, &verification_context).await;
-  match make_provider_request(provider, &request, options, client).await {
+  let request = pact_matching::generate_request(&interaction.request,
+    &GeneratorTestMode::Provider, &verification_context).await;
+  match make_provider_request(provider, &request, options, client, interaction.transport.clone()).await {
     Ok(ref actual_response) => {
       let mismatches = match_response(expected_response.clone(), actual_response.clone(), pact, &interaction.boxed()).await;
       if mismatches.is_empty() {
@@ -491,18 +496,21 @@ async fn verify_v3_interaction<'a, F: RequestFilterExecutor>(
 
   // Verify an HTTP interaction
   if let Some(interaction) = interaction.as_v4_http() {
-    trace!("Verifying a HTTP interaction");
-    result = verify_response_from_provider(provider, &interaction, &pact.boxed(), options, &client, &provider_states_context).await;
+    debug!("Verifying a HTTP interaction");
+    result = verify_response_from_provider(provider, &interaction, &pact.boxed(), options,
+                                           &client, &provider_states_context).await;
   }
   // Verify an asynchronous message (single shot)
   if interaction.is_message() {
-    trace!("Verifying an asynchronous message (single shot)");
-    result = verify_message_from_provider(provider, pact, &interaction.boxed(), options, &client, &provider_states_context).await;
+    debug!("Verifying an asynchronous message (single shot)");
+    result = verify_message_from_provider(provider, pact, &interaction.boxed(), options,
+                                          &client, &provider_states_context).await;
   }
   // Verify a synchronous message (request/response)
   if let Some(message) = interaction.as_v4_sync_message() {
-    trace!("Verifying a synchronous message (request/response)");
-    result = verify_sync_message_from_provider(provider, pact, message, options, &client, &provider_states_context).await;
+    debug!("Verifying a synchronous message (request/response)");
+    result = verify_sync_message_from_provider(provider, pact, message, options, &client,
+                                               &provider_states_context).await;
   }
 
   result

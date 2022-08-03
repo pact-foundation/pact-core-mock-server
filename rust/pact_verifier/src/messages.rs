@@ -50,7 +50,17 @@ pub(crate) async fn verify_message_from_provider<'a, F: RequestFilterExecutor>(
     .. HttpRequest::default()
   };
 
-  match make_provider_request(provider, &message_request, options, client).await {
+  let transport = if interaction.is_v4() {
+    if let Some(v4) = interaction.as_v4() {
+      v4.transport().clone()
+    } else {
+      None
+    }
+  } else {
+    None
+  };
+
+  match make_provider_request(provider, &message_request, options, client, transport).await {
     Ok(ref actual_response) => {
       let metadata = extract_metadata(actual_response);
       let actual = AsynchronousMessage {
@@ -211,7 +221,7 @@ pub(crate) async fn verify_sync_message_from_provider<'a, F: RequestFilterExecut
     .. HttpRequest::default()
   };
 
-  match make_provider_request(provider, &message_request, options, client).await {
+  match make_provider_request(provider, &message_request, options, client, message.transport.clone()).await {
     Ok(ref actual_response) => {
       if actual_response.is_success() {
         let metadata = extract_metadata(actual_response);

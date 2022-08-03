@@ -171,7 +171,8 @@ pub async fn make_provider_request<F: RequestFilterExecutor>(
   provider: &ProviderInfo,
   request: &HttpRequest,
   options: &VerificationOptions<F>,
-  client: &reqwest::Client
+  client: &Client,
+  transport: Option<String>
 ) -> anyhow::Result<HttpResponse> {
   let request_filter_option = options.request_filter.clone();
   let request = if request_filter_option.is_some() {
@@ -182,8 +183,18 @@ pub async fn make_provider_request<F: RequestFilterExecutor>(
     request.clone()
   };
 
-  let base_url = provider.transports.first()
-    .map(|trans| trans.base_url(&provider.host))
+  let base_url = provider.transports.iter()
+    .find_map(|trans| {
+      if let Some(transport) = &transport {
+        if &trans.transport == transport {
+          Some(trans.base_url(&provider.host))
+        } else {
+          None
+        }
+      } else {
+        None
+      }
+    })
     .unwrap_or_else(|| {
       match provider.port {
         Some(port) => format!("{}://{}:{}{}", provider.protocol, provider.host, port, provider.path),

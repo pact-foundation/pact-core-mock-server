@@ -471,7 +471,8 @@ pub(crate) fn configure_provider(matches: &ArgMatches) -> ProviderInfo {
         ProviderTransport {
           transport: transport.to_string(),
           port: Some(*port),
-          path: None
+          path: None,
+          scheme: None
         }
       }).collect()
     }).unwrap_or_default();

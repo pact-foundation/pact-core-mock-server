@@ -82,9 +82,10 @@ impl VerifierHandle {
       port: port.clone(),
       path: path.clone(),
       transports: vec![ ProviderTransport {
-        transport: scheme,
+        transport: scheme.clone(),
         port,
-        path: if path.is_empty() { None } else { Some(path) }
+        path: if path.is_empty() { None } else { Some(path) },
+        scheme: None
       } ]
     }
   }
