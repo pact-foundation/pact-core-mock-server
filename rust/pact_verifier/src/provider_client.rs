@@ -18,7 +18,7 @@ use reqwest::{Client, Error, RequestBuilder};
 use serde_json::Value;
 use tracing::{debug, info, warn};
 
-use crate::{ProviderInfo, RequestFilterExecutor, VerificationOptions};
+use crate::{ProviderInfo, ProviderTransport, RequestFilterExecutor, VerificationOptions};
 use crate::utils::with_retries;
 
 #[derive(Debug)]
@@ -172,7 +172,7 @@ pub async fn make_provider_request<F: RequestFilterExecutor>(
   request: &HttpRequest,
   options: &VerificationOptions<F>,
   client: &Client,
-  transport: Option<String>
+  transport: Option<ProviderTransport>
 ) -> anyhow::Result<HttpResponse> {
   let request_filter_option = options.request_filter.clone();
   let request = if request_filter_option.is_some() {
@@ -183,18 +183,8 @@ pub async fn make_provider_request<F: RequestFilterExecutor>(
     request.clone()
   };
 
-  let base_url = provider.transports.iter()
-    .find_map(|trans| {
-      if let Some(transport) = &transport {
-        if &trans.transport == transport {
-          Some(trans.base_url(&provider.host))
-        } else {
-          None
-        }
-      } else {
-        None
-      }
-    })
+  let base_url = transport
+    .map(|trans| trans.base_url(&provider.host))
     .unwrap_or_else(|| {
       match provider.port {
         Some(port) => format!("{}://{}:{}{}", provider.protocol, provider.host, port, provider.path),

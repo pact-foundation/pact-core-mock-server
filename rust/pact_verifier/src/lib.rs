@@ -303,7 +303,27 @@ async fn verify_response_from_provider<F: RequestFilterExecutor>(
   let expected_response = &interaction.response;
   let request = pact_matching::generate_request(&interaction.request,
     &GeneratorTestMode::Provider, &verification_context).await;
-  match make_provider_request(provider, &request, options, client, interaction.transport.clone()).await {
+  let transport = if let Some(transport) = &interaction.transport {
+    provider.transports
+      .iter()
+      .find(|t| &t.transport == transport)
+      .cloned()
+  } else {
+    provider.transports
+      .iter()
+      .find(|t| t.transport == "http")
+      .cloned()
+  }.map(|t| {
+    if t.scheme.is_none() {
+      ProviderTransport {
+        scheme: Some("http".to_string()),
+        .. t
+      }
+    } else {
+      t
+    }
+  });
+  match make_provider_request(provider, &request, options, client, transport).await {
     Ok(ref actual_response) => {
       let mismatches = match_response(expected_response.clone(), actual_response.clone(), pact, &interaction.boxed()).await;
       if mismatches.is_empty() {

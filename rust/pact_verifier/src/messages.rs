@@ -18,7 +18,7 @@ use tracing::{debug, trace, warn};
 
 use pact_matching::{match_message, match_sync_message_response, Mismatch};
 
-use crate::{MismatchResult, ProviderInfo, VerificationOptions};
+use crate::{MismatchResult, ProviderInfo, ProviderTransport, VerificationOptions};
 use crate::callback_executors::RequestFilterExecutor;
 use crate::provider_client::make_provider_request;
 
@@ -59,6 +59,26 @@ pub(crate) async fn verify_message_from_provider<'a, F: RequestFilterExecutor>(
   } else {
     None
   };
+  let transport = if let Some(transport) = transport {
+    provider.transports
+      .iter()
+      .find(|t| t.transport == transport)
+      .cloned()
+  } else {
+    provider.transports
+      .iter()
+      .find(|t| t.transport == "message" || t.transport == "async-message")
+      .cloned()
+  }.map(|t| {
+    if t.scheme.is_none() {
+      ProviderTransport {
+        scheme: Some("http".to_string()),
+        .. t
+      }
+    } else {
+      t
+    }
+  });
 
   match make_provider_request(provider, &message_request, options, client, transport).await {
     Ok(ref actual_response) => {
@@ -221,7 +241,28 @@ pub(crate) async fn verify_sync_message_from_provider<'a, F: RequestFilterExecut
     .. HttpRequest::default()
   };
 
-  match make_provider_request(provider, &message_request, options, client, message.transport.clone()).await {
+  let transport = if let Some(transport) = &message.transport {
+    provider.transports
+      .iter()
+      .find(|t| &t.transport == transport)
+      .cloned()
+  } else {
+    provider.transports
+      .iter()
+      .find(|t| t.transport == "message" || t.transport == "sync-message")
+      .cloned()
+  }.map(|t| {
+    if t.scheme.is_none() {
+      ProviderTransport {
+        scheme: Some("http".to_string()),
+        .. t
+      }
+    } else {
+      t
+    }
+  });
+
+  match make_provider_request(provider, &message_request, options, client, transport).await {
     Ok(ref actual_response) => {
       if actual_response.is_success() {
         let metadata = extract_metadata(actual_response);
