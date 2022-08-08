@@ -25,12 +25,6 @@ jobs:
         with:
           toolchain: nightly
           components: rustfmt
-      # cbingen needs this version as the latest version does not work. But the CMake build checks for the latest
-      # version, so we need both
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly-2022-04-12
-          components: rustfmt
       - name: Install doxygen
         if: runner.os == 'Linux'
         run: sudo apt-get install -y doxygen
