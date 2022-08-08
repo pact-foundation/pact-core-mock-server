@@ -13,9 +13,8 @@ jobs:
       pact_do_not_track: true
     steps:
       - uses: actions/checkout@v2
-      - run: |
-        rustc --version
-        true
+      - run: rustc --version || true
+        shell: bash
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: ${{ matrix.rust }}
