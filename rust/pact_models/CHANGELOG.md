@@ -1,5 +1,14 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.4.2 - Maintenance Release
+
+* 13dc3b52 - Merge branch 'master' into feat/verifier-multiple-transports (Ronald Holshausen, Wed Aug 3 11:55:05 2022 +1000)
+* 3d73e3c2 - Removed dependency on time v0.1 (Daan Oosterveld, Wed Jul 6 15:56:29 2022 +0200)
+* 2ca2fe49 - fix: add function to display binary data in a meaningful way (Ronald Holshausen, Mon Aug 1 17:39:34 2022 +1000)
+* 1972a74a - feat: Detect Pactbroker responses from the URL content #199 (Ronald Holshausen, Mon Jun 6 14:48:06 2022 +1000)
+* 4da79d75 - chore: lock the tracing crate version (Ronald Holshausen, Mon May 9 17:04:29 2022 +1000)
+* 137e3503 - bump version to 0.4.2 (Ronald Holshausen, Mon May 9 14:18:35 2022 +1000)
+
 # 0.4.1 - switch pact_models to use tracing crate
 
 * 9d30a441 - chore: switch pact_models to use tracing crate (Ronald Holshausen, Mon May 9 13:24:37 2022 +1000)
