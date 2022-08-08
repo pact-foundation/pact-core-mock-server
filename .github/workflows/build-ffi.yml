@@ -13,6 +13,9 @@ jobs:
       pact_do_not_track: true
     steps:
       - uses: actions/checkout@v2
+      - run: |
+        rustc --version
+        true
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: ${{ matrix.rust }}
@@ -22,14 +25,14 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
-          override: true
+          #override: true
           components: rustfmt
       # cbingen needs this version as the latest version does not work. But the CMake build checks for the latest
       # version, so we need both
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly-2022-04-12
-          override: true
+          #override: true
           components: rustfmt
       - name: Install doxygen
         if: runner.os == 'Linux'
