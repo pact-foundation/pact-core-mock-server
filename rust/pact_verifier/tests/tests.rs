@@ -45,10 +45,8 @@ impl ProviderStateExecutor for DummyProviderStateExecutor {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn verify_pact_with_match_values_matcher() {
-  try_init().unwrap_or(());
-
   let server = PactBuilder::new("consumer", "matchValuesService")
     .interaction("request requiring matching values", "", |mut i| async move {
       i.test_name("verify_pact_with_match_values_matcher");

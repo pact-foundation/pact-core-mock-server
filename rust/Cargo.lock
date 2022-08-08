@@ -209,9 +209,34 @@ dependencies = [
  "atty",
  "bitflags",
  "strsim 0.8.0",
- "textwrap",
+ "textwrap 0.11.0",
  "unicode-width",
  "vec_map",
+]
+
+[[package]]
+name = "clap"
+version = "3.2.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a3dbbb6653e7c55cc8595ad3e1f7be8f32aba4eb7ff7f0fd1163d4f3d137c0a9"
+dependencies = [
+ "atty",
+ "bitflags",
+ "clap_lex",
+ "indexmap",
+ "once_cell",
+ "strsim 0.10.0",
+ "termcolor",
+ "textwrap 0.15.0",
+]
+
+[[package]]
+name = "clap_lex"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2850f2f5a82cbf437dd5af4d49848fbdfc27c157c3d010345776f952765261c5"
+dependencies = [
+ "os_str_bytes",
 ]
 
 [[package]]
@@ -1175,6 +1200,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "os_str_bytes"
+version = "6.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "648001efe5d5c0102d8cea768e348da85d90af8ba91f0bea908f157951493cd4"
+
+[[package]]
 name = "output_vt100"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1221,12 +1252,12 @@ version = "0.0.0"
 dependencies = [
  "ansi_term",
  "anyhow",
- "clap",
+ "clap 2.34.0",
  "expectest",
  "glob",
  "log",
  "maplit",
- "pact_matching 0.12.10",
+ "pact_matching",
  "pact_models 0.4.1",
  "serde",
  "serde_json",
@@ -1247,7 +1278,7 @@ dependencies = [
  "lazy_static",
  "maplit",
  "pact-plugin-driver",
- "pact_matching 0.12.10",
+ "pact_matching",
  "pact_mock_server",
  "pact_models 0.4.1",
  "quickcheck",
@@ -1273,7 +1304,7 @@ dependencies = [
  "bytes",
  "chrono",
  "chrono-tz",
- "clap",
+ "clap 2.34.0",
  "either",
  "env_logger 0.9.0",
  "expectest",
@@ -1286,10 +1317,10 @@ dependencies = [
  "onig",
  "os_info",
  "pact-plugin-driver",
- "pact_matching 0.12.10",
+ "pact_matching",
  "pact_mock_server",
  "pact_models 0.4.1",
- "pact_verifier 0.13.10",
+ "pact_verifier",
  "quickcheck",
  "rand",
  "rand_regex",
@@ -1309,44 +1340,6 @@ dependencies = [
  "tracing-subscriber",
  "uuid",
  "zeroize",
-]
-
-[[package]]
-name = "pact_matching"
-version = "0.12.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d050ab620e524609ed9dd5918a13c51c92f43eac6a77c70cb73f1f082edad6a5"
-dependencies = [
- "ansi_term",
- "anyhow",
- "base64",
- "bytes",
- "chrono",
- "difference",
- "hex",
- "http",
- "itertools",
- "lazy_static",
- "lenient_semver",
- "maplit",
- "md5",
- "mime",
- "multipart",
- "nom",
- "onig",
- "pact-plugin-driver",
- "pact_models 0.4.1",
- "rand",
- "reqwest",
- "semver",
- "serde",
- "serde_json",
- "sxd-document",
- "tokio",
- "tracing",
- "tracing-core",
- "tree_magic_mini",
- "uuid",
 ]
 
 [[package]]
@@ -1408,7 +1401,7 @@ dependencies = [
  "lazy_static",
  "maplit",
  "pact-plugin-driver",
- "pact_matching 0.12.10",
+ "pact_matching",
  "pact_models 0.4.1",
  "quickcheck",
  "reqwest",
@@ -1431,7 +1424,7 @@ name = "pact_mock_server_cli"
 version = "0.7.8"
 dependencies = [
  "anyhow",
- "clap",
+ "clap 2.34.0",
  "expectest",
  "futures",
  "http",
@@ -1441,7 +1434,7 @@ dependencies = [
  "libc",
  "log",
  "maplit",
- "pact_matching 0.12.10",
+ "pact_matching",
  "pact_mock_server",
  "pact_models 0.4.1",
  "quickcheck",
@@ -1540,40 +1533,6 @@ dependencies = [
 
 [[package]]
 name = "pact_verifier"
-version = "0.13.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e03d44d6cc63f8ec6a8b06e9578fc11a8bb5f2cc1f8412b8e3fb84ec0e8ecac2"
-dependencies = [
- "ansi_term",
- "anyhow",
- "async-trait",
- "base64",
- "bytes",
- "difference",
- "futures",
- "http",
- "itertools",
- "lazy_static",
- "libc",
- "maplit",
- "mime",
- "pact-plugin-driver",
- "pact_matching 0.12.9",
- "pact_models 0.4.1",
- "regex",
- "reqwest",
- "serde",
- "serde_json",
- "serde_with",
- "thiserror",
- "tokio",
- "tracing",
- "tracing-core",
- "urlencoding",
-]
-
-[[package]]
-name = "pact_verifier"
 version = "0.13.10"
 dependencies = [
  "ansi_term",
@@ -1593,7 +1552,7 @@ dependencies = [
  "mime",
  "pact-plugin-driver",
  "pact_consumer",
- "pact_matching 0.12.10",
+ "pact_matching",
  "pact_models 0.4.1",
  "quickcheck",
  "regex",
@@ -1601,6 +1560,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with",
+ "test-log",
  "thiserror",
  "tokio",
  "tracing",
@@ -1614,13 +1574,13 @@ version = "0.9.13"
 dependencies = [
  "ansi_term",
  "anyhow",
- "clap",
+ "clap 3.2.16",
  "env_logger 0.9.0",
  "expectest",
  "log",
  "maplit",
  "pact_models 0.4.1",
- "pact_verifier 0.13.9",
+ "pact_verifier",
  "regex",
  "reqwest",
  "serde_json",
@@ -2450,6 +2410,12 @@ checksum = "d326610f408c7a4eb6f51c37c330e496b08506c9457c9d34287ecc38809fb060"
 dependencies = [
  "unicode-width",
 ]
+
+[[package]]
+name = "textwrap"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1141d4d61095b28419e22cb0bbf02755f5e54e0526f97f1e3d1d160e60885fb"
 
 [[package]]
 name = "thiserror"

@@ -19,7 +19,7 @@ use pact_models::sync_pact::RequestResponsePact;
 
 use crate::callback_executors::HttpRequestProviderStateExecutor;
 use crate::pact_broker::Link;
-use crate::PactSource;
+use crate::{PactSource, ProviderTransport};
 
 use super::{execute_state_change, filter_consumers, filter_interaction, FilterInfo};
 
@@ -203,10 +203,8 @@ async fn test_state_change_with_parameters_in_query() {
   expect!(result.clone()).to(be_ok());
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn test_state_change_returning_json_values() {
-  try_init().unwrap_or(());
-
   let server = PactBuilder::new("RustPactVerifier", "SomeRunningProvider")
     .interaction("a state change request which returns a map of values", "", |mut i| async move {
       i.request.method("POST");
@@ -512,4 +510,42 @@ async fn test_fetch_pact_from_url_with_links() {
   let first_result = result.get(0).unwrap().as_ref();
   let source = &first_result.clone().unwrap();
   expect(source.2.to_string().starts_with("PactBroker(")).to(be_true());
+}
+
+#[test]
+fn transport_base_url_test() {
+  let transport = ProviderTransport::default();
+  expect!(transport.base_url("HOST")).to(be_equal_to("http://HOST:8080"));
+
+  let transport = ProviderTransport {
+    transport: "https".to_string(),
+    port: None,
+    path: None,
+    scheme: Some("https".to_string())
+  };
+  expect!(transport.base_url("HOST")).to(be_equal_to("https://HOST"));
+
+  let transport = ProviderTransport {
+    transport: "https".to_string(),
+    port: None,
+    path: Some("/a/b/c".to_string()),
+    scheme: Some("https".to_string())
+  };
+  expect!(transport.base_url("HOST")).to(be_equal_to("https://HOST/a/b/c"));
+
+  let transport = ProviderTransport {
+    transport: "https".to_string(),
+    port: Some(5678),
+    path: None,
+    scheme: Some("https".to_string())
+  };
+  expect!(transport.base_url("HOST")).to(be_equal_to("https://HOST:5678"));
+
+  let transport = ProviderTransport {
+    transport: "https".to_string(),
+    port: Some(7765),
+    path: Some("/a/b/c".to_string()),
+    scheme: None
+  };
+  expect!(transport.base_url("HOST")).to(be_equal_to("http://HOST:7765/a/b/c"));
 }

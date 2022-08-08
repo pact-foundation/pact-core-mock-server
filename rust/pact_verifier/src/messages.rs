@@ -18,7 +18,7 @@ use tracing::{debug, trace, warn};
 
 use pact_matching::{match_message, match_sync_message_response, Mismatch};
 
-use crate::{MismatchResult, ProviderInfo, VerificationOptions};
+use crate::{MismatchResult, ProviderInfo, ProviderTransport, VerificationOptions};
 use crate::callback_executors::RequestFilterExecutor;
 use crate::provider_client::make_provider_request;
 
@@ -50,7 +50,37 @@ pub(crate) async fn verify_message_from_provider<'a, F: RequestFilterExecutor>(
     .. HttpRequest::default()
   };
 
-  match make_provider_request(provider, &message_request, options, client).await {
+  let transport = if interaction.is_v4() {
+    if let Some(v4) = interaction.as_v4() {
+      v4.transport().clone()
+    } else {
+      None
+    }
+  } else {
+    None
+  };
+  let transport = if let Some(transport) = transport {
+    provider.transports
+      .iter()
+      .find(|t| t.transport == transport)
+      .cloned()
+  } else {
+    provider.transports
+      .iter()
+      .find(|t| t.transport == "message" || t.transport == "async-message")
+      .cloned()
+  }.map(|t| {
+    if t.scheme.is_none() {
+      ProviderTransport {
+        scheme: Some("http".to_string()),
+        .. t
+      }
+    } else {
+      t
+    }
+  });
+
+  match make_provider_request(provider, &message_request, options, client, transport).await {
     Ok(ref actual_response) => {
       let metadata = extract_metadata(actual_response);
       let actual = AsynchronousMessage {
@@ -109,6 +139,63 @@ pub fn process_message_result(
       },
       MismatchResult::Mismatches { ref mismatches, .. } => {
         let metadata_results = interaction.metadata.iter().map(|(k, v)| {
+          (k.clone(), serde_json::to_string(&v.clone()).unwrap_or_default(), if mismatches.iter().any(|m| {
+            match *m {
+              Mismatch::MetadataMismatch { ref key, .. } => k == key,
+              _ => false
+            }
+          }) {
+            if coloured { Red.paint("FAILED") } else { plain.paint("FAILED") }
+          } else {
+            if coloured { Green.paint("OK") } else { plain.paint("OK") }
+          })
+        }).collect();
+        let body_result = if mismatches.iter().any(|m| m.mismatch_type() == "BodyMismatch" ||
+          m.mismatch_type() == "BodyTypeMismatch") {
+          if coloured { Red.paint("FAILED") } else { plain.paint("FAILED") }
+        } else {
+          if coloured { Green.paint("OK") } else { plain.paint("OK") }
+        };
+
+        generate_display_for_result(body_result, metadata_results, output, coloured);
+      }
+    }
+  }
+}
+
+pub fn process_sync_message_result(
+  interaction: &SynchronousMessage,
+  match_result: &Result<Option<String>, MismatchResult>,
+  output: &mut Vec<String>,
+  coloured: bool
+) {
+  let plain = Style::new();
+  match match_result {
+    Ok(_) => {
+      for response in &interaction.response {
+        let metadata_result = response.metadata.iter()
+          .map(|(k, v)| (
+            k.clone(),
+            serde_json::to_string(&v.clone()).unwrap_or_default(),
+            if coloured { Green.paint("OK") } else { plain.paint("OK") }
+          )).collect();
+        generate_display_for_result(if coloured { Green.paint("OK") } else { plain.paint("OK") },
+                                    metadata_result, output, coloured);
+      }
+    },
+    Err(ref err) => match err {
+      MismatchResult::Error(err_des, _) => {
+        if coloured {
+          output.push(format!("      {}", Red.paint(format!("Request Failed - {}", err_des))));
+        } else {
+          output.push(format!("      {}", format!("Request Failed - {}", err_des)));
+        }
+      },
+      MismatchResult::Mismatches { mismatches, .. } => {
+        // TODO: need to be able to map the errors to the different responses (if there are multiple)
+        // Currently, just using the first one as there is no way to know which one it is for
+        let response = interaction.response.first().cloned().unwrap_or_default();
+        let metadata_results = response.metadata.iter().map(|(k, v)| {
           (k.clone(), serde_json::to_string(&v.clone()).unwrap_or_default(), if mismatches.iter().any(|m| {
             match *m {
               Mismatch::MetadataMismatch { ref key, .. } => k == key,
@@ -211,7 +298,28 @@ pub(crate) async fn verify_sync_message_from_provider<'a, F: RequestFilterExecut
     .. HttpRequest::default()
   };
 
-  match make_provider_request(provider, &message_request, options, client).await {
+  let transport = if let Some(transport) = &message.transport {
+    provider.transports
+      .iter()
+      .find(|t| &t.transport == transport)
+      .cloned()
+  } else {
+    provider.transports
+      .iter()
+      .find(|t| t.transport == "message" || t.transport == "sync-message")
+      .cloned()
+  }.map(|t| {
+    if t.scheme.is_none() {
+      ProviderTransport {
+        scheme: Some("http".to_string()),
+        .. t
+      }
+    } else {
+      t
+    }
+  });
+
+  match make_provider_request(provider, &message_request, options, client, transport).await {
     Ok(ref actual_response) => {
       if actual_response.is_success() {
         let metadata = extract_metadata(actual_response);

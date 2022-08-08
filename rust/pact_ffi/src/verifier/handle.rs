@@ -7,16 +7,7 @@ use pact_models::prelude::HttpAuth;
 use serde_json::Value;
 use tracing::debug;
 
-use pact_verifier::{
-  ConsumerVersionSelector,
-  FilterInfo,
-  NullRequestFilterExecutor,
-  PactSource,
-  ProviderInfo,
-  PublishOptions,
-  VerificationOptions,
-  verify_provider_async
-};
+use pact_verifier::{ConsumerVersionSelector, FilterInfo, NullRequestFilterExecutor, PactSource, ProviderInfo, ProviderTransport, PublishOptions, VerificationOptions, verify_provider_async};
 use pact_verifier::callback_executors::HttpRequestProviderStateExecutor;
 use pact_verifier::metrics::VerificationMetrics;
 use pact_verifier::verification_result::VerificationExecutionResult;
@@ -83,12 +74,19 @@ impl VerifierHandle {
     port: u16,
     path: String
   ) {
+    let port = if port == 0 { None } else { Some(port) };
     self.provider = ProviderInfo {
       name,
-      protocol: scheme,
+      protocol: scheme.clone(),
       host,
-      port: if port == 0 { None } else { Some(port) },
-      path
+      port: port.clone(),
+      path: path.clone(),
+      transports: vec![ ProviderTransport {
+        transport: scheme.clone(),
+        port,
+        path: if path.is_empty() { None } else { Some(path) },
+        scheme: None
+      } ]
     }
   }
 
