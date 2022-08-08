@@ -1,8 +1,9 @@
 #!/bin/bash
 
 set -e
+set -x
 
-which cargo
+rustc --version
 
 cargo install --force cbindgen
 rm -rf ./include
