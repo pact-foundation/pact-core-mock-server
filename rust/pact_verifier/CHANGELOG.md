@@ -1,5 +1,19 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.13.10 - Support multiple protocol transports with the verifier
+
+* 4c8ee7f9 - chore: cleanup some deprecation warnings (Ronald Holshausen, Wed Aug 10 12:49:55 2022 +1000)
+* 7b6a919b - chore: Upgrade pact_matching crate to 0.12.10 (Ronald Holshausen, Wed Aug 10 12:37:11 2022 +1000)
+* 33b04eee - chore: cleanup some deprecation warnings (Ronald Holshausen, Wed Aug 10 10:34:58 2022 +1000)
+* 195ad07b - chore: Updated dependant crates (uuid, simplelog) (Ronald Holshausen, Wed Aug 10 10:22:07 2022 +1000)
+* 49232caa - chore: Update pact plugin driver to 0.1.9 (Ronald Holshausen, Wed Aug 10 10:14:42 2022 +1000)
+* a3fe5e7f - chore: Update pact models to 0.4.2 (Ronald Holshausen, Wed Aug 10 10:10:41 2022 +1000)
+* 4587a430 - fix: results for sync messages were not being displayed (Ronald Holshausen, Wed Aug 3 16:14:32 2022 +1000)
+* ce11a619 - feat: allow sensible defaults for interaction transports (Ronald Holshausen, Wed Aug 3 13:58:50 2022 +1000)
+* 3a1449cb - feat: use the configured transport when provided (Ronald Holshausen, Wed Aug 3 13:20:17 2022 +1000)
+* 8cc29482 - feat: add CLI options to provide different ports when there are different transports (Ronald Holshausen, Wed Aug 3 11:53:31 2022 +1000)
+* 7673269a - bump version to 0.13.10 (Ronald Holshausen, Wed Jul 20 12:39:25 2022 +1000)
+
 # 0.13.9 - Add option to disable color output
 
 * 40f7bdc4 - feat: add verification option to disable ANSI escape codes in output #203 (Ronald Holshausen, Wed Jul 20 12:18:12 2022 +1000)
