@@ -18,7 +18,7 @@ use lazy_static::*;
 use log::LevelFilter;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
-use simplelog::{CombinedLogger, Config, SimpleLogger, TermLogger, WriteLogger};
+use simplelog::{ColorChoice, CombinedLogger, Config, SimpleLogger, TermLogger, WriteLogger};
 use uuid::Uuid;
 
 use pact_mock_server::server_manager::ServerManager;
@@ -79,7 +79,8 @@ fn setup_loggers(level: &str, command: &str, output: Option<&str>, no_file_log: 
           SimpleLogger::init(log_level, Config::default()).map_err(|e| format!("{:?}", e))
         },
         (true, false) => {
-          TermLogger::init(log_level, Config::default(), term_mode).map_err(|e| format!("{:?}", e))
+          TermLogger::init(log_level, Config::default(), term_mode, ColorChoice::Auto)
+            .map_err(|e| format!("{:?}", e))
         },
         (false, true) => {
           let log_file = setup_log_file(output).map_err(|e| format!("{:?}", e))?;
@@ -89,7 +90,7 @@ fn setup_loggers(level: &str, command: &str, output: Option<&str>, no_file_log: 
           let log_file = setup_log_file(output).map_err(|e| format!("{:?}", e))?;
           CombinedLogger::init(
             vec![
-              TermLogger::new(log_level, Config::default(), term_mode),
+              TermLogger::new(log_level, Config::default(), term_mode, ColorChoice::Auto),
               WriteLogger::new(log_level, Config::default(), log_file)
             ]
           ).map_err(|e| format!("{:?}", e))
@@ -98,7 +99,8 @@ fn setup_loggers(level: &str, command: &str, output: Option<&str>, no_file_log: 
     } else if no_term_log {
       SimpleLogger::init(log_level, Config::default()).map_err(|e| format!("{:?}", e))
     } else {
-      TermLogger::init(log_level, Config::default(), term_mode).map_err(|e| format!("{:?}", e))
+      TermLogger::init(log_level, Config::default(), term_mode, ColorChoice::Auto)
+        .map_err(|e| format!("{:?}", e))
     }
 }
 

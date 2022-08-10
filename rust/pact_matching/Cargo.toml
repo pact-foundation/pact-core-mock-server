@@ -31,7 +31,7 @@ sxd-document = "0.3.2"
 ansi_term = "0.12.1"
 difference = "2.0.0"
 base64 = "0.13.0"
-uuid = { version = "0.8.2", features = ["v4"] }
+uuid = { version = "1.1.2", features = ["v4"] }
 nom = "7.1.1"
 chrono = { version = "0.4.19", features = ["std", "clock"], default_features = false }
 tree_magic_mini = "3.0.3"
@@ -56,6 +56,6 @@ expectest = "0.12.0"
 env_logger = "0.9.0"
 hamcrest2 = "0.3.0"
 test-log = "0.2.10"
-ntest = "0.7.5"
+ntest = "0.8.1"
 pretty_assertions = "1.2.1"
-rstest = "0.12.0"
+rstest = "0.15.0"

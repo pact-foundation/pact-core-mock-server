@@ -34,7 +34,7 @@ chrono-tz = "=0.6.1" # Pinned this version as 0.6.2 has a dependency that does n
 env_logger = "0.9.0"
 itertools = "0.10.3"
 onig = { version = "6.3.1", default-features = false }
-uuid = { version = "0.8.2", features = ["v4"] }
+uuid = { version = "1.1.2", features = ["v4"] }
 multipart = { version = "0.18.0", default-features = false, features = ["client", "mock"] }
 rand_regex = "0.15.1"
 regex-syntax = "0.6.25"
