@@ -300,7 +300,6 @@
 #![type_length_limit="100000000"]
 
 use std::env;
-use std::ffi::OsString;
 use std::fs::File;
 use std::io::Write;
 use std::str::FromStr;
@@ -463,6 +462,7 @@ async fn handle_matches(matches: &ArgMatches) -> Result<(), i32> {
     })
 }
 
+#[allow(deprecated)]
 pub(crate) fn configure_provider(matches: &ArgMatches) -> ProviderInfo {
   // It is ok to unwrap values here, as they have all been validated by the CLI
   let transports = matches.get_many::<(String, u16)>("transports")
@@ -630,6 +630,7 @@ mod tests {
   use crate::{args, configure_provider};
 
   #[test]
+  #[allow(deprecated)]
   fn parse_provider_args_defaults() {
     let args = args::setup_app("test".to_string(), "1.0.0");
     let matches = args.get_matches_from_safe(vec!["test", "-f", "test"]).unwrap();
@@ -643,6 +644,7 @@ mod tests {
   }
 
   #[test]
+  #[allow(deprecated)]
   fn parse_provider_args() {
     let args = args::setup_app("test".to_string(), "1.0.0");
     let matches = args.get_matches_from_safe(vec![
@@ -659,6 +661,7 @@ mod tests {
   }
 
   #[test]
+  #[allow(deprecated)]
   fn parse_provider_args_with_old_alias() {
     let args = args::setup_app("test".to_string(), "1.0.0");
     let matches = args.get_matches_from_safe(vec![

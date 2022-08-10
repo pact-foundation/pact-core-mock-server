@@ -1,4 +1,4 @@
-use clap::{App, Arg, ArgAction};
+use clap::{App, Arg};
 use regex::Regex;
 
 fn port_value(v: &str) -> Result<(), String> {
