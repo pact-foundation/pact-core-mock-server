@@ -3,7 +3,7 @@ FROM rust:1-alpine3.15 AS builder
 # Add our source code.
 ADD . /build
 
-RUN apk --no-cache add gcc musl-dev protoc
+RUN apk --no-cache add gcc musl-dev protobuf protobuf-dev
 RUN rustup component add rustfmt
 
 # Fix the cargo manifest so it can be built standalone
