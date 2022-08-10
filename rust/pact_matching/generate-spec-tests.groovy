@@ -60,11 +60,11 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
         |    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("expected").unwrap()});
         |    let expected = http_interaction_from_json("$it", &interaction_json, &PactSpecification::$specVersion).unwrap();
         |    println!("EXPECTED: {:?}", expected);
-        |    println!("BODY: {}", expected.as_request_response().unwrap().request.body.str_value());
+        |    println!("BODY: {}", expected.as_request_response().unwrap().request.body.display_string());
         |    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("actual").unwrap()});
         |    let actual = http_interaction_from_json("$it", &interaction_json, &PactSpecification::$specVersion).unwrap();
         |    println!("ACTUAL: {:?}", actual);
-        |    println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
+        |    println!("BODY: {}", actual.as_request_response().unwrap().request.body.display_string());
         |    let pact_match = pact.get("match").unwrap();
         |
         |    pact_matching::matchers::configure_core_catalogue();
@@ -83,11 +83,11 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
         |    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
         |    let expected = http_interaction_from_json("$it", &interaction_json, &PactSpecification::$specVersion).unwrap();
         |    println!("EXPECTED: {:?}", expected);
-        |    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
+        |    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
         |    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
         |    let actual = http_interaction_from_json("$it", &interaction_json, &PactSpecification::$specVersion).unwrap();
         |    println!("ACTUAL: {:?}", actual);
-        |    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
+        |    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
         |    let pact_match = pact.get("match").unwrap();
         |
         |    pact_matching::matchers::configure_core_catalogue();
@@ -108,13 +108,13 @@ specs.eachFileRecurse(FileType.DIRECTORIES) { dir ->
         |    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
         |    let expected = message_interaction_from_json("$it", &expected_json, &PactSpecification::$specVersion).unwrap();
         |    println!("EXPECTED: {:?}", expected);
-        |    println!("BODY: {}", expected.as_message().unwrap().contents.str_value());
+        |    println!("BODY: {}", expected.as_message().unwrap().contents.display_string());
         |    let actual_json = pact.get_mut("actual").unwrap();
         |    let interaction_json = actual_json.as_object_mut().unwrap();
         |    interaction_json.insert("type".to_string(), serde_json::json!("Asynchronous/Messages"));
         |    let actual = message_interaction_from_json("$it", &actual_json, &PactSpecification::$specVersion).unwrap();
         |    println!("ACTUAL: {:?}", actual);
-        |    println!("BODY: {}", actual.as_message().unwrap().contents.str_value());
+        |    println!("BODY: {}", actual.as_message().unwrap().contents.display_string());
         |    let pact_match = pact.get("match").unwrap();
         |
         |    pact_matching::matchers::configure_core_catalogue();

@@ -8,5 +8,5 @@ use serde_json;
 use expectest::prelude::*;
 #[allow(unused_imports)]
 use pact_plugin_driver::catalogue_manager::register_core_entries;
-mod request;
 mod response;
+mod request;

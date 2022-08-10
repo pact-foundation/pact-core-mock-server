@@ -177,7 +177,7 @@ async fn match_result_to_hyper_response(
       let response = pact_matching::generate_response(response, &GeneratorTestMode::Consumer, &context).await;
       info!("Request matched, sending response {}", response);
       if response.has_text_body() {
-        debug!("     body: '{}'", response.body.str_value());
+        debug!("     body: '{}'", response.body.display_string());
       }
 
       let mut builder = Response::builder()
@@ -250,7 +250,7 @@ async fn handle_request(
   let pact_request = hyper_request_to_pact_request(req).await?;
   info!("Received request {}", pact_request);
   if pact_request.has_text_body() {
-    debug!("     body: '{}'", pact_request.body.str_value());
+    debug!("     body: '{}'", pact_request.body.display_string());
   }
 
   let pact = {

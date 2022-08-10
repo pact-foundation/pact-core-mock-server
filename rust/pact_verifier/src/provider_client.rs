@@ -195,8 +195,7 @@ pub async fn make_provider_request<F: RequestFilterExecutor>(
   info!("Sending request to provider at {base_url}");
   debug!("Provider details = {provider:?}");
   info!("Sending request {request}");
-  // TODO: printing the response body of binary payloads is not useful
-  debug!("body:\n{}", request.body.str_value());
+  debug!("body:\n{}", request.body.display_string());
   let request = create_native_request(client, &base_url, &request)?;
 
   let response = request.send()
@@ -205,8 +204,7 @@ pub async fn make_provider_request<F: RequestFilterExecutor>(
     .await?;
 
   info!("Received response: {}", response);
-  // TODO: printing the response body of binary payloads is not useful
-  debug!("body:\n{}", response.body.str_value());
+  debug!("body:\n{}", response.body.display_string());
 
   Ok(response)
 }

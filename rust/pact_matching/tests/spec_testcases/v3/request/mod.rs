@@ -14,8 +14,8 @@ use pact_models::interaction::{Interaction, http_interaction_from_json};
 use pact_matching::{match_interaction_request, match_interaction_response};
 #[allow(unused_imports)]
 use pact_models::prelude::{Pact, RequestResponsePact};
-mod method;
-mod path;
-mod headers;
 mod query;
+mod headers;
+mod path;
 mod body;
+mod method;

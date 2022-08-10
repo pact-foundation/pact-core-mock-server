@@ -16,13 +16,199 @@ use pact_matching::{match_interaction_request, match_interaction_response};
 use pact_models::prelude::{Pact, RequestResponsePact};
 
 #[tokio::test]
-async fn unexpected_index_with_not_null_value() {
-    println!("FILE: tests/spec_testcases/v1_1/response/body/unexpected index with not null value.json");
+async fn null_found_at_key_where_not_null_expected() {
+    println!("FILE: tests/spec_testcases/v1_1/response/body/null found at key where not null expected.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
-        "comment": "Unexpected favourite colour",
+        "comment": "Name should not be null",
+        "expected" : {
+          "headers": {},
+          "body": {
+            "alligator":{
+              "name": "Mary"
+            }
+          }
+        },
+        "actual": {
+          "headers": {},
+          "body": {
+            "alligator":{
+              "name": null
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/null found at key where not null expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/null found at key where not null expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
+    let pact_match = pact.get("match").unwrap();
+
+    pact_matching::matchers::configure_core_catalogue();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V1_1).await.unwrap();
+
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[tokio::test]
+async fn objects_in_array_no_matches() {
+    println!("FILE: tests/spec_testcases/v1_1/response/body/objects in array no matches.json");
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Array of objects, properties match on incorrect objects",
+        "expected" : {
+          "headers": {},
+          "body": [
+      		{"favouriteColor": "red"},
+      		{"favouriteNumber": 2}
+      	]
+        },
+        "actual": {
+          "headers": {},
+          "body": [
+      		{"favouriteColor": "blue",
+      		"favouriteNumber": 4},
+      		{"favouriteColor": "red",
+      		"favouriteNumber": 2}
+      	]
+        }
+      }
+    "#).unwrap();
+
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/objects in array no matches.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/objects in array no matches.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
+    let pact_match = pact.get("match").unwrap();
+
+    pact_matching::matchers::configure_core_catalogue();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V1_1).await.unwrap();
+
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[tokio::test]
+async fn missing_body_found_when_empty_expected() {
+    println!("FILE: tests/spec_testcases/v1_1/response/body/missing body found when empty expected.json");
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": true,
+        "comment": "Missing body found, when an empty body was expected",
+        "expected" : {
+          "body": null
+        },
+        "actual": {
+        }
+      }
+    "#).unwrap();
+
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/missing body found when empty expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/missing body found when empty expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
+    let pact_match = pact.get("match").unwrap();
+
+    pact_matching::matchers::configure_core_catalogue();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V1_1).await.unwrap();
+
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[tokio::test]
+async fn missing_key() {
+    println!("FILE: tests/spec_testcases/v1_1/response/body/missing key.json");
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Missing key alligator name",
+        "expected" : {
+          "headers": {},
+          "body": {
+            "alligator":{
+              "name": "Mary",
+              "age": 3
+            }
+          }
+        },
+        "actual": {
+          "headers": {},
+          "body": {
+            "alligator": {
+              "age": 3
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/missing key.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/missing key.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
+    let pact_match = pact.get("match").unwrap();
+
+    pact_matching::matchers::configure_core_catalogue();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V1_1).await.unwrap();
+
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[tokio::test]
+async fn unexpected_index_with_null_value() {
+    println!("FILE: tests/spec_testcases/v1_1/response/body/unexpected index with null value.json");
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Unexpected favourite colour with null value",
         "expected" : {
           "headers": {},
           "body": {
@@ -35,7 +221,7 @@ async fn unexpected_index_with_not_null_value() {
           "headers": {},
           "body": {
             "alligator":{
-              "favouriteColours": ["red","blue","taupe"]
+              "favouriteColours": ["red","blue", null]
             }
           }
         }
@@ -43,13 +229,197 @@ async fn unexpected_index_with_not_null_value() {
     "#).unwrap();
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
-    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/unexpected index with not null value.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/unexpected index with null value.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
-    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/unexpected index with not null value.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/unexpected index with null value.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
+    let pact_match = pact.get("match").unwrap();
+
+    pact_matching::matchers::configure_core_catalogue();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V1_1).await.unwrap();
+
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[tokio::test]
+async fn non_empty_body_found_when_empty_expected() {
+    println!("FILE: tests/spec_testcases/v1_1/response/body/non empty body found when empty expected.json");
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Non empty body found, when an empty body was expected",
+        "expected" : {
+          "headers": {"Content-Type": "application/json"},
+          "body": null
+        },
+        "actual": {
+          "headers": {"Content-Type": "application/json"},
+          "body": {
+            "alligator":{
+              "feet": 4,
+              "name": "Mary",
+              "favouriteColours": ["red","blue"]
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/non empty body found when empty expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/non empty body found when empty expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
+    let pact_match = pact.get("match").unwrap();
+
+    pact_matching::matchers::configure_core_catalogue();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V1_1).await.unwrap();
+
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[tokio::test]
+async fn null_found_in_array_when_not_null_expected() {
+    println!("FILE: tests/spec_testcases/v1_1/response/body/null found in array when not null expected.json");
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Favourite numbers expected to be strings found a null",
+        "expected" : {
+          "headers": {},
+          "body": {
+            "alligator":{
+              "favouriteNumbers": ["1","2","3"]
+            }
+          }
+        },
+        "actual": {
+          "headers": {},
+          "body": {
+            "alligator":{
+              "favouriteNumbers": ["1",null,"3"]
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/null found in array when not null expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/null found in array when not null expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
+    let pact_match = pact.get("match").unwrap();
+
+    pact_matching::matchers::configure_core_catalogue();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V1_1).await.unwrap();
+
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[tokio::test]
+async fn empty_body_no_content_type() {
+    println!("FILE: tests/spec_testcases/v1_1/response/body/empty body no content type.json");
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": true,
+        "comment": "Empty body, no content-type",
+        "expected" : {
+          "body": ""
+        },
+        "actual": {
+          "headers": {"Content-Type": "application/json"},
+          "body": ""
+        }
+      }
+    "#).unwrap();
+
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/empty body no content type.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/empty body no content type.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
+    let pact_match = pact.get("match").unwrap();
+
+    pact_matching::matchers::configure_core_catalogue();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V1_1).await.unwrap();
+
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[tokio::test]
+async fn objects_in_array_second_matches() {
+    println!("FILE: tests/spec_testcases/v1_1/response/body/objects in array second matches.json");
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Property of second object matches, but unexpected element recieved",
+        "expected" : {
+          "headers": {},
+          "body": [
+      		{"favouriteColor": "red"}
+      	]
+        },
+        "actual": {
+          "headers": {},
+          "body": [
+      		{"favouriteColor": "blue",
+      		"favouriteNumber": 4},
+      		{"favouriteColor": "red",
+      		"favouriteNumber": 2}
+      	]
+        }
+      }
+    "#).unwrap();
+
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/objects in array second matches.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/objects in array second matches.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
     let pact_match = pact.get("match").unwrap();
 
     pact_matching::matchers::configure_core_catalogue();
@@ -91,11 +461,11 @@ async fn missing_body() {
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/missing body.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/missing body.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
     let pact_match = pact.get("match").unwrap();
 
     pact_matching::matchers::configure_core_catalogue();
@@ -111,41 +481,31 @@ async fn missing_body() {
 }
 
 #[tokio::test]
-async fn unexpected_key_with_null_value() {
-    println!("FILE: tests/spec_testcases/v1_1/response/body/unexpected key with null value.json");
+async fn null_body_no_content_type() {
+    println!("FILE: tests/spec_testcases/v1_1/response/body/null body no content type.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": true,
-        "comment": "Unexpected phone number with null value",
+        "comment": "NULL body, no content-type",
         "expected" : {
-          "headers": {},
-          "body": {
-            "alligator":{
-              "name": "Mary"
-            }
-          }
+          "body": null
         },
         "actual": {
-          "headers": {},
-          "body": {
-            "alligator":{
-              "name": "Mary",
-              "phoneNumber": null
-            }
-          }
+          "headers": {"Content-Type": "application/json"},
+          "body": null
         }
       }
     "#).unwrap();
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
-    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/unexpected key with null value.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/null body no content type.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
-    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/unexpected key with null value.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/null body no content type.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
     let pact_match = pact.get("match").unwrap();
 
     pact_matching::matchers::configure_core_catalogue();
@@ -161,138 +521,40 @@ async fn unexpected_key_with_null_value() {
 }
 
 #[tokio::test]
-async fn different_value_found_at_key() {
-    println!("FILE: tests/spec_testcases/v1_1/response/body/different value found at key.json");
+async fn not_null_found_in_array_when_null_expected() {
+    println!("FILE: tests/spec_testcases/v1_1/response/body/not null found in array when null expected.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
-        "comment": "Incorrect value at alligator name",
+        "comment": "Favourite numbers expected to contain null, but not null found",
         "expected" : {
           "headers": {},
           "body": {
             "alligator":{
-              "name": "Mary"
+              "favouriteNumbers": ["1",null,"3"]
             }
           }
         },
         "actual": {
-          "headers": {},
-          "body": {
-            "alligator":{
-              "name": "Fred"
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
-    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/different value found at key.json", &interaction_json, &PactSpecification::V1_1).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
-    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
-    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/different value found at key.json", &interaction_json, &PactSpecification::V1_1).unwrap();
-    println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
-    let pact_match = pact.get("match").unwrap();
-
-    pact_matching::matchers::configure_core_catalogue();
-    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
-    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V1_1).await.unwrap();
-
-    println!("RESULT: {:?}", result);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[tokio::test]
-async fn not_null_found_at_key_when_null_expected() {
-    println!("FILE: tests/spec_testcases/v1_1/response/body/not null found at key when null expected.json");
-    #[allow(unused_mut)]
-    let mut pact: serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Name should be null",
-        "expected" : {
-          "headers": {},
-          "body": {
-            "alligator":{
-              "name": null
-            }
-          }
-        },
-        "actual": {
-          "headers": {},
-          "body": {
-            "alligator":{
-              "name": "Fred"
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
-    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/not null found at key when null expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
-    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
-    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/not null found at key when null expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
-    println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
-    let pact_match = pact.get("match").unwrap();
-
-    pact_matching::matchers::configure_core_catalogue();
-    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
-    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V1_1).await.unwrap();
-
-    println!("RESULT: {:?}", result);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[tokio::test]
-async fn number_found_in_array_when_string_expected() {
-    println!("FILE: tests/spec_testcases/v1_1/response/body/number found in array when string expected.json");
-    #[allow(unused_mut)]
-    let mut pact: serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Favourite numbers expected to be strings found a number",
-        "expected" : {
           "headers": {},
           "body": {
             "alligator":{
               "favouriteNumbers": ["1","2","3"]
             }
           }
-        },
-        "actual": {
-          "headers": {},
-          "body": {
-            "alligator":{
-              "favouriteNumbers": ["1",2,"3"]
-            }
-          }
         }
       }
     "#).unwrap();
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
-    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/number found in array when string expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/not null found in array when null expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
-    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/number found in array when string expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/not null found in array when null expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
     let pact_match = pact.get("match").unwrap();
 
     pact_matching::matchers::configure_core_catalogue();
@@ -308,40 +570,32 @@ async fn number_found_in_array_when_string_expected() {
 }
 
 #[tokio::test]
-async fn property_name_is_different_case() {
-    println!("FILE: tests/spec_testcases/v1_1/response/body/property name is different case.json");
+async fn plain_text_that_does_not_match() {
+    println!("FILE: tests/spec_testcases/v1_1/response/body/plain text that does not match.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
-        "comment": "Property names on objects are case sensitive",
+        "comment": "Plain text that does not match",
         "expected" : {
-          "headers": {},
-          "body": {
-            "alligator":{
-              "FavouriteColour": "red"
-            }
-          }
+          "headers": { "Content-Type": "text/plain" },
+          "body": "alligator named mary"
         },
         "actual": {
-          "headers": {},
-          "body": {
-            "alligator":{
-              "favouritecolour": "red"
-            }
-          }
+          "headers": { "Content-Type": "text/plain" },
+          "body": "alligator named fred"
         }
       }
     "#).unwrap();
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
-    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/property name is different case.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/plain text that does not match.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
-    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/property name is different case.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/plain text that does not match.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
     let pact_match = pact.get("match").unwrap();
 
     pact_matching::matchers::configure_core_catalogue();
@@ -386,11 +640,11 @@ async fn array_in_different_order() {
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/array in different order.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/array in different order.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
     let pact_match = pact.get("match").unwrap();
 
     pact_matching::matchers::configure_core_catalogue();
@@ -406,31 +660,40 @@ async fn array_in_different_order() {
 }
 
 #[tokio::test]
-async fn empty_body_no_content_type() {
-    println!("FILE: tests/spec_testcases/v1_1/response/body/empty body no content type.json");
+async fn property_name_is_different_case() {
+    println!("FILE: tests/spec_testcases/v1_1/response/body/property name is different case.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
-        "match": true,
-        "comment": "Empty body, no content-type",
+        "match": false,
+        "comment": "Property names on objects are case sensitive",
         "expected" : {
-          "body": ""
+          "headers": {},
+          "body": {
+            "alligator":{
+              "FavouriteColour": "red"
+            }
+          }
         },
         "actual": {
-          "headers": {"Content-Type": "application/json"},
-          "body": ""
+          "headers": {},
+          "body": {
+            "alligator":{
+              "favouritecolour": "red"
+            }
+          }
         }
       }
     "#).unwrap();
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
-    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/empty body no content type.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/property name is different case.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
-    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/empty body no content type.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/property name is different case.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
     let pact_match = pact.get("match").unwrap();
 
     pact_matching::matchers::configure_core_catalogue();
@@ -467,11 +730,109 @@ async fn plain_text_that_matches() {
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/plain text that matches.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/plain text that matches.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
+    let pact_match = pact.get("match").unwrap();
+
+    pact_matching::matchers::configure_core_catalogue();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V1_1).await.unwrap();
+
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[tokio::test]
+async fn missing_index() {
+    println!("FILE: tests/spec_testcases/v1_1/response/body/missing index.json");
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Missing favorite colour",
+        "expected" : {
+          "headers": {},
+          "body": {
+            "alligator":{
+              "favouriteColours": ["red","blue"]
+            }
+          }
+        },
+        "actual": {
+          "headers": {},
+          "body": {
+            "alligator": {
+              "favouriteColours": ["red"]
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/missing index.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/missing index.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
+    let pact_match = pact.get("match").unwrap();
+
+    pact_matching::matchers::configure_core_catalogue();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V1_1).await.unwrap();
+
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[tokio::test]
+async fn different_value_found_at_index() {
+    println!("FILE: tests/spec_testcases/v1_1/response/body/different value found at index.json");
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Incorrect favourite colour",
+        "expected" : {
+          "headers": {},
+          "body": {
+            "alligator":{
+              "favouriteColours": ["red","blue"]
+            }
+          }
+        },
+        "actual": {
+          "headers": {},
+          "body": {
+            "alligator":{
+              "favouriteColours": ["red","taupe"]
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/different value found at index.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/different value found at index.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
     let pact_match = pact.get("match").unwrap();
 
     pact_matching::matchers::configure_core_catalogue();
@@ -512,11 +873,113 @@ async fn missing_body_no_content_type() {
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/missing body no content type.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/missing body no content type.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
+    let pact_match = pact.get("match").unwrap();
+
+    pact_matching::matchers::configure_core_catalogue();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V1_1).await.unwrap();
+
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[tokio::test]
+async fn matches() {
+    println!("FILE: tests/spec_testcases/v1_1/response/body/matches.json");
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": true,
+        "comment": "Responses match",
+        "expected" : {
+          "headers": {},
+          "body": {
+            "alligator":{
+              "name": "Mary",
+              "feet": 4,
+              "favouriteColours": ["red","blue"]
+            }
+          }
+        },
+        "actual": {
+          "headers": {},
+          "body": {
+            "alligator":{
+              "feet": 4,
+              "name": "Mary",
+              "favouriteColours": ["red","blue"]
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/matches.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/matches.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
+    let pact_match = pact.get("match").unwrap();
+
+    pact_matching::matchers::configure_core_catalogue();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V1_1).await.unwrap();
+
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[tokio::test]
+async fn number_found_in_array_when_string_expected() {
+    println!("FILE: tests/spec_testcases/v1_1/response/body/number found in array when string expected.json");
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Favourite numbers expected to be strings found a number",
+        "expected" : {
+          "headers": {},
+          "body": {
+            "alligator":{
+              "favouriteNumbers": ["1","2","3"]
+            }
+          }
+        },
+        "actual": {
+          "headers": {},
+          "body": {
+            "alligator":{
+              "favouriteNumbers": ["1",2,"3"]
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/number found in array when string expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/number found in array when string expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
     let pact_match = pact.get("match").unwrap();
 
     pact_matching::matchers::configure_core_catalogue();
@@ -553,195 +1016,11 @@ async fn empty_body() {
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/empty body.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/empty body.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
-    let pact_match = pact.get("match").unwrap();
-
-    pact_matching::matchers::configure_core_catalogue();
-    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
-    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V1_1).await.unwrap();
-
-    println!("RESULT: {:?}", result);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[tokio::test]
-async fn string_found_in_array_when_number_expected() {
-    println!("FILE: tests/spec_testcases/v1_1/response/body/string found in array when number expected.json");
-    #[allow(unused_mut)]
-    let mut pact: serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Favourite Numbers expected to be numbers, but 2 is a string",
-        "expected" : {
-          "headers": {},
-          "body": {
-            "alligator":{
-              "favouriteNumbers": [1,2,3]
-            }
-          }
-        },
-        "actual": {
-          "headers": {},
-          "body": {
-            "alligator":{
-              "favouriteNumbers": [1,"2",3]
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
-    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/string found in array when number expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
-    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
-    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/string found in array when number expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
-    println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
-    let pact_match = pact.get("match").unwrap();
-
-    pact_matching::matchers::configure_core_catalogue();
-    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
-    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V1_1).await.unwrap();
-
-    println!("RESULT: {:?}", result);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[tokio::test]
-async fn objects_in_array_first_matches() {
-    println!("FILE: tests/spec_testcases/v1_1/response/body/objects in array first matches.json");
-    #[allow(unused_mut)]
-    let mut pact: serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Properties match but unexpected element recieved",
-        "expected" : {
-          "headers": {},
-          "body": [
-      		{"favouriteColor": "red"}
-      	]
-        },
-        "actual": {
-          "headers": {},
-          "body": [
-      		{"favouriteColor": "red",
-      		"favouriteNumber": 2},
-      		{"favouriteColor": "blue",
-      		"favouriteNumber": 2}
-      	]
-        }
-      }
-    "#).unwrap();
-
-    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
-    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/objects in array first matches.json", &interaction_json, &PactSpecification::V1_1).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
-    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
-    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/objects in array first matches.json", &interaction_json, &PactSpecification::V1_1).unwrap();
-    println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
-    let pact_match = pact.get("match").unwrap();
-
-    pact_matching::matchers::configure_core_catalogue();
-    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
-    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V1_1).await.unwrap();
-
-    println!("RESULT: {:?}", result);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[tokio::test]
-async fn null_body_no_content_type() {
-    println!("FILE: tests/spec_testcases/v1_1/response/body/null body no content type.json");
-    #[allow(unused_mut)]
-    let mut pact: serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": true,
-        "comment": "NULL body, no content-type",
-        "expected" : {
-          "body": null
-        },
-        "actual": {
-          "headers": {"Content-Type": "application/json"},
-          "body": null
-        }
-      }
-    "#).unwrap();
-
-    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
-    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/null body no content type.json", &interaction_json, &PactSpecification::V1_1).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
-    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
-    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/null body no content type.json", &interaction_json, &PactSpecification::V1_1).unwrap();
-    println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
-    let pact_match = pact.get("match").unwrap();
-
-    pact_matching::matchers::configure_core_catalogue();
-    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
-    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V1_1).await.unwrap();
-
-    println!("RESULT: {:?}", result);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[tokio::test]
-async fn non_empty_body_found_when_empty_expected() {
-    println!("FILE: tests/spec_testcases/v1_1/response/body/non empty body found when empty expected.json");
-    #[allow(unused_mut)]
-    let mut pact: serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Non empty body found, when an empty body was expected",
-        "expected" : {
-          "headers": {"Content-Type": "application/json"},
-          "body": null
-        },
-        "actual": {
-          "headers": {"Content-Type": "application/json"},
-          "body": {
-            "alligator":{
-              "feet": 4,
-              "name": "Mary",
-              "favouriteColours": ["red","blue"]
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
-    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/non empty body found when empty expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
-    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
-    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/non empty body found when empty expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
-    println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
     let pact_match = pact.get("match").unwrap();
 
     pact_matching::matchers::configure_core_catalogue();
@@ -808,11 +1087,11 @@ async fn deeply_nested_objects() {
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/deeply nested objects.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/deeply nested objects.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
     let pact_match = pact.get("match").unwrap();
 
     pact_matching::matchers::configure_core_catalogue();
@@ -828,67 +1107,18 @@ async fn deeply_nested_objects() {
 }
 
 #[tokio::test]
-async fn objects_in_array_no_matches() {
-    println!("FILE: tests/spec_testcases/v1_1/response/body/objects in array no matches.json");
+async fn string_found_in_array_when_number_expected() {
+    println!("FILE: tests/spec_testcases/v1_1/response/body/string found in array when number expected.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
-        "comment": "Array of objects, properties match on incorrect objects",
-        "expected" : {
-          "headers": {},
-          "body": [
-      		{"favouriteColor": "red"},
-      		{"favouriteNumber": 2}
-      	]
-        },
-        "actual": {
-          "headers": {},
-          "body": [
-      		{"favouriteColor": "blue",
-      		"favouriteNumber": 4},
-      		{"favouriteColor": "red",
-      		"favouriteNumber": 2}
-      	]
-        }
-      }
-    "#).unwrap();
-
-    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
-    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/objects in array no matches.json", &interaction_json, &PactSpecification::V1_1).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
-    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
-    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/objects in array no matches.json", &interaction_json, &PactSpecification::V1_1).unwrap();
-    println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
-    let pact_match = pact.get("match").unwrap();
-
-    pact_matching::matchers::configure_core_catalogue();
-    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
-    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V1_1).await.unwrap();
-
-    println!("RESULT: {:?}", result);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[tokio::test]
-async fn not_null_found_in_array_when_null_expected() {
-    println!("FILE: tests/spec_testcases/v1_1/response/body/not null found in array when null expected.json");
-    #[allow(unused_mut)]
-    let mut pact: serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Favourite numbers expected to contain null, but not null found",
+        "comment": "Favourite Numbers expected to be numbers, but 2 is a string",
         "expected" : {
           "headers": {},
           "body": {
             "alligator":{
-              "favouriteNumbers": ["1",null,"3"]
+              "favouriteNumbers": [1,2,3]
             }
           }
         },
@@ -896,7 +1126,7 @@ async fn not_null_found_in_array_when_null_expected() {
           "headers": {},
           "body": {
             "alligator":{
-              "favouriteNumbers": ["1","2","3"]
+              "favouriteNumbers": [1,"2",3]
             }
           }
         }
@@ -904,13 +1134,13 @@ async fn not_null_found_in_array_when_null_expected() {
     "#).unwrap();
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
-    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/not null found in array when null expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/string found in array when number expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
-    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/not null found in array when null expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/string found in array when number expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
     let pact_match = pact.get("match").unwrap();
 
     pact_matching::matchers::configure_core_catalogue();
@@ -926,13 +1156,13 @@ async fn not_null_found_in_array_when_null_expected() {
 }
 
 #[tokio::test]
-async fn different_value_found_at_index() {
-    println!("FILE: tests/spec_testcases/v1_1/response/body/different value found at index.json");
+async fn unexpected_index_with_not_null_value() {
+    println!("FILE: tests/spec_testcases/v1_1/response/body/unexpected index with not null value.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
-        "comment": "Incorrect favourite colour",
+        "comment": "Unexpected favourite colour",
         "expected" : {
           "headers": {},
           "body": {
@@ -945,7 +1175,7 @@ async fn different_value_found_at_index() {
           "headers": {},
           "body": {
             "alligator":{
-              "favouriteColours": ["red","taupe"]
+              "favouriteColours": ["red","blue","taupe"]
             }
           }
         }
@@ -953,13 +1183,13 @@ async fn different_value_found_at_index() {
     "#).unwrap();
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
-    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/different value found at index.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/unexpected index with not null value.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
-    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/different value found at index.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/unexpected index with not null value.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
     let pact_match = pact.get("match").unwrap();
 
     pact_matching::matchers::configure_core_catalogue();
@@ -1004,108 +1234,11 @@ async fn number_found_at_key_when_string_expected() {
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/number found at key when string expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/number found at key when string expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
-    let pact_match = pact.get("match").unwrap();
-
-    pact_matching::matchers::configure_core_catalogue();
-    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
-    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V1_1).await.unwrap();
-
-    println!("RESULT: {:?}", result);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[tokio::test]
-async fn objects_in_array_second_matches() {
-    println!("FILE: tests/spec_testcases/v1_1/response/body/objects in array second matches.json");
-    #[allow(unused_mut)]
-    let mut pact: serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Property of second object matches, but unexpected element recieved",
-        "expected" : {
-          "headers": {},
-          "body": [
-      		{"favouriteColor": "red"}
-      	]
-        },
-        "actual": {
-          "headers": {},
-          "body": [
-      		{"favouriteColor": "blue",
-      		"favouriteNumber": 4},
-      		{"favouriteColor": "red",
-      		"favouriteNumber": 2}
-      	]
-        }
-      }
-    "#).unwrap();
-
-    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
-    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/objects in array second matches.json", &interaction_json, &PactSpecification::V1_1).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
-    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
-    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/objects in array second matches.json", &interaction_json, &PactSpecification::V1_1).unwrap();
-    println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
-    let pact_match = pact.get("match").unwrap();
-
-    pact_matching::matchers::configure_core_catalogue();
-    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
-    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V1_1).await.unwrap();
-
-    println!("RESULT: {:?}", result);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[tokio::test]
-async fn missing_index() {
-    println!("FILE: tests/spec_testcases/v1_1/response/body/missing index.json");
-    #[allow(unused_mut)]
-    let mut pact: serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Missing favorite colour",
-        "expected" : {
-          "headers": {},
-          "body": {
-            "alligator":{
-              "favouriteColours": ["red","blue"]
-            }
-          }
-        },
-        "actual": {
-          "headers": {},
-          "body": {
-            "alligator": {
-              "favouriteColours": ["red"]
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
-    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/missing index.json", &interaction_json, &PactSpecification::V1_1).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
-    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
-    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/missing index.json", &interaction_json, &PactSpecification::V1_1).unwrap();
-    println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
     let pact_match = pact.get("match").unwrap();
 
     pact_matching::matchers::configure_core_catalogue();
@@ -1148,11 +1281,60 @@ async fn keys_out_of_order_match() {
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/keys out of order match.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/keys out of order match.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
+    let pact_match = pact.get("match").unwrap();
+
+    pact_matching::matchers::configure_core_catalogue();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V1_1).await.unwrap();
+
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[tokio::test]
+async fn not_null_found_at_key_when_null_expected() {
+    println!("FILE: tests/spec_testcases/v1_1/response/body/not null found at key when null expected.json");
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Name should be null",
+        "expected" : {
+          "headers": {},
+          "body": {
+            "alligator":{
+              "name": null
+            }
+          }
+        },
+        "actual": {
+          "headers": {},
+          "body": {
+            "alligator":{
+              "name": "Fred"
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/not null found at key when null expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/not null found at key when null expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
     let pact_match = pact.get("match").unwrap();
 
     pact_matching::matchers::configure_core_catalogue();
@@ -1189,11 +1371,11 @@ async fn null_body() {
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/null body.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/null body.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
     let pact_match = pact.get("match").unwrap();
 
     pact_matching::matchers::configure_core_catalogue();
@@ -1209,18 +1391,18 @@ async fn null_body() {
 }
 
 #[tokio::test]
-async fn null_found_in_array_when_not_null_expected() {
-    println!("FILE: tests/spec_testcases/v1_1/response/body/null found in array when not null expected.json");
+async fn different_value_found_at_key() {
+    println!("FILE: tests/spec_testcases/v1_1/response/body/different value found at key.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
-        "comment": "Favourite numbers expected to be strings found a null",
+        "comment": "Incorrect value at alligator name",
         "expected" : {
           "headers": {},
           "body": {
             "alligator":{
-              "favouriteNumbers": ["1","2","3"]
+              "name": "Mary"
             }
           }
         },
@@ -1228,7 +1410,7 @@ async fn null_found_in_array_when_not_null_expected() {
           "headers": {},
           "body": {
             "alligator":{
-              "favouriteNumbers": ["1",null,"3"]
+              "name": "Fred"
             }
           }
         }
@@ -1236,13 +1418,13 @@ async fn null_found_in_array_when_not_null_expected() {
     "#).unwrap();
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
-    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/null found in array when not null expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/different value found at key.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
-    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/null found in array when not null expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/different value found at key.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
     let pact_match = pact.get("match").unwrap();
 
     pact_matching::matchers::configure_core_catalogue();
@@ -1258,18 +1440,18 @@ async fn null_found_in_array_when_not_null_expected() {
 }
 
 #[tokio::test]
-async fn unexpected_index_with_null_value() {
-    println!("FILE: tests/spec_testcases/v1_1/response/body/unexpected index with null value.json");
+async fn unexpected_key_with_null_value() {
+    println!("FILE: tests/spec_testcases/v1_1/response/body/unexpected key with null value.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
-        "match": false,
-        "comment": "Unexpected favourite colour with null value",
+        "match": true,
+        "comment": "Unexpected phone number with null value",
         "expected" : {
           "headers": {},
           "body": {
             "alligator":{
-              "favouriteColours": ["red","blue"]
+              "name": "Mary"
             }
           }
         },
@@ -1277,7 +1459,8 @@ async fn unexpected_index_with_null_value() {
           "headers": {},
           "body": {
             "alligator":{
-              "favouriteColours": ["red","blue", null]
+              "name": "Mary",
+              "phoneNumber": null
             }
           }
         }
@@ -1285,13 +1468,62 @@ async fn unexpected_index_with_null_value() {
     "#).unwrap();
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
-    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/unexpected index with null value.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/unexpected key with null value.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
-    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/unexpected index with null value.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/unexpected key with null value.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
+    let pact_match = pact.get("match").unwrap();
+
+    pact_matching::matchers::configure_core_catalogue();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V1_1).await.unwrap();
+
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[tokio::test]
+async fn string_found_at_key_when_number_expected() {
+    println!("FILE: tests/spec_testcases/v1_1/response/body/string found at key when number expected.json");
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Number of feet expected to be number but was string",
+        "expected" : {
+          "headers": {},
+          "body": {
+            "alligator":{
+              "feet": 4
+            }
+          }
+        },
+        "actual": {
+          "headers": {},
+          "body": {
+            "alligator":{
+              "feet": "4"
+            }
+          }
+        }
+      }
+    "#).unwrap();
+
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/string found at key when number expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/string found at key when number expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
     let pact_match = pact.get("match").unwrap();
 
     pact_matching::matchers::configure_core_catalogue();
@@ -1337,11 +1569,11 @@ async fn unexpected_key_with_not_null_value() {
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/unexpected key with not null value.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/unexpected key with not null value.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
     let pact_match = pact.get("match").unwrap();
 
     pact_matching::matchers::configure_core_catalogue();
@@ -1357,271 +1589,39 @@ async fn unexpected_key_with_not_null_value() {
 }
 
 #[tokio::test]
-async fn missing_body_found_when_empty_expected() {
-    println!("FILE: tests/spec_testcases/v1_1/response/body/missing body found when empty expected.json");
-    #[allow(unused_mut)]
-    let mut pact: serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": true,
-        "comment": "Missing body found, when an empty body was expected",
-        "expected" : {
-          "body": null
-        },
-        "actual": {
-        }
-      }
-    "#).unwrap();
-
-    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
-    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/missing body found when empty expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
-    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
-    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/missing body found when empty expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
-    println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
-    let pact_match = pact.get("match").unwrap();
-
-    pact_matching::matchers::configure_core_catalogue();
-    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
-    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V1_1).await.unwrap();
-
-    println!("RESULT: {:?}", result);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[tokio::test]
-async fn string_found_at_key_when_number_expected() {
-    println!("FILE: tests/spec_testcases/v1_1/response/body/string found at key when number expected.json");
+async fn objects_in_array_first_matches() {
+    println!("FILE: tests/spec_testcases/v1_1/response/body/objects in array first matches.json");
     #[allow(unused_mut)]
     let mut pact: serde_json::Value = serde_json::from_str(r#"
       {
         "match": false,
-        "comment": "Number of feet expected to be number but was string",
+        "comment": "Properties match but unexpected element recieved",
         "expected" : {
           "headers": {},
-          "body": {
-            "alligator":{
-              "feet": 4
-            }
-          }
+          "body": [
+      		{"favouriteColor": "red"}
+      	]
         },
         "actual": {
           "headers": {},
-          "body": {
-            "alligator":{
-              "feet": "4"
-            }
-          }
+          "body": [
+      		{"favouriteColor": "red",
+      		"favouriteNumber": 2},
+      		{"favouriteColor": "blue",
+      		"favouriteNumber": 2}
+      	]
         }
       }
     "#).unwrap();
 
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
-    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/string found at key when number expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/objects in array first matches.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", expected.as_request_response().unwrap().response.body.display_string());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
-    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/string found at key when number expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/objects in array first matches.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
-    let pact_match = pact.get("match").unwrap();
-
-    pact_matching::matchers::configure_core_catalogue();
-    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
-    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V1_1).await.unwrap();
-
-    println!("RESULT: {:?}", result);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[tokio::test]
-async fn missing_key() {
-    println!("FILE: tests/spec_testcases/v1_1/response/body/missing key.json");
-    #[allow(unused_mut)]
-    let mut pact: serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Missing key alligator name",
-        "expected" : {
-          "headers": {},
-          "body": {
-            "alligator":{
-              "name": "Mary",
-              "age": 3
-            }
-          }
-        },
-        "actual": {
-          "headers": {},
-          "body": {
-            "alligator": {
-              "age": 3
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
-    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/missing key.json", &interaction_json, &PactSpecification::V1_1).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
-    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
-    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/missing key.json", &interaction_json, &PactSpecification::V1_1).unwrap();
-    println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
-    let pact_match = pact.get("match").unwrap();
-
-    pact_matching::matchers::configure_core_catalogue();
-    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
-    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V1_1).await.unwrap();
-
-    println!("RESULT: {:?}", result);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[tokio::test]
-async fn matches() {
-    println!("FILE: tests/spec_testcases/v1_1/response/body/matches.json");
-    #[allow(unused_mut)]
-    let mut pact: serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": true,
-        "comment": "Responses match",
-        "expected" : {
-          "headers": {},
-          "body": {
-            "alligator":{
-              "name": "Mary",
-              "feet": 4,
-              "favouriteColours": ["red","blue"]
-            }
-          }
-        },
-        "actual": {
-          "headers": {},
-          "body": {
-            "alligator":{
-              "feet": 4,
-              "name": "Mary",
-              "favouriteColours": ["red","blue"]
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
-    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/matches.json", &interaction_json, &PactSpecification::V1_1).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
-    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
-    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/matches.json", &interaction_json, &PactSpecification::V1_1).unwrap();
-    println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
-    let pact_match = pact.get("match").unwrap();
-
-    pact_matching::matchers::configure_core_catalogue();
-    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
-    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V1_1).await.unwrap();
-
-    println!("RESULT: {:?}", result);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[tokio::test]
-async fn null_found_at_key_where_not_null_expected() {
-    println!("FILE: tests/spec_testcases/v1_1/response/body/null found at key where not null expected.json");
-    #[allow(unused_mut)]
-    let mut pact: serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Name should not be null",
-        "expected" : {
-          "headers": {},
-          "body": {
-            "alligator":{
-              "name": "Mary"
-            }
-          }
-        },
-        "actual": {
-          "headers": {},
-          "body": {
-            "alligator":{
-              "name": null
-            }
-          }
-        }
-      }
-    "#).unwrap();
-
-    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
-    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/null found at key where not null expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
-    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
-    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/null found at key where not null expected.json", &interaction_json, &PactSpecification::V1_1).unwrap();
-    println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
-    let pact_match = pact.get("match").unwrap();
-
-    pact_matching::matchers::configure_core_catalogue();
-    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
-    let result = match_interaction_response(expected, actual, pact, &PactSpecification::V1_1).await.unwrap();
-
-    println!("RESULT: {:?}", result);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[tokio::test]
-async fn plain_text_that_does_not_match() {
-    println!("FILE: tests/spec_testcases/v1_1/response/body/plain text that does not match.json");
-    #[allow(unused_mut)]
-    let mut pact: serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Plain text that does not match",
-        "expected" : {
-          "headers": { "Content-Type": "text/plain" },
-          "body": "alligator named mary"
-        },
-        "actual": {
-          "headers": { "Content-Type": "text/plain" },
-          "body": "alligator named fred"
-        }
-      }
-    "#).unwrap();
-
-    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("expected").unwrap()});
-    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/plain text that does not match.json", &interaction_json, &PactSpecification::V1_1).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().response.body.str_value());
-    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "response": pact.get("actual").unwrap()});
-    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/response/body/plain text that does not match.json", &interaction_json, &PactSpecification::V1_1).unwrap();
-    println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().response.body.str_value());
+    println!("BODY: {}", actual.as_request_response().unwrap().response.body.display_string());
     let pact_match = pact.get("match").unwrap();
 
     pact_matching::matchers::configure_core_catalogue();

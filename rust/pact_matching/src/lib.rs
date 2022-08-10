@@ -1381,7 +1381,7 @@ pub async fn match_request<'a>(
   interaction: &Box<dyn Interaction + Send + Sync>
 ) -> RequestMatchResult {
   info!("comparing to expected {}", expected);
-  debug!("     body: '{}'", expected.body.str_value());
+  debug!("     body: '{}'", expected.body.display_string());
   debug!("     matching_rules: {:?}", expected.matching_rules);
   debug!("     generators: {:?}", expected.generators);
 

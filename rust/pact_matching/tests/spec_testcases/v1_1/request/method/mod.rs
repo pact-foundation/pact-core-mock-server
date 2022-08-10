@@ -16,52 +16,6 @@ use pact_matching::{match_interaction_request, match_interaction_response};
 use pact_models::prelude::{Pact, RequestResponsePact};
 
 #[tokio::test]
-async fn different_method() {
-    println!("FILE: tests/spec_testcases/v1_1/request/method/different method.json");
-    #[allow(unused_mut)]
-    let mut pact: serde_json::Value = serde_json::from_str(r#"
-      {
-        "match": false,
-        "comment": "Methods is incorrect",
-        "expected" : {
-          "method": "POST",
-          "path": "/",
-          "query": "",
-          "headers": {}
-        },
-        "actual": {
-          "method": "GET",
-          "path": "/",
-          "query": "",
-          "headers": {}
-      
-        }
-      }
-    "#).unwrap();
-
-    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("expected").unwrap()});
-    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/request/method/different method.json", &interaction_json, &PactSpecification::V1_1).unwrap();
-    println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().request.body.str_value());
-    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("actual").unwrap()});
-    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/request/method/different method.json", &interaction_json, &PactSpecification::V1_1).unwrap();
-    println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
-    let pact_match = pact.get("match").unwrap();
-
-    pact_matching::matchers::configure_core_catalogue();
-    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
-    let result = match_interaction_request(expected, actual, pact, &PactSpecification::V1_1).await.unwrap().mismatches();
-
-    println!("RESULT: {:?}", result);
-    if pact_match.as_bool().unwrap() {
-       expect!(result.iter()).to(be_empty());
-    } else {
-       expect!(result.iter()).to_not(be_empty());
-    }
-}
-
-#[tokio::test]
 async fn method_is_different_case() {
     println!("FILE: tests/spec_testcases/v1_1/request/method/method is different case.json");
     #[allow(unused_mut)]
@@ -88,11 +42,11 @@ async fn method_is_different_case() {
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v1_1/request/method/method is different case.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().request.body.str_value());
+    println!("BODY: {}", expected.as_request_response().unwrap().request.body.display_string());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v1_1/request/method/method is different case.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
+    println!("BODY: {}", actual.as_request_response().unwrap().request.body.display_string());
     let pact_match = pact.get("match").unwrap();
 
     pact_matching::matchers::configure_core_catalogue();
@@ -134,11 +88,57 @@ async fn matches() {
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("expected").unwrap()});
     let expected = http_interaction_from_json("tests/spec_testcases/v1_1/request/method/matches.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("EXPECTED: {:?}", expected);
-    println!("BODY: {}", expected.as_request_response().unwrap().request.body.str_value());
+    println!("BODY: {}", expected.as_request_response().unwrap().request.body.display_string());
     let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("actual").unwrap()});
     let actual = http_interaction_from_json("tests/spec_testcases/v1_1/request/method/matches.json", &interaction_json, &PactSpecification::V1_1).unwrap();
     println!("ACTUAL: {:?}", actual);
-    println!("BODY: {}", actual.as_request_response().unwrap().request.body.str_value());
+    println!("BODY: {}", actual.as_request_response().unwrap().request.body.display_string());
+    let pact_match = pact.get("match").unwrap();
+
+    pact_matching::matchers::configure_core_catalogue();
+    let pact = RequestResponsePact { interactions: vec![ expected.as_request_response().unwrap_or_default() ], .. RequestResponsePact::default() }.boxed();
+    let result = match_interaction_request(expected, actual, pact, &PactSpecification::V1_1).await.unwrap().mismatches();
+
+    println!("RESULT: {:?}", result);
+    if pact_match.as_bool().unwrap() {
+       expect!(result.iter()).to(be_empty());
+    } else {
+       expect!(result.iter()).to_not(be_empty());
+    }
+}
+
+#[tokio::test]
+async fn different_method() {
+    println!("FILE: tests/spec_testcases/v1_1/request/method/different method.json");
+    #[allow(unused_mut)]
+    let mut pact: serde_json::Value = serde_json::from_str(r#"
+      {
+        "match": false,
+        "comment": "Methods is incorrect",
+        "expected" : {
+          "method": "POST",
+          "path": "/",
+          "query": "",
+          "headers": {}
+        },
+        "actual": {
+          "method": "GET",
+          "path": "/",
+          "query": "",
+          "headers": {}
+      
+        }
+      }
+    "#).unwrap();
+
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("expected").unwrap()});
+    let expected = http_interaction_from_json("tests/spec_testcases/v1_1/request/method/different method.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    println!("EXPECTED: {:?}", expected);
+    println!("BODY: {}", expected.as_request_response().unwrap().request.body.display_string());
+    let interaction_json = serde_json::json!({"type": "Synchronous/HTTP", "request": pact.get("actual").unwrap()});
+    let actual = http_interaction_from_json("tests/spec_testcases/v1_1/request/method/different method.json", &interaction_json, &PactSpecification::V1_1).unwrap();
+    println!("ACTUAL: {:?}", actual);
+    println!("BODY: {}", actual.as_request_response().unwrap().request.body.display_string());
     let pact_match = pact.get("match").unwrap();
 
     pact_matching::matchers::configure_core_catalogue();
