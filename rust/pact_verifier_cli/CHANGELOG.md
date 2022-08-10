@@ -1,5 +1,16 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.9.13 - add CLI options to provide different ports when there are different transports
+
+* ac58f50f - chore: update readme (Ronald Holshausen, Wed Aug 10 13:18:15 2022 +1000)
+* 78ff94e2 - chore: cleanup some deprecation warnings (Ronald Holshausen, Wed Aug 10 13:07:51 2022 +1000)
+* 3324c1b3 - chore: Upgrade pact_verifier to 0.13.10 (Ronald Holshausen, Wed Aug 10 13:02:17 2022 +1000)
+* a3fe5e7f - chore: Update pact models to 0.4.2 (Ronald Holshausen, Wed Aug 10 10:10:41 2022 +1000)
+* 3a1449cb - feat: use the configured transport when provided (Ronald Holshausen, Wed Aug 3 13:20:17 2022 +1000)
+* 8cc29482 - feat: add CLI options to provide different ports when there are different transports (Ronald Holshausen, Wed Aug 3 11:53:31 2022 +1000)
+* 6117aa50 - chore: upgrade clap crate to 3.x (Ronald Holshausen, Mon Aug 1 14:46:56 2022 +1000)
+* 5f487571 - bump version to 0.9.13 (Ronald Holshausen, Wed Jul 20 13:21:27 2022 +1000)
+
 # 0.9.12 - add --no-color option to verfier CLI
 
 * 701c93a6 - Merge pull request #204 from pact-foundation/snyk-fix-e3dc7fb516c9ab76c1050c65ab20c6fb (Ronald Holshausen, Tue Jul 19 22:47:31 2022 -0400)
