@@ -197,11 +197,23 @@ impl Message {
                   }).collect(),
                   _ => hashmap!{},
                 };
-                Ok(Message {
+              let mut body = body_from_json(json, "contents", &None);
+              let content_type = metadata.iter()
+                .find(|(k, _)| {
+                  let key = k.to_ascii_lowercase();
+                  key == "contenttype" || key == "content-type"
+                })
+                .map(|(_, v)| json_to_string(v))
+                .map(|s| ContentType::parse(s.as_str()).ok())
+                .flatten();
+              if let Some(ct) = content_type {
+                body.set_content_type(&ct);
+              }
+              Ok(Message {
                   id: None,
                   description,
                   provider_states,
-                  contents: body_from_json(json, "contents", &None),
+                  contents: body,
                   matching_rules: matchers_from_json(json, &None)?,
                   metadata,
                   generators: Generators::default(),
@@ -434,7 +446,7 @@ mod tests {
             }
         }"#;
         let message = Message::from_json(0, &serde_json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
-        expect!(message.contents.str_value()).to(be_equal_to("{\"hello\":\"world\"}"));
+        expect!(message.contents.value_as_string()).to(be_some().value("{\"hello\":\"world\"}"));
     }
 
     #[test]
@@ -446,7 +458,7 @@ mod tests {
             }
         }"#;
         let message = Message::from_json(0, &serde_json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
-        expect!(message.contents.str_value()).to(be_equal_to("hello world"));
+        expect!(message.contents.value_as_string()).to(be_some().value("hello world"));
     }
 
     #[test]
@@ -458,7 +470,7 @@ mod tests {
             }
         }"#;
         let message = Message::from_json(0, &serde_json::from_str(message_json).unwrap(), &PactSpecification::V3).unwrap();
-        expect!(message.contents.str_value()).to(be_equal_to(""));
+        expect!(message.contents.value_as_string()).to(be_none());
     }
 
     #[test]

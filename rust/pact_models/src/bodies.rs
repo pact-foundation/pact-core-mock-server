@@ -42,8 +42,34 @@ impl OptionalBody {
     }
   }
 
+  /// Returns the body as a UTF-8 string if present and is a textual form, otherwise returns None.
+  pub fn value_as_string(&self) -> Option<String> {
+    match self {
+      OptionalBody::Present(s, ct, hint) => {
+        if Self::is_text(ct, hint) {
+          from_utf8(s)
+            .map(|s| s.to_string())
+            .ok()
+        } else {
+          None
+        }
+      },
+      _ => None
+    }
+  }
+
+  fn is_text(ct: &Option<ContentType>, hint: &Option<ContentTypeHint>) -> bool {
+    if let Some(hint) = hint {
+      *hint == ContentTypeHint::TEXT
+    } else if let Some(ct) = ct {
+      ct.is_text()
+    } else {
+      false
+    }
+  }
+
   /// Returns the body if present as a UTF-8 string, otherwise returns the empty string.
-  #[deprecated(since = "0.4.2", note = "This does not deal with binary bodies, use display_string instead")]
+  #[deprecated(since = "0.4.2", note = "This does not deal with binary bodies, use value_as_str or display_string instead")]
   pub fn str_value(&self) -> &str {
     match self {
       OptionalBody::Present(s, _, _) => from_utf8(s).unwrap_or(""),
@@ -57,14 +83,7 @@ impl OptionalBody {
   pub fn display_string(&self) -> String {
     match self {
       OptionalBody::Present(s, ct, hint) => {
-        let text = if let Some(hint) = hint {
-          *hint == ContentTypeHint::TEXT
-        } else if let Some(ct) = ct {
-          ct.is_text()
-        } else {
-          false
-        };
-        if text {
+        if Self::is_text(ct, hint) {
           from_utf8(s)
             .map(|s| s.to_string())
             .unwrap_or_else(|_| self.display_bytes(32))
@@ -260,5 +279,17 @@ mod tests {
 
     expect!(OptionalBody::Present("hello".into(), Some(TEXT.clone()), None).display_string()).to(be_equal_to("hello"));
     expect!(OptionalBody::Present("hello".into(), None, Some(ContentTypeHint::TEXT)).display_string()).to(be_equal_to("hello"));
+  }
+
+  #[test]
+  fn value_as_string_test() {
+    expect!(OptionalBody::Missing.value_as_string()).to(be_none());
+    expect!(OptionalBody::Empty.value_as_string()).to(be_none());
+    expect!(OptionalBody::Null.value_as_string()).to(be_none());
+
+    expect!(OptionalBody::Present("hello".into(), None, None).value_as_string()).to(be_none());
+    expect!(OptionalBody::Present("hello".into(), Some(TEXT.clone()), None).value_as_string()).to(be_some().value("hello"));
+    expect!(OptionalBody::Present("hello".into(), None, Some(ContentTypeHint::TEXT)).value_as_string()).to(be_some().value("hello"));
+    expect!(OptionalBody::Present("hello".into(), None, Some(ContentTypeHint::BINARY)).value_as_string()).to(be_none());
   }
 }

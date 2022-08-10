@@ -518,8 +518,8 @@ mod tests {
         let message = pact.messages[0].clone();
         expect!(message.description)
             .to(be_equal_to("Message Description"));
-        expect!(message.contents.str_value())
-            .to(be_equal_to("{\"hello\":\"world\"}"));
+        expect!(message.contents.value_as_string())
+            .to(be_some().value("{\"hello\":\"world\"}"));
 
         expect!(pact.specification_version).to(be_equal_to(PactSpecification::V3));
         expect!(pact.metadata.iter()).to(have_count(0));

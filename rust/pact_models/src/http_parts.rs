@@ -91,8 +91,8 @@ pub trait HttpPart {
   /// If the body is a textual type (non-binary)
   fn has_text_body(&self) -> bool {
     let body = self.body();
-    let str_body = body.str_value();
-    body.is_present() && !str_body.is_empty() && str_body.is_ascii()
+    let str_body = body.value_as_string();
+    str_body.map(|b| !b.is_empty() && b.is_ascii()).unwrap_or(false)
   }
 
   /// Convenience method to add a header
