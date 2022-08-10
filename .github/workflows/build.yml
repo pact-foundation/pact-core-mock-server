@@ -17,6 +17,8 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
           components: clippy
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v1
       - name: Install shared mime info DB
         if: runner.os == 'macOS'
         run: brew install shared-mime-info
