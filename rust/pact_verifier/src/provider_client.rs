@@ -183,6 +183,7 @@ pub async fn make_provider_request<F: RequestFilterExecutor>(
     request.clone()
   };
 
+  #[allow(deprecated)]
   let base_url = transport
     .map(|trans| trans.base_url(&provider.host))
     .unwrap_or_else(|| {

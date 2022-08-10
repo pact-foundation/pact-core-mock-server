@@ -176,7 +176,8 @@ pub struct ProviderInfo {
 }
 
 impl Default for ProviderInfo {
-    /// Create a default provider info
+  /// Create a default provider info
+  #[allow(deprecated)]
   fn default() -> ProviderInfo {
     ProviderInfo {
       name: "provider".to_string(),
@@ -427,6 +428,7 @@ async fn verify_interaction_using_transport<'a, F: RequestFilterExecutor>(
           "host".to_string() => Value::String(provider.host.clone())
         };
 
+        #[allow(deprecated)]
         let port = provider.transports.iter()
           .find_map(|transport| {
             if transport_entry.key.ends_with(&transport.transport) {

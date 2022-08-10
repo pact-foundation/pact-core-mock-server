@@ -14,7 +14,7 @@ use pact_consumer::*;
 use pact_consumer::prelude::*;
 use pact_models::pact::read_pact;
 use pact_models::provider_states::ProviderState;
-use pact_verifier::{FilterInfo, NullRequestFilterExecutor, ProviderInfo, VerificationOptions, verify_pact_internal};
+use pact_verifier::{FilterInfo, NullRequestFilterExecutor, ProviderInfo, ProviderTransport, VerificationOptions, verify_pact_internal};
 use pact_verifier::callback_executors::ProviderStateExecutor;
 
 /// Get the path to one of our sample *.json files.
@@ -76,10 +76,17 @@ async fn verify_pact_with_match_values_matcher() {
     .await
     .start_mock_server(None);
 
+  #[allow(deprecated)]
   let provider = ProviderInfo {
     name: "MatchValuesProvider".to_string(),
     host: "127.0.0.1".to_string(),
     port: server.url().port(),
+    transports: vec![ ProviderTransport {
+      transport: "HTTP".to_string(),
+      port: server.url().port(),
+      path: None,
+      scheme: Some("http".to_string())
+    } ],
     .. ProviderInfo::default()
   };
 
@@ -126,10 +133,17 @@ async fn verify_pact_with_attributes_with_special_values() {
     .await
     .start_mock_server(None);
 
+  #[allow(deprecated)]
   let provider = ProviderInfo {
     name: "BookProvider".to_string(),
     host: "127.0.0.1".to_string(),
     port: server.url().port(),
+    transports: vec![ ProviderTransport {
+      transport: "HTTP".to_string(),
+      port: server.url().port(),
+      path: None,
+      scheme: Some("http".to_string())
+    } ],
     .. ProviderInfo::default()
   };
 
@@ -205,10 +219,17 @@ async fn verifying_a_pact_with_min_type_matcher_and_child_arrays() {
     .await
     .start_mock_server(None);
 
+  #[allow(deprecated)]
   let provider = ProviderInfo {
     name: "Issue396Service".to_string(),
     host: "127.0.0.1".to_string(),
     port: server.url().port(),
+    transports: vec![ ProviderTransport {
+      transport: "HTTP".to_string(),
+      port: server.url().port(),
+      path: None,
+      scheme: Some("http".to_string())
+    } ],
     .. ProviderInfo::default()
   };
 
