@@ -44,7 +44,7 @@ tokio = { version = "1.18.2", features = ["full"] }
 tokio-rustls = "0.23.4"
 sxd-document = "0.3.2"
 either = "1.6.1"
-pact-plugin-driver = "0.1.8"
+pact-plugin-driver = "0.1.9"
 log = "0.4.17"
 tracing = "=0.1.34" # This needs to be the same version across all the libs (i.e. plugin driver)
 tracing-core = "=0.1.26"  # This needs to be the same version across all the pact libs (i.e. pact ffi)
