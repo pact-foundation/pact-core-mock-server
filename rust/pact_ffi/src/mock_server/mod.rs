@@ -53,6 +53,7 @@ use std::str::from_utf8;
 
 use anyhow::Context;
 use chrono::Local;
+use either::Either;
 use libc::c_char;
 use onig::Regex;
 use pact_models::pact::Pact;
@@ -64,6 +65,7 @@ use tracing::error;
 use uuid::Uuid;
 
 use pact_matching::logging::fetch_buffer_contents;
+use pact_matching::metrics::{MetricEvent, send_metrics};
 use pact_mock_server::{MANAGER, mock_server_mismatches, MockServerError, tls::TlsConfigBuilder, WritePactFileErr};
 use pact_mock_server::mock_server::MockServerConfig;
 use pact_mock_server::server_manager::ServerManager;
@@ -419,7 +421,27 @@ pub extern fn pactffi_mock_server_mismatches(mock_server_port: i32) -> *mut c_ch
 #[no_mangle]
 pub extern fn pactffi_cleanup_mock_server(mock_server_port: i32) -> bool {
   let result = catch_unwind(|| {
-    pact_mock_server::shutdown_mock_server(mock_server_port)
+    let id = pact_mock_server::find_mock_server_by_port(mock_server_port as u16, &|_, id, mock_server| {
+      let interactions = match mock_server {
+        Either::Left(ms) => {
+          let pact = ms.pact.lock().unwrap();
+          pact.interactions().len()
+        },
+        Either::Right(ms) => ms.pact.interactions.len()
+      };
+      send_metrics(MetricEvent::ConsumerTestRun {
+        interactions,
+        test_framework: "pact_ffi".to_string(),
+        app_name: "pact_ffi".to_string(),
+        app_version: env!("CARGO_PKG_VERSION").to_string()
+      });
+      id.clone()
+    });
+    if let Some(id) = id {
+      pact_mock_server::shutdown_mock_server_by_id(id.as_str())
+    } else {
+      false
+    }
   });
 
   match result {

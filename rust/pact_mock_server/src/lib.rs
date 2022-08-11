@@ -30,8 +30,8 @@ use serde_json::json;
 use tracing::{error, info, warn};
 use uuid::Uuid;
 
-use crate::mock_server::MockServerConfig;
-use crate::server_manager::ServerManager;
+use crate::mock_server::{MockServer, MockServerConfig};
+use crate::server_manager::{PluginMockServer, ServerManager};
 
 pub mod matching;
 pub mod mock_server;
@@ -288,7 +288,7 @@ pub fn create_tls_mock_server(
 pub fn mock_server_matched(mock_server_port: i32) -> bool {
   MANAGER.lock().unwrap()
     .get_or_insert_with(ServerManager::new)
-    .find_mock_server_by_port(mock_server_port as u16, &|server_manager, mock_server| {
+    .find_mock_server_by_port(mock_server_port as u16, &|server_manager, _, mock_server| {
       match mock_server {
         Either::Left(mock_server) => mock_server.mismatches().is_empty(),
         Either::Right(plugin_mock_server) => {
@@ -316,7 +316,7 @@ pub fn mock_server_matched(mock_server_port: i32) -> bool {
 pub fn mock_server_mismatches(mock_server_port: i32) -> Option<String> {
   MANAGER.lock().unwrap()
     .get_or_insert_with(ServerManager::new)
-    .find_mock_server_by_port(mock_server_port as u16, &|manager, mock_server| {
+    .find_mock_server_by_port(mock_server_port as u16, &|manager, _, mock_server| {
       match mock_server {
         Either::Left(mock_server) => {
           let mismatches = mock_server.mismatches().iter()
@@ -377,7 +377,7 @@ pub fn write_pact_file(
 ) -> Result<(), WritePactFileErr> {
     let opt_result = MANAGER.lock().unwrap()
         .get_or_insert_with(ServerManager::new)
-        .find_mock_server_by_port(mock_server_port as u16, &|_, ms| {
+        .find_mock_server_by_port(mock_server_port as u16, &|_, _, ms| {
           match ms {
             Either::Left(mock_server) => {
               mock_server.write_pact(&directory, overwrite)
@@ -427,6 +427,25 @@ pub fn shutdown_mock_server(mock_server_port: i32) -> bool {
   MANAGER.lock().unwrap()
     .get_or_insert_with(ServerManager::new)
     .shutdown_mock_server_by_port(mock_server_port as u16)
+}
+
+/// Find a mock server by port number and and map it using supplied function if found. Returns the
+/// result of the function call wrapped in a Some. Returns a None if the mock server was not found.
+pub fn find_mock_server_by_port<R>(
+  port: u16,
+  f: &dyn Fn(&ServerManager, &String, Either<&MockServer, &PluginMockServer>) -> R
+) -> Option<R> {
+  MANAGER.lock().unwrap()
+    .get_or_insert_with(ServerManager::new)
+    .find_mock_server_by_port(port, f)
+}
+
+/// Shuts down the mock server with the provided ID. Returns a boolean value to indicate if
+/// the mock server was successfully shut down.
+pub fn shutdown_mock_server_by_id(id: &str) -> bool {
+  MANAGER.lock().unwrap()
+    .get_or_insert_with(ServerManager::new)
+    .shutdown_mock_server_by_id(id.to_string())
 }
 
 #[cfg(test)]
