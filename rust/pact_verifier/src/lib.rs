@@ -41,7 +41,7 @@ pub use callback_executors::NullRequestFilterExecutor;
 use callback_executors::RequestFilterExecutor;
 use pact_matching::{match_response, Mismatch};
 use pact_matching::logging::LOG_ID;
-use pact_matching::metrics::{MetricEvent, send_metrics};
+use pact_matching::metrics::{MetricEvent, send_metrics, send_metrics_async};
 
 use crate::callback_executors::{ProviderStateError, ProviderStateExecutor};
 use crate::messages::{process_message_result, process_sync_message_result, verify_message_from_provider, verify_sync_message_from_provider};
@@ -981,12 +981,12 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
       app_name: "pact_verifier".to_string(),
       app_version: env!("CARGO_PKG_VERSION").to_string()
     });
-    send_metrics(MetricEvent::ProviderVerificationRan {
+    send_metrics_async(MetricEvent::ProviderVerificationRan {
       tests_run: results.len(),
       test_framework: metrics_data.test_framework,
       app_name: metrics_data.app_name,
       app_version: metrics_data.app_version
-    });
+    }).await;
 
     for (error, result) in &errors {
       verification_result.errors.push((error.clone(), result.into()));

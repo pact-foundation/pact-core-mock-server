@@ -140,73 +140,85 @@ lazy_static! {
 ///
 /// This function needs to run in the context of a Tokio runtime.
 pub fn send_metrics(event: MetricEvent) {
-  let do_not_track = var("PACT_DO_NOT_TRACK")
-    .or_else(|_| var("pact_do_not_track"))
-    .map(|v| v == "true")
-    .unwrap_or(false);
-
-  if do_not_track {
-    debug!("'PACT_DO_NOT_TRACK' environment variable is set, will not send metrics");
-  } else {
-    match tokio::runtime::Handle::try_current() {
-      Ok(handle) => {
-        let mut guard = WARNING_LOGGED.lock().unwrap();
-        let warning_logged = (*guard).get_mut();
-        if *warning_logged == false {
-          warn!(
-            "\n\nPlease note:\n\
-            We are tracking events anonymously to gather important usage statistics like Pact version \
-            and operating system. To disable tracking, set the 'PACT_DO_NOT_TRACK' environment \
-            variable to 'true'.\n\n"
-          );
-          *warning_logged = true;
-        }
-
-        handle.spawn(async move {
-          let ci_context = if CIS.iter()
-            .any(|n| var(n).map(|val| !val.is_empty()).unwrap_or(false)) {
-            "CI"
-          } else {
-            "unknown"
-          };
-          let osarch = format!("{}-{}", OS, ARCH);
-          let uid = hostname_hash();
-          let value = event.value();
-
-          let event_payload = hashmap!{
-            "v" => "1",                                       // Version of the API
-            "t" => "event",                                   // Hit type, Specifies the metric is for an event
-            "tid" => GA_ACCOUNT,                              // Property ID
-            "cid" => uid.as_str(),                            // Anonymous Client ID.
-            "an" => event.app_name(),                         // App name.
-            "aid" => event.app_name(),                        // App Id
-            "av" => event.app_version(),                      // App version.
-            "aip" => "true",                                  // Anonymise IP address
-            "ds" => "client",                                 // Data source
-            "cd2" => ci_context,                              // Custom Dimension 2: context
-            "cd3" => osarch.as_str(),                         // Custom Dimension 3: osarch
-            "cd6" => event.test_framework(),                  // Custom Dimension 6: test_framework
-            "cd7" => env!("CARGO_PKG_VERSION"),               // Custom Dimension 7: platform_version
-            "el" => event.name(),                             // Event
-            "ec" => event.category(),                         // Category
-            "ea" => event.action(),                           // Action
-            "ev" => value.as_str()                            // Value
-          };
-          debug!("Sending event to GA - {:?}", event_payload);
-          let result = Client::new().post(GA_URL)
-            .form(&event_payload)
-            .send()
-            .await;
-          if let Err(err) = result {
-            debug!("Failed to post event - {}", err);
-          }
-        });
-      },
-      Err(err) => {
-        debug!("Could not get the tokio runtime, will not send metrics - {}", err)
-      }
+  match tokio::runtime::Handle::try_current() {
+    Ok(handle) => {
+      handle.spawn(async move {
+        send_metrics_async(event).await
+      });
+    },
+    Err(err) => {
+      debug!("Could not get the tokio runtime, will not send metrics - {}", err)
     }
   }
+}
+
+/// This sends anonymous metrics to a Google Analytics account. It is used to track usage of
+/// Pact library and operating system versions. This can be disabled by setting the
+/// `pact_do_not_track` environment variable to `true`.
+pub async fn send_metrics_async(event: MetricEvent) {
+  if do_not_track() {
+    debug!("'PACT_DO_NOT_TRACK' environment variable is set, will not send metrics");
+  } else {
+    log_warning();
+    let ci_context = if CIS.iter()
+      .any(|n| var(n).map(|val| !val.is_empty()).unwrap_or(false)) {
+      "CI"
+    } else {
+      "unknown"
+    };
+    let osarch = format!("{}-{}", OS, ARCH);
+    let uid = hostname_hash();
+    let value = event.value();
+
+    let event_payload = hashmap! {
+          "v" => "1",                                       // Version of the API
+          "t" => "event",                                   // Hit type, Specifies the metric is for an event
+          "tid" => GA_ACCOUNT,                              // Property ID
+          "cid" => uid.as_str(),                            // Anonymous Client ID.
+          "an" => event.app_name(),                         // App name.
+          "aid" => event.app_name(),                        // App Id
+          "av" => event.app_version(),                      // App version.
+          "aip" => "true",                                  // Anonymise IP address
+          "ds" => "client",                                 // Data source
+          "cd2" => ci_context,                              // Custom Dimension 2: context
+          "cd3" => osarch.as_str(),                         // Custom Dimension 3: osarch
+          "cd6" => event.test_framework(),                  // Custom Dimension 6: test_framework
+          "cd7" => env!("CARGO_PKG_VERSION"),               // Custom Dimension 7: platform_version
+          "el" => event.name(),                             // Event
+          "ec" => event.category(),                         // Category
+          "ea" => event.action(),                           // Action
+          "ev" => value.as_str()                            // Value
+          };
+    debug!("Sending event to GA - {:?}", event_payload);
+    let result = Client::new().post(GA_URL)
+      .form(&event_payload)
+      .send()
+      .await;
+    if let Err(err) = result {
+      debug!("Failed to post event - {}", err);
+    }
+  }
+}
+
+fn log_warning() {
+  let mut guard = WARNING_LOGGED.lock().unwrap();
+  let warning_logged = (*guard).get_mut();
+  if *warning_logged == false {
+    warn!(
+      "\n\nPlease note:\n\
+      We are tracking events anonymously to gather important usage statistics like Pact version \
+      and operating system. To disable tracking, set the 'PACT_DO_NOT_TRACK' environment \
+      variable to 'true'.\n\n"
+    );
+    *warning_logged = true;
+  }
+}
+
+fn do_not_track() -> bool {
+  var("PACT_DO_NOT_TRACK")
+    .or_else(|_| var("pact_do_not_track"))
+    .map(|v| v == "true")
+    .unwrap_or(false)
 }
 
 /// Calculates a one-way hash of the hostname where the event occurred

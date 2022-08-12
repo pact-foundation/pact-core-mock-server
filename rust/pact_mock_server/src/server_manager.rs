@@ -2,6 +2,7 @@
 //! This module defines a manager for holding multiple instances of mock servers.
 //!
 
+use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::ffi::CString;
 use std::future::Future;
@@ -286,20 +287,23 @@ impl ServerManager {
 
   /// Find a mock server by port number and and map it using supplied function if found.
   pub fn find_mock_server_by_port<R>(
-    &self,
+    &mut self,
     port: u16,
-    f: &dyn Fn(&ServerManager, Either<&MockServer, &PluginMockServer>) -> R
+    f: &dyn Fn(&ServerManager, &String, Either<&MockServer, &PluginMockServer>) -> R
   ) -> Option<R> {
-    match self.mock_servers
-      .iter()
-      .find(|(_id, entry)| entry.port == port)
-    {
-      Some((_id, entry)) => match &entry.mock_server {
+    let entry = {
+      self.mock_servers
+        .iter()
+        .find(|(_id, entry)| entry.port == port)
+        .map(|(id, entry)| (id.clone(), &entry.mock_server))
+    };
+    match entry {
+      Some((id, entry)) => match entry {
         Either::Left(mock_server) => {
           let inner = mock_server.lock().unwrap();
-          Some(f(self, Either::Left(&inner)))
+          Some(f(self, &id, Either::Left(&inner)))
         }
-        Either::Right(plugin_mock_server) => Some(f(self, Either::Right(&plugin_mock_server)))
+        Either::Right(plugin_mock_server) => Some(f(self, &id, Either::Right(plugin_mock_server)))
       }
       None => None,
     }

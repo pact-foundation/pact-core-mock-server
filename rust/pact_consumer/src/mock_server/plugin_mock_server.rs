@@ -15,7 +15,7 @@ use tokio::runtime::Handle;
 use tracing::{debug, info};
 use url::Url;
 
-use pact_matching::metrics::{MetricEvent, send_metrics};
+use pact_matching::metrics::{MetricEvent, send_metrics, send_metrics_async};
 use pact_mock_server::matching::MatchResult;
 use pact_mock_server::mock_server::MockServerMetrics;
 
@@ -71,22 +71,24 @@ impl PluginMockServer {
 
   /// Helper to shutdown the mock server and get the results
   pub(crate) fn drop_helper(&self) -> anyhow::Result<()> {
-    let interactions = self.pact.interactions().len();
-    send_metrics(MetricEvent::ConsumerTestRun {
-      interactions,
-      test_framework: "pact_consumer".to_string(),
-      app_name: "pact_consumer".to_string(),
-      app_version: env!("CARGO_PKG_VERSION").to_string()
-    });
-
-    let mock_server_details = self.mock_server_details.clone();
     let handle = Handle::try_current()
       .or_else(|_| tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .map(|runtime| runtime.handle().clone()))?;
+      .enable_all()
+      .build()
+      .map(|runtime| runtime.handle().clone()))?;
+
+    let interactions = self.pact.interactions().len();
+    let mock_server_details = self.mock_server_details.clone();
     let result = thread::spawn(move || {
-      handle.block_on(async { shutdown_mock_server(&mock_server_details).await })
+      handle.block_on(async {
+        send_metrics_async(MetricEvent::ConsumerTestRun {
+          interactions,
+          test_framework: "pact_consumer".to_string(),
+          app_name: "pact_consumer".to_string(),
+          app_version: env!("CARGO_PKG_VERSION").to_string()
+        }).await;
+        shutdown_mock_server(&mock_server_details).await
+      })
     }).join();
     match result {
       Err(_) => Err(anyhow!("Failed to shutdown the mock server: could not start a new thread")),
