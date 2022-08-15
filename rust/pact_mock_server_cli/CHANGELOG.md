@@ -1,5 +1,39 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.7.8 - Maintenance Release
+
+* a41fe69c - chore: Upgrade pact_mock_server to 0.9.2 (Ronald Holshausen, Mon Aug 15 17:40:09 2022 +1000)
+* e3bef155 - feat: Add ARM64 (aarch64) linux targets to the release build #160 (Ronald Holshausen, Mon Aug 15 16:13:22 2022 +1000)
+* 7b6a919b - chore: Upgrade pact_matching crate to 0.12.10 (Ronald Holshausen, Wed Aug 10 12:37:11 2022 +1000)
+* 195ad07b - chore: Updated dependant crates (uuid, simplelog) (Ronald Holshausen, Wed Aug 10 10:22:07 2022 +1000)
+* a3fe5e7f - chore: Update pact models to 0.4.2 (Ronald Holshausen, Wed Aug 10 10:10:41 2022 +1000)
+* fcbee0c2 - fix: rust/pact_mock_server_cli/Dockerfile to reduce vulnerabilities (snyk-bot, Thu Jul 7 11:09:31 2022 +0000)
+* 9a6c846f - chore: Upgrade pact_matching to 0.12.9 (Ronald Holshausen, Fri Jun 10 15:46:07 2022 +1000)
+* f42026d5 - chore: Upgrade pact_mock_server to 0.9.1 (Ronald Holshausen, Mon May 30 12:09:06 2022 +1000)
+* bcddbcfb - chore: Upgrade pact_matching to 0.12.8 (Ronald Holshausen, Mon May 30 11:52:26 2022 +1000)
+* 26bb612b - chore: changes required for 0.9.0 of mock server crate (Ronald Holshausen, Fri May 20 16:00:41 2022 +1000)
+* d9b9fe72 - chore: Upgrade pact-plugin-driver to 0.1.7 (Ronald Holshausen, Fri May 20 15:56:23 2022 +1000)
+* f8471bb7 - chore: switch from log crate to tracing crate (Ronald Holshausen, Fri May 13 13:47:18 2022 +1000)
+* f6b942da - chore: Upgrade pact_mock_server to 0.8.11 (Ronald Holshausen, Wed May 11 17:00:46 2022 +1000)
+* 08f28e4a - chore: Upgrade pact_matching to 0.12.7 (Ronald Holshausen, Wed May 11 15:57:36 2022 +1000)
+* 020b5715 - chore: upgrade pact_models to 0.4.1 (Ronald Holshausen, Wed May 11 11:36:57 2022 +1000)
+* 563ae9fc - chore: Upgrade pact_mock_server to 0.8.10 (Ronald Holshausen, Wed Apr 27 15:06:50 2022 +1000)
+* bcae77b4 - chore: upgrade pact_matching to 0.12.6 (Ronald Holshausen, Wed Apr 27 14:29:26 2022 +1000)
+* cdf72b05 - feat: forward provider details to plugin when verifying (Ronald Holshausen, Fri Apr 22 14:12:34 2022 +1000)
+* 2395143a - feat: forward verification to plugin for transports provided by the plugin (Ronald Holshausen, Fri Apr 22 12:02:05 2022 +1000)
+* 1e8ae855 - chore: Upgrade pact_mock_server to 0.8.9 (Ronald Holshausen, Wed Apr 13 15:49:03 2022 +1000)
+* 0df06dd2 - chore: Upgrade pact_matching to 0.12.5 (Ronald Holshausen, Wed Apr 13 15:38:49 2022 +1000)
+* d043f6c7 - chore: upgrade pact_models to 0.3.3 (Ronald Holshausen, Wed Apr 13 15:24:33 2022 +1000)
+* 73ae0ef0 - fix: Upgrade reqwest to 0.11.10 to resolve #156 (Ronald Holshausen, Wed Apr 13 13:31:55 2022 +1000)
+* 89027c87 - chore: update pact_matching (0.12.4) and pact_mock_server (0.8.8) (Ronald Holshausen, Thu Mar 24 14:09:45 2022 +1100)
+* 345b0011 - feat: support mock servers provided from plugins (Ronald Holshausen, Mon Mar 21 15:59:46 2022 +1100)
+* eb92d665 - fix: rust/pact_mock_server_cli/Dockerfile to reduce vulnerabilities (snyk-bot, Thu Mar 17 22:20:08 2022 +0000)
+* 5a4a8a1c - chore: update pact_mock_server to 0.8.7 (Ronald Holshausen, Fri Mar 4 14:24:23 2022 +1100)
+* 8894fdfd - chore: update pact_matching to 0.12.3 (Ronald Holshausen, Fri Mar 4 14:09:17 2022 +1100)
+* 8e864502 - chore: update all dependencies (Ronald Holshausen, Fri Mar 4 13:29:59 2022 +1100)
+* d1bdd132 - chore: use docker builder image that supports Rust 2021 (Ronald Holshausen, Tue Jan 25 11:46:54 2022 +1100)
+* e22067be - bump version to 0.7.8 (Ronald Holshausen, Tue Jan 25 11:17:43 2022 +1100)
+
 # 0.7.7 - Maintenance Release
 
 * 10c9b842 - chore: Upgrade pact_mock_server to 0.8.6 (Ronald Holshausen, Mon Jan 17 16:57:31 2022 +1100)
