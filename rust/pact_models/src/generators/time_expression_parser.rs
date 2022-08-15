@@ -367,8 +367,8 @@ mod tests {
             |   ╭─[expression:1:1]
             |   │
             | 1 │ not valid
-            |   · ┬ \u{0020}
-            |   · ╰── Expected one of now, midnight, noon, 1-12 o'clock, +, -, next or last here
+            |   · │\u{0020}
+            |   · ╰─ Expected one of now, midnight, noon, 1-12 o'clock, +, -, next or last here
             |───╯
             |
             ".trim_margin_with("|").unwrap()
@@ -392,11 +392,11 @@ mod tests {
     expect!(as_string!(super::expression(&mut lex, "now today not valid"))).to(
       be_err().value(
         "|Error: Expected + or -
-            |   ╭─[expression:1:5]
+            |   ╭─[expression:1:1]
             |   │
             | 1 │ now today not valid
-            |   ·     ┬ \u{0020}
-            |   ·     ╰── Expected + or - here
+            |   · ─┬─ \u{0020}
+            |   ·  ╰─── Expected + or - here
             |───╯
             |
             ".trim_margin_with("|").unwrap()
@@ -480,11 +480,11 @@ mod tests {
     expect!(as_string!(super::expression(&mut lex, "midnight 2 week"))).to(
       be_err().value(
         "|Error: Expected + or -
-            |   ╭─[expression:1:10]
+            |   ╭─[expression:1:1]
             |   │
             | 1 │ midnight 2 week
-            |   ·          ┬ \u{0020}
-            |   ·          ╰── Expected + or - here
+            |   · ────┬─── \u{0020}
+            |   ·     ╰───── Expected + or - here
             |───╯
             |
             ".trim_margin_with("|").unwrap()
