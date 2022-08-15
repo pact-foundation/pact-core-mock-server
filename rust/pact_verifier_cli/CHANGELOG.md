@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.9.14 - Support aarch64 Linux binary
+
+* e3bef155 - feat: Add ARM64 (aarch64) linux targets to the release build #160 (Ronald Holshausen, Mon Aug 15 16:13:22 2022 +1000)
+* bcea9444 - chore: docker build requires protobuf dev files (Ronald Holshausen, Wed Aug 10 13:44:41 2022 +1000)
+* 6105b7a5 - bump version to 0.9.14 (Ronald Holshausen, Wed Aug 10 13:22:20 2022 +1000)
+
 # 0.9.13 - add CLI options to provide different ports when there are different transports
 
 * ac58f50f - chore: update readme (Ronald Holshausen, Wed Aug 10 13:18:15 2022 +1000)
