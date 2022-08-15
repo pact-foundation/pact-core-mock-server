@@ -1,5 +1,22 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.3.6 - Maintenance Release
+
+* e3bef155 - feat: Add ARM64 (aarch64) linux targets to the release build #160 (Ronald Holshausen, Mon Aug 15 16:13:22 2022 +1000)
+* 78c05f29 - feat: add metric call when the mock server is shutdown via FFI function (Ronald Holshausen, Thu Aug 11 17:50:29 2022 +1000)
+* 3324c1b3 - chore: Upgrade pact_verifier to 0.13.10 (Ronald Holshausen, Wed Aug 10 13:02:17 2022 +1000)
+* 7b6a919b - chore: Upgrade pact_matching crate to 0.12.10 (Ronald Holshausen, Wed Aug 10 12:37:11 2022 +1000)
+* 195ad07b - chore: Updated dependant crates (uuid, simplelog) (Ronald Holshausen, Wed Aug 10 10:22:07 2022 +1000)
+* 49232caa - chore: Update pact plugin driver to 0.1.9 (Ronald Holshausen, Wed Aug 10 10:14:42 2022 +1000)
+* a3fe5e7f - chore: Update pact models to 0.4.2 (Ronald Holshausen, Wed Aug 10 10:10:41 2022 +1000)
+* 12ce4f6c - chore: missed some references to nightly-2022-04-12 (Ronald Holshausen, Mon Aug 8 13:35:26 2022 +1000)
+* 63af7ce3 - chore: Fix FFI CI build - cbindgen no longer needs nightly-2022-04-12 (Ronald Holshausen, Mon Aug 8 13:20:50 2022 +1000)
+* c8a63526 - chore: debug CI FFI build (Ronald Holshausen, Mon Aug 8 11:52:00 2022 +1000)
+* 3a1449cb - feat: use the configured transport when provided (Ronald Holshausen, Wed Aug 3 13:20:17 2022 +1000)
+* 8cc29482 - feat: add CLI options to provide different ports when there are different transports (Ronald Holshausen, Wed Aug 3 11:53:31 2022 +1000)
+* 68c5444e - feat(FFI): add function to disable coloured output with the verifier (Ronald Holshausen, Mon Aug 1 14:07:28 2022 +1000)
+* 4a7a935c - bump version to 0.3.6 (Ronald Holshausen, Mon Aug 1 12:12:59 2022 +1000)
+
 # 0.3.5 - Support message interactions with FFI body functions
 
 * 4c957894 - feat(FFI): updated doc comments for pactffi_with_multipart_file (Ronald Holshausen, Mon Aug 1 11:48:37 2022 +1000)
