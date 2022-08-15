@@ -30,3 +30,11 @@ rustup target add x86_64-unknown-linux-musl
 cargo build --release --target=x86_64-unknown-linux-musl
 gzip -c ../target/x86_64-unknown-linux-musl/release/libpact_ffi.a > ../target/artifacts/libpact_ffi-linux-x86_64-musl.a.gz
 openssl dgst -sha256 -r ../target/artifacts/libpact_ffi-linux-x86_64-musl.a.gz > ../target/artifacts/libpact_ffi-linux-x86_64-musl.a.gz.sha256
+
+echo -- Build the aarch64 release artifacts --
+cargo install cross
+cross build --target aarch64-unknown-linux-gnu --release
+gzip -c ../target/aarch64-unknown-linux-gnu/release/libpact_ffi.so > ../target/artifacts/libpact_ffi-linux-aarch64.so.gz
+openssl dgst -sha256 -r ../target/artifacts/libpact_ffi-linux-aarch64.so.gz > ../target/artifacts/libpact_ffi-linux-aarch64.so.gz.sha256
+gzip -c ../target/aarch64-unknown-linux-gnu/release/libpact_ffi.a > ../target/artifacts/libpact_ffi-linux-aarch64.a.gz
+openssl dgst -sha256 -r ../target/artifacts/libpact_ffi-linux-aarch64.a.gz > ../target/artifacts/libpact_ffi-linux-aarch64.a.gz.sha256
