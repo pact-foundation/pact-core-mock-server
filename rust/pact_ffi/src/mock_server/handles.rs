@@ -1341,10 +1341,10 @@ pub extern fn pactffi_with_binary_file(
               if !reqres.response.has_header(&content_type_header) {
                 match reqres.response.headers {
                   Some(ref mut headers) => {
-                    headers.insert(content_type_header.clone(), vec!["application/octet-stream".to_string()]);
+                    headers.insert(content_type_header.clone(), vec![content_type.to_string()]);
                   },
                   None => {
-                    reqres.response.headers = Some(hashmap! { content_type_header.clone() => vec!["application/octet-stream".to_string()]});
+                    reqres.response.headers = Some(hashmap! { content_type_header.clone() => vec![content_type.to_string()]});
                   }
                 }
               }
