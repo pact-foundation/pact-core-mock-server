@@ -27,7 +27,7 @@ use pact_ffi::mock_server::handles::{
   pactffi_message_with_metadata,
   pactffi_new_interaction,
   pactffi_new_message,
-  pactffi_new_message_pact, 
+  pactffi_new_message_pact,
   pactffi_new_pact,
   pactffi_response_status,
   pactffi_upon_receiving,
@@ -356,6 +356,7 @@ fn fixture_path(path: &str) -> PathBuf {
 }
 
 #[test_log::test]
+#[cfg(not(windows))]
 fn pactffi_with_binary_file_feature_test() {
   let consumer_name = CString::new("http-consumer").unwrap();
   let provider_name = CString::new("image-provider").unwrap();
