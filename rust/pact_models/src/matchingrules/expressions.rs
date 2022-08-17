@@ -227,6 +227,9 @@ enum MatcherDefinitionToken {
   #[regex(r"-?[0-9]\.[0-9]+")]
   Decimal,
 
+  #[regex(r"\.[0-9]+")]
+  DecimalPart,
+
   #[regex(r"true|false")]
   Boolean,
 
@@ -673,7 +676,17 @@ fn parse_primitive_value(lex: &mut Lexer<MatcherDefinitionToken>, _v: &str) -> a
   match next {
     MatcherDefinitionToken::String => Ok((lex.slice().trim_matches('\'').to_string(), ValueType::String)),
     MatcherDefinitionToken::Null => Ok((String::new(), ValueType::String)),
-    MatcherDefinitionToken::Int(_) => Ok((lex.slice().to_string(), ValueType::Integer)),
+    MatcherDefinitionToken::Int(_) => {
+      // Logos is returning an INT token when a Decimal should match. We need to now parse the
+      // remaining pattern if it is a decimal
+      if lex.remainder().starts_with('.') {
+        let int_part = lex.slice();
+        lex.next().ok_or_else(|| anyhow!("expected a number"))?;
+        Ok((format!("{}{}", int_part, lex.slice()), ValueType::Decimal))
+      } else {
+        Ok((lex.slice().to_string(), ValueType::Integer))
+      }
+    },
     MatcherDefinitionToken::Decimal => Ok((lex.slice().to_string(), ValueType::Decimal)),
     MatcherDefinitionToken::Boolean => Ok((lex.slice().to_string(), ValueType::Boolean)),
     _ => Err(anyhow!("expected a primitive value, got '{}'", lex.slice()))
@@ -685,10 +698,18 @@ fn parse_primitive_value(lex: &mut Lexer<MatcherDefinitionToken>, _v: &str) -> a
 fn parse_number(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Result<(String, ValueType, Option<MatchingRule>, Option<Generator>, Option<MatchingReference>)> {
   parse_comma(lex, v)?;
   let next = lex.next().ok_or_else(|| anyhow!("expected a number"))?;
-  if let MatcherDefinitionToken::Int(_) = next {
+  if MatcherDefinitionToken::Decimal == next {
     Ok((lex.slice().to_string(), ValueType::Number,  Some(MatchingRule::Number), None, None))
-  } else if MatcherDefinitionToken::Decimal == next {
-    Ok((lex.slice().to_string(), ValueType::Number,  Some(MatchingRule::Number), None, None))
+  } else if let MatcherDefinitionToken::Int(_) = next {
+    // Logos is returning an INT token when a Decimal should match. We need to now parse the
+    // remaining pattern if it is a decimal
+    if lex.remainder().starts_with('.') {
+      let int_part = lex.slice();
+      lex.next().ok_or_else(|| anyhow!("expected a number"))?;
+      Ok((format!("{}{}", int_part, lex.slice()), ValueType::Number, Some(MatchingRule::Number), None, None))
+    } else {
+      Ok((lex.slice().to_string(), ValueType::Number, Some(MatchingRule::Number), None, None))
+    }
   } else {
     Err(anyhow!("expected a number, got '{}'", lex.slice()))
   }
@@ -711,7 +732,15 @@ fn parse_decimal(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Re
   parse_comma(lex, v)?;
   let next = lex.next().ok_or_else(|| anyhow!("expected a decimal number"))?;
   if let MatcherDefinitionToken::Int(_) = next {
-    Ok((lex.slice().to_string(), ValueType::Decimal, Some(MatchingRule::Decimal), None, None))
+    // Logos is returning an INT token when a Decimal should match. We need to now parse the
+    // remaining pattern if it is a decimal
+    if lex.remainder().starts_with('.') {
+      let int_part = lex.slice();
+      lex.next().ok_or_else(|| anyhow!("expected a number"))?;
+      Ok((format!("{}{}", int_part, lex.slice()), ValueType::Decimal, Some(MatchingRule::Decimal), None, None))
+    } else {
+      Ok((lex.slice().to_string(), ValueType::Decimal, Some(MatchingRule::Decimal), None, None))
+    }
   } else if MatcherDefinitionToken::Decimal == next {
     Ok((lex.slice().to_string(), ValueType::Decimal, Some(MatchingRule::Decimal), None, None))
   } else {
@@ -808,16 +837,22 @@ mod test {
       be_equal_to(MatchingRuleDefinition::new("Name".to_string(), ValueType::String, MatchingRule::Type, None)));
     expect!(super::parse_matcher_def("matching( type, 'Name' )").unwrap()).to(
       be_equal_to(MatchingRuleDefinition::new("Name".to_string(), ValueType::String, MatchingRule::Type, None)));
+    expect!(super::parse_matcher_def("matching(type,123.4)").unwrap()).to(
+      be_equal_to(MatchingRuleDefinition::new("123.4".to_string(), ValueType::Decimal, MatchingRule::Type, None)));
   }
 
   #[test]
   fn parse_number_matcher() {
     expect!(super::parse_matcher_def("matching(number,100)").unwrap()).to(
       be_equal_to(MatchingRuleDefinition::new("100".to_string(), ValueType::Number, MatchingRule::Number, None)));
+    expect!(super::parse_matcher_def("matching(number,200.22)").unwrap()).to(
+      be_equal_to(MatchingRuleDefinition::new("200.22".to_string(), ValueType::Number, MatchingRule::Number, None)));
     expect!(super::parse_matcher_def("matching(integer,100)").unwrap()).to(
       be_equal_to(MatchingRuleDefinition::new("100".to_string(), ValueType::Integer, MatchingRule::Integer, None)));
     expect!(super::parse_matcher_def("matching(decimal,100)").unwrap()).to(
       be_equal_to(MatchingRuleDefinition::new("100".to_string(), ValueType::Decimal, MatchingRule::Decimal, None)));
+    expect!(super::parse_matcher_def("matching(decimal,100.22)").unwrap()).to(
+      be_equal_to(MatchingRuleDefinition::new("100.22".to_string(), ValueType::Decimal, MatchingRule::Decimal, None)));
   }
 
   #[test]
@@ -871,6 +906,11 @@ mod test {
     expect!(super::parse_matcher_def("matching(equalTo,'Name')").unwrap()).to(
       be_equal_to(MatchingRuleDefinition::new("Name".to_string(),
                                               ValueType::String,
+                                              MatchingRule::Equality,
+                                              None)));
+    expect!(super::parse_matcher_def("matching(equalTo,123.4)").unwrap()).to(
+      be_equal_to(MatchingRuleDefinition::new("123.4".to_string(),
+                                              ValueType::Decimal,
                                               MatchingRule::Equality,
                                               None)));
   }
