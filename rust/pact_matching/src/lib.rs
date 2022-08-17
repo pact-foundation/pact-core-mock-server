@@ -635,8 +635,8 @@ lazy_static! {
      = [
       (|content_type| { content_type.is_json() }, json::match_json),
       (|content_type| { content_type.is_xml() }, xml::match_xml),
-      (|content_type| { content_type.base_type() == "application/octet-stream" }, binary_utils::match_octet_stream),
-      (|content_type| { content_type.base_type() == "multipart/form-data" }, binary_utils::match_mime_multipart)
+      (|content_type| { content_type.base_type() == "multipart/form-data" }, binary_utils::match_mime_multipart),
+      (|content_type| { content_type.is_binary() || content_type.base_type() == "application/octet-stream" }, binary_utils::match_octet_stream)
   ];
 }
 
@@ -1291,9 +1291,19 @@ fn compare_bodies_core(
       }
     },
     None => {
-      debug!("No body matcher defined for content type '{}', using plain text matcher", content_type);
-      if let Err(m) = match_text(&expected.body().value(), &actual.body().value(), context) {
-        mismatches.extend_from_slice(&*m);
+      debug!("No body matcher defined for content type '{}', checking for a content type matcher", content_type);
+      let path = DocPath::root();
+      if context.matcher_is_defined(&path) && context.select_best_matcher(&path).rules
+        .iter().any(|rule| if let MatchingRule::ContentType(_) = rule { true } else { false }) {
+        debug!("Found a content type matcher");
+        if let Err(m) = binary_utils::match_octet_stream(expected, actual, context) {
+          mismatches.extend_from_slice(&*m);
+        }
+      } else {
+        debug!("No body matcher defined for content type '{}', using plain text matcher", content_type);
+        if let Err(m) = match_text(&expected.body().value(), &actual.body().value(), context) {
+          mismatches.extend_from_slice(&*m);
+        }
       }
     }
   };

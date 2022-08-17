@@ -1,4 +1,8 @@
+use std::env;
 use std::ffi::{CStr, CString};
+use std::fs::File;
+use std::io::Read;
+use std::path::PathBuf;
 
 use bytes::Bytes;
 use expectest::prelude::*;
@@ -23,10 +27,11 @@ use pact_ffi::mock_server::handles::{
   pactffi_message_with_metadata,
   pactffi_new_interaction,
   pactffi_new_message,
-  pactffi_new_message_pact,
+  pactffi_new_message_pact, 
   pactffi_new_pact,
   pactffi_response_status,
   pactffi_upon_receiving,
+  pactffi_with_binary_file,
   pactffi_with_body,
   pactffi_with_header,
   pactffi_with_multipart_file,
@@ -339,4 +344,70 @@ fn pactffi_verifier_cli_args_test() {
 
     assert!(options_flags.options.len() > 0);
     assert!(options_flags.flags.len() > 0);
+}
+
+/// Get the path to one of our sample *.json files.
+fn fixture_path(path: &str) -> PathBuf {
+  env::current_dir()
+    .expect("could not find current working directory")
+    .join("tests")
+    .join(path)
+    .to_owned()
+}
+
+#[test_log::test]
+fn pactffi_with_binary_file_feature_test() {
+  let consumer_name = CString::new("http-consumer").unwrap();
+  let provider_name = CString::new("image-provider").unwrap();
+  let pact_handle = pactffi_new_pact(consumer_name.as_ptr(), provider_name.as_ptr());
+
+  let description = CString::new("request_with_matchers").unwrap();
+  let interaction = pactffi_new_interaction(pact_handle.clone(), description.as_ptr());
+
+  let content_type = CString::new("image/gif").unwrap();
+  let path = CString::new("/upload").unwrap();
+  let address = CString::new("127.0.0.1:0").unwrap();
+  let file_path = CString::new("/tmp/pact").unwrap();
+  let description = CString::new("a request to test the FFI interface").unwrap();
+  let method = CString::new("POST").unwrap();
+
+  let mut buffer = Vec::new();
+  let gif_file = fixture_path("1px.gif");
+  File::open(gif_file).unwrap().read_to_end(&mut buffer).unwrap();
+
+  pactffi_upon_receiving(interaction.clone(), description.as_ptr());
+  pactffi_with_request(interaction.clone(), method.as_ptr(), path.as_ptr());
+  pactffi_with_binary_file(interaction.clone(), InteractionPart::Request, content_type.as_ptr(),
+                           buffer.as_ptr(), buffer.len());
+  // will respond with...
+  pactffi_response_status(interaction.clone(), 201);
+
+  let port = pactffi_create_mock_server_for_pact(pact_handle.clone(), address.as_ptr(), false);
+
+  expect!(port).to(be_greater_than(0));
+
+  let client = Client::default();
+  let result = client.post(format!("http://127.0.0.1:{}/upload", port).as_str())
+    .header("Content-Type", "image/gif")
+    .body(buffer)
+    .send();
+
+  let mismatches = unsafe {
+    CStr::from_ptr(pactffi_mock_server_mismatches(port)).to_string_lossy().into_owned()
+  };
+
+  match result {
+    Ok(res) => {
+      let status = res.status();
+      expect!(status).to(be_eq(201));
+    },
+    Err(err) => {
+      panic!("expected 201 response but request failed - {}", err);
+    }
+  };
+
+  pactffi_write_pact_file(port, file_path.as_ptr(), true);
+  pactffi_cleanup_mock_server(port);
+
+  expect!(mismatches).to(be_equal_to("[]"));
 }

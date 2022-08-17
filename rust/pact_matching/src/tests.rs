@@ -659,3 +659,29 @@ fn values_matcher_defined() {
   expect!(context.values_matcher_defined(&path_x.join("0").join("z"))).to(be_false());
   expect!(context.values_matcher_defined(&path_y.join("0").join("y"))).to(be_false());
 }
+
+const IMAGE_BYTES: [u8; 16] = [ 0o107, 0o111, 0o106, 0o070, 0o067, 0o141, 0o001, 0o000, 0o001, 0o000, 0o200, 0o000, 0o000, 0o377, 0o377, 0o377 ];
+
+#[test]
+fn compare_bodies_core_should_check_for_content_type_matcher() {
+  let content_type = ContentType::parse("application/gif").unwrap();
+  let matching_rules = matchingrules!{ "body" => { "$" => [ MatchingRule::ContentType("application/gif".to_string()) ] } };
+  let expected = Request {
+    body: OptionalBody::Present(Bytes::from_static(&IMAGE_BYTES), Some(content_type.clone()), None),
+    matching_rules: matching_rules.clone(),
+    .. Request::default()
+  };
+  let actual = Request {
+    body: OptionalBody::Present(Bytes::from_static(&IMAGE_BYTES), Some(content_type.clone()), None),
+    .. Request::default()
+  };
+  let context = CoreMatchingContext::new(DiffConfig::AllowUnexpectedKeys,
+    &matching_rules.rules_for_category("body").unwrap(),
+    &hashmap!{}
+  );
+
+  let result = compare_bodies_core(&content_type, &expected, &actual, &context);
+
+  expect!(result.len()).to(be_equal_to(1));
+  expect!(result.first().unwrap().description()).to(be_equal_to("$ -> Expected binary contents to have content type 'application/gif' but detected contents was 'image/gif'"));
+}
