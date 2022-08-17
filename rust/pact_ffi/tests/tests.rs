@@ -355,8 +355,8 @@ fn fixture_path(path: &str) -> PathBuf {
     .to_owned()
 }
 
-#[test_log::test]
 #[cfg(not(windows))]
+#[test_log::test]
 fn pactffi_with_binary_file_feature_test() {
   let consumer_name = CString::new("http-consumer").unwrap();
   let provider_name = CString::new("image-provider").unwrap();

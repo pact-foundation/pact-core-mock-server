@@ -662,6 +662,7 @@ fn values_matcher_defined() {
 
 const IMAGE_BYTES: [u8; 16] = [ 0o107, 0o111, 0o106, 0o070, 0o067, 0o141, 0o001, 0o000, 0o001, 0o000, 0o200, 0o000, 0o000, 0o377, 0o377, 0o377 ];
 
+#[cfg(not(windows))]
 #[test]
 fn compare_bodies_core_should_check_for_content_type_matcher() {
   let content_type = ContentType::parse("application/gif").unwrap();
