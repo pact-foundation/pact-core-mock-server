@@ -1,5 +1,17 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.3.7 - Bugfix Release
+
+* 5e52d685 - chore: Upgrade pact_verifier to 0.13.11 (Ronald Holshausen, Thu Aug 18 16:33:19 2022 +1000)
+* 9d1e8e89 - chore: Upgrade pact_mock_server to 0.9.3 (Ronald Holshausen, Thu Aug 18 16:03:38 2022 +1000)
+* 1d5fb787 - chore: Upgrade pact_matching to 0.12.11 (Ronald Holshausen, Thu Aug 18 15:07:23 2022 +1000)
+* 32a70382 - chore: Upgrade pact_models (0.4.4), plugin driver (0.1.10), tracing and tracing core crates (Ronald Holshausen, Thu Aug 18 14:41:52 2022 +1000)
+* 11d162a8 - chore: disable content type check tests ion windows (Ronald Holshausen, Wed Aug 17 17:08:14 2022 +1000)
+* 10311301 - chore: disable content type check on windows (Ronald Holshausen, Wed Aug 17 16:49:19 2022 +1000)
+* 65d05149 - fix: content type matcher was not being applied if content type was not octet_stream #171 (Ronald Holshausen, Wed Aug 17 16:32:43 2022 +1000)
+* 3c5c45d4 - fix(FFI): pactffi_with_binary_file was incorrectly setting the response content type to application/octet-stream #171 (Ronald Holshausen, Wed Aug 17 14:46:03 2022 +1000)
+* 033b5ee9 - bump version to 0.3.7 (Ronald Holshausen, Mon Aug 15 17:55:05 2022 +1000)
+
 # 0.3.6 - Maintenance Release
 
 * a41fe69c - chore: Upgrade pact_mock_server to 0.9.2 (Ronald Holshausen, Mon Aug 15 17:40:09 2022 +1000)
