@@ -2,7 +2,6 @@
 //! This module defines a manager for holding multiple instances of mock servers.
 //!
 
-use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::ffi::CString;
 use std::future::Future;

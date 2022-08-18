@@ -128,6 +128,7 @@ impl MockServer {
     let (shutdown_tx, shutdown_rx) = futures::channel::oneshot::channel();
     let matches = Arc::new(Mutex::new(vec![]));
 
+    #[allow(deprecated)]
     let mock_server = Arc::new(Mutex::new(MockServer {
       id: id.clone(),
       port: None,
@@ -344,6 +345,7 @@ fn pact_specification(spec1: PactSpecification, spec2: PactSpecification) -> Pac
 impl Clone for MockServer {
   /// Make a clone all of the MockServer fields.
   /// Note that the clone of the original server cannot be shut down directly.
+  #[allow(deprecated)]
   fn clone(&self) -> MockServer {
     MockServer {
       id: self.id.clone(),
@@ -362,6 +364,7 @@ impl Clone for MockServer {
 }
 
 impl Default for MockServer {
+  #[allow(deprecated)]
   fn default() -> Self {
     MockServer {
       id: "".to_string(),
