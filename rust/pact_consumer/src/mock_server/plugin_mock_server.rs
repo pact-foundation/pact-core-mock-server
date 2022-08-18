@@ -15,7 +15,7 @@ use tokio::runtime::Handle;
 use tracing::{debug, info};
 use url::Url;
 
-use pact_matching::metrics::{MetricEvent, send_metrics, send_metrics_async};
+use pact_matching::metrics::{MetricEvent, send_metrics_async};
 use pact_mock_server::matching::MatchResult;
 use pact_mock_server::mock_server::MockServerMetrics;
 
