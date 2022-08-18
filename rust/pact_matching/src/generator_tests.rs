@@ -121,7 +121,7 @@ async fn applies_body_generator_to_the_copy_of_the_request() {
     }, .. HttpRequest::default()
   };
   let generated_request = generate_request(&request, &GeneratorTestMode::Provider, &hashmap!{}).await;
-  let body: Value = serde_json::from_str(generated_request.body.str_value()).unwrap();
+  let body: Value = serde_json::from_str(generated_request.body.display_string().as_str()).unwrap();
   expect!(&body["a"]).to_not(be_equal_to(&json!(100)));
   expect!(&body["b"]).to(be_equal_to(&json!("B")));
 }
@@ -135,7 +135,8 @@ async fn applies_body_generator_to_the_copy_of_the_response() {
       }
     }, .. HttpResponse::default()
   };
-  let body: Value = serde_json::from_str(generate_response(&response, &GeneratorTestMode::Provider, &hashmap!{}).await.body.str_value()).unwrap();
+  let body: Value = serde_json::from_str(generate_response(&response,
+   &GeneratorTestMode::Provider, &hashmap!{}).await.body.display_string().as_str()).unwrap();
   expect!(&body["a"]).to_not(be_equal_to(&json!(100)));
   expect!(&body["b"]).to(be_equal_to(&json!("B")));
 }
