@@ -1076,10 +1076,10 @@ impl GenerateValue<String> for Generator {
     let result = match self {
       Generator::RandomInt(min, max) => Ok(format!("{}", rnd.gen_range(*min..max.saturating_add(1)))),
       Generator::Uuid(format) => match format.unwrap_or_default() {
-        UuidFormat::Simple => Ok(Uuid::new_v4().to_simple().to_string()),
-        UuidFormat::LowerCaseHyphenated => Ok(Uuid::new_v4().to_hyphenated().to_string()),
-        UuidFormat::UpperCaseHyphenated => Ok(Uuid::new_v4().to_hyphenated().to_string().to_uppercase()),
-        UuidFormat::Urn => Ok(Uuid::new_v4().to_urn().to_string())
+        UuidFormat::Simple => Ok(Uuid::new_v4().as_simple().to_string()),
+        UuidFormat::LowerCaseHyphenated => Ok(Uuid::new_v4().as_hyphenated().to_string()),
+        UuidFormat::UpperCaseHyphenated => Ok(Uuid::new_v4().as_hyphenated().to_string().to_uppercase()),
+        UuidFormat::Urn => Ok(Uuid::new_v4().as_urn().to_string())
       },
       Generator::RandomDecimal(digits) => Ok(generate_decimal(*digits as usize)),
       Generator::RandomHexadecimal(digits) => Ok(generate_hexadecimal(*digits as usize)),
@@ -1210,10 +1210,10 @@ impl GenerateValue<Value> for Generator {
       },
       Generator::Uuid(format) => match value {
         Value::String(_) => match format.unwrap_or_default() {
-          UuidFormat::Simple => Ok(json!(Uuid::new_v4().to_simple().to_string())),
-          UuidFormat::LowerCaseHyphenated => Ok(json!(Uuid::new_v4().to_hyphenated().to_string())),
-          UuidFormat::UpperCaseHyphenated => Ok(json!(Uuid::new_v4().to_hyphenated().to_string().to_uppercase())),
-          UuidFormat::Urn => Ok(json!(Uuid::new_v4().to_urn().to_string()))
+          UuidFormat::Simple => Ok(json!(Uuid::new_v4().as_simple().to_string())),
+          UuidFormat::LowerCaseHyphenated => Ok(json!(Uuid::new_v4().as_hyphenated().to_string())),
+          UuidFormat::UpperCaseHyphenated => Ok(json!(Uuid::new_v4().as_hyphenated().to_string().to_uppercase())),
+          UuidFormat::Urn => Ok(json!(Uuid::new_v4().as_urn().to_string()))
         },
         _ => Err(anyhow!("Could not generate a UUID from {}", value))
       },
