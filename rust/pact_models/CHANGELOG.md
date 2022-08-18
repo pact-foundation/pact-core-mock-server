@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.4.3 - Bugfix Release
+
+* 74a36a1b - fix: Matching rule parser was not handling decimal values correctly (Ronald Holshausen, Wed Aug 17 13:19:58 2022 +1000)
+* cf4b52eb - chore: fix failing time expression tests after a dependency update (Ronald Holshausen, Mon Aug 15 17:09:04 2022 +1000)
+* 9e0dbc26 - chore: clean up some deprecation warnings in Pact models (Ronald Holshausen, Wed Aug 10 11:38:45 2022 +1000)
+* 91cb99a9 - bump version to 0.4.3 (Ronald Holshausen, Mon Aug 8 12:59:10 2022 +1000)
+
 # 0.4.2 - Maintenance Release
 
 * 13dc3b52 - Merge branch 'master' into feat/verifier-multiple-transports (Ronald Holshausen, Wed Aug 3 11:55:05 2022 +1000)
