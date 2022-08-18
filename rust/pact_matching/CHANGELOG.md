@@ -1,5 +1,14 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.12.11 - Maintenance Release
+
+* 72f9f75d - chore: clean some deprecation warnings (Ronald Holshausen, Thu Aug 18 14:58:35 2022 +1000)
+* 32a70382 - chore: Upgrade pact_models (0.4.4), plugin driver (0.1.10), tracing and tracing core crates (Ronald Holshausen, Thu Aug 18 14:41:52 2022 +1000)
+* 11d162a8 - chore: disable content type check tests ion windows (Ronald Holshausen, Wed Aug 17 17:08:14 2022 +1000)
+* 65d05149 - fix: content type matcher was not being applied if content type was not octet_stream #171 (Ronald Holshausen, Wed Aug 17 16:32:43 2022 +1000)
+* 6c5c90ee - refactor: split metrics into sync and async functions (Ronald Holshausen, Thu Aug 11 14:55:32 2022 +1000)
+* f5e4c3a7 - bump version to 0.12.11 (Ronald Holshausen, Wed Aug 10 12:33:21 2022 +1000)
+
 # 0.12.10 - Maintenance Release
 
 * 33b04eee - chore: cleanup some deprecation warnings (Ronald Holshausen, Wed Aug 10 10:34:58 2022 +1000)
