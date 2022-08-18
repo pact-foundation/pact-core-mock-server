@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.9.3 - Maintenance Release
+
+* fa832ec1 - chore: cleanup some deprecation warnings (Ronald Holshausen, Thu Aug 18 15:57:02 2022 +1000)
+* 1d5fb787 - chore: Upgrade pact_matching to 0.12.11 (Ronald Holshausen, Thu Aug 18 15:07:23 2022 +1000)
+* 32a70382 - chore: Upgrade pact_models (0.4.4), plugin driver (0.1.10), tracing and tracing core crates (Ronald Holshausen, Thu Aug 18 14:41:52 2022 +1000)
+* a57c19fc - bump version to 0.9.3 (Ronald Holshausen, Mon Aug 15 17:35:20 2022 +1000)
+
 # 0.9.2 - Maintenance Release
 
 * 78c05f29 - feat: add metric call when the mock server is shutdown via FFI function (Ronald Holshausen, Thu Aug 11 17:50:29 2022 +1000)
