@@ -177,6 +177,7 @@ impl MockServer {
   ) -> Result<(Arc<Mutex<MockServer>>, impl std::future::Future<Output = ()>), String> {
     let (shutdown_tx, shutdown_rx) = futures::channel::oneshot::channel();
     let matches = Arc::new(Mutex::new(vec![]));
+    #[allow(deprecated)]
     let mock_server = Arc::new(Mutex::new(MockServer {
       id: id.clone(),
       port: None,

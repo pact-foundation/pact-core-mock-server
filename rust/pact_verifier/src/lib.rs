@@ -41,7 +41,7 @@ pub use callback_executors::NullRequestFilterExecutor;
 use callback_executors::RequestFilterExecutor;
 use pact_matching::{match_response, Mismatch};
 use pact_matching::logging::LOG_ID;
-use pact_matching::metrics::{MetricEvent, send_metrics, send_metrics_async};
+use pact_matching::metrics::{MetricEvent, send_metrics_async};
 
 use crate::callback_executors::{ProviderStateError, ProviderStateExecutor};
 use crate::messages::{process_message_result, process_sync_message_result, verify_message_from_provider, verify_sync_message_from_provider};
@@ -660,8 +660,8 @@ fn display_body_mismatch(
 ) {
   if expected.contents_for_verification().content_type().unwrap_or_default().is_json() {
     output.push(pact_matching::json::display_diff(
-      &expected.contents_for_verification().str_value().to_string(),
-      &actual.contents_for_verification().str_value().to_string(),
+      &expected.contents_for_verification().display_string().to_string(),
+      &actual.contents_for_verification().display_string().to_string(),
       path, "    "));
   }
 }
