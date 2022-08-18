@@ -1,5 +1,14 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.13.11 - Maintenance Release
+
+* d6eaf9cf - chore: Upgrade pact_consumer to 0.9.6 (Ronald Holshausen, Thu Aug 18 16:14:44 2022 +1000)
+* 1b1c77e6 - chore: cleanup some compiler warnings (Ronald Holshausen, Thu Aug 18 16:06:43 2022 +1000)
+* 1d5fb787 - chore: Upgrade pact_matching to 0.12.11 (Ronald Holshausen, Thu Aug 18 15:07:23 2022 +1000)
+* 32a70382 - chore: Upgrade pact_models (0.4.4), plugin driver (0.1.10), tracing and tracing core crates (Ronald Holshausen, Thu Aug 18 14:41:52 2022 +1000)
+* 8056d7e9 - fix: get verify_provider_async to wait on the metric call (Ronald Holshausen, Thu Aug 11 16:16:18 2022 +1000)
+* 6c932b32 - bump version to 0.13.11 (Ronald Holshausen, Wed Aug 10 12:54:55 2022 +1000)
+
 # 0.13.10 - Support multiple protocol transports with the verifier
 
 * 4c8ee7f9 - chore: cleanup some deprecation warnings (Ronald Holshausen, Wed Aug 10 12:49:55 2022 +1000)
