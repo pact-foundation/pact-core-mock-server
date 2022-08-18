@@ -9,7 +9,7 @@ jobs:
     runs-on: ${{ matrix.operating-system }}
     strategy:
       matrix:
-        operating-system: [ubuntu-latest, windows-latest, macos-latest]
+        operating-system: [ubuntu-20.04, windows-latest, macos-latest]
     env:
       pact_do_not_track: true
     steps:
@@ -23,6 +23,8 @@ jobs:
           target: aarch64-apple-darwin
       - name: Install Protoc
         uses: arduino/setup-protoc@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install LLVM
         run: choco install -y llvm
         if: runner.os == 'Windows'
