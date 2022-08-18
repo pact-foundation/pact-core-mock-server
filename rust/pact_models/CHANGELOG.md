@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.4.4 - Updated dependencies
+
+* bd53ad0d - chore: Upgrade dependencies (uuid, tracing) (Ronald Holshausen, Thu Aug 18 13:32:28 2022 +1000)
+* 3e5acc2c - bump version to 0.4.4 (Ronald Holshausen, Thu Aug 18 13:05:45 2022 +1000)
+
 # 0.4.3 - Bugfix Release
 
 * 74a36a1b - fix: Matching rule parser was not handling decimal values correctly (Ronald Holshausen, Wed Aug 17 13:19:58 2022 +1000)
