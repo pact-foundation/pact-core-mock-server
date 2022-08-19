@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.3.8 - Support FFI libs on Ubuntu 18.04
+
+* 70d2c09a - chore: Build FFI lib with Debian stretch image #202 (Ronald Holshausen, Fri Aug 19 11:33:40 2022 +1000)
+* 546d84f6 - bump version to 0.3.8 (Ronald Holshausen, Thu Aug 18 16:38:32 2022 +1000)
+
 # 0.3.7 - Bugfix Release
 
 * 5e52d685 - chore: Upgrade pact_verifier to 0.13.11 (Ronald Holshausen, Thu Aug 18 16:33:19 2022 +1000)
