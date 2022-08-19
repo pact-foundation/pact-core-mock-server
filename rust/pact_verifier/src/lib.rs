@@ -13,7 +13,7 @@ use std::time::Duration;
 
 use ansi_term::*;
 use ansi_term::Colour::*;
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use futures::stream::StreamExt;
 use http::{header, HeaderMap};
 use http::header::HeaderName;
@@ -35,7 +35,7 @@ use pact_plugin_driver::verification::InteractionVerificationDetails;
 use regex::Regex;
 use reqwest::Client;
 use serde_json::{json, Value};
-use tracing::{debug, debug_span, error, info, Instrument, trace};
+use tracing::{debug, debug_span, error, info, Instrument, trace, warn};
 
 pub use callback_executors::NullRequestFilterExecutor;
 use callback_executors::RequestFilterExecutor;
@@ -46,7 +46,13 @@ use pact_matching::metrics::{MetricEvent, send_metrics_async};
 use crate::callback_executors::{ProviderStateError, ProviderStateExecutor};
 use crate::messages::{process_message_result, process_sync_message_result, verify_message_from_provider, verify_sync_message_from_provider};
 use crate::metrics::VerificationMetrics;
-use crate::pact_broker::{Link, PactVerificationContext, publish_verification_results, TestResult};
+use crate::pact_broker::{
+  Link,
+  PactBrokerError,
+  PactVerificationContext,
+  publish_verification_results,
+  TestResult
+};
 pub use crate::pact_broker::{ConsumerVersionSelector, PactsForVerificationRequest};
 use crate::provider_client::make_provider_request;
 use crate::request_response::process_request_response_result;
@@ -797,7 +803,9 @@ pub struct VerificationOptions<F> where F: RequestFilterExecutor {
   /// Custom headers to be added to the requests to the provider
   pub custom_headers: HashMap<String, String>,
   /// If coloured output should be used (using ANSI escape codes)
-  pub coloured_output: bool
+  pub coloured_output: bool,
+  /// If no pacts are found to verify, then this should be an error
+  pub no_pacts_is_error: bool
 }
 
 impl <F: RequestFilterExecutor> Default for VerificationOptions<F> {
@@ -807,7 +815,8 @@ impl <F: RequestFilterExecutor> Default for VerificationOptions<F> {
       disable_ssl_verification: false,
       request_timeout: 5000,
       custom_headers: Default::default(),
-      coloured_output: true
+      coloured_output: true,
+      no_pacts_is_error: true
     }
   }
 }
@@ -970,8 +979,17 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
           }
         },
         Err(err) => {
-          error!("Failed to load pact - {}", Red.paint(err.to_string()));
-          errors.push(("Failed to load pact".to_string(), MismatchResult::Error(err.to_string(), None)));
+          if let Some(PactBrokerError::NotFound(_)) = err.downcast_ref() {
+            if verification_options.no_pacts_is_error {
+              error!("Failed to load pact - {}", Red.paint(err.to_string()));
+              errors.push(("Failed to load pact".to_string(), MismatchResult::Error(err.to_string(), None)));
+            } else {
+              warn!("Ignoring no pacts error - {}", Yellow.paint(err.to_string()));
+            }
+          } else {
+            error!("Failed to load pact - {}", Red.paint(err.to_string()));
+            errors.push(("Failed to load pact".to_string(), MismatchResult::Error(err.to_string(), None)));
+          }
         }
       }
     };
@@ -1108,7 +1126,9 @@ async fn fetch_pact(source: PactSource) -> Vec<anyhow::Result<(Box<dyn Pact + Se
           }
           buffer
         },
-        Err(err) => vec![Err(anyhow!("Could not load pacts from the pact broker '{}' - {:?}", broker_url, err))]
+        Err(err) => vec![
+          Err(anyhow!(err).context(format!("Could not load pacts from the pact broker '{}'", broker_url)))
+        ]
       }
     },
     PactSource::BrokerWithDynamicConfiguration {
@@ -1126,8 +1146,8 @@ async fn fetch_pact(source: PactSource) -> Vec<anyhow::Result<(Box<dyn Pact + Se
         auth.clone()
       ).await;
 
-      match result {
-        Ok(ref pacts) => {
+      match &result {
+        Ok(pacts) => {
           let mut buffer = vec![];
           for result in pacts.iter() {
             match result {
@@ -1135,12 +1155,14 @@ async fn fetch_pact(source: PactSource) -> Vec<anyhow::Result<(Box<dyn Pact + Se
                 trace!("Got pact with links {:?}", pact);
                 buffer.push(Ok((pact.boxed(), context.clone(), PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))));
               },
-              &Err(ref err) => buffer.push(Err(anyhow!("Failed to load pact from '{}' - {:?}", broker_url, err)))
+              Err(err) => buffer.push(Err(anyhow::Error::new(err.clone()).context(format!("Failed to load pact from '{}'", broker_url))))
             }
           }
           buffer
         },
-        Err(err) => vec![Err(anyhow!("Could not load pacts from the pact broker '{}' - {:?}", broker_url, err))]
+        Err(err) => vec![
+          Err(anyhow::Error::new(err.clone()).context(format!("Could not load pacts from the pact broker '{}'", broker_url)))
+        ]
       }
     },
     _ => vec![Err(anyhow!("Could not load pacts, unknown pact source {}", source))]
