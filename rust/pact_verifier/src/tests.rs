@@ -669,3 +669,95 @@ async fn when_no_pacts_is_error_is_false_should_not_generate_error() {
   expect(execution_result.result).to(be_true());
   expect(execution_result.errors.iter()).to(be_empty());
 }
+
+#[test_log::test(tokio::test)]
+async fn when_no_pacts_is_error_is_false_should_generate_error_if_it_is_other_error() {
+  let server = PactBuilder::new("RustPactVerifier", "PactBrokerError")
+    .interaction("a request to the pact broker root", "", |mut i| async move {
+      i.request
+        .path("/")
+        .header("Accept", "application/hal+json")
+        .header("Accept", "application/json");
+      i.response
+        .header("Content-Type", "application/hal+json")
+        .json_body(json_pattern!({
+            "_links": {
+                "pb:provider-pacts-for-verification": {
+                  "href": like!("http://localhost/pacts/provider/{provider}/for-verification"),
+                  "title": like!("Pact versions to be verified for the specified provider"),
+                  "templated": like!(true)
+                }
+            }
+        }));
+      i
+    })
+    .await
+    .interaction("a request to the pacts for verification endpoint", "", |mut i| async move {
+      i.given("There are pacts to be verified");
+      i.request
+        .get()
+        .path("/pacts/provider/sad_provider/for-verification")
+        .header("Accept", "application/hal+json")
+        .header("Accept", "application/json");
+      i.response
+        .header("Content-Type", "application/hal+json")
+        .json_body(json_pattern!({
+                "_links": {
+                    "self": {
+                      "href": like!("http://localhost/pacts/provider/sad_provider/for-verification"),
+                      "title": like!("Pacts to be verified")
+                    }
+                }
+            }));
+      i
+    })
+    .await
+    .interaction("a request for a providers pacts", "", |mut i| async move {
+      i.given("Request to fetch pacts is gone");
+      i.request
+        .post()
+        .path("/pacts/provider/sad_provider/for-verification");
+      i.response.status(404);
+      i
+    })
+    .await
+    .start_mock_server(None);
+
+  let provider = ProviderInfo {
+    name: "sad_provider".to_string(),
+    host: "127.0.0.1".to_string(),
+    transports: vec![ ProviderTransport {
+      transport: "HTTP".to_string(),
+      port: None,
+      path: None,
+      scheme: Some("http".to_string())
+    } ],
+    .. ProviderInfo::default()
+  };
+
+  let pact_source = PactSource::BrokerWithDynamicConfiguration {
+    provider_name: "sad_provider".to_string(),
+    broker_url: server.url().to_string(),
+    enable_pending: false,
+    include_wip_pacts_since: None,
+    provider_tags: vec![],
+    provider_branch: None,
+    selectors: vec![],
+    auth: None,
+    links: vec![]
+  };
+  let verification_options = VerificationOptions::<NullRequestFilterExecutor> {
+    no_pacts_is_error: false,
+    .. VerificationOptions::default()
+  };
+  let provider_states = Arc::new(DummyProviderStateExecutor{});
+
+  let result = super::verify_provider_async(
+    provider, vec![pact_source], FilterInfo::None, vec![],
+    &verification_options, None, &provider_states, None
+  ).await;
+
+  let execution_result = result.unwrap();
+  expect(execution_result.result).to(be_false());
+  expect(execution_result.errors.iter()).to_not(be_empty());
+}
