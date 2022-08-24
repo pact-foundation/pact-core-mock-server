@@ -1502,10 +1502,12 @@ pub fn matchers_to_json(matchers: &MatchingRules, spec_version: &PactSpecificati
 
 /// Macro to ease constructing matching rules
 /// Example usage:
-/// ```ignore
+/// ```
+/// # use pact_models::matchingrules;
+/// # use pact_models::matchingrules::MatchingRule;
 /// matchingrules! {
-///   "query" => { "user_id" => [ MatchingRule::Regex(s!("^[0-9]+$")) ] }
-/// }
+///   "query" => { "user_id" => [ MatchingRule::Regex("^[0-9]+$".to_string()) ] }
+/// };
 /// ```
 #[macro_export]
 macro_rules! matchingrules {
@@ -1531,10 +1533,12 @@ macro_rules! matchingrules {
 
 /// Macro to ease constructing matching rules
 /// Example usage:
-/// ```ignore
+/// ```
+/// # use pact_models::matchingrules_list;
+/// # use pact_models::matchingrules::MatchingRule;
 /// matchingrules_list! {
-///   "body"; "user_id" => [ MatchingRule::Regex(s!("^[0-9]+$")) ]
-/// }
+///   "body"; "user_id" => [ MatchingRule::Regex("^[0-9]+$".to_string()) ]
+/// };
 /// ```
 #[macro_export]
 macro_rules! matchingrules_list {
