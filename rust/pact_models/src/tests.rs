@@ -1,9 +1,18 @@
 use expectest::prelude::*;
+use maplit::hashmap;
 use serde_json::json;
 
-use crate::{generators, HttpStatus, matchingrules, PactSpecification};
-use crate::generators::{Generator, Generators, generators_from_json};
-use crate::matchingrules::{matchers_from_json, MatchingRule};
+use crate::{Consumer, generators, HttpStatus, matchingrules, PactSpecification, Provider};
+use crate::bodies::OptionalBody;
+use crate::generators::{Generator, Generators, generators_from_json, GeneratorCategory};
+use crate::matchingrules::{matchers_from_json, MatchingRule, MatchingRules, Category, MatchingRuleCategory, RuleList, RuleLogic};
+use crate::pact::Pact;
+use crate::provider_states::ProviderState;
+use crate::v4::http_parts::{HttpRequest, HttpResponse};
+use crate::v4::pact::V4Pact;
+use crate::v4::synch_http::SynchronousHttp;
+use crate::path_exp::DocPath;
+use crate::v4::interaction::V4Interaction;
 
 #[test]
 fn http_status_code_from_json() {
@@ -257,4 +266,73 @@ fn generators_from_json_loads_generators_correctly() {
         },
         "PATH" => { "" => Generator::RandomString(10) }
     }));
+}
+
+// Issue https://github.com/pact-foundation/pact-js-core/issues/400
+#[test]
+fn write_pact_file_with_provider_state_generator_test() {
+  let pact = V4Pact {
+    consumer: Consumer { name: "TransactionService".to_string() },
+    provider: Provider { name: "AccountService".to_string() },
+    interactions: vec![
+      SynchronousHttp {
+        id: None,
+        key: None,
+        description: "a request to get the plain data".to_string(),
+        provider_states: vec![
+          ProviderState {
+            name: "set id".to_string(),
+            params: hashmap!{ "id".to_string() => json!("42")}
+          }
+        ],
+        request: HttpRequest {
+          method: "GET".to_string(),
+          path: "/data/42".to_string(),
+          query: None,
+          headers: None,
+          body: OptionalBody::Missing,
+          matching_rules: MatchingRules {
+            rules: hashmap!{
+              Category::PATH => MatchingRuleCategory {
+                name: Category::PATH,
+                rules: hashmap!{ DocPath::root() => RuleList {
+                  rules: vec![MatchingRule::Type],
+                  rule_logic: RuleLogic::And,
+                  cascaded: false
+                }}
+              }
+            }
+          },
+          generators: Generators {
+            categories: hashmap!{
+              GeneratorCategory::PATH => hashmap!{
+                DocPath::root() => Generator::ProviderStateGenerator("/data/${id}".to_string(), None)
+              }
+            }
+          }
+        },
+        response: HttpResponse {
+          status: 200,
+          headers: Some(hashmap!{"Content-Type".to_string() => vec!["text/plain; charset=utf-8".to_string()]}),
+          body: OptionalBody::from("data: testData, id: 42"),
+          matching_rules: MatchingRules {
+            rules: hashmap!{
+              Category::HEADER => MatchingRuleCategory {
+                name: Category::HEADER,
+                rules: hashmap!{}
+              }
+            }
+          },
+          generators: Generators { categories: hashmap!{} }
+        },
+        .. SynchronousHttp::default()
+      }.boxed_v4()],
+      .. V4Pact::default()
+    };
+
+  let json = pact.to_json(PactSpecification::V3).unwrap();
+  let interaction = json.get("interactions").unwrap().as_array().unwrap().get(0).unwrap();
+  let request = interaction.get("request").unwrap();
+  let generators = request.get("generators").unwrap();
+  expect!(generators.to_string()).to_not(be_equal_to("{}"));
 }

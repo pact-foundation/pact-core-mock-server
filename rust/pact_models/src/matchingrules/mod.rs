@@ -1392,9 +1392,10 @@ impl MatchingRules {
   }
 
   fn to_v3_json(&self) -> Value {
-    Value::Object(self.rules.iter().fold(serde_json::Map::new(), |mut map, (name, sub_category)| {
+    Value::Object(self.rules.iter()
+      .fold(serde_json::Map::new(), |mut map, (name, sub_category)| {
       match name {
-        Category::PATH => if let Some(rules) = sub_category.rules.get(&DocPath::empty()) {
+        Category::PATH => if let Some(rules) = sub_category.rules.get(&DocPath::empty()).or_else(|| sub_category.rules.get(&DocPath::root())) {
           map.insert(name.to_string(), rules.to_v3_json());
         }
         _ => {
@@ -1495,7 +1496,7 @@ pub fn matchers_from_json(value: &Value, deprecated_name: &Option<String>
 /// Generates a Value structure for the provided matching rules
 pub fn matchers_to_json(matchers: &MatchingRules, spec_version: &PactSpecification) -> Value {
   match spec_version {
-    &PactSpecification::V3 | &PactSpecification::V4 => matchers.to_v3_json(),
+    PactSpecification::V3 | PactSpecification::V4 => matchers.to_v3_json(),
     _ => matchers.to_v2_json()
   }
 }
@@ -2078,5 +2079,32 @@ mod tests {
     expect!(rule_list_with_value_matcher.values_matcher_defined()).to(be_true());
     expect!(rule_list_with_each_value_matcher.values_matcher_defined()).to(be_true());
     expect!(rule_list_with_no_value_matcher.values_matcher_defined()).to(be_false());
+  }
+
+  // Issue https://github.com/pact-foundation/pact-js-core/issues/400
+  #[test]
+  fn to_json_with_matching_rule_on_path_test() {
+    let matching_rules = MatchingRules {
+      rules: hashmap!{
+        Category::PATH => MatchingRuleCategory {
+          name: Category::PATH,
+          rules: hashmap!{
+            DocPath::root() => RuleList {
+              rules: vec![MatchingRule::Type],
+              rule_logic: RuleLogic::And,
+              cascaded: false
+            }
+          }
+        }
+      }
+    };
+
+    let json = matchers_to_json(&matching_rules, &PactSpecification::V3);
+    expect!(json).to(be_equal_to(json!({
+      "path": {
+        "combine": "AND",
+        "matchers": [ { "match": "type" } ]
+      }
+    })));
   }
 }

@@ -630,7 +630,7 @@ fn hash_and_partial_eq_for_matching_rule() {
 
 
 /// If the generators are being applied in the context of a consumer or provider
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum GeneratorTestMode {
   /// Generate values in the context of the consumer
   Consumer,
@@ -640,7 +640,7 @@ pub enum GeneratorTestMode {
 
 
 /// Category that the generator is applied to
-#[derive(PartialEq, Debug, Clone, Eq, Hash)]
+#[derive(PartialEq, Debug, Clone, Copy, Eq, Hash)]
 pub enum GeneratorCategory {
   /// Request Method
   METHOD,
@@ -804,11 +804,12 @@ impl Generators {
   }
 
   fn to_json(&self) -> Value {
-    Value::Object(self.categories.iter().fold(serde_json::Map::new(), |mut map, (name, category)| {
+    let json_attr = self.categories.iter()
+      .fold(serde_json::Map::new(), |mut map, (name, category)| {
       let cat: String = name.clone().into();
       match name {
-        &GeneratorCategory::PATH | &GeneratorCategory::METHOD | &GeneratorCategory::STATUS => {
-          match category.get(&DocPath::empty()) {
+        GeneratorCategory::PATH | GeneratorCategory::METHOD | GeneratorCategory::STATUS => {
+          match category.get(&DocPath::empty()).or_else(|| category.get(&DocPath::root())) {
             Some(generator) => {
               let json = generator.to_json();
               if let Some(json) = json {
@@ -830,7 +831,8 @@ impl Generators {
         }
       }
       map
-    }))
+    });
+    Value::Object(json_attr)
   }
 
   /// Adds the generator to the category (body, headers, etc.)
@@ -922,7 +924,7 @@ pub fn generators_from_json(value: &Value) -> anyhow::Result<Generators> {
 /// Generates a Value structure for the provided generators
 pub fn generators_to_json(generators: &Generators, spec_version: &PactSpecification) -> Value {
   match spec_version {
-    &PactSpecification::V3 | &PactSpecification::V4 => generators.to_json(),
+    PactSpecification::V3 | PactSpecification::V4 => generators.to_json(),
     _ => Value::Null
   }
 }
@@ -1759,6 +1761,16 @@ mod tests {
   }
 
   #[test]
+  fn path_generator_with_root_path_to_json_test() {
+    let mut generators = Generators::default();
+    generators.add_generator_with_subcategory(&GeneratorCategory::PATH, DocPath::root(), RandomDecimal(1));
+    let json = generators.to_json();
+    expect(json).to(be_equal_to(json!({
+      "path": {"digits": 1, "type": "RandomDecimal"}
+    })));
+  }
+
+  #[test]
   fn generate_decimal_test() {
     assert_that!(generate_decimal(4), matches_regex(r"^\d{1,3}\.\d{1,3}$"));
     assert_that!(generate_hexadecimal(4), matches_regex(r"^[0-9A-F]{4}$"));
@@ -2052,6 +2064,21 @@ mod tests {
     expect!(&json_handler.value["a"][2]).to(be_equal_to(&json!("C")));
     expect!(&json_handler.value["b"]).to(be_equal_to(&json!("B")));
     expect!(&json_handler.value["c"]).to(be_equal_to(&json!("C")));
+  }
+
+  // Issue https://github.com/pact-foundation/pact-js-core/issues/400
+  #[test]
+  fn to_json_with_provider_state_generator_test() {
+    let generators = Generators {
+      categories: hashmap!{
+        GeneratorCategory::PATH => hashmap!{
+          DocPath::root() => Generator::ProviderStateGenerator("/data/${id}".to_string(), None)
+        }
+      }
+    };
+
+    let json = generators_to_json(&generators, &PactSpecification::V3);
+    expect!(json.to_string()).to_not(be_equal_to("{}"));
   }
 }
 

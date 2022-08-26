@@ -464,17 +464,20 @@ mod tests {
 
   use crate::{Consumer, PACT_RUST_VERSION, PactSpecification, Provider};
   use crate::bodies::OptionalBody;
+  use crate::generators::{Generators, Generator, GeneratorCategory};
   use crate::matchingrules;
-  use crate::matchingrules::MatchingRule;
+  use crate::matchingrules::{MatchingRule, MatchingRules, MatchingRuleCategory, RuleList, Category, RuleLogic};
   use crate::pact::{Pact, ReadWritePact, write_pact};
   use crate::provider_states::ProviderState;
   use crate::v4::async_message::AsynchronousMessage;
   use crate::v4::http_parts::{HttpRequest, HttpResponse};
+  use crate::v4::interaction::V4Interaction;
   use crate::v4::message_parts::MessageContents;
   use crate::v4::pact::{from_json, V4Pact};
   use crate::v4::sync_message::SynchronousMessage;
   use crate::v4::synch_http::SynchronousHttp;
   use crate::v4::V4InteractionType;
+  use crate::path_exp::DocPath;
 
   #[test]
   fn load_empty_pact() {
@@ -1563,5 +1566,110 @@ mod tests {
       }
       _ => panic!("Was expecting an HTTP pact")
     }
+  }
+
+  // Issue https://github.com/pact-foundation/pact-js-core/issues/400
+  #[test]
+  fn v4_downgrading_to_v3_should_keep_generators() {
+    let pact = V4Pact {
+      interactions: vec![
+        SynchronousHttp {
+          description: "a request to get the plain data".to_string(),
+          provider_states: vec![
+            ProviderState {
+              name: "set id".to_string(),
+              params: hashmap!{ "id".to_string() => json!("42")}
+            }
+          ],
+          request: HttpRequest {
+            method: "GET".to_string(),
+            path: "/data/42".to_string(),
+            matching_rules: MatchingRules {
+              rules: hashmap!{
+                Category::PATH => MatchingRuleCategory {
+                  name: Category::PATH,
+                  rules: hashmap!{ DocPath::root() => RuleList {
+                    rules: vec![MatchingRule::Type],
+                    rule_logic: RuleLogic::And,
+                    cascaded: false
+                  }}
+                }
+              }
+            },
+            generators: Generators {
+              categories: hashmap!{
+                GeneratorCategory::PATH => hashmap!{
+                  DocPath::root() => Generator::ProviderStateGenerator("/data/${id}".to_string(), None)
+                }
+              }
+            },
+            .. HttpRequest::default()
+          },
+          response: HttpResponse {
+            status: 200,
+            headers: Some(hashmap!{"Content-Type".to_string() => vec!["text/plain; charset=utf-8".to_string()]}),
+            body: OptionalBody::from("data: testData, id: 42"),
+            matching_rules: MatchingRules {
+              rules: hashmap!{
+                Category::HEADER => MatchingRuleCategory {
+                  name: Category::HEADER,
+                  rules: hashmap!{}
+                }
+              }
+            },
+            .. HttpResponse::default()
+          },
+          .. SynchronousHttp::default()
+        }.boxed_v4()],
+      .. V4Pact::default()
+    };
+    let v3_pact = pact.as_request_response_pact().unwrap();
+
+    let expected_rules = matchingrules! {
+      "path" => { "$" => [MatchingRule::Type] }
+    };
+    let expected_generators = Generators {
+      categories: hashmap!{
+        GeneratorCategory::PATH => hashmap!{
+          DocPath::root() => Generator::ProviderStateGenerator("/data/${id}".to_string(), None)
+        }
+      }
+    };
+
+    expect!(v3_pact.interactions.len()).to(be_equal_to(1));
+    let interaction = v3_pact.interactions.first().unwrap();
+    let request = &interaction.request;
+    expect!(request.matching_rules.clone()).to(be_equal_to(expected_rules));
+    expect!(request.generators.clone()).to(be_equal_to(expected_generators));
+
+    let json = v3_pact.to_json(PactSpecification::V3).unwrap();
+
+    let consumer = json.get("consumer").unwrap();
+    expect!(consumer).to(be_equal_to(&json!({ "name": "" })));
+
+    let provider = json.get("provider").unwrap();
+    expect!(provider).to(be_equal_to(&json!({ "name": "" })));
+
+    let interactions = json.get("interactions").unwrap().as_array().unwrap();
+    expect!(interactions.len()).to(be_equal_to(1));
+
+    let interaction = interactions.first().unwrap();
+    expect!(interaction).to(be_equal_to(&json!({
+      "description": "a request to get the plain data",
+      "providerStates": [
+        { "name": "set id", "params": {"id": "42"} }
+      ],
+      "request": {
+        "generators": { "path": { "expression": "/data/${id}", "type": "ProviderState" } },
+        "matchingRules": { "path": { "combine": "AND", "matchers": [ { "match": "type" } ] } },
+        "method": "GET",
+        "path": "/data/42"
+      },
+      "response": {
+        "body": "data: testData, id: 42",
+        "headers": { "Content-Type": "text/plain; charset=utf-8" },
+        "status": 200
+      }
+    })));
   }
 }

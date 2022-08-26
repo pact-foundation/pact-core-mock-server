@@ -182,12 +182,15 @@ impl Request {
         });
     {
       let map = json.as_object_mut().unwrap();
+
       if self.query.is_some() {
         map.insert("query".to_string(), query_to_json(self.query.clone().unwrap(), spec_version));
       }
+
       if self.headers.is_some() {
         map.insert("headers".to_string(), headers_to_json(&self.headers.clone().unwrap()));
       }
+
       match self.body {
         OptionalBody::Present(ref body, _, _) => if self.content_type().unwrap_or_default().is_json() {
           match serde_json::from_slice(body) {
@@ -207,10 +210,12 @@ impl Request {
         OptionalBody::Missing => (),
         OptionalBody::Null => { map.insert("body".to_string(), Value::Null); }
       }
+
       if self.matching_rules.is_not_empty() {
         map.insert("matchingRules".to_string(), matchers_to_json(
           &self.matching_rules.clone(), spec_version));
       }
+
       if self.generators.is_not_empty() {
         map.insert("generators".to_string(), generators_to_json(
           &self.generators.clone(), spec_version));
@@ -278,8 +283,11 @@ mod tests {
 
   use crate::bodies::OptionalBody;
   use crate::content_types::{HTML, JSON, XML};
+  use crate::generators::{Generator, GeneratorCategory, Generators};
   use crate::http_parts::HttpPart;
+  use crate::matchingrules::{Category, MatchingRule, MatchingRuleCategory, MatchingRules, RuleList, RuleLogic};
   use crate::PactSpecification;
+  use crate::path_exp::DocPath;
   use crate::request::Request;
 
   #[test]
@@ -563,5 +571,44 @@ mod tests {
         .differences_from(&Request::from_json(&serialized_and_deserialized_request, &PactSpecification::V3).unwrap())
         .iter())
       .to(be_empty());
+  }
+
+  // Issue https://github.com/pact-foundation/pact-js-core/issues/400
+  #[test]
+  fn to_json_with_provider_state_generator_test() {
+    let request = Request {
+      method: "GET".to_string(),
+      path: "/data/42".to_string(),
+      matching_rules: MatchingRules {
+        rules: hashmap!{
+          Category::PATH => MatchingRuleCategory {
+            name: Category::PATH,
+            rules: hashmap!{
+              DocPath::root() => RuleList {
+                rules: vec![MatchingRule::Type],
+                rule_logic: RuleLogic::And,
+                cascaded: false
+              }
+            }
+          }
+        }
+      },
+      generators: Generators {
+        categories: hashmap!{
+          GeneratorCategory::PATH => hashmap!{
+            DocPath::root() => Generator::ProviderStateGenerator("/data/${id}".to_string(), None)
+          }
+        }
+      },
+      .. Request::default()
+    };
+
+    let json = request.to_json(&PactSpecification::V3);
+
+    let generators = json.get("generators").unwrap();
+    expect!(generators.to_string()).to_not(be_equal_to("{}"));
+
+    let rules = json.get("matchingRules").unwrap();
+    expect!(rules.to_string()).to_not(be_equal_to("{}"));
   }
 }

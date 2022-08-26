@@ -197,7 +197,7 @@ impl RequestResponseInteraction {
     if !self.provider_states.is_empty() {
       let map = value.as_object_mut().unwrap();
       match spec_version {
-        &PactSpecification::V3 => map.insert("providerStates".to_string(),
+        PactSpecification::V3 => map.insert("providerStates".to_string(),
                                              Value::Array(self.provider_states.iter().map(|p| p.to_json()).collect())),
         _ => map.insert("providerState".to_string(), Value::String(
           self.provider_states.first().unwrap().name.clone()))
@@ -331,11 +331,15 @@ mod tests {
   use maplit::hashmap;
   use serde_json::json;
 
+  use crate::bodies::OptionalBody;
+  use crate::generators::{GeneratorCategory, Generators, Generator};
+  use crate::matchingrules::{Category, MatchingRule, MatchingRuleCategory, MatchingRules, RuleLogic, RuleList};
   use crate::PactSpecification;
   use crate::provider_states::ProviderState;
   use crate::request::Request;
   use crate::response::Response;
   use crate::sync_interaction::RequestResponseInteraction;
+  use crate::path_exp::DocPath;
 
   #[test]
   fn loading_interaction_from_json() {
@@ -481,5 +485,63 @@ mod tests {
       .. RequestResponseInteraction::default()
     };
     expect!(interaction1.conflicts_with(&interaction2).iter()).to_not(be_empty());
+  }
+
+  // Issue https://github.com/pact-foundation/pact-js-core/issues/400
+  #[test]
+  fn to_json_with_provider_state_generator_test() {
+    let interaction = RequestResponseInteraction {
+      description: "a request to get the plain data".to_string(),
+      provider_states: vec![
+        ProviderState {
+          name: "set id".to_string(),
+          params: hashmap!{ "id".to_string() => json!("42")}
+        }
+      ],
+      request: Request {
+        method: "GET".to_string(),
+        path: "/data/42".to_string(),
+        matching_rules: MatchingRules {
+          rules: hashmap!{
+            Category::PATH => MatchingRuleCategory {
+              name: Category::PATH,
+              rules: hashmap!{ DocPath::root() => RuleList {
+                rules: vec![MatchingRule::Type],
+                rule_logic: RuleLogic::And,
+                cascaded: false
+              }}
+            }
+          }
+        },
+        generators: Generators {
+          categories: hashmap!{
+            GeneratorCategory::PATH => hashmap!{
+              DocPath::root() => Generator::ProviderStateGenerator("/data/${id}".to_string(), None)
+            }
+          }
+        },
+        .. Request::default()
+      },
+      response: Response {
+        status: 200,
+        headers: Some(hashmap!{"Content-Type".to_string() => vec!["text/plain; charset=utf-8".to_string()]}),
+        body: OptionalBody::from("data: testData, id: 42"),
+        matching_rules: MatchingRules {
+          rules: hashmap!{
+            Category::HEADER => MatchingRuleCategory {
+              name: Category::HEADER,
+              rules: hashmap!{}
+            }
+          }
+        },
+        generators: Generators { categories: hashmap!{} }
+      },
+      .. RequestResponseInteraction::default()
+    };
+
+    let json = interaction.to_json(&PactSpecification::V3);
+    let request = json.get("request").unwrap();
+    let generators = request.get("generators").unwrap();
+    expect!(generators.to_string()).to_not(be_equal_to("{}"));
   }
 }
