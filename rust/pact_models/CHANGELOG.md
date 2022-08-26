@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.4.5 - Bugfix Release
+
+* b6bba540 - fix(FFI): FFI passes matching rules and generators for paths etc. with a path of $ (Ronald Holshausen, Fri Aug 26 11:22:19 2022 +1000)
+* a37d621e - chore: update the doc comments on matchingrules! macro (Ronald Holshausen, Wed Aug 24 17:25:04 2022 +1000)
+* 46b7c1a2 - bump version to 0.4.5 (Ronald Holshausen, Thu Aug 18 13:35:04 2022 +1000)
+
 # 0.4.4 - Updated dependencies
 
 * bd53ad0d - chore: Upgrade dependencies (uuid, tracing) (Ronald Holshausen, Thu Aug 18 13:32:28 2022 +1000)
