@@ -14,7 +14,7 @@ exclude = [
 ]
 
 [dependencies]
-pact_models = "0.4.4"
+pact_models = "0.4.5"
 pact_matching = { version = "0.12.11", path = "../pact_matching" }
 pact_mock_server = { version = "0.9.3", path = "../pact_mock_server" }
 maplit = "1.0.2"
