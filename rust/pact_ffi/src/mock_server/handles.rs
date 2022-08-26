@@ -622,6 +622,7 @@ pub extern fn pactffi_with_query_parameter(
         reqres.request.query = reqres.request.query.clone().map(|mut q| {
           let mut path = DocPath::root();
           path.push_field(name).push_index(index);
+          #[allow(deprecated)]
           let value = from_integration_json(&mut reqres.request.matching_rules, &mut reqres.request.generators, &value.to_string(), path, "query");
           if q.contains_key(name) {
             let values = q.get_mut(name).unwrap();
@@ -639,6 +640,7 @@ pub extern fn pactffi_with_query_parameter(
         }).or_else(|| {
           let mut path = DocPath::root();
           path.push_field(name).push_index(index);
+          #[allow(deprecated)]
           let value = from_integration_json(&mut reqres.request.matching_rules, &mut reqres.request.generators, &value.to_string(), path, "query");
           let mut values: Vec<String> = Vec::new();
           values.resize_with(index + 1, Default::default);
@@ -959,6 +961,8 @@ pub extern fn pactffi_with_header(
 
         let mut path = DocPath::root();
         path.push_field(name);
+
+        #[allow(deprecated)]
         let value = match part {
           InteractionPart::Request => from_integration_json(
             &mut reqres.request.matching_rules,

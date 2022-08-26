@@ -68,7 +68,7 @@ ffi_fn! {
             }
             // Otherwise, get the contents, possibly still empty.
             _ => {
-                let content = string::to_c(message.request.contents.str_value())?;
+                let content = string::to_c(message.request.contents.value_as_string().unwrap_or_default().as_str())?;
                 content as *const c_char
             }
         }
@@ -238,7 +238,7 @@ ffi_fn! {
                 }
                 // Otherwise, get the contents, possibly still empty.
                 _ => {
-                    let content = string::to_c(response.contents.str_value())?;
+                    let content = string::to_c(response.contents.value_as_string().unwrap_or_default().as_str())?;
                     content as *const c_char
                 }
             }

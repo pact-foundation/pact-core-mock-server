@@ -11,6 +11,7 @@ use maplit::*;
 use reqwest::blocking::Client;
 use reqwest::header::CONTENT_TYPE;
 
+#[allow(deprecated)]
 use pact_ffi::mock_server::{
   pactffi_cleanup_mock_server,
   pactffi_create_mock_server,
@@ -35,7 +36,7 @@ use pact_ffi::mock_server::handles::{
   pactffi_with_body,
   pactffi_with_header,
   pactffi_with_multipart_file,
-  pactffi_with_query_parameter,
+  pactffi_with_query_parameter_v2,
   pactffi_with_request,
   pactffi_write_message_pact_file
 };
@@ -97,9 +98,9 @@ fn create_query_parameter_with_multiple_values() {
   let value_1 = CString::new("1").unwrap();
   let value_2 = CString::new("2").unwrap();
   let value_3 = CString::new("3").unwrap();
-  pactffi_with_query_parameter(interaction.clone(), name.as_ptr(), 2, value_3.as_ptr());
-  pactffi_with_query_parameter(interaction.clone(), name.as_ptr(), 0, value_1.as_ptr());
-  pactffi_with_query_parameter(interaction.clone(), name.as_ptr(), 1, value_2.as_ptr());
+  pactffi_with_query_parameter_v2(interaction.clone(), name.as_ptr(), 2, value_3.as_ptr());
+  pactffi_with_query_parameter_v2(interaction.clone(), name.as_ptr(), 0, value_1.as_ptr());
+  pactffi_with_query_parameter_v2(interaction.clone(), name.as_ptr(), 1, value_2.as_ptr());
   interaction.with_interaction(&|_, _, i| {
     let interaction = i.as_v4_http().unwrap();
     expect!(interaction.request.query.as_ref()).to(be_some().value(&hashmap!{
@@ -180,7 +181,7 @@ fn http_consumer_feature_test() {
   pactffi_with_request(interaction.clone(), method  .as_ptr(), path_matcher.as_ptr());
   pactffi_with_header(interaction.clone(), InteractionPart::Request, content_type.as_ptr(), 0, value_header_with_matcher.as_ptr());
   pactffi_with_header(interaction.clone(), InteractionPart::Request, authorization.as_ptr(), 0, auth_header_with_matcher.as_ptr());
-  pactffi_with_query_parameter(interaction.clone(), query.as_ptr(), 0, query_param_matcher.as_ptr());
+  pactffi_with_query_parameter_v2(interaction.clone(), query.as_ptr(), 0, query_param_matcher.as_ptr());
   pactffi_with_body(interaction.clone(), InteractionPart::Request, header.as_ptr(), request_body_with_matchers.as_ptr());
   // will respond with...
   pactffi_with_header(interaction.clone(), InteractionPart::Response, content_type.as_ptr(), 0, value_header_with_matcher.as_ptr());

@@ -66,6 +66,7 @@ impl VerifierHandle {
   }
 
   /// Update the provider info
+  #[allow(deprecated)]
   pub fn update_provider_info(
     &mut self,
     name: String,

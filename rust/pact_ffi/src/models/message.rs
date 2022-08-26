@@ -167,7 +167,7 @@ ffi_fn! {
             }
             // Otherwise, get the contents, possibly still empty.
             _ => {
-                let content = string::to_c(message.contents.str_value())?;
+                let content = string::to_c(message.contents.value_as_string().unwrap_or_default().as_str())?;
                 content as *const c_char
             }
         }

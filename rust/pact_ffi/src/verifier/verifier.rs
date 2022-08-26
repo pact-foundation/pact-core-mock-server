@@ -187,6 +187,7 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
       warn!("Failed to initialise global tracing subscriber - {err}");
     };
 
+    #[allow(deprecated)]
     let provider = ProviderInfo {
       host: matches.value_of("hostname").unwrap_or("localhost").to_string(),
       port: matches.value_of("port").map(|port| port.parse::<u16>().unwrap()),
