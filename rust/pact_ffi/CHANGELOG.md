@@ -1,5 +1,14 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.3.9 - Bugfix Release
+
+* 508005a3 - chore: clean up some compiler warnings (Ronald Holshausen, Fri Aug 26 13:48:58 2022 +1000)
+* f8db90d2 - fix: Upgrade pact_models to 0.4.5 - fixes FFI bug with generators for request paths (Ronald Holshausen, Fri Aug 26 11:44:08 2022 +1000)
+* a436392a - bump version to 0.3.9 (Ronald Holshausen, Fri Aug 19 11:38:18 2022 +1000)
+* a74952cb - update changelog for release 0.3.8 (Ronald Holshausen, Fri Aug 19 11:36:32 2022 +1000)
+* 70d2c09a - chore: Build FFI lib with Debian stretch image #202 (Ronald Holshausen, Fri Aug 19 11:33:40 2022 +1000)
+* 546d84f6 - bump version to 0.3.8 (Ronald Holshausen, Thu Aug 18 16:38:32 2022 +1000)
+
 # 0.3.8 - Support FFI libs on Ubuntu 18.04
 
 * 70d2c09a - chore: Build FFI lib with Debian stretch image #202 (Ronald Holshausen, Fri Aug 19 11:33:40 2022 +1000)
