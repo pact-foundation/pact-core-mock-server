@@ -1,5 +1,7 @@
 #!/bin/bash -x
 
+set -e
+
 echo -- Setup directories --
 cargo clean
 mkdir -p ../target/artifacts
@@ -8,7 +10,7 @@ echo -- Build the Docker build image --
 docker build -f Dockerfile.linux-build -t pact-ffi-build .
 
 echo -- Build the release artifacts --
-docker run -it --rm --user "$(id -u)":"$(id -g)" -v $(pwd)/..:/workspace -w /workspace/pact_ffi pact-ffi-build -c 'cargo build --release'
+docker run -t --rm --user "$(id -u)":"$(id -g)" -v $(pwd)/..:/workspace -w /workspace/pact_ffi pact-ffi-build -c 'cargo build --release'
 gzip -c ../target/release/libpact_ffi.so > ../target/artifacts/libpact_ffi-linux-x86_64.so.gz
 openssl dgst -sha256 -r ../target/artifacts/libpact_ffi-linux-x86_64.so.gz > ../target/artifacts/libpact_ffi-linux-x86_64.so.gz.sha256
 gzip -c ../target/release/libpact_ffi.a > ../target/artifacts/libpact_ffi-linux-x86_64.a.gz
