@@ -13,7 +13,7 @@ use std::time::Duration;
 
 use ansi_term::*;
 use ansi_term::Colour::*;
-use anyhow::{anyhow, Context};
+use anyhow::anyhow;
 use futures::stream::StreamExt;
 use http::{header, HeaderMap};
 use http::header::HeaderName;

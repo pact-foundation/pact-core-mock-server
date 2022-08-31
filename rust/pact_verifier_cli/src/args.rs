@@ -269,6 +269,9 @@ pub(crate) fn setup_app(program: String, version: &str) -> App {
       .long("no-colour")
       .visible_alias("no-color")
       .help("Disables ANSI escape codes in the output"))
+    .arg(Arg::with_name("ignore-no-pacts-error")
+        .long("ignore-no-pacts-error")
+        .help("Do not fail if no pacts are found to verify"))
 }
 
 #[cfg(test)]

@@ -412,7 +412,9 @@ async fn handle_matches(matches: &ArgMatches) -> Result<(), i32> {
     request_timeout: matches.value_of("request-timeout")
       .map(|t| t.parse::<u64>().unwrap_or(5000)).unwrap_or(5000),
     custom_headers,
-    coloured_output
+    coloured_output,
+    no_pacts_is_error: !matches.is_present("ignore-no-pacts-error"),
+    .. VerificationOptions::default()
   };
 
   let publish_options = if matches.is_present("publish") {
