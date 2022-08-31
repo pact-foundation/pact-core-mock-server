@@ -15,7 +15,7 @@ exclude = [
 
 [dependencies]
 pact_models = "=0.4.5"
-pact_verifier = { version = "0.13.11", path = "../pact_verifier" }
+pact_verifier = "=0.13.12"
 tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.11.10", default-features = false, features = ["rustls-tls-native-roots", "blocking", "json"] }
 clap = { version = "3.2.16", features = ["cargo", "env"] }
