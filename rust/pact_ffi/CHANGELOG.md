@@ -1,5 +1,19 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.3.10 - Add option to not fail verification if no Pacts are found
+
+* 5c1d4293 - chore: Upgrade pact_verifier crate to 0.13.12 (Ronald Holshausen, Wed Aug 31 16:09:16 2022 +1000)
+* c128d22b - feat(FFI): add pactffi_verifier_set_no_pacts_is_error function #213 (Ronald Holshausen, Wed Aug 31 15:37:04 2022 +1000)
+* ac6e8858 - chore: fix release script (Ronald Holshausen, Fri Aug 26 20:25:33 2022 +1000)
+* 592975ec - bump version to 0.3.10 (Ronald Holshausen, Fri Aug 26 15:12:33 2022 +1000)
+* 9adb7592 - update changelog for release 0.3.9 (Ronald Holshausen, Fri Aug 26 15:09:34 2022 +1000)
+* 508005a3 - chore: clean up some compiler warnings (Ronald Holshausen, Fri Aug 26 13:48:58 2022 +1000)
+* f8db90d2 - fix: Upgrade pact_models to 0.4.5 - fixes FFI bug with generators for request paths (Ronald Holshausen, Fri Aug 26 11:44:08 2022 +1000)
+* a436392a - bump version to 0.3.9 (Ronald Holshausen, Fri Aug 19 11:38:18 2022 +1000)
+* a74952cb - update changelog for release 0.3.8 (Ronald Holshausen, Fri Aug 19 11:36:32 2022 +1000)
+* 70d2c09a - chore: Build FFI lib with Debian stretch image #202 (Ronald Holshausen, Fri Aug 19 11:33:40 2022 +1000)
+* 546d84f6 - bump version to 0.3.8 (Ronald Holshausen, Thu Aug 18 16:38:32 2022 +1000)
+
 # 0.3.9 - Bugfix Release
 
 * 508005a3 - chore: clean up some compiler warnings (Ronald Holshausen, Fri Aug 26 13:48:58 2022 +1000)
