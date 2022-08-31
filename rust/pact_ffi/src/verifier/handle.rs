@@ -216,6 +216,11 @@ impl VerifierHandle {
     self.verification_options.coloured_output = coloured_output;
   }
 
+  /// Enables or disables erroring if no pacts are found to verify
+  pub fn set_no_pacts_is_error(&mut self, is_error: bool) {
+    self.verification_options.no_pacts_is_error = is_error;
+  }
+
   /// Update the details used when publishing results
   /// 
   /// # Args

@@ -265,6 +265,30 @@ ffi_fn! {
 }
 
 ffi_fn! {
+    /// Enables or disables if no pacts are found to verify results in an error.
+    ///
+    /// `is_error` is a boolean value. Set it to greater than zero to enable an error when no pacts
+    /// are found to verify, and set it to zero to disable this.
+    ///
+    /// # Safety
+    ///
+    /// This function is safe as long as the handle pointer points to a valid handle.
+    ///
+    fn pactffi_verifier_set_no_pacts_is_error(
+      handle: *mut handle::VerifierHandle,
+      is_error: c_uchar
+    ) -> c_int {
+      let handle = as_mut!(handle);
+
+      handle.set_no_pacts_is_error(is_error > 0);
+
+      EXIT_SUCCESS
+    } {
+      EXIT_FAILURE
+    }
+}
+
+ffi_fn! {
   /// Set the options used when publishing verification results to the Pact Broker
   ///
   /// # Args
