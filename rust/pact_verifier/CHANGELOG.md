@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.13.12 - Bugfix Release
+
+* 8663cd3f - feat: add ignore-no-pacts-error to the verifier CLI #213 (Ronald Holshausen, Wed Aug 31 15:19:31 2022 +1000)
+* f8db90d2 - fix: Upgrade pact_models to 0.4.5 - fixes FFI bug with generators for request paths (Ronald Holshausen, Fri Aug 26 11:44:08 2022 +1000)
+* 8ca3303b - feat: add a test to check for error result with IO error #213 (Ronald Holshausen, Fri Aug 19 16:53:17 2022 +1000)
+* 43be2e83 - feat: do not output an error if no_pacts_is_error is false and no pacts were found to verify #213 (Ronald Holshausen, Fri Aug 19 16:49:19 2022 +1000)
+* 786f002d - bump version to 0.13.12 (Ronald Holshausen, Thu Aug 18 16:31:02 2022 +1000)
+
 # 0.13.11 - Maintenance Release
 
 * d6eaf9cf - chore: Upgrade pact_consumer to 0.9.6 (Ronald Holshausen, Thu Aug 18 16:14:44 2022 +1000)
