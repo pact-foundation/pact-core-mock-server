@@ -1098,7 +1098,12 @@ async fn fetch_pact(source: PactSource) -> Vec<anyhow::Result<(Box<dyn Pact + Se
         .map(|(pact, links)| {
           if is_pact_broker_source(&links) {
             let provider = pact.provider();
-            (pact, None, PactSource::BrokerUrl(provider.name.clone(), url.clone(),
+            let base_url = url.parse::<reqwest::Url>()
+              .map(|mut url| {
+                url.set_path("/");
+                url.to_string()
+              }).ok().unwrap_or_else(||url.to_string());
+            (pact, None, PactSource::BrokerUrl(provider.name.clone(), base_url,
                                                auth.clone(), links.clone()))
           } else {
             (pact, None, source.clone())

@@ -240,15 +240,15 @@ impl HALClient {
     }
 
     async fn fetch_link(
-        self,
-        link: &'static str,
-        template_values: &HashMap<String, String>
-    ) -> Result<serde_json::Value, PactBrokerError> {
+      self,
+      link: &'static str,
+      template_values: &HashMap<String, String>
+    ) -> Result<Value, PactBrokerError> {
       trace!("fetch_link(link='{}', template_values={:?})", link, template_values);
 
-        let link_data = self.find_link(link)?;
+      let link_data = self.find_link(link)?;
 
-        self.fetch_url(&link_data, template_values).await
+      self.fetch_url(&link_data, template_values).await
     }
 
   /// Fetch the resource at the Link from the Pact broker
@@ -256,31 +256,29 @@ impl HALClient {
     self,
     link: &Link,
     template_values: &HashMap<String, String>
-  ) -> Result<serde_json::Value, PactBrokerError> {
+  ) -> Result<Value, PactBrokerError> {
     trace!("fetch_url(link={:?}, template_values={:?})", link, template_values);
 
-      let link_url = if link.templated {
-          debug!("Link URL is templated");
-          self.clone().parse_link_url(&link, &template_values)
-      } else {
-          link.href.clone()
-              .ok_or_else(|| PactBrokerError::LinkError(
-                  format!("Link is malformed, there is no href. URL: '{}', LINK: '{}'",
-                      self.url, link.name
-                  )
-              ))
-      }?;
+    let link_url = if link.templated {
+      debug!("Link URL is templated");
+      self.clone().parse_link_url(&link, &template_values)
+    } else {
+      link.href.clone()
+        .ok_or_else(|| PactBrokerError::LinkError(
+          format!("Link is malformed, there is no href. URL: '{}', LINK: '{}'", self.url, link.name)
+        ))
+    }?;
 
-      let base_url = self.url.parse::<reqwest::Url>()
-          .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?;
+    let base_url = self.url.parse::<reqwest::Url>()
+        .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?;
 
-      let joined_url = base_url.join(&link_url)
-          .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?;
+    let joined_url = base_url.join(&link_url)
+        .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?;
 
-      self.fetch(joined_url.path().into()).await
+    self.fetch(joined_url.path().into()).await
   }
 
-  async fn fetch(self, path: &str) -> Result<serde_json::Value, PactBrokerError> {
+  async fn fetch(self, path: &str) -> Result<Value, PactBrokerError> {
     info!("Fetching path '{}' from pact broker", path);
 
     let url = join_paths(&self.url, path).parse::<reqwest::Url>()
@@ -899,7 +897,8 @@ async fn publish_provider_branch(
   hal_client: &HALClient,
   links: &[Link],
   branch: &str,
-  version: &str) -> Result<(), PactBrokerError> {
+  version: &str
+) -> Result<(), PactBrokerError> {
   let hal_client = hal_client.clone().with_doc_context(links)?
     .navigate("pb:provider", &hashmap!{}).await?;
 
@@ -1989,5 +1988,99 @@ mod tests {
     let json = link.as_json();
     expect!(json.to_string()).to(be_equal_to(
       "{\"href\":\"1234\",\"templated\":true,\"title\":\"title\"}"));
+  }
+
+  #[test_log::test(tokio::test)]
+  async fn publish_provider_branch_with_normal_broker_source() {
+    let pact_broker = PactBuilder::new("RustPactVerifier", "PactBroker")
+      .interaction("a request to the pact broker pacticipant", "", |mut i| async move {
+        i.request
+          .path("/pacticipants/Pact%20Broker");
+        i.response
+          .header("Content-Type", "application/hal+json")
+          .json_body(json_pattern!({
+            "name": "Pact Broker",
+            "displayName": "Pact Broker",
+            "updatedAt": "2019-05-04T06:20:15+00:00",
+            "createdAt": "2019-05-04T06:20:15+00:00",
+            "_embedded": {
+              "labels": []
+            },
+            "_links": {
+              "self": {
+                "href": "https://pact-foundation.pactflow.io/pacticipants/Pact%20Broker"
+              },
+              "pb:versions": {
+                "href": "https://pact-foundation.pactflow.io/pacticipants/Pact%20Broker/versions"
+              },
+              "pb:version": {
+                "title": "Get, create or delete a pacticipant version",
+                "href": "https://pact-foundation.pactflow.io/pacticipants/Pact%20Broker/versions/{version}",
+                "templated": true
+              },
+              "pb:version-tag": {
+                "title": "Get, create or delete a tag for a version of Pact Broker",
+                "href": "https://pact-foundation.pactflow.io/pacticipants/Pact%20Broker/versions/{version}/tags/{tag}",
+                "templated": true
+              },
+              "pb:branch-version": {
+                "title": "Get or add/create a version for a branch of Pact Broker",
+                "href": "https://pact-foundation.pactflow.io/pacticipants/Pact%20Broker/branches/{branch}/versions/{version}",
+                "templated": true
+              },
+              "pb:label": {
+                "title": "Get, create or delete a label for Pact Broker",
+                "href": "https://pact-foundation.pactflow.io/pacticipants/Pact%20Broker/labels/{label}",
+                "templated": true
+              },
+              "versions": {
+                "title": "Deprecated - use pb:versions",
+                "href": "https://pact-foundation.pactflow.io/pacticipants/Pact%20Broker/versions"
+              },
+              "pb:can-i-deploy-badge": {
+                "title": "Can I Deploy Pact Broker badge",
+                "href": "https://pact-foundation.pactflow.io/pacticipants/Pact%20Broker/latest-version/{tag}/can-i-deploy/to/{environmentTag}/badge",
+                "templated": true
+              },
+              "pb:can-i-deploy-branch-to-environment-badge": {
+                "title": "Can I Deploy Pact Broker from branch to environment badge",
+                "href": "https://pact-foundation.pactflow.io/pacticipants/Pact%20Broker/branches/{branch}/latest-version/can-i-deploy/to-environment/{environment}/badge",
+                "templated": true
+              },
+              "curies": [
+                {
+                  "name": "pb",
+                  "href": "https://pact-foundation.pactflow.io/doc/{rel}?context=pacticipant",
+                  "templated": true
+                }
+              ]
+            }
+          }));
+        i
+      })
+      .await
+      .interaction("a request to publish the provider branch", "", |mut i| async move {
+        i.request
+          .method("PUT")
+          .path("/pacticipants/Pact%20Broker/branches/feat%2F1234/versions/1234")
+          .json_body(json!({}));
+        i.response
+          .status(200);
+        i
+      })
+      .await
+      .start_mock_server(None);
+
+    let client = HALClient::with_url(pact_broker.url().as_str(), None);
+    let links = vec![
+      Link {
+        name: "pb:provider".to_string(),
+        href: Some("https://pact-foundation.pactflow.io/pacticipants/Pact%20Broker".to_string()),
+        templated: false,
+        title: Some("Provider".to_string())
+      }
+    ];
+    let result = publish_provider_branch(&client, &links, "feat/1234", "1234").await;
+    expect!(result).to(be_ok());
   }
 }
