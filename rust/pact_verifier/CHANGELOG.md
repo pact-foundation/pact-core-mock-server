@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.13.13 - Bugfix Release
+
+* 7f51bdc6 - fix: publishing provider branch was broken when invoked via a webhook call (Ronald Holshausen, Tue Sep 6 18:15:16 2022 +1000)
+* da163c42 - bump version to 0.13.13 (Ronald Holshausen, Wed Aug 31 16:06:30 2022 +1000)
+
 # 0.13.12 - Bugfix Release
 
 * 8663cd3f - feat: add ignore-no-pacts-error to the verifier CLI #213 (Ronald Holshausen, Wed Aug 31 15:19:31 2022 +1000)
