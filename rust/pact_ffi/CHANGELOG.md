@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.3.11 - Bugfix Release
+
+* cdb555f8 - fix: Upgrade pact_verifier to 0.13.13 (Ronald Holshausen, Wed Sep 7 09:53:05 2022 +1000)
+* 1c5bde33 - bump version to 0.3.11 (Ronald Holshausen, Wed Aug 31 17:05:22 2022 +1000)
+
 # 0.3.10 - Add option to not fail verification if no Pacts are found
 
 * 5c1d4293 - chore: Upgrade pact_verifier crate to 0.13.12 (Ronald Holshausen, Wed Aug 31 16:09:16 2022 +1000)
