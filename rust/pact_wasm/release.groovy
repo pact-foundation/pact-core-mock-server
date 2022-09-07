@@ -102,7 +102,7 @@ ask('Publish library to crates.io?: [Y]') {
 
 def nextVer = Version.valueOf(releaseVer).incrementPatchVersion()
 ask("Bump version to $nextVer?: [Y]") {
-  executeOnShell "sed -i -e 's/version = \"${releaseVer}\"/version = \"${nextVer}\"/' Cargo.toml"
+  executeOnShell "sed -i -e 's/^version = \"${releaseVer}\"/version = \"${nextVer}\"/' Cargo.toml"
   executeOnShell("cargo update")
   executeOnShell("git add Cargo.toml")
   executeOnShell("git add ../Cargo.lock")

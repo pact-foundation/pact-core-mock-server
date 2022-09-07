@@ -103,7 +103,7 @@ executeOnShell "cargo build --release"
 
 def nextVer = Version.valueOf(releaseVer).incrementPatchVersion()
 ask("Bump version to $nextVer?: [Y]") {
-  executeOnShell "sed -i -e 's/version = \"${releaseVer}\"/version = \"${nextVer}\"/' Cargo.toml"
+  executeOnShell "sed -i -e 's/^version = \"${releaseVer}\"/version = \"${nextVer}\"/' Cargo.toml"
   executeOnShell("git add Cargo.toml")
   executeOnShell("git add ../Cargo.lock")
   executeOnShell("git diff --cached")
