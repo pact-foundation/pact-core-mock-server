@@ -93,7 +93,7 @@ impl ServerManager {
     pub fn start_tls_mock_server_with_addr(
       &mut self,
       id: String,
-      pact: Box<dyn Pact>,
+      pact: Box<dyn Pact + Send + Sync>,
       addr: SocketAddr,
       tls_config: &ServerConfig,
       config: MockServerConfig
@@ -159,7 +159,7 @@ impl ServerManager {
     pub fn start_tls_mock_server(
       &mut self,
       id: String,
-      pact: Box<dyn Pact>,
+      pact: Box<dyn Pact + Send + Sync>,
       port: u16,
       tls: &ServerConfig,
       config: MockServerConfig

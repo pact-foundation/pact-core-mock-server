@@ -170,13 +170,14 @@ impl MockServer {
   /// Create a new TLS mock server, consisting of its state (self) and its executable server future.
   pub async fn new_tls(
     id: String,
-    pact: Box<dyn Pact>,
+    pact: Box<dyn Pact + Send + Sync>,
     addr: std::net::SocketAddr,
     tls: &ServerConfig,
     config: MockServerConfig
   ) -> Result<(Arc<Mutex<MockServer>>, impl std::future::Future<Output = ()>), String> {
     let (shutdown_tx, shutdown_rx) = futures::channel::oneshot::channel();
     let matches = Arc::new(Mutex::new(vec![]));
+
     #[allow(deprecated)]
     let mock_server = Arc::new(Mutex::new(MockServer {
       id: id.clone(),

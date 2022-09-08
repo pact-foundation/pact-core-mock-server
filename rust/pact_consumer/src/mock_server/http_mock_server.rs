@@ -6,6 +6,9 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use pact_models::pact::Pact;
+use pact_models::plugins::PluginData;
+use pact_plugin_driver::plugin_manager::{drop_plugin_access, increment_plugin_access};
+use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
 use tracing::{debug, warn};
 use url::Url;
 use uuid::Uuid;
@@ -45,6 +48,10 @@ impl ValidatingHttpMockServer {
   /// Will panic if the provided Pact can not be sent to the background thread.
   pub fn start(pact: Box<dyn Pact + Send + Sync>, output_dir: Option<PathBuf>) -> Box<dyn ValidatingMockServer> {
     debug!("Starting mock server from pact {:?}", pact);
+
+    let plugins = pact.plugin_data();
+    Self::increment_plugin_access(&plugins);
+
     // Spawn new runtime in thread to prevent reactor execution context conflict
     let (pact_tx, pact_rx) = std::sync::mpsc::channel::<Box<dyn Pact + Send + Sync>>();
     pact_tx.send(pact).expect("INTERNAL ERROR: Could not pass pact into mock server thread");
@@ -76,6 +83,7 @@ impl ValidatingHttpMockServer {
         .spawn(move || {
           runtime.block_on(server_future);
           let _ = done_tx.send(());
+          Self::decrement_plugin_access(&plugins);
         })
         .expect("thread spawn");
 
@@ -101,6 +109,28 @@ impl ValidatingHttpMockServer {
     })
   }
 
+  fn decrement_plugin_access(plugins: &Vec<PluginData>) {
+    for plugin in plugins {
+      let dependency = PluginDependency {
+        name: plugin.name.clone(),
+        version: Some(plugin.version.clone()),
+        dependency_type: PluginDependencyType::Plugin
+      };
+      drop_plugin_access(&dependency);
+    }
+  }
+
+  fn increment_plugin_access(plugins: &Vec<PluginData>) {
+    for plugin in plugins {
+      let dependency = PluginDependency {
+        name: plugin.name.clone(),
+        version: Some(plugin.version.clone()),
+        dependency_type: PluginDependencyType::Plugin
+      };
+      increment_plugin_access(&dependency);
+    }
+  }
+
   /// Create a new mock server which handles requests as described in the
   /// pact, and runs in a background task in the current Tokio runtime.
   ///
@@ -108,6 +138,9 @@ impl ValidatingHttpMockServer {
   /// Will panic if unable to get the URL to the spawned mock server
   pub async fn start_async(pact: Box<dyn Pact + Send + Sync>, output_dir: Option<PathBuf>) -> Box<dyn ValidatingMockServer> {
     debug!("Starting mock server from pact {:?}", pact);
+
+    let plugins = pact.plugin_data();
+    Self::increment_plugin_access(&plugins);
 
     let (mock_server, server_future) = mock_server::MockServer::new(
       Uuid::new_v4().to_string(),
@@ -122,6 +155,7 @@ impl ValidatingHttpMockServer {
     tokio::spawn(async move {
       server_future.await;
       let _ = done_tx.send(());
+      Self::decrement_plugin_access(&plugins);
     });
 
     let (description, url_str) = {
