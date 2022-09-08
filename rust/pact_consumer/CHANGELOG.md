@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.9.7 - Bugfix Release
+
+* 57a8ad7d - fix: Consumer DSL needs to increment plugin access to avoid plugin shutting down when mock server starts (Ronald Holshausen, Thu Sep 8 11:54:33 2022 +1000)
+* fcab3016 - chore: Upgrade pact-plugin-driver to 0.1.11 (Ronald Holshausen, Thu Sep 8 11:28:52 2022 +1000)
+* ac4fe73f - chore: fix to release scripts (Ronald Holshausen, Wed Sep 7 10:51:01 2022 +1000)
+* f8db90d2 - fix: Upgrade pact_models to 0.4.5 - fixes FFI bug with generators for request paths (Ronald Holshausen, Fri Aug 26 11:44:08 2022 +1000)
+* c4f1c973 - bump version to 0.9.7 (Ronald Holshausen, Thu Aug 18 16:12:40 2022 +1000)
+
 # 0.9.6 - Maintenance Release
 
 * 296e43ae - chore: cleanup some compiler warnings (Ronald Holshausen, Thu Aug 18 16:09:02 2022 +1000)
