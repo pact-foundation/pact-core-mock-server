@@ -171,6 +171,7 @@ pub extern fn pactffi_interaction_contents(interaction: InteractionHandle, part:
       Ok(value) => value,
       Err(err) => {
         error!("Contents is not a valid JSON - {}", err);
+        error!("contents='{}'", contents_str);
         set_error_msg(format!("Contents is not a valid JSON - {}", err));
         return Ok(5);
       }
