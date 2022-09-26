@@ -438,7 +438,7 @@ async fn handle_matches(matches: &ArgMatches) -> Result<(), i32> {
     provider,
     source,
     filter,
-    matches.values_of_lossy("filter-consumer").unwrap_or_default(),
+    matches.get_many::<String>("filter-consumer").unwrap_or_default().map(|v| v.to_string()).collect::<Vec<_>>(),
     &verification_options,
     publish_options.as_ref(),
     &provider_state_executor,
