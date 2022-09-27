@@ -569,7 +569,8 @@ pub extern fn pactffi_given_with_param(interaction: InteractionHandle, descripti
 /// ```c
 /// const char* value = "{\"value\":\"/path/to/100\", \"pact:matcher:type\":\"regex\", \"regex\":\"\\/path\\/to\\/\\\\d+\"}";
 /// pactffi_with_request(handle, "GET", value);
-///
+/// ```
+/// See [IntegrationJson.md](https://github.com/pact-foundation/pact-reference/blob/master/rust/pact_ffi/IntegrationJson.md)
 #[no_mangle]
 pub extern fn pactffi_with_request(
   interaction: InteractionHandle,
@@ -688,6 +689,7 @@ pub extern fn pactffi_with_query_parameter(
 /// const char* value = "{\"value\":\"2\", \"pact:matcher:type\":\"regex\", \"regex\":\"\\\\d+\"}";
 /// pactffi_with_query_parameter_v2(handle, "id", 0, value);
 /// ```
+/// See [IntegrationJson.md](https://github.com/pact-foundation/pact-reference/blob/master/rust/pact_ffi/IntegrationJson.md)
 ///
 /// # Safety
 /// The name and value parameters must be valid pointers to NULL terminated strings.
@@ -942,6 +944,7 @@ pub extern fn pactffi_with_pact_metadata(
 /// * `index` - the index of the value (starts at 0). You can use this to create a header with multiple values
 ///
 /// **DEPRECATED:** Use `pactffi_with_header_v2`, which deals with multiple values correctly
+#[deprecated]
 #[no_mangle]
 pub extern fn pactffi_with_header(
   interaction: InteractionHandle,
@@ -1044,6 +1047,7 @@ pub extern fn pactffi_with_header(
 /// const char* value = "{\"value\":\"2\", \"pact:matcher:type\":\"regex\", \"regex\":\"\\\\d+\"}";
 /// pactffi_with_header_v2(handle, InteractionPart::Request, "id", 0, value);
 /// ```
+/// See [IntegrationJson.md](https://github.com/pact-foundation/pact-reference/blob/master/rust/pact_ffi/IntegrationJson.md)
 ///
 /// # Safety
 /// The name and value parameters must be valid pointers to NULL terminated strings.
@@ -1147,7 +1151,8 @@ pub extern fn pactffi_response_status(interaction: InteractionHandle, status: c_
 /// * `part` - The part of the interaction to add the body to (Request or Response).
 /// * `content_type` - The content type of the body. Defaults to `text/plain`. Will be ignored if a content type
 ///   header is already set.
-/// * `body` - The body contents. For JSON payloads, matching rules can be embedded in the body.
+/// * `body` - The body contents. For JSON payloads, matching rules can be embedded in the body. See
+/// [IntegrationJson.md](https://github.com/pact-foundation/pact-reference/blob/master/rust/pact_ffi/IntegrationJson.md)
 ///
 /// For HTTP and async message interactions, this will overwrite the body. With asynchronous messages, the
 /// part parameter will be ignored. With synchronous messages, the request contents will be overwritten,
