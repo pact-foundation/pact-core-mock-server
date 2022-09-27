@@ -2377,4 +2377,41 @@ mod tests {
     expect!(body3.len()).to(be_equal_to(json.len()));
     expect!(interaction3.request.metadata.get("contentType").unwrap().to_string()).to(be_equal_to("\"application/json\""));
   }
+
+  #[test]
+  fn process_json_with_nested_rules() {
+    let mut rules = MatchingRules::default();
+    let mut category = rules.add_category("body");
+    let mut generators = Generators::default();
+    let json = json!({
+      "pact:matcher:type": "values",
+      "value": {
+        "some-string": {
+          "pact:matcher:type": "values",
+          "value": {
+            "some-string": {
+              "pact:matcher:type": "values",
+              "value": {
+                "some-string": {
+                  "pact:matcher:type": "type",
+                  "value": "some string"
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    let result = process_json(json.to_string(), &mut category, &mut generators);
+    expect!(result).to(be_equal_to("{\"some-string\":{\"some-string\":{\"some-string\":\"some string\"}}}"));
+    expect!(&rules).to(be_equal_to(&matchingrules! {
+      "body" => {
+        "$" => [ MatchingRule::Values ],
+        "$['some-string']" => [ MatchingRule::Values ],
+        "$['some-string']['some-string']" => [ MatchingRule::Values ],
+        "$['some-string']['some-string']['some-string']" => [ MatchingRule::Type ]
+      }
+    }));
+  }
 }
