@@ -1,6 +1,7 @@
 //! Functions to support processing request/response bodies
 
 use std::path::Path;
+use anyhow::anyhow;
 
 use bytes::Bytes;
 use log::*;
@@ -55,8 +56,31 @@ pub fn process_object(
   let result = if let Some(matcher_type) = obj.get("pact:matcher:type") {
     debug!("detected pact:matcher:type, will configure a matcher");
     if !skip_matchers {
-      let attributes = Value::Object(obj.clone());
-      let matching_rule = MatchingRule::create(json_to_string(matcher_type).as_str(), &attributes);
+      let matcher_type = json_to_string(matcher_type);
+      let matching_rule = match matcher_type.as_str() {
+        "arrayContains" | "array-contains" => match obj.get("variants") {
+          Some(Value::Array(variants)) => {
+            let values = variants.iter().enumerate().map(|(index, variant)| {
+              let mut category = MatchingRuleCategory::empty("body");
+              let mut generators = Generators::default();
+              match variant {
+                Value::Object(map) => {
+                  process_object(map, &mut category, &mut generators, DocPath::root(), false);
+                }
+                _ => warn!("arrayContains: JSON for variant {} is not correctly formed: {}", index, variant)
+              }
+              (index, category, generators.categories.get(&GeneratorCategory::BODY).cloned().unwrap_or_default())
+            }).collect();
+            Ok(MatchingRule::ArrayContains(values))
+          }
+          _ => Err(anyhow!("ArrayContains 'variants' attribute is missing or not an array"))
+        },
+        _ => {
+          let attributes = Value::Object(obj.clone());
+          MatchingRule::create(matcher_type.as_str(), &attributes)
+        }
+      };
+
       trace!("matching_rule = {matching_rule:?}");
       match &matching_rule {
         Ok(rule) => matching_rules.add_rule(path.clone(), rule.clone(), RuleLogic::And),
