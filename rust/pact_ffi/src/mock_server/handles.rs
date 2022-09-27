@@ -2408,9 +2408,9 @@ mod tests {
     expect!(&rules).to(be_equal_to(&matchingrules! {
       "body" => {
         "$" => [ MatchingRule::Values ],
-        "$['some-string']" => [ MatchingRule::Values ],
-        "$['some-string']['some-string']" => [ MatchingRule::Values ],
-        "$['some-string']['some-string']['some-string']" => [ MatchingRule::Type ]
+        "$.*" => [ MatchingRule::Values ],
+        "$.*.*" => [ MatchingRule::Values ],
+        "$.*.*.*" => [ MatchingRule::Type ]
       }
     }));
   }

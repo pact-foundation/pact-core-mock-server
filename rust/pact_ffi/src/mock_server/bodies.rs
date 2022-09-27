@@ -52,14 +52,16 @@ pub fn process_object(
 ) -> Value {
   trace!(">>> process_object(obj={obj:?}, matching_rules={matching_rules:?}, generators={generators:?}, path={path}, skip_matchers={skip_matchers})");
   debug!("Path = {path}");
-  let result = if obj.contains_key("pact:matcher:type") {
+  let result = if let Some(matcher_type) = obj.get("pact:matcher:type") {
     debug!("detected pact:matcher:type, will configure a matcher");
     if !skip_matchers {
-      let matching_rule = matcher_from_integration_json(obj);
+      let attributes = Value::Object(obj.clone());
+      let matching_rule = MatchingRule::create(json_to_string(matcher_type).as_str(), &attributes);
       trace!("matching_rule = {matching_rule:?}");
-      if let Some(rule) = &matching_rule {
-        matching_rules.add_rule(path.clone(), rule.clone(), RuleLogic::And);
-      }
+      match &matching_rule {
+        Ok(rule) => matching_rules.add_rule(path.clone(), rule.clone(), RuleLogic::And),
+        Err(err) => error!("Failed to parse matching rule from JSON - {}", err)
+      };
       if let Some(gen) = obj.get("pact:generator:type") {
         debug!("detected pact:generator:type, will configure a generators");
         if let Some(generator) = Generator::from_map(&json_to_string(gen), obj) {
@@ -76,7 +78,7 @@ pub fn process_object(
           generators.add_generator_with_subcategory(category, path.clone(), generator);
         }
       }
-      let (value, skip_matchers) = if let Some(rule) = matching_rule {
+      let (value, skip_matchers) = if let Ok(rule) = &matching_rule {
         match rule {
           MatchingRule::ArrayContains(_) => (obj.get("variants"), true),
           _ => (obj.get("value"), false)
@@ -108,12 +110,19 @@ pub fn process_object(
     Value::Object(obj.iter()
       .filter(|(key, _)| !key.starts_with("pact:"))
       .map(|(key, val)| {
-      let item_path = path.join(key);
-      (key.clone(), match val {
-        Value::Object(ref map) => process_object(map, matching_rules, generators, item_path, skip_matchers),
-        Value::Array(ref array) => process_array(array, matching_rules, generators, item_path, false, skip_matchers),
-        _ => val.clone()
-      })
+        let path_vec = path.to_vec();
+        let path_slice = path_vec.iter().map(|p| p.as_str()).collect::<Vec<_>>();
+        let matchers_for_path = matching_rules.resolve_matchers_for_path(path_slice.as_slice());
+        let item_path = if matchers_for_path.values_matcher_defined() {
+          path.join("*")
+        } else {
+          path.join(key)
+        };
+        (key.clone(), match val {
+          Value::Object(ref map) => process_object(map, matching_rules, generators, item_path, skip_matchers),
+          Value::Array(ref array) => process_array(array, matching_rules, generators, item_path, false, skip_matchers),
+          _ => val.clone()
+        })
     }).collect())
   };
   trace!("-> result = {result:?}");

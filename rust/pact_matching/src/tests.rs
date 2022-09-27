@@ -4,7 +4,7 @@ use expectest::prelude::*;
 
 use pact_models::{matchingrules, matchingrules_list};
 use pact_models::bodies::OptionalBody;
-use pact_models::content_types::TEXT;
+use pact_models::content_types::{JSON, TEXT};
 use pact_models::HttpStatus;
 use pact_models::request::Request;
 
@@ -390,6 +390,44 @@ async fn body_matches_with_extended_mime_types() {
   };
   let result = match_body(&expected, &actual, &CoreMatchingContext::default(), &CoreMatchingContext::default()).await;
   expect!(result.mismatches().iter()).to(be_empty());
+}
+
+#[tokio::test]
+async fn body_matches_with_nested_matchers() {
+  let expected = Request {
+    body: OptionalBody::Present(r#"{"some-string":{"some-string":{"some-string":"some string"}}}"#.into(), Some(JSON.clone()), None),
+    ..Request::default()
+  };
+  let actual = Request {
+    body: OptionalBody::Present(r#"{
+  "john-doe1": {
+    "brown-fox": {
+      "jumps": "over",
+      "the": "lazy dog"
+    }
+  },
+  "john-doe2": {
+    "brown-fox2": {
+      "jumps": "over",
+      "the": "lazy dog"
+    }
+  }
+}"#.into(), Some(JSON.clone()), None),
+    ..Request::default()
+  };
+  let rules = matchingrules! {
+    "body" => {
+      "$" => [ MatchingRule::Values ],
+      "$.*" => [ MatchingRule::Values ],
+      "$.*.*" => [ MatchingRule::Values ],
+      "$.*.*.*" => [ MatchingRule::Type ]
+    }
+  };
+  let category = rules.rules_for_category("body").unwrap();
+  let matching_context = CoreMatchingContext::new(DiffConfig::AllowUnexpectedKeys,
+    &category, &hashmap!{});
+  let result = match_body(&expected, &actual, &matching_context, &CoreMatchingContext::default()).await;
+  expect!(result.mismatches()).to(be_equal_to(vec![]));
 }
 
 #[test]
