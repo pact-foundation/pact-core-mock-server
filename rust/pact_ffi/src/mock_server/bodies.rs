@@ -130,6 +130,7 @@ pub fn process_object(
 }
 
 /// Builds a `MatchingRule` from a `Value` struct used by language integrations
+#[deprecated(note = "Replace with MatchingRule::create")]
 pub fn matcher_from_integration_json(m: &Map<String, Value>) -> Option<MatchingRule> {
   match m.get("pact:matcher:type") {
     Some(value) => {
