@@ -1,5 +1,14 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.12.12 - Maintenance Release
+
+* b8be05c1 - fix(FFI): Use a star for the path with values matcher #216 (Ronald Holshausen, Tue Sep 27 17:50:32 2022 +1000)
+* 60b2b642 - chore: Upgrade pact-plugin-driver to 0.1.12 (Ronald Holshausen, Mon Sep 12 17:44:13 2022 +1000)
+* fcab3016 - chore: Upgrade pact-plugin-driver to 0.1.11 (Ronald Holshausen, Thu Sep 8 11:28:52 2022 +1000)
+* ac4fe73f - chore: fix to release scripts (Ronald Holshausen, Wed Sep 7 10:51:01 2022 +1000)
+* f8db90d2 - fix: Upgrade pact_models to 0.4.5 - fixes FFI bug with generators for request paths (Ronald Holshausen, Fri Aug 26 11:44:08 2022 +1000)
+* 4524bcf9 - bump version to 0.12.12 (Ronald Holshausen, Thu Aug 18 15:01:27 2022 +1000)
+
 # 0.12.11 - Maintenance Release
 
 * 72f9f75d - chore: clean some deprecation warnings (Ronald Holshausen, Thu Aug 18 14:58:35 2022 +1000)
