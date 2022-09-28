@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.9.17 - Bugfix Release
+
+* b7bb9cd1 - chore: Upgrade pact_verifier crate to 0.13.14 (Ronald Holshausen, Wed Sep 28 10:34:48 2022 +1000)
+* b626002c - fix(pact_verifier_cli): stop using deprecated clap::parser::matches::arg_matches::ArgMatches::values_of_lossy (Jerry Wang, Sat Sep 24 01:36:05 2022 -0700)
+* ac4fe73f - chore: fix to release scripts (Ronald Holshausen, Wed Sep 7 10:51:01 2022 +1000)
+* 83b5ee79 - bump version to 0.9.17 (Ronald Holshausen, Wed Sep 7 09:56:33 2022 +1000)
+
 # 0.9.16 - Bugfix Release
 
 * cdb555f8 - fix: Upgrade pact_verifier to 0.13.13 (Ronald Holshausen, Wed Sep 7 09:53:05 2022 +1000)
