@@ -1,5 +1,21 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.3.12 - Bugfix Release
+
+* b7bb9cd1 - chore: Upgrade pact_verifier crate to 0.13.14 (Ronald Holshausen, Wed Sep 28 10:34:48 2022 +1000)
+* cf913949 - chore: update the list of matcher types (Ronald Holshausen, Wed Sep 28 10:20:18 2022 +1000)
+* 02d9e2cb - chore: Upgrade pact matching crate to 0.12.12 (Ronald Holshausen, Wed Sep 28 10:11:11 2022 +1000)
+* c96bd173 - chore(FFI): Array contains variants need to be recursivly processed #216 (Ronald Holshausen, Wed Sep 28 09:18:50 2022 +1000)
+* 6fac3c80 - chore(FFI): add deprecation notice to matcher_from_integration_json (Ronald Holshausen, Tue Sep 27 17:59:39 2022 +1000)
+* b8be05c1 - fix(FFI): Use a star for the path with values matcher #216 (Ronald Holshausen, Tue Sep 27 17:50:32 2022 +1000)
+* 937db6af - chore(FFI): add test with nested matching rules #216 (Ronald Holshausen, Tue Sep 27 16:34:27 2022 +1000)
+* 7d906324 - chore: document the FFI integration JSON format (Ronald Holshausen, Tue Sep 27 15:38:43 2022 +1000)
+* 671e58fc - chore: display the JSON when we can not parse it (Ronald Holshausen, Tue Sep 13 14:19:50 2022 +1000)
+* 60b2b642 - chore: Upgrade pact-plugin-driver to 0.1.12 (Ronald Holshausen, Mon Sep 12 17:44:13 2022 +1000)
+* ac4fe73f - chore: fix to release scripts (Ronald Holshausen, Wed Sep 7 10:51:01 2022 +1000)
+* b6ab1785 - chore: correct cargo manifest after release (Ronald Holshausen, Wed Sep 7 10:46:44 2022 +1000)
+* 333bb92a - bump version to 0.3.12 (Ronald Holshausen, Wed Sep 7 10:44:40 2022 +1000)
+
 # 0.3.11 - Bugfix Release
 
 * cdb555f8 - fix: Upgrade pact_verifier to 0.13.13 (Ronald Holshausen, Wed Sep 7 09:53:05 2022 +1000)
