@@ -1466,9 +1466,9 @@ dependencies = [
 
 [[package]]
 name = "pact_matching"
-version = "0.12.11"
+version = "0.12.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "31f1fe644cd8a3730dcf38c4d5861de8c5d9eca52c9ea17112fdc505071b65a1"
+checksum = "93c75600482ea6c2d4aadba776056602da934a60bb2693af9ee8898a4764345f"
 dependencies = [
  "ansi_term",
  "anyhow",
@@ -1711,7 +1711,7 @@ dependencies = [
  "maplit",
  "mime",
  "pact-plugin-driver",
- "pact_matching 0.12.11",
+ "pact_matching 0.12.12",
  "pact_models 0.4.5",
  "regex",
  "reqwest",
