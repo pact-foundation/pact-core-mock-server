@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.13.14 - Maintenance Release
+
+* 02d9e2cb - chore: Upgrade pact matching crate to 0.12.12 (Ronald Holshausen, Wed Sep 28 10:11:11 2022 +1000)
+* b8d263f7 - fix(verifier): fix typos in the implementation of Display on the PactSource enum (Jerry Wang, Wed Sep 21 22:32:56 2022 -0700)
+* 60b2b642 - chore: Upgrade pact-plugin-driver to 0.1.12 (Ronald Holshausen, Mon Sep 12 17:44:13 2022 +1000)
+* ac4fe73f - chore: fix to release scripts (Ronald Holshausen, Wed Sep 7 10:51:01 2022 +1000)
+* c13c3f42 - bump version to 0.13.14 (Ronald Holshausen, Wed Sep 7 09:50:47 2022 +1000)
+
 # 0.13.13 - Bugfix Release
 
 * 7f51bdc6 - fix: publishing provider branch was broken when invoked via a webhook call (Ronald Holshausen, Tue Sep 6 18:15:16 2022 +1000)
