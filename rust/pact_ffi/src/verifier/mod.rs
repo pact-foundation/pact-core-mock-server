@@ -22,7 +22,7 @@ use pact_verifier::selectors::{consumer_tags_to_selectors, json_to_selectors};
 
 use crate::{as_mut, as_ref, ffi_fn, safe_str};
 use crate::ptr;
-use crate::util::string::if_null;
+use crate::util::string::{if_null, optional_str};
 
 mod args;
 pub mod verifier;
@@ -156,6 +156,35 @@ ffi_fn! {
       let path = if_null(path, "/");
 
       handle.update_provider_info(name, scheme, host, port as u16, path);
+    }
+}
+
+ffi_fn! {
+    /// Adds a new transport for the given provider. Passing a NULL for any field will
+    /// use the default value for that field.
+    ///
+    /// For non-plugin based message interactions, set protocol to "message" and set scheme
+    /// to an empty string or "https" if secure HTTP is required. Communication to the calling
+    /// application will be over HTTP to the default provider hostname.
+    ///
+    /// # Safety
+    ///
+    /// All string fields must contain valid UTF-8. Invalid UTF-8
+    /// will be replaced with U+FFFD REPLACEMENT CHARACTER.
+    ///
+    fn pactffi_verifier_add_provider_transport(
+      handle: *mut handle::VerifierHandle,
+      protocol: *const c_char,
+      port: c_ushort,
+      path: *const c_char,
+      scheme: *const c_char
+    ) {
+      let handle = as_mut!(handle);
+      let protocol = if_null(protocol, "");
+      let scheme = optional_str(scheme);
+      let path = if_null(path, "/");
+
+      handle.add_transport(protocol, port as u16, path, scheme);
     }
 }
 

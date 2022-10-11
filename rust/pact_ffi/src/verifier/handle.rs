@@ -65,6 +65,25 @@ impl VerifierHandle {
     self.provider.clone()
   }
 
+  /// Add a new transport to the verification process
+  pub fn add_transport(
+    &mut self,
+    protocol: String,
+    port: u16,
+    path: String,
+    scheme: Option<String>
+  ) {
+
+    let transport = ProviderTransport {
+      transport: protocol,
+      port: Some(port),
+      path: if path.is_empty() { None } else { Some(path) },
+      scheme: scheme
+    };
+
+    self.provider.transports.push(transport);
+  }
+
   /// Update the provider info
   #[allow(deprecated)]
   pub fn update_provider_info(
