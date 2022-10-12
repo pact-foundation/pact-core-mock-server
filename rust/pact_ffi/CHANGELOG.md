@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.3.13 - Bugfix Release
+
+* eb505b7f - Merge pull request #221 from pact-foundation/feat/multiple-transports-in-ffi (Matt Fellows, Wed Oct 12 10:11:15 2022 +1100)
+* 965a1c41 - fix: Upgrade plugin driver to 0.1.13 (fixes issue loading plugin when there are multiple versions for the same plugin) (Ronald Holshausen, Wed Oct 5 17:29:37 2022 +1100)
+* dda213e3 - feat(ffi): support adding transports to provider via pactffi_verifier_add_provider_transport (Matt Fellows, Wed Oct 5 10:49:07 2022 +1100)
+* 2014c432 - bump version to 0.3.13 (Ronald Holshausen, Wed Sep 28 10:54:32 2022 +1000)
+
 # 0.3.12 - Bugfix Release
 
 * b7bb9cd1 - chore: Upgrade pact_verifier crate to 0.13.14 (Ronald Holshausen, Wed Sep 28 10:34:48 2022 +1000)
