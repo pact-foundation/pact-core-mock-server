@@ -215,10 +215,14 @@ ffi_fn! {
 }
 
 ffi_fn! {
-    /// Set the provider state for the Pact verifier.
+    /// Set the provider state URL for the Pact verifier.
     ///
-    /// `teardown` is a boolean value. Set it to greater than zero to turn the option on.
-    /// `body` is a boolean value. Set it to greater than zero to turn the option on.
+    /// `teardown` is a boolean value. If teardown state change requests should be made after an
+    /// interaction is validated (default is false). Set it to greater than zero to turn the
+    /// option on.
+    /// `body` is a boolean value. Sets if state change request data should be sent in the body
+    /// (> 0, true) or as query parameters (== 0, false). Set it to greater than zero to turn the
+    /// option on.
     ///
     /// # Safety
     ///
