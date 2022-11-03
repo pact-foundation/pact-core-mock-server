@@ -171,6 +171,13 @@ async fn match_result_to_hyper_response(
     )
   };
 
+  let origin = match request.headers.clone() {
+    Some(ref h) => h.iter()
+      .find(|kv| kv.0.to_lowercase() == "origin")
+      .map(|kv| kv.1.clone().join(", ")).unwrap_or("*".to_string()),
+    None => "*".to_string()
+  };
+
   match match_result {
     MatchResult::RequestMatch(_, ref response) => {
       debug!("Test context = {:?}", context);
@@ -182,10 +189,11 @@ async fn match_result_to_hyper_response(
 
       let mut builder = Response::builder()
         .status(response.status)
-        .header(hyper::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+        .header(hyper::header::ACCESS_CONTROL_ALLOW_ORIGIN, &origin)
         .header(hyper::header::ACCESS_CONTROL_ALLOW_HEADERS, "*")
         .header(hyper::header::ACCESS_CONTROL_ALLOW_METHODS, "GET, HEAD, POST, PUT, DELETE, CONNECT, OPTIONS, TRACE, PATCH")
-        .header(hyper::header::ACCESS_CONTROL_EXPOSE_HEADERS, "Location, Link");
+        .header(hyper::header::ACCESS_CONTROL_EXPOSE_HEADERS, "Location, Link")
+        .header(hyper::header::ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
 
       set_hyper_headers(&mut builder, &response.headers)?;
 
@@ -199,12 +207,6 @@ async fn match_result_to_hyper_response(
       debug!("Request did not match: {}", match_result);
       if cors_preflight && request.method.to_uppercase() == "OPTIONS" {
         info!("Responding to CORS pre-flight request");
-        let origin = match request.headers.clone() {
-          Some(ref h) => h.iter()
-            .find(|kv| kv.0.to_lowercase() == "referer")
-            .map(|kv| kv.1.clone().join(", ")).unwrap_or("*".to_string()),
-          None => "*".to_string()
-        };
         let cors_headers = match request.headers.clone() {
           Some(ref h) => h.iter()
             .find(|kv| kv.0.to_lowercase() == "access-control-request-headers")
@@ -214,10 +216,11 @@ async fn match_result_to_hyper_response(
 
         Response::builder()
           .status(204)
-          .header(hyper::header::ACCESS_CONTROL_ALLOW_ORIGIN, origin)
+          .header(hyper::header::ACCESS_CONTROL_ALLOW_ORIGIN, &origin)
           .header(hyper::header::ACCESS_CONTROL_ALLOW_METHODS, "GET, HEAD, POST, PUT, DELETE, CONNECT, OPTIONS, TRACE, PATCH")
           .header(hyper::header::ACCESS_CONTROL_ALLOW_HEADERS, cors_headers)
           .header(hyper::header::ACCESS_CONTROL_EXPOSE_HEADERS, "Location, Link")
+          .header(hyper::header::ACCESS_CONTROL_ALLOW_CREDENTIALS, "true")
           .body(Body::empty())
           .map_err(|_| InteractionError::ResponseBodyError)
       } else {
