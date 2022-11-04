@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.4.6 - Maintenance Release
+
+* 6ad00a5d - fix: Update onig to latest master to fix  Regex Matcher Fails On Valid Inputs #214 (Ronald Holshausen, Fri Nov 4 15:23:50 2022 +1100)
+* ac4fe73f - chore: fix to release scripts (Ronald Holshausen, Wed Sep 7 10:51:01 2022 +1000)
+* bcdc6443 - bump version to 0.4.6 (Ronald Holshausen, Fri Aug 26 11:39:48 2022 +1000)
+
 # 0.4.5 - Bugfix Release
 
 * b6bba540 - fix(FFI): FFI passes matching rules and generators for paths etc. with a path of $ (Ronald Holshausen, Fri Aug 26 11:22:19 2022 +1000)
