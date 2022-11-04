@@ -291,18 +291,18 @@ fn match_query_returns_a_mismatch_if_the_values_do_not_match_by_a_matcher() {
 #[tokio::test]
 async fn body_does_not_match_if_different_content_types() {
   let expected = Request {
-    method: s!("GET"),
-    path: s!("/"),
+    method: "GET".to_string(),
+    path: "/".to_string(),
     query: None,
-    headers: Some(hashmap! { s!("Content-Type") => vec![s!("application/json")] }),
+    headers: Some(hashmap! { "Content-Type".to_string() => vec!["application/json".to_string()] }),
     body: OptionalBody::Present(Bytes::new(), None, None),
     ..Request::default()
   };
   let actual = Request {
-    method: s!("GET"),
-    path: s!("/"),
+    method: "GET".to_string(),
+    path: "/".to_string(),
     query: None,
-    headers: Some(hashmap! { s!("Content-Type") => vec![s!("text/plain")] }),
+    headers: Some(hashmap! { "Content-Type".to_string() => vec!["text/plain".to_string()] }),
     body: OptionalBody::Missing,
     ..Request::default()
   };
@@ -311,9 +311,9 @@ async fn body_does_not_match_if_different_content_types() {
   let mismatches = result.mismatches();
   expect!(mismatches.iter()).to_not(be_empty());
   expect!(mismatches[0].clone()).to(be_equal_to(Mismatch::BodyTypeMismatch {
-    expected: s!("application/json"),
-    actual: s!("text/plain"),
-    mismatch: s!(""),
+    expected: "application/json".to_string(),
+    actual: "text/plain".to_string(),
+    mismatch: "".to_string(),
     expected_body: None,
     actual_body: None
   }));
@@ -322,18 +322,18 @@ async fn body_does_not_match_if_different_content_types() {
 #[tokio::test]
 async fn body_matching_uses_any_matcher_for_content_type_header() {
   let expected = Request {
-    method: s!("GET"),
-    path: s!("/"),
+    method: "GET".to_string(),
+    path: "/".to_string(),
     query: None,
-    headers: Some(hashmap! { s!("Content-Type") => vec![s!("application/json")] }),
+    headers: Some(hashmap! { "Content-Type".to_string() => vec!["application/json".to_string()] }),
     body: OptionalBody::Present(Bytes::from("100"), None, None),
     ..Request::default()
   };
   let actual = Request {
-    method: s!("GET"),
-    path: s!("/"),
+    method: "GET".to_string(),
+    path: "/".to_string(),
     query: None,
-    headers: Some(hashmap! { s!("Content-Type") => vec![s!("application/hal+json")] }),
+    headers: Some(hashmap! { "Content-Type".to_string() => vec!["application/hal+json".to_string()] }),
     body: OptionalBody::Present(Bytes::from("100"), None, None),
     ..Request::default()
   };
@@ -351,18 +351,18 @@ async fn body_matching_uses_any_matcher_for_content_type_header() {
 #[tokio::test]
 async fn body_matches_if_expected_is_missing() {
   let expected = Request {
-    method: s!("GET"),
-    path: s!("/"),
+    method: "GET".to_string(),
+    path: "/".to_string(),
     query: None,
-    headers: Some(hashmap! { s!("Content-Type") => vec![s!("application/json")] }),
+    headers: Some(hashmap! { "Content-Type".to_string() => vec!["application/json".to_string()] }),
     body: OptionalBody::Missing,
     ..Request::default()
   };
   let actual = Request {
-    method: s!("GET"),
-    path: s!("/"),
+    method: "GET".to_string(),
+    path: "/".to_string(),
     query: None,
-    headers: Some(hashmap! { s!("Content-Type") => vec![s!("application/json")] }),
+    headers: Some(hashmap! { "Content-Type".to_string() => vec!["application/json".to_string()] }),
     body: OptionalBody::Present("{}".into(), None, None),
     ..Request::default()
   };
@@ -373,23 +373,43 @@ async fn body_matches_if_expected_is_missing() {
 #[tokio::test]
 async fn body_matches_with_extended_mime_types() {
   let expected = Request {
-    method: s!("GET"),
-    path: s!("/"),
+    method: "GET".to_string(),
+    path: "/".to_string(),
     query: None,
-    headers: Some(hashmap! { s!("Content-Type") => vec![s!("application/thrift+json")] }),
+    headers: Some(hashmap! { "Content-Type".to_string() => vec!["application/thrift+json".to_string()] }),
+    body: OptionalBody::Present(r#"{"test":true}"#.into(), None, None),
+    ..Request::default()
+  };
+  let expected2 = Request {
+    method: "GET".to_string(),
+    path: "/".to_string(),
+    query: None,
+    headers: Some(hashmap! { "Content-Type".to_string() => vec!["application/json".to_string()] }),
     body: OptionalBody::Present(r#"{"test":true}"#.into(), None, None),
     ..Request::default()
   };
   let actual = Request {
-    method: s!("GET"),
-    path: s!("/"),
+    method: "GET".to_string(),
+    path: "/".to_string(),
     query: None,
-    headers: Some(hashmap! { s!("Content-Type") => vec![s!("application/thrift+json")] }),
+    headers: Some(hashmap! { "Content-Type".to_string() => vec!["application/thrift+json".to_string()] }),
+    body: OptionalBody::Present(r#"{"test": true}"#.into(), None, None),
+    ..Request::default()
+  };
+  let actual2 = Request {
+    method: "GET".to_string(),
+    path: "/".to_string(),
+    query: None,
+    headers: Some(hashmap! { "Content-Type".to_string() => vec!["application/json".to_string()] }),
     body: OptionalBody::Present(r#"{"test": true}"#.into(), None, None),
     ..Request::default()
   };
   let result = match_body(&expected, &actual, &CoreMatchingContext::default(), &CoreMatchingContext::default()).await;
   expect!(result.mismatches().iter()).to(be_empty());
+  let result2 = match_body(&expected, &actual2, &CoreMatchingContext::default(), &CoreMatchingContext::default()).await;
+  expect!(result2.mismatches().iter()).to_not(be_empty());
+  let result3 = match_body(&expected2, &actual, &CoreMatchingContext::default(), &CoreMatchingContext::default()).await;
+  expect!(result3.mismatches().iter()).to(be_empty());
 }
 
 #[tokio::test]

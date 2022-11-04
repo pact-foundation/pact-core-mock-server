@@ -1365,6 +1365,7 @@ pub async fn match_body(
   debug!("content type header matcher = '{:?}'", content_type_matcher);
   if expected_content_type.is_unknown() || actual_content_type.is_unknown() ||
     expected_content_type.is_equivalent_to(&actual_content_type) ||
+    expected_content_type.is_equivalent_to(&actual_content_type.base_type()) ||
     (!content_type_matcher.is_empty() &&
       match_header_value("Content-Type", expected_content_type.to_string().as_str(),
                          actual_content_type.to_string().as_str(), header_context).is_ok()) {
