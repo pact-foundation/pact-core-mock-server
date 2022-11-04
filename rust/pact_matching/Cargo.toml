@@ -15,12 +15,13 @@ exclude = [
 ]
 
 [dependencies]
-pact_models = "0.4.5"
+pact_models = { version = "0.4.6", path = "../pact_models" }
 anyhow = "1.0.57"
 serde = { version = "^1.0", features = ["derive"] }
 serde_json = "^1.0"
 hex = "0.4.3"
-onig = { version = "6.3.1", default-features = false }
+#onig = { version = "6.4.0", default-features = false }
+onig = { git = "https://github.com/rust-onig/rust-onig", default-features = false }
 maplit = "1.0.2"
 lazy_static = "1.4.0"
 semver = "1.0.9"

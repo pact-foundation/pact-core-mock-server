@@ -17,7 +17,7 @@ exclude = [
 ansi_term = "0.12.1"
 anyhow = "1.0.57"
 pact_matching = { version = "0.12.12", path = "../pact_matching" }
-pact_models = "0.4.5"
+pact_models = { version = "0.4.6", path = "../pact_models" }
 pact_mock_server = { version = "0.9.3", path = "../pact_mock_server" }
 pact_verifier = { version = "0.13.14", path = "../pact_verifier" }
 libc = "0.2.125"
@@ -33,7 +33,8 @@ chrono = "0.4.19"
 chrono-tz = "=0.6.1" # Pinned this version as 0.6.2 has a dependency that does not compile on Alpine
 env_logger = "0.9.0"
 itertools = "0.10.3"
-onig = { version = "6.3.1", default-features = false }
+#onig = { version = "6.4.0", default-features = false }
+onig = { git = "https://github.com/rust-onig/rust-onig", default-features = false }
 uuid = { version = "1.1.2", features = ["v4"] }
 multipart = { version = "0.18.0", default-features = false, features = ["client", "mock"] }
 rand_regex = "0.15.1"

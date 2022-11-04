@@ -896,13 +896,18 @@ mod tests {
 
     #[test]
     fn regex_matcher_test() {
-        let matcher = MatchingRule::Regex("^\\d+$".to_string());
-        expect!("100".matches_with("100", &matcher, false)).to(be_ok());
-        expect!("100".matches_with("10a", &matcher, false)).to(be_err());
-        expect!("100".matches_with(100, &matcher, false)).to(be_ok());
-        expect!(100.matches_with(100, &matcher, false)).to(be_ok());
-        expect!(100.matches_with(100.01f64, &matcher, false)).to(be_err());
-        expect!(100.1f64.matches_with(100.02f64, &matcher, false)).to(be_err());
+      let matcher = MatchingRule::Regex("^\\d+$".to_string());
+      expect!("100".matches_with("100", &matcher, false)).to(be_ok());
+      expect!("100".matches_with("10a", &matcher, false)).to(be_err());
+      expect!("100".matches_with(100, &matcher, false)).to(be_ok());
+      expect!(100.matches_with(100, &matcher, false)).to(be_ok());
+      expect!(100.matches_with(100.01f64, &matcher, false)).to(be_err());
+      expect!(100.1f64.matches_with(100.02f64, &matcher, false)).to(be_err());
+
+      // Test for Issue #214
+      let matcher = MatchingRule::Regex("^Greater|GreaterOrEqual$".to_string());
+      expect!("Greater".matches_with("Greater", &matcher, false)).to(be_ok());
+      expect!("Greater".matches_with("GreaterOrEqual", &matcher, false)).to(be_ok());
     }
 
     #[test]

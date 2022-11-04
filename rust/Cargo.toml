@@ -7,7 +7,7 @@ members = [
     "pact_consumer",
     "pact_verifier",
     "pact_verifier_cli",
-    "pact_cli",
+#    "pact_cli",
     "pact_ffi"
 ]
 exclude = [
