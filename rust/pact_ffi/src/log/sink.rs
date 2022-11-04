@@ -87,7 +87,7 @@ impl<'a> TryFrom<&'a str> for Sink {
 /// An error arising from attempting to parse a sink specifier string.
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum SinkSpecifierError {
-    #[error("unknown logger sink type (was '{name}', should be \"stdout\"/\"stderr\"/or \"file <file path>\")")]
+    #[error("unknown logger sink type (was '{name}', should be \"stdout\", /\"stderr\", /\"buffer\"/or \"file <file path>\")")]
     UnknownSinkType { name: String },
 
     #[error("missing path in file sink specifier")]

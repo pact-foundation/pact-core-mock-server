@@ -12,6 +12,7 @@ use tracing_log::AsTrace;
 use tracing_subscriber::fmt::writer::{BoxMakeWriter, MakeWriterExt};
 use tracing_subscriber::FmtSubscriber;
 use tracing_subscriber::util::SubscriberInitExt;
+
 use crate::log::sink::Sink;
 
 thread_local! {
@@ -69,12 +70,55 @@ pub(crate) fn apply_logger() -> anyhow::Result<()> {
 
 fn sink_to_make_writer(sink: &str, level: &LevelFilter) -> BoxMakeWriter {
   // Safe to unwrap here, as the previous FFI step would have validated the sink and returned
-  // an error back to the caller if the sink could not be constructed. Also the level filter will
-  // never create a level that can't be unwrapped
+  // an error back to the caller if the sink could not be constructed.
+  let lvl = level.as_trace().into_level();
   match Sink::try_from(sink).unwrap() {
-    Sink::Stdout(_) => BoxMakeWriter::new(stdout.with_max_level(level.as_trace().into_level().unwrap())),
-    Sink::Stderr(_) => BoxMakeWriter::new(stderr.with_max_level(level.as_trace().into_level().unwrap())),
-    Sink::File(f) => BoxMakeWriter::new(f.with_max_level(level.as_trace().into_level().unwrap())),
-    Sink::Buffer(b) => BoxMakeWriter::new(b.with_max_level(level.as_trace().into_level().unwrap()))
+    Sink::Stdout(_) => {
+      if let Some(lvl) = lvl {
+        BoxMakeWriter::new(stdout.with_max_level(lvl))
+      } else {
+        BoxMakeWriter::new(stdout.with_filter(|_| false))
+      }
+    },
+    Sink::Stderr(_) => {
+      if let Some(lvl) = lvl {
+        BoxMakeWriter::new(stderr.with_max_level(lvl))
+      } else {
+        BoxMakeWriter::new(stderr.with_filter(|_| false))
+      }
+    },
+    Sink::File(f) => {
+      if let Some(lvl) = lvl {
+        BoxMakeWriter::new(f.with_max_level(lvl))
+      } else {
+        BoxMakeWriter::new(f.with_filter(|_| false))
+      }
+    },
+    Sink::Buffer(b) => {
+      if let Some(lvl) = lvl {
+        BoxMakeWriter::new(b.with_max_level(lvl))
+      } else {
+        BoxMakeWriter::new(b.with_filter(|_| false))
+      }
+    }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use log::LevelFilter;
+  use tempfile::tempdir;
+
+  use crate::log::logger::sink_to_make_writer;
+
+  #[test]
+  fn sink_to_make_writer_with_level_off() {
+    let dir = tempdir().unwrap();
+    let file_path = dir.path().join("test.log");
+    sink_to_make_writer("stdout", &LevelFilter::Off);
+    sink_to_make_writer("stderr", &LevelFilter::Off);
+    sink_to_make_writer("buffer", &LevelFilter::Off);
+    let s = format!("file {}", file_path.to_string_lossy());
+    sink_to_make_writer(s.as_str(), &LevelFilter::Off);
   }
 }

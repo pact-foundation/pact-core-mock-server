@@ -309,3 +309,22 @@ pub unsafe extern "C" fn pactffi_fetch_log_buffer(log_id: *const c_char) -> *con
     }
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use std::ffi::CString;
+
+  use expectest::prelude::*;
+
+  use crate::log::level_filter::LevelFilter;
+  use crate::log::pactffi_logger_attach_sink;
+
+  #[test]
+  fn pactffi_logger_attach_sink_with_log_level_off() {
+    let sink = CString::new("stderr").unwrap();
+    let result = unsafe {
+      pactffi_logger_attach_sink(sink.as_ptr(), LevelFilter::Off)
+    };
+    expect!(result).to(be_equal_to(0));
+  }
+}
