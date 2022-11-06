@@ -1,10 +1,10 @@
 [package]
 name = "pact_models"
-version = "0.4.7"
-authors = ["Ronald Holshausen <rholshausen@dius.com.au>"]
+version = "1.0.0"
+authors = ["Ronald Holshausen <ronald.holshausen@gmail.com>"]
 edition = "2021"
 description = "Pact-Rust support library that provides the core models for dealing with Pact files"
-homepage = "http://www.pact.io"
+homepage = "https://www.pact.io"
 repository = "https://github.com/pact-foundation/pact-reference/blob/master/rust/pact_models"
 readme = "README.md"
 keywords = ["testing", "pact", "cdc"]
@@ -15,49 +15,49 @@ exclude = [
 build = "build.rs"
 
 [dependencies]
-anyhow = "1.0.57"
+anyhow = "1.0.66"
 serde = { version = "^1.0", features = ["derive"] }
 serde_json = "^1.0"
 maplit = "1.0.2"
-itertools = "0.10.3"
+itertools = "0.10.5"
 bytes = { version = "1", features = ["serde"] }
 lazy_static = "1.4.0"
 mime = "0.3.16"
-base64 = "0.13.0"
-regex = "1.5.5"
+base64 = "0.13.1"
+regex = "1.6.0"
 nom = "7.1.1"
-chrono = { version = "0.4.19", features = ["std", "clock"], default-features = false }
-chrono-tz = "0.6.1"
+chrono = { version = "0.4.22", features = ["std", "clock"], default-features = false }
+chrono-tz = "0.8.0"
 lenient_semver = "0.4.2"
 sxd-document = "0.3.2"
-indextree = "4.4.0"
+indextree = "4.5.0"
 rand = "0.8.5"
 hex = "0.4.3"
 rand_regex = "0.15.1"
-regex-syntax = "0.6.25"
-logos = "0.12.0"
-logos-iter = "0.1.2"
+regex-syntax = "0.6.27"
+logos = "0.12.1"
+logos-iter = "0.1.3"
 ariadne = "0.1.5"
-semver = "1.0.9"
-tracing = "=0.1.36" # This needs to be the same version across all the libs (i.e. plugin driver)
+semver = "1.0.14"
+tracing = "0.1.37" # This needs to be the same version across all the libs (i.e. Pact FFI and plugin driver)
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 fs2 = "0.4.3"
 onig = { version = "6.4.0", default-features = false }
-reqwest = { version = "0.11.10", default-features = false, features = ["rustls-tls-native-roots", "blocking", "json"] }
-uuid = { version = "1.1.2", features = ["v4"] }
+reqwest = { version = "0.11.12", default-features = false, features = ["rustls-tls-native-roots", "blocking", "json"] }
+uuid = { version = "1.2.1", features = ["v4"] }
 
 [target.'cfg(target_family = "wasm")'.dependencies]
-uuid = { version = "1.1.2", features = ["v4"] }
+uuid = { version = "1.2.1", features = ["v4"] }
 
 [dev-dependencies]
 expectest = "0.12.0"
-env_logger = "0.9.0"
+env_logger = "0.9.1"
 speculate = "0.1.2"
 rstest = "0.15.0"
 hamcrest2 = "0.3.0"
-test-log = "0.2.10"
-pretty_assertions = "1.2.1"
+test-log = "0.2.11"
+pretty_assertions = "1.3.0"
 trim-margin = "0.1.0"
 
 [build-dependencies]
