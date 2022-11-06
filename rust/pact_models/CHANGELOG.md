@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.0 - Maintenance Release
+
+* f91dc00d - fix: try loosen dependencies to fix dependency cycle issue (Ronald Holshausen, Mon Nov 7 10:15:19 2022 +1100)
+* 87430af9 - chore: set onig to the crate version (Ronald Holshausen, Fri Nov 4 16:41:32 2022 +1100)
+* 0bd3f51b - bump version to 0.4.7 (Ronald Holshausen, Fri Nov 4 15:50:52 2022 +1100)
+
 # 0.4.6 - Maintenance Release
 
 * 6ad00a5d - fix: Update onig to latest master to fix  Regex Matcher Fails On Valid Inputs #214 (Ronald Holshausen, Fri Nov 4 15:23:50 2022 +1100)
