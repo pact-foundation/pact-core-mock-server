@@ -338,7 +338,7 @@ mod args;
 pub async fn handle_cli(version: &str) -> Result<(), i32> {
   let args: Vec<String> = env::args().collect();
   let program = args[0].clone();
-  let app = args::setup_app(program, version);
+  let app = args::setup_app(program.as_str(), version);
   let matches = app
     .setting(AppSettings::ArgRequiredElseHelp)
     .setting(AppSettings::ColoredHelp)
@@ -634,7 +634,7 @@ mod tests {
   #[test]
   #[allow(deprecated)]
   fn parse_provider_args_defaults() {
-    let args = args::setup_app("test".to_string(), "1.0.0");
+    let args = args::setup_app("test", "1.0.0");
     let matches = args.get_matches_from_safe(vec!["test", "-f", "test"]).unwrap();
     let provider = configure_provider(&matches);
 
@@ -648,7 +648,7 @@ mod tests {
   #[test]
   #[allow(deprecated)]
   fn parse_provider_args() {
-    let args = args::setup_app("test".to_string(), "1.0.0");
+    let args = args::setup_app("test", "1.0.0");
     let matches = args.get_matches_from_safe(vec![
       "test", "-f", "test", "-h", "test.com", "-p", "1234", "-n", "test", "--transport", "https",
       "--base-path", "/base/path"
@@ -665,7 +665,7 @@ mod tests {
   #[test]
   #[allow(deprecated)]
   fn parse_provider_args_with_old_alias() {
-    let args = args::setup_app("test".to_string(), "1.0.0");
+    let args = args::setup_app("test", "1.0.0");
     let matches = args.get_matches_from_safe(vec![
       "test", "-f", "test", "--scheme", "https"
     ]).unwrap();

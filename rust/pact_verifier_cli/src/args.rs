@@ -19,7 +19,7 @@ fn transport_value(v: &str) -> Result<(String, u16), String> {
     .map_err(|e| format!("'{}' is not a valid port value: {}", port, e) )
 }
 
-pub(crate) fn setup_app(program: String, version: &str) -> App {
+pub(crate) fn setup_app<'a>(program: &'a str, version: &'a str) -> App<'a> {
   App::new(program)
     .version(version)
     .about("Standalone Pact verifier")
@@ -278,6 +278,7 @@ pub(crate) fn setup_app(program: String, version: &str) -> App {
 mod test {
   use super::{integer_value, port_value, transport_value};
   use expectest::prelude::*;
+  use crate::args::setup_app;
 
   #[test]
   fn validates_port_value() {
@@ -299,5 +300,10 @@ mod test {
     expect!(transport_value("x:")).to(be_err());
     expect!(transport_value("x:x")).to(be_err());
     expect!(transport_value("x:1234x")).to(be_err());
+  }
+
+  #[test]
+  fn verify_cli() {
+    setup_app("test", "1.0").debug_assert();
   }
 }
