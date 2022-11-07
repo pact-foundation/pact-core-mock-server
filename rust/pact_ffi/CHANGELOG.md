@@ -2,19 +2,6 @@ To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD 
 
 # 0.3.13 - Bugfix Release
 
-* d6ea8357 - chore: Upgrade all dependencies (Ronald Holshausen, Mon Nov 7 14:58:56 2022 +1100)
-* f43e7851 - chore: Upgrade pact_verifier to 0.13.15 (Ronald Holshausen, Mon Nov 7 14:13:26 2022 +1100)
-* a3110bd6 - chore: Upgrade pact_mock_server to 0.9.4 (Ronald Holshausen, Mon Nov 7 11:50:05 2022 +1100)
-* 123060e3 - chore: Upgrade pact_matching to 0.12.14 (Ronald Holshausen, Mon Nov 7 11:34:36 2022 +1100)
-* 577824e7 - fix: Upgrade pact_models to 1.0 and pact-plugin-driver to 0.1.15 to fix cyclic dependency issue (Ronald Holshausen, Mon Nov 7 11:14:20 2022 +1100)
-* e1f985ad - chore: Upgrade pact_models to 0.4.6 and pact-plugin-driver to 0.1.14 (Ronald Holshausen, Fri Nov 4 16:38:36 2022 +1100)
-* 6ad00a5d - fix: Update onig to latest master to fix  Regex Matcher Fails On Valid Inputs #214 (Ronald Holshausen, Fri Nov 4 15:23:50 2022 +1100)
-* d976db0c - fix: panicked at 'called  on a  value' when FFI LevelFilter == Off #226 (Ronald Holshausen, Fri Nov 4 13:47:20 2022 +1100)
-* 9dad5d2a - fix: ffi.pactffi_logger_attach_sink causes seg fault if log directory doesn't exist #226 (Ronald Holshausen, Fri Nov 4 12:26:15 2022 +1100)
-* 3bc69045 - chore: correct FFI function doc comments (Ronald Holshausen, Wed Nov 2 10:36:46 2022 +1100)
-
-# 0.3.13 - Bugfix Release
-
 * eb505b7f - Merge pull request #221 from pact-foundation/feat/multiple-transports-in-ffi (Matt Fellows, Wed Oct 12 10:11:15 2022 +1100)
 * 965a1c41 - fix: Upgrade plugin driver to 0.1.13 (fixes issue loading plugin when there are multiple versions for the same plugin) (Ronald Holshausen, Wed Oct 5 17:29:37 2022 +1100)
 * dda213e3 - feat(ffi): support adding transports to provider via pactffi_verifier_add_provider_transport (Matt Fellows, Wed Oct 5 10:49:07 2022 +1100)
