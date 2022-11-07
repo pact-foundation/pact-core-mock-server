@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.9.18 - Maintenance Release
+
+* 6c58858e - chore: Upgrade dependencies (Ronald Holshausen, Mon Nov 7 14:33:24 2022 +1100)
+* f43e7851 - chore: Upgrade pact_verifier to 0.13.15 (Ronald Holshausen, Mon Nov 7 14:13:26 2022 +1100)
+* 577824e7 - fix: Upgrade pact_models to 1.0 and pact-plugin-driver to 0.1.15 to fix cyclic dependency issue (Ronald Holshausen, Mon Nov 7 11:14:20 2022 +1100)
+* e1f985ad - chore: Upgrade pact_models to 0.4.6 and pact-plugin-driver to 0.1.14 (Ronald Holshausen, Fri Nov 4 16:38:36 2022 +1100)
+* cb984375 - bump version to 0.9.18 (Ronald Holshausen, Wed Sep 28 11:02:59 2022 +1000)
+
 # 0.9.17 - Bugfix Release
 
 * b7bb9cd1 - chore: Upgrade pact_verifier crate to 0.13.14 (Ronald Holshausen, Wed Sep 28 10:34:48 2022 +1000)
