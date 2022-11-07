@@ -370,6 +370,7 @@
 //!
 //! [Best Practices]: https://docs.pact.io/best_practices/consumer.html
 #![warn(missing_docs)]
+#[doc = include_str!("../README.md")]
 
 // Child modules which define macros (must be first because macros are resolved)
 // in source inclusion order).
