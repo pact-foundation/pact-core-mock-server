@@ -1765,7 +1765,7 @@ dependencies = [
 
 [[package]]
 name = "pact_verifier"
-version = "0.13.15"
+version = "0.13.16"
 dependencies = [
  "ansi_term",
  "anyhow",

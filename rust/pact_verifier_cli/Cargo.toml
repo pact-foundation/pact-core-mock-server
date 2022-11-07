@@ -1,10 +1,10 @@
 [package]
 name = "pact_verifier_cli"
 version = "0.9.18"
-authors = ["Ronald Holshausen <uglyog@gmail.com>"]
+authors = ["Ronald Holshausen <ronald.holshausen@gmail.com>"]
 edition = "2021"
 description = "Standalone pact verifier for provider pact verification"
-homepage = "http://www.pact.io"
+homepage = "https://www.pact.io"
 repository = "https://github.com/pact-foundation/pact-reference/blob/master/rust/pact_verifier_cli"
 readme = "README.md"
 keywords = ["testing", "pact", "cdc"]
@@ -15,7 +15,7 @@ exclude = [
 
 [dependencies]
 pact_models = "1.0.0"
-pact_verifier = { version = "0.13.14", path = "../pact_verifier" }
+pact_verifier = { version = "0.13.15", path = "../pact_verifier" }
 tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.11.10", default-features = false, features = ["rustls-tls-native-roots", "blocking", "json"] }
 clap = { version = "3.2.16", features = ["cargo", "env"] }
