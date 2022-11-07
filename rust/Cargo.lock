@@ -1779,7 +1779,6 @@ dependencies = [
  "http",
  "itertools",
  "lazy_static",
- "libc",
  "maplit",
  "mime",
  "pact-plugin-driver",

@@ -1,11 +1,11 @@
 [package]
 name = "pact_verifier"
 version = "0.13.15"
-authors = ["Ronald Holshausen <uglyog@gmail.com>"]
+authors = ["Ronald Holshausen <ronald.holshausen@gmail.com>"]
 edition = "2021"
 description = "Pact-Rust support library that implements provider verification functions"
 documentation = "https://docs.rs/pact_verifier/"
-homepage = "http://www.pact.io"
+homepage = "https://www.pact.io"
 repository = "https://github.com/pact-foundation/pact-reference/blob/master/rust/pact_verifier"
 readme = "README.md"
 keywords = ["testing", "pact", "cdc"]
@@ -15,46 +15,45 @@ exclude = [
 ]
 
 [dependencies]
-anyhow = "1.0.57"
-libc = "0.2.125"
-serde = "1.0.137"
-serde_json = "1.0.81"
+anyhow = "1.0.66"
+serde = "1.0.147"
+serde_json = "1.0.87"
 pact_matching = { version = "0.12.14", path = "../pact_matching" }
 pact_models = "1.0.0"
 pact-plugin-driver = "0.1.15"
 maplit = "1.0.2"
 lazy_static = "1.4.0"
-itertools = "0.10.3"
+itertools = "0.10.5"
 ansi_term = "0.12.1"
-regex = "1.5.5"
+regex = "1.7.0"
 difference = "2.0.0"
-futures = "0.3.21"
+futures = "0.3.25"
 mime = "0.3.16"
-bytes = "1.1.0"
-tokio = { version = "1.18.2", features = ["full"] }
-http = "0.2.7"
-async-trait = "0.1.53"
-thiserror = "1.0.31"
-base64 = "0.13.0"
-urlencoding = "2.1.0"
-tracing = "0.1.36" # This needs to be the same version across all the libs (i.e. plugin driver)
-tracing-core = "0.1.29"  # This needs to be the same version across all the pact libs (i.e. pact ffi)
+bytes = "1.2.1"
+tokio = { version = "1.21.2", features = ["full"] }
+http = "0.2.8"
+async-trait = "0.1.58"
+thiserror = "1.0.37"
+base64 = "0.13.1"
+urlencoding = "2.1.2"
+tracing = "0.1.37" # This needs to be the same version across all the libs (i.e. plugin driver and pact ffi)
+tracing-core = "0.1.30"  # This needs to be the same version across all the pact libs (i.e. plugin driver and pact ffi)
 
 [dependencies.reqwest]
-version = "0.11.10"
+version = "0.11.12"
 default-features = false
 features = ["rustls-tls-native-roots", "blocking", "json"]
 
 [dependencies.serde_with]
-version = "2.0.0"
+version = "2.0.1"
 features = ["json"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [dev-dependencies]
-quickcheck = "1"
+quickcheck = "1.0.3"
 expectest = "0.12.0"
-env_logger = "0.9.0"
+env_logger = "0.9.1"
 pact_consumer = { version = "0.10.0", path = "../pact_consumer" }
 test-log = "0.2.11"
