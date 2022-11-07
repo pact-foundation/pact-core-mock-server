@@ -1,5 +1,7 @@
+use std::future::Future;
 use std::path::PathBuf;
 
+use async_trait::async_trait;
 use pact_models::{Consumer, Provider};
 use pact_models::interaction::Interaction;
 use pact_models::pact::Pact;
@@ -17,41 +19,44 @@ use pact_matching::metrics::{MetricEvent, send_metrics};
 
 use crate::builders::message_builder::MessageInteractionBuilder;
 use crate::builders::message_iter::{asynchronous_messages_iter, MessageIterator, synchronous_messages_iter};
-use crate::builders::pact_builder_async::PactBuilderAsync;
 use crate::builders::sync_message_builder::SyncMessageInteractionBuilder;
 use crate::mock_server::http_mock_server::ValidatingHttpMockServer;
 use crate::mock_server::plugin_mock_server::PluginMockServer;
+use crate::mock_server::StartMockServerAsync;
 use crate::PACT_CONSUMER_VERSION;
 use crate::prelude::*;
 
 use super::interaction_builder::InteractionBuilder;
 
-/// Builder for `Pact` objects.
+/// Builder for `Pact` objects (async version).
 ///
 /// ```
 /// use pact_consumer::prelude::*;
 /// use pact_consumer::*;
 ///
-/// let pact = PactBuilder::new("Greeting Client", "Greeting Server")
-///     .interaction("asks for a greeting", "", |mut i| {
+/// # tokio_test::block_on(async {
+/// let pact = PactBuilderAsync::new("Greeting Client", "Greeting Server")
+///     .interaction("asks for a greeting", "", |mut i| async move {
 ///         i.request.path("/greeting/hello");
 ///         i.response
 ///             .header("Content-Type", "application/json")
 ///             .json_body(json_pattern!({ "message": "hello" }));
 ///         i
 ///     })
+///     .await
 ///     .build();
 ///
 /// // The request method and response status default as follows.
 /// assert_eq!(pact.interactions()[0].as_request_response().unwrap().request.method, "GET");
 /// assert_eq!(pact.interactions()[0].as_request_response().unwrap().response.status, 200);
+/// # });
 /// ```
-pub struct PactBuilder {
+pub struct PactBuilderAsync {
   pact: Box<dyn Pact + Send + Sync>,
   output_dir: Option<PathBuf>
 }
 
-impl PactBuilder {
+impl PactBuilderAsync {
     /// Create a new `PactBuilder`, specifying the names of the service
     /// consuming the API and the service providing it.
     pub fn new<C, P>(consumer: C, provider: P) -> Self
@@ -74,7 +79,7 @@ impl PactBuilder {
           pact.add_md_version("consumer", version);
         }
 
-        PactBuilder { pact: pact.boxed(), output_dir: None }
+      PactBuilderAsync { pact: pact.boxed(), output_dir: None }
     }
 
     /// Create a new `PactBuilder` for a V4 specification Pact, specifying the names of the service
@@ -97,17 +102,23 @@ impl PactBuilder {
         pact.add_md_version("consumer", version);
       }
 
-      PactBuilder { pact: pact.boxed(), output_dir: None }
+      PactBuilderAsync { pact: pact.boxed(), output_dir: None }
     }
 
-    /// Add a plugin to be used by the test. Note this will return an async version of the Pact
-    /// builder.
+    pub(crate) fn from_builder(pact: Box<dyn Pact + Send + Sync>, output_dir: Option<PathBuf>) -> Self {
+      PactBuilderAsync {
+        pact,
+        output_dir
+      }
+    }
+
+    /// Add a plugin to be used by the test
     ///
     /// Panics:
     /// Plugins only work with V4 specification pacts. This method will panic if the pact
     /// being built is V3 format. Use `PactBuilder::new_v4` to create a builder with a V4 format
     /// pact.
-    pub async fn using_plugin(&mut self, name: &str, version: Option<String>) -> PactBuilderAsync {
+    pub async fn using_plugin(&mut self, name: &str, version: Option<String>) -> &mut Self {
       if !self.pact.is_v4() {
         panic!("Plugins require V4 specification pacts. Use PactBuilder::new_v4");
       }
@@ -117,26 +128,25 @@ impl PactBuilder {
         version,
         dependency_type: Default::default()
       }).await;
-
-      let mut pact = self.pact.boxed();
       match result {
-        Ok(plugin) => pact.add_plugin(plugin.manifest.name.as_str(), plugin.manifest.version.as_str(), None)
+        Ok(plugin) => self.pact.add_plugin(plugin.manifest.name.as_str(), plugin.manifest.version.as_str(), None)
           .expect("Could not add plugin to pact"),
         Err(err) => panic!("Could not load plugin - {}", err)
       }
 
-      PactBuilderAsync::from_builder(pact, self.output_dir.clone())
+      self
     }
 
     /// Add a new HTTP `Interaction` to the `Pact`. Needs to return a clone of the builder
     /// that is passed in.
-    pub fn interaction<D, F>(&mut self, description: D, interaction_type: D, build_fn: F) -> &mut Self
+    pub async fn interaction<D, F, O>(&mut self, description: D, interaction_type: D, build_fn: F) -> &mut Self
     where
         D: Into<String>,
-        F: FnOnce(InteractionBuilder) -> InteractionBuilder
+        F: FnOnce(InteractionBuilder) -> O,
+        O: Future<Output=InteractionBuilder> + Send
     {
         let interaction = InteractionBuilder::new(description.into(), interaction_type.into());
-        let interaction = build_fn(interaction);
+        let interaction = build_fn(interaction).await;
 
         if self.pact.is_v4() {
           self.push_interaction(&interaction.build_v4())
@@ -165,14 +175,16 @@ impl PactBuilder {
     self
   }
 
-  /// Add a new Asynchronous message `Interaction` to the `Pact`
-  pub fn message_interaction<D, F>(&mut self, description: D, build_fn: F) -> &mut Self
+  /// Add a new Asynchronous message `Interaction` to the `Pact`. Needs to return a clone of the builder
+  /// that is passed in.
+  pub async fn message_interaction<D, F, O>(&mut self, description: D, build_fn: F) -> &mut Self
     where
       D: Into<String>,
-      F: FnOnce(MessageInteractionBuilder) -> MessageInteractionBuilder
+      F: FnOnce(MessageInteractionBuilder) -> O,
+      O: Future<Output=MessageInteractionBuilder> + Send
   {
     let interaction = MessageInteractionBuilder::new(description.into());
-    let interaction = build_fn(interaction);
+    let interaction = build_fn(interaction).await;
 
     if let Some(plugin_data) = interaction.plugin_config() {
       let _ = self.pact.add_plugin(plugin_data.name.as_str(), plugin_data.version.as_str(),
@@ -183,14 +195,16 @@ impl PactBuilder {
   }
 
 
-  /// Add a new synchronous message `Interaction` to the `Pact`
-  pub fn synchronous_message_interaction<D, F>(&mut self, description: D, build_fn: F) -> &mut Self
+  /// Add a new synchronous message `Interaction` to the `Pact`. Needs to return a clone of the builder
+  /// that is passed in.
+  pub async fn synchronous_message_interaction<D, F, O>(&mut self, description: D, build_fn: F) -> &mut Self
     where
       D: Into<String>,
-      F: FnOnce(SyncMessageInteractionBuilder) -> SyncMessageInteractionBuilder
+      F: FnOnce(SyncMessageInteractionBuilder) -> O,
+      O: Future<Output=SyncMessageInteractionBuilder> + Send
   {
     let interaction = SyncMessageInteractionBuilder::new(description.into());
-    let interaction = build_fn(interaction);
+    let interaction = build_fn(interaction).await;
 
     if let Some(plugin_data) = interaction.plugin_config() {
       let _ = self.pact.add_plugin(plugin_data.name.as_str(), plugin_data.version.as_str(),
@@ -223,7 +237,7 @@ impl PactBuilder {
   }
 }
 
-impl StartMockServer for PactBuilder {
+impl StartMockServer for PactBuilderAsync {
   fn start_mock_server(&self, catalog_entry: Option<&str>) -> Box<dyn ValidatingMockServer> {
     match catalog_entry {
       Some(entry_name) => match catalogue_manager::lookup_entry(entry_name) {
@@ -240,7 +254,25 @@ impl StartMockServer for PactBuilder {
   }
 }
 
-impl Drop for PactBuilder {
+#[async_trait]
+impl StartMockServerAsync for PactBuilderAsync {
+  async fn start_mock_server_async(&self, catalog_entry: Option<&str>) -> Box<dyn ValidatingMockServer> {
+    match catalog_entry {
+      Some(entry_name) => match catalogue_manager::lookup_entry(entry_name) {
+        Some(entry) => if entry.entry_type == CatalogueEntryType::TRANSPORT {
+          PluginMockServer::start_async(self.build(), self.output_dir.clone(), &entry).await
+            .expect("Could not start the plugin mock server")
+        } else {
+          panic!("Catalogue entry for key '{}' is not for a network transport", entry_name);
+        }
+        None => panic!("Did not find a catalogue entry for key '{}'", entry_name)
+      }
+      None => ValidatingHttpMockServer::start_async(self.build(), self.output_dir.clone()).await
+    }
+  }
+}
+
+impl Drop for PactBuilderAsync {
   fn drop(&mut self) {
     // decrement access to any plugin loaded for the Pact
     for plugin in self.pact.plugin_data() {

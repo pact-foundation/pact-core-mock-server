@@ -39,22 +39,27 @@ pub trait ValidatingMockServer {
 }
 
 /// This trait is implemented by types which allow us to start a mock server.
-#[async_trait]
 pub trait StartMockServer {
   /// Start a mock server running in a background thread. If the catalog entry is omitted,
   /// then a standard HTTP mock server will be started.
   fn start_mock_server(&self, catalog_entry: Option<&str>) -> Box<dyn ValidatingMockServer>;
+}
 
+/// This trait is implemented by types which allow us to start a mock server (async version).
+#[async_trait]
+pub trait StartMockServerAsync {
   /// Start a mock server running in a task (requires a Tokio runtime to be already setup)
   async fn start_mock_server_async(&self, catalog_entry: Option<&str>) -> Box<dyn ValidatingMockServer>;
 }
 
-#[async_trait]
 impl StartMockServer for RequestResponsePact {
   fn start_mock_server(&self, _catalog_entry: Option<&str>) -> Box<dyn ValidatingMockServer> {
     ValidatingHttpMockServer::start(self.boxed(), None)
   }
+}
 
+#[async_trait]
+impl StartMockServerAsync for RequestResponsePact {
   async fn start_mock_server_async(&self, _catalog_entry: Option<&str>) -> Box<dyn ValidatingMockServer> {
     ValidatingHttpMockServer::start_async(self.boxed(), None).await
   }

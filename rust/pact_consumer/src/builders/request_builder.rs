@@ -269,44 +269,39 @@ impl HttpPartBuilder for RequestBuilder {
   }
 }
 
-#[tokio::test]
-async fn path_pattern() {
+#[test]
+fn path_pattern() {
     let greeting_regex = Regex::new("/greeting/.*").unwrap();
     let pattern = PactBuilder::new("C", "P")
         .interaction("I", "", |mut i| {
             i.request.path(Term::new(greeting_regex, "/greeting/hello"));
-            futures::future::ready(i)
+            i
         })
-        .await
         .build();
     let good = PactBuilder::new("C", "P")
-        .interaction("I", "", |mut i| { i.request.path("/greeting/hi"); futures::future::ready(i) })
-        .await
+        .interaction("I", "", |mut i| { i.request.path("/greeting/hi"); i })
         .build();
     let bad = PactBuilder::new("C", "P")
-        .interaction("I", "", |mut i| { i.request.path("/farewell/bye"); futures::future::ready(i) })
-        .await
+        .interaction("I", "", |mut i| { i.request.path("/farewell/bye"); i })
         .build();
     assert_requests_match!(good, pattern);
     assert_requests_do_not_match!(bad, pattern);
 }
 
-#[tokio::test]
-async fn path_generator() {
+#[test]
+fn path_generator() {
     let actual = PactBuilder::new("C", "P")
       .interaction("I", "", |mut i| {
           i.request.path_from_provider_state("/greeting/${greeting}", "/greeting/hi");
-          futures::future::ready(i)
+          i
       })
-      .await
       .build();
 
     let expected = PactBuilder::new("C", "P")
       .interaction("I", "", |mut i| {
           i.request.path("/greeting/hello");
-          futures::future::ready(i)
+          i
       })
-      .await
       .build();
 
     let good_context = &mut HashMap::new();
@@ -318,29 +313,26 @@ async fn path_generator() {
     assert_requests_with_context_do_not_match!(actual, expected, bad_context);
 }
 
-#[tokio::test]
-async fn query_param_pattern() {
+#[test]
+fn query_param_pattern() {
     let pattern = PactBuilder::new("C", "P")
         .interaction("I", "", |mut i| {
             i.request.query_param("greeting", term!("^h.*$", "hello"));
-            futures::future::ready(i)
+            i
         })
-        .await
         .build();
     let good = PactBuilder::new("C", "P")
-        .interaction("I", "", |mut i| { i.request.query_param("greeting", "hi"); futures::future::ready(i) })
-        .await
+        .interaction("I", "", |mut i| { i.request.query_param("greeting", "hi"); i })
         .build();
     let bad = PactBuilder::new("C", "P")
-        .interaction("I", "", |mut i| { i.request.query_param("greeting", "bye"); futures::future::ready(i) })
-        .await
+        .interaction("I", "", |mut i| { i.request.query_param("greeting", "bye"); i })
         .build();
     assert_requests_match!(good, pattern);
     assert_requests_do_not_match!(bad, pattern);
 }
 
-#[tokio::test]
-async fn query_param_with_underscore() {
+#[test]
+fn query_param_with_underscore() {
     let pattern = PactBuilder::new("C", "P")
         .interaction("get a user", "", |mut i| {
             i.request
@@ -348,9 +340,8 @@ async fn query_param_with_underscore() {
                 // This `term!` was being ignored in `pact_matching`, but only
                 // if there was an underscore.
                 .query_param("user_id", term!("^[0-9]+$", "1"));
-            futures::future::ready(i)
+            i
         })
-        .await
         .build();
     let good = PactBuilder::new("C", "P")
         .interaction("I", "", |mut i| {
@@ -358,15 +349,14 @@ async fn query_param_with_underscore() {
                 .path("/users")
                 // Call with a different ID than we expected.
                 .query_param("user_id", "2");
-            futures::future::ready(i)
+            i
         })
-        .await
         .build();
     assert_requests_match!(good, pattern);
 }
 
-#[tokio::test]
-async fn term_does_not_require_anchors() {
+#[test]
+fn term_does_not_require_anchors() {
     use crate::prelude::*;
 
     let pattern = PactBuilder::new("C", "P")
@@ -374,21 +364,17 @@ async fn term_does_not_require_anchors() {
             // Unfortunately, we appear to need a leading "^" and trailing "$"
             // on this regex, or else it will match the other examples below.
             i.request.path(term!("^/users/[0-9]+$", "/users/12"));
-            futures::future::ready(i)
+            i
         })
-        .await
         .build();
     let good = PactBuilder::new("C", "P")
-        .interaction("I", "", |mut i| { i.request.path("/users/2"); futures::future::ready(i) })
-        .await
+        .interaction("I", "", |mut i| { i.request.path("/users/2"); i })
         .build();
     let bad1 = PactBuilder::new("C", "P")
-        .interaction("I", "", |mut i| { i.request.path("/users/2/posts"); futures::future::ready(i) })
-        .await
+        .interaction("I", "", |mut i| { i.request.path("/users/2/posts"); i })
         .build();
     let bad2 = PactBuilder::new("C", "P")
-        .interaction("I", "", |mut i| { i.request.path("/account/1/users/2"); futures::future::ready(i) })
-        .await
+        .interaction("I", "", |mut i| { i.request.path("/account/1/users/2"); i })
         .build();
     assert_requests_match!(good, pattern);
     assert_requests_do_not_match!(bad1, pattern);

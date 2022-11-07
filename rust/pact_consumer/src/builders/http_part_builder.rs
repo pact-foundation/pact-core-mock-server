@@ -198,8 +198,8 @@ pub trait HttpPartBuilder {
     }
 }
 
-#[tokio::test]
-async fn header_pattern() {
+#[test]
+fn header_pattern() {
     let application_regex = Regex::new("application/.*").unwrap();
     let pattern = PactBuilder::new("C", "P")
         .interaction("I", "", |mut i| {
@@ -207,27 +207,24 @@ async fn header_pattern() {
                 "Content-Type",
                 Term::new(application_regex, "application/json"),
             );
-            futures::future::ready(i)
+            i
         })
-        .await
         .build();
     let good = PactBuilder::new("C", "P")
         .interaction("I", "", |mut i| {
             i.request.header("Content-Type", "application/xml");
-            futures::future::ready(i)
+            i
         })
-        .await
         .build();
     let bad = PactBuilder::new("C", "P")
-        .interaction("I", "", |mut i| { i.request.header("Content-Type", "text/html"); futures::future::ready(i) })
-        .await
+        .interaction("I", "", |mut i| { i.request.header("Content-Type", "text/html"); i })
         .build();
     assert_requests_match!(good, pattern);
     assert_requests_do_not_match!(bad, pattern);
 }
 
-#[tokio::test]
-async fn header_generator() {
+#[test]
+fn header_generator() {
   let actual = PactBuilder::new("C", "P")
     .interaction("I", "", |mut i| {
       i.request.header_from_provider_state(
@@ -235,15 +232,14 @@ async fn header_generator() {
         "token",
         "some-token",
       );
-      futures::future::ready(i)
-    }).await.build();
+      i
+    }).build();
 
   let expected = PactBuilder::new("C", "P")
     .interaction("I", "", |mut i| {
       i.request.header("Authorization", "from-provider-state");
-      futures::future::ready(i)
+      i
     })
-    .await
     .build();
 
   let good_context = &mut HashMap::new();
@@ -255,48 +251,42 @@ async fn header_generator() {
   assert_requests_with_context_do_not_match!(actual, expected, bad_context);
 }
 
-#[tokio::test]
-async fn body_literal() {
+#[test]
+fn body_literal() {
     let pattern = PactBuilder::new("C", "P")
-        .interaction("I", "", |mut i| { i.request.body("Hello"); futures::future::ready(i) })
-        .await
+        .interaction("I", "", |mut i| { i.request.body("Hello"); i })
         .build();
     let good = PactBuilder::new("C", "P")
-        .interaction("I", "", |mut i| { i.request.body("Hello"); futures::future::ready(i) })
-        .await
+        .interaction("I", "", |mut i| { i.request.body("Hello"); i })
         .build();
     let bad = PactBuilder::new("C", "P")
-        .interaction("I", "", |mut i| { i.request.body("Bye"); futures::future::ready(i) })
-        .await
+        .interaction("I", "", |mut i| { i.request.body("Bye"); i })
         .build();
     assert_requests_match!(good, pattern);
     assert_requests_do_not_match!(bad, pattern);
 }
 
-#[tokio::test]
-async fn json_body_pattern() {
+#[test]
+fn json_body_pattern() {
     let pattern = PactBuilder::new("C", "P")
-        .interaction("I", "", |mut i| async move {
+        .interaction("I", "", |mut i| {
             i.request.json_body(json_pattern!({
                 "message": Like::new(json_pattern!("Hello")),
             }));
             i
         })
-        .await
         .build();
     let good = PactBuilder::new("C", "P")
-        .interaction("I", "", |mut i| async move {
+        .interaction("I", "", |mut i| {
             i.request.json_body(json_pattern!({ "message": "Goodbye" }));
             i
         })
-      .await
       .build();
     let bad = PactBuilder::new("C", "P")
-        .interaction("I", "", |mut i| async move {
+        .interaction("I", "", |mut i| {
             i.request.json_body(json_pattern!({ "message": false }));
             i
         })
-      .await
       .build();
     assert_requests_match!(good, pattern);
     assert_requests_do_not_match!(bad, pattern);

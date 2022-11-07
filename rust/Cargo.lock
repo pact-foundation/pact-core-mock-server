@@ -1517,6 +1517,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "test-log",
  "tokio",
  "tokio-test",
  "tracing",

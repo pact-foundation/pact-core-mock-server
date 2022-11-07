@@ -19,12 +19,8 @@ use pact_consumer::prelude::*;
 ///
 /// This test is currently ignored because it has a race condition when running in CI. Probably
 /// because it is mutating environment variables that point to directories on disk
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn mock_server_passing_validation() {
-    use expectest::*;
-
-    let _ = env_logger::builder().is_test(true).try_init();
-
     let output_dir = output_dir("target/pact_dir");
 
     env::set_var("PACT_OUTPUT_DIR", &output_dir);
@@ -34,7 +30,7 @@ async fn mock_server_passing_validation() {
       // application and the provider application.
       let alice_service = PactBuilder::new("Consumer", "Alice Service")
         // Start a new interaction. We can add as many interactions as we want.
-        .interaction("a retrieve Mallory request", "", |mut i| async move {
+        .interaction("a retrieve Mallory request", "", |mut i| {
           // Defines a provider state. It is optional.
           i.given("there is some good mallory");
           // Define the request, a GET (default) request to '/mallory'.
@@ -48,7 +44,6 @@ async fn mock_server_passing_validation() {
           // Return the interaction back to the pact framework
           i.clone()
         })
-        .await
         .start_mock_server(None);
 
       // You would use your actual client code here.
@@ -81,18 +76,45 @@ fn output_dir(path: &str) -> PathBuf {
   }
 }
 
-#[tokio::test]
-#[should_panic]
-async fn mock_server_failing_validation() {
-    let _ = env_logger::builder().is_test(true).try_init();
+#[test_log::test(tokio::test)]
+async fn mock_server_passing_validation_async_version() {
+  // Define the Pact for the test, specify the names of the consuming
+  // application and the provider application.
+  let alice_service = PactBuilderAsync::new("Consumer", "Alice Service")
+    // Start a new interaction. We can add as many interactions as we want.
+    .interaction("a retrieve Mallory request", "", |mut i| async move {
+      // Defines a provider state. It is optional.
+      i.given("there is some good mallory");
+      // Define the request, a GET (default) request to '/mallory'.
+      i.request.path("/mallory");
+      // Define the response we want returned.
+      i.response
+        .ok()
+        .content_type("text/plain")
+        .body("That is some good Mallory.");
 
+      // Return the interaction back to the pact framework
+      i.clone()
+    })
+    .await
+    .start_mock_server(None);
+
+  // You would use your actual client code here.
+  let mallory_url = alice_service.path("/mallory");
+  let response = reqwest::get(mallory_url).await.expect("could not fetch URL");
+  let body = response.text().await.expect("could not read response body");
+  assert_eq!(body, "That is some good Mallory.");
+}
+
+#[test_log::test]
+#[should_panic]
+fn mock_server_failing_validation() {
     let hello_service = PactBuilder::new("Hello CLI", "Hello Server")
-        .interaction("request a greeting", "", |mut i| async move {
+        .interaction("request a greeting", "", |mut i| {
           i.request.path("/hello");
           i.response.body("Hello!");
           i.clone()
         })
-      .await
       .start_mock_server(None);
     // Call with the wrong URL, which should lead to a panic at the end of
     // the function.
@@ -100,10 +122,8 @@ async fn mock_server_failing_validation() {
     let _ = reqwest::blocking::get(url);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn duplicate_interactions() {
-  let _ = env_logger::builder().is_test(true).try_init();
-
   let u8 = random::<u8>();
   let output_dir = output_dir(&*format!("target/pact_dir_{:03}", u8));
 
@@ -120,9 +140,8 @@ async fn duplicate_interactions() {
                       }))
           .path("/rolex.html");
         interaction.response.body("TrixR4Kidz");
-        futures::future::ready(interaction)
+        interaction
       })
-      .await
       .output_dir(&output_dir)
       .start_mock_server(None);
 

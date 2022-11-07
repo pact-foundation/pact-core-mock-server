@@ -10,7 +10,7 @@ use pact_matching::{generate_request, match_request};
 
 /// Check that all requests in `actual` match the patterns provide by
 /// `expected`, and raise an error if anything fails.
-pub(crate) async fn check_requests_match(
+pub(crate) fn check_requests_match(
     actual_label: &str,
     actual: &Box<dyn Pact + Send + Sync>,
     expected_label: &str,
@@ -29,13 +29,17 @@ pub(crate) async fn check_requests_match(
     }
 
     // Next, check each interaction to see if it matches.
+    let runtime = tokio::runtime::Builder::new_current_thread()
+      .enable_all()
+      .build()
+      .expect("new runtime");
     for (e, a) in expected.interactions().iter().zip(actual.interactions()) {
         let actual_request = a.as_v4_http().unwrap().request.clone();
         debug!("actual_request = {:?}", actual_request);
-        let generated_request = generate_request(&actual_request, &GeneratorTestMode::Provider, context).await;
+        let generated_request = runtime.block_on(generate_request(&actual_request, &GeneratorTestMode::Provider, context));
         debug!("generated_request = {:?}", generated_request);
-        let mismatches = match_request(e.as_v4_http().unwrap().request.clone(),
-                generated_request, expected, e).await;
+        let mismatches = runtime.block_on(match_request(e.as_v4_http().unwrap().request.clone(),
+                generated_request, expected, e));
         if !mismatches.all_matched() {
           let mut reasons = String::new();
           for mismatch in mismatches.mismatches() {
@@ -62,7 +66,7 @@ macro_rules! assert_requests_match {
                 stringify!($expected),
                 &($expected),
                 &HashMap::new(),
-            ).await;
+            );
             if let ::std::result::Result::Err(message) = result {
                 panic!("{}", message)
             }
@@ -79,7 +83,7 @@ macro_rules! assert_requests_do_not_match {
                 stringify!($expected),
                 &($expected),
                 &HashMap::new(),
-            ).await;
+            );
             if let ::std::result::Result::Ok(()) = result {
                 panic!(
                     "pact `{}` unexpectedly matched pattern `{}`",
@@ -100,7 +104,7 @@ macro_rules! assert_requests_with_context_match {
                 stringify!($expected),
                 &($expected),
                 $context,
-            ).await;
+            );
             if let ::std::result::Result::Err(message) = result {
                 panic!("{}", message)
             }
@@ -117,7 +121,7 @@ macro_rules! assert_requests_with_context_do_not_match {
                 stringify!($expected),
                 &($expected),
                 $context,
-            ).await;
+            );
             if let ::std::result::Result::Ok(()) = result {
                 panic!(
                     "pact `{}` unexpectedly matched pattern `{}`",

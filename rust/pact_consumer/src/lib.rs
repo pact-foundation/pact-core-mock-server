@@ -38,14 +38,13 @@
 //! with `#[tokio::test]`:
 //!
 //! ```
-//! # tokio_test::block_on(async {
 //! use pact_consumer::prelude::*;
 //!
 //! // Define the Pact for the test, specify the names of the consuming
 //! // application and the provider application.
 //! let pact = PactBuilder::new("Consumer", "Alice Service")
 //!     // Start a new interaction. We can add as many interactions as we want.
-//!     .interaction("a retrieve Mallory request", "", |mut i| async move {
+//!     .interaction("a retrieve Mallory request", "", |mut i| {
 //!         // Defines a provider state. It is optional.
 //!         i.given("there is some good mallory");
 //!         // Define the request, a GET (default) request to '/mallory'.
@@ -58,9 +57,7 @@
 //!         // Return the interaction builder back to the pact framework
 //!         i
 //!     })
-//!     .await
 //!     .build();
-//! # });
 //! ```
 //!
 //! You can than use an HTTP client like `reqwest` to make requests against your
@@ -73,7 +70,7 @@
 //! # use pact_consumer::prelude::*;
 //! # let alice_service = PactBuilder::new("Consumer", "Alice Service")
 //! #     // Start a new interaction. We can add as many interactions as we want.
-//! #     .interaction("a retrieve Mallory request", "", |mut i| async move {
+//! #     .interaction("a retrieve Mallory request", "", |mut i| {
 //! #         // Defines a provider state. It is optional.
 //! #         i.given("there is some good mallory");
 //! #         // Define the request, a GET (default) request to '/mallory'.
@@ -85,7 +82,7 @@
 //! #             .body("That is some good Mallory.");
 //! #         // Return the interaction builder back to the pact framework
 //! #         i
-//! #     }).await.start_mock_server(None);
+//! #     }).start_mock_server(None);
 //!
 //! // You would use your actual client code here.
 //! let mallory_url = alice_service.path("/mallory");
@@ -106,12 +103,11 @@
 //! `json_pattern!` macro:
 //!
 //! ```
-//! # tokio_test::block_on(async {
 //! use pact_consumer::prelude::*;
 //! use pact_consumer::*;
 //!
 //! PactBuilder::new("quotes client", "quotes service")
-//!     .interaction("add a new quote to the database", "", |mut i| async move {
+//!     .interaction("add a new quote to the database", "", |mut i| {
 //!         i.request
 //!             .post()
 //!             .path("/quotes")
@@ -136,7 +132,6 @@
 //!             .header("Location", term!("^/quotes/[0-9]+$", "/quotes/12"));
 //!         i
 //!     });
-//! # });
 //! ```
 //!
 //! The key insight here is this "pact" can be used to test both the client and
@@ -181,9 +176,8 @@
 //!     comment: None,
 //! };
 //!
-//! # tokio_test::block_on(async move {
 //! PactBuilder::new("consumer", "provider")
-//!     .interaction("get all users", "", |mut i| async move {
+//!     .interaction("get all users", "", |mut i| {
 //!         i.given("a list of users in the database");
 //!         i.request.path("/users");
 //!         i.response
@@ -197,9 +191,7 @@
 //!             ));
 //!         i
 //!     })
-//!     .await
 //!     .build();
-//! # });
 //! ```
 //!
 //! ## Testing messages
@@ -217,7 +209,6 @@
 //! file.
 //!
 //! ```rust
-//! # tokio_test::block_on(async {
 //! use pact_consumer::prelude::*;
 //! use pact_consumer::*;
 //! use expectest::prelude::*;
@@ -228,7 +219,7 @@
 //! let mut pact_builder = PactBuilder::new_v4("message-consumer", "message-provider"); // Define the message consumer and provider by name
 //! pact_builder
 //!   // Adds an interaction given the message description and type.
-//!   .message_interaction("Mallory Message", |mut i| async move {
+//!   .message_interaction("Mallory Message", |mut i| {
 //!     // defines a provider state. It is optional.
 //!     i.given("there is some good mallory".to_string());
 //!     // Can set the test name (optional)
@@ -239,8 +230,7 @@
 //!     }));
 //!     // Need to return the mutated interaction builder
 //!     i
-//!   })
-//!   .await;
+//!   });
 //!
 //! // This will return each message configured with the Pact builder. We need to process them
 //! // with out message handler (it should be the one used to actually process your messages).
@@ -253,7 +243,6 @@
 //!   // Make some assertions on the processed value
 //!   expect!(message.as_object().unwrap().get("mallory")).to(be_some().value("That is some good Mallory."));
 //! }
-//! # });
 //! ```
 //!
 //! ### Synchronous request/response messages
@@ -266,7 +255,6 @@
 //! # struct MessageHandler {}
 //! # struct MockProvider { pub message: Bytes }
 //! # impl MessageHandler { fn process(bytes: Bytes, provider: &MockProvider) -> anyhow::Result<&str> { Ok("That is some good Mallory.") } }
-//! # tokio_test::block_on(async {
 //! use pact_consumer::prelude::*;
 //! use pact_consumer::*;
 //! use expectest::prelude::*;
@@ -277,7 +265,7 @@
 //! let mut pact_builder = PactBuilder::new_v4("message-consumer", "message-provider"); // Define the message consumer and provider by name
 //! pact_builder
 //!   // Adds an interaction given the message description and type.
-//!   .synchronous_message_interaction("Mallory Message", |mut i| async move {
+//!   .synchronous_message_interaction("Mallory Message", |mut i| {
 //!     // defines a provider state. It is optional.
 //!     i.given("there is some good mallory".to_string());
 //!     // Can set the test name (optional)
@@ -293,8 +281,7 @@
 //!     }));
 //!     // Need to return the mutated interaction builder
 //!     i
-//!   })
-//!   .await;
+//!   });
 //!
 //! // For our test we want to invoke our message handling code that is going to initialise the request
 //! // to the provider with the request message. But we need some mechanism to mock the response
@@ -315,7 +302,6 @@
 //!   // Make some assertions on the processed value
 //!   expect!(response).to(be_ok().value("That is some good Mallory."));
 //! }
-//! # });
 //! ```
 //!
 //! ## Using Pact plugins
@@ -405,7 +391,7 @@ pub mod util;
 /// use pact_consumer::prelude::*;
 /// ```
 pub mod prelude {
-    pub use crate::builders::{HttpPartBuilder, PactBuilder};
+    pub use crate::builders::{HttpPartBuilder, PactBuilder, PactBuilderAsync};
     pub use crate::mock_server::{StartMockServer, ValidatingMockServer};
     pub use crate::patterns::{EachLike, Like, Term};
     pub use crate::patterns::{JsonPattern, Pattern, StringPattern};

@@ -57,15 +57,13 @@ impl MessageHandler {
 
 // This is a test for async messages. We test that our message consumer can handle the messages
 // configured by the builder
-#[tokio::test]
-async fn test_message_client() {
-  let _ = env_logger::builder().is_test(true).try_init();
-
+#[test_log::test]
+fn test_message_client() {
   // Create out builder based on the consumer and provider
   let mut pact_builder = PactBuilder::new_v4("message-consumer", "message-provider");
 
   // Create a message interaction
-  pact_builder.message_interaction("hello message", |mut i| async move {
+  pact_builder.message_interaction("hello message", |mut i| {
       i.test_name("test_message_client");
       i.json_body(json_pattern!({
           "name": like!("mai"),
@@ -73,8 +71,7 @@ async fn test_message_client() {
           "state": like!("VA"),
       }));
       i
-    })
-    .await;
+    });
 
   // This will return each message configured with the Pact builder. We need to process them
   // with out message handler (it should be the one used to actually process your messages).
@@ -91,15 +88,13 @@ async fn test_message_client() {
 
 // This is a test for sync messages. We test that our message consumer can handle the message request
 // configured by the builder and returns a valid response
-#[tokio::test]
-async fn test_req_res_message_client() {
-  let _ = env_logger::builder().is_test(true).try_init();
-
+#[test_log::test]
+fn test_req_res_message_client() {
   // Create out builder based on the consumer and provider
   let mut pact_builder = PactBuilder::new_v4("message-consumer", "message-provider");
 
   // Create a message interaction
-  pact_builder.synchronous_message_interaction("hello message", |mut i| async move {
+  pact_builder.synchronous_message_interaction("hello message", |mut i| {
     i.test_name("test_req_res_message_client");
     // Define the request message
     i.request_json_body(json_pattern!({
@@ -111,8 +106,7 @@ async fn test_req_res_message_client() {
       "state": like!("VA")
     }));
     i
-  })
-    .await;
+  });
 
   // This will return each message configured with the Pact builder. We need to process them
   // with out message handler (it should be the one used to actually process your messages).
