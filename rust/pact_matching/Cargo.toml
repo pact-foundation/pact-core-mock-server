@@ -1,11 +1,11 @@
 [package]
 name = "pact_matching"
 version = "0.12.15"
-authors = ["Ronald Holshausen <uglyog@gmail.com>"]
+authors = ["Ronald Holshausen <ronald.holshausen@gmail.com>"]
 edition = "2021"
 description = "Pact-Rust support library that implements request and response matching logic"
 documentation = "https://docs.rs/pact_matching/"
-homepage = "http://www.pact.io"
+homepage = "https://www.pact.io"
 repository = "https://github.com/pact-foundation/pact-reference/blob/master/rust/pact_matching"
 readme = "README.md"
 keywords = ["testing", "pact", "cdc"]

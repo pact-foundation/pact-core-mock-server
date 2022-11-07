@@ -19,7 +19,7 @@ anyhow = "1.0.57"
 libc = "0.2.125"
 serde = "1.0.137"
 serde_json = "1.0.81"
-pact_matching = { version = "0.12.12", path = "../pact_matching" }
+pact_matching = { version = "0.12.14", path = "../pact_matching" }
 pact_models = "1.0.0"
 pact-plugin-driver = "0.1.15"
 maplit = "1.0.2"
