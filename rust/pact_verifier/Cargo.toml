@@ -20,8 +20,8 @@ libc = "0.2.125"
 serde = "1.0.137"
 serde_json = "1.0.81"
 pact_matching = { version = "0.12.12", path = "../pact_matching" }
-pact_models = "0.4.6"
-pact-plugin-driver = "0.1.14"
+pact_models = "1.0.0"
+pact-plugin-driver = "0.1.15"
 maplit = "1.0.2"
 lazy_static = "1.4.0"
 itertools = "0.10.3"
@@ -37,8 +37,8 @@ async-trait = "0.1.53"
 thiserror = "1.0.31"
 base64 = "0.13.0"
 urlencoding = "2.1.0"
-tracing = "=0.1.36" # This needs to be the same version across all the libs (i.e. plugin driver)
-tracing-core = "=0.1.29"  # This needs to be the same version across all the pact libs (i.e. pact ffi)
+tracing = "0.1.36" # This needs to be the same version across all the libs (i.e. plugin driver)
+tracing-core = "0.1.29"  # This needs to be the same version across all the pact libs (i.e. pact ffi)
 
 [dependencies.reqwest]
 version = "0.11.10"
