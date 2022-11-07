@@ -1014,7 +1014,6 @@ pub struct PactVerificationProperties {
 
 #[cfg(test)]
 mod tests {
-  use env_logger::*;
   use expectest::expect;
   use expectest::prelude::*;
   use pact_models::{Consumer, PactSpecification, Provider};
@@ -1028,22 +1027,21 @@ mod tests {
   use super::*;
   use super::{content_type, json_content_type};
 
-  #[tokio::test]
+  #[test_log::test(tokio::test)]
   async fn fetch_returns_an_error_if_there_is_no_pact_broker() {
     let client = HALClient::with_url("http://idont.exist:6666", None);
     expect!(client.fetch("/").await).to(be_err());
   }
 
-  #[tokio::test]
+  #[test_log::test(tokio::test)]
   async fn fetch_returns_an_error_if_it_does_not_get_a_success_response() {
     let pact_broker = PactBuilder::new("RustPactVerifier", "PactBroker")
         .interaction("a request to a non-existant path", "", |mut i| {
             i.given("the pact broker has a valid pact");
             i.request.path("/hello");
             i.response.status(404);
-            futures::future::ready(i)
+            i
         })
-        .await
         .start_mock_server(None);
 
     let client = HALClient::with_url(pact_broker.url().as_str(), None);
@@ -1052,7 +1050,7 @@ mod tests {
         pact_broker.url())));
   }
 
-  #[tokio::test]
+  #[test_log::test(tokio::test)]
   async fn fetch_returns_an_error_if_it_does_not_get_a_hal_response() {
     let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
       .interaction("a request to a non-json resource", "", |mut i| {
@@ -1060,9 +1058,8 @@ mod tests {
           i.response
               .header("Content-Type", "text/html")
               .body("<html></html>");
-          futures::future::ready(i)
+          i
       })
-      .await
       .start_mock_server(None);
 
     let client = HALClient::with_url(pact_broker.url().as_str(), None);
@@ -1107,23 +1104,21 @@ mod tests {
         expect!(json_content_type(&response)).to(be_true());
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn fetch_returns_an_error_if_it_does_not_get_a_valid_hal_response() {
         let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
             .interaction("a request to a non-hal resource", "", |mut i| {
                 i.request.path("/nonhal");
                 i.response.header("Content-Type", "application/hal+json");
-                futures::future::ready(i)
+                i
             })
-            .await
             .interaction("a request to a non-hal resource 2", "", |mut i| {
                 i.request.path("/nonhal2");
                 i.response
                     .header("Content-Type", "application/hal+json")
                     .body("<html>This is not JSON</html>");
-                futures::future::ready(i)
+                i
             })
-            .await
             .start_mock_server(None);
 
         let client = HALClient::with_url(pact_broker.url().as_str(), None);
@@ -1136,17 +1131,15 @@ mod tests {
             pact_broker.url())));
     }
 
-  #[tokio::test]
+  #[test_log::test(tokio::test)]
   async fn fetch_retries_the_request_on_50x_errors() {
-    let _ = env_logger::try_init();
     let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
-      .interaction("a request to a hal resource", "", |mut i| async move {
+      .interaction("a request to a hal resource", "", |mut i| {
         i.given("server returns a gateway error");
         i.request.path("/");
         i.response.status(503);
         i
       })
-      .await
       .start_mock_server(None);
 
     let client = HALClient::with_url(pact_broker.url().as_str(), None);
@@ -1156,17 +1149,15 @@ mod tests {
     expect!(pact_broker.metrics().requests).to(be_equal_to(expected_requests ));
   }
 
-  #[tokio::test]
+  #[test_log::test(tokio::test)]
   async fn post_json_retries_the_request_on_50x_errors() {
-    let _ = env_logger::try_init();
     let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
-      .interaction("a POST request", "", |mut i| async move {
+      .interaction("a POST request", "", |mut i| {
         i.given("server returns a gateway error");
         i.request.path("/").method("POST");
         i.response.status(503);
         i
       })
-      .await
       .start_mock_server(None);
 
     let client = HALClient::with_url(pact_broker.url().as_str(), None);
@@ -1176,17 +1167,15 @@ mod tests {
     expect!(pact_broker.metrics().requests).to(be_equal_to(expected_requests ));
   }
 
-  #[tokio::test]
+  #[test_log::test(tokio::test)]
   async fn put_json_retries_the_request_on_50x_errors() {
-    let _ = env_logger::try_init();
     let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
-      .interaction("a PUT request", "", |mut i| async move {
+      .interaction("a PUT request", "", |mut i| {
         i.given("server returns a gateway error");
         i.request.path("/").method("PUT");
         i.response.status(503);
         i
       })
-      .await
       .start_mock_server(None);
 
     let client = HALClient::with_url(pact_broker.url().as_str(), None);
@@ -1228,17 +1217,16 @@ mod tests {
     expect!(client.clone().parse_link_url(&link, &values)).to(be_ok().value("http://A/B%2FC"));
   }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn fetch_link_returns_an_error_if_a_previous_resource_has_not_been_fetched() {
         let client = HALClient::with_url("http://localhost", None);
         let result = client.fetch_link("anything_will_do", &hashmap!{}).await;
         expect!(result).to(be_err().value("No previous resource has been fetched from the pact broker. URL: 'http://localhost', LINK: 'anything_will_do'".to_string()));
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn fetch_link_returns_an_error_if_the_previous_resource_was_not_hal() {
-      try_init().unwrap_or(());
-        let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
+        let pact_broker = PactBuilderAsync::new("RustPactVerifier", "PactBrokerStub")
             .interaction("a request to a non-hal json resource", "", |mut i| async move {
                 i.request.path("/");
                 i.response
@@ -1258,10 +1246,9 @@ mod tests {
             pact_broker.url())));
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn fetch_link_returns_an_error_if_the_previous_resource_links_are_not_correctly_formed() {
-      try_init().unwrap_or(());
-        let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
+        let pact_broker = PactBuilderAsync::new("RustPactVerifier", "PactBrokerStub")
             .interaction("a request to a hal resource with invalid links", "", |mut i| async move {
                 i.request.path("/");
                 i.response
@@ -1281,9 +1268,9 @@ mod tests {
             pact_broker.url())));
     }
 
-  #[tokio::test]
+  #[test_log::test(tokio::test)]
   async fn fetch_link_returns_an_error_if_the_previous_resource_does_not_have_the_link() {
-    let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
+    let pact_broker = PactBuilderAsync::new("RustPactVerifier", "PactBrokerStub")
         .interaction("a request to a hal resource", "", |mut i| async move {
             i.request.path("/");
             i.response
@@ -1303,9 +1290,9 @@ mod tests {
         pact_broker.url())));
   }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn fetch_link_returns_the_resource_for_the_link() {
-        let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
+        let pact_broker = PactBuilderAsync::new("RustPactVerifier", "PactBrokerStub")
             .interaction("a request to a hal resource", "", |mut i| async move {
                 i.request.path("/");
                 i.response
@@ -1332,10 +1319,9 @@ mod tests {
         expect!(result).to(be_ok().value(serde_json::Value::String("Yay! You found your way here".to_string())));
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn fetch_link_returns_handles_absolute_resource_links() {
-        try_init().unwrap_or(());
-        let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
+        let pact_broker = PactBuilderAsync::new("RustPactVerifier", "PactBrokerStub")
             .interaction("a request to a hal resource with absolute paths", "", |mut i| async move {
                 i.request.path("/");
                 i.response
@@ -1362,10 +1348,9 @@ mod tests {
         expect!(result).to(be_ok().value(serde_json::Value::String("Yay! You found your way here".to_string())));
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn fetch_link_returns_the_resource_for_the_templated_link() {
-      try_init().unwrap_or(());
-        let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
+        let pact_broker = PactBuilderAsync::new("RustPactVerifier", "PactBrokerStub")
             .interaction("a request to a templated hal resource", "", |mut i| async move {
                 i.request.path("/");
                 i.response
@@ -1392,10 +1377,9 @@ mod tests {
         expect!(result).to(be_ok().value(serde_json::Value::String("Yay! You found your way here".to_string())));
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn fetch_pacts_from_broker_returns_empty_list_if_there_are_no_pacts() {
-      try_init().unwrap_or(());
-        let pact_broker = PactBuilder::new("RustPactVerifier", "PactBroker")
+        let pact_broker = PactBuilderAsync::new("RustPactVerifier", "PactBroker")
             .interaction("a request to the pact broker root", "", |mut i| async move {
                 i.request
                     .path("/")
@@ -1439,9 +1423,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn fetch_pacts_from_broker_returns_a_list_of_pacts() {
-      try_init().unwrap_or(());
         let pact = RequestResponsePact { consumer: Consumer { name: "Consumer".to_string() },
             provider: Provider { name: "happy_provider".to_string() },
             .. RequestResponsePact::default() }
@@ -1451,7 +1434,7 @@ mod tests {
             interactions: vec![ RequestResponseInteraction { description: "a request friends".to_string(), .. RequestResponseInteraction::default() } ],
             .. RequestResponsePact::default() }
             .to_json(PactSpecification::V3).unwrap().to_string();
-        let pact_broker = PactBuilder::new("RustPactVerifier", "PactBroker")
+        let pact_broker = PactBuilderAsync::new("RustPactVerifier", "PactBroker")
             .interaction("a request to the pact broker root", "", |mut i| async move {
                 i.request
                     .path("/")
@@ -1531,16 +1514,14 @@ mod tests {
         }
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn fetch_pacts_for_verification_from_broker_returns_a_list_of_pacts() {
-      try_init().unwrap_or(());
-
       let pact = RequestResponsePact { consumer: Consumer { name: "Consumer".to_string() },
         provider: Provider { name: "happy_provider".to_string() },
         .. RequestResponsePact::default() }
         .to_json(PactSpecification::V3).unwrap().to_string();
 
-      let pact_broker = PactBuilder::new("RustPactVerifier", "PactBroker")
+      let pact_broker = PactBuilderAsync::new("RustPactVerifier", "PactBroker")
           .interaction("a request to the pact broker root", "", |mut i| async move {
             i.given("Pacts for verification is enabled");
             i.request
@@ -1677,11 +1658,9 @@ mod tests {
       }
   }
 
-  #[tokio::test]
+  #[test_log::test(tokio::test)]
   async fn fetch_pacts_for_verification_from_broker_returns_empty_list_if_there_are_no_pacts() {
-    try_init().unwrap_or(());
-
-    let pact_broker = PactBuilder::new("RustPactVerifier", "PactBroker")
+    let pact_broker = PactBuilderAsync::new("RustPactVerifier", "PactBroker")
       .interaction("a request to the pact broker root", "", |mut i| async move {
         i.given("Pacts for verification is enabled");
         i.request
@@ -1992,7 +1971,7 @@ mod tests {
 
   #[test_log::test(tokio::test)]
   async fn publish_provider_branch_with_normal_broker_source() {
-    let pact_broker = PactBuilder::new("RustPactVerifier", "PactBroker")
+    let pact_broker = PactBuilderAsync::new("RustPactVerifier", "PactBroker")
       .interaction("a request to the pact broker pacticipant", "", |mut i| async move {
         i.request
           .path("/pacticipants/Pact%20Broker");

@@ -4,7 +4,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use env_logger::*;
 use expectest::prelude::*;
 use maplit::*;
 use reqwest::Client;
@@ -47,7 +46,7 @@ impl ProviderStateExecutor for DummyProviderStateExecutor {
 
 #[test_log::test(tokio::test)]
 async fn verify_pact_with_match_values_matcher() {
-  let server = PactBuilder::new("consumer", "matchValuesService")
+  let server = PactBuilderAsync::new("consumer", "matchValuesService")
     .interaction("request requiring matching values", "", |mut i| async move {
       i.test_name("verify_pact_with_match_values_matcher");
       i.request.method("GET");
@@ -107,12 +106,10 @@ async fn verify_pact_with_match_values_matcher() {
   expect!(result.unwrap().results.get(0).unwrap().result.as_ref()).to(be_ok());
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn verify_pact_with_attributes_with_special_values() {
-  try_init().unwrap_or(());
-
   let server = PactBuilder::new_v4("book_consumer", "book_provider")
-    .interaction("create book request", "", |mut i| async move {
+    .interaction("create book request", "", |mut i| {
       i.test_name("verify_pact_with_attributes_with_special_values");
       i.request.method("POST");
       i.request.path("/books");
@@ -130,7 +127,6 @@ async fn verify_pact_with_attributes_with_special_values() {
       }));
       i
     })
-    .await
     .start_mock_server(None);
 
   #[allow(deprecated)]
@@ -164,9 +160,8 @@ async fn verify_pact_with_attributes_with_special_values() {
   expect!(result.unwrap().results.get(0).unwrap().result.as_ref()).to(be_ok());
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn verifying_a_pact_with_pending_interactions() {
-  try_init().unwrap_or(());
   let provider = ProviderInfo {
     name: "PendingProvider".to_string(),
     host: "127.0.0.1".to_string(),
@@ -191,11 +186,9 @@ async fn verifying_a_pact_with_pending_interactions() {
   expect!(result.as_ref().unwrap().results.get(0).unwrap().pending).to(be_true());
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn verifying_a_pact_with_min_type_matcher_and_child_arrays() {
-  try_init().unwrap_or(());
-
-  let server = PactBuilder::new_v4("consumer", "Issue396Service")
+  let server = PactBuilderAsync::new_v4("consumer", "Issue396Service")
     .interaction("get data request", "", |mut i| async move {
       i.test_name("verifying_a_pact_with_min_type_matcher_and_child_arrays");
       i.request.method("GET");

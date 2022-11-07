@@ -4,7 +4,6 @@ use std::sync::Arc;
 
 use anyhow::anyhow;
 use async_trait::async_trait;
-use env_logger::*;
 use expectest::expect;
 use expectest::prelude::*;
 use maplit::*;
@@ -132,12 +131,10 @@ fn if_a_consumer_filter_is_defined_returns_true_if_the_consumer_name_does_match(
   expect!(filter_consumers(&consumers, &result)).to(be_true());
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn test_state_change_with_parameters() {
-  try_init().unwrap_or(());
-
   let server = PactBuilder::new("RustPactVerifier", "SomeRunningProvider")
-    .interaction("a state change request", "", |mut i| async move {
+    .interaction("a state change request", "", |mut i| {
       i.request.method("POST");
       i.request.path("/");
       i.request.header("Content-Type", "application/json");
@@ -145,7 +142,6 @@ async fn test_state_change_with_parameters() {
       i.response.status(200);
       i
     })
-    .await
     .start_mock_server(None);
 
   let provider_state = ProviderState {
@@ -166,12 +162,10 @@ async fn test_state_change_with_parameters() {
   expect!(result.clone()).to(be_ok());
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn test_state_change_with_parameters_in_query() {
-  try_init().unwrap_or(());
-
   let server = PactBuilder::new("RustPactVerifier", "SomeRunningProvider")
-    .interaction("a state change request with params in the query string", "", |mut i| async move {
+    .interaction("a state change request with params in the query string", "", |mut i| {
       i.comment("testing state change with parameters in the query");
       i.test_name("test_state_change_with_parameters_in_query");
       i.request.method("POST");
@@ -183,7 +177,6 @@ async fn test_state_change_with_parameters_in_query() {
       i.response.status(200);
       i
     })
-    .await
     .start_mock_server(None);
 
   let provider_state = ProviderState {
@@ -209,7 +202,7 @@ async fn test_state_change_with_parameters_in_query() {
 #[test_log::test(tokio::test)]
 async fn test_state_change_returning_json_values() {
   let server = PactBuilder::new("RustPactVerifier", "SomeRunningProvider")
-    .interaction("a state change request which returns a map of values", "", |mut i| async move {
+    .interaction("a state change request which returns a map of values", "", |mut i| {
       i.request.method("POST");
       i.request.path("/");
       i.request.header("Content-Type", "application/json");
@@ -219,7 +212,6 @@ async fn test_state_change_returning_json_values() {
       i.response.body("{\"a\": \"A\", \"b\": 100}");
       i
     })
-    .await
     .start_mock_server(None);
 
   let provider_state = ProviderState {
@@ -240,10 +232,8 @@ async fn test_state_change_returning_json_values() {
   }));
 }
 
-#[test]
+#[test_log::test]
 fn publish_result_does_nothing_if_not_from_broker() {
-  try_init().unwrap_or(());
-
   let server_response = catch_unwind(|| {
     let runtime = tokio::runtime::Builder::new_current_thread()
       .enable_all()
@@ -252,13 +242,12 @@ fn publish_result_does_nothing_if_not_from_broker() {
 
     runtime.block_on(async {
       let _server = PactBuilder::new("RustPactVerifier", "PactBroker")
-        .interaction("publish results", "", |mut i| async move {
+        .interaction("publish results", "", |mut i| {
           i.request.method("POST");
           i.request.path("/");
           i.response.status(201);
           i
         })
-        .await
         .start_mock_server(None);
 
       let options = super::PublishOptions {
@@ -273,11 +262,9 @@ fn publish_result_does_nothing_if_not_from_broker() {
   expect!(server_response).to(be_err());
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn publish_successful_result_to_broker() {
-  try_init().unwrap_or(());
-
-  let server = PactBuilder::new("RustPactVerifier", "PactBroker")
+  let server = PactBuilderAsync::new("RustPactVerifier", "PactBroker")
     .interaction("publish results", "", |mut i| async move {
       i.request.method("POST");
       i.request.path("/path/to/pact/verification");
@@ -385,7 +372,7 @@ fn is_pact_broker_source_test() {
 #[test_log::test(tokio::test)]
 async fn test_fetch_pact_from_url_with_links() {
   let path = "/pacts/provider/Pact%20Broker/consumer/JVM%20Pact%20Broker%20Client/version/4.3.9";
-  let server = PactBuilder::new("RustPactVerifier", "PactBroker")
+  let server = PactBuilderAsync::new("RustPactVerifier", "PactBroker")
   .interaction("a request for a Pact from a webhook", "", |mut i| async move {
       i.request.method("GET");
       i.request.path(path);
@@ -581,7 +568,7 @@ impl ProviderStateExecutor for DummyProviderStateExecutor {
 
 #[test_log::test(tokio::test)]
 async fn when_no_pacts_is_error_is_false_should_not_generate_error() {
-  let server = PactBuilder::new("RustPactVerifier", "PactBrokerNoPacts")
+  let server = PactBuilderAsync::new("RustPactVerifier", "PactBrokerNoPacts")
     .interaction("a request to the pact broker root", "", |mut i| async move {
       i.request
         .path("/")
@@ -679,7 +666,7 @@ async fn when_no_pacts_is_error_is_false_should_not_generate_error() {
 
 #[test_log::test(tokio::test)]
 async fn when_no_pacts_is_error_is_false_should_generate_error_if_it_is_other_error() {
-  let server = PactBuilder::new("RustPactVerifier", "PactBrokerError")
+  let server = PactBuilderAsync::new("RustPactVerifier", "PactBrokerError")
     .interaction("a request to the pact broker root", "", |mut i| async move {
       i.request
         .path("/")
@@ -772,7 +759,7 @@ async fn when_no_pacts_is_error_is_false_should_generate_error_if_it_is_other_er
 #[test_log::test(tokio::test)]
 async fn test_publish_results_from_url_source_with_provider_branch() {
   let path = "/pacts/provider/Pact%20Broker/consumer/JVM%20Pact%20Broker%20Client/version/4.3.9";
-  let server = PactBuilder::new("RustPactVerifier", "PactBroker")
+  let server = PactBuilderAsync::new("RustPactVerifier", "PactBroker")
       .interaction("a request for a Pact from a webhook", "", |mut i| async move {
         i.request.method("GET");
         i.request.path(path);
