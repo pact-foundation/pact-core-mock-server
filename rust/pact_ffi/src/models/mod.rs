@@ -9,3 +9,4 @@ pub mod provider_state;
 pub mod iterators;
 pub mod sync_message;
 pub mod http_interaction;
+pub mod expressions;
