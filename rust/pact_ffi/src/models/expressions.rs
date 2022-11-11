@@ -99,6 +99,10 @@ ffi_fn! {
   /// Returns the value from parsing a matching definition expression. If there was an error,
   /// it will return a NULL pointer, otherwise returns the value as a NULL-terminated string.
   /// The returned string must be freed using the `pactffi_string_delete` function once done with it.
+  ///
+  /// Note that different expressions values can have types other than a string. Use
+  /// `pactffi_matcher_definition_value_type` to get the actual type of the value. This function
+  /// will always return the string representation of the value.
   fn pactffi_matcher_definition_value(definition: *const MatchingRuleDefinitionResult) -> *const c_char {
     let definition = as_ref!(definition);
     if let Either::Right(definition) = &definition.result {
@@ -138,6 +142,53 @@ ffi_fn! {
   }
 }
 
+/// The type of value detected after parsing the expression
+#[repr(C)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum ExpressionValueType {
+  /// If the type is unknown
+  Unknown,
+  /// String type
+  String,
+  /// Numeric type
+  Number,
+  /// Integer numeric type (no significant figures after the decimal point)
+  Integer,
+  /// Decimal numeric type (at least one significant figure after the decimal point)
+  Decimal,
+  /// Boolean type
+  Boolean
+}
+
+impl ExpressionValueType {
+  /// Convert the ValueType into an ExpressionValueType which can be returned via FFI
+  fn from_value_type(t: ValueType) -> ExpressionValueType {
+    match t {
+      ValueType::Unknown => ExpressionValueType::Unknown,
+      ValueType::String => ExpressionValueType::String,
+      ValueType::Number => ExpressionValueType::Number,
+      ValueType::Integer => ExpressionValueType::Integer,
+      ValueType::Decimal => ExpressionValueType::Decimal,
+      ValueType::Boolean => ExpressionValueType::Boolean
+    }
+  }
+}
+
+ffi_fn! {
+  /// Returns the type of the value from parsing a matching definition expression. If there was an
+  /// error parsing the expression, it will return Unknown.
+  fn pactffi_matcher_definition_value_type(definition: *const MatchingRuleDefinitionResult) -> ExpressionValueType {
+    let definition = as_ref!(definition);
+    if let Either::Right(definition) = &definition.result {
+      ExpressionValueType::from_value_type(definition.value_type)
+    } else {
+      ExpressionValueType::Unknown
+    }
+  } {
+    ExpressionValueType::Unknown
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use std::ffi::CString;
@@ -146,10 +197,12 @@ mod tests {
   use libc::c_char;
 
   use crate::models::expressions::{
+    ExpressionValueType,
     MatchingRuleDefinitionResult,
     pactffi_matcher_definition_error,
     pactffi_matcher_definition_generator,
     pactffi_matcher_definition_value,
+    pactffi_matcher_definition_value_type,
     pactffi_parse_matcher_definition
   };
   use crate::util::ptr;
@@ -188,7 +241,10 @@ mod tests {
     expect!(value.is_null()).to(be_true());
 
     let generator = pactffi_matcher_definition_generator(result);
-    expect!(value.is_null()).to(be_true());
+    expect!(generator.is_null()).to(be_true());
+
+    let value_type = pactffi_matcher_definition_value_type(result);
+    expect!(value_type).to(be_equal_to(ExpressionValueType::Unknown));
 
     let definition = unsafe { Box::from_raw(result as *mut MatchingRuleDefinitionResult) };
     expect!(definition.result.left()).to(be_some().value("expected a primitive value"));
@@ -211,6 +267,9 @@ mod tests {
     let generator = pactffi_matcher_definition_generator(result);
     expect!(generator.is_null()).to(be_true());
 
+    let value_type = pactffi_matcher_definition_value_type(result);
+    expect!(value_type).to(be_equal_to(ExpressionValueType::String));
+
     let definition = unsafe { Box::from_raw(result as *mut MatchingRuleDefinitionResult) };
     expect!(definition.result.as_ref().left()).to(be_none());
     expect!(definition.result.as_ref().right()).to(be_some());
@@ -229,6 +288,9 @@ mod tests {
     expect!(value.is_null()).to(be_false());
     let string = unsafe { CString::from_raw(value as *mut c_char) };
     expect!(string.to_string_lossy()).to(be_equal_to("I am not an expression"));
+
+    let value_type = pactffi_matcher_definition_value_type(result);
+    expect!(value_type).to(be_equal_to(ExpressionValueType::String));
 
     let definition = unsafe { Box::from_raw(result as *mut MatchingRuleDefinitionResult) };
     expect!(definition.result.as_ref().left()).to(be_none());
@@ -251,7 +313,10 @@ mod tests {
     expect!(string.to_string_lossy()).to(be_equal_to("2000-01-02"));
 
     let generator = pactffi_matcher_definition_generator(result);
-    expect!(value.is_null()).to(be_false());
+    expect!(generator.is_null()).to(be_false());
+
+    let value_type = pactffi_matcher_definition_value_type(result);
+    expect!(value_type).to(be_equal_to(ExpressionValueType::String));
 
     let definition = unsafe { Box::from_raw(result as *mut MatchingRuleDefinitionResult) };
     expect!(definition.result.as_ref().left()).to(be_none());
