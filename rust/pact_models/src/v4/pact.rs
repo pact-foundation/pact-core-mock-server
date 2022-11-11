@@ -138,6 +138,30 @@ impl V4Pact {
         }
       )
   }
+
+  /// Parses a JSON value into a V4 Pact model
+  pub fn pact_from_json(json: &Value, source: &str) -> anyhow::Result<V4Pact> {
+    let mut metadata = meta_data_from_json(&json);
+
+    let consumer = match json.get("consumer") {
+      Some(v) => Consumer::from_json(v),
+      None => Consumer { name: "consumer".into() }
+    };
+    let provider = match json.get("provider") {
+      Some(v) => Provider::from_json(v),
+      None => Provider { name: "provider".into() }
+    };
+
+    let plugin_data = V4Pact::extract_plugin_data(&mut metadata);
+
+    Ok(V4Pact {
+      consumer,
+      provider,
+      interactions: interactions_from_json(&json, source),
+      metadata,
+      plugin_data
+    })
+  }
 }
 
 impl Pact for V4Pact {
@@ -323,26 +347,7 @@ impl ReadWritePact for V4Pact {
       serde_json::from_reader::<_, Value>(f).context("Failed to parse Pact JSON")
     })?;
 
-    let mut metadata = meta_data_from_json(&json);
-
-    let consumer = match json.get("consumer") {
-      Some(v) => Consumer::from_json(v),
-      None => Consumer { name: "consumer".into() }
-    };
-    let provider = match json.get("provider") {
-      Some(v) => Provider::from_json(v),
-      None => Provider { name: "provider".into() }
-    };
-
-    let plugin_data = V4Pact::extract_plugin_data(&mut metadata);
-
-    Ok(V4Pact {
-      consumer,
-      provider,
-      interactions: interactions_from_json(&json, &*path.to_string_lossy()),
-      metadata,
-      plugin_data
-    })
+    Self::pact_from_json(&json, &*path.to_string_lossy())
   }
 
   fn merge(&self, other: &dyn Pact) -> anyhow::Result<Box<dyn Pact + Send + Sync>> {
