@@ -10,3 +10,5 @@ pub mod iterators;
 pub mod sync_message;
 pub mod http_interaction;
 pub mod expressions;
+pub mod matching_rules;
+pub mod generators;

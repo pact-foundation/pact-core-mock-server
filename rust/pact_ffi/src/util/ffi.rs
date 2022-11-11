@@ -10,13 +10,18 @@ macro_rules! ffi_fn {
         $(#[$doc])*
         #[no_mangle]
         #[allow(clippy::or_fun_call)]
-        #[::tracing::instrument(level = "trace")]
         pub extern fn $name($($arg: $arg_ty),*) -> $ret {
             use $crate::error::catch_panic;
 
+            ::tracing::debug!("{}::{} FFI function invoked", module_path!(), stringify!($name));
+
+            $(
+                ::tracing::trace!("@param {} = {:?}", stringify!($arg), $arg);
+            )*
+
             let output = catch_panic(|| Ok($body)).unwrap_or($fail);
 
-            ::tracing::trace!(output = ?output, "FFI function invoked");
+            ::tracing::trace!(output = ?output, "{} FFI function completed", stringify!($name));
 
             output
         }

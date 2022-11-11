@@ -3,6 +3,7 @@
 use anyhow::Context;
 use either::Either;
 use libc::c_char;
+use pact_models::generators::Generator;
 use pact_models::matchingrules::expressions::{
   is_matcher_def,
   MatchingRuleDefinition,
@@ -117,6 +118,26 @@ ffi_fn! {
   }
 }
 
+ffi_fn! {
+  /// Returns the generator from parsing a matching definition expression. If there was an error or
+  /// there is no associated generator, it will return a NULL pointer, otherwise returns the generator
+  /// as a pointer.
+  fn pactffi_matcher_definition_generator(definition: *const MatchingRuleDefinitionResult) -> *const Generator {
+    let definition = as_ref!(definition);
+    if let Either::Right(definition) = &definition.result {
+      if let Some(generator) = &definition.generator {
+        generator as *const Generator
+      } else {
+        ptr::null_to::<Generator>()
+      }
+    } else {
+      ptr::null_to::<Generator>()
+    }
+  } {
+    ptr::null_to::<Generator>()
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use std::ffi::CString;
@@ -127,18 +148,19 @@ mod tests {
   use crate::models::expressions::{
     MatchingRuleDefinitionResult,
     pactffi_matcher_definition_error,
+    pactffi_matcher_definition_generator,
     pactffi_matcher_definition_value,
     pactffi_parse_matcher_definition
   };
   use crate::util::ptr;
 
-  #[test]
+  #[test_log::test]
   fn parse_expression_with_null() {
     let result = pactffi_parse_matcher_definition(ptr::null_to());
     expect!(result.is_null()).to(be_true());
   }
 
-  #[test]
+  #[test_log::test]
   fn parse_expression_with_empty_string() {
     let empty = CString::new("").unwrap();
     let result = pactffi_parse_matcher_definition(empty.as_ptr());
@@ -152,7 +174,7 @@ mod tests {
     expect!(definition.result.left()).to(be_some().value("Expected a matching rule definition, but got an empty string"));
   }
 
-  #[test]
+  #[test_log::test]
   fn parse_expression_with_invalid_expression() {
     let value = CString::new("matching(type,").unwrap();
     let result = pactffi_parse_matcher_definition(value.as_ptr());
@@ -165,11 +187,14 @@ mod tests {
     let value = pactffi_matcher_definition_value(result);
     expect!(value.is_null()).to(be_true());
 
+    let generator = pactffi_matcher_definition_generator(result);
+    expect!(value.is_null()).to(be_true());
+
     let definition = unsafe { Box::from_raw(result as *mut MatchingRuleDefinitionResult) };
     expect!(definition.result.left()).to(be_some().value("expected a primitive value"));
   }
 
-  #[test]
+  #[test_log::test]
   fn parse_expression_with_valid_expression() {
     let value = CString::new("matching(type,'Name')").unwrap();
     let result = pactffi_parse_matcher_definition(value.as_ptr());
@@ -183,12 +208,15 @@ mod tests {
     let string = unsafe { CString::from_raw(value as *mut c_char) };
     expect!(string.to_string_lossy()).to(be_equal_to("Name"));
 
+    let generator = pactffi_matcher_definition_generator(result);
+    expect!(generator.is_null()).to(be_true());
+
     let definition = unsafe { Box::from_raw(result as *mut MatchingRuleDefinitionResult) };
     expect!(definition.result.as_ref().left()).to(be_none());
     expect!(definition.result.as_ref().right()).to(be_some());
   }
 
-  #[test]
+  #[test_log::test]
   fn parse_expression_with_normal_string() {
     let value = CString::new("I am not an expression").unwrap();
     let result = pactffi_parse_matcher_definition(value.as_ptr());
@@ -206,5 +234,27 @@ mod tests {
     expect!(definition.result.as_ref().left()).to(be_none());
     expect!(definition.result.as_ref().right()).to(be_some());
     expect!(definition.result.as_ref().right().unwrap().rules.is_empty()).to(be_true());
+  }
+
+  #[test_log::test]
+  fn parse_expression_with_generator() {
+    let value = CString::new("matching(date,'yyyy-MM-dd', '2000-01-02')").unwrap();
+    let result = pactffi_parse_matcher_definition(value.as_ptr());
+    expect!(result.is_null()).to(be_false());
+
+    let error = pactffi_matcher_definition_error(result);
+    expect!(error.is_null()).to(be_true());
+
+    let value = pactffi_matcher_definition_value(result);
+    expect!(value.is_null()).to(be_false());
+    let string = unsafe { CString::from_raw(value as *mut c_char) };
+    expect!(string.to_string_lossy()).to(be_equal_to("2000-01-02"));
+
+    let generator = pactffi_matcher_definition_generator(result);
+    expect!(value.is_null()).to(be_false());
+
+    let definition = unsafe { Box::from_raw(result as *mut MatchingRuleDefinitionResult) };
+    expect!(definition.result.as_ref().left()).to(be_none());
+    expect!(definition.result.as_ref().right()).to(be_some());
   }
 }
