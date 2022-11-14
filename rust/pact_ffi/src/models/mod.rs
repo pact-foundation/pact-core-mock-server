@@ -30,11 +30,13 @@ pub mod matching_rules;
 pub mod generators;
 
 /// Opaque type for use as a pointer to a Pact model
+#[derive(Debug)]
 pub struct Pact {
   inner: Mutex<V4Pact>
 }
 
 impl Pact {
+  /// Create a new FFI Pact wrapper for the given Pact model
   pub fn new(pact: V4Pact) -> Self {
     Pact {
       inner: Mutex::new(pact)
