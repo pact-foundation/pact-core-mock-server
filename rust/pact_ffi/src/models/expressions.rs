@@ -481,9 +481,10 @@ mod tests {
     expect!(rule.is_null()).to(be_false());
     let r = unsafe { rule.as_ref() }.unwrap();
     match r {
-      MatchingRuleResult::MatchingRule(id, v, _p) => {
+      MatchingRuleResult::MatchingRule(id, v, p) => {
         expect!(*id).to(be_equal_to(3));
         expect!(v.is_null()).to(be_true());
+        expect!(p.is_null()).to(be_false());
       }
       MatchingRuleResult::MatchingReference(_) => {
         panic!("Expected a matching rule");
