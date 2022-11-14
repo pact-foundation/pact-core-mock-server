@@ -1,5 +1,8 @@
 //! Functions for dealing with matching rule expressions
 
+use std::ffi::CString;
+use std::ptr::null;
+
 use anyhow::Context;
 use either::Either;
 use libc::c_char;
@@ -10,9 +13,10 @@ use pact_models::matchingrules::expressions::{
   parse_matcher_def,
   ValueType
 };
+use pact_models::matchingrules::MatchingRule;
 use tracing::{debug, error};
 
-use crate::{as_ref, ffi_fn, safe_str};
+use crate::{as_mut, as_ref, ffi_fn, safe_str};
 use crate::util::{ptr, string};
 
 /// Result of parsing a matching rule definition
@@ -126,6 +130,10 @@ ffi_fn! {
   /// Returns the generator from parsing a matching definition expression. If there was an error or
   /// there is no associated generator, it will return a NULL pointer, otherwise returns the generator
   /// as a pointer.
+  ///
+  /// The generator pointer will be a valid pointer as long as `pactffi_matcher_definition_delete`
+  /// has not been called on the definition. Using the generator pointer after the definition
+  /// has been deleted will result in undefined behaviour.
   fn pactffi_matcher_definition_generator(definition: *const MatchingRuleDefinitionResult) -> *const Generator {
     let definition = as_ref!(definition);
     if let Either::Right(definition) = &definition.result {
@@ -189,6 +197,170 @@ ffi_fn! {
   }
 }
 
+/// The matching rule or reference from parsing the matching definition expression.
+#[repr(C)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum MatchingRuleResult {
+  /// The matching rule from the expression.
+  MatchingRule(u16, *const c_char),
+  /// A reference to a named item.
+  MatchingReference(*const c_char)
+}
+
+ffi_fn! {
+    /// Free the iterator when you're done using it.
+    fn pactffi_matching_rule_iter_delete(iter: *mut MatchingRuleIterator) {
+        ptr::drop_raw(iter);
+    }
+}
+
+/// Inner type used to store the values for the matching rule iterator
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum MatchingRuleIteratorInner {
+  /// The matching rule from the expression.
+  MatchingRule(MatchingRule, Option<CString>, MatchingRuleResult),
+  /// A reference to a named item.
+  MatchingReference(CString, MatchingRuleResult)
+}
+
+/// An iterator over the matching rules from a matching definition expression.
+#[derive(Debug)]
+pub struct MatchingRuleIterator {
+  current: usize,
+  rules: Vec<MatchingRuleIteratorInner>
+}
+
+impl MatchingRuleIterator {
+  /// Create a new iterator over the matching rules from the parsed definition
+  pub fn new(definition: &MatchingRuleDefinition) -> Self {
+    MatchingRuleIterator {
+      current: 0,
+      rules: definition.rules.iter().map(|r| {
+        match r {
+          Either::Left(rule) => {
+            let val = match rule {
+              MatchingRule::Equality => None,
+              MatchingRule::Regex(s) => Some(CString::new(s.as_str()).unwrap()),
+              MatchingRule::Type => None,
+              MatchingRule::MinType(_) => None,
+              MatchingRule::MaxType(_) => None,
+              MatchingRule::MinMaxType(_, _) => None,
+              MatchingRule::Timestamp(s) => Some(CString::new(s.as_str()).unwrap()),
+              MatchingRule::Time(s) => Some(CString::new(s.as_str()).unwrap()),
+              MatchingRule::Date(s) => Some(CString::new(s.as_str()).unwrap()),
+              MatchingRule::Include(s) => Some(CString::new(s.as_str()).unwrap()),
+              MatchingRule::Number => None,
+              MatchingRule::Integer => None,
+              MatchingRule::Decimal => None,
+              MatchingRule::Null => None,
+              MatchingRule::ContentType(s) => Some(CString::new(s.as_str()).unwrap()),
+              MatchingRule::ArrayContains(_) => None,
+              MatchingRule::Values => None,
+              MatchingRule::Boolean => None,
+              MatchingRule::StatusCode(_) => None,
+              MatchingRule::NotEmpty => None,
+              MatchingRule::Semver => None,
+              MatchingRule::EachKey(_) => None,
+              MatchingRule::EachValue(_) => None
+            };
+            let rule_value = val.as_ref().map(|v| v.as_ptr()).unwrap_or_else(|| null());
+            MatchingRuleIteratorInner::MatchingRule(rule.clone(), val,
+              MatchingRuleResult::MatchingRule(rule_id(rule), rule_value))
+          },
+          Either::Right(reference) => {
+            let name = CString::new(reference.name.as_str()).unwrap();
+            let p = name.as_ptr();
+            MatchingRuleIteratorInner::MatchingReference(name, MatchingRuleResult::MatchingReference(p))
+          }
+        }
+      }).collect()
+    }
+  }
+
+  /// Get the next matching rule or reference.
+  fn next(&mut self) -> Option<&MatchingRuleResult> {
+    let idx = self.current;
+    self.current += 1;
+    self.rules.get(idx).map(|r| {
+      match r {
+        MatchingRuleIteratorInner::MatchingRule(_, _, c_val) => c_val,
+        MatchingRuleIteratorInner::MatchingReference(_, c_val) => c_val
+      }
+    })
+  }
+}
+
+/// Returns a unique ID for the matching rule
+fn rule_id(rule: &MatchingRule) -> u16 {
+  match rule {
+    MatchingRule::Equality => 1,
+    MatchingRule::Regex(_) => 2,
+    MatchingRule::Type => 3,
+    MatchingRule::MinType(_) => 4,
+    MatchingRule::MaxType(_) => 5,
+    MatchingRule::MinMaxType(_, _) => 6,
+    MatchingRule::Timestamp(_) => 7,
+    MatchingRule::Time(_) => 8,
+    MatchingRule::Date(_) => 9,
+    MatchingRule::Include(_) => 10,
+    MatchingRule::Number => 11,
+    MatchingRule::Integer => 12,
+    MatchingRule::Decimal => 13,
+    MatchingRule::Null => 14,
+    MatchingRule::ContentType(_) => 15,
+    MatchingRule::ArrayContains(_) => 16,
+    MatchingRule::Values => 17,
+    MatchingRule::Boolean => 18,
+    MatchingRule::StatusCode(_) => 19,
+    MatchingRule::NotEmpty => 20,
+    MatchingRule::Semver => 21,
+    MatchingRule::EachKey(_) => 22,
+    MatchingRule::EachValue(_) => 23
+  }
+}
+
+ffi_fn! {
+  /// Returns an iterator over the matching rules from the parsed definition. The iterator needs to
+  /// be deleted with the `pactffi_matching_rule_iter_delete` function once done with it.
+  ///
+  /// If there was an error parsing the expression, this function will return a NULL pointer.
+  fn pactffi_matcher_definition_iter(definition: *const MatchingRuleDefinitionResult) -> *mut MatchingRuleIterator {
+    let definition = as_ref!(definition);
+    if let Either::Right(result) = &definition.result {
+      let iter = MatchingRuleIterator::new(result);
+      ptr::raw_to(iter)
+    } else {
+      ptr::null_mut_to::<MatchingRuleIterator>()
+    }
+  } {
+    ptr::null_mut_to::<MatchingRuleIterator>()
+  }
+}
+
+ffi_fn! {
+    /// Get the next matching rule or reference from the iterator. As the values returned are owned
+    /// by the iterator, they do not need to be deleted but will be cleaned up when the iterator is
+    /// deleted.
+    ///
+    /// Will return a NULL pointer when the iterator has advanced past the end of the list.
+    ///
+    /// # Safety
+    ///
+    /// This function is safe.
+    ///
+    /// # Error Handling
+    ///
+    /// This function will return a NULL pointer if passed a NULL pointer or if an error occurs.
+    fn pactffi_matching_rule_iter_next(iter: *mut MatchingRuleIterator) -> *const MatchingRuleResult {
+        let iter = as_mut!(iter);
+        let result = iter.next().ok_or(anyhow::anyhow!("iter past the end of messages"))?;
+        result as *const MatchingRuleResult
+    } {
+        ptr::null_mut_to::<MatchingRuleResult>()
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
   use std::ffi::CString;
@@ -199,10 +371,14 @@ mod tests {
   use crate::models::expressions::{
     ExpressionValueType,
     MatchingRuleDefinitionResult,
+    MatchingRuleResult,
     pactffi_matcher_definition_error,
     pactffi_matcher_definition_generator,
+    pactffi_matcher_definition_iter,
     pactffi_matcher_definition_value,
     pactffi_matcher_definition_value_type,
+    pactffi_matching_rule_iter_delete,
+    pactffi_matching_rule_iter_next,
     pactffi_parse_matcher_definition
   };
   use crate::util::ptr;
@@ -269,6 +445,24 @@ mod tests {
 
     let value_type = pactffi_matcher_definition_value_type(result);
     expect!(value_type).to(be_equal_to(ExpressionValueType::String));
+
+    let iter = pactffi_matcher_definition_iter(result);
+    expect!(iter.is_null()).to(be_false());
+    let rule = pactffi_matching_rule_iter_next(iter);
+    expect!(rule.is_null()).to(be_false());
+    let r = unsafe { rule.as_ref() }.unwrap();
+    match r {
+      MatchingRuleResult::MatchingRule(id, v) => {
+        expect!(*id).to(be_equal_to(3));
+        expect!(v.is_null()).to(be_true());
+      }
+      MatchingRuleResult::MatchingReference(_) => {
+        panic!("Expected a matching rule");
+      }
+    }
+    let rule = pactffi_matching_rule_iter_next(iter);
+    expect!(rule.is_null()).to(be_true());
+    pactffi_matching_rule_iter_delete(iter);
 
     let definition = unsafe { Box::from_raw(result as *mut MatchingRuleDefinitionResult) };
     expect!(definition.result.as_ref().left()).to(be_none());

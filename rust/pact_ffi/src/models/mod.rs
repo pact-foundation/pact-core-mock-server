@@ -1,10 +1,8 @@
 //! FFI functions to support Pact models.
 
 use std::collections::BTreeMap;
-use std::panic::UnwindSafe;
 use std::sync::Mutex;
 
-use anyhow::anyhow;
 use libc::c_char;
 use maplit::btreemap;
 use serde_json::Value;
@@ -15,8 +13,8 @@ use pact_models::plugins::PluginData;
 use pact_models::v4::interaction::interactions_from_json;
 use pact_models::v4::pact::V4Pact;
 
-use crate::{as_ref, ffi_fn, safe_str};
-use crate::util::{ptr, string};
+use crate::{ffi_fn, safe_str};
+use crate::util::ptr;
 
 pub mod consumer;
 pub mod message;
