@@ -198,6 +198,33 @@ ffi_fn! {
 }
 
 /// The matching rule or reference from parsing the matching definition expression.
+///
+/// For matching rules, the ID corresponds to the following rules:
+/// | Rule | ID |
+/// | ---- | -- |
+/// | Equality | 1 |
+/// | Regex | 2 |
+/// | Type | 3 |
+/// | MinType | 4 |
+/// | MaxType | 5 |
+/// | MinMaxType | 6 |
+/// | Timestamp | 7 |
+/// | Time | 8 |
+/// | Date | 9 |
+/// | Include | 10 |
+/// | Number | 11 |
+/// | Integer | 12 |
+/// | Decimal | 13 |
+/// | Null | 14 |
+/// | ContentType | 15 |
+/// | ArrayContains | 16 |
+/// | Values | 17 |
+/// | Boolean | 18 |
+/// | StatusCode | 19 |
+/// | NotEmpty | 20 |
+/// | Semver | 21 |
+/// | EachKey | 22 |
+/// | EachValue | 23 |
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum MatchingRuleResult {
@@ -359,7 +386,6 @@ ffi_fn! {
         ptr::null_mut_to::<MatchingRuleResult>()
     }
 }
-
 
 #[cfg(test)]
 mod tests {
