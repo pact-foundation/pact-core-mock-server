@@ -51,6 +51,7 @@ macro_rules! cstr {
 #[macro_export]
 macro_rules! safe_str {
     ( $name:ident ) => {{
+        use ::anyhow::Context;
         $crate::cstr!($name).to_str().context(concat!(
             "error parsing ",
             stringify!($name),

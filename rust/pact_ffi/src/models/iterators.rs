@@ -68,7 +68,6 @@ ffi_fn! {
     }
 }
 
-
 /// An iterator over synchronous request/response messages in a pact.
 #[derive(Debug)]
 #[allow(missing_copy_implementations)]
