@@ -10,6 +10,24 @@ use crate::{as_ref, ffi_fn};
 use crate::util::{ptr, string};
 
 ffi_fn! {
+  /// Get the JSON form of the generator.
+  ///
+  /// The returned string must be deleted with `pactffi_string_delete`.
+  ///
+  /// # Safety
+  ///
+  /// This function will fail if it is passed a NULL pointer, or the owner of the generator has
+  /// been deleted.
+  fn pactffi_generator_to_json(generator: *const Generator) -> *const c_char {
+    let generator = as_ref!(generator);
+    let json = generator.to_json().unwrap_or_default().to_string();
+    string::to_c(&json)? as *const c_char
+  } {
+    ptr::null_to::<c_char>()
+  }
+}
+
+ffi_fn! {
   /// Generate a string value using the provided generator and an optional JSON payload containing
   /// any generator context. The context value is used for generators like `MockServerURL` (which
   /// should contain details about the running mock server) and `ProviderStateGenerator` (which
@@ -90,9 +108,14 @@ mod tests {
   use std::ffi::CString;
   use expectest::prelude::*;
   use libc::c_char;
+  use pact_models::generators::Generator;
   use pact_models::prelude::Generator::{RandomInt, RandomString};
 
-  use crate::models::generators::{pactffi_generator_generate_integer, pactffi_generator_generate_string};
+  use crate::models::generators::{
+    pactffi_generator_generate_integer,
+    pactffi_generator_generate_string,
+    pactffi_generator_to_json
+  };
   use crate::util::ptr::null_to;
   use crate::util::string;
 
@@ -123,5 +146,14 @@ mod tests {
     let value = pactffi_generator_generate_integer(&generator, null_to());
     expect!(value).to(be_greater_or_equal_to(10));
     expect!(value).to(be_less_or_equal_to(100));
+  }
+
+  #[test]
+  fn generator_json() {
+    let generator = RandomInt(10, 100);
+    let generator_ptr = &generator as *const Generator;
+    let json_ptr = pactffi_generator_to_json(generator_ptr);
+    let json = unsafe { CString::from_raw(json_ptr as *mut c_char) };
+    expect!(json.to_string_lossy()).to(be_equal_to("{\"max\":100,\"min\":10,\"type\":\"RandomInt\"}"));
   }
 }

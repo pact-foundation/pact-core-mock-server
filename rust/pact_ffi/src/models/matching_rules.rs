@@ -15,7 +15,7 @@ ffi_fn! {
   ///
   /// This function will fail if it is passed a NULL pointer, or the iterator that owns the
   /// value of the matching rule has been deleted.
-  fn pactffi_matching_rule_json(rule: *const MatchingRule) -> *const c_char {
+  fn pactffi_matching_rule_to_json(rule: *const MatchingRule) -> *const c_char {
     let rule = as_ref!(rule);
     let json = rule.to_json().to_string();
     string::to_c(&json)? as *const c_char
@@ -32,13 +32,13 @@ mod tests {
   use libc::c_char;
   use pact_models::matchingrules::MatchingRule;
 
-  use crate::models::matching_rules::pactffi_matching_rule_json;
+  use crate::models::matching_rules::pactffi_matching_rule_to_json;
 
   #[test]
   fn matching_rule_json() {
     let rule = MatchingRule::Regex("\\d+".to_string());
     let rule_ptr = &rule as *const MatchingRule;
-    let json_ptr = pactffi_matching_rule_json(rule_ptr);
+    let json_ptr = pactffi_matching_rule_to_json(rule_ptr);
     let json = unsafe { CString::from_raw(json_ptr as *mut c_char) };
     expect!(json.to_string_lossy()).to(be_equal_to("{\"match\":\"regex\",\"regex\":\"\\\\d+\"}"));
   }
