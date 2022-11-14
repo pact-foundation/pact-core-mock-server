@@ -8,10 +8,12 @@ use std::path::PathBuf;
 use expectest::prelude::*;
 use pact_models::pact::ReadWritePact;
 use pact_models::sync_pact::RequestResponsePact;
+use pact_models::v4::pact::V4Pact;
 use rand::prelude::*;
 use reqwest::Client;
+use serde_json::json;
 
-use pact_consumer::{json_pattern, json_pattern_internal};
+use pact_consumer::{json_pattern, json_pattern_internal, like};
 use pact_consumer::prelude::*;
 
 /// This is supposed to be a doctest in mod, but it's breaking there, so
@@ -170,4 +172,51 @@ async fn duplicate_interactions() {
   let _ = fs::remove_dir_all(output_dir);
 
   expect!(written_pact.interactions.len()).to(be_equal_to(1));
+}
+
+#[test_log::test(tokio::test)]
+async fn test_two_interactions() {
+  {
+    let mock_service = PactBuilder::new("test_two_interactions_consumer", "test_two_interactions_provider")
+      .interaction("looks for something that doesn't exist", "", |mut i| {
+        i.request
+          .post()
+          .path("/")
+          .content_type("application/json")
+          .json_body(like!(json!({"key": "i_dont_exist"})));
+        i.response
+          .content_type("application/json")
+          .json_body(json!({"count": 0, "results": []}));
+        i
+      })
+      .start_mock_server(None);
+
+    let mock_url = mock_service.url();
+    Client::new().post(mock_url).json(&json!({"key": "i_dont_exist"})).send().await.unwrap();
+  }
+
+  {
+    let mock_service = PactBuilder::new("test_two_interactions_consumer", "test_two_interactions_provider")
+      .interaction("looks for something that exists", "", |mut i| {
+        i.request
+          .post()
+          .path("/")
+          .content_type("application/json")
+          .json_body(like!(json!({"key": "i_exist"})));
+        i.response
+          .content_type("application/json")
+          .json_body(json!({"count": 1, "results": ["i_exist"]}));
+        i
+      })
+      .start_mock_server(None);
+
+    let mock_url = mock_service.url();
+    Client::new().post(mock_url).json(&json!({"key": "i_exist"})).send().await.unwrap();
+  }
+
+  let path_file = Path::new("target/pacts/test_two_interactions_consumer-test_two_interactions_provider.json");
+  expect!(path_file.exists()).to(be_true());
+
+  let pact = RequestResponsePact::read_pact(&path_file).unwrap();
+  expect!(pact.interactions.len()).to(be_equal_to(2));
 }
