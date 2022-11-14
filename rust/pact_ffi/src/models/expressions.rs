@@ -229,7 +229,7 @@ ffi_fn! {
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum MatchingRuleResult {
   /// The matching rule from the expression.
-  MatchingRule(u16, *const c_char),
+  MatchingRule(u16, *const c_char, *const MatchingRule),
   /// A reference to a named item.
   MatchingReference(*const c_char)
 }
@@ -291,8 +291,11 @@ impl MatchingRuleIterator {
               MatchingRule::EachValue(_) => None
             };
             let rule_value = val.as_ref().map(|v| v.as_ptr()).unwrap_or_else(|| null());
-            MatchingRuleIteratorInner::MatchingRule(rule.clone(), val,
-              MatchingRuleResult::MatchingRule(rule_id(rule), rule_value))
+            let rule_clone = rule.clone();
+            let rule_ptr = &rule_clone as *const MatchingRule;
+            let rule_result = MatchingRuleResult::MatchingRule(rule_id(rule), rule_value, rule_ptr);
+            MatchingRuleIteratorInner::MatchingRule(rule_clone, val,
+                                                    rule_result)
           },
           Either::Right(reference) => {
             let name = CString::new(reference.name.as_str()).unwrap();
@@ -478,7 +481,7 @@ mod tests {
     expect!(rule.is_null()).to(be_false());
     let r = unsafe { rule.as_ref() }.unwrap();
     match r {
-      MatchingRuleResult::MatchingRule(id, v) => {
+      MatchingRuleResult::MatchingRule(id, v, _p) => {
         expect!(*id).to(be_equal_to(3));
         expect!(v.is_null()).to(be_true());
       }
