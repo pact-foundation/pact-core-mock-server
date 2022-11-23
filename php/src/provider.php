@@ -12,6 +12,9 @@ $process->waitUntil(function ($type, $output) {
 
 $code = file_get_contents(__DIR__ . '/../../rust/pact_ffi/include/pact.h');
 $ffi = FFI::cdef($code, __DIR__ . '/../../rust/target/debug/libpact_ffi.so');
+// Macs use dylib extension, following will assume os's downloaded in users home dir ~/.pact/ffi/arch/libpact_ffi.<dylib|so>
+// $code = file_get_contents(posix_getpwnam(get_current_user())['dir'] . '/.pact/ffi/pact.h');
+// $ffi = FFI::cdef($code, posix_getpwnam(get_current_user())['dir'] . '/.pact/ffi/osxaarch64/libpact_ffi.dylib');
 
 $ffi->pactffi_init('LOG_LEVEL');
 
@@ -40,7 +43,7 @@ $ffi->pactffi_verifier_set_provider_state($handle, 'http://localhost:8000/change
 $ffi->pactffi_verifier_set_verification_options($handle, false, 5000);
 $ffi->pactffi_verifier_set_publish_options($handle, '1.0.0', null, getCData($tags), count($tags), 'some-branch');
 $ffi->pactffi_verifier_set_consumer_filters($handle, getCData($consumers), count($consumers));
-$ffi->pactffi_verifier_add_directory_source($handle, __DIR__ . '/../pact');
+$ffi->pactffi_verifier_add_directory_source($handle, __DIR__ . '/../pacts');
 $result = $ffi->pactffi_verifier_execute($handle);
 $ffi->pactffi_verifier_shutdown($handle);
 
