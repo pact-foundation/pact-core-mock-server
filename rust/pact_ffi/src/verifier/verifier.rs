@@ -6,6 +6,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use clap::{AppSettings, ArgMatches, ErrorKind};
+use maplit::hashmap;
 use pact_models::http_utils::HttpAuth;
 use pact_models::PactSpecification;
 use tracing::{debug, error, warn};
@@ -206,11 +207,23 @@ async fn handle_matches(matches: &clap::ArgMatches<'_>) -> Result<(), i32> {
       .. HttpRequestProviderStateExecutor::default()
     });
 
+    let mut custom_headers = hashmap!{};
+    if let Some(headers) = matches.values_of("custom-header") {
+      for header in headers {
+        let (key, value) = header.split_once('=').ok_or_else(|| {
+          error!("Custom header values must be in the form KEY=VALUE, where KEY and VALUE contain ASCII characters (32-127) only.");
+          3
+        })?;
+        custom_headers.insert(key.to_string(), value.to_string());
+      }
+    }
+
     let verification_options = VerificationOptions {
       request_filter: None::<Arc<NullRequestFilterExecutor>>,
       disable_ssl_verification: matches.is_present("disable-ssl-verification"),
       request_timeout: matches.value_of("request-timeout")
         .map(|t| t.parse::<u64>().unwrap_or(5000)).unwrap_or(5000),
+      custom_headers,
       .. VerificationOptions::default()
     };
 

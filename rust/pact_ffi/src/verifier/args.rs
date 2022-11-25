@@ -233,6 +233,13 @@ pub(crate) fn setup_app<'a, 'b>(program: String, version: &'b str) -> App<'a, 'b
       .empty_values(false)
       .validator(integer_value)
       .help("Sets the HTTP request timeout in milliseconds for requests to the target API and for state change requests."))
+    .arg(Arg::with_name("custom-header")
+      .long("header")
+      .takes_value(true)
+      .use_delimiter(false)
+      .multiple(true)
+      .empty_values(false)
+      .help("Add a custom header to be included in the calls to the provider. Values must be in the form KEY=VALUE, where KEY and VALUE contain ASCII characters (32-127) only. Can be repeated."))
     }
 
 #[cfg(test)]

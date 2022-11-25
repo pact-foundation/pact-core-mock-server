@@ -8,7 +8,6 @@ use std::path::PathBuf;
 use expectest::prelude::*;
 use pact_models::pact::ReadWritePact;
 use pact_models::sync_pact::RequestResponsePact;
-use pact_models::v4::pact::V4Pact;
 use rand::prelude::*;
 use reqwest::Client;
 use serde_json::json;
