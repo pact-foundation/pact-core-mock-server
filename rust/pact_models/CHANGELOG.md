@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.1 - Maintenance Release
+
+* 43a8cae1 - chore: clean up deprecation warnings (Ronald Holshausen, Mon Nov 28 13:19:31 2022 +1100)
+* 19cc4ca3 - chore: Update dependencies (Ronald Holshausen, Mon Nov 28 12:12:18 2022 +1100)
+* e21d3454 - feat: add FFI function to parse JSON to a Pact model (Ronald Holshausen, Fri Nov 11 17:00:36 2022 +1100)
+* 66e84e9d - bump version to 1.0.1 (Ronald Holshausen, Mon Nov 7 10:27:49 2022 +1100)
+
 # 1.0.0 - Maintenance Release
 
 * f91dc00d - fix: try loosen dependencies to fix dependency cycle issue (Ronald Holshausen, Mon Nov 7 10:15:19 2022 +1100)
