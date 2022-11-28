@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.13.16 - Bugfix Release
+
+* 2802fffd - chore: Upgrade pact_matching to 0.12.15 (Ronald Holshausen, Mon Nov 28 14:29:43 2022 +1100)
+* c9721fd5 - chore: Upgrade pact_models to 1.0.1 and pact-plugin-driver to 0.1.16 (Ronald Holshausen, Mon Nov 28 14:10:53 2022 +1100)
+* c12d9a61 - fix: Verification results across multiple pacts accumulate, publishing invalid results #231 (Ronald Holshausen, Mon Nov 28 12:00:38 2022 +1100)
+* 33a784a0 - fix: add test for publish verification result issue #231 (Ronald Holshausen, Mon Nov 28 11:04:38 2022 +1100)
+* 35202f6b - bump version to 0.13.16 (Ronald Holshausen, Mon Nov 7 14:05:55 2022 +1100)
+
 # 0.13.15 - Maintenance Release
 
 * 5d88913a - chore: Upgrade all dependencies (Ronald Holshausen, Mon Nov 7 14:01:55 2022 +1100)
