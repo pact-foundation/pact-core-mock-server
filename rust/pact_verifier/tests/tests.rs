@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 use std::env;
+use std::fs::File;
+use std::io::Read;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -13,7 +15,17 @@ use pact_consumer::*;
 use pact_consumer::prelude::*;
 use pact_models::pact::read_pact;
 use pact_models::provider_states::ProviderState;
-use pact_verifier::{FilterInfo, NullRequestFilterExecutor, ProviderInfo, ProviderTransport, VerificationOptions, verify_pact_internal};
+use pact_verifier::{
+  FilterInfo,
+  NullRequestFilterExecutor,
+  PactSource,
+  ProviderInfo,
+  ProviderTransport,
+  PublishOptions,
+  VerificationOptions,
+  verify_pact_internal,
+  verify_provider_async
+};
 use pact_verifier::callback_executors::ProviderStateExecutor;
 
 /// Get the path to one of our sample *.json files.
@@ -241,4 +253,243 @@ async fn verifying_a_pact_with_min_type_matcher_and_child_arrays() {
   ).await;
 
   expect!(result.unwrap().results.get(0).unwrap().result.as_ref()).to(be_ok());
+}
+
+#[test_log::test(tokio::test)]
+async fn verify_multiple_pacts() {
+  let provider = PactBuilder::new_v4("book_consumer", "book_provider")
+    .interaction("create book request", "", |mut i| {
+      i.test_name("verify_pact_with_attributes_with_special_values");
+      i.request.method("POST");
+      i.request.path("/books");
+      i.request.content_type("application/json");
+
+      i.response.ok().content_type("application/json").json_body(json_pattern!({
+        "@context": "/api/contexts/Book",
+        "@id": "/api/books/0114b2a8-3347-49d8-ad99-0e792c5a30e6",
+        "@type": "Book",
+        "title": "Voluptas et tempora repellat corporis excepturi.",
+        "description": "Quaerat odit quia nisi accusantium natus voluptatem. Explicabo corporis eligendi ut ut sapiente ut qui quidem. Optio amet velit aut delectus. Sed alias asperiores perspiciatis deserunt omnis. Mollitia unde id in.",
+        "author": "Melisa Kassulke",
+        "%publicationDate%": "1999-02-13T00:00:00+07:00",
+        "reviews": []
+      }));
+      i
+    })
+    .start_mock_server(None);
+
+  let pact_one_file = fixture_path("pact-one.json");
+  let pact_one = read_file(&pact_one_file).unwrap();
+  let pact_two_file = fixture_path("pact-two.json");
+  let pact_two = read_file(&pact_two_file).unwrap();
+
+  let server = PactBuilderAsync::new("RustPactVerifier", "PactBrokerTest")
+    .interaction("a request to the pact broker root", "", |mut i| async move {
+      i.request
+        .path("/")
+        .header("Accept", "application/hal+json")
+        .header("Accept", "application/json");
+      i.response
+        .header("Content-Type", "application/hal+json")
+        .json_body(json_pattern!({
+            "_links": {
+                "pb:provider-pacts-for-verification": {
+                  "href": like!("http://localhost/pacts/provider/{provider}/for-verification"),
+                  "title": like!("Pact versions to be verified for the specified provider"),
+                  "templated": like!(true)
+                }
+            }
+        }));
+      i
+    })
+    .await
+    .interaction("a request to the pacts for verification endpoint", "", |mut i| async move {
+      i.request
+        .get()
+        .path("/pacts/provider/Alice%20Service/for-verification")
+        .header("Accept", "application/hal+json")
+        .header("Accept", "application/json");
+      i.response
+        .header("Content-Type", "application/hal+json")
+        .json_body(json_pattern!({
+                "_links": {
+                    "self": {
+                      "href": like!("http://localhost/pacts/provider/Alice%20Service/for-verification"),
+                      "title": like!("Pacts to be verified")
+                    }
+                }
+            }));
+      i
+    })
+    .await
+    .interaction("a request for the pacts to verify", "", |mut i| async move {
+      i.request
+        .post()
+        .path("/pacts/provider/Alice%20Service/for-verification")
+        .header("Accept", "application/hal+json")
+        .header("Accept", "application/json");
+      i.response
+        .header("Content-Type", "application/hal+json")
+        .json_body(json_pattern!({
+          "_embedded": {
+            "pacts": [
+              {
+                "shortDescription": "pact-one",
+                "_links": {
+                  "self": {
+                    "name": "pact-one",
+                    "href": "/pact-one",
+                    "templated": false
+                  }
+                },
+                "verificationProperties": {
+                  "pending": false,
+                  "notices": []
+                }
+              },
+              {
+                "shortDescription": "pact-two",
+                "_links": {
+                  "self": {
+                    "name": "pact-two",
+                    "href": "/pact-two",
+                    "templated": false
+                  }
+                },
+                "verificationProperties": {
+                  "pending": false,
+                  "notices": []
+                }
+              }
+            ]
+          },
+          "_links": {
+              "self": {
+                "href": like!("http://localhost/pacts/provider/Alice%20Service/for-verification"),
+                "title": like!("Pacts to be verified")
+              }
+          }
+      }));
+
+      i
+    })
+    .await
+    .interaction("pact-one", "", |mut i| async move {
+      i.request
+        .get()
+        .path("/pact-one")
+        .header("Accept", "application/hal+json")
+        .header("Accept", "application/json");
+      i.response
+        .header("Content-Type", "application/json")
+        .body(pact_one);
+      i
+    })
+    .await
+    .interaction("pact-two", "", |mut i| async move {
+      i.request
+        .get()
+        .path("/pact-two")
+        .header("Accept", "application/hal+json")
+        .header("Accept", "application/json");
+      i.response
+        .header("Content-Type", "application/json")
+        .body(pact_two);
+      i
+    })
+    .await
+    .interaction("pact-one results", "", |mut i| async move {
+      i.request
+        .post()
+        .path("/pact-one/results")
+        .header("Content-Type", "application/json")
+        .json_body(json_pattern!({
+          "providerApplicationVersion": "1.2.3",
+          "success": false,
+          "testResults": [
+            {
+              "interactionId": "pact-one",
+              "success": false,
+              "mismatches": each_like!({})
+            }
+          ]
+        }));
+      i
+    })
+    .await
+    .interaction("pact-two results", "", |mut i| async move {
+      i.request
+        .post()
+        .path("/pact-two/results")
+        .header("Content-Type", "application/json")
+        .json_body(json_pattern!({
+          "providerApplicationVersion": "1.2.3",
+          "success": false,
+          "testResults": [
+            {
+              "interactionId": "pact-two",
+              "success": false,
+              "mismatches": each_like!({})
+            }
+          ]
+        }));
+      i
+    })
+    .await
+    .start_mock_server(None);
+
+  #[allow(deprecated)]
+  let provider_info = ProviderInfo {
+    name: "Alice Service".to_string(),
+    host: "127.0.0.1".to_string(),
+    port: provider.url().port(),
+    transports: vec![ ProviderTransport {
+      transport: "HTTP".to_string(),
+      port: provider.url().port(),
+      path: None,
+      scheme: Some("http".to_string())
+    } ],
+    .. ProviderInfo::default()
+  };
+
+  let pact_source = PactSource::BrokerWithDynamicConfiguration {
+    provider_name: "Alice Service".to_string(),
+    broker_url: server.url().to_string(),
+    enable_pending: false,
+    include_wip_pacts_since: None,
+    provider_tags: vec![],
+    provider_branch: None,
+    selectors: vec![],
+    auth: None,
+    links: vec![]
+  };
+
+  let verification_options: VerificationOptions<NullRequestFilterExecutor> = VerificationOptions::default();
+  let provider_state_executor = Arc::new(DummyProviderStateExecutor{});
+  let publish_options = PublishOptions {
+    provider_version: Some("1.2.3".to_string()),
+    build_url: None,
+    provider_tags: vec![],
+    provider_branch: None,
+  };
+
+  let result = verify_provider_async(
+    provider_info,
+    vec![ pact_source ],
+    FilterInfo::None,
+    vec![ "Consumer".to_string() ],
+    &verification_options,
+    Some(&publish_options),
+    &provider_state_executor,
+    None
+  ).await;
+
+  expect!(result.unwrap().result).to(be_false());
+}
+
+fn read_file(path: &PathBuf) -> anyhow::Result<String> {
+  let mut f = File::open(path)?;
+  let mut buf = String::new();
+  f.read_to_string(&mut buf)?;
+  Ok(buf)
 }
