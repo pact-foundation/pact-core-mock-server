@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.9.19 - Bugfix Release
+
+* 2f0ada6b - chore: Upgrade pact_verifier to 0.13.16 (Ronald Holshausen, Mon Nov 28 15:08:47 2022 +1100)
+* c9721fd5 - chore: Upgrade pact_models to 1.0.1 and pact-plugin-driver to 0.1.16 (Ronald Holshausen, Mon Nov 28 14:10:53 2022 +1100)
+* 4411d487 - chore: Upgrade docker container to latest Alpine (Ronald Holshausen, Mon Nov 7 14:47:36 2022 +1100)
+* e2fa8a27 - bump version to 0.9.19 (Ronald Holshausen, Mon Nov 7 14:37:28 2022 +1100)
+
 # 0.9.18 - Maintenance Release
 
 * 6c58858e - chore: Upgrade dependencies (Ronald Holshausen, Mon Nov 7 14:33:24 2022 +1100)
