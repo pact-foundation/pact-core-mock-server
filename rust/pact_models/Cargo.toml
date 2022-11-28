@@ -52,7 +52,7 @@ uuid = { version = "1.2.1", features = ["v4"] }
 
 [dev-dependencies]
 expectest = "0.12.0"
-env_logger = "0.9.1"
+env_logger = "0.10.0"
 speculate = "0.1.2"
 rstest = "0.15.0"
 hamcrest2 = "0.3.0"
