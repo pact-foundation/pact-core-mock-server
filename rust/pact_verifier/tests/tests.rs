@@ -258,22 +258,30 @@ async fn verifying_a_pact_with_min_type_matcher_and_child_arrays() {
 #[test_log::test(tokio::test)]
 async fn verify_multiple_pacts() {
   let provider = PactBuilder::new_v4("book_consumer", "book_provider")
-    .interaction("create book request", "", |mut i| {
-      i.test_name("verify_pact_with_attributes_with_special_values");
-      i.request.method("POST");
-      i.request.path("/books");
-      i.request.content_type("application/json");
+    .interaction("a retrieve Mallory request", "", |mut i| {
+      i.test_name("verify_multiple_pacts");
+      i.request.method("GET");
+      i.request.path("/mallory");
+      i.request.query_param("name", "ron");
+      i.request.query_param("status", "good");
 
       i.response.ok().content_type("application/json").json_body(json_pattern!({
-        "@context": "/api/contexts/Book",
-        "@id": "/api/books/0114b2a8-3347-49d8-ad99-0e792c5a30e6",
-        "@type": "Book",
-        "title": "Voluptas et tempora repellat corporis excepturi.",
-        "description": "Quaerat odit quia nisi accusantium natus voluptatem. Explicabo corporis eligendi ut ut sapiente ut qui quidem. Optio amet velit aut delectus. Sed alias asperiores perspiciatis deserunt omnis. Mollitia unde id in.",
-        "author": "Melisa Kassulke",
-        "%publicationDate%": "1999-02-13T00:00:00+07:00",
-        "reviews": []
+        "result": "hello"
       }));
+      i
+    })
+    .interaction("a retrieve test request", "", |mut i| {
+      i.test_name("verify_multiple_pacts");
+      i.request.method("GET");
+      i.request.path("/");
+      i.request.query_param("q", "p");
+      i.request.query_param("q", "p2");
+      i.request.query_param("r", "s");
+
+      i.response.ok().content_type("application/json").json_body(json_pattern!({
+        "responsetest": true
+      }));
+
       i
     })
     .start_mock_server(None);
@@ -402,17 +410,29 @@ async fn verify_multiple_pacts() {
       i.request
         .post()
         .path("/pact-one/results")
-        .header("Content-Type", "application/json")
+        .header("content-type", "application/json")
         .json_body(json_pattern!({
           "providerApplicationVersion": "1.2.3",
           "success": false,
           "testResults": [
             {
               "interactionId": "pact-one",
-              "success": false,
-              "mismatches": each_like!({})
+              "mismatches": [
+                {
+                  "attribute": "body",
+                  "description": like!("Some error message"),
+                  "identifier": "$"
+                },
+                {
+                  "attribute": "header",
+                  "description": like!("Some error message"),
+                  "identifier": "Content-Type"
+                }
+              ],
+              "success": false
             }
-          ]
+          ],
+          "verifiedBy": { "implementation": "Pact-Rust", "version": like!("1.0.0") }
         }));
       i
     })
@@ -428,10 +448,17 @@ async fn verify_multiple_pacts() {
           "testResults": [
             {
               "interactionId": "pact-two",
-              "success": false,
-              "mismatches": each_like!({})
+              "mismatches": [
+                {
+                  "attribute": "header",
+                  "description": like!("Expected header 'testreqheader' but was missing"),
+                  "identifier": "testreqheader"
+                }
+              ],
+              "success": false
             }
-          ]
+          ],
+          "verifiedBy":{ "implementation": "Pact-Rust", "version": like!("1.0.0") }
         }));
       i
     })

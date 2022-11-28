@@ -878,7 +878,7 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
   LOG_ID.scope(format!("verify:{}", provider_info.name), async {
     let pact_results = fetch_pacts(source, consumers).await;
 
-    let mut results: Vec<(Option<String>, Result<(), MismatchResult>)> = vec![];
+    let mut total_results = 0;
     let mut pending_errors: Vec<(String, MismatchResult)> = vec![];
     let mut errors: Vec<(String, MismatchResult)> = vec![];
 
@@ -921,6 +921,7 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
               verification_result.output.push("WARNING: Pact file has no interactions".to_string());
             }
           } else {
+            let mut results: Vec<(Option<String>, Result<(), MismatchResult>)> = vec![];
             let pending = match &context {
               Some(context) => context.verification_properties.pending,
               None => false
@@ -961,6 +962,8 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
               }
             }
 
+            total_results += results.len();
+
             if let Some(publish) = publish_options {
               publish_result(&results, &pact_source, &publish).await;
 
@@ -1000,7 +1003,7 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
       app_version: env!("CARGO_PKG_VERSION").to_string()
     });
     send_metrics_async(MetricEvent::ProviderVerificationRan {
-      tests_run: results.len(),
+      tests_run: total_results,
       test_framework: metrics_data.test_framework,
       app_name: metrics_data.app_name,
       app_version: metrics_data.app_version

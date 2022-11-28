@@ -23,7 +23,6 @@
       }
     }
   ],
-  "_interactionId": "pact-one",
   "_links": {
     "pb:publish-verification-results": {
       "href": "/pact-one/results",

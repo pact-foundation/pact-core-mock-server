@@ -9,7 +9,7 @@ use pact_models::http_utils::HttpAuth;
 use pact_models::pact::{load_pact_from_json, Pact};
 use pact_models::{http_utils, PACT_RUST_VERSION};
 use regex::{Captures, Regex};
-use reqwest::Method;
+use reqwest::{Method, Url};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use serde_with::skip_serializing_none;
@@ -413,14 +413,18 @@ impl HALClient {
   async fn send_document(&self, url: &str, body: &str, method: Method) -> Result<serde_json::Value, PactBrokerError> {
     debug!("Sending JSON to {} using {}: {}", url, method, body);
 
-    let url = url.parse::<reqwest::Url>()
+    let base_url = self.url.parse::<Url>()
       .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?;
 
-    let base_url = self.url.parse::<reqwest::Url>()
-      .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?;
-
-    let url = base_url.join(&url.path())
-      .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?;
+    let url = if url.starts_with("/") {
+      base_url.join(url)
+        .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?
+    } else {
+      let url = url.parse::<Url>()
+        .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?;
+      base_url.join(&url.path())
+        .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?
+    };
 
     let request_builder = match self.auth {
       Some(ref auth) => match auth {
