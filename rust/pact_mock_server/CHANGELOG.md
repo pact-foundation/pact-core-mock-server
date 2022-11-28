@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.9.5 - Maintenance Release
+
+* 2802fffd - chore: Upgrade pact_matching to 0.12.15 (Ronald Holshausen, Mon Nov 28 14:29:43 2022 +1100)
+* c9721fd5 - chore: Upgrade pact_models to 1.0.1 and pact-plugin-driver to 0.1.16 (Ronald Holshausen, Mon Nov 28 14:10:53 2022 +1100)
+* e8e75db1 - chore: correct the pact_mock_server readme #227 (Ronald Holshausen, Thu Nov 10 10:30:58 2022 +1100)
+* c953f66e - bump version to 0.9.5 (Ronald Holshausen, Mon Nov 7 11:43:22 2022 +1100)
+
 # 0.9.4 - Bugfix Release
 
 * 014d76d1 - chore: Upgrade all dependencies (Ronald Holshausen, Mon Nov 7 11:38:59 2022 +1100)
