@@ -1,6 +1,6 @@
 //! V4 Synchronous request/response messages
 
-use anyhow::{anyhow, Context};
+use anyhow::anyhow;
 use bytes::Bytes;
 use libc::{c_char, c_int, c_uchar, c_uint, EXIT_FAILURE, EXIT_SUCCESS, size_t};
 use pact_models::bodies::OptionalBody;

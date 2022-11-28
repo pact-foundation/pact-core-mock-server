@@ -16,6 +16,7 @@ use maplit::hashmap;
 use either::Either;
 use pact_models::path_exp::DocPath;
 
+#[allow(deprecated)]
 use crate::mock_server::bodies::matcher_from_integration_json;
 
 pub fn generate_xml_body(attributes: &Map<String, Value>, matching_rules: &mut MatchingRuleCategory, generators: &mut Generators) -> Result<Vec<u8>, String> {
@@ -69,6 +70,7 @@ fn create_element_from_json<'a>(
         updated_path.push(&name);
         let doc_path = DocPath::new(updated_path.join(".").to_string()).unwrap_or(DocPath::root());
 
+        #[allow(deprecated)]
         if let Some(rule) = matcher_from_integration_json(object) {
           matching_rules.add_rule(doc_path.clone(), rule, RuleLogic::And);
         }
@@ -122,6 +124,7 @@ fn create_element_from_json<'a>(
       let doc_path = DocPath::new(&text_path.join(".")).unwrap_or(DocPath::root());
 
       if let Value::Object(matcher) = matcher {
+        #[allow(deprecated)]
         if let Some(rule) = matcher_from_integration_json(matcher) {
           matching_rules.add_rule(doc_path.clone(), rule, RuleLogic::And);
         }
@@ -210,6 +213,7 @@ fn add_attributes(
     let value = match v {
       Value::Object(matcher_definition) => if matcher_definition.contains_key("pact:matcher:type") {
         let doc_path = DocPath::new(path).unwrap_or(DocPath::root());
+        #[allow(deprecated)]
         if let Some(rule) = matcher_from_integration_json(matcher_definition) {
           matching_rules.add_rule(doc_path.clone(), rule, RuleLogic::And);
         }

@@ -432,7 +432,7 @@ mod tests {
   #[case("next june + 2 weeks", "2000-06-15 10:00:00 UTC")]
   #[case("last mon + 2 weeks",  "2000-01-10 10:00:00 UTC")]
   fn date_expressions(#[case] expression: &str, #[case] expected: &str) {
-    let dt = Utc.ymd(2000, 1, 1).and_hms(10, 0, 0);
+    let dt = Utc.with_ymd_and_hms(2000, 1, 1, 10, 0, 0).unwrap();
     expect!(execute_date_expression(&dt, expression).unwrap().to_string()).to(be_equal_to(expected));
   }
 
@@ -455,7 +455,7 @@ mod tests {
   #[case("now + 2 hours - 4 minutes", "11:56:00")]
   #[case(" + 2 hours - 4 minutes",    "11:56:00")]
   fn time_expressions(#[case] expression: &str, #[case] expected: &str) {
-    let dt = Utc.ymd(2000, 1, 1).and_hms(10, 0, 0);
+    let dt = Utc.with_ymd_and_hms(2000, 1, 1, 10, 0, 0).unwrap();
     expect!(execute_time_expression(&dt, expression).unwrap().time().to_string()).to(be_equal_to(expected));
   }
 
@@ -473,154 +473,154 @@ mod tests {
   #[case("next week @ next hour",                            "2000-01-08T11:00:00+00:00")]
   #[case("last month @ last hour",                           "1999-12-01T09:00:00+00:00")]
   fn datetime_expressions(#[case] expression: &str, #[case] expected: &str) {
-    let dt = Utc.ymd(2000, 1, 1).and_hms(10, 0, 0);
+    let dt = Utc.with_ymd_and_hms(2000, 1, 1, 10, 0, 0).unwrap();
     expect!(execute_datetime_expression(&dt, expression).unwrap().to_rfc3339()).to(be_equal_to(expected));
   }
 
   #[test]
   fn base_date_test() {
-    let dt = Utc.ymd(2000, 1, 1).and_hms(10, 0, 0);
+    let dt = Utc.with_ymd_and_hms(2000, 1, 1, 10, 0, 0).unwrap();
 
     expect!(base_date(&ParsedDateExpression { base: DateBase::NOW, adjustments: vec![] }, &dt))
-      .to(be_equal_to(Utc.ymd(2000, 1, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2000, 1, 1, 10, 0, 0).unwrap()));
     expect!(base_date(&ParsedDateExpression { base: DateBase::TODAY, adjustments: vec![] }, &dt))
-      .to(be_equal_to(Utc.ymd(2000, 1, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2000, 1, 1, 10, 0, 0).unwrap()));
     expect!(base_date(&ParsedDateExpression { base: DateBase::TOMORROW, adjustments: vec![] }, &dt))
-      .to(be_equal_to(Utc.ymd(2000, 1, 2).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2000, 1, 2, 10, 0, 0).unwrap()));
     expect!(base_date(&ParsedDateExpression { base: DateBase::YESTERDAY, adjustments: vec![] }, &dt))
-      .to(be_equal_to(Utc.ymd(1999, 12, 31).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(1999, 12, 31, 10, 0, 0).unwrap()));
   }
 
   #[test]
   fn forward_date_by_test() {
-    let dt = Utc.ymd(2020, 1, 1).and_hms(10, 0, 0);
-    let dt2 = Utc.ymd(2020, 12, 1).and_hms(10, 0, 0);
+    let dt = Utc.with_ymd_and_hms(2020, 1, 1, 10, 0, 0).unwrap();
+    let dt2 = Utc.with_ymd_and_hms(2020, 12, 1, 10, 0, 0).unwrap();
 
     expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::DAY, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2020, 1, 2).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2020, 1, 2, 10, 0, 0).unwrap()));
 
     expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::MONTH, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2020, 2, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2020, 2, 1, 10, 0, 0).unwrap()));
     expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::MONTH, value: 4, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2020, 5, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2020, 5, 1, 10, 0, 0).unwrap()));
     expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::MONTH, value: 13, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2021, 2, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2021, 2, 1, 10, 0, 0).unwrap()));
     expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::MONTH, value: 1, operation: Operation::PLUS }, &dt2))
-      .to(be_equal_to(Utc.ymd(2021, 1, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2021, 1, 1, 10, 0, 0).unwrap()));
 
     expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::YEAR, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2021, 1, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2021, 1, 1, 10, 0, 0).unwrap()));
     expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::WEEK, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2020, 1, 8).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2020, 1, 8, 10, 0, 0).unwrap()));
 
     expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::MONDAY, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2020, 1, 6).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2020, 1, 6, 10, 0, 0).unwrap()));
     expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::TUESDAY, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2020, 1, 7).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2020, 1, 7, 10, 0, 0).unwrap()));
     expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::WEDNESDAY, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2020, 1, 8).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2020, 1, 8, 10, 0, 0).unwrap()));
     expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::THURSDAY, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2020, 1, 2).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2020, 1, 2, 10, 0, 0).unwrap()));
     expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::FRIDAY, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2020, 1, 3).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2020, 1, 3, 10, 0, 0).unwrap()));
     expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::SATURDAY, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2020, 1, 4).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2020, 1, 4, 10, 0, 0).unwrap()));
     expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::SUNDAY, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2020, 1, 5).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2020, 1, 5, 10, 0, 0).unwrap()));
 
     expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::JAN, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2021, 1, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2021, 1, 1, 10, 0, 0).unwrap()));
     expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::FEB, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2020, 2, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2020, 2, 1, 10, 0, 0).unwrap()));
     expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::MAR, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2020, 3, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2020, 3, 1, 10, 0, 0).unwrap()));
     expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::APR, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2020, 4, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2020, 4, 1, 10, 0, 0).unwrap()));
     expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::MAY, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2020, 5, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2020, 5, 1, 10, 0, 0).unwrap()));
     expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::JUNE, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2020, 6, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2020, 6, 1, 10, 0, 0).unwrap()));
     expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::JULY, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2020, 7, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2020, 7, 1, 10, 0, 0).unwrap()));
     expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::AUG, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2020, 8, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2020, 8, 1, 10, 0, 0).unwrap()));
     expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::SEP, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2020, 9, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2020, 9, 1, 10, 0, 0).unwrap()));
     expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::OCT, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2020, 10, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2020, 10, 1, 10, 0, 0).unwrap()));
     expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::NOV, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2020, 11, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2020, 11, 1, 10, 0, 0).unwrap()));
     expect!(forward_date_by(&Adjustment { adjustment_type: DateOffsetType::DEC, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2020, 12, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2020, 12, 1, 10, 0, 0).unwrap()));
   }
 
   #[test]
   fn reverse_date_by_test() {
-    let dt = Utc.ymd(2020, 1, 1).and_hms(10, 0, 0);
+    let dt = Utc.with_ymd_and_hms(2020, 1, 1, 10, 0, 0).unwrap();
 
     expect!(reverse_date_by(&Adjustment { adjustment_type: DateOffsetType::DAY, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2019, 12, 31).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2019, 12, 31, 10, 0, 0).unwrap()));
     expect!(reverse_date_by(&Adjustment { adjustment_type: DateOffsetType::MONTH, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2019, 12, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2019, 12, 1, 10, 0, 0).unwrap()));
     expect!(reverse_date_by(&Adjustment { adjustment_type: DateOffsetType::YEAR, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2019, 1, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2019, 1, 1, 10, 0, 0).unwrap()));
     expect!(reverse_date_by(&Adjustment { adjustment_type: DateOffsetType::WEEK, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2019, 12, 25).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2019, 12, 25, 10, 0, 0).unwrap()));
 
     expect!(reverse_date_by(&Adjustment { adjustment_type: DateOffsetType::MONDAY, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2019, 12, 30).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2019, 12, 30, 10, 0, 0).unwrap()));
     expect!(reverse_date_by(&Adjustment { adjustment_type: DateOffsetType::TUESDAY, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2019, 12, 31).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2019, 12, 31, 10, 0, 0).unwrap()));
     expect!(reverse_date_by(&Adjustment { adjustment_type: DateOffsetType::WEDNESDAY, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2019, 12, 25).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2019, 12, 25, 10, 0, 0).unwrap()));
     expect!(reverse_date_by(&Adjustment { adjustment_type: DateOffsetType::THURSDAY, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2019, 12, 26).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2019, 12, 26, 10, 0, 0).unwrap()));
     expect!(reverse_date_by(&Adjustment { adjustment_type: DateOffsetType::FRIDAY, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2019, 12, 27).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2019, 12, 27, 10, 0, 0).unwrap()));
     expect!(reverse_date_by(&Adjustment { adjustment_type: DateOffsetType::SATURDAY, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2019, 12, 28).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2019, 12, 28, 10, 0, 0).unwrap()));
     expect!(reverse_date_by(&Adjustment { adjustment_type: DateOffsetType::SUNDAY, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2019, 12, 29).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2019, 12, 29, 10, 0, 0).unwrap()));
 
     expect!(reverse_date_by(&Adjustment { adjustment_type: DateOffsetType::JAN, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2019, 1, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2019, 1, 1, 10, 0, 0).unwrap()));
     expect!(reverse_date_by(&Adjustment { adjustment_type: DateOffsetType::FEB, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2019, 2, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2019, 2, 1, 10, 0, 0).unwrap()));
     expect!(reverse_date_by(&Adjustment { adjustment_type: DateOffsetType::MAR, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2019, 3, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2019, 3, 1, 10, 0, 0).unwrap()));
     expect!(reverse_date_by(&Adjustment { adjustment_type: DateOffsetType::APR, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2019, 4, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2019, 4, 1, 10, 0, 0).unwrap()));
     expect!(reverse_date_by(&Adjustment { adjustment_type: DateOffsetType::MAY, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2019, 5, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2019, 5, 1, 10, 0, 0).unwrap()));
     expect!(reverse_date_by(&Adjustment { adjustment_type: DateOffsetType::JUNE, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2019, 6, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2019, 6, 1, 10, 0, 0).unwrap()));
     expect!(reverse_date_by(&Adjustment { adjustment_type: DateOffsetType::JULY, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2019, 7, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2019, 7, 1, 10, 0, 0).unwrap()));
     expect!(reverse_date_by(&Adjustment { adjustment_type: DateOffsetType::AUG, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2019, 8, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2019, 8, 1, 10, 0, 0).unwrap()));
     expect!(reverse_date_by(&Adjustment { adjustment_type: DateOffsetType::SEP, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2019, 9, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2019, 9, 1, 10, 0, 0).unwrap()));
     expect!(reverse_date_by(&Adjustment { adjustment_type: DateOffsetType::OCT, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2019, 10, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2019, 10, 1, 10, 0, 0).unwrap()));
     expect!(reverse_date_by(&Adjustment { adjustment_type: DateOffsetType::NOV, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2019, 11, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2019, 11, 1, 10, 0, 0).unwrap()));
     expect!(reverse_date_by(&Adjustment { adjustment_type: DateOffsetType::DEC, value: 1, operation: Operation::PLUS }, &dt))
-      .to(be_equal_to(Utc.ymd(2019, 12, 1).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2019, 12, 1, 10, 0, 0).unwrap()));
   }
 
   #[test]
   fn role_month_test() {
-    let dt = Utc.ymd(2000, 4, 13).and_hms(10, 0, 0);
+    let dt = Utc.with_ymd_and_hms(2000, 4, 13, 10, 0, 0).unwrap();
 
     expect!(roll_month(&dt, 0))
-      .to(be_equal_to(Utc.ymd(2000, 4, 13).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2000, 4, 13, 10, 0, 0).unwrap()));
     expect!(roll_month(&dt, 1))
-      .to(be_equal_to(Utc.ymd(2000, 5, 13).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2000, 5, 13, 10, 0, 0).unwrap()));
     expect!(roll_month(&dt, -1))
-      .to(be_equal_to(Utc.ymd(2000, 3, 13).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2000, 3, 13, 10, 0, 0).unwrap()));
     expect!(roll_month(&dt, 10))
-      .to(be_equal_to(Utc.ymd(2001, 2, 13).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(2001, 2, 13, 10, 0, 0).unwrap()));
     expect!(roll_month(&dt, -10))
-      .to(be_equal_to(Utc.ymd(1999, 6, 13).and_hms(10, 0, 0)));
+      .to(be_equal_to(Utc.with_ymd_and_hms(1999, 6, 13, 10, 0, 0).unwrap()));
   }
 }

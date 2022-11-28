@@ -109,7 +109,7 @@ use std::ptr::null_mut;
 use std::str::from_utf8;
 use std::sync::{Arc, Mutex};
 
-use anyhow::{anyhow, Context};
+use anyhow::anyhow;
 use bytes::Bytes;
 use either::Either;
 use itertools::Itertools;
@@ -139,6 +139,7 @@ use tracing::*;
 
 use crate::{convert_cstr, ffi_fn, safe_str};
 use crate::mock_server::{StringResult, xml};
+#[allow(deprecated)]
 use crate::mock_server::bodies::{
   empty_multipart_body,
   file_as_multipart_body,
@@ -820,6 +821,7 @@ fn from_integration_json_v2(
       Value::Object(ref map) => {
         let result = if map.contains_key("pact:matcher:type") {
           debug!("detected pact:matcher:type, will configure a matcher");
+          #[allow(deprecated)]
           let matching_rule = matcher_from_integration_json(map);
           trace!("matching_rule = {matching_rule:?}");
 

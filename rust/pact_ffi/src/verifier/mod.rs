@@ -8,7 +8,6 @@ use std::ffi::{CStr, CString, OsStr, OsString};
 use std::panic::catch_unwind;
 use std::str::from_utf8;
 
-use anyhow::Context;
 use clap::ArgSettings;
 use lazy_static::lazy_static;
 use libc::{c_char, c_int, c_uchar, c_ulong, c_ushort, EXIT_FAILURE, EXIT_SUCCESS};

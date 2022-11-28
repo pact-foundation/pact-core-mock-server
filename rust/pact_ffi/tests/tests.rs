@@ -19,6 +19,7 @@ use pact_ffi::mock_server::{
   pactffi_mock_server_mismatches,
   pactffi_write_pact_file
 };
+#[allow(deprecated)]
 use pact_ffi::mock_server::handles::{
   InteractionPart,
   pactffi_message_expects_to_receive,
@@ -68,6 +69,7 @@ fn post_to_mock_server_with_mismatches() {
 }
 
 #[test]
+#[allow(deprecated)]
 fn create_header_with_multiple_values() {
   let consumer_name = CString::new("consumer").unwrap();
   let provider_name = CString::new("provider").unwrap();
@@ -155,6 +157,7 @@ fn create_multipart_file() {
 }
 
 #[test_log::test]
+#[allow(deprecated)]
 fn http_consumer_feature_test() {
   let consumer_name = CString::new("http-consumer").unwrap();
   let provider_name = CString::new("http-provider").unwrap();
@@ -225,6 +228,7 @@ fn http_consumer_feature_test() {
 }
 
 #[test]
+#[allow(deprecated)]
 fn http_xml_consumer_feature_test() {
   let consumer_name = CString::new("http-consumer").unwrap();
   let provider_name = CString::new("http-provider").unwrap();

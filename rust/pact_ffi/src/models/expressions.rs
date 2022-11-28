@@ -3,7 +3,6 @@
 use std::ffi::CString;
 use std::ptr::null;
 
-use anyhow::Context;
 use either::Either;
 use libc::c_char;
 use pact_models::generators::Generator;

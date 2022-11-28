@@ -54,7 +54,7 @@ uuid = { version = "1.2.1", features = ["v4"] }
 expectest = "0.12.0"
 env_logger = "0.10.0"
 speculate = "0.1.2"
-rstest = "0.15.0"
+rstest = "0.16.0"
 hamcrest2 = "0.3.0"
 test-log = "0.2.11"
 pretty_assertions = "1.3.0"

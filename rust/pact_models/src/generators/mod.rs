@@ -1112,7 +1112,10 @@ impl GenerateValue<String> for Generator {
         let date = execute_date_expression(&base, exp.clone().unwrap_or_default().as_str())?;
         match format {
           Some(pattern) => match parse_pattern(pattern) {
-            Ok(tokens) => Ok(date.date().format(&to_chrono_pattern(&tokens)).to_string()),
+            Ok(tokens) => {
+              #[allow(deprecated)]
+              Ok(date.date().format(&to_chrono_pattern(&tokens)).to_string())
+            },
             Err(err) => {
               warn!("Date format {} is not valid - {}", pattern, err);
               Err(anyhow!("Date format {} is not valid - {}", pattern, err))
@@ -1256,7 +1259,10 @@ impl GenerateValue<Value> for Generator {
         let date = execute_date_expression(&base, exp.clone().unwrap_or_default().as_str())?;
         match format {
           Some(pattern) => match parse_pattern(pattern) {
-            Ok(tokens) => Ok(json!(date.date().format(&to_chrono_pattern(&tokens)).to_string())),
+            Ok(tokens) => {
+              #[allow(deprecated)]
+              Ok(json!(date.date().format(&to_chrono_pattern(&tokens)).to_string()))
+            },
             Err(err) => {
               warn!("Date format {} is not valid - {}", pattern, err);
               Err(anyhow!("Could not generate a random date from {} - {}", pattern, err))
@@ -1804,6 +1810,7 @@ mod tests {
       },
       &NoopVariantMatcher.boxed()
     );
+    #[allow(deprecated)]
     expect!(generated3.unwrap()).to(be_equal_to(now.add(Duration::days(1)).date().format("%Y-%m-%d").to_string()));
   }
 

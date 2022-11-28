@@ -51,7 +51,6 @@ use std::net::ToSocketAddrs;
 use std::panic::catch_unwind;
 use std::str::from_utf8;
 
-use anyhow::Context;
 use chrono::Local;
 use either::Either;
 use libc::c_char;

@@ -3,7 +3,7 @@
 
 use std::time::Duration;
 
-use anyhow::{anyhow, Context};
+use anyhow::anyhow;
 use bytes::Bytes;
 use itertools::Itertools;
 use libc::{c_char, c_uint};
