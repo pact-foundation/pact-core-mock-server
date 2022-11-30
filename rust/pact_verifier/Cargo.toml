@@ -38,6 +38,7 @@ base64 = "0.13.1"
 urlencoding = "2.1.2"
 tracing = "0.1.37" # This needs to be the same version across all the libs (i.e. plugin driver and pact ffi)
 tracing-core = "0.1.30"  # This needs to be the same version across all the pact libs (i.e. plugin driver and pact ffi)
+url = "2.3.1"
 
 [dependencies.reqwest]
 version = "0.11.12"
@@ -54,6 +55,6 @@ crate-type = ["cdylib", "rlib"]
 [dev-dependencies]
 quickcheck = "1.0.3"
 expectest = "0.12.0"
-env_logger = "0.9.1"
+env_logger = "0.10.0"
 pact_consumer = { version = "0.10.0", path = "../pact_consumer" }
 test-log = "0.2.11"

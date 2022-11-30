@@ -1,6 +1,7 @@
 //! Structs and functions for interacting with a Pact Broker
 
 use std::collections::HashMap;
+use std::ops::Not;
 
 use futures::stream::*;
 use itertools::Itertools;
@@ -19,8 +20,6 @@ use pact_matching::Mismatch;
 
 use crate::MismatchResult;
 use crate::utils::with_retries;
-
-use super::provider_client::join_paths;
 
 fn is_true(object: &serde_json::Map<String, serde_json::Value>, field: &str) -> bool {
     match object.get(field) {
@@ -110,6 +109,12 @@ impl <'a> PartialEq<&'a str> for PactBrokerError {
         };
         message.as_str() == *other
     }
+}
+
+impl From<url::ParseError> for PactBrokerError {
+  fn from(err: url::ParseError) -> Self {
+    PactBrokerError::UrlError(format!("{}", err))
+  }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -269,20 +274,23 @@ impl HALClient {
         ))
     }?;
 
-    let base_url = self.url.parse::<reqwest::Url>()
-        .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?;
-
-    let joined_url = base_url.join(&link_url)
-        .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?;
-
+    let base_url = self.url.parse::<Url>()?;
+    let joined_url = base_url.join(&link_url)?;
     self.fetch(joined_url.path().into()).await
   }
 
   async fn fetch(self, path: &str) -> Result<Value, PactBrokerError> {
     info!("Fetching path '{}' from pact broker", path);
 
-    let url = join_paths(&self.url, path).parse::<reqwest::Url>()
-        .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?;
+    let broker_url = self.url.parse::<Url>()?;
+    let context_path = broker_url.path();
+    let url = if context_path.is_empty().not() && context_path != "/" && path.starts_with(context_path) {
+      let mut base_url = broker_url.clone();
+      base_url.set_path("/");
+      base_url.join(path)?
+    } else {
+      broker_url.join(path)?
+    };
 
     let request_builder = match self.auth {
         Some(ref auth) => match auth {
@@ -349,7 +357,7 @@ impl HALClient {
         }
     }
 
-    fn parse_link_url(self, link: &Link, values: &HashMap<String, String>) -> Result<String, PactBrokerError> {
+    fn parse_link_url(&self, link: &Link, values: &HashMap<String, String>) -> Result<String, PactBrokerError> {
       match link.href {
         Some(ref href) => {
           debug!("templated URL = {}", href);
@@ -1154,6 +1162,24 @@ mod tests {
   }
 
   #[test_log::test(tokio::test)]
+  async fn fetch_supports_broker_urls_with_context_paths() {
+    let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
+      .interaction("a request to a hal resource from a base URL with a context path", "", |mut i| {
+        i.request.path("/path");
+        i.response
+          .status(200)
+          .header("Content-Type", "application/hal+json")
+          .body("{\"_links\":{}}");
+        i
+      })
+      .start_mock_server(None);
+
+    let client = HALClient::with_url(pact_broker.url().join("/path").unwrap().as_str(), None);
+    let result = client.fetch("/path").await;
+    expect!(result).to(be_ok());
+  }
+
+  #[test_log::test(tokio::test)]
   async fn post_json_retries_the_request_on_50x_errors() {
     let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
       .interaction("a POST request", "", |mut i| {
@@ -1324,7 +1350,7 @@ mod tests {
     }
 
     #[test_log::test(tokio::test)]
-    async fn fetch_link_returns_handles_absolute_resource_links() {
+    async fn fetch_link_handles_absolute_resource_links() {
         let pact_broker = PactBuilderAsync::new("RustPactVerifier", "PactBrokerStub")
             .interaction("a request to a hal resource with absolute paths", "", |mut i| async move {
                 i.request.path("/");
@@ -1380,6 +1406,34 @@ mod tests {
         let result = client.clone().fetch_link("document", &hashmap!{ "id".to_string() => "abc".to_string() }).await;
         expect!(result).to(be_ok().value(serde_json::Value::String("Yay! You found your way here".to_string())));
     }
+
+  #[test_log::test(tokio::test)]
+  async fn fetch_link_supports_broker_urls_with_context_paths() {
+    let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
+      .interaction("a request to a hal resource from a base URL with a context path", "", |mut i| {
+        i.request.path("/path");
+        i.response
+          .status(200)
+          .header("Content-Type", "application/hal+json")
+          .body("{\"_links\":{\"document\":{\"href\":\"/path/doc/abc\",\"templated\":false}}}");
+        i
+      })
+      .interaction("a request for a document from a base URL with a context path", "", |mut i| {
+        i.request.path("/path/doc/abc");
+        i.response
+          .header("Content-Type", "application/json")
+          .json_body(json_pattern!("Yay! You found your way here"));
+        i
+      })
+      .start_mock_server(None);
+
+    let client = HALClient::with_url(pact_broker.url().join("/path").unwrap().as_str(), None);
+    let mut client2 = client.clone();
+    let result = client.fetch("/path").await.unwrap();
+    client2.path_info = Some(result);
+    let result = client2.fetch_link("document", &hashmap!{}).await;
+    expect!(result).to(be_ok().value(Value::String("Yay! You found your way here".to_string())));
+  }
 
     #[test_log::test(tokio::test)]
     async fn fetch_pacts_from_broker_returns_empty_list_if_there_are_no_pacts() {
