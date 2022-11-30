@@ -224,11 +224,10 @@ ffi_fn! {
 /// | Semver | 21 |
 /// | EachKey | 22 |
 /// | EachValue | 23 |
-#[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MatchingRuleResult {
   /// The matching rule from the expression.
-  MatchingRule(u16, *const c_char, *const MatchingRule),
+  MatchingRule(u16, *const c_char, MatchingRule),
   /// A reference to a named item.
   MatchingReference(*const c_char)
 }
@@ -268,9 +267,12 @@ impl MatchingRuleIterator {
               MatchingRule::Equality => None,
               MatchingRule::Regex(s) => Some(CString::new(s.as_str()).unwrap()),
               MatchingRule::Type => None,
-              MatchingRule::MinType(_) => None,
-              MatchingRule::MaxType(_) => None,
-              MatchingRule::MinMaxType(_, _) => None,
+              MatchingRule::MinType(m) => Some(CString::new(m.to_string()).unwrap()),
+              MatchingRule::MaxType(m) => Some(CString::new(m.to_string()).unwrap()),
+              MatchingRule::MinMaxType(min, max) => {
+                let s = format!("{}:{}", min, max);
+                Some(CString::new(s).unwrap())
+              },
               MatchingRule::Timestamp(s) => Some(CString::new(s.as_str()).unwrap()),
               MatchingRule::Time(s) => Some(CString::new(s.as_str()).unwrap()),
               MatchingRule::Date(s) => Some(CString::new(s.as_str()).unwrap()),
@@ -290,11 +292,8 @@ impl MatchingRuleIterator {
               MatchingRule::EachValue(_) => None
             };
             let rule_value = val.as_ref().map(|v| v.as_ptr()).unwrap_or_else(|| null());
-            let rule_clone = rule.clone();
-            let rule_ptr = &rule_clone as *const MatchingRule;
-            let rule_result = MatchingRuleResult::MatchingRule(rule_id(rule), rule_value, rule_ptr);
-            MatchingRuleIteratorInner::MatchingRule(rule_clone, val,
-                                                    rule_result)
+            let rule_result = MatchingRuleResult::MatchingRule(rule_id(rule), rule_value, rule.clone());
+            MatchingRuleIteratorInner::MatchingRule(rule.clone(), val, rule_result)
           },
           Either::Right(reference) => {
             let name = CString::new(reference.name.as_str()).unwrap();
@@ -389,12 +388,157 @@ ffi_fn! {
     }
 }
 
+ffi_fn! {
+    /// Return the ID of the matching rule.
+    ///
+    /// The ID corresponds to the following rules:
+    /// | Rule | ID |
+    /// | ---- | -- |
+    /// | Equality | 1 |
+    /// | Regex | 2 |
+    /// | Type | 3 |
+    /// | MinType | 4 |
+    /// | MaxType | 5 |
+    /// | MinMaxType | 6 |
+    /// | Timestamp | 7 |
+    /// | Time | 8 |
+    /// | Date | 9 |
+    /// | Include | 10 |
+    /// | Number | 11 |
+    /// | Integer | 12 |
+    /// | Decimal | 13 |
+    /// | Null | 14 |
+    /// | ContentType | 15 |
+    /// | ArrayContains | 16 |
+    /// | Values | 17 |
+    /// | Boolean | 18 |
+    /// | StatusCode | 19 |
+    /// | NotEmpty | 20 |
+    /// | Semver | 21 |
+    /// | EachKey | 22 |
+    /// | EachValue | 23 |
+    ///
+    /// # Safety
+    ///
+    /// This function is safe as long as the MatchingRuleResult pointer is a valid pointer and the
+    /// iterator has not been deleted.
+    fn pactffi_matching_rule_id(rule_result: *const MatchingRuleResult) -> u16 {
+        let rule_result = as_ref!(rule_result);
+        match rule_result {
+          MatchingRuleResult::MatchingRule(id, _, _) => *id,
+          MatchingRuleResult::MatchingReference(_) => 0
+        }
+    } {
+        0
+    }
+}
+
+ffi_fn! {
+    /// Returns the associated value for the matching rule. If the matching rule does not have an
+    /// associated value, will return a NULL pointer.
+    ///
+    /// The associated values for the rules are:
+    /// | Rule | ID | VALUE |
+    /// | ---- | -- | ----- |
+    /// | Equality | 1 | NULL |
+    /// | Regex | 2 | Regex value |
+    /// | Type | 3 | NULL |
+    /// | MinType | 4 | Minimum value |
+    /// | MaxType | 5 | Maximum value |
+    /// | MinMaxType | 6 | "min:max" |
+    /// | Timestamp | 7 | Format string |
+    /// | Time | 8 | Format string |
+    /// | Date | 9 | Format string |
+    /// | Include | 10 | String value |
+    /// | Number | 11 | NULL |
+    /// | Integer | 12 | NULL |
+    /// | Decimal | 13 | NULL |
+    /// | Null | 14 | NULL |
+    /// | ContentType | 15 | Content type |
+    /// | ArrayContains | 16 | NULL |
+    /// | Values | 17 | NULL |
+    /// | Boolean | 18 | NULL |
+    /// | StatusCode | 19 | NULL |
+    /// | NotEmpty | 20 | NULL |
+    /// | Semver | 21 | NULL |
+    /// | EachKey | 22 | NULL |
+    /// | EachValue | 23 | NULL |
+    ///
+    /// Will return a NULL pointer if the matching rule was a reference or does not have an
+    /// associated value.
+    ///
+    /// # Safety
+    ///
+    /// This function is safe as long as the MatchingRuleResult pointer is a valid pointer and the
+    /// iterator it came from has not been deleted.
+    fn pactffi_matching_rule_value(rule_result: *const MatchingRuleResult) -> *const c_char {
+        let rule_result = as_ref!(rule_result);
+        match rule_result {
+          MatchingRuleResult::MatchingRule(_, value, _) => *value,
+          MatchingRuleResult::MatchingReference(_) => ptr::null_to::<c_char>()
+        }
+    } {
+        ptr::null_to::<c_char>()
+    }
+}
+
+ffi_fn! {
+    /// Returns the matching rule pointer for the matching rule. Will return a NULL pointer if the
+    /// matching rule result was a reference.
+    ///
+    /// # Safety
+    ///
+    /// This function is safe as long as the MatchingRuleResult pointer is a valid pointer and the
+    /// iterator it came from has not been deleted.
+    fn pactffi_matching_rule_pointer(rule_result: *const MatchingRuleResult) -> *const MatchingRule {
+        let rule_result = as_ref!(rule_result);
+        match rule_result {
+          MatchingRuleResult::MatchingRule(_, _, rule) => rule as *const MatchingRule,
+          MatchingRuleResult::MatchingReference(_) => ptr::null_to::<MatchingRule>()
+        }
+    } {
+        ptr::null_to::<MatchingRule>()
+    }
+}
+
+ffi_fn! {
+    /// Return any matching rule reference to a attribute by name. This is when the matcher should
+    /// be configured to match the type of a structure. I.e.,
+    ///
+    /// ```json
+    /// {
+    ///   "pact:match": "eachValue(matching($'person'))",
+    ///   "person": {
+    ///     "name": "Fred",
+    ///     "age": 100
+    ///   }
+    /// }
+    /// ```
+    ///
+    /// Will return a NULL pointer if the matching rule was not a reference.
+    ///
+    /// # Safety
+    ///
+    /// This function is safe as long as the MatchingRuleResult pointer is a valid pointer and the
+    /// iterator has not been deleted.
+    fn pactffi_matching_rule_reference_name(rule_result: *const MatchingRuleResult) -> *const c_char {
+        let rule_result = as_ref!(rule_result);
+        match rule_result {
+          MatchingRuleResult::MatchingRule(_, _, _) => ptr::null_to::<c_char>(),
+          MatchingRuleResult::MatchingReference(ref_name) => *ref_name
+        }
+    } {
+        ptr::null_to::<c_char>()
+    }
+}
+
 #[cfg(test)]
 mod tests {
-  use std::ffi::CString;
+  use std::ffi::{CStr, CString};
 
   use expectest::prelude::*;
   use libc::c_char;
+  use pact_models::matchingrules::MatchingRule;
 
   use crate::models::expressions::{
     ExpressionValueType,
@@ -405,8 +549,11 @@ mod tests {
     pactffi_matcher_definition_iter,
     pactffi_matcher_definition_value,
     pactffi_matcher_definition_value_type,
+    pactffi_matching_rule_id,
     pactffi_matching_rule_iter_delete,
     pactffi_matching_rule_iter_next,
+    pactffi_matching_rule_reference_name,
+    pactffi_matching_rule_value,
     pactffi_parse_matcher_definition
   };
   use crate::util::ptr;
@@ -480,15 +627,24 @@ mod tests {
     expect!(rule.is_null()).to(be_false());
     let r = unsafe { rule.as_ref() }.unwrap();
     match r {
-      MatchingRuleResult::MatchingRule(id, v, p) => {
+      MatchingRuleResult::MatchingRule(id, v, rule) => {
         expect!(*id).to(be_equal_to(3));
         expect!(v.is_null()).to(be_true());
-        expect!(p.is_null()).to(be_false());
+        expect!(rule).to(be_equal_to(&MatchingRule::Type));
       }
       MatchingRuleResult::MatchingReference(_) => {
         panic!("Expected a matching rule");
       }
     }
+
+    let rule_type = pactffi_matching_rule_id(rule);
+    expect!(rule_type).to(be_equal_to(3));
+    let rule_value = pactffi_matching_rule_value(rule);
+    expect!(rule_value.is_null()).to(be_true());
+
+    let ref_name = pactffi_matching_rule_reference_name(rule);
+    expect!(ref_name.is_null()).to(be_true());
+
     let rule = pactffi_matching_rule_iter_next(iter);
     expect!(rule.is_null()).to(be_true());
     pactffi_matching_rule_iter_delete(iter);
@@ -534,6 +690,17 @@ mod tests {
     expect!(value.is_null()).to(be_false());
     let string = unsafe { CString::from_raw(value as *mut c_char) };
     expect!(string.to_string_lossy()).to(be_equal_to("2000-01-02"));
+
+    let iter = pactffi_matcher_definition_iter(result);
+    expect!(iter.is_null()).to(be_false());
+    let rule = pactffi_matching_rule_iter_next(iter);
+    expect!(rule.is_null()).to(be_false());
+    let rule_type = pactffi_matching_rule_id(rule);
+    expect!(rule_type).to(be_equal_to(9));
+    let rule_value = pactffi_matching_rule_value(rule);
+    let string =  unsafe { CStr::from_ptr(rule_value) };
+    expect!(string.to_string_lossy()).to(be_equal_to("yyyy-MM-dd"));
+    pactffi_matching_rule_iter_delete(iter);
 
     let generator = pactffi_matcher_definition_generator(result);
     expect!(generator.is_null()).to(be_false());
