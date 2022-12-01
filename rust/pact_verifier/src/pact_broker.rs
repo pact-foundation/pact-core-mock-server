@@ -418,20 +418,15 @@ impl HALClient {
     self.send_document(url, body, Method::PUT).await
   }
 
-  async fn send_document(&self, url: &str, body: &str, method: Method) -> Result<serde_json::Value, PactBrokerError> {
+  async fn send_document(&self, url: &str, body: &str, method: Method) -> Result<Value, PactBrokerError> {
     debug!("Sending JSON to {} using {}: {}", url, method, body);
 
-    let base_url = self.url.parse::<Url>()
-      .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?;
-
+    let base_url = &self.url.parse::<Url>()?;
     let url = if url.starts_with("/") {
-      base_url.join(url)
-        .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?
+      base_url.join(url)?
     } else {
-      let url = url.parse::<Url>()
-        .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?;
-      base_url.join(&url.path())
-        .map_err(|err| PactBrokerError::UrlError(format!("{}", err)))?
+      let url = url.parse::<Url>()?;
+      base_url.join(&url.path())?
     };
 
     let request_builder = match self.auth {
@@ -1164,8 +1159,8 @@ mod tests {
   #[test_log::test(tokio::test)]
   async fn fetch_supports_broker_urls_with_context_paths() {
     let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
-      .interaction("a request to a hal resource from a base URL with a context path", "", |mut i| {
-        i.request.path("/path");
+      .interaction("a request to a resource from a base URL with a context path", "", |mut i| {
+        i.request.path("/path/a/b/c");
         i.response
           .status(200)
           .header("Content-Type", "application/hal+json")
@@ -1175,7 +1170,7 @@ mod tests {
       .start_mock_server(None);
 
     let client = HALClient::with_url(pact_broker.url().join("/path").unwrap().as_str(), None);
-    let result = client.fetch("/path").await;
+    let result = client.fetch("/path/a/b/c").await;
     expect!(result).to(be_ok());
   }
 
@@ -1416,6 +1411,34 @@ mod tests {
           .status(200)
           .header("Content-Type", "application/hal+json")
           .body("{\"_links\":{\"document\":{\"href\":\"/path/doc/abc\",\"templated\":false}}}");
+        i
+      })
+      .interaction("a request for a document from a base URL with a context path", "", |mut i| {
+        i.request.path("/path/doc/abc");
+        i.response
+          .header("Content-Type", "application/json")
+          .json_body(json_pattern!("Yay! You found your way here"));
+        i
+      })
+      .start_mock_server(None);
+
+    let client = HALClient::with_url(pact_broker.url().join("/path").unwrap().as_str(), None);
+    let mut client2 = client.clone();
+    let result = client.fetch("/path").await.unwrap();
+    client2.path_info = Some(result);
+    let result = client2.fetch_link("document", &hashmap!{}).await;
+    expect!(result).to(be_ok().value(Value::String("Yay! You found your way here".to_string())));
+  }
+
+  #[test_log::test(tokio::test)]
+  async fn fetch_link_supports_broker_urls_with_context_paths_with_absolute_links() {
+    let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
+      .interaction("a request to a hal resource from a base URL with a context path", "", |mut i| {
+        i.request.path("/path");
+        i.response
+          .status(200)
+          .header("Content-Type", "application/hal+json")
+          .body("{\"_links\":{\"document\":{\"href\":\"http://localhost/path/doc/abc\",\"templated\":false}}}");
         i
       })
       .interaction("a request for a document from a base URL with a context path", "", |mut i| {
@@ -2118,6 +2141,28 @@ mod tests {
       }
     ];
     let result = publish_provider_branch(&client, &links, "feat/1234", "1234").await;
+    expect!(result).to(be_ok());
+  }
+
+  #[test_log::test(tokio::test)]
+  async fn send_document_supports_broker_urls_with_context_paths() {
+    let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
+      .interaction("a request to send a document from a base URL with a context path", "", |mut i| {
+        i.request
+          .method("PUT")
+          .path("/path/a/b/c")
+          .header("Content-Type", "application/json")
+          .body("{}");
+        i.response
+          .status(200)
+          .header("Content-Type", "application/json")
+          .body("{}");
+        i
+      })
+      .start_mock_server(None);
+
+    let client = HALClient::with_url(pact_broker.url().join("/path").unwrap().as_str(), None);
+    let result = client.send_document("/path/a/b/c", "{}", Method::PUT).await;
     expect!(result).to(be_ok());
   }
 }
