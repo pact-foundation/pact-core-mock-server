@@ -153,12 +153,12 @@ impl MatchingRule {
         "max": json!(*max as u64) }),
       MatchingRule::MinMaxType(min, max) => json!({ "match": "type",
         "min": json!(*min as u64), "max": json!(*max as u64) }),
-      MatchingRule::Timestamp(ref t) => json!({ "match": "timestamp",
-        "timestamp": Value::String(t.clone()) }),
+      MatchingRule::Timestamp(ref t) => json!({ "match": "datetime",
+        "format": Value::String(t.clone()) }),
       MatchingRule::Time(ref t) => json!({ "match": "time",
-        "time": Value::String(t.clone()) }),
+        "format": Value::String(t.clone()) }),
       MatchingRule::Date(ref d) => json!({ "match": "date",
-        "date": Value::String(d.clone()) }),
+        "format": Value::String(d.clone()) }),
       MatchingRule::Include(ref s) => json!({ "match": "include",
         "value": Value::String(s.clone()) }),
       MatchingRule::Number => json!({ "match": "number" }),
@@ -1942,6 +1942,18 @@ mod tests {
   }
 
   #[test]
+  fn date_time_matchers_can_parse_the_updated_spec_format() {
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"timestamp\", \"format\": \"A\"}").unwrap())).to(
+      be_ok().value(MatchingRule::Timestamp("A".to_string())));
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"datetime\", \"format\": \"A\"}").unwrap())).to(
+      be_ok().value(MatchingRule::Timestamp("A".to_string())));
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"time\", \"format\": \"A\"}").unwrap())).to(
+      be_ok().value(MatchingRule::Time("A".to_string())));
+    expect!(MatchingRule::from_json(&Value::from_str("{\"match\": \"date\", \"format\": \"A\"}").unwrap())).to(
+      be_ok().value(MatchingRule::Date("A".to_string())));
+  }
+
+  #[test]
   fn matching_rule_to_json_test() {
     expect!(MatchingRule::StatusCode(HttpStatus::ClientError).to_json()).to(
       be_equal_to(json!({
@@ -1952,6 +1964,22 @@ mod tests {
       be_equal_to(json!({
         "match": "statusCode",
         "status": [400, 401, 404]
+      })));
+
+    expect!(MatchingRule::Timestamp("YYYY".to_string()).to_json()).to(
+      be_equal_to(json!({
+        "match": "datetime",
+        "format": "YYYY"
+      })));
+    expect!(MatchingRule::Date("YYYY".to_string()).to_json()).to(
+      be_equal_to(json!({
+        "match": "date",
+        "format": "YYYY"
+      })));
+    expect!(MatchingRule::Time("HH".to_string()).to_json()).to(
+      be_equal_to(json!({
+        "match": "time",
+        "format": "HH"
       })));
   }
 
