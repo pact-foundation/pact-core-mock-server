@@ -350,6 +350,7 @@ mod tests {
   ];
 
   #[test_log::test]
+  #[cfg(not(windows))]
   fn pactffi_matches_binary_value_test() {
     let rule = MatchingRule::ContentType("image/gif".to_string());
     let rule_ptr = &rule as *const MatchingRule;
