@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.0 - Support plugins generating interaction content
+
+* 1744ddc2 - feat: Support plugins generating interaction content (Ronald Holshausen, Fri Dec 9 17:24:04 2022 +1100)
+* bf2eca32 - bump version to 0.12.16 (Ronald Holshausen, Mon Nov 28 14:20:13 2022 +1100)
+
 # 0.12.15 - Maintenance Release
 
 * c9721fd5 - chore: Upgrade pact_models to 1.0.1 and pact-plugin-driver to 0.1.16 (Ronald Holshausen, Mon Nov 28 14:10:53 2022 +1100)
