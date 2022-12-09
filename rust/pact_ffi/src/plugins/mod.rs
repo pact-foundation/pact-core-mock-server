@@ -334,7 +334,7 @@ fn setup_contents(
   definition: &Value,
   callback: &dyn Fn(&mut dyn V4Interaction, Vec<InteractionContents>, String, String)
 ) -> anyhow::Result<Option<(String, String, PluginConfiguration)>> {
-  match find_content_matcher(&content_type) {
+  match find_content_matcher(content_type) {
     Some(matcher) => {
       debug!("Found a matcher for '{}': {:?}", content_type, matcher);
       if matcher.is_core() {
