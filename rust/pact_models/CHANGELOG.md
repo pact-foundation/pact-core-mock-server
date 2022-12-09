@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.2 - Bugfix Release
+
+* f84adc7a - fix: Metadata was missing from the generator categories (Ronald Holshausen, Fri Dec 9 11:00:34 2022 +1100)
+* f9dd7a4e - Fix: date and time matchers were not being persisted as per the spec (Ronald Holshausen, Thu Dec 1 12:25:12 2022 +1100)
+* 7e5add7e - bump version to 1.0.2 (Ronald Holshausen, Mon Nov 28 13:27:43 2022 +1100)
+
 # 1.0.1 - Maintenance Release
 
 * 43a8cae1 - chore: clean up deprecation warnings (Ronald Holshausen, Mon Nov 28 13:19:31 2022 +1100)
