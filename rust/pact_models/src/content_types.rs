@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 use std::convert::TryFrom;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::str::{from_utf8, FromStr};
 
 use anyhow::anyhow;
@@ -63,7 +63,7 @@ lazy_static! {
 
 impl ContentType {
   /// Parses a string into a ContentType
-  pub fn parse<'a, S: Into<&'a str>>(content_type: S) -> Result<ContentType, String> {
+  pub fn parse<'a, S: Into<&'a str>>(content_type: S) -> anyhow::Result<ContentType> {
     let content_type = content_type.into();
     match Mime::from_str(content_type) {
       Ok(mime) => {
@@ -78,7 +78,7 @@ impl ContentType {
         let message = format!("Failed to parse '{}' as a content type: {}",
                               content_type, err);
         warn!("{}", message);
-        Err(message)
+        Err(anyhow!(message))
       }
     }
   }
@@ -160,8 +160,8 @@ impl Default for ContentType {
   }
 }
 
-impl std::fmt::Display for ContentType {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for ContentType {
+  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
     let base = if let Some(suffix) = &self.suffix {
       format!("{}/{}+{}", self.main_type, self.sub_type, suffix)
     } else {
@@ -195,10 +195,16 @@ impl From<&str> for ContentType {
 }
 
 impl FromStr for ContentType {
-  type Err = String;
+  type Err = anyhow::Error;
 
   fn from_str(s: &str) -> Result<Self, Self::Err> {
     ContentType::parse(s)
+  }
+}
+
+impl Into<String> for &ContentType {
+  fn into(self) -> String {
+    self.to_string()
   }
 }
 

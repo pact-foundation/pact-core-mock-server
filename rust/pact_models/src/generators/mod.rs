@@ -33,7 +33,7 @@ use crate::PactSpecification;
 use crate::path_exp::{DocPath, PathToken};
 use crate::time_utils::{parse_pattern, to_chrono_pattern};
 
-mod datetime_expressions;
+pub mod datetime_expressions;
 mod date_expression_parser;
 mod time_expression_parser;
 
@@ -653,7 +653,9 @@ pub enum GeneratorCategory {
   /// Body
   BODY,
   /// Response Status
-  STATUS
+  STATUS,
+  /// Message Metadata
+  METADATA
 }
 
 impl FromStr for GeneratorCategory {
@@ -667,6 +669,7 @@ impl FromStr for GeneratorCategory {
       "query" => Ok(GeneratorCategory::QUERY),
       "body" => Ok(GeneratorCategory::BODY),
       "status" => Ok(GeneratorCategory::STATUS),
+      "metadata" => Ok(GeneratorCategory::METADATA),
       _ => Err(format!("'{}' is not a valid GeneratorCategory", s))
     }
   }
@@ -680,7 +683,8 @@ impl <'a> Into<&'a str> for GeneratorCategory {
       GeneratorCategory::HEADER => "header",
       GeneratorCategory::QUERY => "query",
       GeneratorCategory::BODY => "body",
-      GeneratorCategory::STATUS => "status"
+      GeneratorCategory::STATUS => "status",
+      GeneratorCategory::METADATA => "metadata"
     }
   }
 }
@@ -700,7 +704,8 @@ impl Into<Category> for GeneratorCategory {
       GeneratorCategory::HEADER => Category::HEADER,
       GeneratorCategory::QUERY => Category::QUERY,
       GeneratorCategory::BODY => Category::BODY,
-      GeneratorCategory::STATUS => Category::STATUS
+      GeneratorCategory::STATUS => Category::STATUS,
+      GeneratorCategory::METADATA => Category::METADATA
     }
   }
 }
