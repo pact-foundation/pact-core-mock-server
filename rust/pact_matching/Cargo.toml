@@ -1,6 +1,6 @@
 [package]
 name = "pact_matching"
-version = "0.12.16"
+version = "1.0.0"
 authors = ["Ronald Holshausen <ronald.holshausen@gmail.com>"]
 edition = "2021"
 description = "Pact-Rust support library that implements request and response matching logic"
@@ -15,7 +15,7 @@ exclude = [
 ]
 
 [dependencies]
-pact_models = "1.0.1"
+pact_models = "1.0.2"
 anyhow = "1.0.57"
 serde = { version = "^1.0", features = ["derive"] }
 serde_json = "^1.0"
@@ -40,10 +40,10 @@ http = "0.2.7"
 mime = "0.3.16"
 bytes = { version = "1.1.0", features = ["serde"] }
 tokio = { version = "1.18.2", features = ["full"] }
-pact-plugin-driver = "^0.1"
+pact-plugin-driver = "0.2"
 md5 = "0.7.0"
-tracing = "0.1.36" # This needs to be the same version across all the libs (i.e. plugin driver, pact ffi)
-tracing-core = "0.1.29"  # This needs to be the same version across all the pact libs (i.e. plugin driver, pact ffi)
+tracing = "0.1.37" # This needs to be the same version across all the libs (i.e. plugin driver, pact ffi)
+tracing-core = "0.1.30"  # This needs to be the same version across all the pact libs (i.e. plugin driver, pact ffi)
 
 [dependencies.reqwest]
 version = "0.11.10"

@@ -376,7 +376,8 @@ use pact_plugin_driver::plugin_models::PluginInteractionConfig;
 use serde_json::{json, Value};
 use tracing::{debug, error, info, warn};
 
-use crate::generators::{DefaultVariantMatcher, generators_process_body};
+use crate::generators::DefaultVariantMatcher;
+use crate::generators::bodies::generators_process_body;
 use crate::headers::{match_header_value, match_headers};
 use crate::json::match_json;
 use crate::matchers::*;
@@ -397,11 +398,11 @@ pub mod json;
 pub mod logging;
 pub mod matchingrules;
 pub mod metrics;
+pub mod generators;
 
 mod xml;
 mod binary_utils;
 mod headers;
-mod generators;
 mod query;
 
 /// Context used to apply matching logic
@@ -1743,6 +1744,7 @@ pub async fn match_sync_message_response<'a>(
 }
 
 /// Generates the request by applying any defined generators
+// TODO: Need to pass in any plugin data
 pub async fn generate_request(request: &HttpRequest, mode: &GeneratorTestMode, context: &HashMap<&str, Value>) -> HttpRequest {
   let mut request = request.clone();
 
@@ -1796,7 +1798,7 @@ pub async fn generate_request(request: &HttpRequest, mode: &GeneratorTestMode, c
   if !generators.is_empty() && request.body.is_present() {
     debug!("Applying body generators...");
     match generators_process_body(mode, &request.body, request.content_type(),
-                                  context, &generators, &DefaultVariantMatcher{}).await {
+                                  context, &generators, &DefaultVariantMatcher {}, &vec![], &hashmap!{}).await {
       Ok(body) => request.body = body,
       Err(err) => error!("Failed to generate the body, will use the original: {}", err)
     }
@@ -1806,6 +1808,7 @@ pub async fn generate_request(request: &HttpRequest, mode: &GeneratorTestMode, c
 }
 
 /// Generates the response by applying any defined generators
+// TODO: Need to pass in any plugin data
 pub async fn generate_response(response: &HttpResponse, mode: &GeneratorTestMode, context: &HashMap<&str, Value>) -> HttpResponse {
   let mut response = response.clone();
   let generators = response.build_generators(&GeneratorCategory::STATUS);
@@ -1841,7 +1844,7 @@ pub async fn generate_response(response: &HttpResponse, mode: &GeneratorTestMode
   if !generators.is_empty() && response.body.is_present() {
     debug!("Applying body generators...");
     match generators_process_body(mode, &response.body, response.content_type(),
-      context, &generators, &DefaultVariantMatcher{}).await {
+      context, &generators, &DefaultVariantMatcher{}, &vec![], &hashmap!{}).await {
       Ok(body) => response.body = body,
       Err(err) => error!("Failed to generate the body, will use the original: {}", err)
     }
