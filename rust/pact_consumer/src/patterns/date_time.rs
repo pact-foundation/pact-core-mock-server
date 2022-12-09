@@ -61,7 +61,7 @@ fn datetime_is_pattern() {
   let expected_rules = json!({
     "$": {
       "combine": "AND", "matchers": [
-        { "match": "timestamp", "timestamp": "EEE, d MMM yyyy HH:mm:ss Z" }
+        { "match": "datetime", "format": "EEE, d MMM yyyy HH:mm:ss Z" }
       ]
     }
   });
