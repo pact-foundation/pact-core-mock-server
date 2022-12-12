@@ -936,12 +936,14 @@ pub fn generators_to_json(generators: &Generators, spec_version: &PactSpecificat
 
 /// Macro to make constructing generators easy
 /// Example usage:
-/// ```ignore
-/// generators! {
+/// ```
+/// use pact_models::generators;
+/// use pact_models::generators::Generator;
+/// let gen = generators! {
 ///   "HEADER" => {
-///     "A" => Generator::Uuid
+///     "A" => Generator::RandomString(10)
 ///   }
-/// }
+/// };
 ///```
 #[macro_export]
 macro_rules! generators {
