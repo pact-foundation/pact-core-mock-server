@@ -1,5 +1,17 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.10.1 - Support plugins generating interaction content
+
+* 9be00044 - chore: Upgrade pact_mock_server to 0.9.6 (Ronald Holshausen, Mon Dec 12 10:06:25 2022 +1100)
+* e7a1b9f2 - chore: Upgrade pact_matching to 1.0 and plugin driver to 0.2 (Ronald Holshausen, Fri Dec 9 17:29:33 2022 +1100)
+* 2cf5d8ad - fix: Correct test after upgrading pact_models to 1.0.2 (Ronald Holshausen, Fri Dec 9 12:59:24 2022 +1100)
+* 246c0730 - chore: Upgrade pact_mock_server to 0.9.5 (Ronald Holshausen, Mon Nov 28 14:52:37 2022 +1100)
+* 2802fffd - chore: Upgrade pact_matching to 0.12.15 (Ronald Holshausen, Mon Nov 28 14:29:43 2022 +1100)
+* c9721fd5 - chore: Upgrade pact_models to 1.0.1 and pact-plugin-driver to 0.1.16 (Ronald Holshausen, Mon Nov 28 14:10:53 2022 +1100)
+* 2e5823a0 - feat: add custom-header to the old FFI args for implementations that have not moved to handles (Ronald Holshausen, Fri Nov 25 11:09:46 2022 +1100)
+* c6aebcb5 - chore: add a test with two near identical interactions (Ronald Holshausen, Mon Nov 14 12:37:05 2022 +1100)
+* 57de6527 - bump version to 0.10.1 (Ronald Holshausen, Mon Nov 7 13:49:06 2022 +1100)
+
 # 0.10.0 - Bugfix Release
 
 * 8ec8fe9b - chore: Upgrade pact_consumer to 0.10.0 (Ronald Holshausen, Mon Nov 7 13:15:23 2022 +1100)
