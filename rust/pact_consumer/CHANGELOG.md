@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.10.2 - Bugfix Release
+
+* e91ad622 - fix: Interaction builder was not copying plugin config data to the Pact metadata (Ronald Holshausen, Mon Dec 12 13:59:36 2022 +1100)
+* 1fdb4176 - bump version to 0.10.2 (Ronald Holshausen, Mon Dec 12 11:42:05 2022 +1100)
+
 # 0.10.1 - Support plugins generating interaction content
 
 * 9be00044 - chore: Upgrade pact_mock_server to 0.9.6 (Ronald Holshausen, Mon Dec 12 10:06:25 2022 +1100)
