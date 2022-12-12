@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.13.17 - Bugfix + Support plugins generating interaction content
+
+* e7a1b9f2 - chore: Upgrade pact_matching to 1.0 and plugin driver to 0.2 (Ronald Holshausen, Fri Dec 9 17:29:33 2022 +1100)
+* 9fc56580 - fix: add tests for PUT and POST requests #220 (Ronald Holshausen, Thu Dec 1 11:42:31 2022 +1100)
+* 77a7c8ba - fix: make HAL client fetch and fetch link functions support brokers hosted with context paths #220 (Ronald Holshausen, Wed Nov 30 18:20:23 2022 +1100)
+* 3d85ba0b - bump version to 0.13.17 (Ronald Holshausen, Mon Nov 28 15:02:29 2022 +1100)
+
 # 0.13.16 - Bugfix Release
 
 * 2802fffd - chore: Upgrade pact_matching to 0.12.15 (Ronald Holshausen, Mon Nov 28 14:29:43 2022 +1100)
