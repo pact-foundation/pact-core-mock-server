@@ -1,5 +1,15 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.3.16 - Support for plugin authors
+
+* 9be00044 - chore: Upgrade pact_mock_server to 0.9.6 (Ronald Holshausen, Mon Dec 12 10:06:25 2022 +1100)
+* 4f366ac5 - fix(FFI): broken build after upgrading pact_models (Ronald Holshausen, Fri Dec 9 17:31:40 2022 +1100)
+* e7a1b9f2 - chore: Upgrade pact_matching to 1.0 and plugin driver to 0.2 (Ronald Holshausen, Fri Dec 9 17:29:33 2022 +1100)
+* cfb2c03f - chore: pactffi_matches_binary_value_test will not work on Windows (Ronald Holshausen, Thu Dec 1 16:49:29 2022 +1100)
+* 6fe19b9e - feat(FFI): add functions for matching common values (Ronald Holshausen, Thu Dec 1 16:26:39 2022 +1100)
+* 7756d305 - fix(FFI): Replaced the matching rule union type with 3 FFI functions which should support Go better (Ronald Holshausen, Wed Nov 30 16:10:15 2022 +1100)
+* fbdcaabc - bump version to 0.3.16 (Ronald Holshausen, Mon Nov 28 16:09:44 2022 +1100)
+
 # 0.3.15 - Bugfix + FFI functions to support plugin authors
 
 * 2f0ada6b - chore: Upgrade pact_verifier to 0.13.16 (Ronald Holshausen, Mon Nov 28 15:08:47 2022 +1100)
