@@ -51,6 +51,7 @@ use super::interaction_builder::InteractionBuilder;
 /// assert_eq!(pact.interactions()[0].as_request_response().unwrap().response.status, 200);
 /// # });
 /// ```
+#[derive(Debug)]
 pub struct PactBuilderAsync {
   pact: Box<dyn Pact + Send + Sync>,
   output_dir: Option<PathBuf>
@@ -149,6 +150,13 @@ impl PactBuilderAsync {
         let interaction = build_fn(interaction).await;
 
         if self.pact.is_v4() {
+          for (plugin_name, plugin_config) in interaction.pact_plugin_config() {
+            // TODO: Update this when there is an update plugin data function added to Pact models
+            if let Some(plugin_data) = self.pact.plugin_data().iter().find(|pl| pl.name == plugin_name) {
+              self.pact.add_plugin(plugin_data.name.as_str(), plugin_data.version.as_str(),
+                Some(plugin_config)).expect("Could not update Pact with plugin data");
+            }
+          }
           self.push_interaction(&interaction.build_v4())
         } else {
           self.push_interaction(&interaction.build())

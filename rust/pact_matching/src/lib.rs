@@ -374,7 +374,7 @@ use pact_models::v4::sync_message::SynchronousMessage;
 use pact_plugin_driver::catalogue_manager::find_content_matcher;
 use pact_plugin_driver::plugin_models::PluginInteractionConfig;
 use serde_json::{json, Value};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, trace, warn};
 
 use crate::generators::DefaultVariantMatcher;
 use crate::generators::bodies::generators_process_body;
@@ -1245,7 +1245,9 @@ async fn compare_bodies(
           mismatches.extend_from_slice(&*m);
         }
       } else {
+        trace!(plugin_name = matcher.plugin_name(),"Content matcher is provided via a plugin");
         let plugin_config = context.plugin_configuration().get(&matcher.plugin_name()).cloned();
+        trace!("Plugin config = {:?}", plugin_config);
         if let Err(map) = matcher.match_contents(expected.body(), actual.body(), &context.matchers(),
           context.config() == DiffConfig::AllowUnexpectedKeys, plugin_config).await {
           // TODO: group the mismatches by key
@@ -1398,6 +1400,8 @@ pub async fn match_request<'a>(
   debug!("     generators: {:?}", expected.generators);
 
   let plugin_data = setup_plugin_config(pact, interaction);
+  trace!("plugin_data = {:?}", plugin_data);
+
   let path_context = CoreMatchingContext::new(DiffConfig::NoUnexpectedKeys,
     &expected.matching_rules.rules_for_category("path").unwrap_or_default(),
     &plugin_data);

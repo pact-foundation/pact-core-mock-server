@@ -27,8 +27,12 @@ pub struct InteractionBuilder {
 
     /// A builder for this interaction's `Response`.
     pub response: ResponseBuilder,
+
     /// The interaction type (as stored in the plugin catalogue)
     pub interaction_type: String,
+
+    /// Any configuration provided by plugins that needs to be persisted to the Pact metadata
+    pub plugin_configuration: HashMap<String, Value>
 }
 
 impl InteractionBuilder {
@@ -43,6 +47,7 @@ impl InteractionBuilder {
       transport: None,
       request: RequestBuilder::default(),
       response: ResponseBuilder::default(),
+      plugin_configuration: Default::default()
     }
   }
 
@@ -109,7 +114,7 @@ impl InteractionBuilder {
     }
   }
 
-  /// Any plugin configuration returned from plugins
+  /// Any plugin configuration returned from plugins to add to the interaction
   pub fn plugin_config(&self) -> HashMap<String, HashMap<String, Value>> {
     let mut config = hashmap!{};
     let request_config = self.request.plugin_config();
@@ -122,6 +127,24 @@ impl InteractionBuilder {
     if !response_config.is_empty() {
       for (key, value) in response_config {
         config.insert(key.clone(), value.interaction_configuration.clone());
+      }
+    }
+    config
+  }
+
+  /// Any plugin configuration returned from plugins to add to the Pact metadata
+  pub fn pact_plugin_config(&self) -> HashMap<String, HashMap<String, Value>> {
+    let mut config = hashmap!{};
+    let request_config = self.request.plugin_config();
+    if !request_config.is_empty() {
+      for (key, value) in request_config {
+        config.insert(key.clone(), value.pact_configuration.clone());
+      }
+    }
+    let response_config = self.response.plugin_config();
+    if !response_config.is_empty() {
+      for (key, value) in response_config {
+        config.insert(key.clone(), value.pact_configuration.clone());
       }
     }
     config
