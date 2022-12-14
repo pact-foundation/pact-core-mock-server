@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.1 - Bugfix Release
+
+* 8be00f0c - chore: Upgrade pact-plugin-driver to 0.2.1 (Ronald Holshausen, Wed Dec 14 14:55:32 2022 +1100)
+* e91ad622 - fix: Interaction builder was not copying plugin config data to the Pact metadata (Ronald Holshausen, Mon Dec 12 13:59:36 2022 +1100)
+* b258c94f - bump version to 1.0.1 (Ronald Holshausen, Fri Dec 9 17:56:35 2022 +1100)
+
 # 1.0.0 - Support plugins generating interaction content
 
 * 1744ddc2 - feat: Support plugins generating interaction content (Ronald Holshausen, Fri Dec 9 17:24:04 2022 +1100)
