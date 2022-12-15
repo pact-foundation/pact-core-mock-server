@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.3.17 - Bugfix Release
+
+* ec2ed51d - fix(FFI): use a multi-threaded reactor for FFI setup_contents call to plugins (Ronald Holshausen, Thu Dec 15 12:22:24 2022 +1100)
+* 46254545 - chore: Upgrade pact_verifier to 0.13.18 (Ronald Holshausen, Wed Dec 14 17:15:22 2022 +1100)
+* fb2f4204 - chore: Upgrade pact_matching to 1.0.1 (Ronald Holshausen, Wed Dec 14 17:03:31 2022 +1100)
+* 8be00f0c - chore: Upgrade pact-plugin-driver to 0.2.1 (Ronald Holshausen, Wed Dec 14 14:55:32 2022 +1100)
+* f0387856 - bump version to 0.3.17 (Ronald Holshausen, Mon Dec 12 14:18:18 2022 +1100)
+
 # 0.3.16 - Support for plugin authors
 
 * 9be00044 - chore: Upgrade pact_mock_server to 0.9.6 (Ronald Holshausen, Mon Dec 12 10:06:25 2022 +1100)
