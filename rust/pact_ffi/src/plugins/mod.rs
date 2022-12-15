@@ -21,6 +21,7 @@ use pact_plugin_driver::content::{InteractionContents, PluginConfiguration};
 use pact_plugin_driver::plugin_manager::{drop_plugin_access, load_plugin, lookup_plugin};
 use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
 use serde_json::Value;
+use tokio::runtime::Builder;
 use tokio::time::sleep;
 use tracing::{debug, error};
 
@@ -154,7 +155,12 @@ ffi_fn! {
 ///
 /// When an error errors, LAST_ERROR will contain the error message.
 #[no_mangle]
-pub extern fn pactffi_interaction_contents(interaction: InteractionHandle, part: InteractionPart, content_type: *const c_char, contents: *const c_char) -> c_uint {
+pub extern fn pactffi_interaction_contents(
+  interaction: InteractionHandle,
+  part: InteractionPart,
+  content_type: *const c_char,
+  contents: *const c_char
+) -> c_uint {
   catch_panic(|| {
     let content_type_str = safe_str!(content_type);
     let content_type = match ContentType::parse(content_type_str) {
@@ -345,7 +351,11 @@ fn setup_contents(
         match definition {
           Value::Object(attributes) => {
             let map = attributes.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
-            let runtime = tokio::runtime::Runtime::new().unwrap();
+            let runtime = Builder::new_multi_thread()
+              .worker_threads(2)
+              .thread_name("ffi-setup_contents")
+              .build()
+              .expect("Could not start a Tokio runtime");
             let result = runtime.block_on(matcher.configure_interation(&content_type, map));
             match result {
               Ok((contents, plugin_config)) => {
