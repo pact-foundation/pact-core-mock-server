@@ -155,6 +155,7 @@ ffi_fn! {
 ///
 /// When an error errors, LAST_ERROR will contain the error message.
 #[no_mangle]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern fn pactffi_interaction_contents(
   interaction: InteractionHandle,
   part: InteractionPart,

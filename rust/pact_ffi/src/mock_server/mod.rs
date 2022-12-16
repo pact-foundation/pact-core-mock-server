@@ -102,6 +102,7 @@ mod xml;
 ///
 #[no_mangle]
 #[deprecated(since = "0.1.7", note = "replaced with pactffi_create_mock_server_for_transport")]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern fn pactffi_create_mock_server(pact_str: *const c_char, addr_str: *const c_char, tls: bool) -> i32 {
   let result = catch_unwind(|| {
     let c_str = unsafe {
@@ -195,6 +196,7 @@ pub extern fn pactffi_get_tls_ca_certificate() -> *mut c_char  {
 ///
 #[no_mangle]
 #[tracing::instrument]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern fn pactffi_create_mock_server_for_pact(pact: PactHandle, addr_str: *const c_char, tls: bool) -> i32 {
   let result = catch_unwind(|| {
     let addr_c_str = unsafe {

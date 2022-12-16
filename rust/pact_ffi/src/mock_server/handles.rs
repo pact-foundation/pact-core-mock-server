@@ -1685,6 +1685,7 @@ pub extern fn pactffi_message_given_with_param(message: MessageHandle, descripti
 /// * `content_type` - Expected content type (e.g. application/json, application/octet-stream)
 /// * `size` - number of bytes in the message body to read. This is not required for text bodies (JSON, XML, etc.).
 #[no_mangle]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern fn pactffi_message_with_contents(message_handle: MessageHandle, content_type: *const c_char, body: *const u8, size: size_t) {
   let content_type = convert_cstr("content_type", content_type).unwrap_or("text/plain");
   trace!("pactffi_message_with_contents(message_handle: {:?}, content_type: {:?}, body: {:?}, size: {})", message_handle, content_type, body, size);
