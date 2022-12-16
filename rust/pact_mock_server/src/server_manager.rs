@@ -10,6 +10,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::anyhow;
 use itertools::Either;
+use maplit::hashmap;
 use pact_models::pact::Pact;
 use pact_models::prelude::v4::V4Pact;
 use pact_plugin_driver::catalogue_manager::{CatalogueEntry, CatalogueEntryProviderType};
@@ -191,7 +192,11 @@ impl ServerManager {
         port: addr.port() as u32,
         tls: false
       };
-      let result = self.runtime.block_on(pact_plugin_driver::plugin_manager::start_mock_server(transport, v4_pact.boxed(), mock_server_config))?;
+      let test_context = hashmap!{};
+      let result = self.runtime.block_on(
+        pact_plugin_driver::plugin_manager::start_mock_server_v2(transport, v4_pact.boxed(),
+          mock_server_config, test_context)
+      )?;
       self.mock_servers.insert(
         id,
         ServerEntry {

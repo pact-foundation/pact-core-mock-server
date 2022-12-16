@@ -6,11 +6,12 @@ use std::path::PathBuf;
 
 use anyhow::anyhow;
 use itertools::Itertools;
+use maplit::hashmap;
 use pact_models::pact::{Pact, write_pact};
 use pact_models::PactSpecification;
 use pact_plugin_driver::catalogue_manager::CatalogueEntry;
 use pact_plugin_driver::mock_server::{MockServerConfig, MockServerDetails};
-use pact_plugin_driver::plugin_manager::{shutdown_mock_server, start_mock_server};
+use pact_plugin_driver::plugin_manager::{shutdown_mock_server, start_mock_server_v2};
 use tokio::runtime::Handle;
 use tracing::{debug, info};
 use url::Url;
@@ -55,12 +56,13 @@ impl PluginMockServer {
     output_path: Option<PathBuf>,
     catalogue_entry: &CatalogueEntry
   ) -> anyhow::Result<Box<dyn ValidatingMockServer>> {
-    let result = start_mock_server(catalogue_entry, pact.boxed(), MockServerConfig {
+    let test_context = hashmap!{};
+    let result = start_mock_server_v2(catalogue_entry, pact.boxed(), MockServerConfig {
       output_path: output_path.clone(),
       host_interface: None,
       port: 0,
       tls: false
-    }).await?;
+    }, test_context).await?;
     Ok(Box::new(PluginMockServer {
       mock_server_details: result,
       pact: pact.boxed(),
