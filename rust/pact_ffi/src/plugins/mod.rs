@@ -352,6 +352,7 @@ fn setup_contents(
           Value::Object(attributes) => {
             let map = attributes.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
             let runtime = Builder::new_multi_thread()
+              .enable_all()
               .worker_threads(2)
               .thread_name("ffi-setup_contents")
               .build()
