@@ -10,6 +10,7 @@ macro_rules! ffi_fn {
         $(#[$doc])*
         #[no_mangle]
         #[allow(clippy::or_fun_call)]
+        #[allow(clippy::not_unsafe_ptr_arg_deref)]
         pub extern fn $name($($arg: $arg_ty),*) -> $ret {
             use $crate::error::catch_panic;
 
