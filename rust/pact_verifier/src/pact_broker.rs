@@ -479,6 +479,7 @@ impl Default for HALClient {
   fn default() -> Self {
     HALClient {
       client: reqwest::ClientBuilder::new()
+        .user_agent(format!("{}/{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION")))
         .build()
         .unwrap(),
       url: "".to_string(),
@@ -1097,6 +1098,27 @@ mod tests {
         );
 
         expect!(json_content_type(&response)).to(be_true());
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn user_agent_test() {
+        let pact_broker = PactBuilder::new("RustPactVerifier", "PactBrokerStub")
+            .interaction("a request to the broker includes a user-agent", "", |mut i| {
+                i.request
+                  .path("/user-agent")
+                  .header("user-agent", format!("{}/{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION")));
+
+                i.response
+                  .status(200)
+                  .header("Content-Type", "application/hal+json")
+                  .body("{\"_links\":{}}");
+                i
+            })
+            .start_mock_server(None);
+
+        let client = HALClient::with_url(pact_broker.url().as_str(), None);
+        let result = client.clone().fetch("/user-agent").await;
+        expect!(result).to(be_ok());
     }
 
     #[test]
