@@ -17,14 +17,17 @@ cmake -DCMAKE_BUILD_TYPE=Debug ..
 cmake --build . -v
 cd ..
 
+
+rustup toolchain install nightly-2022-12-01
+
 echo -------------------------------------
 echo - Generate header with cbindgen
 echo -------------------------------------
-rustup run nightly cbindgen \
+rustup run nightly-2022-12-01 cbindgen \
   --config cbindgen.toml \
   --crate pact_ffi \
   --output include/pact.h
-rustup run nightly cbindgen \
+rustup run nightly-2022-12-01 cbindgen \
   --config cbindgen-c++.toml \
   --crate pact_ffi \
   --output include/pact-c++.h
