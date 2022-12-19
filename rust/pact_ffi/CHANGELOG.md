@@ -1,5 +1,22 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.3.18 - Bugfixes + Support generators in plugins
+
+* c55a7758 - chore: Upgrade pact_verifier to 0.13.19 (Ronald Holshausen, Mon Dec 19 16:20:24 2022 +1100)
+* 81e55220 - chore: Upgrade pact_mock_server to 0.9.7 (Ronald Holshausen, Mon Dec 19 16:04:55 2022 +1100)
+* e827f591 - chore: Upgrade pact_matching to 1.0.2 (Ronald Holshausen, Mon Dec 19 15:30:14 2022 +1100)
+* dece8df7 - Merge pull request #235 from leonasa/feat/allow-non-deafult-json-content-type (Ronald Holshausen, Mon Dec 19 13:19:29 2022 +1100)
+* 86344804 - chore: fix FFI CI build (Ronald Holshausen, Mon Dec 19 12:57:42 2022 +1100)
+* 61e4d69d - fix: cbindgen fails in latest nightly rust (Ronald Holshausen, Mon Dec 19 12:48:31 2022 +1100)
+* 4b1ba4a2 - fix: cbindgen fails in latest nightly rust (Ronald Holshausen, Mon Dec 19 12:07:43 2022 +1100)
+* 166e9f86 - chore: correct clippy error (Ronald Holshausen, Fri Dec 16 17:40:15 2022 +1100)
+* 82e20053 - chore: correct clippy error (Ronald Holshausen, Fri Dec 16 17:18:34 2022 +1100)
+* 5fbb0d6a - feat: Upgrade plugin driver to 0.2.2 (supports passing a test context to support generators) (Ronald Holshausen, Fri Dec 16 16:38:03 2022 +1100)
+* 5251fcf5 - fix: error caused an internal mutex to be poisoned (Ronald Holshausen, Fri Dec 16 16:34:19 2022 +1100)
+* 1ab47c6f - chore: Upgrade Tokio to latest (Ronald Holshausen, Fri Dec 16 16:31:31 2022 +1100)
+* dbe56950 - bump version to 0.3.18 (Ronald Holshausen, Thu Dec 15 13:26:05 2022 +1100)
+* c1ccb62f - feat: allow non deafult json content-type (Leonardo Santana, Mon Dec 12 15:26:22 2022 -0500)
+
 # 0.3.17 - Bugfix Release
 
 * ec2ed51d - fix(FFI): use a multi-threaded reactor for FFI setup_contents call to plugins (Ronald Holshausen, Thu Dec 15 12:22:24 2022 +1100)
