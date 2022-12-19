@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.9.20 - Add user-agent header + Support generators in plugins
+
+* c55a7758 - chore: Upgrade pact_verifier to 0.13.19 (Ronald Holshausen, Mon Dec 19 16:20:24 2022 +1100)
+* 46254545 - chore: Upgrade pact_verifier to 0.13.18 (Ronald Holshausen, Wed Dec 14 17:15:22 2022 +1100)
+* e7a1b9f2 - chore: Upgrade pact_matching to 1.0 and plugin driver to 0.2 (Ronald Holshausen, Fri Dec 9 17:29:33 2022 +1100)
+* f410fe35 - bump version to 0.9.20 (Ronald Holshausen, Mon Nov 28 15:18:13 2022 +1100)
+
 # 0.9.19 - Bugfix Release
 
 * 2f0ada6b - chore: Upgrade pact_verifier to 0.13.16 (Ronald Holshausen, Mon Nov 28 15:08:47 2022 +1100)
