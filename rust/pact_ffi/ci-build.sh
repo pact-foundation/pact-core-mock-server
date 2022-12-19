@@ -8,6 +8,8 @@ rustc --version
 cargo install --force cbindgen
 rm -rf ./include
 
+rustup toolchain install nightly-2022-12-01
+
 echo -------------------------------------
 echo - Build library with CMake
 echo -------------------------------------
@@ -16,9 +18,6 @@ cd build
 cmake -DCMAKE_BUILD_TYPE=Debug ..
 cmake --build . -v
 cd ..
-
-
-rustup toolchain install nightly-2022-12-01
 
 echo -------------------------------------
 echo - Generate header with cbindgen
