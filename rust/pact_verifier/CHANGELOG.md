@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.13.19 - Add user-agent header + Support generators in plugins
+
+* e827f591 - chore: Upgrade pact_matching to 1.0.2 (Ronald Holshausen, Mon Dec 19 15:30:14 2022 +1100)
+* 8bb2534d - feat: add user-agent header to the HALClient (andrisak, Sat Dec 17 12:42:05 2022 +0100)
+* 5fbb0d6a - feat: Upgrade plugin driver to 0.2.2 (supports passing a test context to support generators) (Ronald Holshausen, Fri Dec 16 16:38:03 2022 +1100)
+* 1ab47c6f - chore: Upgrade Tokio to latest (Ronald Holshausen, Fri Dec 16 16:31:31 2022 +1100)
+* 46868427 - bump version to 0.13.19 (Ronald Holshausen, Wed Dec 14 17:12:51 2022 +1100)
+
 # 0.13.18 - Maintenance Release
 
 * fb2f4204 - chore: Upgrade pact_matching to 1.0.1 (Ronald Holshausen, Wed Dec 14 17:03:31 2022 +1100)
