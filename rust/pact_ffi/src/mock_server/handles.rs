@@ -1199,7 +1199,7 @@ pub extern fn pactffi_with_body(
           let body = if reqres.request.content_type().unwrap_or_default().is_json() {
             let category = reqres.request.matching_rules.add_category("body");
             OptionalBody::Present(Bytes::from(process_json(body.to_string(), category, &mut reqres.request.generators)),
-                                  Some(JSON.clone()), None)
+                                  Some(ContentType::parse(content_type).unwrap()), None)
           } else if reqres.request.content_type().unwrap_or_default().is_xml() {
             let category = reqres.request.matching_rules.add_category("body");
             OptionalBody::Present(Bytes::from(process_xml(body.to_string(), category, &mut reqres.request.generators).unwrap_or(vec![])),
@@ -2328,6 +2328,54 @@ mod tests {
     let body3 = interaction3.request.contents.value().unwrap();
     expect!(body3.len()).to(be_equal_to(json.len()));
     expect!(interaction3.request.metadata.get("contentType").unwrap().to_string()).to(be_equal_to("\"application/json\""));
+  }
+  #[test]
+  fn pactffi_with_body_for_non_default_json_test() {
+    let pact_handle = PactHandle::new("WithBodyC", "WithBodyP");
+    let description = CString::new("first interaction").unwrap();
+    let i_handle = pactffi_new_interaction(pact_handle, description.as_ptr());
+
+    let json_ct = CString::new("application/vnd.schemaregistry.v1+json").unwrap();
+    let json = "{\"test\":true}";
+    let body = CString::new(json).unwrap();
+    let result = pactffi_with_body(i_handle, InteractionPart::Request, json_ct.as_ptr(), body.as_ptr());
+
+    let description2 = CString::new("second interaction").unwrap();
+    let i_handle2 = pactffi_new_message_interaction(pact_handle, description2.as_ptr());
+    let result2 = pactffi_with_body(i_handle2, InteractionPart::Request, json_ct.as_ptr(), body.as_ptr());
+
+    let description3 = CString::new("third interaction").unwrap();
+    let i_handle3 = pactffi_new_sync_message_interaction(pact_handle, description3.as_ptr());
+    let result3 = pactffi_with_body(i_handle3, InteractionPart::Request, json_ct.as_ptr(), body.as_ptr());
+
+    let interaction1 = i_handle.with_interaction(&|_, _, inner| {
+      inner.as_v4_http().unwrap()
+    }).unwrap();
+    let interaction2 = i_handle2.with_interaction(&|_, _, inner| {
+      inner.as_v4_async_message().unwrap()
+    }).unwrap();
+    let interaction3 = i_handle3.with_interaction(&|_, _, inner| {
+      inner.as_v4_sync_message().unwrap()
+    }).unwrap();
+
+    pactffi_free_pact_handle(pact_handle);
+
+    expect!(result).to(be_true());
+    expect!(result2).to(be_true());
+    expect!(result3).to(be_true());
+
+    let body1 = interaction1.request.body.value().unwrap();
+    expect!(body1.len()).to(be_equal_to(json.len()));
+    let headers = interaction1.request.headers.unwrap();
+    expect!(headers.get("Content-Type").unwrap().first().unwrap()).to(be_equal_to("application/vnd.schemaregistry.v1+json"));
+
+    let body2 = interaction2.contents.contents.value().unwrap();
+    expect!(body2.len()).to(be_equal_to(json.len()));
+    expect!(interaction2.contents.metadata.get("contentType").unwrap().to_string()).to(be_equal_to("\"application/vnd.schemaregistry.v1+json\""));
+
+    let body3 = interaction3.request.contents.value().unwrap();
+    expect!(body3.len()).to(be_equal_to(json.len()));
+    expect!(interaction3.request.metadata.get("contentType").unwrap().to_string()).to(be_equal_to("\"application/vnd.schemaregistry.v1+json\""));
   }
 
   #[test]
