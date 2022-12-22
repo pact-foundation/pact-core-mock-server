@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.3.19 - Fix for V3 Message ignores the interaction ID when loaded from a Pact Broker
+
+* 1bdb1054 - chore: Upgrade pact_models to 1.0.3 #239 (Ronald Holshausen, Thu Dec 22 15:37:53 2022 +1100)
+* 09479b91 - Merge branch 'fix/release-0.3.18' (Ronald Holshausen, Mon Dec 19 18:52:51 2022 +1100)
+* 68b7a37d - bump version to 0.3.19 (Ronald Holshausen, Mon Dec 19 17:24:59 2022 +1100)
+
 # 0.3.18 - Bugfixes + Support generators in plugins
 
 * c55a7758 - chore: Upgrade pact_verifier to 0.13.19 (Ronald Holshausen, Mon Dec 19 16:20:24 2022 +1100)
