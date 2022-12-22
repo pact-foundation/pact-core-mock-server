@@ -183,6 +183,7 @@ impl Message {
     pub fn from_json(index: usize, json: &Value, spec_version: &PactSpecification) -> anyhow::Result<Message> {
         match spec_version {
             &PactSpecification::V3 => {
+                let id = json.get("_id").map(|id| json_to_string(id));
                 let description = match json.get("description") {
                     Some(v) => match *v {
                         Value::String(ref s) => s.clone(),
@@ -210,7 +211,7 @@ impl Message {
                 body.set_content_type(&ct);
               }
               Ok(Message {
-                  id: None,
+                  id,
                   description,
                   provider_states,
                   contents: body,
@@ -596,5 +597,17 @@ mod tests {
     let json = message.to_json(&PactSpecification::V3);
 
     expect!(json.get("contents").unwrap().as_str().unwrap()).to(be_equal_to(encoded));
+  }
+
+  #[test]
+  fn interaction_from_json_sets_the_id_if_loaded_from_broker() {
+    let json = json!({
+      "_id": "123456789",
+      "description": "Test Interaction"
+    });
+    let interaction = Message::from_json(0, &json, &PactSpecification::V3);
+    let interaction = interaction.unwrap();
+
+    expect!(interaction.id).to(be_some().value("123456789".to_string()));
   }
 }
