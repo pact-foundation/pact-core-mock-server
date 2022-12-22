@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.3 - Bugfix Release
+
+* 64d500b0 - fix: Message pact was not loading the IDs from the Pact Broker #239 (Ronald Holshausen, Thu Dec 22 14:24:26 2022 +1100)
+* a359c22f - chore: enable generator doc test (Ronald Holshausen, Mon Dec 12 11:08:30 2022 +1100)
+* 9038c04f - bump version to 1.0.3 (Ronald Holshausen, Fri Dec 9 12:28:39 2022 +1100)
+
 # 1.0.2 - Bugfix Release
 
 * f84adc7a - fix: Metadata was missing from the generator categories (Ronald Holshausen, Fri Dec 9 11:00:34 2022 +1100)
