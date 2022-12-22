@@ -547,6 +547,7 @@ fn transport_base_url_test() {
   expect!(transport.base_url("HOST")).to(be_equal_to("http://HOST:7765/a/b/c"));
 }
 
+#[derive(Debug)]
 struct DummyProviderStateExecutor;
 
 #[async_trait]

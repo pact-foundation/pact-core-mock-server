@@ -1,7 +1,7 @@
 //! Executor abstraction for executing callbacks to user code (request filters, provider state change callbacks)
 
 use std::collections::HashMap;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -18,7 +18,7 @@ use tracing::warn;
 use crate::provider_client::make_state_change_request;
 
 /// Trait for executors that call request filters
-pub trait RequestFilterExecutor {
+pub trait RequestFilterExecutor: Debug {
   /// Mutates HTTP requests based on some criteria.
   fn call(self: Arc<Self>, request: &HttpRequest) -> HttpRequest;
 
@@ -66,7 +66,7 @@ impl std::error::Error for ProviderStateError {}
 
 /// Trait for executors that call provider state callbacks
 #[async_trait]
-pub trait ProviderStateExecutor {
+pub trait ProviderStateExecutor: Debug {
   /// Invoke the callback for the given provider state, returning an optional Map of values
   async fn call(
     self: Arc<Self>,

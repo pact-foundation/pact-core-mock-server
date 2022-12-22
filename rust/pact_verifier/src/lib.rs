@@ -370,6 +370,7 @@ async fn execute_state_change<S: ProviderStateExecutor>(
 
 /// Main implementation for verifying an interaction. Will return a tuple containing the
 /// result of the verification and any output collected
+#[tracing::instrument]
 async fn verify_interaction<'a, F: RequestFilterExecutor, S: ProviderStateExecutor>(
   provider: &ProviderInfo,
   interaction: &(dyn Interaction + Send + Sync),
@@ -377,9 +378,11 @@ async fn verify_interaction<'a, F: RequestFilterExecutor, S: ProviderStateExecut
   options: &VerificationOptions<F>,
   provider_state_executor: &Arc<S>
 ) -> Result<(Option<String>, Vec<String>), (MismatchResult, Vec<String>)> {
+  trace!("Verifying interaction {} {} ({:?})", interaction.type_of(), interaction.description(), interaction.id());
   let client = Arc::new(configure_http_client(options)
     .map_err(|err| (MismatchResult::Error(err.to_string(), interaction.id()), vec![]))?);
 
+  debug!("Executing provider states");
   let context = execute_provider_states(interaction, provider_state_executor, &client, true)
     .await
     .map_err(|e| (e, vec![]))?;
@@ -1039,7 +1042,7 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
     shutdown_plugins();
 
     Ok(verification_result)
-  }).await
+  }.instrument(tracing::trace_span!("verify_provider_async"))).await
 }
 
 fn process_errors(errors: &Vec<(String, MismatchResult)>, output: &mut Vec<String>, coloured_output: bool) {
@@ -1077,6 +1080,7 @@ fn process_errors(errors: &Vec<(String, MismatchResult)>, output: &mut Vec<Strin
   }
 }
 
+#[tracing::instrument]
 async fn fetch_pact(source: PactSource) -> Vec<anyhow::Result<(Box<dyn Pact + Send + Sync>, Option<PactVerificationContext>, PactSource)>> {
   trace!("fetch_pact(source={})", source);
 
@@ -1218,6 +1222,7 @@ pub struct VerificationResult {
 }
 
 /// Internal function, public for testing purposes
+#[tracing::instrument]
 pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderStateExecutor>(
   provider_info: &ProviderInfo,
   filter: &FilterInfo,
