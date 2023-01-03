@@ -35,7 +35,7 @@ use pact_plugin_driver::verification::InteractionVerificationDetails;
 use regex::Regex;
 use reqwest::Client;
 use serde_json::{json, Value};
-use tracing::{debug, debug_span, error, info, Instrument, trace, warn};
+use tracing::{debug, debug_span, error, info, Instrument, instrument, trace, warn};
 
 pub use callback_executors::NullRequestFilterExecutor;
 use callback_executors::RequestFilterExecutor;
@@ -548,6 +548,7 @@ async fn verify_v3_interaction<'a, F: RequestFilterExecutor>(
 }
 
 /// Executes the provider states, returning a map of the results
+#[instrument(ret, skip_all, fields(?interaction, is_setup))]
 async fn execute_provider_states<S: ProviderStateExecutor>(
   interaction: &(dyn Interaction + Send + Sync),
   provider_state_executor: &Arc<S>,
@@ -558,16 +559,31 @@ async fn execute_provider_states<S: ProviderStateExecutor>(
 
   let sc_type = if is_setup { "setup" } else { "teardown" };
   let mut sc_results = vec![];
-  for state in &interaction.provider_states() {
-    info!("Running {} provider state change handler '{}' for '{}'", sc_type, state.name, interaction.description());
-    match execute_state_change(state, is_setup, interaction.id(), client,
-                         provider_state_executor.clone()).await {
+
+  if interaction.provider_states().is_empty() {
+    info!("Running {} provider state change handler with empty state for '{}'", sc_type, interaction.description());
+    match execute_state_change(&ProviderState::default(""), is_setup, interaction.id(), client,
+                               provider_state_executor.clone()).await {
       Ok(data) => {
         sc_results.push(Ok(data));
       }
       Err(err) => {
-        error!("Provider {} state change for '{}' has failed - {:?}", sc_type, state.name, err);
+        error!("Provider {} state change for has failed - {:?}", sc_type, err);
         sc_results.push(Err(err));
+      }
+    }
+  } else {
+    for state in &interaction.provider_states() {
+      info!("Running {} provider state change handler '{}' for '{}'", sc_type, state.name, interaction.description());
+      match execute_state_change(state, is_setup, interaction.id(), client,
+                                 provider_state_executor.clone()).await {
+        Ok(data) => {
+          sc_results.push(Ok(data));
+        }
+        Err(err) => {
+          error!("Provider {} state change for '{}' has failed - {:?}", sc_type, state.name, err);
+          sc_results.push(Err(err));
+        }
       }
     }
   }
