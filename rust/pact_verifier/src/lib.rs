@@ -662,16 +662,23 @@ fn generate_display_for_result(
   output.push(format!("      has a matching body ({})", body_result));
 }
 
-fn walkdir(dir: &Path) -> anyhow::Result<Vec<anyhow::Result<Box<dyn Pact + Send + Sync>>>> {
+fn walkdir(dir: &Path, provider: &ProviderInfo) -> anyhow::Result<Vec<anyhow::Result<Box<dyn Pact + Send + Sync>>>> {
     let mut pacts = vec![];
     debug!("Scanning {:?}", dir);
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
         if path.is_dir() {
-            walkdir(&path)?;
+            walkdir(&path, provider)?;
         } else {
-            pacts.push(read_pact(&path))
+          match read_pact(&path) {
+            Ok(pact) => {
+              if pact.provider().name == provider.name {
+                pacts.push(Ok(pact));
+              }
+            }
+            Err(err) => pacts.push(Err(err))
+          };
         }
     }
     Ok(pacts)
@@ -895,7 +902,7 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
   pact_matching::matchers::configure_core_catalogue();
 
   LOG_ID.scope(format!("verify:{}", provider_info.name), async {
-    let pact_results = fetch_pacts(source, consumers).await;
+    let pact_results = fetch_pacts(source, consumers, &provider_info).await;
 
     let mut total_results = 0;
     let mut pending_errors: Vec<(String, MismatchResult)> = vec![];
@@ -1097,7 +1104,10 @@ fn process_errors(errors: &Vec<(String, MismatchResult)>, output: &mut Vec<Strin
 }
 
 #[tracing::instrument]
-async fn fetch_pact(source: PactSource) -> Vec<anyhow::Result<(Box<dyn Pact + Send + Sync>, Option<PactVerificationContext>, PactSource)>> {
+async fn fetch_pact(
+  source: PactSource,
+  provider: &ProviderInfo
+) -> Vec<anyhow::Result<(Box<dyn Pact + Send + Sync>, Option<PactVerificationContext>, PactSource)>> {
   trace!("fetch_pact(source={})", source);
 
   match &source {
@@ -1106,7 +1116,7 @@ async fn fetch_pact(source: PactSource) -> Vec<anyhow::Result<(Box<dyn Pact + Se
         .map_err(|err| anyhow!("Failed to load pact '{}' - {}", file, err))
         .map(|pact| (pact, None, source))
     ],
-    PactSource::Dir(dir) => match walkdir(Path::new(dir)) {
+    PactSource::Dir(dir) => match walkdir(Path::new(dir), provider) {
       Ok(pact_results) => pact_results.into_iter().map(|pact_result| {
           match pact_result {
               Ok(pact) => Ok((pact, None, source.clone())),
@@ -1203,13 +1213,17 @@ fn is_pact_broker_source(links: &Vec<Link>) -> bool {
   links.iter().any(|link| link.name == "pb:publish-verification-results")
 }
 
-async fn fetch_pacts(source: Vec<PactSource>, consumers: Vec<String>)
-  -> Vec<anyhow::Result<(Box<dyn Pact + Send + Sync>, Option<PactVerificationContext>, PactSource)>> {
+#[instrument]
+async fn fetch_pacts(
+  source: Vec<PactSource>,
+  consumers: Vec<String>,
+  provider: &ProviderInfo
+) -> Vec<anyhow::Result<(Box<dyn Pact + Send + Sync>, Option<PactVerificationContext>, PactSource)>> {
   trace!("fetch_pacts(source={}, consumers={:?})", source.iter().map(|s| s.to_string()).join(", "), consumers);
 
   futures::stream::iter(source)
     .then(|pact_source| async {
-      futures::stream::iter(fetch_pact(pact_source).await)
+      futures::stream::iter(fetch_pact(pact_source, provider).await)
     })
     .flatten()
     .filter(|res| futures::future::ready(filter_consumers(&consumers, res)))

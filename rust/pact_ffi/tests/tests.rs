@@ -3,6 +3,7 @@ use std::ffi::{CStr, CString};
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
+use std::ptr::null;
 
 use bytes::Bytes;
 use expectest::prelude::*;
@@ -41,7 +42,16 @@ use pact_ffi::mock_server::handles::{
   pactffi_with_request,
   pactffi_write_message_pact_file
 };
-use pact_ffi::verifier::{OptionsFlags, pactffi_verifier_cli_args};
+use pact_ffi::verifier::{
+  OptionsFlags,
+  pactffi_verifier_add_directory_source,
+  pactffi_verifier_cli_args,
+  pactffi_verifier_execute,
+  pactffi_verifier_new_for_application,
+  pactffi_verifier_output,
+  pactffi_verifier_set_provider_info,
+  pactffi_verifier_shutdown
+};
 use pact_models::bodies::OptionalBody;
 
 #[test]
@@ -416,4 +426,28 @@ fn pactffi_with_binary_file_feature_test() {
   pactffi_cleanup_mock_server(port);
 
   expect!(mismatches).to(be_equal_to("[]"));
+}
+
+#[test_log::test]
+#[allow(deprecated)]
+fn http_verification_from_directory_feature_test() {
+  let name = CString::new("tests").unwrap();
+  let version = CString::new("1.0.0").unwrap();
+  let handle = pactffi_verifier_new_for_application(name.as_ptr(), version.as_ptr());
+
+  let provider_name = CString::new("test_provider").unwrap();
+  pactffi_verifier_set_provider_info(handle, provider_name.as_ptr(), null(), null(), 0, null());
+
+  let pacts_path = fixture_path("pacts");
+  let path_str = CString::new(pacts_path.to_string_lossy().to_string()).unwrap();
+  pactffi_verifier_add_directory_source(handle, path_str.as_ptr());
+
+  let _result = pactffi_verifier_execute(handle);
+  let output_ptr = pactffi_verifier_output(handle, 0);
+  let output = unsafe { CString::from_raw(output_ptr as *mut c_char) };
+
+  pactffi_verifier_shutdown(handle);
+
+  expect!(output.to_string_lossy().contains("Verifying a pact between test_consumer and test_provider")).to(be_true());
+  expect!(output.to_string_lossy().contains("Verifying a pact between test_consumer and test_provider2")).to(be_false());
 }

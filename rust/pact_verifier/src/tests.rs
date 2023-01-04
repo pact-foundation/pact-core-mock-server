@@ -1,10 +1,11 @@
 use std::collections::HashMap;
+use std::env;
 use std::panic::catch_unwind;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::anyhow;
 use async_trait::async_trait;
-use expectest::expect;
 use expectest::prelude::*;
 use maplit::*;
 use pact_models::Consumer;
@@ -300,7 +301,7 @@ async fn publish_successful_result_to_broker() {
   ];
   
   let source = PactSource::BrokerUrl("Test".to_string(), server.url().to_string(), None, links.clone());
-  super::publish_result(&vec![(Some("1".to_string()), Ok(()))], &source, &options).await;
+  publish_result(&vec![(Some("1".to_string()), Ok(()))], &source, &options).await;
 
   // Same publish but with dynamic configuration as pact source:
   let source = PactSource::BrokerWithDynamicConfiguration {
@@ -493,7 +494,8 @@ async fn test_fetch_pact_from_url_with_links() {
     .start_mock_server(None);
 
   let url = server.url().join(path).unwrap();
-  let result = super::fetch_pact(PactSource::URL(url.to_string(), None)).await;
+  let provider = ProviderInfo::default();
+  let result = super::fetch_pact(PactSource::URL(url.to_string(), None), &provider).await;
 
   let first_result = result.get(0).unwrap().as_ref();
   let (_, _, source) = &first_result.clone().unwrap();
@@ -970,7 +972,8 @@ async fn test_publish_results_from_url_source_with_provider_branch() {
       .start_mock_server(None);
 
   let url = server.url().join(path).unwrap();
-  let pact_result = super::fetch_pact(PactSource::URL(url.to_string(), None)).await;
+  let provider = ProviderInfo::default();
+  let pact_result = super::fetch_pact(PactSource::URL(url.to_string(), None), &provider).await;
 
   let first_result = pact_result.get(0).unwrap().as_ref();
   let (_, _, source) = &first_result.clone().unwrap();
@@ -983,4 +986,19 @@ async fn test_publish_results_from_url_source_with_provider_branch() {
   let verification_result = vec![];
 
   publish_result(&verification_result, &source, &options).await;
+}
+
+#[test_log::test(tokio::test)]
+async fn fetch_pact_from_dir_filters_by_provider_name() {
+  let provider = ProviderInfo {
+    name: "test_provider".to_string(),
+    .. ProviderInfo::default()
+  };
+  let pacts_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    .join("tests/pacts");
+  let result = super::fetch_pact(PactSource::Dir(pacts_path.to_string_lossy().to_string()), &provider).await;
+  expect!(result.len()).to(be_equal_to(1));
+  let first_result = result.first().unwrap().as_ref();
+  let (pact, _, _) = first_result.unwrap();
+  expect!(pact.provider().name).to(be_equal_to(provider.name));
 }
