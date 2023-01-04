@@ -13,13 +13,16 @@ use crate::{matchers, MatchingContext, Mismatch};
 use crate::matchers::Matches;
 
 fn strip_whitespace<'a, T: FromIterator<&'a str>>(val: &'a str, split_by: &'a str) -> T {
-  val.split(split_by).map(|v| v.trim()).collect()
+  val.split(split_by).map(|v| v.trim()).filter(|v| !v.is_empty()).collect()
 }
 
 fn parse_charset_parameters(parameters: &[&str]) -> HashMap<String, String> {
-  parameters.iter().map(|v| v.split('=').map(|p| p.trim()).collect::<Vec<&str>>())
+  parameters.iter().map(|v| v.split_once('=')
+    .map(|(k, v)| (k.trim(), v.trim())))
     .fold(HashMap::new(), |mut map, name_value| {
-      map.insert(name_value[0].to_string(), name_value[1].to_string());
+      if let Some((name, value)) = name_value {
+        map.insert(name.to_string(), value.to_string());
+      }
       map
     })
 }
@@ -27,8 +30,9 @@ fn parse_charset_parameters(parameters: &[&str]) -> HashMap<String, String> {
 pub(crate) fn match_parameter_header(expected: &str, actual: &str, header: &str, value_type: &str) -> Result<(), Vec<String>> {
   let expected_values: Vec<&str> = strip_whitespace(expected, ";");
   let actual_values: Vec<&str> = strip_whitespace(actual, ";");
-  let expected_parameters = expected_values.as_slice().split_first().unwrap();
-  let actual_parameters = actual_values.as_slice().split_first().unwrap();
+
+  let expected_parameters = expected_values.as_slice().split_first().unwrap_or((&"", &[]));
+  let actual_parameters = actual_values.as_slice().split_first().unwrap_or((&"", &[]));
   let header_mismatch = format!("Expected {} '{}' to have value '{}' but was '{}'", value_type, header, expected, actual);
 
   let mut mismatches = vec![];
@@ -143,7 +147,7 @@ mod tests {
   use pact_models::matchingrules::MatchingRule;
 
   use crate::{CoreMatchingContext, DiffConfig, Mismatch};
-  use crate::headers::{match_header_value, match_headers};
+  use crate::headers::{match_header_value, match_headers, parse_charset_parameters};
 
   #[test]
   fn matching_headers_be_true_when_headers_are_equal() {
@@ -158,10 +162,10 @@ mod tests {
                                         &CoreMatchingContext::default()).unwrap_err();
     expect!(mismatches.iter()).to_not(be_empty());
     assert_eq!(mismatches[0], Mismatch::HeaderMismatch {
-      key: s!("HEADER"),
-      expected: s!("HEADER"),
-      actual: s!("HEADER2"),
-      mismatch: s!(""),
+      key: "HEADER".to_string(),
+      expected: "HEADER".to_string(),
+      actual: "HEADER2".to_string(),
+      mismatch: "".to_string()
     });
   }
 
@@ -319,7 +323,7 @@ mod tests {
       DiffConfig::AllowUnexpectedKeys,
       &matchingrules! {
         "header" => {
-          "HEADER" => [ MatchingRule::Regex(s!("\\w+")) ]
+          "HEADER" => [ MatchingRule::Regex("\\w+".to_string()) ]
         }
       }.rules_for_category("header").unwrap_or_default(), &hashmap!{}
     );
@@ -333,16 +337,36 @@ mod tests {
       DiffConfig::AllowUnexpectedKeys,
       &matchingrules! {
           "header" => {
-              "HEADER" => [ MatchingRule::Regex(s!("\\d+")) ]
+              "HEADER" => [ MatchingRule::Regex("\\d+".to_string()) ]
           }
         }.rules_for_category("header").unwrap_or_default(), &hashmap!{}
     );
-    let mismatches = match_header_value(&s!("HEADER"), &s!("HEADER"), &s!("HEADER"), &context);
+    let mismatches = match_header_value(&"HEADER".to_string(), &"HEADER".to_string(), &"HEADER".to_string(), &context);
     expect!(mismatches).to(be_err().value(vec![ Mismatch::HeaderMismatch {
-      key: s!("HEADER"),
-      expected: s!("HEADER"),
-      actual: s!("HEADER"),
-      mismatch: s!(""),
+      key: "HEADER".to_string(),
+      expected: "HEADER".to_string(),
+      actual: "HEADER".to_string(),
+      mismatch: String::default(),
     } ]));
+  }
+
+  #[test]
+  fn match_header_value_does_match_when_not_well_formed() {
+    let mismatches = match_header_value("content-type", "application/json",
+                                        "application/json;", &CoreMatchingContext::default());
+    expect!(mismatches).to(be_ok());
+  }
+
+  #[test]
+  fn parse_charset_parameters_test() {
+    expect!(parse_charset_parameters(&[])).to(be_equal_to(hashmap!{}));
+    expect!(parse_charset_parameters(&[""])).to(be_equal_to(hashmap!{}));
+    expect!(parse_charset_parameters(&["a"])).to(be_equal_to(hashmap!{}));
+    expect!(parse_charset_parameters(&["a="])).to(be_equal_to(hashmap!{ "a".to_string() => String::default() }));
+    expect!(parse_charset_parameters(&["a=b"])).to(be_equal_to(hashmap!{ "a".to_string() => "b".to_string() }));
+    expect!(parse_charset_parameters(&["a=b", "c=d"])).to(be_equal_to(hashmap!{
+      "a".to_string() => "b".to_string(),
+      "c".to_string() => "d".to_string()
+    }));
   }
 }
