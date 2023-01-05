@@ -12,20 +12,21 @@ use crate::models::iterators::PactInteractionIterator;
 use crate::models::pact_specification::PactSpecification;
 use crate::util::ptr;
 
+pub mod async_message;
 pub mod consumer;
+pub mod contents;
+pub mod expressions;
+pub mod generators;
+pub mod http_interaction;
+pub mod interactions;
+pub mod iterators;
+pub mod matching_rules;
 pub mod message;
 pub mod message_pact;
 pub mod pact_specification;
 pub mod provider;
 pub mod provider_state;
-pub mod iterators;
 pub mod sync_message;
-pub mod async_message;
-pub mod http_interaction;
-pub mod expressions;
-pub mod matching_rules;
-pub mod generators;
-pub mod interactions;
 
 /// Opaque type for use as a pointer to a Pact model
 #[derive(Debug)]

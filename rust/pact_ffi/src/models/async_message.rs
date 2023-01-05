@@ -190,7 +190,7 @@ ffi_fn! {
   ///
   /// If the contents is a NULL pointer, it will set the message contents as null. If the content
   /// type is a null pointer, or can't be parsed, it will set the content type as unknown.
-  fn pactffi_async_message_set_request_contents_bin(
+  fn pactffi_async_message_set_contents_bin(
     message: *mut AsynchronousMessage,
     contents: *const c_uchar,
     len: size_t,

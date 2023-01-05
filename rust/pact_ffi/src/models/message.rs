@@ -10,6 +10,7 @@ use std::sync::Mutex;
 
 use anyhow::{anyhow, Context};
 use bytes::Bytes;
+use either::Either;
 use libc::{c_char, c_int, c_uchar, c_uint, EXIT_FAILURE, EXIT_SUCCESS, size_t};
 use serde_json::from_str as from_json_str;
 use serde_json::Value as JsonValue;
@@ -30,6 +31,7 @@ use crate::util::string::optional_str;
 // Necessary to make 'cbindgen' generate an opaque struct on the C side.
 pub use pact_models::message::Message;
 pub use pact_models::provider_states::ProviderState;
+use pact_models::v4::message_parts::MessageContents;
 
 /*===============================================================================================
  * # Message
@@ -517,6 +519,42 @@ ffi_fn! {
 }
 
 ffi_fn! {
+    /// Get the next key and value out of the iterator, if possible
+    ///
+    /// # Safety
+    ///
+    /// The underlying data must not change during iteration.
+    ///
+    /// # Error Handling
+    ///
+    /// If no further data is present, returns NULL.
+    fn pactffi_message_metadata_iter_next(iter: *mut MessageMetadataIterator) -> *mut MessageMetadataPair {
+        let iter = as_mut!(iter);
+
+        let metadata = match iter.message {
+            Either::Left(message) => {
+                let message = as_ref!(message);
+                &message.metadata
+            }
+            Either::Right(contents) => {
+                let contents = as_ref!(contents);
+                &contents.metadata
+            }
+        };
+        let key = iter.next().ok_or(anyhow::anyhow!("iter past the end of metadata"))?;
+
+        let (key, value) = metadata
+            .get_key_value(key)
+            .ok_or(anyhow::anyhow!("iter provided invalid metadata key"))?;
+
+        let pair = MessageMetadataPair::new(key, value.as_str().unwrap_or_default())?;
+        ptr::raw_to(pair)
+    } {
+        ptr::null_mut_to::<MessageMetadataPair>()
+    }
+}
+
+ffi_fn! {
     /// Get an iterator over the metadata of a message.
     ///
     /// # Safety
@@ -539,37 +577,12 @@ ffi_fn! {
         let iter = MessageMetadataIterator {
             keys:  message.metadata.keys().cloned().collect(),
             current: 0,
-            message: message as *const Message,
+            message: Either::Left(message as *const Message)
         };
 
         ptr::raw_to(iter)
     } {
-        ptr::null_mut_to::<MessageMetadataIterator>()
-    }
-}
-
-ffi_fn! {
-    /// Get the next key and value out of the iterator, if possible
-    ///
-    /// # Safety
-    ///
-    /// The underlying data must not change during iteration.
-    ///
-    /// # Error Handling
-    ///
-    /// If no further data is present, returns NULL.
-    fn pactffi_message_metadata_iter_next(iter: *mut MessageMetadataIterator) -> *mut MessageMetadataPair {
-        let iter = as_mut!(iter);
-        let message = as_ref!(iter.message);
-        let key = iter.next().ok_or(anyhow::anyhow!("iter past the end of metadata"))?;
-        let (key, value) = message
-            .metadata
-            .get_key_value(key)
-            .ok_or(anyhow::anyhow!("iter provided invalid metadata key"))?;
-        let pair = MessageMetadataPair::new(key, value.as_str().unwrap_or_default())?;
-        ptr::raw_to(pair)
-    } {
-        ptr::null_mut_to::<MessageMetadataPair>()
+        std::ptr::null_mut()
     }
 }
 
@@ -597,8 +610,8 @@ pub struct MessageMetadataIterator {
     keys: Vec<String>,
     /// The current key
     current: usize,
-    /// Pointer to the message.
-    message: *const Message,
+    /// Pointer to either the V3 message or the V4 message contents.
+    message: Either<*const Message, *const MessageContents>
 }
 
 impl MessageMetadataIterator {
@@ -606,6 +619,15 @@ impl MessageMetadataIterator {
         let idx = self.current;
         self.current += 1;
         self.keys.get(idx)
+    }
+
+    /// Construct a new iterator that wraps the message contents object
+    pub fn new_from_contents(contents: &MessageContents) -> Self {
+        MessageMetadataIterator {
+            keys:  contents.metadata.keys().cloned().collect(),
+            current: 0,
+            message: Either::Right(contents as *const MessageContents)
+        }
     }
 }
 
