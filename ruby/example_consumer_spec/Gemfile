@@ -4,4 +4,4 @@ gem 'pact_mockserver_mk2', path: '../pact_mockserver_mk2'
 
 gem 'rake'
 gem 'rspec'
-gem 'httparty'
+gem 'httparty', '>= 0.21.0'
