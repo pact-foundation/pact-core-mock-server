@@ -34,8 +34,8 @@ ffi_fn! {
 
 ffi_fn! {
     /// Destroy the `SynchronousHttp` interaction being pointed to.
-    fn pactffi_sync_http_delete(interaction: *mut SynchronousHttp) {
-        ptr::drop_raw(interaction);
+    fn pactffi_sync_http_delete(interaction: *const SynchronousHttp) {
+        ptr::drop_raw(interaction as *mut SynchronousHttp);
     }
 }
 

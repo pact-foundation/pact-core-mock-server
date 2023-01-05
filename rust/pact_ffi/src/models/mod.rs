@@ -20,6 +20,7 @@ pub mod provider;
 pub mod provider_state;
 pub mod iterators;
 pub mod sync_message;
+pub mod async_message;
 pub mod http_interaction;
 pub mod expressions;
 pub mod matching_rules;
@@ -132,11 +133,34 @@ mod tests {
   use expectest::prelude::*;
   use libc::c_char;
 
-  use crate::models::{pactffi_pact_model_delete, pactffi_parse_pact_json, pactffi_pact_spec_version, pactffi_pact_model_interaction_iterator};
-  use crate::models::consumer::{pactffi_consumer_get_name, pactffi_pact_consumer_delete, pactffi_pact_get_consumer};
-  use crate::models::iterators::{pactffi_pact_interaction_iter_delete, pactffi_pact_interaction_iter_next};
+  use crate::models::{
+    pactffi_pact_model_delete,
+    pactffi_parse_pact_json,
+    pactffi_pact_spec_version,
+    pactffi_pact_model_interaction_iterator
+  };
+  use crate::models::consumer::{
+    pactffi_consumer_get_name,
+    pactffi_pact_consumer_delete,
+    pactffi_pact_get_consumer
+  };
+  use crate::models::http_interaction::pactffi_sync_http_delete;
+  use crate::models::interactions::{
+    pactffi_pact_interaction_as_asynchronous_message,
+    pactffi_pact_interaction_as_message,
+    pactffi_pact_interaction_as_synchronous_http,
+    pactffi_pact_interaction_as_synchronous_message
+  };
+  use crate::models::iterators::{
+    pactffi_pact_interaction_iter_delete,
+    pactffi_pact_interaction_iter_next
+  };
   use crate::models::pact_specification::PactSpecification;
-  use crate::models::provider::{pactffi_pact_get_provider, pactffi_pact_provider_delete, pactffi_provider_get_name};
+  use crate::models::provider::{
+    pactffi_pact_get_provider,
+    pactffi_pact_provider_delete,
+    pactffi_provider_get_name
+  };
 
   #[test]
   fn load_pact_from_json() {
@@ -244,6 +268,16 @@ mod tests {
 
     let first = pactffi_pact_interaction_iter_next(interactions);
     expect!(first.is_null()).to(be_false());
+    let http = pactffi_pact_interaction_as_synchronous_http(first);
+    expect!(http.is_null()).to(be_false());
+    let message = pactffi_pact_interaction_as_message(first);
+    expect!(message.is_null()).to(be_true());
+    let as_message = pactffi_pact_interaction_as_asynchronous_message(first);
+    expect!(as_message.is_null()).to(be_true());
+    let s_message = pactffi_pact_interaction_as_synchronous_message(first);
+    expect!(s_message.is_null()).to(be_true());
+
+    pactffi_sync_http_delete(http);
 
     let second = pactffi_pact_interaction_iter_next(interactions);
     expect!(second.is_null()).to(be_true());
