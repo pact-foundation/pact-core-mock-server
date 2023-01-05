@@ -7,7 +7,9 @@ use pact_models::pact::load_pact_from_json;
 use serde_json::Value;
 use tracing::error;
 
-use crate::{ffi_fn, safe_str};
+use crate::{ffi_fn, safe_str, as_ref};
+use crate::models::iterators::PactInteractionIterator;
+use crate::models::pact_specification::PactSpecification;
 use crate::util::ptr;
 
 pub mod consumer;
@@ -22,6 +24,7 @@ pub mod http_interaction;
 pub mod expressions;
 pub mod matching_rules;
 pub mod generators;
+pub mod interactions;
 
 /// Opaque type for use as a pointer to a Pact model
 #[derive(Debug)]
@@ -69,6 +72,59 @@ ffi_fn! {
   }
 }
 
+ffi_fn! {
+  /// Returns an iterator over all the interactions in the Pact. The iterator will have to be
+  /// deleted using the `pactffi_pact_interaction_iter_delete` function. The iterator will
+  /// contain a copy of the interactions, so it will not be affected but mutations to the Pact
+  /// model and will still function if the Pact model is deleted.
+  ///
+  /// # Safety
+  /// This function is safe as long as the Pact pointer is a valid pointer.
+  ///
+  /// # Errors
+  /// On any error, this function will return a NULL pointer.
+  fn pactffi_pact_model_interaction_iterator(pact: *mut Pact) -> *mut PactInteractionIterator {
+    let pact = as_ref!(pact);
+    let inner = pact.inner.lock().unwrap();
+    ptr::raw_to(PactInteractionIterator::new(inner.boxed()))
+  } {
+    ptr::null_mut_to::<PactInteractionIterator>()
+  }
+}
+
+ffi_fn! {
+  /// Returns the Pact specification enum that the Pact is for.
+  fn pactffi_pact_spec_version(pact: *const Pact) -> PactSpecification {
+    let pact = as_ref!(pact);
+    let inner = pact.inner.lock().unwrap();
+    inner.specification_version().into()
+  } {
+    PactSpecification::Unknown
+  }
+}
+
+/// Opaque type for use as a pointer to a Pact interaction model
+#[derive(Debug)]
+pub struct PactInteraction {
+  inner: Mutex<Box<dyn pact_models::interaction::Interaction + Send + Sync>>
+}
+
+impl PactInteraction {
+  /// Create a new FFI Pact interaction wrapper for the given Pact interaction model
+  pub fn new(interaction: &Box<dyn pact_models::interaction::Interaction + Send + Sync>) -> Self {
+    PactInteraction {
+      inner: Mutex::new(interaction.boxed())
+    }
+  }
+}
+
+ffi_fn! {
+  /// Frees the memory used by the Pact interaction model
+  fn pactffi_pact_interaction_delete(interaction: *const PactInteraction) {
+    ptr::drop_raw(interaction as *mut PactInteraction);
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use std::ffi::CString;
@@ -76,8 +132,10 @@ mod tests {
   use expectest::prelude::*;
   use libc::c_char;
 
-  use crate::models::{pactffi_pact_model_delete, pactffi_parse_pact_json};
+  use crate::models::{pactffi_pact_model_delete, pactffi_parse_pact_json, pactffi_pact_spec_version, pactffi_pact_model_interaction_iterator};
   use crate::models::consumer::{pactffi_consumer_get_name, pactffi_pact_consumer_delete, pactffi_pact_get_consumer};
+  use crate::models::iterators::{pactffi_pact_interaction_iter_delete, pactffi_pact_interaction_iter_next};
+  use crate::models::pact_specification::PactSpecification;
   use crate::models::provider::{pactffi_pact_get_provider, pactffi_pact_provider_delete, pactffi_provider_get_name};
 
   #[test]
@@ -88,10 +146,87 @@ mod tests {
       },
       "consumer": {
         "name": "load_pact_from_json Consumer"
-      }
+      },
+      "interactions": [
+        {
+          "description": "GET request to retrieve default values",
+          "providerStates": [
+            {
+              "name": "This is a test"
+            }
+          ],
+          "request": {
+            "matchingRules": {
+              "path": {
+                "combine": "AND",
+                "matchers": [
+                  {
+                    "match": "regex",
+                    "regex": "/api/test/\\d{1,8}"
+                  }
+                ]
+              }
+            },
+            "method": "GET",
+            "path": "/api/test/4"
+          },
+          "response": {
+            "body": [
+              {
+                "id": 32432,
+                "name": "testId254",
+                "size": 1445211
+              }
+            ],
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "matchingRules": {
+              "body": {
+                "$": {
+                  "combine": "AND",
+                  "matchers": [
+                    {
+                      "match": "type",
+                      "min": 1
+                    }
+                  ]
+                },
+                "$[*].id": {
+                  "combine": "AND",
+                  "matchers": [
+                    {
+                      "match": "number"
+                    }
+                  ]
+                },
+                "$[*].name": {
+                  "combine": "AND",
+                  "matchers": [
+                    {
+                      "match": "type"
+                    }
+                  ]
+                },
+                "$[*].size": {
+                  "combine": "AND",
+                  "matchers": [
+                    {
+                      "match": "number"
+                    }
+                  ]
+                }
+              }
+            },
+            "status": 200
+          }
+        }
+      ]
     }"#).unwrap();
     let pact = pactffi_parse_pact_json(json.as_ptr());
     expect!(pact.is_null()).to(be_false());
+
+    let spec_version = pactffi_pact_spec_version(pact);
 
     let consumer = pactffi_pact_get_consumer(pact);
     let consumer_name_ptr = pactffi_consumer_get_name(consumer);
@@ -103,9 +238,21 @@ mod tests {
 
     pactffi_pact_consumer_delete(consumer);
     pactffi_pact_provider_delete(provider);
+
+    let interactions = pactffi_pact_model_interaction_iterator(pact);
+    expect!(interactions.is_null()).to(be_false());
+
+    let first = pactffi_pact_interaction_iter_next(interactions);
+    expect!(first.is_null()).to(be_false());
+
+    let second = pactffi_pact_interaction_iter_next(interactions);
+    expect!(second.is_null()).to(be_true());
+
+    pactffi_pact_interaction_iter_delete(interactions);
     pactffi_pact_model_delete(pact);
 
     expect!(consumer_name.to_string_lossy()).to(be_equal_to("load_pact_from_json Consumer"));
     expect!(provider_name.to_string_lossy()).to(be_equal_to("load_pact_from_json Provider"));
+    expect!(spec_version).to(be_equal_to(PactSpecification::V3));
   }
 }

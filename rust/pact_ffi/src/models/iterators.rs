@@ -8,6 +8,7 @@ use pact_models::v4::synch_http::SynchronousHttp;
 use pact_models::v4::V4InteractionType;
 
 use crate::{as_mut, ffi_fn};
+use crate::models::PactInteraction;
 use crate::ptr;
 
 ffi_fn! {
@@ -68,7 +69,7 @@ ffi_fn! {
     }
 }
 
-/// An iterator over synchronous request/response messages in a pact.
+/// An iterator over synchronous request/response messages in a V4 pact.
 #[derive(Debug)]
 #[allow(missing_copy_implementations)]
 pub struct PactSyncMessageIterator {
@@ -97,7 +98,7 @@ impl PactSyncMessageIterator {
 }
 
 ffi_fn! {
-    /// Get the next synchronous request/response message from the pact. As the messages returned are owned by the
+    /// Get the next synchronous request/response message from the V4 pact. As the messages returned are owned by the
     /// iterator, they do not need to be deleted but will be cleaned up when the iterator is
     /// deleted.
     ///
@@ -129,7 +130,7 @@ ffi_fn! {
     }
 }
 
-/// An iterator over synchronous HTTP request/response interactions in a pact.
+/// An iterator over synchronous HTTP request/response interactions in a V4 pact.
 #[derive(Debug)]
 #[allow(missing_copy_implementations)]
 pub struct PactSyncHttpIterator {
@@ -138,7 +139,7 @@ pub struct PactSyncHttpIterator {
 }
 
 impl PactSyncHttpIterator {
-  /// Create a new iterator over all synchronous HTTP request/response interactions in the pact
+  /// Create a new iterator over all synchronous HTTP request/response interactions in the V4 pact
   pub fn new(pact: V4Pact) -> Self {
     PactSyncHttpIterator {
       current: 0,
@@ -158,7 +159,7 @@ impl PactSyncHttpIterator {
 }
 
 ffi_fn! {
-    /// Get the next synchronous HTTP request/response interaction from the pact. As the
+    /// Get the next synchronous HTTP request/response interaction from the V4 pact. As the
     /// interactions returned are owned by the iterator, they do not need to be deleted but
     /// will be cleaned up when the iterator is deleted.
     ///
@@ -186,6 +187,66 @@ ffi_fn! {
 ffi_fn! {
     /// Free the iterator when you're done using it.
     fn pactffi_pact_sync_http_iter_delete(iter: *mut PactSyncHttpIterator) {
+        ptr::drop_raw(iter);
+    }
+}
+
+/// An iterator over the interactions in a pact.
+#[derive(Debug)]
+#[allow(missing_copy_implementations)]
+pub struct PactInteractionIterator {
+  current: usize,
+  interactions: Vec<PactInteraction>
+}
+
+impl PactInteractionIterator {
+  /// Create a new iterator over all the interactions in the pact
+  pub fn new(pact: Box<dyn pact_models::pact::Pact + Send + Sync>) -> Self {
+    PactInteractionIterator {
+      current: 0,
+      interactions: pact.interactions().iter()
+        .map(|i| PactInteraction::new(i))
+        .collect()
+    }
+  }
+
+  /// Get the next interaction in the pact.
+  fn next(&mut self) -> Option<&PactInteraction> {
+    let idx = self.current;
+    self.current += 1;
+    self.interactions.get(idx)
+  }
+}
+
+ffi_fn! {
+    /// Get the next interaction from the pact. As the interactions returned are owned by the
+    /// iterator, they do not need to be deleted but will be cleaned up when the iterator is
+    /// deleted.
+    ///
+    /// Will return a NULL pointer when the iterator has advanced past the end of the list.
+    ///
+    /// # Safety
+    ///
+    /// This function is safe.
+    ///
+    /// Deleting an interaction returned by the iterator can lead to undefined behaviour.
+    ///
+    /// # Error Handling
+    ///
+    /// This function will return a NULL pointer if passed a NULL pointer or if an error occurs.
+    fn pactffi_pact_interaction_iter_next(iter: *mut PactInteractionIterator) -> *const PactInteraction {
+        let iter = as_mut!(iter);
+        let interaction = iter.next()
+            .ok_or(anyhow::anyhow!("iter past the end of messages"))?;
+        interaction as *const PactInteraction
+    } {
+        ptr::null_to::<PactInteraction>()
+    }
+}
+
+ffi_fn! {
+    /// Free the iterator when you're done using it.
+    fn pactffi_pact_interaction_iter_delete(iter: *mut PactInteractionIterator) {
         ptr::drop_raw(iter);
     }
 }
