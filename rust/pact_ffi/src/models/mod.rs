@@ -1,17 +1,11 @@
 //! FFI functions to support Pact models.
 
-use std::collections::BTreeMap;
 use std::sync::Mutex;
 
 use libc::c_char;
-use maplit::btreemap;
+use pact_models::pact::load_pact_from_json;
 use serde_json::Value;
-use tracing::{error, warn};
-
-use pact_models::{Consumer, Provider};
-use pact_models::plugins::PluginData;
-use pact_models::v4::interaction::interactions_from_json;
-use pact_models::v4::pact::V4Pact;
+use tracing::error;
 
 use crate::{ffi_fn, safe_str};
 use crate::util::ptr;
@@ -32,12 +26,12 @@ pub mod generators;
 /// Opaque type for use as a pointer to a Pact model
 #[derive(Debug)]
 pub struct Pact {
-  inner: Mutex<V4Pact>
+  inner: Mutex<Box<dyn pact_models::pact::Pact + Send + Sync>>
 }
 
 impl Pact {
   /// Create a new FFI Pact wrapper for the given Pact model
-  pub fn new(pact: V4Pact) -> Self {
+  pub fn new(pact: Box<dyn pact_models::pact::Pact + Send + Sync>) -> Self {
     Pact {
       inner: Mutex::new(pact)
     }
@@ -55,9 +49,7 @@ ffi_fn! {
     let json_str = safe_str!(json);
     match serde_json::from_str::<Value>(json_str) {
       Ok(pact_json) => {
-        // TODO: when pact_models 1.1.0 is released, update to this
-        // let pact = V4Pact::pact_from_json(&pact_json, "<FFI>")?;
-        let pact = pact_from_json(&pact_json, "<FFI>")?;
+        let pact = load_pact_from_json("<FFI>", &pact_json)?;
         ptr::raw_to(Pact::new(pact))
       },
       Err(err) => {
@@ -77,80 +69,43 @@ ffi_fn! {
   }
 }
 
-// TODO: remove when pact_models 1.1.0 is released
-fn pact_from_json(json: &Value, source: &str) -> anyhow::Result<V4Pact> {
-  let mut metadata = meta_data_from_json(&json);
-
-  let consumer = match json.get("consumer") {
-    Some(v) => Consumer::from_json(v),
-    None => Consumer { name: "consumer".into() }
-  };
-  let provider = match json.get("provider") {
-    Some(v) => Provider::from_json(v),
-    None => Provider { name: "provider".into() }
-  };
-
-  let plugin_data = extract_plugin_data(&mut metadata);
-
-  Ok(V4Pact {
-    consumer,
-    provider,
-    interactions: interactions_from_json(&json, source),
-    metadata,
-    plugin_data
-  })
-}
-
-// TODO: remove when pact_models 1.1.0 is released
-fn meta_data_from_json(pact_json: &Value) -> BTreeMap<String, Value> {
-  match pact_json.get("metadata") {
-    Some(Value::Object(ref obj)) => {
-      obj.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
-    }
-    _ => btreemap!{}
-  }
-}
-
-// TODO: remove when pact_models 1.1.0 is released
-fn extract_plugin_data(metadata: &mut BTreeMap<String, Value>) -> Vec<PluginData> {
-  if let Some(plugin_data) = metadata.remove("plugins") {
-    match plugin_data {
-      Value::Array(items) => {
-        let mut v = vec![];
-
-        for item in &items {
-          match serde_json::from_value::<PluginData>(item.clone()) {
-            Ok(data) => v.push(data),
-            Err(err) => warn!("Could not convert '{}' into PluginData format - {}", item, err)
-          };
-        }
-
-        v
-      }
-      _ => {
-        warn!("'{}' is not valid plugin data", plugin_data);
-        vec![]
-      }
-    }
-  } else {
-    vec![]
-  }
-}
-
 #[cfg(test)]
 mod tests {
   use std::ffi::CString;
 
   use expectest::prelude::*;
+  use libc::c_char;
 
   use crate::models::{pactffi_pact_model_delete, pactffi_parse_pact_json};
+  use crate::models::consumer::{pactffi_consumer_get_name, pactffi_pact_consumer_delete, pactffi_pact_get_consumer};
+  use crate::models::provider::{pactffi_pact_get_provider, pactffi_pact_provider_delete, pactffi_provider_get_name};
 
   #[test]
   fn load_pact_from_json() {
-    let json = CString::new("{}").unwrap();
+    let json = CString::new(r#"{
+      "provider": {
+        "name": "load_pact_from_json Provider"
+      },
+      "consumer": {
+        "name": "load_pact_from_json Consumer"
+      }
+    }"#).unwrap();
     let pact = pactffi_parse_pact_json(json.as_ptr());
     expect!(pact.is_null()).to(be_false());
 
+    let consumer = pactffi_pact_get_consumer(pact);
+    let consumer_name_ptr = pactffi_consumer_get_name(consumer);
+    let consumer_name = unsafe { CString::from_raw(consumer_name_ptr as *mut c_char) };
+
+    let provider = pactffi_pact_get_provider(pact);
+    let provider_name_ptr = pactffi_provider_get_name(provider);
+    let provider_name = unsafe { CString::from_raw(provider_name_ptr as *mut c_char) };
+
+    pactffi_pact_consumer_delete(consumer);
+    pactffi_pact_provider_delete(provider);
     pactffi_pact_model_delete(pact);
+
+    expect!(consumer_name.to_string_lossy()).to(be_equal_to("load_pact_from_json Consumer"));
+    expect!(provider_name.to_string_lossy()).to(be_equal_to("load_pact_from_json Provider"));
   }
 }
