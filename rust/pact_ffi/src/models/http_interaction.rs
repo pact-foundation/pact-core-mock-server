@@ -6,6 +6,7 @@ use libc::{c_char, c_int, c_uchar, c_uint, EXIT_FAILURE, EXIT_SUCCESS, size_t};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::{ContentType, ContentTypeHint};
 use pact_models::provider_states::ProviderState;
+use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
 use pact_models::v4::synch_http::SynchronousHttp;
 
 use crate::{as_mut, as_ref, ffi_fn, safe_str};
@@ -39,6 +40,24 @@ ffi_fn! {
     }
 }
 
+ffi_fn! {
+    /// Get the request of a `SynchronousHttp` interaction.
+    ///
+    /// # Safety
+    ///
+    /// The data pointed to by the pointer this function returns will be deleted when the interaction
+    /// is deleted. Trying to use if after the interaction is deleted will result in undefined behaviour.
+    ///
+    /// # Error Handling
+    ///
+    /// If the interaction is NULL, returns NULL.
+    fn pactffi_sync_http_get_request(interaction: *const SynchronousHttp) -> *const HttpRequest {
+        let interaction = as_ref!(interaction);
+        &interaction.request as *const HttpRequest
+    } {
+        std::ptr::null()
+    }
+}
 
 ffi_fn! {
     /// Get the request contents of a `SynchronousHttp` interaction in string form.
@@ -192,6 +211,25 @@ ffi_fn! {
       interaction.request.body = OptionalBody::Present(contents, content_type, Some(ContentTypeHint::BINARY));
     }
   }
+}
+
+ffi_fn! {
+    /// Get the response of a `SynchronousHttp` interaction.
+    ///
+    /// # Safety
+    ///
+    /// The data pointed to by the pointer this function returns will be deleted when the interaction
+    /// is deleted. Trying to use if after the interaction is deleted will result in undefined behaviour.
+    ///
+    /// # Error Handling
+    ///
+    /// If the interaction is NULL, returns NULL.
+    fn pactffi_sync_http_get_response(interaction: *const SynchronousHttp) -> *const HttpResponse {
+        let interaction = as_ref!(interaction);
+        &interaction.response as *const HttpResponse
+    } {
+        std::ptr::null()
+    }
 }
 
 ffi_fn! {

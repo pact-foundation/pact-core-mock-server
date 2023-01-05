@@ -26,12 +26,14 @@ pub(crate) fn drop_raw<T>(raw: *mut T) {
 /// Get a constant null pointer to the given type.
 #[inline]
 #[allow(dead_code)]
+#[deprecated(note = "Use std::ptr::null() instead", since = "0.4.0")]
 pub(crate) fn null_to<T>() -> *const T {
     ptr::null() as *const T
 }
 
 /// Get a mutable null pointer to the given type.
 #[inline]
+#[deprecated(note = "Use std::ptr::null_mut() instead", since = "0.4.0")]
 pub(crate) fn null_mut_to<T>() -> *mut T {
     ptr::null_mut() as *mut T
 }

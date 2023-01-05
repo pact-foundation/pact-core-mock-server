@@ -55,7 +55,7 @@ ffi_fn! {
     /// is missing, then this function also returns NULL. This means there's
     /// no mechanism to differentiate with this function call alone between
     /// a NULL message and a missing message body.
-    fn pactffi_sync_message_get_request_contents(message: *const SynchronousMessage) -> *const c_char {
+    fn pactffi_sync_message_get_request_contents_str(message: *const SynchronousMessage) -> *const c_char {
         let message = as_ref!(message);
 
         match message.request.contents {
@@ -93,7 +93,7 @@ ffi_fn! {
   ///
   /// If the contents is a NULL pointer, it will set the message contents as null. If the content
   /// type is a null pointer, or can't be parsed, it will set the content type as unknown.
-  fn pactffi_sync_message_set_request_contents(message: *mut SynchronousMessage, contents: *const c_char, content_type: *const c_char) {
+  fn pactffi_sync_message_set_request_contents_str(message: *mut SynchronousMessage, contents: *const c_char, content_type: *const c_char) {
     let message = as_mut!(message);
 
     if contents.is_null() {
@@ -191,6 +191,25 @@ ffi_fn! {
 }
 
 ffi_fn! {
+    /// Get the request contents of an `SynchronousMessage` as a `MessageContents` pointer.
+    ///
+    /// # Safety
+    ///
+    /// The data pointed to by the pointer this function returns will be deleted when the message
+    /// is deleted. Trying to use if after the message is deleted will result in undefined behaviour.
+    ///
+    /// # Error Handling
+    ///
+    /// If the message is NULL, returns NULL.
+    fn pactffi_sync_message_get_request_contents(message: *const SynchronousMessage) -> *const MessageContents {
+        let message = as_ref!(message);
+        &message.request as *const MessageContents
+    } {
+        std::ptr::null()
+    }
+}
+
+ffi_fn! {
     /// Get the number of response messages in the `SynchronousMessage`.
     ///
     /// # Safety
@@ -224,7 +243,7 @@ ffi_fn! {
     /// If the body of the response message is missing, then this function also returns NULL.
     /// This means there's no mechanism to differentiate with this function call alone between
     /// a NULL message and a missing message body.
-    fn pactffi_sync_message_get_response_contents(message: *const SynchronousMessage, index: size_t) -> *const c_char {
+    fn pactffi_sync_message_get_response_contents_str(message: *const SynchronousMessage, index: size_t) -> *const c_char {
         let message = as_ref!(message);
 
         match message.response.get(index) {
@@ -250,7 +269,7 @@ ffi_fn! {
 }
 
 ffi_fn! {
-  /// Sets the response contents of the message. If index is greater than the number of responses
+  /// Sets the response contents of the message as a string. If index is greater than the number of responses
   /// in the message, the responses will be padded with default values.
   ///
   /// * `message` - the message to set the response contents for
@@ -267,7 +286,7 @@ ffi_fn! {
   ///
   /// If the contents is a NULL pointer, it will set the response contents as null. If the content
   /// type is a null pointer, or can't be parsed, it will set the content type as unknown.
-  fn pactffi_sync_message_set_response_contents(
+  fn pactffi_sync_message_set_response_contents_str(
     message: *mut SynchronousMessage,
     index: size_t,
     contents: *const c_char,
@@ -396,6 +415,29 @@ ffi_fn! {
 }
 
 ffi_fn! {
+    /// Get the response contents of an `SynchronousMessage` as a `MessageContents` pointer.
+    ///
+    /// # Safety
+    ///
+    /// The data pointed to by the pointer this function returns will be deleted when the message
+    /// is deleted. Trying to use if after the message is deleted will result in undefined behaviour.
+    ///
+    /// # Error Handling
+    ///
+    /// If the message is NULL or the index is not valid, returns NULL.
+    fn pactffi_sync_message_get_response_contents(message: *const SynchronousMessage, index: size_t) -> *const MessageContents {
+        let message = as_ref!(message);
+        if let Some(response) = message.response.get(index) {
+          response as *const MessageContents
+        } else {
+          std::ptr::null()
+        }
+    } {
+        std::ptr::null()
+    }
+}
+
+ffi_fn! {
     /// Get a copy of the description.
     ///
     /// # Safety
@@ -511,13 +553,13 @@ mod tests {
 
   use crate::models::sync_message::{
     pactffi_sync_message_delete,
-    pactffi_sync_message_get_request_contents,
+    pactffi_sync_message_get_request_contents_str,
     pactffi_sync_message_get_request_contents_length,
-    pactffi_sync_message_get_response_contents,
+    pactffi_sync_message_get_response_contents_str,
     pactffi_sync_message_get_response_contents_length,
     pactffi_sync_message_new,
-    pactffi_sync_message_set_request_contents,
-    pactffi_sync_message_set_response_contents
+    pactffi_sync_message_set_request_contents_str,
+    pactffi_sync_message_set_response_contents_str
   };
   use crate::ptr::null_to;
 
@@ -528,18 +570,18 @@ mod tests {
       let message_contents2 = CString::new("This is another string").unwrap();
       let content_type = CString::new("text/plain").unwrap();
 
-      pactffi_sync_message_set_request_contents(message, message_contents.as_ptr(), null_to::<c_char>());
-      let contents = pactffi_sync_message_get_request_contents(message) as *mut c_char;
+      pactffi_sync_message_set_request_contents_str(message, message_contents.as_ptr(), null_to::<c_char>());
+      let contents = pactffi_sync_message_get_request_contents_str(message) as *mut c_char;
       let len = pactffi_sync_message_get_request_contents_length(message);
       let str = unsafe { CString::from_raw(contents) };
 
-      pactffi_sync_message_set_response_contents(message, 2, message_contents2.as_ptr(),
+      pactffi_sync_message_set_response_contents_str(message, 2, message_contents2.as_ptr(),
         content_type.as_ptr());
-      let response_contents = pactffi_sync_message_get_response_contents(message, 0) as *mut c_char;
+      let response_contents = pactffi_sync_message_get_response_contents_str(message, 0) as *mut c_char;
       let response_len = pactffi_sync_message_get_response_contents_length(message, 0);
-      let response_contents1 = pactffi_sync_message_get_response_contents(message, 1) as *mut c_char;
+      let response_contents1 = pactffi_sync_message_get_response_contents_str(message, 1) as *mut c_char;
       let response_len1 = pactffi_sync_message_get_response_contents_length(message, 1);
-      let contents2 = pactffi_sync_message_get_response_contents(message, 2) as *mut c_char;
+      let contents2 = pactffi_sync_message_get_response_contents_str(message, 2) as *mut c_char;
       let response_len2 = pactffi_sync_message_get_response_contents_length(message, 2);
       let response_str2 = unsafe { CString::from_raw(contents2) };
 

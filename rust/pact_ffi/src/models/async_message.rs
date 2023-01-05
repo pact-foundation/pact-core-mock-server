@@ -7,6 +7,7 @@ use pact_models::bodies::OptionalBody;
 use pact_models::content_types::{ContentType, ContentTypeHint};
 use pact_models::provider_states::ProviderState;
 use pact_models::v4::async_message::AsynchronousMessage;
+use pact_models::v4::message_parts::MessageContents;
 
 use crate::{as_mut, as_ref, ffi_fn, safe_str};
 use crate::models::message::ProviderStateIterator;
@@ -40,6 +41,25 @@ ffi_fn! {
 }
 
 ffi_fn! {
+    /// Get the message contents of an `AsynchronousMessage` as a `MessageContents` pointer.
+    ///
+    /// # Safety
+    ///
+    /// The data pointed to by the pointer this function returns will be deleted when the message
+    /// is deleted. Trying to use if after the message is deleted will result in undefined behaviour.
+    ///
+    /// # Error Handling
+    ///
+    /// If the message is NULL, returns NULL.
+    fn pactffi_async_message_get_contents(message: *const AsynchronousMessage) -> *const MessageContents {
+        let message = as_ref!(message);
+        &message.contents as *const MessageContents
+    } {
+        std::ptr::null()
+    }
+}
+
+ffi_fn! {
     /// Get the message contents of an `AsynchronousMessage` in string form.
     ///
     /// # Safety
@@ -54,7 +74,7 @@ ffi_fn! {
     /// is missing, then this function also returns NULL. This means there's
     /// no mechanism to differentiate with this function call alone between
     /// a NULL message and a missing message body.
-    fn pactffi_async_message_get_contents(message: *const AsynchronousMessage) -> *const c_char {
+    fn pactffi_async_message_get_contents_str(message: *const AsynchronousMessage) -> *const c_char {
         let message = as_ref!(message);
 
         match message.contents.contents {
@@ -77,7 +97,7 @@ ffi_fn! {
 }
 
 ffi_fn! {
-  /// Sets the contents of the message.
+  /// Sets the contents of the message as a string.
   ///
   /// * `message` - the message to set the contents for
   /// * `contents` - pointer to contents to copy from. Must be a valid NULL-terminated UTF-8 string pointer.
@@ -92,7 +112,7 @@ ffi_fn! {
   ///
   /// If the contents is a NULL pointer, it will set the message contents as null. If the content
   /// type is a null pointer, or can't be parsed, it will set the content type as unknown.
-  fn pactffi_async_message_set_contents(message: *mut AsynchronousMessage, contents: *const c_char, content_type: *const c_char) {
+  fn pactffi_async_message_set_contents_str(message: *mut AsynchronousMessage, contents: *const c_char, content_type: *const c_char) {
     let message = as_mut!(message);
 
     if contents.is_null() {
@@ -303,10 +323,10 @@ mod tests {
 
   use crate::models::async_message::{
     pactffi_async_message_delete,
-    pactffi_async_message_get_contents,
     pactffi_async_message_get_contents_length,
+    pactffi_async_message_get_contents_str,
     pactffi_async_message_new,
-    pactffi_async_message_set_contents
+    pactffi_async_message_set_contents_str
   };
   use crate::ptr::null_to;
 
@@ -315,8 +335,8 @@ mod tests {
       let message = pactffi_async_message_new();
       let message_contents = CString::new("This is a string").unwrap();
 
-      pactffi_async_message_set_contents(message, message_contents.as_ptr(), null_to::<c_char>());
-      let contents = pactffi_async_message_get_contents(message) as *mut c_char;
+      pactffi_async_message_set_contents_str(message, message_contents.as_ptr(), null_to::<c_char>());
+      let contents = pactffi_async_message_get_contents_str(message) as *mut c_char;
       let len = pactffi_async_message_get_contents_length(message);
       let str = unsafe { CString::from_raw(contents) };
 
