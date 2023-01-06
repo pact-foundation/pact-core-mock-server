@@ -4,9 +4,11 @@ use bytes::Bytes;
 use libc::{c_char, c_uchar, size_t};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::{ContentType, ContentTypeHint};
+use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
 use pact_models::v4::message_parts::MessageContents;
 
 use crate::{as_mut, as_ref, ffi_fn, safe_str};
+use crate::models::matching_rules::{MatchingRuleCategory, MatchingRuleCategoryIterator};
 use crate::models::message::MessageMetadataIterator;
 use crate::string::optional_str;
 use crate::util::*;
@@ -164,6 +166,9 @@ ffi_fn! {
 ffi_fn! {
     /// Get an iterator over the metadata of a message.
     ///
+    /// The returned pointer must be deleted with `pactffi_message_metadata_iter_delete` when done
+    /// with it.
+    ///
     /// # Safety
     ///
     /// This iterator carries a pointer to the message contents, and must
@@ -178,12 +183,218 @@ ffi_fn! {
     ///
     /// This function may fail if any of the Rust strings contain
     /// embedded null ('\0') bytes.
-    fn pactffi_message_contents_get_metadata_iter(contents: *mut MessageContents) -> *mut MessageMetadataIterator {
-        let contents = as_mut!(contents);
+    fn pactffi_message_contents_get_metadata_iter(contents: *const MessageContents) -> *mut MessageMetadataIterator {
+        let contents = as_ref!(contents);
 
         let iter = MessageMetadataIterator::new_from_contents(&contents);
         ptr::raw_to(iter)
     } {
-        ptr::null_mut_to::<MessageMetadataIterator>()
+        std::ptr::null_mut()
     }
+}
+
+ffi_fn! {
+    /// Get an iterator over the matching rules for a category of a message.
+    ///
+    /// The returned pointer must be deleted with `pactffi_matching_rules_iter_delete` when done
+    /// with it.
+    ///
+    /// Note that there could be multiple matching rules for the same key, so this iterator will
+    /// sequentially return each rule with the same key.
+    ///
+    /// For sample, given the following rules:
+    ///    "$.a" => Type,
+    ///    "$.b" => Regex("\\d+"), Number
+    ///
+    /// This iterator will return a sequence of 3 values: ("$.a", Type), ("$.b", Regex("\\d+")), ("$.b", Number)
+    ///
+    /// # Safety
+    ///
+    /// The iterator contains a copy of the data, so is safe to use when the message or message
+    /// contents has been deleted.
+    ///
+    /// # Error Handling
+    ///
+    /// On failure, this function will return a NULL pointer.
+    fn pactffi_message_contents_get_matching_rule_iter(
+      contents: *const MessageContents,
+      category: MatchingRuleCategory
+    ) -> *mut MatchingRuleCategoryIterator {
+        let contents = as_ref!(contents);
+
+        let iter = MatchingRuleCategoryIterator::new_from_contents(&contents, category);
+        ptr::raw_to(iter)
+    } {
+        std::ptr::null_mut()
+    }
+}
+
+ffi_fn! {
+    /// Get an iterator over the matching rules for a category of an HTTP request.
+    ///
+    /// The returned pointer must be deleted with `pactffi_matching_rules_iter_delete` when done
+    /// with it.
+    ///
+    /// For sample, given the following rules:
+    ///    "$.a" => Type,
+    ///    "$.b" => Regex("\\d+"), Number
+    ///
+    /// This iterator will return a sequence of 3 values: ("$.a", Type), ("$.b", Regex("\\d+")), ("$.b", Number)
+    ///
+    /// # Safety
+    ///
+    /// The iterator contains a copy of the data, so is safe to use when the interaction or request
+    /// contents has been deleted.
+    ///
+    /// # Error Handling
+    ///
+    /// On failure, this function will return a NULL pointer.
+    fn pactffi_request_contents_get_matching_rule_iter(
+      request: *const HttpRequest,
+      category: MatchingRuleCategory
+    ) -> *mut MatchingRuleCategoryIterator {
+        let request = as_ref!(request);
+
+        let iter = MatchingRuleCategoryIterator::new_from_request(&request, category);
+        ptr::raw_to(iter)
+    } {
+        std::ptr::null_mut()
+    }
+}
+
+ffi_fn! {
+    /// Get an iterator over the matching rules for a category of an HTTP response.
+    ///
+    /// The returned pointer must be deleted with `pactffi_matching_rules_iter_delete` when done
+    /// with it.
+    ///
+    /// For sample, given the following rules:
+    ///    "$.a" => Type,
+    ///    "$.b" => Regex("\\d+"), Number
+    ///
+    /// This iterator will return a sequence of 3 values: ("$.a", Type), ("$.b", Regex("\\d+")), ("$.b", Number)
+    ///
+    /// # Safety
+    ///
+    /// The iterator contains a copy of the data, so is safe to use when the interaction or response
+    /// contents has been deleted.
+    ///
+    /// # Error Handling
+    ///
+    /// On failure, this function will return a NULL pointer.
+    fn pactffi_response_contents_get_matching_rule_iter(
+      response: *const HttpResponse,
+      category: MatchingRuleCategory
+    ) -> *mut MatchingRuleCategoryIterator {
+        let response = as_ref!(response);
+
+        let iter = MatchingRuleCategoryIterator::new_from_response(&response, category);
+        ptr::raw_to(iter)
+    } {
+        std::ptr::null_mut()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+  use std::ffi::{CStr, CString};
+  use bytes::Bytes;
+  use expectest::prelude::*;
+  use libc::c_char;
+  use maplit::hashmap;
+  use pact_models::bodies::OptionalBody;
+  use pact_models::content_types::JSON;
+  use pact_models::matchingrules;
+  use pact_models::matchingrules::MatchingRule;
+  use pact_models::v4::message_parts::MessageContents;
+  use serde_json::json;
+
+  use crate::models::contents::{pactffi_message_contents_get_contents_str, pactffi_message_contents_get_matching_rule_iter, pactffi_message_contents_get_metadata_iter};
+  use crate::models::matching_rules::{MatchingRuleCategory, pactffi_matching_rule_to_json, pactffi_matching_rules_iter_delete, pactffi_matching_rules_iter_next, pactffi_matching_rules_iter_pair_delete};
+  use crate::models::message::{pactffi_message_metadata_iter_delete, pactffi_message_metadata_iter_next, pactffi_message_metadata_pair_delete};
+
+  #[test_log::test]
+  fn message_contents_feature_test() {
+    let json_contents = json!({
+      "a": "b",
+      "b": 100
+    });
+    let json_string = json_contents.to_string();
+    let json_bytes = Bytes::from(json_string.clone());
+    let message_contents = MessageContents {
+      contents: OptionalBody::Present(json_bytes, Some(JSON.clone()), None),
+      metadata: hashmap!{
+        "a".to_string() => json!("A"),
+        "b".to_string() => json!(100)
+      },
+      matching_rules: matchingrules! {
+        "body" => {
+          "$.a" => [ MatchingRule::Regex("\\w+".to_string()) ],
+          "$.b" => [ MatchingRule::Regex("\\d+".to_string()), MatchingRule::Number ]
+        }
+      },
+      generators: Default::default(),
+    };
+    let message_contents_ptr = &message_contents as *const MessageContents;
+
+    let json_str_ptr = pactffi_message_contents_get_contents_str(message_contents_ptr);
+    let json_str = unsafe { CString::from_raw(json_str_ptr as *mut c_char) };
+    expect!(json_str.to_string_lossy()).to(be_equal_to(json_string.as_str()));
+
+    let metadata_iter_ptr = pactffi_message_contents_get_metadata_iter(message_contents_ptr);
+    expect!(metadata_iter_ptr.is_null()).to(be_false());
+
+    let first_pair = pactffi_message_metadata_iter_next(metadata_iter_ptr);
+    expect!(first_pair.is_null()).to(be_false());
+    let key = unsafe { CStr::from_ptr((*first_pair).key) };
+    let value = unsafe { CStr::from_ptr((*first_pair).value) };
+    expect!(key.to_string_lossy()).to(be_equal_to("a"));
+    expect!(value.to_string_lossy()).to(be_equal_to("A"));
+    pactffi_message_metadata_pair_delete(first_pair);
+
+    let second_pair = pactffi_message_metadata_iter_next(metadata_iter_ptr);
+    expect!(second_pair.is_null()).to(be_false());
+    let key = unsafe { CStr::from_ptr((*second_pair).key) };
+    let value = unsafe { CStr::from_ptr((*second_pair).value) };
+    expect!(key.to_string_lossy()).to(be_equal_to("b"));
+    expect!(value.to_string_lossy()).to(be_equal_to("100"));
+    pactffi_message_metadata_pair_delete(second_pair);
+
+    let third_pair = pactffi_message_metadata_iter_next(metadata_iter_ptr);
+    expect!(third_pair.is_null()).to(be_true());
+
+    pactffi_message_metadata_iter_delete(metadata_iter_ptr);
+
+    let matching_rule_iter_pointer = pactffi_message_contents_get_matching_rule_iter(message_contents_ptr, MatchingRuleCategory::BODY);
+    expect!(matching_rule_iter_pointer.is_null()).to(be_false());
+
+    let mr_first_pair = pactffi_matching_rules_iter_next(matching_rule_iter_pointer);
+    expect!(mr_first_pair.is_null()).to(be_false());
+    let path = unsafe { CStr::from_ptr((*mr_first_pair).path) };
+    let rule = unsafe { CString::from_raw(pactffi_matching_rule_to_json((*mr_first_pair).rule) as *mut c_char) };
+    expect!(path.to_string_lossy()).to(be_equal_to("$.a"));
+    expect!(rule.to_string_lossy()).to(be_equal_to("{\"match\":\"regex\",\"regex\":\"\\\\w+\"}"));
+    pactffi_matching_rules_iter_pair_delete(mr_first_pair);
+
+    let mr_second_pair = pactffi_matching_rules_iter_next(matching_rule_iter_pointer);
+    expect!(mr_second_pair.is_null()).to(be_false());
+    let path = unsafe { CStr::from_ptr((*mr_second_pair).path) };
+    let rule = unsafe { CString::from_raw(pactffi_matching_rule_to_json((*mr_second_pair).rule) as *mut c_char) };
+    expect!(path.to_string_lossy()).to(be_equal_to("$.b"));
+    expect!(rule.to_string_lossy()).to(be_equal_to("{\"match\":\"regex\",\"regex\":\"\\\\d+\"}"));
+    pactffi_matching_rules_iter_pair_delete(mr_second_pair);
+
+    let mr_third_pair = pactffi_matching_rules_iter_next(matching_rule_iter_pointer);
+    expect!(mr_third_pair.is_null()).to(be_false());
+    let path = unsafe { CStr::from_ptr((*mr_third_pair).path) };
+    let rule = unsafe { CString::from_raw(pactffi_matching_rule_to_json((*mr_third_pair).rule) as *mut c_char) };
+    expect!(path.to_string_lossy()).to(be_equal_to("$.b"));
+    expect!(rule.to_string_lossy()).to(be_equal_to("{\"match\":\"number\"}"));
+    pactffi_matching_rules_iter_pair_delete(mr_third_pair);
+
+    let mr_fouth_pair = pactffi_matching_rules_iter_next(matching_rule_iter_pointer);
+    expect!(mr_fouth_pair.is_null()).to(be_true());
+
+    pactffi_matching_rules_iter_delete(matching_rule_iter_pointer);
+  }
 }

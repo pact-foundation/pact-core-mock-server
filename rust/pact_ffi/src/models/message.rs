@@ -11,6 +11,7 @@ use std::sync::Mutex;
 use anyhow::{anyhow, Context};
 use bytes::Bytes;
 use either::Either;
+use itertools::Itertools;
 use libc::{c_char, c_int, c_uchar, c_uint, EXIT_FAILURE, EXIT_SUCCESS, size_t};
 use serde_json::from_str as from_json_str;
 use serde_json::Value as JsonValue;
@@ -18,6 +19,7 @@ use serde_json::Value as JsonValue;
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::{ContentType, ContentTypeHint};
 use pact_models::interaction::Interaction;
+use pact_models::json_utils::json_to_string;
 
 use crate::{as_mut, as_ref, cstr, ffi_fn, safe_str};
 use crate::models::pact_specification::PactSpecification;
@@ -519,7 +521,9 @@ ffi_fn! {
 }
 
 ffi_fn! {
-    /// Get the next key and value out of the iterator, if possible
+    /// Get the next key and value out of the iterator, if possible.
+    ///
+    /// The returned pointer must be deleted with `pactffi_message_metadata_pair_delete`.
     ///
     /// # Safety
     ///
@@ -547,10 +551,10 @@ ffi_fn! {
             .get_key_value(key)
             .ok_or(anyhow::anyhow!("iter provided invalid metadata key"))?;
 
-        let pair = MessageMetadataPair::new(key, value.as_str().unwrap_or_default())?;
+        let pair = MessageMetadataPair::new(key, json_to_string(&value).as_str())?;
         ptr::raw_to(pair)
     } {
-        ptr::null_mut_to::<MessageMetadataPair>()
+        std::ptr::null_mut()
     }
 }
 
@@ -575,7 +579,7 @@ ffi_fn! {
         let message = as_mut!(message);
 
         let iter = MessageMetadataIterator {
-            keys:  message.metadata.keys().cloned().collect(),
+            keys:  message.metadata.keys().sorted().cloned().collect(),
             current: 0,
             message: Either::Left(message as *const Message)
         };
@@ -624,7 +628,7 @@ impl MessageMetadataIterator {
     /// Construct a new iterator that wraps the message contents object
     pub fn new_from_contents(contents: &MessageContents) -> Self {
         MessageMetadataIterator {
-            keys:  contents.metadata.keys().cloned().collect(),
+            keys:  contents.metadata.keys().sorted().cloned().collect(),
             current: 0,
             message: Either::Right(contents as *const MessageContents)
         }
@@ -637,9 +641,9 @@ impl MessageMetadataIterator {
 #[allow(missing_copy_implementations)]
 pub struct MessageMetadataPair {
     /// The metadata key.
-    key: *const c_char,
+    pub key: *const c_char,
     /// The metadata value.
-    value: *const c_char,
+    pub value: *const c_char,
 }
 
 impl MessageMetadataPair {
