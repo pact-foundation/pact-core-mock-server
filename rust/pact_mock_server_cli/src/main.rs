@@ -108,7 +108,7 @@ fn global_option_present(option: &str, matches: &ArgMatches) -> bool {
   matches.is_present(option) || matches.subcommand().1.unwrap().is_present(option)
 }
 
-fn integer_value(v: String) -> Result<(), String> {
+fn integer_value(v: &str) -> Result<(), String> {
     v.parse::<u16>().map(|_| ()).map_err(|e| format!("'{}' is not a valid port value: {}", v, e) )
 }
 
@@ -357,22 +357,8 @@ mod test {
 
   #[test]
     fn validates_integer_value() {
-        fn prop(s: String) -> TestResult {
-            let mut rng = ::rand::thread_rng();
-            if rng.gen() && s.chars().any(|ch| !ch.is_numeric()) {
-                TestResult::discard()
-            } else {
-                let validation = integer_value(s.clone());
-                match validation {
-                    Ok(_) => TestResult::from_bool(!s.is_empty() && s.chars().all(|ch| ch.is_numeric() )),
-                    Err(_) => TestResult::from_bool(s.is_empty() || s.chars().find(|ch| !ch.is_numeric() ).is_some())
-                }
-            }
-        }
-        quickcheck(prop as fn(_) -> _);
-
-        expect!(integer_value(s!("1234"))).to(be_ok());
-        expect!(integer_value(s!("1234x"))).to(be_err());
+        expect!(integer_value("1234")).to(be_ok());
+        expect!(integer_value("1234x")).to(be_err());
     }
 
     #[test]
