@@ -366,24 +366,7 @@ pub async fn handle_cli(version: &str) -> Result<(), i32> {
 }
 
 async fn handle_matches(matches: &ArgMatches) -> Result<(), i32> {
-  let coloured_output = !matches.is_present("no-colour");
-  let level = matches.value_of("loglevel").unwrap_or("warn");
-  let log_level = match level {
-    "none" => LevelFilter::Off,
-    _ => LevelFilter::from_str(level).unwrap()
-  };
-  let _ = LogTracer::builder()
-      .with_max_level(log_level)
-      .init();
-  let subscriber = FmtSubscriber::builder()
-    .with_max_level(tracing_core::LevelFilter::from_str(level)
-      .unwrap_or(tracing_core::LevelFilter::INFO))
-    .with_thread_names(true)
-    .with_ansi(coloured_output)
-    .finish();
-  if let Err(err) = tracing::subscriber::set_global_default(subscriber) {
-    eprintln!("WARNING: Failed to initialise global tracing subscriber - {err}");
-  };
+  let coloured_output = setup_output(matches);
 
   let provider = configure_provider(matches);
   let source = pact_source(matches);
@@ -462,6 +445,71 @@ async fn handle_matches(matches: &ArgMatches) -> Result<(), i32> {
 
       if result.result { Ok(()) } else { Err(1) }
     })
+}
+
+fn setup_output(matches: &ArgMatches) -> bool {
+  let coloured_output = !matches.is_present("no-colour");
+  let level = matches.value_of("loglevel").unwrap_or("warn");
+  let log_level = match level {
+    "none" => LevelFilter::Off,
+    _ => LevelFilter::from_str(level).unwrap()
+  };
+  let _ = LogTracer::builder()
+    .with_max_level(log_level)
+    .init();
+
+  if matches.is_present("pretty-log") {
+    setup_pretty_log(level, coloured_output);
+  } else if matches.is_present("full-log") {
+    setup_default_log(level, coloured_output);
+  } else if matches.is_present("compact-log") {
+    setup_compact_log(level, coloured_output);
+  } else {
+    setup_default_log(level, coloured_output);
+  };
+
+  coloured_output
+}
+
+fn setup_compact_log(level: &str, coloured_output: bool) {
+  let subscriber = FmtSubscriber::builder()
+    .compact()
+    .with_max_level(tracing_core::LevelFilter::from_str(level)
+      .unwrap_or(tracing_core::LevelFilter::INFO))
+    .with_thread_names(false)
+    .with_ansi(coloured_output)
+    .finish();
+
+  if let Err(err) = tracing::subscriber::set_global_default(subscriber) {
+    eprintln!("WARNING: Failed to initialise global tracing subscriber - {err}");
+  };
+}
+
+fn setup_default_log(level: &str, coloured_output: bool) {
+  let subscriber = FmtSubscriber::builder()
+    .with_max_level(tracing_core::LevelFilter::from_str(level)
+      .unwrap_or(tracing_core::LevelFilter::INFO))
+    .with_thread_names(true)
+    .with_ansi(coloured_output)
+    .finish();
+
+  if let Err(err) = tracing::subscriber::set_global_default(subscriber) {
+    eprintln!("WARNING: Failed to initialise global tracing subscriber - {err}");
+  };
+}
+
+fn setup_pretty_log(level: &str, coloured_output: bool) {
+  let subscriber = FmtSubscriber::builder()
+    .pretty()
+    .with_max_level(tracing_core::LevelFilter::from_str(level)
+      .unwrap_or(tracing_core::LevelFilter::INFO))
+    .with_thread_names(true)
+    .with_ansi(coloured_output)
+    .finish();
+
+  if let Err(err) = tracing::subscriber::set_global_default(subscriber) {
+    eprintln!("WARNING: Failed to initialise global tracing subscriber - {err}");
+  };
 }
 
 #[allow(deprecated)]
