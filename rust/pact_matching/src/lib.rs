@@ -1371,8 +1371,9 @@ pub async fn match_body(
     expected_content_type.is_equivalent_to(&actual_content_type) ||
     expected_content_type.is_equivalent_to(&actual_content_type.base_type()) ||
     (!content_type_matcher.is_empty() &&
-      match_header_value("Content-Type", expected_content_type.to_string().as_str(),
-                         actual_content_type.to_string().as_str(), header_context).is_ok()) {
+      match_header_value("Content-Type", 0, expected_content_type.to_string().as_str(),
+                         actual_content_type.to_string().as_str(), header_context, true
+      ).is_ok()) {
     match_body_content(&expected_content_type, expected, actual, context).await
   } else if expected.body().is_present() {
     BodyMatchResult::BodyTypeMismatch {
