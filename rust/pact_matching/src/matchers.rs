@@ -131,35 +131,35 @@ pub trait Matches<A: Clone> {
 }
 
 impl Matches<String> for String {
-  #[instrument]
+  #[instrument(level = "trace")]
   fn matches_with(&self, actual: String, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
     self.as_str().matches_with(actual.as_str(), matcher, cascaded)
   }
 }
 
 impl Matches<&String> for String {
-  #[instrument]
+  #[instrument(level = "trace")]
   fn matches_with(&self, actual: &String, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
     self.as_str().matches_with(actual.as_str(), matcher, cascaded)
   }
 }
 
 impl Matches<&String> for &String {
-  #[instrument]
+  #[instrument(level = "trace")]
   fn matches_with(&self, actual: &String, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
     self.as_str().matches_with(actual.as_str(), matcher, cascaded)
   }
 }
 
 impl Matches<&str> for String {
-  #[instrument]
+  #[instrument(level = "trace")]
   fn matches_with(&self, actual: &str, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
     self.as_str().matches_with(actual, matcher, cascaded)
   }
 }
 
 impl Matches<&str> for &str {
-  #[instrument]
+  #[instrument(level = "trace")]
   fn matches_with(&self, actual: &str, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
     let result = match matcher {
       MatchingRule::Regex(regex) => {
@@ -260,14 +260,14 @@ impl Matches<&str> for &str {
 }
 
 impl Matches<u64> for String {
-  #[instrument]
+  #[instrument(level = "trace")]
   fn matches_with(&self, actual: u64, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
     self.as_str().matches_with(actual, matcher, cascaded)
   }
 }
 
 impl Matches<u64> for &str {
-  #[instrument]
+  #[instrument(level = "trace")]
   fn matches_with(&self, actual: u64, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
     debug!("String -> u64: comparing '{}' to {} using {:?}", self, actual, matcher);
     match matcher {
@@ -309,7 +309,7 @@ impl Matches<u64> for &str {
 }
 
 impl Matches<u64> for u64 {
-  #[instrument]
+  #[instrument(level = "trace")]
   fn matches_with(&self, actual: u64, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
     debug!("u64 -> u64: comparing {} to {} using {:?}", self, actual, matcher);
     match matcher {
@@ -356,7 +356,7 @@ impl Matches<u64> for u64 {
 }
 
 impl Matches<f64> for u64 {
-  #[instrument]
+  #[instrument(level = "trace")]
   fn matches_with(&self, actual: f64, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
     debug!("u64 -> f64: comparing {} to {} using {:?}", self, actual, matcher);
     match matcher {
@@ -398,7 +398,7 @@ impl Matches<f64> for u64 {
 
 impl Matches<f64> for f64 {
   #[allow(clippy::float_cmp)]
-  #[instrument]
+  #[instrument(level = "trace")]
   fn matches_with(&self, actual: f64, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
     let result = match matcher {
       MatchingRule::Regex(regex) => {
@@ -445,7 +445,7 @@ impl Matches<f64> for f64 {
 }
 
 impl Matches<u64> for f64 {
-  #[instrument]
+  #[instrument(level = "trace")]
   fn matches_with(&self, actual: u64, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
     debug!("f64 -> u64: comparing {} to {} using {:?}", self, actual, matcher);
     match matcher {
@@ -486,7 +486,7 @@ impl Matches<u64> for f64 {
 }
 
 impl Matches<u16> for String {
-  #[instrument]
+  #[instrument(level = "trace")]
   fn matches_with(&self, actual: u16, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
     debug!("String -> u16: comparing '{}' to {} using {:?}", self, actual, matcher);
     self.matches_with(actual as u64, matcher, cascaded)
@@ -494,7 +494,7 @@ impl Matches<u16> for String {
 }
 
 impl Matches<u16> for &str {
-  #[instrument]
+  #[instrument(level = "trace")]
   fn matches_with(&self, actual: u16, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
     debug!("String -> u16: comparing '{}' to {} using {:?}", self, actual, matcher);
     self.matches_with(actual as u64, matcher, cascaded)
@@ -502,7 +502,7 @@ impl Matches<u16> for &str {
 }
 
 impl Matches<u16> for u16 {
-  #[instrument]
+  #[instrument(level = "trace")]
   fn matches_with(&self, actual: u16, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
     debug!("u16 -> u16: comparing {} to {} using {:?}", self, actual, matcher);
     (*self as u64).matches_with(actual as u64, matcher, cascaded)
@@ -510,7 +510,7 @@ impl Matches<u16> for u16 {
 }
 
 impl Matches<i64> for String {
-  #[instrument]
+  #[instrument(level = "trace")]
   fn matches_with(&self, actual: i64, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
     debug!("String -> i64: comparing {} to {} using {:?}", self, actual, matcher);
     self.as_str().matches_with(actual, matcher, cascaded)
@@ -518,7 +518,7 @@ impl Matches<i64> for String {
 }
 
 impl Matches<i64> for &str {
-  #[instrument]
+  #[instrument(level = "trace")]
   fn matches_with(&self, actual: i64, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
     debug!("String -> i64: comparing '{}' to {} using {:?}", self, actual, matcher);
     match matcher {
@@ -559,7 +559,7 @@ impl Matches<i64> for &str {
 }
 
 impl Matches<i64> for i64 {
-  #[instrument]
+  #[instrument(level = "trace")]
   fn matches_with(&self, actual: i64, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
     debug!("i64 -> i64: comparing {} to {} using {:?}", self, actual, matcher);
     match matcher {
@@ -605,28 +605,28 @@ impl Matches<i64> for i64 {
 }
 
 impl Matches<i32> for String {
-  #[instrument]
+  #[instrument(level = "trace")]
   fn matches_with(&self, actual: i32, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
     self.matches_with(actual as i64, matcher, cascaded)
   }
 }
 
 impl Matches<i32> for &str {
-  #[instrument]
+  #[instrument(level = "trace")]
   fn matches_with(&self, actual: i32, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
     self.matches_with(actual as i64, matcher, cascaded)
   }
 }
 
 impl Matches<i32> for i32 {
-  #[instrument]
+  #[instrument(level = "trace")]
   fn matches_with(&self, actual: i32, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
     (*self as i64).matches_with(actual as i64, matcher, cascaded)
   }
 }
 
 impl Matches<bool> for bool {
-  #[instrument]
+  #[instrument(level = "trace")]
   fn matches_with(&self, actual: bool, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
     debug!("bool -> bool: comparing '{}' to {} using {:?}", self, actual, matcher);
     match matcher {
@@ -662,14 +662,14 @@ impl Matches<bool> for bool {
 }
 
 impl Matches<Bytes> for Bytes {
-  #[instrument]
+  #[instrument(level = "trace")]
   fn matches_with(&self, actual: Bytes, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
     self.matches_with(&actual, matcher, cascaded)
   }
 }
 
 impl Matches<&Bytes> for Bytes {
-  #[instrument]
+  #[instrument(level = "trace")]
   fn matches_with(&self, actual: &Bytes, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
     debug!("Bytes -> Bytes: comparing {} bytes to {} bytes using {:?}", self.len(), actual.len(), matcher);
     match matcher {
@@ -758,7 +758,7 @@ pub fn match_values<E, A>(path: &DocPath, matching_rules: &RuleList, expected: E
   }
 }
 
-#[instrument]
+#[instrument(level = "trace")]
 fn match_status_code(status_code: u16, status: &HttpStatus) -> anyhow::Result<()> {
   let matches = match status {
     HttpStatus::Information => (100..=199).contains(&status_code),

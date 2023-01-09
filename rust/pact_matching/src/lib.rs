@@ -501,7 +501,7 @@ impl Default for CoreMatchingContext {
 }
 
 impl MatchingContext for CoreMatchingContext {
-  #[instrument]
+  #[instrument(level = "trace")]
   fn matcher_is_defined(&self, path: &DocPath) -> bool {
     let path = path.to_vec();
     let path_slice = path.iter().map(|p| p.as_str()).collect_vec();
@@ -1576,7 +1576,7 @@ pub fn match_message_metadata(
   result
 }
 
-#[instrument]
+#[instrument(level = "trace")]
 fn match_metadata_value(
   key: &str,
   expected: &Value,

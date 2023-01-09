@@ -370,7 +370,7 @@ async fn execute_state_change<S: ProviderStateExecutor>(
 
 /// Main implementation for verifying an interaction. Will return a tuple containing the
 /// result of the verification and any output collected
-#[tracing::instrument]
+#[tracing::instrument(level = "trace")]
 async fn verify_interaction<'a, F: RequestFilterExecutor, S: ProviderStateExecutor>(
   provider: &ProviderInfo,
   interaction: &(dyn Interaction + Send + Sync),
@@ -548,7 +548,7 @@ async fn verify_v3_interaction<'a, F: RequestFilterExecutor>(
 }
 
 /// Executes the provider states, returning a map of the results
-#[instrument(ret, skip_all, fields(?interaction, is_setup))]
+#[instrument(ret, skip_all, fields(?interaction, is_setup), level = "trace")]
 async fn execute_provider_states<S: ProviderStateExecutor>(
   interaction: &(dyn Interaction + Send + Sync),
   provider_state_executor: &Arc<S>,
@@ -1103,7 +1103,7 @@ fn process_errors(errors: &Vec<(String, MismatchResult)>, output: &mut Vec<Strin
   }
 }
 
-#[tracing::instrument]
+#[tracing::instrument(level = "trace")]
 async fn fetch_pact(
   source: PactSource,
   provider: &ProviderInfo
@@ -1213,7 +1213,7 @@ fn is_pact_broker_source(links: &Vec<Link>) -> bool {
   links.iter().any(|link| link.name == "pb:publish-verification-results")
 }
 
-#[instrument]
+#[instrument(level = "trace")]
 async fn fetch_pacts(
   source: Vec<PactSource>,
   consumers: Vec<String>,
@@ -1252,7 +1252,7 @@ pub struct VerificationResult {
 }
 
 /// Internal function, public for testing purposes
-#[tracing::instrument]
+#[tracing::instrument(level = "trace")]
 pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderStateExecutor>(
   provider_info: &ProviderInfo,
   filter: &FilterInfo,

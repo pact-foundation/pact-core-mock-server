@@ -60,7 +60,7 @@ pub(crate) fn match_parameter_header(expected: &str, actual: &str, header: &str,
   }
 }
 
-#[instrument]
+#[instrument(level = "trace")]
 pub(crate) fn match_header_value(
   key: &str,
   index: usize,

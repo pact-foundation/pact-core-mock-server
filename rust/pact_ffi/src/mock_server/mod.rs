@@ -195,7 +195,7 @@ pub extern fn pactffi_get_tls_ca_certificate() -> *mut c_char  {
 /// | -6 | Could not create the TLS configuration with the self-signed certificate |
 ///
 #[no_mangle]
-#[tracing::instrument]
+#[tracing::instrument(level = "trace")]
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern fn pactffi_create_mock_server_for_pact(pact: PactHandle, addr_str: *const c_char, tls: bool) -> i32 {
   let result = catch_unwind(|| {
@@ -301,7 +301,7 @@ ffi_fn! {
   /// | -4 | The method panicked |
   /// | -5 | The address is not valid |
   ///
-  #[tracing::instrument]
+  #[tracing::instrument(level = "trace")]
   fn pactffi_create_mock_server_for_transport(
     pact: PactHandle,
     addr: *const c_char,
