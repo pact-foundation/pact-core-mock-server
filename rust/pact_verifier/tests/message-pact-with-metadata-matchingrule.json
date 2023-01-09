@@ -1,0 +1,116 @@
+{
+  "consumer": {
+    "name": "test_consumer_v3"
+  },
+  "messages": [
+    {
+      "contents": {
+        "testParam1": "value3",
+        "testParam2": "value4"
+      },
+      "description": "a test message",
+      "matchingRules": {
+        "metadata": {
+          "destination": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "\\w+\\d+"
+              }
+            ]
+          }
+        },
+        "content": {
+          "$.testParam1": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "value\\d+"
+              }
+            ]
+          },
+          "$.testParam2": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "value\\d+"
+              }
+            ]
+          }
+        }
+      },
+      "metaData": {
+        "contentType": "application/json",
+        "destination": "X001"
+      },
+      "providerStates": [
+        {
+          "name": "SomeProviderState2"
+        }
+      ]
+    },
+    {
+      "contents": {
+        "testParam1": "value1",
+        "testParam2": "value2"
+      },
+      "description": "a test message",
+      "matchingRules": {
+        "metadata": {
+          "destination": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "\\w+\\d+"
+              }
+            ]
+          }
+        },
+        "content": {
+          "$.testParam1": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "value\\d+"
+              }
+            ]
+          },
+          "$.testParam2": {
+            "combine": "AND",
+            "matchers": [
+              {
+                "match": "regex",
+                "regex": "value\\d+"
+              }
+            ]
+          }
+        }
+      },
+      "metaData": {
+        "contentType": "application/json",
+        "destination": "X001"
+      },
+      "providerStates": [
+        {
+          "name": "SomeProviderState"
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "pact-jvm": {
+      "version": "4.4.4"
+    },
+    "pactSpecification": {
+      "version": "3.0.0"
+    }
+  },
+  "provider": {
+    "name": "MessageProvider"
+  }
+}

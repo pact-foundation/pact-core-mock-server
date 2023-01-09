@@ -408,6 +408,7 @@ mod tests {
   use crate::{DiffConfig, MatchingContext, Mismatch};
   use crate::matchingrules::{compare_lists_with_matchingrule, compare_maps_with_matchingrule};
 
+  #[derive(Debug)]
   struct MockContext {
     pub calls: Rc<RefCell<Vec<String>>>
   }

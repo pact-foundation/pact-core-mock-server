@@ -744,3 +744,54 @@ fn compare_bodies_core_should_check_for_content_type_matcher() {
   expect!(result.len()).to(be_equal_to(1));
   expect!(result.first().unwrap().description()).to(be_equal_to("$ -> Expected binary contents to have content type 'application/gif' but detected contents was 'image/gif'"));
 }
+
+#[test_log::test]
+fn match_metadata_value_test() {
+  let expected = json!("value-a");
+  let actual = json!("value-a");
+  let rules = matchingrules!{};
+  let context = CoreMatchingContext::new(DiffConfig::AllowUnexpectedKeys,
+    &rules.rules_for_category(Category::METADATA).unwrap_or_default(), &hashmap!{});
+
+  let result = match_metadata_value("key", &expected, &actual, &context);
+  expect!(result).to(be_ok());
+
+  let actual_error = json!("value-b");
+  let result = match_metadata_value("key", &expected, &actual_error, &context);
+  expect!(result).to(be_err());
+}
+
+#[test_log::test]
+fn match_metadata_value_with_matching_rule_test() {
+  let expected = json!("value-a");
+  let actual = json!("value-b");
+  let rules = matchingrules!{
+     "metadata" => { "key" => [ MatchingRule::Regex("value-[a-z]".to_string()) ] }
+  };
+  let context = CoreMatchingContext::new(DiffConfig::AllowUnexpectedKeys,
+    &rules.rules_for_category(Category::METADATA).unwrap_or_default(), &hashmap!{});
+
+  let result = match_metadata_value("key", &expected, &actual, &context);
+  expect!(result).to(be_ok());
+
+  let actual_error = json!("value-9");
+  let result = match_metadata_value("key", &expected, &actual_error, &context);
+  expect!(result).to(be_err());
+}
+
+#[test_log::test]
+fn match_metadata_value_with_content_type_test() {
+  let expected = json!("application/something");
+  let actual = json!("application/something;a=b;c=d");
+  let rules = matchingrules!{};
+  let context = CoreMatchingContext::new(DiffConfig::NoUnexpectedKeys,
+    &rules.rules_for_category(Category::METADATA).unwrap_or_default(), &hashmap!{});
+
+  let result = match_metadata_value("content-type", &expected, &actual, &context);
+  expect!(result).to(be_ok());
+
+  let expected = json!("application/something;a=b;c=d");
+  let actual = json!("application/something");
+  let result = match_metadata_value("key", &expected, &actual, &context);
+  expect!(result).to(be_err());
+}

@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use expectest::prelude::*;
 use maplit::*;
 use reqwest::Client;
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use pact_consumer::*;
 use pact_consumer::prelude::*;
@@ -716,4 +716,68 @@ async fn verify_message_pact_with_two_interactions() {
   ).await;
 
   expect!(result).to(be_ok());
+}
+
+#[test_log::test(tokio::test)]
+async fn verify_message_pact_with_matching_rules_on_metadata() {
+  let provider = PactBuilder::new_v4("message_test", "message_proxy")
+    .interaction("message request", "", |mut i| {
+      i.request.method("POST");
+      i.request.path("/");
+
+      let metadata = json!({
+        "contentType": "application/json",
+        "destination": "ABC123"
+      });
+
+      i.response.ok()
+        .content_type("application/json")
+        .header("pact-message-metadata", base64::encode(metadata.to_string()))
+        .json_body(json_pattern!({
+          "testParam1": "value1",
+          "testParam2": "value2"
+        }));
+
+      i
+    })
+    .start_mock_server(None);
+
+  let pact_file = fixture_path("message-pact-with-metadata-matchingrule.json");
+  #[allow(deprecated)]
+    let provider_info = ProviderInfo {
+    name: "message_test".to_string(),
+    host: "127.0.0.1".to_string(),
+    port: provider.url().port(),
+    transports: vec![ ProviderTransport {
+      transport: "HTTP".to_string(),
+      port: provider.url().port(),
+      path: None,
+      scheme: Some("http".to_string())
+    } ],
+    .. ProviderInfo::default()
+  };
+
+  let pact_source = PactSource::File(pact_file.to_string_lossy().to_string());
+
+  let verification_options: VerificationOptions<NullRequestFilterExecutor> = VerificationOptions::default();
+  let provider_state_executor = Arc::new(DummyProviderStateExecutor{});
+  let publish_options = PublishOptions {
+    provider_version: Some("1.2.3".to_string()),
+    build_url: None,
+    provider_tags: vec![],
+    provider_branch: None,
+  };
+
+  let result = verify_provider_async(
+    provider_info,
+    vec![ pact_source ],
+    FilterInfo::None,
+    vec![],
+    &verification_options,
+    Some(&publish_options),
+    &provider_state_executor,
+    None
+  ).await;
+
+  expect!(result.unwrap().result).to(be_true());
 }

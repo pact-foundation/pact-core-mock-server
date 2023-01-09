@@ -374,7 +374,7 @@ use pact_models::v4::sync_message::SynchronousMessage;
 use pact_plugin_driver::catalogue_manager::find_content_matcher;
 use pact_plugin_driver::plugin_models::PluginInteractionConfig;
 use serde_json::{json, Value};
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, error, info, instrument, trace, warn};
 
 use crate::generators::DefaultVariantMatcher;
 use crate::generators::bodies::generators_process_body;
@@ -406,7 +406,7 @@ mod headers;
 mod query;
 
 /// Context used to apply matching logic
-pub trait MatchingContext {
+pub trait MatchingContext: Debug {
   /// If there is a matcher defined at the path in this context
   fn matcher_is_defined(&self, path: &DocPath) -> bool;
 
@@ -501,6 +501,7 @@ impl Default for CoreMatchingContext {
 }
 
 impl MatchingContext for CoreMatchingContext {
+  #[instrument]
   fn matcher_is_defined(&self, path: &DocPath) -> bool {
     let path = path.to_vec();
     let path_slice = path.iter().map(|p| p.as_str()).collect_vec();
@@ -1574,6 +1575,7 @@ pub fn match_message_metadata(
   result
 }
 
+#[instrument]
 fn match_metadata_value(
   key: &str,
   expected: &Value,
@@ -1581,9 +1583,9 @@ fn match_metadata_value(
   context: &dyn MatchingContext
 ) -> Result<(), Vec<Mismatch>> {
   debug!("Comparing metadata values for key '{}'", key);
-  let path = DocPath::empty().join(key);
+  let path = DocPath::root().join(key);
   let matcher_result = if context.matcher_is_defined(&path) {
-    matchers::match_values(&path, &context.select_best_matcher(&path), expected, actual)
+    match_values(&path, &context.select_best_matcher(&path), expected, actual)
   } else if key.to_ascii_lowercase() == "contenttype" || key.to_ascii_lowercase() == "content-type" {
     debug!("Comparing message context type '{}' => '{}'", expected, actual);
     headers::match_parameter_header(expected.as_str().unwrap_or_default(),
