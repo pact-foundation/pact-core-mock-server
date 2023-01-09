@@ -29,7 +29,7 @@ ffi_fn! {
   }
 }
 
-/// Enum defining the categories of matching rules
+/// Enum defining the categories that matching rules can be applied to
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum MatchingRuleCategory {
@@ -172,7 +172,7 @@ ffi_fn! {
     ///
     /// # Safety
     ///
-    /// The underlying data is owned by the `MessageMetadataPair`, so is always safe to use.
+    /// The underlying data is owned by the `MatchingRuleKeyValuePair`, so is always safe to use.
     ///
     /// # Error Handling
     ///

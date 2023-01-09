@@ -8,6 +8,7 @@ use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
 use pact_models::v4::message_parts::MessageContents;
 
 use crate::{as_mut, as_ref, ffi_fn, safe_str};
+use crate::models::generators::{GeneratorCategory, GeneratorCategoryIterator};
 use crate::models::matching_rules::{MatchingRuleCategory, MatchingRuleCategoryIterator};
 use crate::models::message::MessageMetadataIterator;
 use crate::string::optional_str;
@@ -295,23 +296,119 @@ ffi_fn! {
     }
 }
 
+ffi_fn! {
+    /// Get an iterator over the generators for a category of a message.
+    ///
+    /// The returned pointer must be deleted with `pactffi_generators_iter_delete` when done
+    /// with it.
+    ///
+    /// # Safety
+    ///
+    /// The iterator contains a copy of the data, so is safe to use when the message or message
+    /// contents has been deleted.
+    ///
+    /// # Error Handling
+    ///
+    /// On failure, this function will return a NULL pointer.
+    fn pactffi_message_contents_get_generators_iter(
+      contents: *const MessageContents,
+      category: GeneratorCategory
+    ) -> *mut GeneratorCategoryIterator {
+        let contents = as_ref!(contents);
+        let iter = GeneratorCategoryIterator::new_from_contents(&contents, category);
+        ptr::raw_to(iter)
+    } {
+        std::ptr::null_mut()
+    }
+}
+
+ffi_fn! {
+    /// Get an iterator over the generators for a category of an HTTP request.
+    ///
+    /// The returned pointer must be deleted with `pactffi_generators_iter_delete` when done
+    /// with it.
+    ///
+    /// # Safety
+    ///
+    /// The iterator contains a copy of the data, so is safe to use when the interaction or request
+    /// contents has been deleted.
+    ///
+    /// # Error Handling
+    ///
+    /// On failure, this function will return a NULL pointer.
+    fn pactffi_request_contents_get_generators_iter(
+      request: *const HttpRequest,
+      category: GeneratorCategory
+    ) -> *mut GeneratorCategoryIterator {
+        let request = as_ref!(request);
+        let iter = GeneratorCategoryIterator::new_from_request(&request, category);
+        ptr::raw_to(iter)
+    } {
+        std::ptr::null_mut()
+    }
+}
+
+ffi_fn! {
+    /// Get an iterator over the generators for a category of an HTTP response.
+    ///
+    /// The returned pointer must be deleted with `pactffi_generators_iter_delete` when done
+    /// with it.
+    ///
+    /// # Safety
+    ///
+    /// The iterator contains a copy of the data, so is safe to use when the interaction or response
+    /// contents has been deleted.
+    ///
+    /// # Error Handling
+    ///
+    /// On failure, this function will return a NULL pointer.
+    fn pactffi_response_contents_get_generators_iter(
+      response: *const HttpResponse,
+      category: GeneratorCategory
+    ) -> *mut GeneratorCategoryIterator {
+        let response = as_ref!(response);
+        let iter = GeneratorCategoryIterator::new_from_response(&response, category);
+        ptr::raw_to(iter)
+    } {
+        std::ptr::null_mut()
+    }
+}
+
 #[cfg(test)]
 mod tests {
   use std::ffi::{CStr, CString};
+
   use bytes::Bytes;
   use expectest::prelude::*;
   use libc::c_char;
   use maplit::hashmap;
+  use pact_models::{generators, matchingrules};
   use pact_models::bodies::OptionalBody;
   use pact_models::content_types::JSON;
-  use pact_models::matchingrules;
   use pact_models::matchingrules::MatchingRule;
+  use pact_models::prelude::Generator;
   use pact_models::v4::message_parts::MessageContents;
   use serde_json::json;
 
-  use crate::models::contents::{pactffi_message_contents_get_contents_str, pactffi_message_contents_get_matching_rule_iter, pactffi_message_contents_get_metadata_iter};
-  use crate::models::matching_rules::{MatchingRuleCategory, pactffi_matching_rule_to_json, pactffi_matching_rules_iter_delete, pactffi_matching_rules_iter_next, pactffi_matching_rules_iter_pair_delete};
-  use crate::models::message::{pactffi_message_metadata_iter_delete, pactffi_message_metadata_iter_next, pactffi_message_metadata_pair_delete};
+  use crate::models::contents::{
+    pactffi_message_contents_get_contents_str,
+    pactffi_message_contents_get_generators_iter,
+    pactffi_message_contents_get_matching_rule_iter,
+    pactffi_message_contents_get_metadata_iter
+  };
+  use crate::models::generators::{GeneratorCategory, pactffi_generator_to_json, pactffi_generators_iter_delete, pactffi_generators_iter_next, pactffi_generators_iter_pair_delete};
+  use crate::models::matching_rules::{
+    MatchingRuleCategory,
+    pactffi_matching_rule_to_json,
+    pactffi_matching_rules_iter_delete,
+    pactffi_matching_rules_iter_next,
+    pactffi_matching_rules_iter_pair_delete
+  };
+  use crate::models::message::{
+    pactffi_message_metadata_iter_delete,
+    pactffi_message_metadata_iter_next,
+    pactffi_message_metadata_pair_delete
+  };
 
   #[test_log::test]
   fn message_contents_feature_test() {
@@ -333,7 +430,12 @@ mod tests {
           "$.b" => [ MatchingRule::Regex("\\d+".to_string()), MatchingRule::Number ]
         }
       },
-      generators: Default::default(),
+      generators: generators! {
+        "BODY" => {
+          "$.a" => Generator::RandomString(10),
+          "$.b" => Generator::RandomHexadecimal(10)
+        }
+      }
     };
     let message_contents_ptr = &message_contents as *const MessageContents;
 
@@ -396,5 +498,29 @@ mod tests {
     expect!(mr_fouth_pair.is_null()).to(be_true());
 
     pactffi_matching_rules_iter_delete(matching_rule_iter_pointer);
+
+    let generator_iter_pointer = pactffi_message_contents_get_generators_iter(message_contents_ptr, GeneratorCategory::BODY);
+    expect!(generator_iter_pointer.is_null()).to(be_false());
+
+    let gen_first_pair = pactffi_generators_iter_next(generator_iter_pointer);
+    expect!(gen_first_pair.is_null()).to(be_false());
+    let path = unsafe { CStr::from_ptr((*gen_first_pair).path) };
+    let generator = unsafe { CString::from_raw(pactffi_generator_to_json((*gen_first_pair).generator) as *mut c_char) };
+    expect!(path.to_string_lossy()).to(be_equal_to("$.a"));
+    expect!(generator.to_string_lossy()).to(be_equal_to("{\"size\":10,\"type\":\"RandomString\"}"));
+    pactffi_generators_iter_pair_delete(gen_first_pair);
+
+    let gen_second_pair = pactffi_generators_iter_next(generator_iter_pointer);
+    expect!(gen_second_pair.is_null()).to(be_false());
+    let path = unsafe { CStr::from_ptr((*gen_second_pair).path) };
+    let generator = unsafe { CString::from_raw(pactffi_generator_to_json((*gen_second_pair).generator) as *mut c_char) };
+    expect!(path.to_string_lossy()).to(be_equal_to("$.b"));
+    expect!(generator.to_string_lossy()).to(be_equal_to("{\"digits\":10,\"type\":\"RandomHexadecimal\"}"));
+    pactffi_generators_iter_pair_delete(gen_second_pair);
+
+    let mr_third_pair = pactffi_generators_iter_next(generator_iter_pointer);
+    expect!(mr_third_pair.is_null()).to(be_true());
+
+    pactffi_generators_iter_delete(generator_iter_pointer);
   }
 }
