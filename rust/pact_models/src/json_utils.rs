@@ -1,12 +1,13 @@
 //! Collection of utilities for working with JSON
 
-use std::collections::{HashMap, BTreeMap};
+use std::collections::{BTreeMap, HashMap};
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 
 use base64::decode;
+use itertools::Itertools;
 use serde::Deserialize;
-use serde_json::{self, Map, Value, json};
+use serde_json::{self, json, Map, Value};
 
 use crate::bodies::OptionalBody;
 use crate::content_types::{ContentType, detect_content_type_from_string};
@@ -125,10 +126,12 @@ pub fn headers_from_json(request: &Value) -> Option<HashMap<String, Vec<String>>
 
 /// Converts the headers map into a JSON struct
 pub fn headers_to_json(headers: &HashMap<String, Vec<String>>) -> Value {
-  json!(headers.iter().fold(BTreeMap::new(), |mut map, kv| {
-    map.insert(kv.0.clone(), Value::String(kv.1.join(", ")));
-    map
-  }))
+  json!(headers.iter()
+    .sorted_by(|(a, _), (b, _)| Ord::cmp(a, b))
+    .fold(BTreeMap::new(), |mut map, kv| {
+      map.insert(kv.0.clone(), Value::String(kv.1.join(", ")));
+      map
+    }))
 }
 
 #[derive(Deserialize)]

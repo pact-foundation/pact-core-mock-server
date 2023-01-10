@@ -172,9 +172,13 @@ pub fn v3_query_from_json(query_json: &Value, spec_version: &PactSpecification) 
 /// Converts a query string structure into a JSON struct
 pub fn query_to_json(query: HashMap<String, Vec<String>>, spec_version: &PactSpecification) -> Value {
   match spec_version {
-    &PactSpecification::V3 | &PactSpecification::V4 => Value::Object(query.iter().map(|(k, v)| {
-      (k.clone(), Value::Array(v.iter().map(|q| Value::String(q.clone())).collect()))}
-    ).collect()),
+    PactSpecification::V3 | PactSpecification::V4 => Value::Object(query
+      .iter()
+      .sorted_by(|(a, _), (b, _)| Ord::cmp(a, b))
+      .map(|(k, v)| {
+        (k.clone(), Value::Array(v.iter().map(|q| Value::String(q.clone())).collect()))
+      })
+      .collect()),
     _ => Value::String(build_query_string(query))
   }
 }

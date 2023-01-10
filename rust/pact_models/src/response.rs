@@ -4,6 +4,7 @@ use std::hash::{Hash, Hasher};
 use std::str::from_utf8;
 
 use base64::encode;
+use itertools::Itertools;
 use maplit::hashmap;
 use serde_json::{json, Value};
 use tracing::warn;
@@ -174,8 +175,8 @@ impl HttpPart for Response {
 impl Hash for Response {
   fn hash<H: Hasher>(&self, state: &mut H) {
     self.status.hash(state);
-    if self.headers.is_some() {
-      for (k, v) in self.headers.clone().unwrap() {
+    if let Some(headers) = &self.headers {
+      for (k, v) in headers.iter().sorted_by(|(a, _), (b, _)| Ord::cmp(a, b)) {
         k.hash(state);
         v.hash(state);
       }

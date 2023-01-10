@@ -84,14 +84,14 @@ impl Hash for Request {
   fn hash<H: Hasher>(&self, state: &mut H) {
     self.method.hash(state);
     self.path.hash(state);
-    if self.query.is_some() {
-      for (k, v) in self.query.clone().unwrap() {
+    if let Some(query) = &self.query {
+      for (k, v) in query.iter().sorted_by(|(a, _), (b, _)| Ord::cmp(a, b)) {
         k.hash(state);
         v.hash(state);
       }
     }
-    if self.headers.is_some() {
-      for (k, v) in self.headers.clone().unwrap() {
+    if let Some(headers) = &self.headers {
+      for (k, v) in headers.iter().sorted_by(|(a, _), (b, _)| Ord::cmp(a, b)) {
         k.hash(state);
         v.hash(state);
       }

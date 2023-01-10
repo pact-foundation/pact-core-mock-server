@@ -7,6 +7,7 @@ use std::hash::{Hash, Hasher};
 
 use base64::decode;
 use bytes::BytesMut;
+use itertools::Itertools;
 use maplit::*;
 use serde_json::{json, Value};
 use tracing::warn;
@@ -90,7 +91,10 @@ impl HttpRequest {
 
       if let Some(ref headers) = self.headers {
         map.insert("headers".to_string(), Value::Object(
-          headers.iter().map(|(k, v)| (k.clone(), json!(v))).collect()
+          headers.iter()
+            .sorted_by(|(a, _), (b, _)| Ord::cmp(a, b))
+            .map(|(k, v)| (k.clone(), json!(v)))
+            .collect()
         ));
       }
 
@@ -146,14 +150,14 @@ impl Hash for HttpRequest {
     self.path.hash(state);
 
     if let Some(ref query) = self.query {
-      for (k, v) in query {
+      for (k, v) in query.iter().sorted_by(|(a, _), (b, _)| Ord::cmp(a, b)) {
         k.hash(state);
         v.hash(state);
       }
     }
 
     if let Some(ref headers) = self.headers {
-      for (k, v) in headers {
+      for (k, v) in headers.iter().sorted_by(|(a, _), (b, _)| Ord::cmp(a, b)) {
         k.hash(state);
         v.hash(state);
       }
@@ -381,7 +385,7 @@ impl Hash for HttpResponse {
     self.status.hash(state);
 
     if let Some(ref headers) = self.headers {
-      for (k, v) in headers {
+      for (k, v) in headers.iter().sorted_by(|(a, _), (b, _)| Ord::cmp(a, b)) {
         k.hash(state);
         v.hash(state);
       }
@@ -420,7 +424,10 @@ impl HttpResponse {
 
       if let Some(ref headers) = self.headers {
         map.insert("headers".to_string(), Value::Object(
-          headers.iter().map(|(k, v)| (k.clone(), json!(v))).collect()
+          headers.iter()
+            .sorted_by(|(a, _), (b, _)| Ord::cmp(a, b))
+            .map(|(k, v)| (k.clone(), json!(v)))
+            .collect()
         ));
       }
 
