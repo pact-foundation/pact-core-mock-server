@@ -162,6 +162,7 @@ pub(crate) fn setup_app() -> Command {
       .help("Sets the HTTP request timeout in milliseconds for requests to the target API and for state change requests."))
     .arg(Arg::new("custom-header")
       .long("header")
+      .short('H')
       .action(ArgAction::Set)
       .action(ArgAction::Append)
       .value_parser(NonEmptyStringValueParser::new())
