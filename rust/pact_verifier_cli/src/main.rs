@@ -11,7 +11,7 @@
 //! The pact verifier is bundled as a single binary executable `pact_verifier_cli`. Running this with out any options displays the standard help.
 //!
 //! ```console,ignore
-//! pact_verifier_cli 0.9.13
+//! pact_verifier_cli 0.9.21
 //! Standalone Pact verifier
 //!
 //! USAGE:
@@ -28,13 +28,17 @@
 //!         --build-url <build-url>
 //!             URL of the build to associate with the published verification results.
 //!
-//!     -c, --filter-consumer <filter-consumer>...
+//!     -c, --filter-consumer <filter-consumer>
 //!             Consumer name to filter the pacts to be verified (can be repeated)
+//!
+//!         --compact-log
+//!             Emit logs optimized for short line lengths.
 //!
 //!         --consumer-version-selectors <consumer-version-selectors>
 //!             Consumer version selectors to use when fetching pacts from the Broker. Accepts a JSON
 //!             string as per
-//!             https://docs.pact.io/pact_broker/advanced_topics/consumer_version_selectors/
+//!             https://docs.pact.io/pact_broker/advanced_topics/consumer_version_selectors/. Can be
+//!             repeated.
 //!
 //!         --consumer-version-tags <consumer-version-tags>
 //!             Consumer tags to use when fetching pacts from the Broker. Accepts comma-separated
@@ -53,26 +57,34 @@
 //!             Pact file to verify (can be repeated)
 //!
 //!         --filter-description <filter-description>
-//!             Only validate interactions whose descriptions match this filter [env: PACT_DESCRIPTION=]
+//!             Only validate interactions whose descriptions match this filter (regex format) [env:
+//!             PACT_DESCRIPTION=]
 //!
 //!         --filter-no-state
 //!             Only validate interactions that have no defined provider state [env:
 //!             PACT_PROVIDER_NO_STATE=]
 //!
 //!         --filter-state <filter-state>
-//!             Only validate interactions whose provider states match this filter [env:
+//!             Only validate interactions whose provider states match this filter (regex format) [env:
 //!             PACT_PROVIDER_STATE=]
+//!
+//!         --full-log
+//!             This emits human-readable, single-line logs for each event that occurs, with the current
+//!             span context displayed before the formatted representation of the event.
 //!
 //!     -h, --hostname <hostname>
 //!             Provider hostname (defaults to localhost)
 //!
-//!         --header <custom-header>...
+//!         --header <custom-header>
 //!             Add a custom header to be included in the calls to the provider. Values must be in the
 //!             form KEY=VALUE, where KEY and VALUE contain ASCII characters (32-127) only. Can be
 //!             repeated.
 //!
 //!         --help
 //!             Print help information
+//!
+//!         --ignore-no-pacts-error
+//!             Do not fail if no pacts are found to verify
 //!
 //!         --include-wip-pacts-since <include-wip-pacts-since>
 //!             Allow pacts that don't match given consumer selectors (or tags) to  be verified, without
@@ -82,7 +94,8 @@
 //!             Generate a JSON report of the verification
 //!
 //!     -l, --loglevel <loglevel>
-//!             Log level (defaults to warn) [possible values: error, warn, info, debug, trace, none]
+//!             Log level to emit log events at (defaults to warn) [possible values: error, warn, info,
+//!             debug, trace, none]
 //!
 //!     -n, --provider-name <provider-name>
 //!             Provider name (defaults to provider)
@@ -95,6 +108,9 @@
 //!
 //!         --password <password>
 //!             Password to use when fetching pacts from URLS [env: PACT_BROKER_PASSWORD=]
+//!
+//!         --pretty-log
+//!             Emits excessively pretty, multi-line logs, optimized for human readability.
 //!
 //!         --provider-branch <provider-branch>
 //!             Provider branch to use when publishing results
@@ -128,6 +144,11 @@
 //!
 //!         --transport <transport>
 //!             Provider protocol transport to use (http, https, grpc, etc.) [default: http]
+//!
+//!         --transports <transports>...
+//!             Allows multiple protocol transports to be configured (http, https, grpc, etc.) with
+//!             their associated port numbers separated by a colon. For example, use --transports
+//!             http:8080 grpc:5555 to configure both.
 //!
 //!     -u, --url <url>
 //!             URL of pact file to verify (can be repeated)
@@ -306,7 +327,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
-use clap::{AppSettings, ArgMatches, ErrorKind};
+use clap::{ArgMatches, ErrorKind};
 use log::{LevelFilter};
 use maplit::hashmap;
 use pact_models::{PACT_RUST_VERSION, PactSpecification};
@@ -340,14 +361,13 @@ pub async fn handle_cli(version: &str) -> Result<(), i32> {
   let program = args[0].clone();
   let app = args::setup_app(program.as_str(), version);
   let matches = app
-    .setting(AppSettings::ArgRequiredElseHelp)
-    .setting(AppSettings::ColoredHelp)
-    .get_matches_safe();
+    .arg_required_else_help(true)
+    .try_get_matches();
 
   match matches {
     Ok(results) => handle_matches(&results).await,
     Err(ref err) => {
-      match err.kind {
+      match err.kind() {
         ErrorKind::DisplayHelp => {
           let _ = err.print();
           Ok(())
@@ -372,14 +392,14 @@ async fn handle_matches(matches: &ArgMatches) -> Result<(), i32> {
   let source = pact_source(matches);
   let filter = interaction_filter(matches);
   let provider_state_executor = Arc::new(HttpRequestProviderStateExecutor {
-    state_change_url: matches.value_of("state-change-url").map(|s| s.to_string()),
-    state_change_body: !matches.is_present("state-change-as-query"),
-    state_change_teardown: matches.is_present("state-change-teardown"),
+    state_change_url: matches.get_one::<String>("state-change-url").cloned(),
+    state_change_body: !matches.get_flag("state-change-as-query"),
+    state_change_teardown: matches.get_flag("state-change-teardown"),
     .. HttpRequestProviderStateExecutor::default()
   });
 
   let mut custom_headers = hashmap!{};
-  if let Some(headers) = matches.values_of("custom-header") {
+  if let Some(headers) = matches.get_many::<String>("custom-header") {
     for header in headers {
       let (key, value) = header.split_once('=').ok_or_else(|| {
         error!("Custom header values must be in the form KEY=VALUE, where KEY and VALUE contain ASCII characters (32-127) only.");
@@ -391,22 +411,21 @@ async fn handle_matches(matches: &ArgMatches) -> Result<(), i32> {
 
   let verification_options = VerificationOptions {
     request_filter: None::<Arc<NullRequestFilterExecutor>>,
-    disable_ssl_verification: matches.is_present("disable-ssl-verification"),
-    request_timeout: matches.value_of("request-timeout")
-      .map(|t| t.parse::<u64>().unwrap_or(5000)).unwrap_or(5000),
+    disable_ssl_verification: matches.get_flag("disable-ssl-verification"),
+    request_timeout: matches.get_one::<u64>("request-timeout").map(|v| *v).unwrap_or(5000),
     custom_headers,
     coloured_output,
-    no_pacts_is_error: !matches.is_present("ignore-no-pacts-error"),
+    no_pacts_is_error: !matches.get_flag("ignore-no-pacts-error"),
     .. VerificationOptions::default()
   };
 
-  let publish_options = if matches.is_present("publish") {
+  let publish_options = if matches.get_flag("publish") {
     Some(PublishOptions {
-      provider_version: matches.value_of("provider-version").map(|v| v.to_string()),
-      build_url: matches.value_of("build-url").map(|v| v.to_string()),
-      provider_tags: matches.values_of("provider-tags")
-        .map_or_else(Vec::new, |tags| tags.map(|tag| tag.to_string()).collect()),
-      provider_branch: matches.value_of("provider-branch").map(|v| v.to_string())
+      provider_version: matches.get_one::<String>("provider-version").cloned(),
+      build_url: matches.get_one::<String>("build-url").cloned(),
+      provider_tags: matches.get_many::<String>("provider-tags")
+        .map_or_else(Vec::new, |tags| tags.map(|tag| tag.clone()).collect()),
+      provider_branch: matches.get_one::<String>("provider-branch").cloned()
     })
   } else {
     None
@@ -436,8 +455,8 @@ async fn handle_matches(matches: &ArgMatches) -> Result<(), i32> {
       2
     })
     .and_then(|result| {
-      if let Some(json_file) = matches.value_of("json-file") {
-        if let Err(err) = write_json_report(&result, json_file) {
+      if let Some(json_file) = matches.get_one::<String>("json-file") {
+        if let Err(err) = write_json_report(&result, json_file.as_str()) {
           error!("Failed to write JSON report to '{json_file}' - {err}");
           return Err(2)
         }
@@ -448,24 +467,24 @@ async fn handle_matches(matches: &ArgMatches) -> Result<(), i32> {
 }
 
 fn setup_output(matches: &ArgMatches) -> bool {
-  let coloured_output = !matches.is_present("no-colour");
-  let level = matches.value_of("loglevel").unwrap_or("warn");
-  let log_level = match level {
+  let coloured_output = !matches.get_flag("no-colour");
+  let level = matches.get_one::<String>("loglevel").cloned().unwrap_or("warn".to_string());
+  let log_level = match level.as_str() {
     "none" => LevelFilter::Off,
-    _ => LevelFilter::from_str(level).unwrap()
+    _ => LevelFilter::from_str(level.as_str()).unwrap()
   };
   let _ = LogTracer::builder()
     .with_max_level(log_level)
     .init();
 
-  if matches.is_present("pretty-log") {
-    setup_pretty_log(level, coloured_output);
-  } else if matches.is_present("full-log") {
-    setup_default_log(level, coloured_output);
-  } else if matches.is_present("compact-log") {
-    setup_compact_log(level, coloured_output);
+  if matches.get_flag("pretty-log") {
+    setup_pretty_log(level.as_str(), coloured_output);
+  } else if matches.get_flag("full-log") {
+    setup_default_log(level.as_str(), coloured_output);
+  } else if matches.get_flag("compact-log") {
+    setup_compact_log(level.as_str(), coloured_output);
   } else {
-    setup_default_log(level, coloured_output);
+    setup_default_log(level.as_str(), coloured_output);
   };
 
   coloured_output
@@ -527,11 +546,11 @@ pub(crate) fn configure_provider(matches: &ArgMatches) -> ProviderInfo {
       }).collect()
     }).unwrap_or_default();
   ProviderInfo {
-    host: matches.value_of("hostname").unwrap_or("localhost").to_string(),
-    port: matches.value_of("port").map(|port| port.parse::<u16>().unwrap()),
-    path: matches.value_of("base-path").unwrap_or("").into(),
-    protocol: matches.value_of("transport").unwrap_or("http").to_string(),
-    name: matches.value_of("provider-name").unwrap_or("provider").to_string(),
+    host: matches.get_one::<String>("hostname").cloned().unwrap_or("localhost".to_string()),
+    port: matches.get_one::<u16>("port").map(|p| *p),
+    path: matches.get_one::<String>("base-path").cloned().unwrap_or_default(),
+    protocol: matches.get_one::<String>("transport").cloned().unwrap_or("http".to_string()),
+    name: matches.get_one::<String>("provider-name").cloned().unwrap_or("provider".to_string()),
     transports,
     ..ProviderInfo::default()
   }
@@ -554,47 +573,46 @@ fn print_version(version: &str) {
 fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
   let mut sources = vec![];
 
-  if let Some(values) = matches.values_of("file") {
-    sources.extend(values.map(|v| PactSource::File(v.to_string())).collect::<Vec<PactSource>>());
+  if let Some(values) = matches.get_many::<String>("file") {
+    sources.extend(values.map(|v| PactSource::File(v.clone())).collect::<Vec<PactSource>>());
   };
 
-  if let Some(values) = matches.values_of("dir") {
-    sources.extend(values.map(|v| PactSource::Dir(v.to_string())).collect::<Vec<PactSource>>());
+  if let Some(values) = matches.get_many::<String>("dir") {
+    sources.extend(values.map(|v| PactSource::Dir(v.clone())).collect::<Vec<PactSource>>());
   };
 
-  if let Some(values) = matches.values_of("url") {
+  if let Some(values) = matches.get_many::<String>("url") {
     sources.extend(values.map(|v| {
-      if matches.is_present("user") {
-        PactSource::URL(v.to_string(), matches.value_of("user").map(|user| {
-          HttpAuth::User(user.to_string(), matches.value_of("password").map(|p| p.to_string()))
-        }))
-      } else if matches.is_present("token") {
-        PactSource::URL(v.to_string(), matches.value_of("token").map(|token| HttpAuth::Token(token.to_string())))
+      if let Some(user) = matches.get_one::<String>("user") {
+        PactSource::URL(v.clone(), Some(HttpAuth::User(user.clone(),
+          matches.get_one::<String>("password").map(|p| p.clone()))))
+      } else if let Some(token) = matches.get_one::<String>("token") {
+        PactSource::URL(v.clone(), Some(HttpAuth::Token(token.clone())))
       } else {
-        PactSource::URL(v.to_string(), None)
+        PactSource::URL(v.clone(), None)
       }
     }).collect::<Vec<PactSource>>());
   };
 
-  if let Some(broker_url) = matches.value_of("broker-url") {
-    let name = matches.value_of("provider-name").map(|n| n.to_string()).unwrap_or_default();
-    let auth = matches.value_of("user").map(|user| {
-      HttpAuth::User(user.to_string(), matches.value_of("password").map(|p| p.to_string()))
-    }).or_else(|| matches.value_of("token").map(|t| HttpAuth::Token(t.to_string())));
+  if let Some(broker_url) = matches.get_one::<String>("broker-url") {
+    let name = matches.get_one::<String>("provider-name").cloned().unwrap_or_default();
+    let auth = matches.get_one::<String>("user").map(|user| {
+      HttpAuth::User(user.clone(), matches.get_one::<String>("password").cloned())
+    }).or_else(|| matches.get_one::<String>("token").map(|t| HttpAuth::Token(t.clone())));
 
-    let source = if matches.is_present("consumer-version-selectors") || matches.is_present("consumer-version-tags") {
-      let pending = matches.is_present("enable-pending");
-      let wip = matches.value_of("include-wip-pacts-since").map(|wip| wip.to_string());
-      let provider_tags = matches.values_of("provider-tags")
-        .map_or_else(Vec::new, |tags| tags.map(|tag| tag.to_string()).collect());
-      let provider_branch = matches.value_of("provider-branch").map(|v| v.to_string());
+    let source = if matches.contains_id("consumer-version-selectors") || matches.contains_id("consumer-version-tags") {
+      let pending = matches.get_flag("enable-pending");
+      let wip = matches.get_one::<String>("include-wip-pacts-since").cloned();
+      let provider_tags = matches.get_many::<String>("provider-tags")
+        .map_or_else(Vec::new, |tags| tags.map(|tag| tag.clone()).collect());
+      let provider_branch = matches.get_one::<String>("provider-branch").cloned();
 
-      let selectors = if matches.is_present("consumer-version-selectors") {
-        matches.values_of("consumer-version-selectors")
-          .map_or_else(Vec::new, |s| json_to_selectors(s.collect::<Vec<_>>()))
-      } else if matches.is_present("consumer-version-tags") {
-        matches.values_of("consumer-version-tags")
-          .map_or_else(Vec::new, |tags| consumer_tags_to_selectors(tags.collect::<Vec<_>>()))
+      let selectors = if matches.contains_id("consumer-version-selectors") {
+        matches.get_many::<String>("consumer-version-selectors")
+          .map_or_else(Vec::new, |s| json_to_selectors(s.map(|v| v.as_str()).collect::<Vec<_>>()))
+      } else if matches.contains_id("consumer-version-tags") {
+        matches.get_many::<String>("consumer-version-tags")
+          .map_or_else(Vec::new, |tags| consumer_tags_to_selectors(tags.map(|v| v.as_str()).collect::<Vec<_>>()))
       } else {
         vec![]
       };
@@ -619,20 +637,20 @@ fn pact_source(matches: &ArgMatches) -> Vec<PactSource> {
 }
 
 fn interaction_filter(matches: &ArgMatches) -> FilterInfo {
-  if matches.is_present("filter-description") &&
-    (matches.is_present("filter-state") || matches.is_present("filter-no-state")) {
-    if matches.is_present("filter-state") {
-      FilterInfo::DescriptionAndState(matches.value_of("filter-description").unwrap().to_string(),
-                                      matches.value_of("filter-state").unwrap().to_string())
+  if matches.contains_id("filter-description") &&
+    (matches.contains_id("filter-state") || matches.get_flag("filter-no-state")) {
+    if let Some(state) = matches.get_one::<String>("filter-state") {
+      FilterInfo::DescriptionAndState(matches.get_one::<String>("filter-description").unwrap().clone(),
+                                      state.clone())
     } else {
-      FilterInfo::DescriptionAndState(matches.value_of("filter-description").unwrap().to_string(),
+      FilterInfo::DescriptionAndState(matches.get_one::<String>("filter-description").unwrap().clone(),
                                       String::new())
     }
-  } else if matches.is_present("filter-description") {
-    FilterInfo::Description(matches.value_of("filter-description").unwrap().to_string())
-  } else if matches.is_present("filter-state") {
-    FilterInfo::State(matches.value_of("filter-state").unwrap().to_string())
-  } else if matches.is_present("filter-no-state") {
+  } else if let Some(desc) = matches.get_one::<String>("filter-description") {
+    FilterInfo::Description(desc.clone())
+  } else if let Some(state) = matches.get_one::<String>("filter-state") {
+    FilterInfo::State(state.clone())
+  } else if matches.get_flag("filter-no-state") {
     FilterInfo::State(String::new())
   } else {
     FilterInfo::None

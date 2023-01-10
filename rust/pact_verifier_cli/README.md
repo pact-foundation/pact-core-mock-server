@@ -11,7 +11,7 @@ The Pact Verifier works by taking all the interactions (requests and responses) 
 The pact verifier is bundled as a single binary executable `pact_verifier_cli`. Running this with out any options displays the standard help.
 
 ```console
-pact_verifier_cli 0.9.13
+pact_verifier_cli 0.9.21
 Standalone Pact verifier
 
 USAGE:
@@ -28,13 +28,17 @@ OPTIONS:
         --build-url <build-url>
             URL of the build to associate with the published verification results.
 
-    -c, --filter-consumer <filter-consumer>...
+    -c, --filter-consumer <filter-consumer>
             Consumer name to filter the pacts to be verified (can be repeated)
+
+        --compact-log
+            Emit logs optimized for short line lengths.
 
         --consumer-version-selectors <consumer-version-selectors>
             Consumer version selectors to use when fetching pacts from the Broker. Accepts a JSON
             string as per
-            https://docs.pact.io/pact_broker/advanced_topics/consumer_version_selectors/
+            https://docs.pact.io/pact_broker/advanced_topics/consumer_version_selectors/. Can be
+            repeated.
 
         --consumer-version-tags <consumer-version-tags>
             Consumer tags to use when fetching pacts from the Broker. Accepts comma-separated
@@ -53,26 +57,34 @@ OPTIONS:
             Pact file to verify (can be repeated)
 
         --filter-description <filter-description>
-            Only validate interactions whose descriptions match this filter [env: PACT_DESCRIPTION=]
+            Only validate interactions whose descriptions match this filter (regex format) [env:
+            PACT_DESCRIPTION=]
 
         --filter-no-state
             Only validate interactions that have no defined provider state [env:
             PACT_PROVIDER_NO_STATE=]
 
         --filter-state <filter-state>
-            Only validate interactions whose provider states match this filter [env:
+            Only validate interactions whose provider states match this filter (regex format) [env:
             PACT_PROVIDER_STATE=]
+
+        --full-log
+            This emits human-readable, single-line logs for each event that occurs, with the current
+            span context displayed before the formatted representation of the event.
 
     -h, --hostname <hostname>
             Provider hostname (defaults to localhost)
 
-        --header <custom-header>...
+        --header <custom-header>
             Add a custom header to be included in the calls to the provider. Values must be in the
             form KEY=VALUE, where KEY and VALUE contain ASCII characters (32-127) only. Can be
             repeated.
 
         --help
             Print help information
+
+        --ignore-no-pacts-error
+            Do not fail if no pacts are found to verify
 
         --include-wip-pacts-since <include-wip-pacts-since>
             Allow pacts that don't match given consumer selectors (or tags) to  be verified, without
@@ -82,7 +94,8 @@ OPTIONS:
             Generate a JSON report of the verification
 
     -l, --loglevel <loglevel>
-            Log level (defaults to warn) [possible values: error, warn, info, debug, trace, none]
+            Log level to emit log events at (defaults to warn) [possible values: error, warn, info,
+            debug, trace, none]
 
     -n, --provider-name <provider-name>
             Provider name (defaults to provider)
@@ -95,6 +108,9 @@ OPTIONS:
 
         --password <password>
             Password to use when fetching pacts from URLS [env: PACT_BROKER_PASSWORD=]
+
+        --pretty-log
+            Emits excessively pretty, multi-line logs, optimized for human readability.
 
         --provider-branch <provider-branch>
             Provider branch to use when publishing results
