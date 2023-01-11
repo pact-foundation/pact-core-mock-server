@@ -7,15 +7,17 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 use expectest::prelude::*;
 use maplit::*;
+use pact_models::pact::read_pact;
+use pact_models::provider_states::ProviderState;
 use reqwest::Client;
 use serde_json::{json, Value};
 
 use pact_consumer::*;
 use pact_consumer::prelude::*;
-use pact_models::pact::read_pact;
-use pact_models::provider_states::ProviderState;
 use pact_verifier::{
   FilterInfo,
   NullRequestFilterExecutor,
@@ -732,7 +734,7 @@ async fn verify_message_pact_with_matching_rules_on_metadata() {
 
       i.response.ok()
         .content_type("application/json")
-        .header("pact-message-metadata", base64::encode(metadata.to_string()))
+        .header("pact-message-metadata", STANDARD.encode(metadata.to_string()))
         .json_body(json_pattern!({
           "testParam1": "value1",
           "testParam2": "value2"

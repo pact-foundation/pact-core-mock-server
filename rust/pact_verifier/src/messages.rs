@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use ansi_term::{ANSIGenericString, Style};
 use ansi_term::Colour::*;
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 use bytes::Bytes;
 use maplit::*;
 use pact_models::bodies::OptionalBody;
@@ -250,7 +252,7 @@ fn extract_metadata(actual_response: &HttpResponse) -> HashMap<String, Value> {
       let json: String = v.first().unwrap_or(&"".to_string()).to_string();
       trace!("found raw metadata from headers: {:?}", json);
 
-      let decoded = base64::decode(&json.as_str()).unwrap_or_default();
+      let decoded = STANDARD.decode(json.as_str()).unwrap_or(Vec::default());
       trace!("have base64 decoded headers: {:?}", decoded);
 
       let metadata: HashMap<String, Value> = serde_json::from_slice(&decoded).unwrap_or_default();

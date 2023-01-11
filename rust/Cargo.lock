@@ -1813,7 +1813,7 @@ dependencies = [
  "ansi_term",
  "anyhow",
  "async-trait",
- "base64 0.20.0",
+ "base64 0.21.0",
  "bytes",
  "difference",
  "env_logger 0.10.0",

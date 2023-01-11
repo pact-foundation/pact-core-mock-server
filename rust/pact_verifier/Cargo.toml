@@ -34,7 +34,7 @@ tokio = { version = "1.23.0", features = ["full"] }
 http = "0.2.8"
 async-trait = "0.1.58"
 thiserror = "1.0.37"
-base64 = "0.20.0"
+base64 = "0.21.0"
 urlencoding = "2.1.2"
 tracing = "0.1.37" # This needs to be the same version across all the libs (i.e. plugin driver and pact ffi)
 tracing-core = "0.1.30"  # This needs to be the same version across all the pact libs (i.e. plugin driver and pact ffi)
