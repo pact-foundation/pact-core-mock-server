@@ -1,5 +1,16 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.3 - Bugfix Release
+
+* 7d84d941 - chore: Upgrade pact_models to 1.0.4 (Ronald Holshausen, Wed Jan 11 14:33:13 2023 +1100)
+* a8abf5df - chore: log spans at trace level to reduce the log entry size at other log levels #243 (Ronald Holshausen, Tue Jan 10 09:00:52 2023 +1100)
+* 2c8467ed - fix: Header matching rules with an index were not being applied #238 (Ronald Holshausen, Mon Jan 9 16:45:51 2023 +1100)
+* 4409441b - fix: Matching rules are not being applied correctly to message metadata #245 (Ronald Holshausen, Mon Jan 9 13:43:41 2023 +1100)
+* 4f786ff4 - fix: support header values that are not well formed #228 (Ronald Holshausen, Wed Jan 4 11:05:45 2023 +1100)
+* 1bdb1054 - chore: Upgrade pact_models to 1.0.3 #239 (Ronald Holshausen, Thu Dec 22 15:37:53 2022 +1100)
+* 3aecb702 - chore: require tracing-subscriber for tests for crates that use pact_models #239 (Ronald Holshausen, Thu Dec 22 14:37:01 2022 +1100)
+* 9c5bc31d - bump version to 1.0.3 (Ronald Holshausen, Mon Dec 19 15:25:33 2022 +1100)
+
 # 1.0.2 - Maintenance Release
 
 * 5fbb0d6a - feat: Upgrade plugin driver to 0.2.2 (supports passing a test context to support generators) (Ronald Holshausen, Fri Dec 16 16:38:03 2022 +1100)
