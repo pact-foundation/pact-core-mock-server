@@ -1,5 +1,23 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.4.0 - Add FFI functions for plugin authors to parse Pact JSON and get matching rules and generators + bugfixes
+
+* fbc4dbe1 - chore: Upgrade pact_verifier to 0.13.20 (Ronald Holshausen, Wed Jan 11 16:06:21 2023 +1100)
+* c1b22f1c - chore: Upgrade pact_matching to 1.0.3 (Ronald Holshausen, Wed Jan 11 15:19:29 2023 +1100)
+* 7d84d941 - chore: Upgrade pact_models to 1.0.4 (Ronald Holshausen, Wed Jan 11 14:33:13 2023 +1100)
+* 3760c2b3 - fix: matcher_from_integration_json in mockserver/bodies.rs doesn't support all MatchingRules #247 (Ronald Holshausen, Wed Jan 11 13:58:33 2023 +1100)
+* a8abf5df - chore: log spans at trace level to reduce the log entry size at other log levels #243 (Ronald Holshausen, Tue Jan 10 09:00:52 2023 +1100)
+* 9494cc7a - feat(FFI): add iterators over the interaction generators (Ronald Holshausen, Mon Jan 9 11:29:55 2023 +1100)
+* 8ed492c3 - feat(FFI): add iterators over the interaction matching rules (Ronald Holshausen, Fri Jan 6 15:18:34 2023 +1100)
+* f67340dc - feat(FFI): Support MessageMetadataIterator with V4 messages (Ronald Holshausen, Fri Jan 6 09:13:53 2023 +1100)
+* 0e158011 - feat(FFI): add FFI functions to get the content opaque pointer (Ronald Holshausen, Thu Jan 5 16:38:55 2023 +1100)
+* 9fea001c - chore(FFI): bump minor version (Ronald Holshausen, Thu Jan 5 16:36:09 2023 +1100)
+* 2b82fb53 - feat(FFI): Add functions to downcast to concrete interaction types (Ronald Holshausen, Thu Jan 5 15:40:54 2023 +1100)
+* bea076b3 - feat(FFI): Add iterator over interactions in Pact model (Ronald Holshausen, Thu Jan 5 14:29:44 2023 +1100)
+* f190bd59 - feat(FFI): add FFI functions to get a Pact consumer and provider (Ronald Holshausen, Thu Jan 5 12:38:56 2023 +1100)
+* 34a67cb9 - fix: when loading pacts from a dir, filter by the provider name #233 (Ronald Holshausen, Wed Jan 4 18:12:28 2023 +1100)
+* 00c77e92 - bump version to 0.3.20 (Ronald Holshausen, Thu Dec 22 15:44:18 2022 +1100)
+
 # 0.3.19 - Fix for V3 Message ignores the interaction ID when loaded from a Pact Broker
 
 * 1bdb1054 - chore: Upgrade pact_models to 1.0.3 #239 (Ronald Holshausen, Thu Dec 22 15:37:53 2022 +1100)
