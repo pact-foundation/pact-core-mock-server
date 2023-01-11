@@ -1,5 +1,18 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.10.0 - Bugfix Release
+
+* fbc4dbe1 - chore: Upgrade pact_verifier to 0.13.20 (Ronald Holshausen, Wed Jan 11 16:06:21 2023 +1100)
+* 7d84d941 - chore: Upgrade pact_models to 1.0.4 (Ronald Holshausen, Wed Jan 11 14:33:13 2023 +1100)
+* 61450a63 - chore: bump minor version (Ronald Holshausen, Tue Jan 10 15:51:15 2023 +1100)
+* a4fc8dc7 - chore: re-organise the CLI options into groups (Ronald Holshausen, Tue Jan 10 15:49:58 2023 +1100)
+* 14e3b8ff - feat: Add short option for custom headers (Ronald Holshausen, Tue Jan 10 15:36:25 2023 +1100)
+* f49462fd - chore: Upgrade Clap to V4 (Ronald Holshausen, Tue Jan 10 15:32:19 2023 +1100)
+* 9694c694 - chore: Resolve all Clap deprecation warnings in preperation to upgrade to Clap 4 (Ronald Holshausen, Tue Jan 10 14:06:38 2023 +1100)
+* 53a622ad - feat: Add options for compact and human formats to the verifier CLI log output (Ronald Holshausen, Mon Jan 9 18:07:19 2023 +1100)
+* 1bdb1054 - chore: Upgrade pact_models to 1.0.3 #239 (Ronald Holshausen, Thu Dec 22 15:37:53 2022 +1100)
+* 2d7367fc - bump version to 0.9.21 (Ronald Holshausen, Mon Dec 19 16:44:00 2022 +1100)
+
 # 0.9.20 - Add user-agent header + Support generators in plugins
 
 * c55a7758 - chore: Upgrade pact_verifier to 0.13.19 (Ronald Holshausen, Mon Dec 19 16:20:24 2022 +1100)
