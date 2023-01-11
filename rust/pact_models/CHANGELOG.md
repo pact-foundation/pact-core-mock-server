@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.4 - Bugfix Release
+
+* 155dae40 - fix: Support RequestResponsePact loading from V4 formatted JSON #246 (Ronald Holshausen, Wed Jan 11 12:32:01 2023 +1100)
+* 4c04cb65 - fix: sort the header and query parameter keys when writing the pact #246 (Ronald Holshausen, Wed Jan 11 10:39:36 2023 +1100)
+* 1cbd7fc6 - bump version to 1.0.4 (Ronald Holshausen, Thu Dec 22 15:00:32 2022 +1100)
+
 # 1.0.3 - Bugfix Release
 
 * 64d500b0 - fix: Message pact was not loading the IDs from the Pact Broker #239 (Ronald Holshausen, Thu Dec 22 14:24:26 2022 +1100)
