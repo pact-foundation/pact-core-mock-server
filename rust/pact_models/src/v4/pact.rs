@@ -221,10 +221,14 @@ impl Pact for V4Pact {
       .flatten()
       .collect();
     let metadata = self.metadata.iter().map(|(k, v)| {
-      match v {
-        Value::Object(map) => Some((k.clone(), map.iter()
-          .map(|(k, v)| (k.clone(), json_to_string(v))).collect())),
-        _ => None
+      if k == "pactSpecification" {
+        Some((k.clone(), btreemap!{"version".to_string() => PactSpecification::V3.version_str()}))
+      } else {
+        match v {
+          Value::Object(map) => Some((k.clone(), map.iter()
+            .map(|(k, v)| (k.clone(), json_to_string(v))).collect())),
+          _ => None
+        }
       }
     }).flatten()
       .collect();

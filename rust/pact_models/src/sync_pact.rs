@@ -163,26 +163,31 @@ impl RequestResponsePact {
   }
 
   /// Creates a `Pact` from a `Value` struct.
-  pub fn from_json(file: &str, pact_json: &Value
-  ) -> anyhow::Result<RequestResponsePact> {
+  pub fn from_json(source: &str, pact_json: &Value) -> anyhow::Result<RequestResponsePact> {
     let metadata = parse_meta_data(pact_json);
-    let spec_version = determine_spec_version(file, &metadata);
+    let spec_version = determine_spec_version(source, &metadata);
 
-    let consumer = match pact_json.get("consumer") {
-      Some(v) => Consumer::from_json(v),
-      None => Consumer { name: "consumer".to_string() }
-    };
-    let provider = match pact_json.get("provider") {
-      Some(v) => Provider::from_json(v),
-      None => Provider { name: "provider".to_string() }
-    };
-    Ok(RequestResponsePact {
-      consumer,
-      provider,
-      interactions: parse_interactions(pact_json, spec_version.clone())?,
-      metadata,
-      specification_version: spec_version,
-    })
+    match spec_version {
+      PactSpecification::V4 => V4Pact::pact_from_json(pact_json, source)
+        .and_then(|pact| pact.as_request_response_pact()),
+      _ => {
+        let consumer = match pact_json.get("consumer") {
+          Some(v) => Consumer::from_json(v),
+          None => Consumer { name: "consumer".to_string() }
+        };
+        let provider = match pact_json.get("provider") {
+          Some(v) => Provider::from_json(v),
+          None => Provider { name: "provider".to_string() }
+        };
+        Ok(RequestResponsePact {
+          consumer,
+          provider,
+          interactions: parse_interactions(pact_json, spec_version.clone())?,
+          metadata,
+          specification_version: spec_version,
+        })
+      }
+    }
   }
 
   /// Creates a BTreeMap of the metadata of this pact.
@@ -397,5 +402,201 @@ impl PactJsonVerifier for RequestResponsePact {
     }
 
     results
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use expectest::prelude::*;
+  use maplit::hashmap;
+  use serde_json::json;
+
+  use crate::sync_pact::RequestResponsePact;
+
+  #[test_log::test]
+  fn convert_from_v4_json() -> anyhow::Result<()> {
+    let pact_json = json!({
+      "consumer": {
+        "name": "convert_from_v4_json_consumer"
+      },
+      "interactions": [
+        {
+          "description": "get data",
+          "key": "585ec0b0a23ba35f",
+          "pending": false,
+          "request": {
+            "method": "GET",
+            "path": "/api/v3/klines",
+            "query": {
+              "interval": [
+                "1w"
+              ],
+              "limit": [
+                "1"
+              ],
+              "symbol": [
+                "LUNCUSDT"
+              ]
+            }
+          },
+          "response": {
+            "body": {
+              "content": [
+                [
+                  1673222400000_u64,
+                  "0.00015856",
+                  "0.00018524",
+                  "0.00015744",
+                  "0.00016610",
+                  "344512338693.26000000",
+                  1673827199999_u64,
+                  "57919636.39781495",
+                  183337,
+                  "165369377629.69000000",
+                  "27805375.21572790",
+                  "0"
+                ]
+              ],
+              "contentType": "application/json",
+              "encoded": false
+            },
+            "headers": {
+              "access-control-allow-methods": [
+                "GET",
+                "HEAD",
+                "OPTIONS"
+              ],
+              "access-control-allow-origin": [
+                "*"
+              ],
+              "cache-control": [
+                "no-cache",
+                "no-store",
+                "must-revalidate"
+              ],
+              "content-length": [
+                "182"
+              ],
+              "content-security-policy": [
+                "default-src 'self'"
+              ],
+              "content-type": [
+                "application/json;charset=UTF-8"
+              ],
+              "date": [
+                "Tue, 10 Jan 2023 06:51:20 GMT"
+              ],
+              "expires": [
+                "0"
+              ],
+              "pragma": [
+                "no-cache"
+              ],
+              "server": [
+                "nginx"
+              ],
+              "strict-transport-security": [
+                "max-age=31536000; includeSubdomains"
+              ],
+              "via": [
+                "1.1 67ea8416eafbda87528a822ad116e5a4.cloudfront.net (CloudFront)"
+              ],
+              "x-amz-cf-id": [
+                "-O1yry-11OB5-w2otAcAEhoL2tIdsF13vYZJtRlBRJkjGqwDgXIPPg=="
+              ],
+              "x-amz-cf-pop": [
+                "MEL50-C2"
+              ],
+              "x-cache": [
+                "Miss from cloudfront"
+              ],
+              "x-content-security-policy": [
+                "default-src 'self'"
+              ],
+              "x-content-type-options": [
+                "nosniff"
+              ],
+              "x-frame-options": [
+                "SAMEORIGIN"
+              ],
+              "x-mbx-used-weight": [
+                "1"
+              ],
+              "x-mbx-used-weight-1m": [
+                "1"
+              ],
+              "x-mbx-uuid": [
+                "f20848fe-bcfe-4ebb-9913-a267a01e706d"
+              ],
+              "x-webkit-csp": [
+                "default-src 'self'"
+              ],
+              "x-xss-protection": [
+                "1; mode=block"
+              ]
+            },
+            "status": 200
+          },
+          "type": "Synchronous/HTTP"
+        }
+      ],
+      "metadata": {
+        "pactRust": {
+          "models": "1.0.4"
+        },
+        "pactSpecification": {
+          "version": "4.0"
+        }
+      },
+      "provider": {
+        "name": "convert_from_v4_json_provider"
+      }
+    });
+    let pact = RequestResponsePact::from_json(&"test", &pact_json)?;
+
+    expect!(pact.consumer.name).to(be_equal_to("convert_from_v4_json_consumer"));
+    expect!(pact.provider.name).to(be_equal_to("convert_from_v4_json_provider"));
+    expect!(pact.interactions.len()).to(be_equal_to(1));
+    let first_interaction = pact.interactions.first().unwrap();
+    expect!(&first_interaction.description).to(be_equal_to("get data"));
+    expect!(&first_interaction.request.method).to(be_equal_to("GET"));
+    expect!(&first_interaction.request.path).to(be_equal_to("/api/v3/klines"));
+    expect!(first_interaction.request.body.is_present()).to(be_false());
+    expect!(first_interaction.request.query.as_ref().unwrap()).to(be_equal_to(&hashmap!{
+      "interval".to_string() => vec!["1w".to_string()],
+      "limit".to_string() => vec!["1".to_string()],
+      "symbol".to_string() => vec!["LUNCUSDT".to_string()]
+    }));
+    expect!(first_interaction.request.headers.clone()).to(be_none());
+    expect!(first_interaction.response.status).to(be_equal_to(200));
+    expect!(&first_interaction.response.body.value_as_string().unwrap()).to(be_equal_to(r#"[[1673222400000,"0.00015856","0.00018524","0.00015744","0.00016610","344512338693.26000000",1673827199999,"57919636.39781495",183337,"165369377629.69000000","27805375.21572790","0"]]"#));
+    expect!(&first_interaction.response.body.content_type().unwrap()).to(be_equal_to("application/json"));
+    expect!(first_interaction.response.headers.as_ref().unwrap()).to(be_equal_to(&hashmap!{
+      "access-control-allow-methods".to_string() => vec!["GET".to_string(), "HEAD".to_string(), "OPTIONS".to_string()],
+      "access-control-allow-origin".to_string() => vec!["*".to_string()],
+      "cache-control".to_string() => vec!["no-cache".to_string(), "no-store".to_string(), "must-revalidate".to_string()],
+      "content-length".to_string() => vec!["182".to_string()],
+      "content-security-policy".to_string() => vec!["default-src 'self'".to_string()],
+      "content-type".to_string() => vec!["application/json;charset=UTF-8".to_string()],
+      "date".to_string() => vec!["Tue, 10 Jan 2023 06:51:20 GMT".to_string()],
+      "expires".to_string() => vec!["0".to_string()],
+      "pragma".to_string() => vec!["no-cache".to_string()],
+      "server".to_string() => vec!["nginx".to_string()],
+      "strict-transport-security".to_string() => vec!["max-age=31536000; includeSubdomains".to_string()],
+      "via".to_string() => vec!["1.1 67ea8416eafbda87528a822ad116e5a4.cloudfront.net (CloudFront)".to_string()],
+      "x-amz-cf-id".to_string() => vec!["-O1yry-11OB5-w2otAcAEhoL2tIdsF13vYZJtRlBRJkjGqwDgXIPPg==".to_string()],
+      "x-amz-cf-pop".to_string() => vec!["MEL50-C2".to_string()],
+      "x-cache".to_string() => vec!["Miss from cloudfront".to_string()],
+      "x-content-security-policy".to_string() => vec!["default-src 'self'".to_string()],
+      "x-content-type-options".to_string() => vec!["nosniff".to_string()],
+      "x-frame-options".to_string() => vec!["SAMEORIGIN".to_string()],
+      "x-mbx-used-weight".to_string() => vec!["1".to_string()],
+      "x-mbx-used-weight-1m".to_string() => vec!["1".to_string()],
+      "x-mbx-uuid".to_string() => vec!["f20848fe-bcfe-4ebb-9913-a267a01e706d".to_string()],
+      "x-webkit-csp".to_string() => vec!["default-src 'self'".to_string()],
+      "x-xss-protection".to_string() => vec!["1; mode=block".to_string()]
+    }));
+
+    Ok(())
   }
 }
