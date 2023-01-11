@@ -1,5 +1,19 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.13.20 - Bugfix Release
+
+* ee69e75c - chore: Upgrade base64 crate (Ronald Holshausen, Wed Jan 11 15:38:21 2023 +1100)
+* c1b22f1c - chore: Upgrade pact_matching to 1.0.3 (Ronald Holshausen, Wed Jan 11 15:19:29 2023 +1100)
+* 7d84d941 - chore: Upgrade pact_models to 1.0.4 (Ronald Holshausen, Wed Jan 11 14:33:13 2023 +1100)
+* a8abf5df - chore: log spans at trace level to reduce the log entry size at other log levels #243 (Ronald Holshausen, Tue Jan 10 09:00:52 2023 +1100)
+* 4409441b - fix: Matching rules are not being applied correctly to message metadata #245 (Ronald Holshausen, Mon Jan 9 13:43:41 2023 +1100)
+* 34a67cb9 - fix: when loading pacts from a dir, filter by the provider name #233 (Ronald Holshausen, Wed Jan 4 18:12:28 2023 +1100)
+* 8216ec76 - feat: always execute provider_states callbacks even when no state is defined (Ronald Holshausen, Tue Jan 3 14:40:45 2023 +1100)
+* 4dbf3026 - chore: Add a verification test for message pact #239 (Ronald Holshausen, Thu Dec 22 15:38:58 2022 +1100)
+* 1bdb1054 - chore: Upgrade pact_models to 1.0.3 #239 (Ronald Holshausen, Thu Dec 22 15:37:53 2022 +1100)
+* 3aecb702 - chore: require tracing-subscriber for tests for crates that use pact_models #239 (Ronald Holshausen, Thu Dec 22 14:37:01 2022 +1100)
+* 24429923 - bump version to 0.13.20 (Ronald Holshausen, Mon Dec 19 16:16:05 2022 +1100)
+
 # 0.13.19 - Add user-agent header + Support generators in plugins
 
 * e827f591 - chore: Upgrade pact_matching to 1.0.2 (Ronald Holshausen, Mon Dec 19 15:30:14 2022 +1100)
