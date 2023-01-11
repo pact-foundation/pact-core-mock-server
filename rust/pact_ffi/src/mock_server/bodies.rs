@@ -1,19 +1,18 @@
 //! Functions to support processing request/response bodies
 
 use std::path::Path;
-use anyhow::anyhow;
 
+use anyhow::anyhow;
 use bytes::Bytes;
 use log::*;
 use maplit::*;
-use serde_json::{Map, Value};
-
 use pact_models::bodies::OptionalBody;
 use pact_models::generators::{Generator, GeneratorCategory, Generators};
 use pact_models::json_utils::{json_to_num, json_to_string};
-use pact_models::matchingrules::{MatchingRule, MatchingRuleCategory, RuleLogic, Category};
+use pact_models::matchingrules::{Category, MatchingRule, MatchingRuleCategory, RuleLogic};
 use pact_models::path_exp::DocPath;
 use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
+use serde_json::{Map, Value};
 
 const CONTENT_TYPE_HEADER: &str = "Content-Type";
 
@@ -159,47 +158,9 @@ pub fn matcher_from_integration_json(m: &Map<String, Value>) -> Option<MatchingR
   match m.get("pact:matcher:type") {
     Some(value) => {
       let val = json_to_string(value);
-      match val.as_str() {
-        "regex" => m.get(&val).map(|s| MatchingRule::Regex(json_to_string(s))),
-        "equality" => Some(MatchingRule::Equality),
-        "include" => m.get("value").map(|s| MatchingRule::Include(json_to_string(s))),
-        "type" => match (json_to_num(m.get("min").cloned()), json_to_num(m.get("max").cloned())) {
-          (Some(min), Some(max)) => Some(MatchingRule::MinMaxType(min, max)),
-          (Some(min), None) => Some(MatchingRule::MinType(min)),
-          (None, Some(max)) => Some(MatchingRule::MaxType(max)),
-          _ => Some(MatchingRule::Type)
-        },
-        "number" => Some(MatchingRule::Number),
-        "integer" => Some(MatchingRule::Integer),
-        "decimal" => Some(MatchingRule::Decimal),
-        "real" => Some(MatchingRule::Decimal),
-        "min" => json_to_num(m.get(&val).cloned()).map(MatchingRule::MinType),
-        "max" => json_to_num(m.get(&val).cloned()).map(MatchingRule::MaxType),
-        "timestamp" => m.get("format").or_else(|| m.get(&val)).map(|s| MatchingRule::Timestamp(json_to_string(s))),
-        "date" => m.get("format").or_else(|| m.get(&val)).map(|s| MatchingRule::Date(json_to_string(s))),
-        "time" => m.get("format").or_else(|| m.get(&val)).map(|s| MatchingRule::Time(json_to_string(s))),
-        "null" => Some(MatchingRule::Null),
-        "values" => Some(MatchingRule::Values),
-        "contentType" => m.get("value").map(|s| MatchingRule::ContentType(json_to_string(s))),
-        "arrayContains" => match m.get("variants") {
-          Some(Value::Array(variants)) => {
-            let values = variants.iter().enumerate().map(|(index, variant)| {
-              let mut category = MatchingRuleCategory::empty("body");
-              let mut generators = Generators::default();
-              match variant {
-                Value::Object(map) => {
-                  process_object(map, &mut category, &mut generators, DocPath::root(), false);
-                }
-                _ => warn!("arrayContains: JSON for variant {} is not correctly formed: {}", index, variant)
-              }
-              (index, category, generators.categories.get(&GeneratorCategory::BODY).cloned().unwrap_or_default())
-            }).collect();
-            Some(MatchingRule::ArrayContains(values))
-          }
-          _ => None
-        }
-        _ => None
-      }
+      MatchingRule::create(val.as_str(), &Value::Object(m.clone()))
+        .map_err(|err| error!("Failed to create matching rule from JSON '{:?}': {}", m, err))
+        .ok()
     },
     _ => None
   }
@@ -311,15 +272,16 @@ fn format_multipart_error(e: std::io::Error) -> String {
 
 #[cfg(test)]
 mod test {
-  use expectest::prelude::{be_equal_to, expect};
-  use serde_json::json;
-
-  use pact_models::{generators, matchingrules_list};
+  use expectest::prelude::*;
+  use pact_models::{generators, HttpStatus, matchingrules_list};
   use pact_models::generators::{Generator, Generators};
   use pact_models::matchingrules::{MatchingRule, MatchingRuleCategory};
+  use pact_models::matchingrules::expressions::{MatchingRuleDefinition, ValueType};
   use pact_models::path_exp::DocPath;
+  use serde_json::{json, Map};
 
-  use crate::mock_server::bodies::process_object;
+  #[allow(deprecated)]
+  use crate::mock_server::bodies::{matcher_from_integration_json, process_object};
 
   #[test]
   fn process_object_with_normal_json_test() {
@@ -508,5 +470,141 @@ mod test {
       "$.price" => [ MatchingRule::Decimal ]
     }));
     expect!(generators).to(be_equal_to(Generators::default()));
+  }
+
+  #[test_log::test]
+  #[allow(deprecated)]
+  fn matcher_from_integration_json_test() {
+    expect!(matcher_from_integration_json(&Map::default())).to(be_none());
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "Other" }).as_object().unwrap()))
+      .to(be_none());
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "regex" }).as_object().unwrap()))
+      .to(be_none());
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "regex", "regex": "[a-z]" }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::Regex("[a-z]".to_string())));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "equality" }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::Equality));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "include" }).as_object().unwrap()))
+      .to(be_none());
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "include", "value": "[a-z]" }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::Include("[a-z]".to_string())));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "type" }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::Type));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "type", "min": 100 }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::MinType(100)));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "type", "max": 100 }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::MaxType(100)));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "type", "min": 10, "max": 100 }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::MinMaxType(10, 100)));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "number" }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::Number));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "integer" }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::Integer));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "decimal" }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::Decimal));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "real" }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::Decimal));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "min" }).as_object().unwrap()))
+      .to(be_none());
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "min", "min": 100 }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::MinType(100)));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "max" }).as_object().unwrap()))
+      .to(be_none());
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "max", "max": 100 }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::MaxType(100)));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "timestamp" }).as_object().unwrap()))
+      .to(be_none());
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "timestamp", "format": "yyyy-MM-dd" }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::Timestamp("yyyy-MM-dd".to_string())));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "timestamp", "timestamp": "yyyy-MM-dd" }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::Timestamp("yyyy-MM-dd".to_string())));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "datetime" }).as_object().unwrap()))
+      .to(be_none());
+    // expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "datetime", "format": "yyyy-MM-dd" }).as_object().unwrap()))
+    //   .to(be_some().value(MatchingRule::Timestamp("yyyy-MM-dd".to_string())));
+    // expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "datetime", "datetime": "yyyy-MM-dd" }).as_object().unwrap()))
+    //   .to(be_some().value(MatchingRule::Timestamp("yyyy-MM-dd".to_string())));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "date" }).as_object().unwrap()))
+      .to(be_none());
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "date", "format": "yyyy-MM-dd" }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::Date("yyyy-MM-dd".to_string())));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "date", "date": "yyyy-MM-dd" }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::Date("yyyy-MM-dd".to_string())));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "time" }).as_object().unwrap()))
+      .to(be_none());
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "time", "format": "yyyy-MM-dd" }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::Time("yyyy-MM-dd".to_string())));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "time", "time": "yyyy-MM-dd" }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::Time("yyyy-MM-dd".to_string())));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "null" }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::Null));
+
+    // V4 matching rules
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "boolean" }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::Boolean));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "contentType" }).as_object().unwrap()))
+      .to(be_none());
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "contentType", "value": "text/plain" }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::ContentType("text/plain".to_string())));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "content-type" }).as_object().unwrap()))
+      .to(be_none());
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "content-type", "value": "text/plain" }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::ContentType("text/plain".to_string())));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "arrayContains" }).as_object().unwrap()))
+      .to(be_none());
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "arrayContains", "variants": "text" }).as_object().unwrap()))
+      .to(be_none());
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "arrayContains", "variants": [] }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::ArrayContains(vec![])));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "array-contains" }).as_object().unwrap()))
+      .to(be_none());
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "array-contains", "variants": "text" }).as_object().unwrap()))
+      .to(be_none());
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "array-contains", "variants": [] }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::ArrayContains(vec![])));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "values" }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::Values));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "statusCode" }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::StatusCode(HttpStatus::Success)));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "statusCode", "status": [200] }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::StatusCode(HttpStatus::StatusCodes(vec![200]))));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "status-code" }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::StatusCode(HttpStatus::Success)));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "status-code", "status": "success" }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::StatusCode(HttpStatus::Success)));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "notEmpty" }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::NotEmpty));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "not-empty" }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::NotEmpty));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "semver" }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::Semver));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "eachKey" }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::EachKey(MatchingRuleDefinition {
+        value: "".to_string(),
+        value_type: ValueType::Unknown,
+        rules: vec![],
+        generator: None,
+      })));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "each-key" }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::EachKey(MatchingRuleDefinition {
+        value: "".to_string(),
+        value_type: ValueType::Unknown,
+        rules: vec![],
+        generator: None,
+      })));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "eachValue" }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::EachValue(MatchingRuleDefinition {
+        value: "".to_string(),
+        value_type: ValueType::Unknown,
+        rules: vec![],
+        generator: None,
+      })));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "each-value" }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::EachValue(MatchingRuleDefinition {
+        value: "".to_string(),
+        value_type: ValueType::Unknown,
+        rules: vec![],
+        generator: None,
+      })));
   }
 }
