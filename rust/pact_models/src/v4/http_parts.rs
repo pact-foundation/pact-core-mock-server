@@ -249,7 +249,7 @@ pub fn body_from_json(json: &Value, attr_name: &str, headers: &Option<HashMap<St
 
             let (encoded, encoding) = match body_attrs.get("encoded") {
               Some(v) => match *v {
-                Value::String(ref s) => (true, s.clone()),
+                Value::String(ref s) => (true, s.to_lowercase()),
                 Value::Bool(b) => (b, Default::default()),
                 _ => (true, v.to_string())
               },
@@ -279,16 +279,22 @@ pub fn body_from_json(json: &Value, attr_name: &str, headers: &Option<HashMap<St
                   match decode(json_to_string(body_contents)) {
                     Ok(bytes) => bytes,
                     Err(err) => {
-                      warn!("Failed to decode base64 encoded body - {}", err);
+                      warn!("Failed to decode base64 encoded body, will use the raw body - {}", err);
                       json_to_string(body_contents).into()
                     }
                   }
                 },
-                "json" => body_contents.to_string().into(),
+                "json" => json_to_string(body_contents).into(),
                 _ => {
                   warn!("Unrecognised body encoding scheme '{}', will use the raw body", encoding);
                   json_to_string(body_contents).into()
                 }
+              }
+            } else if let Some(ct) = &content_type {
+              if ct.is_json() {
+                body_contents.to_string().into()
+              } else {
+                json_to_string(body_contents).into()
               }
             } else {
               json_to_string(body_contents).into()
@@ -891,7 +897,7 @@ mod tests {
   fn body_from_json_returns_the_a_json_formatted_body_if_the_body_is_a_string_and_encoding_is_json() {
     let json = json!({
       "body": {
-        "content": "This is actually a JSON string",
+        "content": "\"This is actually a JSON string\"",
         "contentType": "application/json",
         "encoded": "json"
       }
@@ -907,12 +913,12 @@ mod tests {
       "query": "",
       "headers": {"Content-Type": "application/json"},
       "body": {
-        "content": "{\"test\":true}"
+        "content": "This is actually a JSON string"
       }
     });
     let headers = headers_from_json(&json);
     let body = body_from_json(&json, "body", &headers);
-    expect!(body).to(be_equal_to(OptionalBody::Present("{\"test\":true}".into(), Some("application/json".into()), None)));
+    expect!(body).to(be_equal_to(OptionalBody::Present("\"This is actually a JSON string\"".into(), Some("application/json".into()), None)));
   }
 
   #[test]
