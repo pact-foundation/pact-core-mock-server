@@ -913,12 +913,12 @@ mod tests {
       "query": "",
       "headers": {"Content-Type": "application/json"},
       "body": {
-        "content": "This is actually a JSON string"
+        "content": "\"This is actually a JSON string\""
       }
     });
     let headers = headers_from_json(&json);
     let body = body_from_json(&json, "body", &headers);
-    expect!(body).to(be_equal_to(OptionalBody::Present("\"This is actually a JSON string\"".into(), Some("application/json".into()), None)));
+    expect!(body).to(be_equal_to(OptionalBody::Present("\"\\\"This is actually a JSON string\\\"\"".into(), Some("application/json".into()), None)));
   }
 
   #[test]
