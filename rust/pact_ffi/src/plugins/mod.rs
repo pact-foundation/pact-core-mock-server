@@ -213,6 +213,7 @@ pub extern fn pactffi_interaction_contents(
             let message = interaction.as_v4_async_message_mut().unwrap();
             if let Some(contents) = contents.first() {
               message.contents.contents = contents.body.clone();
+              message.contents.metadata = contents.metadata.clone().unwrap_or_default();
               if let Some(rules) = &contents.rules {
                 message.contents.matching_rules.add_rules("body", rules.clone());
               }
@@ -233,6 +234,7 @@ pub extern fn pactffi_interaction_contents(
 
             if let Some(contents) = &contents.iter().find(|c| c.part_name == "request") {
               message.request.contents = contents.body.clone();
+              message.request.metadata = contents.metadata.clone().unwrap_or_default();
               if let Some(rules) = &contents.rules {
                 message.request.matching_rules.add_rules("body", rules.clone());
               }
