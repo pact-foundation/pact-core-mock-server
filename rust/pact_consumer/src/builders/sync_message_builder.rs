@@ -309,11 +309,7 @@ impl SyncMessageInteractionBuilder {
         part_name: "response".to_string(),
         body: message_body.clone(),
         rules: if rules.is_not_empty() { Some(rules) } else { None },
-        generators: None,
-        metadata: None,
-        plugin_config: Default::default(),
-        interaction_markup: "".to_string(),
-        interaction_markup_type: "".to_string()
+        .. InteractionContents::default()
       });
     }
     self

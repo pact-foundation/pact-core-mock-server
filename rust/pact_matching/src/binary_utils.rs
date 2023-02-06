@@ -3,6 +3,8 @@ use std::convert::TryInto;
 use std::str::from_utf8;
 
 use anyhow::anyhow;
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64;
 use bytes::{Buf, Bytes};
 use http::header::{HeaderMap, HeaderName};
 use onig::Regex;
@@ -38,7 +40,7 @@ pub fn match_content_type<S>(data: &[u8], expected_content_type: S) -> anyhow::R
 
 pub fn convert_data(data: &Value) -> Vec<u8> {
   match data {
-    Value::String(s) => base64::decode(s.as_str()).unwrap_or_else(|_| s.clone().into_bytes()),
+    Value::String(s) => BASE64.decode(s.as_str()).unwrap_or_else(|_| s.clone().into_bytes()),
     _ => data.to_string().into_bytes()
   }
 }
