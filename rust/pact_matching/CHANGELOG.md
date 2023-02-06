@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.4 - Support matching rules for message metadata
+
+* 0b70060f - chore: Upgrade pact-plugin-driver and base64 crates (supports message metadata) (Ronald Holshausen, Mon Feb 6 14:56:29 2023 +1100)
+* 1acacffd - bump version to 1.0.4 (Ronald Holshausen, Wed Jan 11 14:55:00 2023 +1100)
+
 # 1.0.3 - Bugfix Release
 
 * 7d84d941 - chore: Upgrade pact_models to 1.0.4 (Ronald Holshausen, Wed Jan 11 14:33:13 2023 +1100)
