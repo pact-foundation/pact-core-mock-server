@@ -136,7 +136,7 @@ lazy_static! {
 
 /// This sends anonymous metrics to a Google Analytics account. It is used to track usage of
 /// Pact library and operating system versions. This can be disabled by setting the
-/// `pact_do_not_track` environment variable to `true`.
+/// `PACT_DO_NOT_TRACK` environment variable to `true`.
 ///
 /// This function needs to run in the context of a Tokio runtime.
 pub fn send_metrics(event: MetricEvent) {
@@ -154,7 +154,7 @@ pub fn send_metrics(event: MetricEvent) {
 
 /// This sends anonymous metrics to a Google Analytics account. It is used to track usage of
 /// Pact library and operating system versions. This can be disabled by setting the
-/// `pact_do_not_track` environment variable to `true`.
+/// `PACT_DO_NOT_TRACK` environment variable to `true`.
 pub async fn send_metrics_async(event: MetricEvent) {
   if do_not_track() {
     debug!("'PACT_DO_NOT_TRACK' environment variable is set, will not send metrics");
