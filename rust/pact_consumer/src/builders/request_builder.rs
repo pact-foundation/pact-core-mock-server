@@ -183,7 +183,9 @@ impl RequestBuilder {
                   debug!("Interaction contents = {:?}", contents);
                   debug!("Interaction plugin_config = {:?}", plugin_config);
 
-                  if let Some(contents) = contents.first() {
+                  if let Some(contents) = contents.iter()
+                    .filter(|interaction| interaction.part_name == "request")
+                    .next() {
                     request.body = contents.body.clone();
                     if !request.has_header("content-type") {
                       request.add_header("content-type", vec![content_type.to_string().as_str()]);
