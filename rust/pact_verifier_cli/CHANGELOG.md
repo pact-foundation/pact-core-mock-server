@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.10.1 - Minatenance Release (supports message metadata)
+
+* fa45296c - chore: Update pact_verifier to 0.13.21 (Ronald Holshausen, Fri Feb 10 13:37:48 2023 +1100)
+* e6bf4aad - bump version to 0.10.1 (Ronald Holshausen, Wed Jan 11 16:12:48 2023 +1100)
+
 # 0.10.0 - Bugfix Release
 
 * fbc4dbe1 - chore: Upgrade pact_verifier to 0.13.20 (Ronald Holshausen, Wed Jan 11 16:06:21 2023 +1100)
