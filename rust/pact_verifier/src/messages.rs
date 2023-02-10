@@ -335,7 +335,7 @@ pub(crate) async fn verify_sync_message_from_provider<'a, F: RequestFilterExecut
           .. SynchronousMessage::default()
         };
 
-        debug!("actual message = {:?}", actual);
+        debug!("actual synchronous message = {:?}", actual);
 
         let mismatches = match_sync_message_response(&message, &message.response, &actual.response, pact).await;
         if mismatches.is_empty() {

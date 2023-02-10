@@ -1324,15 +1324,25 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
       }
     };
 
-    // TODO: Update this to use V4 models
-    if let Some(interaction) = interaction.as_request_response() {
-      process_request_response_result(&interaction, &match_result, &mut output, options.coloured_output);
-    }
-    if let Some(interaction) = interaction.as_message() {
-      process_message_result(&interaction, &match_result, &mut output, options.coloured_output);
-    }
-    if let Some(interaction) = interaction.as_v4_sync_message() {
-      process_sync_message_result(&interaction, &match_result, &mut output, options.coloured_output);
+    let verification_from_plugin = interaction.as_v4()
+        .and_then(|i| i.transport())
+        .and_then(|t| catalogue_manager::lookup_entry(&*format!("transport/{}", t)))
+        .and_then(|entry| Some(entry.provider_type == CatalogueEntryProviderType::PLUGIN))
+        .unwrap_or(false);
+
+    if !verification_from_plugin {
+      // Plugins should provide verification output, so we can skip this bit if a plugin was used
+
+      // TODO: Update this to use V4 models
+      if let Some(interaction) = interaction.as_request_response() {
+        process_request_response_result(&interaction, &match_result, &mut output, options.coloured_output);
+      }
+      if let Some(interaction) = interaction.as_message() {
+        process_message_result(&interaction, &match_result, &mut output, options.coloured_output);
+      }
+      if let Some(interaction) = interaction.as_v4_sync_message() {
+        process_sync_message_result(&interaction, &match_result, &mut output, options.coloured_output);
+      }
     }
 
     match match_result {
