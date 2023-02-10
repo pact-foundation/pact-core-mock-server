@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.13.21 - Bugfix Release
+
+* 0a248af1 - fix: Verification output comes from the plugin, so do not display any when a plugin is used (Ronald Holshausen, Fri Feb 10 12:46:13 2023 +1100)
+* 1e7331f1 - fix: Upgrade plugin driver to 0.3.1 (Ronald Holshausen, Wed Feb 8 13:28:07 2023 +1100)
+* 0f4178e5 - chore: Upgrade pact_matching to 1.0.4 (Ronald Holshausen, Mon Feb 6 15:40:43 2023 +1100)
+* 0b70060f - chore: Upgrade pact-plugin-driver and base64 crates (supports message metadata) (Ronald Holshausen, Mon Feb 6 14:56:29 2023 +1100)
+* 6e41c5ee - bump version to 0.13.21 (Ronald Holshausen, Wed Jan 11 15:42:41 2023 +1100)
+
 # 0.13.20 - Bugfix Release
 
 * ee69e75c - chore: Upgrade base64 crate (Ronald Holshausen, Wed Jan 11 15:38:21 2023 +1100)
