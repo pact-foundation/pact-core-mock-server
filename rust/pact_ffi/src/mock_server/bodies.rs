@@ -8,7 +8,7 @@ use log::*;
 use maplit::*;
 use pact_models::bodies::OptionalBody;
 use pact_models::generators::{Generator, GeneratorCategory, Generators};
-use pact_models::json_utils::{json_to_num, json_to_string};
+use pact_models::json_utils::json_to_string;
 use pact_models::matchingrules::{Category, MatchingRule, MatchingRuleCategory, RuleLogic};
 use pact_models::path_exp::DocPath;
 use pact_models::v4::http_parts::{HttpRequest, HttpResponse};

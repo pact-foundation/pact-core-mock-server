@@ -183,7 +183,7 @@ ffi_fn! {
 
         ptr::raw_to(mismatches) as *const Mismatches
     } {
-        ptr::null_to::<Mismatches>() as *const Mismatches
+        std::ptr::null() as *const Mismatches
     }
 }
 
@@ -194,7 +194,7 @@ ffi_fn! {
         let iter = MismatchesIterator { current: 0, mismatches };
         ptr::raw_to(iter)
     } {
-        ptr::null_mut_to::<MismatchesIterator>()
+        std::ptr::null_mut()
     }
 }
 
@@ -237,7 +237,7 @@ ffi_fn! {
         let json = mismatch.to_json().to_string();
         string::to_c(&json)? as *const c_char
     } {
-        ptr::null_to::<c_char>()
+        std::ptr::null()
     }
 }
 
@@ -248,7 +248,7 @@ ffi_fn! {
         let t = mismatch.mismatch_type();
         string::to_c(t)? as *const c_char
     } {
-        ptr::null_to::<c_char>()
+        std::ptr::null()
     }
 }
 
@@ -259,7 +259,7 @@ ffi_fn! {
         let summary = mismatch.summary();
         string::to_c(&summary)? as *const c_char
     } {
-        ptr::null_to::<c_char>()
+        std::ptr::null()
     }
 }
 
@@ -270,7 +270,7 @@ ffi_fn! {
         let description = mismatch.description();
         string::to_c(&description)? as *const c_char
     } {
-        ptr::null_to::<c_char>()
+        std::ptr::null()
     }
 }
 
@@ -281,7 +281,7 @@ ffi_fn! {
         let ansi_description = mismatch.ansi_description();
         string::to_c(&ansi_description)? as *const c_char
     } {
-        ptr::null_to::<c_char>()
+        std::ptr::null()
     }
 }
 
