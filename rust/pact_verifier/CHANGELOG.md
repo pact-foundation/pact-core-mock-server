@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.14.0 - Bugfix Release
+
+* c368c651 - fix: Pass any custom header values on to the plugin verification call (Ronald Holshausen, Thu Feb 16 13:52:03 2023 +1100)
+* 0676047e - chore: Upgrade pact-plugin-driver to 0.3.2 (Ronald Holshausen, Thu Feb 16 12:09:46 2023 +1100)
+* 8ad10cc2 - bump version to 0.13.22 (Ronald Holshausen, Fri Feb 10 13:27:34 2023 +1100)
+
 # 0.13.21 - Bugfix Release
 
 * 0a248af1 - fix: Verification output comes from the plugin, so do not display any when a plugin is used (Ronald Holshausen, Fri Feb 10 12:46:13 2023 +1100)
