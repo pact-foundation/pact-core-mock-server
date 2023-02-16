@@ -5,8 +5,9 @@ use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use bytes::Bytes;
+use itertools::Either;
 use maplit::*;
-use pact_plugin_driver::verification::InteractionVerificationData;
 use serde_json::{json, Value};
 
 use pact_models::bodies::OptionalBody;
@@ -23,7 +24,11 @@ pub trait RequestFilterExecutor: Debug {
   fn call(self: Arc<Self>, request: &HttpRequest) -> HttpRequest;
 
   /// Callback to mutate request data. This form is used by plugins.
-  fn call_non_http(&self, request: &InteractionVerificationData) -> InteractionVerificationData;
+  fn call_non_http(
+    &self,
+    request_body: &OptionalBody,
+    metadata: &HashMap<String, Either<Value, Bytes>>
+  ) -> (OptionalBody, HashMap<String, Either<Value, Bytes>>);
 }
 
 /// A "null" request filter executor, which does nothing, but permits
@@ -41,7 +46,11 @@ impl RequestFilterExecutor for NullRequestFilterExecutor {
     unimplemented!("NullRequestFilterExecutor should never be called")
   }
 
-  fn call_non_http(&self, _request: &InteractionVerificationData) -> InteractionVerificationData {
+  fn call_non_http(
+    &self,
+    _body: &OptionalBody,
+    _metadata: &HashMap<String, Either<Value, Bytes>>
+  ) -> (OptionalBody, HashMap<String, Either<Value, Bytes>>) {
     unimplemented!("NullRequestFilterExecutor should never be called")
   }
 }

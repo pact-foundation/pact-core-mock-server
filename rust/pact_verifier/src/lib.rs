@@ -17,7 +17,7 @@ use anyhow::anyhow;
 use futures::stream::StreamExt;
 use http::{header, HeaderMap};
 use http::header::HeaderName;
-use itertools::Itertools;
+use itertools::{Either, Itertools};
 use maplit::*;
 use pact_models::generators::GeneratorTestMode;
 use pact_models::http_utils::HttpAuth;
@@ -31,7 +31,7 @@ use pact_plugin_driver::{catalogue_manager, plugin_manager};
 use pact_plugin_driver::catalogue_manager::{CatalogueEntry, CatalogueEntryProviderType};
 use pact_plugin_driver::plugin_manager::{load_plugin, shutdown_plugins};
 use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
-use pact_plugin_driver::verification::InteractionVerificationDetails;
+use pact_plugin_driver::verification::{InteractionVerificationData, InteractionVerificationDetails};
 use regex::Regex;
 use reqwest::Client;
 use serde_json::{json, Value};
@@ -457,23 +457,36 @@ async fn verify_interaction_using_transport<'a, F: RequestFilterExecutor>(
 
         // Get plugin to prepare the request data
         let interaction = &*interaction.as_v4().unwrap();
-        let request_data = plugin_manager::prepare_validation_for_interaction(transport_entry, &pact,
+        let InteractionVerificationData { request_data, mut metadata } = plugin_manager::prepare_validation_for_interaction(transport_entry, &pact,
           interaction, &context)
           .await
           .map_err(|err| {
             (MismatchResult::Error(format!("Failed to prepare interaction for verification - {err}"), interaction.id()), vec![])
           })?;
 
+        // If any custom headers have been setup, add them to the metadata
+        if !options.custom_headers.is_empty() {
+          for (key, val) in &options.custom_headers {
+            metadata.insert(key.clone(), Either::Left(Value::String(val.to_string())));
+          }
+        }
+
         // Invoke any callback to mutate the data
-        let request = if let Some(filter) = &options.request_filter {
+        let (request_body, request_metadata) = if let Some(filter) = &options.request_filter {
           info!("Invoking request filter for request data");
-          filter.call_non_http(&request_data)
+          filter.call_non_http(&request_data, &metadata)
         } else {
-          request_data.clone()
+          (request_data.clone(), metadata.clone())
         };
 
         // Get the plugin to verify the request
-        match plugin_manager::verify_interaction(transport_entry, &request, &context, &pact, interaction).await {
+        match plugin_manager::verify_interaction(
+          transport_entry,
+          &InteractionVerificationData::new(request_body, request_metadata),
+          &context,
+          &pact,
+          interaction
+        ).await {
           Ok(result) => if result.ok {
             Ok((interaction.id(), result.output))
           } else {
