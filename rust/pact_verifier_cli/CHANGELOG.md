@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.10.2 - Bugfix Release
+
+* c368c651 - fix: Pass any custom header values on to the plugin verification call (Ronald Holshausen, Thu Feb 16 13:52:03 2023 +1100)
+* a62bb14f - chore: correct changelog (Ronald Holshausen, Fri Feb 10 14:16:35 2023 +1100)
+* 88f263d0 - bump version to 0.10.2 (Ronald Holshausen, Fri Feb 10 14:11:17 2023 +1100)
+
 # 0.10.1 - Maintenance Release (supports message metadata)
 
 * fa45296c - chore: Update pact_verifier to 0.13.21 (Ronald Holshausen, Fri Feb 10 13:37:48 2023 +1100)
