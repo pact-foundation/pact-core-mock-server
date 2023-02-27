@@ -3,6 +3,7 @@ use std::env;
 use std::panic::catch_unwind;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::anyhow;
 use async_trait::async_trait;
@@ -114,7 +115,14 @@ fn if_no_consumer_filter_is_defined_returns_true() {
 #[test]
 fn if_a_consumer_filter_is_defined_returns_false_if_the_consumer_name_does_not_match() {
   let consumers = vec!["fred".to_string(), "joe".to_string()];
-  let result = Ok((Box::new(RequestResponsePact { consumer: Consumer { name: "bob".to_string() }, .. RequestResponsePact::default() }) as Box<dyn Pact + Send + Sync>, None, PactSource::Unknown));
+  let result = Ok((
+    Box::new(RequestResponsePact {
+      consumer: Consumer { name: "bob".to_string() }, .. RequestResponsePact::default()
+    }) as Box<dyn Pact + Send + Sync>,
+    None,
+    PactSource::Unknown,
+    Duration::default()
+  ));
   expect!(filter_consumers(&consumers, &result)).to(be_false());
 }
 
@@ -128,7 +136,14 @@ fn if_a_consumer_filter_is_defined_returns_true_if_the_result_is_an_error() {
 #[test]
 fn if_a_consumer_filter_is_defined_returns_true_if_the_consumer_name_does_match() {
   let consumers = vec!["fred".to_string(), "joe".to_string(), "bob".to_string()];
-  let result = Ok((Box::new(RequestResponsePact { consumer: Consumer { name: "bob".to_string() }, .. RequestResponsePact::default() }) as Box<dyn Pact + Send + Sync>, None, PactSource::Unknown));
+  let result = Ok((
+    Box::new(RequestResponsePact {
+      consumer: Consumer { name: "bob".to_string() }, .. RequestResponsePact::default()
+    }) as Box<dyn Pact + Send + Sync>,
+    None,
+    PactSource::Unknown,
+    Duration::default()
+  ));
   expect!(filter_consumers(&consumers, &result)).to(be_true());
 }
 
@@ -498,7 +513,7 @@ async fn test_fetch_pact_from_url_with_links() {
   let result = super::fetch_pact(PactSource::URL(url.to_string(), None), &provider).await;
 
   let first_result = result.get(0).unwrap().as_ref();
-  let (_, _, source) = &first_result.clone().unwrap();
+  let (_, _, source, _) = &first_result.clone().unwrap();
   match source {
     PactSource::BrokerUrl(provider, url, auth, links) => {
       expect!(provider.clone()).to(be_equal_to("Pact Broker"));
@@ -976,7 +991,7 @@ async fn test_publish_results_from_url_source_with_provider_branch() {
   let pact_result = super::fetch_pact(PactSource::URL(url.to_string(), None), &provider).await;
 
   let first_result = pact_result.get(0).unwrap().as_ref();
-  let (_, _, source) = &first_result.clone().unwrap();
+  let (_, _, source, _) = &first_result.clone().unwrap();
   let options = PublishOptions {
     provider_version: Some("1.2.3".to_string()),
     build_url: None,
@@ -999,6 +1014,6 @@ async fn fetch_pact_from_dir_filters_by_provider_name() {
   let result = super::fetch_pact(PactSource::Dir(pacts_path.to_string_lossy().to_string()), &provider).await;
   expect!(result.len()).to(be_equal_to(1));
   let first_result = result.first().unwrap().as_ref();
-  let (pact, _, _) = first_result.unwrap();
+  let (pact, _, _, _) = first_result.unwrap();
   expect!(pact.provider().name).to(be_equal_to(provider.name));
 }

@@ -7,9 +7,10 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::fmt;
 use std::fs;
+use std::future::Future;
 use std::path::Path;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use ansi_term::*;
 use ansi_term::Colour::*;
@@ -113,7 +114,15 @@ impl Display for PactSource {
       PactSource::BrokerUrl(ref provider_name, ref broker_url, _, _) => {
           write!(f, "PactBroker({}, provider_name='{}')", broker_url, provider_name)
       }
-      PactSource::BrokerWithDynamicConfiguration { ref provider_name, ref broker_url,ref enable_pending, ref include_wip_pacts_since, ref provider_branch, ref provider_tags, ref selectors, ref auth, links: _ } => {
+      PactSource::BrokerWithDynamicConfiguration {
+        ref provider_name,
+        ref broker_url,
+        ref enable_pending,
+        ref include_wip_pacts_since,
+        ref provider_branch,
+        ref provider_tags,
+        ref selectors,
+        ref auth, .. } => {
         if let Some(auth) = auth {
           write!(f, "PactBrokerWithDynamicConfiguration({}, provider_name='{}', enable_pending={}, include_wip_since={:?}, provider_tags={:?}, provider_branch={:?}, consumer_version_selectors='{:?}, auth={}')", broker_url, provider_name, enable_pending, include_wip_pacts_since, provider_tags, provider_branch, selectors, auth)
         } else {
@@ -675,7 +684,10 @@ fn generate_display_for_result(
   output.push(format!("      has a matching body ({})", body_result));
 }
 
-fn walkdir(dir: &Path, provider: &ProviderInfo) -> anyhow::Result<Vec<anyhow::Result<Box<dyn Pact + Send + Sync>>>> {
+fn walkdir(
+  dir: &Path,
+  provider: &ProviderInfo
+) -> anyhow::Result<Vec<anyhow::Result<(Box<dyn Pact + Send + Sync>, Duration)>>> {
     let mut pacts = vec![];
     debug!("Scanning {:?}", dir);
     for entry in fs::read_dir(dir)? {
@@ -684,10 +696,10 @@ fn walkdir(dir: &Path, provider: &ProviderInfo) -> anyhow::Result<Vec<anyhow::Re
         if path.is_dir() {
             walkdir(&path, provider)?;
         } else {
-          match read_pact(&path) {
-            Ok(pact) => {
+          match timeit(|| read_pact(&path)) {
+            Ok((pact, tm)) => {
               if pact.provider().name == provider.name {
-                pacts.push(Ok(pact));
+                pacts.push(Ok((pact, tm)));
               }
             }
             Err(err) => pacts.push(Err(err))
@@ -802,7 +814,10 @@ fn filter_interaction(interaction: &dyn Interaction, filter: &FilterInfo) -> boo
   }
 }
 
-fn filter_consumers(consumers: &[String], res: &anyhow::Result<(Box<dyn Pact + Send + Sync>, Option<PactVerificationContext>, PactSource)>) -> bool {
+fn filter_consumers(
+  consumers: &[String],
+  res: &anyhow::Result<(Box<dyn Pact + Send + Sync>, Option<PactVerificationContext>, PactSource, Duration)>
+) -> bool {
   consumers.is_empty() || res.is_err() || consumers.contains(&res.as_ref().unwrap().0.consumer().name)
 }
 
@@ -925,7 +940,7 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
 
     for pact_result in pact_results {
       match pact_result {
-        Ok((pact, context, pact_source)) => {
+        Ok((pact, context, pact_source, tm)) => {
           if pact.requires_plugins() {
             info!("Pact file requires plugins, will load those now");
             for plugin_details in pact.plugin_data() {
@@ -1120,28 +1135,35 @@ fn process_errors(errors: &Vec<(String, MismatchResult)>, output: &mut Vec<Strin
 async fn fetch_pact(
   source: PactSource,
   provider: &ProviderInfo
-) -> Vec<anyhow::Result<(Box<dyn Pact + Send + Sync>, Option<PactVerificationContext>, PactSource)>> {
+) -> Vec<anyhow::Result<(Box<dyn Pact + Send + Sync>, Option<PactVerificationContext>, PactSource, Duration)>> {
   trace!("fetch_pact(source={})", source);
 
   match &source {
     PactSource::File(file) => vec![
-      read_pact(Path::new(&file))
+      timeit(|| read_pact(Path::new(&file)))
         .map_err(|err| anyhow!("Failed to load pact '{}' - {}", file, err))
-        .map(|pact| (pact, None, source))
+        .map(|(pact, tm)| {
+          trace!(%file, duration = ?tm, "Loaded pact from file");
+          (pact, None, source.clone(), tm)
+        })
     ],
     PactSource::Dir(dir) => match walkdir(Path::new(dir), provider) {
       Ok(pact_results) => pact_results.into_iter().map(|pact_result| {
           match pact_result {
-              Ok(pact) => Ok((pact, None, source.clone())),
+              Ok((pact, tm)) => {
+                trace!(%dir, duration = ?tm, "Loaded pact from directory");
+                Ok((pact, None, source.clone(), tm))
+              },
               Err(err) => Err(anyhow!("Failed to load pact from '{}' - {}", dir, err))
           }
       }).collect(),
       Err(err) => vec![Err(anyhow!("Could not load pacts from directory '{}' - {}", dir, err))]
     },
     PactSource::URL(url, auth) => vec![
-      pact_broker::fetch_pact_from_url(url, auth).await
+      timeit_async(pact_broker::fetch_pact_from_url(url, auth)).await
         .map_err(|err| anyhow!("Failed to load pact '{}' - {}", url, err))
-        .map(|(pact, links)| {
+        .map(|((pact, links), tm)| {
+          trace!(%url, duration = ?tm, "Loaded pact from url");
           if is_pact_broker_source(&links) {
             let provider = pact.provider();
             let base_url = url.parse::<reqwest::Url>()
@@ -1150,27 +1172,33 @@ async fn fetch_pact(
                 url.to_string()
               }).ok().unwrap_or_else(||url.to_string());
             (pact, None, PactSource::BrokerUrl(provider.name.clone(), base_url,
-                                               auth.clone(), links.clone()))
+                                               auth.clone(), links.clone()), tm)
           } else {
-            (pact, None, source.clone())
+            (pact, None, source.clone(), tm)
           }
         })
     ],
     PactSource::BrokerUrl(provider_name, broker_url, auth, _) => {
-      let result = pact_broker::fetch_pacts_from_broker(
+      let result = timeit_async(pact_broker::fetch_pacts_from_broker(
         broker_url.as_str(),
         provider_name.as_str(),
         auth.clone()
-      ).await;
+      )).await;
 
       match result {
-        Ok(ref pacts) => {
+        Ok((ref pacts, tm)) => {
+          trace!(%broker_url, duration = ?tm, "Loaded pacts from pact broker");
           let mut buffer = vec![];
           for result in pacts.iter() {
             match result {
               Ok((pact, context, links)) => {
                 trace!("Got pact with links {:?}", pact);
-                buffer.push(Ok((pact.boxed(), context.clone(), PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))));
+                buffer.push(Ok((
+                  pact.boxed(),
+                  context.clone(),
+                  PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()),
+                  tm
+                )));
               },
               &Err(ref err) => buffer.push(Err(anyhow!("Failed to load pact from '{}' - {:?}", broker_url, err)))
             }
@@ -1186,7 +1214,7 @@ async fn fetch_pact(
       provider_name, broker_url, enable_pending, include_wip_pacts_since,
       provider_tags, provider_branch, selectors,
       auth, links: _ } => {
-      let result = pact_broker::fetch_pacts_dynamically_from_broker(
+      let result = timeit_async(pact_broker::fetch_pacts_dynamically_from_broker(
         broker_url.as_str(),
         provider_name.clone(),
         *enable_pending,
@@ -1195,16 +1223,22 @@ async fn fetch_pact(
         provider_branch.clone(),
         selectors.clone(),
         auth.clone()
-      ).await;
+      )).await;
 
-      match &result {
-        Ok(pacts) => {
+      match result {
+        Ok((pacts, tm)) => {
+          trace!(%broker_url, duration = ?tm, "Loaded pacts from pact broker");
           let mut buffer = vec![];
           for result in pacts.iter() {
             match result {
               Ok((pact, context, links)) => {
                 trace!("Got pact with links {:?}", pact);
-                buffer.push(Ok((pact.boxed(), context.clone(), PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()))));
+                buffer.push(Ok((
+                  pact.boxed(),
+                  context.clone(),
+                  PactSource::BrokerUrl(provider_name.clone(), broker_url.clone(), auth.clone(), links.clone()),
+                  tm.clone()
+                )));
               },
               Err(err) => buffer.push(Err(anyhow::Error::new(err.clone()).context(format!("Failed to load pact from '{}'", broker_url))))
             }
@@ -1212,12 +1246,26 @@ async fn fetch_pact(
           buffer
         },
         Err(err) => vec![
-          Err(anyhow::Error::new(err.clone()).context(format!("Could not load pacts from the pact broker '{}'", broker_url)))
+          Err(err.context(format!("Could not load pacts from the pact broker '{}'", broker_url)))
         ]
       }
     },
     _ => vec![Err(anyhow!("Could not load pacts, unknown pact source {}", source))]
   }
+}
+
+fn timeit<T, FN: FnOnce() -> anyhow::Result<T>>(callback: FN) -> anyhow::Result<(T, Duration)> {
+  let start = Instant::now();
+  let result = callback()?;
+  Ok((result, start.elapsed()))
+}
+
+async fn timeit_async<T, F>(future: F) -> anyhow::Result<(T, Duration)>
+where F: Future<Output = anyhow::Result<T>> + Send
+{
+  let start = Instant::now();
+  let result = future.await?;
+  Ok((result, start.elapsed()))
 }
 
 // Checks if any of Pactbroker links exist. Actually looks for the pb:publish-verification-results
@@ -1231,7 +1279,7 @@ async fn fetch_pacts(
   source: Vec<PactSource>,
   consumers: Vec<String>,
   provider: &ProviderInfo
-) -> Vec<anyhow::Result<(Box<dyn Pact + Send + Sync>, Option<PactVerificationContext>, PactSource)>> {
+) -> Vec<anyhow::Result<(Box<dyn Pact + Send + Sync>, Option<PactVerificationContext>, PactSource, Duration)>> {
   trace!("fetch_pacts(source={}, consumers={:?})", source.iter().map(|s| s.to_string()).join(", "), consumers);
 
   futures::stream::iter(source)

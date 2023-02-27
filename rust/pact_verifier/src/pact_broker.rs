@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::ops::Not;
+use anyhow::anyhow;
 
 use futures::stream::*;
 use itertools::Itertools;
@@ -87,14 +88,14 @@ pub enum PactBrokerError {
 
 impl PartialEq<String> for PactBrokerError {
     fn eq(&self, other: &String) -> bool {
-        let message = match *self {
-            PactBrokerError::LinkError(ref s) => s.clone(),
-            PactBrokerError::ContentError(ref s) => s.clone(),
-            PactBrokerError::IoError(ref s) => s.clone(),
-            PactBrokerError::NotFound(ref s) => s.clone(),
-            PactBrokerError::UrlError(ref s) => s.clone()
+        let message = match self {
+            PactBrokerError::LinkError(s) => s,
+            PactBrokerError::ContentError(s) => s,
+            PactBrokerError::IoError(s) => s,
+            PactBrokerError::NotFound(s) => s,
+            PactBrokerError::UrlError(s) => s
         };
-        message == *other
+        *message == *other
     }
 }
 
@@ -581,7 +582,7 @@ pub async fn fetch_pacts_dynamically_from_broker(
   provider_branch: Option<String>,
   consumer_version_selectors: Vec<ConsumerVersionSelector>,
   auth: Option<HttpAuth>
-) -> Result<Vec<Result<(Box<dyn Pact + Send + Sync>, Option<PactVerificationContext>, Vec<Link>), PactBrokerError>>, PactBrokerError> {
+) -> anyhow::Result<Vec<Result<(Box<dyn Pact + Send + Sync>, Option<PactVerificationContext>, Vec<Link>), PactBrokerError>>> {
   trace!("fetch_pacts_dynamically_from_broker(broker_url='{}', provider_name='{}', pending={}, \
     include_wip_pacts_since={:?}, provider_tags: {:?}, consumer_version_selectors: {:?}, auth={})",
     broker_url, provider_name, pending, include_wip_pacts_since, provider_tags,
@@ -620,11 +621,11 @@ pub async fn fetch_pacts_dynamically_from_broker(
           Ok(res) => Some(res),
           Err(err) => {
             debug!("error Response for pacts for verification {:?} ", err);
-            return Err(err)
+            return Err(anyhow!(err))
           }
         }
       },
-      Err(e) => return Err(e)
+      Err(e) => return Err(anyhow!(e))
     };
 
     // Find all of the Pact links
@@ -634,7 +635,7 @@ pub async fn fetch_pacts_dynamically_from_broker(
           .unwrap_or(PactsForVerificationResponse { embedded: PactsForVerificationBody { pacts: vec!() } });
 
         if pfv.embedded.pacts.len() == 0 {
-          return Err(PactBrokerError::NotFound(format!("No pacts were found for this provider")))
+          return Err(anyhow!(PactBrokerError::NotFound(format!("No pacts were found for this provider"))))
         };
 
         let links: Result<Vec<(Link, PactVerificationContext)>, PactBrokerError> = pfv.embedded.pacts.iter().map(| p| {
