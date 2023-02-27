@@ -5,6 +5,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 
 use async_trait::async_trait;
 use base64::Engine;
@@ -116,7 +117,8 @@ async fn verify_pact_with_match_values_matcher() {
     pact,
     &options,
     &provider_states,
-    false
+    false,
+    Duration::default()
   ).await;
 
   expect!(result.unwrap().results.get(0).unwrap().result.as_ref()).to(be_ok());
@@ -170,7 +172,8 @@ async fn verify_pact_with_attributes_with_special_values() {
     pact,
     &options,
     &provider_states,
-    false
+    false,
+    Duration::default()
   ).await;
 
   expect!(result.unwrap().results.get(0).unwrap().result.as_ref()).to(be_ok());
@@ -195,7 +198,8 @@ async fn verifying_a_pact_with_pending_interactions() {
     pact,
     &options,
     &provider_states,
-    false
+    false,
+    Duration::default()
   ).await;
 
   expect!(result.as_ref().unwrap().results.get(0).unwrap().result.as_ref()).to(be_err());
@@ -253,7 +257,8 @@ async fn verifying_a_pact_with_min_type_matcher_and_child_arrays() {
     pact,
     &options,
     &provider_states,
-    false
+    false,
+    Duration::default()
   ).await;
 
   expect!(result.unwrap().results.get(0).unwrap().result.as_ref()).to(be_ok());

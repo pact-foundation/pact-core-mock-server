@@ -131,15 +131,15 @@ pub fn process_message_result(
       generate_display_for_result(if coloured { Green.paint("OK") } else { plain.paint("OK") },
         metadata_result, output, coloured);
     },
-    Err(ref err) => match *err {
-      MismatchResult::Error(ref err_des, _) => {
+    Err(err) => match err {
+      MismatchResult::Error(err_des, _) => {
         if coloured {
           output.push(format!("      {}", Red.paint(format!("Request Failed - {}", err_des))));
         } else {
           output.push(format!("      {}", format!("Request Failed - {}", err_des)));
         }
       },
-      MismatchResult::Mismatches { ref mismatches, .. } => {
+      MismatchResult::Mismatches { mismatches, .. } => {
         let metadata_results = interaction.metadata.iter().map(|(k, v)| {
           (k.clone(), serde_json::to_string(&v.clone()).unwrap_or_default(), if mismatches.iter().any(|m| {
             match *m {
@@ -185,7 +185,7 @@ pub fn process_sync_message_result(
                                     metadata_result, output, coloured);
       }
     },
-    Err(ref err) => match err {
+    Err(err) => match err {
       MismatchResult::Error(err_des, _) => {
         if coloured {
           output.push(format!("      {}", Red.paint(format!("Request Failed - {}", err_des))));

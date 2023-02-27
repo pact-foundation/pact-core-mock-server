@@ -24,15 +24,15 @@ pub fn process_request_response_result(
         coloured
       );
     },
-    Err(ref err) => match *err {
-      MismatchResult::Error(ref err_des, _) => {
+    Err(err) => match err {
+      MismatchResult::Error(err_des, _) => {
         if coloured {
           output.push(format!("      {}", Red.paint(format!("Request Failed - {}", err_des))));
         } else {
           output.push(format!("      {}", format!("Request Failed - {}", err_des)));
         }
       },
-      MismatchResult::Mismatches { ref mismatches, .. } => {
+      MismatchResult::Mismatches { mismatches, .. } => {
         let status_result = if mismatches.iter().any(|m| m.mismatch_type() == "StatusMismatch") {
           if coloured { Red.paint("FAILED") } else { plain.paint("FAILED") }
         } else {
@@ -60,7 +60,8 @@ pub fn process_request_response_result(
             if coloured { Green.paint("OK") } else { plain.paint("OK") }
         };
 
-        generate_display_for_result(interaction.response.status, status_result, header_results, body_result, output, coloured);
+        generate_display_for_result(interaction.response.status, status_result, header_results,
+                                    body_result, output, coloured);
       }
     }
   }

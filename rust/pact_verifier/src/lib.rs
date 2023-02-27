@@ -18,6 +18,7 @@ use anyhow::anyhow;
 use futures::stream::StreamExt;
 use http::{header, HeaderMap};
 use http::header::HeaderName;
+use humantime::format_duration;
 use itertools::{Either, Itertools};
 use maplit::*;
 use pact_models::generators::GeneratorTestMode;
@@ -378,7 +379,7 @@ async fn execute_state_change<S: ProviderStateExecutor>(
 }
 
 /// Main implementation for verifying an interaction. Will return a tuple containing the
-/// result of the verification and any output collected
+/// result of the verification and any output collected plus the time taken to execute
 #[tracing::instrument(level = "trace")]
 async fn verify_interaction<'a, F: RequestFilterExecutor, S: ProviderStateExecutor>(
   provider: &ProviderInfo,
@@ -386,15 +387,20 @@ async fn verify_interaction<'a, F: RequestFilterExecutor, S: ProviderStateExecut
   pact: &Box<dyn Pact + Send + Sync + 'a>,
   options: &VerificationOptions<F>,
   provider_state_executor: &Arc<S>
-) -> Result<(Option<String>, Vec<String>), (MismatchResult, Vec<String>)> {
+) -> Result<(Option<String>, Vec<String>, Duration), (MismatchResult, Vec<String>, Duration)> {
+  let start = Instant::now();
   trace!("Verifying interaction {} {} ({:?})", interaction.type_of(), interaction.description(), interaction.id());
   let client = Arc::new(configure_http_client(options)
-    .map_err(|err| (MismatchResult::Error(err.to_string(), interaction.id()), vec![]))?);
+    .map_err(|err| (
+      MismatchResult::Error(err.to_string(), interaction.id()),
+      vec![],
+      start.elapsed()
+    ))?);
 
   debug!("Executing provider states");
   let context = execute_provider_states(interaction, provider_state_executor, &client, true)
     .await
-    .map_err(|e| (e, vec![]))?;
+    .map_err(|e| (e, vec![], start.elapsed()))?;
   let provider_states_context = context
     .iter()
     .map(|(k, v)| (k.as_str(), v.clone()))
@@ -423,10 +429,12 @@ async fn verify_interaction<'a, F: RequestFilterExecutor, S: ProviderStateExecut
   if !interaction.provider_states().is_empty() && provider_state_executor.teardown() {
     execute_provider_states(interaction, provider_state_executor, &client, false)
       .await
-      .map_err(|e| (e, vec![]))?;
+      .map_err(|e| (e, vec![], start.elapsed()))?;
   }
 
   result
+    .map(|(id, output)| (id, output, start.elapsed()))
+    .map_err(|(result, output)| (result, output, start.elapsed()))
 }
 
 /// Verify an interaction using the provided transport
@@ -940,7 +948,8 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
 
     for pact_result in pact_results {
       match pact_result {
-        Ok((pact, context, pact_source, tm)) => {
+        Ok((pact, context, pact_source, pact_source_duration)) => {
+          trace!("Pact file took {} to load", format_duration(pact_source_duration));
           if pact.requires_plugins() {
             info!("Pact file requires plugins, will load those now");
             for plugin_details in pact.plugin_data() {
@@ -986,7 +995,8 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
               pact,
               &verification_options,
               &provider_state_executor.clone(),
-              pending
+              pending,
+              pact_source_duration
             ).await;
             match verify_result {
               Ok(result) => {
@@ -1301,7 +1311,9 @@ pub struct VerificationInteractionResult {
   /// Result of the verification
   pub result: Result<(), MismatchResult>,
   /// If the Pact or interaction is pending
-  pub pending: bool
+  pub pending: bool,
+  /// Duration that the verification took
+  pub duration: Duration
 }
 
 /// Result of verifying a Pact
@@ -1320,12 +1332,13 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
   pact: Box<dyn Pact + Send + Sync + 'a>,
   options: &VerificationOptions<F>,
   provider_state_executor: &Arc<S>,
-  pending: bool
+  pending: bool,
+  pact_source_duration: Duration
 ) -> anyhow::Result<VerificationResult> {
   let interactions = pact.interactions();
   let mut output = vec![];
 
-  let results: Vec<(Box<dyn Interaction + Send + Sync>, Result<(Option<String>, Vec<String>), (MismatchResult, Vec<String>)>)> =
+  let results: Vec<(Box<dyn Interaction + Send + Sync>, Result<(Option<String>, Vec<String>, Duration), (MismatchResult, Vec<String>, Duration)>)> =
     futures::stream::iter(interactions.iter().map(|i| (&pact, i)))
     .filter(|(_, interaction)| futures::future::ready(filter_interaction(interaction.as_ref(), filter)))
     .then( |(pact, interaction)| async move {
@@ -1342,11 +1355,20 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
       pact.consumer().name.clone(), pact.provider().name.clone());
 
     output.push(String::default());
+    let duration = match match_result {
+      Ok((_, _, d)) => Duration::from_millis(d.as_millis() as u64),
+      Err((_, _, d)) => Duration::from_millis(d.as_millis() as u64)
+    };
+    let pact_source_duration = Duration::from_millis(pact_source_duration.as_millis() as u64);
     if interaction.pending() {
-      output.push(format!("  {} {}", interaction.description(),
+      output.push(format!("  {} ({} loading, {} verification) {}", interaction.description(),
+        format_duration(pact_source_duration),
+        format_duration(duration),
         if options.coloured_output { Yellow.paint("[PENDING]") } else { Style::new().paint("[PENDING]") }));
     } else {
-      output.push(format!("  {}", interaction.description()));
+      output.push(format!("  {} ({} loading, {} verification)", interaction.description(),
+        format_duration(pact_source_duration),
+        format_duration(duration)));
     };
 
     if let Some((first, elements)) = interaction.provider_states().split_first() {
@@ -1369,14 +1391,14 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
     }
 
     let match_result = match match_result {
-      Ok((id, out)) => {
+      Ok((id, out, _)) => {
         if !out.is_empty() {
           output.push(String::default());
           output.extend(out.iter().map(|o| format!("  {}", o)));
         }
         Ok(id)
       }
-      Err((err, out)) => {
+      Err((err, out, _)) => {
         if !out.is_empty() {
           output.push(String::default());
           output.extend(out.iter().map(|o| format!("  {}", o)));
@@ -1412,7 +1434,8 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
           interaction_id: interaction.id(),
           description: description.clone(),
           result: Ok(()),
-          pending: pending || interaction.pending()
+          pending: pending || interaction.pending(),
+          duration
         });
       },
       Err(err) => {
@@ -1420,7 +1443,8 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
           interaction_id: interaction.id(),
           description: description.clone(),
           result: Err(err.clone()),
-          pending: pending || interaction.pending()
+          pending: pending || interaction.pending(),
+          duration
         });
       }
     }
