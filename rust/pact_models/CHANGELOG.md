@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.1.1 - Bugfix Release
+
+* 019a7ea1 - fix: UnwindSafe trait bound was missing on the read/write functions (Ronald Holshausen, Tue Feb 28 16:28:29 2023 +1100)
+* de34e8e4 - bump version to 1.1.1 (Ronald Holshausen, Tue Feb 28 16:14:14 2023 +1100)
+
 # 1.1.0 - Bugfix Release
 
 * 5e0307cb - fix: Bumping minor version as the last change broke everything using the traits (Ronald Holshausen, Tue Feb 28 16:06:45 2023 +1100)
