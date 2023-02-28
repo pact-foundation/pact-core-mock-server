@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.1.0 - Bugfix Release
+
+* 5e0307cb - fix: Bumping minor version as the last change broke everything using the traits (Ronald Holshausen, Tue Feb 28 16:06:45 2023 +1100)
+* b3140d94 - bump version to 1.0.6 (Ronald Holshausen, Tue Feb 28 15:23:07 2023 +1100)
+
 # 1.0.5 - Bugfix Release
 
 * b5ab945a - fix: Add UnwindSafe trait bound to all Pact and Interaction trait methods so they can be used in a FFI context (Ronald Holshausen, Tue Feb 28 15:19:04 2023 +1100)
