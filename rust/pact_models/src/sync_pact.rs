@@ -2,6 +2,7 @@
 
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap};
+use std::panic::UnwindSafe;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
@@ -49,7 +50,7 @@ impl Pact for RequestResponsePact {
     self.provider.clone()
   }
 
-  fn interactions(&self) -> Vec<Box<dyn Interaction + Send + Sync>> {
+  fn interactions(&self) -> Vec<Box<dyn Interaction + Send + Sync + UnwindSafe>> {
     self.interactions.iter().map(|i| i.boxed()).collect()
   }
 
@@ -101,15 +102,15 @@ impl Pact for RequestResponsePact {
     self.specification_version.clone()
   }
 
-  fn boxed(&self) -> Box<dyn Pact + Send + Sync> {
+  fn boxed(&self) -> Box<dyn Pact + Send + Sync + UnwindSafe> {
     Box::new(self.clone())
   }
 
-  fn arced(&self) -> Arc<dyn Pact + Send + Sync> {
+  fn arced(&self) -> Arc<dyn Pact + Send + Sync + UnwindSafe> {
     Arc::new(self.clone())
   }
 
-  fn thread_safe(&self) -> Arc<Mutex<dyn Pact + Send + Sync>> {
+  fn thread_safe(&self) -> Arc<Mutex<dyn Pact + Send + Sync + UnwindSafe>> {
     Arc::new(Mutex::new(self.clone()))
   }
 

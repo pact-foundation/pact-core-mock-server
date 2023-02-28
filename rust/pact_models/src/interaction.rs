@@ -1,6 +1,7 @@
 //! Models for Pact interactions
 
 use std::fmt::{self, Debug, Display, Formatter};
+use std::panic::UnwindSafe;
 use std::sync::{Arc, Mutex};
 
 use serde_json::Value;
@@ -88,7 +89,7 @@ pub trait Interaction: Debug {
   fn is_v4(&self) -> bool;
 
   /// Returns the interaction in V4 format
-  fn as_v4(&self) -> Option<Box<dyn V4Interaction + Send + Sync>>;
+  fn as_v4(&self) -> Option<Box<dyn V4Interaction + Send + Sync + UnwindSafe>>;
 
   /// Returns a mutable reference for the  interaction. If the interaction is not a V4 format,
   /// will return None. The `as_v4` method can convert to V4 format (via cloning the data).
@@ -122,13 +123,13 @@ pub trait Interaction: Debug {
   fn as_v4_sync_message_mut(&mut self) -> Option<&mut SynchronousMessage>;
 
   /// Clones this interaction and wraps it in a Box
-  fn boxed(&self) -> Box<dyn Interaction + Send + Sync>;
+  fn boxed(&self) -> Box<dyn Interaction + Send + Sync + UnwindSafe>;
 
   /// Clones this interaction and wraps it in an Arc
-  fn arced(&self) -> Arc<dyn Interaction + Send + Sync>;
+  fn arced(&self) -> Arc<dyn Interaction + Send + Sync + UnwindSafe>;
 
   /// Clones this interaction and wraps it in an Arc and Mutex
-  fn thread_safe(&self) -> Arc<Mutex<dyn Interaction + Send + Sync>>;
+  fn thread_safe(&self) -> Arc<Mutex<dyn Interaction + Send + Sync + UnwindSafe>>;
 
   /// Returns the matching rules associated with this interaction (if there are any)
   #[deprecated(
@@ -180,7 +181,7 @@ impl Clone for Box<dyn Interaction> {
 
 
 /// Converts the JSON struct into an HTTP Interaction
-pub fn http_interaction_from_json(source: &str, json: &Value, spec: &PactSpecification) -> anyhow::Result<Box<dyn Interaction + Send + Sync>> {
+pub fn http_interaction_from_json(source: &str, json: &Value, spec: &PactSpecification) -> anyhow::Result<Box<dyn Interaction + Send + Sync + UnwindSafe>> {
   match spec {
     PactSpecification::V4 => interaction_from_json(source, 0, json)
       .map(|i| i.boxed()),
@@ -189,7 +190,7 @@ pub fn http_interaction_from_json(source: &str, json: &Value, spec: &PactSpecifi
 }
 
 /// Converts the JSON struct into a Message Interaction
-pub fn message_interaction_from_json(source: &str, json: &Value, spec: &PactSpecification) -> anyhow::Result<Box<dyn Interaction + Send + Sync>> {
+pub fn message_interaction_from_json(source: &str, json: &Value, spec: &PactSpecification) -> anyhow::Result<Box<dyn Interaction + Send + Sync + UnwindSafe>> {
   match spec {
     PactSpecification::V4 => interaction_from_json(source, 0, json)
       .map(|i| i.boxed()),

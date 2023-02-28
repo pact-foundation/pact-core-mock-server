@@ -6,6 +6,7 @@ use std::fs;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::ops::Deref;
+use std::panic::UnwindSafe;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
@@ -36,7 +37,7 @@ pub trait Pact: Debug + ReadWritePact {
   fn provider(&self) -> Provider;
 
   /// Interactions in the Pact
-  fn interactions(&self) -> Vec<Box<dyn Interaction + Send + Sync>>;
+  fn interactions(&self) -> Vec<Box<dyn Interaction + Send + Sync + UnwindSafe>>;
 
   /// Mutable collection of interactions in the Pact
   fn interactions_mut(&mut self) -> Vec<&mut (dyn Interaction + Send + Sync)>;
@@ -60,13 +61,13 @@ pub trait Pact: Debug + ReadWritePact {
   fn specification_version(&self) -> PactSpecification;
 
   /// Clones this Pact and wraps it in a Box
-  fn boxed(&self) -> Box<dyn Pact + Send + Sync>;
+  fn boxed(&self) -> Box<dyn Pact + Send + Sync + UnwindSafe>;
 
   /// Clones this Pact and wraps it in an Arc
-  fn arced(&self) -> Arc<dyn Pact + Send + Sync>;
+  fn arced(&self) -> Arc<dyn Pact + Send + Sync + UnwindSafe>;
 
   /// Clones this Pact and wraps it in an Arc and Mutex
-  fn thread_safe(&self) -> Arc<Mutex<dyn Pact + Send + Sync>>;
+  fn thread_safe(&self) -> Arc<Mutex<dyn Pact + Send + Sync + UnwindSafe>>;
 
   /// Adds an interactions in the Pact
   fn add_interaction(&mut self, interaction: &dyn Interaction) -> anyhow::Result<()>;
