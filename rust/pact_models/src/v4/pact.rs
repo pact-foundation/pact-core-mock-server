@@ -355,7 +355,7 @@ impl ReadWritePact for V4Pact {
     Self::pact_from_json(&json, &*path.to_string_lossy())
   }
 
-  fn merge(&self, other: &dyn Pact) -> anyhow::Result<Box<dyn Pact + Send + Sync>> {
+  fn merge(&self, other: &dyn Pact) -> anyhow::Result<Box<dyn Pact + Send + Sync + UnwindSafe>> {
     if self.consumer.name == other.consumer().name && self.provider.name == other.provider().name {
       let mut new_pact = V4Pact {
         consumer: self.consumer.clone(),
@@ -429,7 +429,7 @@ impl PactJsonVerifier for V4Pact {
 }
 
 /// Creates a V4 Pact from the provided JSON struct
-pub fn from_json(source: &str, pact_json: &Value) -> anyhow::Result<Box<dyn Pact + Send + Sync>> {
+pub fn from_json(source: &str, pact_json: &Value) -> anyhow::Result<Box<dyn Pact + Send + Sync + UnwindSafe>> {
   trace!("from_json: Loading a V4 pact from JSON");
   let mut metadata = meta_data_from_json(pact_json);
 

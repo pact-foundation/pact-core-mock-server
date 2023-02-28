@@ -135,14 +135,14 @@ impl PartialEq for Box<dyn Pact> {
 
 /// Reads the pact file and parses the resulting JSON into a `Pact` struct
 #[cfg(not(target_family = "wasm"))]
-pub fn read_pact(file: &Path) -> anyhow::Result<Box<dyn Pact + Send + Sync>> {
+pub fn read_pact(file: &Path) -> anyhow::Result<Box<dyn Pact + Send + Sync + UnwindSafe>> {
   let mut f = File::open(file)?;
   read_pact_from_file(&mut f, file)
 }
 
 /// Reads the pact from the file and parses the resulting JSON into a `Pact` struct
 #[cfg(not(target_family = "wasm"))]
-pub fn read_pact_from_file(file: &mut File, path: &Path) -> anyhow::Result<Box<dyn Pact + Send + Sync>> {
+pub fn read_pact_from_file(file: &mut File, path: &Path) -> anyhow::Result<Box<dyn Pact + Send + Sync + UnwindSafe>> {
   let buf = with_read_lock_for_open_file(path, file, 3, &mut |f| {
     let mut buf = String::new();
     f.read_to_string(&mut buf)?;
@@ -162,13 +162,13 @@ pub fn read_pact_from_file(file: &mut File, path: &Path) -> anyhow::Result<Box<d
 /// Reads the pact file from a URL and parses the resulting JSON into a `Pact` struct
 // TODO: For next major version, refactor this to also return any associated HAL links
 #[cfg(not(target_family = "wasm"))]
-pub fn load_pact_from_url(url: &str, auth: &Option<HttpAuth>) -> anyhow::Result<Box<dyn Pact + Send + Sync>> {
+pub fn load_pact_from_url(url: &str, auth: &Option<HttpAuth>) -> anyhow::Result<Box<dyn Pact + Send + Sync + UnwindSafe>> {
   let (url, pact_json) = http_utils::fetch_json_from_url(&url.to_string(), auth)?;
   load_pact_from_json(&url, &pact_json)
 }
 
 /// Loads a Pact model from a JSON Value
-pub fn load_pact_from_json(source: &str, json: &Value) -> anyhow::Result<Box<dyn Pact + Send + Sync>> {
+pub fn load_pact_from_json(source: &str, json: &Value) -> anyhow::Result<Box<dyn Pact + Send + Sync + UnwindSafe>> {
   match json {
     Value::Object(map) => {
       let metadata = parse_meta_data(json);
@@ -194,13 +194,13 @@ pub fn load_pact_from_json(source: &str, json: &Value) -> anyhow::Result<Box<dyn
 pub trait ReadWritePact {
   /// Reads the pact file and parses the resulting JSON into a `Pact` struct
   #[cfg(not(target_family = "wasm"))]
-  fn read_pact(path: &Path) -> anyhow::Result<Self> where Self: std::marker::Sized + Send + Sync;
+  fn read_pact(path: &Path) -> anyhow::Result<Self> where Self: std::marker::Sized + Send + Sync + UnwindSafe;
 
   /// Merges this pact with the other pact, and returns a new Pact with the interactions sorted.
   /// Returns an error if there is a merge conflict, which will occur if the other pact is a different
   /// type, or if a V3 Pact then if any interaction has the
   /// same description and provider state and the requests and responses are different.
-  fn merge(&self, other: &dyn Pact) -> anyhow::Result<Box<dyn Pact + Send + Sync>>;
+  fn merge(&self, other: &dyn Pact) -> anyhow::Result<Box<dyn Pact + Send + Sync + UnwindSafe>>;
 
   /// Determines the default file name for the pact. This is based on the consumer and
   /// provider names.
