@@ -303,7 +303,7 @@ impl ReadWritePact for MessagePact {
     })
   }
 
-  fn merge(&self, pact: &dyn Pact) -> anyhow::Result<Box<dyn Pact + Send + Sync + UnwindSafe>> {
+  fn merge(&self, pact: &dyn Pact) -> anyhow::Result<Box<dyn Pact + Send + Sync>> {
     if self.consumer.name == pact.consumer().name && self.provider.name == pact.provider().name {
       let messages: Vec<Result<Message, String>> = self.messages.iter()
         .merge_join_by(pact.interactions().iter(), |a, b| {

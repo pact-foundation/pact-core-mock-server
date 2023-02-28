@@ -281,7 +281,7 @@ impl ReadWritePact for RequestResponsePact {
     })
   }
 
-  fn merge(&self, pact: &dyn Pact) -> anyhow::Result<Box<dyn Pact + Send + Sync + UnwindSafe>> {
+  fn merge(&self, pact: &dyn Pact) -> anyhow::Result<Box<dyn Pact + Send + Sync>> {
     if self.consumer.name == pact.consumer().name && self.provider.name == pact.provider().name {
       let conflicts = CartesianProductIterator::new(&self.interactions, &pact.interactions())
         .map(|(i1, i2)| i1.conflicts_with(i2.as_ref()))
