@@ -6,7 +6,6 @@ use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::fs::File;
 use std::io::prelude::*;
-use std::panic::UnwindSafe;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
@@ -55,7 +54,7 @@ impl Pact for MessagePact {
     self.provider.clone()
   }
 
-  fn interactions(&self) -> Vec<Box<dyn Interaction + Send + Sync + UnwindSafe>> {
+  fn interactions(&self) -> Vec<Box<dyn Interaction + Send + Sync>> {
     self.messages.iter().map(|i| i.boxed()).collect()
   }
 
@@ -109,15 +108,15 @@ impl Pact for MessagePact {
     self.specification_version.clone()
   }
 
-  fn boxed(&self) -> Box<dyn Pact + Send + Sync + UnwindSafe> {
+  fn boxed(&self) -> Box<dyn Pact + Send + Sync> {
     Box::new(self.clone())
   }
 
-  fn arced(&self) -> Arc<dyn Pact + Send + Sync + UnwindSafe> {
+  fn arced(&self) -> Arc<dyn Pact + Send + Sync> {
     Arc::new(self.clone())
   }
 
-  fn thread_safe(&self) -> Arc<Mutex<dyn Pact + Send + Sync + UnwindSafe>> {
+  fn thread_safe(&self) -> Arc<Mutex<dyn Pact + Send + Sync>> {
     Arc::new(Mutex::new(self.clone()))
   }
 

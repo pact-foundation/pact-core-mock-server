@@ -2,7 +2,6 @@
 
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::panic::UnwindSafe;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
@@ -34,7 +33,7 @@ pub struct V4Pact {
   /// Provider side of the pact
   pub provider: Provider,
   /// List of messages between the consumer and provider.
-  pub interactions: Vec<Box<dyn V4Interaction + Send + Sync + UnwindSafe>>,
+  pub interactions: Vec<Box<dyn V4Interaction + Send + Sync>>,
   /// Metadata associated with this pact.
   pub metadata: BTreeMap<String, Value>,
   /// Plugin data associated with this pact
@@ -88,7 +87,7 @@ impl V4Pact {
   }
 
   /// Returns all the interactions of the given type
-  pub fn filter_interactions(&self, interaction_type: V4InteractionType) -> Vec<Box<dyn Interaction + Send + Sync + UnwindSafe>> {
+  pub fn filter_interactions(&self, interaction_type: V4InteractionType) -> Vec<Box<dyn Interaction + Send + Sync>> {
     self.interactions.iter()
       .filter(|i| i.v4_type() == interaction_type)
       .map(|i| i.boxed())
@@ -130,7 +129,7 @@ impl V4Pact {
   }
 
   /// Find the interaction with the given ID
-  pub fn find_interaction_with_id(&self, interaction_id: &str) -> Option<&Box<dyn V4Interaction + Send + Sync + UnwindSafe>> {
+  pub fn find_interaction_with_id(&self, interaction_id: &str) -> Option<&Box<dyn V4Interaction + Send + Sync>> {
     self.interactions.iter()
       .find(|i| if let Some(id) = i.id() {
           id == interaction_id
@@ -174,7 +173,7 @@ impl Pact for V4Pact {
     self.provider.clone()
   }
 
-  fn interactions(&self) -> Vec<Box<dyn Interaction + Send + Sync + UnwindSafe>> {
+  fn interactions(&self) -> Vec<Box<dyn Interaction + Send + Sync>> {
     self.interactions.iter().map(|i| i.boxed()).collect()
   }
 
@@ -272,15 +271,15 @@ impl Pact for V4Pact {
     PactSpecification::V4
   }
 
-  fn boxed(&self) -> Box<dyn Pact + Send + Sync + UnwindSafe> {
+  fn boxed(&self) -> Box<dyn Pact + Send + Sync> {
     Box::new(self.clone())
   }
 
-  fn arced(&self) -> Arc<dyn Pact + Send + Sync + UnwindSafe> {
+  fn arced(&self) -> Arc<dyn Pact + Send + Sync> {
     Arc::new(self.clone())
   }
 
-  fn thread_safe(&self) -> Arc<Mutex<dyn Pact + Send + Sync + UnwindSafe>> {
+  fn thread_safe(&self) -> Arc<Mutex<dyn Pact + Send + Sync>> {
     Arc::new(Mutex::new(self.clone()))
   }
 

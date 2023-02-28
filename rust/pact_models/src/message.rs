@@ -2,7 +2,6 @@
 
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
-use std::panic::UnwindSafe;
 use std::str::from_utf8;
 use std::sync::{Arc, Mutex};
 
@@ -115,7 +114,7 @@ impl Interaction for Message {
     false
   }
 
-  fn as_v4(&self) -> Option<Box<dyn V4Interaction + Send + Sync + UnwindSafe>> {
+  fn as_v4(&self) -> Option<Box<dyn V4Interaction + Send + Sync>> {
     self.as_v4_async_message().map(|i| i.boxed_v4())
   }
 
@@ -162,15 +161,15 @@ impl Interaction for Message {
   }
 
 
-  fn boxed(&self) -> Box<dyn Interaction + Send + Sync + UnwindSafe> {
+  fn boxed(&self) -> Box<dyn Interaction + Send + Sync> {
     Box::new(self.clone())
   }
 
-  fn arced(&self) -> Arc<dyn Interaction + Send + Sync + UnwindSafe> {
+  fn arced(&self) -> Arc<dyn Interaction + Send + Sync> {
     Arc::new(self.clone())
   }
 
-  fn thread_safe(&self) -> Arc<Mutex<dyn Interaction + Send + Sync + UnwindSafe>> {
+  fn thread_safe(&self) -> Arc<Mutex<dyn Interaction + Send + Sync>> {
     Arc::new(Mutex::new(self.clone()))
   }
 

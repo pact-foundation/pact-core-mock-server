@@ -1,7 +1,6 @@
 //! Models for synchronous request/response interactions
 
 use std::fmt::{Display, Formatter};
-use std::panic::UnwindSafe;
 use std::sync::{Arc, Mutex};
 
 use maplit::hashset;
@@ -101,7 +100,7 @@ impl Interaction for RequestResponseInteraction {
     false
   }
 
-  fn as_v4(&self) -> Option<Box<dyn V4Interaction + Send + Sync + UnwindSafe>> {
+  fn as_v4(&self) -> Option<Box<dyn V4Interaction + Send + Sync>> {
     self.as_v4_http().map(|i| i.boxed_v4())
   }
 
@@ -141,15 +140,15 @@ impl Interaction for RequestResponseInteraction {
     None
   }
 
-  fn boxed(&self) -> Box<dyn Interaction + Send + Sync + UnwindSafe> {
+  fn boxed(&self) -> Box<dyn Interaction + Send + Sync> {
     Box::new(self.clone())
   }
 
-  fn arced(&self) -> Arc<dyn Interaction + Send + Sync + UnwindSafe> {
+  fn arced(&self) -> Arc<dyn Interaction + Send + Sync> {
     Arc::new(self.clone())
   }
 
-  fn thread_safe(&self) -> Arc<Mutex<dyn Interaction + Send + Sync + UnwindSafe>> {
+  fn thread_safe(&self) -> Arc<Mutex<dyn Interaction + Send + Sync>> {
     Arc::new(Mutex::new(self.clone()))
   }
 
