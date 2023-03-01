@@ -263,8 +263,6 @@
 #![type_length_limit="100000000"]
 
 use std::env;
-use std::fs::File;
-use std::io::Write;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -275,7 +273,6 @@ use log::{LevelFilter};
 use maplit::hashmap;
 use pact_models::{PACT_RUST_VERSION, PactSpecification};
 use pact_models::prelude::HttpAuth;
-use serde_json::Value;
 use tokio::time::sleep;
 use tracing::{debug, debug_span, error, Instrument, warn};
 use tracing_subscriber::FmtSubscriber;
@@ -293,10 +290,10 @@ use pact_verifier::{
 use pact_verifier::callback_executors::HttpRequestProviderStateExecutor;
 use pact_verifier::metrics::VerificationMetrics;
 use pact_verifier::selectors::{consumer_tags_to_selectors, json_to_selectors};
-use pact_verifier::verification_result::VerificationExecutionResult;
 use tracing_log::LogTracer;
 
 mod args;
+mod reports;
 
 /// Handles the command line arguments from the running process
 pub async fn handle_cli(version: &'static str) -> Result<(), i32> {
@@ -397,8 +394,15 @@ async fn handle_matches(matches: &ArgMatches) -> Result<(), i32> {
     })
     .and_then(|result| {
       if let Some(json_file) = matches.get_one::<String>("json-file") {
-        if let Err(err) = write_json_report(&result, json_file.as_str()) {
+        if let Err(err) = reports::write_json_report(&result, json_file.as_str()) {
           error!("Failed to write JSON report to '{json_file}' - {err}");
+          return Err(2)
+        }
+      }
+
+      if let Some(junit_file) = matches.get_one::<String>("junit-file") {
+        if let Err(err) = reports::write_junit_report(&result, junit_file.as_str(), &provider_name) {
+          error!("Failed to write JUnit report to '{junit_file}' - {err}");
           return Err(2)
         }
       }
@@ -495,14 +499,6 @@ pub(crate) fn configure_provider(matches: &ArgMatches) -> ProviderInfo {
     transports,
     ..ProviderInfo::default()
   }
-}
-
-fn write_json_report(result: &VerificationExecutionResult, file_name: &str) -> anyhow::Result<()> {
-  debug!("Writing JSON result of the verification to '{file_name}'");
-  let mut f = File::create(file_name)?;
-  let json: Value = result.into();
-  f.write_all(json.to_string().as_bytes())?;
-  Ok(())
 }
 
 fn print_version(version: &str) {

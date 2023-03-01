@@ -24,6 +24,7 @@ use pact_consumer::prelude::*;
 use crate::{NullRequestFilterExecutor, PactSource, ProviderInfo, ProviderStateExecutor, ProviderTransport, publish_result, PublishOptions, VerificationOptions};
 use crate::callback_executors::HttpRequestProviderStateExecutor;
 use crate::pact_broker::Link;
+use crate::verification_result::VerificationInteractionResult;
 
 use super::{execute_state_change, filter_consumers, filter_interaction, FilterInfo};
 
@@ -316,7 +317,15 @@ async fn publish_successful_result_to_broker() {
   ];
   
   let source = PactSource::BrokerUrl("Test".to_string(), server.url().to_string(), None, links.clone());
-  publish_result(&vec![(Some("1".to_string()), Ok(()))], &source, &options).await;
+  publish_result(&[VerificationInteractionResult {
+    interaction_id: Some("1".to_string()),
+    interaction_key: None,
+    description: "".to_string(),
+    interaction_description: "".to_string(),
+    result: Ok(()),
+    pending: false,
+    duration: Default::default(),
+  }], &source, &options).await;
 
   // Same publish but with dynamic configuration as pact source:
   let source = PactSource::BrokerWithDynamicConfiguration {
@@ -330,7 +339,15 @@ async fn publish_successful_result_to_broker() {
     auth: None,
     links
   };
-  super::publish_result(&vec![(Some("1".to_string()), Ok(()))], &source, &options).await;
+  super::publish_result(&[VerificationInteractionResult {
+    interaction_id: Some("1".to_string()),
+    interaction_key: None,
+    description: "".to_string(),
+    interaction_description: "".to_string(),
+    result: Ok(()),
+    pending: false,
+    duration: Default::default(),
+  }], &source, &options).await;
 }
 
 #[test]

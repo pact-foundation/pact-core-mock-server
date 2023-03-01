@@ -8,6 +8,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::fmt;
 use std::fs;
 use std::future::Future;
+use std::panic::RefUnwindSafe;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -58,7 +59,12 @@ use crate::pact_broker::{
 pub use crate::pact_broker::{ConsumerVersionSelector, PactsForVerificationRequest};
 use crate::provider_client::make_provider_request;
 use crate::request_response::process_request_response_result;
-use crate::verification_result::VerificationExecutionResult;
+use crate::utils::as_safe_ref;
+use crate::verification_result::{
+  VerificationExecutionResult,
+  VerificationInteractionResult,
+  VerificationResult
+};
 
 mod provider_client;
 pub mod pact_broker;
@@ -213,9 +219,9 @@ pub enum MismatchResult {
       /// Mismatches that occurred
       mismatches: Vec<Mismatch>,
       /// Expected Response/Message
-      expected: Box<dyn Interaction>,
+      expected: Box<dyn Interaction + RefUnwindSafe>,
       /// Actual Response/Message
-      actual: Box<dyn Interaction>,
+      actual: Box<dyn Interaction + RefUnwindSafe>,
       /// Interaction ID if fetched from a pact broker
       interaction_id: Option<String>
     },
@@ -280,8 +286,8 @@ impl Clone for MismatchResult {
         if expected.is_v4() {
           MismatchResult::Mismatches {
             mismatches: mismatches.clone(),
-            expected: expected.boxed(),
-            actual: actual.boxed(),
+            expected: as_safe_ref(expected.as_ref()),
+            actual: as_safe_ref(actual.as_ref()),
             interaction_id: interaction_id.clone()
           }
         } else if let Some(ref expected_reqres) = expected.as_request_response() {
@@ -348,7 +354,7 @@ async fn verify_response_from_provider<F: RequestFilterExecutor>(
       } else {
         Err(MismatchResult::Mismatches {
           mismatches,
-          expected: interaction.boxed(),
+          expected: Box::new(interaction.clone()),
           actual: Box::new(SynchronousHttp { response: actual_response.clone(), .. SynchronousHttp::default() }),
           interaction_id: interaction.id.clone()
         })
@@ -473,9 +479,9 @@ async fn verify_interaction_using_transport<'a, F: RequestFilterExecutor>(
         }
 
         // Get plugin to prepare the request data
-        let interaction = &*interaction.as_v4().unwrap();
+        let v4_interaction = interaction.as_v4().unwrap();
         let InteractionVerificationData { request_data, mut metadata } = plugin_manager::prepare_validation_for_interaction(transport_entry, &pact,
-          interaction, &context)
+          v4_interaction.as_ref(), &context)
           .await
           .map_err(|err| {
             (MismatchResult::Error(format!("Failed to prepare interaction for verification - {err}"), interaction.id()), vec![])
@@ -502,7 +508,7 @@ async fn verify_interaction_using_transport<'a, F: RequestFilterExecutor>(
           &InteractionVerificationData::new(request_body, request_metadata),
           &context,
           &pact,
-          interaction
+          v4_interaction.as_ref()
         ).await {
           Ok(result) => if result.ok {
             Ok((interaction.id(), result.output))
@@ -522,8 +528,8 @@ async fn verify_interaction_using_transport<'a, F: RequestFilterExecutor>(
                   })
                 }
               }).collect(),
-              expected: interaction.boxed(), // TODO: what is the point of storing the expected vs actual values here? Looks like to generate a diff, but only works with JSON
-              actual: interaction.boxed(),   // we don't have the actual values, plugin dealt with it
+              expected: as_safe_ref(interaction),
+              actual: as_safe_ref(interaction),
               interaction_id: interaction.id()
             }, result.output))
           }
@@ -718,8 +724,8 @@ fn walkdir(
 }
 
 fn display_body_mismatch(
-  expected: &Box<dyn Interaction>,
-  actual: &Box<dyn Interaction>,
+  expected: &dyn Interaction,
+  actual: &dyn Interaction,
   path: &str,
   output: &mut Vec<String>
 ) {
@@ -984,7 +990,6 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
               verification_result.output.push("WARNING: Pact file has no interactions".to_string());
             }
           } else {
-            let mut results: Vec<(Option<String>, Result<(), MismatchResult>)> = vec![];
             let pending = match &context {
               Some(context) => context.verification_properties.pending,
               None => false
@@ -998,15 +1003,17 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
               pending,
               pact_source_duration
             ).await;
-            match verify_result {
+
+            let mut results = vec![];
+            match &verify_result {
               Ok(result) => {
-                for result in &result.results {
-                  results.push((result.interaction_id.clone(), result.result.clone()));
-                  if let Err(error) = &result.result {
-                    if result.pending {
-                      pending_errors.push((result.description.clone(), error.clone()));
+                for interaction_result in &result.results {
+                  results.push(interaction_result.clone());
+                  if let Err(error) = &interaction_result.result {
+                    if interaction_result.pending {
+                      pending_errors.push((interaction_result.description.clone(), error.clone()));
                     } else {
-                      errors.push((result.description.clone(), error.clone()));
+                      errors.push((interaction_result.description.clone(), error.clone()));
                     }
                   }
                 }
@@ -1027,9 +1034,10 @@ pub async fn verify_provider_async<F: RequestFilterExecutor, S: ProviderStateExe
             }
 
             total_results += results.len();
+            verification_result.interaction_results.extend_from_slice(results.as_slice());
 
             if let Some(publish) = publish_options {
-              publish_result(&results, &pact_source, &publish).await;
+              publish_result(results.as_slice(), &pact_source, &publish).await;
 
               if !errors.is_empty() || !pending_errors.is_empty() {
                 process_notices(&context, VERIFICATION_NOTICE_AFTER_ERROR_RESULT_AND_PUBLISH, &mut verification_result);
@@ -1111,33 +1119,46 @@ fn process_errors(errors: &Vec<(String, MismatchResult)>, output: &mut Vec<Strin
     match *mismatch {
         MismatchResult::Error(ref err, _) => output.push(format!("{}) {} - {}\n", i + 1, description, err)),
         MismatchResult::Mismatches { ref mismatches, ref expected, ref actual, .. } => {
-          output.push(format!("{}) {}", i + 1, description));
-
-          let mut j = 1;
-          for (_, mut mismatches) in &mismatches.into_iter().group_by(|m| m.mismatch_type()) {
-            let mismatch = mismatches.next().unwrap();
-            output.push(format!("    {}.{}) {}", i + 1, j, mismatch.summary()));
-            output.push(format!("           {}", if coloured_output { mismatch.ansi_description() } else { mismatch.description() }));
-            for mismatch in mismatches.sorted_by(|m1, m2| {
-              match (m1, m2) {
-                (Mismatch::QueryMismatch { parameter: p1, .. }, Mismatch::QueryMismatch { parameter: p2, .. }) => Ord::cmp(&p1, &p2),
-                (Mismatch::HeaderMismatch { key: p1, .. }, Mismatch::HeaderMismatch { key: p2, .. }) => Ord::cmp(&p1, &p2),
-                (Mismatch::BodyMismatch { path: p1, .. }, Mismatch::BodyMismatch { path: p2, .. }) => Ord::cmp(&p1, &p2),
-                (Mismatch::MetadataMismatch { key: p1, .. }, Mismatch::MetadataMismatch { key: p2, .. }) => Ord::cmp(&p1, &p2),
-                _ => Ord::cmp(m1, m2)
-              }
-            }) {
-              output.push(format!("           {}", if coloured_output { mismatch.ansi_description() } else { mismatch.description() }));
-            }
-
-            if let Mismatch::BodyMismatch{ref path, ..} = mismatch {
-              display_body_mismatch(expected, actual, path, output);
-            }
-
-            j += 1;
-          }
+          interaction_mismatch_output(output, coloured_output, i, description, mismatches, expected.as_ref(), actual.as_ref())
         }
     }
+  }
+}
+
+/// Generate the output for an interaction verification
+pub fn interaction_mismatch_output(
+  output: &mut Vec<String>,
+  coloured_output: bool,
+  i: usize,
+  description: &String,
+  mismatches: &Vec<Mismatch>,
+  expected: &dyn Interaction,
+  actual: &dyn Interaction
+) {
+  output.push(format!("{}) {}", i + 1, description));
+
+  let mut j = 1;
+  for (_, mut mismatches) in &mismatches.into_iter().group_by(|m| m.mismatch_type()) {
+    let mismatch = mismatches.next().unwrap();
+    output.push(format!("    {}.{}) {}", i + 1, j, mismatch.summary()));
+    output.push(format!("           {}", if coloured_output { mismatch.ansi_description() } else { mismatch.description() }));
+    for mismatch in mismatches.sorted_by(|m1, m2| {
+      match (m1, m2) {
+        (Mismatch::QueryMismatch { parameter: p1, .. }, Mismatch::QueryMismatch { parameter: p2, .. }) => Ord::cmp(&p1, &p2),
+        (Mismatch::HeaderMismatch { key: p1, .. }, Mismatch::HeaderMismatch { key: p2, .. }) => Ord::cmp(&p1, &p2),
+        (Mismatch::BodyMismatch { path: p1, .. }, Mismatch::BodyMismatch { path: p2, .. }) => Ord::cmp(&p1, &p2),
+        (Mismatch::MetadataMismatch { key: p1, .. }, Mismatch::MetadataMismatch { key: p2, .. }) => Ord::cmp(&p1, &p2),
+        _ => Ord::cmp(m1, m2)
+      }
+    }) {
+      output.push(format!("           {}", if coloured_output { mismatch.ansi_description() } else { mismatch.description() }));
+    }
+
+    if let Mismatch::BodyMismatch { ref path, .. } = mismatch {
+      display_body_mismatch(expected, actual, path, output);
+    }
+
+    j += 1;
   }
 }
 
@@ -1302,28 +1323,6 @@ async fn fetch_pacts(
     .await
 }
 
-/// /// Result of verifying a Pact interaction
-pub struct VerificationInteractionResult {
-  /// Interaction ID
-  pub interaction_id: Option<String>,
-  /// Description
-  pub description: String,
-  /// Result of the verification
-  pub result: Result<(), MismatchResult>,
-  /// If the Pact or interaction is pending
-  pub pending: bool,
-  /// Duration that the verification took
-  pub duration: Duration
-}
-
-/// Result of verifying a Pact
-pub struct VerificationResult {
-  /// Results that occurred
-  pub results: Vec<VerificationInteractionResult>,
-  /// Output from the verification
-  pub output: Vec<String>
-}
-
 /// Internal function, public for testing purposes
 #[tracing::instrument(level = "trace")]
 pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderStateExecutor>(
@@ -1384,11 +1383,22 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
     description.push_str(" - ");
     description.push_str(&interaction.description());
 
-    if interaction.is_v4() {
+    let (interaction_key, verification_from_plugin) = if interaction.is_v4() {
       if let Some(interaction) = interaction.as_v4() {
-        process_comments(interaction, &mut output)
+        process_comments(interaction.as_ref(), &mut output);
+
+        let verification_from_plugin = interaction.transport()
+          .and_then(|t| catalogue_manager::lookup_entry(&*format!("transport/{}", t)))
+          .and_then(|entry| Some(entry.provider_type == CatalogueEntryProviderType::PLUGIN))
+          .unwrap_or(false);
+
+        (interaction.key(), verification_from_plugin)
+      } else {
+        (None, false)
       }
-    }
+    } else {
+      (None, false)
+    };
 
     let match_result = match match_result {
       Ok((id, out, _)) => {
@@ -1406,12 +1416,6 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
         Err(err)
       }
     };
-
-    let verification_from_plugin = interaction.as_v4()
-        .and_then(|i| i.transport())
-        .and_then(|t| catalogue_manager::lookup_entry(&*format!("transport/{}", t)))
-        .and_then(|entry| Some(entry.provider_type == CatalogueEntryProviderType::PLUGIN))
-        .unwrap_or(false);
 
     if !verification_from_plugin {
       // Plugins should provide verification output, so we can skip this bit if a plugin was used
@@ -1432,7 +1436,9 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
       Ok(_) => {
         errors.push(VerificationInteractionResult {
           interaction_id: interaction.id(),
+          interaction_key,
           description: description.clone(),
+          interaction_description: interaction.description(),
           result: Ok(()),
           pending: pending || interaction.pending(),
           duration
@@ -1441,7 +1447,9 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
       Err(err) => {
         errors.push(VerificationInteractionResult {
           interaction_id: interaction.id(),
+          interaction_key,
           description: description.clone(),
+          interaction_description: interaction.description(),
           result: Err(err.clone()),
           pending: pending || interaction.pending(),
           duration
@@ -1455,7 +1463,7 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
   Ok(VerificationResult { results: errors, output: output.clone() })
 }
 
-fn process_comments(interaction: Box<dyn V4Interaction>, output: &mut Vec<String>) {
+fn process_comments(interaction: &dyn V4Interaction, output: &mut Vec<String>) {
   let comments = interaction.comments();
   if !comments.is_empty() {
     if let Some(testname) = comments.get("testname") {
@@ -1485,7 +1493,7 @@ fn process_comments(interaction: Box<dyn V4Interaction>, output: &mut Vec<String
 }
 
 async fn publish_result(
-  results: &[(Option<String>, Result<(), MismatchResult>)],
+  results: &[VerificationInteractionResult],
   source: &PactSource,
   options: &PublishOptions,
 ) {
@@ -1508,7 +1516,7 @@ async fn publish_result(
 }
 
 async fn publish_to_broker(
-  results: &[(Option<String>, Result<(), MismatchResult>)],
+  results: &[VerificationInteractionResult],
   source: &PactSource,
   build_url: &Option<String>,
   provider_tags: &Vec<String>,
@@ -1519,14 +1527,14 @@ async fn publish_to_broker(
   auth: Option<HttpAuth>,
 ) -> Result<Value, pact_broker::PactBrokerError> {
   info!("Publishing verification results back to the Pact Broker");
-  let result = if results.iter().all(|(_, result)| result.is_ok()) {
+  let result = if results.iter().all(|r| r.result.is_ok()) {
     debug!("Publishing a successful result to {}", source);
-    TestResult::Ok(results.iter().map(|(id, _)| id.clone()).collect())
+    TestResult::Ok(results.iter().map(|r| r.interaction_id.clone()).collect())
   } else {
     debug!("Publishing a failure result to {}", source);
     TestResult::Failed(
       results.iter()
-        .map(|(id, result)| (id.clone(), result.as_ref().err().cloned()))
+        .map(|r| (r.interaction_id.clone(), r.result.as_ref().err().cloned()))
         .collect()
     )
   };

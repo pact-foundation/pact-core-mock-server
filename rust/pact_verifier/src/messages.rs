@@ -23,6 +23,7 @@ use pact_matching::{match_message, match_sync_message_response, Mismatch};
 use crate::{MismatchResult, ProviderInfo, ProviderTransport, VerificationOptions};
 use crate::callback_executors::RequestFilterExecutor;
 use crate::provider_client::make_provider_request;
+use crate::utils::as_safe_ref;
 
 pub(crate) async fn verify_message_from_provider<'a, F: RequestFilterExecutor>(
   provider: &ProviderInfo,
@@ -102,8 +103,8 @@ pub(crate) async fn verify_message_from_provider<'a, F: RequestFilterExecutor>(
       } else {
         Err(MismatchResult::Mismatches {
           mismatches,
-          expected: interaction.boxed(),
-          actual: actual.boxed(),
+          expected: as_safe_ref(interaction.as_ref()),
+          actual: as_safe_ref(&actual),
           interaction_id: interaction.id().clone()
         })
       }
@@ -343,8 +344,8 @@ pub(crate) async fn verify_sync_message_from_provider<'a, F: RequestFilterExecut
         } else {
           Err(MismatchResult::Mismatches {
             mismatches,
-            expected: message.boxed(),
-            actual: actual.boxed(),
+            expected: as_safe_ref(&message),
+            actual: as_safe_ref(&actual),
             interaction_id: message.id().clone()
           })
         }

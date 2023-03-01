@@ -1,13 +1,41 @@
 //! Structs for storing and returning the result of the verification execution
 
 use std::collections::HashMap;
+use std::time::Duration;
 
 use itertools::Itertools;
 use serde_json::{json, Value};
 
 use pact_matching::Mismatch;
 
-/// Main struct for returning the verification execution result
+/// Result of verifying a Pact interaction
+#[derive(Clone, Debug)]
+pub struct VerificationInteractionResult {
+  /// Interaction ID, this will only be set if the Pact was loaded from a Pact broker
+  pub interaction_id: Option<String>,
+  /// Interaction key (this will be set if the Pact is a V4 Pact)
+  pub interaction_key: Option<String>,
+  /// Descriptive text of the verification that was preformed
+  pub description: String,
+  /// Interaction description from the Pact file
+  pub interaction_description: String,
+  /// Result of the verification
+  pub result: Result<(), crate::MismatchResult>,
+  /// If the Pact or interaction is pending
+  pub pending: bool,
+  /// Duration that the verification took
+  pub duration: Duration
+}
+
+/// Result of verifying a Pact
+pub struct VerificationResult {
+  /// Results that occurred
+  pub results: Vec<VerificationInteractionResult>,
+  /// Output from the verification
+  pub output: Vec<String>
+}
+
+/// Main struct for returning the total verification execution result
 #[derive(Debug, Clone)]
 pub struct VerificationExecutionResult {
   /// Overall pass/fail result
@@ -17,9 +45,11 @@ pub struct VerificationExecutionResult {
   /// Collected standard output
   pub output: Vec<String>,
   /// Errors that occurred, but are marked as pending
-  pub pending_errors: Vec<(String, MismatchResult)>,
+  pub pending_errors: Vec<(String, VerificationMismatchResult)>,
   /// Errors that occurred that are not considered pending
-  pub errors: Vec<(String, MismatchResult)>,
+  pub errors: Vec<(String, VerificationMismatchResult)>,
+  /// Result for each interaction that was verified
+  pub interaction_results: Vec<VerificationInteractionResult>
 }
 
 impl VerificationExecutionResult {
@@ -30,7 +60,8 @@ impl VerificationExecutionResult {
       notices: vec![],
       output: vec![],
       pending_errors: vec![],
-      errors: vec![]
+      errors: vec![],
+      interaction_results: vec![],
     }
   }
 }
@@ -67,10 +98,10 @@ impl Into<Value> for VerificationExecutionResult {
   }
 }
 
-/// Result of performing a match. This is a reduced version of super::MismatchResult to make
+/// Result of performing a match. This is a reduced version of crate::MismatchResult to make
 /// it thread and panic boundary safe
 #[derive(Debug, Clone)]
-pub enum MismatchResult {
+pub enum VerificationMismatchResult {
   /// Response mismatches
   Mismatches {
     /// Mismatches that occurred
@@ -87,17 +118,17 @@ pub enum MismatchResult {
   }
 }
 
-impl From<&crate::MismatchResult> for MismatchResult {
+impl From<&crate::MismatchResult> for VerificationMismatchResult {
   fn from(result: &crate::MismatchResult) -> Self {
     match result {
       crate::MismatchResult::Mismatches { mismatches, interaction_id, .. } => {
-        MismatchResult::Mismatches {
+        VerificationMismatchResult::Mismatches {
           mismatches: mismatches.clone(),
           interaction_id: interaction_id.clone()
         }
       }
       crate::MismatchResult::Error(error, interaction_id) => {
-        MismatchResult::Error {
+        VerificationMismatchResult::Error {
           error: error.clone(),
           interaction_id: interaction_id.clone()
         }
@@ -106,17 +137,17 @@ impl From<&crate::MismatchResult> for MismatchResult {
   }
 }
 
-impl Into<Value> for &MismatchResult {
+impl Into<Value> for &VerificationMismatchResult {
   fn into(self) -> Value {
     match self {
-      MismatchResult::Mismatches { mismatches, interaction_id } => {
+      VerificationMismatchResult::Mismatches { mismatches, interaction_id } => {
         json!({
           "type": "mismatches",
           "mismatches": mismatches.iter().map(|i| i.to_json()).collect_vec(),
           "interactionId": interaction_id.clone().unwrap_or_default()
         })
       }
-      MismatchResult::Error { error, interaction_id } => {
+      VerificationMismatchResult::Error { error, interaction_id } => {
         json!({
           "type": "error",
           "message": error,
@@ -127,7 +158,7 @@ impl Into<Value> for &MismatchResult {
   }
 }
 
-impl Into<Value> for MismatchResult {
+impl Into<Value> for VerificationMismatchResult {
   fn into(self) -> Value {
     (&self).into()
   }
@@ -142,12 +173,11 @@ mod tests {
   use pact_matching::Mismatch;
 
   use crate::VerificationExecutionResult;
-
-  use super::MismatchResult;
+  use crate::verification_result::VerificationMismatchResult;
 
   #[test]
   fn match_result_to_json() {
-    let mismatch = MismatchResult::Mismatches {
+    let mismatch = VerificationMismatchResult::Mismatches {
       mismatches: vec![
         Mismatch::BodyMismatch {
           path: "1.2.3.4".to_string(),
@@ -173,7 +203,7 @@ mod tests {
       "type": "mismatches"
     })));
 
-    let error = MismatchResult::Error {
+    let error = VerificationMismatchResult::Error {
       error: "It went bang, Mate!".to_string(),
       interaction_id: Some("1234".to_string())
     };
@@ -203,7 +233,7 @@ mod tests {
       pending_errors: vec![
         (
           "interaction 1".to_string(),
-          MismatchResult::Error {
+          VerificationMismatchResult::Error {
             error: "Boom!".to_string(),
             interaction_id: None
           }
@@ -212,12 +242,13 @@ mod tests {
       errors: vec![
         (
           "interaction 2".to_string(),
-          MismatchResult::Error {
+          VerificationMismatchResult::Error {
             error: "Boom!".to_string(),
             interaction_id: None
           }
         )
-      ]
+      ],
+      interaction_results: vec![],
     };
     let json: Value = result.into();
     expect!(json).to(be_equal_to(json!({

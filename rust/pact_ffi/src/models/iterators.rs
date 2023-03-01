@@ -65,7 +65,7 @@ ffi_fn! {
             .ok_or(anyhow::anyhow!("iter past the end of messages"))?;
         message as *mut Message
     } {
-        ptr::null_mut_to::<Message>()
+        std::ptr::null_mut()
     }
 }
 
@@ -119,7 +119,7 @@ ffi_fn! {
             .ok_or(anyhow::anyhow!("iter past the end of messages"))?;
         message as *mut SynchronousMessage
     } {
-        ptr::null_mut_to::<SynchronousMessage>()
+        std::ptr::null_mut()
     }
 }
 
@@ -180,7 +180,7 @@ ffi_fn! {
             .ok_or(anyhow::anyhow!("iter past the end of the list"))?;
         interaction as *mut SynchronousHttp
     } {
-        ptr::null_mut_to::<SynchronousHttp>()
+        std::ptr::null_mut()
     }
 }
 

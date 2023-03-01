@@ -1,8 +1,10 @@
 //! Utility functions
 
+use std::panic::RefUnwindSafe;
 use std::time::Duration;
 
 use futures::StreamExt;
+use pact_models::interaction::Interaction;
 use reqwest::RequestBuilder;
 use tokio::time::sleep;
 use tracing::{trace, warn};
@@ -61,5 +63,16 @@ pub(crate) async fn with_retries(retries: u8, request: RequestBuilder) -> Result
           }
         }).await.0.unwrap()
     }
+  }
+}
+
+pub(crate) fn as_safe_ref(interaction: &dyn Interaction) -> Box<dyn Interaction + Send + Sync + RefUnwindSafe> {
+  if let Some(v4) = interaction.as_v4_sync_message() {
+    Box::new(v4)
+  } else if let Some(v4) = interaction.as_v4_async_message() {
+    Box::new(v4)
+  } else {
+    let v4 = interaction.as_v4_http().unwrap();
+    Box::new(v4)
   }
 }
