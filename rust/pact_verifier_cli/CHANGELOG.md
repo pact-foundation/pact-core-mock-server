@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.10.3 - Add option to generate a JUnit XML report file for the verification #257
+
+* 9629c351 - chore: dump minor version of pact_verifier as some signatures have changed (Ronald Holshausen, Thu Mar 2 12:10:35 2023 +1100)
+* c9333f94 - feat: add option to generate JUnit XML report format for consumption by CI servers #257 (Ronald Holshausen, Thu Mar 2 10:48:56 2023 +1100)
+* 46297622 - feat: add verification timing to the verifier output (Ronald Holshausen, Mon Feb 27 16:11:18 2023 +1100)
+* cad9208a - bump version to 0.10.3 (Ronald Holshausen, Thu Feb 16 14:20:45 2023 +1100)
+
 # 0.10.2 - Bugfix Release
 
 * c368c651 - fix: Pass any custom header values on to the plugin verification call (Ronald Holshausen, Thu Feb 16 13:52:03 2023 +1100)
