@@ -71,27 +71,27 @@ pub(crate) fn match_header_value(
 ) -> Result<(), Vec<Mismatch>> {
   let path = DocPath::root().join(key);
   let indexed_path = path.join(index.to_string());
-  let expected: String = strip_whitespace(expected, ",");
-  let actual: String = strip_whitespace(actual, ",");
+  let expected = expected.trim();
+  let actual = actual.trim();
 
   let matcher_result = if context.matcher_is_defined(&path) {
-    let result = matchers::match_values(&path, &context.select_best_matcher(&path), &expected, &actual);
+    let result = matchers::match_values(&path, &context.select_best_matcher(&path), expected, actual);
     if single_value {
       result
     } else {
       result.map_err(|err| err.iter().map(|e| format!("{} for value at index {}", e, index)).collect())
     }
   } else if context.matcher_is_defined(&indexed_path) {
-    let result = matchers::match_values(&indexed_path, &context.select_best_matcher(&indexed_path), &expected, &actual);
+    let result = matchers::match_values(&indexed_path, &context.select_best_matcher(&indexed_path), expected, actual);
     if single_value {
       result
     } else {
       result.map_err(|err| err.iter().map(|e| format!("{} for value at index {}", e, index)).collect())
     }
   } else if PARAMETERISED_HEADERS.contains(&key.to_lowercase().as_str()) {
-    match_parameter_header(expected.as_str(), actual.as_str(), key, "header")
+    match_parameter_header(expected, actual, key, "header")
   } else {
-    Matches::matches_with(&expected, &actual, &MatchingRule::Equality, false)
+    Matches::matches_with(&expected.to_string(), &actual.to_string(), &MatchingRule::Equality, false)
       .map_err(|err| {
         if single_value {
           vec![format!("{}", err)]
@@ -235,22 +235,6 @@ mod tests {
         assert_eq!(mismatch, "Mismatch with header 'HEADER': Expected 'HEADER_VALUE' to be equal to 'HEADER2'"),
       _ => panic!("Unexpected mismatch response")
     }
-  }
-
-  #[test]
-  fn matching_headers_exclude_whitespaces() {
-    let mismatches = match_header_value("HEADER", 0, "HEADER1, HEADER2,   3",
-      "HEADER1,HEADER2,3", &CoreMatchingContext::default(), true
-    );
-    expect!(mismatches).to(be_ok());
-  }
-
-  #[test]
-  fn matching_headers_includes_whitespaces_within_a_value() {
-    let mismatches = match_header_value("HEADER", 0, "HEADER 1, \tHEADER 2,\n3",
-     "HEADER 1,HEADER 2,3", &CoreMatchingContext::default(), true
-    );
-    expect!(mismatches).to(be_ok());
   }
 
   #[test]
@@ -612,6 +596,40 @@ mod tests {
       DiffConfig::AllowUnexpectedKeys,
       &rules.rules_for_category("header").unwrap_or_default(), &hashmap!{}
     );
+    let result = match_headers(Some(expected), Some(actual), &context);
+    expect!(result.values().flatten()).to(be_empty());
+  }
+
+  #[test_log::test]
+  fn last_modified_header_matches_when_headers_are_equal() {
+    let expected = hashmap! { "Last-Modified".to_string() => vec!["Sun, 12 Mar 2023 01:21:35 GMT".to_string()] };
+    let actual = hashmap! { "Last-Modified".to_string() => vec!["Sun, 12 Mar 2023 01:21:35 GMT".to_string()]};
+    let context = CoreMatchingContext::default();
+    let result = match_headers(Some(expected), Some(actual), &context);
+    expect!(result.values().flatten()).to(be_empty());
+  }
+
+  #[test_log::test]
+  fn last_modified_header_does_not_match_when_headers_are_not_equal() {
+    let expected = hashmap! { "Last-Modified".to_string() => vec!["Sun, 12 Mar 2023 01:21:35 GMT".to_string()] };
+    let actual = hashmap! { "Last-Modified".to_string() => vec!["Sun, 12 Mar 2023 01:21:52 GMT".to_string()]};
+    let context = CoreMatchingContext::default();
+    let result = match_headers(Some(expected), Some(actual), &context);
+    expect!(result.values().flatten()).to_not(be_empty());
+  }
+
+  #[test_log::test]
+  fn matching_last_modified_header_with_a_matcher() {
+    let context = CoreMatchingContext::new(
+      DiffConfig::AllowUnexpectedKeys,
+      &matchingrules! {
+        "header" => {
+          "Last-Modified" => [ MatchingRule::Regex("^[A-Za-z]{3},\\s\\d{2}\\s[A-Za-z]{3}\\s\\d{4}\\s\\d{2}:\\d{2}:\\d{2}\\sGMT$".to_string()) ]
+        }
+      }.rules_for_category("header").unwrap_or_default(), &hashmap!{}
+    );
+    let expected = hashmap! { "Last-Modified".to_string() => vec!["Sun, 12 Mar 2023 01:21:35 GMT".to_string()] };
+    let actual = hashmap! { "Last-Modified".to_string() => vec!["Sun, 12 Mar 2023 01:21:52 GMT".to_string()]};
     let result = match_headers(Some(expected), Some(actual), &context);
     expect!(result.values().flatten()).to(be_empty());
   }
