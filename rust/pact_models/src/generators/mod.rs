@@ -1380,10 +1380,8 @@ impl JsonHandler {
               match body_cursor.clone().as_object() {
                 Some(map) => match map.get(name) {
                   Some(val) => {
-                    let node = tree.new_node(name.clone());
-                    node_cursor.append(node, tree);
+                    node_cursor = node_cursor.append_value(name.clone(), tree);
                     body_cursor = val.clone();
-                    node_cursor = node;
                   },
                   None => return
                 },
@@ -1393,10 +1391,8 @@ impl JsonHandler {
             &PathToken::Index(index) => {
               match body_cursor.clone().as_array() {
                 Some(list) => if list.len() > index {
-                  let node = tree.new_node(format!("{}", index));
-                  node_cursor.append(node, tree);
+                  node_cursor = node_cursor.append_value(format!("{}", index), tree);
                   body_cursor = list[index].clone();
-                  node_cursor = node;
                 },
                 None => return
               }
@@ -1406,8 +1402,7 @@ impl JsonHandler {
                 Some(map) => {
                   let remaining = it.by_ref().cloned().collect();
                   for (key, val) in map {
-                    let node = tree.new_node(key.clone());
-                    node_cursor.append(node, tree);
+                    let node = node_cursor.append_value(key.clone(), tree);
                     body_cursor = val.clone();
                     self.query_object_graph(&remaining, tree, node, val.clone());
                   }
@@ -1420,8 +1415,7 @@ impl JsonHandler {
                 Some(list) => {
                   let remaining = it.by_ref().cloned().collect();
                   for (index, val) in list.iter().enumerate() {
-                    let node = tree.new_node(format!("{}", index));
-                    node_cursor.append(node, tree);
+                    let node = node_cursor.append_value(format!("{}", index), tree);
                     body_cursor = val.clone();
                     self.query_object_graph(&remaining, tree, node,val.clone());
                   }

@@ -30,7 +30,7 @@ chrono = { version = "0.4.22", features = ["std", "clock"], default-features = f
 chrono-tz = "0.8.0"
 lenient_semver = "0.4.2"
 sxd-document = "0.3.2"
-indextree = "4.5.0"
+indextree = "4.6.0"
 rand = "0.8.5"
 hex = "0.4.3"
 rand_regex = "0.15.1"
