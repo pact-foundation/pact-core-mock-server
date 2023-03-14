@@ -1514,9 +1514,9 @@ checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 
 [[package]]
 name = "pact-plugin-driver"
-version = "0.3.2"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47e3d115c00453767c2a32ba98568edeb5b3a6e3892a3a167cfe1a5820321398"
+checksum = "f56b96bb9ac48b6582930570a54f850eda07ff9a491b252b5201b0bc130954ad"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1525,6 +1525,7 @@ dependencies = [
  "home",
  "itertools",
  "lazy_static",
+ "log",
  "maplit",
  "md5",
  "os_info",
@@ -1793,7 +1794,7 @@ dependencies = [
 
 [[package]]
 name = "pact_models"
-version = "1.0.5"
+version = "1.0.7"
 dependencies = [
  "anyhow",
  "ariadne",
