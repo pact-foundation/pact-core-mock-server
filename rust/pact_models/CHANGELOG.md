@@ -1,5 +1,32 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.6 - Maintenance Release
+
+* fbe6ebe2 - chore: set pact_models version to 1.0.6 as 1.0.5 was yanked (Ronald Holshausen, Tue Mar 14 16:41:56 2023 +1100)
+* f04a3273 - feat: add a simple header parser to pact_models #259 (Ronald Holshausen, Tue Mar 14 16:38:54 2023 +1100)
+* 43bb0d50 - Bump indextree, use append_value() (Yoni Feigelson, Sun Mar 12 11:32:57 2023 +0200)
+* 80ec8f1a - Revert "fix: Add UnwindSafe trait bound to all Pact and Interaction trait methods so they can be used in a FFI context" (Ronald Holshausen, Tue Feb 28 16:46:43 2023 +1100)
+* 029d34a8 - Revert "update changelog for release 1.0.5" (Ronald Holshausen, Tue Feb 28 16:46:32 2023 +1100)
+* 4d12d790 - Revert "bump version to 1.0.6" (Ronald Holshausen, Tue Feb 28 16:46:19 2023 +1100)
+* 3b82429f - Revert "fix: Bumping minor version as the last change broke everything using the traits" (Ronald Holshausen, Tue Feb 28 16:46:09 2023 +1100)
+* 36685717 - Revert "update changelog for release 1.1.0" (Ronald Holshausen, Tue Feb 28 16:45:56 2023 +1100)
+* 2bdc2736 - Revert "bump version to 1.1.1" (Ronald Holshausen, Tue Feb 28 16:45:44 2023 +1100)
+* 5c802419 - Revert "fix: UnwindSafe trait bound was missing on the read/write functions" (Ronald Holshausen, Tue Feb 28 16:45:31 2023 +1100)
+* add61a75 - Revert "update changelog for release 1.1.1" (Ronald Holshausen, Tue Feb 28 16:45:20 2023 +1100)
+* 8ad8e409 - Revert "bump version to 1.1.2" (Ronald Holshausen, Tue Feb 28 16:45:01 2023 +1100)
+* 5712b511 - bump version to 1.1.2 (Ronald Holshausen, Tue Feb 28 16:30:50 2023 +1100)
+* f3b03ba8 - update changelog for release 1.1.1 (Ronald Holshausen, Tue Feb 28 16:29:43 2023 +1100)
+* 019a7ea1 - fix: UnwindSafe trait bound was missing on the read/write functions (Ronald Holshausen, Tue Feb 28 16:28:29 2023 +1100)
+* de34e8e4 - bump version to 1.1.1 (Ronald Holshausen, Tue Feb 28 16:14:14 2023 +1100)
+* fb1d9385 - update changelog for release 1.1.0 (Ronald Holshausen, Tue Feb 28 16:08:29 2023 +1100)
+* 5e0307cb - fix: Bumping minor version as the last change broke everything using the traits (Ronald Holshausen, Tue Feb 28 16:06:45 2023 +1100)
+* b3140d94 - bump version to 1.0.6 (Ronald Holshausen, Tue Feb 28 15:23:07 2023 +1100)
+* 208e3133 - update changelog for release 1.0.5 (Ronald Holshausen, Tue Feb 28 15:20:48 2023 +1100)
+* b5ab945a - fix: Add UnwindSafe trait bound to all Pact and Interaction trait methods so they can be used in a FFI context (Ronald Holshausen, Tue Feb 28 15:19:04 2023 +1100)
+* 1c45b63c - fix: add a test to reflect behaviour as per V4 spec (Ronald Holshausen, Mon Jan 30 15:22:02 2023 +1100)
+* ba24b0a8 - fix: correct parsing of JSON encoded bodies as per V4 spec (Ronald Holshausen, Mon Jan 30 15:19:38 2023 +1100)
+* 68aad6e9 - bump version to 1.0.5 (Ronald Holshausen, Wed Jan 11 14:26:02 2023 +1100)
+
 # 1.0.4 - Bugfix Release
 
 * 155dae40 - fix: Support RequestResponsePact loading from V4 formatted JSON #246 (Ronald Holshausen, Wed Jan 11 12:32:01 2023 +1100)
