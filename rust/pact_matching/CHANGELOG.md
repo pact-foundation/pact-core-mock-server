@@ -1,5 +1,15 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.6 - Bugfix Release
+
+* e96bc54e - fix: Upgrade pact_models to 1.0.9 (fixes issues with headers) (Ronald Holshausen, Wed Mar 15 14:31:00 2023 +1100)
+* f7e0b669 - chore: Upgrade pact_models to 1.0.8 (Ronald Holshausen, Wed Mar 15 12:19:22 2023 +1100)
+* 57728a01 - chore: update pact-plugin-driver to 0.3.3 (Ronald Holshausen, Tue Mar 14 17:19:20 2023 +1100)
+* c559bc3d - fix: header matching was incorrectly stripping whitespace around commas #259 (Ronald Holshausen, Tue Mar 14 15:36:34 2023 +1100)
+* 0676047e - chore: Upgrade pact-plugin-driver to 0.3.2 (Ronald Holshausen, Thu Feb 16 12:09:46 2023 +1100)
+* 46e0a7df - chore: correct doc comment (Ronald Holshausen, Wed Feb 8 14:35:38 2023 +1100)
+* 14b1b240 - bump version to 1.0.6 (Ronald Holshausen, Wed Feb 8 13:50:37 2023 +1100)
+
 # 1.0.5 - Maintenance Release
 
 * 1e7331f1 - fix: Upgrade plugin driver to 0.3.1 (Ronald Holshausen, Wed Feb 8 13:28:07 2023 +1100)
