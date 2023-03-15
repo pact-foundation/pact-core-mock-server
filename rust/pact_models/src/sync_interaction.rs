@@ -215,14 +215,14 @@ impl RequestResponseInteraction {
       if self.description == other.description && self.provider_states == other.provider_states {
         let mut conflicts = self.request.differences_from(&other.request).iter()
           .filter(|difference| match difference.0 {
-            DifferenceType::MatchingRules | DifferenceType::Body => false,
+            DifferenceType::MatchingRules | DifferenceType::Body | DifferenceType::Headers => false,
             _ => true
           })
           .map(|difference| PactConflict { interaction: self.description.clone(), description: difference.1.clone() })
           .collect::<Vec<PactConflict>>();
         for difference in self.response.differences_from(&other.response) {
           match difference.0 {
-            DifferenceType::MatchingRules | DifferenceType::Body => (),
+            DifferenceType::MatchingRules | DifferenceType::Body | DifferenceType::Headers => (),
             _ => conflicts.push(PactConflict { interaction: self.description.clone(), description: difference.1.clone() })
           };
         }
