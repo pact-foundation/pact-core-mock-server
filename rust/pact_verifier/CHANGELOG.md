@@ -1,5 +1,15 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.15.1 - Bugfix Release
+
+* 11c701b4 - fix: Upgrade pact_matching to 1.0.6 (fixes some issues with matching HTTP headers) (Ronald Holshausen, Wed Mar 15 14:54:54 2023 +1100)
+* 7e72df6e - chore: add a verification test with a Last-Modified header #259 (Ronald Holshausen, Wed Mar 15 14:33:59 2023 +1100)
+* e96bc54e - fix: Upgrade pact_models to 1.0.9 (fixes issues with headers) (Ronald Holshausen, Wed Mar 15 14:31:00 2023 +1100)
+* b479f233 - fix: do not split header values for headers like Date, Last-Modified, etc. #259 (Ronald Holshausen, Wed Mar 15 12:33:09 2023 +1100)
+* f7e0b669 - chore: Upgrade pact_models to 1.0.8 (Ronald Holshausen, Wed Mar 15 12:19:22 2023 +1100)
+* 57728a01 - chore: update pact-plugin-driver to 0.3.3 (Ronald Holshausen, Tue Mar 14 17:19:20 2023 +1100)
+* b87ea333 - bump version to 0.15.1 (Ronald Holshausen, Thu Mar 2 12:50:29 2023 +1100)
+
 # 0.15.0 - Supports JUnit XML report files
 
 * 9629c351 - chore: dump minor version of pact_verifier as some signatures have changed (Ronald Holshausen, Thu Mar 2 12:10:35 2023 +1100)
