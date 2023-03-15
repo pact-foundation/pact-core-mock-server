@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.9 - Bugfix Release
+
+* 97684ade - fix: Correctly deal with headers when the value is a string (Ronald Holshausen, Wed Mar 15 14:12:24 2023 +1100)
+* 55748ea0 - bump version to 1.0.9 (Ronald Holshausen, Wed Mar 15 12:15:43 2023 +1100)
+
 # 1.0.8 - Bugfix Release
 
 * 315e6aee - fix(V4): Bodies where the content attribute is NULL should be NULL bodies (Ronald Holshausen, Wed Mar 15 12:01:28 2023 +1100)
