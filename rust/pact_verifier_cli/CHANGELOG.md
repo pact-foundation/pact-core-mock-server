@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.10.4 - Bugfix Release
+
+* 8310b09c - chore: Upgrade pact_verifier to 0.15.1 (Ronald Holshausen, Wed Mar 15 15:25:31 2023 +1100)
+* e96bc54e - fix: Upgrade pact_models to 1.0.9 (fixes issues with headers) (Ronald Holshausen, Wed Mar 15 14:31:00 2023 +1100)
+* f7e0b669 - chore: Upgrade pact_models to 1.0.8 (Ronald Holshausen, Wed Mar 15 12:19:22 2023 +1100)
+* f63b7b66 - bump version to 0.10.4 (Ronald Holshausen, Thu Mar 2 13:03:18 2023 +1100)
+
 # 0.10.3 - Add option to generate a JUnit XML report file for the verification #257
 
 * 9629c351 - chore: dump minor version of pact_verifier as some signatures have changed (Ronald Holshausen, Thu Mar 2 12:10:35 2023 +1100)
