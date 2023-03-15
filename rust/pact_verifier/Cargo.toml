@@ -19,7 +19,7 @@ anyhow = "1.0.66"
 serde = "1.0.147"
 serde_json = "1.0.87"
 pact_matching = { version = "1.0.5", path = "../pact_matching" }
-pact_models = "1.0.8"
+pact_models = "1.0.9"
 pact-plugin-driver = "0.3.3"
 maplit = "1.0.2"
 lazy_static = "1.4.0"
@@ -61,3 +61,5 @@ env_logger = "0.10.0"
 pact_consumer = { version = "0.10.0", path = "../pact_consumer" }
 test-log = { version = "0.2.11", features = ["trace"] }
 tracing-subscriber = { version = "0.3.16", features = ["env-filter", "tracing-log", "fmt"] }
+chrono = "0.4.24"
+chrono-tz = "0.8.1"
