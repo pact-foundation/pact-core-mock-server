@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.7 - Bugfix Release
+
+* eeb256db - fix(V4): Bodies specified as a single empty JSON string should be mapped to an empty body (Ronald Holshausen, Wed Mar 15 11:22:08 2023 +1100)
+* 20d9efd1 - bump version to 1.0.7 (Ronald Holshausen, Tue Mar 14 17:10:26 2023 +1100)
+* 1e51e8a9 - Revert "bump version to 1.0.7" (Ronald Holshausen, Tue Mar 14 17:09:08 2023 +1100)
+* dbb750b1 - bump version to 1.0.7 (Ronald Holshausen, Tue Mar 14 16:46:19 2023 +1100)
+
 # 1.0.6 - Maintenance Release
 
 * fbe6ebe2 - chore: set pact_models version to 1.0.6 as 1.0.5 was yanked (Ronald Holshausen, Tue Mar 14 16:41:56 2023 +1100)
