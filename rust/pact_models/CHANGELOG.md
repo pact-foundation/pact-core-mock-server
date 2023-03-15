@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.8 - Bugfix Release
+
+* 315e6aee - fix(V4): Bodies where the content attribute is NULL should be NULL bodies (Ronald Holshausen, Wed Mar 15 12:01:28 2023 +1100)
+* 86d4ee08 - bump version to 1.0.8 (Ronald Holshausen, Wed Mar 15 11:32:50 2023 +1100)
+
 # 1.0.7 - Bugfix Release
 
 * eeb256db - fix(V4): Bodies specified as a single empty JSON string should be mapped to an empty body (Ronald Holshausen, Wed Mar 15 11:22:08 2023 +1100)
