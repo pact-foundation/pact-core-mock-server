@@ -219,78 +219,85 @@ pub fn body_from_json(json: &Value, attr_name: &str, headers: &Option<HashMap<St
       Value::Object(ref body_attrs) => {
         match body_attrs.get("content") {
           Some(body_contents) => {
-            let content_type = content_type_from_json(headers, body_attrs);
+            match body_contents {
+              // content value is null, assume a NULL body
+              Value::Null => OptionalBody::Null,
 
-            let (encoded, encoding) = match body_attrs.get("encoded") {
-              Some(v) => match *v {
-                Value::String(ref s) => (true, s.to_lowercase()),
-                Value::Bool(b) => (b, Default::default()),
-                _ => (true, v.to_string())
-              },
-              None => (false, Default::default())
-            };
+              _ => {
+                let content_type = content_type_from_json(headers, body_attrs);
 
-            let ct_override = body_attrs.get("contentTypeHint")
-              .map(|val| {
-                match val {
-                  Value::String(s) => match ContentTypeHint::try_from(s.as_str()) {
-                    Ok(val) => val,
-                    Err(err) => {
-                      warn!("'{}' is not a valid value for contentTypeHint, ignoring - {}", s, err);
-                      ContentTypeHint::DEFAULT
+                let (encoded, encoding) = match body_attrs.get("encoded") {
+                  Some(v) => match *v {
+                    Value::String(ref s) => (true, s.to_lowercase()),
+                    Value::Bool(b) => (b, Default::default()),
+                    _ => (true, v.to_string())
+                  },
+                  None => (false, Default::default())
+                };
+
+                let ct_override = body_attrs.get("contentTypeHint")
+                  .map(|val| {
+                    match val {
+                      Value::String(s) => match ContentTypeHint::try_from(s.as_str()) {
+                        Ok(val) => val,
+                        Err(err) => {
+                          warn!("'{}' is not a valid value for contentTypeHint, ignoring - {}", s, err);
+                          ContentTypeHint::DEFAULT
+                        }
+                      }
+                      _ => {
+                        warn!("'{}' is not a valid value for contentTypeHint, ignoring", val);
+                        ContentTypeHint::DEFAULT
+                      }
                     }
-                  }
-                  _ => {
-                    warn!("'{}' is not a valid value for contentTypeHint, ignoring", val);
-                    ContentTypeHint::DEFAULT
-                  }
-                }
-              });
+                  });
 
-            let body_bytes = if encoded {
-              match encoding.as_str() {
-                "base64" => {
-                  match decode(json_to_string(body_contents)) {
-                    Ok(bytes) => bytes,
-                    Err(err) => {
-                      warn!("Failed to decode base64 encoded body, will use the raw body - {}", err);
+                let body_bytes = if encoded {
+                  match encoding.as_str() {
+                    "base64" => {
+                      match decode(json_to_string(body_contents)) {
+                        Ok(bytes) => bytes,
+                        Err(err) => {
+                          warn!("Failed to decode base64 encoded body, will use the raw body - {}", err);
+                          json_to_string(body_contents).into()
+                        }
+                      }
+                    },
+                    "json" => json_to_string(body_contents).into(),
+                    _ => {
+                      warn!("Unrecognised body encoding scheme '{}', will use the raw body", encoding);
                       json_to_string(body_contents).into()
                     }
                   }
-                },
-                "json" => json_to_string(body_contents).into(),
-                _ => {
-                  warn!("Unrecognised body encoding scheme '{}', will use the raw body", encoding);
-                  json_to_string(body_contents).into()
-                }
-              }
-            } else if let Some(ct) = &content_type {
-              if ct.is_json() {
-                if let Some(str_value) = body_contents.as_str() {
-                  if str_value.is_empty() {
-                    vec![]
+                } else if let Some(ct) = &content_type {
+                  if ct.is_json() {
+                    if let Some(str_value) = body_contents.as_str() {
+                      if str_value.is_empty() {
+                        vec![]
+                      } else {
+                        body_contents.to_string().into()
+                      }
+                    } else {
+                      body_contents.to_string().into()
+                    }
                   } else {
-                    body_contents.to_string().into()
+                    json_to_string(body_contents).into()
                   }
                 } else {
-                  body_contents.to_string().into()
-                }
-              } else {
-                json_to_string(body_contents).into()
-              }
-            } else {
-              json_to_string(body_contents).into()
-            };
+                  json_to_string(body_contents).into()
+                };
 
-            if body_bytes.is_empty() {
-              OptionalBody::Empty
-            } else {
-              let content_type = content_type.unwrap_or_else(|| {
-                detect_content_type_from_bytes(&body_bytes).unwrap_or_default()
-              });
-              let mut buf = BytesMut::new();
-              buf.extend_from_slice(&*body_bytes);
-              OptionalBody::Present(buf.freeze(), Some(content_type), ct_override)
+                if body_bytes.is_empty() {
+                  OptionalBody::Empty
+                } else {
+                  let content_type = content_type.unwrap_or_else(|| {
+                    detect_content_type_from_bytes(&body_bytes).unwrap_or_default()
+                  });
+                  let mut buf = BytesMut::new();
+                  buf.extend_from_slice(&*body_bytes);
+                  OptionalBody::Present(buf.freeze(), Some(content_type), ct_override)
+                }
+              }
             }
           },
 
@@ -830,12 +837,27 @@ mod tests {
   #[test]
   fn body_from_json_returns_null_if_the_body_is_null() {
     let json = json!({
-      "path": "/",
-      "query": "",
-      "headers": {},
       "body": null
     });
     let body = body_from_json(&json, "body", &None);
+    expect!(body).to(be_equal_to(OptionalBody::Null));
+
+    let json = json!({
+      "body": {
+        "content": null
+      }
+    });
+    let body = body_from_json(&json, "body", &None);
+    expect!(body).to(be_equal_to(OptionalBody::Null));
+
+    let json = json!({
+      "body": {
+        "content": null
+      }
+    });
+    let body = body_from_json(&json, "body", &Some(hashmap!{
+      "content-type".to_string() => vec!["application/json".to_string()]
+    }));
     expect!(body).to(be_equal_to(OptionalBody::Null));
   }
 
