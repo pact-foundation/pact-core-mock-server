@@ -9,7 +9,7 @@ use base64::decode;
 use bytes::BytesMut;
 use itertools::Itertools;
 use maplit::*;
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 use tracing::warn;
 
 use crate::bodies::OptionalBody;
@@ -210,42 +210,16 @@ impl HttpPart for HttpRequest {
   }
 }
 
+/// Set up an OptionalBody from a JSON fragment. The contents for the body will be looked up from
+/// the attribute given by `attr_name`. The headers will be used to work out the content type,
+/// if required.
 pub fn body_from_json(json: &Value, attr_name: &str, headers: &Option<HashMap<String, Vec<String>>>) -> OptionalBody {
   match json.get(attr_name) {
     Some(body) => match *body {
       Value::Object(ref body_attrs) => {
         match body_attrs.get("content") {
           Some(body_contents) => {
-            let content_type = match body_attrs.get("contentType") {
-              Some(v) => {
-                let content_type_str = json_to_string(v);
-                match ContentType::parse(&*content_type_str) {
-                  Ok(ct) => Some(ct),
-                  Err(err) => {
-                    warn!("Failed to parse body content type '{}' - {}", content_type_str, err);
-                    None
-                  }
-                }
-              },
-              None => {
-                warn!("Body has no content type set, will default to any headers or metadata");
-                match headers {
-                  Some(ref h) => match h.iter().find(|kv| kv.0.to_lowercase() == "content-type") {
-                    Some((_, v)) => {
-                      match ContentType::parse(v[0].as_str()) {
-                        Ok(v) => Some(v),
-                        Err(err) => {
-                          warn!("Failed to parse body content type '{}' - {}", v[0], err);
-                          None
-                        }
-                      }
-                    },
-                    None => None
-                  },
-                  None => None
-                }
-              }
-            };
+            let content_type = content_type_from_json(headers, body_attrs);
 
             let (encoded, encoding) = match body_attrs.get("encoded") {
               Some(v) => match *v {
@@ -292,7 +266,15 @@ pub fn body_from_json(json: &Value, attr_name: &str, headers: &Option<HashMap<St
               }
             } else if let Some(ct) = &content_type {
               if ct.is_json() {
-                body_contents.to_string().into()
+                if let Some(str_value) = body_contents.as_str() {
+                  if str_value.is_empty() {
+                    vec![]
+                  } else {
+                    body_contents.to_string().into()
+                  }
+                } else {
+                  body_contents.to_string().into()
+                }
               } else {
                 json_to_string(body_contents).into()
               }
@@ -311,16 +293,57 @@ pub fn body_from_json(json: &Value, attr_name: &str, headers: &Option<HashMap<St
               OptionalBody::Present(buf.freeze(), Some(content_type), ct_override)
             }
           },
+
+          // No content attribute, assume a missing body
           None => OptionalBody::Missing
         }
       },
+
+      // Body is a JSON null value
       Value::Null => OptionalBody::Null,
+
+      // Body fragment is not a JSON Object
       _ => {
         warn!("Body in attribute '{}' from JSON file is not formatted correctly, will load it as plain text", attr_name);
         OptionalBody::Present(body.to_string().into(), None, None)
       }
     },
+
+    // No attribute found, so configure a missing body
     None => OptionalBody::Missing
+  }
+}
+
+fn content_type_from_json(headers: &Option<HashMap<String, Vec<String>>>, body_attrs: &Map<String, Value>) -> Option<ContentType> {
+  match body_attrs.get("contentType") {
+    Some(v) => {
+      let content_type_str = json_to_string(v);
+      match ContentType::parse(&*content_type_str) {
+        Ok(ct) => Some(ct),
+        Err(err) => {
+          warn!("Failed to parse body content type '{}' - {}", content_type_str, err);
+          None
+        }
+      }
+    },
+    None => {
+      warn!("Body has no content type set, will default to any headers or metadata");
+      match headers {
+        Some(ref h) => match h.iter().find(|kv| kv.0.to_lowercase() == "content-type") {
+          Some((_, v)) => {
+            match ContentType::parse(v[0].as_str()) {
+              Ok(v) => Some(v),
+              Err(err) => {
+                warn!("Failed to parse body content type '{}' - {}", v[0], err);
+                None
+              }
+            }
+          },
+          None => None
+        },
+        None => None
+      }
+    }
   }
 }
 
@@ -836,14 +859,21 @@ mod tests {
   #[test]
   fn body_from_json_returns_empty_if_the_body_is_an_empty_string() {
     let json = json!({
-      "path": "/",
-      "query": "",
-      "headers": {},
       "body": {
         "content": ""
       }
     });
     let body = body_from_json(&json, "body", &None);
+    expect!(body).to(be_equal_to(OptionalBody::Empty));
+
+    let json = json!({
+      "body": {
+        "content": ""
+      }
+    });
+    let body = body_from_json(&json, "body", &Some(hashmap!{
+      "content-type".to_string() => vec!["application/json".to_string()]
+    }));
     expect!(body).to(be_equal_to(OptionalBody::Empty));
   }
 
