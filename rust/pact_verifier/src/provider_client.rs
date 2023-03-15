@@ -13,6 +13,7 @@ use itertools::Itertools;
 use maplit::hashmap;
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::ContentType;
+use pact_models::headers::parse_header;
 use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
 use reqwest::{Client, Error, RequestBuilder};
 use serde_json::Value;
@@ -123,10 +124,11 @@ fn extract_headers(headers: &HeaderMap) -> Option<HashMap<String, Vec<String>>> 
             .map(|v| v.to_string())
             .map_err(|err| warn!("Failed to parse HTTP header value: {}", err))
           ).collect();
-       (name.as_str().into(), parsed_vals.iter().cloned()
+        let name = name.as_str();
+        (name.into(), parsed_vals.iter().cloned()
             .filter(|val| val.is_ok())
             .map(|val| val.unwrap_or_default())
-            .flat_map(|val| val.split(",").map(|v| v.to_string()).collect::<Vec<String>>())
+            .flat_map(|val| parse_header(name, val.as_str()))
             .map(|val| val.trim().to_string())
             .collect())
       })
@@ -296,6 +298,15 @@ mod tests {
     expect!(&response["access-control-expose-headers"][0]).to(be_equal_to(&"Content-Length"));
     expect!(&response["access-control-expose-headers"][1]).to(be_equal_to(&"Content-Type"));
     expect!(&response["access-control-expose-headers"][2]).to(be_equal_to(&"Expires"));
+  }
+
+  #[test]
+  fn extract_headers_when_header_is_a_type_that_should_not_be_split() {
+    let mut headers = HeaderMap::new();
+    headers.insert("Last-Modified", "Sun, 12 Mar 2023 01:21:35 GMT".parse().unwrap());
+    let response = extract_headers(&headers).unwrap();
+    expect!(response["last-modified"].len()).to(be_equal_to(1));
+    expect!(response["last-modified"][0].as_str()).to(be_equal_to("Sun, 12 Mar 2023 01:21:35 GMT"));
   }
 
   #[test]
