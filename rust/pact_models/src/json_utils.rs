@@ -11,6 +11,7 @@ use serde_json::{self, json, Map, Value};
 
 use crate::bodies::OptionalBody;
 use crate::content_types::{ContentType, detect_content_type_from_string};
+use crate::headers::parse_header;
 
 /// Trait to convert a JSON structure to a number
 pub trait JsonToNum<T> {
@@ -109,7 +110,7 @@ pub fn headers_from_json(request: &Value) -> Option<HashMap<String, Vec<String>>
     Some(Value::Object(m)) => {
       Some(m.iter().map(|(key, val)| {
         match val {
-          Value::String(s) => (key.clone(), s.clone().split(',').map(|v| v.trim().to_string()).collect()),
+          Value::String(s) => (key.clone(), parse_header(key.as_str(), s.as_str())),
           Value::Array(v) => (key.clone(), v.iter().map(|val| {
             match val {
               Value::String(s) => s.clone(),
@@ -229,6 +230,7 @@ pub fn is_empty(value: &Value) -> bool {
 mod tests {
   use expectest::expect;
   use expectest::prelude::*;
+  use maplit::hashmap;
   use serde_json::json;
 
   use super::*;
@@ -482,5 +484,34 @@ mod tests {
       "a": { "b": true },
       "b": [ true, true ]
     })));
+  }
+
+  #[test]
+  fn headers_from_json_test() {
+    let headers = json!({});
+    let result = headers_from_json(&headers);
+    expect!(result).to(be_none());
+
+    let headers = json!({
+      "headers": null
+    });
+    let result = headers_from_json(&headers);
+    expect!(result).to(be_none());
+
+    let headers = json!({
+      "headers": {
+        "A": "B",
+        "B": "A, B, C",
+        "C": ["B"],
+        "Date": "Sun, 12 Mar 2023 01:21:35 GMT"
+      }
+    });
+    let result = headers_from_json(&headers);
+    expect!(result.unwrap()).to(be_equal_to(hashmap! {
+      "A".to_string() => vec!["B".to_string()],
+      "B".to_string() => vec!["A".to_string(), "B".to_string(), "C".to_string()],
+      "C".to_string() => vec!["B".to_string()],
+      "Date".to_string() => vec!["Sun, 12 Mar 2023 01:21:35 GMT".to_string()]
+    }));
   }
 }
