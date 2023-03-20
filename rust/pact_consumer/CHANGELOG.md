@@ -1,5 +1,15 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.10.5 - Maintenance Release
+
+* 11c701b4 - fix: Upgrade pact_matching to 1.0.6 (fixes some issues with matching HTTP headers) (Ronald Holshausen, Wed Mar 15 14:54:54 2023 +1100)
+* e96bc54e - fix: Upgrade pact_models to 1.0.9 (fixes issues with headers) (Ronald Holshausen, Wed Mar 15 14:31:00 2023 +1100)
+* f7e0b669 - chore: Upgrade pact_models to 1.0.8 (Ronald Holshausen, Wed Mar 15 12:19:22 2023 +1100)
+* 57728a01 - chore: update pact-plugin-driver to 0.3.3 (Ronald Holshausen, Tue Mar 14 17:19:20 2023 +1100)
+* 0676047e - chore: Upgrade pact-plugin-driver to 0.3.2 (Ronald Holshausen, Thu Feb 16 12:09:46 2023 +1100)
+* 7589b9b0 - chore: Bump pact_mock_server version to 1.0.0 (Ronald Holshausen, Fri Feb 10 14:43:53 2023 +1100)
+* c5c66721 - bump version to 0.10.5 (Ronald Holshausen, Wed Feb 8 14:16:36 2023 +1100)
+
 # 0.10.4 - Bugfix Release
 
 * 019bd2fe - chore: Upgrade pact_matching to 1.0.5 (Ronald Holshausen, Wed Feb 8 13:53:15 2023 +1100)
