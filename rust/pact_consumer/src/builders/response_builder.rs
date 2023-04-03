@@ -114,9 +114,13 @@ impl ResponseBuilder {
                   debug!("Interaction contents = {:?}", contents);
                   debug!("Interaction plugin_config = {:?}", plugin_config);
 
-                  if let Some(contents) = contents.iter()
+                  let response_contents = contents.iter()
                     .filter(|interaction| interaction.part_name == "response")
-                    .next() {
+                    .next()
+                    .or_else(|| contents.iter()
+                      .filter(|interaction| interaction.part_name == "")
+                      .next());
+                  if let Some(contents) = response_contents {
                     response.body = contents.body.clone();
                     if !response.has_header("content-type") {
                       response.add_header("content-type", vec![content_type.to_string().as_str()]);
