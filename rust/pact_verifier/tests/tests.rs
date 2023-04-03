@@ -792,48 +792,56 @@ async fn verify_message_pact_with_matching_rules_on_metadata() {
 
 #[test_log::test(tokio::test)]
 async fn verify_pact_with_matcher_on_last_modified_header() {
-  let server = PactBuilderAsync::new("consumer", "http-service")
-    .interaction("request requiring a last modified header", "", |mut i| async move {
-      i.test_name("verify_pact_with_matcher_on_last_modified_header");
-      i.request.method("GET");
-      i.request.path("/myapp/test");
-      i.response
-        .ok()
-        .header("Last-Modified", Utc::now().format("%a, %e %b %Y %T GMT").to_string())
-        .content_type("application/json").body("{}");
-      i
-    })
-    .await
-    .start_mock_server(None);
+  // TODO: Remove this when the builder can set the overwrite flag
+  env::set_var("PACT_OVERWRITE", "true");
 
-  #[allow(deprecated)]
-    let provider = ProviderInfo {
-    name: "http-service".to_string(),
-    host: "127.0.0.1".to_string(),
-    port: server.url().port(),
-    transports: vec![ ProviderTransport {
-      transport: "HTTP".to_string(),
+  let result = {
+    let server = PactBuilderAsync::new("consumer", "http-service")
+      .interaction("request requiring a last modified header", "", |mut i| async move {
+        i.test_name("verify_pact_with_matcher_on_last_modified_header");
+        i.request.method("GET");
+        i.request.path("/myapp/test");
+        i.response
+          .ok()
+          .header("Last-Modified", Utc::now().format("%a, %e %b %Y %T GMT").to_string())
+          .content_type("application/json").body("{}");
+        i
+      })
+      .await
+      .start_mock_server(None);
+
+    #[allow(deprecated)]
+      let provider = ProviderInfo {
+      name: "http-service".to_string(),
+      host: "127.0.0.1".to_string(),
       port: server.url().port(),
-      path: None,
-      scheme: Some("http".to_string())
-    } ],
-    .. ProviderInfo::default()
+      transports: vec![ProviderTransport {
+        transport: "HTTP".to_string(),
+        port: server.url().port(),
+        path: None,
+        scheme: Some("http".to_string())
+      }],
+      ..ProviderInfo::default()
+    };
+
+    let pact_file = fixture_path("last-modified.json");
+    let pact = read_pact(pact_file.as_path()).unwrap();
+    let options: VerificationOptions<NullRequestFilterExecutor> = VerificationOptions::default();
+    let provider_states = Arc::new(DummyProviderStateExecutor {});
+
+    verify_pact_internal(
+      &provider,
+      &FilterInfo::None,
+      pact,
+      &options,
+      &provider_states,
+      false,
+      Duration::default()
+    ).await
   };
 
-  let pact_file = fixture_path("last-modified.json");
-  let pact = read_pact(pact_file.as_path()).unwrap();
-  let options: VerificationOptions<NullRequestFilterExecutor> = VerificationOptions::default();
-  let provider_states = Arc::new(DummyProviderStateExecutor{});
-
-  let result = verify_pact_internal(
-    &provider,
-    &FilterInfo::None,
-    pact,
-    &options,
-    &provider_states,
-    false,
-    Duration::default()
-  ).await;
+  // TODO: Remove this when the builder can set the overwrite flag
+  env::remove_var("PACT_OVERWRITE");
 
   expect!(result.unwrap().results.get(0).unwrap().result.as_ref()).to(be_ok());
 }

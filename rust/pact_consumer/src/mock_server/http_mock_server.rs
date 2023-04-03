@@ -38,6 +38,8 @@ pub struct ValidatingHttpMockServer {
   done_rx: std::sync::mpsc::Receiver<()>,
   // Output directory to write pact files
   output_dir: Option<PathBuf>,
+  // overwrite or merge Pact files
+  overwrite: bool
 }
 
 impl ValidatingHttpMockServer {
@@ -105,7 +107,8 @@ impl ValidatingHttpMockServer {
       url: url_str.parse().expect("invalid mock server URL"),
       mock_server,
       done_rx,
-      output_dir
+      output_dir,
+      overwrite: false
     })
   }
 
@@ -171,7 +174,8 @@ impl ValidatingHttpMockServer {
       url: url_str.parse().expect("invalid mock server URL"),
       mock_server,
       done_rx,
-      output_dir
+      output_dir,
+      overwrite: false
     })
   }
 
@@ -208,17 +212,26 @@ impl ValidatingHttpMockServer {
 
     if mismatches.is_empty() {
       // Success! Write out the generated pact file.
-      let output_dir = self.output_dir.as_ref().map(|dir| dir.to_string_lossy().to_string())
+      let output_dir = self.output_dir.as_ref()
+        .map(|dir| {
+          let dir = dir.to_string_lossy().to_string();
+          if dir.is_empty() { None } else { Some(dir) }
+        })
+        .flatten()
         .unwrap_or_else(|| {
           let val = env::var("PACT_OUTPUT_DIR");
           debug!("env:PACT_OUTPUT_DIR = {:?}", val);
           val.unwrap_or_else(|_| "target/pacts".to_owned())
         });
-      let overwrite = env::var("PACT_OVERWRITE");
-      debug!("env:PACT_OVERWRITE = {:?}", overwrite);
-      ms.write_pact(
-        &Some(output_dir),
-        overwrite.unwrap_or_else(|_| "false".to_owned()) == "true")
+      debug!("Pact output_dir = '{}'", output_dir);
+      let overwrite = env::var("PACT_OVERWRITE")
+        .map(|v| {
+          debug!("env:PACT_OVERWRITE = {:?}", v);
+          v == "true"
+        })
+        .ok()
+        .unwrap_or(self.overwrite);
+      ms.write_pact(&Some(output_dir), overwrite)
         .map_err(|err| format!("error writing pact: {}", err))?;
       Ok(())
     } else {
