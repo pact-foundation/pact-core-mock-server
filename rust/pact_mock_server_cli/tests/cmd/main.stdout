@@ -1,0 +1,26 @@
+/home/ronald/Development/Projects/Pact/pact-reference/rust/target/debug/pact_mock_server_cli v1.0.0
+Standalone Pact mock server
+
+USAGE:
+    pact_mock_server_cli [FLAGS] [OPTIONS] <SUBCOMMAND>
+
+FLAGS:
+        --help           Prints help information
+        --no-file-log    Do not log to an output file
+        --no-term-log    Use a simple logger instead of the term based one
+    -v, --version        Prints version information
+
+OPTIONS:
+    -h, --host <host>            hostname the master mock server runs on (defaults to localhost)
+    -l, --loglevel <loglevel>    Log level for mock servers to write to the log file (defaults to info) [possible
+                                 values: error, warn, info, debug, trace, none]
+    -p, --port <port>            port the master mock server runs on (defaults to 8080)
+
+SUBCOMMANDS:
+    create             Creates a new mock server from a pact file
+    help               Prints this message or the help of the given subcommand(s)
+    list               Lists all the running mock servers
+    shutdown           Shutdown the mock server by id or port number, releasing all its resources
+    shutdown-master    Performs a graceful shutdown of the master server (displayed when it started)
+    start              Starts the master mock server
+    verify             Verify the mock server by id or port number, and generate a pact file if all ok
