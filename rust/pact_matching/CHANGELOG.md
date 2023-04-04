@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.7 - Maintenance Release
+
+* eb0b7fdf - chore: Update dependencies (Ronald Holshausen, Tue Apr 4 14:46:30 2023 +1000)
+* 6f0c4b2f - feat: Upgrade pact-plugin-driver to 0.4.0 which uses a shared gRPC channel to each plugin (Ronald Holshausen, Tue Apr 4 14:32:36 2023 +1000)
+* c6b66a28 - chore: Test was failing with dates where day of the month has one digit (Ronald Holshausen, Mon Apr 3 11:55:45 2023 +1000)
+* 8ecf1a68 - bump version to 1.0.7 (Ronald Holshausen, Wed Mar 15 14:49:40 2023 +1100)
+
 # 1.0.6 - Bugfix Release
 
 * e96bc54e - fix: Upgrade pact_models to 1.0.9 (fixes issues with headers) (Ronald Holshausen, Wed Mar 15 14:31:00 2023 +1100)
