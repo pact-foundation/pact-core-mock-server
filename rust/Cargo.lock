@@ -1839,7 +1839,7 @@ dependencies = [
 
 [[package]]
 name = "pact_mock_server_cli"
-version = "0.7.9"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "clap 2.34.0",
@@ -1849,7 +1849,6 @@ dependencies = [
  "hyper",
  "itertools",
  "lazy_static",
- "libc",
  "log",
  "maplit",
  "pact_matching",
