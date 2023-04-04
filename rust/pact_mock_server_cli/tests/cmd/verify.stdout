@@ -1,19 +1,35 @@
-pact_mock_server_cli-verify v1.0.0
+pact_mock_server_cli-verify [CLIVERSION]
 Verify the mock server by id or port number, and generate a pact file if all ok
 
 USAGE:
-    pact_mock_server_cli verify [FLAGS] [OPTIONS] --mock-server-id <mock-server-id> --mock-server-port <mock-server-port>
-
-FLAGS:
-        --help           Prints help information
-        --no-file-log    Do not log to an output file
-        --no-term-log    Use a simple logger instead of the term based one
+    pact_mock_server_cli verify [OPTIONS]
 
 OPTIONS:
-    -h, --host <host>                            hostname the master mock server runs on (defaults to localhost)
+    -h, --host <host>
+            hostname the master mock server runs on (defaults to localhost)
+
+        --help
+            Print help information
+
+    -i, --mock-server-id <mock-server-id>
+            the ID of the mock server
+
     -l, --loglevel <loglevel>
-            Log level for mock servers to write to the log file (defaults to info) [possible values: error, warn, info,
-            debug, trace, none]
-    -i, --mock-server-id <mock-server-id>        the ID of the mock server
-    -m, --mock-server-port <mock-server-port>    the port number of the mock server
-    -p, --port <port>                            port the master mock server runs on (defaults to 8080)
+            Log level for mock servers to write to the log file (defaults to info) [possible values:
+            error, warn, info, debug, trace, none]
+
+    -m, --mock-server-port <mock-server-port>
+            the port number of the mock server
+
+        --no-file-log
+            Do not log to an output file
+
+        --no-term-log
+            Use a simple logger instead of the term based one
+
+    -p, --port <port>
+            port the master mock server runs on (defaults to 8080)
+
+    -v, --version
+            Print version information
+

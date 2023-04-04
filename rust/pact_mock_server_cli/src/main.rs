@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Mutex;
 
-use clap::{App, AppSettings, Arg, ArgMatches, ErrorKind, SubCommand};
+use clap::{App, AppSettings, Arg, ArgMatches, command, ErrorKind, SubCommand};
 use lazy_static::*;
 use log::LevelFilter;
 use pact_models::PactSpecification;
@@ -24,10 +24,10 @@ use uuid::Uuid;
 
 use pact_mock_server::server_manager::ServerManager;
 
-pub(crate) fn display_error(error: String, matches: &ArgMatches) -> ! {
+pub(crate) fn display_error(error: String, app: &mut App) -> ! {
     eprintln!("ERROR: {}", error);
     eprintln!();
-    eprintln!("{}", matches.usage());
+    eprintln!("{}", app.render_usage());
     panic!("{}", error)
 }
 
@@ -105,15 +105,15 @@ fn setup_loggers(level: &str, command: &str, output: Option<&str>, no_file_log: 
 }
 
 fn global_option_present(option: &str, matches: &ArgMatches) -> bool {
-  matches.is_present(option) || matches.subcommand().1.unwrap().is_present(option)
+  matches.is_present(option) || matches.subcommand().unwrap().1.is_present(option)
 }
 
-fn integer_value(v: String) -> Result<(), String> {
+fn integer_value(v: &str) -> Result<(), String> {
     v.parse::<u16>().map(|_| ()).map_err(|e| format!("'{}' is not a valid port value: {}", v, e) )
 }
 
-fn uuid_value(v: String) -> Result<(), String> {
-    Uuid::parse_str(v.as_str()).map(|_| ()).map_err(|e| format!("'{}' is not a valid UUID value: {}", v, e) )
+fn uuid_value(v: &str) -> Result<(), String> {
+    Uuid::parse_str(v).map(|_| ()).map_err(|e| format!("'{}' is not a valid UUID value: {}", v, e) )
 }
 
 #[tokio::main]
@@ -141,19 +141,15 @@ lazy_static!{
 }
 
 async fn handle_command_args() -> Result<(), i32> {
-  let args: Vec<String> = env::args().collect();
-  let program = args[0].clone();
+  let mut app = setup_args();
 
-  let version = format!("v{}", clap::crate_version!());
-  let app = setup_args(program.as_str(), version.as_str());
-
-  let matches = app.get_matches_safe();
+  let matches = app.clone().get_matches_safe();
   match matches {
     Ok(ref matches) => {
       let log_level = matches.value_of("loglevel");
       if let Err(err) = setup_loggers(log_level.unwrap_or("info"),
         matches.subcommand_name().unwrap(),
-        matches.subcommand().1.unwrap().value_of("output"),
+        matches.subcommand().unwrap().1.value_of("output"),
         global_option_present("no-file-log", matches),
         global_option_present("no-term-log", matches)) {
         eprintln!("WARN: Could not setup loggers: {}", err);
@@ -164,7 +160,7 @@ async fn handle_command_args() -> Result<(), i32> {
       match port.parse::<u16>() {
         Ok(p) => {
           match matches.subcommand() {
-            ("start", Some(sub_matches)) => {
+            Some(("start", sub_matches)) => {
               let output_path = sub_matches.value_of("output").map(|s| s.to_owned());
               let base_port = sub_matches.value_of("base-port").map(|s| s.parse::<u16>().unwrap_or(0));
               let server_key = sub_matches.value_of("server-key").map(|s| s.to_owned())
@@ -178,24 +174,24 @@ async fn handle_command_args() -> Result<(), i32> {
               }
               server::start_server(p).await
             },
-            ("list", Some(sub_matches)) => list::list_mock_servers(host, p, sub_matches).await,
-            ("create", Some(sub_matches)) => create_mock::create_mock_server(host, p, sub_matches).await,
-            ("verify", Some(sub_matches)) => verify::verify_mock_server(host, p, sub_matches).await,
-            ("shutdown", Some(sub_matches)) => shutdown::shutdown_mock_server(host, p, sub_matches).await,
-            ("shutdown-master", Some(sub_matches)) => shutdown::shutdown_master_server(host, p, sub_matches).await,
+            Some(("list", _)) => list::list_mock_servers(host, p, &mut app).await,
+            Some(("create", sub_matches)) => create_mock::create_mock_server(host, p, sub_matches, &mut app).await,
+            Some(("verify", sub_matches)) => verify::verify_mock_server(host, p, sub_matches, &mut app).await,
+            Some(("shutdown", sub_matches)) => shutdown::shutdown_mock_server(host, p, sub_matches, &mut app).await,
+            Some(("shutdown-master", sub_matches)) => shutdown::shutdown_master_server(host, p, sub_matches, &mut app).await,
             _ => Err(3)
           }
         },
-        Err(_) => display_error(format!("{} is not a valid port number", port), matches)
+        Err(_) => display_error(format!("{} is not a valid port number", port), &mut app)
       }
     },
     Err(ref err) => {
       match err.kind {
-        ErrorKind::HelpDisplayed => {
-          println!("{}", err.message);
+        ErrorKind::DisplayHelp => {
+          println!("{}", err);
           Ok(())
         },
-        ErrorKind::VersionDisplayed => {
+        ErrorKind::DisplayVersion => {
           print_version();
           println!();
           Ok(())
@@ -208,32 +204,31 @@ async fn handle_command_args() -> Result<(), i32> {
   }
 }
 
-fn setup_args<'a>(program: &'a str, version: &'a str) -> App<'a, 'a> {
-  App::new(program)
-    .version(version)
+fn setup_args() -> App<'static> {
+  command!()
     .about("Standalone Pact mock server")
-    .version_short("v")
+    .version_short('v')
+    .long_version("version")
     .setting(AppSettings::ArgRequiredElseHelp)
     .setting(AppSettings::SubcommandRequired)
     .setting(AppSettings::GlobalVersion)
-    .setting(AppSettings::VersionlessSubcommands)
     .setting(AppSettings::ColoredHelp)
     .arg(Arg::with_name("port")
-      .short("p")
+      .short('p')
       .long("port")
       .takes_value(true)
       .use_delimiter(false)
       .global(true)
       .help("port the master mock server runs on (defaults to 8080)"))
     .arg(Arg::with_name("host")
-      .short("h")
+      .short('h')
       .long("host")
       .takes_value(true)
       .use_delimiter(false)
       .global(true)
       .help("hostname the master mock server runs on (defaults to localhost)"))
     .arg(Arg::with_name("loglevel")
-      .short("l")
+      .short('l')
       .long("loglevel")
       .takes_value(true)
       .use_delimiter(false)
@@ -251,7 +246,7 @@ fn setup_args<'a>(program: &'a str, version: &'a str) -> App<'a, 'a> {
     .subcommand(SubCommand::with_name("start")
       .about("Starts the master mock server")
       .arg(Arg::with_name("output")
-        .short("o")
+        .short('o')
         .long("output")
         .takes_value(true)
         .use_delimiter(false)
@@ -268,31 +263,31 @@ fn setup_args<'a>(program: &'a str, version: &'a str) -> App<'a, 'a> {
         .takes_value(true)
         .use_delimiter(false)
         .help("the server key to use to authenticate shutdown requests (defaults to a random generated one)"))
-      .setting(AppSettings::ColoredHelp))
+      )
     .subcommand(SubCommand::with_name("list")
       .about("Lists all the running mock servers")
-      .setting(AppSettings::ColoredHelp))
+      )
     .subcommand(SubCommand::with_name("create")
       .about("Creates a new mock server from a pact file")
       .arg(Arg::with_name("file")
-        .short("f")
+        .short('f')
         .long("file")
         .takes_value(true)
         .use_delimiter(false)
         .required(true)
         .help("the pact file to define the mock server"))
       .arg(Arg::with_name("cors")
-        .short("c")
+        .short('c')
         .long("cors-preflight")
         .help("Handle CORS pre-flight requests"))
       .arg(Arg::with_name("tls")
         .long("tls")
         .help("Enable TLS with the mock server (will use a self-signed certificate)"))
-      .setting(AppSettings::ColoredHelp))
+      )
     .subcommand(SubCommand::with_name("verify")
       .about("Verify the mock server by id or port number, and generate a pact file if all ok")
       .arg(Arg::with_name("mock-server-id")
-        .short("i")
+        .short('i')
         .long("mock-server-id")
         .takes_value(true)
         .use_delimiter(false)
@@ -301,18 +296,18 @@ fn setup_args<'a>(program: &'a str, version: &'a str) -> App<'a, 'a> {
         .help("the ID of the mock server")
         .validator(uuid_value))
       .arg(Arg::with_name("mock-server-port")
-        .short("m")
+        .short('m')
         .long("mock-server-port")
         .takes_value(true)
         .use_delimiter(false)
-        .required_unless("mock-server-host")
+        .required_unless("mock-server-id")
         .help("the port number of the mock server")
         .validator(integer_value))
-      .setting(AppSettings::ColoredHelp))
+      )
     .subcommand(SubCommand::with_name("shutdown")
       .about("Shutdown the mock server by id or port number, releasing all its resources")
       .arg(Arg::with_name("mock-server-id")
-        .short("i")
+        .short('i')
         .long("mock-server-id")
         .takes_value(true)
         .use_delimiter(false)
@@ -321,18 +316,18 @@ fn setup_args<'a>(program: &'a str, version: &'a str) -> App<'a, 'a> {
         .help("the ID of the mock server")
         .validator(uuid_value))
       .arg(Arg::with_name("mock-server-port")
-        .short("m")
+        .short('m')
         .long("mock-server-port")
         .takes_value(true)
         .use_delimiter(false)
-        .required_unless("mock-server-host")
+        .required_unless("mock-server-id")
         .help("the port number of the mock server")
         .validator(integer_value))
-      .setting(AppSettings::ColoredHelp))
+      )
     .subcommand(SubCommand::with_name("shutdown-master")
       .about("Performs a graceful shutdown of the master server (displayed when it started)")
       .arg(Arg::with_name("server-key")
-        .short("k")
+        .short('k')
         .long("server-key")
         .takes_value(true)
         .use_delimiter(false)
@@ -344,7 +339,7 @@ fn setup_args<'a>(program: &'a str, version: &'a str) -> App<'a, 'a> {
         .use_delimiter(false)
         .help("the period of time in milliseconds to allow the server to shutdown (defaults to 100ms)")
         .validator(integer_value))
-      .setting(AppSettings::ColoredHelp))
+      )
 }
 
 #[cfg(test)]
@@ -352,17 +347,18 @@ mod test {
   use expectest::expect;
   use expectest::prelude::*;
 
-  use crate::setup_args;
   use crate::integer_value;
+  use crate::setup_args;
 
   #[test]
   fn validates_integer_value() {
-      expect!(integer_value("1234".to_string())).to(be_ok());
-      expect!(integer_value("1234x".to_string())).to(be_err());
+      expect!(integer_value("1234")).to(be_ok());
+      expect!(integer_value("1234x")).to(be_err());
   }
 
-  #[test]
-  fn verify_cli() {
-    //setup_args("test", "1.0").debug_assert();
-  }
+  // Test is failing due to the version override
+  // #[test_log::test]
+  // fn verify_cli() {
+  //   setup_args().debug_assert();
+  // }
 }

@@ -1,19 +1,18 @@
 use std::sync::Mutex;
 
-use clap::ArgMatches;
+use clap::{App, ArgMatches};
 use http::StatusCode;
+use pact_models::json_utils::json_to_string;
 use serde_json::Value;
 
-use pact_matching::s;
 use pact_mock_server::{
   mock_server::MockServer,
   server_manager::ServerManager
 };
-use pact_models::json_utils::json_to_string;
 
 use crate::handle_error;
 
-pub async fn verify_mock_server(host: &str, port: u16, matches: &ArgMatches<'_>) -> Result<(), i32> {
+pub async fn verify_mock_server(host: &str, port: u16, matches: &ArgMatches, app: &mut App<'_>) -> Result<(), i32> {
   let mock_server_id = matches.value_of("mock-server-id");
   let mock_server_port = matches.value_of("mock-server-port");
   let id = if let Some(id) = mock_server_id {
@@ -53,17 +52,17 @@ pub async fn verify_mock_server(host: &str, port: u16, matches: &ArgMatches<'_>)
                   },
                   Err(err) => {
                     log::error!("Failed to parse JSON: {}\n{}", err, body);
-                    crate::display_error(format!("Failed to parse JSON: {}\n{}", err, body), matches);
+                    crate::display_error(format!("Failed to parse JSON: {}\n{}", err, body), app);
                   }
                 }
               },
               Err(err) => {
                 log::error!("Failed to parse JSON: {}", err);
-                crate::display_error(format!("Failed to parse JSON: {}", err), matches);
+                crate::display_error(format!("Failed to parse JSON: {}", err), app);
               }
             }
           },
-          _ => crate::display_error(format!("Unexpected response from master mock server '{}': {}", url, result.status()), matches)
+          _ => crate::display_error(format!("Unexpected response from master mock server '{}': {}", url, result.status()), app)
         }
       } else {
         println!("Mock server with {} '{}' verified ok", id.1, id.0);
@@ -71,7 +70,7 @@ pub async fn verify_mock_server(host: &str, port: u16, matches: &ArgMatches<'_>)
       }
     },
     Err(err) => {
-      crate::display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), matches);
+      crate::display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), app);
     }
   }
 }
@@ -96,7 +95,7 @@ pub fn validate_id(id: &str, server_manager: &Mutex<ServerManager>) -> Result<Mo
     if id.chars().all(|ch| ch.is_digit(10)) {
         validate_port(id.parse::<u16>().unwrap(), server_manager)
     } else {
-        validate_uuid(&s!(id), server_manager)
+        validate_uuid(id, server_manager)
     }
 }
 
