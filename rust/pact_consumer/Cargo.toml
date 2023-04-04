@@ -27,7 +27,7 @@ uuid = { version = "1.2.1", features = ["v4"] }
 futures = "0.3.25"
 tokio = { version = "1.23.0", features = ["full"] }
 anyhow = "1.0.66"
-pact-plugin-driver = "0.3.3"
+pact-plugin-driver = "0.4.0"
 bytes = "1.2.1"
 async-trait = "0.1.58"
 tracing = "0.1.37" # This needs to be the same version across all the libs (i.e. plugin driver)
