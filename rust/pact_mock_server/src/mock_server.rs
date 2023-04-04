@@ -15,8 +15,6 @@ use pact_models::pact::{Pact, write_pact};
 use pact_models::PactSpecification;
 use pact_models::sync_pact::RequestResponsePact;
 use pact_models::v4::http_parts::HttpRequest;
-use pact_plugin_driver::plugin_manager::drop_plugin_access;
-use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
 use rustls::ServerConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -217,17 +215,6 @@ impl MockServer {
 
   /// Send the shutdown signal to the server
   pub fn shutdown(&mut self) -> Result<(), String> {
-    // Need to check if any plugins need to be shutdown
-    let pact = self.pact.lock().unwrap();
-    for plugin in pact.plugin_data() {
-      let dependency = PluginDependency {
-        name: plugin.name,
-        version: Some(plugin.version),
-        dependency_type: PluginDependencyType::Plugin
-      };
-      drop_plugin_access(&dependency);
-    }
-
     let shutdown_future = &mut *self.shutdown_tx.borrow_mut();
     match shutdown_future.take() {
       Some(sender) => {

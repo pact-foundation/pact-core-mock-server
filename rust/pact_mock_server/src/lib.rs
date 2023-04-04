@@ -11,8 +11,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use anyhow::anyhow;
-use itertools::Either;
-use itertools::Itertools;
+use itertools::{Either, Itertools};
 use lazy_static::*;
 use maplit::hashmap;
 use pact_models::pact::{load_pact_from_json, Pact, ReadWritePact, write_pact};
