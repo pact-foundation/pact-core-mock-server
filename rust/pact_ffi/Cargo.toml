@@ -18,7 +18,7 @@ ansi_term = "0.12.1"
 anyhow = "1.0.66"
 pact_matching = { version = "1.0.7", path = "../pact_matching" }
 pact_models = "1.0.9"
-pact_mock_server = { version = "1.0.0", path = "../pact_mock_server" }
+pact_mock_server = { version = "1.0.1", path = "../pact_mock_server" }
 pact_verifier = { version = "0.15.1", path = "../pact_verifier" }
 libc = "0.2.137"
 zeroize = "1.5.7"
@@ -40,8 +40,8 @@ rand_regex = "0.15.1"
 regex-syntax = "0.6.28"
 clap = "2.34.0"
 regex = "1.7.0"
-tokio = { version = "1.23.0", features = ["full"] }
-tokio-rustls = "0.23.4"
+tokio = { version = "1.27.0", features = ["full"] }
+tokio-rustls = "0.24.0"
 sxd-document = "0.3.2"
 either = "1.8.0"
 pact-plugin-driver = "0.4.0"
