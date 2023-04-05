@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.10.7 - Bugfix Release
+
+* 779a59f0 - fix: Upgrade pact-plugin-driver to 0.4.1 (fixes an issue introduced in 0.4.0 with shared channels to plugins) (Ronald Holshausen, Wed Apr 5 17:01:18 2023 +1000)
+* ddcb3ded - bump version to 0.10.7 (Ronald Holshausen, Wed Apr 5 14:49:04 2023 +1000)
+
 # 0.10.6 - Bugfix Release
 
 * 7bd44a0d - fix: PactBuilder drop handler was cauing plugins to be shutdown twice (Ronald Holshausen, Wed Apr 5 14:44:26 2023 +1000)
