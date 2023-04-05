@@ -9,8 +9,8 @@ use pact_models::v4::pact::V4Pact;
 use pact_models::v4::sync_message::SynchronousMessage;
 use pact_plugin_driver::catalogue_manager;
 use pact_plugin_driver::catalogue_manager::CatalogueEntryType;
-use pact_plugin_driver::plugin_manager::{drop_plugin_access, load_plugin};
-use pact_plugin_driver::plugin_models::{PluginDependency, PluginDependencyType};
+use pact_plugin_driver::plugin_manager::load_plugin;
+use pact_plugin_driver::plugin_models::PluginDependency;
 use tracing::trace;
 
 use pact_matching::metrics::{MetricEvent, send_metrics};
@@ -236,20 +236,6 @@ impl StartMockServer for PactBuilder {
         None => panic!("Did not find a catalogue entry for key '{}'", entry_name)
       }
       None => ValidatingHttpMockServer::start(self.build(), self.output_dir.clone())
-    }
-  }
-}
-
-impl Drop for PactBuilder {
-  fn drop(&mut self) {
-    // decrement access to any plugin loaded for the Pact
-    for plugin in self.pact.plugin_data() {
-      let dependency = PluginDependency {
-        name: plugin.name,
-        version: Some(plugin.version),
-        dependency_type: PluginDependencyType::Plugin
-      };
-      drop_plugin_access(&dependency);
     }
   }
 }
