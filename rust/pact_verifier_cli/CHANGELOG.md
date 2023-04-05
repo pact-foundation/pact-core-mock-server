@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.10.5 - Maintenance Release
+
+* 6c9351d3 - chore: Update dependencies (Ronald Holshausen, Wed Apr 5 10:30:10 2023 +1000)
+* 5981539a - chore: Add trycmd tests (Ronald Holshausen, Wed Apr 5 10:24:28 2023 +1000)
+* 4f62ee5d - chore: Upgrade pact_verifier to 0.15.2 (Ronald Holshausen, Wed Apr 5 10:16:07 2023 +1000)
+* 40329d43 - bump version to 0.10.5 (Ronald Holshausen, Wed Mar 15 15:29:58 2023 +1100)
+
 # 0.10.4 - Bugfix Release
 
 * 8310b09c - chore: Upgrade pact_verifier to 0.15.1 (Ronald Holshausen, Wed Mar 15 15:25:31 2023 +1100)
