@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.15.2 - Maintenance Release
+
+* 126cf462 - chore: Upgrade pact_matching to 1.0.7 (Ronald Holshausen, Tue Apr 4 15:12:28 2023 +1000)
+* 6f0c4b2f - feat: Upgrade pact-plugin-driver to 0.4.0 which uses a shared gRPC channel to each plugin (Ronald Holshausen, Tue Apr 4 14:32:36 2023 +1000)
+* 63be53b2 - fix: allow the pact builders to set the overwrite flag (Ronald Holshausen, Mon Apr 3 14:53:36 2023 +1000)
+* c6b66a28 - chore: Test was failing with dates where day of the month has one digit (Ronald Holshausen, Mon Apr 3 11:55:45 2023 +1000)
+* 2e3feacd - bump version to 0.15.2 (Ronald Holshausen, Wed Mar 15 15:16:42 2023 +1100)
+
 # 0.15.1 - Bugfix Release
 
 * 11c701b4 - fix: Upgrade pact_matching to 1.0.6 (fixes some issues with matching HTTP headers) (Ronald Holshausen, Wed Mar 15 14:54:54 2023 +1100)
