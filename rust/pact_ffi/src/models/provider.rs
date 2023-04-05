@@ -45,7 +45,7 @@ ffi_fn! {
         let provider = as_ref!(provider);
         string::to_c(&provider.name)? as *const c_char
     } {
-        ptr::null_to::<c_char>()
+        std::ptr::null()
     }
 }
 
@@ -63,7 +63,7 @@ ffi_fn! {
         let provider = ptr::raw_to(inner.provider());
         provider as *const Provider
     } {
-        ptr::null_to::<Provider>()
+        std::ptr::null()
     }
 }
 

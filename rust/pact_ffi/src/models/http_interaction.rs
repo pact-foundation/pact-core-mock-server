@@ -511,7 +511,6 @@ mod tests {
     pactffi_sync_http_set_request_contents,
     pactffi_sync_http_set_response_contents
   };
-  use crate::ptr::null_to;
 
   #[test]
   fn get_and_set_http_contents() {
@@ -520,7 +519,7 @@ mod tests {
     let http_contents2 = CString::new("This is another string").unwrap();
     let content_type = CString::new("text/plain").unwrap();
 
-    pactffi_sync_http_set_request_contents(http, http_contents.as_ptr(), null_to::<c_char>());
+    pactffi_sync_http_set_request_contents(http, http_contents.as_ptr(), std::ptr::null());
     let contents = pactffi_sync_http_get_request_contents(http) as *mut c_char;
     let len = pactffi_sync_http_get_request_contents_length(http);
     let str = unsafe { CString::from_raw(contents) };

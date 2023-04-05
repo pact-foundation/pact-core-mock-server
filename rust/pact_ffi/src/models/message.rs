@@ -705,14 +705,13 @@ mod tests {
     pactffi_message_new,
     pactffi_message_set_contents
   };
-  use crate::ptr::null_to;
 
   #[test]
   fn get_and_set_message_contents() {
     let message = pactffi_message_new();
     let message_contents = CString::new("This is a string").unwrap();
 
-    pactffi_message_set_contents(message, message_contents.as_ptr(), null_to::<c_char>());
+    pactffi_message_set_contents(message, message_contents.as_ptr(), std::ptr::null());
     let contents = pactffi_message_get_contents(message) as *mut c_char;
     let len = pactffi_message_get_contents_length(message);
 

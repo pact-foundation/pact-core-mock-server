@@ -560,7 +560,7 @@ mod tests {
 
   #[test_log::test]
   fn parse_expression_with_null() {
-    let result = pactffi_parse_matcher_definition(ptr::null_to());
+    let result = pactffi_parse_matcher_definition(std::ptr::null());
     expect!(result.is_null()).to(be_true());
   }
 

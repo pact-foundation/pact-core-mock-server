@@ -328,14 +328,13 @@ mod tests {
     pactffi_async_message_new,
     pactffi_async_message_set_contents_str
   };
-  use crate::ptr::null_to;
 
   #[test]
     fn get_and_set_message_contents() {
       let message = pactffi_async_message_new();
       let message_contents = CString::new("This is a string").unwrap();
 
-      pactffi_async_message_set_contents_str(message, message_contents.as_ptr(), null_to::<c_char>());
+      pactffi_async_message_set_contents_str(message, message_contents.as_ptr(), std::ptr::null());
       let contents = pactffi_async_message_get_contents_str(message) as *mut c_char;
       let len = pactffi_async_message_get_contents_length(message);
       let str = unsafe { CString::from_raw(contents) };

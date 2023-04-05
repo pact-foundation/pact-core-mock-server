@@ -1527,7 +1527,7 @@ ffi_fn! {
         let iter = PactMessageIterator::new(message_pact);
         ptr::raw_to(iter)
     } {
-        ptr::null_mut_to::<PactMessageIterator>()
+        std::ptr::null_mut()
     }
 }
 
@@ -1553,7 +1553,7 @@ ffi_fn! {
         let iter = PactSyncMessageIterator::new(v4_pact);
         ptr::raw_to(iter)
     } {
-        ptr::null_mut_to::<PactSyncMessageIterator>()
+        std::ptr::null_mut()
     }
 }
 
@@ -1579,7 +1579,7 @@ ffi_fn! {
         let iter = PactSyncHttpIterator::new(v4_pact);
         ptr::raw_to(iter)
     } {
-        ptr::null_mut_to::<PactSyncHttpIterator>()
+        std::ptr::null_mut()
     }
 }
 

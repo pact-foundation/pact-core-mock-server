@@ -42,7 +42,7 @@ ffi_fn! {
 
         ptr::raw_to(message_pact)
     } {
-        ptr::null_mut_to::<MessagePact>()
+        std::ptr::null_mut()
     }
 }
 
@@ -71,7 +71,7 @@ ffi_fn! {
         let consumer = &mut message_pact.consumer;
         consumer as *mut Consumer
     } {
-        ptr::null_mut_to::<Consumer>()
+        std::ptr::null_mut()
     }
 }
 
@@ -93,7 +93,7 @@ ffi_fn! {
         let provider = &mut message_pact.provider;
         provider as *mut Provider
     } {
-        ptr::null_mut_to::<Provider>()
+        std::ptr::null_mut()
     }
 }
 
@@ -119,7 +119,7 @@ ffi_fn! {
         let iter = MessagePactMessageIterator { current: 0, message_pact };
         ptr::raw_to(iter)
     } {
-        ptr::null_mut_to::<MessagePactMessageIterator>()
+        std::ptr::null_mut()
     }
 }
 
@@ -143,7 +143,7 @@ ffi_fn! {
             .ok_or(anyhow::anyhow!("iter past the end of messages"))?;
         message as *mut Message
     } {
-        ptr::null_mut_to::<Message>()
+        std::ptr::null_mut()
     }
 }
 
@@ -183,7 +183,7 @@ ffi_fn! {
         let value_ptr = string::to_c(value)?;
         value_ptr as *const c_char
     } {
-        ptr::null_to::<c_char>()
+        std::ptr::null()
     }
 }
 
@@ -226,7 +226,7 @@ ffi_fn! {
 
         ptr::raw_to(iter)
     } {
-        ptr::null_mut_to::<MessagePactMetadataIterator>()
+        std::ptr::null_mut()
     }
 }
 
@@ -258,7 +258,7 @@ ffi_fn! {
 
         ptr::raw_to(triple)
     } {
-        ptr::null_mut_to::<MessagePactMetadataTriple>()
+        std::ptr::null_mut()
     }
 }
 

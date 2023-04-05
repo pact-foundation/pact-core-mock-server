@@ -96,7 +96,7 @@ ffi_fn! {
         let handle = handle::VerifierHandle::new();
         ptr::raw_to(handle)
     } {
-        ptr::null_mut_to::<handle::VerifierHandle>()
+        std::ptr::null_mut()
     }
 }
 
@@ -120,7 +120,7 @@ ffi_fn! {
     let handle = handle::VerifierHandle::new_for_application(name.as_str(), version.as_str());
     ptr::raw_to(handle)
   } {
-    ptr::null_mut_to::<handle::VerifierHandle>()
+    std::ptr::null_mut()
   }
 }
 

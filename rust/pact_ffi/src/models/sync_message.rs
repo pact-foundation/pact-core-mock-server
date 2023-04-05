@@ -29,7 +29,7 @@ ffi_fn! {
         let message = SynchronousMessage::default();
         ptr::raw_to(message)
     } {
-        ptr::null_mut_to::<SynchronousMessage>()
+        std::ptr::null_mut()
     }
 }
 
@@ -60,7 +60,7 @@ ffi_fn! {
 
         match message.request.contents {
             // If it's missing, return a null pointer.
-            OptionalBody::Missing => ptr::null_to::<c_char>(),
+            OptionalBody::Missing => std::ptr::null(),
             // If empty or null, return an empty string on the heap.
             OptionalBody::Empty | OptionalBody::Null => {
                 let content = string::to_c("")?;
@@ -73,7 +73,7 @@ ffi_fn! {
             }
         }
     } {
-        ptr::null_to::<c_char>()
+        std::ptr::null()
     }
 }
 
@@ -146,11 +146,11 @@ ffi_fn! {
         let message = as_ref!(message);
 
         match &message.request.contents {
-            OptionalBody::Empty | OptionalBody::Null | OptionalBody::Missing => ptr::null_to::<c_uchar>(),
+            OptionalBody::Empty | OptionalBody::Null | OptionalBody::Missing => std::ptr::null(),
             OptionalBody::Present(bytes, _, _) => bytes.as_ptr()
         }
     } {
-        ptr::null_to::<c_uchar>()
+        std::ptr::null()
     }
 }
 
@@ -249,7 +249,7 @@ ffi_fn! {
         match message.response.get(index) {
             Some(response) => match response.contents {
                 // If it's missing, return a null pointer.
-                OptionalBody::Missing => ptr::null_to::<c_char>(),
+                OptionalBody::Missing => std::ptr::null(),
                 // If empty or null, return an empty string on the heap.
                 OptionalBody::Empty | OptionalBody::Null => {
                     let content = string::to_c("")?;
@@ -261,10 +261,10 @@ ffi_fn! {
                     content as *const c_char
                 }
             }
-            None => ptr::null_to::<c_char>()
+            None => std::ptr::null()
         }
     } {
-        ptr::null_to::<c_char>()
+        std::ptr::null()
     }
 }
 
@@ -356,13 +356,13 @@ ffi_fn! {
 
         match message.response.get(index) {
             Some(response) => match &response.contents {
-                OptionalBody::Empty | OptionalBody::Null | OptionalBody::Missing => ptr::null_to::<c_uchar>(),
+                OptionalBody::Empty | OptionalBody::Null | OptionalBody::Missing => std::ptr::null(),
                 OptionalBody::Present(bytes, _, _) => bytes.as_ptr()
             }
-            None => ptr::null_to::<c_uchar>()
+            None => std::ptr::null()
         }
     } {
-        ptr::null_to::<c_uchar>()
+        std::ptr::null()
     }
 }
 
@@ -458,7 +458,7 @@ ffi_fn! {
         let description = string::to_c(&message.description)?;
         description as *const c_char
     } {
-        ptr::null_to::<c_char>()
+        std::ptr::null()
     }
 }
 
@@ -521,7 +521,7 @@ ffi_fn! {
 
         provider_state as *const ProviderState
     } {
-        ptr::null_to::<ProviderState>()
+        std::ptr::null_mut()
     }
 }
 
@@ -540,7 +540,7 @@ ffi_fn! {
         let iter = ProviderStateIterator::new(message);
         ptr::raw_to(iter)
     } {
-        ptr::null_mut_to::<ProviderStateIterator>()
+        std::ptr::null_mut()
     }
 }
 
@@ -561,7 +561,6 @@ mod tests {
     pactffi_sync_message_set_request_contents_str,
     pactffi_sync_message_set_response_contents_str
   };
-  use crate::ptr::null_to;
 
   #[test]
     fn get_and_set_message_contents() {
@@ -570,7 +569,7 @@ mod tests {
       let message_contents2 = CString::new("This is another string").unwrap();
       let content_type = CString::new("text/plain").unwrap();
 
-      pactffi_sync_message_set_request_contents_str(message, message_contents.as_ptr(), null_to::<c_char>());
+      pactffi_sync_message_set_request_contents_str(message, message_contents.as_ptr(), std::ptr::null());
       let contents = pactffi_sync_message_get_request_contents_str(message) as *mut c_char;
       let len = pactffi_sync_message_get_request_contents_length(message);
       let str = unsafe { CString::from_raw(contents) };

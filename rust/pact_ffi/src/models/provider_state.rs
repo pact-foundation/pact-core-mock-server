@@ -24,7 +24,7 @@ ffi_fn! {
         let name = string::to_c(&provider_state.name)?;
         name as *const c_char
     } {
-        ptr::null_to::<c_char>()
+        std::ptr::null()
     }
 }
 
@@ -58,7 +58,7 @@ ffi_fn! {
 
         ptr::raw_to(iter)
     } {
-        ptr::null_mut_to::<ProviderStateParamIterator>()
+        std::ptr::null_mut()
     }
 }
 
@@ -90,7 +90,7 @@ ffi_fn! {
         let pair = ProviderStateParamPair::new(key, value)?;
         ptr::raw_to(pair)
     } {
-        ptr::null_mut_to::<ProviderStateParamPair>()
+        std::ptr::null_mut()
     }
 }
 

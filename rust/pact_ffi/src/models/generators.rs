@@ -294,14 +294,13 @@ mod tests {
     pactffi_generator_generate_string,
     pactffi_generator_to_json
   };
-  use crate::util::ptr::null_to;
   use crate::util::string;
 
   #[test]
   fn generate_string_test() {
     let generator = RandomString(4);
 
-    let value = pactffi_generator_generate_string(&generator, null_to());
+    let value = pactffi_generator_generate_string(&generator, std::ptr::null());
     expect!(value.is_null()).to(be_false());
     let string = unsafe { CString::from_raw(value as *mut c_char) };
     expect!(string.to_string_lossy().len()).to(be_equal_to(4));
@@ -321,7 +320,7 @@ mod tests {
   fn generate_integer_test() {
     let generator = RandomInt(10, 100);
 
-    let value = pactffi_generator_generate_integer(&generator, null_to());
+    let value = pactffi_generator_generate_integer(&generator, std::ptr::null());
     expect!(value).to(be_greater_or_equal_to(10));
     expect!(value).to(be_less_or_equal_to(100));
   }

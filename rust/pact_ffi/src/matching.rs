@@ -36,11 +36,11 @@ ffi_fn! {
       let actual_value = safe_str!(actual_value);
       let result = expected_value.matches_with(actual_value, matching_rule, cascaded > 0);
       match result {
-        Ok(_) => ptr::null_to::<c_char>(),
+        Ok(_) => std::ptr::null(),
         Err(err) => string::to_c(&err.to_string())? as *const c_char
       }
     } {
-      string::to_c("INTERNAL ERROR: function panicked").unwrap_or(ptr::null_mut_to::<c_char>()) as *const c_char
+      string::to_c("INTERNAL ERROR: function panicked").unwrap_or(std::ptr::null_mut()) as *const c_char
     }
 }
 
@@ -67,11 +67,11 @@ ffi_fn! {
       let matching_rule = as_ref!(matching_rule);
       let result = expected_value.matches_with(actual_value, matching_rule, cascaded > 0);
       match result {
-        Ok(_) => ptr::null_to::<c_char>(),
+        Ok(_) => std::ptr::null(),
         Err(err) => string::to_c(&err.to_string())? as *const c_char
       }
     } {
-      string::to_c("INTERNAL ERROR: function panicked").unwrap_or(ptr::null_mut_to::<c_char>()) as *const c_char
+      string::to_c("INTERNAL ERROR: function panicked").unwrap_or(std::ptr::null_mut()) as *const c_char
     }
 }
 
@@ -98,11 +98,11 @@ ffi_fn! {
       let matching_rule = as_ref!(matching_rule);
       let result = expected_value.matches_with(actual_value, matching_rule, cascaded > 0);
       match result {
-        Ok(_) => ptr::null_to::<c_char>(),
+        Ok(_) => std::ptr::null(),
         Err(err) => string::to_c(&err.to_string())? as *const c_char
       }
     } {
-      string::to_c("INTERNAL ERROR: function panicked").unwrap_or(ptr::null_mut_to::<c_char>()) as *const c_char
+      string::to_c("INTERNAL ERROR: function panicked").unwrap_or(std::ptr::null_mut()) as *const c_char
     }
 }
 
@@ -129,11 +129,11 @@ ffi_fn! {
       let matching_rule = as_ref!(matching_rule);
       let result = expected_value.matches_with(actual_value, matching_rule, cascaded > 0);
       match result {
-        Ok(_) => ptr::null_to::<c_char>(),
+        Ok(_) => std::ptr::null(),
         Err(err) => string::to_c(&err.to_string())? as *const c_char
       }
     } {
-      string::to_c("INTERNAL ERROR: function panicked").unwrap_or(ptr::null_mut_to::<c_char>()) as *const c_char
+      string::to_c("INTERNAL ERROR: function panicked").unwrap_or(std::ptr::null_mut()) as *const c_char
     }
 }
 
@@ -161,11 +161,11 @@ ffi_fn! {
       let expected_value = expected_value > 0;
       let result = expected_value.matches_with(actual_value > 0, matching_rule, cascaded > 0);
       match result {
-        Ok(_) => ptr::null_to::<c_char>(),
+        Ok(_) => std::ptr::null(),
         Err(err) => string::to_c(&err.to_string())? as *const c_char
       }
     } {
-      string::to_c("INTERNAL ERROR: function panicked").unwrap_or(ptr::null_mut_to::<c_char>()) as *const c_char
+      string::to_c("INTERNAL ERROR: function panicked").unwrap_or(std::ptr::null_mut()) as *const c_char
     }
 }
 
@@ -202,11 +202,11 @@ ffi_fn! {
       let actual_value = Bytes::from(slice);
       let result = expected_value.matches_with(actual_value, matching_rule, cascaded > 0);
       match result {
-        Ok(_) => ptr::null_to::<c_char>(),
+        Ok(_) => std::ptr::null(),
         Err(err) => string::to_c(&err.to_string())? as *const c_char
       }
     } {
-      string::to_c("INTERNAL ERROR: function panicked").unwrap_or(ptr::null_mut_to::<c_char>()) as *const c_char
+      string::to_c("INTERNAL ERROR: function panicked").unwrap_or(std::ptr::null_mut()) as *const c_char
     }
 }
 
@@ -252,11 +252,11 @@ ffi_fn! {
 
       let result = expected_json.matches_with(actual_json, matching_rule, cascaded > 0);
       match result {
-        Ok(_) => ptr::null_to::<c_char>(),
+        Ok(_) => std::ptr::null(),
         Err(err) => string::to_c(&err.to_string())? as *const c_char
       }
     } {
-      string::to_c("INTERNAL ERROR: function panicked").unwrap_or(ptr::null_mut_to::<c_char>()) as *const c_char
+      string::to_c("INTERNAL ERROR: function panicked").unwrap_or(std::ptr::null_mut()) as *const c_char
     }
 }
 
