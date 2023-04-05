@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.4.3 - Bugfix Release
+
+* 0af00359 - fix: use a shared global tokio runtime so shared plugin connections can be used (Ronald Holshausen, Wed Apr 5 14:05:11 2023 +1000)
+* 33ef054f - bump version to 0.4.3 (Ronald Holshausen, Wed Apr 5 11:17:18 2023 +1000)
+
 # 0.4.2 - Bugfix Release
 
 * d216b5d5 - chore: Update dependencies (Ronald Holshausen, Wed Apr 5 11:10:52 2023 +1000)
