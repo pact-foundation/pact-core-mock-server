@@ -7,6 +7,7 @@
 
 use std::ffi::CStr;
 use std::str::FromStr;
+use lazy_static::lazy_static;
 
 use libc::c_char;
 use pact_models::interaction::Interaction;
@@ -33,6 +34,14 @@ pub mod plugins;
 pub mod matching;
 
 const VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "\0");
+
+// Create a global runtime of all async tasks
+lazy_static! {
+  static ref RUNTIME: tokio::runtime::Runtime = tokio::runtime::Builder::new_multi_thread()
+          .enable_all()
+          .build()
+          .expect("Could not start a Tokio runtime for running async tasks");
+}
 
 /// Returns the current library version
 #[no_mangle]
@@ -175,8 +184,7 @@ ffi_fn! {
         let msg_1: Box<dyn Interaction + Send + Sync> = unsafe { Box::from_raw(msg_1 as *mut Message) };
         let msg_2: Box<dyn Interaction + Send + Sync> = unsafe { Box::from_raw(msg_2 as *mut Message) };
 
-        let runtime = tokio::runtime::Runtime::new().unwrap();
-        let mismatches = runtime.block_on(async move {
+        let mismatches = RUNTIME.block_on(async move {
             // TODO: match_message also requires the Pact that the messages belong to
             Mismatches(pm::match_message(&msg_1, &msg_2, &V4Pact::default().boxed()).await)
         });

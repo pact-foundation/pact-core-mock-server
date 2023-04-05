@@ -12,6 +12,8 @@ use pact_verifier::callback_executors::HttpRequestProviderStateExecutor;
 use pact_verifier::metrics::VerificationMetrics;
 use pact_verifier::verification_result::VerificationExecutionResult;
 
+use crate::RUNTIME;
+
 #[derive(Debug, Clone)]
 /// Wraps a Pact verifier
 pub struct VerifierHandle {
@@ -284,8 +286,7 @@ impl VerifierHandle {
     let (calling_app_name, calling_app_version) = self.calling_app.clone().unwrap_or_else(|| {
       ("pact_ffi".to_string(), env!("CARGO_PKG_VERSION").to_string())
     });
-    let runtime = tokio::runtime::Runtime::new().unwrap();
-    match runtime.block_on(async {
+    match RUNTIME.block_on(async {
       verify_provider_async(
         self.provider.clone(),
         self.sources.clone(),

@@ -25,7 +25,7 @@ use tokio::runtime::Builder;
 use tokio::time::sleep;
 use tracing::{debug, error};
 
-use crate::{ffi_fn, safe_str};
+use crate::{ffi_fn, safe_str, RUNTIME};
 use crate::error::{catch_panic, set_error_msg};
 use crate::mock_server::handles::{InteractionHandle, InteractionPart, PactHandle};
 use crate::string::if_null;
@@ -74,11 +74,7 @@ ffi_fn! {
         pact_mock_server::configure_core_catalogue();
         pact_matching::matchers::configure_core_catalogue();
 
-        let runtime = tokio::runtime::Builder::new_multi_thread()
-          .enable_all()
-          .build()
-          .expect("Could not start a Tokio runtime for running async tasks");
-        let result = runtime.block_on(async {
+        let result = RUNTIME.block_on(async {
           let result = load_plugin(&dependency).await;
 
           // Add a small delay to let asynchronous tasks to complete
@@ -86,8 +82,6 @@ ffi_fn! {
 
           result
         });
-
-        runtime.shutdown_timeout(Duration::from_millis(500));
 
         result
       });

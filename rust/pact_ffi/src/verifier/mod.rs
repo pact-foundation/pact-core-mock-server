@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use pact_matching::logging::fetch_buffer_contents;
 use pact_verifier::selectors::{consumer_tags_to_selectors, json_to_selectors};
 
-use crate::{as_mut, as_ref, ffi_fn, safe_str};
+use crate::{as_mut, as_ref, ffi_fn, RUNTIME, safe_str};
 use crate::ptr;
 use crate::util::string::{if_null, optional_str};
 
@@ -53,8 +53,7 @@ pub unsafe extern fn pactffi_verify(args: *const c_char) -> i32 {
   }
 
   let result = catch_unwind(|| {
-    let runtime = tokio::runtime::Runtime::new().unwrap();
-    runtime.block_on(async {
+    RUNTIME.block_on(async {
       let args_raw = CStr::from_ptr(args).to_string_lossy().into_owned();
       let args: Vec<String> = args_raw.lines().map(|s| s.to_string()).collect();
       #[allow(deprecated)]
