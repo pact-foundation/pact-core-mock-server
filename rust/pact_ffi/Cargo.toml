@@ -15,35 +15,35 @@ exclude = [
 
 [dependencies]
 ansi_term = "0.12.1"
-anyhow = "1.0.66"
+anyhow = "1.0.70"
 pact_matching = { version = "1.0.7", path = "../pact_matching" }
 pact_models = "1.0.9"
 pact_mock_server = { version = "1.0.1", path = "../pact_mock_server" }
 pact_verifier = { version = "0.15.2", path = "../pact_verifier" }
-libc = "0.2.137"
-zeroize = "1.5.7"
-thiserror = "1.0.37"
-serde_json = "1.0.87"
-serde = { version = "1.0.147", features = ["derive"] }
-bytes = "1.2.1"
+libc = "0.2.141"
+zeroize = "1.6.0"
+thiserror = "1.0.40"
+serde_json = "1.0.95"
+serde = { version = "1.0.159", features = ["derive"] }
+bytes = "1.4.0"
 lazy_static = "1.4.0"
 maplit = "1.0.2"
 rand = "0.8.5"
-chrono = "0.4.22"
-chrono-tz = "0.8.0"
+chrono = "0.4.24"
+chrono-tz = "0.8.1"
 env_logger = "0.10.0"
 itertools = "0.10.5"
 onig = { version = "6.4.0", default-features = false }
-uuid = { version = "1.2.1", features = ["v4"] }
+uuid = { version = "1.3.0", features = ["v4"] }
 multipart = { version = "0.18.0", default-features = false, features = ["client", "mock"] }
 rand_regex = "0.15.1"
-regex-syntax = "0.6.28"
+regex-syntax = "0.6.29"
 clap = "2.34.0"
-regex = "1.7.0"
+regex = "1.7.3"
 tokio = { version = "1.27.0", features = ["full"] }
 tokio-rustls = "0.24.0"
 sxd-document = "0.3.2"
-either = "1.8.0"
+either = "1.8.1"
 pact-plugin-driver = "0.4.0"
 log = "0.4.17"
 tracing = "0.1.37" # This needs to be the same version across all the libs (i.e. plugin driver)
@@ -54,13 +54,13 @@ panic-message = "0.3.0"
 
 [dev-dependencies]
 expectest = "0.12.0"
-reqwest = { version = "0.11.12", default-features = false, features = ["rustls-tls-native-roots", "blocking", "json"] }
+reqwest = { version = "0.11.16", default-features = false, features = ["rustls-tls-native-roots", "blocking", "json"] }
 quickcheck = "1.0.3"
 test-log = "0.2.11"
-tempfile = "3.3.0"
+tempfile = "3.5.0"
 
 [lib]
 crate-type = ["cdylib", "staticlib", "rlib"]
 
 [build-dependencies]
-os_info = { version = "3.5.1", default-features = false }
+os_info = { version = "3.7.0", default-features = false }
