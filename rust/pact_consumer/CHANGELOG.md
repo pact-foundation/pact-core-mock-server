@@ -1,5 +1,17 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.10.6 - Bugfix Release
+
+* 7bd44a0d - fix: PactBuilder drop handler was cauing plugins to be shutdown twice (Ronald Holshausen, Wed Apr 5 14:44:26 2023 +1000)
+* 6aa389c9 - fix: Make using_plugin consume self so that the builder will have the same lifetime as the returned async one (Ronald Holshausen, Wed Apr 5 14:43:43 2023 +1000)
+* 48284036 - chore: Upgrade dependencies (Ronald Holshausen, Wed Apr 5 14:41:33 2023 +1000)
+* 81a9b306 - chore: Upgrade pact_mock_server to 1.0.1 (Ronald Holshausen, Tue Apr 4 15:40:20 2023 +1000)
+* 126cf462 - chore: Upgrade pact_matching to 1.0.7 (Ronald Holshausen, Tue Apr 4 15:12:28 2023 +1000)
+* 6f0c4b2f - feat: Upgrade pact-plugin-driver to 0.4.0 which uses a shared gRPC channel to each plugin (Ronald Holshausen, Tue Apr 4 14:32:36 2023 +1000)
+* 63be53b2 - fix: allow the pact builders to set the overwrite flag (Ronald Holshausen, Mon Apr 3 14:53:36 2023 +1000)
+* f8aea4fc - fix: request and response builders were incorrectly setting empty bodies from plugin contents (Ronald Holshausen, Mon Apr 3 14:52:29 2023 +1000)
+* a31bfa41 - bump version to 0.10.6 (Ronald Holshausen, Tue Mar 21 10:23:17 2023 +1100)
+
 # 0.10.5 - Maintenance Release
 
 * 11c701b4 - fix: Upgrade pact_matching to 1.0.6 (fixes some issues with matching HTTP headers) (Ronald Holshausen, Wed Mar 15 14:54:54 2023 +1100)
