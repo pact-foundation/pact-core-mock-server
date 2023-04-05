@@ -107,7 +107,7 @@ impl PactBuilder {
     /// Plugins only work with V4 specification pacts. This method will panic if the pact
     /// being built is V3 format. Use `PactBuilder::new_v4` to create a builder with a V4 format
     /// pact.
-    pub async fn using_plugin(&mut self, name: &str, version: Option<String>) -> PactBuilderAsync {
+    pub async fn using_plugin(self, name: &str, version: Option<String>) -> PactBuilderAsync {
       if !self.pact.is_v4() {
         panic!("Plugins require V4 specification pacts. Use PactBuilder::new_v4");
       }
