@@ -35,3 +35,4 @@ time = "0.3.20"
 
 [dev-dependencies]
 expectest = "0.12.0"
+trycmd = "0.14.13"
