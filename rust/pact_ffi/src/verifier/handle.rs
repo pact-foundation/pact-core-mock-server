@@ -5,7 +5,7 @@ use std::sync::Arc;
 use itertools::Itertools;
 use pact_models::prelude::HttpAuth;
 use serde_json::Value;
-use tracing::debug;
+use tracing::{debug, error};
 
 use pact_verifier::{ConsumerVersionSelector, FilterInfo, NullRequestFilterExecutor, PactSource, ProviderInfo, ProviderTransport, PublishOptions, VerificationOptions, verify_provider_async};
 use pact_verifier::callback_executors::HttpRequestProviderStateExecutor;
@@ -306,7 +306,11 @@ impl VerifierHandle {
         self.verifier_output = result.clone();
         if result.result { 0 } else { 1 }
       }
-      Err(_) => 2
+      Err(err) => {
+        error!("Verification execution failed: {}", err);
+        self.verifier_output.output.push(format!("Verification execution failed: {}", err));
+        2
+      }
     }
   }
 
