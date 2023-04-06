@@ -1,4 +1,4 @@
-use std::{env, fs};
+use std::env;
 use std::ffi::{CStr, CString};
 use std::fs::File;
 use std::io::Read;
@@ -44,6 +44,7 @@ use pact_ffi::mock_server::handles::{
 };
 use pact_ffi::verifier::{OptionsFlags, pactffi_verifier_add_directory_source, pactffi_verifier_add_file_source, pactffi_verifier_cli_args, pactffi_verifier_execute, pactffi_verifier_new_for_application, pactffi_verifier_output, pactffi_verifier_set_provider_info, pactffi_verifier_shutdown};
 use pact_models::bodies::OptionalBody;
+use tempfile::TempDir;
 
 #[test]
 fn post_to_mock_server_with_mismatches() {
@@ -456,15 +457,14 @@ fn test_missing_plugin() {
   let path_str = CString::new(pacts_path.to_string_lossy().to_string()).unwrap();
   pactffi_verifier_add_file_source(handle, path_str.as_ptr());
 
-  let home_dir = home::home_dir()
-    .map(|dir| dir.join(".pact/plugins"))
-    .unwrap_or_default();
-  fs::create_dir_all(home_dir).expect("Failed to create plugin dir");
+  let tmp_dir = TempDir::new().unwrap();
+  env::set_var("PACT_PLUGIN_DIR", tmp_dir.path());
 
   let result = pactffi_verifier_execute(handle);
   let output_ptr = pactffi_verifier_output(handle, 0);
   let output = unsafe { CString::from_raw(output_ptr as *mut c_char) };
 
+  env::remove_var("PACT_PLUGIN_DIR");
   pactffi_verifier_shutdown(handle);
 
   expect!(result).to(be_equal_to(2));
