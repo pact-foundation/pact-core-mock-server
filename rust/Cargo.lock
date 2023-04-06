@@ -1807,6 +1807,7 @@ dependencies = [
  "either",
  "env_logger 0.10.0",
  "expectest",
+ "home",
  "itertools",
  "lazy_static",
  "libc",

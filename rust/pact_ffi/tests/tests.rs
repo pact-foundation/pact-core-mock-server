@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, fs};
 use std::ffi::{CStr, CString};
 use std::fs::File;
 use std::io::Read;
@@ -455,6 +455,11 @@ fn test_missing_plugin() {
   let pacts_path = fixture_path("missing-plugin-pact.json");
   let path_str = CString::new(pacts_path.to_string_lossy().to_string()).unwrap();
   pactffi_verifier_add_file_source(handle, path_str.as_ptr());
+
+  let home_dir = home::home_dir()
+    .map(|dir| dir.join(".pact/plugins"))
+    .unwrap_or_default();
+  fs::create_dir_all(home_dir).expect("Failed to create plugin dir");
 
   let result = pactffi_verifier_execute(handle);
   let output_ptr = pactffi_verifier_output(handle, 0);
