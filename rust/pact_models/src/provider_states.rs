@@ -25,9 +25,9 @@ pub struct ProviderState {
 impl ProviderState {
 
   /// Creates a default state with the given name
-  pub fn default(name: &str) -> ProviderState {
+  pub fn default<T: Into<String>>(name: T) -> ProviderState {
     ProviderState {
-      name: name.to_string(),
+      name: name.into(),
       params: hashmap!{}
     }
   }

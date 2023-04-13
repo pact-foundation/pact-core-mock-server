@@ -158,7 +158,7 @@ impl Hash for HttpRequest {
 
     if let Some(ref headers) = self.headers {
       for (k, v) in headers.iter().sorted_by(|(a, _), (b, _)| Ord::cmp(a, b)) {
-        k.hash(state);
+        k.to_lowercase().hash(state);
         v.hash(state);
       }
     }
@@ -422,7 +422,7 @@ impl Hash for HttpResponse {
 
     if let Some(ref headers) = self.headers {
       for (k, v) in headers.iter().sorted_by(|(a, _), (b, _)| Ord::cmp(a, b)) {
-        k.hash(state);
+        k.to_lowercase().hash(state);
         v.hash(state);
       }
     }
@@ -812,6 +812,17 @@ mod tests {
   }
 
   #[test]
+  fn hash_for_http_request_with_different_case_header_keys() {
+    let request1 = HttpRequest { headers: Some(hashmap!{
+        "Content-Type".to_string() => vec!["application/json".to_string()]
+    }), .. HttpRequest::default() };
+    let request2 = HttpRequest { headers: Some(hashmap!{
+        "content-type".to_string() => vec!["application/json".to_string()]
+    }), .. HttpRequest::default() };
+    expect!(hash(&request1)).to(be_equal_to(hash(&request2)));
+  }
+
+  #[test]
   fn hash_for_http_response() {
     let response1 = HttpResponse::default();
     let response2 = HttpResponse { status: 400, .. HttpResponse::default() };
@@ -825,6 +836,17 @@ mod tests {
     expect!(hash(&response3)).to(be_equal_to(hash(&response3)));
     expect!(hash(&response1)).to_not(be_equal_to(hash(&response2)));
     expect!(hash(&response3)).to_not(be_equal_to(hash(&response4)));
+  }
+
+  #[test]
+  fn hash_for_http_response_with_different_case_header_keys() {
+    let response1 = HttpResponse { headers: Some(hashmap!{
+        "Content-Type".to_string() => vec!["application/json".to_string()]
+    }), .. HttpResponse::default() };
+    let response2 = HttpResponse { headers: Some(hashmap!{
+        "content-type".to_string() => vec!["application/json".to_string()]
+    }), .. HttpResponse::default() };
+    expect!(hash(&response1)).to(be_equal_to(hash(&response2)));
   }
 
   #[test]

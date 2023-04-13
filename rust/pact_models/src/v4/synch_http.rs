@@ -413,5 +413,151 @@ impl Display for SynchronousHttp {
 
 #[cfg(test)]
 mod tests {
+  use expectest::prelude::*;
+  use maplit::hashmap;
+  use serde_json::json;
+  use crate::bodies::OptionalBody;
 
+  use crate::prelude::ProviderState;
+  use crate::v4::http_parts::{HttpRequest, HttpResponse};
+  use crate::v4::interaction::V4Interaction;
+  use crate::v4::synch_http::SynchronousHttp;
+
+  #[test]
+  fn calculate_hash_test() {
+    let interaction = SynchronousHttp::from_json(&json!({
+      "description": "a retrieve Mallory request",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "there is some good mallory"
+        }
+      ],
+      "request": {
+        "headers": {
+          "content-type": [
+            "application/json"
+          ]
+        },
+        "method": "GET",
+        "path": "/mallory"
+      },
+      "response": {
+        "body": {
+          "content": "That is some good Mallory.",
+          "contentType": "*/*",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "text/plain"
+          ]
+        },
+        "status": 200
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    }), 0).unwrap();
+    let hash = interaction.calc_hash();
+    expect!(interaction.calc_hash()).to(be_equal_to(hash.as_str()));
+
+    let interaction2 = interaction.with_key();
+    expect!(interaction2.key.as_ref().unwrap()).to(be_equal_to(hash.as_str()));
+
+    let json = interaction2.to_json();
+    pretty_assertions::assert_eq!(json, json!({
+      "description": "a retrieve Mallory request",
+      "key": "98ae1ad563fc69cb",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "there is some good mallory"
+        }
+      ],
+      "request": {
+        "headers": {
+          "content-type": [
+            "application/json"
+          ]
+        },
+        "method": "GET",
+        "path": "/mallory"
+      },
+      "response": {
+        "body": {
+          "content": "That is some good Mallory.",
+          "contentType": "*/*",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "text/plain"
+          ]
+        },
+        "status": 200
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    }));
+  }
+
+  #[test]
+  fn hash_test() {
+    let i1 = SynchronousHttp::default();
+    expect!(i1.calc_hash()).to(be_equal_to("9cc3bdc81f4d6db3"));
+
+    let i2 = SynchronousHttp {
+      description: "a retrieve Mallory request".to_string(),
+      .. SynchronousHttp::default()
+    };
+    expect!(i2.calc_hash()).to(be_equal_to("54562b562c985411"));
+
+    let i3 = SynchronousHttp {
+      description: "a retrieve Mallory request".to_string(),
+      provider_states: vec![ProviderState::default("there is some good mallory")],
+      .. SynchronousHttp::default()
+    };
+    expect!(i3.calc_hash()).to(be_equal_to("c4e8b0f671fc7790"));
+
+    let i4 = SynchronousHttp {
+      description: "a retrieve Mallory request".to_string(),
+      provider_states: vec![ProviderState::default("there is some good mallory")],
+      request: HttpRequest {
+        path: "/mallory".to_string(),
+        .. HttpRequest::default()
+      },
+      .. SynchronousHttp::default()
+    };
+    expect!(i4.calc_hash()).to(be_equal_to("a24b3aa518050bda"));
+
+    let i5 = SynchronousHttp {
+      description: "a retrieve Mallory request".to_string(),
+      provider_states: vec![ProviderState::default("there is some good mallory")],
+      request: HttpRequest {
+        path: "/mallory".to_string(),
+        headers: Some(hashmap!{ "Content-Type".to_string() => vec![ "application/json".to_string() ]  }),
+        .. HttpRequest::default()
+      },
+      .. SynchronousHttp::default()
+    };
+    expect!(i5.calc_hash()).to(be_equal_to("f0e56013396eaf62"));
+
+    let i5 = SynchronousHttp {
+      description: "a retrieve Mallory request".to_string(),
+      provider_states: vec![ProviderState::default("there is some good mallory")],
+      request: HttpRequest {
+        path: "/mallory".to_string(),
+        headers: Some(hashmap!{ "Content-Type".to_string() => vec![ "application/json".to_string() ]  }),
+        .. HttpRequest::default()
+      },
+      response: HttpResponse {
+        status: 200,
+        headers: Some(hashmap!{ "Content-Type".to_string() => vec![ "text/plain".to_string() ]  }),
+        body: OptionalBody::from("That is some good Mallory."),
+        .. HttpResponse::default()
+      },
+      .. SynchronousHttp::default()
+    };
+    expect!(i5.calc_hash()).to(be_equal_to("c73355e81f04c03e"));
+  }
 }
