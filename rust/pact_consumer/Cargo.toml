@@ -14,7 +14,7 @@ exclude = [
 ]
 
 [dependencies]
-pact_models = "1.0.9"
+pact_models = "1.0.10"
 pact_matching = { version = "1.0.7", path = "../pact_matching" }
 pact_mock_server = { version = "1.0.1", path = "../pact_mock_server" }
 maplit = "1.0.2"
@@ -43,3 +43,4 @@ rand = "0.8.5"
 tokio-test = "0.4.2"
 test-log = { version = "0.2.11", features = ["trace"] }
 tracing-subscriber = { version = "0.3.16", features = ["env-filter", "tracing-log", "fmt"] }
+pretty_assertions = "1.3.0"
