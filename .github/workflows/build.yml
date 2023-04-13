@@ -34,6 +34,7 @@ jobs:
           working-directory: rust
           command: build
       - name: Clippy
+        if: runner.os == 'Linux'
         uses: marcopolo/cargo@master
         with:
           working-directory: rust
