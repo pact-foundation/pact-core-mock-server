@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.10 - Bugfix Release
+
+* 10239f7c - fix(V4): when generating the interaction key, treat header keys in a case-insensitive manner (Ronald Holshausen, Thu Apr 13 15:02:29 2023 +1000)
+* 6f70f30a - fix: exclude headers from the pact conflict check (Ronald Holshausen, Wed Mar 15 15:23:19 2023 +1100)
+* 2b5c53f6 - bump version to 1.0.10 (Ronald Holshausen, Wed Mar 15 14:23:05 2023 +1100)
+
 # 1.0.9 - Bugfix Release
 
 * 97684ade - fix: Correctly deal with headers when the value is a string (Ronald Holshausen, Wed Mar 15 14:12:24 2023 +1100)
