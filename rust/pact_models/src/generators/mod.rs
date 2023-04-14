@@ -1259,7 +1259,6 @@ impl ContentTypeHandler<Value> for JsonHandler {
 
 #[cfg(test)]
 mod tests {
-  use std::collections::hash_map::DefaultHasher;
   use std::ops::Add;
   use std::str::FromStr;
 
@@ -1267,6 +1266,7 @@ mod tests {
   use expectest::expect;
   use expectest::prelude::*;
   use hamcrest2::*;
+  use hashers::fx_hash::FxHasher;
   use test_log::test;
 
   use crate::generators::Generator::{RandomDecimal, RandomInt, Regex};
@@ -1275,7 +1275,7 @@ mod tests {
   use super::Generator;
 
   fn h<T: Hash>(rule: &T) -> u64 {
-    let mut hasher = DefaultHasher::new();
+    let mut hasher = FxHasher::default();
     rule.hash(&mut hasher);
     hasher.finish()
   }
@@ -2095,7 +2095,7 @@ mod tests {
   #[test]
   fn hash_test_for_generators() {
     let g1 = Generators::default();
-    expect!(h(&g1)).to(be_equal_to(15130871412783076140));
+    expect!(h(&g1)).to(be_equal_to(0));
 
     let g2 = Generators {
       categories: hashmap!{
@@ -2104,7 +2104,7 @@ mod tests {
         }
       }
     };
-    expect!(h(&g2)).to(be_equal_to(7485208380071736039));
+    expect!(h(&g2)).to(be_equal_to(1400070739500850701));
 
     let g3 = Generators {
       categories: hashmap!{
@@ -2114,14 +2114,14 @@ mod tests {
         }
       }
     };
-    expect!(h(&g3)).to(be_equal_to(4925064761646767895));
+    expect!(h(&g3)).to(be_equal_to(12233200366861159704));
 
     let g4 = Generators {
       categories: hashmap!{
         GeneratorCategory::PATH => hashmap!{}
       }
     };
-    expect!(h(&g4)).to(be_equal_to(15130871412783076140));
+    expect!(h(&g4)).to(be_equal_to(0));
 
     let g5 = Generators {
       categories: hashmap!{
@@ -2133,7 +2133,7 @@ mod tests {
         }
       }
     };
-    expect!(h(&g5)).to(be_equal_to(2286649160918696318));
+    expect!(h(&g5)).to(be_equal_to(2171280703816596608));
   }
 
   #[test]
