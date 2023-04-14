@@ -438,8 +438,11 @@ impl Default for AsynchronousMessage {
 
 impl PartialEq for AsynchronousMessage {
   fn eq(&self, other: &Self) -> bool {
-    self.description == other.description && self.provider_states == other.provider_states &&
-      self.contents == other.contents && self.pending == other.pending
+    self.key == other.key &&
+      self.description == other.description &&
+      self.provider_states == other.provider_states &&
+      self.contents == other.contents &&
+      self.pending == other.pending
   }
 }
 
@@ -510,11 +513,17 @@ impl HttpPart for AsynchronousMessage {
 #[cfg(test)]
 mod tests {
   use expectest::prelude::*;
+  use maplit::hashmap;
+  use pretty_assertions::{assert_eq, assert_ne};
+  use serde_json::{json, Value};
 
+  use crate::bodies::OptionalBody;
   use crate::interaction::Interaction;
   use crate::matchingrules;
   use crate::matchingrules::MatchingRule;
+  use crate::provider_states::ProviderState;
   use crate::v4::async_message::AsynchronousMessage;
+  use crate::v4::interaction::V4Interaction;
   use crate::v4::message_parts::MessageContents;
 
   #[test]
@@ -530,5 +539,177 @@ mod tests {
     expect!(v3.matching_rules).to(be_equal_to(
       matchingrules! { "body" => { "user_id" => [ MatchingRule::Regex("^[0-9]+$".into()) ] }}
     ));
+  }
+
+  #[test]
+  fn calculate_hash_test() {
+    let interaction = AsynchronousMessage::from_json(&json!({
+      "description": "a Mallory message",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "there is some good mallory"
+        }
+      ],
+      "contents": {
+        "content": "That is some good Mallory.",
+        "contentType": "*/*",
+        "encoded": false
+      },
+      "metadata": {
+        "Content-Type": [
+          "text/plain"
+        ]
+      },
+      "type": "Asynchronous/Message"
+    }), 0).unwrap();
+    let hash = interaction.calc_hash();
+    expect!(interaction.calc_hash()).to(be_equal_to(hash.as_str()));
+
+    let interaction2 = interaction.with_key();
+    expect!(interaction2.key.as_ref().unwrap()).to(be_equal_to(hash.as_str()));
+
+    let json = interaction2.to_json();
+    assert_eq!(json!({
+      "description": "a Mallory message",
+      "key": "565dd33ff61cfe7e",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "there is some good mallory"
+        }
+      ],
+      "contents": {
+        "content": "That is some good Mallory.",
+        "contentType": "*/*",
+        "encoded": false,
+      },
+      "metadata": {
+        "Content-Type": [ "text/plain" ]
+      },
+      "type": "Asynchronous/Messages"
+    }), json);
+  }
+
+  #[test]
+  fn hash_test() {
+    let i1 = AsynchronousMessage::default();
+    expect!(i1.calc_hash()).to(be_equal_to("774c6898f6381239"));
+
+    let i2 = AsynchronousMessage {
+      description: "a retrieve Mallory request".to_string(),
+      .. AsynchronousMessage::default()
+    };
+    expect!(i2.calc_hash()).to(be_equal_to("4f2591cc234f166c"));
+
+    let i3 = AsynchronousMessage {
+      description: "a retrieve Mallory request".to_string(),
+      provider_states: vec![ProviderState::default("there is some good mallory")],
+      .. AsynchronousMessage::default()
+    };
+    expect!(i3.calc_hash()).to(be_equal_to("51c8f79472fc5f71"));
+
+    let i4 = AsynchronousMessage {
+      description: "a retrieve Mallory request".to_string(),
+      provider_states: vec![ProviderState::default("there is some good mallory")],
+      contents: MessageContents {
+        contents: OptionalBody::from("That is some good Mallory."),
+        .. MessageContents::default()
+      },
+      .. AsynchronousMessage::default()
+    };
+    expect!(i4.calc_hash()).to(be_equal_to("75ef7d2bbd911ac8"));
+
+    let i5 = AsynchronousMessage {
+      description: "a retrieve Mallory request".to_string(),
+      provider_states: vec![ProviderState::default("there is some good mallory")],
+      contents: MessageContents {
+        contents: OptionalBody::from("That is some good Mallory."),
+        metadata: hashmap! { "ContentType".to_string() => Value::String("text/plain".to_string()) },
+        .. MessageContents::default()
+      },
+      .. AsynchronousMessage::default()
+    };
+    expect!(i5.calc_hash()).to(be_equal_to("dc9ceba2dbd6cb2"));
+  }
+
+  #[test]
+  fn equals_test() {
+    let i1 = AsynchronousMessage::default();
+    let i2 = AsynchronousMessage {
+      description: "a retrieve Mallory request".to_string(),
+      .. AsynchronousMessage::default()
+    };
+    let i3 = AsynchronousMessage {
+      description: "a retrieve Mallory request".to_string(),
+      provider_states: vec![ProviderState::default("there is some good mallory")],
+      .. AsynchronousMessage::default()
+    };
+    let i4 = AsynchronousMessage {
+      description: "a retrieve Mallory request".to_string(),
+      provider_states: vec![ProviderState::default("there is some good mallory")],
+      contents: MessageContents {
+        contents: OptionalBody::from("That is some good Mallory."),
+        .. MessageContents::default()
+      },
+      .. AsynchronousMessage::default()
+    };
+    let i5 = AsynchronousMessage {
+      description: "a retrieve Mallory request".to_string(),
+      provider_states: vec![ProviderState::default("there is some good mallory")],
+      contents: MessageContents {
+        contents: OptionalBody::from("That is some good Mallory."),
+        metadata: hashmap! { "ContentType".to_string() => Value::String("text/plain".to_string()) },
+        .. MessageContents::default()
+      },
+      .. AsynchronousMessage::default()
+    };
+
+    assert_eq!(i1, i1);
+    assert_eq!(i2, i2);
+    assert_eq!(i3, i3);
+    assert_eq!(i4, i4);
+    assert_eq!(i5, i5);
+
+    assert_ne!(i1, i2);
+    assert_ne!(i1, i3);
+    assert_ne!(i1, i4);
+    assert_ne!(i1, i5);
+    assert_ne!(i2, i1);
+    assert_ne!(i2, i3);
+    assert_ne!(i2, i4);
+    assert_ne!(i2, i5);
+  }
+
+  #[test]
+  fn equals_test_with_different_keys() {
+    let i1 = AsynchronousMessage {
+      key: Some("i1".to_string()),
+      description: "a retrieve Mallory request".to_string(),
+      provider_states: vec![ProviderState::default("there is some good mallory")],
+      contents: MessageContents {
+        contents: OptionalBody::from("That is some good Mallory."),
+        metadata: hashmap! { "ContentType".to_string() => Value::String("text/plain".to_string()) },
+        .. MessageContents::default()
+      },
+      .. AsynchronousMessage::default()
+    };
+    let i2 = AsynchronousMessage {
+      key: Some("i2".to_string()),
+      description: "a retrieve Mallory request".to_string(),
+      provider_states: vec![ProviderState::default("there is some good mallory")],
+      contents: MessageContents {
+        contents: OptionalBody::from("That is some good Mallory."),
+        metadata: hashmap! { "ContentType".to_string() => Value::String("text/plain".to_string()) },
+        .. MessageContents::default()
+      },
+      .. AsynchronousMessage::default()
+    };
+
+    assert_eq!(i1, i1);
+    assert_eq!(i2, i2);
+
+    assert_ne!(i1, i2);
+    assert_ne!(i2, i1);
   }
 }

@@ -387,9 +387,12 @@ impl Default for SynchronousHttp {
 
 impl PartialEq for SynchronousHttp {
   fn eq(&self, other: &Self) -> bool {
-    self.description == other.description && self.provider_states == other.provider_states &&
-      self.request == other.request && self.response == other.response &&
-      self.pending == other.pending
+    self.key == other.key &&
+    self.description == other.description &&
+    self.provider_states == other.provider_states &&
+    self.request == other.request &&
+    self.response == other.response &&
+    self.pending == other.pending
   }
 }
 
@@ -415,9 +418,10 @@ impl Display for SynchronousHttp {
 mod tests {
   use expectest::prelude::*;
   use maplit::hashmap;
+  use pretty_assertions::{assert_eq, assert_ne};
   use serde_json::json;
-  use crate::bodies::OptionalBody;
 
+  use crate::bodies::OptionalBody;
   use crate::prelude::ProviderState;
   use crate::v4::http_parts::{HttpRequest, HttpResponse};
   use crate::v4::interaction::V4Interaction;
@@ -465,7 +469,7 @@ mod tests {
     expect!(interaction2.key.as_ref().unwrap()).to(be_equal_to(hash.as_str()));
 
     let json = interaction2.to_json();
-    pretty_assertions::assert_eq!(json, json!({
+    assert_eq!(json, json!({
       "description": "a retrieve Mallory request",
       "key": "98ae1ad563fc69cb",
       "pending": false,
@@ -559,5 +563,116 @@ mod tests {
       .. SynchronousHttp::default()
     };
     expect!(i5.calc_hash()).to(be_equal_to("c73355e81f04c03e"));
+  }
+
+  #[test]
+  fn equals_test() {
+    let i1 = SynchronousHttp::default();
+    let i2 = SynchronousHttp {
+      description: "a retrieve Mallory request".to_string(),
+      .. SynchronousHttp::default()
+    };
+    let i3 = SynchronousHttp {
+      description: "a retrieve Mallory request".to_string(),
+      provider_states: vec![ProviderState::default("there is some good mallory")],
+      .. SynchronousHttp::default()
+    };
+    let i4 = SynchronousHttp {
+      description: "a retrieve Mallory request".to_string(),
+      provider_states: vec![ProviderState::default("there is some good mallory")],
+      request: HttpRequest {
+        path: "/mallory".to_string(),
+        .. HttpRequest::default()
+      },
+      .. SynchronousHttp::default()
+    };
+    let i5 = SynchronousHttp {
+      description: "a retrieve Mallory request".to_string(),
+      provider_states: vec![ProviderState::default("there is some good mallory")],
+      request: HttpRequest {
+        path: "/mallory".to_string(),
+        headers: Some(hashmap!{ "Content-Type".to_string() => vec![ "application/json".to_string() ]  }),
+        .. HttpRequest::default()
+      },
+      .. SynchronousHttp::default()
+    };
+    let i6 = SynchronousHttp {
+      description: "a retrieve Mallory request".to_string(),
+      provider_states: vec![ProviderState::default("there is some good mallory")],
+      request: HttpRequest {
+        path: "/mallory".to_string(),
+        headers: Some(hashmap!{ "Content-Type".to_string() => vec![ "application/json".to_string() ]  }),
+        .. HttpRequest::default()
+      },
+      response: HttpResponse {
+        status: 200,
+        headers: Some(hashmap!{ "Content-Type".to_string() => vec![ "text/plain".to_string() ]  }),
+        body: OptionalBody::from("That is some good Mallory."),
+        .. HttpResponse::default()
+      },
+      .. SynchronousHttp::default()
+    };
+
+    assert_eq!(i1, i1);
+    assert_eq!(i2, i2);
+    assert_eq!(i3, i3);
+    assert_eq!(i4, i4);
+    assert_eq!(i5, i5);
+    assert_eq!(i6, i6);
+
+    assert_ne!(i1, i2);
+    assert_ne!(i1, i3);
+    assert_ne!(i1, i4);
+    assert_ne!(i1, i5);
+    assert_ne!(i1, i6);
+    assert_ne!(i2, i1);
+    assert_ne!(i2, i3);
+    assert_ne!(i2, i4);
+    assert_ne!(i2, i5);
+    assert_ne!(i2, i6);
+  }
+
+  #[test]
+  fn equals_test_with_different_keys() {
+    let i1 = SynchronousHttp {
+      key: Some("i1".to_string()),
+      description: "a retrieve Mallory request".to_string(),
+      provider_states: vec![ProviderState::default("there is some good mallory")],
+      request: HttpRequest {
+        path: "/mallory".to_string(),
+        headers: Some(hashmap!{ "Content-Type".to_string() => vec![ "application/json".to_string() ]  }),
+        .. HttpRequest::default()
+      },
+      response: HttpResponse {
+        status: 200,
+        headers: Some(hashmap!{ "Content-Type".to_string() => vec![ "text/plain".to_string() ]  }),
+        body: OptionalBody::from("That is some good Mallory."),
+        .. HttpResponse::default()
+      },
+      .. SynchronousHttp::default()
+    };
+    let i2 = SynchronousHttp {
+      key: Some("i2".to_string()),
+      description: "a retrieve Mallory request".to_string(),
+      provider_states: vec![ProviderState::default("there is some good mallory")],
+      request: HttpRequest {
+        path: "/mallory".to_string(),
+        headers: Some(hashmap!{ "Content-Type".to_string() => vec![ "application/json".to_string() ]  }),
+        .. HttpRequest::default()
+      },
+      response: HttpResponse {
+        status: 200,
+        headers: Some(hashmap!{ "Content-Type".to_string() => vec![ "text/plain".to_string() ]  }),
+        body: OptionalBody::from("That is some good Mallory."),
+        .. HttpResponse::default()
+      },
+      .. SynchronousHttp::default()
+    };
+
+    assert_eq!(i1, i1);
+    assert_eq!(i2, i2);
+
+    assert_ne!(i1, i2);
+    assert_ne!(i2, i1);
   }
 }
