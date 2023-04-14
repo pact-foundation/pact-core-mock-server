@@ -4,10 +4,17 @@ use std::{
   path::Path
 };
 use std::path::PathBuf;
+use bytes::Bytes;
 
 use expectest::prelude::*;
-use pact_models::pact::ReadWritePact;
+use maplit::hashmap;
+use pact_models::content_types::ContentType;
+use pact_models::pact::{read_pact, ReadWritePact};
+use pact_models::prelude::OptionalBody;
+use pact_models::provider_states::ProviderState;
 use pact_models::sync_pact::RequestResponsePact;
+use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
+use pact_models::v4::synch_http::SynchronousHttp;
 use rand::prelude::*;
 use reqwest::Client;
 use serde_json::json;
@@ -17,25 +24,28 @@ use pact_consumer::prelude::*;
 
 /// This is supposed to be a doctest in mod, but it's breaking there, so
 /// we have an executable copy here.
-///
-/// This test is currently ignored because it has a race condition when running in CI. Probably
-/// because it is mutating environment variables that point to directories on disk
 #[test_log::test(tokio::test)]
-async fn mock_server_passing_validation() {
+async fn mock_server_passing_validation() -> anyhow::Result<()> {
     let output_dir = output_dir("target/pact_dir");
-
     env::set_var("PACT_OUTPUT_DIR", &output_dir);
+
+    // clean out any previous Pact file
+    let path_file = Path::new("target/pact_dir/Consumer-Alice Service.json");
+    if path_file.exists() {
+      fs::remove_file(path_file)?;
+    }
 
     {
       // Define the Pact for the test, specify the names of the consuming
       // application and the provider application.
-      let alice_service = PactBuilder::new("Consumer", "Alice Service")
+      let alice_service = PactBuilder::new_v4("Consumer", "Alice Service")
         // Start a new interaction. We can add as many interactions as we want.
         .interaction("a retrieve Mallory request", "", |mut i| {
           // Defines a provider state. It is optional.
           i.given("there is some good mallory");
           // Define the request, a GET (default) request to '/mallory'.
           i.request.path("/mallory");
+          i.request.header("content-type", "application/json");
           // Define the response we want returned.
           i.response
             .ok()
@@ -49,7 +59,11 @@ async fn mock_server_passing_validation() {
 
       // You would use your actual client code here.
       let mallory_url = alice_service.path("/mallory");
-      let response = reqwest::get(mallory_url).await.expect("could not fetch URL");
+      let client = reqwest::Client::new();
+      let response = client.get(mallory_url)
+        .header("content-type", "application/json")
+        .send().await
+        .expect("could not fetch URL");
       let body = response.text().await.expect("could not read response body");
       assert_eq!(body, "That is some good Mallory.");
     }
@@ -59,8 +73,29 @@ async fn mock_server_passing_validation() {
 
     env::remove_var("PACT_OUTPUT_DIR");
 
-    let path_file = Path::new("target/pact_dir/Consumer-Alice Service.json");
     expect!(path_file.exists()).to(be_true());
+    let pact = read_pact(path_file)?.as_v4_pact()?;
+    expect!(pact.interactions.len()).to(be_equal_to(1));
+  let expected = SynchronousHttp {
+    description: "a retrieve Mallory request".to_string(),
+    provider_states: vec![ProviderState::default("there is some good mallory")],
+    request: HttpRequest {
+      path: "/mallory".to_string(),
+      headers: Some(hashmap! { "content-type".to_string() => vec![ "application/json".to_string() ] }),
+      ..HttpRequest::default()
+    },
+    response: HttpResponse {
+      headers: Some(hashmap! { "content-type".to_string() => vec![ "text/plain".to_string() ] }),
+      body: OptionalBody::Present(Bytes::from("That is some good Mallory."), Some(ContentType::from("*/*")), None),
+      ..HttpResponse::default()
+    },
+    transport: Some("http".to_string()),
+    ..SynchronousHttp::default()
+  }.with_key();
+  pretty_assertions::assert_eq!(pact.interactions.first().unwrap().as_v4_http().unwrap(),
+    expected);
+
+  Ok(())
 }
 
 fn output_dir(path: &str) -> PathBuf {
@@ -81,7 +116,7 @@ fn output_dir(path: &str) -> PathBuf {
 async fn mock_server_passing_validation_async_version() {
   // Define the Pact for the test, specify the names of the consuming
   // application and the provider application.
-  let alice_service = PactBuilderAsync::new("Consumer", "Alice Service")
+  let alice_service = PactBuilderAsync::new("Consumer", "Alice Service Async")
     // Start a new interaction. We can add as many interactions as we want.
     .interaction("a retrieve Mallory request", "", |mut i| async move {
       // Defines a provider state. It is optional.

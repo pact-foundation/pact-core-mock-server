@@ -1,17 +1,9 @@
 use std::collections::HashMap;
 
-#[cfg(test)]
-#[allow(unused_imports)]
-use env_logger;
-#[cfg(test)]
-use regex::Regex;
-#[cfg(test)]
-use serde_json::json;
-
-use pact_models::generators::{Generator, GeneratorCategory, Generators};
-use pact_models::matchingrules::MatchingRules;
 use pact_models::bodies::OptionalBody;
 use pact_models::expression_parser::DataType;
+use pact_models::generators::{Generator, GeneratorCategory, Generators};
+use pact_models::matchingrules::MatchingRules;
 use pact_models::path_exp::DocPath;
 
 use crate::prelude::*;
@@ -66,8 +58,9 @@ pub trait HttpPartBuilder {
       let value = value.into();
       {
         let (headers, rules) = self.headers_and_matching_rules_mut();
-        if headers.contains_key(&name) {
-          headers.get_mut(&name).map(|val| val.push(value.to_example()));
+        let entry = headers.keys().cloned().find(|k| k.to_lowercase() == name.to_lowercase());
+        if let Some(key) = entry {
+          headers.get_mut(&key).map(|val| val.push(value.to_example()));
         } else {
           headers.insert(name.clone(), vec![value.to_example()]);
         }
@@ -118,7 +111,7 @@ pub trait HttpPartBuilder {
     where
         CT: Into<StringPattern>,
     {
-        self.header("Content-Type", content_type)
+        self.header("content-type", content_type)
     }
 
     /// Set the `Content-Type` header to `text/html`.
@@ -198,96 +191,136 @@ pub trait HttpPartBuilder {
     }
 }
 
-#[test]
-fn header_pattern() {
+#[cfg(test)]
+mod tests {
+  use std::collections::HashMap;
+  use expectest::prelude::*;
+  use maplit::hashmap;
+  use regex::Regex;
+  use serde_json::json;
+
+  use crate::builders::{HttpPartBuilder, PactBuilder};
+  use crate::patterns::{Like, Term};
+
+  #[test]
+  fn header_pattern() {
     let application_regex = Regex::new("application/.*").unwrap();
     let pattern = PactBuilder::new("C", "P")
-        .interaction("I", "", |mut i| {
-            i.request.header(
-                "Content-Type",
-                Term::new(application_regex, "application/json"),
-            );
-            i
-        })
-        .build();
+      .interaction("I", "", |mut i| {
+        i.request.header(
+          "Content-Type",
+          Term::new(application_regex, "application/json"),
+        );
+        i
+      })
+      .build();
     let good = PactBuilder::new("C", "P")
-        .interaction("I", "", |mut i| {
-            i.request.header("Content-Type", "application/xml");
-            i
-        })
-        .build();
+      .interaction("I", "", |mut i| {
+        i.request.header("Content-Type", "application/xml");
+        i
+      })
+      .build();
     let bad = PactBuilder::new("C", "P")
-        .interaction("I", "", |mut i| { i.request.header("Content-Type", "text/html"); i })
-        .build();
+      .interaction("I", "", |mut i| {
+        i.request.header("Content-Type", "text/html");
+        i
+      })
+      .build();
     assert_requests_match!(good, pattern);
     assert_requests_do_not_match!(bad, pattern);
-}
+  }
 
-#[test]
-fn header_generator() {
-  let actual = PactBuilder::new("C", "P")
-    .interaction("I", "", |mut i| {
-      i.request.header_from_provider_state(
-        "Authorization",
-        "token",
-        "some-token",
-      );
-      i
-    }).build();
+  #[test]
+  fn header_generator() {
+    let actual = PactBuilder::new("C", "P")
+      .interaction("I", "", |mut i| {
+        i.request.header_from_provider_state(
+          "Authorization",
+          "token",
+          "some-token",
+        );
+        i
+      }).build();
 
-  let expected = PactBuilder::new("C", "P")
-    .interaction("I", "", |mut i| {
-      i.request.header("Authorization", "from-provider-state");
-      i
-    })
-    .build();
+    let expected = PactBuilder::new("C", "P")
+      .interaction("I", "", |mut i| {
+        i.request.header("Authorization", "from-provider-state");
+        i
+      })
+      .build();
 
-  let good_context = &mut HashMap::new();
-  good_context.insert("token", json!("from-provider-state"));
-  assert_requests_with_context_match!(actual, expected, good_context);
+    let good_context = &mut HashMap::new();
+    good_context.insert("token", json!("from-provider-state"));
+    assert_requests_with_context_match!(actual, expected, good_context);
 
-  let bad_context = &mut HashMap::new();
-  bad_context.insert("token", json!("not-from-provider-state"));
-  assert_requests_with_context_do_not_match!(actual, expected, bad_context);
-}
+    let bad_context = &mut HashMap::new();
+    bad_context.insert("token", json!("not-from-provider-state"));
+    assert_requests_with_context_do_not_match!(actual, expected, bad_context);
+  }
 
-#[test]
-fn body_literal() {
+  #[test]
+  fn body_literal() {
     let pattern = PactBuilder::new("C", "P")
-        .interaction("I", "", |mut i| { i.request.body("Hello"); i })
-        .build();
+      .interaction("I", "", |mut i| {
+        i.request.body("Hello");
+        i
+      })
+      .build();
     let good = PactBuilder::new("C", "P")
-        .interaction("I", "", |mut i| { i.request.body("Hello"); i })
-        .build();
+      .interaction("I", "", |mut i| {
+        i.request.body("Hello");
+        i
+      })
+      .build();
     let bad = PactBuilder::new("C", "P")
-        .interaction("I", "", |mut i| { i.request.body("Bye"); i })
-        .build();
+      .interaction("I", "", |mut i| {
+        i.request.body("Bye");
+        i
+      })
+      .build();
     assert_requests_match!(good, pattern);
     assert_requests_do_not_match!(bad, pattern);
-}
+  }
 
-#[test]
-fn json_body_pattern() {
+  #[test]
+  fn json_body_pattern() {
     let pattern = PactBuilder::new("C", "P")
-        .interaction("I", "", |mut i| {
-            i.request.json_body(json_pattern!({
+      .interaction("I", "", |mut i| {
+        i.request.json_body(json_pattern!({
                 "message": Like::new(json_pattern!("Hello")),
             }));
-            i
-        })
-        .build();
+        i
+      })
+      .build();
     let good = PactBuilder::new("C", "P")
-        .interaction("I", "", |mut i| {
-            i.request.json_body(json_pattern!({ "message": "Goodbye" }));
-            i
-        })
+      .interaction("I", "", |mut i| {
+        i.request.json_body(json_pattern!({ "message": "Goodbye" }));
+        i
+      })
       .build();
     let bad = PactBuilder::new("C", "P")
-        .interaction("I", "", |mut i| {
-            i.request.json_body(json_pattern!({ "message": false }));
-            i
-        })
+      .interaction("I", "", |mut i| {
+        i.request.json_body(json_pattern!({ "message": false }));
+        i
+      })
       .build();
     assert_requests_match!(good, pattern);
     assert_requests_do_not_match!(bad, pattern);
+  }
+
+  #[test]
+  fn header_with_different_case_keys() {
+    let pattern = PactBuilder::new("C", "P")
+      .interaction("I", "", |mut i| {
+        i.request.header("Content-Type", "application/json");
+        i.request.header("content-type", "application/xml");
+        i
+      })
+      .build();
+    let interactions = pattern.interactions();
+    let first_interaction = interactions.first().unwrap().as_request_response().unwrap();
+    expect!(first_interaction.request.headers).to(be_some().value(hashmap!{
+      "Content-Type".to_string() => vec![ "application/json".to_string(), "application/xml".to_string() ]
+    }));
+  }
 }

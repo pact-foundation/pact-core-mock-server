@@ -239,3 +239,107 @@ impl StartMockServer for PactBuilder {
     }
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use bytes::Bytes;
+  use expectest::prelude::*;
+  use maplit::hashmap;
+  use pact_models::bodies::OptionalBody;
+  use pact_models::matchingrules::{Category, MatchingRuleCategory, MatchingRules};
+  use pact_models::provider_states::ProviderState;
+  use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
+  use pact_models::v4::synch_http::SynchronousHttp;
+  use serde_json::Value;
+
+  use crate::builders::{HttpPartBuilder, PactBuilder};
+
+  #[test]
+  fn v4_calc_key_test() {
+    let pact = PactBuilder::new_v4("Consumer", "Alice Service")
+      // Start a new interaction. We can add as many interactions as we want.
+      .interaction("a retrieve Mallory request", "", |mut i| {
+        // Defines a provider state. It is optional.
+        i.given("there is some good mallory");
+        // Define the request, a GET (default) request to '/mallory'.
+        i.request.path("/mallory");
+        i.request.header("Content-Type", "application/json");
+        // Define the response we want returned.
+        i.response
+          .ok()
+          .content_type("text/plain")
+          .body("That is some good Mallory.");
+
+        // Return the interaction back to the pact framework
+        i.clone()
+      }).build();
+    let interactions = pact.interactions();
+    let interaction = interactions.first().unwrap();
+    let synchronous_http = interaction.as_v4_http().unwrap();
+
+    pretty_assertions::assert_eq!(SynchronousHttp {
+      description: "a retrieve Mallory request".to_string(),
+      provider_states: vec![ProviderState::default("there is some good mallory")],
+      request: HttpRequest {
+        path: "/mallory".to_string(),
+        headers: Some(hashmap!{ "Content-Type".to_string() => vec![ "application/json".to_string() ] }),
+        matching_rules: MatchingRules {
+          rules: hashmap!{
+            Category::HEADER => MatchingRuleCategory::empty("HEADER"),
+            Category::PATH => MatchingRuleCategory::empty("PATH")
+          }
+        },
+        .. HttpRequest::default()
+      },
+      response: HttpResponse {
+        headers: Some(hashmap!{ "content-type".to_string() => vec![ "text/plain".to_string() ] }),
+        body: OptionalBody::Present(Bytes::from("That is some good Mallory."), None, None),
+        matching_rules: MatchingRules {
+          rules: hashmap!{
+            Category::HEADER => MatchingRuleCategory::empty("HEADER")
+          }
+        },
+        .. HttpResponse::default()
+      },
+      comments: hashmap!{
+        "testname".to_string() => Value::Null,
+        "text".to_string() => Value::Array(vec![])
+      },
+      .. SynchronousHttp::default()
+    }, synchronous_http);
+
+    let v4interaction = synchronous_http.with_key();
+    pretty_assertions::assert_eq!(SynchronousHttp {
+      key: Some("93371e6e7ae2556".to_string()),
+      description: "a retrieve Mallory request".to_string(),
+      provider_states: vec![ProviderState::default("there is some good mallory")],
+      request: HttpRequest {
+        path: "/mallory".to_string(),
+        headers: Some(hashmap!{ "Content-Type".to_string() => vec![ "application/json".to_string() ] }),
+        matching_rules: MatchingRules {
+          rules: hashmap!{
+            Category::HEADER => MatchingRuleCategory::empty("HEADER"),
+            Category::PATH => MatchingRuleCategory::empty("PATH")
+          }
+        },
+        .. HttpRequest::default()
+      },
+      response: HttpResponse {
+        headers: Some(hashmap!{ "content-type".to_string() => vec![ "text/plain".to_string() ] }),
+        body: OptionalBody::Present(Bytes::from("That is some good Mallory."), None, None),
+        matching_rules: MatchingRules {
+          rules: hashmap!{
+            Category::HEADER => MatchingRuleCategory::empty("HEADER")
+          }
+        },
+        .. HttpResponse::default()
+      },
+      comments: hashmap!{
+        "testname".to_string() => Value::Null,
+        "text".to_string() => Value::Array(vec![])
+      },
+      .. SynchronousHttp::default()
+    }, v4interaction);
+    expect!(v4interaction.key.as_ref().unwrap()).to(be_equal_to("93371e6e7ae2556"));
+  }
+}
