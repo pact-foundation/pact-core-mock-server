@@ -138,15 +138,19 @@ impl HttpRequest {
 
 impl PartialEq for HttpRequest {
   fn eq(&self, other: &Self) -> bool {
-    self.method == other.method && self.path == other.path && self.query == other.query &&
-      self.headers == other.headers && self.body == other.body &&
-      self.matching_rules == other.matching_rules && self.generators == other.generators
+    self.method.to_uppercase() == other.method.to_uppercase() &&
+      self.path == other.path &&
+      self.query == other.query &&
+      self.headers == other.headers &&
+      self.body == other.body &&
+      self.matching_rules == other.matching_rules &&
+      self.generators == other.generators
   }
 }
 
 impl Hash for HttpRequest {
   fn hash<H: Hasher>(&self, state: &mut H) {
-    self.method.hash(state);
+    self.method.to_uppercase().hash(state);
     self.path.hash(state);
 
     if let Some(ref query) = self.query {
@@ -411,8 +415,11 @@ impl Default for HttpResponse {
 
 impl PartialEq for HttpResponse {
   fn eq(&self, other: &Self) -> bool {
-    self.status == other.status && self.headers == other.headers && self.body == other.body &&
-      self.matching_rules == other.matching_rules && self.generators == other.generators
+    self.status == other.status &&
+      self.headers == other.headers &&
+      self.body == other.body &&
+      self.matching_rules == other.matching_rules &&
+      self.generators == other.generators
   }
 }
 
@@ -1011,5 +1018,153 @@ mod tests {
         "\npact-jvm-driver0.0.0".into(),
         Some("application/stuff".into()),
         Some(ContentTypeHint::BINARY))));
+  }
+
+  #[test]
+  fn hash_test_for_request() {
+    let r1 = HttpRequest::default();
+    expect!(hash(&r1)).to(be_equal_to(14291349302235814227));
+
+    let r2 = HttpRequest {
+      method: "PUT".to_string(),
+      .. HttpRequest::default()
+    };
+    expect!(hash(&r2)).to(be_equal_to(3096887059114961501));
+
+    let r3 = HttpRequest {
+      method: "put".to_string(),
+      .. HttpRequest::default()
+    };
+    expect!(hash(&r3)).to(be_equal_to(3096887059114961501));
+
+    let r4 = HttpRequest {
+      path: "/1/2/3/4".to_string(),
+      .. HttpRequest::default()
+    };
+    expect!(hash(&r4)).to(be_equal_to(5643791415012768745));
+
+    let r5 = HttpRequest {
+      query: Some(hashmap!{
+        "q1".to_string() => vec!["1".to_string()],
+        "q2".to_string() => vec!["2".to_string()]
+      }),
+      .. HttpRequest::default()
+    };
+    expect!(hash(&r5)).to(be_equal_to(359339694141654691));
+
+    let r6 = HttpRequest {
+      query: Some(hashmap!{
+        "q2".to_string() => vec!["2".to_string()],
+        "q1".to_string() => vec!["1".to_string()]
+      }),
+      .. HttpRequest::default()
+    };
+    expect!(hash(&r6)).to(be_equal_to(359339694141654691));
+
+    let r7 = HttpRequest {
+      headers: Some(hashmap!{ "Content-Type".to_string() => vec![ "application/json".to_string() ]  }),
+      .. HttpRequest::default()
+    };
+    expect!(hash(&r7)).to(be_equal_to(10696581926819987638));
+  }
+
+  #[test]
+  fn hash_test_for_response() {
+    let r1 = HttpResponse::default();
+    expect!(hash(&r1)).to(be_equal_to(8404463960981580199));
+
+    let r2 = HttpResponse {
+      status: 299,
+      .. HttpResponse::default()
+    };
+    expect!(hash(&r2)).to(be_equal_to(12626338923616113088));
+
+    let r7 = HttpResponse {
+      headers: Some(hashmap!{ "Content-Type".to_string() => vec![ "application/json".to_string() ]  }),
+      .. HttpResponse::default()
+    };
+    expect!(hash(&r7)).to(be_equal_to(9032907765388558496));
+  }
+
+  #[test]
+  fn equals_test_for_request() {
+    let r1 = HttpRequest::default();
+    let r2 = HttpRequest {
+      method: "PUT".to_string(),
+      .. HttpRequest::default()
+    };
+    let r3 = HttpRequest {
+      method: "put".to_string(),
+      .. HttpRequest::default()
+    };
+    let r4 = HttpRequest {
+      path: "/1/2/3/4".to_string(),
+      .. HttpRequest::default()
+    };
+    let r5 = HttpRequest {
+      query: Some(hashmap!{
+        "q1".to_string() => vec!["1".to_string()],
+        "q2".to_string() => vec!["2".to_string()]
+      }),
+      .. HttpRequest::default()
+    };
+    let r6 = HttpRequest {
+      query: Some(hashmap!{
+        "q2".to_string() => vec!["1".to_string()],
+        "q1".to_string() => vec!["1".to_string()]
+      }),
+      .. HttpRequest::default()
+    };
+    let r7 = HttpRequest {
+      headers: Some(hashmap!{ "Content-Type".to_string() => vec![ "application/json".to_string() ]  }),
+      .. HttpRequest::default()
+    };
+
+    assert_eq!(r1, r1);
+    assert_eq!(r2, r2);
+    assert_eq!(r3, r3);
+    assert_eq!(r2, r3);
+    assert_eq!(r4, r4);
+    assert_eq!(r5, r5);
+    assert_eq!(r6, r6);
+    assert_eq!(r7, r7);
+
+    assert_ne!(r1, r2);
+    assert_ne!(r1, r3);
+    assert_ne!(r1, r4);
+    assert_ne!(r1, r5);
+    assert_ne!(r1, r6);
+    assert_ne!(r1, r7);
+    assert_ne!(r2, r1);
+    assert_ne!(r2, r4);
+    assert_ne!(r2, r5);
+    assert_ne!(r2, r6);
+    assert_ne!(r2, r7);
+  }
+
+  #[test]
+  fn equals_test_for_response() {
+    let r1 = HttpResponse::default();
+    expect!(hash(&r1)).to(be_equal_to(8404463960981580199));
+
+    let r2 = HttpResponse {
+      status: 299,
+      .. HttpResponse::default()
+    };
+    expect!(hash(&r2)).to(be_equal_to(12626338923616113088));
+
+    let r7 = HttpResponse {
+      headers: Some(hashmap!{ "Content-Type".to_string() => vec![ "application/json".to_string() ]  }),
+      .. HttpResponse::default()
+    };
+
+    assert_eq!(r1, r1);
+    assert_eq!(r2, r2);
+    assert_eq!(r7, r7);
+
+    assert_ne!(r1, r2);
+    assert_ne!(r1, r7);
+    assert_ne!(r2, r1);
+    assert_ne!(r2, r7);
   }
 }

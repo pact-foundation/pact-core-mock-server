@@ -5,6 +5,7 @@ use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 
 use anyhow::anyhow;
+use itertools::Itertools;
 use maplit::hashmap;
 use serde_json::{json, Value};
 
@@ -112,7 +113,8 @@ impl Display for MessageContents {
 impl Hash for MessageContents {
   fn hash<H: Hasher>(&self, state: &mut H) {
     self.contents.hash(state);
-    for (k, v) in &self.metadata {
+    for (k, v) in self.metadata.iter()
+      .sorted_by(|(a, _), (b, _)| Ord::cmp(a, b)) {
       k.hash(state);
       hash_json(v, state);
     }
@@ -123,8 +125,10 @@ impl Hash for MessageContents {
 
 impl PartialEq for MessageContents {
   fn eq(&self, other: &Self) -> bool {
-    self.contents == other.contents && self.metadata == other.metadata &&
-      self.matching_rules == other.matching_rules && self.generators == other.generators
+    self.contents == other.contents &&
+      self.metadata == other.metadata &&
+      self.matching_rules == other.matching_rules &&
+      self.generators == other.generators
   }
 }
 
@@ -175,4 +179,82 @@ pub(crate) fn metadata_to_headers(metadata: &HashMap<String, Value>) -> Option<H
       "Content-Type".to_string() => vec![ json_to_string(content_type) ]
     }
   })
+}
+
+#[cfg(test)]
+mod tests {
+  use std::collections::hash_map::DefaultHasher;
+  use std::hash::{Hash, Hasher};
+
+  use bytes::Bytes;
+  use expectest::prelude::*;
+  use maplit::hashmap;
+  use serde_json::Value;
+
+  use crate::bodies::OptionalBody;
+  use crate::v4::message_parts::MessageContents;
+
+  fn hash<T: Hash>(t: &T) -> u64 {
+    let mut s = DefaultHasher::new();
+    t.hash(&mut s);
+    s.finish()
+  }
+
+  #[test]
+  fn hash_test() {
+    let m1 = MessageContents::default();
+    expect!(hash(&m1)).to(be_equal_to(13646096770106105413));
+
+    let m2 = MessageContents {
+      contents: OptionalBody::Present(Bytes::from("jhsgdajshdjashd"), None, None),
+      .. MessageContents::default()
+    };
+    expect!(hash(&m2)).to(be_equal_to(17404772499757827990));
+
+    let m3 = MessageContents {
+      metadata: hashmap!{
+        "q1".to_string() => Value::String("1".to_string()),
+        "q2".to_string() => Value::String("2".to_string())
+      },
+      .. MessageContents::default()
+    };
+    expect!(hash(&m3)).to(be_equal_to(3336593541520431912));
+
+    let mut m3 = MessageContents {
+      metadata: hashmap!{
+        "q2".to_string() => Value::String("2".to_string())
+      },
+      .. MessageContents::default()
+    };
+    m3.metadata.insert("q1".to_string(), Value::String("1".to_string()));
+    expect!(hash(&m3)).to(be_equal_to(3336593541520431912));
+  }
+
+  #[test]
+  fn equals_test_for_request() {
+    let m1 = MessageContents::default();
+    expect!(hash(&m1)).to(be_equal_to(13646096770106105413));
+
+    let m2 = MessageContents {
+      contents: OptionalBody::Present(Bytes::from("jhsgdajshdjashd"), None, None),
+      .. MessageContents::default()
+    };
+    expect!(hash(&m2)).to(be_equal_to(17404772499757827990));
+
+    let m3 = MessageContents {
+      metadata: hashmap!{
+        "q1".to_string() => Value::String("1".to_string()),
+        "q2".to_string() => Value::String("2".to_string())
+      },
+      .. MessageContents::default()
+    };
+
+    assert_eq!(m1, m1);
+    assert_eq!(m2, m2);
+    assert_eq!(m3, m3);
+
+    assert_ne!(m1, m2);
+    assert_ne!(m1, m3);
+    assert_ne!(m2, m3);
+  }
 }

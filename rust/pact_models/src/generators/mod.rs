@@ -1,6 +1,5 @@
 //! `generators` module includes all the classes to deal with V3/V4 spec generators
 
-#[cfg(test)] use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt::{Debug, Display, Formatter};
@@ -11,7 +10,6 @@ use std::str::FromStr;
 
 use anyhow::anyhow;
 use chrono::{DateTime, Local};
-#[cfg(test)] use expectest::prelude::*;
 use indextree::{Arena, NodeId};
 use itertools::Itertools;
 use maplit::hashmap;
@@ -392,243 +390,6 @@ impl PartialEq for Generator {
   }
 }
 
-#[cfg(test)]
-fn h(rule: &Generator) -> u64 {
-  let mut hasher = DefaultHasher::new();
-  rule.hash(&mut hasher);
-  hasher.finish()
-}
-
-#[test]
-fn hash_and_partial_eq_for_matching_rule() {
-  expect!(h(&Generator::Uuid(None))).to(be_equal_to(h(&Generator::Uuid(None))));
-  expect!(h(&Generator::Uuid(Some(UuidFormat::Simple)))).to(be_equal_to(h(&Generator::Uuid(Some(UuidFormat::Simple)))));
-  expect!(h(&Generator::Uuid(Some(UuidFormat::Simple)))).to_not(be_equal_to(h(&Generator::Uuid(Some(UuidFormat::LowerCaseHyphenated)))));
-  expect!(Generator::Uuid(None)).to(be_equal_to(Generator::Uuid(None)));
-  expect!(Generator::Uuid(Some(UuidFormat::Simple))).to(be_equal_to(Generator::Uuid(Some(UuidFormat::Simple))));
-  expect!(Generator::Uuid(Some(UuidFormat::Simple))).to_not(be_equal_to(Generator::Uuid(Some(UuidFormat::LowerCaseHyphenated))));
-  expect!(Generator::Uuid(None)).to_not(be_equal_to(Generator::RandomBoolean));
-
-  expect!(h(&Generator::RandomBoolean)).to(be_equal_to(h(&Generator::RandomBoolean)));
-  expect!(Generator::RandomBoolean).to(be_equal_to(Generator::RandomBoolean));
-
-  let randint1 = Generator::RandomInt(100, 200);
-  let randint2 = Generator::RandomInt(200, 200);
-
-  expect!(h(&randint1)).to(be_equal_to(h(&randint1)));
-  expect!(&randint1).to(be_equal_to(&randint1));
-  expect!(h(&randint1)).to_not(be_equal_to(h(&randint2)));
-  expect!(&randint1).to_not(be_equal_to(&randint2));
-
-  let dec1 = Generator::RandomDecimal(100);
-  let dec2 = Generator::RandomDecimal(200);
-
-  expect!(h(&dec1)).to(be_equal_to(h(&dec1)));
-  expect!(&dec1).to(be_equal_to(&dec1));
-  expect!(h(&dec1)).to_not(be_equal_to(h(&dec2)));
-  expect!(&dec1).to_not(be_equal_to(&dec2));
-
-  let hexdec1 = Generator::RandomHexadecimal(100);
-  let hexdec2 = Generator::RandomHexadecimal(200);
-
-  expect!(h(&hexdec1)).to(be_equal_to(h(&hexdec1)));
-  expect!(&hexdec1).to(be_equal_to(&hexdec1));
-  expect!(h(&hexdec1)).to_not(be_equal_to(h(&hexdec2)));
-  expect!(&hexdec1).to_not(be_equal_to(&hexdec2));
-
-  let str1 = Generator::RandomString(100);
-  let str2 = Generator::RandomString(200);
-
-  expect!(h(&str1)).to(be_equal_to(h(&str1)));
-  expect!(&str1).to(be_equal_to(&str1));
-  expect!(h(&str1)).to_not(be_equal_to(h(&str2)));
-  expect!(&str1).to_not(be_equal_to(&str2));
-
-  let regex1 = Generator::Regex("\\d+".into());
-  let regex2 = Generator::Regex("\\w+".into());
-
-  expect!(h(&regex1)).to(be_equal_to(h(&regex1)));
-  expect!(&regex1).to(be_equal_to(&regex1));
-  expect!(h(&regex1)).to_not(be_equal_to(h(&regex2)));
-  expect!(&regex1).to_not(be_equal_to(&regex2));
-
-  let datetime1 = Generator::DateTime(Some("yyyy-MM-dd HH:mm:ss".into()), None);
-  let datetime2 = Generator::DateTime(Some("yyyy-MM-ddTHH:mm:ss".into()), None);
-  let datetime3 = Generator::DateTime(Some("yyyy-MM-ddTHH:mm:ss".into()), Some("today".into()));
-
-  expect!(h(&datetime1)).to(be_equal_to(h(&datetime1)));
-  expect!(&datetime1).to(be_equal_to(&datetime1));
-  expect!(h(&datetime1)).to_not(be_equal_to(h(&datetime2)));
-  expect!(&datetime1).to_not(be_equal_to(&datetime2));
-  expect!(h(&datetime1)).to_not(be_equal_to(h(&datetime3)));
-  expect!(&datetime1).to_not(be_equal_to(&datetime3));
-  expect!(h(&datetime3)).to(be_equal_to(h(&datetime3)));
-  expect!(&datetime3).to(be_equal_to(&datetime3));
-
-  let date1 = Generator::Date(Some("yyyy-MM-dd".into()), None);
-  let date2 = Generator::Date(Some("yy-MM-dd".into()), None);
-  let date3 = Generator::Date(Some("yy-MM-dd".into()), Some("today".into()));
-
-  expect!(h(&date1)).to(be_equal_to(h(&date1)));
-  expect!(&date1).to(be_equal_to(&date1));
-  expect!(h(&date1)).to_not(be_equal_to(h(&date2)));
-  expect!(&date1).to_not(be_equal_to(&date2));
-  expect!(h(&date1)).to_not(be_equal_to(h(&date3)));
-  expect!(&date1).to_not(be_equal_to(&date3));
-  expect!(h(&date3)).to(be_equal_to(h(&date3)));
-  expect!(&date3).to(be_equal_to(&date3));
-
-  let time1 = Generator::Time(Some("HH:mm:ss".into()), None);
-  let time2 = Generator::Time(Some("hh:mm:ss".into()), None);
-  let time3 = Generator::Time(Some("hh:mm:ss".into()), Some("now".into()));
-
-  expect!(h(&time1)).to(be_equal_to(h(&time1)));
-  expect!(&time1).to(be_equal_to(&time1));
-  expect!(h(&time1)).to_not(be_equal_to(h(&time2)));
-  expect!(&time1).to_not(be_equal_to(&time2));
-  expect!(h(&time1)).to_not(be_equal_to(h(&time3)));
-  expect!(&time1).to_not(be_equal_to(&time3));
-  expect!(h(&time3)).to(be_equal_to(h(&time3)));
-  expect!(&time3).to(be_equal_to(&time3));
-
-  let psg1 = Generator::ProviderStateGenerator("string one".into(), Some(DataType::BOOLEAN));
-  let psg2 = Generator::ProviderStateGenerator("string two".into(), None);
-  let psg3 = Generator::ProviderStateGenerator("string one".into(), None);
-
-  expect!(h(&psg1)).to(be_equal_to(h(&psg1)));
-  expect!(&psg1).to(be_equal_to(&psg1));
-  expect!(h(&psg1)).to_not(be_equal_to(h(&psg2)));
-  expect!(h(&psg1)).to_not(be_equal_to(h(&psg3)));
-  expect!(&psg1).to_not(be_equal_to(&psg2));
-  expect!(&psg1).to_not(be_equal_to(&psg3));
-
-  let msu1 = Generator::MockServerURL("string one".into(), "\\d+".into());
-  let msu2 = Generator::MockServerURL("string two".into(), "\\d+".into());
-  let msu3 = Generator::MockServerURL("string one".into(), "\\w+".into());
-
-  expect!(h(&msu1)).to(be_equal_to(h(&msu1)));
-  expect!(&msu1).to(be_equal_to(&msu1));
-  expect!(h(&msu1)).to_not(be_equal_to(h(&msu2)));
-  expect!(h(&msu1)).to_not(be_equal_to(h(&msu3)));
-  expect!(&msu1).to_not(be_equal_to(&msu2));
-  expect!(&msu1).to_not(be_equal_to(&msu3));
-
-  let ac1 = Generator::ArrayContains(vec![]);
-  let ac2 = Generator::ArrayContains(vec![(0, MatchingRuleCategory::empty("body"), hashmap!{})]);
-  let ac3 = Generator::ArrayContains(vec![(1, MatchingRuleCategory::empty("body"), hashmap!{})]);
-  let ac4 = Generator::ArrayContains(vec![(0, MatchingRuleCategory::equality("body"), hashmap!{})]);
-  let ac5 = Generator::ArrayContains(vec![(0, MatchingRuleCategory::empty("body"), hashmap!{ DocPath::new_unwrap("A") => Generator::RandomBoolean })]);
-  let ac6 = Generator::ArrayContains(vec![
-    (0, MatchingRuleCategory::empty("body"), hashmap!{ DocPath::new_unwrap("A") => Generator::RandomBoolean }),
-    (1, MatchingRuleCategory::empty("body"), hashmap!{ DocPath::new_unwrap("A") => Generator::RandomDecimal(10) })
-  ]);
-  let ac7 = Generator::ArrayContains(vec![
-    (0, MatchingRuleCategory::empty("body"), hashmap!{ DocPath::new_unwrap("A") => Generator::RandomBoolean }),
-    (1, MatchingRuleCategory::equality("body"), hashmap!{ DocPath::new_unwrap("A") => Generator::RandomDecimal(10) })
-  ]);
-
-  expect!(h(&ac1)).to(be_equal_to(h(&ac1)));
-  expect!(h(&ac1)).to_not(be_equal_to(h(&ac2)));
-  expect!(h(&ac1)).to_not(be_equal_to(h(&ac3)));
-  expect!(h(&ac1)).to_not(be_equal_to(h(&ac4)));
-  expect!(h(&ac1)).to_not(be_equal_to(h(&ac5)));
-  expect!(h(&ac1)).to_not(be_equal_to(h(&ac6)));
-  expect!(h(&ac1)).to_not(be_equal_to(h(&ac7)));
-  expect!(h(&ac2)).to(be_equal_to(h(&ac2)));
-  expect!(h(&ac2)).to_not(be_equal_to(h(&ac1)));
-  expect!(h(&ac2)).to_not(be_equal_to(h(&ac3)));
-  expect!(h(&ac2)).to_not(be_equal_to(h(&ac4)));
-  expect!(h(&ac2)).to_not(be_equal_to(h(&ac5)));
-  expect!(h(&ac2)).to_not(be_equal_to(h(&ac6)));
-  expect!(h(&ac2)).to_not(be_equal_to(h(&ac7)));
-  expect!(h(&ac3)).to(be_equal_to(h(&ac3)));
-  expect!(h(&ac3)).to_not(be_equal_to(h(&ac2)));
-  expect!(h(&ac3)).to_not(be_equal_to(h(&ac1)));
-  expect!(h(&ac3)).to_not(be_equal_to(h(&ac4)));
-  expect!(h(&ac3)).to_not(be_equal_to(h(&ac5)));
-  expect!(h(&ac3)).to_not(be_equal_to(h(&ac6)));
-  expect!(h(&ac3)).to_not(be_equal_to(h(&ac7)));
-  expect!(h(&ac4)).to(be_equal_to(h(&ac4)));
-  expect!(h(&ac4)).to_not(be_equal_to(h(&ac2)));
-  expect!(h(&ac4)).to_not(be_equal_to(h(&ac3)));
-  expect!(h(&ac4)).to_not(be_equal_to(h(&ac1)));
-  expect!(h(&ac4)).to_not(be_equal_to(h(&ac5)));
-  expect!(h(&ac4)).to_not(be_equal_to(h(&ac6)));
-  expect!(h(&ac4)).to_not(be_equal_to(h(&ac7)));
-  expect!(h(&ac5)).to(be_equal_to(h(&ac5)));
-  expect!(h(&ac5)).to_not(be_equal_to(h(&ac2)));
-  expect!(h(&ac5)).to_not(be_equal_to(h(&ac3)));
-  expect!(h(&ac5)).to_not(be_equal_to(h(&ac4)));
-  expect!(h(&ac5)).to_not(be_equal_to(h(&ac1)));
-  expect!(h(&ac5)).to_not(be_equal_to(h(&ac6)));
-  expect!(h(&ac5)).to_not(be_equal_to(h(&ac7)));
-  expect!(h(&ac6)).to(be_equal_to(h(&ac6)));
-  expect!(h(&ac6)).to_not(be_equal_to(h(&ac2)));
-  expect!(h(&ac6)).to_not(be_equal_to(h(&ac3)));
-  expect!(h(&ac6)).to_not(be_equal_to(h(&ac4)));
-  expect!(h(&ac6)).to_not(be_equal_to(h(&ac5)));
-  expect!(h(&ac6)).to_not(be_equal_to(h(&ac1)));
-  expect!(h(&ac6)).to_not(be_equal_to(h(&ac7)));
-  expect!(h(&ac7)).to(be_equal_to(h(&ac7)));
-  expect!(h(&ac7)).to_not(be_equal_to(h(&ac2)));
-  expect!(h(&ac7)).to_not(be_equal_to(h(&ac3)));
-  expect!(h(&ac7)).to_not(be_equal_to(h(&ac4)));
-  expect!(h(&ac7)).to_not(be_equal_to(h(&ac5)));
-  expect!(h(&ac7)).to_not(be_equal_to(h(&ac6)));
-  expect!(h(&ac7)).to_not(be_equal_to(h(&ac1)));
-
-  expect!(&ac1).to(be_equal_to(&ac1));
-  expect!(&ac1).to_not(be_equal_to(&ac2));
-  expect!(&ac1).to_not(be_equal_to(&ac3));
-  expect!(&ac1).to_not(be_equal_to(&ac4));
-  expect!(&ac1).to_not(be_equal_to(&ac5));
-  expect!(&ac1).to_not(be_equal_to(&ac6));
-  expect!(&ac1).to_not(be_equal_to(&ac7));
-  expect!(&ac2).to(be_equal_to(&ac2));
-  expect!(&ac2).to_not(be_equal_to(&ac1));
-  expect!(&ac2).to_not(be_equal_to(&ac3));
-  expect!(&ac2).to_not(be_equal_to(&ac4));
-  expect!(&ac2).to_not(be_equal_to(&ac5));
-  expect!(&ac2).to_not(be_equal_to(&ac6));
-  expect!(&ac2).to_not(be_equal_to(&ac7));
-  expect!(&ac3).to(be_equal_to(&ac3));
-  expect!(&ac3).to_not(be_equal_to(&ac2));
-  expect!(&ac3).to_not(be_equal_to(&ac1));
-  expect!(&ac3).to_not(be_equal_to(&ac4));
-  expect!(&ac3).to_not(be_equal_to(&ac5));
-  expect!(&ac3).to_not(be_equal_to(&ac6));
-  expect!(&ac3).to_not(be_equal_to(&ac7));
-  expect!(&ac4).to(be_equal_to(&ac4));
-  expect!(&ac4).to_not(be_equal_to(&ac2));
-  expect!(&ac4).to_not(be_equal_to(&ac3));
-  expect!(&ac4).to_not(be_equal_to(&ac1));
-  expect!(&ac4).to_not(be_equal_to(&ac5));
-  expect!(&ac4).to_not(be_equal_to(&ac6));
-  expect!(&ac4).to_not(be_equal_to(&ac7));
-  expect!(&ac5).to(be_equal_to(&ac5));
-  expect!(&ac5).to_not(be_equal_to(&ac2));
-  expect!(&ac5).to_not(be_equal_to(&ac3));
-  expect!(&ac5).to_not(be_equal_to(&ac4));
-  expect!(&ac5).to_not(be_equal_to(&ac1));
-  expect!(&ac5).to_not(be_equal_to(&ac6));
-  expect!(&ac5).to_not(be_equal_to(&ac7));
-  expect!(&ac6).to(be_equal_to(&ac6));
-  expect!(&ac6).to_not(be_equal_to(&ac2));
-  expect!(&ac6).to_not(be_equal_to(&ac3));
-  expect!(&ac6).to_not(be_equal_to(&ac4));
-  expect!(&ac6).to_not(be_equal_to(&ac5));
-  expect!(&ac6).to_not(be_equal_to(&ac1));
-  expect!(&ac6).to_not(be_equal_to(&ac7));
-  expect!(&ac7).to(be_equal_to(&ac7));
-  expect!(&ac7).to_not(be_equal_to(&ac2));
-  expect!(&ac7).to_not(be_equal_to(&ac3));
-  expect!(&ac7).to_not(be_equal_to(&ac4));
-  expect!(&ac7).to_not(be_equal_to(&ac5));
-  expect!(&ac7).to_not(be_equal_to(&ac6));
-  expect!(&ac7).to_not(be_equal_to(&ac1));
-}
-
-
 /// If the generators are being applied in the context of a consumer or provider
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum GeneratorTestMode {
@@ -640,7 +401,7 @@ pub enum GeneratorTestMode {
 
 
 /// Category that the generator is applied to
-#[derive(PartialEq, Debug, Clone, Copy, Eq, Hash)]
+#[derive(PartialEq, Debug, Clone, Copy, Eq, Hash, Ord, PartialOrd)]
 pub enum GeneratorCategory {
   /// Request Method
   METHOD,
@@ -869,9 +630,11 @@ impl Generators {
 
 impl Hash for Generators {
   fn hash<H: Hasher>(&self, state: &mut H) {
-    for (k, v) in self.categories.iter() {
+    for (k, v) in self.categories.iter()
+      .filter(|(_, v)| !v.is_empty()) {
       k.hash(state);
-      for (k2, v2) in v.iter() {
+      for (k2, v2) in v.iter()
+        .sorted_by(|(a, _), (b, _)| Ord::cmp(a, b)) {
         k2.hash(state);
         v2.hash(state);
       }
@@ -881,11 +644,15 @@ impl Hash for Generators {
 
 impl PartialEq for Generators {
   fn eq(&self, other: &Self) -> bool {
-    self.categories == other.categories
-  }
-
-  fn ne(&self, other: &Self) -> bool {
-    self.categories != other.categories
+    let self_gen = self.categories.iter()
+      .filter(|(_, rules)| !rules.is_empty())
+      .sorted_by(|(a, _), (b, _)| Ord::cmp(a, b))
+      .collect_vec();
+    let other_gen = other.categories.iter()
+      .filter(|(_, rules)| !rules.is_empty())
+      .sorted_by(|(a, _), (b, _)| Ord::cmp(a, b))
+      .collect_vec();
+    self_gen == other_gen
   }
 }
 
@@ -1492,6 +1259,7 @@ impl ContentTypeHandler<Value> for JsonHandler {
 
 #[cfg(test)]
 mod tests {
+  use std::collections::hash_map::DefaultHasher;
   use std::ops::Add;
   use std::str::FromStr;
 
@@ -1505,6 +1273,241 @@ mod tests {
 
   use super::*;
   use super::Generator;
+
+  fn h<T: Hash>(rule: &T) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    rule.hash(&mut hasher);
+    hasher.finish()
+  }
+
+  #[test]
+  fn hash_and_partial_eq_for_matching_rule() {
+    expect!(h(&Generator::Uuid(None))).to(be_equal_to(h(&Generator::Uuid(None))));
+    expect!(h(&Generator::Uuid(Some(UuidFormat::Simple)))).to(be_equal_to(h(&Generator::Uuid(Some(UuidFormat::Simple)))));
+    expect!(h(&Generator::Uuid(Some(UuidFormat::Simple)))).to_not(be_equal_to(h(&Generator::Uuid(Some(UuidFormat::LowerCaseHyphenated)))));
+    expect!(Generator::Uuid(None)).to(be_equal_to(Generator::Uuid(None)));
+    expect!(Generator::Uuid(Some(UuidFormat::Simple))).to(be_equal_to(Generator::Uuid(Some(UuidFormat::Simple))));
+    expect!(Generator::Uuid(Some(UuidFormat::Simple))).to_not(be_equal_to(Generator::Uuid(Some(UuidFormat::LowerCaseHyphenated))));
+    expect!(Generator::Uuid(None)).to_not(be_equal_to(Generator::RandomBoolean));
+
+    expect!(h(&Generator::RandomBoolean)).to(be_equal_to(h(&Generator::RandomBoolean)));
+    expect!(Generator::RandomBoolean).to(be_equal_to(Generator::RandomBoolean));
+
+    let randint1 = Generator::RandomInt(100, 200);
+    let randint2 = Generator::RandomInt(200, 200);
+
+    expect!(h(&randint1)).to(be_equal_to(h(&randint1)));
+    expect!(&randint1).to(be_equal_to(&randint1));
+    expect!(h(&randint1)).to_not(be_equal_to(h(&randint2)));
+    expect!(&randint1).to_not(be_equal_to(&randint2));
+
+    let dec1 = Generator::RandomDecimal(100);
+    let dec2 = Generator::RandomDecimal(200);
+
+    expect!(h(&dec1)).to(be_equal_to(h(&dec1)));
+    expect!(&dec1).to(be_equal_to(&dec1));
+    expect!(h(&dec1)).to_not(be_equal_to(h(&dec2)));
+    expect!(&dec1).to_not(be_equal_to(&dec2));
+
+    let hexdec1 = Generator::RandomHexadecimal(100);
+    let hexdec2 = Generator::RandomHexadecimal(200);
+
+    expect!(h(&hexdec1)).to(be_equal_to(h(&hexdec1)));
+    expect!(&hexdec1).to(be_equal_to(&hexdec1));
+    expect!(h(&hexdec1)).to_not(be_equal_to(h(&hexdec2)));
+    expect!(&hexdec1).to_not(be_equal_to(&hexdec2));
+
+    let str1 = Generator::RandomString(100);
+    let str2 = Generator::RandomString(200);
+
+    expect!(h(&str1)).to(be_equal_to(h(&str1)));
+    expect!(&str1).to(be_equal_to(&str1));
+    expect!(h(&str1)).to_not(be_equal_to(h(&str2)));
+    expect!(&str1).to_not(be_equal_to(&str2));
+
+    let regex1 = Generator::Regex("\\d+".into());
+    let regex2 = Generator::Regex("\\w+".into());
+
+    expect!(h(&regex1)).to(be_equal_to(h(&regex1)));
+    expect!(&regex1).to(be_equal_to(&regex1));
+    expect!(h(&regex1)).to_not(be_equal_to(h(&regex2)));
+    expect!(&regex1).to_not(be_equal_to(&regex2));
+
+    let datetime1 = Generator::DateTime(Some("yyyy-MM-dd HH:mm:ss".into()), None);
+    let datetime2 = Generator::DateTime(Some("yyyy-MM-ddTHH:mm:ss".into()), None);
+    let datetime3 = Generator::DateTime(Some("yyyy-MM-ddTHH:mm:ss".into()), Some("today".into()));
+
+    expect!(h(&datetime1)).to(be_equal_to(h(&datetime1)));
+    expect!(&datetime1).to(be_equal_to(&datetime1));
+    expect!(h(&datetime1)).to_not(be_equal_to(h(&datetime2)));
+    expect!(&datetime1).to_not(be_equal_to(&datetime2));
+    expect!(h(&datetime1)).to_not(be_equal_to(h(&datetime3)));
+    expect!(&datetime1).to_not(be_equal_to(&datetime3));
+    expect!(h(&datetime3)).to(be_equal_to(h(&datetime3)));
+    expect!(&datetime3).to(be_equal_to(&datetime3));
+
+    let date1 = Generator::Date(Some("yyyy-MM-dd".into()), None);
+    let date2 = Generator::Date(Some("yy-MM-dd".into()), None);
+    let date3 = Generator::Date(Some("yy-MM-dd".into()), Some("today".into()));
+
+    expect!(h(&date1)).to(be_equal_to(h(&date1)));
+    expect!(&date1).to(be_equal_to(&date1));
+    expect!(h(&date1)).to_not(be_equal_to(h(&date2)));
+    expect!(&date1).to_not(be_equal_to(&date2));
+    expect!(h(&date1)).to_not(be_equal_to(h(&date3)));
+    expect!(&date1).to_not(be_equal_to(&date3));
+    expect!(h(&date3)).to(be_equal_to(h(&date3)));
+    expect!(&date3).to(be_equal_to(&date3));
+
+    let time1 = Generator::Time(Some("HH:mm:ss".into()), None);
+    let time2 = Generator::Time(Some("hh:mm:ss".into()), None);
+    let time3 = Generator::Time(Some("hh:mm:ss".into()), Some("now".into()));
+
+    expect!(h(&time1)).to(be_equal_to(h(&time1)));
+    expect!(&time1).to(be_equal_to(&time1));
+    expect!(h(&time1)).to_not(be_equal_to(h(&time2)));
+    expect!(&time1).to_not(be_equal_to(&time2));
+    expect!(h(&time1)).to_not(be_equal_to(h(&time3)));
+    expect!(&time1).to_not(be_equal_to(&time3));
+    expect!(h(&time3)).to(be_equal_to(h(&time3)));
+    expect!(&time3).to(be_equal_to(&time3));
+
+    let psg1 = Generator::ProviderStateGenerator("string one".into(), Some(DataType::BOOLEAN));
+    let psg2 = Generator::ProviderStateGenerator("string two".into(), None);
+    let psg3 = Generator::ProviderStateGenerator("string one".into(), None);
+
+    expect!(h(&psg1)).to(be_equal_to(h(&psg1)));
+    expect!(&psg1).to(be_equal_to(&psg1));
+    expect!(h(&psg1)).to_not(be_equal_to(h(&psg2)));
+    expect!(h(&psg1)).to_not(be_equal_to(h(&psg3)));
+    expect!(&psg1).to_not(be_equal_to(&psg2));
+    expect!(&psg1).to_not(be_equal_to(&psg3));
+
+    let msu1 = Generator::MockServerURL("string one".into(), "\\d+".into());
+    let msu2 = Generator::MockServerURL("string two".into(), "\\d+".into());
+    let msu3 = Generator::MockServerURL("string one".into(), "\\w+".into());
+
+    expect!(h(&msu1)).to(be_equal_to(h(&msu1)));
+    expect!(&msu1).to(be_equal_to(&msu1));
+    expect!(h(&msu1)).to_not(be_equal_to(h(&msu2)));
+    expect!(h(&msu1)).to_not(be_equal_to(h(&msu3)));
+    expect!(&msu1).to_not(be_equal_to(&msu2));
+    expect!(&msu1).to_not(be_equal_to(&msu3));
+
+    let ac1 = Generator::ArrayContains(vec![]);
+    let ac2 = Generator::ArrayContains(vec![(0, MatchingRuleCategory::empty("body"), hashmap!{})]);
+    let ac3 = Generator::ArrayContains(vec![(1, MatchingRuleCategory::empty("body"), hashmap!{})]);
+    let ac4 = Generator::ArrayContains(vec![(0, MatchingRuleCategory::equality("body"), hashmap!{})]);
+    let ac5 = Generator::ArrayContains(vec![(0, MatchingRuleCategory::empty("body"), hashmap!{ DocPath::new_unwrap("A") => Generator::RandomBoolean })]);
+    let ac6 = Generator::ArrayContains(vec![
+      (0, MatchingRuleCategory::empty("body"), hashmap!{ DocPath::new_unwrap("A") => Generator::RandomBoolean }),
+      (1, MatchingRuleCategory::empty("body"), hashmap!{ DocPath::new_unwrap("A") => Generator::RandomDecimal(10) })
+    ]);
+    let ac7 = Generator::ArrayContains(vec![
+      (0, MatchingRuleCategory::empty("body"), hashmap!{ DocPath::new_unwrap("A") => Generator::RandomBoolean }),
+      (1, MatchingRuleCategory::equality("body"), hashmap!{ DocPath::new_unwrap("A") => Generator::RandomDecimal(10) })
+    ]);
+
+    expect!(h(&ac1)).to(be_equal_to(h(&ac1)));
+    expect!(h(&ac1)).to_not(be_equal_to(h(&ac2)));
+    expect!(h(&ac1)).to_not(be_equal_to(h(&ac3)));
+    expect!(h(&ac1)).to_not(be_equal_to(h(&ac4)));
+    expect!(h(&ac1)).to_not(be_equal_to(h(&ac5)));
+    expect!(h(&ac1)).to_not(be_equal_to(h(&ac6)));
+    expect!(h(&ac1)).to_not(be_equal_to(h(&ac7)));
+    expect!(h(&ac2)).to(be_equal_to(h(&ac2)));
+    expect!(h(&ac2)).to_not(be_equal_to(h(&ac1)));
+    expect!(h(&ac2)).to_not(be_equal_to(h(&ac3)));
+    expect!(h(&ac2)).to_not(be_equal_to(h(&ac4)));
+    expect!(h(&ac2)).to_not(be_equal_to(h(&ac5)));
+    expect!(h(&ac2)).to_not(be_equal_to(h(&ac6)));
+    expect!(h(&ac2)).to_not(be_equal_to(h(&ac7)));
+    expect!(h(&ac3)).to(be_equal_to(h(&ac3)));
+    expect!(h(&ac3)).to_not(be_equal_to(h(&ac2)));
+    expect!(h(&ac3)).to_not(be_equal_to(h(&ac1)));
+    expect!(h(&ac3)).to_not(be_equal_to(h(&ac4)));
+    expect!(h(&ac3)).to_not(be_equal_to(h(&ac5)));
+    expect!(h(&ac3)).to_not(be_equal_to(h(&ac6)));
+    expect!(h(&ac3)).to_not(be_equal_to(h(&ac7)));
+    expect!(h(&ac4)).to(be_equal_to(h(&ac4)));
+    expect!(h(&ac4)).to_not(be_equal_to(h(&ac2)));
+    expect!(h(&ac4)).to_not(be_equal_to(h(&ac3)));
+    expect!(h(&ac4)).to_not(be_equal_to(h(&ac1)));
+    expect!(h(&ac4)).to_not(be_equal_to(h(&ac5)));
+    expect!(h(&ac4)).to_not(be_equal_to(h(&ac6)));
+    expect!(h(&ac4)).to_not(be_equal_to(h(&ac7)));
+    expect!(h(&ac5)).to(be_equal_to(h(&ac5)));
+    expect!(h(&ac5)).to_not(be_equal_to(h(&ac2)));
+    expect!(h(&ac5)).to_not(be_equal_to(h(&ac3)));
+    expect!(h(&ac5)).to_not(be_equal_to(h(&ac4)));
+    expect!(h(&ac5)).to_not(be_equal_to(h(&ac1)));
+    expect!(h(&ac5)).to_not(be_equal_to(h(&ac6)));
+    expect!(h(&ac5)).to_not(be_equal_to(h(&ac7)));
+    expect!(h(&ac6)).to(be_equal_to(h(&ac6)));
+    expect!(h(&ac6)).to_not(be_equal_to(h(&ac2)));
+    expect!(h(&ac6)).to_not(be_equal_to(h(&ac3)));
+    expect!(h(&ac6)).to_not(be_equal_to(h(&ac4)));
+    expect!(h(&ac6)).to_not(be_equal_to(h(&ac5)));
+    expect!(h(&ac6)).to_not(be_equal_to(h(&ac1)));
+    expect!(h(&ac6)).to_not(be_equal_to(h(&ac7)));
+    expect!(h(&ac7)).to(be_equal_to(h(&ac7)));
+    expect!(h(&ac7)).to_not(be_equal_to(h(&ac2)));
+    expect!(h(&ac7)).to_not(be_equal_to(h(&ac3)));
+    expect!(h(&ac7)).to_not(be_equal_to(h(&ac4)));
+    expect!(h(&ac7)).to_not(be_equal_to(h(&ac5)));
+    expect!(h(&ac7)).to_not(be_equal_to(h(&ac6)));
+    expect!(h(&ac7)).to_not(be_equal_to(h(&ac1)));
+
+    expect!(&ac1).to(be_equal_to(&ac1));
+    expect!(&ac1).to_not(be_equal_to(&ac2));
+    expect!(&ac1).to_not(be_equal_to(&ac3));
+    expect!(&ac1).to_not(be_equal_to(&ac4));
+    expect!(&ac1).to_not(be_equal_to(&ac5));
+    expect!(&ac1).to_not(be_equal_to(&ac6));
+    expect!(&ac1).to_not(be_equal_to(&ac7));
+    expect!(&ac2).to(be_equal_to(&ac2));
+    expect!(&ac2).to_not(be_equal_to(&ac1));
+    expect!(&ac2).to_not(be_equal_to(&ac3));
+    expect!(&ac2).to_not(be_equal_to(&ac4));
+    expect!(&ac2).to_not(be_equal_to(&ac5));
+    expect!(&ac2).to_not(be_equal_to(&ac6));
+    expect!(&ac2).to_not(be_equal_to(&ac7));
+    expect!(&ac3).to(be_equal_to(&ac3));
+    expect!(&ac3).to_not(be_equal_to(&ac2));
+    expect!(&ac3).to_not(be_equal_to(&ac1));
+    expect!(&ac3).to_not(be_equal_to(&ac4));
+    expect!(&ac3).to_not(be_equal_to(&ac5));
+    expect!(&ac3).to_not(be_equal_to(&ac6));
+    expect!(&ac3).to_not(be_equal_to(&ac7));
+    expect!(&ac4).to(be_equal_to(&ac4));
+    expect!(&ac4).to_not(be_equal_to(&ac2));
+    expect!(&ac4).to_not(be_equal_to(&ac3));
+    expect!(&ac4).to_not(be_equal_to(&ac1));
+    expect!(&ac4).to_not(be_equal_to(&ac5));
+    expect!(&ac4).to_not(be_equal_to(&ac6));
+    expect!(&ac4).to_not(be_equal_to(&ac7));
+    expect!(&ac5).to(be_equal_to(&ac5));
+    expect!(&ac5).to_not(be_equal_to(&ac2));
+    expect!(&ac5).to_not(be_equal_to(&ac3));
+    expect!(&ac5).to_not(be_equal_to(&ac4));
+    expect!(&ac5).to_not(be_equal_to(&ac1));
+    expect!(&ac5).to_not(be_equal_to(&ac6));
+    expect!(&ac5).to_not(be_equal_to(&ac7));
+    expect!(&ac6).to(be_equal_to(&ac6));
+    expect!(&ac6).to_not(be_equal_to(&ac2));
+    expect!(&ac6).to_not(be_equal_to(&ac3));
+    expect!(&ac6).to_not(be_equal_to(&ac4));
+    expect!(&ac6).to_not(be_equal_to(&ac5));
+    expect!(&ac6).to_not(be_equal_to(&ac1));
+    expect!(&ac6).to_not(be_equal_to(&ac7));
+    expect!(&ac7).to(be_equal_to(&ac7));
+    expect!(&ac7).to_not(be_equal_to(&ac2));
+    expect!(&ac7).to_not(be_equal_to(&ac3));
+    expect!(&ac7).to_not(be_equal_to(&ac4));
+    expect!(&ac7).to_not(be_equal_to(&ac5));
+    expect!(&ac7).to_not(be_equal_to(&ac6));
+    expect!(&ac7).to_not(be_equal_to(&ac1));
+  }
 
   #[test]
   fn rules_are_empty_when_there_are_no_categories() {
@@ -2087,6 +2090,97 @@ mod tests {
 
     let json = generators_to_json(&generators, &PactSpecification::V3);
     expect!(json.to_string()).to_not(be_equal_to("{}"));
+  }
+
+  #[test]
+  fn hash_test_for_generators() {
+    let g1 = Generators::default();
+    expect!(h(&g1)).to(be_equal_to(15130871412783076140));
+
+    let g2 = Generators {
+      categories: hashmap!{
+        GeneratorCategory::PATH => hashmap!{
+          DocPath::root() => Generator::ProviderStateGenerator("/data/${id}".to_string(), None)
+        }
+      }
+    };
+    expect!(h(&g2)).to(be_equal_to(7485208380071736039));
+
+    let g3 = Generators {
+      categories: hashmap!{
+        GeneratorCategory::PATH => hashmap!{
+          DocPath::root() => Generator::ProviderStateGenerator("/data/${id}".to_string(), None),
+          DocPath::root().join("a") => Generator::Uuid(None)
+        }
+      }
+    };
+    expect!(h(&g3)).to(be_equal_to(4925064761646767895));
+
+    let g4 = Generators {
+      categories: hashmap!{
+        GeneratorCategory::PATH => hashmap!{}
+      }
+    };
+    expect!(h(&g4)).to(be_equal_to(15130871412783076140));
+
+    let g5 = Generators {
+      categories: hashmap!{
+        GeneratorCategory::PATH => hashmap!{
+          DocPath::root() => Generator::ProviderStateGenerator("/data/${id}".to_string(), None)
+        },
+        GeneratorCategory::HEADER => hashmap!{
+          DocPath::root().join("a") => Generator::Uuid(None)
+        }
+      }
+    };
+    expect!(h(&g5)).to(be_equal_to(2286649160918696318));
+  }
+
+  #[test]
+  fn equals_test_for_generators() {
+    let g1 = Generators::default();
+    let g2 = Generators {
+      categories: hashmap!{
+        GeneratorCategory::PATH => hashmap!{
+          DocPath::root() => Generator::ProviderStateGenerator("/data/${id}".to_string(), None)
+        }
+      }
+    };
+    let g3 = Generators {
+      categories: hashmap!{
+        GeneratorCategory::PATH => hashmap!{
+          DocPath::root() => Generator::ProviderStateGenerator("/data/${id}".to_string(), None),
+          DocPath::root().join("a") => Generator::Uuid(None)
+        }
+      }
+    };
+    let g4 = Generators {
+      categories: hashmap!{
+        GeneratorCategory::PATH => hashmap!{}
+      }
+    };
+    let g5 = Generators {
+      categories: hashmap!{
+        GeneratorCategory::PATH => hashmap!{
+          DocPath::root() => Generator::ProviderStateGenerator("/data/${id}".to_string(), None)
+        },
+        GeneratorCategory::HEADER => hashmap!{
+          DocPath::root().join("a") => Generator::Uuid(None)
+        }
+      }
+    };
+
+    assert_eq!(g1, g1);
+    assert_eq!(g2, g2);
+    assert_eq!(g3, g3);
+    assert_eq!(g4, g4);
+    assert_eq!(g5, g5);
+    assert_eq!(g1, g4);
+
+    assert_ne!(g1, g2);
+    assert_ne!(g2, g3);
+    assert_ne!(g1, g5);
+    assert_ne!(g2, g5);
   }
 }
 

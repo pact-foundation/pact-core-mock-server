@@ -737,7 +737,7 @@ mod tests {
   "interactions": [
     {{
       "description": "Test Interaction",
-      "key": "7f50f8fcda779998",
+      "key": "caf215f068a58bc3",
       "pending": false,
       "providerStates": [
         {{

@@ -1,5 +1,6 @@
 //! Functions for dealing with path expressions
 
+use std::cmp::Ordering;
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter, Write};
 use std::hash::{Hash, Hasher};
@@ -302,6 +303,18 @@ impl TryFrom<String> for DocPath {
 impl PartialEq for DocPath {
   fn eq(&self, other: &Self) -> bool {
     self.expr == other.expr
+  }
+}
+
+impl PartialOrd for DocPath {
+  fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+    self.expr.partial_cmp(&other.expr)
+  }
+}
+
+impl Ord for DocPath {
+  fn cmp(&self, other: &Self) -> Ordering {
+    self.expr.cmp(&other.expr)
   }
 }
 

@@ -484,7 +484,7 @@ mod tests {
     let json = interaction2.to_json();
     assert_eq!(json!({
       "description": "a retrieve Mallory request",
-      "key": "ff56316e01f1b62a",
+      "key": "93f58446f133592f",
       "pending": false,
       "providerStates": [
         {
@@ -546,7 +546,7 @@ mod tests {
       },
       .. SynchronousMessage::default()
     };
-    expect!(i4.calc_hash()).to(be_equal_to("4607c600c6c84411"));
+    expect!(i4.calc_hash()).to(be_equal_to("25420754ce64549d"));
 
     let i5 = SynchronousMessage {
       description: "a retrieve Mallory request".to_string(),
@@ -558,7 +558,7 @@ mod tests {
       },
       .. SynchronousMessage::default()
     };
-    expect!(i5.calc_hash()).to(be_equal_to("baf9cbf92311215f"));
+    expect!(i5.calc_hash()).to(be_equal_to("aefc777fdfa238b0"));
 
     let i6 = SynchronousMessage {
       description: "a retrieve Mallory request".to_string(),
@@ -575,7 +575,7 @@ mod tests {
       }],
       .. SynchronousMessage::default()
     };
-    expect!(i6.calc_hash()).to(be_equal_to("17e2bf236fa3240"));
+    expect!(i6.calc_hash()).to(be_equal_to("9338c66e694d3d80"));
   }
 
   #[test]

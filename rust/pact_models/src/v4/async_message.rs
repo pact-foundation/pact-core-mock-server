@@ -572,7 +572,7 @@ mod tests {
     let json = interaction2.to_json();
     assert_eq!(json!({
       "description": "a Mallory message",
-      "key": "565dd33ff61cfe7e",
+      "key": "24209d8c0b8f36fe",
       "pending": false,
       "providerStates": [
         {
@@ -618,7 +618,7 @@ mod tests {
       },
       .. AsynchronousMessage::default()
     };
-    expect!(i4.calc_hash()).to(be_equal_to("75ef7d2bbd911ac8"));
+    expect!(i4.calc_hash()).to(be_equal_to("5c7d5c0490b672a"));
 
     let i5 = AsynchronousMessage {
       description: "a retrieve Mallory request".to_string(),
@@ -630,7 +630,7 @@ mod tests {
       },
       .. AsynchronousMessage::default()
     };
-    expect!(i5.calc_hash()).to(be_equal_to("dc9ceba2dbd6cb2"));
+    expect!(i5.calc_hash()).to(be_equal_to("325703352b87e5df"));
   }
 
   #[test]

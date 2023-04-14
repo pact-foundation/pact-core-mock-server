@@ -3,14 +3,12 @@
 use std::{fmt, mem};
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
-#[cfg(test)] use std::collections::hash_map::DefaultHasher;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 
 use anyhow::{anyhow, Context as _};
-#[cfg(test)] use expectest::prelude::*;
-use itertools::Either;
+use itertools::{Either, Itertools};
 use maplit::hashmap;
 use serde_json::{json, Map, Value};
 use tracing::{error, trace};
@@ -536,221 +534,6 @@ impl PartialEq for MatchingRule {
   }
 }
 
-#[cfg(test)]
-fn h(rule: &MatchingRule) -> u64 {
-  let mut hasher = DefaultHasher::new();
-  rule.hash(&mut hasher);
-  hasher.finish()
-}
-
-#[test]
-fn hash_and_partial_eq_for_matching_rule() {
-  expect!(h(&MatchingRule::Equality)).to(be_equal_to(h(&MatchingRule::Equality)));
-  expect!(MatchingRule::Equality).to(be_equal_to(MatchingRule::Equality));
-  expect!(MatchingRule::Equality).to_not(be_equal_to(MatchingRule::Type));
-
-  expect!(h(&MatchingRule::Type)).to(be_equal_to(h(&MatchingRule::Type)));
-  expect!(MatchingRule::Type).to(be_equal_to(MatchingRule::Type));
-
-  expect!(h(&MatchingRule::Number)).to(be_equal_to(h(&MatchingRule::Number)));
-  expect!(MatchingRule::Number).to(be_equal_to(MatchingRule::Number));
-
-  expect!(h(&MatchingRule::Integer)).to(be_equal_to(h(&MatchingRule::Integer)));
-  expect!(MatchingRule::Integer).to(be_equal_to(MatchingRule::Integer));
-
-  expect!(h(&MatchingRule::Decimal)).to(be_equal_to(h(&MatchingRule::Decimal)));
-  expect!(MatchingRule::Decimal).to(be_equal_to(MatchingRule::Decimal));
-
-  expect!(h(&MatchingRule::Null)).to(be_equal_to(h(&MatchingRule::Null)));
-  expect!(MatchingRule::Null).to(be_equal_to(MatchingRule::Null));
-
-  let regex1 = MatchingRule::Regex("\\d+".into());
-  let regex2 = MatchingRule::Regex("\\w+".into());
-
-  expect!(h(&regex1)).to(be_equal_to(h(&regex1)));
-  expect!(&regex1).to(be_equal_to(&regex1));
-  expect!(h(&regex1)).to_not(be_equal_to(h(&regex2)));
-  expect!(&regex1).to_not(be_equal_to(&regex2));
-
-  let min1 = MatchingRule::MinType(100);
-  let min2 = MatchingRule::MinType(200);
-
-  expect!(h(&min1)).to(be_equal_to(h(&min1)));
-  expect!(&min1).to(be_equal_to(&min1));
-  expect!(h(&min1)).to_not(be_equal_to(h(&min2)));
-  expect!(&min1).to_not(be_equal_to(&min2));
-
-  let max1 = MatchingRule::MaxType(100);
-  let max2 = MatchingRule::MaxType(200);
-
-  expect!(h(&max1)).to(be_equal_to(h(&max1)));
-  expect!(&max1).to(be_equal_to(&max1));
-  expect!(h(&max1)).to_not(be_equal_to(h(&max2)));
-  expect!(&max1).to_not(be_equal_to(&max2));
-
-  let minmax1 = MatchingRule::MinMaxType(100, 200);
-  let minmax2 = MatchingRule::MinMaxType(200, 200);
-
-  expect!(h(&minmax1)).to(be_equal_to(h(&minmax1)));
-  expect!(&minmax1).to(be_equal_to(&minmax1));
-  expect!(h(&minmax1)).to_not(be_equal_to(h(&minmax2)));
-  expect!(&minmax1).to_not(be_equal_to(&minmax2));
-
-  let datetime1 = MatchingRule::Timestamp("yyyy-MM-dd HH:mm:ss".into());
-  let datetime2 = MatchingRule::Timestamp("yyyy-MM-ddTHH:mm:ss".into());
-
-  expect!(h(&datetime1)).to(be_equal_to(h(&datetime1)));
-  expect!(&datetime1).to(be_equal_to(&datetime1));
-  expect!(h(&datetime1)).to_not(be_equal_to(h(&datetime2)));
-  expect!(&datetime1).to_not(be_equal_to(&datetime2));
-
-  let date1 = MatchingRule::Date("yyyy-MM-dd".into());
-  let date2 = MatchingRule::Date("yy-MM-dd".into());
-
-  expect!(h(&date1)).to(be_equal_to(h(&date1)));
-  expect!(&date1).to(be_equal_to(&date1));
-  expect!(h(&date1)).to_not(be_equal_to(h(&date2)));
-  expect!(&date1).to_not(be_equal_to(&date2));
-
-  let time1 = MatchingRule::Time("HH:mm:ss".into());
-  let time2 = MatchingRule::Time("hh:mm:ss".into());
-
-  expect!(h(&time1)).to(be_equal_to(h(&time1)));
-  expect!(&time1).to(be_equal_to(&time1));
-  expect!(h(&time1)).to_not(be_equal_to(h(&time2)));
-  expect!(&time1).to_not(be_equal_to(&time2));
-
-  let inc1 = MatchingRule::Include("string one".into());
-  let inc2 = MatchingRule::Include("string two".into());
-
-  expect!(h(&inc1)).to(be_equal_to(h(&inc1)));
-  expect!(&inc1).to(be_equal_to(&inc1));
-  expect!(h(&inc1)).to_not(be_equal_to(h(&inc2)));
-  expect!(&inc1).to_not(be_equal_to(&inc2));
-
-  let content1 = MatchingRule::ContentType("one".into());
-  let content2 = MatchingRule::ContentType("two".into());
-
-  expect!(h(&content1)).to(be_equal_to(h(&content1)));
-  expect!(&content1).to(be_equal_to(&content1));
-  expect!(h(&content1)).to_not(be_equal_to(h(&content2)));
-  expect!(&content1).to_not(be_equal_to(&content2));
-
-  let ac1 = MatchingRule::ArrayContains(vec![]);
-  let ac2 = MatchingRule::ArrayContains(vec![(0, MatchingRuleCategory::empty("body"), hashmap!{})]);
-  let ac3 = MatchingRule::ArrayContains(vec![(1, MatchingRuleCategory::empty("body"), hashmap!{})]);
-  let ac4 = MatchingRule::ArrayContains(vec![(0, MatchingRuleCategory::equality("body"), hashmap!{})]);
-  let ac5 = MatchingRule::ArrayContains(vec![(0, MatchingRuleCategory::empty("body"), hashmap!{ DocPath::new_unwrap("A") => Generator::RandomBoolean })]);
-  let ac6 = MatchingRule::ArrayContains(vec![
-    (0, MatchingRuleCategory::empty("body"), hashmap!{ DocPath::new_unwrap("A") => Generator::RandomBoolean }),
-    (1, MatchingRuleCategory::empty("body"), hashmap!{ DocPath::new_unwrap("A") => Generator::RandomDecimal(10) })
-  ]);
-  let ac7 = MatchingRule::ArrayContains(vec![
-    (0, MatchingRuleCategory::empty("body"), hashmap!{ DocPath::new_unwrap("A") => Generator::RandomBoolean }),
-    (1, MatchingRuleCategory::equality("body"), hashmap!{ DocPath::new_unwrap("A") => Generator::RandomDecimal(10) })
-  ]);
-
-  expect!(h(&ac1)).to(be_equal_to(h(&ac1)));
-  expect!(h(&ac1)).to_not(be_equal_to(h(&ac2)));
-  expect!(h(&ac1)).to_not(be_equal_to(h(&ac3)));
-  expect!(h(&ac1)).to_not(be_equal_to(h(&ac4)));
-  expect!(h(&ac1)).to_not(be_equal_to(h(&ac5)));
-  expect!(h(&ac1)).to_not(be_equal_to(h(&ac6)));
-  expect!(h(&ac1)).to_not(be_equal_to(h(&ac7)));
-  expect!(h(&ac2)).to(be_equal_to(h(&ac2)));
-  expect!(h(&ac2)).to_not(be_equal_to(h(&ac1)));
-  expect!(h(&ac2)).to_not(be_equal_to(h(&ac3)));
-  expect!(h(&ac2)).to_not(be_equal_to(h(&ac4)));
-  expect!(h(&ac2)).to_not(be_equal_to(h(&ac5)));
-  expect!(h(&ac2)).to_not(be_equal_to(h(&ac6)));
-  expect!(h(&ac2)).to_not(be_equal_to(h(&ac7)));
-  expect!(h(&ac3)).to(be_equal_to(h(&ac3)));
-  expect!(h(&ac3)).to_not(be_equal_to(h(&ac2)));
-  expect!(h(&ac3)).to_not(be_equal_to(h(&ac1)));
-  expect!(h(&ac3)).to_not(be_equal_to(h(&ac4)));
-  expect!(h(&ac3)).to_not(be_equal_to(h(&ac5)));
-  expect!(h(&ac3)).to_not(be_equal_to(h(&ac6)));
-  expect!(h(&ac3)).to_not(be_equal_to(h(&ac7)));
-  expect!(h(&ac4)).to(be_equal_to(h(&ac4)));
-  expect!(h(&ac4)).to_not(be_equal_to(h(&ac2)));
-  expect!(h(&ac4)).to_not(be_equal_to(h(&ac3)));
-  expect!(h(&ac4)).to_not(be_equal_to(h(&ac1)));
-  expect!(h(&ac4)).to_not(be_equal_to(h(&ac5)));
-  expect!(h(&ac4)).to_not(be_equal_to(h(&ac6)));
-  expect!(h(&ac4)).to_not(be_equal_to(h(&ac7)));
-  expect!(h(&ac5)).to(be_equal_to(h(&ac5)));
-  expect!(h(&ac5)).to_not(be_equal_to(h(&ac2)));
-  expect!(h(&ac5)).to_not(be_equal_to(h(&ac3)));
-  expect!(h(&ac5)).to_not(be_equal_to(h(&ac4)));
-  expect!(h(&ac5)).to_not(be_equal_to(h(&ac1)));
-  expect!(h(&ac5)).to_not(be_equal_to(h(&ac6)));
-  expect!(h(&ac5)).to_not(be_equal_to(h(&ac7)));
-  expect!(h(&ac6)).to(be_equal_to(h(&ac6)));
-  expect!(h(&ac6)).to_not(be_equal_to(h(&ac2)));
-  expect!(h(&ac6)).to_not(be_equal_to(h(&ac3)));
-  expect!(h(&ac6)).to_not(be_equal_to(h(&ac4)));
-  expect!(h(&ac6)).to_not(be_equal_to(h(&ac5)));
-  expect!(h(&ac6)).to_not(be_equal_to(h(&ac1)));
-  expect!(h(&ac6)).to_not(be_equal_to(h(&ac7)));
-  expect!(h(&ac7)).to(be_equal_to(h(&ac7)));
-  expect!(h(&ac7)).to_not(be_equal_to(h(&ac2)));
-  expect!(h(&ac7)).to_not(be_equal_to(h(&ac3)));
-  expect!(h(&ac7)).to_not(be_equal_to(h(&ac4)));
-  expect!(h(&ac7)).to_not(be_equal_to(h(&ac5)));
-  expect!(h(&ac7)).to_not(be_equal_to(h(&ac6)));
-  expect!(h(&ac7)).to_not(be_equal_to(h(&ac1)));
-
-  expect!(&ac1).to(be_equal_to(&ac1));
-  expect!(&ac1).to_not(be_equal_to(&ac2));
-  expect!(&ac1).to_not(be_equal_to(&ac3));
-  expect!(&ac1).to_not(be_equal_to(&ac4));
-  expect!(&ac1).to_not(be_equal_to(&ac5));
-  expect!(&ac1).to_not(be_equal_to(&ac6));
-  expect!(&ac1).to_not(be_equal_to(&ac7));
-  expect!(&ac2).to(be_equal_to(&ac2));
-  expect!(&ac2).to_not(be_equal_to(&ac1));
-  expect!(&ac2).to_not(be_equal_to(&ac3));
-  expect!(&ac2).to_not(be_equal_to(&ac4));
-  expect!(&ac2).to_not(be_equal_to(&ac5));
-  expect!(&ac2).to_not(be_equal_to(&ac6));
-  expect!(&ac2).to_not(be_equal_to(&ac7));
-  expect!(&ac3).to(be_equal_to(&ac3));
-  expect!(&ac3).to_not(be_equal_to(&ac2));
-  expect!(&ac3).to_not(be_equal_to(&ac1));
-  expect!(&ac3).to_not(be_equal_to(&ac4));
-  expect!(&ac3).to_not(be_equal_to(&ac5));
-  expect!(&ac3).to_not(be_equal_to(&ac6));
-  expect!(&ac3).to_not(be_equal_to(&ac7));
-  expect!(&ac4).to(be_equal_to(&ac4));
-  expect!(&ac4).to_not(be_equal_to(&ac2));
-  expect!(&ac4).to_not(be_equal_to(&ac3));
-  expect!(&ac4).to_not(be_equal_to(&ac1));
-  expect!(&ac4).to_not(be_equal_to(&ac5));
-  expect!(&ac4).to_not(be_equal_to(&ac6));
-  expect!(&ac4).to_not(be_equal_to(&ac7));
-  expect!(&ac5).to(be_equal_to(&ac5));
-  expect!(&ac5).to_not(be_equal_to(&ac2));
-  expect!(&ac5).to_not(be_equal_to(&ac3));
-  expect!(&ac5).to_not(be_equal_to(&ac4));
-  expect!(&ac5).to_not(be_equal_to(&ac1));
-  expect!(&ac5).to_not(be_equal_to(&ac6));
-  expect!(&ac5).to_not(be_equal_to(&ac7));
-  expect!(&ac6).to(be_equal_to(&ac6));
-  expect!(&ac6).to_not(be_equal_to(&ac2));
-  expect!(&ac6).to_not(be_equal_to(&ac3));
-  expect!(&ac6).to_not(be_equal_to(&ac4));
-  expect!(&ac6).to_not(be_equal_to(&ac5));
-  expect!(&ac6).to_not(be_equal_to(&ac1));
-  expect!(&ac6).to_not(be_equal_to(&ac7));
-  expect!(&ac7).to(be_equal_to(&ac7));
-  expect!(&ac7).to_not(be_equal_to(&ac2));
-  expect!(&ac7).to_not(be_equal_to(&ac3));
-  expect!(&ac7).to_not(be_equal_to(&ac4));
-  expect!(&ac7).to_not(be_equal_to(&ac5));
-  expect!(&ac7).to_not(be_equal_to(&ac6));
-  expect!(&ac7).to_not(be_equal_to(&ac1));
-}
-
 /// Enumeration to define how to combine rules
 #[derive(PartialEq, Debug, Clone, Copy, Eq, Hash, PartialOrd, Ord)]
 pub enum RuleLogic {
@@ -1214,7 +997,8 @@ impl MatchingRuleCategory {
 impl Hash for MatchingRuleCategory {
   fn hash<H: Hasher>(&self, state: &mut H) {
     self.name.hash(state);
-    for (k, v) in self.rules.clone() {
+    for (k, v) in self.rules.iter()
+      .sorted_by(|(a, _), (b, _)| Ord::cmp(a, b)) {
       k.hash(state);
       v.hash(state);
     }
@@ -1442,7 +1226,8 @@ impl MatchingRules {
 
 impl Hash for MatchingRules {
   fn hash<H: Hasher>(&self, state: &mut H) {
-    for (k, v) in self.rules.iter() {
+    for (k, v) in self.rules.iter()
+      .filter(|(_, cat)| cat.is_not_empty()) {
       k.hash(state);
       v.hash(state);
     }
@@ -1451,11 +1236,15 @@ impl Hash for MatchingRules {
 
 impl PartialEq for MatchingRules {
   fn eq(&self, other: &Self) -> bool {
-    self.rules == other.rules
-  }
-
-  fn ne(&self, other: &Self) -> bool {
-    self.rules != other.rules
+    let self_rules = self.rules.iter()
+      .filter(|(_, cat)| cat.is_not_empty())
+      .sorted_by(|(a, _), (b, _)| Ord::cmp(a, b))
+      .collect_vec();
+    let other_rules = other.rules.iter()
+      .filter(|(_, cat)| cat.is_not_empty())
+      .sorted_by(|(a, _), (b, _)| Ord::cmp(a, b))
+      .collect_vec();
+    self_rules == other_rules
   }
 }
 
@@ -1572,6 +1361,8 @@ macro_rules! matchingrules_list {
 
 #[cfg(test)]
 mod tests {
+  use std::collections::hash_map::DefaultHasher;
+
   use expectest::prelude::*;
   use maplit::hashset;
   use serde_json::Value;
@@ -1581,6 +1372,220 @@ mod tests {
 
   use super::*;
   use super::super::*;
+
+  fn h<H: Hash>(rule: &H) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    rule.hash(&mut hasher);
+    hasher.finish()
+  }
+
+  #[test]
+  fn hash_and_partial_eq_for_matching_rule() {
+    expect!(h(&MatchingRule::Equality)).to(be_equal_to(h(&MatchingRule::Equality)));
+    expect!(MatchingRule::Equality).to(be_equal_to(MatchingRule::Equality));
+    expect!(MatchingRule::Equality).to_not(be_equal_to(MatchingRule::Type));
+
+    expect!(h(&MatchingRule::Type)).to(be_equal_to(h(&MatchingRule::Type)));
+    expect!(MatchingRule::Type).to(be_equal_to(MatchingRule::Type));
+
+    expect!(h(&MatchingRule::Number)).to(be_equal_to(h(&MatchingRule::Number)));
+    expect!(MatchingRule::Number).to(be_equal_to(MatchingRule::Number));
+
+    expect!(h(&MatchingRule::Integer)).to(be_equal_to(h(&MatchingRule::Integer)));
+    expect!(MatchingRule::Integer).to(be_equal_to(MatchingRule::Integer));
+
+    expect!(h(&MatchingRule::Decimal)).to(be_equal_to(h(&MatchingRule::Decimal)));
+    expect!(MatchingRule::Decimal).to(be_equal_to(MatchingRule::Decimal));
+
+    expect!(h(&MatchingRule::Null)).to(be_equal_to(h(&MatchingRule::Null)));
+    expect!(MatchingRule::Null).to(be_equal_to(MatchingRule::Null));
+
+    let regex1 = MatchingRule::Regex("\\d+".into());
+    let regex2 = MatchingRule::Regex("\\w+".into());
+
+    expect!(h(&regex1)).to(be_equal_to(h(&regex1)));
+    expect!(&regex1).to(be_equal_to(&regex1));
+    expect!(h(&regex1)).to_not(be_equal_to(h(&regex2)));
+    expect!(&regex1).to_not(be_equal_to(&regex2));
+
+    let min1 = MatchingRule::MinType(100);
+    let min2 = MatchingRule::MinType(200);
+
+    expect!(h(&min1)).to(be_equal_to(h(&min1)));
+    expect!(&min1).to(be_equal_to(&min1));
+    expect!(h(&min1)).to_not(be_equal_to(h(&min2)));
+    expect!(&min1).to_not(be_equal_to(&min2));
+
+    let max1 = MatchingRule::MaxType(100);
+    let max2 = MatchingRule::MaxType(200);
+
+    expect!(h(&max1)).to(be_equal_to(h(&max1)));
+    expect!(&max1).to(be_equal_to(&max1));
+    expect!(h(&max1)).to_not(be_equal_to(h(&max2)));
+    expect!(&max1).to_not(be_equal_to(&max2));
+
+    let minmax1 = MatchingRule::MinMaxType(100, 200);
+    let minmax2 = MatchingRule::MinMaxType(200, 200);
+
+    expect!(h(&minmax1)).to(be_equal_to(h(&minmax1)));
+    expect!(&minmax1).to(be_equal_to(&minmax1));
+    expect!(h(&minmax1)).to_not(be_equal_to(h(&minmax2)));
+    expect!(&minmax1).to_not(be_equal_to(&minmax2));
+
+    let datetime1 = MatchingRule::Timestamp("yyyy-MM-dd HH:mm:ss".into());
+    let datetime2 = MatchingRule::Timestamp("yyyy-MM-ddTHH:mm:ss".into());
+
+    expect!(h(&datetime1)).to(be_equal_to(h(&datetime1)));
+    expect!(&datetime1).to(be_equal_to(&datetime1));
+    expect!(h(&datetime1)).to_not(be_equal_to(h(&datetime2)));
+    expect!(&datetime1).to_not(be_equal_to(&datetime2));
+
+    let date1 = MatchingRule::Date("yyyy-MM-dd".into());
+    let date2 = MatchingRule::Date("yy-MM-dd".into());
+
+    expect!(h(&date1)).to(be_equal_to(h(&date1)));
+    expect!(&date1).to(be_equal_to(&date1));
+    expect!(h(&date1)).to_not(be_equal_to(h(&date2)));
+    expect!(&date1).to_not(be_equal_to(&date2));
+
+    let time1 = MatchingRule::Time("HH:mm:ss".into());
+    let time2 = MatchingRule::Time("hh:mm:ss".into());
+
+    expect!(h(&time1)).to(be_equal_to(h(&time1)));
+    expect!(&time1).to(be_equal_to(&time1));
+    expect!(h(&time1)).to_not(be_equal_to(h(&time2)));
+    expect!(&time1).to_not(be_equal_to(&time2));
+
+    let inc1 = MatchingRule::Include("string one".into());
+    let inc2 = MatchingRule::Include("string two".into());
+
+    expect!(h(&inc1)).to(be_equal_to(h(&inc1)));
+    expect!(&inc1).to(be_equal_to(&inc1));
+    expect!(h(&inc1)).to_not(be_equal_to(h(&inc2)));
+    expect!(&inc1).to_not(be_equal_to(&inc2));
+
+    let content1 = MatchingRule::ContentType("one".into());
+    let content2 = MatchingRule::ContentType("two".into());
+
+    expect!(h(&content1)).to(be_equal_to(h(&content1)));
+    expect!(&content1).to(be_equal_to(&content1));
+    expect!(h(&content1)).to_not(be_equal_to(h(&content2)));
+    expect!(&content1).to_not(be_equal_to(&content2));
+
+    let ac1 = MatchingRule::ArrayContains(vec![]);
+    let ac2 = MatchingRule::ArrayContains(vec![(0, MatchingRuleCategory::empty("body"), hashmap!{})]);
+    let ac3 = MatchingRule::ArrayContains(vec![(1, MatchingRuleCategory::empty("body"), hashmap!{})]);
+    let ac4 = MatchingRule::ArrayContains(vec![(0, MatchingRuleCategory::equality("body"), hashmap!{})]);
+    let ac5 = MatchingRule::ArrayContains(vec![(0, MatchingRuleCategory::empty("body"), hashmap!{ DocPath::new_unwrap("A") => Generator::RandomBoolean })]);
+    let ac6 = MatchingRule::ArrayContains(vec![
+      (0, MatchingRuleCategory::empty("body"), hashmap!{ DocPath::new_unwrap("A") => Generator::RandomBoolean }),
+      (1, MatchingRuleCategory::empty("body"), hashmap!{ DocPath::new_unwrap("A") => Generator::RandomDecimal(10) })
+    ]);
+    let ac7 = MatchingRule::ArrayContains(vec![
+      (0, MatchingRuleCategory::empty("body"), hashmap!{ DocPath::new_unwrap("A") => Generator::RandomBoolean }),
+      (1, MatchingRuleCategory::equality("body"), hashmap!{ DocPath::new_unwrap("A") => Generator::RandomDecimal(10) })
+    ]);
+
+    expect!(h(&ac1)).to(be_equal_to(h(&ac1)));
+    expect!(h(&ac1)).to_not(be_equal_to(h(&ac2)));
+    expect!(h(&ac1)).to_not(be_equal_to(h(&ac3)));
+    expect!(h(&ac1)).to_not(be_equal_to(h(&ac4)));
+    expect!(h(&ac1)).to_not(be_equal_to(h(&ac5)));
+    expect!(h(&ac1)).to_not(be_equal_to(h(&ac6)));
+    expect!(h(&ac1)).to_not(be_equal_to(h(&ac7)));
+    expect!(h(&ac2)).to(be_equal_to(h(&ac2)));
+    expect!(h(&ac2)).to_not(be_equal_to(h(&ac1)));
+    expect!(h(&ac2)).to_not(be_equal_to(h(&ac3)));
+    expect!(h(&ac2)).to_not(be_equal_to(h(&ac4)));
+    expect!(h(&ac2)).to_not(be_equal_to(h(&ac5)));
+    expect!(h(&ac2)).to_not(be_equal_to(h(&ac6)));
+    expect!(h(&ac2)).to_not(be_equal_to(h(&ac7)));
+    expect!(h(&ac3)).to(be_equal_to(h(&ac3)));
+    expect!(h(&ac3)).to_not(be_equal_to(h(&ac2)));
+    expect!(h(&ac3)).to_not(be_equal_to(h(&ac1)));
+    expect!(h(&ac3)).to_not(be_equal_to(h(&ac4)));
+    expect!(h(&ac3)).to_not(be_equal_to(h(&ac5)));
+    expect!(h(&ac3)).to_not(be_equal_to(h(&ac6)));
+    expect!(h(&ac3)).to_not(be_equal_to(h(&ac7)));
+    expect!(h(&ac4)).to(be_equal_to(h(&ac4)));
+    expect!(h(&ac4)).to_not(be_equal_to(h(&ac2)));
+    expect!(h(&ac4)).to_not(be_equal_to(h(&ac3)));
+    expect!(h(&ac4)).to_not(be_equal_to(h(&ac1)));
+    expect!(h(&ac4)).to_not(be_equal_to(h(&ac5)));
+    expect!(h(&ac4)).to_not(be_equal_to(h(&ac6)));
+    expect!(h(&ac4)).to_not(be_equal_to(h(&ac7)));
+    expect!(h(&ac5)).to(be_equal_to(h(&ac5)));
+    expect!(h(&ac5)).to_not(be_equal_to(h(&ac2)));
+    expect!(h(&ac5)).to_not(be_equal_to(h(&ac3)));
+    expect!(h(&ac5)).to_not(be_equal_to(h(&ac4)));
+    expect!(h(&ac5)).to_not(be_equal_to(h(&ac1)));
+    expect!(h(&ac5)).to_not(be_equal_to(h(&ac6)));
+    expect!(h(&ac5)).to_not(be_equal_to(h(&ac7)));
+    expect!(h(&ac6)).to(be_equal_to(h(&ac6)));
+    expect!(h(&ac6)).to_not(be_equal_to(h(&ac2)));
+    expect!(h(&ac6)).to_not(be_equal_to(h(&ac3)));
+    expect!(h(&ac6)).to_not(be_equal_to(h(&ac4)));
+    expect!(h(&ac6)).to_not(be_equal_to(h(&ac5)));
+    expect!(h(&ac6)).to_not(be_equal_to(h(&ac1)));
+    expect!(h(&ac6)).to_not(be_equal_to(h(&ac7)));
+    expect!(h(&ac7)).to(be_equal_to(h(&ac7)));
+    expect!(h(&ac7)).to_not(be_equal_to(h(&ac2)));
+    expect!(h(&ac7)).to_not(be_equal_to(h(&ac3)));
+    expect!(h(&ac7)).to_not(be_equal_to(h(&ac4)));
+    expect!(h(&ac7)).to_not(be_equal_to(h(&ac5)));
+    expect!(h(&ac7)).to_not(be_equal_to(h(&ac6)));
+    expect!(h(&ac7)).to_not(be_equal_to(h(&ac1)));
+
+    expect!(&ac1).to(be_equal_to(&ac1));
+    expect!(&ac1).to_not(be_equal_to(&ac2));
+    expect!(&ac1).to_not(be_equal_to(&ac3));
+    expect!(&ac1).to_not(be_equal_to(&ac4));
+    expect!(&ac1).to_not(be_equal_to(&ac5));
+    expect!(&ac1).to_not(be_equal_to(&ac6));
+    expect!(&ac1).to_not(be_equal_to(&ac7));
+    expect!(&ac2).to(be_equal_to(&ac2));
+    expect!(&ac2).to_not(be_equal_to(&ac1));
+    expect!(&ac2).to_not(be_equal_to(&ac3));
+    expect!(&ac2).to_not(be_equal_to(&ac4));
+    expect!(&ac2).to_not(be_equal_to(&ac5));
+    expect!(&ac2).to_not(be_equal_to(&ac6));
+    expect!(&ac2).to_not(be_equal_to(&ac7));
+    expect!(&ac3).to(be_equal_to(&ac3));
+    expect!(&ac3).to_not(be_equal_to(&ac2));
+    expect!(&ac3).to_not(be_equal_to(&ac1));
+    expect!(&ac3).to_not(be_equal_to(&ac4));
+    expect!(&ac3).to_not(be_equal_to(&ac5));
+    expect!(&ac3).to_not(be_equal_to(&ac6));
+    expect!(&ac3).to_not(be_equal_to(&ac7));
+    expect!(&ac4).to(be_equal_to(&ac4));
+    expect!(&ac4).to_not(be_equal_to(&ac2));
+    expect!(&ac4).to_not(be_equal_to(&ac3));
+    expect!(&ac4).to_not(be_equal_to(&ac1));
+    expect!(&ac4).to_not(be_equal_to(&ac5));
+    expect!(&ac4).to_not(be_equal_to(&ac6));
+    expect!(&ac4).to_not(be_equal_to(&ac7));
+    expect!(&ac5).to(be_equal_to(&ac5));
+    expect!(&ac5).to_not(be_equal_to(&ac2));
+    expect!(&ac5).to_not(be_equal_to(&ac3));
+    expect!(&ac5).to_not(be_equal_to(&ac4));
+    expect!(&ac5).to_not(be_equal_to(&ac1));
+    expect!(&ac5).to_not(be_equal_to(&ac6));
+    expect!(&ac5).to_not(be_equal_to(&ac7));
+    expect!(&ac6).to(be_equal_to(&ac6));
+    expect!(&ac6).to_not(be_equal_to(&ac2));
+    expect!(&ac6).to_not(be_equal_to(&ac3));
+    expect!(&ac6).to_not(be_equal_to(&ac4));
+    expect!(&ac6).to_not(be_equal_to(&ac5));
+    expect!(&ac6).to_not(be_equal_to(&ac1));
+    expect!(&ac6).to_not(be_equal_to(&ac7));
+    expect!(&ac7).to(be_equal_to(&ac7));
+    expect!(&ac7).to_not(be_equal_to(&ac2));
+    expect!(&ac7).to_not(be_equal_to(&ac3));
+    expect!(&ac7).to_not(be_equal_to(&ac4));
+    expect!(&ac7).to_not(be_equal_to(&ac5));
+    expect!(&ac7).to_not(be_equal_to(&ac6));
+    expect!(&ac7).to_not(be_equal_to(&ac1));
+  }
 
   #[test]
   fn rules_are_empty_when_there_are_no_categories() {
@@ -2134,5 +2139,157 @@ mod tests {
         "matchers": [ { "match": "type" } ]
       }
     })));
+  }
+
+  #[test]
+  fn hash_test_for_matchingrules() {
+    let m1 = MatchingRules::default();
+    expect!(h(&m1)).to(be_equal_to(15130871412783076140));
+
+    let m2 = MatchingRules {
+      rules: hashmap!{
+        Category::PATH => MatchingRuleCategory {
+          name: Category::PATH,
+          rules: hashmap!{
+            DocPath::root() => RuleList {
+              rules: vec![MatchingRule::Include("/1/2/3".to_string())],
+              rule_logic: RuleLogic::And,
+              cascaded: false
+            }
+          }
+        }
+      }
+    };
+    expect!(h(&m2)).to(be_equal_to(4156854679723555579));
+
+    let m3 = MatchingRules {
+      rules: hashmap! {
+        Category::PATH => MatchingRuleCategory::empty(Category::PATH),
+        Category::HEADER => MatchingRuleCategory::empty(Category::HEADER)
+      }
+    };
+    expect!(h(&m3)).to(be_equal_to(15130871412783076140));
+  }
+
+  #[test]
+  fn equals_test_for_matchingrules() {
+    let m1 = MatchingRules::default();
+    expect!(h(&m1)).to(be_equal_to(15130871412783076140));
+
+    let m2 = MatchingRules {
+      rules: hashmap!{
+        Category::PATH => MatchingRuleCategory {
+          name: Category::PATH,
+          rules: hashmap!{
+            DocPath::root() => RuleList {
+              rules: vec![MatchingRule::Include("/1/2/3".to_string())],
+              rule_logic: RuleLogic::And,
+              cascaded: false
+            }
+          }
+        }
+      }
+    };
+    expect!(h(&m2)).to(be_equal_to(4156854679723555579));
+
+    let m3 = MatchingRules {
+      rules: hashmap! {
+        Category::PATH => MatchingRuleCategory::empty(Category::PATH),
+        Category::HEADER => MatchingRuleCategory::empty(Category::HEADER)
+      }
+    };
+
+    assert_eq!(m1, m1);
+    assert_eq!(m2, m2);
+    assert_eq!(m3, m3);
+    assert_eq!(m1, m3);
+
+    assert_ne!(m1, m2);
+    assert_ne!(m2, m3);
+  }
+
+  #[test]
+  fn hash_test_for_matchingrule_category() {
+    let m1 = MatchingRuleCategory::default();
+    expect!(h(&m1)).to(be_equal_to(6185506036438099345));
+
+    let m2 = MatchingRuleCategory {
+      name: Category::PATH,
+      rules: hashmap!{
+        DocPath::root() => RuleList {
+          rules: vec![MatchingRule::Include("/1/2/3".to_string())],
+          rule_logic: RuleLogic::And,
+          cascaded: false
+        }
+      }
+    };
+    expect!(h(&m2)).to(be_equal_to(5907609104530210046));
+
+    let m3 = MatchingRuleCategory::empty(Category::HEADER);
+    expect!(h(&m3)).to(be_equal_to(11876854719037224982));
+
+    let m4 = MatchingRuleCategory::empty(Category::PATH);
+    expect!(h(&m4)).to(be_equal_to(2206609067086327257));
+
+    let m5 = MatchingRuleCategory {
+      name: Category::PATH,
+      rules: hashmap!{
+        DocPath::root() => RuleList {
+          rules: vec![MatchingRule::Include("/1/2/3".to_string())],
+          rule_logic: RuleLogic::And,
+          cascaded: false
+        },
+        DocPath::root().join("a") => RuleList {
+          rules: vec![MatchingRule::Include("/1/2/3".to_string())],
+          rule_logic: RuleLogic::And,
+          cascaded: false
+        }
+      }
+    };
+    expect!(h(&m5)).to(be_equal_to(2282399821086239745));
+
+    let m6 = MatchingRuleCategory {
+      name: Category::PATH,
+      rules: hashmap!{
+        DocPath::root().join("a") => RuleList {
+          rules: vec![MatchingRule::Include("/1/2/3".to_string())],
+          rule_logic: RuleLogic::And,
+          cascaded: false
+        },
+        DocPath::root() => RuleList {
+          rules: vec![MatchingRule::Include("/1/2/3".to_string())],
+          rule_logic: RuleLogic::And,
+          cascaded: false
+        }
+      }
+    };
+    expect!(h(&m6)).to(be_equal_to(2282399821086239745));
+  }
+
+  #[test]
+  fn equals_test_for_matchingrule_category() {
+    let m1 = MatchingRuleCategory::default();
+    let m2 = MatchingRuleCategory {
+      name: Category::PATH,
+      rules: hashmap!{
+        DocPath::root() => RuleList {
+          rules: vec![MatchingRule::Include("/1/2/3".to_string())],
+          rule_logic: RuleLogic::And,
+          cascaded: false
+        }
+      }
+    };
+    let m3 = MatchingRuleCategory::empty(Category::PATH);
+    let m4 = MatchingRuleCategory::empty(Category::HEADER);
+
+    assert_eq!(m1, m1);
+    assert_eq!(m2, m2);
+    assert_eq!(m3, m3);
+    assert_eq!(m4, m4);
+
+    assert_ne!(m1, m2);
+    assert_ne!(m1, m3);
+    assert_ne!(m1, m4);
+    assert_ne!(m2, m3);
   }
 }

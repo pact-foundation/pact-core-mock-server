@@ -65,6 +65,8 @@ impl SynchronousHttp {
 
   /// Creates a new version with a calculated key
   pub fn with_key(&self) -> SynchronousHttp {
+    dbg!(self);
+    dbg!(self.calc_hash());
     SynchronousHttp {
       key: Some(self.calc_hash()),
       .. self.clone()
@@ -134,6 +136,8 @@ impl SynchronousHttp {
 
 impl V4Interaction for SynchronousHttp {
   fn to_json(&self) -> Value {
+    dbg!(self);
+    dbg!(self.calc_hash());
     let mut json = json!({
       "type": V4InteractionType::Synchronous_HTTP.to_string(),
       "key": self.key.clone().unwrap_or_else(|| self.calc_hash()),
@@ -416,12 +420,14 @@ impl Display for SynchronousHttp {
 
 #[cfg(test)]
 mod tests {
+  use bytes::Bytes;
   use expectest::prelude::*;
   use maplit::hashmap;
   use pretty_assertions::{assert_eq, assert_ne};
   use serde_json::json;
 
   use crate::bodies::OptionalBody;
+  use crate::content_types::ContentType;
   use crate::prelude::ProviderState;
   use crate::v4::http_parts::{HttpRequest, HttpResponse};
   use crate::v4::interaction::V4Interaction;
@@ -471,7 +477,7 @@ mod tests {
     let json = interaction2.to_json();
     assert_eq!(json, json!({
       "description": "a retrieve Mallory request",
-      "key": "98ae1ad563fc69cb",
+      "key": "93371e6e7ae2556",
       "pending": false,
       "providerStates": [
         {
@@ -562,7 +568,61 @@ mod tests {
       },
       .. SynchronousHttp::default()
     };
-    expect!(i5.calc_hash()).to(be_equal_to("c73355e81f04c03e"));
+    expect!(i5.calc_hash()).to(be_equal_to("93371e6e7ae2556"));
+
+    let i6 = SynchronousHttp::from_json(&json!({
+      "description": "a retrieve Mallory request",
+      "key": "c73355e81f04c03e",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "there is some good mallory"
+        }
+      ],
+      "request": {
+        "headers": {
+          "content-type": [
+            "application/json"
+          ]
+        },
+        "method": "GET",
+        "path": "/mallory"
+      },
+      "response": {
+        "body": {
+          "content": "That is some good Mallory.",
+          "contentType": "*/*",
+          "encoded": false
+        },
+        "headers": {
+          "content-type": [
+            "text/plain"
+          ]
+        },
+        "status": 200
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    }), 0).unwrap();
+    expect!(i6.key.as_ref()).to(be_some().value("c73355e81f04c03e"));
+    expect!(i6.calc_hash()).to(be_equal_to("93371e6e7ae2556"));
+    let i7 = SynchronousHttp {
+      description: "a retrieve Mallory request".to_string(),
+      provider_states: vec![ProviderState::default("there is some good mallory")],
+      request: HttpRequest {
+        path: "/mallory".to_string(),
+        headers: Some(hashmap! { "content-type".to_string() => vec![ "application/json".to_string() ] }),
+        .. HttpRequest::default()
+      },
+      response: HttpResponse {
+        headers: Some(hashmap! { "content-type".to_string() => vec![ "text/plain".to_string() ] }),
+        body: OptionalBody::Present(Bytes::from("That is some good Mallory."), Some(ContentType::from("*/*")), None),
+        .. HttpResponse::default()
+      },
+      transport: Some("http".to_string()),
+      .. SynchronousHttp::default()
+    }.with_key();
+    expect!(i7.key.as_ref()).to(be_some().value("93371e6e7ae2556"));
   }
 
   #[test]

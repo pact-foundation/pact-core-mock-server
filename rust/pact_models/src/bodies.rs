@@ -1,6 +1,8 @@
 //! Module for handling interaction content (bodies)
 
 use std::fmt::{Display, Formatter};
+use std::hash::{Hash, Hasher};
+use std::mem;
 use std::str::from_utf8;
 
 use base64::encode;
@@ -13,7 +15,7 @@ use crate::content_types::{ContentType, ContentTypeHint};
 
 /// Enum that defines the four main states that a body of a request and response can be in a pact
 /// file.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum OptionalBody {
   /// A body is missing if it is not present in the pact file
@@ -240,11 +242,35 @@ impl Default for OptionalBody {
   }
 }
 
+impl PartialEq for OptionalBody {
+  fn eq(&self, other: &Self) -> bool {
+    match (self, other) {
+      (OptionalBody::Present(b1, _, _), OptionalBody::Present(b2, _, _)) => b1.eq(b2),
+      (_, _) => mem::discriminant(self) == mem::discriminant(other)
+    }
+  }
+}
+
+impl Eq for OptionalBody { }
+
+impl Hash for OptionalBody {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    mem::discriminant(self).hash(state);
+    if let OptionalBody::Present(b, _, _) = self {
+      b.hash(state);
+    }
+  }
+}
+
 #[cfg(test)]
 mod tests {
-  use expectest::prelude::*;
+  use std::hash::{Hash, Hasher};
+  use bytes::Bytes;
 
-  use crate::content_types::{ContentTypeHint, JSON, TEXT};
+  use expectest::prelude::*;
+  use hashers::fx_hash::FxHasher;
+
+  use crate::content_types::{ContentType, ContentTypeHint, JSON, TEXT};
 
   use super::OptionalBody;
 
@@ -291,5 +317,61 @@ mod tests {
     expect!(OptionalBody::Present("hello".into(), Some(TEXT.clone()), None).value_as_string()).to(be_some().value("hello"));
     expect!(OptionalBody::Present("hello".into(), None, Some(ContentTypeHint::TEXT)).value_as_string()).to(be_some().value("hello"));
     expect!(OptionalBody::Present("hello".into(), None, Some(ContentTypeHint::BINARY)).value_as_string()).to(be_none());
+  }
+
+  fn h<T: Hash>(t: &T) -> u64 {
+    let mut s = FxHasher::default();
+    t.hash(&mut s);
+    s.finish()
+  }
+
+  #[test]
+  fn hash_test() {
+    let b1 = OptionalBody::Empty;
+    expect!(h(&b1)).to(be_equal_to(5871781006564002453));
+
+    let b2 = OptionalBody::Missing;
+    expect!(h(&b2)).to(be_equal_to(0));
+
+    let b3 = OptionalBody::Null;
+    expect!(h(&b3)).to(be_equal_to(11743562013128004906));
+
+    let b4 = OptionalBody::Present(Bytes::from("some text"), None, None);
+    expect!(h(&b4)).to(be_equal_to(14682297895331824901));
+
+    let b5 = OptionalBody::Present(Bytes::from("some text"), Some(ContentType::from("text/plain")), None);
+    expect!(h(&b5)).to(be_equal_to(14682297895331824901));
+
+    let b6 = OptionalBody::Present(Bytes::from("some text"), Some(ContentType::from("text/plain")), Some(ContentTypeHint::TEXT));
+    expect!(h(&b6)).to(be_equal_to(14682297895331824901));
+
+    let b7 = OptionalBody::Present(Bytes::from("some other text"), None, None);
+    expect!(h(&b7)).to(be_equal_to(11778642767711097768));
+  }
+
+  #[test]
+  fn equals_test() {
+    let b1 = OptionalBody::Empty;
+    let b2 = OptionalBody::Missing;
+    let b3 = OptionalBody::Null;
+    let b4 = OptionalBody::Present(Bytes::from("some text"), None, None);
+    let b5 = OptionalBody::Present(Bytes::from("some text"), Some(ContentType::from("text/plain")), None);
+    let b6 = OptionalBody::Present(Bytes::from("some text"), Some(ContentType::from("text/plain")), Some(ContentTypeHint::TEXT));
+    let b7 = OptionalBody::Present(Bytes::from("some other text"), None, None);
+
+    assert_eq!(b1, b1);
+    assert_eq!(b2, b2);
+    assert_eq!(b3, b3);
+    assert_eq!(b4, b4);
+    assert_eq!(b5, b5);
+    assert_eq!(b6, b6);
+    assert_eq!(b7, b7);
+    assert_eq!(b4, b5);
+    assert_eq!(b4, b6);
+
+    assert_ne!(b1, b2);
+    assert_ne!(b1, b3);
+    assert_ne!(b1, b4);
+    assert_ne!(b4, b7);
   }
 }
