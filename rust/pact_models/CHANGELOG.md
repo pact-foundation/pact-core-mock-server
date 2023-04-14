@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.11 - Bugfix Release
+
+* d3cd2357 - fix(V4): corrected all the hash functions for all V4 models (Ronald Holshausen, Fri Apr 14 16:51:01 2023 +1000)
+* 867936d6 - fix: V4 models were not including the key in the implementation of equals (Ronald Holshausen, Fri Apr 14 11:16:34 2023 +1000)
+* 67123cb0 - bump version to 1.0.11 (Ronald Holshausen, Thu Apr 13 15:27:32 2023 +1000)
+
 # 1.0.10 - Bugfix Release
 
 * 10239f7c - fix(V4): when generating the interaction key, treat header keys in a case-insensitive manner (Ronald Holshausen, Thu Apr 13 15:02:29 2023 +1000)
