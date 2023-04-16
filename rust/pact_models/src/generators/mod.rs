@@ -631,7 +631,8 @@ impl Generators {
 impl Hash for Generators {
   fn hash<H: Hasher>(&self, state: &mut H) {
     for (k, v) in self.categories.iter()
-      .filter(|(_, v)| !v.is_empty()) {
+      .filter(|(_, v)| !v.is_empty())
+      .sorted_by(|(a, _), (b, _)| Ord::cmp(a, b)) {
       k.hash(state);
       for (k2, v2) in v.iter()
         .sorted_by(|(a, _), (b, _)| Ord::cmp(a, b)) {
@@ -2092,50 +2093,49 @@ mod tests {
     expect!(json.to_string()).to_not(be_equal_to("{}"));
   }
 
-  // Disabling test as it is failing on GH
-  // #[test]
-  // fn hash_test_for_generators() {
-  //   let g1 = Generators::default();
-  //   expect!(h(&g1)).to(be_equal_to(0));
-  //
-  //   let g2 = Generators {
-  //     categories: hashmap!{
-  //       GeneratorCategory::PATH => hashmap!{
-  //         DocPath::root() => Generator::ProviderStateGenerator("/data/${id}".to_string(), None)
-  //       }
-  //     }
-  //   };
-  //   expect!(h(&g2)).to(be_equal_to(1400070739500850701));
-  //
-  //   let g3 = Generators {
-  //     categories: hashmap!{
-  //       GeneratorCategory::PATH => hashmap!{
-  //         DocPath::root() => Generator::ProviderStateGenerator("/data/${id}".to_string(), None),
-  //         DocPath::root().join("a") => Generator::Uuid(None)
-  //       }
-  //     }
-  //   };
-  //   expect!(h(&g3)).to(be_equal_to(12233200366861159704));
-  //
-  //   let g4 = Generators {
-  //     categories: hashmap!{
-  //       GeneratorCategory::PATH => hashmap!{}
-  //     }
-  //   };
-  //   expect!(h(&g4)).to(be_equal_to(0));
-  //
-  //   let g5 = Generators {
-  //     categories: hashmap!{
-  //       GeneratorCategory::PATH => hashmap!{
-  //         DocPath::root() => Generator::ProviderStateGenerator("/data/${id}".to_string(), None)
-  //       },
-  //       GeneratorCategory::HEADER => hashmap!{
-  //         DocPath::root().join("a") => Generator::Uuid(None)
-  //       }
-  //     }
-  //   };
-  //   expect!(h(&g5)).to(be_equal_to(2171280703816596608));
-  // }
+  #[test]
+  fn hash_test_for_generators() {
+    let g1 = Generators::default();
+    expect!(h(&g1)).to(be_equal_to(0));
+
+    let g2 = Generators {
+      categories: hashmap!{
+        GeneratorCategory::PATH => hashmap!{
+          DocPath::root() => Generator::ProviderStateGenerator("/data/${id}".to_string(), None)
+        }
+      }
+    };
+    expect!(h(&g2)).to(be_equal_to(1400070739500850701));
+
+    let g3 = Generators {
+      categories: hashmap!{
+        GeneratorCategory::PATH => hashmap!{
+          DocPath::root() => Generator::ProviderStateGenerator("/data/${id}".to_string(), None),
+          DocPath::root().join("a") => Generator::Uuid(None)
+        }
+      }
+    };
+    expect!(h(&g3)).to(be_equal_to(12233200366861159704));
+
+    let g4 = Generators {
+      categories: hashmap!{
+        GeneratorCategory::PATH => hashmap!{}
+      }
+    };
+    expect!(h(&g4)).to(be_equal_to(0));
+
+    let g5 = Generators {
+      categories: hashmap!{
+        GeneratorCategory::PATH => hashmap!{
+          DocPath::root() => Generator::ProviderStateGenerator("/data/${id}".to_string(), None)
+        },
+        GeneratorCategory::HEADER => hashmap!{
+          DocPath::root().join("a") => Generator::Uuid(None)
+        }
+      }
+    };
+    expect!(h(&g5)).to(be_equal_to(14391593158107532884));
+  }
 
   #[test]
   fn equals_test_for_generators() {
