@@ -4,7 +4,7 @@ use std::ffi::CString;
 use std::ptr::null;
 
 use either::Either;
-use libc::c_char;
+use libc::{c_char, c_int, EXIT_FAILURE, EXIT_SUCCESS};
 use pact_models::generators::Generator;
 use pact_models::matchingrules::expressions::{
   is_matcher_def,
@@ -13,9 +13,11 @@ use pact_models::matchingrules::expressions::{
   ValueType
 };
 use pact_models::matchingrules::MatchingRule;
+use pact_models::time_utils::validate_datetime;
 use tracing::{debug, error};
 
 use crate::{as_mut, as_ref, ffi_fn, safe_str};
+use crate::error::set_error_msg;
 use crate::util::{ptr, string};
 
 /// Result of parsing a matching rule definition
@@ -532,6 +534,47 @@ ffi_fn! {
     }
 }
 
+ffi_fn! {
+    /// Validates the date/time value against the date/time format string. If the value is valid,
+    /// this function will return a zero status code (EXIT_SUCCESS).
+    /// If the value is not valid, will return a value of 1 (EXIT_FAILURE) and set the
+    /// error message which can be retrieved with `pactffi_get_error_message`.
+    ///
+    /// # Errors
+    /// If the function receives a panic, it will return 2 and the message associated with the
+    /// panic can be retrieved with `pactffi_get_error_message`.
+    ///
+    /// # Safety
+    ///
+    /// This function is safe as long as the value and format parameters point to valid
+    /// NULL-terminated strings.
+    fn pactffi_validate_datetime(value: *const c_char, format: *const c_char) -> c_int {
+      let value = safe_str!(value);
+      let format = safe_str!(format);
+
+      if value.is_empty() {
+        error!("Date/Time value string is empty");
+        set_error_msg("Date/Time value string is empty".to_string());
+        EXIT_FAILURE
+      } else if format.is_empty() {
+        error!("Date/Time format string is empty");
+        set_error_msg("Date/Time format string is empty".to_string());
+        EXIT_FAILURE
+      } else {
+        match validate_datetime(value, format) {
+          Ok(_) => EXIT_SUCCESS,
+          Err(err) => {
+            error!("Date/Time string '{}' is not valid: {}", value, err);
+            set_error_msg(format!("Date/Time string '{}' does not match pattern '{}'", value, format));
+            EXIT_FAILURE
+          }
+        }
+      }
+    } {
+      2
+    }
+}
+
 #[cfg(test)]
 mod tests {
   use std::ffi::{CStr, CString};
@@ -539,6 +582,7 @@ mod tests {
   use expectest::prelude::*;
   use libc::c_char;
   use pact_models::matchingrules::MatchingRule;
+  use crate::error::pactffi_get_error_message;
 
   use crate::models::expressions::{
     ExpressionValueType,
@@ -554,7 +598,8 @@ mod tests {
     pactffi_matching_rule_iter_next,
     pactffi_matching_rule_reference_name,
     pactffi_matching_rule_value,
-    pactffi_parse_matcher_definition
+    pactffi_parse_matcher_definition,
+    pactffi_validate_datetime
   };
   use crate::util::ptr;
 
@@ -711,5 +756,28 @@ mod tests {
     let definition = unsafe { Box::from_raw(result as *mut MatchingRuleDefinitionResult) };
     expect!(definition.result.as_ref().left()).to(be_none());
     expect!(definition.result.as_ref().right()).to(be_some());
+  }
+
+  #[test_log::test]
+  fn pactffi_validate_datetime_test() {
+    let value = CString::new("").unwrap();
+    let format = CString::new("yyyy-MM-dd").unwrap();
+    expect!(pactffi_validate_datetime(value.as_ptr(), format.as_ptr())).to(be_equal_to(1));
+    let mut buffer = Vec::with_capacity(256);
+    let pointer = buffer.as_mut_ptr();
+    pactffi_get_error_message(pointer, 256);
+    let error = unsafe { CStr::from_ptr(pointer) }.to_str().unwrap();
+    expect!(error).to(be_equal_to("Date/Time value string is empty"));
+
+    let value = CString::new("2000-02-28").unwrap();
+    let format = CString::new("yyyy-MM-dd").unwrap();
+    expect!(pactffi_validate_datetime(value.as_ptr(), format.as_ptr())).to(be_equal_to(0));
+
+    let value = CString::new("2000-02-x").unwrap();
+    let format = CString::new("yyyy-MM-dd").unwrap();
+    expect!(pactffi_validate_datetime(value.as_ptr(), format.as_ptr())).to(be_equal_to(1));
+    pactffi_get_error_message(pointer, 256);
+    let error = unsafe { CStr::from_ptr(pointer) }.to_str().unwrap();
+    expect!(error).to(be_equal_to("Date/Time string '2000-02-x' does not match pattern 'yyyy-MM-dd'"));
   }
 }
