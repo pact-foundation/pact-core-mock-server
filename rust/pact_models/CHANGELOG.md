@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.12 - Fixes hash function for generators
+
+* a81b2df3 - chore: fix for diabled generators hash test (Ronald Holshausen, Mon Apr 17 09:25:49 2023 +1000)
+* 04ddccac - chore: disable hash_test_for_generators as it is failing on CI (Ronald Holshausen, Fri Apr 14 17:37:25 2023 +1000)
+* afbd35d1 - chore: switch generator tests to FxHasher as they are failing on CI (Ronald Holshausen, Fri Apr 14 17:22:22 2023 +1000)
+* 848b1943 - bump version to 1.0.12 (Ronald Holshausen, Fri Apr 14 17:06:03 2023 +1000)
+
 # 1.0.11 - Bugfix Release
 
 * d3cd2357 - fix(V4): corrected all the hash functions for all V4 models (Ronald Holshausen, Fri Apr 14 16:51:01 2023 +1000)
