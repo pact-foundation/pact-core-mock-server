@@ -522,12 +522,14 @@ ffi_fn! {
     }
 }
 
-/// Adds a provider state to the Interaction with a parameter key and value. Returns false if the interaction or Pact can't be
-/// modified (i.e. the mock server for it has already started)
+/// Adds a provider state to the Interaction with a parameter key and value. Returns false if the
+/// interaction or Pact can't be modified (i.e. the mock server for it has already started).
+///
+/// The value will be parsed as JSON.
 ///
 /// * `description` - The provider state description. It needs to be unique.
 /// * `name` - Parameter name.
-/// * `value` - Parameter value.
+/// * `value` - Parameter value as JSON.
 #[no_mangle]
 pub extern fn pactffi_given_with_param(interaction: InteractionHandle, description: *const c_char,
                                        name: *const c_char, value: *const c_char) -> bool {
