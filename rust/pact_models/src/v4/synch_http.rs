@@ -65,8 +65,6 @@ impl SynchronousHttp {
 
   /// Creates a new version with a calculated key
   pub fn with_key(&self) -> SynchronousHttp {
-    dbg!(self);
-    dbg!(self.calc_hash());
     SynchronousHttp {
       key: Some(self.calc_hash()),
       .. self.clone()
@@ -136,8 +134,6 @@ impl SynchronousHttp {
 
 impl V4Interaction for SynchronousHttp {
   fn to_json(&self) -> Value {
-    dbg!(self);
-    dbg!(self.calc_hash());
     let mut json = json!({
       "type": V4InteractionType::Synchronous_HTTP.to_string(),
       "key": self.key.clone().unwrap_or_else(|| self.calc_hash()),
