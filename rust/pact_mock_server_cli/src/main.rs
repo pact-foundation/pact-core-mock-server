@@ -348,7 +348,6 @@ mod test {
   use expectest::prelude::*;
 
   use crate::integer_value;
-  use crate::setup_args;
 
   #[test]
   fn validates_integer_value() {

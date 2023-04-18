@@ -259,7 +259,7 @@ fn match_query_returns_no_mismatch_if_the_values_are_not_the_same_but_match_by_a
   query_map.insert("a".to_string(), vec!["c".to_string()]);
   let actual = Some(query_map);
   let result = match_query(expected, actual, &context);
-  expect!(result.get("a".into()).unwrap().iter()).to(be_empty());
+  expect!(result.get("a").unwrap().iter()).to(be_empty());
 }
 
 #[test]
@@ -280,7 +280,7 @@ fn match_query_returns_a_mismatch_if_the_values_do_not_match_by_a_matcher() {
   let actual = Some(query_map);
   let result = match_query(expected, actual, &context);
   expect!(result.iter()).to_not(be_empty());
-  assert_eq!(result.get("a".into()).unwrap()[0], Mismatch::QueryMismatch {
+  assert_eq!(result.get("a").unwrap()[0], Mismatch::QueryMismatch {
     parameter: "a".to_string(),
     expected: "[\"b\"]".to_string(),
     actual: "[\"b\"]".to_string(),
