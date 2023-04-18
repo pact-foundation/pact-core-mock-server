@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.13 - Maintenance Release
+
+* 473d3167 - chore: remove dbg statements (Ronald Holshausen, Mon Apr 17 11:52:12 2023 +1000)
+* 2eed4e60 - bump version to 1.0.13 (Ronald Holshausen, Mon Apr 17 10:16:45 2023 +1000)
+
 # 1.0.12 - Fixes hash function for generators
 
 * a81b2df3 - chore: fix for diabled generators hash test (Ronald Holshausen, Mon Apr 17 09:25:49 2023 +1000)
