@@ -1,5 +1,24 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 0.4.4 - Bugfix Release
+
+* 8cfc3d79 - chore: Upgrade pact_verifier to 0.15.3 (Ronald Holshausen, Tue Apr 18 15:22:26 2023 +1000)
+* 6a71b12d - chore: Upgrade pact_mock_server to 1.0.2 (Ronald Holshausen, Tue Apr 18 13:30:21 2023 +1000)
+* 0bcba082 - chore: Upgrade pact_matching to 1.0.8 (Ronald Holshausen, Tue Apr 18 13:14:38 2023 +1000)
+* 6c14abfd - chore: Upgrade pact_models to 1.0.13 (Ronald Holshausen, Tue Apr 18 13:00:01 2023 +1000)
+* ce16d43f - chore: Upgrade pact-plugin-driver to 0.4.2 (supports auto-installing known plugins) (Ronald Holshausen, Tue Apr 18 11:49:52 2023 +1000)
+* a4192b38 - feat: add FFI function to validate a Date/Time string against a format #265 (Ronald Holshausen, Mon Apr 17 12:48:01 2023 +1000)
+* ac136ed5 - doc: Update the doc comment for pactffi_given_with_param to indicate the value must be JSON #263 (Ronald Holshausen, Mon Apr 17 11:09:04 2023 +1000)
+* 10bf1a48 - chore: Upgrade pact_models to 1.0.12 (fixes generators hash function) (Ronald Holshausen, Mon Apr 17 10:31:09 2023 +1000)
+* 84b9d9e9 - fix: Upgrade pact models to 1.0.11 (fixes generated key for V4 Pacts) (Ronald Holshausen, Fri Apr 14 17:10:58 2023 +1000)
+* 669f7812 - chore: Upgrade pact_models to 1.0.10 (Ronald Holshausen, Thu Apr 13 15:32:34 2023 +1000)
+* 2d436288 - fix(FFI): Fix test failing on CI on Alpine #262 (Ronald Holshausen, Thu Apr 6 11:38:41 2023 +1000)
+* b2d7ec3a - fix(FFI): Fix test failing on CI because the plugins dir does not exist #262 (Ronald Holshausen, Thu Apr 6 11:09:57 2023 +1000)
+* 3e44b376 - chore: remove debug statement (Ronald Holshausen, Thu Apr 6 11:02:46 2023 +1000)
+* 96ac10c1 - fix(FFI): log and capture the error when the verification fails #262 (Ronald Holshausen, Thu Apr 6 10:52:52 2023 +1000)
+* 779a59f0 - fix: Upgrade pact-plugin-driver to 0.4.1 (fixes an issue introduced in 0.4.0 with shared channels to plugins) (Ronald Holshausen, Wed Apr 5 17:01:18 2023 +1000)
+* 81fbfa7f - bump version to 0.4.4 (Ronald Holshausen, Wed Apr 5 14:31:56 2023 +1000)
+
 # 0.4.3 - Bugfix Release
 
 * 0af00359 - fix: use a shared global tokio runtime so shared plugin connections can be used (Ronald Holshausen, Wed Apr 5 14:05:11 2023 +1000)
