@@ -19,7 +19,7 @@ anyhow = "1.0.70"
 pact_matching = { version = "1.0.8", path = "../pact_matching" }
 pact_models = "1.0.13"
 pact_mock_server = { version = "1.0.2", path = "../pact_mock_server" }
-pact_verifier = { version = "0.15.2", path = "../pact_verifier" }
+pact_verifier = { version = "0.15.3", path = "../pact_verifier" }
 libc = "0.2.141"
 zeroize = "1.6.0"
 thiserror = "1.0.40"
