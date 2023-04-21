@@ -8,7 +8,7 @@ rustc --version
 cargo install --force cbindgen
 rm -rf ./include
 
-rustup toolchain install nightly-2022-12-01
+rustup toolchain install nightly
 
 echo -------------------------------------
 echo - Build library with CMake
@@ -22,11 +22,11 @@ cd ..
 echo -------------------------------------
 echo - Generate header with cbindgen
 echo -------------------------------------
-rustup run nightly-2022-12-01 cbindgen \
+rustup run nightly cbindgen \
   --config cbindgen.toml \
   --crate pact_ffi \
   --output include/pact.h
-rustup run nightly-2022-12-01 cbindgen \
+rustup run nightly cbindgen \
   --config cbindgen-c++.toml \
   --crate pact_ffi \
   --output include/pact-c++.h
