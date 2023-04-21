@@ -6,6 +6,7 @@ jobs:
   build:
     runs-on: ${{ matrix.operating-system }}
     strategy:
+      fail-fast: false
       matrix:
         operating-system: [ ubuntu-latest, windows-latest, macos-latest ]
         rust: [ stable ]
@@ -21,7 +22,7 @@ jobs:
       - name: Install shared mime info DB
         if: runner.os == 'macOS'
         run: brew install shared-mime-info
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@nightly
         with:
           toolchain: nightly
           components: rustfmt
