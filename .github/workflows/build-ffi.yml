@@ -12,12 +12,12 @@ jobs:
     env:
       pact_do_not_track: true
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - run: rustc --version || true
         shell: bash
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: ${{ matrix.rust }}
+          toolchain: stable
       - name: Install shared mime info DB
         if: runner.os == 'macOS'
         run: brew install shared-mime-info
