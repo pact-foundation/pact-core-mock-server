@@ -12,37 +12,31 @@ jobs:
     env:
       pact_do_not_track: true
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: ${{ matrix.rust }}
+          toolchain: stable
           components: clippy
       - name: Install shared mime info DB
         if: runner.os == 'macOS'
         run: brew install shared-mime-info
       - name: Tests
-        uses: marcopolo/cargo@master # TODO: - use actions-rs/cargo@v1 when PR merged https://github.com/actions-rs/cargo/pull/59
-        with:
-          working-directory: rust
-          command: test
+        run: cargo test
+        working-directory: rust
         env:
           RUST_LOG: debug
           RUST_BACKTRACE: 1
       - name: Build Components
-        uses: marcopolo/cargo@master
-        with:
-          working-directory: rust
-          command: build
+        run: cargo build
+        working-directory: rust
       - name: Clippy
         if: runner.os == 'Linux'
-        uses: marcopolo/cargo@master
-        with:
-          working-directory: rust
-          command: clippy
+        run: cargo clippy
+        working-directory: rust
 
   musl-build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - run: |
          docker run --rm --user "$(id -u)":"$(id -g)" -v $(pwd):/workspace -w /workspace/rust -t -e TZ=UTC pactfoundation/rust-musl-build ./scripts/ci-musl-build.sh

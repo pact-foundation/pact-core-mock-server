@@ -6,22 +6,23 @@ jobs:
   build:
     runs-on: ${{ matrix.operating-system }}
     strategy:
+      fail-fast: false
       matrix:
         operating-system: [ ubuntu-latest, windows-latest, macos-latest ]
         rust: [ stable ]
     env:
       pact_do_not_track: true
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - run: rustc --version || true
         shell: bash
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: ${{ matrix.rust }}
+          toolchain: stable
       - name: Install shared mime info DB
         if: runner.os == 'macOS'
         run: brew install shared-mime-info
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@nightly
         with:
           toolchain: nightly
           components: rustfmt

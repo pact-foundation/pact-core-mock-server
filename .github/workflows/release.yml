@@ -13,17 +13,25 @@ jobs:
     env:
       pact_do_not_track: true
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Install stable Rust toolchain
-        uses: actions-rs/toolchain@v1
+        if: runner.os == 'Linux'
+        uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
           toolchain: stable
-          override: true
-          target: aarch64-apple-darwin
-      - name: Install LLVM
-        run: choco install -y llvm
+          targets: aarch64-unknown-linux-gnu,x86_64-unknown-linux-musl
+      - name: Install stable Rust toolchain
         if: runner.os == 'Windows'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: aarch64-pc-windows-msvc,x86_64-pc-windows-msvc
+      - name: Install stable Rust toolchain
+        if: runner.os == 'MacOS'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
       - if: startsWith(github.ref, 'refs/tags/pact_mock_server_cli') && runner.os == 'Linux'
         run: ./release-linux.sh
         working-directory: rust/pact_mock_server_cli
@@ -46,9 +54,6 @@ jobs:
         run: ./release-osx.sh
         shell: bash
         working-directory: rust/pact_verifier_cli
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
       - if: startsWith(github.ref, 'refs/tags/libpact_ffi') && runner.os == 'Linux'
         run: ./release-linux.sh
         working-directory: rust/pact_ffi
@@ -61,13 +66,14 @@ jobs:
         shell: bash
         working-directory: rust/pact_ffi
       - name: Upload the artifacts
-        uses: actions/upload-artifact@v1
+        if: startsWith(github.ref, 'refs/tags/libpact_ffi')  || startsWith(github.ref, 'refs/tags/pact_verifier_cli') || startsWith(github.ref, 'refs/tags/pact_mock_server_cli')
+        uses: actions/upload-artifact@v3.1.2
         with:
           name: release-artifacts
           path: rust/target/artifacts
       - name: Upload Release Assets
-        id: upload-release-asset
-        uses: svenstaro/upload-release-action@v2
+        if: startsWith(github.ref, 'refs/tags/libpact_ffi')  || startsWith(github.ref, 'refs/tags/pact_verifier_cli') || startsWith(github.ref, 'refs/tags/pact_mock_server_cli')
+        uses: svenstaro/upload-release-action@2.5.0
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: rust/target/artifacts/*
