@@ -6,6 +6,9 @@ use Symfony\Component\HttpClient\HttpClient;
 
 $code = file_get_contents(__DIR__ . '/../../rust/pact_ffi/include/pact.h');
 $ffi = FFI::cdef($code, __DIR__ . '/../../rust/target/debug/libpact_ffi.so');
+// Macs use dylib extension, following will assume os's downloaded in users home dir ~/.pact/ffi/arch/libpact_ffi.<dylib|so>
+// $code = file_get_contents(posix_getpwnam(get_current_user())['dir'] . '/.pact/ffi/pact.h');
+// $ffi = FFI::cdef($code, posix_getpwnam(get_current_user())['dir'] . '/.pact/ffi/osxaarch64/libpact_ffi.dylib');
 
 $ffi->pactffi_init('LOG_LEVEL');
 
@@ -72,8 +75,8 @@ if ($ffi->pactffi_mock_server_matched($port)) {
     echo getenv('MATCHING') ? "Mock server matched all requests, Yay!" : "Mock server matched all requests, That Is Not Good (tm)";
     echo "\n";
 
-    $ffi->pactffi_write_pact_file($port, __DIR__ . '/../pact', false);
-    $ffi->pactffi_write_message_pact_file($messagePact, __DIR__ . '/../pact', false);
+    $ffi->pactffi_write_pact_file($port, __DIR__ . '/../pacts', false);
+    $ffi->pactffi_write_message_pact_file($messagePact, __DIR__ . '/../pacts', false);
 } else {
     echo getenv('MATCHING') ? "We got some mismatches, Boo!" : "We got some mismatches, as expected.";
     echo "\n";

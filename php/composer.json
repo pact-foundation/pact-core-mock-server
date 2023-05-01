@@ -22,6 +22,7 @@
         "consumer-1-mismatches": "MATCHING=0 php src/consumer-1.php",
         "consumer-2-matches": "MATCHING=1 php src/consumer-2.php",
         "consumer-2-mismatches": "MATCHING=0 php src/consumer-2.php",
+        "consumer-plugin": "MATCHING=1 php src/consumer-plugin.php",
         "provider": "php src/provider.php"
     }
 }
