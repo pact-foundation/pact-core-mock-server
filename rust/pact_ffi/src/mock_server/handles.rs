@@ -114,7 +114,7 @@ use bytes::Bytes;
 use either::Either;
 use itertools::Itertools;
 use lazy_static::*;
-use libc::{c_char, c_uint, c_ushort, size_t};
+use libc::{c_char, c_int, c_uint, c_ushort, EXIT_FAILURE, EXIT_SUCCESS, size_t};
 use maplit::*;
 use pact_models::{Consumer, PactSpecification, Provider};
 use pact_models::bodies::OptionalBody;
@@ -138,6 +138,7 @@ use serde_json::{json, Value};
 use tracing::*;
 
 use crate::{convert_cstr, ffi_fn, safe_str};
+use crate::error::set_error_msg;
 use crate::mock_server::{StringResult, xml};
 #[allow(deprecated)]
 use crate::mock_server::bodies::{
@@ -151,7 +152,7 @@ use crate::mock_server::bodies::{
   request_multipart,
   response_multipart
 };
-use crate::models::iterators::{PactMessageIterator, PactSyncMessageIterator, PactSyncHttpIterator};
+use crate::models::iterators::{PactMessageIterator, PactSyncHttpIterator, PactSyncMessageIterator};
 use crate::ptr;
 
 #[derive(Debug, Clone)]
@@ -522,11 +523,14 @@ ffi_fn! {
     }
 }
 
-/// Adds a provider state to the Interaction with a parameter key and value. Returns false if the
-/// interaction or Pact can't be modified (i.e. the mock server for it has already started).
+/// Adds a parameter key and value to a provider state to the Interaction. If the provider state
+/// does not exist, a new one will be created, otherwise the parameter will be merged into the
+/// existing one. The parameter value will be parsed as JSON.
 ///
-/// The value will be parsed as JSON.
+/// Returns false if the interaction or Pact can't be modified (i.e. the mock server for it has
+/// already started).
 ///
+/// # Parameters
 /// * `description` - The provider state description. It needs to be unique.
 /// * `name` - Parameter name.
 /// * `value` - Parameter value as JSON.
@@ -557,6 +561,58 @@ pub extern fn pactffi_given_with_param(interaction: InteractionHandle, descripti
     }
   } else {
     false
+  }
+}
+
+/// Adds a provider state to the Interaction with a set of parameter key and value pairs in JSON
+/// form. If the params is not an JSON object, it will add it as a single parameter with a `value`
+/// key.
+///
+/// # Parameters
+/// * `description` - The provider state description.
+/// * `params` - Parameter values as a JSON fragment.
+///
+/// # Errors
+/// Returns EXIT_FAILURE (1) if the interaction or Pact can't be modified (i.e. the mock server
+/// for it has already started).
+/// Returns 2 and sets the error message (which can be retrieved with `pactffi_get_error_message`)
+/// if the parameter values con't be parsed as JSON.
+/// Returns 3 if any of the C strings are not valid.
+///
+#[no_mangle]
+pub extern fn pactffi_given_with_params(
+  interaction: InteractionHandle,
+  description: *const c_char,
+  params: *const c_char
+) -> c_int {
+  if let Some(description) = convert_cstr("description", description) {
+    if let Some(params) = convert_cstr("params", params) {
+      let params_value = match serde_json::from_str(params) {
+        Ok(json) => json,
+        Err(err) => {
+          error!("Parameters are not valid JSON: {}", err);
+          set_error_msg(err.to_string());
+          return 2;
+        }
+      };
+      let params_map = match params_value {
+        Value::Object(map) => map.iter()
+          .map(|(k, v)| (k.clone(), v.clone()))
+          .collect(),
+        _ => hashmap! { "value".to_string() => params_value }
+      };
+      interaction.with_interaction(&|_, mock_server_started, inner| {
+        inner.provider_states_mut().push(ProviderState {
+          name: description.to_string(),
+          params: params_map.clone()
+        });
+        if mock_server_started { EXIT_FAILURE } else { EXIT_SUCCESS }
+      }).unwrap_or(EXIT_FAILURE)
+    } else {
+      3
+    }
+  } else {
+    3
   }
 }
 
@@ -2466,5 +2522,70 @@ mod tests {
         "$.*.*.*" => [ MatchingRule::Type ]
       }
     }));
+  }
+
+  #[test]
+  fn pactffi_given_with_param_test() {
+    let pact_handle = PactHandle::new("pactffi_given_with_param", "pactffi_given_with_param");
+    let description = CString::new("pactffi_given_with_param").unwrap();
+    let handle = pactffi_new_interaction(pact_handle, description.as_ptr());
+
+    let state_one = CString::new("state one").unwrap();
+    let state_two = CString::new("state two").unwrap();
+    let param_one = CString::new("one").unwrap();
+    let param_two = CString::new("two").unwrap();
+    let param_value = CString::new("100").unwrap();
+    pactffi_given_with_param(handle, state_one.as_ptr(), param_one.as_ptr(), param_value.as_ptr());
+    pactffi_given_with_param(handle, state_one.as_ptr(), param_two.as_ptr(), param_value.as_ptr());
+    pactffi_given_with_param(handle, state_one.as_ptr(), param_one.as_ptr(), param_value.as_ptr());
+    pactffi_given_with_param(handle, state_two.as_ptr(), param_one.as_ptr(), param_value.as_ptr());
+
+    let interaction = handle.with_interaction(&|_, _, inner| {
+      inner.as_request_response().unwrap()
+    }).unwrap();
+
+    pactffi_free_pact_handle(pact_handle);
+
+    expect!(interaction.provider_states.len()).to(be_equal_to(2));
+    let state_1 = interaction.provider_states.iter()
+      .find(|state| state.name == "state one").unwrap();
+    let state_2 = interaction.provider_states.iter()
+      .find(|state| state.name == "state two").unwrap();
+    let keys: Vec<&String> = state_1.params.keys().collect();
+    expect!(keys).to(be_equal_to(vec!["one", "two"]));
+    let keys: Vec<&String> = state_2.params.keys().collect();
+    expect!(keys).to(be_equal_to(vec!["one"]));
+  }
+
+  #[test]
+  fn pactffi_given_with_params_test() {
+    let pact_handle = PactHandle::new("pactffi_given_with_params", "pactffi_given_with_params");
+    let description = CString::new("pactffi_given_with_params").unwrap();
+    let handle = pactffi_new_interaction(pact_handle, description.as_ptr());
+
+    let state_one = CString::new("state one").unwrap();
+    let state_two = CString::new("state two").unwrap();
+    let params_one = CString::new("{\"one\": 100}").unwrap();
+    let params_two = CString::new("{\"two\": 200}").unwrap();
+    pactffi_given_with_params(handle, state_one.as_ptr(), params_one.as_ptr());
+    pactffi_given_with_params(handle, state_one.as_ptr(), params_two.as_ptr());
+    pactffi_given_with_params(handle, state_two.as_ptr(), params_one.as_ptr());
+
+    let interaction = handle.with_interaction(&|_, _, inner| {
+      inner.as_request_response().unwrap()
+    }).unwrap();
+
+    pactffi_free_pact_handle(pact_handle);
+
+    expect!(interaction.provider_states.len()).to(be_equal_to(3));
+    let state_1 = interaction.provider_states.get(0).unwrap();
+    let state_2 = interaction.provider_states.get(1).unwrap();
+    let state_3 = interaction.provider_states.get(2).unwrap();
+    let keys: Vec<&String> = state_1.params.keys().collect();
+    expect!(keys).to(be_equal_to(vec!["one"]));
+    let keys: Vec<&String> = state_2.params.keys().collect();
+    expect!(keys).to(be_equal_to(vec!["two"]));
+    let keys: Vec<&String> = state_3.params.keys().collect();
+    expect!(keys).to(be_equal_to(vec!["one"]));
   }
 }
