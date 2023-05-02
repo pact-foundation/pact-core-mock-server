@@ -37,7 +37,9 @@
 
 use std::fmt::{Display, Formatter};
 
+use anyhow::anyhow;
 use chrono::Local;
+use gregorian::Month;
 use itertools::Itertools;
 use nom::branch::alt;
 use nom::bytes::complete::{is_a, is_not, tag, tag_no_case, take_while_m_n};
@@ -772,6 +774,7 @@ pub fn parse_pattern(s: &str) -> Result<Vec<DateTimePatternToken>, String> {
 
 fn validate_datetime_string(value: &str, pattern_tokens: &[DateTimePatternToken]) -> Result<(), String> {
   let mut buffer = value;
+  let mut matched_values = vec![];
   for token in pattern_tokens {
     let result = match token {
       DateTimePatternToken::Era(count) => era(buffer, *count),
@@ -805,12 +808,67 @@ fn validate_datetime_string(value: &str, pattern_tokens: &[DateTimePatternToken]
       DateTimePatternToken::MillisecondOfDay => digit1(buffer).map(|(remaining, result)| (remaining, result.into())),
       DateTimePatternToken::NanosecondOfDay => digit1(buffer).map(|(remaining, result)| (remaining, result.into())),
     }.map_err(|err| format!("{:?}", err))?;
+
+    matched_values.push((token.clone(), result.1));
+
     buffer = result.0;
   }
 
   if !buffer.is_empty() {
     Err(format!("Remaining data after applying pattern {:?}", buffer))
   } else {
+    validate_matched_values(&matched_values)
+  }
+}
+
+fn validate_matched_values(matched_values: &Vec<(DateTimePatternToken, String)>) -> Result<(), String> {
+  // check the day of the month
+  let day = matched_values.iter()
+    .find(|(token, _)| match token {
+      DateTimePatternToken::DayInMonth => true,
+      _ => false
+    });
+  let month = matched_values.iter()
+    .find(|(token, _)| match token {
+      DateTimePatternToken::Month(_) => true,
+      _ => false
+    });
+  let year = matched_values.iter()
+    .find(|(token, _)| match token {
+      DateTimePatternToken::Year(_) => true,
+      _ => false
+    });
+  if let Some((_, day)) = day {
+    // should be safe to unwrap here, as the value should have already been validated
+    let day = day.parse::<u8>().unwrap();
+    if let Some((_, year)) = year {
+      let year = year.parse::<i16>().unwrap();
+      if let Some((_, month_str)) = month {
+        // should be safe to unwrap here, as the value should have already been validated
+        let month = month_value(month_str).unwrap().with_year(year);
+        if day > month.total_days() {
+          Err(format!("'{}' is not a valid day for month '{}' in year {}", day, month_str, year))
+        } else {
+          Ok(())
+        }
+      } else {
+        // No month in matched values
+        Ok(())
+      }
+    } else if let Some((_, month_str)) = month {
+      // should be safe to unwrap here, as the value should have already been validated
+      let month = month_value(month_str).unwrap().with_year(2001);
+      if day > month.total_days() {
+        Err(format!("'{}' is not a valid day for month '{}'", day, month_str))
+      } else {
+        Ok(())
+      }
+    } else {
+      // No month or year in matched values
+      Ok(())
+    }
+  } else {
+    // No day in matched values
     Ok(())
   }
 }
@@ -887,6 +945,28 @@ fn validate_tz_abbreviation(tz: &str) -> bool {
   ZONES_ABBR.contains_key(tz)
 }
 
+fn month_value(value: &str) -> anyhow::Result<gregorian::Month> {
+  match value.to_lowercase().as_str() {
+    "january" | "jan" => Ok(Month::January),
+    "february" | "feb" => Ok(Month::February),
+    "march" | "mar" => Ok(Month::March),
+    "april" | "apr" => Ok(Month::April),
+    "may" => Ok(Month::May),
+    "june" | "jun" => Ok(Month::June),
+    "july" | "jul" => Ok(Month::July),
+    "august" | "aug" => Ok(Month::August),
+    "september" | "sep" => Ok(Month::September),
+    "october" | "oct" => Ok(Month::October),
+    "november" | "nov" => Ok(Month::November),
+    "december" | "dec" => Ok(Month::December),
+    _ => if let Ok(month) = value.parse::<u8>() {
+      Month::new(month).map_err(|_| anyhow!("'{}' is not a valid month value", value))
+    } else {
+      Err(anyhow!("'{}' is not a valid month value", value))
+    }
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use expectest::expect;
@@ -916,6 +996,25 @@ mod tests {
     expect!(validate_datetime("2001-W27-3", "YYYY-'W'ww-u")).to(be_ok());
 
     expect!(validate_datetime("2020-01-01T10:00+01:00[Europe/Warsaw]", "yyyy-MM-dd'T'HH:mmXXX'['VV']'")).to(be_ok());
+  }
+
+  #[test]
+  fn parse_date_and_time_with_invalid_dates() {
+    // Invalid Febuary date
+    expect!(validate_datetime("2000-02-30", "yyyy-MM-dd")).to(be_err()
+      .value("'30' is not a valid day for month '02' in year 2000"));
+    // Invalid June date
+    expect!(validate_datetime("2000-06-31", "yyyy-MM-dd")).to(be_err());
+    // Not a leap year
+    expect!(validate_datetime("2001-02-29", "yyyy-MM-dd")).to(be_err());
+
+    //    September 1752
+    // Su Mo Tu We Th Fr Sa
+    //        1  2 14 15 16
+    // 17 18 19 20 21 22 23
+    // 24 25 26 27 28 29 30
+    // Nuff said, but is not supported by the Rust crates as yet
+    //expect!(validate_datetime("1752-09-03", "yyyy-MM-dd")).to(be_err());
   }
 
   #[test]
