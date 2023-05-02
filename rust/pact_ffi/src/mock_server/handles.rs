@@ -2551,7 +2551,7 @@ mod tests {
       .find(|state| state.name == "state one").unwrap();
     let state_2 = interaction.provider_states.iter()
       .find(|state| state.name == "state two").unwrap();
-    let keys: Vec<&String> = state_1.params.keys().collect();
+    let keys: Vec<&String> = state_1.params.keys().sorted().collect();
     expect!(keys).to(be_equal_to(vec!["one", "two"]));
     let keys: Vec<&String> = state_2.params.keys().collect();
     expect!(keys).to(be_equal_to(vec!["one"]));
