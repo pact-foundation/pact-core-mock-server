@@ -601,7 +601,6 @@ mod tests {
     pactffi_parse_matcher_definition,
     pactffi_validate_datetime
   };
-  use crate::util::ptr;
 
   #[test_log::test]
   fn parse_expression_with_null() {

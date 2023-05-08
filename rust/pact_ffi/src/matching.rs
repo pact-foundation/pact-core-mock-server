@@ -8,7 +8,7 @@ use serde_json::Value;
 use pact_matching::matchers::Matches;
 
 use crate::{as_ref, ffi_fn, safe_str};
-use crate::util::{ptr, string};
+use crate::util::string;
 
 ffi_fn! {
     /// Determines if the string value matches the given matching rule. If the value matches OK,
