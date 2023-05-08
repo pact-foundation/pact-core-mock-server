@@ -152,15 +152,18 @@ impl V4Interaction for SynchronousMessage {
   fn to_json(&self) -> Value {
     let mut json = json!({
       "type": V4InteractionType::Synchronous_Messages.to_string(),
-      "key": self.key.clone().unwrap_or_else(|| self.calc_hash()),
       "description": self.description.clone(),
       "pending": self.pending,
       "request": self.request.to_json(),
       "response": self.response.iter().map(|m| m.to_json()).collect_vec()
     });
+    let map = json.as_object_mut().unwrap();
+
+    if let Some(key) = &self.key {
+      map.insert("key".to_string(), Value::String(key.clone()));
+    }
 
     if !self.provider_states.is_empty() {
-      let map = json.as_object_mut().unwrap();
       map.insert("providerStates".to_string(), Value::Array(
         self.provider_states.iter().map(|p| p.to_json()).collect()));
     }
@@ -170,12 +173,10 @@ impl V4Interaction for SynchronousMessage {
       .map(|(k, v)| (k.clone(), v.clone()))
       .collect();
     if !comments.is_empty() {
-      let map = json.as_object_mut().unwrap();
       map.insert("comments".to_string(), Value::Object(comments));
     }
 
     if !self.plugin_config.is_empty() {
-      let map = json.as_object_mut().unwrap();
       map.insert("pluginConfiguration".to_string(), self.plugin_config.iter()
         .map(|(k, v)|
           (k.clone(), Value::Object(v.iter().map(|(k, v)| (k.clone(), v.clone())).collect()))
@@ -183,12 +184,10 @@ impl V4Interaction for SynchronousMessage {
     }
 
     if !self.interaction_markup.is_empty() {
-      let map = json.as_object_mut().unwrap();
       map.insert("interactionMarkup".to_string(), self.interaction_markup.to_json());
     }
 
     if let Some(transport) = &self.transport {
-      let map = json.as_object_mut().unwrap();
       map.insert("transport".to_string(), Value::String(transport.clone()));
     }
 

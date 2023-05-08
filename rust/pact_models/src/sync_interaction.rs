@@ -117,7 +117,7 @@ impl Interaction for RequestResponseInteraction {
       request: self.request.as_v4_request(),
       response: self.response.as_v4_response(),
       .. Default::default()
-    }.with_key())
+    })
   }
 
   fn as_v4_async_message(&self) -> Option<AsynchronousMessage> {

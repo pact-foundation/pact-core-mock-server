@@ -1207,7 +1207,6 @@ mod tests {
   "interactions": [
     {{
       "description": "Test Interaction",
-      "key": "296966511eff169a",
       "pending": false,
       "providerStates": [
         {{
@@ -1225,7 +1224,6 @@ mod tests {
     }},
     {{
       "description": "Test Interaction 2",
-      "key": "d3e13a43bc0744ac",
       "pending": false,
       "providerStates": [
         {{
