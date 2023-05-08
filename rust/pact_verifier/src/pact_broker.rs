@@ -333,25 +333,20 @@ impl HALClient {
       let status_code = response.status();
 
       if status_code.is_success() {
-          let body = response.bytes()
-              .await
-              .map_err(|_| PactBrokerError::IoError(
-                  format!("Failed to download response body for path '{}'. URL: '{}'", &path, self.url)
-              ))?;
-
-          if is_json_content_type {
-              serde_json::from_slice(&body)
-                  .map_err(|err| PactBrokerError::ContentError(
-                      format!("Did not get a valid HAL response body from pact broker path '{}' - {}. URL: '{}'",
-                          path, err, self.url)
-                  ))
-          } else {
-              Err(PactBrokerError::ContentError(
-                  format!("Did not get a HAL response from pact broker path '{}', content type is '{}'. URL: '{}'",
-                      path, content_type, self.url
-                  )
-              ))
-          }
+        if is_json_content_type {
+          response.json::<Value>()
+            .await
+            .map_err(|err| PactBrokerError::ContentError(
+              format!("Did not get a valid HAL response body from pact broker path '{}' - {}. URL: '{}'",
+                      path, err, self.url)
+            ))
+        } else {
+          debug!("Request from broker was a success, but the response body was not JSON");
+          Err(PactBrokerError::ContentError(
+            format!("Did not get a valid HAL response body from pact broker path '{}', content type is '{}'. URL: '{}'",
+              path, content_type, self.url)
+          ))
+        }
       } else if status_code.as_u16() == 404 {
           Err(PactBrokerError::NotFound(
               format!("Request to pact broker path '{}' failed: {}. URL: '{}'", path,
@@ -1122,8 +1117,8 @@ mod tests {
 
     let client = HALClient::with_url(pact_broker.url().as_str(), None);
     let result = client.fetch("/nonjson").await;
-    expect!(result).to(be_err().value(format!("Did not get a HAL response from pact broker path \'/nonjson\', content type is 'text/html'. URL: '{}'",
-      pact_broker.url())));
+    pretty_assertions::assert_eq!(format!("Error with the content of a HAL resource - Did not get a valid HAL response body from pact broker path \'/nonjson\', content type is 'text/html'. URL: '{}'",
+        pact_broker.url()), result.unwrap_err().to_string());
   }
 
     #[test]
@@ -1202,12 +1197,14 @@ mod tests {
 
         let client = HALClient::with_url(pact_broker.url().as_str(), None);
         let result = client.clone().fetch("/nonhal").await;
-        expect!(result).to(be_err().value(format!("Did not get a valid HAL response body from pact broker path \'/nonhal\' - EOF while parsing a value at line 1 column 0. URL: '{}'",
-            pact_broker.url())));
+        pretty_assertions::assert_eq!(
+          format!("Error with the content of a HAL resource - Did not get a valid HAL response body from pact broker path \'/nonhal\' - error decoding response body: EOF while parsing a value at line 1 column 0. URL: '{}'",
+            pact_broker.url()), result.unwrap_err().to_string());
 
         let result = client.clone().fetch("/nonhal2").await;
-        expect!(result).to(be_err().value(format!("Did not get a valid HAL response body from pact broker path \'/nonhal2\' - expected value at line 1 column 1. URL: '{}'",
-            pact_broker.url())));
+        pretty_assertions::assert_eq!(
+          format!("Error with the content of a HAL resource - Did not get a valid HAL response body from pact broker path \'/nonhal2\' - error decoding response body: expected value at line 1 column 1. URL: '{}'",
+            pact_broker.url()), result.unwrap_err().to_string());
     }
 
   #[test_log::test(tokio::test)]
@@ -1869,6 +1866,7 @@ mod tests {
             "providerVersionBranch": like!("main")
           }));
         i.response
+          .header("Content-Type", "application/json")
           .json_body(json_pattern!({
               "_embedded": {
                 "pacts": []
@@ -2301,7 +2299,9 @@ mod tests {
           .path("/pacticipants/Pact%20Broker/branches/feat%2F1234/versions/1234")
           .json_body(json!({}));
         i.response
-          .status(200);
+          .status(200)
+          .content_type("application/json")
+          .json_body(json!({}));
         i
       })
       .await

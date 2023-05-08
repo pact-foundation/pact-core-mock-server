@@ -2232,6 +2232,7 @@ dependencies = [
  "pact_consumer",
  "pact_matching",
  "pact_models 1.0.13",
+ "pretty_assertions",
  "quickcheck",
  "regex",
  "reqwest",
