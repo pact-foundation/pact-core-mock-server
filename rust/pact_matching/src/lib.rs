@@ -348,6 +348,7 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fmt::{Debug, Display};
 use std::fmt::Formatter;
 use std::hash::Hash;
+use std::panic::RefUnwindSafe;
 use std::str;
 use std::str::from_utf8;
 
@@ -1393,8 +1394,8 @@ pub async fn match_body(
 pub async fn match_request<'a>(
   expected: HttpRequest,
   actual: HttpRequest,
-  pact: &Box<dyn Pact + Send + Sync + 'a>,
-  interaction: &Box<dyn Interaction + Send + Sync>
+  pact: &Box<dyn Pact + Send + Sync + RefUnwindSafe + 'a>,
+  interaction: &Box<dyn Interaction + Send + Sync + RefUnwindSafe>
 ) -> RequestMatchResult {
   info!("comparing to expected {}", expected);
   debug!("     body: '{}'", expected.body.display_string());
@@ -1455,8 +1456,8 @@ pub fn match_status(expected: u16, actual: u16, context: &dyn MatchingContext) -
 pub async fn match_response<'a>(
   expected: HttpResponse,
   actual: HttpResponse,
-  pact: &Box<dyn Pact + Send + Sync + 'a>,
-  interaction: &Box<dyn Interaction + Send + Sync>
+  pact: &Box<dyn Pact + Send + Sync + RefUnwindSafe + 'a>,
+  interaction: &Box<dyn Interaction + Send + Sync + RefUnwindSafe>
 ) -> Vec<Mismatch> {
   let mut mismatches = vec![];
 
@@ -1488,8 +1489,8 @@ pub async fn match_response<'a>(
 }
 
 fn setup_plugin_config<'a>(
-  pact: &Box<dyn Pact + Send + Sync + 'a>,
-  interaction: &Box<dyn Interaction + Send + Sync>
+  pact: &Box<dyn Pact + Send + Sync + RefUnwindSafe + 'a>,
+  interaction: &Box<dyn Interaction + Send + Sync + RefUnwindSafe>
 ) -> HashMap<String, PluginInteractionConfig> {
   pact.plugin_data().iter().map(|data| {
     let interaction_config = if let Some(v4_interaction) = interaction.as_v4() {
@@ -1608,9 +1609,9 @@ fn match_metadata_value(
 
 /// Matches the actual and expected messages.
 pub async fn match_message<'a>(
-  expected: &Box<dyn Interaction + Send + Sync>,
-  actual: &Box<dyn Interaction + Send + Sync>,
-  pact: &Box<dyn Pact + Send + Sync + 'a>) -> Vec<Mismatch> {
+  expected: &Box<dyn Interaction + Send + Sync + RefUnwindSafe>,
+  actual: &Box<dyn Interaction + Send + Sync + RefUnwindSafe>,
+  pact: &Box<dyn Pact + Send + Sync + RefUnwindSafe + 'a>) -> Vec<Mismatch> {
   let mut mismatches = vec![];
 
   if expected.is_message() && actual.is_message() {
@@ -1657,7 +1658,7 @@ pub async fn match_message<'a>(
 }
 
 /// Matches synchronous request/response messages
-pub async fn match_sync_message<'a>(expected: SynchronousMessage, actual: SynchronousMessage, pact: &Box<dyn Pact + Send + Sync + 'a>) -> Vec<Mismatch> {
+pub async fn match_sync_message<'a>(expected: SynchronousMessage, actual: SynchronousMessage, pact: &Box<dyn Pact + Send + Sync + RefUnwindSafe + 'a>) -> Vec<Mismatch> {
   let mut mismatches = match_sync_message_request(&expected, &actual, pact).await;
   let response_result = match_sync_message_response(&expected, &expected.response, &actual.response, pact).await;
   mismatches.extend_from_slice(&*response_result);
@@ -1668,7 +1669,7 @@ pub async fn match_sync_message<'a>(expected: SynchronousMessage, actual: Synchr
 pub async fn match_sync_message_request<'a>(
   expected: &SynchronousMessage,
   actual: &SynchronousMessage,
-  pact: &Box<dyn Pact + Send + Sync + 'a>
+  pact: &Box<dyn Pact + Send + Sync + RefUnwindSafe + 'a>
 ) -> Vec<Mismatch> {
   info!("comparing to expected message request: {:?}", expected);
 
@@ -1700,7 +1701,7 @@ pub async fn match_sync_message_response<'a>(
   expected: &SynchronousMessage,
   expected_responses: &[MessageContents],
   actual_responses: &[MessageContents],
-  pact: &Box<dyn Pact + Send + Sync + 'a>
+  pact: &Box<dyn Pact + Send + Sync + RefUnwindSafe + 'a>
 ) -> Vec<Mismatch> {
   info!("comparing to expected message responses: {:?}", expected_responses);
 
@@ -1861,9 +1862,9 @@ pub async fn generate_response(response: &HttpResponse, mode: &GeneratorTestMode
 
 /// Matches the request part of the interaction
 pub async fn match_interaction_request(
-  expected: Box<dyn Interaction + Send + Sync>,
-  actual: Box<dyn Interaction + Send + Sync>,
-  pact: Box<dyn Pact + Send + Sync>,
+  expected: Box<dyn Interaction + Send + Sync + RefUnwindSafe>,
+  actual: Box<dyn Interaction + Send + Sync + RefUnwindSafe>,
+  pact: Box<dyn Pact + Send + Sync + RefUnwindSafe>,
   _spec_version: &PactSpecification
 ) -> anyhow::Result<RequestMatchResult> {
   if let Some(http_interaction) = expected.as_v4_http() {
@@ -1877,9 +1878,9 @@ pub async fn match_interaction_request(
 
 /// Matches the response part of the interaction
 pub async fn match_interaction_response(
-  expected: Box<dyn Interaction + Sync>,
-  actual: Box<dyn Interaction + Sync>,
-  pact: Box<dyn Pact + Send + Sync>,
+  expected: Box<dyn Interaction + Sync + RefUnwindSafe>,
+  actual: Box<dyn Interaction + Sync + RefUnwindSafe>,
+  pact: Box<dyn Pact + Send + Sync + RefUnwindSafe>,
   _spec_version: &PactSpecification
 ) -> anyhow::Result<Vec<Mismatch>> {
   if let Some(expected) = expected.as_v4_http() {
@@ -1895,9 +1896,9 @@ pub async fn match_interaction_response(
 
 /// Matches an interaction
 pub async fn match_interaction(
-  expected: Box<dyn Interaction + Send + Sync>,
-  actual: Box<dyn Interaction + Send + Sync>,
-  pact: Box<dyn Pact + Send + Sync>,
+  expected: Box<dyn Interaction + Send + Sync + RefUnwindSafe>,
+  actual: Box<dyn Interaction + Send + Sync + RefUnwindSafe>,
+  pact: Box<dyn Pact + Send + Sync + RefUnwindSafe>,
   _spec_version: &PactSpecification
 ) -> anyhow::Result<Vec<Mismatch>> {
   if let Some(expected) = expected.as_v4_http() {

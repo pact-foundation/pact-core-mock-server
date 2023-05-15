@@ -1,3 +1,4 @@
+use std::panic::RefUnwindSafe;
 use std::path::PathBuf;
 
 use pact_models::{Consumer, Provider};
@@ -154,7 +155,7 @@ impl PactBuilder {
     }
 
   /// Return the `Pact` we've built.
-  pub fn build(&self) -> Box<dyn Pact + Send + Sync> {
+  pub fn build(&self) -> Box<dyn Pact + Send + Sync + RefUnwindSafe> {
     trace!("Building Pact -> {:?}", self.pact);
     self.pact.boxed()
   }

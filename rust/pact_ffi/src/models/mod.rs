@@ -1,5 +1,6 @@
 //! FFI functions to support Pact models.
 
+use std::panic::RefUnwindSafe;
 use std::sync::Mutex;
 
 use libc::c_char;
@@ -108,12 +109,12 @@ ffi_fn! {
 /// Opaque type for use as a pointer to a Pact interaction model
 #[derive(Debug)]
 pub struct PactInteraction {
-  inner: Mutex<Box<dyn pact_models::interaction::Interaction + Send + Sync>>
+  inner: Mutex<Box<dyn pact_models::interaction::Interaction + Send + Sync + RefUnwindSafe>>
 }
 
 impl PactInteraction {
   /// Create a new FFI Pact interaction wrapper for the given Pact interaction model
-  pub fn new(interaction: &Box<dyn pact_models::interaction::Interaction + Send + Sync>) -> Self {
+  pub fn new(interaction: &Box<dyn pact_models::interaction::Interaction + Send + Sync + RefUnwindSafe>) -> Self {
     PactInteraction {
       inner: Mutex::new(interaction.boxed())
     }

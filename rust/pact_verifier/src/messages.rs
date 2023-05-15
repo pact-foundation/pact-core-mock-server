@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::panic::RefUnwindSafe;
 
 use ansi_term::{ANSIGenericString, Style};
 use ansi_term::Colour::*;
@@ -27,8 +28,8 @@ use crate::utils::as_safe_ref;
 
 pub(crate) async fn verify_message_from_provider<'a, F: RequestFilterExecutor>(
   provider: &ProviderInfo,
-  pact: &Box<dyn Pact + Send + Sync + 'a>,
-  interaction: &Box<dyn Interaction + Send + Sync>,
+  pact: &Box<dyn Pact + Send + Sync + RefUnwindSafe + 'a>,
+  interaction: &Box<dyn Interaction + Send + Sync + RefUnwindSafe>,
   options: &VerificationOptions<F>,
   client: &reqwest::Client,
   _: &HashMap<&str, Value>
@@ -270,7 +271,7 @@ fn extract_metadata(actual_response: &HttpResponse) -> HashMap<String, Value> {
 
 pub(crate) async fn verify_sync_message_from_provider<'a, F: RequestFilterExecutor>(
   provider: &ProviderInfo,
-  pact: &Box<dyn Pact + Send + Sync + 'a>,
+  pact: &Box<dyn Pact + Send + Sync + RefUnwindSafe + 'a>,
   message: SynchronousMessage,
   options: &VerificationOptions<F>,
   client: &reqwest::Client,

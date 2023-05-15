@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::ops::Not;
+use std::panic::RefUnwindSafe;
 use std::str::from_utf8;
 
 use anyhow::anyhow;
@@ -555,7 +556,7 @@ pub async fn fetch_pacts_from_broker(
   broker_url: &str,
   provider_name: &str,
   auth: Option<HttpAuth>
-) -> anyhow::Result<Vec<anyhow::Result<(Box<dyn Pact + Send + Sync>, Option<PactVerificationContext>, Vec<Link>)>>> {
+) -> anyhow::Result<Vec<anyhow::Result<(Box<dyn Pact + Send + Sync + RefUnwindSafe>, Option<PactVerificationContext>, Vec<Link>)>>> {
   trace!("fetch_pacts_from_broker(broker_url='{}', provider_name='{}', auth={})", broker_url,
     provider_name, auth.clone().unwrap_or_default());
 
@@ -626,7 +627,7 @@ pub async fn fetch_pacts_dynamically_from_broker(
   provider_branch: Option<String>,
   consumer_version_selectors: Vec<ConsumerVersionSelector>,
   auth: Option<HttpAuth>
-) -> anyhow::Result<Vec<Result<(Box<dyn Pact + Send + Sync>, Option<PactVerificationContext>, Vec<Link>), PactBrokerError>>> {
+) -> anyhow::Result<Vec<Result<(Box<dyn Pact + Send + Sync + RefUnwindSafe>, Option<PactVerificationContext>, Vec<Link>), PactBrokerError>>> {
   trace!("fetch_pacts_dynamically_from_broker(broker_url='{}', provider_name='{}', pending={}, \
     include_wip_pacts_since={:?}, provider_tags: {:?}, consumer_version_selectors: {:?}, auth={})",
     broker_url, provider_name, pending, include_wip_pacts_since, provider_tags,
@@ -752,7 +753,7 @@ pub async fn fetch_pacts_dynamically_from_broker(
 /// Fetch the Pact from the given URL, using any required authentication. This will use a GET
 /// request to the given URL and parse the result into a Pact model. It will also look for any HAL
 /// links in the response, returning those if found.
-pub async fn fetch_pact_from_url(url: &str, auth: &Option<HttpAuth>) -> anyhow::Result<(Box<dyn Pact + Send + Sync>, Vec<Link>)> {
+pub async fn fetch_pact_from_url(url: &str, auth: &Option<HttpAuth>) -> anyhow::Result<(Box<dyn Pact + Send + Sync + RefUnwindSafe>, Vec<Link>)> {
   let url = url.to_string();
   let auth = auth.clone();
   let (url, pact_json) = tokio::task::spawn_blocking(move || {

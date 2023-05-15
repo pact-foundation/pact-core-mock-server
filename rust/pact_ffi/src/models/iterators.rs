@@ -1,5 +1,6 @@
 //! FFI wrapper code for iterating over Pact interactions
 
+use std::panic::RefUnwindSafe;
 use pact_models::message::Message;
 use pact_models::message_pact::MessagePact;
 use pact_models::v4::pact::V4Pact;
@@ -201,7 +202,7 @@ pub struct PactInteractionIterator {
 
 impl PactInteractionIterator {
   /// Create a new iterator over all the interactions in the pact
-  pub fn new(pact: Box<dyn pact_models::pact::Pact + Send + Sync>) -> Self {
+  pub fn new(pact: Box<dyn pact_models::pact::Pact + Send + Sync + RefUnwindSafe>) -> Self {
     PactInteractionIterator {
       current: 0,
       interactions: pact.interactions().iter()

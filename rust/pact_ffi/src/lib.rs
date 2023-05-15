@@ -6,13 +6,11 @@
 #![warn(missing_copy_implementations)]
 
 use std::ffi::CStr;
+use std::panic::RefUnwindSafe;
 use std::str::FromStr;
-use lazy_static::lazy_static;
 
+use lazy_static::lazy_static;
 use libc::c_char;
-use pact_models::interaction::Interaction;
-use pact_models::pact::Pact;
-use pact_models::v4::pact::V4Pact;
 use tracing::{debug, error, info, trace, warn};
 use tracing_core::Level;
 use tracing_log::AsLog;
@@ -21,6 +19,9 @@ use tracing_subscriber::FmtSubscriber;
 use models::message::Message;
 use pact_matching as pm;
 pub use pact_matching::Mismatch;
+use pact_models::interaction::Interaction;
+use pact_models::pact::Pact;
+use pact_models::v4::pact::V4Pact;
 
 use crate::util::*;
 
@@ -181,8 +182,8 @@ ffi_fn! {
     /// Match a pair of messages, producing a collection of mismatches,
     /// which is empty if the two messages matched.
     fn pactffi_match_message(msg_1: *const Message, msg_2: *const Message) -> *const Mismatches {
-        let msg_1: Box<dyn Interaction + Send + Sync> = unsafe { Box::from_raw(msg_1 as *mut Message) };
-        let msg_2: Box<dyn Interaction + Send + Sync> = unsafe { Box::from_raw(msg_2 as *mut Message) };
+        let msg_1: Box<dyn Interaction + Send + Sync + RefUnwindSafe> = unsafe { Box::from_raw(msg_1 as *mut Message) };
+        let msg_2: Box<dyn Interaction + Send + Sync + RefUnwindSafe> = unsafe { Box::from_raw(msg_2 as *mut Message) };
 
         let mismatches = RUNTIME.block_on(async move {
             // TODO: match_message also requires the Pact that the messages belong to

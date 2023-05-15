@@ -318,7 +318,7 @@ impl Clone for MismatchResult {
 async fn verify_response_from_provider<F: RequestFilterExecutor>(
   provider: &ProviderInfo,
   interaction: &SynchronousHttp,
-  pact: &Box<dyn Pact + Send + Sync>,
+  pact: &Box<dyn Pact + Send + Sync + RefUnwindSafe>,
   options: &VerificationOptions<F>,
   client: &Client,
   verification_context: &HashMap<&str, Value>
@@ -389,8 +389,8 @@ async fn execute_state_change<S: ProviderStateExecutor>(
 #[tracing::instrument(level = "trace")]
 async fn verify_interaction<'a, F: RequestFilterExecutor, S: ProviderStateExecutor>(
   provider: &ProviderInfo,
-  interaction: &(dyn Interaction + Send + Sync),
-  pact: &Box<dyn Pact + Send + Sync + 'a>,
+  interaction: &(dyn Interaction + Send + Sync + RefUnwindSafe),
+  pact: &Box<dyn Pact + Send + Sync + RefUnwindSafe + 'a>,
   options: &VerificationOptions<F>,
   provider_state_executor: &Arc<S>
 ) -> Result<(Option<String>, Vec<String>, Duration), (MismatchResult, Vec<String>, Duration)> {
@@ -447,8 +447,8 @@ async fn verify_interaction<'a, F: RequestFilterExecutor, S: ProviderStateExecut
 async fn verify_interaction_using_transport<'a, F: RequestFilterExecutor>(
   transport_entry: &CatalogueEntry,
   provider: &ProviderInfo,
-  interaction: &(dyn Interaction + Send + Sync),
-  pact: &Box<dyn Pact + Send + Sync + 'a>,
+  interaction: &(dyn Interaction + Send + Sync + RefUnwindSafe),
+  pact: &Box<dyn Pact + Send + Sync + RefUnwindSafe + 'a>,
   options: &VerificationOptions<F>,
   client: &Arc<Client>,
   config: &HashMap<&str, Value>
@@ -553,8 +553,8 @@ async fn verify_interaction_using_transport<'a, F: RequestFilterExecutor>(
 /// Previous implementation (V3) of verification
 async fn verify_v3_interaction<'a, F: RequestFilterExecutor>(
   provider: &ProviderInfo,
-  interaction: &(dyn Interaction + Send + Sync),
-  pact: &Box<dyn Pact + Send + Sync + 'a>,
+  interaction: &(dyn Interaction + Send + Sync + RefUnwindSafe),
+  pact: &Box<dyn Pact + Send + Sync + RefUnwindSafe + 'a>,
   options: &VerificationOptions<F>,
   client: &Arc<Client>,
   provider_states_context: &HashMap<&str, Value>
@@ -586,7 +586,7 @@ async fn verify_v3_interaction<'a, F: RequestFilterExecutor>(
 /// Executes the provider states, returning a map of the results
 #[instrument(ret, skip_all, fields(?interaction, is_setup), level = "trace")]
 async fn execute_provider_states<S: ProviderStateExecutor>(
-  interaction: &(dyn Interaction + Send + Sync),
+  interaction: &(dyn Interaction + Send + Sync + RefUnwindSafe),
   provider_state_executor: &Arc<S>,
   client: &Arc<Client>,
   is_setup: bool
@@ -701,7 +701,7 @@ fn generate_display_for_result(
 fn walkdir(
   dir: &Path,
   provider: &ProviderInfo
-) -> anyhow::Result<Vec<anyhow::Result<(Box<dyn Pact + Send + Sync>, Duration)>>> {
+) -> anyhow::Result<Vec<anyhow::Result<(Box<dyn Pact + Send + Sync + RefUnwindSafe>, Duration)>>> {
     let mut pacts = vec![];
     debug!("Scanning {:?}", dir);
     for entry in fs::read_dir(dir)? {
@@ -830,7 +830,7 @@ fn filter_interaction(interaction: &dyn Interaction, filter: &FilterInfo) -> boo
 
 fn filter_consumers(
   consumers: &[String],
-  res: &anyhow::Result<(Box<dyn Pact + Send + Sync>, Option<PactVerificationContext>, PactSource, Duration)>
+  res: &anyhow::Result<(Box<dyn Pact + Send + Sync + RefUnwindSafe>, Option<PactVerificationContext>, PactSource, Duration)>
 ) -> bool {
   consumers.is_empty() || res.is_err() || consumers.contains(&res.as_ref().unwrap().0.consumer().name)
 }
@@ -1166,7 +1166,7 @@ pub fn interaction_mismatch_output(
 async fn fetch_pact(
   source: PactSource,
   provider: &ProviderInfo
-) -> Vec<anyhow::Result<(Box<dyn Pact + Send + Sync>, Option<PactVerificationContext>, PactSource, Duration)>> {
+) -> Vec<anyhow::Result<(Box<dyn Pact + Send + Sync + RefUnwindSafe>, Option<PactVerificationContext>, PactSource, Duration)>> {
   trace!("fetch_pact(source={})", source);
 
   match &source {
@@ -1310,7 +1310,7 @@ async fn fetch_pacts(
   source: Vec<PactSource>,
   consumers: Vec<String>,
   provider: &ProviderInfo
-) -> Vec<anyhow::Result<(Box<dyn Pact + Send + Sync>, Option<PactVerificationContext>, PactSource, Duration)>> {
+) -> Vec<anyhow::Result<(Box<dyn Pact + Send + Sync + RefUnwindSafe>, Option<PactVerificationContext>, PactSource, Duration)>> {
   trace!("fetch_pacts(source={}, consumers={:?})", source.iter().map(|s| s.to_string()).join(", "), consumers);
 
   futures::stream::iter(source)
@@ -1328,7 +1328,7 @@ async fn fetch_pacts(
 pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderStateExecutor>(
   provider_info: &ProviderInfo,
   filter: &FilterInfo,
-  pact: Box<dyn Pact + Send + Sync + 'a>,
+  pact: Box<dyn Pact + Send + Sync + RefUnwindSafe + 'a>,
   options: &VerificationOptions<F>,
   provider_state_executor: &Arc<S>,
   pending: bool,
@@ -1337,7 +1337,7 @@ pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderState
   let interactions = pact.interactions();
   let mut output = vec![];
 
-  let results: Vec<(Box<dyn Interaction + Send + Sync>, Result<(Option<String>, Vec<String>, Duration), (MismatchResult, Vec<String>, Duration)>)> =
+  let results: Vec<(Box<dyn Interaction + Send + Sync + RefUnwindSafe>, Result<(Option<String>, Vec<String>, Duration), (MismatchResult, Vec<String>, Duration)>)> =
     futures::stream::iter(interactions.iter().map(|i| (&pact, i)))
     .filter(|(_, interaction)| futures::future::ready(filter_interaction(interaction.as_ref(), filter)))
     .then( |(pact, interaction)| async move {

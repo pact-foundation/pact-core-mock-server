@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::panic::RefUnwindSafe;
 
 use anyhow::anyhow;
 use pact_models::generators::GeneratorTestMode;
@@ -12,9 +13,9 @@ use pact_matching::{generate_request, match_request};
 /// `expected`, and raise an error if anything fails.
 pub(crate) fn check_requests_match(
     actual_label: &str,
-    actual: &Box<dyn Pact + Send + Sync>,
+    actual: &Box<dyn Pact + Send + Sync + RefUnwindSafe>,
     expected_label: &str,
-    expected: &Box<dyn Pact + Send + Sync>,
+    expected: &Box<dyn Pact + Send + Sync + RefUnwindSafe>,
     context: &HashMap<&str, Value>
 ) -> anyhow::Result<()> {
     // First make sure we have the same number of interactions.

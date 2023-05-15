@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::env;
-use std::panic::catch_unwind;
+use std::panic::{catch_unwind, RefUnwindSafe};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -119,7 +119,7 @@ fn if_a_consumer_filter_is_defined_returns_false_if_the_consumer_name_does_not_m
   let result = Ok((
     Box::new(RequestResponsePact {
       consumer: Consumer { name: "bob".to_string() }, .. RequestResponsePact::default()
-    }) as Box<dyn Pact + Send + Sync>,
+    }) as Box<dyn Pact + Send + Sync + RefUnwindSafe>,
     None,
     PactSource::Unknown,
     Duration::default()
@@ -140,7 +140,7 @@ fn if_a_consumer_filter_is_defined_returns_true_if_the_consumer_name_does_match(
   let result = Ok((
     Box::new(RequestResponsePact {
       consumer: Consumer { name: "bob".to_string() }, .. RequestResponsePact::default()
-    }) as Box<dyn Pact + Send + Sync>,
+    }) as Box<dyn Pact + Send + Sync + RefUnwindSafe>,
     None,
     PactSource::Unknown,
     Duration::default()

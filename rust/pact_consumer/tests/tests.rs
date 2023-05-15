@@ -91,7 +91,7 @@ async fn mock_server_passing_validation() -> anyhow::Result<()> {
     },
     transport: Some("http".to_string()),
     ..SynchronousHttp::default()
-  }.with_key();
+  };
   pretty_assertions::assert_eq!(pact.interactions.first().unwrap().as_v4_http().unwrap(),
     expected);
 
