@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.1.2 - Removed auto-generated keys and updates all trait methods so they can be used in an FFI context
+
+* f8f0e773 - fix: Add RefUnwindSafe trait bound to all Pact and Interaction trait methods so they can be used in an FFI context (Ronald Holshausen, Mon May 15 12:37:16 2023 +1000)
+* cf55b3c5 - fix: do not auto-generate the interaction key if not set #264 (Ronald Holshausen, Mon May 8 11:10:20 2023 +1000)
+* 5eed834a - feat: Update date validation to check for leap years (Ronald Holshausen, Tue May 2 14:22:10 2023 +1000)
+* 1a33368f - bump version to 1.0.14 (Ronald Holshausen, Tue Apr 18 12:51:22 2023 +1000)
+
 # 1.0.13 - Maintenance Release
 
 * 473d3167 - chore: remove dbg statements (Ronald Holshausen, Mon Apr 17 11:52:12 2023 +1000)
