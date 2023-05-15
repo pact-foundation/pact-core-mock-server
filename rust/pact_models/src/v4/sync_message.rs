@@ -4,6 +4,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
+use std::panic::RefUnwindSafe;
 use std::sync::{Arc, Mutex};
 
 use anyhow::anyhow;
@@ -194,7 +195,7 @@ impl V4Interaction for SynchronousMessage {
     json
   }
 
-  fn to_super(&self) -> &(dyn Interaction + Send + Sync) {
+  fn to_super(&self) -> &(dyn Interaction + Send + Sync + RefUnwindSafe) {
     self
   }
 
@@ -206,7 +207,7 @@ impl V4Interaction for SynchronousMessage {
     self.key.clone()
   }
 
-  fn boxed_v4(&self) -> Box<dyn V4Interaction + Send + Sync> {
+  fn boxed_v4(&self) -> Box<dyn V4Interaction + Send + Sync + RefUnwindSafe> {
     Box::new(self.clone())
   }
 
@@ -246,7 +247,7 @@ impl V4Interaction for SynchronousMessage {
     self.transport = transport.clone();
   }
 
-  fn with_unique_key(&self) -> Box<dyn V4Interaction + Send + Sync> {
+  fn with_unique_key(&self) -> Box<dyn V4Interaction + Send + Sync + RefUnwindSafe> {
     Box::new(self.with_key())
   }
 
@@ -319,7 +320,7 @@ impl Interaction for SynchronousMessage {
     true
   }
 
-  fn as_v4(&self) -> Option<Box<dyn V4Interaction + Send + Sync>> {
+  fn as_v4(&self) -> Option<Box<dyn V4Interaction + Send + Sync + RefUnwindSafe>> {
     Some(self.boxed_v4())
   }
 
@@ -355,15 +356,15 @@ impl Interaction for SynchronousMessage {
     Some(self)
   }
 
-  fn boxed(&self) -> Box<dyn Interaction + Send + Sync> {
+  fn boxed(&self) -> Box<dyn Interaction + Send + Sync + RefUnwindSafe> {
     Box::new(self.clone())
   }
 
-  fn arced(&self) -> Arc<dyn Interaction + Send + Sync> {
+  fn arced(&self) -> Arc<dyn Interaction + Send + Sync + RefUnwindSafe> {
     Arc::new(self.clone())
   }
 
-  fn thread_safe(&self) -> Arc<Mutex<dyn Interaction + Send + Sync>> {
+  fn thread_safe(&self) -> Arc<Mutex<dyn Interaction + Send + Sync + RefUnwindSafe>> {
     Arc::new(Mutex::new(self.clone()))
   }
 

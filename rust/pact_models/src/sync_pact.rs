@@ -2,6 +2,7 @@
 
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap};
+use std::panic::RefUnwindSafe;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
@@ -49,7 +50,7 @@ impl Pact for RequestResponsePact {
     self.provider.clone()
   }
 
-  fn interactions(&self) -> Vec<Box<dyn Interaction + Send + Sync>> {
+  fn interactions(&self) -> Vec<Box<dyn Interaction + Send + Sync + RefUnwindSafe>> {
     self.interactions.iter().map(|i| i.boxed()).collect()
   }
 
@@ -101,15 +102,15 @@ impl Pact for RequestResponsePact {
     self.specification_version.clone()
   }
 
-  fn boxed(&self) -> Box<dyn Pact + Send + Sync> {
+  fn boxed(&self) -> Box<dyn Pact + Send + Sync + RefUnwindSafe> {
     Box::new(self.clone())
   }
 
-  fn arced(&self) -> Arc<dyn Pact + Send + Sync> {
+  fn arced(&self) -> Arc<dyn Pact + Send + Sync + RefUnwindSafe> {
     Arc::new(self.clone())
   }
 
-  fn thread_safe(&self) -> Arc<Mutex<dyn Pact + Send + Sync>> {
+  fn thread_safe(&self) -> Arc<Mutex<dyn Pact + Send + Sync + RefUnwindSafe>> {
     Arc::new(Mutex::new(self.clone()))
   }
 
@@ -280,7 +281,7 @@ impl ReadWritePact for RequestResponsePact {
     })
   }
 
-  fn merge(&self, pact: &dyn Pact) -> anyhow::Result<Box<dyn Pact + Send + Sync>> {
+  fn merge(&self, pact: &dyn Pact) -> anyhow::Result<Box<dyn Pact + Send + Sync + RefUnwindSafe>> {
     if self.consumer.name == pact.consumer().name && self.provider.name == pact.provider().name {
       let conflicts = CartesianProductIterator::new(&self.interactions, &pact.interactions())
         .map(|(i1, i2)| i1.conflicts_with(i2.as_ref()))

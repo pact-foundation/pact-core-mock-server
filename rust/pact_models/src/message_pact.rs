@@ -6,6 +6,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::fs::File;
 use std::io::prelude::*;
+use std::panic::RefUnwindSafe;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
@@ -54,7 +55,7 @@ impl Pact for MessagePact {
     self.provider.clone()
   }
 
-  fn interactions(&self) -> Vec<Box<dyn Interaction + Send + Sync>> {
+  fn interactions(&self) -> Vec<Box<dyn Interaction + Send + Sync + RefUnwindSafe>> {
     self.messages.iter().map(|i| i.boxed()).collect()
   }
 
@@ -108,15 +109,15 @@ impl Pact for MessagePact {
     self.specification_version.clone()
   }
 
-  fn boxed(&self) -> Box<dyn Pact + Send + Sync> {
+  fn boxed(&self) -> Box<dyn Pact + Send + Sync + RefUnwindSafe> {
     Box::new(self.clone())
   }
 
-  fn arced(&self) -> Arc<dyn Pact + Send + Sync> {
+  fn arced(&self) -> Arc<dyn Pact + Send + Sync + RefUnwindSafe> {
     Arc::new(self.clone())
   }
 
-  fn thread_safe(&self) -> Arc<Mutex<dyn Pact + Send + Sync>> {
+  fn thread_safe(&self) -> Arc<Mutex<dyn Pact + Send + Sync + RefUnwindSafe>> {
     Arc::new(Mutex::new(self.clone()))
   }
 
@@ -302,7 +303,7 @@ impl ReadWritePact for MessagePact {
     })
   }
 
-  fn merge(&self, pact: &dyn Pact) -> anyhow::Result<Box<dyn Pact + Send + Sync>> {
+  fn merge(&self, pact: &dyn Pact) -> anyhow::Result<Box<dyn Pact + Send + Sync + RefUnwindSafe>> {
     if self.consumer.name == pact.consumer().name && self.provider.name == pact.provider().name {
       let messages: Vec<Result<Message, String>> = self.messages.iter()
         .merge_join_by(pact.interactions().iter(), |a, b| {

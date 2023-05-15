@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::fmt;
+use std::panic::RefUnwindSafe;
 use std::str::FromStr;
 
 use anyhow::anyhow;
@@ -81,7 +82,7 @@ pub trait V4Interaction: Interaction + Send + Sync {
   fn to_json(&self) -> Value;
 
   /// Convert the interaction to its super trait
-  fn to_super(&self) -> &(dyn Interaction + Send + Sync);
+  fn to_super(&self) -> &(dyn Interaction + Send + Sync + RefUnwindSafe);
 
   /// Convert the interaction to its super trait
   fn to_super_mut(&mut self) -> &mut (dyn Interaction + Send + Sync);
@@ -90,7 +91,7 @@ pub trait V4Interaction: Interaction + Send + Sync {
   fn key(&self) -> Option<String>;
 
   /// Clones this interaction and wraps it in a box
-  fn boxed_v4(&self) -> Box<dyn V4Interaction + Send + Sync>;
+  fn boxed_v4(&self) -> Box<dyn V4Interaction + Send + Sync + RefUnwindSafe>;
 
   /// Annotations and comments associated with this interaction
   fn comments(&self) -> HashMap<String, Value>;
@@ -120,7 +121,7 @@ pub trait V4Interaction: Interaction + Send + Sync {
   fn set_transport(&mut self, transport: Option<String>);
 
   /// Creates a new version with a calculated key
-  fn with_unique_key(&self) -> Box<dyn V4Interaction + Send + Sync>;
+  fn with_unique_key(&self) -> Box<dyn V4Interaction + Send + Sync + RefUnwindSafe>;
 
   /// Returns the current key if set, otherwise calculates a new one
   fn unique_key(&self) -> String;
@@ -140,7 +141,7 @@ impl Display for dyn V4Interaction {
   }
 }
 
-impl Clone for Box<dyn V4Interaction + Send + Sync> {
+impl Clone for Box<dyn V4Interaction + Send + Sync + RefUnwindSafe> {
   fn clone(&self) -> Self {
     if let Some(http) = self.as_v4_http() {
       Box::new(http)
@@ -154,7 +155,7 @@ impl Clone for Box<dyn V4Interaction + Send + Sync> {
   }
 }
 
-impl PartialEq for Box<dyn V4Interaction + Send + Sync> {
+impl PartialEq for Box<dyn V4Interaction + Send + Sync + RefUnwindSafe> {
   fn eq(&self, other: &Self) -> bool {
     if let Some(http) = self.as_v4_http() {
       if let Some(other) = other.as_v4_http() {
@@ -181,7 +182,7 @@ impl PartialEq for Box<dyn V4Interaction + Send + Sync> {
 }
 
 /// Load V4 format interactions from JSON struct
-pub fn interactions_from_json(json: &Value, source: &str) -> Vec<Box<dyn V4Interaction + Send + Sync>> {
+pub fn interactions_from_json(json: &Value, source: &str) -> Vec<Box<dyn V4Interaction + Send + Sync + RefUnwindSafe>> {
   match json.get("interactions") {
     Some(Value::Array(ref array)) => {
       array.iter().enumerate().map(|(index, ijson)| {
@@ -194,7 +195,7 @@ pub fn interactions_from_json(json: &Value, source: &str) -> Vec<Box<dyn V4Inter
 }
 
 /// Create an interaction from a JSON struct
-pub fn interaction_from_json(source: &str, index: usize, ijson: &Value) -> anyhow::Result<Box<dyn V4Interaction + Send + Sync>> {
+pub fn interaction_from_json(source: &str, index: usize, ijson: &Value) -> anyhow::Result<Box<dyn V4Interaction + Send + Sync + RefUnwindSafe>> {
   match ijson.get("type") {
     Some(i_type) => match FromStr::from_str(json_to_string(i_type).as_str()) {
       Ok(i_type) => {
