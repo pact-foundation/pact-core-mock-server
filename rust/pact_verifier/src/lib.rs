@@ -66,7 +66,7 @@ use crate::verification_result::{
   VerificationResult
 };
 
-mod provider_client;
+pub mod provider_client;
 pub mod pact_broker;
 pub mod callback_executors;
 mod request_response;

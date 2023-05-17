@@ -1,3 +1,7 @@
+//! Module for building HTTP requests required by the verifier. Note that this is an internal
+//! module made public for testing purposes, and there are no guarantees that the structures
+//! and functions won't change.
+
 use std::collections::hash_map::HashMap;
 use std::convert::TryFrom;
 use std::fmt;
@@ -24,12 +28,19 @@ use crate::utils::with_retries;
 
 #[derive(Debug)]
 #[allow(dead_code)]
+/// Error returned by the provider client
 pub enum ProviderClientError {
+    /// Invalid HTTP method
     RequestMethodError(String, InvalidMethod),
+    /// Inavlid header name
     RequestHeaderNameError(String, InvalidHeaderName),
+    /// Invalid header value
     RequestHeaderValueError(String, InvalidHeaderValue),
+    /// Error ocurred with the request body
     RequestBodyError(String),
+    /// Error dealing with the response
     ResponseError(String),
+    /// Response status was an error
     ResponseStatusCodeError(u16),
 }
 
@@ -60,6 +71,7 @@ impl Display for ProviderClientError {
 
 impl std::error::Error for ProviderClientError {}
 
+/// Joins a path to a base path, taking into account trailing slashes
 pub fn join_paths(base: &str, path: &str) -> String {
   if !path.is_empty() && path != "/" {
     let mut full_path = base.trim_end_matches('/').to_string();
