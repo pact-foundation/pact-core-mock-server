@@ -1924,6 +1924,7 @@ dependencies = [
  "pact_models 1.1.2",
  "pact_verifier",
  "panic-message",
+ "pretty_assertions",
  "quickcheck",
  "rand",
  "rand_regex",

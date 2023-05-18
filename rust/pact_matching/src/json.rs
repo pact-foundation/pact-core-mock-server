@@ -138,7 +138,8 @@ impl Matches<&Value> for Value {
         if self == actual {
           Ok(())
         } else {
-          Err(anyhow!("Expected '{}' to be equal to '{}'", json_to_string(self), json_to_string(actual)))
+          Err(anyhow!("Expected '{}' ({}) but received '{}' ({})",
+            json_to_string(self), type_of(self), json_to_string(actual), type_of(actual)))
         }
       },
       MatchingRule::Null => match actual {
@@ -563,12 +564,12 @@ mod tests {
     expect!(result).to(be_ok());
 
     let result = match_json(&val1.clone(), &val2.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
-    expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected 'string value' to be equal to 'other value'")));
+    expect!(mismatch_message(&result).as_str()).to(be_equal_to("Expected 'string value' (String) but received 'other value' (String)"));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch {
-      path: s!("$"),
+      path: "$".to_string(),
       expected: val1.body.value(),
       actual: val2.body.value(),
-      mismatch: s!("")
+      mismatch: "".to_string()
     } ]));
   }
 
@@ -580,12 +581,12 @@ mod tests {
     expect!(result).to(be_ok());
 
     let result = match_json(&val1.clone(), &val2.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
-    expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected '100' to be equal to '200'")));
+    expect!(mismatch_message(&result).as_str()).to(be_equal_to("Expected '100' (Number) but received '200' (Number)"));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch {
-      path: s!("$"),
+      path: "$".to_string(),
       expected: val1.body.value(),
       actual: val2.body.value(),
-      mismatch: s!("")
+      mismatch: "".to_string()
     } ]));
   }
 
@@ -597,12 +598,12 @@ mod tests {
     expect!(result).to(be_ok());
 
     let result = match_json(&val1.clone(), &val2.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
-    expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected '100.01' to be equal to '100.02'")));
+    expect!(mismatch_message(&result).as_str()).to(be_equal_to("Expected '100.01' (Number) but received '100.02' (Number)"));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch {
-      path: s!("$"),
+      path: "$".to_string(),
       expected: val1.body.value(),
       actual: val2.body.value(),
-      mismatch: s!("")
+      mismatch: "".to_string()
     } ]));
   }
 
@@ -614,12 +615,12 @@ mod tests {
     expect!(result).to(be_ok());
 
     let result = match_json(&val1.clone(), &val2.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
-    expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected 'true' to be equal to 'false'")));
+    expect!(mismatch_message(&result).as_str()).to(be_equal_to("Expected 'true' (Boolean) but received 'false' (Boolean)"));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch {
-      path: s!("$"),
+      path: "$".to_string(),
       expected: val1.body.value(),
       actual: val2.body.value(),
-      mismatch: s!("")
+      mismatch: "".to_string()
     } ]));
   }
 
@@ -631,12 +632,12 @@ mod tests {
     expect!(result).to(be_ok());
 
     let result = match_json(&val1.clone(), &val2.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
-    expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected '' to be equal to '33'")));
+    expect!(mismatch_message(&result).as_str()).to(be_equal_to("Expected '' (Null) but received '33' (Number)"));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch {
-      path: s!("$"),
+      path: "$".to_string(),
       expected: val1.clone().body.value(),
       actual: val2.clone().body.value(),
-      mismatch: s!("")
+      mismatch: "".to_string()
     } ]));
   }
 
@@ -661,7 +662,7 @@ mod tests {
     expect!(result).to(be_err());
 
     let result = match_json(&val2.clone(), &val3.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
-    expect!(mismatch_message(&result)).to(be_equal_to("Expected '22' to be equal to '44'".to_string()));
+    expect!(mismatch_message(&result)).to(be_equal_to("Expected '22' (Number) but received '44' (Number)".to_string()));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch { path: "$[1]".to_string(),
         expected: Some("22".into()), actual: Some("44".into()), mismatch: "".to_string() } ]));
 
@@ -678,7 +679,7 @@ mod tests {
     expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: "$[1]".to_string(),
         expected: Some("22".into()),
         actual: Some("44".into()), mismatch: "".to_string()}));
-    expect!(mismatch.description()).to(be_equal_to("$[1] -> Expected '22' to be equal to '44'".to_string()));
+    expect!(mismatch.description()).to(be_equal_to("$[1] -> Expected '22' (Number) but received '44' (Number)".to_string()));
     let mismatch = mismatches[1].clone();
     expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: "$".to_string(),
         expected: Some("[11,22,33]".into()),
@@ -713,12 +714,12 @@ mod tests {
     expect!(result).to(be_ok());
 
     let result = match_json(&val1.clone(), &val2.clone(), &CoreMatchingContext::with_config(DiffConfig::NoUnexpectedKeys));
-    expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected an empty Map but received {\"a\":1,\"b\":2}")));
+    expect!(mismatch_message(&result).as_str()).to(be_equal_to("Expected an empty Map but received {\"a\":1,\"b\":2}"));
 
     let result = match_json(&val2.clone(), &val3.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
-    expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected '2' to be equal to '3'")));
-    expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch { path: s!("$.b"),
-        expected: Some("2".into()), actual: Some("3".into()), mismatch: s!("") } ]));
+    expect!(mismatch_message(&result).as_str()).to(be_equal_to("Expected '2' (Number) but received '3' (Number)"));
+    expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch { path: "$.b".to_string(),
+        expected: Some("2".into()), actual: Some("3".into()), mismatch: "".to_string() } ]));
 
     let result = match_json(&val2.clone(), &val4.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     expect!(result).to(be_ok());
@@ -731,10 +732,10 @@ mod tests {
     } ]));
 
     let result = match_json(&val3.clone(), &val4.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
-    expect!(mismatch_message(&result)).to(be_equal_to(s!("Expected '3' to be equal to '2'")));
-    expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch { path: s!("$.b"),
+    expect!(mismatch_message(&result).as_str()).to(be_equal_to("Expected '3' (Number) but received '2' (Number)"));
+    expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch { path: "$.b".to_string(),
         expected: Some("3".into()),
-        actual: Some("2".into()), mismatch: s!("") } ]));
+        actual: Some("2".into()), mismatch: "".to_string() } ]));
 
     let result = match_json(&val3.clone(), &val4.clone(), &CoreMatchingContext::with_config(DiffConfig::NoUnexpectedKeys));
     let mismatches = result.unwrap_err();
@@ -748,7 +749,7 @@ mod tests {
     expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: "$.b".to_string(),
         expected: Some("3".into()),
         actual: Some("2".into()), mismatch: "".to_string()}));
-    expect!(mismatch.description()).to(be_equal_to("$.b -> Expected '3' to be equal to '2'".to_string()));
+    expect!(mismatch.description()).to(be_equal_to("$.b -> Expected '3' (Number) but received '2' (Number)".to_string()));
 
     let result = match_json(&val4.clone(), &val2.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
     let mismatches = result.unwrap_err();

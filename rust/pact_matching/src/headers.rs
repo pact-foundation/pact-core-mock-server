@@ -165,7 +165,7 @@ fn match_header_maps(
         result.insert(key.clone(), vec![Mismatch::HeaderMismatch { key: key.clone(),
           expected: format!("{:?}", value.join(", ")),
           actual: "".to_string(),
-          mismatch: format!("Expected header '{}' but was missing", key) }]);
+          mismatch: format!("Expected a header '{}' but was missing", key) }]);
       }
     }
   }
@@ -185,7 +185,7 @@ pub fn match_headers(
       (key.clone(), vec![Mismatch::HeaderMismatch { key: key.clone(),
         expected: format!("{:?}", value.join(", ")),
         actual: "".to_string(),
-        mismatch: format!("Expected header '{}' but was missing", key) }])
+        mismatch: format!("Expected a header '{}' but was missing", key) }])
     }).collect(),
     (None, None) => hashmap!{}
   }
@@ -492,7 +492,7 @@ mod tests {
       key: "a".to_string(),
       expected: "\"b\"".to_string(),
       actual: "".to_string(),
-      mismatch: "Expected header 'a' but was missing".to_string()
+      mismatch: "Expected a header 'a' but was missing".to_string()
     });
   }
 
@@ -512,7 +512,7 @@ mod tests {
       key: "a".to_string(),
       expected: "\"b\"".to_string(),
       actual: "".to_string(),
-      mismatch: "Expected header 'a' but was missing".to_string(),
+      mismatch: "Expected a header 'a' but was missing".to_string(),
     });
   }
 

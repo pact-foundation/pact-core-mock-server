@@ -848,9 +848,9 @@ impl Mismatch {
         Mismatch::StatusMismatch { expected: ref e, .. } => format!("has status code {}", e),
         Mismatch::QueryMismatch { ref parameter, expected: ref e, .. } => format!("includes parameter '{}' with value '{}'", parameter, e),
         Mismatch::HeaderMismatch { ref key, expected: ref e, .. } => format!("includes header '{}' with value '{}'", key, e),
-        Mismatch::BodyTypeMismatch { .. } => s!("has a matching body"),
-        Mismatch::BodyMismatch { .. } => s!("has a matching body"),
-        Mismatch::MetadataMismatch { .. } => s!("has matching metadata")
+        Mismatch::BodyTypeMismatch { .. } => "has a matching body".to_string(),
+        Mismatch::BodyMismatch { .. } => "has a matching body".to_string(),
+        Mismatch::MetadataMismatch { .. } => "has matching metadata".to_string()
       }
     }
 
@@ -862,7 +862,7 @@ impl Mismatch {
         Mismatch::StatusMismatch { mismatch, .. } => mismatch.clone(),
         Mismatch::QueryMismatch { mismatch, .. } => mismatch.clone(),
         Mismatch::HeaderMismatch { mismatch, .. } => mismatch.clone(),
-        Mismatch::BodyTypeMismatch {  expected: e, actual: a, .. } => format!("expected '{}' body but was '{}'", e, a),
+        Mismatch::BodyTypeMismatch {  expected: e, actual: a, .. } => format!("Expected a body of '{}' but the actual content type was '{}'", e, a),
         Mismatch::BodyMismatch { path, mismatch, .. } => format!("{} -> {}", path, mismatch),
         Mismatch::MetadataMismatch { mismatch, .. } => mismatch.clone()
       }
@@ -878,7 +878,7 @@ impl Mismatch {
           Red.paint(e.to_string()), Green.paint(a.to_string()), Style::new().bold().paint(p.clone())),
         Mismatch::HeaderMismatch { expected: e, actual: a, key: k, .. } => format!("Expected header '{}' to have value '{}' but was '{}'",
           Style::new().bold().paint(k.clone()), Red.paint(e.to_string()), Green.paint(a.to_string())),
-        Mismatch::BodyTypeMismatch {  expected: e, actual: a, .. } => format!("expected '{}' body but was '{}'", Red.paint(e.clone()), Green.paint(a.clone())),
+        Mismatch::BodyTypeMismatch {  expected: e, actual: a, .. } => format!("expected a body of '{}' but the actual content type was '{}'", Red.paint(e.clone()), Green.paint(a.clone())),
         Mismatch::BodyMismatch { path, mismatch, .. } => format!("{} -> {}", Style::new().bold().paint(path.clone()), mismatch),
         Mismatch::MetadataMismatch { expected: e, actual: a, key: k, .. } => format!("Expected message metadata '{}' to have value '{}' but was '{}'",
           Style::new().bold().paint(k.clone()), Red.paint(e.to_string()), Green.paint(a.to_string()))
@@ -1380,7 +1380,7 @@ pub async fn match_body(
     BodyMatchResult::BodyTypeMismatch {
       expected_type: expected_content_type.to_string(),
       actual_type: actual_content_type.to_string(),
-      message: format!("Expected body with content type {} but was {}", expected_content_type,
+      message: format!("Expected a body of '{}' but the actual content type was '{}'", expected_content_type,
                        actual_content_type),
       expected: expected.body().value(),
       actual: actual.body().value()

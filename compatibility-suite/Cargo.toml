@@ -9,6 +9,7 @@ bytes = "1.4.0"
 cucumber = "0.19"
 futures = "0.3"
 pact_models = "1.1.2"
+pact_matching = { version = "1.0.8", path = "../rust/pact_matching" }
 pact_mock_server = { version = "1.0.2", path = "../rust/pact_mock_server" }
 pact_verifier = { version = "0.15.3", path = "../rust/pact_verifier" }
 reqwest = { version = "0.11.17", features = ["rustls-tls-native-roots", "json"] }

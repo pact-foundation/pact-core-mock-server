@@ -473,6 +473,7 @@ dependencies = [
  "bytes",
  "cucumber",
  "futures",
+ "pact_matching",
  "pact_mock_server",
  "pact_models",
  "pact_verifier",

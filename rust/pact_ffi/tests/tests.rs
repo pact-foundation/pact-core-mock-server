@@ -11,6 +11,7 @@ use libc::c_char;
 use maplit::*;
 use reqwest::blocking::Client;
 use reqwest::header::CONTENT_TYPE;
+use pretty_assertions::assert_eq;
 
 #[allow(deprecated)]
 use pact_ffi::mock_server::{
@@ -67,7 +68,8 @@ fn post_to_mock_server_with_mismatches() {
 
   pactffi_cleanup_mock_server(port);
 
-  expect!(mismatches).to(be_equal_to("[{\"method\":\"POST\",\"mismatches\":[{\"actual\":\"\\\"no-very-bar\\\"\",\"expected\":\"\\\"bar\\\"\",\"mismatch\":\"Expected \'bar\' to be equal to \'no-very-bar\'\",\"path\":\"$.foo\",\"type\":\"BodyMismatch\"}],\"path\":\"/path\",\"type\":\"request-mismatch\"}]"));
+  assert_eq!("[{\"method\":\"POST\",\"mismatches\":[{\"actual\":\"\\\"no-very-bar\\\"\",\"expected\":\"\\\"bar\\\"\",\"mismatch\":\"Expected 'bar' (String) but received 'no-very-bar' (String)\",\"path\":\"$.foo\",\"type\":\"BodyMismatch\"}],\"path\":\"/path\",\"type\":\"request-mismatch\"}]",
+             mismatches);
 }
 
 #[test]
