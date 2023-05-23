@@ -1,22 +1,5 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
-# 0.4.5 - Bugfix Release
-
-* 1dce67a5 - chore: cleanup deprecation warnings (Ronald Holshausen, Tue May 23 16:34:15 2023 +1000)
-* ca1e37fb - chore: Upgrade pact_verifier to 1.0.0 (Ronald Holshausen, Tue May 23 15:16:08 2023 +1000)
-* 8e9bd503 - chore: Upgrade pact_mock_server to 1.1.0 (Ronald Holshausen, Tue May 23 12:20:01 2023 +1000)
-* 8f27f9bd - chore: Upgrade pact-plugin-driver to 0.4.4 (Ronald Holshausen, Tue May 23 11:55:23 2023 +1000)
-* ac2e24da - chore: Use "Minimum version, with restricted compatibility range" for all Pact crate versions (Ronald Holshausen, Tue May 23 11:46:52 2023 +1000)
-* 6df4670c - chore: Upgrade pact_matching to 1.1.1 (Ronald Holshausen, Tue May 23 11:32:51 2023 +1000)
-* 54887690 - chore: Bump pact_matching to 1.1 (Ronald Holshausen, Tue May 23 11:13:14 2023 +1000)
-* f72f8191 - feat: Implemented the remaining V1 HTTP consumer compatability suite feature (Ronald Holshausen, Thu May 18 14:12:40 2023 +1000)
-* 261ecf47 - fix: Add RefUnwindSafe trait bound to all Pact and Interaction uses (Ronald Holshausen, Mon May 15 13:59:31 2023 +1000)
-* feb4e5ca - chore: cleanup some deprecation warnings (Ronald Holshausen, Mon May 8 11:16:20 2023 +1000)
-* 7277a355 - chore: fix test on CI (Ronald Holshausen, Tue May 2 12:03:54 2023 +1000)
-* 95664129 - feat: add method pactffi_given_with_params to allow a provider state to be repeated with different values (Ronald Holshausen, Tue May 2 11:41:10 2023 +1000)
-* 99e7c08a - chore: drop nightly-2022-12-01 fixed https://github.com/rust-lang/rust/issues/105886 (Yousaf Nabi, Fri Apr 21 17:26:01 2023 +0100)
-* cece8369 - bump version to 0.4.5 (Ronald Holshausen, Tue Apr 18 16:53:28 2023 +1000)
-
 # 0.4.4 - Bugfix Release
 
 * 8cfc3d79 - chore: Upgrade pact_verifier to 0.15.3 (Ronald Holshausen, Tue Apr 18 15:22:26 2023 +1000)
