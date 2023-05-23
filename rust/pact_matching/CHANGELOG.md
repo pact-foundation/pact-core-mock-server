@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.1.0 - Update Pact models to 1.1 (breaking change)
+
+* 54887690 - chore: Bump pact_matching to 1.1 (Ronald Holshausen, Tue May 23 11:13:14 2023 +1000)
+* f72f8191 - feat: Implemented the remaining V1 HTTP consumer compatability suite feature (Ronald Holshausen, Thu May 18 14:12:40 2023 +1000)
+* 261ecf47 - fix: Add RefUnwindSafe trait bound to all Pact and Interaction uses (Ronald Holshausen, Mon May 15 13:59:31 2023 +1000)
+* 40df44ba - bump version to 1.0.9 (Ronald Holshausen, Tue Apr 18 13:03:24 2023 +1000)
+
 # 1.0.8 - Bugfix Release
 
 * 6c14abfd - chore: Upgrade pact_models to 1.0.13 (Ronald Holshausen, Tue Apr 18 13:00:01 2023 +1000)
