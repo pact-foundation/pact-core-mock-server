@@ -1,6 +1,6 @@
 [package]
 name = "pact_verifier"
-version = "0.15.4"
+version = "1.0.0"
 authors = ["Ronald Holshausen <ronald.holshausen@gmail.com>"]
 edition = "2021"
 description = "Pact-Rust support library that implements provider verification functions"
@@ -58,7 +58,7 @@ crate-type = ["cdylib", "rlib"]
 quickcheck = "1.0.3"
 expectest = "0.12.0"
 env_logger = "0.10.0"
-pact_consumer = { version = "0.10.0", path = "../pact_consumer" }
+pact_consumer = { version = "~0.10.0", path = "../pact_consumer" }
 test-log = { version = "0.2.11", features = ["trace"] }
 tracing-subscriber = { version = "0.3.16", features = ["env-filter", "tracing-log", "fmt"] }
 chrono = "0.4.24"
