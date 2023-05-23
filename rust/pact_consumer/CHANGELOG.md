@@ -1,5 +1,17 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.0 - Bugfixes + Update Pact models to 1.1 (breaking change)
+
+* c2d925e9 - chore: Upgrade pact_consumer to 1.0.0 (Ronald Holshausen, Tue May 23 16:05:12 2023 +1000)
+* 6aac93bb - feat: Update message builders to support adding message metadata (Ronald Holshausen, Tue May 23 16:00:19 2023 +1000)
+* 8e9bd503 - chore: Upgrade pact_mock_server to 1.1.0 (Ronald Holshausen, Tue May 23 12:20:01 2023 +1000)
+* 8f27f9bd - chore: Upgrade pact-plugin-driver to 0.4.4 (Ronald Holshausen, Tue May 23 11:55:23 2023 +1000)
+* ac2e24da - chore: Use "Minimum version, with restricted compatibility range" for all Pact crate versions (Ronald Holshausen, Tue May 23 11:46:52 2023 +1000)
+* 6df4670c - chore: Upgrade pact_matching to 1.1.1 (Ronald Holshausen, Tue May 23 11:32:51 2023 +1000)
+* 54887690 - chore: Bump pact_matching to 1.1 (Ronald Holshausen, Tue May 23 11:13:14 2023 +1000)
+* 261ecf47 - fix: Add RefUnwindSafe trait bound to all Pact and Interaction uses (Ronald Holshausen, Mon May 15 13:59:31 2023 +1000)
+* 470b1a25 - bump version to 0.10.9 (Ronald Holshausen, Tue Apr 18 16:39:36 2023 +1000)
+
 # 0.10.8 - Bugfix Release
 
 * 6a71b12d - chore: Upgrade pact_mock_server to 1.0.2 (Ronald Holshausen, Tue Apr 18 13:30:21 2023 +1000)
