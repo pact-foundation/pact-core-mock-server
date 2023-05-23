@@ -60,11 +60,11 @@ ffi_fn! {
       },
       Err(err) => {
         error!("Failed to parse the Pact JSON - {}", err);
-        ptr::null_mut_to::<Pact>()
+        std::ptr::null_mut()
       }
     }
   } {
-    ptr::null_mut_to::<Pact>()
+    std::ptr::null_mut()
   }
 }
 
@@ -91,7 +91,7 @@ ffi_fn! {
     let inner = pact.inner.lock().unwrap();
     ptr::raw_to(PactInteractionIterator::new(inner.boxed()))
   } {
-    ptr::null_mut_to::<PactInteractionIterator>()
+    std::ptr::null_mut()
   }
 }
 

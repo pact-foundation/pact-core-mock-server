@@ -228,7 +228,7 @@ ffi_fn! {
             .ok_or(anyhow::anyhow!("iter past the end of mismatches"))?;
        mismatch as *const Mismatch
     } {
-        ptr::null_to::<Mismatch>()
+        std::ptr::null()
     }
 }
 

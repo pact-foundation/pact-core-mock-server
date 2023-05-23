@@ -25,7 +25,7 @@ ffi_fn! {
     let json = rule.to_json().to_string();
     string::to_c(&json)? as *const c_char
   } {
-    ptr::null_to::<c_char>()
+    std::ptr::null()
   }
 }
 

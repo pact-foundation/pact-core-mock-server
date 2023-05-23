@@ -26,10 +26,10 @@ ffi_fn! {
     if let Some(http) = inner.as_v4_http() {
       ptr::raw_to(http)
     } else {
-      ptr::null_to::<SynchronousHttp>()
+      std::ptr::null()
     }
   } {
-    ptr::null_to::<SynchronousHttp>()
+    std::ptr::null()
   }
 }
 
@@ -53,10 +53,10 @@ ffi_fn! {
     if let Some(message) = inner.as_message() {
       ptr::raw_to(message)
     } else {
-      ptr::null_to::<Message>()
+      std::ptr::null()
     }
   } {
-    ptr::null_to::<Message>()
+    std::ptr::null()
   }
 }
 
@@ -80,10 +80,10 @@ ffi_fn! {
     if let Some(message) = inner.as_v4_async_message() {
       ptr::raw_to(message)
     } else {
-      ptr::null_to::<AsynchronousMessage>()
+      std::ptr::null()
     }
   } {
-    ptr::null_to::<AsynchronousMessage>()
+    std::ptr::null()
   }
 }
 
@@ -104,9 +104,9 @@ ffi_fn! {
     if let Some(message) = inner.as_v4_sync_message() {
       ptr::raw_to(message)
     } else {
-      ptr::null_to::<SynchronousMessage>()
+      std::ptr::null()
     }
   } {
-    ptr::null_to::<SynchronousMessage>()
+    std::ptr::null()
   }
 }

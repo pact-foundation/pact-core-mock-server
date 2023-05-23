@@ -241,7 +241,7 @@ ffi_fn! {
             .ok_or(anyhow::anyhow!("iter past the end of messages"))?;
         interaction as *const PactInteraction
     } {
-        ptr::null_to::<PactInteraction>()
+        std::ptr::null()
     }
 }
 

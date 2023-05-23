@@ -36,7 +36,7 @@ ffi_fn! {
     let json = generator.to_json().unwrap_or_default().to_string();
     string::to_c(&json)? as *const c_char
   } {
-    ptr::null_to::<c_char>()
+    std::ptr::null()
   }
 }
 
@@ -60,11 +60,11 @@ ffi_fn! {
       Ok(value) => string::to_c(value.as_str())? as *const c_char,
       Err(err) => {
         error!("Failed to generate value - {}", err);
-        ptr::null_to::<c_char>()
+        std::ptr::null()
       }
     }
   } {
-    ptr::null_to::<c_char>()
+    std::ptr::null()
   }
 }
 

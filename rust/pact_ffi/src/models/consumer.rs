@@ -46,7 +46,7 @@ ffi_fn! {
         let consumer = as_ref!(consumer);
         string::to_c(&consumer.name)? as *const c_char
     } {
-        ptr::null_to::<c_char>()
+        std::ptr::null()
     }
 }
 
@@ -64,7 +64,7 @@ ffi_fn! {
         let consumer = ptr::raw_to(inner.consumer());
         consumer as *const Consumer
     } {
-        ptr::null_to::<Consumer>()
+        std::ptr::null()
     }
 }
 

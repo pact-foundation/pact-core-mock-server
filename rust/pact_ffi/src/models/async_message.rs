@@ -29,7 +29,7 @@ ffi_fn! {
         let message = AsynchronousMessage::default();
         ptr::raw_to(message)
     } {
-        ptr::null_mut_to::<AsynchronousMessage>()
+        std::ptr::null_mut()
     }
 }
 
@@ -79,7 +79,7 @@ ffi_fn! {
 
         match message.contents.contents {
             // If it's missing, return a null pointer.
-            OptionalBody::Missing => ptr::null_to::<c_char>(),
+            OptionalBody::Missing => std::ptr::null(),
             // If empty or null, return an empty string on the heap.
             OptionalBody::Empty | OptionalBody::Null => {
                 let content = string::to_c("")?;
@@ -92,7 +92,7 @@ ffi_fn! {
             }
         }
     } {
-        ptr::null_to::<c_char>()
+        std::ptr::null()
     }
 }
 
@@ -165,11 +165,11 @@ ffi_fn! {
         let message = as_ref!(message);
 
         match &message.contents.contents {
-            OptionalBody::Empty | OptionalBody::Null | OptionalBody::Missing => ptr::null_to::<c_uchar>(),
+            OptionalBody::Empty | OptionalBody::Null | OptionalBody::Missing => std::ptr::null(),
             OptionalBody::Present(bytes, _, _) => bytes.as_ptr()
         }
     } {
-        ptr::null_to::<c_uchar>()
+        std::ptr::null()
     }
 }
 
@@ -229,7 +229,7 @@ ffi_fn! {
         let description = string::to_c(&message.description)?;
         description as *const c_char
     } {
-        ptr::null_to::<c_char>()
+        std::ptr::null()
     }
 }
 
@@ -291,7 +291,7 @@ ffi_fn! {
 
         provider_state as *const ProviderState
     } {
-        ptr::null_to::<ProviderState>()
+        std::ptr::null()
     }
 }
 
@@ -310,7 +310,7 @@ ffi_fn! {
         let iter = ProviderStateIterator::new(message);
         ptr::raw_to(iter)
     } {
-        ptr::null_mut_to::<ProviderStateIterator>()
+        std::ptr::null_mut()
     }
 }
 

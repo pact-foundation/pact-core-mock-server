@@ -80,7 +80,7 @@ ffi_fn! {
 
     ptr::raw_to(result) as *const MatchingRuleDefinitionResult
   } {
-    ptr::null_to::<MatchingRuleDefinitionResult>()
+    std::ptr::null()
   }
 }
 
@@ -93,10 +93,10 @@ ffi_fn! {
     if let Either::Left(error) = &definition.result {
       string::to_c(&error)? as *const c_char
     } else {
-      ptr::null_to::<c_char>()
+      std::ptr::null()
     }
   } {
-    ptr::null_to::<c_char>()
+    std::ptr::null()
   }
 }
 
@@ -113,10 +113,10 @@ ffi_fn! {
     if let Either::Right(definition) = &definition.result {
       string::to_c(&definition.value)? as *const c_char
     } else {
-      ptr::null_to::<c_char>()
+      std::ptr::null()
     }
   } {
-    ptr::null_to::<c_char>()
+    std::ptr::null()
   }
 }
 
@@ -141,13 +141,13 @@ ffi_fn! {
       if let Some(generator) = &definition.generator {
         generator as *const Generator
       } else {
-        ptr::null_to::<Generator>()
+        std::ptr::null()
       }
     } else {
-      ptr::null_to::<Generator>()
+      std::ptr::null()
     }
   } {
-    ptr::null_to::<Generator>()
+    std::ptr::null()
   }
 }
 
@@ -360,10 +360,10 @@ ffi_fn! {
       let iter = MatchingRuleIterator::new(result);
       ptr::raw_to(iter)
     } else {
-      ptr::null_mut_to::<MatchingRuleIterator>()
+      std::ptr::null_mut()
     }
   } {
-    ptr::null_mut_to::<MatchingRuleIterator>()
+    std::ptr::null_mut()
   }
 }
 
@@ -386,7 +386,7 @@ ffi_fn! {
         let result = iter.next().ok_or(anyhow::anyhow!("iter past the end of messages"))?;
         result as *const MatchingRuleResult
     } {
-        ptr::null_mut_to::<MatchingRuleResult>()
+        std::ptr::null()
     }
 }
 
@@ -477,10 +477,10 @@ ffi_fn! {
         let rule_result = as_ref!(rule_result);
         match rule_result {
           MatchingRuleResult::MatchingRule(_, value, _) => *value,
-          MatchingRuleResult::MatchingReference(_) => ptr::null_to::<c_char>()
+          MatchingRuleResult::MatchingReference(_) => std::ptr::null()
         }
     } {
-        ptr::null_to::<c_char>()
+        std::ptr::null()
     }
 }
 
@@ -496,10 +496,10 @@ ffi_fn! {
         let rule_result = as_ref!(rule_result);
         match rule_result {
           MatchingRuleResult::MatchingRule(_, _, rule) => rule as *const MatchingRule,
-          MatchingRuleResult::MatchingReference(_) => ptr::null_to::<MatchingRule>()
+          MatchingRuleResult::MatchingReference(_) => std::ptr::null()
         }
     } {
-        ptr::null_to::<MatchingRule>()
+        std::ptr::null()
     }
 }
 
@@ -526,11 +526,11 @@ ffi_fn! {
     fn pactffi_matching_rule_reference_name(rule_result: *const MatchingRuleResult) -> *const c_char {
         let rule_result = as_ref!(rule_result);
         match rule_result {
-          MatchingRuleResult::MatchingRule(_, _, _) => ptr::null_to::<c_char>(),
+          MatchingRuleResult::MatchingRule(_, _, _) => std::ptr::null(),
           MatchingRuleResult::MatchingReference(ref_name) => *ref_name
         }
     } {
-        ptr::null_to::<c_char>()
+        std::ptr::null()
     }
 }
 
