@@ -641,7 +641,7 @@ async fn execute_provider_states<S: ProviderStateExecutor>(
 }
 
 /// Configure the HTTP client to use for requests to the provider
-fn configure_http_client<F: RequestFilterExecutor>(
+pub(crate) fn configure_http_client<F: RequestFilterExecutor>(
   options: &VerificationOptions<F>
 ) -> anyhow::Result<Client> {
   let mut client_builder = reqwest::Client::builder()
