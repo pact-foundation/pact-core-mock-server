@@ -1,5 +1,19 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.0 - Bugfixes + Update Pact models to 1.1 (breaking change)
+
+* ca1e37fb - chore: Upgrade pact_verifier to 1.0.0 (Ronald Holshausen, Tue May 23 15:16:08 2023 +1000)
+* 71b38a87 - fix: Add Custom Header option not replacing already existing headers #275 (Ronald Holshausen, Tue May 23 15:05:20 2023 +1000)
+* 8f27f9bd - chore: Upgrade pact-plugin-driver to 0.4.4 (Ronald Holshausen, Tue May 23 11:55:23 2023 +1000)
+* ac2e24da - chore: Use "Minimum version, with restricted compatibility range" for all Pact crate versions (Ronald Holshausen, Tue May 23 11:46:52 2023 +1000)
+* 6df4670c - chore: Upgrade pact_matching to 1.1.1 (Ronald Holshausen, Tue May 23 11:32:51 2023 +1000)
+* 54887690 - chore: Bump pact_matching to 1.1 (Ronald Holshausen, Tue May 23 11:13:14 2023 +1000)
+* 64d6a75c - feat: implemented initial compatibility tests (Ronald Holshausen, Wed May 17 12:14:36 2023 +1000)
+* 261ecf47 - fix: Add RefUnwindSafe trait bound to all Pact and Interaction uses (Ronald Holshausen, Mon May 15 13:59:31 2023 +1000)
+* 46628a8b - chore: correct failing tests after changing validation error handling #273 (Ronald Holshausen, Mon May 8 16:47:24 2023 +1000)
+* 59946c3f - fix: hanlde validation errors from Pactbroker correctly #273 (Ronald Holshausen, Mon May 8 15:40:11 2023 +1000)
+* 00301196 - bump version to 0.15.4 (Ronald Holshausen, Tue Apr 18 15:18:36 2023 +1000)
+
 # 0.15.3 - Bugfix Release
 
 * 0bcba082 - chore: Upgrade pact_matching to 1.0.8 (Ronald Holshausen, Tue Apr 18 13:14:38 2023 +1000)
