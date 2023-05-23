@@ -72,6 +72,15 @@ impl MessageInteractionBuilder {
     self
   }
 
+  /// Adds a key/value pair to the message metadata. The key can be anything that is convertible
+  /// into a string, and the value must be conveyable into a JSON value.
+  pub fn metadata<S: Into<String>, J: Into<Value>>(&mut self, key: S, value: J) -> &mut Self {
+    let metadata = self.message_contents.metadata
+      .get_or_insert_with(|| hashmap!{});
+    metadata.insert(key.into(), value.into());
+    self
+  }
+
   /// The interaction we've built (in V4 format).
   pub fn build(&self) -> AsynchronousMessage {
     debug!("Building V4 AsynchronousMessage interaction: {:?}", self);
@@ -236,5 +245,28 @@ impl MessageInteractionBuilder {
       }
     }
     self
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use expectest::prelude::*;
+  use maplit::hashmap;
+  use serde_json::json;
+
+  use crate::builders::MessageInteractionBuilder;
+
+  #[test]
+  fn supports_setting_metadata_values() {
+    let message = MessageInteractionBuilder::new("test")
+      .metadata("a", "a")
+      .metadata("b", json!("b"))
+      .metadata("c", vec![1, 2, 3])
+      .build();
+    expect!(message.contents.metadata).to(be_equal_to(hashmap! {
+      "a".to_string() => json!("a"),
+      "b".to_string() => json!("b"),
+      "c".to_string() => json!([1, 2, 3])
+    }));
   }
 }

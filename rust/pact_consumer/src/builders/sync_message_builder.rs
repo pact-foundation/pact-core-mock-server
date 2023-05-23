@@ -70,6 +70,15 @@ impl SyncMessageInteractionBuilder {
     self
   }
 
+  /// Adds a key/value pair to the message request metadata. The key can be anything that is
+  /// convertible into a string, and the value must be conveyable into a JSON value.
+  pub fn request_metadata<S: Into<String>, J: Into<Value>>(&mut self, key: S, value: J) -> &mut Self {
+    let metadata = self.request_contents.metadata
+      .get_or_insert_with(|| hashmap!{});
+    metadata.insert(key.into(), value.into());
+    self
+  }
+
   /// The interaction we've built (in V4 format).
   pub fn build(&self) -> SynchronousMessage {
     debug!("Building V4 SynchronousMessages interaction: {:?}", self);
@@ -313,5 +322,28 @@ impl SyncMessageInteractionBuilder {
       });
     }
     self
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use expectest::prelude::*;
+  use maplit::hashmap;
+  use serde_json::json;
+
+  use crate::builders::SyncMessageInteractionBuilder;
+
+  #[test]
+  fn supports_setting_metadata_values() {
+    let message = SyncMessageInteractionBuilder::new("test")
+      .request_metadata("a", "a")
+      .request_metadata("b", json!("b"))
+      .request_metadata("c", vec![1, 2, 3])
+      .build();
+    expect!(message.request.metadata).to(be_equal_to(hashmap! {
+      "a".to_string() => json!("a"),
+      "b".to_string() => json!("b"),
+      "c".to_string() => json!([1, 2, 3])
+    }));
   }
 }
