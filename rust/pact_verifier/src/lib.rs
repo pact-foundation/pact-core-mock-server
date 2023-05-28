@@ -26,7 +26,7 @@ use pact_models::generators::GeneratorTestMode;
 use pact_models::http_utils::HttpAuth;
 use pact_models::interaction::Interaction;
 use pact_models::json_utils::json_to_string;
-use pact_models::pact::{Pact, read_pact};
+use pact_models::pact::{load_pact_from_json, Pact, read_pact};
 use pact_models::prelude::v4::SynchronousHttp;
 use pact_models::provider_states::*;
 use pact_models::v4::interaction::V4Interaction;
@@ -109,7 +109,9 @@ pub enum PactSource {
       auth: Option<HttpAuth>,
       /// Links to the specific Pact resources. Internal field
       links: Vec<Link>
-    }
+    },
+    /// Load the Pact from some JSON (used for testing purposed)
+    String(String)
 }
 
 impl Display for PactSource {
@@ -1281,6 +1283,14 @@ async fn fetch_pact(
         ]
       }
     },
+    PactSource::String(json) => vec![
+      timeit(|| serde_json::from_str(json)
+        .map_err(|err| anyhow!(err))
+        .and_then(|json| load_pact_from_json("<json>", &json)))
+        .map(|(pact, tm)| {
+          (pact, None, source.clone(), tm)
+        })
+    ],
     _ => vec![Err(anyhow!("Could not load pacts, unknown pact source {}", source))]
   }
 }

@@ -470,9 +470,11 @@ name = "compatibility-suite"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "bytes",
  "cucumber",
  "futures",
+ "maplit",
  "pact_matching",
  "pact_mock_server",
  "pact_models",

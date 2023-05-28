@@ -1,14 +1,12 @@
-use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
-use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
 use anyhow::anyhow;
 use bytes::Bytes;
-use cucumber::{given, Parameter, then, when, World};
+use cucumber::{given, then, when, World};
 use cucumber::gherkin::Step;
 use pact_models::{Consumer, PactSpecification, Provider};
 use pact_models::bodies::OptionalBody;
@@ -29,22 +27,7 @@ use pact_mock_server::mock_server::{MockServer, MockServerConfig};
 use pact_verifier::{NullRequestFilterExecutor, ProviderInfo, ProviderTransport, VerificationOptions};
 use pact_verifier::provider_client::make_provider_request;
 
-#[derive(Debug, Default, Parameter)]
-#[param(name = "numType", regex = "first|second|third")]
-pub struct IndexType(usize);
-
-impl FromStr for IndexType {
-  type Err = anyhow::Error;
-
-  fn from_str(s: &str) -> Result<Self, Self::Err> {
-    match s {
-      "first" => Ok(IndexType(0)),
-      "second" => Ok(IndexType(1)),
-      "third" => Ok(IndexType(2)),
-      _ => Err(anyhow!("{} is not a valid index type", s))
-    }
-  }
-}
+use crate::v1::common::{IndexType, setup_common_interactions};
 
 #[derive(Debug, World)]
 pub struct ConsumerWorld {
@@ -72,113 +55,8 @@ impl Default for ConsumerWorld {
 #[given("the following HTTP interactions have been defined:")]
 fn the_following_http_interactions_have_been_setup(world: &mut ConsumerWorld, step: &Step) {
   if let Some(table) = step.table.as_ref() {
-    let headers = table.rows.first().unwrap().iter()
-      .enumerate()
-      .map(|(index, h)| (h.clone(), index))
-      .collect::<HashMap<String, usize>>();
-    for (row, values) in table.rows.iter().skip(1).enumerate() {
-      let mut interaction = RequestResponseInteraction {
-        description: format!("Interaction {}", row),
-        ..RequestResponseInteraction::default()
-      };
-
-      if let Some(index) = headers.get("method") {
-        if let Some(method) = values.get(*index) {
-          interaction.request.method = method.clone();
-        }
-      }
-
-      if let Some(index) = headers.get("path") {
-        if let Some(path) = values.get(*index) {
-          interaction.request.path = path.clone();
-        }
-      }
-
-      if let Some(index) = headers.get("query") {
-        if let Some(query) = values.get(*index) {
-          interaction.request.query = parse_query_string(query);
-        }
-      }
-
-      if let Some(index) = headers.get("headers") {
-        if let Some(headers) = values.get(*index) {
-          if !headers.is_empty() {
-            let headers = headers.split(",")
-              .map(|header| {
-                let key_value = header.strip_prefix("'").unwrap_or(header)
-                  .strip_suffix("'").unwrap_or(header)
-                  .splitn(2, ":")
-                  .map(|v| v.trim())
-                  .collect::<Vec<_>>();
-                (key_value[0].to_string(), parse_header(key_value[0], key_value[1]))
-              }).collect();
-            interaction.request.headers = Some(headers);
-          }
-        }
-      }
-
-      if let Some(index) = headers.get("body") {
-        if let Some(body) = values.get(*index) {
-          if !body.is_empty() {
-            if body.starts_with("JSON:") {
-              interaction.request.add_header("content-type", vec!["application/json"]);
-              interaction.request.body = OptionalBody::Present(Bytes::from(body.strip_prefix("JSON:").unwrap_or(body).to_string()),
-                                                               Some(JSON.clone()), None);
-            } else if body.starts_with("XML:") {
-              interaction.request.add_header("content-type", vec!["application/xml"]);
-              interaction.request.body = OptionalBody::Present(Bytes::from(body.strip_prefix("XML:").unwrap_or(body).to_string()),
-                                                               Some(XML.clone()), None);
-            } else {
-              let ct = if body.ends_with(".json") {
-                "application/json"
-              } else if body.ends_with(".xml") {
-                "application/xml"
-              } else {
-                "text/plain"
-              };
-              interaction.request.headers_mut().insert("content-type".to_string(), vec![ct.to_string()]);
-
-              let mut f = File::open(format!("pact-compatibility-suite/fixtures/{}", body))
-                .expect(format!("could not load fixture '{}'", body).as_str());
-              let mut buffer = Vec::new();
-              f.read_to_end(&mut buffer)
-                .expect(format!("could not read fixture '{}'", body).as_str());
-              interaction.request.body = OptionalBody::Present(Bytes::from(buffer),
-                                                               ContentType::parse(ct).ok(), None);
-            }
-          }
-        }
-      }
-
-      if let Some(index) = headers.get("response") {
-        if let Some(response) = values.get(*index) {
-          interaction.response.status = response.parse().unwrap();
-        }
-      }
-
-      if let Some(index) = headers.get("response body") {
-        if let Some(response) = values.get(*index) {
-          if !response.is_empty() {
-            let ct = headers.get("response content")
-              .map(|i| values.get(*i))
-              .flatten()
-              .cloned()
-              .unwrap_or("text/plain".to_string());
-            interaction.response.headers_mut().insert("content-type".to_string(), vec![ct.clone()]);
-
-            let mut f = File::open(format!("pact-compatibility-suite/fixtures/{}", response))
-              .expect(format!("could not load fixture '{}'", response).as_str());
-            let mut buffer = Vec::new();
-            f.read_to_end(&mut buffer)
-              .expect(format!("could not read fixture '{}'", response).as_str());
-            interaction.response.body = OptionalBody::Present(Bytes::from(buffer),
-                                                              ContentType::parse(ct.as_str()).ok(), None);
-          }
-        }
-      }
-
-      world.interactions.push(interaction);
-    }
+    let interactions = setup_common_interactions(table);
+    world.interactions.extend(interactions);
   }
 }
 
@@ -467,24 +345,24 @@ fn the_pact_file_will_contain_interaction(world: &mut ConsumerWorld, num: usize)
 
 #[then(expr = "the \\{{numType}} interaction request will be for a {string}")]
 fn the_interaction_request_will_be_for_a(world: &mut ConsumerWorld, num: IndexType, method: String) -> anyhow::Result<()> {
-  if let Some(interaction) = world.pact.interactions().get(num.0) {
+  if let Some(interaction) = world.pact.interactions().get(num.val()) {
     if let Some(reqres) = interaction.as_request_response() {
       if reqres.request.method == method {
         Ok(())
       } else {
-        Err(anyhow!("Expected interaction {} request to be for a {} but was a {}", num.0 + 1, method, reqres.request.method))
+        Err(anyhow!("Expected interaction {} request to be for a {} but was a {}", num.val() + 1, method, reqres.request.method))
       }
     } else {
-      Err(anyhow!("Interaction {} is not a RequestResponseInteraction", num.0 + 1))
+      Err(anyhow!("Interaction {} is not a RequestResponseInteraction", num.val() + 1))
     }
   } else {
-    Err(anyhow!("Did not find interaction {} in the Pact", num.0 + 1))
+    Err(anyhow!("Did not find interaction {} in the Pact", num.val() + 1))
   }
 }
 
 #[then(expr = "the \\{{numType}} interaction response will contain the {string} document")]
 fn the_interaction_response_will_contain_the_document(world: &mut ConsumerWorld, num: IndexType, fixture: String) -> anyhow::Result<()> {
-  if let Some(interaction) = world.pact.interactions().get(num.0) {
+  if let Some(interaction) = world.pact.interactions().get(num.val()) {
     if let Some(reqres) = interaction.as_request_response() {
       let mut fixture_file = File::open(format!("pact-compatibility-suite/fixtures/{}", fixture))?;
       let mut buffer = Vec::new();
@@ -503,14 +381,14 @@ fn the_interaction_response_will_contain_the_document(world: &mut ConsumerWorld,
         Ok(())
       } else {
         let body = OptionalBody::Present(Bytes::from(buffer), None, None);
-        Err(anyhow!("Expected Interaction {} response payload with {} but got {}", num.0 + 1,
+        Err(anyhow!("Expected Interaction {} response payload with {} but got {}", num.val() + 1,
           reqres.response.body.display_string(), body.display_string()))
       }
     } else {
-      Err(anyhow!("Interaction {} is not a RequestResponseInteraction", num.0 + 1))
+      Err(anyhow!("Interaction {} is not a RequestResponseInteraction", num.val() + 1))
     }
   } else {
-    Err(anyhow!("Did not find interaction {} in the Pact", num.0 + 1))
+    Err(anyhow!("Did not find interaction {} in the Pact", num.val() + 1))
   }
 }
 
@@ -542,18 +420,18 @@ fn the_interaction_request_query_parameters_will_be(
   num: IndexType,
   query_str: String
 ) -> anyhow::Result<()> {
-  if let Some(interaction) = world.pact.interactions().get(num.0) {
+  if let Some(interaction) = world.pact.interactions().get(num.val()) {
     if let Some(reqres) = interaction.as_request_response() {
       if reqres.request.query == parse_query_string(query_str.as_str()) {
         Ok(())
       } else {
-        Err(anyhow!("Expected interaction {} request to have query {} but was {:?}", num.0 + 1, query_str, reqres.request.query))
+        Err(anyhow!("Expected interaction {} request to have query {} but was {:?}", num.val() + 1, query_str, reqres.request.query))
       }
     } else {
-      Err(anyhow!("Interaction {} is not a RequestResponseInteraction", num.0 + 1))
+      Err(anyhow!("Interaction {} is not a RequestResponseInteraction", num.val() + 1))
     }
   } else {
-    Err(anyhow!("Did not find interaction {} in the Pact", num.0 + 1))
+    Err(anyhow!("Did not find interaction {} in the Pact", num.val() + 1))
   }
 }
 
@@ -644,22 +522,22 @@ fn the_interaction_request_will_contain_the_header_with_value(
   key: String,
   value: String
 ) -> anyhow::Result<()> {
-  if let Some(interaction) = world.pact.interactions().get(num.0) {
+  if let Some(interaction) = world.pact.interactions().get(num.val()) {
     if let Some(reqres) = interaction.as_request_response() {
       if let Some(header_value) = reqres.request.lookup_header_value(&key) {
         if header_value == value {
           Ok(())
         } else {
-          Err(anyhow!("Expected interaction {} request to have a header {} with value {} but got {}", num.0 + 1, key, value, header_value))
+          Err(anyhow!("Expected interaction {} request to have a header {} with value {} but got {}", num.val() + 1, key, value, header_value))
         }
       } else {
-        Err(anyhow!("Expected interaction {} request to have a header {} with value {}", num.0 + 1, key, value))
+        Err(anyhow!("Expected interaction {} request to have a header {} with value {}", num.val() + 1, key, value))
       }
     } else {
-      Err(anyhow!("Interaction {} is not a RequestResponseInteraction", num.0 + 1))
+      Err(anyhow!("Interaction {} is not a RequestResponseInteraction", num.val() + 1))
     }
   } else {
-    Err(anyhow!("Did not find interaction {} in the Pact", num.0 + 1))
+    Err(anyhow!("Did not find interaction {} in the Pact", num.val() + 1))
   }
 }
 
@@ -669,22 +547,22 @@ fn the_interaction_request_content_type_will_be(
   num: IndexType,
   content_type: String
 ) -> anyhow::Result<()> {
-  if let Some(interaction) = world.pact.interactions().get(num.0) {
+  if let Some(interaction) = world.pact.interactions().get(num.val()) {
     if let Some(reqres) = interaction.as_request_response() {
       if let Some(ct) = reqres.request.content_type() {
         if ct.to_string() == content_type {
           Ok(())
         } else {
-          Err(anyhow!("Expected interaction {} request to have a content type of {} but got {}", num.0 + 1, content_type, ct))
+          Err(anyhow!("Expected interaction {} request to have a content type of {} but got {}", num.val() + 1, content_type, ct))
         }
       } else {
-        Err(anyhow!("Interaction {} request does not have a content type set", num.0 + 1))
+        Err(anyhow!("Interaction {} request does not have a content type set", num.val() + 1))
       }
     } else {
-      Err(anyhow!("Interaction {} is not a RequestResponseInteraction", num.0 + 1))
+      Err(anyhow!("Interaction {} is not a RequestResponseInteraction", num.val() + 1))
     }
   } else {
-    Err(anyhow!("Did not find interaction {} in the Pact", num.0 + 1))
+    Err(anyhow!("Did not find interaction {} in the Pact", num.val() + 1))
   }
 }
 
@@ -694,7 +572,7 @@ fn the_interaction_request_will_contain_the_document(
   num: IndexType,
   fixture: String,
 ) -> anyhow::Result<()> {
-  if let Some(interaction) = world.pact.interactions().get(num.0) {
+  if let Some(interaction) = world.pact.interactions().get(num.val()) {
     if let Some(reqres) = interaction.as_request_response() {
       let mut fixture_file = File::open(format!("pact-compatibility-suite/fixtures/{}", fixture))?;
       let mut buffer = Vec::new();
@@ -713,14 +591,14 @@ fn the_interaction_request_will_contain_the_document(
         Ok(())
       } else {
         let body = OptionalBody::Present(Bytes::from(buffer), None, None);
-        Err(anyhow!("Expected Interaction {} request with body {} but got {}", num.0 + 1,
+        Err(anyhow!("Expected Interaction {} request with body {} but got {}", num.val() + 1,
           reqres.request.body.display_string(), body.display_string()))
       }
     } else {
-      Err(anyhow!("Interaction {} is not a RequestResponseInteraction", num.0 + 1))
+      Err(anyhow!("Interaction {} is not a RequestResponseInteraction", num.val() + 1))
     }
   } else {
-    Err(anyhow!("Did not find interaction {} in the Pact", num.0 + 1))
+    Err(anyhow!("Did not find interaction {} in the Pact", num.val() + 1))
   }
 }
 
