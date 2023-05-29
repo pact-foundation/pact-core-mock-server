@@ -265,13 +265,13 @@ mod tests {
     ]);
     let context = hashmap! {
       "mockServer" => json!({
-        "href": "https://somewhere.else:1234/subpath"
+        "url": "https://somewhere.else:1234/subpath"
       })
     };
     let generated = generator.generate_value(&value, &context, &DefaultVariantMatcher.boxed());
     expect!(generated.as_ref()).to(be_ok());
     let generated_value = generated.unwrap();
-    assert_eq!(generated_value, json!([
+    assert_eq!(json!([
       {
         "href": "https://somewhere.else:1234/subpath/orders/1234",
         "method": "PUT",
@@ -282,6 +282,6 @@ mod tests {
         "method": "DELETE",
         "name": "delete"
       }
-    ]));
+    ]), generated_value);
   }
 }

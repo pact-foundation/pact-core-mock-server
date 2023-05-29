@@ -163,7 +163,7 @@ async fn match_result_to_hyper_response(
     (
       hashmap!{
         "mockServer" => json!({
-          "href": ms.url(),
+          "url": ms.url(),
           "port": ms.port
         })
       },
