@@ -1,5 +1,10 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.1.3 - Bugfix Release
+
+* 743b1823 - fix: MockServerURL generator was fetching the incorrect field from the test context (Ronald Holshausen, Mon May 29 14:58:19 2023 +1000)
+* 2eeecc4a - bump version to 1.1.3 (Ronald Holshausen, Mon May 15 13:25:58 2023 +1000)
+
 # 1.1.2 - Removed auto-generated keys and updates all trait methods so they can be used in an FFI context
 
 * f8f0e773 - fix: Add RefUnwindSafe trait bound to all Pact and Interaction trait methods so they can be used in an FFI context (Ronald Holshausen, Mon May 15 12:37:16 2023 +1000)
