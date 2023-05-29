@@ -945,7 +945,7 @@ impl GenerateValue<String> for Generator {
                 Ok(re) => Ok(replace_with_regex(example, url, re)),
                 Err(err) => Err(anyhow!("MockServerURL: Failed to generate value: {}", err))
               },
-              None => Err(anyhow!("MockServerURL: can not generate a value as there is no mock server URL in the test context"))
+              None => Err(anyhow!("MockServerURL: can not generate a value as there is no mock server 'url' in the test context {:?}", context))
             }
           },
           None => Err(anyhow!("MockServerURL: can not generate a value as there is no mock server details in the test context"))
@@ -973,12 +973,12 @@ impl GenerateValue<Vec<String>> for Generator {
 
 impl GenerateValue<Value> for Generator {
   fn generate_value(
-    &self, value:
-    &Value,
+    &self,
+    value: &Value,
     context: &HashMap<&str, Value>,
     matcher: &Box<dyn VariantMatcher + Send + Sync>
   ) -> anyhow::Result<Value> {
-    debug!("Generating value from {:?} with context {:?}", self, context);
+    debug!(context = ?context, "Generating value from {:?}", self);
     let result = match self {
       Generator::RandomInt(min, max) => {
         let rand_int = rand::thread_rng().gen_range(*min..max.saturating_add(1));
@@ -1091,7 +1091,7 @@ impl GenerateValue<Value> for Generator {
         if let Some(mock_server_details) = context.get("mockServer") {
           match mock_server_details.as_object() {
             Some(mock_server_details) => {
-              match get_field_as_string("href", mock_server_details) {
+              match get_field_as_string("url", mock_server_details) {
                 Some(url) => match Regex::new(regex) {
                   Ok(re) => Ok(Value::String(replace_with_regex(example, url, re))),
                   Err(err) => Err(anyhow!("MockServerURL: Failed to generate value: {}", err))
@@ -1925,6 +1925,25 @@ mod tests {
     expect!(generated.unwrap()).to(be_equal_to("http://192.168.2.1:2345/p/path"));
     let generated = generator.generate_value(&"".to_string(), &hashmap!{}, &NoopVariantMatcher.boxed());
     expect!(generated).to(be_err());
+
+    let generator = Generator::MockServerURL(
+      "http://localhost:9876/pacts/provider/p/for-verification".into(),
+      ".*(\\/pacts\\/provider\\/p\\/for-verification)$".into()
+    );
+    let generated = generator.generate_value(&"".to_string(), &hashmap! {
+        "mockServer" => json!({
+          "url": "http://127.0.0.1:38055",
+          "port": 38055
+        })
+      }, &NoopVariantMatcher.boxed());
+    expect!(generated.unwrap()).to(be_equal_to("http://127.0.0.1:38055/pacts/provider/p/for-verification"));
+    let generated = generator.generate_value(&Value::String("".to_string()), &hashmap! {
+        "mockServer" => json!({
+          "url": "http://127.0.0.1:38055",
+          "port": 38055
+        })
+      }, &NoopVariantMatcher.boxed());
+    expect!(generated.unwrap()).to(be_equal_to(Value::String("http://127.0.0.1:38055/pacts/provider/p/for-verification".to_string())));
   }
 
   #[test]
