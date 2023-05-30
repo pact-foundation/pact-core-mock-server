@@ -46,6 +46,7 @@ pub fn setup_common_interactions(table: &Table) -> Vec<RequestResponseInteractio
   for (row, values) in table.rows.iter().skip(1).enumerate() {
     let mut interaction = RequestResponseInteraction {
       description: format!("Interaction {}", row),
+      id: Some(format!("ID{}", row + 1)),
       ..RequestResponseInteraction::default()
     };
 

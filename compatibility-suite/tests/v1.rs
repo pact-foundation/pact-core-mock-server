@@ -1,5 +1,6 @@
 use anyhow::anyhow;
 use cucumber::{StatsWriter, World};
+use tracing_subscriber::EnvFilter;
 
 use crate::v1::consumer::ConsumerWorld;
 use crate::v1::provider::ProviderWorld;
@@ -12,7 +13,11 @@ pub mod v1 {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-  tracing_subscriber::fmt::init();
+  let format = tracing_subscriber::fmt::format().pretty();
+  tracing_subscriber::fmt()
+    .with_env_filter(EnvFilter::from_default_env())
+    .event_format(format)
+    .init();
 
   println!();
   let consumer_result = ConsumerWorld::cucumber()
@@ -31,10 +36,15 @@ async fn main() -> anyhow::Result<()> {
     .max_concurrent_scenarios(1)
     .after(|_feature, _, _scenario, _status, world| Box::pin(async move {
       if let Some(world) = world {
-        let mut ms = world.provider_server.lock().unwrap();
-        let _ = ms.shutdown();
+        {
+          let mut ms = world.provider_server.lock().unwrap();
+          let _ = ms.shutdown();
+        }
+        for broker in &world.mock_brokers {
+          let mut ms = broker.lock().unwrap();
+          let _ = ms.shutdown();
+        }
       }
-      //     mockBrokers.each { it.stop() }
     }))
     .filter_run("pact-compatibility-suite/features/V1", |feature, _rule, _scenario| {
       feature.tags.iter().any(|tag| tag == "provider")

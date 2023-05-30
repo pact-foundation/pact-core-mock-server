@@ -1,23 +1,41 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use anyhow::anyhow;
 use async_trait::async_trait;
+use bytes::Bytes;
 use cucumber::{given, then, when, World};
 use cucumber::gherkin::Step;
 use maplit::hashmap;
-use pact_models::{Consumer, PactSpecification, Provider};
-use pact_models::pact::Pact;
+use pact_models::{Consumer, generators, matchingrules, PactSpecification, Provider};
+use pact_models::bodies::OptionalBody;
+use pact_models::content_types::JSON;
+use pact_models::generators::Generator;
+use pact_models::matchingrules::MatchingRule;
+use pact_models::pact::{Pact, read_pact};
 use pact_models::provider_states::ProviderState;
+use pact_models::request::Request;
+use pact_models::response::Response;
 use pact_models::sync_interaction::RequestResponseInteraction;
 use pact_models::sync_pact::RequestResponsePact;
 use reqwest::Client;
-use serde_json::Value;
+use serde_json::{json, Value};
 use uuid::Uuid;
-use pact_matching::Mismatch;
 
+use pact_matching::Mismatch;
+use pact_mock_server::matching::MatchResult;
 use pact_mock_server::mock_server::{MockServer, MockServerConfig};
-use pact_verifier::{FilterInfo, NullRequestFilterExecutor, PactSource, ProviderInfo, ProviderTransport, PublishOptions, VerificationOptions, verify_provider_async};
+use pact_verifier::{
+  FilterInfo,
+  NullRequestFilterExecutor,
+  PactSource,
+  ProviderInfo,
+  ProviderTransport,
+  PublishOptions,
+  VerificationOptions,
+  verify_provider_async
+};
 use pact_verifier::callback_executors::ProviderStateExecutor;
 use pact_verifier::verification_result::{VerificationExecutionResult, VerificationMismatchResult};
 
@@ -31,7 +49,8 @@ pub struct ProviderWorld {
   pub provider_info: ProviderInfo,
   pub sources: Vec<PactSource>,
   pub publish_options: Option<PublishOptions>,
-  pub verification_results: VerificationExecutionResult
+  pub verification_results: VerificationExecutionResult,
+  pub mock_brokers: Vec<Arc<Mutex<MockServer>>>
 }
 
 impl Default for ProviderWorld {
@@ -43,7 +62,11 @@ impl Default for ProviderWorld {
       provider_info: ProviderInfo::default(),
       sources: vec![],
       publish_options: None,
-      verification_results: VerificationExecutionResult::new(),
+      verification_results: VerificationExecutionResult {
+        result: false,
+        .. VerificationExecutionResult::new()
+      },
+      mock_brokers: vec![]
     }
   }
 }
@@ -115,7 +138,7 @@ async fn a_provider_is_started_that_returns_the_response_from_interaction(world:
 #[given(expr = "a Pact file for interaction \\{{int}} is to be verified")]
 fn a_pact_file_for_interaction_is_to_be_verified(world: &mut ProviderWorld, num: usize) -> anyhow::Result<()> {
   let pact = RequestResponsePact {
-    consumer: Consumer { name: "c".to_string() },
+    consumer: Consumer { name: format!("c_{}", num) },
     provider: Provider { name: "p".to_string() },
     interactions: vec![ world.interactions.get(num - 1).unwrap().clone() ],
     specification_version: PactSpecification::V1,
@@ -150,19 +173,47 @@ fn the_verification_will_be_successful(world: &mut ProviderWorld) -> anyhow::Res
   }
 }
 
-//   @Given('a provider is started that returns the responses from interactions {string}')
-//   void a_provider_is_started_that_returns_the_responses_from_interactions(String ids) {
-//     def interactions = ids.split(',\\s*').collect {
-//       def index = it.toInteger()
-//       world.interactions[index - 1]
-//     }
-//     Pact pact = new RequestResponsePact(new Provider('p'), new Consumer('v1-compatibility-suite-c'),
-//       interactions)
-//     mockProvider = new KTorMockServer(pact, new MockProviderConfig())
-//     mockProvider.start()
-//     providerInfo = new ProviderInfo('p')
-//     providerInfo.port = mockProvider.port
-//   }
+#[given(expr = "a provider is started that returns the responses from interactions {string}")]
+#[allow(deprecated)]
+async fn a_provider_is_started_that_returns_the_responses_from_interactions(
+  world: &mut ProviderWorld,
+  ids: String
+) -> anyhow::Result<()> {
+  let interactions = ids.split(",")
+    .map(|id| id.trim().parse::<usize>().unwrap())
+    .map(|index| world.interactions.get(index - 1).unwrap().clone())
+    .collect();
+  let pact = RequestResponsePact {
+    consumer: Consumer { name: "v1-compatibility-suite-c".to_string() },
+    provider: Provider { name: "p".to_string() },
+    interactions,
+    specification_version: PactSpecification::V1,
+    .. RequestResponsePact::default()
+  };
+  world.provider_key = Uuid::new_v4().to_string();
+  let config = MockServerConfig {
+    pact_specification: PactSpecification::V1,
+    .. MockServerConfig::default()
+  };
+  let (mock_server, future) = MockServer::new(
+    world.provider_key.clone(), pact.boxed(), "[::1]:0".parse()?, config
+  ).await.map_err(|err| anyhow!(err))?;
+  tokio::spawn(future);
+  world.provider_server = mock_server;
+
+  let ms = world.provider_server.lock().unwrap();
+  world.provider_info = ProviderInfo {
+    name: "p".to_string(),
+    host: "[::1]".to_string(),
+    port: ms.port,
+    transports: vec![ProviderTransport {
+      port: ms.port,
+      .. ProviderTransport::default()
+    }],
+    .. ProviderInfo::default()
+  };
+  Ok(())
+}
 
 #[then("the verification will NOT be successful")]
 fn the_verification_will_not_be_successful(world: &mut ProviderWorld) -> anyhow::Result<()> {
@@ -200,80 +251,213 @@ fn the_verification_results_will_contain_a_error(world: &mut ProviderWorld, err:
   }
 }
 
-//   @Given('a Pact file for interaction \\{{int}} is to be verified from a Pact broker')
-//   void a_pact_file_for_interaction_is_to_be_verified_from_a_pact_broker(Integer num) {
-//     Pact pact = new RequestResponsePact(new Provider('p'),
-//       new Consumer("c_$num"), [ world.interactions[num - 1] ])
-//     def pactJson = pact.toMap(PactSpecVersion.V1)
-//     pactJson['_links'] = [
-//       "pb:publish-verification-results": [
-//         "title": "Publish verification results",
-//         "href": "http://localhost:1234/pacts/provider/p/consumer/c_$num/verification-results"
-//       ]
-//     ]
-//     pactJson['interactions'][0]['_id'] = world.interactions[num - 1].interactionId
-//
-//     File contents = new File("pact-compatibility-suite/fixtures/pact-broker_c${num}.json")
-//     Pact brokerPact = DefaultPactReader.INSTANCE.loadPact(contents) as BasePact
-//     /// AAARGH! My head. Adding a Pact Interaction to a Pact file for fetching a Pact file for verification
-//     def matchingRules = new MatchingRulesImpl()
-//     matchingRules
-//       .addCategory('body')
-//       .addRule('$._links.pb:publish-verification-results.href',
-//         new RegexMatcher(".*\\/(pacts\\/provider\\/p\\/consumer\\/c_$num\\/verification-results)"))
-//     Generators generators = new Generators([
-//       (Category.BODY): [
-//         '$._links.pb:publish-verification-results.href': new MockServerURLGenerator(
-//           "http://localhost:1234/pacts/provider/p/consumer/c_$num/verification-results",
-//           ".*\\/(pacts\\/provider\\/p\\/consumer\\/c_$num\\/verification-results)"
-//         )
-//       ]
-//     ])
-//     Interaction interaction = new RequestResponseInteraction("Interaction $num", [],
-//       new Request('GET', "/pacts/provider/p/consumer/c_$num"),
-//       new Response(200,
-//         ['content-type': ['application/json']],
-//         OptionalBody.body(Json.INSTANCE.prettyPrint(pactJson).bytes, ContentType.JSON),
-//         matchingRules, generators
-//       )
-//     )
-//     brokerPact.interactions << interaction
-//
-//     def mockBroker = new KTorMockServer(brokerPact, new MockProviderConfig())
-//     mockBroker.start()
-//     mockBrokers << mockBroker
-//
-//     providerInfo.hasPactsFromPactBrokerWithSelectorsV2("http://127.0.0.1:${mockBroker.port}", [])
-//   }
-//
-//   @Then('a verification result will NOT be published back')
-//   void a_verification_result_will_not_be_published_back() {
-//     assert mockBrokers.every { mock ->
-//       mock.matchedRequests.find { it.path.endsWith('/verification-results') } == null
-//     }
-//   }
-//
-//   @Given('publishing of verification results is enabled')
-//   void publishing_of_verification_results_is_enabled() {
-//     verificationProperties['pact.verifier.publishResults'] = 'true'
-//   }
-//
-//   @Then('a successful verification result will be published back for interaction \\{{int}}')
-//   void a_successful_verification_result_will_be_published_back_for_interaction(Integer num) {
-//     def request = mockBrokers.collect {
-//       it.matchedRequests.find { it.path == "/pacts/provider/p/consumer/c_$num/verification-results".toString() }
-//     }.find()
-//     assert request != null
-//     def json = new JsonSlurper().parseText( request.body.valueAsString())
-//     assert json.success == true
-//   }
-//
-//   @Then("a failed verification result will be published back for the interaction \\{{int}}")
-//   void a_failed_verification_result_will_be_published_back_for_the_interaction(Integer num) {
-//     def request = mockBrokers.collect {
-//       it.matchedRequests.find { it.path == "/pacts/provider/p/consumer/c_$num/verification-results".toString() }
-//     }.find()
-//     assert request != null
-//     def json = new JsonSlurper().parseText( request.body.valueAsString())
-//     assert json.success == false
-//   }
+#[given(expr = "a Pact file for interaction \\{{int}} is to be verified from a Pact broker")]
+async fn a_pact_file_for_interaction_is_to_be_verified_from_a_pact_broker(
+  world: &mut ProviderWorld,
+  num: usize
+) -> anyhow::Result<()> {
+  let interaction = world.interactions.get(num - 1).unwrap().clone();
+  let pact = RequestResponsePact {
+    consumer: Consumer { name: format!("c_{}", num) },
+    provider: Provider { name: "p".to_string() },
+    interactions: vec![interaction.clone()],
+    specification_version: PactSpecification::V1,
+    .. RequestResponsePact::default()
+  };
+  let mut pact_json = pact.to_json(PactSpecification::V1)?;
+  let pact_json_inner = pact_json.as_object_mut().unwrap();
+  pact_json_inner.insert("_links".to_string(), json!({
+    "pb:publish-verification-results": {
+      "title": "Publish verification results",
+      "href": format!("http://localhost:1234/pacts/provider/p/consumer/c_{}/verification-results", num)
+    }
+  }));
+  let interactions_json = pact_json_inner.get_mut("interactions").unwrap().as_array_mut().unwrap();
+  let interaction_json = interactions_json.get_mut(0).unwrap().as_object_mut().unwrap();
+  interaction_json.insert("_id".to_string(), json!(interaction.id.unwrap()));
+
+  let f = PathBuf::from(format!("pact-compatibility-suite/fixtures/pact-broker_c{}.json", num));
+  let mut broker_pact = read_pact(&*f)
+    .expect(format!("could not load fixture 'pact-broker_c{}.json'", num).as_str())
+    .as_request_response_pact().unwrap();
+
+  // AAARGH! My head. Adding a Pact Interaction to a Pact file for fetching a Pact file for verification
+  let matching_rules = matchingrules! {
+    "body" => { "$._links.pb:publish-verification-results.href" => [
+      MatchingRule::Regex(format!(".*(\\/pacts\\/provider\\/p\\/consumer\\/c_{}\\/verification-results)", num))
+    ] }
+  };
+  let generators = generators! {
+    "BODY" => {
+      "$._links.pb:publish-verification-results.href" => Generator::MockServerURL(
+        format!("http://localhost:1234/pacts/provider/p/consumer/c_{}/verification-results", num),
+        format!(".*(\\/pacts\\/provider\\/p\\/consumer\\/c_{}\\/verification-results)", num)
+      )
+    }
+  };
+  let interaction = RequestResponseInteraction {
+    request: Request {
+      path: format!("/pacts/provider/p/consumer/c_{}", num),
+      .. Request::default()
+    },
+    response: Response {
+      headers: Some(hashmap!{
+        "content-type".to_string() => vec![ "application/json".to_string() ]
+      }),
+      body: OptionalBody::Present(Bytes::from(pact_json.to_string()),
+                                  Some(JSON.clone()), None),
+      matching_rules,
+      generators,
+      .. Response::default()
+    },
+    .. RequestResponseInteraction::default()
+  };
+  broker_pact.interactions.push(interaction);
+
+  let config = MockServerConfig {
+    .. MockServerConfig::default()
+  };
+  let (mock_server, future) = MockServer::new(
+    Uuid::new_v4().to_string(), broker_pact.boxed(), "127.0.0.1:0".parse()?, config
+  ).await.map_err(|err| anyhow!(err))?;
+  tokio::spawn(future);
+  let broker_port = {
+    let ms = mock_server.lock().unwrap();
+    ms.port
+  };
+  world.mock_brokers.push(mock_server);
+
+  world.sources.push(PactSource::BrokerWithDynamicConfiguration {
+    provider_name: "p".to_string(),
+    broker_url: format!("http://localhost:{}", broker_port.unwrap()),
+    enable_pending: false,
+    include_wip_pacts_since: None,
+    provider_tags: vec![],
+    provider_branch: None,
+    selectors: vec![],
+    auth: None,
+    links: vec![],
+  });
+  Ok(())
+}
+
+#[then("a verification result will NOT be published back")]
+fn a_verification_result_will_not_be_published_back(world: &mut ProviderWorld) -> anyhow::Result<()> {
+  let verification_results = world.mock_brokers.iter().any(|broker| {
+    let ms = broker.lock().unwrap();
+    let verification_requests = ms.metrics.requests_by_path.iter()
+      .find(|(path, _)| {
+        path.ends_with("/verification-results")
+      })
+      .map(|(_, count)| *count)
+      .unwrap_or(0);
+    verification_requests > 0
+  });
+  if verification_results {
+    Err(anyhow!("Was expecting no verification results"))
+  } else {
+    Ok(())
+  }
+}
+
+#[given("publishing of verification results is enabled")]
+fn publishing_of_verification_results_is_enabled(world: &mut ProviderWorld) {
+  world.publish_options = Some(PublishOptions {
+    provider_version: Some("1.2.3".to_string()),
+    build_url: None,
+    provider_tags: vec![],
+    provider_branch: None,
+  });
+}
+
+#[then(expr = "a successful verification result will be published back for interaction \\{{int}}")]
+fn a_successful_verification_result_will_be_published_back_for_interaction(world: &mut ProviderWorld, num: usize) -> anyhow::Result<()>  {
+  let verification_results = world.mock_brokers.iter().any(|broker| {
+    let ms = broker.lock().unwrap();
+    let vec = ms.matches();
+    let verification_request = vec.iter()
+      .find(|result| {
+        let expected_path = format!("/pacts/provider/p/consumer/c_{}/verification-results", num);
+        match result {
+          MatchResult::RequestMatch(req, _) => req.path == expected_path,
+          MatchResult::RequestMismatch(req, _) => req.path == expected_path,
+          MatchResult::RequestNotFound(req) => req.path == expected_path,
+          MatchResult::MissingRequest(req) => req.path == expected_path
+        }
+      });
+    if let Some(result) = verification_request {
+      match result {
+        MatchResult::RequestMatch(req, _) => if let Some(body) = req.body.value() {
+          if let Ok(json) = serde_json::from_slice::<Value>(body.as_ref()) {
+            if let Some(success) = json.get("success") {
+              match success {
+                Value::Bool(b) => *b,
+                _ => false
+              }
+            } else {
+              false
+            }
+          } else {
+            false
+          }
+        } else {
+          false
+        },
+        _ => false
+      }
+    } else {
+      false
+    }
+  });
+  if verification_results {
+    Ok(())
+  } else {
+    Err(anyhow!("Either no verification results was published, or it was incorrect"))
+  }
+}
+
+#[then(expr = "a failed verification result will be published back for the interaction \\{{int}}")]
+fn a_failed_verification_result_will_be_published_back_for_the_interaction(world: &mut ProviderWorld, num: usize) -> anyhow::Result<()>  {
+  let verification_results = world.mock_brokers.iter().any(|broker| {
+    let ms = broker.lock().unwrap();
+    let vec = ms.matches();
+    let verification_request = vec.iter()
+      .find(|result| {
+        let expected_path = format!("/pacts/provider/p/consumer/c_{}/verification-results", num);
+        match result {
+          MatchResult::RequestMatch(req, _) => req.path == expected_path,
+          MatchResult::RequestMismatch(req, _) => req.path == expected_path,
+          MatchResult::RequestNotFound(req) => req.path == expected_path,
+          MatchResult::MissingRequest(req) => req.path == expected_path
+        }
+      });
+    if let Some(result) = verification_request {
+      match result {
+        MatchResult::RequestMatch(req, _) => if let Some(body) = req.body.value() {
+          if let Ok(json) = serde_json::from_slice::<Value>(body.as_ref()) {
+            if let Some(success) = json.get("success") {
+              match success {
+                Value::Bool(b) => !*b,
+                _ => false
+              }
+            } else {
+              false
+            }
+          } else {
+            false
+          }
+        } else {
+          false
+        },
+        _ => false
+      }
+    } else {
+      false
+    }
+  });
+  if verification_results {
+    Ok(())
+  } else {
+    Err(anyhow!("Either no verification results was published, or it was incorrect"))
+  }
+}

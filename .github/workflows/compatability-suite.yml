@@ -5,6 +5,8 @@ on: [push, pull_request]
 jobs:
   v1:
     runs-on: ubuntu-latest
+    env:
+      pact_do_not_track: true
     steps:
     - uses: actions/checkout@v2
     - uses: dtolnay/rust-toolchain@stable
