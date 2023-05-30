@@ -677,7 +677,12 @@ pub async fn fetch_pacts_dynamically_from_broker(
     let pact_links = match response {
       Some(v) => {
         let pfv: PactsForVerificationResponse = serde_json::from_value(v)
+          .map_err(|err| {
+            trace!("Failed to deserialise PactsForVerificationResponse: {}", err);
+            err
+          })
           .unwrap_or(PactsForVerificationResponse { embedded: PactsForVerificationBody { pacts: vec!() } });
+        trace!(?pfv, "got pacts for verification response");
 
         if pfv.embedded.pacts.len() == 0 {
           return Err(anyhow!(PactBrokerError::NotFound(format!("No pacts were found for this provider"))))
@@ -685,13 +690,7 @@ pub async fn fetch_pacts_dynamically_from_broker(
 
         let links: Result<Vec<(Link, PactVerificationContext)>, PactBrokerError> = pfv.embedded.pacts.iter().map(| p| {
           match p.links.get("self") {
-            Some(l) => Ok((l.clone(), PactVerificationContext{
-              short_description: p.short_description.clone(),
-              verification_properties: PactVerificationProperties {
-                pending: p.verification_properties.pending,
-                notices: p.verification_properties.notices.clone(),
-              }
-            })),
+            Some(l) => Ok((l.clone(), p.into())),
             None => Err(
               PactBrokerError::LinkError(
                 format!(
@@ -1023,7 +1022,7 @@ struct PactForVerification {
   pub short_description: String,
   #[serde(rename(deserialize = "_links"))]
   pub links: HashMap<String, Link>,
-  pub verification_properties: PactVerificationProperties,
+  pub verification_properties: Option<PactVerificationProperties>,
 }
 
 #[skip_serializing_none]
@@ -1032,6 +1031,7 @@ struct PactForVerification {
 /// Request to send to determine the pacts to verify
 pub struct PactsForVerificationRequest {
   /// Provider tags to use for determining pending pacts (if enabled)
+  #[serde(skip_serializing_if = "Vec::is_empty")]
   pub provider_version_tags: Vec<String>,
   /// Enable pending pacts feature
   pub include_pending_status: bool,
@@ -1054,8 +1054,17 @@ pub struct PactVerificationContext {
   pub verification_properties: PactVerificationProperties,
 }
 
+impl From<&PactForVerification> for PactVerificationContext {
+  fn from(value: &PactForVerification) -> Self {
+    PactVerificationContext {
+      short_description: value.short_description.clone(),
+      verification_properties: value.verification_properties.clone().unwrap_or_default()
+    }
+  }
+}
+
 #[skip_serializing_none]
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 /// Properties associated with the verification context
 pub struct PactVerificationProperties {

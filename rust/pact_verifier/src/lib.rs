@@ -1238,9 +1238,12 @@ async fn fetch_pact(
           }
           buffer
         },
-        Err(err) => vec![
-          Err(anyhow!(err).context(format!("Could not load pacts from the pact broker '{}'", broker_url)))
-        ]
+        Err(err) => {
+          error!("Could not load pacts from pact broker '{}': {}", broker_url, err);
+          vec![
+            Err(anyhow!(err).context(format!("Could not load pacts from pact broker '{}'", broker_url)))
+          ]
+        }
       }
     },
     PactSource::BrokerWithDynamicConfiguration {
@@ -1265,7 +1268,7 @@ async fn fetch_pact(
           for result in pacts.iter() {
             match result {
               Ok((pact, context, links)) => {
-                trace!("Got pact with links {:?}", pact);
+                trace!(?links, ?pact, "Got pact with links");
                 buffer.push(Ok((
                   pact.boxed(),
                   context.clone(),
@@ -1278,9 +1281,12 @@ async fn fetch_pact(
           }
           buffer
         },
-        Err(err) => vec![
-          Err(err.context(format!("Could not load pacts from the pact broker '{}'", broker_url)))
-        ]
+        Err(err) => {
+          error!("Could not load pacts from pact broker '{}': {}", broker_url, err);
+          vec![
+            Err(err.context(format!("Could not load pacts from pact broker '{}'", broker_url)))
+          ]
+        }
       }
     },
     PactSource::String(json) => vec![
@@ -1507,12 +1513,17 @@ async fn publish_result(
   source: &PactSource,
   options: &PublishOptions,
 ) {
-  let publish_result = match source.clone() {
+  let publish_result = match source {
     PactSource::BrokerUrl(_, broker_url, auth, links) => {
-      publish_to_broker(results, source, &options.build_url, &options.provider_tags, &options.provider_branch, &options.provider_version, links, broker_url, auth).await
+      publish_to_broker(results, source, &options.build_url, &options.provider_tags,
+        &options.provider_branch, &options.provider_version, links.clone(), broker_url.clone(),
+        auth.clone()
+      ).await
     }
     PactSource::BrokerWithDynamicConfiguration { broker_url, auth, links, provider_branch, provider_tags, .. } => {
-      publish_to_broker(results, source, &options.build_url, &provider_tags, &provider_branch, &options.provider_version, links, broker_url, auth).await
+      publish_to_broker(results, source, &options.build_url, &provider_tags, &provider_branch,
+        &options.provider_version, links.clone(), broker_url.clone(), auth.clone()
+      ).await
     }
     _ => {
       info!("Not publishing results as publishing for pact source {:?} is not possible or not yet implemented", source);
