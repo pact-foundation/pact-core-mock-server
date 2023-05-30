@@ -1961,7 +1961,6 @@ mod tests {
           .header("Accept", "application/hal+json")
           .header("Accept", "application/json")
           .json_body(json_pattern!({
-            "providerVersionTags": [],
             "consumerVersionSelectors": each_like!({
                 "tag": "prod"
             }),
