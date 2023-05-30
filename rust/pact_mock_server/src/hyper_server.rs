@@ -182,9 +182,27 @@ async fn match_result_to_hyper_response(
     MatchResult::RequestMatch(_, ref response) => {
       debug!("Test context = {:?}", context);
       let response = pact_matching::generate_response(response, &GeneratorTestMode::Consumer, &context).await;
-      info!("Request matched, sending response {}", response);
+      info!("Request matched, sending response");
       if response.has_text_body() {
-        debug!("     body: '{}'", response.body.display_string());
+        debug!(
+          "
+          ----------------------------------------------------------------------------------------
+           status: {}
+           headers: {:?}
+           body: {} '{}'
+          ----------------------------------------------------------------------------------------
+          ", response.status, response.headers, response.body, response.body.display_string()
+        );
+      } else {
+        debug!(
+          "
+          ----------------------------------------------------------------------------------------
+           status: {}
+           headers: {:?}
+           body: {}
+          ----------------------------------------------------------------------------------------
+          ", response.status, response.headers, response.body
+        );
       }
 
       let mut builder = Response::builder()
@@ -248,12 +266,41 @@ async fn handle_request(
     let mut guard = mock_server.lock().unwrap();
     let mock_server = guard.borrow_mut();
     mock_server.metrics.requests = mock_server.metrics.requests + 1;
+    mock_server.metrics.requests_by_path.entry(req.uri().path().to_string())
+      .and_modify(|e| *e += 1)
+      .or_insert(1);
   }
 
   let pact_request = hyper_request_to_pact_request(req).await?;
-  info!("Received request {}", pact_request);
+  info!("Received request {} {}", pact_request.method, pact_request.path);
   if pact_request.has_text_body() {
-    debug!("     body: '{}'", pact_request.body.display_string());
+    debug!(
+      "
+      ----------------------------------------------------------------------------------------
+       method: {}
+       path: {}
+       query: {:?}
+       headers: {:?}
+       body: {} '{}'
+      ----------------------------------------------------------------------------------------
+      ",
+      pact_request.method, pact_request.path, pact_request.query, pact_request.headers,
+      pact_request.body, pact_request.body.display_string()
+    );
+  } else {
+    debug!(
+      "
+      ----------------------------------------------------------------------------------------
+       method: {}
+       path: {}
+       query: {:?}
+       headers: {:?}
+       body: {}
+      ----------------------------------------------------------------------------------------
+      ",
+      pact_request.method, pact_request.path, pact_request.query, pact_request.headers,
+      pact_request.body
+    );
   }
 
   let pact = {

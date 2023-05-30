@@ -84,7 +84,9 @@ impl ToString for MockServerScheme {
 #[derive(Debug, Default, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct MockServerMetrics {
   /// Total requests
-  pub requests: usize
+  pub requests: usize,
+  /// Total requests by path
+  pub requests_by_path: HashMap<String, usize>
 }
 
 /// Struct to represent the "foreground" part of mock server
