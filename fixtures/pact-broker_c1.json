@@ -166,7 +166,7 @@
               "matchers": [
                 {
                   "match": "regex",
-                  "regex": ".*(\\/\\Qpacts\\E\\/\\Qprovider\\E\\/\\Q\\{provider\\}\\E\\/\\Qfor-verification\\E)$"
+                  "regex": ".*(\\/\\Qpacts\\E\\/\\Qprovider\\E\\/\\Q{provider}\\E\\/\\Qfor-verification\\E)$"
                 }
               ]
             }
@@ -177,7 +177,7 @@
             "$._links.pb:provider-pacts-for-verification.href": {
               "type": "MockServerURL",
               "example": "http://localhost:9876/pacts/provider/{provider}/for-verification",
-              "regex": ".*(\\/\\Qpacts\\E\\/\\Qprovider\\E\\/\\Q\\{provider\\}\\E\\/\\Qfor-verification\\E)$"
+              "regex": ".*(\\/\\Qpacts\\E\\/\\Qprovider\\E\\/\\Q{provider}\\E\\/\\Qfor-verification\\E)$"
             }
           }
         },
