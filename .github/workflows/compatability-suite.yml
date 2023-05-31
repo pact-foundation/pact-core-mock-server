@@ -11,5 +11,5 @@ jobs:
     - uses: actions/checkout@v2
     - uses: dtolnay/rust-toolchain@stable
     - name: Run Cucumber
-      run: cargo test --test v1
+      run: cargo test --test v1*
       working-directory: compatibility-suite
