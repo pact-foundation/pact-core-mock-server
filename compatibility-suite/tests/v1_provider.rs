@@ -1,9 +1,9 @@
 use cucumber::World;
 use tracing_subscriber::EnvFilter;
 
-use crate::v1::provider::ProviderWorld;
+use crate::v1_steps::provider::ProviderWorld;
 
-pub mod v1 {
+pub mod v1_steps {
   pub mod common;
   pub mod provider;
 }

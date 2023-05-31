@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::anyhow;
 use async_trait::async_trait;
@@ -39,7 +40,7 @@ use pact_verifier::{
 use pact_verifier::callback_executors::ProviderStateExecutor;
 use pact_verifier::verification_result::{VerificationExecutionResult, VerificationMismatchResult};
 
-use crate::v1::common::setup_common_interactions;
+use crate::v1_steps::common::setup_common_interactions;
 
 #[derive(Debug, World)]
 pub struct ProviderWorld {
@@ -50,7 +51,8 @@ pub struct ProviderWorld {
   pub sources: Vec<PactSource>,
   pub publish_options: Option<PublishOptions>,
   pub verification_results: VerificationExecutionResult,
-  pub mock_brokers: Vec<Arc<Mutex<MockServer>>>
+  pub mock_brokers: Vec<Arc<Mutex<MockServer>>>,
+  pub provider_state_executor: Arc<MockProviderStateExecutor>
 }
 
 impl Default for ProviderWorld {
@@ -58,7 +60,7 @@ impl Default for ProviderWorld {
     ProviderWorld {
       interactions: vec![],
       provider_key: "".to_string(),
-      provider_server: Arc::new(Mutex::new(Default::default())),
+      provider_server: Default::default(),
       provider_info: ProviderInfo::default(),
       sources: vec![],
       publish_options: None,
@@ -66,28 +68,59 @@ impl Default for ProviderWorld {
         result: false,
         .. VerificationExecutionResult::new()
       },
-      mock_brokers: vec![]
+      mock_brokers: vec![],
+      provider_state_executor: Default::default()
     }
   }
 }
 
-#[derive(Debug)]
-struct DummyProviderStateExecutor;
+#[derive(Debug, Default)]
+pub struct MockProviderStateExecutor {
+  pub params: Arc<Mutex<Vec<(ProviderState, bool)>>>,
+  pub fail_mode: AtomicBool
+}
+
+impl MockProviderStateExecutor {
+  pub fn set_fail_mode(&self, mode: bool) {
+    self.fail_mode.store(mode, Ordering::Relaxed);
+  }
+
+  pub fn was_called(&self, is_setup: bool) -> bool {
+    let params = self.params.lock().unwrap();
+    params.iter().find(|(_, setup)| *setup == is_setup).is_some()
+  }
+
+  pub fn was_called_for_state(&self, state_name: &str, is_setup: bool) -> bool {
+    let params = self.params.lock().unwrap();
+    params.iter().find(|(state, setup)| {
+      state.name == state_name && *setup == is_setup
+    }).is_some()
+  }
+}
 
 #[async_trait]
-impl ProviderStateExecutor for DummyProviderStateExecutor {
+impl ProviderStateExecutor for MockProviderStateExecutor {
   async fn call(
     self: Arc<Self>,
     _interaction_id: Option<String>,
-    _provider_state: &ProviderState,
-    _setup: bool,
+    provider_state: &ProviderState,
+    setup: bool,
     _client: Option<&Client>
   ) -> anyhow::Result<HashMap<String, Value>> {
-    Ok(hashmap!{})
+    let mut lock = self.params.try_lock();
+    if let Ok(ref mut params) = lock {
+      params.push((provider_state.clone(), setup));
+    }
+
+    if self.fail_mode.load(Ordering::Relaxed) {
+      Err(anyhow!("ProviderStateExecutor is in fail mode"))
+    } else {
+      Ok(hashmap! {})
+    }
   }
 
   fn teardown(self: &Self) -> bool {
-    return false
+    return true
   }
 }
 
@@ -148,6 +181,28 @@ fn a_pact_file_for_interaction_is_to_be_verified(world: &mut ProviderWorld, num:
   Ok(())
 }
 
+#[given(expr = "a Pact file for interaction \\{{int}} is to be verified with a provider state {string} defined")]
+fn a_pact_file_for_interaction_is_to_be_verified_with_a_provider_state(
+  world: &mut ProviderWorld,
+  num: usize,
+  state: String
+) -> anyhow::Result<()> {
+  let mut interaction = world.interactions.get(num - 1).unwrap().clone();
+  interaction.provider_states.push(ProviderState {
+    name: state,
+    params: Default::default(),
+  });
+  let pact = RequestResponsePact {
+    consumer: Consumer { name: format!("c_{}", num) },
+    provider: Provider { name: "p".to_string() },
+    interactions: vec![interaction],
+    specification_version: PactSpecification::V1,
+    .. RequestResponsePact::default()
+  };
+  world.sources.push(PactSource::String(pact.to_json(PactSpecification::V1)?.to_string()));
+  Ok(())
+}
+
 #[when("the verification is run")]
 async fn the_verification_is_run(world: &mut ProviderWorld) -> anyhow::Result<()> {
   let options: VerificationOptions<NullRequestFilterExecutor> = VerificationOptions::default();
@@ -158,7 +213,7 @@ async fn the_verification_is_run(world: &mut ProviderWorld) -> anyhow::Result<()
     vec![],
     &options,
     world.publish_options.as_ref(),
-    &Arc::new(DummyProviderStateExecutor),
+    &world.provider_state_executor,
     None
   ).await?;
   Ok(())
@@ -227,7 +282,7 @@ fn the_verification_will_not_be_successful(world: &mut ProviderWorld) -> anyhow:
 #[then(expr = "the verification results will contain a {string} error")]
 fn the_verification_results_will_contain_a_error(world: &mut ProviderWorld, err: String) -> anyhow::Result<()> {
   if world.verification_results.errors.iter().any(|(_, r)| {
-    match r {
+    match dbg!(r) {
       VerificationMismatchResult::Mismatches { mismatches, .. } => {
         mismatches.iter().any(|mismatch| {
           match mismatch {
@@ -242,7 +297,10 @@ fn the_verification_results_will_contain_a_error(world: &mut ProviderWorld, err:
           }
         })
       }
-      VerificationMismatchResult::Error { error, .. } => error.as_str() == err
+      VerificationMismatchResult::Error { error, .. } => match err.as_str() {
+        "State change request failed" => error == "One or more of the setup state change handlers has failed",
+        _ => error.as_str() == err
+      }
     }
   }) {
     Ok(())
@@ -459,5 +517,68 @@ fn a_failed_verification_result_will_be_published_back_for_the_interaction(world
     Ok(())
   } else {
     Err(anyhow!("Either no verification results was published, or it was incorrect"))
+  }
+}
+
+#[given("a provider state callback is configured")]
+fn a_provider_state_callback_is_configured(world: &mut ProviderWorld) -> anyhow::Result<()> {
+  world.provider_state_executor.set_fail_mode(false);
+  Ok(())
+}
+
+#[given("a provider state callback is configured, but will return a failure")]
+fn a_provider_state_callback_is_configured_but_will_return_a_failure(world: &mut ProviderWorld) -> anyhow::Result<()> {
+  world.provider_state_executor.set_fail_mode(true);
+  Ok(())
+}
+
+#[then("the provider state callback will be called before the verification is run")]
+fn the_provider_state_callback_will_be_called_before_the_verification_is_run(world: &mut ProviderWorld) -> anyhow::Result<()> {
+  if world.provider_state_executor.was_called(true) {
+    Ok(())
+  } else {
+    Err(anyhow!("Provider state callback was not called"))
+  }
+}
+
+#[then(expr = "the provider state callback will receive a setup call with {string} as the provider state parameter")]
+fn the_provider_state_callback_will_receive_a_setup_call_with_as_the_provider_state_parameter(
+  world: &mut ProviderWorld,
+  state: String
+) -> anyhow::Result<()> {
+  if world.provider_state_executor.was_called_for_state(state.as_str(), true) {
+    Ok(())
+  } else {
+    Err(anyhow!("Provider state callback was not called for state '{}'", state))
+  }
+}
+
+#[then("the provider state callback will be called after the verification is run")]
+fn the_provider_state_callback_will_be_called_after_the_verification_is_run(world: &mut ProviderWorld) -> anyhow::Result<()> {
+  if world.provider_state_executor.was_called(false) {
+    Ok(())
+  } else {
+    Err(anyhow!("Provider state callback teardown was not called"))
+  }
+}
+
+#[then(expr = "the provider state callback will receive a teardown call {string} as the provider state parameter")]
+fn the_provider_state_callback_will_receive_a_teardown_call_as_the_provider_state_parameter(
+  world: &mut ProviderWorld,
+  state: String
+) -> anyhow::Result<()> {
+  if world.provider_state_executor.was_called_for_state(state.as_str(), false) {
+    Ok(())
+  } else {
+    Err(anyhow!("Provider state teardown callback was not called for state '{}'", state))
+  }
+}
+
+#[then("the provider state callback will NOT receive a teardown call")]
+fn the_provider_state_callback_will_not_receive_a_teardown_call(world: &mut ProviderWorld) -> anyhow::Result<()> {
+  if world.provider_state_executor.was_called(false) {
+    Err(anyhow!("Provider state callback teardown was called but was expecting no call"))
+  } else {
+    Ok(())
   }
 }

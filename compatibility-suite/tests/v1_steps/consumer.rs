@@ -27,7 +27,7 @@ use pact_mock_server::mock_server::{MockServer, MockServerConfig};
 use pact_verifier::{NullRequestFilterExecutor, ProviderInfo, ProviderTransport, VerificationOptions};
 use pact_verifier::provider_client::make_provider_request;
 
-use crate::v1::common::{IndexType, setup_common_interactions};
+use crate::v1_steps::common::{IndexType, setup_common_interactions};
 
 #[derive(Debug, World)]
 pub struct ConsumerWorld {

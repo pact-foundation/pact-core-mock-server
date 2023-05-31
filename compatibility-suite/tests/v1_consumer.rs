@@ -1,9 +1,9 @@
 use cucumber::World;
 use tracing_subscriber::EnvFilter;
 
-use crate::v1::consumer::ConsumerWorld;
+use crate::v1_steps::consumer::ConsumerWorld;
 
-pub mod v1 {
+pub mod v1_steps {
   pub mod common;
   pub mod consumer;
 }
