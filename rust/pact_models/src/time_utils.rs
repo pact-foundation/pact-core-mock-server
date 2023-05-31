@@ -76,6 +76,7 @@ pub enum DateTimePatternToken {
   Hour12ZeroBased,
   Minute,
   Second,
+  // TODO: This should be fraction of a second
   Millisecond(usize),
   Nanosecond(usize),
   TimezoneOffset(usize),
@@ -133,9 +134,12 @@ pub enum DateTimeError<I> {
   InvalidDayOfWeek(String),
   InvalidHour(String),
   InvalidMinute(String),
+  // TODO: This is actually for a fraction of a second
+  #[deprecated(note = "Use second fraction (InvalidSecondFraction)")]
   InvalidMillisecond(String),
   FullTimezonesNotSupported(String),
   InvalidTimezone(String),
+  InvalidSecondFraction(String),
   /// Nom error occurred
   Nom(I, ErrorKind),
 }
@@ -569,11 +573,11 @@ fn second(s: &str) -> IResult<&str, String, DateTimeError<&str>> {
   })
 }
 
-fn millisecond(s: &str, count: usize) -> IResult<&str, String, DateTimeError<&str>> {
+fn second_fraction(s: &str, count: usize) -> IResult<&str, String, DateTimeError<&str>> {
   take_while_m_n(1, count, is_digit)(s).and_then(|(remaining, result)|{
-    match validate_number(result, "millisecond".into(), 0, 999) {
+    match validate_number(result, "fraction of a second".into(), 0, usize::pow(10, count as u32) - 1) {
       Ok(_) => Ok((remaining, result.into())),
-      Err(_err) => Err(Error(DateTimeError::InvalidMillisecond(result.to_string())))
+      Err(_err) => Err(Error(DateTimeError::InvalidSecondFraction(result.to_string())))
     }
   })
 }
@@ -794,7 +798,7 @@ fn validate_datetime_string(value: &str, pattern_tokens: &[DateTimePatternToken]
       DateTimePatternToken::Hour12ZeroBased => hour_12_0(buffer),
       DateTimePatternToken::Minute => minute(buffer),
       DateTimePatternToken::Second => second(buffer),
-      DateTimePatternToken::Millisecond(size) => millisecond(buffer, *size),
+      DateTimePatternToken::Millisecond(size) => second_fraction(buffer, *size),
       DateTimePatternToken::Nanosecond(_size) => digit1(buffer).map(|(remaining, result)| (remaining, result.into())),
       DateTimePatternToken::TimezoneName(size) => timezone(buffer, *size),
       DateTimePatternToken::TimezoneId(_size) => timezone_id(buffer),
@@ -1213,11 +1217,13 @@ mod tests {
     expect!(validate_datetime("12", "m")).to(be_ok());
     expect!(validate_datetime("03", "ss")).to(be_ok());
     expect!(validate_datetime("030", "SSS")).to(be_ok());
+    expect!(validate_datetime("123456", "SSSSSS")).to(be_ok());
     expect!(validate_datetime("35392790", "A")).to(be_ok());
     expect!(validate_datetime("35392790", "n")).to(be_ok());
     expect!(validate_datetime("60", "m")).to(be_err());
     expect!(validate_datetime("61", "s")).to(be_err());
     expect!(validate_datetime("1000", "SS")).to(be_err());
+    expect!(validate_datetime("1000000", "SSSSSS")).to(be_err());
   }
 
   #[test]
