@@ -21,5 +21,9 @@ tracing-subscriber = { version = "0.3.16", features = ["env-filter", "tracing-lo
 uuid = { version = "1.3.3", features = ["v4"] }
 
 [[test]]
-name = "v1"
+name = "v1_consumer"
+harness = false
+
+[[test]]
+name = "v1_provider"
 harness = false
