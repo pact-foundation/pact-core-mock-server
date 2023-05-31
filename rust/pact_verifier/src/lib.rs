@@ -434,7 +434,7 @@ async fn verify_interaction<'a, F: RequestFilterExecutor, S: ProviderStateExecut
       .map_err(|e| (e, vec![]))
   };
 
-  if !interaction.provider_states().is_empty() && provider_state_executor.teardown() {
+  if provider_state_executor.teardown() {
     execute_provider_states(interaction, provider_state_executor, &client, false)
       .await
       .map_err(|e| (e, vec![], start.elapsed()))?;
