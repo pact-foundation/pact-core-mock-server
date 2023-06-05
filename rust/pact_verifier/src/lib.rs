@@ -1340,7 +1340,7 @@ async fn fetch_pacts(
 }
 
 /// Internal function, public for testing purposes
-#[tracing::instrument(level = "trace")]
+#[tracing::instrument(level = "trace", skip(pact))]
 pub async fn verify_pact_internal<'a, F: RequestFilterExecutor, S: ProviderStateExecutor>(
   provider_info: &ProviderInfo,
   filter: &FilterInfo,

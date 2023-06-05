@@ -157,7 +157,7 @@ impl ProviderStateExecutor for HttpRequestProviderStateExecutor {
           .map_err(|err| ProviderStateError { description: err.to_string(), interaction_id }.into())
       },
       None => {
-        if setup {
+        if !provider_state.name.is_empty() && setup {
           warn!("State Change ignored as there is no state change URL provided for interaction {}", interaction_id.unwrap_or_default());
         }
         Ok(hashmap!{})
