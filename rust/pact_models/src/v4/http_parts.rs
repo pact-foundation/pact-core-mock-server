@@ -10,7 +10,7 @@ use bytes::BytesMut;
 use itertools::Itertools;
 use maplit::*;
 use serde_json::{json, Map, Value};
-use tracing::warn;
+use tracing::{debug, warn};
 
 use crate::bodies::OptionalBody;
 use crate::content_types::{ContentType, ContentTypeHint, detect_content_type_from_bytes};
@@ -338,7 +338,7 @@ fn content_type_from_json(headers: &Option<HashMap<String, Vec<String>>>, body_a
       }
     },
     None => {
-      warn!("Body has no content type set, will default to any headers or metadata");
+      debug!("Body has no content type set, will default to any headers or metadata");
       match headers {
         Some(ref h) => match h.iter().find(|kv| kv.0.to_lowercase() == "content-type") {
           Some((_, v)) => {
