@@ -4,8 +4,8 @@ use std::{
   path::Path
 };
 use std::path::PathBuf;
-use bytes::Bytes;
 
+use bytes::Bytes;
 use expectest::prelude::*;
 use maplit::hashmap;
 use pact_models::content_types::ContentType;
@@ -16,7 +16,8 @@ use pact_models::sync_pact::RequestResponsePact;
 use pact_models::v4::http_parts::{HttpRequest, HttpResponse};
 use pact_models::v4::synch_http::SynchronousHttp;
 use rand::prelude::*;
-use reqwest::Client;
+use reqwest::{Client, StatusCode};
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use pact_consumer::{json_pattern, json_pattern_internal, like};
@@ -253,4 +254,42 @@ async fn test_two_interactions() {
 
   let pact = RequestResponsePact::read_pact(&path_file).unwrap();
   expect!(pact.interactions.len()).to(be_equal_to(2));
+}
+
+#[derive(Deserialize, Serialize, Default, Copy, Clone, Debug, Eq, PartialEq)]
+struct Data {
+  id: usize,
+}
+
+#[tokio::test]
+#[should_panic]
+async fn post_json_with_incorrect_content_type() {
+  let pact = PactBuilder::new_v4("SHIT", "TEST")
+    .interaction("posting a Test", "post", |mut i| {
+      i.test_name("post_test");
+      i.request
+        .post()
+        .path("/")
+        .json_utf8()
+        .json_body(json_pattern!(like!(json!(Data::default()))));
+      i.response
+        .created()
+        .json_utf8()
+        .json_body(json_pattern!(like!(json!(Data::default()))));
+      i.clone()
+    })
+    .start_mock_server(None);
+
+  let response = reqwest::Client::new().post(pact.path("/"))
+    .json(&Data::default())
+    .send()
+    .await
+    .expect("could not fetch URL");
+  println!("response: {:#?}", response);
+  // response: 500
+  assert_eq!(StatusCode::CREATED, response.status());
+  // "x-pact": "Request-Mismatch"
+
+  let body = response.json::<Data>().await.expect("could not read response body");
+  assert_eq!(Data::default(), body);
 }

@@ -187,24 +187,23 @@ impl ValidatingHttpMockServer {
     let mut ms = self.mock_server.lock().unwrap();
     ms.shutdown()?;
 
-    if ::std::thread::panicking() {
-      return Ok(());
-    }
-
     // Wait for the server thread to finish
     if let Err(_) = self.done_rx.recv_timeout(std::time::Duration::from_secs(3)) {
       warn!("Timed out waiting for mock server to finish");
     }
 
+    // Send any metrics in another thread as this thread could be panicking due to an assertion.
     let interactions = {
       let pact = ms.pact.lock().unwrap();
       pact.interactions().len()
     };
-    send_metrics(MetricEvent::ConsumerTestRun {
-      interactions,
-      test_framework: "pact_consumer".to_string(),
-      app_name: "pact_consumer".to_string(),
-      app_version: env!("CARGO_PKG_VERSION").to_string()
+    thread::spawn(move || {
+      send_metrics(MetricEvent::ConsumerTestRun {
+        interactions,
+        test_framework: "pact_consumer".to_string(),
+        app_name: "pact_consumer".to_string(),
+        app_version: env!("CARGO_PKG_VERSION").to_string()
+      });
     });
 
     // Look up any mismatches which occurred.
