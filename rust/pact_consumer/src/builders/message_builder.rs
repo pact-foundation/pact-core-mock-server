@@ -20,7 +20,7 @@ use serde_json::{json, Map, Value};
 use tracing::debug;
 
 use crate::patterns::JsonPattern;
-use crate::prelude::Pattern;
+use crate::prelude::{Pattern, PluginInteractionBuilder};
 
 #[derive(Clone, Debug)]
 /// Asynchronous message interaction builder. Normally created via PactBuilder::message_interaction.
@@ -170,6 +170,11 @@ impl MessageInteractionBuilder {
     }
 
     self
+  }
+
+  /// Configure the interaction contents from a plugin builder
+  pub async fn contents_for_plugin<B: PluginInteractionBuilder>(&mut self, builder: B) -> &mut Self {
+    self.contents_from(builder.build()).await
   }
 
   fn setup_core_matcher(

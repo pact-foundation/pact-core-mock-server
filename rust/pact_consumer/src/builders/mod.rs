@@ -6,6 +6,7 @@ mod interaction_builder;
 mod http_part_builder;
 mod pact_builder;
 mod pact_builder_async;
+pub mod plugin_builder;
 mod request_builder;
 mod response_builder;
 mod message_builder;

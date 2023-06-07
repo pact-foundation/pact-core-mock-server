@@ -17,7 +17,7 @@ use pact_plugin_driver::plugin_models::PactPluginManifest;
 use serde_json::{json, Map, Value};
 use tracing::debug;
 
-use crate::prelude::{JsonPattern, Pattern};
+use crate::prelude::{JsonPattern, Pattern, PluginInteractionBuilder};
 
 #[derive(Clone, Debug)]
 /// Synchronous message interaction builder. Normally created via PactBuilder::sync_message_interaction.
@@ -138,7 +138,7 @@ impl SyncMessageInteractionBuilder {
     markup
   }
 
-  /// Configure the interaction contents from a map
+  /// Configure the interaction contents from a map of values
   pub async fn contents_from(&mut self, contents: Value) -> &mut Self {
     debug!("Configuring interaction from {:?}", contents);
 
@@ -183,6 +183,11 @@ impl SyncMessageInteractionBuilder {
     }
 
     self
+  }
+
+  /// Configure the interaction contents from a plugin builder
+  pub async fn contents_for_plugin<B: PluginInteractionBuilder>(&mut self, builder: B) -> &mut Self {
+    self.contents_from(builder.build()).await
   }
 
   fn add_plugin_config(&mut self, plugin_config: PluginConfiguration, plugin_name: String) {

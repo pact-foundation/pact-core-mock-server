@@ -236,6 +236,11 @@ impl RequestBuilder {
     self
   }
 
+  /// Configure the interaction contents from a plugin builder
+  pub async fn contents_for_plugin<B: PluginInteractionBuilder>(&mut self, content_type: ContentType, builder: B) -> &mut Self {
+    self.contents(content_type, builder.build()).await
+  }
+
   pub(crate) fn plugin_config(&self) -> HashMap<String, PluginConfiguration> {
     self.plugin_config.clone()
   }
