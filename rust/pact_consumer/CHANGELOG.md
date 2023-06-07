@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.1 - Bugfix Release
+
+* 4fbd45cc - fix: Mock server errors were not being printed if the test was panicking due to a failed assertion #282 (Ronald Holshausen, Wed Jun 7 11:27:15 2023 +1000)
+* bc68ed7f - chore: Upgrade pact_models to 1.1.4 (Ronald Holshausen, Thu Jun 1 10:22:38 2023 +1000)
+* 397c837f - chore: Upgrade pact_models to 1.1.3 (fixes MockServerURL generator) (Ronald Holshausen, Mon May 29 15:12:22 2023 +1000)
+* cbcb530e - bump version to 1.0.1 (Ronald Holshausen, Tue May 23 16:13:29 2023 +1000)
+
 # 1.0.0 - Bugfixes + Update Pact models to 1.1 (breaking change)
 
 * e9bb4c69 - chore: fix deps (Ronald Holshausen, Tue May 23 16:10:46 2023 +1000)
