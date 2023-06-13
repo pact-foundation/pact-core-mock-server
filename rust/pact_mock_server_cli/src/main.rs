@@ -19,7 +19,9 @@ use log::LevelFilter;
 use pact_models::PactSpecification;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
-use simplelog::{ColorChoice, CombinedLogger, Config, SimpleLogger, TermLogger, WriteLogger};
+use tracing_log::LogTracer;
+use tracing_subscriber::fmt::writer::MakeWriterExt;
+use tracing_subscriber::FmtSubscriber;
 use uuid::Uuid;
 
 use pact_mock_server::server_manager::ServerManager;
@@ -67,41 +69,37 @@ fn setup_log_file(output: Option<&str>) -> Result<File, io::Error> {
 }
 
 fn setup_loggers(level: &str, command: &str, output: Option<&str>, no_file_log: bool, no_term_log: bool) -> Result<(), String> {
-    let term_mode = simplelog::TerminalMode::Stdout;
-    let log_level = match level {
-        "none" => LevelFilter::Off,
-        _ => LevelFilter::from_str(level).unwrap()
-    };
+  let log_level = match level {
+    "none" => LevelFilter::Off,
+    _ => LevelFilter::from_str(level).unwrap()
+  };
 
-    if command == "start" {
-      match (no_file_log, no_term_log) {
-        (true, true) => {
-          SimpleLogger::init(log_level, Config::default()).map_err(|e| format!("{:?}", e))
-        },
-        (true, false) => {
-          TermLogger::init(log_level, Config::default(), term_mode, ColorChoice::Auto)
-            .map_err(|e| format!("{:?}", e))
-        },
-        (false, true) => {
-          let log_file = setup_log_file(output).map_err(|e| format!("{:?}", e))?;
-          WriteLogger::init(log_level, Config::default(), log_file).map_err(|e| format!("{:?}", e))
-        },
-        _ => {
-          let log_file = setup_log_file(output).map_err(|e| format!("{:?}", e))?;
-          CombinedLogger::init(
-            vec![
-              TermLogger::new(log_level, Config::default(), term_mode, ColorChoice::Auto),
-              WriteLogger::new(log_level, Config::default(), log_file)
-            ]
-          ).map_err(|e| format!("{:?}", e))
-        }
-      }
-    } else if no_term_log {
-      SimpleLogger::init(log_level, Config::default()).map_err(|e| format!("{:?}", e))
-    } else {
-      TermLogger::init(log_level, Config::default(), term_mode, ColorChoice::Auto)
-        .map_err(|e| format!("{:?}", e))
-    }
+  let _ = LogTracer::builder()
+    .with_max_level(log_level)
+    .init();
+  let level_filter = tracing_core::LevelFilter::from_str(level)
+    .unwrap_or(tracing_core::LevelFilter::INFO);
+
+  if command == "start" && !no_file_log {
+    let log_file = setup_log_file(output).map_err(|e| format!("{:?}", e))?;
+    let (non_blocking, _guard) = tracing_appender::non_blocking(log_file);
+    let subscriber = FmtSubscriber::builder()
+      .with_max_level(level_filter)
+      .with_writer(non_blocking.and(io::stdout))
+      .with_thread_names(true)
+      .with_ansi(!no_term_log)
+      .finish();
+    tracing::subscriber::set_global_default(subscriber)
+      .map_err(|err| err.to_string())
+  } else {
+    let subscriber = FmtSubscriber::builder()
+      .with_max_level(level_filter)
+      .with_thread_names(true)
+      .with_ansi(!no_term_log)
+      .finish();
+    tracing::subscriber::set_global_default(subscriber)
+      .map_err(|err| err.to_string())
+  }
 }
 
 fn global_option_present(option: &str, matches: &ArgMatches) -> bool {
