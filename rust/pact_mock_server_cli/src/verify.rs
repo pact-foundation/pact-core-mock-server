@@ -1,9 +1,10 @@
 use std::sync::Mutex;
 
-use clap::{App, ArgMatches};
+use clap::{ArgMatches, Command};
 use http::StatusCode;
 use pact_models::json_utils::json_to_string;
 use serde_json::Value;
+use tracing::error;
 
 use pact_mock_server::{
   mock_server::MockServer,
@@ -12,17 +13,17 @@ use pact_mock_server::{
 
 use crate::handle_error;
 
-pub async fn verify_mock_server(host: &str, port: u16, matches: &ArgMatches, app: &mut App<'_>) -> Result<(), i32> {
-  let mock_server_id = matches.value_of("mock-server-id");
-  let mock_server_port = matches.value_of("mock-server-port");
-  let id = if let Some(id) = mock_server_id {
-    (id, "id")
-  } else {
-    (mock_server_port.unwrap(), "port")
+pub async fn verify_mock_server(host: &str, port: u16, matches: &ArgMatches, app: &mut Command<'_>) -> Result<(), i32> {
+  let mock_server_id = matches.get_one::<String>("mock-server-id");
+  let mock_server_port = matches.get_one::<u16>("mock-server-port");
+  let (id, id_type) = match (mock_server_id, mock_server_port) {
+    (Some(id), _) => (id.clone(), "id"),
+    (_, Some(port)) => (port.to_string(), "port"),
+    _ => crate::display_error("Either an ID or port must be provided".to_string(), app.render_usage().as_str())
   };
 
   let client = reqwest::Client::new();
-  let url = format!("http://{}:{}/mockserver/{}/verify", host, port, id.0);
+  let url = format!("http://{}:{}/mockserver/{}/verify", host, port, id);
   let resp = client.post(&url)
     .send().await;
   match resp {
@@ -31,7 +32,7 @@ pub async fn verify_mock_server(host: &str, port: u16, matches: &ArgMatches, app
       if !status.is_success() {
         match status {
           StatusCode::NOT_FOUND => {
-            println!("No mock server found with {} '{}', use the 'list' command to get a list of available mock servers.", id.1, id.0);
+            println!("No mock server found with {} '{}', use the 'list' command to get a list of available mock servers.", id_type, id);
             Err(3)
           },
           StatusCode::UNPROCESSABLE_ENTITY => {
@@ -51,26 +52,26 @@ pub async fn verify_mock_server(host: &str, port: u16, matches: &ArgMatches, app
                     Err(2)
                   },
                   Err(err) => {
-                    log::error!("Failed to parse JSON: {}\n{}", err, body);
-                    crate::display_error(format!("Failed to parse JSON: {}\n{}", err, body), app);
+                    error!("Failed to parse JSON: {}\n{}", err, body);
+                    crate::display_error(format!("Failed to parse JSON: {}\n{}", err, body), app.render_usage().as_str());
                   }
                 }
               },
               Err(err) => {
-                log::error!("Failed to parse JSON: {}", err);
-                crate::display_error(format!("Failed to parse JSON: {}", err), app);
+                error!("Failed to parse JSON: {}", err);
+                crate::display_error(format!("Failed to parse JSON: {}", err), app.render_usage().as_str());
               }
             }
           },
-          _ => crate::display_error(format!("Unexpected response from master mock server '{}': {}", url, result.status()), app)
+          _ => crate::display_error(format!("Unexpected response from master mock server '{}': {}", url, result.status()), app.render_usage().as_str())
         }
       } else {
-        println!("Mock server with {} '{}' verified ok", id.1, id.0);
+        println!("Mock server with {} '{}' verified ok", id, id_type);
         Ok(())
       }
     },
     Err(err) => {
-      crate::display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), app);
+      crate::display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), app.render_usage().as_str());
     }
   }
 }

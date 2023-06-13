@@ -11,9 +11,11 @@ use std::net::{IpAddr, SocketAddr};
 use futures::channel::oneshot::channel;
 use hyper::server::Server;
 use hyper::service::make_service_fn;
-use log::*;
 use maplit::*;
+use pact_models::pact::load_pact_from_json;
+use pact_models::PactSpecification;
 use serde_json::{self, json, Value};
+use tracing::{debug, error, info};
 use uuid::Uuid;
 use webmachine_rust::*;
 use webmachine_rust::context::*;
@@ -21,8 +23,6 @@ use webmachine_rust::headers::*;
 
 use pact_mock_server::mock_server::MockServerConfig;
 use pact_mock_server::tls::TlsConfigBuilder;
-use pact_models::pact::load_pact_from_json;
-use pact_models::PactSpecification;
 
 use crate::{SERVER_MANAGER, SERVER_OPTIONS, ServerOpts};
 use crate::verify;

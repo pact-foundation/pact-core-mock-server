@@ -14,7 +14,7 @@ OPTIONS:
                                      to info) [possible values: error, warn, info, debug, trace,
                                      none]
         --no-file-log                Do not log to an output file
-        --no-term-log                Use a simple logger instead of the term based one
+        --no-term-log                Turns off using terminal ANSI escape codes
     -o, --output <output>            the directory where to write files to (defaults to current
                                      directory)
     -p, --port <port>                port the master mock server runs on (defaults to 8080)

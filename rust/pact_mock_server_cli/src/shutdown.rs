@@ -1,44 +1,44 @@
-use clap::{App, ArgMatches};
+use clap::{ArgMatches, Command};
 use http::StatusCode;
 use serde_json::json;
 
-pub async fn shutdown_mock_server(host: &str, port: u16, matches: &ArgMatches, app: &mut App<'_>) -> Result<(), i32> {
-  let mock_server_id = matches.value_of("mock-server-id");
-  let mock_server_port = matches.value_of("mock-server-port");
-  let id = if let Some(id) = mock_server_id {
-    (id, "id")
-  } else {
-    (mock_server_port.unwrap(), "port")
+pub async fn shutdown_mock_server(host: &str, port: u16, matches: &ArgMatches, app: &mut Command<'_>) -> Result<(), i32> {
+  let mock_server_id = matches.get_one::<String>("mock-server-id");
+  let mock_server_port = matches.get_one::<u16>("mock-server-port");
+  let (id, id_type) = match (mock_server_id, mock_server_port) {
+    (Some(id), _) => (id.clone(), "id"),
+    (_, Some(port)) => (port.to_string(), "port"),
+    _ => crate::display_error("Either an ID or port must be provided".to_string(), app.render_usage().as_str())
   };
 
   let client = reqwest::Client::new();
-  let url = format!("http://{}:{}/mockserver/{}", host, port, id.0);
+  let url = format!("http://{}:{}/mockserver/{}", host, port, id);
   let resp = client.delete(&url).send().await;
   match resp {
     Ok(result) => {
       if !result.status().is_success() {
         match result.status() {
           StatusCode::NOT_FOUND => {
-            println!("No mock server found with {} '{}', use the 'list' command to get a list of available mock servers.", id.1, id.0);
+            println!("No mock server found with {} '{}', use the 'list' command to get a list of available mock servers.", id_type, id);
             Err(3)
           },
-          _ => crate::display_error(format!("Unexpected response from master mock server '{}': {}", url, result.status()), app)
+          _ => crate::display_error(format!("Unexpected response from master mock server '{}': {}", url, result.status()), app.render_usage().as_str())
         }
       } else {
-        println!("Mock server with {} '{}' shutdown ok", id.1, id.0);
+        println!("Mock server with {} '{}' shutdown ok", id_type, id);
         Ok(())
       }
     },
     Err(err) => {
-      crate::display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), app);
+      crate::display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), app.render_usage().as_str());
     }
   }
 }
 
-pub async fn shutdown_master_server(host: &str, port: u16, matches: &ArgMatches, app: &mut App<'_>) -> Result<(), i32> {
+pub async fn shutdown_master_server(host: &str, port: u16, matches: &ArgMatches, app: &mut Command<'_>) -> Result<(), i32> {
   let client = reqwest::Client::new();
-  let server_key = matches.value_of("server-key").unwrap().to_owned();
-  let shutdown_period = matches.value_of("period").map(|val| val.parse::<u16>().unwrap_or(100)).unwrap_or(100);
+  let server_key = matches.get_one::<String>("server-key").unwrap().to_owned();
+  let shutdown_period = matches.get_one::<String>("period").map(|val| val.parse::<u16>().unwrap_or(100)).unwrap_or(100);
   let url = format!("http://{}:{}/shutdown", host, port);
   let res = client.post(&url)
     .bearer_auth(server_key)
@@ -48,10 +48,10 @@ pub async fn shutdown_master_server(host: &str, port: u16, matches: &ArgMatches,
     Ok(result) => {
       if !result.status().is_success() {
         if result.status() == StatusCode::FORBIDDEN {
-          crate::display_error(format!("Invalid server key: got response {}", result.status()), app)
+          crate::display_error(format!("Invalid server key: got response {}", result.status()), app.render_usage().as_str())
         } else {
           crate::display_error(format!("Unexpected response from master mock server '{}': {}",
-                                       url, result.status()), app)
+                                       url, result.status()), app.render_usage().as_str())
         }
       } else {
         println!("Master server shutting down ok");
@@ -59,7 +59,7 @@ pub async fn shutdown_master_server(host: &str, port: u16, matches: &ArgMatches,
       }
     },
     Err(err) => {
-      crate::display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), app);
+      crate::display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), app.render_usage().as_str());
     }
   }
 }

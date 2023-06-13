@@ -25,7 +25,7 @@ OPTIONS:
             Do not log to an output file
 
         --no-term-log
-            Use a simple logger instead of the term based one
+            Turns off using terminal ANSI escape codes
 
     -p, --port <port>
             port the master mock server runs on (defaults to 8080)

@@ -1,4 +1,4 @@
-use clap::App;
+use clap::Command;
 use log::*;
 use serde_json::{self, json, Value};
 
@@ -15,7 +15,7 @@ fn json2string(json: Option<&Value>) -> String {
 }
 
 #[allow(clippy::print_literal)]
-pub async fn list_mock_servers(host: &str, port: u16, app: &mut App<'_>) -> Result<(), i32> {
+pub async fn list_mock_servers(host: &str, port: u16, app: &mut Command<'_>) -> Result<(), i32> {
   let client = reqwest::Client::new();
   let url = format!("http://{}:{}/", host, port);
   let res = client.get(&url).send().await;
@@ -54,16 +54,16 @@ pub async fn list_mock_servers(host: &str, port: u16, app: &mut App<'_>) -> Resu
           },
           Err(err) => {
             error!("Failed to parse JSON: {}\n", err);
-            display_error(format!("Failed to parse JSON: {}", err), app);
+            display_error(format!("Failed to parse JSON: {}", err), app.render_usage().as_str());
           }
         }
       } else {
         let body = result.text().await.unwrap_or_default();
-        display_error(format!("Master mock server returned an error: {}\n{}", status, body), app);
+        display_error(format!("Master mock server returned an error: {}\n{}", status, body), app.render_usage().as_str());
       }
     },
     Err(err) => {
-      display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), app);
+      display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), app.render_usage().as_str());
     }
   }
 }
