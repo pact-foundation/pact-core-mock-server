@@ -1,5 +1,15 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.0.2 - Fixes a deadlock caused when getting mock server JSON
+
+* 834f77cc - chore: Upgrade pact_mock_server to 1.2.0 (Ronald Holshausen, Wed Jun 14 15:22:11 2023 +1000)
+* 41147cf5 - chore(pact_mock_server_cli): Upgrade Clap to v4 (Ronald Holshausen, Wed Jun 14 15:01:45 2023 +1000)
+* fc4ddeb7 - chore(pact_mock_server_cli): Add actions to all Clap args (Ronald Holshausen, Wed Jun 14 14:03:44 2023 +1000)
+* e58aa917 - fix: no need to wrap the Pact for a mock server in a mutex (mock server is already behind a mutex) as this can cause deadlocks #274 (Ronald Holshausen, Wed Jun 14 13:26:54 2023 +1000)
+* d6775858 - chore(pact_mock_server_cli): Fix all the Clap deprecation warnings (Ronald Holshausen, Tue Jun 13 17:16:03 2023 +1000)
+* 17a81361 - chore(pact_mock_server_cli): Switch to using tracing crate (Ronald Holshausen, Tue Jun 13 14:42:52 2023 +1000)
+* 2047ce09 - bump version to 1.0.2 (Ronald Holshausen, Tue Jun 13 11:35:52 2023 +1000)
+
 # 1.0.1 - Adds aarch64 osx binary + bug fixes
 
 * 2a21bc0e - chore: correct the pact_matching version (Ronald Holshausen, Tue Jun 13 11:31:32 2023 +1000)
