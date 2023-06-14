@@ -256,7 +256,7 @@ async fn match_result_to_hyper_response(
 
 async fn handle_request(
   req: hyper::Request<Body>,
-  pact: Arc<Mutex<dyn Pact + Send + Sync>>,
+  pact: Arc<dyn Pact + Send + Sync>,
   matches: Arc<Mutex<Vec<MatchResult>>>,
   mock_server: Arc<Mutex<MockServer>>
 ) -> Result<Response<Body>, InteractionError> {
@@ -303,11 +303,9 @@ async fn handle_request(
     );
   }
 
-  let pact = {
-    let inner = pact.lock().unwrap();
-    inner.as_v4_pact().unwrap()
-  };
-  let match_result = match_request(&pact_request, &pact).await;
+  // This unwrap is safe, as all pact models can be upgraded to V4 format
+  let v4_pact = pact.as_v4_pact().unwrap();
+  let match_result = match_request(&pact_request, &v4_pact).await;
 
   matches.lock().unwrap().push(match_result.clone());
 
@@ -343,14 +341,14 @@ fn handle_mock_request_error(result: Result<Response<Body>, InteractionError>) -
 // The reason that the function itself is still async (even if it performs
 // no async operations) is that it needs a tokio context to be able to call try_bind.
 pub(crate) async fn create_and_bind(
-  pact: Arc<Mutex<dyn Pact + Send + Sync>>,
+  pact: Box<dyn Pact + Send + Sync>,
   addr: SocketAddr,
   shutdown: impl std::future::Future<Output = ()>,
   matches: Arc<Mutex<Vec<MatchResult>>>,
   mock_server: Arc<Mutex<MockServer>>,
   mock_server_id: &String
 ) -> Result<(impl std::future::Future<Output = ()>, SocketAddr), hyper::Error> {
-  let pact = pact.clone();
+  let pact = pact.arced();
   let ms_id = Arc::new(mock_server_id.clone());
 
   let server = Server::try_bind(&addr)?
@@ -409,7 +407,7 @@ impl hyper::server::accept::Accept for HyperAcceptor {
 }
 
 pub(crate) async fn create_and_bind_tls(
-  pact: Arc<Mutex<dyn Pact + Send + Sync>>,
+  pact: Box<dyn Pact + Send + Sync>,
   addr: SocketAddr,
   shutdown: impl std::future::Future<Output = ()>,
   matches: Arc<Mutex<Vec<MatchResult>>>,
@@ -430,6 +428,7 @@ pub(crate) async fn create_and_bind_tls(
     }
   });
 
+  let pact = pact.arced();
   let server = Server::builder(HyperAcceptor {
     stream: tls_stream.boxed()
   })
@@ -482,7 +481,7 @@ mod tests {
     let matches = Arc::new(Mutex::new(vec![]));
 
     let (future, _) = create_and_bind(
-      RequestResponsePact::default().thread_safe(),
+      RequestResponsePact::default().boxed(),
       ([0, 0, 0, 0], 0 as u16).into(),
       async {
           shutdown_rx.await.ok();

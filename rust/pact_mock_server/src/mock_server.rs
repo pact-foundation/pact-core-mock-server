@@ -6,7 +6,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::CString;
-use std::ops::{Deref, DerefMut};
+use std::ops::DerefMut;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use pact_models::json_utils::json_to_string;
@@ -104,7 +104,7 @@ pub struct MockServer {
   #[deprecated(since = "0.9.1", note = "Resources should be stored on the mock server manager entry")]
   pub resources: Vec<CString>,
   /// Pact that this mock server is based on
-  pub pact: Arc<Mutex<dyn Pact + Send + Sync>>,
+  pub pact: Box<dyn Pact + Send + Sync>,
   /// Receiver of match results
   matches: Arc<Mutex<Vec<MatchResult>>>,
   /// Shutdown signal
@@ -135,7 +135,7 @@ impl MockServer {
       address: None,
       scheme: MockServerScheme::HTTP,
       resources: vec![],
-      pact: pact.thread_safe(),
+      pact: pact.boxed(),
       matches: matches.clone(),
       shutdown_tx: RefCell::new(Some(shutdown_tx)),
       config: config.clone(),
@@ -144,7 +144,7 @@ impl MockServer {
     }));
 
     let (future, socket_addr) = hyper_server::create_and_bind(
-      pact.thread_safe(),
+      pact,
       addr,
       async {
         shutdown_rx.await.ok();
@@ -185,7 +185,7 @@ impl MockServer {
       address: None,
       scheme: MockServerScheme::HTTPS,
       resources: vec![],
-      pact: pact.thread_safe(),
+      pact: pact.boxed(),
       matches: matches.clone(),
       shutdown_tx: RefCell::new(Some(shutdown_tx)),
       config: config.clone(),
@@ -194,7 +194,7 @@ impl MockServer {
     }));
 
     let (future, socket_addr) = hyper_server::create_and_bind_tls(
-      pact.thread_safe(),
+      pact,
       addr,
       async {
         shutdown_rx.await.ok();
@@ -234,13 +234,12 @@ impl MockServer {
 
     /// Converts this mock server to a `Value` struct
     pub fn to_json(&self) -> serde_json::Value {
-      let pact = self.pact.lock().unwrap();
       json!({
         "id" : self.id.clone(),
         "port" : self.port.unwrap_or_default() as u64,
         "address" : self.address.clone().unwrap_or_default(),
         "scheme" : self.scheme.to_string(),
-        "provider" : pact.provider().name.clone(),
+        "provider" : self.pact.provider().name.clone(),
         "status" : if self.mismatches().is_empty() { "ok" } else { "error" },
         "metrics" : self.metrics
       })
@@ -266,8 +265,7 @@ impl MockServer {
         }
       }).filter(|o| o.is_some()).map(|o| o.unwrap().clone()).collect();
 
-      let pact = self.pact.lock().unwrap();
-      let interactions = pact.interactions();
+      let interactions = self.pact.interactions();
       let missing = interactions.iter()
         .map(|i| i.as_v4_http().unwrap().request)
         .filter(|req| !requests.contains(req))
@@ -278,17 +276,17 @@ impl MockServer {
   /// Mock server writes its pact out to the provided directory
   pub fn write_pact(&self, output_path: &Option<String>, overwrite: bool) -> anyhow::Result<()> {
     trace!("write_pact: output_path = {:?}, overwrite = {}", output_path, overwrite);
-    let mut pact = self.pact.lock().unwrap();
-    pact.add_md_version("mockserver", option_env!("CARGO_PKG_VERSION").unwrap_or("unknown"));
-
-    let mut v4_pact = pact.as_v4_pact().unwrap_or_default();
-    let pact = if pact.is_v4() {
+    let pact = if self.pact.is_v4() {
+      let mut v4_pact = self.pact.as_v4_pact().unwrap_or_default();
+      v4_pact.add_md_version("mockserver", option_env!("CARGO_PKG_VERSION").unwrap_or("unknown"));
       for interaction in &mut v4_pact.interactions {
         interaction.set_transport(Some("http".to_string()));
       }
-      &v4_pact as &(dyn Pact + Send + Sync)
+      v4_pact.boxed()
     } else {
-      pact.deref()
+      let mut pact = self.pact.boxed();
+      pact.add_md_version("mockserver", option_env!("CARGO_PKG_VERSION").unwrap_or("unknown"));
+      pact
     };
 
     let pact_file_name = pact.default_file_name();
@@ -306,7 +304,7 @@ impl MockServer {
       PactSpecification::Unknown => PactSpecification::V3,
       _ => self.spec_version
     };
-    match write_pact(pact.boxed(), filename.as_path(), specification, overwrite) {
+    match write_pact(pact, filename.as_path(), specification, overwrite) {
       Ok(_) => Ok(()),
       Err(err) => {
         warn!("Failed to write pact to file - {}", err);
@@ -344,7 +342,7 @@ impl Clone for MockServer {
       address: self.address.clone(),
       scheme: self.scheme.clone(),
       resources: vec![],
-      pact: self.pact.clone(),
+      pact: self.pact.boxed(),
       matches: self.matches.clone(),
       shutdown_tx: RefCell::new(None),
       config: self.config.clone(),
@@ -363,7 +361,7 @@ impl Default for MockServer {
       port: None,
       address: None,
       resources: vec![],
-      pact: Arc::new(Mutex::new(RequestResponsePact::default())),
+      pact: Box::new(RequestResponsePact::default()),
       matches: Arc::new(Mutex::new(vec![])),
       shutdown_tx: RefCell::new(None),
       config: Default::default(),

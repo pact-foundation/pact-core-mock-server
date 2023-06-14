@@ -96,7 +96,7 @@ impl ValidatingHttpMockServer {
 
     let (description, url_str) = {
       let ms = mock_server.lock().unwrap();
-      let pact = ms.pact.lock().unwrap();
+      let pact = ms.pact.as_ref();
       let description = format!(
         "{}/{}", pact.consumer().name, pact.provider().name
       );
@@ -163,7 +163,7 @@ impl ValidatingHttpMockServer {
 
     let (description, url_str) = {
       let ms = mock_server.lock().unwrap();
-      let pact = ms.pact.lock().unwrap();
+      let pact = ms.pact.as_ref();
       let description = format!(
         "{}/{}", pact.consumer().name, pact.provider().name
       );
@@ -194,7 +194,7 @@ impl ValidatingHttpMockServer {
 
     // Send any metrics in another thread as this thread could be panicking due to an assertion.
     let interactions = {
-      let pact = ms.pact.lock().unwrap();
+      let pact = ms.pact.as_ref();
       pact.interactions().len()
     };
     thread::spawn(move || {

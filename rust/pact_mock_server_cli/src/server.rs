@@ -11,17 +11,18 @@ use std::net::{IpAddr, SocketAddr};
 use futures::channel::oneshot::channel;
 use hyper::server::Server;
 use hyper::service::make_service_fn;
+use itertools::Either;
 use maplit::*;
 use pact_models::pact::load_pact_from_json;
 use pact_models::PactSpecification;
 use serde_json::{self, json, Value};
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, trace};
 use uuid::Uuid;
 use webmachine_rust::*;
 use webmachine_rust::context::*;
 use webmachine_rust::headers::*;
 
-use pact_mock_server::mock_server::MockServerConfig;
+use pact_mock_server::mock_server::{MockServer, MockServerConfig};
 use pact_mock_server::tls::TlsConfigBuilder;
 
 use crate::{SERVER_MANAGER, SERVER_OPTIONS, ServerOpts};
@@ -72,7 +73,6 @@ fn start_provider(context: &mut WebmachineContext, options: ServerOpts) -> Resul
           };
           debug!("Mock server config = {:?}", config);
 
-          let mut guard = SERVER_MANAGER.lock().unwrap();
           let result = if query_param_set(context, "tls") {
             debug!("Starting TLS mock server with id {}", &mock_server_id);
             let key = include_str!("self-signed.key");
@@ -85,10 +85,12 @@ fn start_provider(context: &mut WebmachineContext, options: ServerOpts) -> Resul
                 format!("Failed to setup TLS using self-signed certificate - {}", err)
               })
               .and_then(|tls_config| {
+                let mut guard = SERVER_MANAGER.lock().unwrap();
                 guard.start_tls_mock_server(mock_server_id.clone(), pact, get_next_port(options.base_port), &tls_config, config)
               })
           } else {
             debug!("Starting mock server with id {}", &mock_server_id);
+            let mut guard = SERVER_MANAGER.lock().unwrap();
             guard.start_mock_server(mock_server_id.clone(), pact, get_next_port(options.base_port), config)
           };
           match result {
@@ -239,8 +241,25 @@ fn mock_server_resource<'a>() -> WebmachineResource<'a> {
       match context.metadata.get("subpath") {
         None => {
           let id = context.metadata.get("id").unwrap().clone();
-          SERVER_MANAGER.lock().unwrap().find_mock_server_by_id(&id, &|_, ms| ms.unwrap_left().to_json())
-            .map(|json| json.to_string())
+          debug!("Mock server id = {}", id);
+          let response = {
+            let guard = SERVER_MANAGER.lock().unwrap();
+            guard.find_mock_server_by_id(&id, &|_, ms| match ms {
+              Either::Left(ms) => (Some(ms.to_json().to_string()), None),
+              Either::Right(_plugin) => {
+                error!("Plugin mock servers are not currently supported");
+                (None, Some(422))
+              }
+            })
+          };
+          match response {
+            Some((res, Some(status))) => {
+              context.response.status = status;
+              res
+            }
+            Some((res, None)) => res,
+            None => None
+          }
         }
         Some(_) => {
           context.response.status = 405;
@@ -288,14 +307,22 @@ fn dispatcher() -> WebmachineDispatcher<'static>  {
         }),
         render_response: callback(&|_, _| {
           debug!("main_resource -> render_response");
-          let mock_servers = SERVER_MANAGER.lock().unwrap().map_mock_servers(&|ms| {
-            ms.to_json()
-          });
-          let json_response = json!({ "mockServers" : json!(mock_servers) });
+          let server_manager = SERVER_MANAGER.lock().unwrap();
+          trace!("Unlocked server manager");
+          let mock_servers = server_manager.map_mock_servers(MockServer::to_json);
+          trace!("Got mock server JSON");
+          let json_response = json!({ "mockServers" : mock_servers });
+          trace!("Returning response");
           Some(json_response.to_string())
         }),
         process_post: callback(&|context, _| {
           debug!("main_resource -> process_post");
+
+          let options = {
+            let inner = SERVER_OPTIONS.lock().unwrap();
+            inner.clone().into_inner()
+          };
+
           let (tx, rx) = mpsc::channel();
           let (tx2, rx2) = mpsc::channel();
 
@@ -306,8 +333,6 @@ fn dispatcher() -> WebmachineDispatcher<'static>  {
           let start_fn = move || {
             let handle = thread::current();
             debug!("starting mock server on thread {}", handle.name().unwrap_or("<unknown>"));
-            let inner = SERVER_OPTIONS.lock().unwrap();
-            let options = inner.borrow().clone();
             let mut ctx = rx.recv().unwrap();
             let result = start_provider(&mut ctx, options);
             debug!("Result of starting mock server: {:?}", result.clone());

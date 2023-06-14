@@ -3946,9 +3946,9 @@ dependencies = [
 
 [[package]]
 name = "webmachine-rust"
-version = "0.2.2"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93746aae3141db1b2c910950891077fbf2ffe66973bb18e4ae99718f6ef54e0a"
+checksum = "38bc755d931618136f84cef66f29eb5658b96af8289bcf60f96db8acb41f01dd"
 dependencies = [
  "chrono",
  "futures",
@@ -3957,10 +3957,10 @@ dependencies = [
  "hyper",
  "itertools",
  "lazy_static",
- "log",
  "maplit",
  "serde",
  "serde_json",
+ "tracing",
 ]
 
 [[package]]

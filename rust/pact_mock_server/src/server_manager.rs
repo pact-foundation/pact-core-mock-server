@@ -16,7 +16,7 @@ use pact_models::prelude::v4::V4Pact;
 use pact_plugin_driver::catalogue_manager::{CatalogueEntry, CatalogueEntryProviderType};
 use pact_plugin_driver::mock_server::MockServerDetails;
 use rustls::ServerConfig;
-use tracing::{debug, error};
+use tracing::{debug, error, trace};
 use url::Url;
 
 use crate::mock_server::{MockServer, MockServerConfig};
@@ -337,13 +337,19 @@ impl ServerManager {
 
   /// Map all the running mock servers This will only work for locally managed mock servers,
   /// not mock servers provided by plugins.
-  pub fn map_mock_servers<R>(&self, f: &dyn Fn(&MockServer) -> R) -> Vec<R> {
+  pub fn map_mock_servers<R, F>(&self, f: F) -> Vec<R>
+    where F: Fn(&MockServer) -> R {
     let mut results = vec![];
-    for (_id_, entry) in self.mock_servers.iter() {
+    for (id, entry) in self.mock_servers.iter() {
+      trace!(?id, "mock server entry");
       if let Either::Left(mock_server) = &entry.mock_server {
-        results.push(f(&mock_server.lock().unwrap()));
+        trace!(?id, "Waiting on lock for mock server");
+        let guard = mock_server.lock().unwrap();
+        trace!(?id, "Got access to mock server, invoking callback");
+        results.push(f(&guard));
       }
     }
+    trace!("returning results");
     return results;
   }
 

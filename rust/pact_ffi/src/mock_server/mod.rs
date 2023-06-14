@@ -425,7 +425,7 @@ pub extern fn pactffi_cleanup_mock_server(mock_server_port: i32) -> bool {
     let id = pact_mock_server::find_mock_server_by_port(mock_server_port as u16, &|_, id, mock_server| {
       let interactions = match mock_server {
         Either::Left(ms) => {
-          let pact = ms.pact.lock().unwrap();
+          let pact = ms.pact.as_ref();
           pact.interactions().len()
         },
         Either::Right(ms) => ms.pact.interactions.len()
