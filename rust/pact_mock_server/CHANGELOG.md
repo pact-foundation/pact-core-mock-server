@@ -1,5 +1,15 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.2.0 - Fixes a deadlock with mock server JSON results
+
+* 834f77cc - chore: Upgrade pact_mock_server to 1.2.0 (Ronald Holshausen, Wed Jun 14 15:22:11 2023 +1000)
+* e58aa917 - fix: no need to wrap the Pact for a mock server in a mutex (mock server is already behind a mutex) as this can cause deadlocks #274 (Ronald Holshausen, Wed Jun 14 13:26:54 2023 +1000)
+* bc68ed7f - chore: Upgrade pact_models to 1.1.4 (Ronald Holshausen, Thu Jun 1 10:22:38 2023 +1000)
+* 317f85b1 - feat(mockserver): Make request received and response returned more explicit in the logs (Ronald Holshausen, Tue May 30 11:50:16 2023 +1000)
+* 37673fac - fix: correct tests after upgrading pact_models (Ronald Holshausen, Mon May 29 15:13:44 2023 +1000)
+* 397c837f - chore: Upgrade pact_models to 1.1.3 (fixes MockServerURL generator) (Ronald Holshausen, Mon May 29 15:12:22 2023 +1000)
+* 8156751f - bump version to 1.1.1 (Ronald Holshausen, Tue May 23 14:01:55 2023 +1000)
+
 # 1.1.0 - Update Pact models to 1.1 (breaking change)
 
 * 56103f6c - Revert "update changelog for release 1.1.0" (Ronald Holshausen, Tue May 23 13:58:03 2023 +1000)
