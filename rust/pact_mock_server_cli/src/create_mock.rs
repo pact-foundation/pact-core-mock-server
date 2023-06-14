@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use clap::{ArgMatches, Command};
+use clap::ArgMatches;
 use itertools::Itertools;
 use pact_models::pact::{Pact, ReadWritePact};
 use pact_models::sync_pact::RequestResponsePact;
@@ -9,7 +9,7 @@ use tracing::{debug, error, info};
 
 use crate::handle_error;
 
-pub async fn create_mock_server(host: &str, port: u16, matches: &ArgMatches, app: &mut Command<'_>) -> Result<(), i32> {
+pub async fn create_mock_server(host: &str, port: u16, matches: &ArgMatches, usage: &str) -> Result<(), i32> {
   let file = matches.get_one::<String>("file").unwrap();
   info!("Creating mock server from file {}", file);
 
@@ -33,7 +33,7 @@ pub async fn create_mock_server(host: &str, port: u16, matches: &ArgMatches, app
       let json = match pact.to_json(pact.specification_version()) {
         Ok(json) => json,
         Err(err) => {
-          crate::display_error(format!("Failed to send pact as JSON '{}': {}", file, err), app.render_usage().as_str());
+          crate::display_error(format!("Failed to send pact as JSON '{}': {}", file, err), usage);
         }
       };
       let resp = client.post(url.as_str())
@@ -58,21 +58,21 @@ pub async fn create_mock_server(host: &str, port: u16, matches: &ArgMatches, app
               },
               Err(err) => {
                 error!("Failed to parse JSON: {}", err);
-                crate::display_error(format!("Failed to parse JSON: {}", err), app.render_usage().as_str());
+                crate::display_error(format!("Failed to parse JSON: {}", err), usage);
               }
             }
           } else {
             crate::display_error(format!("Master mock server returned an error: {}\n{}",
-              response.status(), response.text().await.unwrap_or_default()), app.render_usage().as_str());
+              response.status(), response.text().await.unwrap_or_default()), usage);
           }
         }
         Err(err) => {
-            crate::display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), app.render_usage().as_str());
+            crate::display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), usage);
         }
       }
     },
     Err(err) => {
-      crate::display_error(format!("Failed to load pact file '{}': {}", file, err), app.render_usage().as_str());
+      crate::display_error(format!("Failed to load pact file '{}': {}", file, err), usage);
     }
   }
 }

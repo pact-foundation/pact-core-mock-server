@@ -15,7 +15,7 @@ exclude = [
 
 [dependencies]
 anyhow = "1.0.71"
-clap = { version = "3.2.25", features = ["cargo"] }
+clap = { version = "4.3.2", features = ["cargo"] }
 futures = "0.3.28"
 http = "0.2.9"
 hyper = "0.14.26"

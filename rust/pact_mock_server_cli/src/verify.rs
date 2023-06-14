@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use clap::{ArgMatches, Command};
+use clap::ArgMatches;
 use http::StatusCode;
 use pact_models::json_utils::json_to_string;
 use serde_json::Value;
@@ -13,13 +13,13 @@ use pact_mock_server::{
 
 use crate::handle_error;
 
-pub async fn verify_mock_server(host: &str, port: u16, matches: &ArgMatches, app: &mut Command<'_>) -> Result<(), i32> {
+pub async fn verify_mock_server(host: &str, port: u16, matches: &ArgMatches, usage: &str) -> Result<(), i32> {
   let mock_server_id = matches.get_one::<String>("mock-server-id");
   let mock_server_port = matches.get_one::<u16>("mock-server-port");
   let (id, id_type) = match (mock_server_id, mock_server_port) {
     (Some(id), _) => (id.clone(), "id"),
     (_, Some(port)) => (port.to_string(), "port"),
-    _ => crate::display_error("Either an ID or port must be provided".to_string(), app.render_usage().as_str())
+    _ => crate::display_error("Either an ID or port must be provided".to_string(), usage)
   };
 
   let client = reqwest::Client::new();
@@ -53,17 +53,17 @@ pub async fn verify_mock_server(host: &str, port: u16, matches: &ArgMatches, app
                   },
                   Err(err) => {
                     error!("Failed to parse JSON: {}\n{}", err, body);
-                    crate::display_error(format!("Failed to parse JSON: {}\n{}", err, body), app.render_usage().as_str());
+                    crate::display_error(format!("Failed to parse JSON: {}\n{}", err, body), usage);
                   }
                 }
               },
               Err(err) => {
                 error!("Failed to parse JSON: {}", err);
-                crate::display_error(format!("Failed to parse JSON: {}", err), app.render_usage().as_str());
+                crate::display_error(format!("Failed to parse JSON: {}", err), usage);
               }
             }
           },
-          _ => crate::display_error(format!("Unexpected response from master mock server '{}': {}", url, result.status()), app.render_usage().as_str())
+          _ => crate::display_error(format!("Unexpected response from master mock server '{}': {}", url, result.status()), usage)
         }
       } else {
         println!("Mock server with {} '{}' verified ok", id, id_type);
@@ -71,7 +71,7 @@ pub async fn verify_mock_server(host: &str, port: u16, matches: &ArgMatches, app
       }
     },
     Err(err) => {
-      crate::display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), app.render_usage().as_str());
+      crate::display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), usage);
     }
   }
 }

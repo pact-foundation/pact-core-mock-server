@@ -11,7 +11,8 @@ use std::str::FromStr;
 use std::sync::Mutex;
 
 use anyhow::anyhow;
-use clap::{Arg, ArgAction, command, Command, ErrorKind};
+use clap::{Arg, ArgAction, command, Command};
+use clap::error::ErrorKind;
 use lazy_static::*;
 use pact_models::PactSpecification;
 use rand::distributions::Alphanumeric;
@@ -114,7 +115,8 @@ lazy_static!{
 async fn handle_command_args() -> Result<(), i32> {
   let mut app = setup_args();
 
-  let matches = app.clone().try_get_matches();
+  let usage = app.render_usage().to_string();
+  let matches = app.try_get_matches();
   match matches {
     Ok(ref matches) => {
       let log_level = matches.get_one::<String>("loglevel").map(|lvl| lvl.as_str());
@@ -135,36 +137,32 @@ async fn handle_command_args() -> Result<(), i32> {
         eprintln!("WARN: Could not setup loggers: {}", err);
         eprintln!();
       }
-      let port_8080 = "8080".to_string();
-      let port = matches.get_one::<String>("port").unwrap_or(&port_8080);
+
+      let port = *matches.get_one::<u16>("port").unwrap_or(&8080);
       let localhost = "localhost".to_string();
       let host = matches.get_one::<String>("host").unwrap_or(&localhost);
-      match port.parse::<u16>() {
-        Ok(p) => {
-          match matches.subcommand() {
-            Some(("start", sub_matches)) => {
-              let output_path = sub_matches.get_one::<String>("output").map(|s| s.to_owned());
-              let base_port = sub_matches.get_one::<u16>("base-port").cloned();
-              let server_key = sub_matches.get_one::<String>("server-key").map(|s| s.to_owned())
-                .unwrap_or_else(|| rand::thread_rng().sample_iter(Alphanumeric).take(16).map(char::from).collect::<String>());
-              {
-                let inner = (*SERVER_OPTIONS).lock().unwrap();
-                let mut options = inner.deref().borrow_mut();
-                options.output_path = output_path;
-                options.base_port = base_port;
-                options.server_key = server_key;
-              }
-              server::start_server(p).await
-            },
-            Some(("list", _)) => list::list_mock_servers(host, p, &mut app).await,
-            Some(("create", sub_matches)) => create_mock::create_mock_server(host, p, sub_matches, &mut app).await,
-            Some(("verify", sub_matches)) => verify::verify_mock_server(host, p, sub_matches, &mut app).await,
-            Some(("shutdown", sub_matches)) => shutdown::shutdown_mock_server(host, p, sub_matches, &mut app).await,
-            Some(("shutdown-master", sub_matches)) => shutdown::shutdown_master_server(host, p, sub_matches, &mut app).await,
-            _ => Err(3)
+
+      match matches.subcommand() {
+        Some(("start", sub_matches)) => {
+          let output_path = sub_matches.get_one::<String>("output").map(|s| s.to_owned());
+          let base_port = sub_matches.get_one::<u16>("base-port").cloned();
+          let server_key = sub_matches.get_one::<String>("server-key").map(|s| s.to_owned())
+            .unwrap_or_else(|| rand::thread_rng().sample_iter(Alphanumeric).take(16).map(char::from).collect::<String>());
+          {
+            let inner = (*SERVER_OPTIONS).lock().unwrap();
+            let mut options = inner.deref().borrow_mut();
+            options.output_path = output_path;
+            options.base_port = base_port;
+            options.server_key = server_key;
           }
+          server::start_server(port).await
         },
-        Err(_) => display_error(format!("{} is not a valid port number", port), app.render_usage().as_str())
+        Some(("list", _)) => list::list_mock_servers(host, port, usage.as_str()).await,
+        Some(("create", sub_matches)) => create_mock::create_mock_server(host, port, sub_matches, usage.as_str()).await,
+        Some(("verify", sub_matches)) => verify::verify_mock_server(host, port, sub_matches, usage.as_str()).await,
+        Some(("shutdown", sub_matches)) => shutdown::shutdown_mock_server(host, port, sub_matches, usage.as_str()).await,
+        Some(("shutdown-master", sub_matches)) => shutdown::shutdown_master_server(host, port, sub_matches, usage.as_str()).await,
+        _ => Err(3)
       }
     },
     Err(ref err) => {
@@ -186,18 +184,29 @@ async fn handle_command_args() -> Result<(), i32> {
   }
 }
 
-fn setup_args() -> Command<'static> {
+fn setup_args() -> Command {
   command!()
     .about("Standalone Pact mock server")
+    .disable_help_flag(true)
     .arg_required_else_help(true)
-    .subcommand_required(true)
-    .propagate_version(true)
-    .mut_arg("version", |arg| arg.short('v'))
+    .disable_version_flag(true)
+    .arg(Arg::new("help")
+      .long("help")
+      .action(ArgAction::Help)
+      .global(true)
+      .help("Print help and exit"))
+    .arg(Arg::new("version")
+      .short('v')
+      .long("version")
+      .action(ArgAction::Version)
+      .global(true)
+      .help("Print version information and exit"))
     .arg(Arg::new("port")
       .short('p')
       .long("port")
       .global(true)
       .action(ArgAction::Set)
+      .value_parser(integer_value)
       .help("port the master mock server runs on (defaults to 8080)"))
     .arg(Arg::new("host")
       .short('h')
@@ -224,6 +233,7 @@ fn setup_args() -> Command<'static> {
       .help("Do not log to an output file"))
     .subcommand(Command::new("start")
       .about("Starts the master mock server")
+      .version(clap::crate_version!())
       .arg(Arg::new("output")
         .short('o')
         .long("output")
@@ -240,9 +250,11 @@ fn setup_args() -> Command<'static> {
         .help("the server key to use to authenticate shutdown requests (defaults to a random generated one)"))
       )
     .subcommand(Command::new("list")
-      .about("Lists all the running mock servers"))
+      .about("Lists all the running mock servers")
+      .version(clap::crate_version!()))
     .subcommand(Command::new("create")
       .about("Creates a new mock server from a pact file")
+      .version(clap::crate_version!())
       .arg(Arg::new("file")
         .short('f')
         .long("file")
@@ -261,6 +273,7 @@ fn setup_args() -> Command<'static> {
       )
     .subcommand(Command::new("verify")
       .about("Verify the mock server by id or port number, and generate a pact file if all ok")
+      .version(clap::crate_version!())
       .arg(Arg::new("mock-server-id")
         .short('i')
         .long("mock-server-id")
@@ -279,6 +292,7 @@ fn setup_args() -> Command<'static> {
       )
     .subcommand(Command::new("shutdown")
       .about("Shutdown the mock server by id or port number, releasing all its resources")
+      .version(clap::crate_version!())
       .arg(Arg::new("mock-server-id")
         .short('i')
         .long("mock-server-id")
@@ -297,6 +311,7 @@ fn setup_args() -> Command<'static> {
       )
     .subcommand(Command::new("shutdown-master")
       .about("Performs a graceful shutdown of the master server (displayed when it started)")
+      .version(clap::crate_version!())
       .arg(Arg::new("server-key")
         .short('k')
         .long("server-key")
@@ -326,6 +341,6 @@ mod test {
 
   #[test_log::test]
   fn verify_cli() {
-    setup_args() /*.debug_assert()*/;
+    setup_args().debug_assert();
   }
 }

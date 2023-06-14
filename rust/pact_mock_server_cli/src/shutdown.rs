@@ -1,14 +1,14 @@
-use clap::{ArgMatches, Command};
+use clap::ArgMatches;
 use http::StatusCode;
 use serde_json::json;
 
-pub async fn shutdown_mock_server(host: &str, port: u16, matches: &ArgMatches, app: &mut Command<'_>) -> Result<(), i32> {
+pub async fn shutdown_mock_server(host: &str, port: u16, matches: &ArgMatches, usage: &str) -> Result<(), i32> {
   let mock_server_id = matches.get_one::<String>("mock-server-id");
   let mock_server_port = matches.get_one::<u16>("mock-server-port");
   let (id, id_type) = match (mock_server_id, mock_server_port) {
     (Some(id), _) => (id.clone(), "id"),
     (_, Some(port)) => (port.to_string(), "port"),
-    _ => crate::display_error("Either an ID or port must be provided".to_string(), app.render_usage().as_str())
+    _ => crate::display_error("Either an ID or port must be provided".to_string(), usage)
   };
 
   let client = reqwest::Client::new();
@@ -22,7 +22,7 @@ pub async fn shutdown_mock_server(host: &str, port: u16, matches: &ArgMatches, a
             println!("No mock server found with {} '{}', use the 'list' command to get a list of available mock servers.", id_type, id);
             Err(3)
           },
-          _ => crate::display_error(format!("Unexpected response from master mock server '{}': {}", url, result.status()), app.render_usage().as_str())
+          _ => crate::display_error(format!("Unexpected response from master mock server '{}': {}", url, result.status()), usage)
         }
       } else {
         println!("Mock server with {} '{}' shutdown ok", id_type, id);
@@ -30,12 +30,12 @@ pub async fn shutdown_mock_server(host: &str, port: u16, matches: &ArgMatches, a
       }
     },
     Err(err) => {
-      crate::display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), app.render_usage().as_str());
+      crate::display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), usage);
     }
   }
 }
 
-pub async fn shutdown_master_server(host: &str, port: u16, matches: &ArgMatches, app: &mut Command<'_>) -> Result<(), i32> {
+pub async fn shutdown_master_server(host: &str, port: u16, matches: &ArgMatches, usage: &str) -> Result<(), i32> {
   let client = reqwest::Client::new();
   let server_key = matches.get_one::<String>("server-key").unwrap().to_owned();
   let shutdown_period = matches.get_one::<String>("period").map(|val| val.parse::<u16>().unwrap_or(100)).unwrap_or(100);
@@ -48,10 +48,10 @@ pub async fn shutdown_master_server(host: &str, port: u16, matches: &ArgMatches,
     Ok(result) => {
       if !result.status().is_success() {
         if result.status() == StatusCode::FORBIDDEN {
-          crate::display_error(format!("Invalid server key: got response {}", result.status()), app.render_usage().as_str())
+          crate::display_error(format!("Invalid server key: got response {}", result.status()), usage)
         } else {
           crate::display_error(format!("Unexpected response from master mock server '{}': {}",
-                                       url, result.status()), app.render_usage().as_str())
+            url, result.status()), usage)
         }
       } else {
         println!("Master server shutting down ok");
@@ -59,7 +59,7 @@ pub async fn shutdown_master_server(host: &str, port: u16, matches: &ArgMatches,
       }
     },
     Err(err) => {
-      crate::display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), app.render_usage().as_str());
+      crate::display_error(format!("Failed to connect to the master mock server '{}': {}", url, err), usage);
     }
   }
 }
