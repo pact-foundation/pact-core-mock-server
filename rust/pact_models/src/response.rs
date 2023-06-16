@@ -3,7 +3,8 @@ use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::str::from_utf8;
 
-use base64::encode;
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64;
 use itertools::Itertools;
 use maplit::hashmap;
 use serde_json::{json, Value};
@@ -75,13 +76,13 @@ impl Response {
               Ok(json_body) => { map.insert("body".to_string(), json_body); },
               Err(err) => {
                 warn!("Failed to parse json body: {}", err);
-                map.insert("body".to_string(), Value::String(encode(body)));
+                map.insert("body".to_string(), Value::String(BASE64.encode(body)));
               }
             }
           } else {
             match from_utf8(body) {
               Ok(s) => map.insert("body".to_string(), Value::String(s.to_string())),
-              Err(_) => map.insert("body".to_string(), Value::String(encode(body)))
+              Err(_) => map.insert("body".to_string(), Value::String(BASE64.encode(body)))
             };
           }
         },

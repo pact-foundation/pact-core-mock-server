@@ -5,7 +5,8 @@ use std::hash::{Hash, Hasher};
 use std::mem;
 use std::str::from_utf8;
 
-use base64::encode;
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64;
 use bytes::{Bytes, BytesMut};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -125,15 +126,15 @@ impl OptionalBody {
             Ok(json_body) => (json_body, Value::Bool(false)),
             Err(err) => {
               warn!("Failed to parse json body: {}", err);
-              (Value::String(encode(bytes)), Value::String("base64".to_string()))
+              (Value::String(BASE64.encode(bytes)), Value::String("base64".to_string()))
             }
           }
         } else if content_type_override == ContentTypeHint::BINARY || content_type.is_binary() {
-          (Value::String(encode(bytes)), Value::String("base64".to_string()))
+          (Value::String(BASE64.encode(bytes)), Value::String("base64".to_string()))
         } else {
           match from_utf8(bytes) {
             Ok(s) => (Value::String(s.to_string()), Value::Bool(false)),
-            Err(_) => (Value::String(encode(bytes)), Value::String("base64".to_string()))
+            Err(_) => (Value::String(BASE64.encode(bytes)), Value::String("base64".to_string()))
           }
         };
 
@@ -265,8 +266,8 @@ impl Hash for OptionalBody {
 #[cfg(test)]
 mod tests {
   use std::hash::{Hash, Hasher};
-  use bytes::Bytes;
 
+  use bytes::Bytes;
   use expectest::prelude::*;
   use hashers::fx_hash::FxHasher;
 

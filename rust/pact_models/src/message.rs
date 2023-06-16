@@ -7,8 +7,9 @@ use std::str::from_utf8;
 use std::sync::{Arc, Mutex};
 
 use anyhow::anyhow;
-use base64::encode;
-use maplit::*;
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64;
+use maplit::hashmap;
 use serde_json::{json, Value};
 use tracing::warn;
 
@@ -253,15 +254,15 @@ impl Message {
                 Ok(json_body) => { map.insert("contents".to_string(), json_body); },
               Err(err) => {
                 warn!("Failed to parse json body: {}", err);
-                map.insert("contents".to_string(), Value::String(encode(body)));
+                map.insert("contents".to_string(), Value::String(BASE64.encode(body)));
               }
             }
             } else if content_type.is_binary() {
-              map.insert("contents".to_string(), Value::String(encode(body)));
+              map.insert("contents".to_string(), Value::String(BASE64.encode(body)));
           } else {
               match from_utf8(body) {
                 Ok(s) => map.insert("contents".to_string(), Value::String(s.to_string())),
-                Err(_) => map.insert("contents".to_string(), Value::String(encode(body)))
+                Err(_) => map.insert("contents".to_string(), Value::String(BASE64.encode(body)))
             };
             }
           },

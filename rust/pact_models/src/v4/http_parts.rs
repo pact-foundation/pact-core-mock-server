@@ -5,7 +5,8 @@ use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 
-use base64::decode;
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64;
 use bytes::BytesMut;
 use itertools::Itertools;
 use maplit::*;
@@ -259,7 +260,7 @@ pub fn body_from_json(json: &Value, attr_name: &str, headers: &Option<HashMap<St
                 let body_bytes = if encoded {
                   match encoding.as_str() {
                     "base64" => {
-                      match decode(json_to_string(body_contents)) {
+                      match BASE64.decode(json_to_string(body_contents)) {
                         Ok(bytes) => bytes,
                         Err(err) => {
                           warn!("Failed to decode base64 encoded body, will use the raw body - {}", err);

@@ -4,7 +4,8 @@ use std::collections::{BTreeMap, HashMap};
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 
-use base64::decode;
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64;
 use itertools::Itertools;
 use serde::Deserialize;
 use serde_json::{self, json, Map, Value};
@@ -174,7 +175,7 @@ pub fn body_from_json(request: &Value, fieldname: &str, headers: &Option<HashMap
           } else if content_type.is_text() {
             OptionalBody::Present(s.clone().into(), Some(content_type), None)
           } else {
-            match decode(s) {
+            match BASE64.decode(s) {
               Ok(bytes) => OptionalBody::Present(bytes.into(), None, None),
               Err(_) => OptionalBody::Present(s.clone().into(), None, None)
             }
