@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.1.5 - Add crate features for date/time and XML support
+
+* 161f1b82 - chore: cleanup deprecation warnings (Ronald Holshausen, Fri Jun 16 16:11:18 2023 +1000)
+* c5887670 - feat(pact-models): Add crate features for date/time and XML support #290 (Ronald Holshausen, Fri Jun 16 16:00:04 2023 +1000)
+* 2477729f - chore: reduce log entry to debug level as it makes no sense as a warning (Ronald Holshausen, Mon Jun 5 15:01:45 2023 +1000)
+* b7d949ed - bump version to 1.1.5 (Ronald Holshausen, Thu Jun 1 10:17:41 2023 +1000)
+
 # 1.1.4 - Bugfix Release
 
 * 9d3205a0 - fix: Support fraction of seconds with more then 3 digits #279 (Ronald Holshausen, Wed May 31 14:40:41 2023 +1000)
