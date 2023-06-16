@@ -255,15 +255,17 @@ impl MockServer {
       let matches = self.matches();
       let mismatches = matches.iter()
         .filter(|m| !m.matched() && !m.cors_preflight())
-        .map(|m| m.clone());
+        .cloned();
       let requests: Vec<HttpRequest> = matches.iter().map(|m| {
         match m {
-          MatchResult::RequestMatch(request, _) => Some(request),
-          MatchResult::RequestMismatch(request, _) => Some(request),
+          MatchResult::RequestMatch(request, _, _) => Some(request),
+          MatchResult::RequestMismatch(request, _, _) => Some(request),
           MatchResult::RequestNotFound(_) => None,
           MatchResult::MissingRequest(_) => None
         }
-      }).filter(|o| o.is_some()).map(|o| o.unwrap().clone()).collect();
+      }).filter(|o| o.is_some())
+        .map(|o| o.unwrap().clone())
+        .collect();
 
       let interactions = self.pact.interactions();
       let missing = interactions.iter()

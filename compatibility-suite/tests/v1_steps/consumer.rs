@@ -454,7 +454,7 @@ fn the_mismatches_will_contain_a_mismatch_with_error(
   let mock_server = world.mock_server.lock().unwrap();
   let mismatches: Vec<_> = mock_server.mismatches().iter()
     .flat_map(|m| match m {
-      MatchResult::RequestMismatch(_, mismatches) => mismatches.clone(),
+      MatchResult::RequestMismatch(_, _, mismatches) => mismatches.clone(),
       _ => vec![]
     })
     .collect();
@@ -612,7 +612,7 @@ fn the_mismatches_will_contain_a_mismatch_with_path_with_error(
   let mock_server = world.mock_server.lock().unwrap();
   let mismatches: Vec<_> = mock_server.mismatches().iter()
     .flat_map(|m| match m {
-      MatchResult::RequestMismatch(_, mismatches) => mismatches.clone(),
+      MatchResult::RequestMismatch(_, _, mismatches) => mismatches.clone(),
       _ => vec![]
     })
     .collect();

@@ -24,7 +24,7 @@ async fn match_request_returns_a_match_for_identical_requests() {
     let pact = V4Pact { interactions, .. V4Pact::default() };
     let result = match_request(&request, &pact).await;
     expect!(result).to(be_equal_to(MatchResult::RequestMatch(interaction.request.clone(),
-      interaction.response.clone())));
+      interaction.response.clone(), request.clone())));
 }
 
 #[tokio::test]
@@ -51,7 +51,8 @@ async fn match_request_returns_a_match_for_multiple_identical_requests() {
     ];
     let pact = V4Pact { interactions, .. V4Pact::default() };
     let result = match_request(&request, &pact).await;
-    expect!(result).to(be_equal_to(MatchResult::RequestMatch(interaction.request, interaction.response)));
+    expect!(result).to(be_equal_to(
+      MatchResult::RequestMatch(interaction.request, interaction.response, request.clone())));
 }
 
 #[tokio::test]
@@ -70,7 +71,8 @@ async fn match_request_returns_a_match_for_multiple_requests() {
     ];
     let pact = V4Pact { interactions, .. V4Pact::default() };
     let result = match_request(&request, &pact).await;
-    expect!(result).to(be_equal_to(MatchResult::RequestMatch(interaction.request, interaction.response)));
+    expect!(result).to(be_equal_to(
+      MatchResult::RequestMatch(interaction.request, interaction.response, request.clone())));
 }
 
 #[tokio::test]
@@ -123,7 +125,7 @@ async fn match_request_returns_the_most_appropriate_mismatch_for_multiple_reques
     let interactions = vec![interaction.boxed_v4(), interaction2.boxed_v4()];
     let pact = V4Pact { interactions, .. V4Pact::default() };
     let result = match_request(&request3, &pact).await;
-    expect!(result).to(be_equal_to(MatchResult::RequestMismatch(interaction2.request,
+    expect!(result).to(be_equal_to(MatchResult::RequestMismatch(interaction2.request, request3.clone(),
         vec![Mismatch::BodyMismatch { path: "/".to_string(), expected: Some("This is a body".into()), actual: None,
         mismatch: "Expected body \'This is a body\' but was missing".to_string() }])));
 }
@@ -159,7 +161,8 @@ async fn match_request_supports_v2_matchers() {
     let interactions = vec![interaction.boxed_v4()];
     let pact = V4Pact { interactions, .. V4Pact::default() };
     let result = match_request(&request, &pact).await;
-    expect!(result).to(be_equal_to(MatchResult::RequestMatch(interaction.request, interaction.response)));
+    expect!(result).to(be_equal_to(
+      MatchResult::RequestMatch(interaction.request, interaction.response, request.clone())));
 }
 
 #[tokio::test]
@@ -187,7 +190,8 @@ async fn match_request_supports_v2_matchers_with_xml() {
     let interactions = vec![interaction.boxed_v4()];
     let pact = V4Pact { interactions, .. V4Pact::default() };
     let result = match_request(&request, &pact).await;
-    expect!(result).to(be_equal_to(MatchResult::RequestMatch(interaction.request, interaction.response)));
+    expect!(result).to(be_equal_to(
+      MatchResult::RequestMatch(interaction.request, interaction.response, request.clone())));
 }
 
 #[test]
@@ -247,11 +251,13 @@ async fn match_request_with_more_specific_request() {
   let interactions = vec![interaction1.boxed_v4(), interaction2.boxed_v4()];
   let pact = V4Pact { interactions, .. V4Pact::default() };
   let result1 = match_request(&request1.clone(), &pact).await;
-  expect!(result1).to(be_equal_to(MatchResult::RequestMatch(expected.request, expected.response)));
+  expect!(result1).to(be_equal_to(
+    MatchResult::RequestMatch(expected.request, expected.response, request1.clone())));
 
   let expected = interaction2.clone();
   let result2 = match_request(&request2.clone(), &pact).await;
-  expect!(result2).to(be_equal_to(MatchResult::RequestMatch(expected.request, expected.response)));
+  expect!(result2).to(be_equal_to(
+    MatchResult::RequestMatch(expected.request, expected.response, request2.clone())));
 }
 
 #[test]

@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::Read;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -8,18 +10,23 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use cucumber::{given, then, when, World};
 use cucumber::gherkin::Step;
+use itertools::{Either, Itertools};
 use maplit::hashmap;
 use pact_models::{Consumer, generators, matchingrules, PactSpecification, Provider};
 use pact_models::bodies::OptionalBody;
-use pact_models::content_types::JSON;
+use pact_models::content_types::{ContentType, JSON, XML};
 use pact_models::generators::Generator;
+use pact_models::headers::parse_header;
+use pact_models::http_parts::HttpPart;
 use pact_models::matchingrules::MatchingRule;
 use pact_models::pact::{Pact, read_pact};
 use pact_models::provider_states::ProviderState;
+use pact_models::query_strings::parse_query_string;
 use pact_models::request::Request;
 use pact_models::response::Response;
 use pact_models::sync_interaction::RequestResponseInteraction;
 use pact_models::sync_pact::RequestResponsePact;
+use pact_models::v4::http_parts::HttpRequest;
 use reqwest::Client;
 use serde_json::{json, Value};
 use uuid::Uuid;
@@ -29,7 +36,6 @@ use pact_mock_server::matching::MatchResult;
 use pact_mock_server::mock_server::{MockServer, MockServerConfig};
 use pact_verifier::{
   FilterInfo,
-  NullRequestFilterExecutor,
   PactSource,
   ProviderInfo,
   ProviderTransport,
@@ -37,7 +43,7 @@ use pact_verifier::{
   VerificationOptions,
   verify_provider_async
 };
-use pact_verifier::callback_executors::ProviderStateExecutor;
+use pact_verifier::callback_executors::{ProviderStateExecutor, RequestFilterExecutor};
 use pact_verifier::verification_result::{VerificationExecutionResult, VerificationMismatchResult};
 
 use crate::v1_steps::common::setup_common_interactions;
@@ -52,7 +58,23 @@ pub struct ProviderWorld {
   pub publish_options: Option<PublishOptions>,
   pub verification_results: VerificationExecutionResult,
   pub mock_brokers: Vec<Arc<Mutex<MockServer>>>,
-  pub provider_state_executor: Arc<MockProviderStateExecutor>
+  pub provider_state_executor: Arc<MockProviderStateExecutor>,
+  pub request_filter_data: HashMap<String, String>
+}
+
+impl ProviderWorld {
+  pub(crate) fn verification_options(&self) -> VerificationOptions<ProviderWorldRequestFilter> {
+    VerificationOptions {
+      request_filter: if self.request_filter_data.is_empty() {
+        None
+      } else {
+        Some(Arc::new(ProviderWorldRequestFilter {
+          request_filter_data: self.request_filter_data.clone()
+        }))
+      },
+      .. VerificationOptions::default()
+    }
+  }
 }
 
 impl Default for ProviderWorld {
@@ -69,7 +91,8 @@ impl Default for ProviderWorld {
         .. VerificationExecutionResult::new()
       },
       mock_brokers: vec![],
-      provider_state_executor: Default::default()
+      provider_state_executor: Default::default(),
+      request_filter_data: Default::default()
     }
   }
 }
@@ -95,6 +118,81 @@ impl MockProviderStateExecutor {
     params.iter().find(|(state, setup)| {
       state.name == state_name && *setup == is_setup
     }).is_some()
+  }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct ProviderWorldRequestFilter {
+  pub request_filter_data: HashMap<String, String>
+}
+
+impl RequestFilterExecutor for ProviderWorldRequestFilter {
+  fn call(self: Arc<Self>, request: &HttpRequest) -> HttpRequest {
+    let mut request = request.clone();
+
+    if let Some(path) = self.request_filter_data.get("path") {
+      request.path = path.clone();
+    }
+
+    if let Some(query) = self.request_filter_data.get("query") {
+      request.query = parse_query_string(query);
+    }
+
+    if let Some(headers) = self.request_filter_data.get("headers") {
+      if !headers.is_empty() {
+        let headers = headers.split(",")
+          .map(|header| {
+            let key_value = header.strip_prefix("'").unwrap_or(header)
+              .strip_suffix("'").unwrap_or(header)
+              .splitn(2, ":")
+              .map(|v| v.trim())
+              .collect::<Vec<_>>();
+            (key_value[0].to_string(), parse_header(key_value[0], key_value[1]))
+          }).collect();
+        request.headers = Some(headers);
+      }
+    }
+
+    if let Some(body) = self.request_filter_data.get("body") {
+      if !body.is_empty() {
+        if body.starts_with("JSON:") {
+          request.add_header("content-type", vec!["application/json"]);
+          request.body = OptionalBody::Present(Bytes::from(body.strip_prefix("JSON:").unwrap_or(body).to_string()),
+            Some(JSON.clone()), None);
+        } else if body.starts_with("XML:") {
+          request.add_header("content-type", vec!["application/xml"]);
+          request.body = OptionalBody::Present(Bytes::from(body.strip_prefix("XML:").unwrap_or(body).to_string()),
+            Some(XML.clone()), None);
+        } else {
+          let ct = if body.ends_with(".json") {
+            "application/json"
+          } else if body.ends_with(".xml") {
+            "application/xml"
+          } else {
+            "text/plain"
+          };
+          request.headers_mut().insert("content-type".to_string(), vec![ct.to_string()]);
+
+          let mut f = File::open(format!("pact-compatibility-suite/fixtures/{}", body))
+            .expect(format!("could not load fixture '{}'", body).as_str());
+          let mut buffer = Vec::new();
+          f.read_to_end(&mut buffer)
+            .expect(format!("could not read fixture '{}'", body).as_str());
+          request.body = OptionalBody::Present(Bytes::from(buffer),
+            ContentType::parse(ct).ok(), None);
+        }
+      }
+    }
+
+    request
+  }
+
+  fn call_non_http(
+    &self,
+    _request_body: &OptionalBody,
+    _metadata: &HashMap<String, Either<Value, Bytes>>
+  ) -> (OptionalBody, HashMap<String, Either<Value, Bytes>>) {
+    unimplemented!()
   }
 }
 
@@ -205,7 +303,7 @@ fn a_pact_file_for_interaction_is_to_be_verified_with_a_provider_state(
 
 #[when("the verification is run")]
 async fn the_verification_is_run(world: &mut ProviderWorld) -> anyhow::Result<()> {
-  let options: VerificationOptions<NullRequestFilterExecutor> = VerificationOptions::default();
+  let options = world.verification_options();
   world.verification_results = verify_provider_async(
     world.provider_info.clone(),
     world.sources.clone(),
@@ -282,7 +380,7 @@ fn the_verification_will_not_be_successful(world: &mut ProviderWorld) -> anyhow:
 #[then(expr = "the verification results will contain a {string} error")]
 fn the_verification_results_will_contain_a_error(world: &mut ProviderWorld, err: String) -> anyhow::Result<()> {
   if world.verification_results.errors.iter().any(|(_, r)| {
-    match dbg!(r) {
+    match r {
       VerificationMismatchResult::Mismatches { mismatches, .. } => {
         mismatches.iter().any(|mismatch| {
           match mismatch {
@@ -437,15 +535,15 @@ fn a_successful_verification_result_will_be_published_back_for_interaction(world
       .find(|result| {
         let expected_path = format!("/pacts/provider/p/consumer/c_{}/verification-results", num);
         match result {
-          MatchResult::RequestMatch(req, _) => req.path == expected_path,
-          MatchResult::RequestMismatch(req, _) => req.path == expected_path,
+          MatchResult::RequestMatch(req, _, _) => req.path == expected_path,
+          MatchResult::RequestMismatch(req, _, _) => req.path == expected_path,
           MatchResult::RequestNotFound(req) => req.path == expected_path,
           MatchResult::MissingRequest(req) => req.path == expected_path
         }
       });
     if let Some(result) = verification_request {
       match result {
-        MatchResult::RequestMatch(req, _) => if let Some(body) = req.body.value() {
+        MatchResult::RequestMatch(req, _, _) => if let Some(body) = req.body.value() {
           if let Ok(json) = serde_json::from_slice::<Value>(body.as_ref()) {
             if let Some(success) = json.get("success") {
               match success {
@@ -483,15 +581,15 @@ fn a_failed_verification_result_will_be_published_back_for_the_interaction(world
       .find(|result| {
         let expected_path = format!("/pacts/provider/p/consumer/c_{}/verification-results", num);
         match result {
-          MatchResult::RequestMatch(req, _) => req.path == expected_path,
-          MatchResult::RequestMismatch(req, _) => req.path == expected_path,
+          MatchResult::RequestMatch(req, _, _) => req.path == expected_path,
+          MatchResult::RequestMismatch(req, _, _) => req.path == expected_path,
           MatchResult::RequestNotFound(req) => req.path == expected_path,
           MatchResult::MissingRequest(req) => req.path == expected_path
         }
       });
     if let Some(result) = verification_request {
       match result {
-        MatchResult::RequestMatch(req, _) => if let Some(body) = req.body.value() {
+        MatchResult::RequestMatch(req, _, _) => if let Some(body) = req.body.value() {
           if let Ok(json) = serde_json::from_slice::<Value>(body.as_ref()) {
             if let Some(success) = json.get("success") {
               match success {
@@ -580,5 +678,71 @@ fn the_provider_state_callback_will_not_receive_a_teardown_call(world: &mut Prov
     Err(anyhow!("Provider state callback teardown was called but was expecting no call"))
   } else {
     Ok(())
+  }
+}
+
+#[then(expr = "a warning will be displayed that there was no provider state callback configured for provider state {string}")]
+fn a_warning_will_be_displayed_that_there_was_no_provider_state_callback_configured(
+  _world: &mut ProviderWorld,
+  _state: String
+) -> anyhow::Result<()> {
+  // Unable to verify this, as the default provider state callback handler displays this message,
+  // and this has been overwritten for the test suite. The verifier will not display it.
+  Ok(())
+}
+
+#[given("a request filter is configured to make the following changes:")]
+fn a_request_filter_is_configured_to_make_the_following_changes(
+  world: &mut ProviderWorld,
+  step: &Step
+) -> anyhow::Result<()> {
+  if let Some(table) = step.table.as_ref() {
+    let headers = table.rows.first().unwrap().iter()
+      .enumerate()
+      .map(|(index, h)| (index, h.clone()))
+      .collect::<HashMap<usize, String>>();
+    if let Some(values) = table.rows.get(1) {
+      world.request_filter_data = values.iter().enumerate()
+        .map(|(index, v)| (headers.get(&index).cloned(), v.clone()))
+        .filter_map(|(k, v)| k.map(|k| (k.clone(), v.clone())))
+        .collect();
+      Ok(())
+    } else {
+      Err(anyhow!("No data table defined"))
+    }
+  } else {
+    Err(anyhow!("No data table defined"))
+  }
+}
+
+#[then(expr = "the request to the provider will contain the header {string}")]
+fn the_request_to_the_provider_will_contain_the_header(
+  world: &mut ProviderWorld,
+  header: String
+) -> anyhow::Result<()> {
+  let header = header.splitn(2, ':')
+    .map(|s| s.trim())
+    .collect_vec();
+  let matches = {
+    let guard = world.provider_server.lock().unwrap();
+    guard.matches()
+  };
+  if matches.iter().all(|m| {
+    let req = match m {
+      MatchResult::RequestMatch(_, _, req) => req,
+      MatchResult::RequestMismatch(_, req, _) => req,
+      MatchResult::RequestNotFound(req) => req,
+      MatchResult::MissingRequest(req) => req
+    };
+    if let Some(headers) = &req.headers {
+      let key = header[0].to_lowercase();
+      headers.contains_key(key.as_str()) && headers.get(key.as_str()).unwrap()[0] == header[1]
+    } else {
+      false
+    }
+  }) {
+    Ok(())
+  } else {
+    Err(anyhow!("Not all request to the provider contained the required header"))
   }
 }

@@ -9,9 +9,11 @@ use bytes::Bytes;
 use expectest::prelude::*;
 use libc::c_char;
 use maplit::*;
+use pact_models::bodies::OptionalBody;
+use pretty_assertions::assert_eq;
 use reqwest::blocking::Client;
 use reqwest::header::CONTENT_TYPE;
-use pretty_assertions::assert_eq;
+use tempfile::TempDir;
 
 #[allow(deprecated)]
 use pact_ffi::mock_server::{
@@ -43,9 +45,17 @@ use pact_ffi::mock_server::handles::{
   pactffi_with_request,
   pactffi_write_message_pact_file
 };
-use pact_ffi::verifier::{OptionsFlags, pactffi_verifier_add_directory_source, pactffi_verifier_add_file_source, pactffi_verifier_cli_args, pactffi_verifier_execute, pactffi_verifier_new_for_application, pactffi_verifier_output, pactffi_verifier_set_provider_info, pactffi_verifier_shutdown};
-use pact_models::bodies::OptionalBody;
-use tempfile::TempDir;
+use pact_ffi::verifier::{
+  OptionsFlags,
+  pactffi_verifier_add_directory_source,
+  pactffi_verifier_add_file_source,
+  pactffi_verifier_cli_args,
+  pactffi_verifier_execute,
+  pactffi_verifier_new_for_application,
+  pactffi_verifier_output,
+  pactffi_verifier_set_provider_info,
+  pactffi_verifier_shutdown
+};
 
 #[test]
 fn post_to_mock_server_with_mismatches() {

@@ -241,7 +241,7 @@ impl ValidatingHttpMockServer {
           MatchResult::RequestMatch(..) => {
             unreachable!("list of mismatches contains a match");
           }
-          MatchResult::RequestMismatch(request, mismatches) => {
+          MatchResult::RequestMismatch(request, _, mismatches) => {
             let _ = writeln!(&mut msg, "- request {}:", request);
             for m in mismatches {
               let _ = writeln!(&mut msg, "  - {}", m.description());

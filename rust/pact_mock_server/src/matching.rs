@@ -21,10 +21,12 @@ use pact_models::v4::pact::V4Pact;
 /// Enum to define a match result
 #[derive(Debug, Clone, PartialEq)]
 pub enum MatchResult {
-  /// Match result where the request was successfully matched
-  RequestMatch(HttpRequest, HttpResponse),
-  /// Match result where there were a number of mismatches
-  RequestMismatch(HttpRequest, Vec<Mismatch>),
+  /// Match result where the request was successfully matched. Stores the expected request,
+  /// response returned and the actual request that was received.
+  RequestMatch(HttpRequest, HttpResponse, HttpRequest),
+  /// Match result where there were a number of mismatches. Stores the expected and actual requests,
+  /// and all the mismatches.
+  RequestMismatch(HttpRequest, HttpRequest, Vec<Mismatch>),
   /// Match result where the request was not expected
   RequestNotFound(HttpRequest),
   /// Match result where an expected request was not received
@@ -35,8 +37,8 @@ impl MatchResult {
     /// Returns the match key for this mismatch
     pub fn match_key(&self) -> String {
         match self {
-            &MatchResult::RequestMatch(_, _) => "Request-Matched",
-            &MatchResult::RequestMismatch(_, _) => "Request-Mismatch",
+            &MatchResult::RequestMatch(_, _, _) => "Request-Matched",
+            &MatchResult::RequestMismatch(_, _, _) => "Request-Mismatch",
             &MatchResult::RequestNotFound(_) => "Unexpected-Request",
             &MatchResult::MissingRequest(_) => "Missing-Request"
         }.to_string()
@@ -45,7 +47,7 @@ impl MatchResult {
     /// Returns true if this match result is a `RequestMatch`
     pub fn matched(&self) -> bool {
         match self {
-            &MatchResult::RequestMatch(_, _) => true,
+            &MatchResult::RequestMatch(_, _, _) => true,
             _ => false
         }
     }
@@ -61,15 +63,15 @@ impl MatchResult {
     /// Converts this match result to a `Value` struct
     pub fn to_json(&self) -> serde_json::Value {
         match self {
-            &MatchResult::RequestMatch(_, _) => json!({ "type" : "request-match"}),
-            &MatchResult::RequestMismatch(ref request, ref mismatches) => mismatches_to_json(request, mismatches),
-            &MatchResult::RequestNotFound(ref req) => json!({
+            MatchResult::RequestMatch(_, _, _) => json!({ "type" : "request-match"}),
+            MatchResult::RequestMismatch(request, _, mismatches) => mismatches_to_json(request, mismatches),
+            MatchResult::RequestNotFound(req) => json!({
                 "type": "request-not-found",
                 "method": req.method,
                 "path": req.path,
                 "request": req.as_v3_request().to_json(&PactSpecification::V3)
             }),
-            &MatchResult::MissingRequest(ref request) => json!({
+            MatchResult::MissingRequest(request) => json!({
                 "type": "missing-request",
                 "method": request.method,
                 "path": request.path,
@@ -82,10 +84,10 @@ impl MatchResult {
 impl Display for MatchResult {
   fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
     match self {
-      MatchResult::RequestMatch(request, _) => {
+      MatchResult::RequestMatch(request, _, _) => {
         write!(f, "Request matched OK - {}", request)
       },
-      MatchResult::RequestMismatch(request, mismatches) => {
+      MatchResult::RequestMismatch(request, _, mismatches) => {
         write!(f, "Request did not match - {}", request)?;
         for (i, mismatch) in mismatches.iter().enumerate() {
           write!(f, "    {}) {}", i, mismatch)?;
@@ -133,11 +135,11 @@ pub async fn match_request(
     Some((interaction, result)) => {
       let request_response_interaction = interaction.as_v4_http().unwrap();
       if result.all_matched() {
-        MatchResult::RequestMatch(request_response_interaction.request, request_response_interaction.response)
+        MatchResult::RequestMatch(request_response_interaction.request, request_response_interaction.response, req.clone())
       } else if result.method_or_path_mismatch() {
         MatchResult::RequestNotFound(req.clone())
       } else {
-        MatchResult::RequestMismatch(request_response_interaction.request, result.mismatches())
+        MatchResult::RequestMismatch(request_response_interaction.request, req.clone(), result.mismatches())
       }
     },
     None => MatchResult::RequestNotFound(req.clone())
