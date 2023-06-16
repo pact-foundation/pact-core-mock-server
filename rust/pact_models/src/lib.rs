@@ -1,4 +1,13 @@
 //! The `pact_models` crate provides all the structs and traits required to model a Pact.
+//!
+//! ## Crate features
+//!
+//! All features are enabled by default
+//!
+//! * `datetime`: Enables support of date and time expressions and generators. This will add the
+//! `chronos` crate as a dependency.
+//! * `xml`: Enables support for parsing XML documents. This feature will add the `sxd-document`
+//! crate as a dependency.
 
 use std::fmt::{Display, Formatter};
 use std::fmt;
@@ -17,10 +26,10 @@ pub mod provider_states;
 pub mod verify_json;
 pub mod json_utils;
 pub mod expression_parser;
-pub mod time_utils;
-mod timezone_db;
+#[cfg(feature = "datetime")] pub mod time_utils;
+#[cfg(feature = "datetime")] mod timezone_db;
 #[cfg(not(target_family = "wasm"))] pub mod file_utils;
-pub mod xml_utils;
+#[cfg(feature = "xml")] pub mod xml_utils;
 pub mod matchingrules;
 pub mod generators;
 pub mod path_exp;

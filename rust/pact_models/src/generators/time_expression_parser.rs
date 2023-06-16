@@ -350,57 +350,57 @@ mod tests {
   use logos::Logos;
   use logos_iter::LogosIter;
   use trim_margin::MarginTrimmable;
+  use pretty_assertions::assert_eq;
 
   use crate::generators::datetime_expressions::{Adjustment, Operation, TimeBase, TimeOffsetType};
   use crate::generators::time_expression_parser::ParsedTimeExpression;
 
-  macro_rules! as_string {
-    ($e:expr) => {{ $e.map_err(|err| err.to_string()) }};
-  }
-
   #[test]
   fn invalid_expression() {
     let mut lex = super::TimeExpressionToken::lexer("not valid").peekable_lexer();
-    expect!(as_string!(super::expression(&mut lex, "not valid"))).to(
-      be_err().value(
-        "|Error: Expected one of now, midnight, noon, 1-12 o'clock, +, -, next or last
-            |   ╭─[expression:1:1]
-            |   │
-            | 1 │ not valid
-            |   · │\u{0020}
-            |   · ╰─ Expected one of now, midnight, noon, 1-12 o'clock, +, -, next or last here
-            |───╯
-            |
-            ".trim_margin_with("|").unwrap()
-      ));
+    let result = super::expression(&mut lex, "not valid");
+    assert_eq!(
+      "|Error: Expected one of now, midnight, noon, 1-12 o'clock, +, -, next or last
+       |   ╭─[expression:1:1]
+       |   │
+       | 1 │ not valid
+       |   │ │\u{0020}
+       |   │ ╰─ Expected one of now, midnight, noon, 1-12 o'clock, +, -, next or last here
+       |───╯
+       |
+      ".trim_margin_with("|").unwrap(),
+      result.unwrap_err().to_string()
+    );
 
     let mut lex = super::TimeExpressionToken::lexer("44 o'clock").peekable_lexer();
-    expect!(as_string!(super::expression(&mut lex, "44 o'clock"))).to(
-      be_err().value(
-        "|Error: Expected hour 1 to 12
-            |   ╭─[expression:1:1]
-            |   │
-            | 1 │ 44 o'clock
-            |   · ─┬ \u{0020}
-            |   ·  ╰── Expected hour 1 to 12 here
-            |───╯
-            |
-            ".trim_margin_with("|").unwrap()
-      ));
+    let result = super::expression(&mut lex, "44 o'clock");
+    assert_eq!(
+      "|Error: Expected hour 1 to 12
+       |   ╭─[expression:1:1]
+       |   │
+       | 1 │ 44 o'clock
+       |   │ ─┬ \u{0020}
+       |   │  ╰── Expected hour 1 to 12 here
+       |───╯
+       |
+      ".trim_margin_with("|").unwrap(),
+      result.unwrap_err().to_string()
+    );
 
     let mut lex = super::TimeExpressionToken::lexer("now today not valid").peekable_lexer();
-    expect!(as_string!(super::expression(&mut lex, "now today not valid"))).to(
-      be_err().value(
-        "|Error: Expected + or -
-            |   ╭─[expression:1:1]
-            |   │
-            | 1 │ now today not valid
-            |   · ─┬─ \u{0020}
-            |   ·  ╰─── Expected + or - here
-            |───╯
-            |
-            ".trim_margin_with("|").unwrap()
-      ));
+    let result = super::expression(&mut lex, "now today not valid");
+    assert_eq!(
+      "|Error: Expected + or -
+       |   ╭─[expression:1:1]
+       |   │
+       | 1 │ now today not valid
+       |   │ ─┬─ \u{0020}
+       |   │  ╰─── Expected + or - here
+       |───╯
+       |
+      ".trim_margin_with("|").unwrap(),
+      result.unwrap_err().to_string()
+    );
   }
 
   #[test]
@@ -477,17 +477,18 @@ mod tests {
     }));
 
     let mut lex = super::TimeExpressionToken::lexer("midnight 2 week").peekable_lexer();
-    expect!(as_string!(super::expression(&mut lex, "midnight 2 week"))).to(
-      be_err().value(
-        "|Error: Expected + or -
-            |   ╭─[expression:1:1]
-            |   │
-            | 1 │ midnight 2 week
-            |   · ────┬─── \u{0020}
-            |   ·     ╰───── Expected + or - here
-            |───╯
-            |
-            ".trim_margin_with("|").unwrap()
-      ));
+    let result = super::expression(&mut lex, "midnight 2 week");
+    assert_eq!(
+      "|Error: Expected + or -
+       |   ╭─[expression:1:1]
+       |   │
+       | 1 │ midnight 2 week
+       |   │ ────┬─── \u{0020}
+       |   │     ╰───── Expected + or - here
+       |───╯
+       |
+      ".trim_margin_with("|").unwrap(),
+      result.unwrap_err().to_string()
+    );
   }
 }

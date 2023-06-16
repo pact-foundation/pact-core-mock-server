@@ -9,7 +9,7 @@ use std::ops::Index;
 use std::str::FromStr;
 
 use anyhow::anyhow;
-use chrono::{DateTime, Local};
+#[cfg(feature = "datetime")] use chrono::{DateTime, Local};
 use indextree::{Arena, NodeId};
 use itertools::Itertools;
 use maplit::hashmap;
@@ -24,16 +24,16 @@ use uuid::Uuid;
 
 use crate::bodies::OptionalBody;
 use crate::expression_parser::{contains_expressions, DataType, DataValue, MapValueResolver, parse_expression};
-use crate::generators::datetime_expressions::{execute_date_expression, execute_datetime_expression, execute_time_expression};
+#[cfg(feature = "datetime")] use crate::generators::datetime_expressions::{execute_date_expression, execute_datetime_expression, execute_time_expression};
 use crate::json_utils::{get_field_as_string, json_to_string, JsonToNum};
 use crate::matchingrules::{Category, MatchingRuleCategory};
 use crate::PactSpecification;
 use crate::path_exp::{DocPath, PathToken};
-use crate::time_utils::{parse_pattern, to_chrono_pattern};
+#[cfg(feature = "datetime")] use crate::time_utils::{parse_pattern, to_chrono_pattern};
 
-pub mod datetime_expressions;
-mod date_expression_parser;
-mod time_expression_parser;
+#[cfg(feature = "datetime")] pub mod datetime_expressions;
+#[cfg(feature = "datetime")] mod date_expression_parser;
+#[cfg(feature = "datetime")] mod time_expression_parser;
 
 /// Trait to represent matching logic to find a matching variant for the Array Contains generator
 pub trait VariantMatcher: Debug {
@@ -879,60 +879,81 @@ impl GenerateValue<String> for Generator {
           }
         }
       },
-      Generator::Date(ref format, exp) => {
-        let base = match context.get("baseDate") {
-          None => Local::now(),
-          Some(d) => json_to_string(d).parse::<DateTime<Local>>()?
-        };
-        let date = execute_date_expression(&base, exp.clone().unwrap_or_default().as_str())?;
-        match format {
-          Some(pattern) => match parse_pattern(pattern) {
-            Ok(tokens) => {
-              #[allow(deprecated)]
-              Ok(date.date().format(&to_chrono_pattern(&tokens)).to_string())
+      Generator::Date(_format, _exp) => {
+        #[cfg(feature = "datetime")]
+        {
+          let base = match context.get("baseDate") {
+            None => Local::now(),
+            Some(d) => json_to_string(d).parse::<DateTime<Local>>()?
+          };
+          let date = execute_date_expression(&base, _exp.clone().unwrap_or_default().as_str())?;
+          match _format {
+            Some(pattern) => match parse_pattern(pattern) {
+              Ok(tokens) => {
+                #[allow(deprecated)]
+                Ok(date.date().format(&to_chrono_pattern(&tokens)).to_string())
+              },
+              Err(err) => {
+                warn!("Date format {} is not valid - {}", pattern, err);
+                Err(anyhow!("Date format {} is not valid - {}", pattern, err))
+              }
             },
-            Err(err) => {
-              warn!("Date format {} is not valid - {}", pattern, err);
-              Err(anyhow!("Date format {} is not valid - {}", pattern, err))
-            }
-          },
-          None => Ok(date.naive_local().date().to_string())
+            None => Ok(date.naive_local().date().to_string())
+          }
         }
-      },
-      Generator::Time(ref format, exp) => {
-        let base = match context.get("baseTime") {
-          None => Local::now(),
-          Some(d) => json_to_string(d).parse::<DateTime<Local>>()?
-        };
-        let time = execute_time_expression(&base, exp.clone().unwrap_or_default().as_str())?;
-        match format {
-          Some(pattern) => match parse_pattern(pattern) {
-            Ok(tokens) => Ok(time.format(&to_chrono_pattern(&tokens)).to_string()),
-            Err(err) => {
-              warn!("Time format {} is not valid - {}", pattern, err);
-              Err(anyhow!("Time format {} is not valid - {}", pattern, err))
-            }
-          },
-          None => Ok(time.time().format("%H:%M:%S").to_string())
+        #[cfg(not(feature = "datetime"))]
+        {
+          Err(anyhow!("Date generators require the 'datetime' feature to be enabled"))
         }
-      },
-      Generator::DateTime(ref format, exp) => {
-        let base = match context.get("baseDateTime") {
-          None => Local::now(),
-          Some(d) => json_to_string(d).parse::<DateTime<Local>>()?
-        };
-        let date_time = execute_datetime_expression(&base, exp.clone().unwrap_or_default().as_str())?;
-        match format {
-          Some(pattern) => match parse_pattern(pattern) {
-            Ok(tokens) => Ok(date_time.format(&to_chrono_pattern(&tokens)).to_string()),
-            Err(err) => {
-              warn!("DateTime format {} is not valid - {}", pattern, err);
-              Err(anyhow!("DateTime format {} is not valid - {}", pattern, err))
-            }
-          },
-          None => Ok(date_time.format("%Y-%m-%dT%H:%M:%S.%3f%z").to_string())
+      }
+      Generator::Time(_format, _exp) => {
+        #[cfg(feature = "datetime")]
+        {
+          let base = match context.get("baseTime") {
+            None => Local::now(),
+            Some(d) => json_to_string(d).parse::<DateTime<Local>>()?
+          };
+          let time = execute_time_expression(&base, _exp.clone().unwrap_or_default().as_str())?;
+          match _format {
+            Some(pattern) => match parse_pattern(pattern) {
+              Ok(tokens) => Ok(time.format(&to_chrono_pattern(&tokens)).to_string()),
+              Err(err) => {
+                warn!("Time format {} is not valid - {}", pattern, err);
+                Err(anyhow!("Time format {} is not valid - {}", pattern, err))
+              }
+            },
+            None => Ok(time.time().format("%H:%M:%S").to_string())
+          }
         }
-      },
+        #[cfg(not(feature = "datetime"))]
+        {
+          Err(anyhow!("Time generators require the 'datetime' feature to be enabled"))
+        }
+      }
+      Generator::DateTime(_format, _exp) => {
+        #[cfg(feature = "datetime")]
+        {
+          let base = match context.get("baseDateTime") {
+            None => Local::now(),
+            Some(d) => json_to_string(d).parse::<DateTime<Local>>()?
+          };
+          let date_time = execute_datetime_expression(&base, _exp.clone().unwrap_or_default().as_str())?;
+          match _format {
+            Some(pattern) => match parse_pattern(pattern) {
+              Ok(tokens) => Ok(date_time.format(&to_chrono_pattern(&tokens)).to_string()),
+              Err(err) => {
+                warn!("DateTime format {} is not valid - {}", pattern, err);
+                Err(anyhow!("DateTime format {} is not valid - {}", pattern, err))
+              }
+            },
+            None => Ok(date_time.format("%Y-%m-%dT%H:%M:%S.%3f%z").to_string())
+          }
+        }
+        #[cfg(not(feature = "datetime"))]
+        {
+          Err(anyhow!("DateTime generators require the 'datetime' feature to be enabled"))
+        }
+      }
       Generator::RandomBoolean => Ok(format!("{}", rnd.gen::<bool>())),
       Generator::ProviderStateGenerator(ref exp, ref dt) =>
         generate_value_from_context(exp, context, dt).map(|val| val.to_string()),
@@ -1026,58 +1047,79 @@ impl GenerateValue<Value> for Generator {
           }
         }
       },
-      Generator::Date(ref format, exp) => {
-        let base = match context.get("baseDate") {
-          None => Local::now(),
-          Some(d) => json_to_string(d).parse::<DateTime<Local>>()?
-        };
-        let date = execute_date_expression(&base, exp.clone().unwrap_or_default().as_str())?;
-        match format {
-          Some(pattern) => match parse_pattern(pattern) {
-            Ok(tokens) => {
-              #[allow(deprecated)]
-              Ok(json!(date.date().format(&to_chrono_pattern(&tokens)).to_string()))
+      Generator::Date(_format, _exp) => {
+        #[cfg(feature = "datetime")]
+        {
+          let base = match context.get("baseDate") {
+            None => Local::now(),
+            Some(d) => json_to_string(d).parse::<DateTime<Local>>()?
+          };
+          let date = execute_date_expression(&base, _exp.clone().unwrap_or_default().as_str())?;
+          match _format {
+            Some(pattern) => match parse_pattern(pattern) {
+              Ok(tokens) => {
+                #[allow(deprecated)]
+                Ok(json!(date.date().format(&to_chrono_pattern(&tokens)).to_string()))
+              },
+              Err(err) => {
+                warn!("Date format {} is not valid - {}", pattern, err);
+                Err(anyhow!("Could not generate a random date from {} - {}", pattern, err))
+              }
             },
-            Err(err) => {
-              warn!("Date format {} is not valid - {}", pattern, err);
-              Err(anyhow!("Could not generate a random date from {} - {}", pattern, err))
-            }
-          },
-          None => Ok(json!(date.naive_local().date().to_string()))
+            None => Ok(json!(date.naive_local().date().to_string()))
+          }
         }
-      },
-      Generator::Time(ref format, exp) => {
-        let base = match context.get("baseTime") {
-          None => Local::now(),
-          Some(d) => json_to_string(d).parse::<DateTime<Local>>()?
-        };
-        let time = execute_time_expression(&base, exp.clone().unwrap_or_default().as_str())?;
-        match format {
-          Some(pattern) => match parse_pattern(pattern) {
-            Ok(tokens) => Ok(json!(time.format(&to_chrono_pattern(&tokens)).to_string())),
-            Err(err) => {
-              warn!("Time format {} is not valid - {}", pattern, err);
-              Err(anyhow!("Could not generate a random time from {} - {}", pattern, err))
-            }
-          },
-          None => Ok(json!(time.time().format("%H:%M:%S").to_string()))
+        #[cfg(not(feature = "datetime"))]
+        {
+          Err(anyhow!("Date generators require the 'datetime' feature to be enabled"))
         }
-      },
-      Generator::DateTime(ref format, exp) => {
-        let base = match context.get("baseDateTime") {
-          None => Local::now(),
-          Some(d) => json_to_string(d).parse::<DateTime<Local>>()?
-        };
-        let date_time = execute_datetime_expression(&base, exp.clone().unwrap_or_default().as_str())?;
-        match format {
-          Some(pattern) => match parse_pattern(pattern) {
-            Ok(tokens) => Ok(json!(date_time.format(&to_chrono_pattern(&tokens)).to_string())),
-            Err(err) => {
-              warn!("DateTime format {} is not valid - {}", pattern, err);
-              Err(anyhow!("Could not generate a random date-time from {} - {}", pattern, err))
-            }
-          },
-          None => Ok(json!(date_time.format("%Y-%m-%dT%H:%M:%S.%3f%z").to_string()))
+      }
+      Generator::Time(_format, _exp) => {
+        #[cfg(feature = "datetime")]
+        {
+          let base = match context.get("baseTime") {
+            None => Local::now(),
+            Some(d) => json_to_string(d).parse::<DateTime<Local>>()?
+          };
+          let time = execute_time_expression(&base, _exp.clone().unwrap_or_default().as_str())?;
+          match _format {
+            Some(pattern) => match parse_pattern(pattern) {
+              Ok(tokens) => Ok(json!(time.format(&to_chrono_pattern(&tokens)).to_string())),
+              Err(err) => {
+                warn!("Time format {} is not valid - {}", pattern, err);
+                Err(anyhow!("Could not generate a random time from {} - {}", pattern, err))
+              }
+            },
+            None => Ok(json!(time.time().format("%H:%M:%S").to_string()))
+          }
+        }
+        #[cfg(not(feature = "datetime"))]
+        {
+          Err(anyhow!("Time generators require the 'datetime' feature to be enabled"))
+        }
+      }
+      Generator::DateTime(_format, _exp) => {
+        #[cfg(feature = "datetime")]
+        {
+          let base = match context.get("baseDateTime") {
+            None => Local::now(),
+            Some(d) => json_to_string(d).parse::<DateTime<Local>>()?
+          };
+          let date_time = execute_datetime_expression(&base, _exp.clone().unwrap_or_default().as_str())?;
+          match _format {
+            Some(pattern) => match parse_pattern(pattern) {
+              Ok(tokens) => Ok(json!(date_time.format(&to_chrono_pattern(&tokens)).to_string())),
+              Err(err) => {
+                warn!("DateTime format {} is not valid - {}", pattern, err);
+                Err(anyhow!("Could not generate a random date-time from {} - {}", pattern, err))
+              }
+            },
+            None => Ok(json!(date_time.format("%Y-%m-%dT%H:%M:%S.%3f%z").to_string()))
+          }
+        }
+        #[cfg(not(feature = "datetime"))]
+        {
+          Err(anyhow!("DateTime generators require the 'datetime' feature to be enabled"))
         }
       },
       Generator::RandomBoolean => Ok(json!(rand::thread_rng().gen::<bool>())),
@@ -1263,7 +1305,7 @@ mod tests {
   use std::ops::Add;
   use std::str::FromStr;
 
-  use chrono::Duration;
+  #[cfg(feature = "datetime")] use chrono::Duration;
   use expectest::expect;
   use expectest::prelude::*;
   use hamcrest2::*;
@@ -1800,6 +1842,7 @@ mod tests {
   }
 
   #[test]
+  #[cfg(feature = "datetime")]
   fn date_generator_test() {
     let generated = Generator::Date(None, None).generate_value(&"".to_string(), &hashmap!{}, &NoopVariantMatcher.boxed());
     assert_that!(generated.unwrap(), matches_regex(r"^\d{4}-\d{2}-\d{2}$"));
@@ -1820,6 +1863,7 @@ mod tests {
   }
 
   #[test]
+  #[cfg(feature = "datetime")]
   fn time_generator_test() {
     let generated = Generator::Time(None, None).generate_value(&"".to_string(), &hashmap!{}, &NoopVariantMatcher.boxed());
     assert_that!(generated.unwrap(), matches_regex(r"^\d{2}:\d{2}:\d{2}$"));
@@ -1839,6 +1883,7 @@ mod tests {
   }
 
   #[test]
+  #[cfg(feature = "datetime")]
   fn datetime_generator_test() {
     let generated = Generator::DateTime(None, None).generate_value(&"".to_string(), &hashmap!{}, &NoopVariantMatcher.boxed());
     assert_that!(generated.unwrap(), matches_regex(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}[-+]\d+$"));

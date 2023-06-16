@@ -399,43 +399,42 @@ mod tests {
   use expectest::prelude::*;
   use logos::Logos;
   use trim_margin::MarginTrimmable;
+  use pretty_assertions::assert_eq;
 
   use crate::generators::date_expression_parser::ParsedDateExpression;
   use crate::generators::datetime_expressions::{Adjustment, DateBase, DateOffsetType, Operation};
 
-  macro_rules! as_string {
-    ($e:expr) => {{ $e.map_err(|err| err.to_string()) }};
-  }
-
   #[test]
   fn invalid_expression() {
     let mut lex = super::DateExpressionToken::lexer("not valid");
-    expect!(as_string!(super::expression(&mut lex, "not valid"))).to(
-      be_err().value(
-        "|Error: Expected one of now, today, yesterday, tomorrow, +, -, next or last
-            |   ╭─[expression:1:1]
-            |   │
-            | 1 │ not valid
-            |   · ┬ \u{0020}
-            |   · ╰── Expected one of now, today, yesterday, tomorrow, +, -, next or last here
-            |───╯
-            |
-            ".trim_margin_with("|").unwrap()
-      ));
+    let result = super::expression(&mut lex, "not valid");
+    assert_eq!(
+      "|Error: Expected one of now, today, yesterday, tomorrow, +, -, next or last
+          |   ╭─[expression:1:1]
+          |   │
+          | 1 │ not valid
+          |   │ ┬ \u{0020}
+          |   │ ╰── Expected one of now, today, yesterday, tomorrow, +, -, next or last here
+          |───╯
+          |
+          ".trim_margin_with("|").unwrap(),
+      result.unwrap_err().to_string()
+    );
 
     let mut lex = super::DateExpressionToken::lexer("now today not valid");
-    expect!(as_string!(super::expression(&mut lex, "now today not valid"))).to(
-      be_err().value(
-        "|Error: Expected + or -
-            |   ╭─[expression:1:5]
-            |   │
-            | 1 │ now today not valid
-            |   ·     ──┬── \u{0020}
-            |   ·       ╰──── Expected + or - here
-            |───╯
-            |
-            ".trim_margin_with("|").unwrap()
-      ));
+    let result = super::expression(&mut lex, "now today not valid");
+    assert_eq!(
+      "|Error: Expected + or -
+          |   ╭─[expression:1:5]
+          |   │
+          | 1 │ now today not valid
+          |   │     ──┬── \u{0020}
+          |   │       ╰──── Expected + or - here
+          |───╯
+          |
+          ".trim_margin_with("|").unwrap(),
+      result.unwrap_err().to_string()
+    );
   }
 
   #[test]
@@ -512,17 +511,18 @@ mod tests {
     }));
 
     let mut lex = super::DateExpressionToken::lexer("today 2 week");
-    expect!(as_string!(super::expression(&mut lex, "today 2 week"))).to(
-      be_err().value(
-        "|Error: Expected + or -
-            |   ╭─[expression:1:7]
-            |   │
-            | 1 │ today 2 week
-            |   ·       ┬ \u{0020}
-            |   ·       ╰── Expected + or - here
-            |───╯
-            |
-            ".trim_margin_with("|").unwrap()
-      ));
+    let result = super::expression(&mut lex, "today 2 week");
+    assert_eq!(
+      "|Error: Expected + or -
+       |   ╭─[expression:1:7]
+       |   │
+       | 1 │ today 2 week
+       |   │       ┬ \u{0020}
+       |   │       ╰── Expected + or - here
+       |───╯
+       |
+       ".trim_margin_with("|").unwrap(),
+      result.unwrap_err().to_string()
+    );
   }
 }

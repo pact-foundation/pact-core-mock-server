@@ -950,8 +950,8 @@ mod test {
             |   ╭─[expression:1:5]
             |   │
             | 1 │ 100 notEmpty(100)
-            |   ·     ────┬─── \u{0020}
-            |   ·         ╰───── Expected a comma before this
+            |   │     ────┬─── \u{0020}
+            |   │         ╰───── Expected a comma before this
             |───╯
             |
             ".trim_margin_with("|").unwrap()
@@ -965,8 +965,8 @@ mod test {
             |   ╭─[expression:1:4]
             |   │
             | 1 │ 100
-            |   ·    │\u{0020}
-            |   ·    ╰─ Expected a comma here
+            |   │    │\u{0020}
+            |   │    ╰─ Expected a comma here
             |───╯
             |
             ".trim_margin_with("|").unwrap()
@@ -1027,8 +1027,8 @@ mod test {
             |   ╭─[expression:1:18]
             |   │
             | 1 │ matching(semver, '100')
-            |   ·                  ──┬── \u{0020}
-            |   ·                    ╰──── This is not a valid semver value
+            |   │                  ──┬── \u{0020}
+            |   │                    ╰──── This is not a valid semver value
             |───╯
             |
             ".trim_margin().unwrap()));
@@ -1039,10 +1039,10 @@ mod test {
             |   ╭─[expression:1:18]
             |   │
             | 1 │ matching(semver, 100)
-            |   ·                  ─┬─ \u{0020}
-            |   ·                   ╰─── Expected this to be a string
-            |   ·\u{0020}
-            |   · Note: Surround the value in quotes: matching(semver, '100')
+            |   │                  ─┬─ \u{0020}
+            |   │                   ╰─── Expected this to be a string
+            |   │\u{0020}
+            |   │ Note: Surround the value in quotes: matching(semver, '100')
             |───╯
             |
             ".trim_margin().unwrap()
@@ -1064,8 +1064,8 @@ mod test {
             |   ╭─[expression:1:10]
             |   │
             | 1 │ matching(
-            |   ·          │\u{0020}
-            |   ·          ╰─ Expected a matcher (equalTo, regex, etc.) here
+            |   │          │\u{0020}
+            |   │          ╰─ Expected a matcher (equalTo, regex, etc.) here
             |───╯
             |
             ".trim_margin().unwrap()));
@@ -1079,8 +1079,8 @@ mod test {
             |   ╭─[expression:1:7]
             |   │
             | 1 │ match(100, '100')
-            |   ·       ─┬─ \u{0020}
-            |   ·        ╰─── Expected a matcher (equalTo, regex, etc.) here
+            |   │       ─┬─ \u{0020}
+            |   │        ╰─── Expected a matcher (equalTo, regex, etc.) here
             |───╯
             |
             ".trim_margin().unwrap()));
@@ -1094,10 +1094,10 @@ mod test {
             |   ╭─[expression:1:7]
             |   │
             | 1 │ match(testABBC, '100')
-            |   ·       ────┬─── \u{0020}
-            |   ·           ╰───── This is not a valid matcher type
-            |   ·\u{0020}
-            |   · Note: Valid matchers are: equalTo, regex, type, datetime, date, time, include, number, integer, decimal, boolean, contentType, semver
+            |   │       ────┬─── \u{0020}
+            |   │           ╰───── This is not a valid matcher type
+            |   │\u{0020}
+            |   │ Note: Valid matchers are: equalTo, regex, type, datetime, date, time, include, number, integer, decimal, boolean, contentType, semver
             |───╯
             |
             ".trim_margin().unwrap()));
@@ -1120,8 +1120,8 @@ mod test {
             |   ╭─[expression:1:11]
             |   │
             | 1 │ matching($
-            |   ·           │\u{0020}
-            |   ·           ╰─ Expected a string here
+            |   │           │\u{0020}
+            |   │           ╰─ Expected a string here
             |───╯
             |
             ".trim_margin().unwrap()));
@@ -1135,10 +1135,10 @@ mod test {
             |   ╭─[expression:1:8]
             |   │
             | 1 │ match($100)
-            |   ·        ─┬─ \u{0020}
-            |   ·         ╰─── Expected this to be a string
-            |   ·\u{0020}
-            |   · Note: Surround the value in quotes: match($'100')
+            |   │        ─┬─ \u{0020}
+            |   │         ╰─── Expected this to be a string
+            |   │\u{0020}
+            |   │ Note: Surround the value in quotes: match($'100')
             |───╯
             |
             ".trim_margin().unwrap()));
@@ -1214,10 +1214,10 @@ mod test {
             |   ╭─[expression:1:4]
             |   │
             | 1 │ 100
-            |   ·    │\u{0020}
-            |   ·    ╰─ Expected a matching rule definition here
-            |   ·\u{0020}
-            |   · Note: valid matching rule definitions are: matching, notEmpty, eachKey, eachValue
+            |   │    │\u{0020}
+            |   │    ╰─ Expected a matching rule definition here
+            |   │\u{0020}
+            |   │ Note: valid matching rule definitions are: matching, notEmpty, eachKey, eachValue
             |───╯
             |
             ".trim_margin().unwrap()));
@@ -1229,10 +1229,10 @@ mod test {
             |   ╭─[expression:1:1]
             |   │
             | 1 │ somethingElse('to test')
-            |   · ──────┬────── \u{0020}
-            |   ·       ╰──────── Expected a matching rule definition here
-            |   ·\u{0020}
-            |   · Note: valid matching rule definitions are: matching, notEmpty, eachKey, eachValue
+            |   │ ──────┬────── \u{0020}
+            |   │       ╰──────── Expected a matching rule definition here
+            |   │\u{0020}
+            |   │ Note: valid matching rule definitions are: matching, notEmpty, eachKey, eachValue
             |───╯
             |
             ".trim_margin().unwrap()));
@@ -1262,8 +1262,8 @@ mod test {
             |   ╭─[expression:1:8]
             |   │
             | 1 │ eachKey
-            |   ·        │\u{0020}
-            |   ·        ╰─ Expected an opening bracket here
+            |   │        │\u{0020}
+            |   │        ╰─ Expected an opening bracket here
             |───╯
             |
             ".trim_margin().unwrap()));
@@ -1276,8 +1276,8 @@ mod test {
             |   ╭─[expression:1:9]
             |   │
             | 1 │ eachKey matching
-            |   ·         ────┬─── \u{0020}
-            |   ·             ╰───── Expected an opening bracket before this
+            |   │         ────┬─── \u{0020}
+            |   │             ╰───── Expected an opening bracket before this
             |───╯
             |
             ".trim_margin().unwrap()));
@@ -1290,8 +1290,8 @@ mod test {
             |   ╭─[expression:1:32]
             |   │
             | 1 │ eachKey(matching(type, 'test') stuff
-            |   ·                                ──┬── \u{0020}
-            |   ·                                  ╰──── Expected a closing bracket before this
+            |   │                                ──┬── \u{0020}
+            |   │                                  ╰──── Expected a closing bracket before this
             |───╯
             |
             ".trim_margin().unwrap()));
@@ -1304,8 +1304,8 @@ mod test {
             |   ╭─[expression:1:31]
             |   │
             | 1 │ eachKey(matching(type, 'test')
-            |   ·                               │\u{0020}
-            |   ·                               ╰─ Expected a closing bracket here
+            |   │                               │\u{0020}
+            |   │                               ╰─ Expected a closing bracket here
             |───╯
             |
             ".trim_margin().unwrap()));
@@ -1335,8 +1335,8 @@ mod test {
             |   ╭─[expression:1:8]
             |   │
             | 1 │ eachKey
-            |   ·        │\u{0020}
-            |   ·        ╰─ Expected an opening bracket here
+            |   │        │\u{0020}
+            |   │        ╰─ Expected an opening bracket here
             |───╯
             |
             ".trim_margin().unwrap()));
@@ -1349,8 +1349,8 @@ mod test {
             |   ╭─[expression:1:9]
             |   │
             | 1 │ eachKey matching
-            |   ·         ────┬─── \u{0020}
-            |   ·             ╰───── Expected an opening bracket before this
+            |   │         ────┬─── \u{0020}
+            |   │             ╰───── Expected an opening bracket before this
             |───╯
             |
             ".trim_margin().unwrap()));
@@ -1363,8 +1363,8 @@ mod test {
             |   ╭─[expression:1:32]
             |   │
             | 1 │ eachKey(matching(type, 'test') stuff
-            |   ·                                ──┬── \u{0020}
-            |   ·                                  ╰──── Expected a closing bracket before this
+            |   │                                ──┬── \u{0020}
+            |   │                                  ╰──── Expected a closing bracket before this
             |───╯
             |
             ".trim_margin().unwrap()));
@@ -1377,8 +1377,8 @@ mod test {
             |   ╭─[expression:1:31]
             |   │
             | 1 │ eachKey(matching(type, 'test')
-            |   ·                               │\u{0020}
-            |   ·                               ╰─ Expected a closing bracket here
+            |   │                               │\u{0020}
+            |   │                               ╰─ Expected a closing bracket here
             |───╯
             |
             ".trim_margin().unwrap()));
