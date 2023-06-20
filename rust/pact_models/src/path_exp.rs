@@ -177,7 +177,7 @@ impl DocPath {
      self.len() == path.len() && self.matches_path(path)
   }
 
-  /// Creates a new path by cloning this one and pushing the name onto the end
+  /// Creates a new path by cloning this one and pushing the string onto the end
   pub fn join(&self, part: impl Into<String>) -> Self {
     let part = part.into();
     let mut path = self.clone();
@@ -203,7 +203,7 @@ impl DocPath {
   pub fn push_index(&mut self, index: usize) -> &mut Self {
     self.path_tokens.push(PathToken::Index(index));
     // unwrap is safe, as write! is infallible for String
-    write!(self.expr, "[{}]", index).unwrap();
+    let _ = write!(self.expr, "[{}]", index);
     self
   }
 
@@ -221,6 +221,22 @@ impl DocPath {
     self
   }
 
+  /// Mutates this path by pushing a path token onto the end.
+  pub fn push(&mut self, path_token: PathToken) -> &mut Self {
+    match &path_token {
+      PathToken::Root => self.expr.push_str("$"),
+      PathToken::Field(v) => {
+        let s = &mut self.expr;
+        write_obj_key_for_path(s, v.as_str())
+      },
+      PathToken::Index(i) => { let _ = write!(self.expr, "[{}]", i); },
+      PathToken::Star => self.expr.push_str(".*"),
+      PathToken::StarIndex => self.expr.push_str("[*]")
+    };
+    self.path_tokens.push(path_token);
+    self
+  }
+
   /// Convert this path to a vector of strings
   pub fn to_vec(&self) -> Vec<String> {
     self.path_tokens.iter().map(|t| t.to_string()).collect()
@@ -233,28 +249,40 @@ impl DocPath {
     } else {
       let mut vec = self.path_tokens.clone();
       vec.truncate(vec.len() - 1);
-      let expr = vec.iter().map(|p| {
-        match p {
-          PathToken::Field(s) => {
-            if IDENT.is_match(s.as_str()) {
-              format!(".{}", s)
-            } else {
-              format!(
-                "['{}']",
-                ESCAPE.replace_all(s.as_str(), |caps: &Captures| format!(r#"\{}"#, &caps[0]))
-              )
-            }
-          }
-          PathToken::Star => format!(".{}", p),
-          PathToken::Root | PathToken::StarIndex => p.to_string(),
-          PathToken::Index(n) => format!(".{}", n)
-        }
-      }).collect();
-      Some(DocPath {
+      let mut path = DocPath {
         path_tokens: vec,
-        expr
-      })
+        expr: "".to_string()
+      };
+      path.expr = path.build_expr();
+      Some(path)
     }
+  }
+
+  fn build_expr(&self) -> String {
+    let mut buffer = String::new();
+
+    for token in &self.path_tokens {
+      match token {
+        PathToken::Root => buffer.push('$'),
+        PathToken::Field(v) => {
+          write_obj_key_for_path(&mut buffer, v.as_str());
+        }
+        PathToken::Index(i) => {
+          let _ = write!(buffer, "[{}]", i);
+        }
+        PathToken::Star => {
+          buffer.push('.');
+          buffer.push('*');
+        }
+        PathToken::StarIndex => {
+          buffer.push('[');
+          buffer.push('*');
+          buffer.push(']');
+        }
+      }
+    }
+
+    buffer
   }
 }
 
@@ -263,15 +291,15 @@ impl DocPath {
 /// to minimize string allocation here.
 fn write_obj_key_for_path(mut out: impl Write, key: &str) {
   // unwrap is safe, as write! is infallible for String
-  if IDENT.is_match(key) {
-    write!(out, ".{}", key).unwrap();
+  let _ = if IDENT.is_match(key) {
+    write!(out, ".{}", key)
   } else {
     write!(
       out,
       "['{}']",
       ESCAPE.replace_all(key, |caps: &Captures| format!(r#"\{}"#, &caps[0]))
-    ).unwrap();
-  }
+    )
+  };
 }
 
 #[cfg(test)]
@@ -783,6 +811,37 @@ mod tests {
     expect!(something.join("else").to_string()).to(be_equal_to("$.something.else"));
     expect!(something.join("*").to_string()).to(be_equal_to("$.something.*"));
     expect!(something.join("101").to_string()).to(be_equal_to("$.something[101]"));
+  }
+
+  #[test]
+  fn path_push() {
+    let mut root = DocPath::root();
+    let something = root.push(PathToken::Field("something".to_string()));
+    expect!(something.to_string()).to(be_equal_to("$.something"));
+    expect!(DocPath::root().push(PathToken::Field("something else".to_string())).to_string())
+      .to(be_equal_to("$['something else']"));
+    expect!(something.push(PathToken::Field("else".to_string())).to_string())
+      .to(be_equal_to("$.something.else"));
+    expect!(something.push(PathToken::Star).to_string())
+      .to(be_equal_to("$.something.else.*"));
+    expect!(something.push(PathToken::Index(101)).to_string())
+      .to(be_equal_to("$.something.else.*[101]"));
+  }
+
+  #[test]
+  fn build_expr() {
+    let mut root = DocPath::root();
+    expect!(root.build_expr()).to(be_equal_to("$"));
+    let something = root.push(PathToken::Field("something".to_string()));
+    expect!(something.build_expr()).to(be_equal_to("$.something"));
+    expect!(DocPath::root().push(PathToken::Field("something else".to_string())).build_expr())
+      .to(be_equal_to("$['something else']"));
+    expect!(something.push(PathToken::Field("else".to_string())).build_expr())
+      .to(be_equal_to("$.something.else"));
+    expect!(something.push(PathToken::Star).build_expr())
+      .to(be_equal_to("$.something.else.*"));
+    expect!(something.push(PathToken::Index(101)).build_expr())
+      .to(be_equal_to("$.something.else.*[101]"));
   }
 
   #[test]
