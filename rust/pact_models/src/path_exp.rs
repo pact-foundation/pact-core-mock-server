@@ -245,7 +245,8 @@ impl DocPath {
               )
             }
           }
-          PathToken::Root | PathToken::Star | PathToken::StarIndex => p.to_string(),
+          PathToken::Star => format!(".{}", p),
+          PathToken::Root | PathToken::StarIndex => p.to_string(),
           PathToken::Index(n) => format!(".{}", n)
         }
       }).collect();
@@ -791,12 +792,14 @@ mod tests {
     let something_star = something.join("*");
     let something_escaped = something.join("e l s e");
     let something_escaped2 = something_escaped.join("two");
+    let something_star_child = something_star.join("child");
 
     expect!(something.parent()).to(be_some().value(DocPath::root()));
     expect!(something_else.parent()).to(be_some().value(something.clone()));
     expect!(something_star.parent()).to(be_some().value(something.clone()));
     expect!(something_escaped.parent()).to(be_some().value(something.clone()));
     expect!(something_escaped2.parent()).to(be_some().value(something_escaped.clone()));
+    expect!(something_star_child.parent()).to(be_some().value(something_star.clone()));
 
     expect!(DocPath::root().parent()).to(be_none());
     expect!(DocPath::empty().parent()).to(be_none());
