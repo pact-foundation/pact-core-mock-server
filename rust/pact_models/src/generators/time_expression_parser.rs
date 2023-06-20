@@ -1,7 +1,6 @@
 //! Parser for the time portion of a date-time expression
 
 use logos::{Lexer, Logos};
-use logos_iter::{LogosIter, PeekableLexer};
 
 use crate::generators::datetime_expressions::{Adjustment, ClockHour, error, Operation, TimeBase, TimeOffsetType};
 
@@ -15,6 +14,7 @@ pub struct ParsedTimeExpression {
 }
 
 #[derive(Logos, Debug, PartialEq, Copy, Clone)]
+#[logos(skip r"[ \t\n\f]+")]
 pub enum TimeExpressionToken {
   #[token("now")]
   Now,
@@ -46,7 +46,7 @@ pub enum TimeExpressionToken {
   #[token("last")]
   Last,
 
-  #[regex("[0-9]+", |lex| lex.slice().parse())]
+  #[regex("[0-9]+", |lex| lex.slice().parse().ok())]
   Digits(u64),
 
   #[regex("hour(s)?")]
@@ -59,11 +59,7 @@ pub enum TimeExpressionToken {
   Seconds,
 
   #[regex("millisecond(s)?")]
-  Milliseconds,
-
-  #[error]
-  #[regex(r"[ \t\n\f]+", logos::skip)]
-  Error
+  Milliseconds
 }
 
 impl TimeExpressionToken {
@@ -99,68 +95,57 @@ impl TimeExpressionToken {
 //     } )*
 //     ) EOF
 //     ;
-pub(crate) fn expression<'a>(lex: &'a mut PeekableLexer<'a, Lexer<'a, TimeExpressionToken>, TimeExpressionToken>, exp: &str) -> anyhow::Result<ParsedTimeExpression> {
+pub(crate) fn expression(lex: &mut Lexer<TimeExpressionToken>, exp: &str) -> anyhow::Result<ParsedTimeExpression> {
   let mut time_base = TimeBase::Now;
   let mut adj = vec![];
 
-  let mut lex = lex.clone();
-  if let Some(token) = lex.peek() {
+  if let Some(Ok(token)) = lex.next() {
     if token.is_base() {
-      let token = lex.next().unwrap();
-      (time_base, lex) = base(lex, exp, token)?;
-      if let Some(token) = lex.peek() {
+      let (tb, next) = base(lex, exp, token)?;
+      time_base = tb;
+      if let Some(Ok(token)) = next.map(|next| Ok(next)).or_else(|| lex.next()) {
         if token.is_op() {
-          let (a, lex2) = adjustments(lex, exp)?;
+          let a = adjustments(lex, exp, token)?;
           adj.extend_from_slice(&*a);
-          lex = lex2;
         } else {
-          return Err(error(exp, "+ or -", Some(lex.span())));
+          return Err(error(exp, "+ or -", Some(lex.span().clone())));
         }
       }
     } else if token.is_op() {
-      let (a, lex2) = adjustments(lex, exp)?;
+      let a = adjustments(lex, exp, token)?;
       adj.extend_from_slice(&*a);
-      lex = lex2;
-    } else if *token == TimeExpressionToken::Next {
-      let _ = lex.next();
-      let (t, mut lex2) = offset(lex.clone(), exp)?;
+    } else if token == TimeExpressionToken::Next {
+      let t = offset(lex, exp)?;
       adj.push(Adjustment {
         adjustment_type: t,
         value: 1,
         operation: Operation::PLUS
       });
-      if let Some(token) = lex2.peek() {
+      if let Some(Ok(token)) = lex.next() {
         if token.is_op() {
-          let (a, lex2) = adjustments(lex2, exp)?;
+          let a = adjustments(lex, exp, token)?;
           adj.extend_from_slice(&*a);
-          lex = lex2;
         } else {
-          return Err(error(exp, "+ or -", Some(lex2.span())));
+          return Err(error(exp, "+ or -", Some(lex.span().clone())));
         }
-      } else {
-        lex = lex2.clone();
       }
-    } else if *token == TimeExpressionToken::Last {
-      let _ = lex.next();
-      let (t, mut lex2) = offset(lex.clone(), exp)?;
+    } else if token == TimeExpressionToken::Last {
+      let t = offset(lex, exp)?;
       adj.push(Adjustment {
         adjustment_type: t,
         value: 1,
         operation: Operation::MINUS
       });
-      if let Some(token) = lex2.next() {
+      if let Some(Ok(token)) = lex.next() {
         if token.is_op() {
-          let (a, lex2) = adjustments(lex2, exp)?;
+          let a = adjustments(lex, exp, token)?;
           adj.extend_from_slice(&*a);
-          lex = lex2;
         } else {
-          return Err(error(exp, "+ or -", Some(lex2.span())));
+          return Err(error(exp, "+ or -", Some(lex.span().clone())));
         }
-      } else {
-        lex = lex2;
       }
     } else {
-      return Err(error(exp, "one of now, midnight, noon, 1-12 o'clock, +, -, next or last", Some(lex.span())));
+      return Err(error(exp, "one of now, midnight, noon, 1-12 o'clock, +, -, next or last", Some(lex.span().clone())));
     }
 
     let span = lex.span();
@@ -174,7 +159,7 @@ pub(crate) fn expression<'a>(lex: &'a mut PeekableLexer<'a, Lexer<'a, TimeExpres
       })
     }
   } else {
-    Err(error(exp, "one of now, midnight, noon, 1-12 o'clock, +, -, next or last", None))
+    Err(error(exp, "one of now, midnight, noon, 1-12 o'clock, +, -, next or last", Some(lex.span().clone())))
   }
 }
 
@@ -183,22 +168,22 @@ pub(crate) fn expression<'a>(lex: &'a mut PeekableLexer<'a, Lexer<'a, TimeExpres
 //     | 'noon' { $t = TimeBase.Noon.INSTANCE; }
 //     | INT oclock { $t = TimeBase.of($INT.int, $oclock.h); }
 //     ;
-fn base<'a>(
-  lex: PeekableLexer<'a, Lexer<'a, TimeExpressionToken>, TimeExpressionToken>,
+fn base(
+  lex: &mut Lexer<TimeExpressionToken>,
   exp: &str,
   token: TimeExpressionToken
-) -> anyhow::Result<(TimeBase, PeekableLexer<'a, Lexer<'a, TimeExpressionToken>, TimeExpressionToken>)> {
+) -> anyhow::Result<(TimeBase, Option<TimeExpressionToken>)> {
   match token {
-    TimeExpressionToken::Now => Ok((TimeBase::Now, lex.clone())),
-    TimeExpressionToken::Midnight => Ok((TimeBase::Midnight, lex.clone())),
-    TimeExpressionToken::Noon => Ok((TimeBase::Noon, lex.clone())),
+    TimeExpressionToken::Now => Ok((TimeBase::Now, None)),
+    TimeExpressionToken::Midnight => Ok((TimeBase::Midnight, None)),
+    TimeExpressionToken::Noon => Ok((TimeBase::Noon, None)),
     TimeExpressionToken::Digits(d) => {
-      let span = lex.span().clone();
-      let lex = lex.clone();
-      let (hour, lex) = oclock(lex, exp)?;
-      TimeBase::of(d, hour, exp, span).map(|t| (t, lex.clone()))
+      let span = lex.span();
+      let (hour, next) = oclock(lex, exp)?;
+      TimeBase::of(d, hour, exp, span)
+        .map(|tb| (tb, next))
     }
-    _ => Err(error(exp, "one of now, midnight, noon or number", Some(lex.span())))
+    _ => Err(error(exp, "one of now, midnight, noon or number", Some(lex.span().clone())))
   }
 }
 
@@ -206,78 +191,86 @@ fn base<'a>(
 //     | 'o\'clock' 'pm' { $h = ClockHour.PM; }
 //     | 'o\'clock' { $h = ClockHour.NEXT; }
 //     ;
-fn oclock<'a>(
-  mut lex: PeekableLexer<'a, Lexer<'a, TimeExpressionToken>, TimeExpressionToken>,
+fn oclock(
+  lex: &mut Lexer<TimeExpressionToken>,
   exp: &str
-) -> anyhow::Result<(ClockHour, PeekableLexer<'a, Lexer<'a, TimeExpressionToken>, TimeExpressionToken>)> {
-  if let Some(token) = lex.next() {
+) -> anyhow::Result<(ClockHour, Option<TimeExpressionToken>)> {
+  if let Some(Ok(token)) = lex.next() {
     if token == TimeExpressionToken::OClock {
-      if let Some(next) = lex.peek() {
-        if *next == TimeExpressionToken::Am {
-          let _ = lex.next();
-          Ok((ClockHour::AM, lex.clone()))
-        } else if *next == TimeExpressionToken::Pm {
-          let _ = lex.next();
-          Ok((ClockHour::PM, lex.clone()))
+      let next = lex.next();
+      if let Some(Ok(next)) = next {
+        if next == TimeExpressionToken::Am {
+          Ok((ClockHour::AM, None))
+        } else if next == TimeExpressionToken::Pm {
+          Ok((ClockHour::PM, None))
         } else {
-          Ok((ClockHour::NEXT, lex.clone()))
+          Ok((ClockHour::NEXT, Some(next)))
         }
+      } else if next.is_none() {
+        Ok((ClockHour::NEXT, None))
       } else {
-        Ok((ClockHour::NEXT, lex.clone()))
+        Err(error(exp, "am, pm, + or -", Some(lex.span().clone())))
       }
     } else {
-      Err(error(exp, "o\'clock", Some(lex.span())))
+      Err(error(exp, "o\'clock", Some(lex.span().clone())))
     }
   } else {
-    Err(error(exp, "o\'clock", Some(lex.span())))
+    Err(error(exp, "o\'clock", Some(lex.span().clone())))
   }
 }
 
 // adjustments: op duration ( op duration )*
-fn adjustments<'a>(
-  mut lex: PeekableLexer<'a, Lexer<'a, TimeExpressionToken>, TimeExpressionToken>,
-  exp: &str
-) -> anyhow::Result<(Vec<Adjustment<TimeOffsetType>>, PeekableLexer<'a, Lexer<'a, TimeExpressionToken>, TimeExpressionToken>)> {
+fn adjustments(
+  lex: &mut Lexer<TimeExpressionToken>,
+  exp: &str,
+  token: TimeExpressionToken
+) -> anyhow::Result<Vec<Adjustment<TimeOffsetType>>> {
   let mut results = vec![];
 
-  while let Some(token) = lex.peek() {
+  let mut token = token.clone();
+  loop {
     if token.is_op() {
-      let token = lex.next().unwrap();
-      let (adj, lex2) = adjustment(lex, exp, token)?;
+      let adj = adjustment(lex, exp, token)?;
       results.push(adj);
-      lex = lex2.clone();
+    } else {
+      break
+    }
+
+    if let Some(Ok(t)) = lex.next() {
+      // loop
+      token = t.clone();
     } else {
       break
     }
   }
 
-  Ok((results, lex))
+  Ok(results)
 }
 
-fn adjustment<'a>(
-  lex: PeekableLexer<'a, Lexer<'a, TimeExpressionToken>, TimeExpressionToken>,
+fn adjustment(
+  lex: &mut Lexer<TimeExpressionToken>,
   exp: &str,
   token: TimeExpressionToken
-) -> anyhow::Result<(Adjustment<TimeOffsetType>, PeekableLexer<'a, Lexer<'a, TimeExpressionToken>, TimeExpressionToken>)> {
-  let (op, lex) = operation(lex, exp, token)?;
-  let (adjustment_type, d, lex) = duration(lex, exp)?;
-  Ok((Adjustment {
+) -> anyhow::Result<Adjustment<TimeOffsetType>> {
+  let op = operation(lex, exp, token)?;
+  let (adjustment_type, d) = duration(lex, exp)?;
+  Ok(Adjustment {
     adjustment_type,
     value: d,
     operation: op
-  }, lex.clone()))
+  })
 }
 
 // duration : INT durationType ;
-fn duration<'a>(
-  mut lex: PeekableLexer<'a, Lexer<'a, TimeExpressionToken>, TimeExpressionToken>,
+fn duration(
+  lex: &mut Lexer<TimeExpressionToken>,
   exp: &str
-) -> anyhow::Result<(TimeOffsetType, u64, PeekableLexer<'a, Lexer<'a, TimeExpressionToken>, TimeExpressionToken>)> {
-  if let Some(TimeExpressionToken::Digits(n)) = lex.next() {
-    let (tot, lex) = duration_type(lex, exp)?;
-    Ok((tot, n, lex.clone()))
+) -> anyhow::Result<(TimeOffsetType, u64)> {
+  if let Some(Ok(TimeExpressionToken::Digits(n))) = lex.next() {
+    let tot = duration_type(lex, exp)?;
+    Ok((tot, n))
   } else {
-    Err(error(exp, "an integer value", Some(lex.span())))
+    Err(error(exp, "an integer value", Some(lex.span().clone())))
   }
 }
 
@@ -290,35 +283,35 @@ fn duration<'a>(
 //     | 'millisecond' { $type = TimeOffsetType.MILLISECOND; }
 //     | MILLISECONDS { $type = TimeOffsetType.MILLISECOND; }
 //     ;
-fn duration_type<'a>(
-  mut lex: PeekableLexer<'a, Lexer<'a, TimeExpressionToken>, TimeExpressionToken>,
+fn duration_type(
+  lex: &mut Lexer<TimeExpressionToken>,
   exp: &str
-) -> anyhow::Result<(TimeOffsetType, PeekableLexer<'a, Lexer<'a, TimeExpressionToken>, TimeExpressionToken>)> {
-  if let Some(token) = lex.next() {
+) -> anyhow::Result<TimeOffsetType> {
+  if let Some(Ok(token)) = lex.next() {
     match token {
-      TimeExpressionToken::Hours => Ok((TimeOffsetType::HOUR, lex.clone())),
-      TimeExpressionToken::Minutes => Ok((TimeOffsetType::MINUTE, lex.clone())),
-      TimeExpressionToken::Seconds => Ok((TimeOffsetType::SECOND, lex.clone())),
-      TimeExpressionToken::Milliseconds => Ok((TimeOffsetType::MILLISECOND, lex.clone())),
-      _ => Err(error(exp, "a duration type (hour(s), minute(s), etc.)", Some(lex.span())))
+      TimeExpressionToken::Hours => Ok(TimeOffsetType::HOUR),
+      TimeExpressionToken::Minutes => Ok(TimeOffsetType::MINUTE),
+      TimeExpressionToken::Seconds => Ok(TimeOffsetType::SECOND),
+      TimeExpressionToken::Milliseconds => Ok(TimeOffsetType::MILLISECOND),
+      _ => Err(error(exp, "a duration type (hour(s), minute(s), etc.)", Some(lex.span().clone())))
     }
   } else {
-    Err(error(exp, "a duration type (hour(s), minute(s), etc.)", Some(lex.span())))
+    Err(error(exp, "a duration type (hour(s), minute(s), etc.)", Some(lex.span().clone())))
   }
 }
 
 // op returns [ Operation o ] : '+' { $o = Operation.PLUS; }
 //     | '-' { $o = Operation.MINUS; }
 //     ;
-fn operation<'a>(
-  lex: PeekableLexer<'a, Lexer<'a, TimeExpressionToken>, TimeExpressionToken>,
+fn operation(
+  lex: &mut Lexer<TimeExpressionToken>,
   exp: &str,
   token: TimeExpressionToken
-) -> anyhow::Result<(Operation, PeekableLexer<'a, Lexer<'a, TimeExpressionToken>, TimeExpressionToken>)> {
+) -> anyhow::Result<Operation> {
   match token {
-    TimeExpressionToken::Plus => Ok((Operation::PLUS, lex.clone())),
-    TimeExpressionToken::Minus => Ok((Operation::MINUS, lex.clone())),
-    _ => Err(error(exp, "+ or -", Some(lex.span())))
+    TimeExpressionToken::Plus => Ok(Operation::PLUS),
+    TimeExpressionToken::Minus => Ok(Operation::MINUS),
+    _ => Err(error(exp, "+ or -", Some(lex.span().clone())))
   }
 }
 
@@ -327,20 +320,20 @@ fn operation<'a>(
 //     | 'second' { $type = TimeOffsetType.SECOND; }
 //     | 'millisecond' { $type = TimeOffsetType.MILLISECOND; }
 //     ;
-fn offset<'a>(
-  mut lex: PeekableLexer<'a, Lexer<'a, TimeExpressionToken>, TimeExpressionToken>,
+fn offset(
+  lex: &mut Lexer<TimeExpressionToken>,
   exp: &str
-) -> anyhow::Result<(TimeOffsetType, PeekableLexer<'a, Lexer<'a, TimeExpressionToken>, TimeExpressionToken>)> {
-  if let Some(token) = lex.next() {
+) -> anyhow::Result<TimeOffsetType> {
+  if let Some(Ok(token)) = lex.next() {
     match token {
-      TimeExpressionToken::Hours => Ok((TimeOffsetType::HOUR, lex)),
-      TimeExpressionToken::Minutes => Ok((TimeOffsetType::MINUTE, lex)),
-      TimeExpressionToken::Seconds => Ok((TimeOffsetType::SECOND, lex)),
-      TimeExpressionToken::Milliseconds => Ok((TimeOffsetType::MILLISECOND, lex)),
-      _ => Err(error(exp, "an offset type (hour, minute, second, etc.)", Some(lex.span())))
+      TimeExpressionToken::Hours => Ok(TimeOffsetType::HOUR),
+      TimeExpressionToken::Minutes => Ok(TimeOffsetType::MINUTE),
+      TimeExpressionToken::Seconds => Ok(TimeOffsetType::SECOND),
+      TimeExpressionToken::Milliseconds => Ok(TimeOffsetType::MILLISECOND),
+      _ => Err(error(exp, "an offset type (hour, minute, second, etc.)", Some(lex.span().clone())))
     }
   } else {
-    Err(error(exp, "an offset type (hour, minute, second, etc.)", Some(lex.span())))
+    Err(error(exp, "an offset type (hour, minute, second, etc.)", Some(lex.span().clone())))
   }
 }
 
@@ -348,31 +341,30 @@ fn offset<'a>(
 mod tests {
   use expectest::prelude::*;
   use logos::Logos;
-  use logos_iter::LogosIter;
-  use trim_margin::MarginTrimmable;
   use pretty_assertions::assert_eq;
+  use trim_margin::MarginTrimmable;
 
   use crate::generators::datetime_expressions::{Adjustment, Operation, TimeBase, TimeOffsetType};
   use crate::generators::time_expression_parser::ParsedTimeExpression;
 
   #[test]
   fn invalid_expression() {
-    let mut lex = super::TimeExpressionToken::lexer("not valid").peekable_lexer();
+    let mut lex = super::TimeExpressionToken::lexer("not valid");
     let result = super::expression(&mut lex, "not valid");
     assert_eq!(
       "|Error: Expected one of now, midnight, noon, 1-12 o'clock, +, -, next or last
        |   ╭─[expression:1:1]
        |   │
        | 1 │ not valid
-       |   │ │\u{0020}
-       |   │ ╰─ Expected one of now, midnight, noon, 1-12 o'clock, +, -, next or last here
+       |   │ ┬ \u{0020}
+       |   │ ╰── Expected one of now, midnight, noon, 1-12 o'clock, +, -, next or last here
        |───╯
        |
       ".trim_margin_with("|").unwrap(),
       result.unwrap_err().to_string()
     );
 
-    let mut lex = super::TimeExpressionToken::lexer("44 o'clock").peekable_lexer();
+    let mut lex = super::TimeExpressionToken::lexer("44 o'clock");
     let result = super::expression(&mut lex, "44 o'clock");
     assert_eq!(
       "|Error: Expected hour 1 to 12
@@ -387,15 +379,15 @@ mod tests {
       result.unwrap_err().to_string()
     );
 
-    let mut lex = super::TimeExpressionToken::lexer("now today not valid").peekable_lexer();
+    let mut lex = super::TimeExpressionToken::lexer("now today not valid");
     let result = super::expression(&mut lex, "now today not valid");
     assert_eq!(
-      "|Error: Expected + or -
-       |   ╭─[expression:1:1]
+      "|Error: Expected no more tokens
+       |   ╭─[expression:1:5]
        |   │
        | 1 │ now today not valid
-       |   │ ─┬─ \u{0020}
-       |   │  ╰─── Expected + or - here
+       |   │     ┬ \u{0020}
+       |   │     ╰── Expected no more tokens here
        |───╯
        |
       ".trim_margin_with("|").unwrap(),
@@ -405,25 +397,25 @@ mod tests {
 
   #[test]
   fn base_only() {
-    let mut lex = super::TimeExpressionToken::lexer("now").peekable_lexer();
+    let mut lex = super::TimeExpressionToken::lexer("now");
     expect!(super::expression(&mut lex, "now")).to(be_ok().value(ParsedTimeExpression {
       base: TimeBase::Now,
       adjustments: vec![]
     }));
 
-    let mut lex = super::TimeExpressionToken::lexer("  midnight   ").peekable_lexer();
+    let mut lex = super::TimeExpressionToken::lexer("  midnight   ");
     expect!(super::expression(&mut lex, "  midnight   ")).to(be_ok().value(ParsedTimeExpression {
       base: TimeBase::Midnight,
       adjustments: vec![]
     }));
 
-    let mut lex = super::TimeExpressionToken::lexer("noon").peekable_lexer();
+    let mut lex = super::TimeExpressionToken::lexer("noon");
     expect!(super::expression(&mut lex, "noon")).to(be_ok().value(ParsedTimeExpression {
       base: TimeBase::Noon,
       adjustments: vec![]
     }));
 
-    let mut lex = super::TimeExpressionToken::lexer("1 o'clock").peekable_lexer();
+    let mut lex = super::TimeExpressionToken::lexer("1 o'clock");
     expect!(super::expression(&mut lex, "1 o'clock")).to(be_ok().value(ParsedTimeExpression {
       base: TimeBase::Next { hour: 1 },
       adjustments: vec![]
@@ -432,7 +424,7 @@ mod tests {
 
   #[test]
   fn op_and_duration() {
-    let mut lex = super::TimeExpressionToken::lexer("+1 hour").peekable_lexer();
+    let mut lex = super::TimeExpressionToken::lexer("+1 hour");
     expect!(super::expression(&mut lex, "+1 hour")).to(be_ok().value(ParsedTimeExpression {
       base: TimeBase::Now,
       adjustments: vec![
@@ -444,7 +436,7 @@ mod tests {
       ]
     }));
 
-    let mut lex = super::TimeExpressionToken::lexer("+ 2 hours - 1 second").peekable_lexer();
+    let mut lex = super::TimeExpressionToken::lexer("+ 2 hours - 1 second");
     expect!(super::expression(&mut lex, "+ 2 hours - 1 second")).to(be_ok().value(ParsedTimeExpression {
       base: TimeBase::Now,
       adjustments: vec![
@@ -464,7 +456,7 @@ mod tests {
 
   #[test]
   fn base_and_op_and_duration() {
-    let mut lex = super::TimeExpressionToken::lexer("midnight + 2 hours").peekable_lexer();
+    let mut lex = super::TimeExpressionToken::lexer("midnight + 2 hours");
     expect!(super::expression(&mut lex, "midnight + 2 hours")).to(be_ok().value(ParsedTimeExpression {
       base: TimeBase::Midnight,
       adjustments: vec![
@@ -476,15 +468,15 @@ mod tests {
       ]
     }));
 
-    let mut lex = super::TimeExpressionToken::lexer("midnight 2 week").peekable_lexer();
+    let mut lex = super::TimeExpressionToken::lexer("midnight 2 week");
     let result = super::expression(&mut lex, "midnight 2 week");
     assert_eq!(
       "|Error: Expected + or -
-       |   ╭─[expression:1:1]
+       |   ╭─[expression:1:10]
        |   │
        | 1 │ midnight 2 week
-       |   │ ────┬─── \u{0020}
-       |   │     ╰───── Expected + or - here
+       |   │          ┬ \u{0020}
+       |   │          ╰── Expected + or - here
        |───╯
        |
       ".trim_margin_with("|").unwrap(),

@@ -65,7 +65,6 @@ use bytes::{BytesMut, BufMut};
 use chrono::Duration;
 use chrono::prelude::*;
 use logos::{Logos, Span};
-use logos_iter::LogosIter;
 
 use crate::generators::date_expression_parser::{DateExpressionToken, ParsedDateExpression};
 use crate::generators::time_expression_parser::{ParsedTimeExpression, TimeExpressionToken};
@@ -146,7 +145,7 @@ fn parse_date_expression(expression: &str) -> anyhow::Result<ParsedDateExpressio
 }
 
 fn parse_time_expression(expression: &str) -> anyhow::Result<ParsedTimeExpression> {
-  let mut lex = TimeExpressionToken::lexer(expression).peekable_lexer();
+  let mut lex = TimeExpressionToken::lexer(expression);
   crate::generators::time_expression_parser::expression(&mut lex, expression)
 }
 

@@ -16,6 +16,7 @@ pub struct ParsedDateExpression {
 }
 
 #[derive(Logos, Debug, PartialEq)]
+#[logos(skip r"[ \t\n\f]+")]
 pub enum DateExpressionToken {
   #[token("now")]
   Now,
@@ -41,7 +42,7 @@ pub enum DateExpressionToken {
   #[token("last")]
   Last,
 
-  #[regex("[0-9]+", |lex| lex.slice().parse())]
+  #[regex("[0-9]+", |lex| lex.slice().parse().ok())]
   Int(u64),
 
   #[token("days")]
@@ -126,11 +127,7 @@ pub enum DateExpressionToken {
   November,
 
   #[regex("dec(ember)?")]
-  December,
-
-  #[error]
-  #[regex(r"[ \t\n\f]+", logos::skip)]
-  Error
+  December
 }
 
 impl DateExpressionToken {
@@ -166,18 +163,18 @@ impl DateExpressionToken {
 //     })*
 //     ) EOF
 //     ;
-pub(crate) fn expression(lex: &mut Lexer<DateExpressionToken>, exp: &str) -> anyhow::Result<ParsedDateExpression> {
+pub(crate) fn expression<'a>(lex: &mut Lexer<DateExpressionToken>, exp: &str) -> anyhow::Result<ParsedDateExpression> {
   let mut date_base = DateBase::NOW;
   let mut adj = vec![];
 
-  if let Some(token) = lex.next() {
+  if let Some(Ok(token)) = lex.next() {
     if token.is_base() {
       date_base = base(lex, exp, &token)?;
-      if let Some(token) = lex.next() {
+      if let Some(Ok(token)) = lex.next() {
         if token.is_op() {
           adj.extend_from_slice(&*adjustments(lex, exp, &token)?);
         } else {
-          return Err(error(exp, "+ or -", Some(lex.span())));
+          return Err(error(exp, "+ or -", Some(lex.span().clone())));
         }
       }
     } else if token.is_op() {
@@ -189,11 +186,11 @@ pub(crate) fn expression(lex: &mut Lexer<DateExpressionToken>, exp: &str) -> any
         value: v,
         operation: Operation::PLUS
       });
-      if let Some(token) = lex.next() {
+      if let Some(Ok(token)) = lex.next() {
         if token.is_op() {
           adj.extend_from_slice(&*adjustments(lex, exp, &token)?);
         } else {
-          return Err(error(exp, "+ or -", Some(lex.span())));
+          return Err(error(exp, "+ or -", Some(lex.span().clone())));
         }
       }
     } else if token == DateExpressionToken::Last {
@@ -203,20 +200,20 @@ pub(crate) fn expression(lex: &mut Lexer<DateExpressionToken>, exp: &str) -> any
         value: v,
         operation: Operation::MINUS
       });
-      if let Some(token) = lex.next() {
+      if let Some(Ok(token)) = lex.next() {
         if token.is_op() {
           adj.extend_from_slice(&*adjustments(lex, exp, &token)?);
         } else {
-          return Err(error(exp, "+ or -", Some(lex.span())));
+          return Err(error(exp, "+ or -", Some(lex.span().clone())));
         }
       }
     } else {
-      return Err(error(exp, "one of now, today, yesterday, tomorrow, +, -, next or last", Some(lex.span())));
+      return Err(error(exp, "one of now, today, yesterday, tomorrow, +, -, next or last", Some(lex.span().clone())));
     }
 
     let remainder = lex.remainder().trim();
     if !remainder.is_empty() {
-      Err(error(exp, "no more tokens", Some(lex.span())))
+      Err(error(exp, "no more tokens", Some(lex.span().clone())))
     } else {
       Ok(ParsedDateExpression {
         base: date_base,
@@ -224,7 +221,7 @@ pub(crate) fn expression(lex: &mut Lexer<DateExpressionToken>, exp: &str) -> any
       })
     }
   } else {
-    Err(error(exp, "one of now, today, yesterday, tomorrow, +, -, next or last", None))
+    Err(error(exp, "one of now, today, yesterday, tomorrow, +, -, next or last", Some(lex.span().clone())))
   }
 }
 
@@ -233,7 +230,7 @@ fn adjustments(lex: &mut Lexer<DateExpressionToken>, exp: &str, token: &DateExpr
   let mut results = vec![];
 
   results.push(adjustment(lex, exp, token)?);
-  while let Some(token) = lex.next() {
+  while let Some(Ok(token)) = lex.next() {
     if token.is_op() {
       results.push(adjustment(lex, exp, &token)?);
     } else {
@@ -265,7 +262,7 @@ fn base(lex: &mut Lexer<DateExpressionToken>, exp: &str, token: &DateExpressionT
     DateExpressionToken::Today => Ok(DateBase::TODAY),
     DateExpressionToken::Tomorrow => Ok(DateBase::TOMORROW),
     DateExpressionToken::Yesterday => Ok(DateBase::YESTERDAY),
-    _ => Err(error(exp, "one of now, today, yesterday or tomorrow", Some(lex.span())))
+    _ => Err(error(exp, "one of now, today, yesterday or tomorrow", Some(lex.span().clone())))
   }
 }
 
@@ -276,17 +273,17 @@ fn operation(lex: &mut Lexer<DateExpressionToken>, exp: &str, token: &DateExpres
   match token {
     DateExpressionToken::Plus => Ok(Operation::PLUS),
     DateExpressionToken::Minus => Ok(Operation::MINUS),
-    _ => Err(error(exp, "+ or -", Some(lex.span())))
+    _ => Err(error(exp, "+ or -", Some(lex.span().clone())))
   }
 }
 
 // duration : INT durationType
 fn duration(lex: &mut Lexer<DateExpressionToken>, exp: &str) -> anyhow::Result<(DateOffsetType, u64)> {
-  if let Some(DateExpressionToken::Int(n)) = lex.next() {
+  if let Some(Ok(DateExpressionToken::Int(n))) = lex.next() {
     let d = duration_type(lex, exp)?;
     Ok((d, n))
   } else {
-    Err(error(exp, "an integer value", Some(lex.span())))
+    Err(error(exp, "an integer value", Some(lex.span().clone())))
   }
 }
 
@@ -300,7 +297,7 @@ fn duration(lex: &mut Lexer<DateExpressionToken>, exp: &str) -> anyhow::Result<(
 //     | YEARS { $type = DateOffsetType.YEAR; }
 //     ;
 fn duration_type(lex: &mut Lexer<DateExpressionToken>, exp: &str) -> anyhow::Result<DateOffsetType> {
-  if let Some(token) = lex.next() {
+  if let Some(Ok(token)) = lex.next() {
     match token {
       DateExpressionToken::Day => Ok(DateOffsetType::DAY),
       DateExpressionToken::Days => Ok(DateOffsetType::DAY),
@@ -310,10 +307,10 @@ fn duration_type(lex: &mut Lexer<DateExpressionToken>, exp: &str) -> anyhow::Res
       DateExpressionToken::Months => Ok(DateOffsetType::MONTH),
       DateExpressionToken::Year => Ok(DateOffsetType::YEAR),
       DateExpressionToken::Years => Ok(DateOffsetType::YEAR),
-      _ => Err(error(exp, "a duration type (day(s), week(s), etc.)", Some(lex.span())))
+      _ => Err(error(exp, "a duration type (day(s), week(s), etc.)", Some(lex.span().clone())))
     }
   } else {
-    Err(error(exp, "a duration type (day(s), week(s), etc.)", Some(lex.span())))
+    Err(error(exp, "a duration type (day(s), week(s), etc.)", Some(lex.span().clone())))
   }
 }
 
@@ -361,7 +358,7 @@ fn duration_type(lex: &mut Lexer<DateExpressionToken>, exp: &str) -> anyhow::Res
 //     | 'dec' { $type = DateOffsetType.DEC; }
 //     ;
 fn offset(lex: &mut Lexer<DateExpressionToken>, exp: &str) -> anyhow::Result<(DateOffsetType, u64)> {
-  if let Some(token) = lex.next() {
+  if let Some(Ok(token)) = lex.next() {
     match token {
       DateExpressionToken::Day => Ok((DateOffsetType::DAY, 1)),
       DateExpressionToken::Week => Ok((DateOffsetType::WEEK, 1)),
@@ -387,10 +384,10 @@ fn offset(lex: &mut Lexer<DateExpressionToken>, exp: &str) -> anyhow::Result<(Da
       DateExpressionToken::October => Ok((DateOffsetType::OCT, 1)),
       DateExpressionToken::November => Ok((DateOffsetType::NOV, 1)),
       DateExpressionToken::December => Ok((DateOffsetType::DEC, 1)),
-      _ => Err(error(exp, "an offset type (month, week, tuesday, february, etc.)", Some(lex.span())))
+      _ => Err(error(exp, "an offset type (month, week, tuesday, february, etc.)", Some(lex.span().clone())))
     }
   } else {
-    Err(error(exp, "an offset type (month, week, tuesday, february, etc.)", Some(lex.span())))
+    Err(error(exp, "an offset type (month, week, tuesday, february, etc.)", Some(lex.span().clone())))
   }
 }
 
@@ -398,8 +395,8 @@ fn offset(lex: &mut Lexer<DateExpressionToken>, exp: &str) -> anyhow::Result<(Da
 mod tests {
   use expectest::prelude::*;
   use logos::Logos;
-  use trim_margin::MarginTrimmable;
   use pretty_assertions::assert_eq;
+  use trim_margin::MarginTrimmable;
 
   use crate::generators::date_expression_parser::ParsedDateExpression;
   use crate::generators::datetime_expressions::{Adjustment, DateBase, DateOffsetType, Operation};

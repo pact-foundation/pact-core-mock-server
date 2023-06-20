@@ -193,6 +193,7 @@ impl MatchingRuleDefinition {
 }
 
 #[derive(Logos, Debug, PartialEq)]
+#[logos(skip r"[ \t\n\f]+")]
 enum MatcherDefinitionToken {
   #[token("matching")]
   Matching,
@@ -221,7 +222,7 @@ enum MatcherDefinitionToken {
   #[regex("[a-zA-Z]+")]
   Id,
 
-  #[regex("-?[0-9]+", |lex| lex.slice().parse())]
+  #[regex("-?[0-9]+", |lex| lex.slice().parse().ok())]
   Int(i64),
 
   #[regex(r"-?[0-9]\.[0-9]+")]
@@ -237,11 +238,7 @@ enum MatcherDefinitionToken {
   Null,
 
   #[token("$")]
-  Dollar,
-
-  #[error]
-  #[regex(r"[ \t\n\f]+", logos::skip)]
-  Error
+  Dollar
 }
 
 /// Parse a matcher definition into a MatchingRuleDefinition containing the example value, matching rules and any
@@ -267,7 +264,7 @@ pub fn is_matcher_def(v: &str) -> bool {
   } else {
     let mut lex = MatcherDefinitionToken::lexer(v);
     let next = lex.next();
-    if let Some(token) = next {
+    if let Some(Ok(token)) = next {
       if token == MatcherDefinitionToken::Matching || token == MatcherDefinitionToken::NotEmpty ||
         token == MatcherDefinitionToken::EachKey || token == MatcherDefinitionToken::EachValue {
         true
@@ -285,7 +282,7 @@ pub fn is_matcher_def(v: &str) -> bool {
 //     ;
 fn matching_definition(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Result<MatchingRuleDefinition> {
   let mut value = matching_definition_exp(lex, v)?;
-  while let Some(next) = lex.next() {
+  while let Some(Ok(next)) = lex.next() {
     if next == MatcherDefinitionToken::Comma {
       value = value.merge(&matching_definition_exp(lex, v)?);
     } else {
@@ -321,7 +318,7 @@ fn matching_definition(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyh
 //     ;
 fn matching_definition_exp(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Result<MatchingRuleDefinition> {
   let next = lex.next();
-  if let Some(token) = next {
+  if let Some(Ok(token)) = next {
     if token == MatcherDefinitionToken::Matching {
       let (value, value_type, matching_rule, generator, reference) = parse_matching(lex, v)?;
       if let Some(reference) = reference {
@@ -389,10 +386,10 @@ fn matching_definition_exp(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> 
 fn parse_each_value(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Result<MatchingRuleDefinition> {
   let next = lex.next()
     .ok_or_else(|| end_of_expression(v, "an opening bracket"))?;
-  if next == MatcherDefinitionToken::LeftBracket {
+  if let Ok(MatcherDefinitionToken::LeftBracket) = next {
     let result = matching_definition_exp(lex, v)?;
     let next = lex.next().ok_or_else(|| end_of_expression(v, "a closing bracket"))?;
-    if next == MatcherDefinitionToken::RightBracket {
+    if let Ok(MatcherDefinitionToken::RightBracket) = next {
       Ok(MatchingRuleDefinition {
         value: "".to_string(),
         value_type: ValueType::Unknown,
@@ -429,10 +426,10 @@ fn parse_each_value(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow:
 fn parse_each_key(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Result<MatchingRuleDefinition> {
   let next = lex.next()
     .ok_or_else(|| end_of_expression(v, "an opening bracket"))?;
-  if next == MatcherDefinitionToken::LeftBracket {
+  if let Ok(MatcherDefinitionToken::LeftBracket) = next {
     let result = matching_definition_exp(lex, v)?;
     let next = lex.next().ok_or_else(|| end_of_expression(v, "a closing bracket"))?;
-    if next == MatcherDefinitionToken::RightBracket {
+    if let Ok(MatcherDefinitionToken::RightBracket) = next {
       Ok(MatchingRuleDefinition {
         value: "".to_string(),
         value_type: ValueType::Unknown,
@@ -468,10 +465,10 @@ fn parse_each_key(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::R
 // LEFT_BRACKET primitiveValue RIGHT_BRACKET
 fn parse_not_empty(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Result<(String, ValueType)> {
   let next = lex.next().ok_or_else(|| anyhow!("expected '('"))?;
-  if next == MatcherDefinitionToken::LeftBracket {
+  if let Ok(MatcherDefinitionToken::LeftBracket) = next {
     let result = parse_primitive_value(lex, v)?;
     let next = lex.next().ok_or_else(|| anyhow!("expected ')'"))?;
-    if next == MatcherDefinitionToken::RightBracket {
+    if let Ok(MatcherDefinitionToken::RightBracket) = next {
       Ok(result)
     } else {
       Err(anyhow!("expected closing bracket, got '{}'", lex.slice()))
@@ -484,10 +481,10 @@ fn parse_not_empty(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::
 // LEFT_BRACKET matchingRule RIGHT_BRACKET
 fn parse_matching(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Result<(String, ValueType, Option<MatchingRule>, Option<Generator>, Option<MatchingReference>)> {
   let next = lex.next().ok_or_else(|| anyhow!("expected '('"))?;
-  if next == MatcherDefinitionToken::LeftBracket {
+  if let Ok(MatcherDefinitionToken::LeftBracket) = next {
     let result = parse_matching_rule(lex, v)?;
     let next = lex.next().ok_or_else(|| anyhow!("expected ')'"))?;
-    if next == MatcherDefinitionToken::RightBracket {
+    if let Ok(MatcherDefinitionToken::RightBracket) = next {
       Ok(result)
     } else {
       Err(anyhow!("expected closing bracket, got '{}'", lex.slice()))
@@ -520,7 +517,7 @@ fn parse_matching(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::R
 fn parse_matching_rule(lex: &mut logos::Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Result<(String, ValueType, Option<MatchingRule>, Option<Generator>, Option<MatchingReference>)> {
   let next = lex.next()
     .ok_or_else(|| end_of_expression(v, "a matcher (equalTo, regex, etc.)"))?;
-  if next == MatcherDefinitionToken::Id {
+  if let Ok(MatcherDefinitionToken::Id) = next {
     match lex.slice() {
       "equalTo" => parse_equality(lex, v),
       "regex" => parse_regex(lex, v),
@@ -549,7 +546,7 @@ fn parse_matching_rule(lex: &mut logos::Lexer<MatcherDefinitionToken>, v: &str) 
         Err(anyhow!(message))
       }
     }
-  } else if next == MatcherDefinitionToken::Dollar {
+  } else if let Ok(MatcherDefinitionToken::Dollar) = next {
     parse_reference(lex, v)
   } else {
     let mut buffer = BytesMut::new().writer();
@@ -674,21 +671,21 @@ fn parse_content_type(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyho
 fn parse_primitive_value(lex: &mut Lexer<MatcherDefinitionToken>, _v: &str) -> anyhow::Result<(String, ValueType)> {
   let next = lex.next().ok_or_else(|| anyhow!("expected a primitive value"))?;
   match next {
-    MatcherDefinitionToken::String => Ok((lex.slice().trim_matches('\'').to_string(), ValueType::String)),
-    MatcherDefinitionToken::Null => Ok((String::new(), ValueType::String)),
-    MatcherDefinitionToken::Int(_) => {
+    Ok(MatcherDefinitionToken::String) => Ok((lex.slice().trim_matches('\'').to_string(), ValueType::String)),
+    Ok(MatcherDefinitionToken::Null) => Ok((String::new(), ValueType::String)),
+    Ok(MatcherDefinitionToken::Int(_)) => {
       // Logos is returning an INT token when a Decimal should match. We need to now parse the
       // remaining pattern if it is a decimal
       if lex.remainder().starts_with('.') {
         let int_part = lex.slice();
-        lex.next().ok_or_else(|| anyhow!("expected a number"))?;
+        let _ = lex.next().ok_or_else(|| anyhow!("expected a number"))?;
         Ok((format!("{}{}", int_part, lex.slice()), ValueType::Decimal))
       } else {
         Ok((lex.slice().to_string(), ValueType::Integer))
       }
     },
-    MatcherDefinitionToken::Decimal => Ok((lex.slice().to_string(), ValueType::Decimal)),
-    MatcherDefinitionToken::Boolean => Ok((lex.slice().to_string(), ValueType::Boolean)),
+    Ok(MatcherDefinitionToken::Decimal) => Ok((lex.slice().to_string(), ValueType::Decimal)),
+    Ok(MatcherDefinitionToken::Boolean) => Ok((lex.slice().to_string(), ValueType::Boolean)),
     _ => Err(anyhow!("expected a primitive value, got '{}'", lex.slice()))
   }
 }
@@ -698,14 +695,14 @@ fn parse_primitive_value(lex: &mut Lexer<MatcherDefinitionToken>, _v: &str) -> a
 fn parse_number(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Result<(String, ValueType, Option<MatchingRule>, Option<Generator>, Option<MatchingReference>)> {
   parse_comma(lex, v)?;
   let next = lex.next().ok_or_else(|| anyhow!("expected a number"))?;
-  if MatcherDefinitionToken::Decimal == next {
+  if let Ok(MatcherDefinitionToken::Decimal) = next {
     Ok((lex.slice().to_string(), ValueType::Number,  Some(MatchingRule::Number), None, None))
-  } else if let MatcherDefinitionToken::Int(_) = next {
+  } else if let Ok(MatcherDefinitionToken::Int(_)) = next {
     // Logos is returning an INT token when a Decimal should match. We need to now parse the
     // remaining pattern if it is a decimal
     if lex.remainder().starts_with('.') {
       let int_part = lex.slice();
-      lex.next().ok_or_else(|| anyhow!("expected a number"))?;
+      let _ = lex.next().ok_or_else(|| anyhow!("expected a number"))?;
       Ok((format!("{}{}", int_part, lex.slice()), ValueType::Number, Some(MatchingRule::Number), None, None))
     } else {
       Ok((lex.slice().to_string(), ValueType::Number, Some(MatchingRule::Number), None, None))
@@ -719,7 +716,7 @@ fn parse_number(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Res
 fn parse_integer(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Result<(String, ValueType, Option<MatchingRule>, Option<Generator>, Option<MatchingReference>)> {
   parse_comma(lex, v)?;
   let next = lex.next().ok_or_else(|| anyhow!("expected an integer"))?;
-  if let MatcherDefinitionToken::Int(_) = next {
+  if let Ok(MatcherDefinitionToken::Int(_)) = next {
     Ok((lex.slice().to_string(), ValueType::Integer, Some(MatchingRule::Integer), None, None))
   } else {
     Err(anyhow!("expected an integer, got '{}'", lex.slice()))
@@ -731,17 +728,17 @@ fn parse_integer(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Re
 fn parse_decimal(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Result<(String, ValueType, Option<MatchingRule>, Option<Generator>, Option<MatchingReference>)> {
   parse_comma(lex, v)?;
   let next = lex.next().ok_or_else(|| anyhow!("expected a decimal number"))?;
-  if let MatcherDefinitionToken::Int(_) = next {
+  if let Ok(MatcherDefinitionToken::Int(_)) = next {
     // Logos is returning an INT token when a Decimal should match. We need to now parse the
     // remaining pattern if it is a decimal
     if lex.remainder().starts_with('.') {
       let int_part = lex.slice();
-      lex.next().ok_or_else(|| anyhow!("expected a number"))?;
+      let _ = lex.next().ok_or_else(|| anyhow!("expected a number"))?;
       Ok((format!("{}{}", int_part, lex.slice()), ValueType::Decimal, Some(MatchingRule::Decimal), None, None))
     } else {
       Ok((lex.slice().to_string(), ValueType::Decimal, Some(MatchingRule::Decimal), None, None))
     }
-  } else if MatcherDefinitionToken::Decimal == next {
+  } else if let Ok(MatcherDefinitionToken::Decimal) = next {
     Ok((lex.slice().to_string(), ValueType::Decimal, Some(MatchingRule::Decimal), None, None))
   } else {
     Err(anyhow!("expected a decimal number, got '{}'", lex.slice()))
@@ -752,7 +749,7 @@ fn parse_decimal(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Re
 fn parse_boolean(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Result<(String, ValueType, Option<MatchingRule>, Option<Generator>, Option<MatchingReference>)> {
   parse_comma(lex, v)?;
   let next = lex.next().ok_or_else(|| anyhow!("expected a boolean"))?;
-  if MatcherDefinitionToken::Boolean == next {
+  if let Ok(MatcherDefinitionToken::Boolean) = next {
     Ok((lex.slice().to_string(), ValueType::Boolean, Some(MatchingRule::Boolean), None, None))
   } else {
     Err(anyhow!("expected a boolean, got '{}'", lex.slice()))
@@ -761,7 +758,7 @@ fn parse_boolean(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Re
 
 fn parse_string(lex: &mut logos::Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Result<String> {
   let next = lex.next().ok_or_else(|| end_of_expression(v, "a string"))?;
-  if next == MatcherDefinitionToken::String {
+  if let Ok(MatcherDefinitionToken::String) = next {
     Ok(lex.slice().trim_matches('\'').to_string())
   } else {
     let mut buffer = BytesMut::new().writer();
@@ -780,7 +777,7 @@ fn parse_string(lex: &mut logos::Lexer<MatcherDefinitionToken>, v: &str) -> anyh
 
 fn parse_comma(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Result<()> {
   let next = lex.next().ok_or_else(|| end_of_expression(v, "a comma"))?;
-  if next == MatcherDefinitionToken::Comma {
+  if let Ok(MatcherDefinitionToken::Comma) = next {
     Ok(())
   } else {
     let mut buffer = BytesMut::new().writer();

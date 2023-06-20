@@ -19,9 +19,9 @@ checksum = "f26201604c87b1e01bd3d98f8d5d9a8fcbb815e8cedb41ffccbeb4bf593a35fe"
 
 [[package]]
 name = "aes"
-version = "0.8.2"
+version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "433cfd6710c9986c576a25ca913c39d66a6474107b406f34f91d4a8923395241"
+checksum = "ac1f845298e95f983ff1944b728ae08b8cebab80d684f0a832ed0fc74dfa27e2"
 dependencies = [
  "cfg-if",
  "cipher",
@@ -1376,7 +1376,30 @@ version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf8b031682c67a8e3d5446840f9573eb7fe26efe7ec8d195c9ac4c0647c502f1"
 dependencies = [
- "logos-derive",
+ "logos-derive 0.12.1",
+]
+
+[[package]]
+name = "logos"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c000ca4d908ff18ac99b93a062cb8958d331c3220719c52e77cb19cc6ac5d2c1"
+dependencies = [
+ "logos-derive 0.13.0",
+]
+
+[[package]]
+name = "logos-codegen"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc487311295e0002e452025d6b580b77bb17286de87b57138f3b5db711cded68"
+dependencies = [
+ "beef",
+ "fnv",
+ "proc-macro2 1.0.60",
+ "quote 1.0.28",
+ "regex-syntax 0.6.29",
+ "syn 2.0.18",
 ]
 
 [[package]]
@@ -1394,12 +1417,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "logos-derive"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dbfc0d229f1f42d790440136d941afd806bc9e949e2bcb8faa813b0f00d1267e"
+dependencies = [
+ "logos-codegen",
+]
+
+[[package]]
 name = "logos-iter"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "11d494ee510adf0b0af84380f391f5e6eefc0cca17a7e24679a08909068ae994"
 dependencies = [
- "logos",
+ "logos 0.12.1",
 ]
 
 [[package]]
@@ -2043,7 +2075,7 @@ dependencies = [
  "itertools",
  "lazy_static",
  "lenient_semver",
- "logos",
+ "logos 0.12.1",
  "logos-iter",
  "maplit",
  "mime",
@@ -2084,8 +2116,7 @@ dependencies = [
  "itertools",
  "lazy_static",
  "lenient_semver",
- "logos",
- "logos-iter",
+ "logos 0.13.0",
  "maplit",
  "mime",
  "nom",
@@ -3521,9 +3552,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-attributes"
-version = "0.1.24"
+version = "0.1.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f57e3ca2a01450b1a921183a9c9cbfda207fd822cef4ccb00a65402cbba7a74"
+checksum = "8803eee176538f94ae9a14b55b2804eb7e1441f8210b1c31290b3bccdccff73b"
 dependencies = [
  "proc-macro2 1.0.60",
  "quote 1.0.28",
