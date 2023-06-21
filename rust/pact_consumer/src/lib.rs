@@ -37,12 +37,12 @@
 //! Once this is done, you can then write the following inside a function marked
 //! with `#[tokio::test]`:
 //!
-//! ```
+//! ```no_run
 //! use pact_consumer::prelude::*;
 //!
 //! // Define the Pact for the test, specify the names of the consuming
 //! // application and the provider application.
-//! let pact = PactBuilder::new("Consumer", "Alice Service")
+//! let provider_service = PactBuilder::new("Consumer", "Alice Service")
 //!     // Start a new interaction. We can add as many interactions as we want.
 //!     .interaction("a retrieve Mallory request", "", |mut i| {
 //!         // Defines a provider state. It is optional.
@@ -57,7 +57,7 @@
 //!         // Return the interaction builder back to the pact framework
 //!         i
 //!     })
-//!     .build();
+//!     .start_mock_server(None);
 //! ```
 //!
 //! You can than use an HTTP client like `reqwest` to make requests against your
@@ -68,7 +68,7 @@
 //! # use pact_models::pact::Pact;
 //! # use std::io::Read;
 //! # use pact_consumer::prelude::*;
-//! # let alice_service = PactBuilder::new("Consumer", "Alice Service")
+//! # let provider_service = PactBuilder::new("Consumer", "Alice Service")
 //! #     // Start a new interaction. We can add as many interactions as we want.
 //! #     .interaction("a retrieve Mallory request", "", |mut i| {
 //! #         // Defines a provider state. It is optional.
@@ -85,12 +85,12 @@
 //! #     }).start_mock_server(None);
 //!
 //! // You would use your actual client code here.
-//! let mallory_url = alice_service.path("/mallory");
+//! let mallory_url = provider_service.path("/mallory");
 //! let mut response = reqwest::get(mallory_url).await.expect("could not fetch URL")
 //!   .text().await.expect("Could not read response body");
 //! assert_eq!(response, "That is some good Mallory.");
 //!
-//! // When `alice_service` goes out of scope, your pact will be validated,
+//! // When `provider_service` goes out of scope, your pact will be validated,
 //! // and the test will fail if the mock server didn't receive matching
 //! // requests.
 //! # });
