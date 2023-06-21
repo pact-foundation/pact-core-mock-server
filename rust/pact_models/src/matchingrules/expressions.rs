@@ -10,6 +10,16 @@
 //! ## Primitive values
 //!
 //! Primitive (or scalar) values can be strings (quoted with single quotes), numbers, booleans or null.
+//! Characters in strings can be escaped using a backslash. The standard escape sequences are
+//! supported:
+//! * `\'` quote
+//! * `\b` backspace
+//! * `\f` formfeed
+//! * `\n` linefeed
+//! * `\r` carriage return
+//! * `\t` tab
+//! * `\uXXXX` unicode hex code (4 digits)
+//! * `\u{X...}` unicode hex code (can be more than 4 digits)
 //!
 //! ## Expressions
 //!
@@ -77,13 +87,14 @@
 //! There is a grammar for the definitions in [ANTLR4 format](https://github.com/pact-foundation/pact-plugins/blob/main/docs/matching-rule-definition.g4).
 //!
 
+use std::char::REPLACEMENT_CHARACTER;
 use std::str::from_utf8;
 
 use anyhow::{anyhow, Error};
 use ariadne::{Config, Label, Report, ReportKind, Source};
 use bytes::{BufMut, BytesMut};
 use itertools::Either;
-use logos::{Lexer, Logos};
+use logos::{Lexer, Logos, Span};
 use semver::Version;
 use tracing::{trace, warn};
 
@@ -216,7 +227,7 @@ enum MatcherDefinitionToken {
   #[token(",")]
   Comma,
 
-  #[regex("'[^']*'")]
+  #[regex(r"'(?:[^']|\\')*'")]
   String,
 
   #[regex("[a-zA-Z]+")]
@@ -756,10 +767,12 @@ fn parse_boolean(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Re
   }
 }
 
-fn parse_string(lex: &mut logos::Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Result<String> {
+fn parse_string(lex: &mut Lexer<MatcherDefinitionToken>, v: &str) -> anyhow::Result<String> {
   let next = lex.next().ok_or_else(|| end_of_expression(v, "a string"))?;
   if let Ok(MatcherDefinitionToken::String) = next {
-    Ok(lex.slice().trim_matches('\'').to_string())
+    let span = lex.span();
+    let raw_str = lex.slice().trim_matches('\'');
+    process_raw_string(raw_str, span, v)
   } else {
     let mut buffer = BytesMut::new().writer();
     let span = lex.span();
@@ -772,6 +785,94 @@ fn parse_string(lex: &mut logos::Lexer<MatcherDefinitionToken>, v: &str) -> anyh
     report.write(("expression", Source::from(v)), &mut buffer)?;
     let message = from_utf8(&*buffer.get_ref())?.to_string();
     Err(anyhow!(message))
+  }
+}
+
+fn process_raw_string(raw_str: &str, span: Span, v: &str) -> anyhow::Result<String> {
+  let mut buffer = String::with_capacity(raw_str.len());
+  let mut chars = raw_str.chars();
+  while let Some(ch) = chars.next() {
+    if ch == '\\' {
+      match chars.next() {
+        None => buffer.push(ch),
+        Some(ch2) => {
+          match ch2 {
+            '\\' => buffer.push(ch),
+            'b' => buffer.push('\x08'),
+            'f' => buffer.push('\x0C'),
+            'n' => buffer.push('\n'),
+            'r' => buffer.push('\r'),
+            't' => buffer.push('\t'),
+            'u' => {
+              let code1 = char_or_error(chars.next(), &span, v)?;
+              let mut b = String::with_capacity(4);
+              if code1 == '{' {
+                loop {
+                  let c = char_or_error(chars.next(), &span, v)?;
+                  if c == '}' {
+                    break;
+                  } else {
+                    b.push(c);
+                  }
+                }
+              } else {
+                b.push(code1);
+                let code2 = char_or_error(chars.next(), &span, v)?;
+                b.push(code2);
+                let code3 = char_or_error(chars.next(), &span, v)?;
+                b.push(code3);
+                let code4 = char_or_error(chars.next(), &span, v)?;
+                b.push(code4);
+              }
+              let code = match u32::from_str_radix(b.as_str(), 16) {
+                Ok(c) => c,
+                Err(err) => return string_error(&err, &span, v)
+              };
+              let c = char::from_u32(code).unwrap_or(REPLACEMENT_CHARACTER);
+              buffer.push(c);
+            }
+            _ => {
+              buffer.push(ch);
+              buffer.push(ch2);
+            }
+          }
+        }
+      }
+    } else {
+      buffer.push(ch);
+    }
+  }
+  Ok(buffer)
+}
+
+fn string_error(err: &dyn std::error::Error, span: &Span, v: &str) -> anyhow::Result<String> {
+  let mut buffer = BytesMut::new().writer();
+  let report = Report::build(ReportKind::Error, "expression", span.start)
+    .with_config(Config::default().with_color(false))
+    .with_message(format!("Invalid unicode character escape sequence: {}", err))
+    .with_label(Label::new(("expression", span.clone())).with_message("This string contains an invalid escape sequence"))
+    .with_note("Unicode escape sequences must be in the form \\uXXXX (4 digits) or \\u{X..} (enclosed in braces)")
+    .finish();
+  report.write(("expression", Source::from(v)), &mut buffer)?;
+  let message = from_utf8(&*buffer.get_ref())?.to_string();
+  Err(anyhow!(message))
+}
+
+fn char_or_error(ch: Option<char>, span: &Span, v: &str) -> anyhow::Result<char> {
+  match ch {
+    Some(ch) => Ok(ch),
+    None => {
+      let mut buffer = BytesMut::new().writer();
+      let report = Report::build(ReportKind::Error, "expression", span.start)
+        .with_config(Config::default().with_color(false))
+        .with_message("Invalid unicode character escape sequence")
+        .with_label(Label::new(("expression", span.clone())).with_message("This string contains an invalid escape sequence"))
+        .with_note("Unicode escape sequences must be in the form \\uXXXX (4 digits) or \\u{X..} (enclosed in braces)")
+        .finish();
+      report.write(("expression", Source::from(v)), &mut buffer)?;
+      let message = from_utf8(&*buffer.get_ref())?.to_string();
+      Err(anyhow!(message))
+    }
   }
 }
 
@@ -809,6 +910,8 @@ fn end_of_expression(v: &str, expected: &str) -> Error {
 #[cfg(test)]
 mod test {
   use expectest::prelude::*;
+  use pretty_assertions::assert_eq;
+  use rstest::rstest;
   use trim_margin::MarginTrimmable;
 
   use crate::generators::Generator::{Date, DateTime, Time};
@@ -1143,7 +1246,7 @@ mod test {
 
   #[test]
   fn matching_definition_exp_test() {
-    let mut lex = super::MatcherDefinitionToken::lexer("notEmpty('test')");
+    let mut lex = MatcherDefinitionToken::lexer("notEmpty('test')");
     expect!(super::matching_definition_exp(&mut lex, "notEmpty('test')")).to(
       be_ok().value(MatchingRuleDefinition {
         value: "test".to_string(),
@@ -1153,7 +1256,7 @@ mod test {
       })
     );
 
-    let mut lex = super::MatcherDefinitionToken::lexer("matching(regex, '.*', 'aaabbb')");
+    let mut lex = MatcherDefinitionToken::lexer("matching(regex, '.*', 'aaabbb')");
     expect!(super::matching_definition_exp(&mut lex, "matching(regex, '.*', 'aaabbb')")).to(
       be_ok().value(MatchingRuleDefinition {
         value: "aaabbb".to_string(),
@@ -1163,7 +1266,7 @@ mod test {
       })
     );
 
-    let mut lex = super::MatcherDefinitionToken::lexer("matching($'test')");
+    let mut lex = MatcherDefinitionToken::lexer("matching($'test')");
     expect!(super::matching_definition_exp(&mut lex, "matching($'test')")).to(
       be_ok().value(MatchingRuleDefinition {
         value: "test".to_string(),
@@ -1173,7 +1276,7 @@ mod test {
       })
     );
 
-    let mut lex = super::MatcherDefinitionToken::lexer("eachKey(matching(regex, '.*', 'aaabbb'))");
+    let mut lex = MatcherDefinitionToken::lexer("eachKey(matching(regex, '.*', 'aaabbb'))");
     expect!(super::matching_definition_exp(&mut lex, "eachKey(matching(regex, '.*', 'aaabbb'))")).to(
       be_ok().value(MatchingRuleDefinition {
         value: "".to_string(),
@@ -1188,7 +1291,7 @@ mod test {
       })
     );
 
-    let mut lex = super::MatcherDefinitionToken::lexer("eachValue(matching(regex, '.*', 'aaabbb'))");
+    let mut lex = MatcherDefinitionToken::lexer("eachValue(matching(regex, '.*', 'aaabbb'))");
     expect!(super::matching_definition_exp(&mut lex, "eachValue(matching(regex, '.*', 'aaabbb'))")).to(
       be_ok().value(MatchingRuleDefinition {
         value: "".to_string(),
@@ -1203,7 +1306,7 @@ mod test {
       })
     );
 
-    let mut lex = super::MatcherDefinitionToken::lexer("100");
+    let mut lex = MatcherDefinitionToken::lexer("100");
     lex.next();
     expect!(as_string!(super::matching_definition_exp(&mut lex, "100"))).to(
       be_err().value(
@@ -1219,7 +1322,7 @@ mod test {
             |
             ".trim_margin().unwrap()));
 
-    let mut lex = super::MatcherDefinitionToken::lexer("somethingElse('to test')");
+    let mut lex = MatcherDefinitionToken::lexer("somethingElse('to test')");
     expect!(as_string!(super::matching_definition_exp(&mut lex, "somethingElse('to test')"))).to(
       be_err().value(
         "|Error: Expected a type of matching rule definition, but got 'somethingElse'
@@ -1237,7 +1340,7 @@ mod test {
 
   #[test]
   fn parse_each_key_test() {
-    let mut lex = super::MatcherDefinitionToken::lexer("(matching($'bob'))");
+    let mut lex = MatcherDefinitionToken::lexer("(matching($'bob'))");
     expect!(super::parse_each_key(&mut lex, "(matching($'bob'))").unwrap()).to(
       be_equal_to(MatchingRuleDefinition {
         value: "".to_string(),
@@ -1251,7 +1354,7 @@ mod test {
         generator: None
       }));
 
-    let mut lex = super::MatcherDefinitionToken::lexer("eachKey");
+    let mut lex = MatcherDefinitionToken::lexer("eachKey");
     lex.next();
     expect!(as_string!(super::parse_each_key(&mut lex, "eachKey"))).to(
       be_err().value(
@@ -1265,7 +1368,7 @@ mod test {
             |
             ".trim_margin().unwrap()));
 
-    let mut lex = super::MatcherDefinitionToken::lexer("eachKey matching");
+    let mut lex = MatcherDefinitionToken::lexer("eachKey matching");
     lex.next();
     expect!(as_string!(super::parse_each_key(&mut lex, "eachKey matching"))).to(
       be_err().value(
@@ -1279,7 +1382,7 @@ mod test {
             |
             ".trim_margin().unwrap()));
 
-    let mut lex = super::MatcherDefinitionToken::lexer("eachKey(matching(type, 'test') stuff");
+    let mut lex = MatcherDefinitionToken::lexer("eachKey(matching(type, 'test') stuff");
     lex.next();
     expect!(as_string!(super::parse_each_key(&mut lex, "eachKey(matching(type, 'test') stuff"))).to(
       be_err().value(
@@ -1293,7 +1396,7 @@ mod test {
             |
             ".trim_margin().unwrap()));
 
-    let mut lex = super::MatcherDefinitionToken::lexer("eachKey(matching(type, 'test')");
+    let mut lex = MatcherDefinitionToken::lexer("eachKey(matching(type, 'test')");
     lex.next();
     expect!(as_string!(super::parse_each_key(&mut lex, "eachKey(matching(type, 'test')"))).to(
       be_err().value(
@@ -1310,7 +1413,7 @@ mod test {
 
   #[test]
   fn parse_each_value_test() {
-    let mut lex = super::MatcherDefinitionToken::lexer("(matching($'bob'))");
+    let mut lex = MatcherDefinitionToken::lexer("(matching($'bob'))");
     expect!(super::parse_each_value(&mut lex, "(matching($'bob'))").unwrap()).to(
       be_equal_to(MatchingRuleDefinition {
         value: "".to_string(),
@@ -1324,7 +1427,7 @@ mod test {
         generator: None
       }));
 
-    let mut lex = super::MatcherDefinitionToken::lexer("eachKey");
+    let mut lex = MatcherDefinitionToken::lexer("eachKey");
     lex.next();
     expect!(as_string!(super::parse_each_value(&mut lex, "eachKey"))).to(
       be_err().value(
@@ -1338,7 +1441,7 @@ mod test {
             |
             ".trim_margin().unwrap()));
 
-    let mut lex = super::MatcherDefinitionToken::lexer("eachKey matching");
+    let mut lex = MatcherDefinitionToken::lexer("eachKey matching");
     lex.next();
     expect!(as_string!(super::parse_each_value(&mut lex, "eachKey matching"))).to(
       be_err().value(
@@ -1352,7 +1455,7 @@ mod test {
             |
             ".trim_margin().unwrap()));
 
-    let mut lex = super::MatcherDefinitionToken::lexer("eachKey(matching(type, 'test') stuff");
+    let mut lex = MatcherDefinitionToken::lexer("eachKey(matching(type, 'test') stuff");
     lex.next();
     expect!(as_string!(super::parse_each_value(&mut lex, "eachKey(matching(type, 'test') stuff"))).to(
       be_err().value(
@@ -1366,7 +1469,7 @@ mod test {
             |
             ".trim_margin().unwrap()));
 
-    let mut lex = super::MatcherDefinitionToken::lexer("eachKey(matching(type, 'test')");
+    let mut lex = MatcherDefinitionToken::lexer("eachKey(matching(type, 'test')");
     lex.next();
     expect!(as_string!(super::parse_each_value(&mut lex, "eachKey(matching(type, 'test')"))).to(
       be_err().value(
@@ -1419,12 +1522,12 @@ mod test {
       value: "".to_string(),
       value_type: ValueType::String,
       rules: vec![],
-      generator: Some(Generator::Date(None, None))
+      generator: Some(Date(None, None))
     };
     let with_matching_rule = MatchingRuleDefinition {
       value: "".to_string(),
       value_type: ValueType::String,
-      rules: vec![ Either::Left(MatchingRule::Type) ],
+      rules: vec![ Either::Left(Type) ],
       generator: None
     };
     expect!(basic.merge(&basic)).to(be_equal_to(basic.clone()));
@@ -1435,7 +1538,7 @@ mod test {
     expect!(with_matching_rule.merge(&with_matching_rule)).to(be_equal_to(MatchingRuleDefinition {
       value: "".to_string(),
       value_type: ValueType::String,
-      rules: vec![ Either::Left(MatchingRule::Type), Either::Left(MatchingRule::Type) ],
+      rules: vec![ Either::Left(Type), Either::Left(Type) ],
       generator: None
     }));
 
@@ -1446,7 +1549,7 @@ mod test {
         Either::Left(MatchingRule::EachKey(MatchingRuleDefinition {
           value: "$.test.one".to_string(),
           value_type: ValueType::String,
-          rules: vec![ Either::Left(MatchingRule::Regex("\\$(\\.\\w+)+".to_string())) ],
+          rules: vec![ Either::Left(Regex("\\$(\\.\\w+)+".to_string())) ],
           generator: None
         }))
       ],
@@ -1459,7 +1562,7 @@ mod test {
         Either::Left(MatchingRule::EachValue(MatchingRuleDefinition {
           value: "".to_string(),
           value_type: ValueType::String,
-          rules: vec![ Either::Left(MatchingRule::Type) ],
+          rules: vec![ Either::Left(Type) ],
           generator: None
         }))
       ],
@@ -1472,17 +1575,71 @@ mod test {
         Either::Left(MatchingRule::EachKey(MatchingRuleDefinition {
           value: "$.test.one".to_string(),
           value_type: ValueType::String,
-          rules: vec![ Either::Left(MatchingRule::Regex("\\$(\\.\\w+)+".to_string())) ],
+          rules: vec![ Either::Left(Regex("\\$(\\.\\w+)+".to_string())) ],
           generator: None
         })),
         Either::Left(MatchingRule::EachValue(MatchingRuleDefinition {
           value: "".to_string(),
           value_type: ValueType::String,
-          rules: vec![ Either::Left(MatchingRule::Type) ],
+          rules: vec![ Either::Left(Type) ],
           generator: None
         }))
       ],
       generator: None
     }));
+  }
+
+  #[rstest]
+  //     expression,                                      expected
+  #[case("''",                                            "")]
+  #[case("'Example value'",                               "Example value")]
+  #[case("'yyyy-MM-dd HH:mm:ssZZZZZ'",                    "yyyy-MM-dd HH:mm:ssZZZZZ")]
+  #[case("'2020-05-21 16:44:32+10:00'",                   "2020-05-21 16:44:32+10:00")]
+  #[case("'\\w{3}\\d+'",                                  "\\w{3}\\d+")]
+  #[case("'<?xml?><test/>'",                              "<?xml?><test/>")]
+  #[case(r"'\$(\.\w+)+'",                                 r"\$(\.\w+)+")]
+  #[case(r"'we don\'t currently support parallelograms'", r"we don\'t currently support parallelograms")]
+  #[case(r"'\b backspace'",                               "\x08 backspace")]
+  #[case(r"'\f formfeed'",                                "\x0C formfeed")]
+  #[case(r"'\n linefeed'",                                "\n linefeed")]
+  #[case(r"'\r carriage return'",                         "\r carriage return")]
+  #[case(r"'\t tab'",                                     "\t tab")]
+  #[case(r"'\u0109 unicode hex code'",                   "\u{0109} unicode hex code")]
+  #[case(r"'\u{1DF0B} unicode hex code'",                "\u{1DF0B} unicode hex code")]
+  fn parse_string_test(#[case] expression: &str, #[case] expected: &str) {
+    let mut lex = MatcherDefinitionToken::lexer(expression);
+    expect!(parse_string(&mut lex, expression)).to(be_ok().value(expected.to_string()));
+  }
+
+  #[rstest]
+  //     expression,                                      expected
+  #[case("",                                              "")]
+  #[case("Example value",                                 "Example value")]
+  #[case(r"not escaped \$(\.\w+)+",                       r"not escaped \$(\.\w+)+")]
+  #[case(r"escaped \\",                                   r"escaped \")]
+  #[case(r"slash at end \",                               r"slash at end \")]
+  fn process_raw_string_test(#[case] expression: &str, #[case] expected: &str) {
+    expect!(process_raw_string(expression, 0..(expression.len()), expression)).to(be_ok().value(expected.to_string()));
+  }
+
+  #[test]
+  fn process_raw_string_error_test() {
+    assert_eq!(
+      ">Error: Invalid unicode character escape sequence
+       >   ╭─[expression:1:2]
+       >   │
+       > 1 │ 'invalid escape \\u in string'
+       >   │  ─────────────┬──────────── \u{0020}
+       >   │               ╰────────────── This string contains an invalid escape sequence
+       >   │\u{0020}
+       >   │ Note: Unicode escape sequences must be in the form \\uXXXX (4 digits) or \\u{X..} (enclosed in braces)
+       >───╯
+       >".trim_margin_with(">").unwrap(),
+      process_raw_string(r"\u", 1..27, r"'invalid escape \u in string'").unwrap_err().to_string());
+
+    expect!(process_raw_string(r"\u0", 0..2, r"\u0")).to(be_err());
+    expect!(process_raw_string(r"\u00", 0..3, r"\u00")).to(be_err());
+    expect!(process_raw_string(r"\u000", 0..4, r"\u000")).to(be_err());
+    expect!(process_raw_string(r"\u{000", 0..4, r"\u{000")).to(be_err());
   }
 }
