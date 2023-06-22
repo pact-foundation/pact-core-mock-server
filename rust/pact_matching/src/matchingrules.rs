@@ -5,15 +5,16 @@ use std::fmt::{Debug, Display};
 use std::str::from_utf8;
 
 use anyhow::anyhow;
+use maplit::hashmap;
 use onig::Regex;
-use pact_models::matchingrules::{MatchingRule, MatchingRuleCategory, RuleList, RuleLogic};
+use pact_models::matchingrules::{Category, MatchingRule, MatchingRuleCategory, RuleList, RuleLogic};
 use pact_models::path_exp::DocPath;
 use serde_json::{self, json, Value};
 use tracing::debug;
 
 use crate::{Either, MatchingContext, merge_result, Mismatch};
 use crate::binary_utils::match_content_type;
-use crate::matchers::{match_values, Matches};
+use crate::matchers::Matches;
 
 impl <T: Debug + Display + PartialEq + Clone> Matches<&Vec<T>> for &Vec<T> {
   fn matches_with(&self, actual: &Vec<T>, matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
@@ -318,20 +319,18 @@ pub fn compare_lists_with_matchingrule<T: Display + Debug + PartialEq + Clone + 
             }
           }
         }).collect();
-        if let Err(mismatches) = match_values(path, &RuleList {
-          rules: associated_rules,
-          rule_logic: RuleLogic::And,
-          cascaded
-        }, expected, actual) {
-          for mismatch in mismatches {
-            result.push(Mismatch::BodyMismatch {
-              path: path.to_string(),
-              expected: Some(expected.for_mismatch().into()),
-              actual: Some(actual.for_mismatch().into()),
-              mismatch: mismatch.to_string()
-            });
+        let rules = MatchingRuleCategory {
+          name: Category::BODY,
+          rules: hashmap! {
+            path.join("*") => RuleList {
+              rules: associated_rules,
+              rule_logic: RuleLogic::And,
+              cascaded: false
+            }
           }
-        }
+        };
+        let context = context.clone_with(&rules);
+        result.extend(match_list_contents(path, expected, actual, context.as_ref(), callback));
       }
       _ => {
         if let Err(mismatch) = expected.matches_with(actual, rule, cascaded) {
@@ -399,13 +398,15 @@ mod tests {
   use std::rc::Rc;
 
   use expectest::prelude::*;
-  use maplit::btreemap;
+  use maplit::{btreemap, hashmap};
   use pact_models::matchingrules::{MatchingRule, MatchingRuleCategory, RuleList};
   use pact_models::matchingrules::expressions::{MatchingRuleDefinition, ValueType};
   use pact_models::path_exp::DocPath;
+  use pact_models::prelude::RuleLogic;
   use pact_plugin_driver::plugin_models::PluginInteractionConfig;
 
-  use crate::{DiffConfig, MatchingContext, Mismatch};
+  use crate::{CoreMatchingContext, DiffConfig, MatchingContext, Mismatch};
+  use crate::matchers::match_strings;
   use crate::matchingrules::{compare_lists_with_matchingrule, compare_maps_with_matchingrule};
 
   #[derive(Debug)]
@@ -630,5 +631,34 @@ mod tests {
       "$[1], value two, two".to_string()
     ];
     expect!(calls).to(be_equal_to(v));
+  }
+
+  #[test_log::test]
+  fn each_value_matcher_with_a_regex_on_a_list_of_items() {
+    let each_value = MatchingRule::EachValue(
+      MatchingRuleDefinition::new(
+        "00000000000000000000000000000000".to_string(),
+        ValueType::Unknown,
+        MatchingRule::Regex(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|\*".to_string()),
+        None
+      )
+    );
+    let expected: &[&str] = &["*"];
+    let path = DocPath::root();
+    let mut matchers = MatchingRuleCategory::empty("body");
+    matchers.add_rule(path.clone(), each_value.clone(), RuleLogic::And);
+    let context = CoreMatchingContext::new(DiffConfig::AllowUnexpectedKeys,
+      &matchers, &hashmap!{});
+
+    let mut callback = |p: &DocPath, a: &&str, b: &&str, c: &dyn MatchingContext| {
+      match_strings(p, *a, *b, c)
+    };
+    let result = compare_lists_with_matchingrule(&each_value, &path,
+      expected, &["*", "*"], &context, false, &mut callback);
+    expect!(result).to(be_ok());
+
+    let result = compare_lists_with_matchingrule(&each_value, &path,
+      expected, &["*", "x"], &context, false, &mut callback);
+    expect!(result).to(be_err());
   }
 }

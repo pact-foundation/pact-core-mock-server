@@ -18,9 +18,10 @@ use pact_plugin_driver::catalogue_manager::{
   register_core_entries
 };
 use semver::Version;
-use tracing::{debug, trace, instrument};
+use tracing::{debug, instrument, trace};
 
 use crate::binary_utils::match_content_type;
+use crate::{MatchingContext, Mismatch};
 
 lazy_static! {
   /// Content matcher/generator entries to add to the plugin catalogue
@@ -775,6 +776,34 @@ fn match_status_code(status_code: u16, status: &HttpStatus) -> anyhow::Result<()
   } else {
     Err(anyhow!("Expected status code {} to be a {}", status_code, status))
   }
+}
+
+/// Basic matching implementation for string slices
+pub fn match_strings(
+  path: &DocPath,
+  expected: &str,
+  actual: &str,
+  context: &dyn MatchingContext
+) -> Result<(), Vec<Mismatch>> {
+  let matcher_result = if context.matcher_is_defined(&path) {
+    debug!("Calling match_values for path {}", path);
+    match_values(&path, &context.select_best_matcher(&path), expected, actual)
+  } else {
+    expected.matches_with(actual, &MatchingRule::Equality, false).map_err(|err|
+      vec![format!("String '{}': {}", path, err)]
+    )
+  };
+  debug!("Comparing '{:?}' to '{:?}' at path '{}' -> {:?}", expected, actual, path, matcher_result);
+  matcher_result.map_err(|messages| {
+    messages.iter().map(|message| {
+      Mismatch::BodyMismatch {
+        path: path.to_string(),
+        expected: Some(Bytes::from(expected.as_bytes().to_vec())),
+        actual: Some(Bytes::from(actual.as_bytes().to_vec())),
+        mismatch: message.clone()
+      }
+    }).collect()
+  })
 }
 
 #[cfg(test)]
