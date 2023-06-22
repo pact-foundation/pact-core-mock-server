@@ -1,5 +1,13 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.1.6 - Bugfix Release
+
+* 727ea824 - fix: Support string escape sequences in matching definitions #283 (Ronald Holshausen, Wed Jun 21 14:55:42 2023 +1000)
+* 3cd0cbbb - chore: Upgrade Logos to 0.13.0 (Ronald Holshausen, Tue Jun 20 16:54:05 2023 +1000)
+* 8d4de61c - feat(pact_models): Add path method to build the string expression from the path tokens (Ronald Holshausen, Tue Jun 20 14:37:06 2023 +1000)
+* 27bc02c9 - fix(pact_models): DocPath.parent was creating incorrect paths when the parent is a * (Ronald Holshausen, Tue Jun 20 10:41:18 2023 +1000)
+* b33f884d - bump version to 1.1.6 (Ronald Holshausen, Fri Jun 16 16:15:11 2023 +1000)
+
 # 1.1.5 - Add crate features for date/time and XML support
 
 * 161f1b82 - chore: cleanup deprecation warnings (Ronald Holshausen, Fri Jun 16 16:11:18 2023 +1000)
