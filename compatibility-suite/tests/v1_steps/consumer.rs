@@ -60,7 +60,7 @@ fn the_following_http_interactions_have_been_setup(world: &mut ConsumerWorld, st
   }
 }
 
-#[when(expr = "the mock server is started with interaction \\{{int}}")]
+#[when(expr = "the mock server is started with interaction {int}")]
 async fn the_mock_server_is_started_with_interaction(world: &mut ConsumerWorld, interaction: usize) -> anyhow::Result<()> {
   let pact = RequestResponsePact {
     consumer: Consumer { name: "v1-compatibility-suite-c".to_string() },
@@ -108,7 +108,7 @@ async fn the_mock_server_is_started_with_interactions(world: &mut ConsumerWorld,
   Ok(())
 }
 
-#[when(expr = "request \\{{int}} is made to the mock server")]
+#[when(expr = "request {int} is made to the mock server")]
 async fn request_is_made_to_the_mock_server(world: &mut ConsumerWorld, num: usize) -> anyhow::Result<()> {
   let request = world.interactions.get(num - 1).unwrap()
     .request.as_v4_request();
@@ -136,7 +136,7 @@ async fn request_is_made_to_the_mock_server(world: &mut ConsumerWorld, num: usiz
   Ok(())
 }
 
-#[when(expr = "request \\{{int}} is made to the mock server with the following changes:")]
+#[when(expr = "request {int} is made to the mock server with the following changes:")]
 async fn request_is_made_to_the_mock_server_with_the_following_changes(
   world: &mut ConsumerWorld,
   step: &Step,

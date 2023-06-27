@@ -230,7 +230,7 @@ fn the_following_http_interactions_have_been_setup(world: &mut ProviderWorld, st
   }
 }
 
-#[given(expr = "a provider is started that returns the response from interaction \\{{int}}")]
+#[given(expr = "a provider is started that returns the response from interaction {int}")]
 #[allow(deprecated)]
 async fn a_provider_is_started_that_returns_the_response_from_interaction(world: &mut ProviderWorld, num: usize) -> anyhow::Result<()> {
   let pact = RequestResponsePact {
@@ -266,7 +266,100 @@ async fn a_provider_is_started_that_returns_the_response_from_interaction(world:
   Ok(())
 }
 
-#[given(expr = "a Pact file for interaction \\{{int}} is to be verified")]
+#[given(expr = "a provider is started that returns the response from interaction {int}, with the following changes:")]
+#[allow(deprecated)]
+async fn a_provider_is_started_that_returns_the_response_from_interaction_with_the_following_changes(
+  world: &mut ProviderWorld,
+  step: &Step,
+  num: usize
+) -> anyhow::Result<()> {
+  let mut interaction = world.interactions.get(num - 1).unwrap().clone();
+  if let Some(table) = step.table.as_ref() {
+    let headers = table.rows.first().unwrap();
+    for (index, value) in table.rows.get(1).unwrap().iter().enumerate() {
+      if let Some(field) = headers.get(index) {
+        match field.as_str() {
+          "status" => interaction.response.status = value.parse().unwrap(),
+          "headers" => {
+            let headers = value.split(",")
+              .map(|header| {
+                let key_value = header.strip_prefix("'").unwrap_or(header)
+                  .strip_suffix("'").unwrap_or(header)
+                  .splitn(2, ":")
+                  .map(|v| v.trim())
+                  .collect::<Vec<_>>();
+                (key_value[0].to_string(), parse_header(key_value[0], key_value[1]))
+              }).collect();
+            interaction.response.headers = Some(headers);
+          },
+          "body" => {
+            if value.starts_with("JSON:") {
+              interaction.response.add_header("content-type", vec!["application/json"]);
+              interaction.response.body = OptionalBody::Present(Bytes::from(value.strip_prefix("JSON:").unwrap_or(value).to_string()),
+                                                   Some(JSON.clone()), None);
+            } else if value.starts_with("XML:") {
+              interaction.response.add_header("content-type", vec!["application/xml"]);
+              interaction.response.body = OptionalBody::Present(Bytes::from(value.strip_prefix("XML:").unwrap_or(value).to_string()),
+                                                   Some(XML.clone()), None);
+            } else {
+              let ct = if value.ends_with(".json") {
+                "application/json"
+              } else if value.ends_with(".xml") {
+                "application/xml"
+              } else {
+                "text/plain"
+              };
+              interaction.response.add_header("content-type", vec![ct]);
+
+              let mut f = File::open(format!("pact-compatibility-suite/fixtures/{}", value))
+                .expect(format!("could not load fixture '{}'", value).as_str());
+              let mut buffer = Vec::new();
+              f.read_to_end(&mut buffer)
+                .expect(format!("could not read fixture '{}'", value).as_str());
+              interaction.response.body = OptionalBody::Present(Bytes::from(buffer),
+                                                   ContentType::parse(ct).ok(), None);
+            }
+          },
+          _ => {}
+        }
+      }
+    }
+  }
+
+  let pact = RequestResponsePact {
+    consumer: Consumer { name: "v1-compatibility-suite-c".to_string() },
+    provider: Provider { name: "p".to_string() },
+    interactions: vec![interaction],
+    specification_version: PactSpecification::V1,
+    .. RequestResponsePact::default()
+  };
+  world.provider_key = Uuid::new_v4().to_string();
+  let config = MockServerConfig {
+    pact_specification: PactSpecification::V1,
+    .. MockServerConfig::default()
+  };
+  let (mock_server, future) = MockServer::new(
+    world.provider_key.clone(), pact.boxed(), "[::1]:0".parse()?, config
+  ).await.map_err(|err| anyhow!(err))?;
+  tokio::spawn(future);
+  world.provider_server = mock_server;
+
+  let ms = world.provider_server.lock().unwrap();
+  world.provider_info = ProviderInfo {
+    name: "p".to_string(),
+    host: "[::1]".to_string(),
+    port: ms.port,
+    transports: vec![ProviderTransport {
+      port: ms.port,
+      .. ProviderTransport::default()
+    }],
+    .. ProviderInfo::default()
+  };
+
+  Ok(())
+}
+
+#[given(expr = "a Pact file for interaction {int} is to be verified")]
 fn a_pact_file_for_interaction_is_to_be_verified(world: &mut ProviderWorld, num: usize) -> anyhow::Result<()> {
   let pact = RequestResponsePact {
     consumer: Consumer { name: format!("c_{}", num) },
@@ -279,7 +372,7 @@ fn a_pact_file_for_interaction_is_to_be_verified(world: &mut ProviderWorld, num:
   Ok(())
 }
 
-#[given(expr = "a Pact file for interaction \\{{int}} is to be verified with a provider state {string} defined")]
+#[given(expr = "a Pact file for interaction {int} is to be verified with a provider state {string} defined")]
 fn a_pact_file_for_interaction_is_to_be_verified_with_a_provider_state(
   world: &mut ProviderWorld,
   num: usize,
@@ -388,9 +481,9 @@ fn the_verification_results_will_contain_a_error(world: &mut ProviderWorld, err:
             Mismatch::PathMismatch { .. } => false,
             Mismatch::StatusMismatch { .. } => err == "Response status did not match",
             Mismatch::QueryMismatch { .. } => false,
-            Mismatch::HeaderMismatch { .. } => false,
+            Mismatch::HeaderMismatch { .. } => err == "Headers had differences",
             Mismatch::BodyTypeMismatch { .. } => false,
-            Mismatch::BodyMismatch { .. } => false,
+            Mismatch::BodyMismatch { .. } => err == "Body had differences",
             Mismatch::MetadataMismatch { .. } => false
           }
         })
@@ -407,7 +500,7 @@ fn the_verification_results_will_contain_a_error(world: &mut ProviderWorld, err:
   }
 }
 
-#[given(expr = "a Pact file for interaction \\{{int}} is to be verified from a Pact broker")]
+#[given(expr = "a Pact file for interaction {int} is to be verified from a Pact broker")]
 async fn a_pact_file_for_interaction_is_to_be_verified_from_a_pact_broker(
   world: &mut ProviderWorld,
   num: usize
