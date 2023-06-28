@@ -3,8 +3,8 @@
 use std::collections::HashMap;
 use std::iter::FromIterator;
 
-use maplit::*;
-
+use itertools::Itertools;
+use maplit::hashmap;
 use pact_models::headers::PARAMETERISED_HEADERS;
 use pact_models::matchingrules::MatchingRule;
 use pact_models::path_exp::DocPath;
@@ -69,7 +69,7 @@ pub(crate) fn match_header_value(
   context: &dyn MatchingContext,
   single_value: bool
 ) -> Result<(), Vec<Mismatch>> {
-  let path = DocPath::root().join(key);
+  let path = DocPath::root().join(key.to_lowercase());
   let indexed_path = path.join(index.to_string());
   let expected = expected.trim();
   let actual = actual.trim();
@@ -142,7 +142,10 @@ fn match_header_maps(
             actual_values.first().unwrap(), context, true).err().unwrap_or_default();
           mismatches.extend(comparison_result.iter().cloned());
         } else {
-          for (index, val) in value.iter().enumerate() {
+          let empty = String::new();
+          for (index, val) in value.iter()
+            .pad_using(actual.len(), |_| &empty)
+            .enumerate() {
             if let Some(actual_value) = actual_values.get(index) {
               let comparison_result = match_header_value(key, index, val,
                 actual_value, context, false).err().unwrap_or_default();
@@ -195,7 +198,6 @@ pub fn match_headers(
 mod tests {
   use expectest::prelude::*;
   use maplit::*;
-
   use pact_models::matchingrules;
   use pact_models::matchingrules::MatchingRule;
 

@@ -117,7 +117,9 @@ fn create_native_request(
         }
       }
     }
-    builder = builder.headers(header_map);
+    if !header_map.is_empty() {
+      builder = builder.headers(header_map);
+    }
   }
 
   match request.body {
