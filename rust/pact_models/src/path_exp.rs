@@ -284,6 +284,17 @@ impl DocPath {
 
     buffer
   }
+
+  /// Returns a copy of this path will all parts lower case
+  pub fn to_lower_case(&self) -> DocPath {
+    DocPath {
+      path_tokens: self.path_tokens.iter().map(|p| match p {
+        PathToken::Field(f) => PathToken::Field(f.to_lowercase()),
+        _ => p.clone()
+      }).collect(),
+      expr: self.expr.to_lowercase()
+    }
+  }
 }
 
 /// Format a JSON object key for use in a JSON path expression. If we were
