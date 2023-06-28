@@ -17,6 +17,7 @@ use pact_models::sync_interaction::RequestResponseInteraction;
 use serde_json::{json, Value};
 
 pub mod consumer;
+pub mod provider;
 
 #[derive(Debug, Default, Parameter)]
 #[param(name = "numType", regex = "first|second|third")]

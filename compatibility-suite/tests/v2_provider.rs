@@ -28,7 +28,7 @@ async fn main() {
         }
       }
     }))
-    .filter_run_and_exit("pact-compatibility-suite/features/V1", |feature, _rule, _scenario| {
+    .filter_run_and_exit("pact-compatibility-suite/features/V2", |feature, _rule, _scenario| {
       feature.tags.iter().any(|tag| tag == "provider")
     })
     .await;

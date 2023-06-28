@@ -1,3 +1,4 @@
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
@@ -281,7 +282,8 @@ async fn a_provider_is_started_that_returns_the_response_from_interaction_with_t
         match field.as_str() {
           "status" => interaction.response.status = value.parse().unwrap(),
           "headers" => {
-            let headers = value.split(",")
+            let headers = interaction.response.headers_mut();
+            let headers_to_add = value.split(",")
               .map(|header| {
                 let key_value = header.strip_prefix("'").unwrap_or(header)
                   .strip_suffix("'").unwrap_or(header)
@@ -289,8 +291,17 @@ async fn a_provider_is_started_that_returns_the_response_from_interaction_with_t
                   .map(|v| v.trim())
                   .collect::<Vec<_>>();
                 (key_value[0].to_string(), parse_header(key_value[0], key_value[1]))
-              }).collect();
-            interaction.response.headers = Some(headers);
+              });
+            for (k, v) in headers_to_add {
+              match headers.entry(k) {
+                Entry::Occupied(mut entry) => {
+                  entry.get_mut().extend_from_slice(&v);
+                }
+                Entry::Vacant(entry) => {
+                  entry.insert(v);
+                }
+              }
+            }
           },
           "body" => {
             if value.starts_with("JSON:") {
