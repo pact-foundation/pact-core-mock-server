@@ -26,19 +26,7 @@ impl <T: Debug + Display + PartialEq + Clone> Matches<&[T]> for &[T] {
   fn matches_with(&self, actual: &[T], matcher: &MatchingRule, cascaded: bool) -> anyhow::Result<()> {
     debug!("slice -> slice: comparing [{}] to [{}] using {:?}", std::any::type_name::<T>(), std::any::type_name::<T>(), matcher);
     let result = match matcher {
-      MatchingRule::Regex(ref regex) => {
-        match Regex::new(regex) {
-          Ok(re) => {
-            let text: String = actual.iter().map(|v| v.to_string()).collect();
-            if re.is_match(text.as_str()) {
-              Ok(())
-            } else {
-              Err(anyhow!("Expected '{}' to match '{}'", text, regex))
-            }
-          }
-          Err(err) => Err(anyhow!("'{}' is not a valid regular expression - {}", regex, err))
-        }
-      }
+      MatchingRule::Regex(_) => Ok(()),
       MatchingRule::Type => Ok(()),
       MatchingRule::MinType(min) => {
         if !cascaded && actual.len() < *min {
