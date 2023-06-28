@@ -3,8 +3,8 @@ use tracing_subscriber::EnvFilter;
 
 use crate::v1_steps::provider::ProviderWorld;
 
+pub mod shared_steps;
 pub mod v1_steps {
-  pub mod common;
   pub mod provider;
 }
 

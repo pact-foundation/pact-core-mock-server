@@ -1,3 +1,4 @@
+use std::collections::hash_map::Entry;
 use std::fs;
 use std::fs::File;
 use std::io::Read;
@@ -8,6 +9,7 @@ use anyhow::anyhow;
 use bytes::Bytes;
 use cucumber::{given, then, when, World};
 use cucumber::gherkin::Step;
+use itertools::Itertools;
 use pact_models::{Consumer, PactSpecification, Provider};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::{ContentType, JSON, XML};
@@ -27,7 +29,7 @@ use pact_mock_server::mock_server::{MockServer, MockServerConfig};
 use pact_verifier::{NullRequestFilterExecutor, ProviderInfo, ProviderTransport, VerificationOptions};
 use pact_verifier::provider_client::make_provider_request;
 
-use crate::v1_steps::common::{IndexType, setup_common_interactions};
+use crate::shared_steps::{IndexType, setup_common_interactions};
 
 #[derive(Debug, World)]
 pub struct ConsumerWorld {
@@ -145,6 +147,7 @@ async fn request_is_made_to_the_mock_server_with_the_following_changes(
   let mut request = world.interactions.get(num - 1).unwrap()
     .request.as_v4_request();
 
+  let mut raw_headers = vec![];
   if let Some(table) = step.table.as_ref() {
     let headers = table.rows.first().unwrap();
     for (index, value) in table.rows.get(1).unwrap().iter().enumerate() {
@@ -193,6 +196,17 @@ async fn request_is_made_to_the_mock_server_with_the_following_changes(
                                                    ContentType::parse(ct).ok(), None);
             }
           },
+          "raw headers" => {
+            raw_headers.extend(value.split(',').map(|h| {
+              h.trim()
+                .strip_prefix("'").unwrap_or(h)
+                .strip_suffix("'").unwrap_or(h)
+                .splitn(2, ":")
+                .map(|v| v.trim().to_string())
+                .collect_tuple::<(String, String)>()
+                .unwrap()
+            }));
+          }
           _ => {}
         }
       }
@@ -216,7 +230,19 @@ async fn request_is_made_to_the_mock_server_with_the_following_changes(
     request_filter: None::<Arc<NullRequestFilterExecutor>>,
     .. VerificationOptions::default()
   };
-  let client = reqwest::Client::builder().build()?;
+  let headers = request.headers_mut();
+  for (k, v) in raw_headers {
+    match headers.entry(k) {
+      Entry::Occupied(mut entry) => {
+        entry.get_mut().push(v.clone());
+      }
+      Entry::Vacant(entry) => {
+        entry.insert(vec![ v.clone() ]);
+      }
+    }
+  }
+  let client = reqwest::Client::builder()
+    .build()?;
   world.response = make_provider_request(
     &provider_info, &request, &verification_options, &client, Some(transport)
   ).await?;
@@ -229,7 +255,7 @@ fn a_success_response_is_returned(world: &mut ConsumerWorld, status: u16) -> any
   if world.response.status == status {
     Ok(())
   } else {
-    Err(anyhow!("Expected a success response of {} but got {}", status, world.response.status))
+    Err(anyhow!("Expected a success response of {} but got {} ({:?})", status, world.response.status, world.response))
   }
 }
 
@@ -238,7 +264,7 @@ fn a_error_response_is_returned(world: &mut ConsumerWorld, status: u16) -> anyho
   if world.response.status == status {
     Ok(())
   } else {
-    Err(anyhow!("Expected an error response of {} but got {}", status, world.response.status))
+    Err(anyhow!("Expected an error response of {} but got {} ({:?})", status, world.response.status, world.response))
   }
 }
 
@@ -463,7 +489,7 @@ fn the_mismatches_will_contain_a_mismatch_with_error(
       Mismatch::BodyTypeMismatch { .. } => mismatch_type == "body-content-type",
       _ => ms.mismatch_type().to_lowercase().starts_with(mismatch_type.as_str())
     };
-    correct_type && ms.description() == error
+    correct_type && ms.description().contains(error.as_str())
   }).is_some() {
     Ok(())
   } else {

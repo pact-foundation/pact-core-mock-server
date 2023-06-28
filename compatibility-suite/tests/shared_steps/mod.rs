@@ -11,8 +11,12 @@ use pact_models::bodies::OptionalBody;
 use pact_models::content_types::{ContentType, JSON, XML};
 use pact_models::headers::parse_header;
 use pact_models::http_parts::HttpPart;
+use pact_models::matchingrules::matchers_from_json;
 use pact_models::query_strings::parse_query_string;
 use pact_models::sync_interaction::RequestResponseInteraction;
+use serde_json::{json, Value};
+
+pub mod consumer;
 
 #[derive(Debug, Default, Parameter)]
 #[param(name = "numType", regex = "first|second|third")]
@@ -112,9 +116,21 @@ pub fn setup_common_interactions(table: &Table) -> Vec<RequestResponseInteractio
             f.read_to_end(&mut buffer)
               .expect(format!("could not read fixture '{}'", body).as_str());
             interaction.request.body = OptionalBody::Present(Bytes::from(buffer),
-                                                             ContentType::parse(ct).ok(), None);
+              ContentType::parse(ct).ok(), None);
           }
         }
+      }
+    }
+
+    if let Some(index) = headers.get("matching rules") {
+      if let Some(rules) = values.get(*index) {
+        let json: Value = if rules.starts_with("JSON:") {
+          serde_json::from_str(rules.strip_prefix("JSON:").unwrap_or(rules)).unwrap()
+        } else {
+          let file = File::open(format!("pact-compatibility-suite/fixtures/{}", rules)).unwrap();
+          serde_json::from_reader(file).unwrap()
+        };
+        interaction.request.matching_rules = matchers_from_json(&json!({"matchingRules": json}), &None).unwrap();
       }
     }
 
@@ -124,24 +140,65 @@ pub fn setup_common_interactions(table: &Table) -> Vec<RequestResponseInteractio
       }
     }
 
-    if let Some(index) = headers.get("response body") {
-      if let Some(response) = values.get(*index) {
-        if !response.is_empty() {
-          let ct = headers.get("response content")
-            .map(|i| values.get(*i))
-            .flatten()
-            .cloned()
-            .unwrap_or("text/plain".to_string());
-          interaction.response.headers_mut().insert("content-type".to_string(), vec![ct.clone()]);
-
-          let mut f = File::open(format!("pact-compatibility-suite/fixtures/{}", response))
-            .expect(format!("could not load fixture '{}'", response).as_str());
-          let mut buffer = Vec::new();
-          f.read_to_end(&mut buffer)
-            .expect(format!("could not read fixture '{}'", response).as_str());
-          interaction.response.body = OptionalBody::Present(Bytes::from(buffer),
-                                                            ContentType::parse(ct.as_str()).ok(), None);
+    if let Some(index) = headers.get("response headers") {
+      if let Some(headers) = values.get(*index) {
+        if !headers.is_empty() {
+          let headers = headers.split(",")
+            .map(|header| {
+              let key_value = header.strip_prefix("'").unwrap_or(header)
+                .strip_suffix("'").unwrap_or(header)
+                .splitn(2, ":")
+                .map(|v| v.trim())
+                .collect::<Vec<_>>();
+              (key_value[0].to_string(), parse_header(key_value[0], key_value[1]))
+            }).collect();
+          interaction.response.headers = Some(headers);
         }
+      }
+    }
+
+    if let Some(index) = headers.get("response body") {
+      if let Some(body) = values.get(*index) {
+        if !body.is_empty() {
+          if body.starts_with("JSON:") {
+            interaction.response.add_header("content-type", vec!["application/json"]);
+            interaction.response.body = OptionalBody::Present(Bytes::from(body.strip_prefix("JSON:").unwrap_or(body).to_string()),
+                                                             Some(JSON.clone()), None);
+          } else if body.starts_with("XML:") {
+            interaction.response.add_header("content-type", vec!["application/xml"]);
+            interaction.response.body = OptionalBody::Present(Bytes::from(body.strip_prefix("XML:").unwrap_or(body).to_string()),
+                                                             Some(XML.clone()), None);
+          } else {
+            let ct = if body.ends_with(".json") {
+              "application/json"
+            } else if body.ends_with(".xml") {
+              "application/xml"
+            } else {
+              "text/plain"
+            };
+            interaction.response.add_header("content-type", vec![ct]);
+
+            let mut f = File::open(format!("pact-compatibility-suite/fixtures/{}", body))
+              .expect(format!("could not load fixture '{}'", body).as_str());
+            let mut buffer = Vec::new();
+            f.read_to_end(&mut buffer)
+              .expect(format!("could not read fixture '{}'", body).as_str());
+            interaction.response.body = OptionalBody::Present(Bytes::from(buffer),
+              ContentType::parse(ct).ok(), None);
+          }
+        }
+      }
+    }
+
+    if let Some(index) = headers.get("response matching rules") {
+      if let Some(rules) = values.get(*index) {
+        let json: Value = if rules.starts_with("JSON:") {
+          serde_json::from_str(rules.strip_prefix("JSON:").unwrap_or(rules)).unwrap()
+        } else {
+          let file = File::open(format!("pact-compatibility-suite/fixtures/{}", rules)).unwrap();
+          serde_json::from_reader(file).unwrap()
+        };
+        interaction.response.matching_rules = matchers_from_json(&json!({"matchingRules": json}), &None).unwrap();
       }
     }
 

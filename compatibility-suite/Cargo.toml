@@ -28,3 +28,7 @@ harness = false
 [[test]]
 name = "v1_provider"
 harness = false
+
+[[test]]
+name = "v2_consumer"
+harness = false

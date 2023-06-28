@@ -46,7 +46,7 @@ use pact_verifier::{
 use pact_verifier::callback_executors::{ProviderStateExecutor, RequestFilterExecutor};
 use pact_verifier::verification_result::{VerificationExecutionResult, VerificationMismatchResult};
 
-use crate::v1_steps::common::setup_common_interactions;
+use crate::shared_steps::setup_common_interactions;
 
 #[derive(Debug, World)]
 pub struct ProviderWorld {
