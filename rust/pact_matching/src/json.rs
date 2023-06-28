@@ -29,8 +29,23 @@ fn type_of(json: &Value) -> String {
     Value::Array(_) => "List",
     Value::Null => "Null",
     Value::Bool(_) => "Boolean",
-    Value::Number(_) => "Number",
+    Value::Number(n) => if n.is_i64() || n.is_u64() {
+      "Integer"
+    } else {
+      "Decimal"
+    },
     Value::String(_) => "String"
+  }.to_string()
+}
+
+fn value_of(json: &Value) -> String {
+  match json {
+    Value::Null => "null".to_string(),
+    Value::String(s) => format!("'{}'", s),
+    Value::Bool(b) => b.to_string(),
+    Value::Number(n) => n.to_string(),
+    Value::Object(_) => json.to_string(),
+    Value::Array(_) => json.to_string()
   }.to_string()
 }
 
@@ -84,7 +99,8 @@ impl Matches<&Value> for Value {
           (&Value::Null, &Value::Null) => Ok(()),
           (&Value::Object(_), &Value::Object(_)) => Ok(()),
           (&Value::String(_), &Value::String(_)) => Ok(()),
-          (_, _) => Err(anyhow!("Expected '{}' to be the same type as '{}'", json_to_string(self), json_to_string(actual))),
+          (_, _) => Err(anyhow!("Expected {} ({}) to be the same type as {} ({})",
+            value_of(actual), type_of(actual), value_of(self), type_of(self))),
         }
       },
       MatchingRule::MinType(min) => {
@@ -99,7 +115,8 @@ impl Matches<&Value> for Value {
           (&Value::Null, &Value::Null) => Ok(()),
           (&Value::Object(_), &Value::Object(_)) => Ok(()),
           (&Value::String(_), &Value::String(_)) => Ok(()),
-          (_, _) => Err(anyhow!("Expected '{}' to be the same type as '{}'", json_to_string(self), json_to_string(actual))),
+          (_, _) => Err(anyhow!("Expected {} ({}) to be the same type as {} ({})",
+            value_of(actual), type_of(actual), value_of(self), type_of(self))),
         }
       },
       MatchingRule::MaxType(max) => {
@@ -114,7 +131,8 @@ impl Matches<&Value> for Value {
           (&Value::Null, &Value::Null) => Ok(()),
           (&Value::Object(_), &Value::Object(_)) => Ok(()),
           (&Value::String(_), &Value::String(_)) => Ok(()),
-          (_, _) => Err(anyhow!("Expected '{}' to be the same type as '{}'", json_to_string(self), json_to_string(actual))),
+          (_, _) => Err(anyhow!("Expected {} ({}) to be the same type as {} ({})",
+            value_of(actual), type_of(actual), value_of(self), type_of(self))),
         }
       },
       MatchingRule::MinMaxType(min, max) => {
@@ -131,35 +149,36 @@ impl Matches<&Value> for Value {
           (&Value::Null, &Value::Null) => Ok(()),
           (&Value::Object(_), &Value::Object(_)) => Ok(()),
           (&Value::String(_), &Value::String(_)) => Ok(()),
-          (_, _) => Err(anyhow!("Expected '{}' to be the same type as '{}'", json_to_string(self), json_to_string(actual))),
+          (_, _) => Err(anyhow!("Expected {} ({}) to be the same type as {} ({})",
+            value_of(actual), type_of(actual), value_of(self), type_of(self))),
         }
       },
       MatchingRule::Equality | MatchingRule::Values => {
         if self == actual {
           Ok(())
         } else {
-          Err(anyhow!("Expected '{}' ({}) but received '{}' ({})",
-            json_to_string(self), type_of(self), json_to_string(actual), type_of(actual)))
+          Err(anyhow!("Expected {} ({}) but received {} ({})",
+            value_of(self), type_of(self), value_of(actual), type_of(actual)))
         }
       },
       MatchingRule::Null => match actual {
         Value::Null => Ok(()),
-        _ => Err(anyhow!("Expected '{}' to be a null value", json_to_string(actual)))
+        _ => Err(anyhow!("Expected {} to be a null value", value_of(actual)))
       },
       MatchingRule::Integer => if actual.is_i64() || actual.is_u64() {
         Ok(())
       } else {
-        Err(anyhow!("Expected '{}' to be an integer value", json_to_string(actual)))
+        Err(anyhow!("Expected {} to be an integer value", value_of(actual)))
       },
       MatchingRule::Decimal => if actual.is_f64() {
         Ok(())
       } else {
-        Err(anyhow!("Expected '{}' to be a decimal value", json_to_string(actual)))
+        Err(anyhow!("Expected {} to be a decimal value", value_of(actual)))
       },
       MatchingRule::Number => if actual.is_number() {
         Ok(())
       } else {
-        Err(anyhow!("Expected '{}' to be a number", json_to_string(actual)))
+        Err(anyhow!("Expected {} to be a number", value_of(actual)))
       },
       MatchingRule::Date(ref s) => {
         validate_datetime(&json_to_string(actual), s)
@@ -182,9 +201,9 @@ impl Matches<&Value> for Value {
         Value::String(val) => if val == "true" || val == "false" {
           Ok(())
         } else {
-          Err(anyhow!("Expected '{}' to match a boolean", json_to_string(actual)))
+          Err(anyhow!("Expected {} to match a boolean", value_of(actual)))
         }
-        _ => Err(anyhow!("Expected '{}' to match a boolean", json_to_string(actual)))
+        _ => Err(anyhow!("Expected {} to match a boolean", value_of(actual)))
       }
       MatchingRule::NotEmpty => match actual {
         Value::Null => Err(anyhow!("Expected non-empty but got a NULL")),
