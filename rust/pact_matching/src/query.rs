@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 
+use itertools::Itertools;
 use maplit::hashmap;
 use pact_models::matchingrules::MatchingRule;
 use pact_models::path_exp::DocPath;
@@ -126,24 +127,29 @@ fn compare_query_parameter_values(
   actual: &[String],
   context: &dyn MatchingContext
 ) -> Result<(), Vec<Mismatch>> {
-  let result: Vec<Mismatch> = expected.iter().enumerate().flat_map(|(index, val)| {
-    if index < actual.len() {
-      match compare_query_parameter_value(path, val, &actual[index], index, context) {
-        Ok(_) => vec![],
-        Err(errors) => errors
+  let empty = String::new();
+  let result: Vec<Mismatch> = expected.iter()
+    .pad_using(actual.len(), |_| &empty)
+    .enumerate()
+    .flat_map(|(index, val)| {
+      if index < actual.len() {
+        match compare_query_parameter_value(path, val, &actual[index], index, context) {
+          Ok(_) => vec![],
+          Err(errors) => errors
+        }
+      } else if context.matcher_is_defined(path) {
+        vec![]
+      } else {
+        let key = path.first_field().unwrap_or_default().to_string();
+        vec![ Mismatch::QueryMismatch {
+          parameter: key.clone(),
+          expected: format!("{:?}", expected),
+          actual: format!("{:?}", actual),
+          mismatch: format!("Expected query parameter '{}' value '{}' but was missing", key, val)
+        } ]
       }
-    } else if context.matcher_is_defined(path) {
-      vec![]
-    } else {
-      let key = path.first_field().unwrap_or_default().to_string();
-      vec![ Mismatch::QueryMismatch {
-        parameter: key.clone(),
-        expected: format!("{:?}", expected),
-        actual: format!("{:?}", actual),
-        mismatch: format!("Expected query parameter '{}' value '{}' but was missing", key, val)
-      } ]
-    }
-  }).collect();
+    })
+    .collect();
 
   if result.is_empty() {
     Ok(())
