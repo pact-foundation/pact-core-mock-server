@@ -282,8 +282,8 @@ fn match_query_returns_a_mismatch_if_the_values_do_not_match_by_a_matcher() {
   expect!(result.iter()).to_not(be_empty());
   assert_eq!(result.get("a").unwrap()[0], Mismatch::QueryMismatch {
     parameter: "a".to_string(),
-    expected: "[\"b\"]".to_string(),
-    actual: "[\"b\"]".to_string(),
+    expected: "b".to_string(),
+    actual: "b".to_string(),
     mismatch: "Expected 'b' to match '\\d+'".to_string()
   });
 }

@@ -631,6 +631,83 @@ impl MatchingContext for CoreMatchingContext {
   }
 }
 
+#[derive(Debug, Clone, Default)]
+/// Matching context for headers. Keys will be applied in a case-insenstive manor
+pub struct HeaderMatchingContext {
+  inner_context: CoreMatchingContext
+}
+
+impl HeaderMatchingContext {
+  /// Wraps a CoreMatchingContext, downcasing all the matching path keys
+  pub fn new(context: CoreMatchingContext) -> Self {
+    HeaderMatchingContext {
+      inner_context: CoreMatchingContext::new(
+        context.config,
+        &MatchingRuleCategory {
+          name: context.matchers.name,
+          rules: context.matchers.rules.iter()
+            .map(|(path, rules)| {
+              // TODO: Replace this with DocPath.to_lower_case when pact_models 1.1.7 is released
+              let path = DocPath::new(path.to_string().to_lowercase()).unwrap_or(path.clone());
+              (path, rules.clone())
+            })
+            .collect()
+        },
+        &context.plugin_configuration
+      )
+    }
+  }
+}
+
+impl MatchingContext for HeaderMatchingContext {
+  fn matcher_is_defined(&self, path: &DocPath) -> bool {
+    self.inner_context.matcher_is_defined(path)
+  }
+
+  fn select_best_matcher(&self, path: &DocPath) -> RuleList {
+    self.inner_context.select_best_matcher(path)
+  }
+
+  fn type_matcher_defined(&self, path: &DocPath) -> bool {
+    self.inner_context.type_matcher_defined(path)
+  }
+
+  fn values_matcher_defined(&self, path: &DocPath) -> bool {
+    self.inner_context.values_matcher_defined(path)
+  }
+
+  fn direct_matcher_defined(&self, path: &DocPath, matchers: &HashSet<&str>) -> bool {
+    self.inner_context.direct_matcher_defined(path, matchers)
+  }
+
+  fn match_keys(&self, path: &DocPath, expected: &BTreeSet<String>, actual: &BTreeSet<String>) -> Result<(), Vec<Mismatch>> {
+    self.inner_context.match_keys(path, expected, actual)
+  }
+
+  fn plugin_configuration(&self) -> &HashMap<String, PluginInteractionConfig> {
+    self.inner_context.plugin_configuration()
+  }
+
+  fn matchers(&self) -> &MatchingRuleCategory {
+    self.inner_context.matchers()
+  }
+
+  fn config(&self) -> DiffConfig {
+    self.inner_context.config()
+  }
+
+  fn clone_with(&self, matchers: &MatchingRuleCategory) -> Box<dyn MatchingContext> {
+    Box::new(HeaderMatchingContext::new(
+      CoreMatchingContext {
+        matchers: matchers.clone(),
+        config: self.inner_context.config.clone(),
+        matching_spec: self.inner_context.matching_spec,
+        plugin_configuration: self.inner_context.plugin_configuration.clone()
+      }
+    ))
+  }
+}
+
 lazy_static! {
   static ref BODY_MATCHERS: [
     (fn(content_type: &ContentType) -> bool,
@@ -1414,9 +1491,12 @@ pub async fn match_request<'a>(
   let query_context = CoreMatchingContext::new(DiffConfig::NoUnexpectedKeys,
     &expected.matching_rules.rules_for_category("query").unwrap_or_default(),
     &plugin_data);
-  let header_context = CoreMatchingContext::new(DiffConfig::NoUnexpectedKeys,
-    &expected.matching_rules.rules_for_category("header").unwrap_or_default(),
-    &plugin_data);
+  let header_context = HeaderMatchingContext::new(
+    CoreMatchingContext::new(DiffConfig::NoUnexpectedKeys,
+     &expected.matching_rules.rules_for_category("header").unwrap_or_default(),
+     &plugin_data
+    )
+  );
   let result = RequestMatchResult {
     method: match_method(&expected.method, &actual.method).err(),
     path: match_path(&expected.path, &actual.path, &path_context).err(),
@@ -1470,9 +1550,12 @@ pub async fn match_response<'a>(
   let body_context = CoreMatchingContext::new(DiffConfig::AllowUnexpectedKeys,
     &expected.matching_rules.rules_for_category("body").unwrap_or_default(),
     &plugin_data);
-  let header_context = CoreMatchingContext::new(DiffConfig::AllowUnexpectedKeys,
-    &expected.matching_rules.rules_for_category("header").unwrap_or_default(),
-    &plugin_data);
+  let header_context = HeaderMatchingContext::new(
+    CoreMatchingContext::new(DiffConfig::NoUnexpectedKeys,
+      &expected.matching_rules.rules_for_category("header").unwrap_or_default(),
+      &plugin_data
+    )
+  );
 
   mismatches.extend_from_slice(match_body(&expected, &actual, &body_context, &header_context).await
     .mismatches().as_slice());

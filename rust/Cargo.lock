@@ -1979,11 +1979,13 @@ dependencies = [
  "serde",
  "serde_json",
  "test-env-log",
+ "test-log",
  "thiserror",
  "tokio",
  "tokio-rustls",
  "tracing",
  "tracing-core",
+ "tracing-subscriber",
  "url",
  "uuid",
 ]

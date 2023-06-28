@@ -202,7 +202,7 @@ mod tests {
   use crate::builders::{HttpPartBuilder, PactBuilder};
   use crate::patterns::{Like, Term};
 
-  #[test]
+  #[test_log::test]
   fn header_pattern() {
     let application_regex = Regex::new("application/.*").unwrap();
     let pattern = PactBuilder::new("C", "P")

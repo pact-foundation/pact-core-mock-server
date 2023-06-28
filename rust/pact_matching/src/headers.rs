@@ -144,7 +144,7 @@ fn match_header_maps(
         } else {
           let empty = String::new();
           for (index, val) in value.iter()
-            .pad_using(actual.len(), |_| &empty)
+            .pad_using(actual_values.len(), |_| &empty)
             .enumerate() {
             if let Some(actual_value) = actual_values.get(index) {
               let comparison_result = match_header_value(key, index, val,
@@ -201,7 +201,7 @@ mod tests {
   use pact_models::matchingrules;
   use pact_models::matchingrules::MatchingRule;
 
-  use crate::{CoreMatchingContext, DiffConfig, Mismatch};
+  use crate::{CoreMatchingContext, DiffConfig, HeaderMatchingContext, Mismatch};
   use crate::headers::{match_header_value, match_headers, parse_charset_parameters};
 
   #[test]
@@ -376,30 +376,30 @@ mod tests {
     expect!(result.values().flatten()).to(be_empty());
   }
 
-  #[test]
+  #[test_log::test]
   fn matching_headers_be_true_when_headers_match_by_matcher() {
-    let context = CoreMatchingContext::new(
+    let context = HeaderMatchingContext::new(CoreMatchingContext::new(
       DiffConfig::AllowUnexpectedKeys,
       &matchingrules! {
         "header" => {
           "HEADER" => [ MatchingRule::Regex("\\w+".to_string()) ]
         }
       }.rules_for_category("header").unwrap_or_default(), &hashmap!{}
-    );
+    ));
     let mismatches = match_header_value("HEADER", 0, "HEADERX", "HEADERY", &context, true);
     expect!(mismatches).to(be_ok());
   }
 
   #[test]
   fn matching_headers_be_false_when_headers_do_not_match_by_matcher() {
-    let context = CoreMatchingContext::new(
+    let context = HeaderMatchingContext::new(CoreMatchingContext::new(
       DiffConfig::AllowUnexpectedKeys,
       &matchingrules! {
           "header" => {
               "HEADER" => [ MatchingRule::Regex("\\d+".to_string()) ]
           }
         }.rules_for_category("header").unwrap_or_default(), &hashmap!{}
-    );
+    ));
     let mismatches = match_header_value(&"HEADER".to_string(), 0,
       &"HEADER".to_string(), &"HEADER".to_string(), &context, true);
     expect!(mismatches).to(be_err().value(vec![ Mismatch::HeaderMismatch {
@@ -434,14 +434,14 @@ mod tests {
   // Issue #238
   #[test_log::test]
   fn matching_headers_with_an_indexed_path() {
-    let context = CoreMatchingContext::new(
+    let context = HeaderMatchingContext::new(CoreMatchingContext::new(
       DiffConfig::AllowUnexpectedKeys,
       &matchingrules! {
         "header" => {
           "HEADER[0]" => [ MatchingRule::Regex("\\w+".to_string()) ]
         }
       }.rules_for_category("header").unwrap_or_default(), &hashmap!{}
-    );
+    ));
     let mismatches = match_header_value("HEADER", 0, "HEADERX", "HEADERY", &context, true);
     expect!(mismatches).to(be_ok());
   }
@@ -622,15 +622,15 @@ mod tests {
 
   #[test_log::test]
   fn matching_last_modified_header_with_a_matcher() {
-    let context = CoreMatchingContext::new(
+    let context = HeaderMatchingContext::new(CoreMatchingContext::new(
       DiffConfig::AllowUnexpectedKeys,
       &matchingrules! {
         "header" => {
           "Last-Modified" => [ MatchingRule::Regex("^[A-Za-z]{3},\\s\\d{2}\\s[A-Za-z]{3}\\s\\d{4}\\s\\d{2}:\\d{2}:\\d{2}\\sGMT$".to_string()) ]
         }
       }.rules_for_category("header").unwrap_or_default(), &hashmap!{}
-    );
-    let expected = hashmap! { "Last-Modified".to_string() => vec!["Sun, 12 Mar 2023 01:21:35 GMT".to_string()] };
+    ));
+    let expected = hashmap! { "last-modified".to_string() => vec!["Sun, 12 Mar 2023 01:21:35 GMT".to_string()] };
     let actual = hashmap! { "Last-Modified".to_string() => vec!["Sun, 12 Mar 2023 01:21:52 GMT".to_string()]};
     let result = match_headers(Some(expected), Some(actual), &context);
     expect!(result.values().flatten()).to(be_empty());

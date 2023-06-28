@@ -194,7 +194,7 @@ async fn match_request_supports_v2_matchers_with_xml() {
       MatchResult::RequestMatch(interaction.request, interaction.response, request.clone())));
 }
 
-#[test]
+#[test_log::test]
 fn match_request_with_header_with_multiple_values() {
   let pact = V4Pact {
     interactions: vec![
