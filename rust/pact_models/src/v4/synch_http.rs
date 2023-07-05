@@ -451,7 +451,7 @@ mod tests {
       "response": {
         "body": {
           "content": "That is some good Mallory.",
-          "contentType": "*/*",
+          "contentType": "text/plain",
           "encoded": false
         },
         "headers": {
@@ -492,7 +492,7 @@ mod tests {
       "response": {
         "body": {
           "content": "That is some good Mallory.",
-          "contentType": "*/*",
+          "contentType": "text/plain",
           "encoded": false
         },
         "headers": {
@@ -587,7 +587,7 @@ mod tests {
       "response": {
         "body": {
           "content": "That is some good Mallory.",
-          "contentType": "*/*",
+          "contentType": "text/plain",
           "encoded": false
         },
         "headers": {

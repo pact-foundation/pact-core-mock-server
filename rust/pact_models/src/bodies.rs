@@ -115,6 +115,27 @@ impl OptionalBody {
     }
   }
 
+  /// Clones this body, setting the content type
+  pub fn with_content_type(&self, content_type: Option<ContentType>) -> Self {
+    match self {
+      OptionalBody::Present(b, _, h) => OptionalBody::Present(b.clone(), content_type, h.clone()),
+      OptionalBody::Missing => OptionalBody::Missing,
+      OptionalBody::Empty => OptionalBody::Empty,
+      OptionalBody::Null => OptionalBody::Null,
+    }
+  }
+
+  /// Clones this body, setting the content type if it is not set
+  pub fn with_content_type_if_not_set(&self, content_type: Option<ContentType>) -> Self {
+    match self {
+      OptionalBody::Present(b, ct, h) =>
+        OptionalBody::Present(b.clone(), ct.clone().or(content_type), h.clone()),
+      OptionalBody::Missing => OptionalBody::Missing,
+      OptionalBody::Empty => OptionalBody::Empty,
+      OptionalBody::Null => OptionalBody::Null,
+    }
+  }
+
   /// Converts this body into a V4 Pact file JSON format
   pub fn to_v4_json(&self) -> Value {
     match self {

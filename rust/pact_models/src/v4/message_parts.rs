@@ -59,7 +59,8 @@ impl MessageContents {
   pub fn to_json(&self) -> Value {
     let mut json = json!({});
 
-    if let Value::Object(body) = self.contents.to_v4_json() {
+    let body = self.contents.with_content_type_if_not_set(self.message_content_type());
+    if let Value::Object(body) = body.to_v4_json() {
       let map = json.as_object_mut().unwrap();
       map.insert("contents".to_string(), Value::Object(body));
     }

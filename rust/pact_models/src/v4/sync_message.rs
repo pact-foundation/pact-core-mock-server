@@ -450,7 +450,7 @@ mod tests {
       "request": {
         "contents": {
           "content": "Mallory",
-          "contentType": "*/*",
+          "contentType": "text/plain",
           "encoded": false
         },
         "metadata": {
@@ -463,7 +463,7 @@ mod tests {
         {
           "contents": {
             "content": "That is some good Mallory.",
-            "contentType": "*/*",
+            "contentType": "text/plain",
             "encoded": false
           },
           "metadata": {
@@ -494,7 +494,7 @@ mod tests {
       "request": {
         "contents": {
             "content": "Mallory",
-            "contentType": "*/*",
+            "contentType": "text/plain",
             "encoded": false
          },
         "metadata": {
@@ -506,7 +506,7 @@ mod tests {
       "response": [{
         "contents": {
           "content": "That is some good Mallory.",
-          "contentType": "*/*",
+          "contentType": "text/plain",
           "encoded": false
         },
         "metadata": {

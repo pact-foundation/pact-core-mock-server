@@ -549,7 +549,7 @@ mod tests {
       ],
       "contents": {
         "content": "That is some good Mallory.",
-        "contentType": "*/*",
+        "contentType": "text/plain",
         "encoded": false
       },
       "metadata": {
@@ -577,7 +577,7 @@ mod tests {
       ],
       "contents": {
         "content": "That is some good Mallory.",
-        "contentType": "*/*",
+        "contentType": "text/plain",
         "encoded": false,
       },
       "metadata": {

@@ -99,7 +99,8 @@ impl HttpRequest {
         ));
       }
 
-      if let Value::Object(body) = self.body.to_v4_json() {
+      let body = self.body.with_content_type_if_not_set(self.content_type());
+      if let Value::Object(body) = body.to_v4_json() {
         map.insert("body".to_string(), Value::Object(body));
       }
 

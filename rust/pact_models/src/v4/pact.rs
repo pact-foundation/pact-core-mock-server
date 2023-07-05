@@ -470,14 +470,16 @@ mod tests {
 
   use expectest::prelude::*;
   use maplit::*;
+  use pretty_assertions::assert_eq;
   use serde_json::json;
 
   use crate::{Consumer, PACT_RUST_VERSION, PactSpecification, Provider};
   use crate::bodies::OptionalBody;
-  use crate::generators::{Generators, Generator, GeneratorCategory};
+  use crate::generators::{Generator, GeneratorCategory, Generators};
   use crate::matchingrules;
-  use crate::matchingrules::{MatchingRule, MatchingRules, MatchingRuleCategory, RuleList, Category, RuleLogic};
+  use crate::matchingrules::{Category, MatchingRule, MatchingRuleCategory, MatchingRules, RuleList, RuleLogic};
   use crate::pact::{Pact, ReadWritePact, write_pact};
+  use crate::path_exp::DocPath;
   use crate::provider_states::ProviderState;
   use crate::v4::async_message::AsynchronousMessage;
   use crate::v4::http_parts::{HttpRequest, HttpResponse};
@@ -487,7 +489,6 @@ mod tests {
   use crate::v4::sync_message::SynchronousMessage;
   use crate::v4::synch_http::SynchronousHttp;
   use crate::v4::V4InteractionType;
-  use crate::path_exp::DocPath;
 
   #[test]
   fn load_empty_pact() {
@@ -730,7 +731,7 @@ mod tests {
     fs::remove_dir_all(dir.parent().unwrap()).unwrap_or(());
 
     expect!(result).to(be_ok());
-    expect!(pact_file).to(be_equal_to(format!(r#"{{
+    assert_eq!(format!(r#"{{
   "consumer": {{
     "name": "write_pact_test_consumer"
   }},
@@ -745,16 +746,16 @@ mod tests {
       ],
       "request": {{
         "contents": {{
-          "content": "\"this is a message\"",
-          "contentType": "*/*",
+          "content": "this is a message",
+          "contentType": "application/json",
           "encoded": false
         }}
       }},
       "response": [
         {{
           "contents": {{
-            "content": "\"this is a response\"",
-            "contentType": "*/*",
+            "content": "this is a response",
+            "contentType": "application/json",
             "encoded": false
           }}
         }}
@@ -773,7 +774,7 @@ mod tests {
   "provider": {{
     "name": "write_pact_test_provider"
   }}
-}}"#, super::PACT_RUST_VERSION.unwrap())));
+}}"#, super::PACT_RUST_VERSION.unwrap()), pact_file);
   }
 
   #[test]
