@@ -489,6 +489,7 @@ dependencies = [
  "pact_verifier",
  "reqwest",
  "serde_json",
+ "sxd-document",
  "tokio",
  "tracing-subscriber",
  "uuid",

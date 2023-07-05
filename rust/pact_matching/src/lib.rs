@@ -557,7 +557,7 @@ impl MatchingContext for CoreMatchingContext {
             path: path.to_string(),
             expected: Some(expected.for_mismatch().into()),
             actual: Some(actual.for_mismatch().into()),
-            mismatch: format!("Expected a Map with keys {} but received one with keys {}",
+            mismatch: format!("Expected a Map with keys [{}] but received one with keys [{}]",
                               expected_keys.join(", "), actual_keys.join(", ")),
           });
         }
@@ -1225,9 +1225,19 @@ pub fn match_text(expected: &Option<Bytes>, actual: &Option<Bytes>, context: &dy
       Err(mismatches)
     }
   } else if expected != actual {
-    Err(vec![ Mismatch::BodyMismatch { path: "$".to_string(), expected: expected.clone(),
-      actual: actual.clone(),
-      mismatch: format!("Expected text '{:?}' but received '{:?}'", expected, actual) } ])
+    let expected = expected.clone().unwrap_or_default();
+    let actual = actual.clone().unwrap_or_default();
+    let e = String::from_utf8_lossy(&expected);
+    let a = String::from_utf8_lossy(&actual);
+    let mismatch = format!("Expected body '{}' to match '{}' using equality but did not match", e, a);
+    Err(vec![
+      Mismatch::BodyMismatch {
+        path: "$".to_string(),
+        expected: Some(expected.clone()),
+        actual: Some(actual.clone()),
+        mismatch
+      }
+    ])
   } else {
     Ok(())
   }

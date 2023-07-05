@@ -744,10 +744,10 @@ mod tests {
     expect!(result).to(be_ok());
 
     let result = match_json(&val2.clone(), &val4.clone(), &CoreMatchingContext::with_config(DiffConfig::NoUnexpectedKeys));
-    expect!(mismatch_message(&result)).to(be_equal_to("Expected a Map with keys a, b but received one with keys a, b, c".to_string()));
+    expect!(mismatch_message(&result)).to(be_equal_to("Expected a Map with keys [a, b] but received one with keys [a, b, c]".to_string()));
     expect!(result).to(be_err().value(vec![ Mismatch::BodyMismatch { path: "$".to_string(),
         expected: Some("[\"a\",\"b\"]".into()),
-        actual: Some("[\"a\",\"b\",\"c\"]".into()), mismatch: "Expected a Map with keys a, b but received one with keys a, b, c".to_string()
+        actual: Some("[\"a\",\"b\",\"c\"]".into()), mismatch: "Expected a Map with keys [a, b] but received one with keys [a, b, c]".to_string()
     } ]));
 
     let result = match_json(&val3.clone(), &val4.clone(), &CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys));
@@ -763,7 +763,7 @@ mod tests {
     expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: "$".to_string(),
         expected: Some("[\"a\",\"b\"]".into()),
         actual: Some("[\"a\",\"b\",\"c\"]".into()), mismatch: "".to_string()}));
-    expect!(mismatch.description()).to(be_equal_to("$ -> Expected a Map with keys a, b but received one with keys a, b, c".to_string()));
+    expect!(mismatch.description()).to(be_equal_to("$ -> Expected a Map with keys [a, b] but received one with keys [a, b, c]".to_string()));
     let mismatch = mismatches[1].clone();
     expect!(&mismatch).to(be_equal_to(&Mismatch::BodyMismatch { path: "$.b".to_string(),
         expected: Some("3".into()),

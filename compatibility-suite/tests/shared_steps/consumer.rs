@@ -12,7 +12,6 @@ use cucumber::gherkin::Step;
 use itertools::Itertools;
 use pact_models::{Consumer, PactSpecification, Provider};
 use pact_models::bodies::OptionalBody;
-use pact_models::content_types::{ContentType, JSON, XML};
 use pact_models::headers::parse_header;
 use pact_models::http_parts::HttpPart;
 use pact_models::pact::{Pact, read_pact};
@@ -29,7 +28,7 @@ use pact_mock_server::mock_server::{MockServer, MockServerConfig};
 use pact_verifier::{NullRequestFilterExecutor, ProviderInfo, ProviderTransport, VerificationOptions};
 use pact_verifier::provider_client::make_provider_request;
 
-use crate::shared_steps::{IndexType, setup_common_interactions};
+use crate::shared_steps::{IndexType, setup_body, setup_common_interactions};
 
 #[derive(Debug, World)]
 pub struct ConsumerWorld {
@@ -168,34 +167,7 @@ async fn request_is_made_to_the_mock_server_with_the_following_changes(
               }).collect();
             request.headers = Some(headers);
           },
-          "body" => {
-            if value.starts_with("JSON:") {
-              request.add_header("content-type", vec!["application/json"]);
-              request.body = OptionalBody::Present(Bytes::from(value.strip_prefix("JSON:").unwrap_or(value).to_string()),
-                                                   Some(JSON.clone()), None);
-            } else if value.starts_with("XML:") {
-              request.add_header("content-type", vec!["application/xml"]);
-              request.body = OptionalBody::Present(Bytes::from(value.strip_prefix("XML:").unwrap_or(value).to_string()),
-                                                   Some(XML.clone()), None);
-            } else {
-              let ct = if value.ends_with(".json") {
-                "application/json"
-              } else if value.ends_with(".xml") {
-                "application/xml"
-              } else {
-                "text/plain"
-              };
-              request.headers_mut().insert("content-type".to_string(), vec![ct.to_string()]);
-
-              let mut f = File::open(format!("pact-compatibility-suite/fixtures/{}", value))
-                .expect(format!("could not load fixture '{}'", value).as_str());
-              let mut buffer = Vec::new();
-              f.read_to_end(&mut buffer)
-                .expect(format!("could not read fixture '{}'", value).as_str());
-              request.body = OptionalBody::Present(Bytes::from(buffer),
-                                                   ContentType::parse(ct).ok(), None);
-            }
-          },
+          "body" => setup_body(value, &mut request),
           "raw headers" => {
             raw_headers.extend(value.split(',').map(|h| {
               h.trim()

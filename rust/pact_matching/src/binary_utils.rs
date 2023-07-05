@@ -51,29 +51,29 @@ pub fn match_octet_stream(
   context: &dyn MatchingContext
 ) -> Result<(), Vec<super::Mismatch>> {
   let mut mismatches = vec![];
-  let expected = expected.body().value().unwrap_or_default();
-  let actual = actual.body().value().unwrap_or_default();
-  debug!("matching binary contents ({} bytes)", actual.len());
+  let expected_body = expected.body().value().unwrap_or_default();
+  let actual_body = actual.body().value().unwrap_or_default();
+  debug!("matching binary contents ({} bytes)", actual_body.len());
   let path = DocPath::root();
   if context.matcher_is_defined(&path) {
     let matchers = context.select_best_matcher(&path);
     if matchers.is_empty() {
       mismatches.push(Mismatch::BodyMismatch {
         path: "$".into(),
-        expected: Some(expected),
-        actual: Some(actual),
+        expected: Some(expected_body),
+        actual: Some(actual_body),
         mismatch: format!("No matcher found for category 'body' and path '{}'", path),
       })
     } else {
       let results = matchers.rules.iter().map(|rule|
-        expected.matches_with(&actual, rule, matchers.cascaded)).collect::<Vec<anyhow::Result<()>>>();
+        expected_body.matches_with(&actual_body, rule, matchers.cascaded)).collect::<Vec<anyhow::Result<()>>>();
       match matchers.rule_logic {
         RuleLogic::And => for result in results {
           if let Err(err) = result {
             mismatches.push(Mismatch::BodyMismatch {
               path: "$".into(),
-              expected: Some(expected.clone()),
-              actual: Some(actual.clone()),
+              expected: Some(expected_body.clone()),
+              actual: Some(actual_body.clone()),
               mismatch: err.to_string(),
             })
           }
@@ -84,8 +84,8 @@ pub fn match_octet_stream(
               if let Err(err) = result {
                 mismatches.push(Mismatch::BodyMismatch {
                   path: "$".into(),
-                  expected: Some(expected.clone()),
-                  actual: Some(actual.clone()),
+                  expected: Some(expected_body.clone()),
+                  actual: Some(actual_body.clone()),
                   mismatch: err.to_string(),
                 })
               }
@@ -94,13 +94,16 @@ pub fn match_octet_stream(
         }
       }
     }
-  } else if expected != actual {
+  } else if expected_body != actual_body {
+    let actual_ct = actual.content_type().unwrap_or_default();
+    let expected_ct = expected.content_type().unwrap_or_default();
     mismatches.push(Mismatch::BodyMismatch {
       path: "$".into(),
-      expected: Some(expected.clone()),
-      actual: Some(actual.clone()),
-      mismatch: format!("Expected binary data of {} bytes but received {} bytes",
-                        expected.len(), actual.len()),
+      expected: Some(expected_body.clone()),
+      actual: Some(actual_body.clone()),
+      mismatch: format!("Actual body [{}, {} bytes, starting with {}] is not equal to the expected body [{}, {} bytes, starting with {}]",
+        actual_ct, actual_body.len(), display_bytes(&actual_body, 32),
+        expected_ct, expected_body.len(), display_bytes(&expected_body, 32))
     });
   }
 
@@ -108,6 +111,18 @@ pub fn match_octet_stream(
     Ok(())
   } else {
     Err(mismatches.clone())
+  }
+}
+
+fn display_bytes(bytes: &Bytes, max_bytes: usize) -> String {
+  if bytes.len() <= max_bytes {
+    bytes.iter().map(|b| format!("{:02x}", b)).collect()
+  } else {
+    bytes
+      .slice(0..max_bytes)
+      .iter()
+      .map(|b| format!("{:02x}", b))
+      .collect()
   }
 }
 

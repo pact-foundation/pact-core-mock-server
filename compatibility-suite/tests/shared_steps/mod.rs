@@ -8,13 +8,15 @@ use bytes::Bytes;
 use cucumber::gherkin::Table;
 use cucumber::Parameter;
 use pact_models::bodies::OptionalBody;
-use pact_models::content_types::{ContentType, JSON, XML};
+use pact_models::content_types::{ContentType, JSON, XML, TEXT};
 use pact_models::headers::parse_header;
 use pact_models::http_parts::HttpPart;
 use pact_models::matchingrules::matchers_from_json;
 use pact_models::query_strings::parse_query_string;
 use pact_models::sync_interaction::RequestResponseInteraction;
+use pact_models::xml_utils::parse_bytes;
 use serde_json::{json, Value};
+use sxd_document::dom::Element;
 
 pub mod consumer;
 pub mod provider;
@@ -92,34 +94,7 @@ pub fn setup_common_interactions(table: &Table) -> Vec<RequestResponseInteractio
 
     if let Some(index) = headers.get("body") {
       if let Some(body) = values.get(*index) {
-        if !body.is_empty() {
-          if body.starts_with("JSON:") {
-            interaction.request.add_header("content-type", vec!["application/json"]);
-            interaction.request.body = OptionalBody::Present(Bytes::from(body.strip_prefix("JSON:").unwrap_or(body).to_string()),
-                                                             Some(JSON.clone()), None);
-          } else if body.starts_with("XML:") {
-            interaction.request.add_header("content-type", vec!["application/xml"]);
-            interaction.request.body = OptionalBody::Present(Bytes::from(body.strip_prefix("XML:").unwrap_or(body).to_string()),
-                                                             Some(XML.clone()), None);
-          } else {
-            let ct = if body.ends_with(".json") {
-              "application/json"
-            } else if body.ends_with(".xml") {
-              "application/xml"
-            } else {
-              "text/plain"
-            };
-            interaction.request.headers_mut().insert("content-type".to_string(), vec![ct.to_string()]);
-
-            let mut f = File::open(format!("pact-compatibility-suite/fixtures/{}", body))
-              .expect(format!("could not load fixture '{}'", body).as_str());
-            let mut buffer = Vec::new();
-            f.read_to_end(&mut buffer)
-              .expect(format!("could not read fixture '{}'", body).as_str());
-            interaction.request.body = OptionalBody::Present(Bytes::from(buffer),
-              ContentType::parse(ct).ok(), None);
-          }
-        }
+        setup_body(body, &mut interaction.request);
       }
     }
 
@@ -161,32 +136,7 @@ pub fn setup_common_interactions(table: &Table) -> Vec<RequestResponseInteractio
     if let Some(index) = headers.get("response body") {
       if let Some(body) = values.get(*index) {
         if !body.is_empty() {
-          if body.starts_with("JSON:") {
-            interaction.response.add_header("content-type", vec!["application/json"]);
-            interaction.response.body = OptionalBody::Present(Bytes::from(body.strip_prefix("JSON:").unwrap_or(body).to_string()),
-                                                             Some(JSON.clone()), None);
-          } else if body.starts_with("XML:") {
-            interaction.response.add_header("content-type", vec!["application/xml"]);
-            interaction.response.body = OptionalBody::Present(Bytes::from(body.strip_prefix("XML:").unwrap_or(body).to_string()),
-                                                             Some(XML.clone()), None);
-          } else {
-            let ct = if body.ends_with(".json") {
-              "application/json"
-            } else if body.ends_with(".xml") {
-              "application/xml"
-            } else {
-              "text/plain"
-            };
-            interaction.response.add_header("content-type", vec![ct]);
-
-            let mut f = File::open(format!("pact-compatibility-suite/fixtures/{}", body))
-              .expect(format!("could not load fixture '{}'", body).as_str());
-            let mut buffer = Vec::new();
-            f.read_to_end(&mut buffer)
-              .expect(format!("could not read fixture '{}'", body).as_str());
-            interaction.response.body = OptionalBody::Present(Bytes::from(buffer),
-              ContentType::parse(ct).ok(), None);
-          }
+          setup_body(body, &mut interaction.response);
         }
       }
     }
@@ -206,4 +156,78 @@ pub fn setup_common_interactions(table: &Table) -> Vec<RequestResponseInteractio
     interactions.push(interaction);
   }
   interactions
+}
+
+pub(crate) fn setup_body(body: &String, httppart: &mut dyn HttpPart) {
+  if !body.is_empty() {
+    if body.starts_with("JSON:") {
+      httppart.add_header("content-type", vec!["application/json"]);
+      *httppart.body_mut() = OptionalBody::Present(Bytes::from(body.strip_prefix("JSON:").unwrap_or(body).trim().to_string()),
+        Some(JSON.clone()), None);
+    } else if body.starts_with("XML:") {
+      httppart.add_header("content-type", vec!["application/xml"]);
+      *httppart.body_mut() = OptionalBody::Present(Bytes::from(body.strip_prefix("XML:").unwrap_or(body).trim().to_string()),
+      Some(XML.clone()), None);
+    } else if body.starts_with("file:") {
+      if body.ends_with("-body.xml") {
+        let file_name = body.strip_prefix("file:").unwrap_or(body).trim();
+        let mut f = File::open(format!("pact-compatibility-suite/fixtures/{}", file_name))
+          .expect(format!("could not load fixture '{}'", body).as_str());
+        let mut buffer = Vec::new();
+        f.read_to_end(&mut buffer)
+          .expect(format!("could not read fixture '{}'", body).as_str());
+        let fixture = parse_bytes(buffer.as_slice())
+          .expect(format!("could not parse fixture as XML: '{}'", body).as_str());
+        let root = fixture.as_document().root();
+        let body_node = root.children().iter().find_map(|n| n.element()).unwrap();
+        let content_type = element_text(body_node, "contentType").unwrap_or("text/plain".to_string());
+        httppart.add_header("content-type", vec![content_type.as_str()]);
+        *httppart.body_mut() = OptionalBody::Present(Bytes::from(element_text(body_node, "contents").unwrap_or_default()),
+          ContentType::parse(content_type.as_str()).ok(), None);
+      } else {
+        let content_type = determine_content_type(body, httppart);
+        httppart.add_header("content-type", vec![content_type.to_string().as_str()]);
+
+        let file_name = body.strip_prefix("file:").unwrap_or(body).trim();
+        let mut f = File::open(format!("pact-compatibility-suite/fixtures/{}", file_name))
+          .expect(format!("could not load fixture '{}'", body).as_str());
+        let mut buffer = Vec::new();
+        f.read_to_end(&mut buffer)
+          .expect(format!("could not read fixture '{}'", body).as_str());
+        *httppart.body_mut() = OptionalBody::Present(Bytes::from(buffer),
+          Some(content_type), None);
+      }
+    } else {
+      let content_type = determine_content_type(body, httppart);
+      httppart.add_header("content-type", vec![content_type.to_string().as_str()]);
+      let body = Bytes::from(body.clone());
+      *httppart.body_mut() = OptionalBody::Present(body, Some(content_type), None);
+    }
+  }
+}
+
+fn element_text(root: Element, name: &str) -> Option<String> {
+  root.children().iter()
+    .filter_map(|n| n.element())
+    .find_map(|n| if n.name().local_part().to_string() == name {
+      Some(n.children().iter()
+        .filter_map(|child| child.text().map(|t| t.text().trim()))
+        .collect::<String>())
+    } else {
+      None
+    })
+}
+
+fn determine_content_type(body: &String, httppart: &mut dyn HttpPart) -> ContentType {
+  if body.ends_with(".json") {
+    JSON.clone()
+  } else if body.ends_with(".xml") {
+    XML.clone()
+  } else if body.ends_with(".jpg") {
+    ContentType::from("image/jpeg")
+  } else if body.ends_with(".pdf") {
+    ContentType::from("application/pdf")
+  } else {
+    httppart.content_type().unwrap_or(TEXT.clone())
+  }
 }
