@@ -55,11 +55,22 @@ lazy_static! {
     .. ContentType::default()
   };
 
+  /// FORM POST URL encoded format
+  pub static ref FORM_URLENCODED: ContentType = ContentType {
+    main_type: "application".into(),
+    sub_type: "x-www-form-urlencoded".into(),
+    .. ContentType::default()
+  };
+
   static ref XMLREGEXP: Regex = Regex::new(r"^\s*<\?xml\s*version.*").unwrap();
   static ref HTMLREGEXP: Regex = Regex::new(r"^\s*(<!DOCTYPE)|(<HTML>).*").unwrap();
   static ref JSONREGEXP: Regex = Regex::new(r#"^\s*(true|false|null|[0-9]+|"\w*|\{\s*(}|"\w+)|\[\s*)"#).unwrap();
   static ref XMLREGEXP2: Regex = Regex::new(r#"^\s*<\w+\s*(:\w+=["”][^"”]+["”])?.*"#).unwrap();
 }
+
+const KNOWN_TEXT_TYPES: [(&'static str, &'static str); 1] = [
+  ("application", "x-www-form-urlencoded")
+];
 
 impl ContentType {
   /// Parses a string into a ContentType
@@ -71,7 +82,8 @@ impl ContentType {
           main_type: mime.type_().to_string(),
           sub_type: mime.subtype().to_string(),
           attributes: mime.params().map(|(key, value)| (key.to_string(), value.to_string())).collect(),
-          suffix: mime.suffix().map(|name| name.to_string())
+          suffix: mime.suffix().map(|name| name.to_string()),
+          .. ContentType::default()
         })
       },
       Err(err) => {
@@ -103,7 +115,7 @@ impl ContentType {
 
   /// If it is a text type
   pub fn is_text(&self) -> bool {
-    self.main_type == "text" || self.is_xml() || self.is_json()
+    self.main_type == "text" || self.is_xml() || self.is_json() || self.is_known_text_type()
   }
 
   /// If it is a known binary type
@@ -111,7 +123,7 @@ impl ContentType {
     match self.main_type.as_str() {
       "audio" | "font" | "image" | "video" => true,
       "text" => false,
-      _ => false
+      _ => !self.is_text()
     }
   }
 
@@ -146,6 +158,13 @@ impl ContentType {
     } else {
       self == other
     }
+  }
+
+  /// If this content type is in the list of known text types
+  fn is_known_text_type(&self) -> bool {
+    KNOWN_TEXT_TYPES.iter().find(|(t, st)| {
+      self.main_type == *t && self.sub_type == *st
+    }).is_some()
   }
 }
 
@@ -380,35 +399,35 @@ mod tests {
       main_type: "application".into(),
       sub_type: "hal".into(),
       suffix: Some("json".to_string()),
-      ..ContentType::default()
+      .. ContentType::default()
     };
     expect!(content_type.is_json()).to(be_true());
 
     let content_type = ContentType {
       main_type: "text".into(),
       sub_type: "javascript".into(),
-      ..ContentType::default()
+      .. ContentType::default()
     };
     expect!(content_type.is_json()).to(be_false());
 
     let content_type = ContentType {
       main_type: "application".into(),
       sub_type: "json".into(),
-      ..ContentType::default()
+      .. ContentType::default()
     };
     expect!(content_type.is_json()).to(be_true());
 
     let content_type = ContentType {
       main_type: "application".into(),
       sub_type: "json-rpc".into(),
-      ..ContentType::default()
+      .. ContentType::default()
     };
     expect!(content_type.is_json()).to(be_true());
 
     let content_type = ContentType {
       main_type: "application".into(),
       sub_type: "graphql".into(),
-      ..ContentType::default()
+      .. ContentType::default()
     };
     expect!(content_type.is_json()).to(be_true());
   }
@@ -421,21 +440,21 @@ mod tests {
     let content_type = ContentType {
       main_type: "text".into(),
       sub_type: "javascript".into(),
-      ..ContentType::default()
+      .. ContentType::default()
     };
     expect!(content_type.is_xml()).to(be_false());
 
     let content_type = ContentType {
       main_type: "application".into(),
       sub_type: "xml".into(),
-      ..ContentType::default()
+      .. ContentType::default()
     };
     expect!(content_type.is_xml()).to(be_true());
 
     let content_type = ContentType {
       main_type: "text".into(),
       sub_type: "xml".into(),
-      ..ContentType::default()
+      .. ContentType::default()
     };
     expect!(content_type.is_xml()).to(be_true());
   }
@@ -446,30 +465,30 @@ mod tests {
     expect!(content_type.base_type()).to(be_equal_to(ContentType {
       main_type: "application".into(),
       sub_type: "xml".into(),
-      ..ContentType::default()
+      .. ContentType::default()
     }));
 
     let content_type = ContentType {
       main_type: "text".into(),
       sub_type: "javascript".into(),
-      ..ContentType::default()
+      .. ContentType::default()
     };
     expect!(content_type.base_type()).to(be_equal_to(ContentType {
       main_type: "text".into(),
       sub_type: "javascript".into(),
-      ..ContentType::default()
+      .. ContentType::default()
     }));
 
     let content_type = ContentType {
       main_type: "application".into(),
       sub_type: "xml".into(),
       attributes: btreemap! { "charset".to_string() => "UTF-8".to_string() },
-      ..ContentType::default()
+      .. ContentType::default()
     };
     expect!(content_type.base_type()).to(be_equal_to(ContentType {
       main_type: "application".into(),
       sub_type: "xml".into(),
-      ..ContentType::default()
+      .. ContentType::default()
     }));
   }
 
@@ -481,16 +500,46 @@ mod tests {
     let content_type = ContentType {
       main_type: "text".into(),
       sub_type: "javascript".into(),
-      ..ContentType::default()
+      .. ContentType::default()
     };
     expect!(content_type.is_binary()).to(be_false());
 
     let content_type = ContentType {
       main_type: "image".into(),
       sub_type: "jpeg".into(),
-      ..ContentType::default()
+      .. ContentType::default()
     };
     expect!(content_type.is_binary()).to(be_true());
+  }
+
+  #[test]
+  fn is_text_test() {
+    let content_type = ContentType {
+      main_type: "text".into(),
+      sub_type: "javascript".into(),
+      .. ContentType::default()
+    };
+    expect!(content_type.is_text()).to(be_true());
+
+    let content_type = ContentType::parse("application/atom+xml").unwrap();
+    expect!(content_type.is_text()).to(be_true());
+
+    let content_type = ContentType::parse("application/hal+json").unwrap();
+    expect!(content_type.is_text()).to(be_true());
+
+    let content_type = ContentType {
+      main_type: "image".into(),
+      sub_type: "jpeg".into(),
+      .. ContentType::default()
+    };
+    expect!(content_type.is_text()).to(be_false());
+
+    let content_type = ContentType {
+      main_type: "application".into(),
+      sub_type: "x-www-form-urlencoded".into(),
+      .. ContentType::default()
+    };
+    expect!(content_type.is_text()).to(be_true());
   }
 
   #[test]
