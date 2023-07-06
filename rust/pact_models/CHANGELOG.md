@@ -1,5 +1,12 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.1.7 - Bugfix Release
+
+* 7dd89384 - feat: Add application/x-www-form-urlencoded to the known content types (Ronald Holshausen, Wed Jul 5 16:58:21 2023 +1000)
+* f6ba3b2a - fix: When writing V4 format, correct the content type set on the body (Ronald Holshausen, Wed Jul 5 16:57:40 2023 +1000)
+* 52d6bfab - feat: Add method to DocPath to return a lower-case copy of the path (Ronald Holshausen, Wed Jun 28 15:20:39 2023 +1000)
+* 59cbaad0 - bump version to 1.1.7 (Ronald Holshausen, Thu Jun 22 15:34:04 2023 +1000)
+
 # 1.1.6 - Bugfix Release
 
 * 727ea824 - fix: Support string escape sequences in matching definitions #283 (Ronald Holshausen, Wed Jun 21 14:55:42 2023 +1000)
