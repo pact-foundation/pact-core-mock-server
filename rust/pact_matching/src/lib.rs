@@ -647,9 +647,7 @@ impl HeaderMatchingContext {
           name: context.matchers.name,
           rules: context.matchers.rules.iter()
             .map(|(path, rules)| {
-              // TODO: Replace this with DocPath.to_lower_case when pact_models 1.1.7 is released
-              let path = DocPath::new(path.to_string().to_lowercase()).unwrap_or(path.clone());
-              (path, rules.clone())
+              (path.to_lower_case(), rules.clone())
             })
             .collect()
         },
