@@ -107,7 +107,13 @@ fn compare_query_parameter_value(
       expected.to_string(), actual.to_string())
   } else {
     expected.matches_with(actual, &MatchingRule::Equality, false)
-      .map_err(|error| vec![error.to_string()])
+      .map_err(|_error| vec![
+        format!("Expected query parameter '{}' with value '{}' but was '{}'",
+          path.to_vec().last().cloned().unwrap_or_else(|| "??".to_string()),
+          expected,
+          actual
+        )
+      ])
   };
   matcher_result.map_err(|messages| {
     messages.iter().map(|message| {

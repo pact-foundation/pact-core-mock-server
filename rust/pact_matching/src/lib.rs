@@ -405,6 +405,7 @@ mod xml;
 mod binary_utils;
 mod headers;
 mod query;
+mod form_urlencoded;
 
 /// Context used to apply matching logic
 pub trait MatchingContext: Debug {
@@ -709,11 +710,12 @@ impl MatchingContext for HeaderMatchingContext {
 lazy_static! {
   static ref BODY_MATCHERS: [
     (fn(content_type: &ContentType) -> bool,
-    fn(expected: &dyn HttpPart, actual: &dyn HttpPart, context: &dyn MatchingContext) -> Result<(), Vec<Mismatch>>); 4]
+    fn(expected: &dyn HttpPart, actual: &dyn HttpPart, context: &dyn MatchingContext) -> Result<(), Vec<Mismatch>>); 5]
      = [
       (|content_type| { content_type.is_json() }, json::match_json),
       (|content_type| { content_type.is_xml() }, xml::match_xml),
       (|content_type| { content_type.base_type() == "multipart/form-data" }, binary_utils::match_mime_multipart),
+      (|content_type| { content_type.base_type() == "application/x-www-form-urlencoded" }, form_urlencoded::match_form_urlencoded),
       (|content_type| { content_type.is_binary() || content_type.base_type() == "application/octet-stream" }, binary_utils::match_octet_stream)
   ];
 }
@@ -1318,7 +1320,7 @@ async fn compare_bodies(
       debug!("Using content matcher {} for content type '{}'", matcher.catalogue_entry_key(), content_type);
       if matcher.is_core() {
         if let Err(m) = match matcher.catalogue_entry_key().as_str() {
-          // TODO: "core/content-matcher/form-urlencoded" => ,
+          "core/content-matcher/form-urlencoded" => form_urlencoded::match_form_urlencoded(expected, actual, context),
           "core/content-matcher/json" => match_json(expected, actual, context),
           "core/content-matcher/multipart-form-data" => binary_utils::match_mime_multipart(expected, actual, context),
           "core/content-matcher/text" => match_text(&expected.body().value(), &actual.body().value(), context),

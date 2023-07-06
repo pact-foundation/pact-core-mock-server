@@ -1960,6 +1960,7 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
+ "serde_urlencoded",
  "sxd-document",
  "test-log",
  "tokio",
