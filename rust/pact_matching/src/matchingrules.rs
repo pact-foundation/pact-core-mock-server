@@ -381,9 +381,8 @@ fn match_list_contents<T: Display + Debug + PartialEq + Clone + Sized>(
 
 #[cfg(test)]
 mod tests {
-  use std::cell::RefCell;
   use std::collections::{BTreeSet, HashMap, HashSet};
-  use std::rc::Rc;
+  use std::sync::RwLock;
 
   use expectest::prelude::*;
   use maplit::{btreemap, hashmap};
@@ -399,12 +398,13 @@ mod tests {
 
   #[derive(Debug)]
   struct MockContext {
-    pub calls: Rc<RefCell<Vec<String>>>
+    pub calls: RwLock<Vec<String>>
   }
 
   impl MatchingContext for MockContext {
     fn matcher_is_defined(&self, path: &DocPath) -> bool {
-      self.calls.borrow_mut().push(format!("matcher_is_defined({})", path));
+      let mut w = self.calls.write().unwrap();
+      w.push(format!("matcher_is_defined({})", path));
       true
     }
 
@@ -425,7 +425,8 @@ mod tests {
     }
 
     fn match_keys(&self, path: &DocPath, expected: &BTreeSet<String>, actual: &BTreeSet<String>) -> Result<(), Vec<Mismatch>> {
-      self.calls.borrow_mut().push(format!("match_keys({}, {:?}, {:?})", path, expected, actual));
+      let mut w = self.calls.write().unwrap();
+      w.push(format!("match_keys({}, {:?}, {:?})", path, expected, actual));
       Ok(())
     }
 
@@ -441,9 +442,10 @@ mod tests {
       todo!()
     }
 
-    fn clone_with(&self, _matchers: &MatchingRuleCategory) -> Box<dyn MatchingContext> {
+    fn clone_with(&self, _matchers: &MatchingRuleCategory) -> Box<dyn MatchingContext + Send + Sync> {
+      let r = self.calls.read().unwrap();
       Box::new(MockContext {
-        calls: self.calls.clone()
+        calls: RwLock::new(r.clone())
       })
     }
   }
@@ -460,7 +462,7 @@ mod tests {
     };
 
     let context = MockContext {
-      calls: Rc::new(RefCell::new(vec![]))
+      calls: RwLock::new(vec![])
     };
     let mut calls = vec![];
     let mut callback = |p: &DocPath, a: &String, b: &String| {
@@ -477,7 +479,7 @@ mod tests {
     let v = vec![
       "match_keys($, {\"a\", \"b\"}, {\"a\"})".to_string()
     ];
-    expect!(context.calls.borrow().clone()).to(be_equal_to(v));
+    expect!(context.calls.read().unwrap().clone()).to(be_equal_to(v));
     let v = vec![
       "$.a, 100, 101".to_string()
     ];
@@ -495,7 +497,7 @@ mod tests {
     };
 
     let context = MockContext {
-      calls: Rc::new(RefCell::new(vec![]))
+      calls: RwLock::new(vec![])
     };
     let mut calls = vec![];
     let mut callback = |p: &DocPath, a: &String, b: &String| {
@@ -519,7 +521,7 @@ mod tests {
     // With a values matcher, we expect the callback to be called for each key in the actual map
     // and no other methods called on the context
     let v: Vec<String> = vec![];
-    expect!(context.calls.borrow().clone()).to(be_equal_to(v));
+    expect!(context.calls.read().unwrap().clone()).to(be_equal_to(v));
     let v = vec![
       "$.a, 100, 101".to_string(),
       "$.b, 100, 102".to_string(),
@@ -535,7 +537,7 @@ mod tests {
     let actual = vec![ "one".to_string(), "two".to_string() ];
 
     let context = MockContext {
-      calls: Rc::new(RefCell::new(vec![]))
+      calls: RwLock::new(vec![])
     };
     let mut calls = vec![];
     let mut callback = |p: &DocPath, a: &String, b: &String, _context: &dyn MatchingContext| {
@@ -549,7 +551,7 @@ mod tests {
     expect!(result).to(be_ok());
 
     let v: Vec<String> = vec![];
-    expect!(context.calls.borrow().clone()).to(be_equal_to(v.clone()));
+    expect!(context.calls.read().unwrap().clone()).to(be_equal_to(v.clone()));
     expect!(calls).to(be_equal_to(v));
   }
 
@@ -559,7 +561,7 @@ mod tests {
     let actual = vec![ "one".to_string(), "two".to_string() ];
 
     let context = MockContext {
-      calls: Rc::new(RefCell::new(vec![]))
+      calls: RwLock::new(vec![])
     };
     let mut calls = vec![];
     let mut callback = |p: &DocPath, a: &String, b: &String, _context: &dyn MatchingContext| {
@@ -575,7 +577,7 @@ mod tests {
     let v: Vec<String> = vec![
       "matcher_is_defined($[2])".to_string()
     ];
-    expect!(context.calls.borrow().clone()).to(be_equal_to(v));
+    expect!(context.calls.read().unwrap().clone()).to(be_equal_to(v));
 
     let v: Vec<String> = vec![
       "$[0], value one, one".to_string(),
@@ -590,7 +592,7 @@ mod tests {
     let actual = vec![ "one".to_string(), "two".to_string() ];
 
     let context = MockContext {
-      calls: Rc::new(RefCell::new(vec![]))
+      calls: RwLock::new(vec![])
     };
     let mut calls = vec![];
     let mut callback = |p: &DocPath, a: &String, b: &String, _context: &dyn MatchingContext| {
@@ -612,7 +614,7 @@ mod tests {
     let v: Vec<String> = vec![
       "matcher_is_defined($[2])".to_string()
     ];
-    expect!(context.calls.borrow().clone()).to(be_equal_to(v));
+    expect!(context.calls.read().unwrap().clone()).to(be_equal_to(v));
 
     let v: Vec<String> = vec![
       "$[0], value one, one".to_string(),

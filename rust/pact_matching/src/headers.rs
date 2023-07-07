@@ -378,7 +378,7 @@ mod tests {
 
   #[test_log::test]
   fn matching_headers_be_true_when_headers_match_by_matcher() {
-    let context = HeaderMatchingContext::new(CoreMatchingContext::new(
+    let context = HeaderMatchingContext::new(&CoreMatchingContext::new(
       DiffConfig::AllowUnexpectedKeys,
       &matchingrules! {
         "header" => {
@@ -392,7 +392,7 @@ mod tests {
 
   #[test]
   fn matching_headers_be_false_when_headers_do_not_match_by_matcher() {
-    let context = HeaderMatchingContext::new(CoreMatchingContext::new(
+    let context = HeaderMatchingContext::new(&CoreMatchingContext::new(
       DiffConfig::AllowUnexpectedKeys,
       &matchingrules! {
           "header" => {
@@ -434,7 +434,7 @@ mod tests {
   // Issue #238
   #[test_log::test]
   fn matching_headers_with_an_indexed_path() {
-    let context = HeaderMatchingContext::new(CoreMatchingContext::new(
+    let context = HeaderMatchingContext::new(&CoreMatchingContext::new(
       DiffConfig::AllowUnexpectedKeys,
       &matchingrules! {
         "header" => {
@@ -622,7 +622,7 @@ mod tests {
 
   #[test_log::test]
   fn matching_last_modified_header_with_a_matcher() {
-    let context = HeaderMatchingContext::new(CoreMatchingContext::new(
+    let context = HeaderMatchingContext::new(&CoreMatchingContext::new(
       DiffConfig::AllowUnexpectedKeys,
       &matchingrules! {
         "header" => {

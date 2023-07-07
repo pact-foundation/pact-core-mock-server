@@ -134,6 +134,16 @@ impl DocPath {
     return None;
   }
 
+  /// Extract the string contents of the last Field token.
+  pub fn last_field(&self) -> Option<&str> {
+    for token in self.path_tokens.iter().rev() {
+      if let PathToken::Field(ref field) = token {
+        return Some(field);
+      }
+    }
+    return None;
+  }
+
   /// If this path is the root path (it has only one element, the root token `$`).
   pub fn is_root(&self) -> bool {
     &self.path_tokens == &[PathToken::Root]

@@ -239,7 +239,11 @@ impl Matches<&Value> for Value {
 }
 
 /// Matches the expected JSON to the actual, and populates the mismatches vector with any differences
-pub fn match_json(expected: &dyn HttpPart, actual: &dyn HttpPart, context: &dyn MatchingContext) -> Result<(), Vec<super::Mismatch>> {
+pub fn match_json(
+  expected: &(dyn HttpPart + Send + Sync),
+  actual: &(dyn HttpPart + Send + Sync),
+  context: &(dyn MatchingContext + Send + Sync)
+) -> Result<(), Vec<super::Mismatch>> {
   let expected_json = serde_json::from_slice(&*expected.body().value().unwrap_or_default());
   let actual_json = serde_json::from_slice(&*actual.body().value().unwrap_or_default());
 

@@ -437,7 +437,7 @@ pub trait MatchingContext: Debug {
   fn config(&self) -> DiffConfig;
 
   /// Clones the current context with the provided matching rules
-  fn clone_with(&self, matchers: &MatchingRuleCategory) -> Box<dyn MatchingContext>;
+  fn clone_with(&self, matchers: &MatchingRuleCategory) -> Box<dyn MatchingContext + Send + Sync>;
 }
 
 #[derive(Debug, Clone)]
@@ -487,6 +487,15 @@ impl CoreMatchingContext {
         val.matches_path_exactly(p_slice.as_slice())
       }),
       _ => self.matchers.filter(|_| false)
+    }
+  }
+
+  pub(crate) fn clone_from(context: &(dyn MatchingContext + Send + Sync)) -> Self {
+    CoreMatchingContext {
+      matchers: context.matchers().clone(),
+      config: context.config().clone(),
+      plugin_configuration: context.plugin_configuration().clone(),
+      .. CoreMatchingContext::default()
     }
   }
 }
@@ -622,7 +631,7 @@ impl MatchingContext for CoreMatchingContext {
     self.config
   }
 
-  fn clone_with(&self, matchers: &MatchingRuleCategory) -> Box<dyn MatchingContext> {
+  fn clone_with(&self, matchers: &MatchingRuleCategory) -> Box<dyn MatchingContext + Send + Sync> {
     Box::new(CoreMatchingContext {
       matchers: matchers.clone(),
       config: self.config.clone(),
@@ -639,20 +648,21 @@ pub struct HeaderMatchingContext {
 }
 
 impl HeaderMatchingContext {
-  /// Wraps a CoreMatchingContext, downcasing all the matching path keys
-  pub fn new(context: CoreMatchingContext) -> Self {
+  /// Wraps a MatchingContext, downcasing all the matching path keys
+  pub fn new(context: &(dyn MatchingContext + Send + Sync)) -> Self {
+    let matchers = context.matchers();
     HeaderMatchingContext {
       inner_context: CoreMatchingContext::new(
-        context.config,
+        context.config(),
         &MatchingRuleCategory {
-          name: context.matchers.name,
-          rules: context.matchers.rules.iter()
+          name: matchers.name.clone(),
+          rules: matchers.rules.iter()
             .map(|(path, rules)| {
               (path.to_lower_case(), rules.clone())
             })
             .collect()
         },
-        &context.plugin_configuration
+        &context.plugin_configuration()
       )
     }
   }
@@ -695,9 +705,9 @@ impl MatchingContext for HeaderMatchingContext {
     self.inner_context.config()
   }
 
-  fn clone_with(&self, matchers: &MatchingRuleCategory) -> Box<dyn MatchingContext> {
+  fn clone_with(&self, matchers: &MatchingRuleCategory) -> Box<dyn MatchingContext + Send + Sync> {
     Box::new(HeaderMatchingContext::new(
-      CoreMatchingContext {
+      &CoreMatchingContext {
         matchers: matchers.clone(),
         config: self.inner_context.config.clone(),
         matching_spec: self.inner_context.matching_spec,
@@ -710,11 +720,11 @@ impl MatchingContext for HeaderMatchingContext {
 lazy_static! {
   static ref BODY_MATCHERS: [
     (fn(content_type: &ContentType) -> bool,
-    fn(expected: &dyn HttpPart, actual: &dyn HttpPart, context: &dyn MatchingContext) -> Result<(), Vec<Mismatch>>); 5]
+    fn(expected: &(dyn HttpPart + Send + Sync), actual: &(dyn HttpPart + Send + Sync), context: &(dyn MatchingContext + Send + Sync)) -> Result<(), Vec<Mismatch>>); 5]
      = [
       (|content_type| { content_type.is_json() }, json::match_json),
       (|content_type| { content_type.is_xml() }, xml::match_xml),
-      (|content_type| { content_type.base_type() == "multipart/form-data" }, binary_utils::match_mime_multipart),
+      (|content_type| { content_type.main_type == "multipart" }, binary_utils::match_mime_multipart),
       (|content_type| { content_type.base_type() == "application/x-www-form-urlencoded" }, form_urlencoded::match_form_urlencoded),
       (|content_type| { content_type.is_binary() || content_type.base_type() == "application/octet-stream" }, binary_utils::match_octet_stream)
   ];
@@ -1308,7 +1318,7 @@ fn group_by<I, F, K>(items: I, f: F) -> HashMap<K, Vec<I::Item>>
   m
 }
 
-async fn compare_bodies(
+pub(crate) async fn compare_bodies(
   content_type: &ContentType,
   expected: &(dyn HttpPart + Send + Sync),
   actual: &(dyn HttpPart + Send + Sync),
@@ -1370,9 +1380,9 @@ async fn compare_bodies(
 
 fn compare_bodies_core(
   content_type: &ContentType,
-  expected: &dyn HttpPart,
-  actual: &dyn HttpPart,
-  context: &dyn MatchingContext
+  expected: &(dyn HttpPart + Send + Sync),
+  actual: &(dyn HttpPart + Send + Sync),
+  context: &(dyn MatchingContext + Send + Sync)
 ) -> Vec<Mismatch> {
   let mut mismatches = vec![];
   match BODY_MATCHERS.iter().find(|mt| mt.0(content_type)) {
@@ -1502,7 +1512,7 @@ pub async fn match_request<'a>(
     &expected.matching_rules.rules_for_category("query").unwrap_or_default(),
     &plugin_data);
   let header_context = HeaderMatchingContext::new(
-    CoreMatchingContext::new(DiffConfig::NoUnexpectedKeys,
+    &CoreMatchingContext::new(DiffConfig::NoUnexpectedKeys,
      &expected.matching_rules.rules_for_category("header").unwrap_or_default(),
      &plugin_data
     )
@@ -1561,7 +1571,7 @@ pub async fn match_response<'a>(
     &expected.matching_rules.rules_for_category("body").unwrap_or_default(),
     &plugin_data);
   let header_context = HeaderMatchingContext::new(
-    CoreMatchingContext::new(DiffConfig::NoUnexpectedKeys,
+    &CoreMatchingContext::new(DiffConfig::NoUnexpectedKeys,
       &expected.matching_rules.rules_for_category("header").unwrap_or_default(),
       &plugin_data
     )

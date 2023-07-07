@@ -21,7 +21,11 @@ use crate::MatchingContext;
 use super::DiffConfig;
 use super::Mismatch;
 
-pub fn match_xml(expected: &dyn HttpPart, actual: &dyn HttpPart, context: &dyn MatchingContext) -> Result<(), Vec<super::Mismatch>> {
+pub fn match_xml(
+  expected: &(dyn HttpPart + Send + Sync),
+  actual: &(dyn HttpPart + Send + Sync),
+  context: &(dyn MatchingContext + Send + Sync)
+) -> Result<(), Vec<super::Mismatch>> {
   let mut mismatches = vec![];
   match (expected.body(), actual.body()) {
     (OptionalBody::Missing, _) => (),

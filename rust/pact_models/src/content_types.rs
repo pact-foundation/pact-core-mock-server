@@ -78,13 +78,7 @@ impl ContentType {
     let content_type = content_type.into();
     match Mime::from_str(content_type) {
       Ok(mime) => {
-        Ok(ContentType {
-          main_type: mime.type_().to_string(),
-          sub_type: mime.subtype().to_string(),
-          attributes: mime.params().map(|(key, value)| (key.to_string(), value.to_string())).collect(),
-          suffix: mime.suffix().map(|name| name.to_string()),
-          .. ContentType::default()
-        })
+        Ok(ContentType::from(mime))
       },
       Err(err) => {
         let message = format!("Failed to parse '{}' as a content type: {}",
@@ -210,6 +204,18 @@ impl From<&String> for ContentType {
 impl From<&str> for ContentType {
   fn from(s: &str) -> Self {
     ContentType::parse(s).unwrap_or_default()
+  }
+}
+
+impl From<Mime> for ContentType {
+  fn from(mime: Mime) -> Self {
+    ContentType {
+      main_type: mime.type_().to_string(),
+      sub_type: mime.subtype().to_string(),
+      attributes: mime.params().map(|(key, value)| (key.to_string(), value.to_string())).collect(),
+      suffix: mime.suffix().map(|name| name.to_string()),
+      .. ContentType::default()
+    }
   }
 }
 

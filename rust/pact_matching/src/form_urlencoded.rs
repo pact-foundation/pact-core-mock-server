@@ -7,9 +7,10 @@ use crate::query::match_query_maps;
 
 /// Matches the bodies using application/x-www-form-urlencoded encoding
 pub(crate) fn match_form_urlencoded(
-  expected: &dyn HttpPart,
-  actual: &dyn HttpPart,
-  context: &dyn MatchingContext) -> Result<(), Vec<super::Mismatch>> {
+  expected: &(dyn HttpPart + Send + Sync),
+  actual: &(dyn HttpPart + Send + Sync),
+  context: &(dyn MatchingContext + Send + Sync)
+) -> Result<(), Vec<super::Mismatch>> {
   let expected_body = expected.body();
   let actual_body = actual.body();
   match expected_body {
