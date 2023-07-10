@@ -1,5 +1,21 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.1.2 - Bugfix Release
+
+* 1deca59a - chore: Upgrade pact_models to 1.1.8 (Ronald Holshausen, Mon Jul 10 16:15:43 2023 +1000)
+* 913e9a27 - feat(multipart): Support the content-transfer-encoding header (Ronald Holshausen, Mon Jul 10 11:20:04 2023 +1000)
+* a6049684 - refactor: Update MIME multipart parser to a supported lib + make implementation inline with Pact-JVM (Ronald Holshausen, Fri Jul 7 15:42:02 2023 +1000)
+* 692120aa - feat: Add support for matching application/x-www-form-urlencoded encoded bodies (Ronald Holshausen, Thu Jul 6 12:41:59 2023 +1000)
+* 67e8ad8c - refactor: use DocPath.to_lower_case from pact_models (Ronald Holshausen, Thu Jul 6 10:46:33 2023 +1000)
+* 2662cdfc - chore: Upgrade pact_models to 1.1.7 (Ronald Holshausen, Thu Jul 6 10:27:25 2023 +1000)
+* 72818ea7 - feat: Update to latest compatibility-suite and correct some error messages (Ronald Holshausen, Wed Jul 5 15:29:03 2023 +1000)
+* 445ea1ee - fix: Header matching rules should be looked up in a case-insenstive way (Ronald Holshausen, Wed Jun 28 15:21:32 2023 +1000)
+* 95753e29 - fix: Correct the use of matching rules on repeated header values (Ronald Holshausen, Wed Jun 28 11:57:35 2023 +1000)
+* 6a7e504e - fix: Correct the use of matching rules on repeated query parameters (Ronald Holshausen, Wed Jun 28 11:56:07 2023 +1000)
+* d5df06ac - fix: Regex matcher was incorrectly being applied to lists (Ronald Holshausen, Wed Jun 28 11:52:45 2023 +1000)
+* f88adb2a - fix: Correct the format of matching errors on JSON (Ronald Holshausen, Wed Jun 28 11:51:10 2023 +1000)
+* a3c5db59 - bump version to 1.1.2 (Ronald Holshausen, Thu Jun 22 15:56:55 2023 +1000)
+
 # 1.1.1 - Bugfix Release
 
 * e95ae4d0 - chore: Upgrade pact_models to 1.1.6 (Ronald Holshausen, Thu Jun 22 15:40:55 2023 +1000)
