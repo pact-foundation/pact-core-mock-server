@@ -113,7 +113,7 @@ impl MatchingRule {
   /// Builds a `MatchingRule` from a `Value` struct
   pub fn from_json(value: &Value) -> anyhow::Result<MatchingRule> {
     match value {
-      Value::Object(m) => match m.get("match") {
+      Value::Object(m) => match m.get("match").or_else(|| m.get("pact:matcher:type")) {
         Some(match_val) => {
           let val = json_to_string(match_val);
           MatchingRule::create(val.as_str(), value)
@@ -1944,6 +1944,25 @@ mod tests {
     expect!(MatchingRule::from_json(&json)).to(be_ok().value(
       MatchingRule::StatusCode(HttpStatus::StatusCodes(vec![200, 201, 204]))
     ));
+  }
+
+  #[test]
+  fn matching_rule_from_json_supports_intergration_form() {
+    let json = json!({
+      "pact:matcher:type": "each-value",
+      "value": {
+        "price": 1.23
+      },
+      "rules": [
+        {
+          "pact:matcher:type": "decimal"
+        }
+      ]
+    });
+    expect!(MatchingRule::from_json(&json)).to(be_ok().value(
+      MatchingRule::EachValue(MatchingRuleDefinition::new("{\"price\": 1.23}".to_string(),
+        ValueType::Unknown, MatchingRule::Decimal, None)))
+    );
   }
 
   #[test]
