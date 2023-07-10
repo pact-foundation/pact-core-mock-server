@@ -209,6 +209,12 @@ impl From<&str> for ContentType {
 
 impl From<Mime> for ContentType {
   fn from(mime: Mime) -> Self {
+    Self::from(&mime)
+  }
+}
+
+impl From<&Mime> for ContentType {
+  fn from(mime: &Mime) -> Self {
     ContentType {
       main_type: mime.type_().to_string(),
       sub_type: mime.subtype().to_string(),

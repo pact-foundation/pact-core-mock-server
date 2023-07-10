@@ -473,8 +473,7 @@ mod test {
   }
 
   // Issue #299
-  // #[test_log::test]
-  // TODO: Uncomment when pact_models 1.1.8 released
+  #[test_log::test]
   fn process_object_with_each_value_matcher_on_object() {
     let json = json!({
       "pact:matcher:type": "each-value",
@@ -493,21 +492,18 @@ mod test {
       &mut generators, DocPath::root(), false);
 
     expect!(result).to(be_equal_to(json!({
-      "name": "APL",
       "price": 1.23
     })));
     expect!(matching_rules).to(be_equal_to(matchingrules_list!{
       "body";
-      "$" => [ MatchingRule::Type ],
-      "$.name" => [ MatchingRule::Type ],
-      "$.price" => [ MatchingRule::Decimal ]
+      "$" => [ MatchingRule::EachValue(MatchingRuleDefinition::new("{\"price\":1.23}".to_string(),
+        ValueType::Unknown, MatchingRule::Decimal, None)) ]
     }));
     expect!(generators).to(be_equal_to(Generators::default()));
   }
 
   // Issue #299
-  // #[test_log::test]
-  // TODO: Uncomment when pact_models 1.1.8 released
+  #[test_log::test]
   fn process_object_with_each_key_matcher_on_object() {
     let json = json!({
       "pact:matcher:type": "each-key",

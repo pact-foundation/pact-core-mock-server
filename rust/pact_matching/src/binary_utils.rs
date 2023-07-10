@@ -19,7 +19,7 @@ use pact_models::bodies::OptionalBody;
 use pact_models::content_types::{ContentType, detect_content_type_from_bytes};
 use pact_models::http_parts::HttpPart;
 use pact_models::matchingrules::{MatchingRule, RuleLogic};
-use pact_models::path_exp::{DocPath, PathToken};
+use pact_models::path_exp::DocPath;
 use pact_models::v4::http_parts::HttpRequest;
 use serde_json::Value;
 use tracing::{debug, error, warn};
@@ -446,8 +446,7 @@ pub(crate) fn match_headers(
     let expected_value_bin = expected_value.as_bytes();
     let expected_value_str = String::from_utf8_lossy(expected_value_bin).to_string();
 
-    // TODO: Replace with DocPath::last_field when pact_models 1.1.8 released
-    let part_name = last_field(path).unwrap_or("unknown part");
+    let part_name = path.last_field().unwrap_or("unknown part");
 
     if let Some(actual_value) = actual.get(key) {
       let actual_value_bin = actual_value.as_bytes();
@@ -492,16 +491,6 @@ pub(crate) fn match_headers(
   } else {
     Err(results)
   }
-}
-
-// TODO: Replace with DocPath::last_field when pact_models 1.1.8 released
-fn last_field(path: &DocPath) -> Option<&str> {
-  for token in path.tokens().iter().rev() {
-    if let PathToken::Field(ref field) = token {
-      return Some(field);
-    }
-  }
-  return None;
 }
 
 fn first(bytes: &[u8], len: usize) -> &[u8] {
@@ -584,21 +573,10 @@ async fn match_file_part(
   debug!("Actual part headers: {:?}", actual.headers);
   debug!("Actual part body: [{:?}]", actual.data);
 
-  // TODO: Replace with ContentType::from(mime) when pact_models 1.1.8 is released
-  let expected_content_type = expected.content_type.as_ref().map(|mime| ContentType {
-    main_type: mime.type_().to_string(),
-    sub_type: mime.subtype().to_string(),
-    attributes: mime.params().map(|(key, value)| (key.to_string(), value.to_string())).collect(),
-    suffix: mime.suffix().map(|name| name.to_string()),
-    .. ContentType::default()
-  }). unwrap_or_default();
-  let actual_content_type = actual.content_type.as_ref().map(|mime| ContentType {
-    main_type: mime.type_().to_string(),
-    sub_type: mime.subtype().to_string(),
-    attributes: mime.params().map(|(key, value)| (key.to_string(), value.to_string())).collect(),
-    suffix: mime.suffix().map(|name| name.to_string()),
-    .. ContentType::default()
-  }). unwrap_or_default();
+  let expected_content_type = expected.content_type.clone()
+    .map(|mime| ContentType::from(mime)).unwrap_or_default();
+  let actual_content_type = actual.content_type.clone()
+    .map(|mime| ContentType::from(mime)). unwrap_or_default();
 
   debug!("Comparing mime part '{}': {} -> {}", part_name, expected_content_type, actual_content_type);
   let matcher_result = if expected_content_type.is_unknown() || actual_content_type.is_unknown() ||
