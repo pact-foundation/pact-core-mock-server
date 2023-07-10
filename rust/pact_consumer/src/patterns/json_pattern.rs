@@ -72,6 +72,12 @@ impl Pattern for JsonPattern {
         }
     }
 
+    fn to_example_bytes(&self) -> Vec<u8> {
+        let json = self.to_example();
+        let s = json.as_str().unwrap_or_default();
+        s.as_bytes().to_vec()
+    }
+
     fn extract_matching_rules(&self, path: DocPath, rules_out: &mut MatchingRuleCategory) {
         match *self {
             JsonPattern::Json(_) => {}

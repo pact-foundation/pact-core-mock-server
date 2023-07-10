@@ -140,9 +140,6 @@ pub trait HttpPartBuilder {
     ///
     /// RequestBuilder::default().body("Hello");
     /// ```
-    ///
-    /// TODO: We may want to change this to `B: Into<Vec<u8>>` depending on what
-    /// happens with https://github.com/pact-foundation/pact-reference/issues/19
     fn body<B: Into<String>>(&mut self, body: B) -> &mut Self {
         let body = body.into();
         {
@@ -160,9 +157,6 @@ pub trait HttpPartBuilder {
   ///
   /// RequestBuilder::default().body2("Hello", "plain/text");
   /// ```
-  ///
-  /// TODO: We may want to change this to `B: Into<Vec<u8>>` depending on what
-  /// happens with https://github.com/pact-foundation/pact-reference/issues/19
   fn body2<B: Into<String>>(&mut self, body: B, content_type: B) -> &mut Self {
     let body = body.into();
     {
@@ -193,13 +187,54 @@ pub trait HttpPartBuilder {
         }
         self
     }
+
+  /// Specify a text body (text/plain) matching the given pattern.
+  ///
+  /// ```
+  /// use pact_consumer::prelude::*;
+  /// use pact_consumer::builders::RequestBuilder;
+  /// use pact_consumer::term;
+  ///
+  /// RequestBuilder::default().body_matching(term!("^(True|False)$", "True"));
+  /// ```
+  fn body_matching<P: Into<StringPattern>>(&mut self, body: P) -> &mut Self {
+    let body = body.into();
+    {
+      let (body_ref, rules) = self.body_and_matching_rules_mut();
+      *body_ref = OptionalBody::Present(body.to_example_bytes().into(), Some("text/plain".into()), None);
+      body.extract_matching_rules(DocPath::root(), rules.add_category("body"));
+    }
+    self
+  }
+
+  /// Specify a text body matching the given pattern with a content type.
+  ///
+  /// ```
+  /// use pact_consumer::prelude::*;
+  /// use pact_consumer::builders::RequestBuilder;
+  /// use pact_consumer::term;
+  ///
+  /// RequestBuilder::default().body_matching2(term!("^(True|False)$", "True"), "text/ascii");
+  /// ```
+  fn body_matching2<P: Into<StringPattern>, B: Into<String>>(&mut self, body: P, content_type: B) -> &mut Self {
+    let body = body.into();
+    {
+      let (body_ref, rules) = self.body_and_matching_rules_mut();
+      *body_ref = OptionalBody::Present(body.to_example_bytes().into(), content_type.into().parse().ok(), None);
+      body.extract_matching_rules(DocPath::root(), rules.add_category("body"));
+    }
+    self
+  }
 }
 
 #[cfg(test)]
 mod tests {
   use std::collections::HashMap;
+
   use expectest::prelude::*;
   use maplit::hashmap;
+  use pact_models::matchingrules::MatchingRule;
+  use pact_models::matchingrules_list;
   use regex::Regex;
   use serde_json::json;
 
@@ -310,6 +345,25 @@ mod tests {
       .build();
     assert_requests_match!(good, pattern);
     assert_requests_do_not_match!(bad, pattern);
+  }
+
+  #[test]
+  fn text_body_pattern() {
+    let pact = PactBuilder::new("C", "P")
+      .interaction("I", "", |mut i| {
+        i.request.body_matching(term!("^(True|False)$", "True"));
+        i
+      })
+      .build()
+      .as_v4_pact().unwrap();
+    let interaction = pact.interactions.first()
+      .unwrap().as_request_response().unwrap();
+    expect!(interaction.request.body.value_as_string().unwrap()).to(be_equal_to("True"));
+    expect!(interaction.request.matching_rules.rules_for_category("body").unwrap()).to(
+      be_equal_to(matchingrules_list! {
+        "body"; "$" => [ MatchingRule::Regex("^(True|False)$".to_string()) ]
+      })
+    );
   }
 
   #[test]

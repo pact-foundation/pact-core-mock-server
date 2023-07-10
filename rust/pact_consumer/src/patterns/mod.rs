@@ -42,6 +42,9 @@ pub trait Pattern: Debug {
     /// any special match rules.
     fn to_example(&self) -> Self::Matches;
 
+    /// Convert this `Matchable` into an example data value as byte slice.
+    fn to_example_bytes(&self) -> Vec<u8>;
+
     /// Extract the matching rules from this `Matchable`, and insert them into
     /// `rules_out`, using `path` as the base path.
     ///

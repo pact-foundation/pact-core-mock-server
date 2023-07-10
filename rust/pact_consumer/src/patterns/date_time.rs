@@ -43,6 +43,10 @@ where
     From::from(self.example.clone())
   }
 
+  fn to_example_bytes(&self) -> Vec<u8> {
+    self.example.as_bytes().to_vec()
+  }
+
   fn extract_matching_rules(&self, path: DocPath, rules_out: &mut MatchingRuleCategory) {
     rules_out.add_rule(path, MatchingRule::Timestamp(self.format.clone()), RuleLogic::And);
   }

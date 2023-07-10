@@ -36,6 +36,10 @@ impl Pattern for StringPattern {
         }
     }
 
+    fn to_example_bytes(&self) -> Vec<u8> {
+        self.to_example().into_bytes()
+    }
+
     fn extract_matching_rules(&self, path: DocPath, rules_out: &mut MatchingRuleCategory) {
         match *self {
             StringPattern::String(_) => {},

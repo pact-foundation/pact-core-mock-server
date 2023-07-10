@@ -42,6 +42,10 @@ impl<Nested: Pattern> Pattern for Like<Nested> {
         self.example.to_example()
     }
 
+    fn to_example_bytes(&self) -> Vec<u8> {
+        self.example.to_example_bytes()
+    }
+
     fn extract_matching_rules(&self, path: DocPath, rules_out: &mut MatchingRuleCategory) {
         rules_out.add_rule(path.clone(), MatchingRule::Type, RuleLogic::And);
         self.example.extract_matching_rules(path, rules_out);
@@ -128,6 +132,12 @@ impl Pattern for EachLike {
     fn to_example(&self) -> serde_json::Value {
         let element = self.example_element.to_example();
         serde_json::Value::Array(repeat(element).take(self.min_len).collect())
+    }
+
+    fn to_example_bytes(&self) -> Vec<u8> {
+        let value = self.to_example();
+        let s = value.as_str().unwrap_or_default();
+        s.as_bytes().to_vec()
     }
 
     fn extract_matching_rules(&self, path: DocPath, rules_out: &mut MatchingRuleCategory) {
@@ -304,6 +314,10 @@ where
 
     fn to_example(&self) -> Self::Matches {
         From::from(self.example.clone())
+    }
+
+    fn to_example_bytes(&self) -> Vec<u8> {
+        self.example.clone().into_bytes()
     }
 
     fn extract_matching_rules(&self, path: DocPath, rules_out: &mut MatchingRuleCategory) {
