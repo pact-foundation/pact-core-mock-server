@@ -22,7 +22,7 @@ use pact_models::matchingrules::{MatchingRule, RuleLogic};
 use pact_models::path_exp::{DocPath, PathToken};
 use pact_models::v4::http_parts::HttpRequest;
 use serde_json::Value;
-use tracing::{debug, error};
+use tracing::{debug, error, warn};
 
 use crate::{BodyMatchResult, CoreMatchingContext, HeaderMatchingContext, MatchingContext, Mismatch};
 use crate::matchers::{match_values, Matches};
@@ -163,6 +163,24 @@ struct MimeField {
   headers: HeaderMap
 }
 
+impl MimeField {
+  pub(crate) fn decode_data(&self) -> anyhow::Result<Bytes> {
+    if let Some(encoding) = self.headers.get("Content-Transfer-Encoding") {
+      let encoding = String::from_utf8_lossy(encoding.as_bytes());
+      if encoding.to_lowercase() == "base64" {
+        BASE64.decode(self.data.as_ref())
+          .map(|data| Bytes::from(data))
+          .map_err(|err| anyhow!(err))
+      } else {
+        warn!("Ignoring encoding '{}' for part '{}'", encoding, self.name);
+        Ok(self.data.clone())
+      }
+    } else {
+      Ok(self.data.clone())
+    }
+  }
+}
+
 #[derive(Debug)]
 struct MimeFile {
   index: usize,
@@ -171,6 +189,24 @@ struct MimeFile {
   filename: String,
   data: Bytes,
   headers: HeaderMap
+}
+
+impl MimeFile {
+  pub(crate) fn decode_data(&self) -> anyhow::Result<Bytes> {
+    if let Some(encoding) = self.headers.get("Content-Transfer-Encoding") {
+      let encoding = String::from_utf8_lossy(encoding.as_bytes());
+      if encoding.to_lowercase() == "base64" {
+        BASE64.decode(self.data.as_ref())
+          .map(|data| Bytes::from(data))
+          .map_err(|err| anyhow!(err))
+      } else {
+        warn!("Ignoring encoding '{}' for part '{}'('{}')", encoding, self.name, self.filename);
+        Ok(self.data.clone())
+      }
+    } else {
+      Ok(self.data.clone())
+    }
+  }
 }
 
 pub fn match_mime_multipart(
@@ -272,9 +308,14 @@ async fn match_mime_multipart_inner(
     for expected_part in expected_parts {
       let name = expected_part.name();
 
-      debug!("Comparing MIME field multipart {}:'{}'", expected_part.index(), expected_part.name());
+      debug!("Comparing MIME multipart {}:'{}'", expected_part.index(), expected_part.name());
       match actual_parts.iter().find(|part| {
-        (part.name() == expected_part.name()) || (part.name().is_empty() && part.index() == expected_part.index())
+        let name = part.name();
+        if name.is_empty() {
+          part.index() == expected_part.index()
+        } else {
+          name == expected_part.name()
+        }
       }) {
         Some(actual_part) => for error in match_mime_part(&expected_part, actual_part, context).await
           .err().unwrap_or_default() {
@@ -334,13 +375,26 @@ fn match_field(
   actual: &MimeField,
   context: &(dyn MatchingContext + Send + Sync)
 ) -> Result<(), Vec<Mismatch>> {
+  debug!("Comparing MIME part '{}' as a field", key);
   let path = if key.is_empty() {
     DocPath::root().join(expected.index.to_string())
   } else {
     DocPath::root().join(key)
   };
-  let expected_str = String::from_utf8_lossy(expected.data.as_ref()).to_string();
-  let actual_str = String::from_utf8_lossy(actual.data.as_ref()).to_string();
+  let expected_str = match expected.decode_data() {
+    Ok(data) => String::from_utf8_lossy(data.as_ref()).to_string(),
+    Err(err) => {
+      error!("Failed to decode mine part '{}': {}", key, err);
+      String::from_utf8_lossy(expected.data.as_ref()).to_string()
+    }
+  };
+  let actual_str = match actual.decode_data() {
+    Ok(data) => String::from_utf8_lossy(data.as_ref()).to_string(),
+    Err(err) => {
+      error!("Failed to decode mine part '{}': {}", key, err);
+      String::from_utf8_lossy(actual.data.as_ref()).to_string()
+    }
+  };
 
   let header_result = match_headers(&path, &expected.headers, &actual.headers, context);
   debug!("Comparing headers at path '{}' -> {:?}", path, header_result);
@@ -420,10 +474,8 @@ pub(crate) fn match_headers(
           }
         }));
       }
-    } else if key == "content-type" {
-      debug!("Ignoring missing content type header");
-    } else if key == "content-disposition" {
-      debug!("Ignoring missing content-disposition header");
+    } else if key == "content-type" || key == "content-disposition" || key == "content-transfer-encoding" {
+      debug!("Ignoring missing content-* headers: {}", key);
     } else {
       results.push(Mismatch::BodyMismatch {
         path: key_path.to_string(),
@@ -512,6 +564,12 @@ async fn match_file_part(
   actual: &MimeFile,
   context: &(dyn MatchingContext + Send + Sync)
 ) -> Result<(), Vec<Mismatch>> {
+  let part_name = if key.is_empty() {
+    expected.index.to_string()
+  } else {
+    key.to_string()
+  };
+  debug!("Comparing MIME part '{}' as binary data", part_name);
   let path = if key.is_empty() {
     DocPath::root().join(expected.index.to_string())
   } else {
@@ -520,6 +578,11 @@ async fn match_file_part(
 
   let header_result = match_headers(&path, &expected.headers, &actual.headers, context);
   debug!("Comparing headers at path '{}' -> {:?}", path, header_result);
+
+  debug!("Expected part headers: {:?}", expected.headers);
+  debug!("Expected part body: [{:?}]", expected.data);
+  debug!("Actual part headers: {:?}", actual.headers);
+  debug!("Actual part body: [{:?}]", actual.data);
 
   // TODO: Replace with ContentType::from(mime) when pact_models 1.1.8 is released
   let expected_content_type = expected.content_type.as_ref().map(|mime| ContentType {
@@ -537,15 +600,16 @@ async fn match_file_part(
     .. ContentType::default()
   }). unwrap_or_default();
 
+  debug!("Comparing mime part '{}': {} -> {}", part_name, expected_content_type, actual_content_type);
   let matcher_result = if expected_content_type.is_unknown() || actual_content_type.is_unknown() ||
       expected_content_type.is_equivalent_to(&actual_content_type) ||
       expected_content_type.is_equivalent_to(&actual_content_type.base_type()) {
     let expected_part = HttpRequest {
-      body: OptionalBody::Present(expected.data.clone(), Some(expected_content_type.clone()), None),
+      body: OptionalBody::Present(expected.decode_data().unwrap_or_else(|_| expected.data.clone()), Some(expected_content_type.clone()), None),
       .. HttpRequest::default()
     };
     let actual_part = HttpRequest {
-      body: OptionalBody::Present(actual.data.clone(), Some(actual_content_type.clone()), None),
+      body: OptionalBody::Present(actual.decode_data().unwrap_or_else(|_| actual.data.clone()), Some(actual_content_type.clone()), None),
       .. HttpRequest::default()
     };
     let mut rule_category = context.matchers().clone();
@@ -569,7 +633,7 @@ async fn match_file_part(
       expected_type: expected_content_type.to_string(),
       actual_type: actual_content_type.to_string(),
       message: format!("MIME part '{}': Expected a body of '{}' but the actual content type was '{}'",
-                       key, expected_content_type, actual_content_type),
+                       part_name, expected_content_type, actual_content_type),
       expected: Some(expected.data.clone()),
       actual: Some(actual.data.clone())
     }
@@ -587,7 +651,7 @@ async fn match_file_part(
         path: path.clone(),
         expected: expected.clone(),
         actual: actual.clone(),
-        mismatch: format!("MIME part '{}': {}", key, mismatch)
+        mismatch: format!("MIME part '{}': {}", part_name, mismatch)
       }
     } else {
       m.clone()
@@ -615,22 +679,33 @@ async fn parse_multipart(
     let content_type = field.content_type().cloned();
     let headers = field.headers().clone();
 
-    if let Some(filename) = field.file_name() {
+    if headers.contains_key("Content-Disposition") {
+      if let Some(filename) = field.file_name() {
+        parts.push(MimePart::File(MimeFile {
+          index,
+          name,
+          content_type,
+          filename: filename.to_string(),
+          data: field.bytes().await?,
+          headers
+        }));
+      } else {
+        parts.push(MimePart::Field(MimeField {
+          index,
+          name,
+          data: field.bytes().await?,
+          headers
+        }));
+      }
+    } else {
       parts.push(MimePart::File(MimeFile {
         index,
         name,
         content_type,
-        filename: filename.to_string(),
+        filename: String::default(),
         data: field.bytes().await?,
         headers
       }));
-    } else {
-      parts.push(MimePart::Field(MimeField {
-        index,
-        name,
-        data: field.bytes().await?,
-        headers
-      }))
     }
   }
 
@@ -1280,6 +1355,33 @@ mod tests {
     actual.insert("content-disposition", "form-data; name=\"file\"; filename=\"008.csv\"".parse().unwrap());
 
     let result = super::match_headers(&path, &expected, &actual, &context);
+    expect!(result).to(be_ok());
+  }
+
+  #[test]
+  fn supports_content_transfer_encoding_header() {
+    let expected_body = Bytes::from("--1234\r\n\
+      Content-Type: text/plain\r\n\
+      Content-Disposition: form-data; name=\"name\"\r\n\r\nBaxter\r\n\
+      --1234--\r\n");
+    let expected = Request {
+      headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=1234".into() ] }),
+      body: OptionalBody::Present(expected_body, None, None),
+      ..Request::default()
+    };
+    let actual_body = Bytes::from("--4567\r\n\
+      Content-Type: text/plain\r\n\
+      content-transfer-encoding: BASE64\r\n\
+      Content-Disposition: form-data; name=\"name\"\r\n\r\nQmF4dGVy\r\n\
+      --4567--\r\n");
+    let actual = Request {
+      headers: Some(hashmap!{ "Content-Type".into() => vec![ "multipart/form-data; boundary=4567".into() ] }),
+      body: OptionalBody::Present(actual_body, None, None),
+      ..Request::default()
+    };
+    let context = CoreMatchingContext::with_config(DiffConfig::AllowUnexpectedKeys);
+
+    let result = match_mime_multipart(&expected, &actual, &context);
     expect!(result).to(be_ok());
   }
 }
