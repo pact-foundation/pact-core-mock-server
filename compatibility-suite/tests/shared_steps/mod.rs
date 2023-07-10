@@ -8,7 +8,7 @@ use bytes::Bytes;
 use cucumber::gherkin::Table;
 use cucumber::Parameter;
 use pact_models::bodies::OptionalBody;
-use pact_models::content_types::{ContentType, JSON, XML, TEXT};
+use pact_models::content_types::{ContentType, JSON, TEXT, XML};
 use pact_models::headers::parse_header;
 use pact_models::http_parts::HttpPart;
 use pact_models::matchingrules::matchers_from_json;
@@ -209,12 +209,23 @@ pub(crate) fn setup_body(body: &String, httppart: &mut dyn HttpPart) {
 fn element_text(root: Element, name: &str) -> Option<String> {
   root.children().iter()
     .filter_map(|n| n.element())
-    .find_map(|n| if n.name().local_part().to_string() == name {
-      Some(n.children().iter()
-        .filter_map(|child| child.text().map(|t| t.text().trim()))
-        .collect::<String>())
-    } else {
-      None
+    .find_map(|n| {
+      if n.name().local_part().to_string() == name {
+        let string = n.children().iter()
+          .filter_map(|child| child.text().map(|t| t.text().trim()))
+          .collect::<String>();
+        if let Some(line_endings) = n.attribute_value("eol") {
+          if line_endings == "CRLF" {
+            Some(string.replace('\n', "\r\n"))
+          } else {
+            Some(string)
+          }
+        } else {
+          Some(string)
+        }
+      } else {
+        None
+      }
     })
 }
 
