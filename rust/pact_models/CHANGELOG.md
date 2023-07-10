@@ -1,5 +1,11 @@
 To generate the log, run `git log --pretty='* %h - %s (%an, %ad)' TAGNAME..HEAD .` replacing TAGNAME and HEAD as appropriate.
 
+# 1.1.8 - Bugfix Release
+
+* 4b4e7105 - fix(pact_models): MatchingRule::from_json shoud support integration format (Ronald Holshausen, Mon Jul 10 13:56:13 2023 +1000)
+* a6049684 - refactor: Update MIME multipart parser to a supported lib + make implementation inline with Pact-JVM (Ronald Holshausen, Fri Jul 7 15:42:02 2023 +1000)
+* fa93d6c7 - bump version to 1.1.8 (Ronald Holshausen, Thu Jul 6 10:20:20 2023 +1000)
+
 # 1.1.7 - Bugfix Release
 
 * 7dd89384 - feat: Add application/x-www-form-urlencoded to the known content types (Ronald Holshausen, Wed Jul 5 16:58:21 2023 +1000)
