@@ -120,6 +120,7 @@ use pact_models::{Consumer, PactSpecification, Provider};
 use pact_models::bodies::OptionalBody;
 use pact_models::content_types::{ContentType, JSON, TEXT, XML};
 use pact_models::generators::{Generator, GeneratorCategory, Generators};
+use pact_models::headers::parse_header;
 use pact_models::http_parts::HttpPart;
 use pact_models::interaction::Interaction;
 use pact_models::json_utils::json_to_string;
@@ -1150,14 +1151,19 @@ pub extern fn pactffi_with_header_v2(
           )
         };
 
+        debug!("parsed header value: {:?}", value);
         let updated_headers = headers.map(|mut h| {
           let entry = h.entry(name.to_string()).or_default();
           match &value {
             Either::Left(value) => {
-              if index >= entry.len() {
-                entry.resize_with(index + 1, Default::default);
+              if index > 0 {
+                if index >= entry.len() {
+                  entry.resize_with(index + 1, Default::default);
+                }
+                entry[index] = value.clone();
+              } else {
+                entry.extend(parse_header(name, value));
               }
-              entry[index] = value.clone();
             }
             Either::Right(values) => {
               entry.extend_from_slice(values);
@@ -1166,7 +1172,11 @@ pub extern fn pactffi_with_header_v2(
           h
         }).or_else(|| {
           let values = match &value {
-            Either::Left(value) => vec![value.clone()],
+            Either::Left(value) => if index == 0 {
+              parse_header(name, value)
+            } else {
+              vec![value.clone()]
+            },
             Either::Right(values) => values.clone()
           };
           Some(hashmap! { name.to_string() => values })
@@ -2292,6 +2302,33 @@ mod tests {
         "$['x-id'][0]" => [ MatchingRule::Regex("\\d+".to_string()) ],
         "$['x-id'][1]" => [ MatchingRule::Regex("\\w+".to_string()) ]
       }
+    }));
+  }
+
+  // Issue #300
+  #[test_log::test]
+  fn header_with_multiple_values_as_a_string() {
+    let pact_handle = PactHandle::new("TestHC3", "TestHP");
+    let description = CString::new("header_with_multiple_values_as_a_string").unwrap();
+    let handle = pactffi_new_interaction(pact_handle, description.as_ptr());
+
+    let name = CString::new("accept").unwrap();
+    let value = CString::new("application/problem+json, application/json, text/plain, */*").unwrap();
+    pactffi_with_header_v2(handle, InteractionPart::Request, name.as_ptr(), 0, value.as_ptr());
+
+    let interaction = handle.with_interaction(&|_, _, inner| {
+      inner.as_v4_http().unwrap()
+    }).unwrap();
+
+    pactffi_free_pact_handle(pact_handle);
+
+    expect!(interaction.request.headers.clone()).to(be_some().value(hashmap!{
+      "accept".to_string() => vec![
+        "application/problem+json".to_string(),
+        "application/json".to_string(),
+        "text/plain".to_string(),
+        "*/*".to_string()
+      ]
     }));
   }
 
