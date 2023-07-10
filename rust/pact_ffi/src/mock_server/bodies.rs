@@ -472,6 +472,71 @@ mod test {
     expect!(generators).to(be_equal_to(Generators::default()));
   }
 
+  // Issue #299
+  // #[test_log::test]
+  // TODO: Uncomment when pact_models 1.1.8 released
+  fn process_object_with_each_value_matcher_on_object() {
+    let json = json!({
+      "pact:matcher:type": "each-value",
+      "value": {
+        "price": 1.23
+      },
+      "rules": [
+        {
+          "pact:matcher:type": "decimal"
+        }
+      ]
+    });
+    let mut matching_rules = MatchingRuleCategory::default();
+    let mut generators = Generators::default();
+    let result = process_object(json.as_object().unwrap(), &mut matching_rules,
+      &mut generators, DocPath::root(), false);
+
+    expect!(result).to(be_equal_to(json!({
+      "name": "APL",
+      "price": 1.23
+    })));
+    expect!(matching_rules).to(be_equal_to(matchingrules_list!{
+      "body";
+      "$" => [ MatchingRule::Type ],
+      "$.name" => [ MatchingRule::Type ],
+      "$.price" => [ MatchingRule::Decimal ]
+    }));
+    expect!(generators).to(be_equal_to(Generators::default()));
+  }
+
+  // Issue #299
+  // #[test_log::test]
+  // TODO: Uncomment when pact_models 1.1.8 released
+  fn process_object_with_each_key_matcher_on_object() {
+    let json = json!({
+      "pact:matcher:type": "each-key",
+      "value": {
+        "123": "cool book"
+      },
+      "rules": [
+        {
+          "pact:matcher:type": "regex",
+          "regex": "\\d+"
+        }
+      ]
+    });
+    let mut matching_rules = MatchingRuleCategory::default();
+    let mut generators = Generators::default();
+    let result = process_object(json.as_object().unwrap(), &mut matching_rules,
+      &mut generators, DocPath::root(), false);
+
+    expect!(result).to(be_equal_to(json!({
+      "123": "cool book"
+    })));
+    expect!(matching_rules).to(be_equal_to(matchingrules_list!{
+      "body";
+      "$" => [ MatchingRule::EachKey(MatchingRuleDefinition::new("{\"123\":\"cool book\"}".to_string(),
+        ValueType::Unknown, MatchingRule::Regex("\\d+".to_string()), None)) ]
+    }));
+    expect!(generators).to(be_equal_to(Generators::default()));
+  }
+
   #[test_log::test]
   #[allow(deprecated)]
   fn matcher_from_integration_json_test() {
@@ -520,10 +585,10 @@ mod test {
       .to(be_some().value(MatchingRule::Timestamp("yyyy-MM-dd".to_string())));
     expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "datetime" }).as_object().unwrap()))
       .to(be_none());
-    // expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "datetime", "format": "yyyy-MM-dd" }).as_object().unwrap()))
-    //   .to(be_some().value(MatchingRule::Timestamp("yyyy-MM-dd".to_string())));
-    // expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "datetime", "datetime": "yyyy-MM-dd" }).as_object().unwrap()))
-    //   .to(be_some().value(MatchingRule::Timestamp("yyyy-MM-dd".to_string())));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "datetime", "format": "yyyy-MM-dd" }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::Timestamp("yyyy-MM-dd".to_string())));
+    expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "datetime", "datetime": "yyyy-MM-dd" }).as_object().unwrap()))
+      .to(be_some().value(MatchingRule::Timestamp("yyyy-MM-dd".to_string())));
     expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "date" }).as_object().unwrap()))
       .to(be_none());
     expect!(matcher_from_integration_json(&json!({ "pact:matcher:type": "date", "format": "yyyy-MM-dd" }).as_object().unwrap()))
