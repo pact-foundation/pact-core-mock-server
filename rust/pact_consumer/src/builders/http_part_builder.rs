@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use pact_models::bodies::OptionalBody;
 use pact_models::expression_parser::DataType;
 use pact_models::generators::{Generator, GeneratorCategory, Generators};
+use pact_models::headers::parse_header;
 use pact_models::matchingrules::MatchingRules;
 use pact_models::path_exp::DocPath;
 
@@ -56,13 +57,16 @@ pub trait HttpPartBuilder {
     {
       let name = name.into();
       let value = value.into();
+      let example = parse_header(name.as_str(), value.to_example().as_str());
       {
         let (headers, rules) = self.headers_and_matching_rules_mut();
         let entry = headers.keys().cloned().find(|k| k.to_lowercase() == name.to_lowercase());
         if let Some(key) = entry {
-          headers.get_mut(&key).map(|val| val.push(value.to_example()));
+          headers.get_mut(&key).map(|val| {
+            val.extend(example);
+          });
         } else {
-          headers.insert(name.clone(), vec![value.to_example()]);
+          headers.insert(name.clone(), example);
         }
         let mut path = DocPath::root();
         path.push_field(name);
@@ -321,6 +325,26 @@ mod tests {
     let first_interaction = interactions.first().unwrap().as_request_response().unwrap();
     expect!(first_interaction.request.headers).to(be_some().value(hashmap!{
       "Content-Type".to_string() => vec![ "application/json".to_string(), "application/xml".to_string() ]
+    }));
+  }
+
+  #[test]
+  fn multi_value_header() {
+    let pattern = PactBuilder::new("C", "P")
+      .interaction("I", "", |mut i| {
+        i.request.header("accept", "application/problem+json, application/json, text/plain, */*");
+        i
+      })
+      .build();
+    let interactions = pattern.interactions();
+    let first_interaction = interactions.first().unwrap().as_request_response().unwrap();
+    expect!(first_interaction.request.headers).to(be_some().value(hashmap!{
+      "accept".to_string() => vec![
+        "application/problem+json".to_string(),
+        "application/json".to_string(),
+        "text/plain".to_string(),
+        "*/*".to_string()
+      ]
     }));
   }
 }
